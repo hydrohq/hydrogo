@@ -1,0 +1,37 @@
+# S03 UI Stack, CSP ve Medya Yükleme Doğrulaması
+
+**Tarih:** 2026-09-06  
+**Roadmap maddesi:** R1 / S03  
+**Durum:** Başarılı.
+
+## Doğrulanan Davranışlar
+
+1. **Templ ve View Slot Sözleşmesi:**
+   - `extension.Theme` sözleşmesi (`RenderPage`, `RenderHeader`, `RenderFooter`) tanımlandı.
+   - `examples/client-edition` içinde `DefaultTheme` ve `MinimalTheme` olmak üzere iki farklı tema uygulandı.
+   - Core paketlerine (`internal/`) hiçbir bağımlılık olmadan harici Go modülü olarak derlendi.
+
+2. **Zengin Metin & HTML Sanitizer:**
+   - `bluemonday` UGC politikası temel alınarak `HTMLSanitizer` oluşturuldu.
+   - `<script>`, `onload`, `onerror`, `javascript:` URI ve gömülü SVG/XSS saldırı vektörlerinin temizlendiği; güvenli HTML etiketlerinin korunduğu birim testleriyle (`internal/ui/sanitizer_test.go`) kanıtlandı.
+
+3. **Sıkı CSP & Dinamik Nonce:**
+   - Her istek için dinamik rastgele base64 nonce üretildi ve şablonların inline `<style nonce="...">` ve `<script nonce="...">` bloklarına güvenle aktarılması sağlandı.
+
+4. **Güvenli Medya Yükleme Deneyi:**
+   - `internal/media.Uploader` ile güvenli yükleme boru hattı kuruldu:
+     - İlk 512 byte üzerinden içerik koklama (`http.DetectContentType`) ile gerçek MIME tipi doğrulandı (JPEG, PNG, GIF, WebP, PDF).
+     - PHP/çalıştırılabilir dosyalar ve izin verilmeyen MIME türleri reddedildi.
+     - Standart Go `image.DecodeConfig` ile görsel bütünlüğü ve boyutları doğrulandı; bozuk görseller geçici dosya temizliğiyle reddedildi.
+     - Yol geçişi (`path traversal`) saldırıları engellendi; içerik tabanlı SHA-256 dosya adlandırması uygulandı.
+     - Maksimum dosya boyutu sınırları test edildi.
+
+## Çalıştırılan Komutlar
+
+```text
+go test -v ./internal/ui/...
+go test -v ./internal/media/...
+cd examples/client-edition && go build ./...
+go run ./tools/importguard -root examples/client-edition
+```
+Tüm adımlar hatasız geçti.

@@ -7,16 +7,21 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 const shutdownTimeout = 10 * time.Second
 
-// Serve starts the development HTTP skeleton. Only explicitly registered
-// operational routes are reachable; feature routes are added by modules later.
 type Config struct {
-	Address string
-	Ready   func(context.Context) error
+	Address      string
+	Ready        func(context.Context) error
+	AuthSvc      *auth.AuthService
+	Routes       []router.Route
+	Authorizer   router.Authorizer
+	EnableHSTS   bool
+	SecureCookie bool
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -27,7 +32,7 @@ func Serve(ctx context.Context, config Config) error {
 	defer listener.Close()
 
 	server := &http.Server{
-		Handler:           newHandler(config.Ready),
+		Handler:           NewHandler(config),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -57,29 +62,54 @@ func Serve(ctx context.Context, config Config) error {
 	}
 }
 
-func newHandler(ready func(context.Context) error) http.Handler {
+func NewHandler(config Config) http.Handler {
 	health := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
 	})
 	readiness := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		if ready != nil {
+		if config.Ready != nil {
 			checkCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 			defer cancel()
-			if err := ready(checkCtx); err != nil {
+			if err := config.Ready(checkCtx); err != nil {
 				http.Error(w, "not ready", http.StatusServiceUnavailable)
 				return
 			}
 		}
 		_, _ = w.Write([]byte("ready\n"))
 	})
-	handler, err := router.New([]router.Route{
+
+	routes := []router.Route{
 		{Pattern: "GET /healthz", Access: router.Public, Handler: health},
 		{Pattern: "GET /readyz", Access: router.Public, Handler: readiness},
-	}, nil)
+	}
+	routes = append(routes, config.Routes...)
+
+	authorizer := config.Authorizer
+	if authorizer == nil && config.AuthSvc != nil {
+		authorizer = auth.Authorizer()
+	}
+
+	routerHandler, err := router.New(routes, authorizer)
 	if err != nil {
 		panic(err)
 	}
+
+	var handler http.Handler = routerHandler
+
+	// Apply CSRF protection
+	handler = security.CSRFMiddleware(config.SecureCookie)(handler)
+
+	// Apply Auth session context injection
+	if config.AuthSvc != nil {
+		handler = auth.Middleware(config.AuthSvc)(handler)
+	}
+
+	// Apply Security Headers with CSP nonces
+	handler = security.HeadersMiddleware(security.HeaderConfig{
+		EnableHSTS: config.EnableHSTS,
+	})(handler)
+
 	return handler
 }

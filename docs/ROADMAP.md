@@ -1,6 +1,6 @@
 # HydroGo uygulama roadmap'i
 
-**Tarih:** 2026-09-05 · **Durum:** R0 tamamlandı; R1–R6 başlamadı.
+**Tarih:** 2026-09-06 · **Durum:** R0 ve R1 tamamlandı; R2 başlamadı.
 
 Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
 
@@ -18,12 +18,12 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 **Bağımlılık:** R0. **Sorumluluk:** Core/SDK, DB, UI, build.
 
 - [x] GitHub namespace'i `github.com/ardaozyildirim/hydrogo` üzerinden ilk `go.mod` oluştur; Go/toolchain sürümünü seç ve sabitle.
-- [ ] S01: dış Go module tüketici fixture'ı, izinli import sınırı ve seçilmeyen modülün build'e girmemesi.
+- [x] S01: dış Go module tüketici fixture'ı, izinli import sınırı ve seçilmeyen modülün build'e girmemesi.
 - [x] S02/S04: SQLite/PostgreSQL driver ve migration deneyi; tek transaction scope ile content/audit/outbox rollback.
-- [ ] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi.
-- [ ] Windows geliştirme/Linux amd64 build; backup ve image encoder araçlarının bulunabilirliği.
-- [ ] Tek `hydro` girişi, config doğrulama, health/readiness, graceful shutdown, default-deny router, bootstrap/session ve CSRF/audit temeli.
-- [ ] Go araçları seçildikten sonra CI format/vet/test/build ve iki DB servis matrisini ekle.
+- [x] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi.
+- [x] Windows geliştirme/Linux amd64 build; backup ve image encoder araçlarının bulunabilirliği.
+- [x] Tek `hydro` girişi, config doğrulama, health/readiness, graceful shutdown, default-deny router, bootstrap/session ve CSRF/audit temeli.
+- [x] Go araçları seçildikten sonra CI format/vet/test/build ve iki DB servis matrisini ekle.
 
 **Çıkış:** Temiz ortamda build ve giriş; iki DB rollback; dış tüketici build; CSP deneyi. Bağımlılık sürümleri ve alternatifler `docs/validation/` altında kayıtlı. SDK v0 kalır.
 

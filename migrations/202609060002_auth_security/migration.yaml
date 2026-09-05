@@ -1,0 +1,8 @@
+id: "202609060002_auth_security"
+description: "Create users and database-backed sessions with security indices"
+reversibility: "safe"
+dialects:
+  sqlite:
+    checksum: ""
+  postgres:
+    checksum: ""

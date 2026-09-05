@@ -10,6 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -42,6 +44,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return serve(args[1:], stderr)
 	case "migrate":
 		return migrate(args[1:], stderr)
+	case "create-admin":
+		return createAdmin(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -73,8 +77,14 @@ func serve(args []string, stderr io.Writer) error {
 		return err
 	}
 	defer db.Close()
+
+	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
+	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
+	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
+
 	return server.Serve(ctx, server.Config{
 		Address: cfg.HTTP.Address,
+		AuthSvc: authSvc,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
 				return err
@@ -106,6 +116,47 @@ func migrate(args []string, stderr io.Writer) error {
 	}
 	defer db.Close()
 	return database.ApplyMigrations(ctx, db, cfg.Database.Dialect, migrations.FS)
+}
+
+func createAdmin(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("create-admin", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	email := flags.String("email", "", "Admin email address")
+	password := flags.String("password", "", "Admin password")
+	values := addRuntimeFlags(flags)
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *email == "" || *password == "" {
+		return errors.New("--email and --password are required")
+	}
+
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	db, err := database.Open(ctx, cfg.Database.Dialect, cfg.Database.DSN)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
+	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
+	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
+
+	u, err := authSvc.CreateUser(ctx, *email, *password, auth.RoleAdmin)
+	if err != nil {
+		return fmt.Errorf("failed to create admin: %w", err)
+	}
+
+	fmt.Fprintf(stdout, "Created admin user: %s (id: %s)\n", u.Email, u.ID)
+	return nil
 }
 
 type runtimeFlags struct {
@@ -146,6 +197,7 @@ func printUsage(w io.Writer) {
 Usage:
   hydro version
   hydro migrate [runtime flags]
+  hydro create-admin --email EMAIL --password PASSWORD [runtime flags]
   hydro serve [runtime flags]
   hydro help
 

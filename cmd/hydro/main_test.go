@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -24,5 +25,35 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "Usage:") {
 		t.Fatalf("usage missing from stderr: %q", stderr.String())
+	}
+}
+
+func TestRunMigrateAndCreateAdmin(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	var stdout, stderr bytes.Buffer
+
+	// 1. Run migrate
+	err := run([]string{"migrate", "--database-dialect", "sqlite", "--database-dsn", dbPath}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("migrate failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	// 2. Run create-admin
+	stdout.Reset()
+	stderr.Reset()
+	err = run([]string{
+		"create-admin",
+		"--email", "admin@example.com",
+		"--password", "StrongPassword123!",
+		"--database-dialect", "sqlite",
+		"--database-dsn", dbPath,
+	}, &stdout, &stderr)
+
+	if err != nil {
+		t.Fatalf("create-admin failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "Created admin user: admin@example.com") {
+		t.Fatalf("unexpected create-admin output: %s", stdout.String())
 	}
 }
