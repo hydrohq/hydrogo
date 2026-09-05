@@ -11,7 +11,7 @@ import (
 
 const migrationID = "202609060001_transaction_contract"
 
-func ApplyExperimentMigration(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
 	path := fmt.Sprintf("%s/%s.sql", migrationID, dialect)
 	content, err := fs.ReadFile(migrationFS, path)
 	if err != nil {
@@ -48,6 +48,25 @@ func ApplyExperimentMigration(ctx context.Context, db *sql.DB, dialect Dialect, 
 		)
 		return err
 	})
+}
+
+func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+	path := fmt.Sprintf("%s/%s.sql", migrationID, dialect)
+	content, err := fs.ReadFile(migrationFS, path)
+	if err != nil {
+		return err
+	}
+	digest := sha256.Sum256(content)
+	want := hex.EncodeToString(digest[:])
+
+	var got string
+	if err := db.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE id = "+placeholder(dialect, 1), migrationID).Scan(&got); err != nil {
+		return fmt.Errorf("schema is not ready: %w", err)
+	}
+	if got != want {
+		return fmt.Errorf("migration %s checksum mismatch", migrationID)
+	}
+	return nil
 }
 
 func placeholder(dialect Dialect, position int) string {

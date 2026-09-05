@@ -55,6 +55,11 @@ func Open(ctx context.Context, dialect Dialect, dsn string) (*sql.DB, error) {
 	switch dialect {
 	case SQLite:
 		driver = "sqlite"
+		var err error
+		dsn, err = normalizeSQLiteDSN(dsn)
+		if err != nil {
+			return nil, err
+		}
 	case Postgres:
 		driver = "pgx"
 	default:
@@ -67,6 +72,10 @@ func Open(ctx context.Context, dialect Dialect, dsn string) (*sql.DB, error) {
 	}
 	if dialect == SQLite {
 		db.SetMaxOpenConns(1)
+		db.SetMaxIdleConns(1)
+	} else {
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(5)
 	}
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
@@ -88,4 +97,21 @@ func SQLiteDSN(path string) string {
 	query.Set("_synchronous", "NORMAL")
 	u.RawQuery = query.Encode()
 	return u.String()
+}
+
+func normalizeSQLiteDSN(dsn string) (string, error) {
+	if !strings.HasPrefix(dsn, "file:") {
+		return SQLiteDSN(dsn), nil
+	}
+	u, err := url.Parse(dsn)
+	if err != nil {
+		return "", fmt.Errorf("parse SQLite DSN: %w", err)
+	}
+	query := u.Query()
+	query.Set("_busy_timeout", "5000")
+	query.Set("_foreign_keys", "on")
+	query.Set("_journal_mode", "WAL")
+	query.Set("_synchronous", "NORMAL")
+	u.RawQuery = query.Encode()
+	return u.String(), nil
 }

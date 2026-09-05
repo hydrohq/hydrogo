@@ -19,7 +19,7 @@ import (
 )
 
 func TestSQLiteTransactionContract(t *testing.T) {
-	dsn := database.SQLiteDSN(filepath.Join(t.TempDir(), "contract.sqlite"))
+	dsn := filepath.Join(t.TempDir(), "contract.sqlite")
 	runTransactionContract(t, database.SQLite, dsn)
 }
 
@@ -40,8 +40,11 @@ func runTransactionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	}
 	t.Cleanup(func() { db.Close() })
 
-	if err := database.ApplyExperimentMigration(ctx, db, dialect, migrations.FS); err != nil {
+	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatalf("migrate %s: %v", dialect, err)
+	}
+	if err := database.CheckCompatibility(ctx, db, dialect, migrations.FS); err != nil {
+		t.Fatalf("schema compatibility %s: %v", dialect, err)
 	}
 	if dialect == database.SQLite {
 		assertSQLitePragmas(t, db)
@@ -72,13 +75,13 @@ func runTransactionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	assertCount(t, db, "outbox_events", 1)
 	assertOptimisticLock(t, ctx, database.NewTransactor(db), pageStore)
 
-	if err := database.ApplyExperimentMigration(ctx, db, dialect, migrations.FS); err != nil {
+	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatalf("idempotent migration: %v", err)
 	}
 	tampered := fstest.MapFS{
 		"202609060001_transaction_contract/" + string(dialect) + ".sql": &fstest.MapFile{Data: []byte("SELECT 1;")},
 	}
-	if err := database.ApplyExperimentMigration(ctx, db, dialect, tampered); err == nil {
+	if err := database.ApplyMigrations(ctx, db, dialect, tampered); err == nil {
 		t.Fatal("tampered published migration checksum was accepted")
 	}
 }

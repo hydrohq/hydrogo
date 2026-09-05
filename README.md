@@ -29,3 +29,16 @@ Müşteri başına ayrı deployment ile çalışan, Core fork gerektirmeyen mod�
 Boş dizinlerdeki `.gitkeep` dosyaları yalnız Git yer tutucusudur. İç paketler ihtiyaç oluşunca ayrılır. Go module yolu `github.com/ardaozyildirim/hydrogo` olarak ayrılmıştır; `go.mod` ve toolchain R1 deneyinde oluşturulur. Windows geliştirme ve Linux amd64 release ilk hedeflerdir.
 
 Kaynak kodun müşteri teslimi ve yeniden dağıtım lisansı henüz seçilmedi; açık kaynak lisansı verilmiş sayılmaz.
+
+## Geliştirme iskeletini çalıştırma
+
+Go 1.27.0 ile:
+
+```powershell
+go build -o bin/hydro.exe ./cmd/hydro
+$env:HYDRO_DATABASE_DSN = "hydro.sqlite"
+./bin/hydro.exe migrate
+./bin/hydro.exe serve
+```
+
+Ardından `/healthz` proses sağlığını, `/readyz` DB bağlantısı ve migration checksum uygunluğunu gösterir. Mevcut migration Pages transaction deneyi içindir; henüz üretim şeması veya satılabilir CMS değildir. PostgreSQL için `HYDRO_DATABASE_DIALECT=postgres` ve izole bir `HYDRO_DATABASE_DSN` kullanılır.
