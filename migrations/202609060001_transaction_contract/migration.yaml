@@ -1,0 +1,25 @@
+id: "202609060001_transaction_contract"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "online"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "6a5e1842e505d74c59c7532c819c687d5f1ad84c00dd704c452a372f201d31c1"
+  postgres: "6a5e1842e505d74c59c7532c819c687d5f1ad84c00dd704c452a372f201d31c1"
+dependencies: []
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Disposable empty S02/S04 experiment database"
+lock_timeout: "Not certified; measured by the experiment runner deadline"
+disk_estimate: "Three empty contract tables plus migration ledger"
+compatibility: "First schema epoch; no previous binary compatibility claim"
+smoke:
+  - "Migration ledger checksum is stable and repeated application is a no-op"
+  - "pages, audit_events and outbox_events participate in one transaction"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "Drop only in disposable experiment databases; no production down migration."
