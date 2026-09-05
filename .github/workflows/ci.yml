@@ -21,3 +21,16 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: go build ./cmd/hydro
+      - name: Enforce Client Edition import boundary
+        run: go run ./tools/importguard -root examples/client-edition
+      - name: Build external Client Edition
+        working-directory: examples/client-edition
+        run: go build ./...
+      - name: Prove Go internal boundary
+        working-directory: tests/fixtures/internal-import-denied
+        run: |
+          if go build ./... 2> build.err; then
+            echo "forbidden internal import unexpectedly compiled"
+            exit 1
+          fi
+          grep -q "use of internal package .* not allowed" build.err

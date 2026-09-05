@@ -26,6 +26,7 @@ config.env.*
 /tmp/
 /coverage/
 *.test
+*.exe
 coverage.out
 go.work
 go.work.sum
