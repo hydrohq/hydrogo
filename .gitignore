@@ -1,0 +1,35 @@
+# Local secrets and runtime data
+.env
+.env.*
+!.env.example
+config.env
+config.env.*
+!config.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+/data/
+/backups/
+/uploads/
+/logs/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+
+# Build and local tooling
+/bin/
+/dist/
+/tmp/
+/coverage/
+*.test
+coverage.out
+go.work
+go.work.sum
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
