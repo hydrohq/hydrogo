@@ -2,13 +2,13 @@
 
 **Tarih:** 2026-09-06  
 **Roadmap maddesi:** R1 Çalışma Zamanı Güvenlik Temeli  
-**Durum:** Başarılı; SQLite ve PostgreSQL sözleşmeleri doğrulandı.
+**Durum:** Düzeltme turunda; yerel testler başarılı, CI ve auth akışının tamamı henüz kapanmadı.
 
 ## Doğrulanan Davranışlar
 
 1. **Argon2id Parola Hashing:**
    - OWASP uyumlu parametrelerle (`memory=64MB`, `iterations=1`, `parallelism=4`, `saltLength=16`, `keyLength=32`) parola hashing ve sabit zamanlı (`subtle.ConstantTimeCompare`) doğrulama uygulandı.
-   - Zamanlama saldırılarına karşı geçersiz kullanıcı sorgularında sahte doğrulama işletilir.
+    - Zamanlama saldırılarına karşı geçersiz kullanıcı sorgularında gerçek kullanıcı hash'iyle aynı maliyetli sahte doğrulama işletilir.
 
 2. **Opaque DB-Backed Session Yönetimi:**
    - 32 byte kriptografik rastgele token üretimi (`crypto/rand`).
@@ -26,7 +26,7 @@
    - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` başlıkları zorunlu kılındı.
 
 5. **CLI Bootstrap:**
-   - `hydro create-admin --email ... --password ...` komutu ile ilk yönetici hesabı oluşturma CLI seviyesinde doğrulandı.
+    - `hydro create-admin --email ... --password-stdin` komutu ile ilk yönetici hesabı oluşturma CLI seviyesinde doğrulandı; parola komut satırına yazılmaz.
 
 ## Çalıştırılan Komutlar ve Test Çıktısı
 

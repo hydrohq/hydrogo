@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/ardaozyildirim/hydrogo/extension"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
@@ -34,7 +35,13 @@ func (r *Registry) Register(m extension.Module) error {
 
 func (r *Registry) Routes() []router.Route {
 	var routes []router.Route
-	for _, m := range r.modules {
+	names := make([]string, 0, len(r.modules))
+	for name := range r.modules {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		m := r.modules[name]
 		for _, mr := range m.Routes() {
 			access := router.Protected
 			if mr.Public {

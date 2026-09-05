@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"io"
 
 	"github.com/a-h/templ"
@@ -17,14 +18,14 @@ func (t DefaultTheme) Name() string {
 
 func (t DefaultTheme) RenderHeader(ctx context.Context, data extension.HeaderData) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		_, err := fmt.Fprintf(w, `<header class="theme-default-header"><nav><h1>%s</h1></nav></header>`, data.SiteName)
+		_, err := fmt.Fprintf(w, `<header class="theme-default-header"><nav><h1>%s</h1></nav></header>`, template.HTMLEscapeString(data.SiteName))
 		return err
 	})
 }
 
 func (t DefaultTheme) RenderFooter(ctx context.Context, data extension.FooterData) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		_, err := fmt.Fprintf(w, `<footer class="theme-default-footer"><p>%s</p></footer>`, data.Copyright)
+		_, err := fmt.Fprintf(w, `<footer class="theme-default-footer"><p>%s</p></footer>`, template.HTMLEscapeString(data.Copyright))
 		return err
 	})
 }
@@ -47,7 +48,7 @@ func (t DefaultTheme) RenderPage(ctx context.Context, data extension.PageViewDat
         <div class="content-body">%s</div>
     </div>
 </body>
-</html>`, data.Locale, data.Title, data.Nonce, data.Title, data.HTMLContent)
+</html>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.Nonce), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.HTMLContent))
 		return err
 	})
 }

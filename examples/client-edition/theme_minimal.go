@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"io"
 
 	"github.com/a-h/templ"
@@ -46,7 +47,7 @@ func (t MinimalTheme) RenderPage(ctx context.Context, data extension.PageViewDat
         <div>%s</div>
     </article>
 </body>
-</html>`, data.Locale, data.Title, data.Nonce, data.Title, data.HTMLContent)
+</html>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.Nonce), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.HTMLContent))
 		return err
 	})
 }

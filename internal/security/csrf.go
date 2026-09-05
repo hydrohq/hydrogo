@@ -60,7 +60,7 @@ func CSRFMiddleware(secure bool) func(http.Handler) http.Handler {
 
 			// Safe methods do not require CSRF validation
 			switch r.Method {
-			case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+			case http.MethodGet, http.MethodHead, http.MethodOptions:
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}

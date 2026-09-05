@@ -31,13 +31,17 @@ type AuthService struct {
 	userRepo    UserRepository
 	sessionRepo SessionRepository
 	argonParams Argon2Params
+	dummyHash   string
 }
 
 func NewAuthService(users UserRepository, sessions SessionRepository, params Argon2Params) *AuthService {
+	// Keep the unknown-user verification at the same Argon2 cost as real users.
+	dummyHash, _ := HashPassword("hydrogo-dummy-password", params)
 	return &AuthService{
 		userRepo:    users,
 		sessionRepo: sessions,
 		argonParams: params,
+		dummyHash:   dummyHash,
 	}
 }
 
@@ -81,7 +85,7 @@ func (s *AuthService) Authenticate(ctx context.Context, email, password string) 
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			// Fake verify to mitigate timing attacks
-			_, _ = VerifyPassword(password, "$argon2id$v=19$m=1024,t=1,p=1$c2FsdHNhbHQ$aGFzaGhhc2hoYXNoaGFzaA")
+			_, _ = VerifyPassword(password, s.dummyHash)
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err

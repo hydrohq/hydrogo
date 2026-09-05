@@ -9,7 +9,7 @@ import (
 
 func TestRunVersion(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	if err := run([]string{"version"}, &stdout, &stderr); err != nil {
+	if err := run([]string{"version"}, strings.NewReader(""), &stdout, &stderr); err != nil {
 		t.Fatalf("run version: %v", err)
 	}
 	if got := stdout.String(); got != version+"\n" {
@@ -19,7 +19,7 @@ func TestRunVersion(t *testing.T) {
 
 func TestRunRejectsUnknownCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	err := run([]string{"unknown"}, &stdout, &stderr)
+	err := run([]string{"unknown"}, strings.NewReader(""), &stdout, &stderr)
 	if err == nil {
 		t.Fatal("run unknown command succeeded")
 	}
@@ -33,7 +33,7 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
 	// 1. Run migrate
-	err := run([]string{"migrate", "--database-dialect", "sqlite", "--database-dsn", dbPath}, &stdout, &stderr)
+	err := run([]string{"migrate", "--database-dialect", "sqlite", "--database-dsn", dbPath}, strings.NewReader(""), &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("migrate failed: %v, stderr: %s", err, stderr.String())
 	}
@@ -44,10 +44,10 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	err = run([]string{
 		"create-admin",
 		"--email", "admin@example.com",
-		"--password", "StrongPassword123!",
+		"--password-stdin",
 		"--database-dialect", "sqlite",
 		"--database-dsn", dbPath,
-	}, &stdout, &stderr)
+	}, strings.NewReader("StrongPassword123!\n"), &stdout, &stderr)
 
 	if err != nil {
 		t.Fatalf("create-admin failed: %v, stderr: %s", err, stderr.String())

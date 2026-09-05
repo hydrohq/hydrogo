@@ -1,8 +1,26 @@
 id: "202609060002_auth_security"
-description: "Create users and database-backed sessions with security indices"
-reversibility: "safe"
-dialects:
-  sqlite:
-    checksum: ""
-  postgres:
-    checksum: ""
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "0f2df44e85b7e3ec98b101148c3b11d32ad3e798d03980b4744e39b8771bbd6c"
+  postgres: "5abe3f71b5596be9d7ac58da91b0e6c04111d568625348fd24e4f4476bc4823c"
+dependencies:
+  - "202609060001_transaction_contract"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Migration ledger is present and the database is in schema epoch 1"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Users, sessions and security indices"
+compatibility: "Adds auth tables; existing binaries do not read them"
+smoke:
+  - "Migration ledger checksum is stable and repeated application is a no-op"
+  - "User and session contract tests pass on the selected dialect"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

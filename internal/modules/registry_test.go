@@ -14,7 +14,7 @@ type dummyModule struct {
 	routes []extension.ModuleRoute
 }
 
-func (d dummyModule) Name() string { return d.name }
+func (d dummyModule) Name() string                    { return d.name }
 func (d dummyModule) Routes() []extension.ModuleRoute { return d.routes }
 
 func TestZeroOverheadWhenNoModulesRegistered(t *testing.T) {

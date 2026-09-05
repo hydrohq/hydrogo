@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-09-06  
 **Roadmap maddesi:** R1 / S03  
-**Durum:** Başarılı.
+**Durum:** Düzeltme turunda; theme örnekleri escape ediliyor, CI ve gerçek Quill/HTMX akışı henüz kapanmadı.
 
 ## Doğrulanan Davranışlar
 
@@ -20,7 +20,7 @@
 
 4. **Güvenli Medya Yükleme Deneyi:**
    - `internal/media.Uploader` ile güvenli yükleme boru hattı kuruldu:
-     - İlk 512 byte üzerinden içerik koklama (`http.DetectContentType`) ile gerçek MIME tipi doğrulandı (JPEG, PNG, GIF, WebP, PDF).
+      - İlk 512 byte üzerinden içerik koklama (`http.DetectContentType`) ile gerçek MIME tipi doğrulandı (JPEG, PNG, WebP).
      - PHP/çalıştırılabilir dosyalar ve izin verilmeyen MIME türleri reddedildi.
      - Standart Go `image.DecodeConfig` ile görsel bütünlüğü ve boyutları doğrulandı; bozuk görseller geçici dosya temizliğiyle reddedildi.
      - Yol geçişi (`path traversal`) saldırıları engellendi; içerik tabanlı SHA-256 dosya adlandırması uygulandı.

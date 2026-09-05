@@ -16,14 +16,14 @@ var (
 )
 
 type Session struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
-	TokenHash string    `json:"-"`
-	ExpiresAt time.Time `json:"expires_at"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"user_id"`
+	TokenHash  string    `json:"-"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	CreatedAt  time.Time `json:"created_at"`
 	LastSeenAt time.Time `json:"last_seen_at"`
-	UserAgent string    `json:"user_agent"`
-	IPAddress string    `json:"ip_address"`
+	UserAgent  string    `json:"user_agent"`
+	IPAddress  string    `json:"ip_address"`
 }
 
 func GenerateSessionToken() (rawToken string, tokenHash string, err error) {

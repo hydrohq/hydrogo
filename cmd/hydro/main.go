@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -21,13 +23,13 @@ import (
 const version = "0.0.0-dev"
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	if err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "hydro:", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string, stdout, stderr io.Writer) error {
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		printUsage(stderr)
 		return errors.New("a command is required")
@@ -45,7 +47,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	case "migrate":
 		return migrate(args[1:], stderr)
 	case "create-admin":
-		return createAdmin(args[1:], stdout, stderr)
+		return createAdmin(args[1:], stdin, stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -118,18 +120,25 @@ func migrate(args []string, stderr io.Writer) error {
 	return database.ApplyMigrations(ctx, db, cfg.Database.Dialect, migrations.FS)
 }
 
-func createAdmin(args []string, stdout, stderr io.Writer) error {
+func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("create-admin", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	email := flags.String("email", "", "Admin email address")
-	password := flags.String("password", "", "Admin password")
+	passwordStdin := flags.Bool("password-stdin", false, "Read admin password from stdin")
 	values := addRuntimeFlags(flags)
 
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if *email == "" || *password == "" {
-		return errors.New("--email and --password are required")
+	if *email == "" || !*passwordStdin {
+		return errors.New("--email and --password-stdin are required")
+	}
+	password, err := readPassword(stdin)
+	if err != nil {
+		return fmt.Errorf("failed to read admin password: %w", err)
+	}
+	if password == "" {
+		return errors.New("admin password cannot be empty")
 	}
 
 	cfg, err := loadRuntimeConfig(flags, values)
@@ -150,13 +159,21 @@ func createAdmin(args []string, stdout, stderr io.Writer) error {
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
 
-	u, err := authSvc.CreateUser(ctx, *email, *password, auth.RoleAdmin)
+	u, err := authSvc.CreateUser(ctx, *email, password, auth.RoleAdmin)
 	if err != nil {
 		return fmt.Errorf("failed to create admin: %w", err)
 	}
 
 	fmt.Fprintf(stdout, "Created admin user: %s (id: %s)\n", u.Email, u.ID)
 	return nil
+}
+
+func readPassword(stdin io.Reader) (string, error) {
+	line, err := bufio.NewReader(stdin).ReadString('\n')
+	if err != nil && len(line) == 0 {
+		return "", err
+	}
+	return strings.TrimRight(line, "\r\n"), nil
 }
 
 type runtimeFlags struct {
@@ -197,7 +214,7 @@ func printUsage(w io.Writer) {
 Usage:
   hydro version
   hydro migrate [runtime flags]
-  hydro create-admin --email EMAIL --password PASSWORD [runtime flags]
+  hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro serve [runtime flags]
   hydro help
 

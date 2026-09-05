@@ -22,14 +22,13 @@ var (
 	ErrFileTooLarge       = errors.New("file exceeds maximum allowed size")
 	ErrDisallowedMimeType = errors.New("disallowed file mime type")
 	ErrInvalidImageData   = errors.New("corrupt or invalid image payload")
+	ErrImageTooLarge      = errors.New("image dimensions exceed maximum allowed pixels")
 )
 
 var AllowedMimeTypes = map[string]string{
-	"image/jpeg":      ".jpg",
-	"image/png":       ".png",
-	"image/gif":       ".gif",
-	"image/webp":      ".webp",
-	"application/pdf": ".pdf",
+	"image/jpeg": ".jpg",
+	"image/png":  ".png",
+	"image/webp": ".webp",
 }
 
 type UploadResult struct {
@@ -45,6 +44,7 @@ type UploadResult struct {
 type Uploader struct {
 	StorageDir string
 	MaxBytes   int64
+	MaxPixels  int64
 }
 
 func NewUploader(storageDir string, maxBytes int64) (*Uploader, error) {
@@ -57,6 +57,7 @@ func NewUploader(storageDir string, maxBytes int64) (*Uploader, error) {
 	return &Uploader{
 		StorageDir: storageDir,
 		MaxBytes:   maxBytes,
+		MaxPixels:  40_000_000,
 	}, nil
 }
 
@@ -124,6 +125,9 @@ func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, er
 		}
 		width = imgConfig.Width
 		height = imgConfig.Height
+		if int64(width) > u.MaxPixels/int64(height) {
+			return nil, ErrImageTooLarge
+		}
 	}
 
 	tempFile.Close()

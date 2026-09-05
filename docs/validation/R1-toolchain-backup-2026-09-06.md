@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-09-06  
 **Roadmap maddesi:** R1 Toolchain ve Taşınabilirlik  
-**Durum:** Başarılı.
+**Durum:** Kısmi; çapraz derleme ve encoder seçimi doğrulandı, gerçek backup/restore çalıştırması ayrıca gerekiyor.
 
 ## Doğrulanan Davranışlar
 
