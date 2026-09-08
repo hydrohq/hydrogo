@@ -56,7 +56,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 - [ ] S07: DB+medya restore, session iptali, job/egress karantinası ve eski deployment'ın yazamaması. (Compact SQLite staging restore + kontrol marker'ı hazır; PostgreSQL, gerçek session/job karantinası ve eski deployment testi açık.) Her iki DB restore deneyi kaydedilsin; satılan profil ayrıca sertifikalansın.
 - [ ] ADR-0014 için dış silme günlüğü adapter'ı/checkpoint prototipi; backup sonrası silme, crash, eksik günlük ve retention testleri.
 - [ ] Kaynak limitleri, `max_stale`, session süreleri, RPO/RTO, retention ve rollback penceresini ölç ve sabitle.
-- [ ] Runbook, alarmlar, dış yedek/key kurtarma; müşteri teslim/lisans/destek koşullarını satış öncesi karara bağla.
+- [ ] Runbook, alarmlar, dış yedek/key kurtarma; müşteri teslim/lisans/destek koşullarını satış öncesi karara bağla. (İlk operasyon runbook'u [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md) eklendi; gerçek temiz ortam tatbikatı, alarmlar ve dış key/yedek kanıtı açık.)
 
 **Çıkış:** Bir gerçek müşteri işi, güvenlik/restore ve ölçülmüş Compact kapasite kanıtı. Her runbook temiz ortamda uygulanmış. SDK hâlâ v0; Distributed satış kapsamı değil.
 
