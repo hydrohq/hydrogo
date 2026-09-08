@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -9,11 +10,109 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type PostgresTools struct {
 	DumpBinary    string
 	RestoreBinary string
+}
+
+// SnapshotPostgres creates a custom-format database dump and copies immutable
+// media into the same manifest root. The destination must not already exist.
+func SnapshotPostgres(ctx context.Context, tools PostgresTools, dsn, mediaDir, destination string) (Manifest, error) {
+	if strings.TrimSpace(destination) == "" || strings.TrimSpace(mediaDir) == "" {
+		return Manifest{}, errors.New("media directory and destination are required")
+	}
+	mediaDir, err := filepath.Abs(mediaDir)
+	if err != nil {
+		return Manifest{}, err
+	}
+	destination, err = filepath.Abs(destination)
+	if err != nil {
+		return Manifest{}, err
+	}
+	if _, err := os.Stat(destination); err == nil {
+		return Manifest{}, fmt.Errorf("destination already exists: %s", destination)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return Manifest{}, err
+	}
+	if err := os.MkdirAll(destination, 0o750); err != nil {
+		return Manifest{}, err
+	}
+	cleanup := func() { _ = os.RemoveAll(destination) }
+	databasePath := filepath.Join(destination, "database")
+	if err := tools.Dump(ctx, dsn, databasePath); err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
+	databaseDigest, err := digestFile(databasePath, "database")
+	if err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
+	media, err := digestTree(mediaDir)
+	if err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
+	for _, file := range media {
+		target := filepath.Join(destination, filepath.FromSlash(file.Path))
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+			cleanup()
+			return Manifest{}, err
+		}
+		if err := copyFile(filepath.Join(mediaDir, filepath.FromSlash(strings.TrimPrefix(file.Path, "media/"))), target); err != nil {
+			cleanup()
+			return Manifest{}, err
+		}
+	}
+	return Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: databaseDigest, Media: media}, nil
+}
+
+// RestorePostgresToStaging restores a dump into an already-created empty
+// PostgreSQL database and copies manifest-verified media into a new inactive
+// staging root. Activation remains the caller's responsibility after applying
+// restore controls and running smoke checks.
+func RestorePostgresToStaging(ctx context.Context, tools PostgresTools, dsn, source, destination string, manifest Manifest, controls RestoreControls) error {
+	if !controls.SessionsRevoked || !controls.EgressQuarantined || !controls.OldWritesBlocked {
+		return errors.New("restore controls are incomplete")
+	}
+	source, err := filepath.Abs(source)
+	if err != nil {
+		return err
+	}
+	destination, err = filepath.Abs(destination)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(destination); err == nil {
+		return fmt.Errorf("restore destination already exists: %s", destination)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := Verify(source, manifest); err != nil {
+		return fmt.Errorf("verify restore source: %w", err)
+	}
+	if err := copyTree(source, destination); err != nil {
+		_ = os.RemoveAll(destination)
+		return err
+	}
+	if err := tools.Restore(ctx, dsn, filepath.Join(source, manifest.Database.Path)); err != nil {
+		_ = os.RemoveAll(destination)
+		return err
+	}
+	marker := RestoreMarker{ManifestVersion: manifest.Version, VerifiedAt: time.Now().UTC(), Controls: controls}
+	data, err := json.MarshalIndent(marker, "", "  ")
+	if err != nil {
+		_ = os.RemoveAll(destination)
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o640); err != nil {
+		_ = os.RemoveAll(destination)
+		return err
+	}
+	return nil
 }
 
 func LocatePostgresTools() (PostgresTools, error) {
