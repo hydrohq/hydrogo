@@ -89,7 +89,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 
 **Bağımlılık:** İlgili v1 sözleşmeleri ve doğrulanmış müşteri ihtiyacı.
 
-- [ ] S05-D: çoklu web/worker, L2 kaybı, fan-out/reconnect, generation uzlaştırması ve bounded fallback.
+- [ ] S05-D: çoklu web/worker, L2 kaybı, fan-out/reconnect, generation uzlaştırması ve bounded fallback. (Bounded process-local invalidation fan-out, slow subscriber resync sinyali ve monotonic generation contract'ı hazır; gerçek çoklu-instance/L2 provider ve partition tatbikatı açık.)
 - [ ] S3 uyumlu medya/CDN, online büyük yedek ve GC pin yarışları; Distributed yük/arıza sertifikasyonu.
 - [ ] Talep varsa yeni DB adapter'ı, gelişmiş arama, OIDC/SAML veya özel mobil API; her biri ayrı karar ve test kapısıyla.
 - [ ] Commerce, AI ve multi-tenant ayrı kapsam/ADR ile değerlendirilir.
