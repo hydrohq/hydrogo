@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -22,7 +23,33 @@ func TestSQLiteDurableJobLeaseContract(t *testing.T) {
 	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
-	store := Store{Dialect: database.SQLite, MaxEntries: 2}
+	runDurableJobLeaseContract(t, db, database.SQLite)
+}
+
+func TestPostgresDurableJobLeaseContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.Postgres, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "DELETE FROM jobs"); err != nil {
+		t.Fatal(err)
+	}
+	runDurableJobLeaseContract(t, db, database.Postgres)
+}
+
+func runDurableJobLeaseContract(t *testing.T, db database.Executor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	store := Store{Dialect: dialect, MaxEntries: 2}
 	now := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
 	job := jobs.Job{ID: "job-1", Type: "news.publish", Payload: "{}", AvailableAt: now, CreatedAt: now}
 	if err := store.Enqueue(ctx, db, job); err != nil {
