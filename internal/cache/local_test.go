@@ -107,3 +107,41 @@ func TestGetOrLoadDoesNotRefillAfterClear(t *testing.T) {
 		t.Fatalf("fresh load = %q/%v, calls=%d", value, err, loads)
 	}
 }
+
+func TestGetOrLoadRevalidatesAfterClearWhileOldLoadIsInFlight(t *testing.T) {
+	c := New[string](2, time.Minute)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	oldResult := make(chan string, 1)
+	go func() {
+		value, err := c.GetOrLoad("route", func() (string, error) {
+			close(started)
+			<-release
+			return "old", nil
+		})
+		if err != nil {
+			t.Errorf("old load error: %v", err)
+		}
+		oldResult <- value
+	}()
+	<-started
+	c.Clear()
+	freshResult := make(chan string, 1)
+	go func() {
+		value, err := c.GetOrLoad("route", func() (string, error) { return "fresh", nil })
+		if err != nil {
+			t.Errorf("fresh load error: %v", err)
+		}
+		freshResult <- value
+	}()
+	if got := <-freshResult; got != "fresh" {
+		t.Fatalf("fresh result = %q", got)
+	}
+	close(release)
+	if got := <-oldResult; got != "old" {
+		t.Fatalf("old result = %q", got)
+	}
+	if got, ok := c.Get("route"); !ok || got != "fresh" {
+		t.Fatalf("cached revalidated value = %q/%v", got, ok)
+	}
+}

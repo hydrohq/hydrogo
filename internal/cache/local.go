@@ -12,9 +12,10 @@ type item[T any] struct {
 }
 
 type loadCall[T any] struct {
-	done  chan struct{}
-	value T
-	err   error
+	done       chan struct{}
+	value      T
+	err        error
+	generation uint64
 }
 
 // Cache is a bounded, process-local cache. It never grows beyond maxEntries.
@@ -51,12 +52,12 @@ func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
 		return entry.value, nil
 	}
 	delete(c.entries, key)
-	if call, ok := c.loads[key]; ok {
+	if call, ok := c.loads[key]; ok && call.generation == c.generation {
 		c.mu.Unlock()
 		<-call.done
 		return call.value, call.err
 	}
-	call := &loadCall[T]{done: make(chan struct{})}
+	call := &loadCall[T]{done: make(chan struct{}), generation: c.generation}
 	c.loads[key] = call
 	generation := c.generation
 	c.mu.Unlock()
@@ -67,7 +68,9 @@ func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
 	if err == nil && c.generation == generation {
 		c.setLocked(key, value)
 	}
-	delete(c.loads, key)
+	if current, ok := c.loads[key]; ok && current == call {
+		delete(c.loads, key)
+	}
 	close(call.done)
 	c.mu.Unlock()
 	return value, err
