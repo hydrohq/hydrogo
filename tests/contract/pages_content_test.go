@@ -56,6 +56,9 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 	if err := content.UpdateDraft(ctx, pages.Page{ID: page.ID, Locale: page.Locale, Slug: "hakkimizda", Title: "Hakkımızda güncel", Body: "ikinci"}, 1); err != nil {
 		t.Fatalf("update draft: %v", err)
 	}
+	if err := content.CreateDraft(ctx, pages.Page{ID: "second-draft", Locale: "tr-TR", Slug: "hakkimizda", Title: "İkinci taslak", Body: "taslak"}); err != nil {
+		t.Fatalf("same-slug draft should be allowed: %v", err)
+	}
 	if err := content.Publish(ctx, page.ID, 2); err != nil {
 		t.Fatalf("publish: %v", err)
 	}

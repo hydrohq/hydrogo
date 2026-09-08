@@ -1,0 +1,25 @@
+id: "202609080005_published_route_index"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "231c0a931064c0a31772fa7d1eed430858de8b6b61772ff748321d9d3a479e28"
+  postgres: "231c0a931064c0a31772fa7d1eed430858de8b6b61772ff748321d9d3a479e28"
+dependencies:
+  - "202609080003_pages_content"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "The pages content migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Rebuilds the locale/slug uniqueness index"
+compatibility: "Draft slugs are no longer globally unique; published routes remain unique"
+smoke:
+  - "Two drafts may share a slug while only one published route can exist"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
