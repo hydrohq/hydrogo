@@ -42,7 +42,9 @@ type ContentService struct {
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
 	key := strings.ToLower(strings.Trim(locale, "/")) + ":" + strings.Trim(strings.ToLower(slug), "/")
+	generation := uint64(0)
 	if s.PublicCache != nil {
+		generation = s.PublicCache.Generation()
 		if page, ok := s.PublicCache.Get(key); ok {
 			return page, nil
 		}
@@ -52,7 +54,7 @@ func (s ContentService) GetPublished(ctx context.Context, db database.Executor, 
 		return pages.Page{}, err
 	}
 	if s.PublicCache != nil {
-		s.PublicCache.Set(key, page)
+		s.PublicCache.SetIfGeneration(key, page, generation)
 	}
 	return page, nil
 }

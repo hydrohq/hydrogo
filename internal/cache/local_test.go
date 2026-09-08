@@ -20,3 +20,18 @@ func TestCacheIsBoundedAndExpires(t *testing.T) {
 		t.Fatal("expired value was returned")
 	}
 }
+
+func TestCacheRejectsRefillFromPreviousGeneration(t *testing.T) {
+	c := New[string](2, time.Minute)
+	generation := c.Generation()
+	c.Clear()
+	if c.SetIfGeneration("stale", "old", generation) {
+		t.Fatal("stale generation refill was accepted")
+	}
+	if _, ok := c.Get("stale"); ok {
+		t.Fatal("stale value entered cache")
+	}
+	if !c.SetIfGeneration("fresh", "new", c.Generation()) {
+		t.Fatal("current generation refill was rejected")
+	}
+}

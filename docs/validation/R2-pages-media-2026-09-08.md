@@ -28,5 +28,5 @@ GitHub CI’de SQLite ve PostgreSQL contract servisleriyle aynı kontroller çal
 
 ## Açık sınırlamalar
 
-- R3 kapsamındaki SEO, restore, blue/green, MFA ve ticari Compact kapasite kanıtları bu raporun kapsamında değildir.
+- R3 kapsamındaki SEO, restore, blue/green, MFA ve ticari Compact kapasite kanıtları bu raporun kapsamında değildir. Publish sonrası public cache generation guard'ı ayrı S05-C ilerleme commit'inde doğrulanmıştır.
 - R1 S03 için gerçek Quill/HTMX asset ve CSP deneyinin tamamlanması gerekir.

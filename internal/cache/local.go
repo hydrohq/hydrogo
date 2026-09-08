@@ -16,6 +16,7 @@ type Cache[T any] struct {
 	entries    map[string]item[T]
 	maxEntries int
 	ttl        time.Duration
+	generation uint64
 }
 
 func New[T any](maxEntries int, ttl time.Duration) *Cache[T] {
@@ -52,8 +53,33 @@ func (c *Cache[T]) Set(key string, value T) {
 	c.entries[key] = item[T]{value: value, expiresAt: time.Now().Add(c.ttl)}
 }
 
+func (c *Cache[T]) Generation() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.generation
+}
+
+// SetIfGeneration prevents a slow read started before invalidation from
+// refilling the cache with a stale public projection.
+func (c *Cache[T]) SetIfGeneration(key string, value T, generation uint64) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.generation != generation {
+		return false
+	}
+	if _, exists := c.entries[key]; !exists && len(c.entries) >= c.maxEntries {
+		for oldestKey := range c.entries {
+			delete(c.entries, oldestKey)
+			break
+		}
+	}
+	c.entries[key] = item[T]{value: value, expiresAt: time.Now().Add(c.ttl)}
+	return true
+}
+
 func (c *Cache[T]) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries = make(map[string]item[T])
+	c.generation++
 }

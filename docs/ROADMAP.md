@@ -51,7 +51,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 
 - [ ] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects ve sınırlı form inbox. (Store, SQLite contract, DB-level navigation position uniqueness, public SEO/sitemap, admin mutation, allowlist/rate-limited contact submit, inbox status, retention purge ve transaction içi audit hazır; kişisel veri erişim politikası/runbook açık.)
 - [ ] MFA, davet/reset/kurtarma, rol/session iptali ve güvenlik fixture'ları.
-- [ ] S05-C: Compact `all` ve blue/green geçişinde stale refill, kayıp invalidation, cache bypass/revalidation ve bounded DB yükü. L2 kesintisi bu kapının şartı değildir.
+- [ ] S05-C: Compact `all` ve blue/green geçişinde stale refill, kayıp invalidation, cache bypass/revalidation ve bounded DB yükü. (Local public cache generation guard stale refill'i reddediyor; blue/green bypass/revalidation ve ölçülmüş DB yükü açık.) L2 kesintisi bu kapının şartı değildir.
 - [ ] S06: desteklenecek tek sunucu topolojisinde online migration, eski binary restart, yeni yazımdan sonra rollback ve retained asset testi.
 - [ ] S07: DB+medya restore, session iptali, job/egress karantinası ve eski deployment'ın yazamaması. (Compact SQLite staging restore + kontrol marker'ı hazır; PostgreSQL, gerçek session/job karantinası ve eski deployment testi açık.) Her iki DB restore deneyi kaydedilsin; satılan profil ayrıca sertifikalansın.
 - [ ] ADR-0014 için dış silme günlüğü adapter'ı/checkpoint prototipi; backup sonrası silme, crash, eksik günlük ve retention testleri.
