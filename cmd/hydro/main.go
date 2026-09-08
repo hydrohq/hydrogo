@@ -113,7 +113,7 @@ func serve(args []string, stderr io.Writer) error {
 		return err
 	}
 	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediastore.Store{Dialect: cfg.Database.Dialect}}
-	mediaHTTP := media.HTTPHandler{Service: mediaService}
+	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 

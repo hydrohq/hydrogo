@@ -9,8 +9,13 @@ import (
 )
 
 type AssetRepository interface {
+	Get(context.Context, database.Executor, string) (Asset, error)
 	CreatePending(context.Context, database.Executor, Asset) error
 	MarkReady(context.Context, database.Executor, string, string) error
+}
+
+func (s Service) Get(ctx context.Context, db database.Executor, id string) (Asset, error) {
+	return s.Assets.Get(ctx, db, id)
 }
 
 // Service coordinates immutable file creation with the pending/ready metadata state.

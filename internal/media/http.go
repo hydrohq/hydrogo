@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path/filepath"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
 type HTTPHandler struct {
 	Service Service
+	DB      database.Executor
 }
 
 type HTTPRoute struct {
@@ -22,7 +25,23 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 	return []HTTPRoute{
 		{Pattern: "POST /api/media", Protected: true, Handler: http.HandlerFunc(h.upload)},
 		{Pattern: "POST /api/media/{id}/ready", Protected: true, Handler: http.HandlerFunc(h.ready)},
+		{Pattern: "GET /media/{id}", Handler: http.HandlerFunc(h.serve)},
 	}
+}
+
+func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
+	asset, err := h.Service.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil || asset.Status != "ready" {
+		http.NotFound(w, r)
+		return
+	}
+	if asset.Visibility == VisibilityPrivate && auth.UserFromContext(r.Context()) == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	path := filepath.Join(h.Service.Uploader.StorageDir, filepath.Base(asset.StorageKey))
+	w.Header().Set("Content-Type", asset.MimeType)
+	http.ServeFile(w, r, path)
 }
 
 func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {

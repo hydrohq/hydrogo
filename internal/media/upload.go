@@ -40,6 +40,8 @@ type Asset struct {
 	SizeBytes        int64
 	Width            int
 	Height           int
+	Visibility       string
+	Status           string
 }
 
 var AllowedMimeTypes = map[string]string{

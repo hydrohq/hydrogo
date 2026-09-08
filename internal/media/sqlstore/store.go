@@ -11,6 +11,18 @@ import (
 
 type Store struct{ Dialect database.Dialect }
 
+func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.Asset, error) {
+	var asset media.Asset
+	var visibility, status string
+	err := db.QueryRowContext(ctx, "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status FROM media_assets WHERE id = "+s.p(1), id).Scan(&asset.ID, &asset.StorageKey, &asset.OriginalFilename, &asset.MimeType, &asset.SizeBytes, &asset.Width, &asset.Height, &visibility, &status)
+	if err != nil {
+		return media.Asset{}, err
+	}
+	asset.Visibility = visibility
+	asset.Status = status
+	return asset, nil
+}
+
 func (s Store) CreatePending(ctx context.Context, tx database.Executor, asset media.Asset) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, err := tx.ExecContext(ctx, `INSERT INTO media_assets
