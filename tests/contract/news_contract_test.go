@@ -59,7 +59,7 @@ func runNewsContract(t *testing.T, dialect database.Dialect, dsn string) {
 		t.Fatalf("stale schedule = %v", err)
 	}
 	worker := news.Worker{Queue: jobs.NewQueue(10), Service: service}
-	if err := worker.EnqueueSchedule(item.ID, 1, time.Now().UTC().Add(-time.Minute)); err != nil {
+	if err := worker.EnqueueDue(ctx, db, time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
 	if ran, err := worker.RunOnce(ctx, "news-worker-1", time.Now().UTC()); err != nil || !ran {

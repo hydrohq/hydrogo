@@ -2,6 +2,8 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -137,6 +139,37 @@ func (s Store) Get(ctx context.Context, db database.Executor, id string) (news.I
 func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, locale, slug string) (news.Item, error) {
 	query := `SELECT id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND slug = ` + s.p(2) + ` AND status='published' AND published_revision IS NOT NULL`
 	return s.scan(ctx, db, query, locale, slug)
+}
+
+func (s Store) ListScheduled(ctx context.Context, db database.Executor, now time.Time) ([]news.Item, error) {
+	query := `SELECT id,schedule_generation,scheduled_at FROM news_items WHERE status='scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= ` + s.p(1) + ` ORDER BY scheduled_at,id`
+	argument := any(now.UTC())
+	if s.Dialect == database.SQLite {
+		argument = now.UTC().Format(time.RFC3339Nano)
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("news scheduled query requires a query-capable executor")
+	}
+	rows, err := queryer.QueryContext(ctx, query, argument)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]news.Item, 0)
+	for rows.Next() {
+		var item news.Item
+		var scheduled any
+		if err := rows.Scan(&item.ID, &item.ScheduleGeneration, &scheduled); err != nil {
+			return nil, err
+		}
+		value := parseTime(scheduled)
+		item.ScheduledAt = &value
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (s Store) scan(ctx context.Context, db database.Executor, query string, args ...any) (news.Item, error) {

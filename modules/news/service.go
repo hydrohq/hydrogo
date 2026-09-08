@@ -19,6 +19,7 @@ type Repository interface {
 	Retract(context.Context, database.Executor, string, int) error
 	Get(context.Context, database.Executor, string) (Item, error)
 	GetPublishedByRoute(context.Context, database.Executor, string, string) (Item, error)
+	ListScheduled(context.Context, database.Executor, time.Time) ([]Item, error)
 }
 
 type AuditWriter interface {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/jobs"
 )
 
@@ -30,6 +31,24 @@ type Worker struct {
 	Service Service
 	Lease   time.Duration
 	Retry   time.Duration
+}
+
+// EnqueueDue discovers scheduled items that are due and idempotently places
+// their generation-guarded jobs on the configured queue.
+func (w Worker) EnqueueDue(ctx context.Context, db database.Executor, now time.Time) error {
+	if w.Service.Repository == nil || db == nil {
+		return errors.New("news scheduler repository is unavailable")
+	}
+	items, err := w.Service.Repository.ListScheduled(ctx, db, now)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if err := w.EnqueueScheduleContext(ctx, item.ID, item.ScheduleGeneration, now); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (w Worker) EnqueueSchedule(itemID string, generation int64, availableAt time.Time) error {

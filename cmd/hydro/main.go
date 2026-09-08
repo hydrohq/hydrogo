@@ -22,6 +22,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
@@ -145,10 +146,17 @@ func serve(args []string, stderr io.Writer) error {
 	newsStore := newsstore.Store{Dialect: cfg.Database.Dialect}
 	newsService := newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
 	newsHTTP := newstransport.Handler{Service: newsService, DB: db}
+	newsWorker := newsservice.Worker{
+		Durable: jobstore.Queue{Store: jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: 10000}, DB: db},
+		Service: newsService,
+		Lease:   time.Minute,
+		Retry:   time.Minute,
+	}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
+	go runNewsWorker(ctx, db, newsWorker, stderr)
 
 	return server.Serve(ctx, server.Config{
 		Address: cfg.HTTP.Address,
@@ -161,6 +169,34 @@ func serve(args []string, stderr io.Writer) error {
 			return database.CheckCompatibility(checkCtx, db, cfg.Database.Dialect, migrations.FS)
 		},
 	})
+}
+
+func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, stderr io.Writer) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		now := time.Now().UTC()
+		if err := worker.EnqueueDue(ctx, db, now); err != nil && ctx.Err() == nil {
+			_, _ = fmt.Fprintf(stderr, "hydro news worker enqueue: %v\n", err)
+		}
+		for i := 0; i < 100; i++ {
+			processed, err := worker.RunOnce(ctx, "news-worker", now)
+			if err != nil {
+				if ctx.Err() == nil {
+					_, _ = fmt.Fprintf(stderr, "hydro news worker run: %v\n", err)
+				}
+				break
+			}
+			if !processed {
+				break
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 func pageRouterRoutes(routes []pagetransport.Route) []router.Route {
