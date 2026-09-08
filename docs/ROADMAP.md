@@ -47,7 +47,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 
 **Bağımlılık:** R2. **Sorumluluk:** Site Edition, güvenlik, release/işletim.
 
-R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user disable route’u, encrypted TOTP/recovery code, hashed single-use password reset ve ayrı bounded login/MFA limiter temeli hazır. Kanıt: [R3 MFA/session doğrulama raporu](validation/R3-mfa-session-2026-09-08.md). Invite, dış bildirim, restore ve Compact kapasite kanıtları açık.
+R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user disable route’u, encrypted TOTP/recovery code, hashed single-use password reset ve ayrı bounded login/MFA limiter temeli hazır. Compact SQLite snapshot/manifest deneyi de başarılıdır. Kanıt: [R3 MFA/session doğrulama raporu](validation/R3-mfa-session-2026-09-08.md) ve [SQLite backup manifest deneyi](validation/R3-backup-manifest-2026-09-08.md). Invite, dış bildirim, temiz ortam restore, PostgreSQL ve Compact kapasite kanıtları açık.
 
 - [ ] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects ve sınırlı form inbox.
 - [ ] MFA, davet/reset/kurtarma, rol/session iptali ve güvenlik fixture'ları.
