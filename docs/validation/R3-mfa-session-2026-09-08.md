@@ -13,7 +13,7 @@
 - SQLite ve PostgreSQL auth contract testleri MFA enroll/enable/verify ve recovery code tekrar kullanımını çalıştırır.
 - Admin kontrollü user disable HTTP route’u ve audit olayı eklenmiştir.
 - Password reset token’ları purpose, hash, expiry ve tek kullanım taşır; reset aynı transaction’da parola değişimi ve session revoke ile uygulanır.
-- Login ve MFA denemeleri ayrı, bounded process-local limiter'larla sınırlanır; limiter kapasitesi dolduğunda yeni anahtarlar eski kayıtları tahliye eder.
+- Login ve MFA denemeleri ayrı, bounded process-local limiter'larla sınırlanır; MFA login/enable denemeleri MFA bütçesini kullanır ve limiter kapasitesi dolduğunda yeni anahtarlar eski kayıtları tahliye eder.
 - Password reset request/confirm HTTP sözleşmesi eklendi; istek endpoint'i bilinmeyen hesaplarda da `202 Accepted` döner, token yalnız enjekte edilen notifier'a verilir ve confirm tek kullanımlı token ile session iptalini transaction içinde çalıştırır.
 - Davet token'ları yalnız SHA-256 hash olarak saklanır, yalnız editor/viewer rolü üretilebilir, kabul sırasında token tüketimi ve kullanıcı oluşturma aynı transaction'a bağlanır; aynı davet ikinci kez kabul edilemez.
 - MFA etkin bir kullanıcı parola ile doğrulandıktan sonra MFA kodu olmadan session alamaz; TOTP veya tek kullanımlı recovery code login contract testinde doğrulanır.

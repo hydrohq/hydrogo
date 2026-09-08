@@ -241,6 +241,10 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if enabled {
+			if h.MFALimiter != nil && !h.MFALimiter.Allow(clientIP(r)+":"+user.ID) {
+				http.Error(w, "too many MFA attempts", http.StatusTooManyRequests)
+				return
+			}
 			code := strings.TrimSpace(r.FormValue("mfa_code"))
 			if code == "" {
 				http.Error(w, "MFA code required", http.StatusUnauthorized)
