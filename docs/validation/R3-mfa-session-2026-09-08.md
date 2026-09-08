@@ -14,6 +14,7 @@
 - Admin kontrollü user disable HTTP route’u ve audit olayı eklenmiştir.
 - Password reset token’ları purpose, hash, expiry ve tek kullanım taşır; reset aynı transaction’da parola değişimi ve session revoke ile uygulanır.
 - Login ve MFA denemeleri ayrı, bounded process-local limiter'larla sınırlanır; limiter kapasitesi dolduğunda yeni anahtarlar eski kayıtları tahliye eder.
+- Password reset request/confirm HTTP sözleşmesi eklendi; istek endpoint'i bilinmeyen hesaplarda da `202 Accepted` döner, token yalnız enjekte edilen notifier'a verilir ve confirm tek kullanımlı token ile session iptalini transaction içinde çalıştırır.
 
 ## Çalıştırılan kontroller
 
@@ -27,4 +28,4 @@ MFA master key değeri `HYDRO_MFA_MASTER_KEY` üzerinden secret kaynağından al
 
 ## Açık kapsam
 
-MFA recovery operasyonları, limiter'ın çoklu instance sözleşmesi, güvenlik bildirimi, dış reset bildirimi/invite akışları ve temiz ortamda restore/blue-green senaryoları R3’ün sonraki kapılarıdır.
+Limiter'ın çoklu instance sözleşmesi, üretim notifier/invite adapter'ı, güvenlik bildirimi ve temiz ortamda restore/blue-green senaryoları R3’ün sonraki kapılarıdır.

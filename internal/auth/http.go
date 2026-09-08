@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
@@ -24,6 +25,16 @@ func (f AuditRecorderFunc) Record(ctx context.Context, action, targetID string) 
 	return f(ctx, action, targetID)
 }
 
+type RecoveryNotifier interface {
+	SendPasswordReset(context.Context, string, string) error
+}
+
+type RecoveryNotifierFunc func(context.Context, string, string) error
+
+func (f RecoveryNotifierFunc) SendPasswordReset(ctx context.Context, email, token string) error {
+	return f(ctx, email, token)
+}
+
 type HTTPRoute struct {
 	Pattern string
 	Public  bool
@@ -39,6 +50,9 @@ type HTTPHandler struct {
 	Transactions database.Transactor
 	LoginLimiter *security.AttemptLimiter
 	MFALimiter   *security.AttemptLimiter
+	Recovery     *PasswordRecovery
+	RecoveryDB   database.Executor
+	Notifier     RecoveryNotifier
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -49,7 +63,65 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/users/{id}/disable", Handler: http.HandlerFunc(h.disableUser)},
 		{Pattern: "POST /auth/me/mfa/enroll", Handler: http.HandlerFunc(h.enrollMFA)},
 		{Pattern: "POST /auth/me/mfa/enable", Handler: http.HandlerFunc(h.enableMFA)},
+		{Pattern: "POST /auth/password-reset/request", Public: true, Handler: http.HandlerFunc(h.requestPasswordReset)},
+		{Pattern: "POST /auth/password-reset/confirm", Public: true, Handler: http.HandlerFunc(h.confirmPasswordReset)},
 	}
+}
+
+func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	if h.Recovery == nil || h.RecoveryDB == nil || h.Notifier == nil {
+		http.Error(w, "password recovery unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("email")) == "" {
+		http.Error(w, "invalid password recovery request", http.StatusBadRequest)
+		return
+	}
+	token, err := h.Recovery.Issue(r.Context(), h.RecoveryDB, r.FormValue("email"), 30*time.Minute)
+	if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrUserInactive) {
+		// Do not disclose whether an account exists.
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	if err != nil {
+		http.Error(w, "password recovery unavailable", http.StatusInternalServerError)
+		return
+	}
+	user, err := h.Recovery.Users.GetByEmail(r.Context(), NormalizeEmail(r.FormValue("email")))
+	if err != nil {
+		http.Error(w, "password recovery unavailable", http.StatusInternalServerError)
+		return
+	}
+	if err := h.Notifier.SendPasswordReset(r.Context(), user.Email, token); err != nil {
+		http.Error(w, "password recovery unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request) {
+	if h.Recovery == nil || h.Transactions == (database.Transactor{}) {
+		http.Error(w, "password recovery unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("token")) == "" || r.FormValue("password") == "" {
+		http.Error(w, "invalid password recovery request", http.StatusBadRequest)
+		return
+	}
+	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		return h.Recovery.Reset(r.Context(), tx, r.FormValue("token"), r.FormValue("password"))
+	})
+	if errors.Is(err, ErrRecoveryTokenInvalid) {
+		http.Error(w, "invalid or expired recovery token", http.StatusUnauthorized)
+		return
+	}
+	if err != nil {
+		http.Error(w, "password recovery failed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h HTTPHandler) RouterRoutes() []router.Route {

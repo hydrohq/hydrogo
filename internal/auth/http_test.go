@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	_ "modernc.org/sqlite"
 )
 
 type httpUserRepo struct{ user *User }
@@ -59,6 +61,20 @@ func (a *httpAudit) Record(_ context.Context, action, _ string) error {
 	return nil
 }
 
+type httpRecoveryStore struct{}
+
+func (httpRecoveryStore) CreateRecoveryToken(context.Context, database.Executor, string, string, string, string, time.Time, time.Time) error {
+	return nil
+}
+func (httpRecoveryStore) ConsumeRecoveryToken(context.Context, database.Executor, string, string, time.Time) (string, error) {
+	return "u1", nil
+}
+
+type httpExecutor struct{}
+
+func (httpExecutor) ExecContext(context.Context, string, ...any) (sql.Result, error) { return nil, nil }
+func (httpExecutor) QueryRowContext(context.Context, string, ...any) *sql.Row        { return nil }
+
 func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	hash, err := HashPassword("secret", TestArgon2Params)
 	if err != nil {
@@ -83,5 +99,34 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 	if len(audit.actions) != 1 || audit.actions[0] != "auth.login" {
 		t.Fatalf("unexpected audit actions: %v", audit.actions)
+	}
+}
+
+func TestPasswordResetRequestDoesNotExposeAccountState(t *testing.T) {
+	user := &User{ID: "u1", Email: "admin@example.com", Active: true}
+	service := &PasswordRecovery{Users: httpUserRepo{user: user}, Tokens: httpRecoveryStore{}, Sessions: &httpSessionRepo{}, ArgonParams: TestArgon2Params}
+	var notifiedEmail, notifiedToken string
+	handler := HTTPHandler{
+		Recovery:   service,
+		RecoveryDB: httpExecutor{},
+		Notifier: RecoveryNotifierFunc(func(_ context.Context, email, token string) error {
+			notifiedEmail, notifiedToken = email, token
+			return nil
+		}),
+	}.requestPasswordReset
+	form := url.Values{"email": {user.Email}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/password-reset/request", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res := httptest.NewRecorder()
+	handler(res, req)
+	if res.Code != http.StatusAccepted || notifiedEmail != user.Email || notifiedToken == "" {
+		t.Fatalf("reset request = %d, email=%q token=%q", res.Code, notifiedEmail, notifiedToken)
+	}
+	unknown := httptest.NewRequest(http.MethodPost, "/auth/password-reset/request", strings.NewReader(url.Values{"email": {"missing@example.com"}}.Encode()))
+	unknown.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	unknownRes := httptest.NewRecorder()
+	handler(unknownRes, unknown)
+	if unknownRes.Code != http.StatusAccepted {
+		t.Fatalf("unknown reset status = %d", unknownRes.Code)
 	}
 }

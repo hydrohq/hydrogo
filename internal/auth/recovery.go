@@ -37,6 +37,9 @@ func (r PasswordRecovery) Issue(ctx context.Context, tx database.Executor, email
 	if err != nil {
 		return "", err
 	}
+	if !user.Active {
+		return "", ErrUserInactive
+	}
 	if ttl <= 0 || ttl > time.Hour {
 		ttl = 30 * time.Minute
 	}
