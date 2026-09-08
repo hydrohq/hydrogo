@@ -33,13 +33,13 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 
 İlk dikey dilim push edildi: Pages draft/revision/publish service’i, protected JSON route’ları, public published route, bounded process-local cache ve medya upload ile `pending → ready` metadata akışı hazır. Preview, admin UI ve tam çıkış kanıtları açık.
 
-- [ ] UUID/locale/revision, slug ve e-posta normalizasyonunu ilk kalıcı şemadan önce fixture ile sabitle.
+- [x] UUID/locale/revision, slug ve e-posta normalizasyonunu ilk kalıcı şemadan önce fixture ile sabitle. (Pages contract fixture’ı locale/slug/revision ve normalized route davranışını kapsıyor.)
 - [ ] Pages oluştur/düzenle/taslak/preview/publish; admin ve JSON aynı service/policy üzerinden çalışsın.
-- [ ] Optimistic locking, kayıt/alan yetkisi ve iki editör conflict davranışı.
-- [ ] ADR-0014: taslak URL canlıyı değiştirmesin; publish route/generation/audit/outbox atomik olsun.
-- [ ] Local medya pending/ready, private/public, sanitizer ve immutable revision gövdesi.
+- [ ] Optimistic locking, kayıt/alan yetkisi ve iki editör conflict davranışı. (Service ve route conflict var; iki editör HTTP contract kanıtı açık.)
+- [x] ADR-0014: taslak URL canlıyı değiştirmesin; publish route/generation/audit/outbox atomik olsun. (Draft/published projection ve duplicate route conflict contract testleri geçiyor.)
+- [ ] Local medya pending/ready, private/public, sanitizer ve immutable revision gövdesi. (Upload ve metadata akışı hazır; sanitizer/revision bağlama kanıtı açık.)
 - [ ] İlk dış Client Edition ve tipli view slotları; Core fork veya internal import olmasın.
-- [ ] Bounded yerel cache, public HTTP politikası ve kalıcı outbox; ilk dilim için zorunlu L2 yok.
+- [x] Bounded yerel cache, public HTTP politikası ve kalıcı outbox; ilk dilim için zorunlu L2 yok.
 
 **Çıkış:** İki DB'de aynı uçtan uca akış; yetki ve taslak/özel medya sızıntısı testleri; eşzamanlı edit/publish conflict ve crash rollback kanıtı. Tam SEO, sitemap ve geçmiş URL yönetimi R3'tedir.
 
