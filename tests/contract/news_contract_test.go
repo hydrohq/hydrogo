@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/jobs"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 	newsstore "github.com/ardaozyildirim/hydrogo/modules/news/repository/sqlstore"
@@ -55,8 +56,15 @@ func runNewsContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if err := service.RunScheduled(ctx, item.ID, 99, time.Now().UTC()); !errors.Is(err, news.ErrScheduleStale) {
 		t.Fatalf("stale schedule = %v", err)
 	}
-	if err := service.RunScheduled(ctx, item.ID, 1, time.Now().UTC()); err != nil {
+	worker := news.Worker{Queue: jobs.NewQueue(10), Service: service}
+	if err := worker.EnqueueSchedule(item.ID, 1, time.Now().UTC().Add(-time.Minute)); err != nil {
 		t.Fatal(err)
+	}
+	if ran, err := worker.RunOnce(ctx, "news-worker-1", time.Now().UTC()); err != nil || !ran {
+		t.Fatalf("scheduled worker = %v/%v", ran, err)
+	}
+	if err := service.RunScheduled(ctx, item.ID, 1, time.Now().UTC()); !errors.Is(err, news.ErrScheduleStale) {
+		t.Fatalf("replayed schedule = %v", err)
 	}
 	published, err := store.GetPublishedByRoute(ctx, db, "en", "launch")
 	if err != nil || published.Status != news.StatusPublished || published.PublishedRevision == nil {
