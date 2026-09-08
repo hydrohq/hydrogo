@@ -265,3 +265,71 @@ func TestPostgresNonTransactionalConcurrentIndexAllowsReadContract(t *testing.T)
 		t.Fatalf("index name = %q", indexName)
 	}
 }
+
+func TestPostgresConcurrentIndexWaitsForLongSnapshotContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	table := "snapshot_contract_" + suffix
+	baseID := "snapshot_" + suffix + "_base"
+	indexID := "snapshot_" + suffix + "_index"
+	if _, err := db.ExecContext(ctx, "CREATE TABLE "+table+" (id BIGSERIAL PRIMARY KEY, value TEXT NOT NULL)"); err != nil {
+		t.Fatal(err)
+	}
+	defer db.ExecContext(context.Background(), "DROP TABLE "+table)
+	if _, err := db.ExecContext(ctx, "INSERT INTO "+table+" (value) VALUES ('before')"); err != nil {
+		t.Fatal(err)
+	}
+	base := fstest.MapFS{
+		baseID + "/postgres.sql":   &fstest.MapFile{Data: []byte("SELECT 1;\n")},
+		baseID + "/migration.yaml": &fstest.MapFile{Data: []byte("transactional:\n  postgres: true\n")},
+	}
+	all := fstest.MapFS{
+		baseID + "/postgres.sql":    &fstest.MapFile{Data: []byte("SELECT 1;\n")},
+		baseID + "/migration.yaml":  &fstest.MapFile{Data: []byte("transactional:\n  postgres: true\n")},
+		indexID + "/postgres.sql":   &fstest.MapFile{Data: []byte("CREATE INDEX CONCURRENTLY " + table + "_value_idx ON " + table + " (value);\n")},
+		indexID + "/migration.yaml": &fstest.MapFile{Data: []byte("transactional:\n  postgres: false\n")},
+	}
+	if err := database.ApplyMigrations(ctx, db, database.Postgres, base); err != nil {
+		t.Fatal(err)
+	}
+	readTx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value string
+	if err := readTx.QueryRowContext(ctx, "SELECT value FROM "+table+" WHERE id = 1").Scan(&value); err != nil {
+		readTx.Rollback()
+		t.Fatal(err)
+	}
+	if value != "before" {
+		readTx.Rollback()
+		t.Fatalf("snapshot value = %q", value)
+	}
+	result := make(chan error, 1)
+	go func() {
+		migrationCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		result <- database.ApplyMigrations(migrationCtx, db, database.Postgres, all)
+	}()
+	select {
+	case err := <-result:
+		readTx.Rollback()
+		t.Fatalf("concurrent index completed while snapshot was open: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if err := readTx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-result; err != nil {
+		t.Fatalf("concurrent index after snapshot release: %v", err)
+	}
+}
