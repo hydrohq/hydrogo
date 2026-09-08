@@ -1,6 +1,6 @@
 # HydroGo uygulama roadmap'i
 
-**Tarih:** 2026-09-08 · **Durum:** R0 ve R2 tamamlandı; R1 S03 Quill/HTMX deneyi açık; R3 başlamadı.
+**Tarih:** 2026-09-08 · **Durum:** R0 ve R2 tamamlandı; R1 S03 Quill/HTMX deneyi açık; R3 güvenlik başlangıç kapısı tamamlandı, ticari pilot kapıları açık.
 
 Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
 
@@ -47,7 +47,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 
 **Bağımlılık:** R2. **Sorumluluk:** Site Edition, güvenlik, release/işletim.
 
-R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user disable route’u, encrypted TOTP/recovery code ve hashed single-use password reset temeli hazır. Kanıt: [R3 MFA/session doğrulama raporu](validation/R3-mfa-session-2026-09-08.md). Invite, dış bildirim, restore ve Compact kapasite kanıtları açık.
+R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user disable route’u, encrypted TOTP/recovery code, hashed single-use password reset ve ayrı bounded login/MFA limiter temeli hazır. Kanıt: [R3 MFA/session doğrulama raporu](validation/R3-mfa-session-2026-09-08.md). Invite, dış bildirim, restore ve Compact kapasite kanıtları açık.
 
 - [ ] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects ve sınırlı form inbox.
 - [ ] MFA, davet/reset/kurtarma, rol/session iptali ve güvenlik fixture'ları.

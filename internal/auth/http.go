@@ -38,6 +38,7 @@ type HTTPHandler struct {
 	MFA          *MFAService
 	Transactions database.Transactor
 	LoginLimiter *security.AttemptLimiter
+	MFALimiter   *security.AttemptLimiter
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -190,6 +191,10 @@ func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid MFA request", http.StatusBadRequest)
 		return
 	}
+	if h.MFALimiter != nil && !h.MFALimiter.Allow(clientIP(r)+":"+user.ID) {
+		http.Error(w, "too many MFA attempts", http.StatusTooManyRequests)
+		return
+	}
 	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
 		return h.MFA.EnableWithCode(r.Context(), tx, user.ID, r.FormValue("code"))
 	}); err != nil {
@@ -201,7 +206,14 @@ func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Audit != nil {
-		_ = h.Audit.Record(r.Context(), "auth.mfa_enabled", user.ID)
+		if err := h.Audit.Record(r.Context(), "auth.mfa_enabled", user.ID); err != nil {
+			// Keep the factor disabled when its security event cannot be recorded.
+			_ = h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+				return h.MFA.Disable(r.Context(), tx, user.ID)
+			})
+			http.Error(w, "audit failed", http.StatusInternalServerError)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

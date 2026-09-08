@@ -13,6 +13,7 @@
 - SQLite ve PostgreSQL auth contract testleri MFA enroll/enable/verify ve recovery code tekrar kullanımını çalıştırır.
 - Admin kontrollü user disable HTTP route’u ve audit olayı eklenmiştir.
 - Password reset token’ları purpose, hash, expiry ve tek kullanım taşır; reset aynı transaction’da parola değişimi ve session revoke ile uygulanır.
+- Login ve MFA denemeleri ayrı, bounded process-local limiter'larla sınırlanır; limiter kapasitesi dolduğunda yeni anahtarlar eski kayıtları tahliye eder.
 
 ## Çalıştırılan kontroller
 
@@ -26,4 +27,4 @@ MFA master key değeri `HYDRO_MFA_MASTER_KEY` üzerinden secret kaynağından al
 
 ## Açık kapsam
 
-MFA recovery operasyonları, rate limit/concurrency bütçesi, güvenlik bildirimi, dış reset bildirimi/invite akışları ve temiz ortamda restore/blue-green senaryoları R3’ün sonraki kapılarıdır.
+MFA recovery operasyonları, limiter'ın çoklu instance sözleşmesi, güvenlik bildirimi, dış reset bildirimi/invite akışları ve temiz ortamda restore/blue-green senaryoları R3’ün sonraki kapılarıdır.

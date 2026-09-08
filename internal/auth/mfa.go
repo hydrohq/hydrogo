@@ -69,6 +69,14 @@ func (s MFAService) Enable(ctx context.Context, tx database.Executor, userID str
 	return s.Store.PutFactor(ctx, tx, userID, factor, true)
 }
 
+func (s MFAService) Disable(ctx context.Context, tx database.Executor, userID string) error {
+	factor, _, err := s.Store.GetFactor(ctx, tx, userID)
+	if err != nil {
+		return err
+	}
+	return s.Store.PutFactor(ctx, tx, userID, factor, false)
+}
+
 func (s MFAService) EnableWithCode(ctx context.Context, tx database.Executor, userID, code string) error {
 	ciphertext, _, err := s.Store.GetFactor(ctx, tx, userID)
 	if err != nil {

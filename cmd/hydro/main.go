@@ -100,7 +100,7 @@ func serve(args []string, stderr io.Writer) error {
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
 	mfaService := &auth.MFAService{Store: userStore, MasterKey: []byte(cfg.Security.MFAMasterKey)}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), MFA: mfaService, Transactions: database.NewTransactor(db), LoginLimiter: security.NewAttemptLimiter(10000, 5, time.Minute)}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), MFA: mfaService, Transactions: database.NewTransactor(db), LoginLimiter: security.NewAttemptLimiter(10000, 5, time.Minute), MFALimiter: security.NewAttemptLimiter(10000, 5, time.Minute)}
 	contentService := pageservice.ContentService{
 		Transactions: database.NewTransactor(db),
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},
