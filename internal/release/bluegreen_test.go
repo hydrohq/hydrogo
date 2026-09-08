@@ -61,6 +61,9 @@ func TestTrafficSwitchRemainsBoundedUnderConcurrentRequests(t *testing.T) {
 	_ = deployment.MarkReady()
 	_ = deployment.Warmup(true)
 	_ = deployment.Switch(true)
+	if err := traffic.Switch(deployment); err != nil {
+		t.Fatal(err)
+	}
 	var failures atomic.Int32
 	var wg sync.WaitGroup
 	for i := 0; i < 64; i++ {
