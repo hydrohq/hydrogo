@@ -64,7 +64,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 
 **Bağımlılık:** R3. **Sorumluluk:** News, SDK, DB/release.
 
-- [ ] News inceleme/zamanlama/yayın/geri çekme; sabit revision, schedule generation ve yeniden yetki kontrolü. (News migration, domain/repository ve SQLite schedule generation contract'ı hazır; worker lease, yeniden yetki HTTP akışı ve admin sunumu açık.)
+- [ ] News inceleme/zamanlama/yayın/geri çekme; sabit revision, schedule generation ve yeniden yetki kontrolü. (News migration, domain/repository, SQLite schedule generation contract'ı ve JSON/public route'ları hazır; worker lease/idempotency, yeniden yetki worker akışı ve admin UI açık.)
 - [ ] İkinci dış Client Edition, ikinci tema ve farklı özel iş kuralı.
 - [ ] İki modülde transaction, hook, event/job lease ve idempotency contract kitleri.
 - [ ] Core/modül/schema/config/content/event/job/asset uyumluluk matrisi ve eski müşteri fixture'ları.

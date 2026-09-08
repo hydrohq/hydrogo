@@ -30,6 +30,9 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	newsservice "github.com/ardaozyildirim/hydrogo/modules/news"
+	newsstore "github.com/ardaozyildirim/hydrogo/modules/news/repository/sqlstore"
+	newstransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
 	pageservice "github.com/ardaozyildirim/hydrogo/modules/pages/service"
@@ -139,9 +142,13 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		return entries, nil
 	}}
+	newsStore := newsstore.Store{Dialect: cfg.Database.Dialect}
+	newsService := newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
+	newsHTTP := newstransport.Handler{Service: newsService, DB: db}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
+	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
 
 	return server.Serve(ctx, server.Config{
 		Address: cfg.HTTP.Address,
@@ -185,6 +192,18 @@ func siteRouterRoutes(routes []sitetransport.Route) []router.Route {
 	for _, route := range routes {
 		access := router.Protected
 		if route.Public {
+			access = router.Public
+		}
+		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
+	}
+	return result
+}
+
+func newsRouterRoutes(routes []newstransport.Route) []router.Route {
+	result := make([]router.Route, 0, len(routes))
+	for _, route := range routes {
+		access := router.Protected
+		if !route.Protected {
 			access = router.Public
 		}
 		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
