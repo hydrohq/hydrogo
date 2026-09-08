@@ -25,7 +25,8 @@ func (r httpUserRepo) GetByEmail(context.Context, string) (*User, error) {
 	}
 	return r.user, nil
 }
-func (r httpUserRepo) Count(context.Context) (int64, error) { return 1, nil }
+func (r httpUserRepo) Count(context.Context) (int64, error)          { return 1, nil }
+func (r httpUserRepo) SetActive(context.Context, string, bool) error { return nil }
 
 type httpSessionRepo struct{ session *Session }
 

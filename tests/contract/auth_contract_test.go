@@ -38,6 +38,7 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatalf("migrate %s: %v", dialect, err)
 	}
+	resetContractData(t, db, dialect)
 
 	userStore := authstore.NewUserStore(db, dialect)
 	sessionStore := authstore.NewSessionStore(db, dialect)
@@ -98,5 +99,21 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	// 8. Validate revoked session fails
 	if _, _, err := authSvc.ValidateSession(ctx, rawToken); err != auth.ErrSessionNotFound {
 		t.Fatalf("expected ErrSessionNotFound for revoked session, got: %v", err)
+	}
+
+	// 9. Disabling a user revokes every session.
+	editor, err := authSvc.CreateUser(ctx, "editor@hydrogo.io", "EditorSecretPassword123!", auth.RoleEditor)
+	if err != nil {
+		t.Fatalf("create editor failed: %v", err)
+	}
+	editorToken, _, err := authSvc.CreateSession(ctx, editor.ID, "TestAgent/1.0", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatalf("create editor session failed: %v", err)
+	}
+	if err := authSvc.SetUserActive(ctx, editor.ID, false); err != nil {
+		t.Fatalf("disable editor failed: %v", err)
+	}
+	if _, _, err := authSvc.ValidateSession(ctx, editorToken); err != auth.ErrSessionNotFound {
+		t.Fatalf("expected disabled user session to be revoked, got: %v", err)
 	}
 }

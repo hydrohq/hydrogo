@@ -177,6 +177,16 @@ func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID string) 
 	return s.sessionRepo.DeleteByUserID(ctx, userID)
 }
 
+func (s *AuthService) SetUserActive(ctx context.Context, userID string, active bool) error {
+	if err := s.userRepo.SetActive(ctx, userID, active); err != nil {
+		return err
+	}
+	if !active {
+		return s.RevokeAllUserSessions(ctx, userID)
+	}
+	return nil
+}
+
 func SetSessionCookie(w http.ResponseWriter, rawToken string, expiresAt time.Time, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,

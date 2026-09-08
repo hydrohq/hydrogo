@@ -47,6 +47,8 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 
 **Bağımlılık:** R2. **Sorumluluk:** Site Edition, güvenlik, release/işletim.
 
+R3 başlangıç commit’i: disabled user/session revoke ve admin kontrollü user disable route’u hazır. MFA, invite/reset, restore ve Compact kapasite kanıtları açık.
+
 - [ ] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects ve sınırlı form inbox.
 - [ ] MFA, davet/reset/kurtarma, rol/session iptali ve güvenlik fixture'ları.
 - [ ] S05-C: Compact `all` ve blue/green geçişinde stale refill, kayıp invalidation, cache bypass/revalidation ve bounded DB yükü. L2 kesintisi bu kapının şartı değildir.

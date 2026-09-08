@@ -119,6 +119,34 @@ func (s *UserStore) Count(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+func (s *UserStore) SetActive(ctx context.Context, id string, active bool) error {
+	query := `UPDATE users SET active = $1, updated_at = $2 WHERE id = $3`
+	args := []any{active, time.Now().UTC(), id}
+	if s.dialect == database.SQLite {
+		query = `UPDATE users SET active = ?, updated_at = ? WHERE id = ?`
+		args = []any{boolToSQLite(active), time.Now().UTC().Format(time.RFC3339Nano), id}
+	}
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update user active state: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return auth.ErrUserNotFound
+	}
+	return nil
+}
+
+func boolToSQLite(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
 func parseActive(v any) bool {
 	switch val := v.(type) {
 	case bool:

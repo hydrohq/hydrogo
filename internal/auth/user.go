@@ -39,4 +39,5 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	Count(ctx context.Context) (int64, error)
+	SetActive(ctx context.Context, id string, active bool) error
 }

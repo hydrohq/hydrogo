@@ -40,6 +40,7 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/login", Public: true, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
+		{Pattern: "POST /auth/users/{id}/disable", Handler: http.HandlerFunc(h.disableUser)},
 	}
 }
 
@@ -118,6 +119,35 @@ func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active})
+}
+
+func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
+	actor := UserFromContext(r.Context())
+	if actor == nil || !actor.Active || actor.Role != RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	targetID := r.PathValue("id")
+	if targetID == "" || targetID == actor.ID {
+		http.Error(w, "administrator cannot disable the current account", http.StatusConflict)
+		return
+	}
+	if err := h.Service.SetUserActive(r.Context(), targetID, false); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "user state update failed", http.StatusInternalServerError)
+		return
+	}
+	if h.Audit != nil {
+		if err := h.Audit.Record(r.Context(), "auth.user_disabled", targetID); err != nil {
+			_ = h.Service.SetUserActive(r.Context(), targetID, true)
+			http.Error(w, "audit failed", http.StatusInternalServerError)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func sessionToken(r *http.Request) string {
