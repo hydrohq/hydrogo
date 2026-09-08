@@ -32,6 +32,10 @@ Reset ve invite token'ları yalnız hash olarak saklanır. Token e-posta/notifie
 
 Yeni upload ve snapshot işlemleri güvenli hata ile durdurulur; mevcut ready medya ve DB silinmez. Önce geçici/pending medya, başarısız snapshot ve süresi dolmuş inbox kayıtları retention politikasına göre temizlenir. Dosya sistemi tekrar yazılabilir olmadan migration, restore aktivasyonu veya GC çalıştırılmaz.
 
+## Alarm değerlendirmesi
+
+`internal/ops.Evaluate` son başarılı backup yaşı, minimum disk alanı, migration başarısızlığı ve SMTP delivery failure sinyallerini deterministic alarm kodlarına çevirir. `backup_stale`, `disk_low` ve `migration_failed` kritik; `smtp_delivery` uyarı seviyesindedir. Evaluator alarm delivery sisteminin yerine geçmez; production notifier ve dış backup/key kurtarma tatbikatı ayrıca doğrulanmalıdır.
+
 ## Mevcut limitler
 
 - Login/MFA: process-local limiter, 10.000 anahtar, anahtar başına 5 deneme / 1 dakika.
