@@ -109,12 +109,12 @@ func (s Service) Retract(ctx context.Context, id string, expectedVersion int) er
 
 func (s Service) events(ctx context.Context, tx database.Executor, action, id string, version int) error {
 	if s.Audit != nil {
-		if err := s.Audit.Record(ctx, tx, fmt.Sprintf("news-audit-%s-%d", id, version), action, id); err != nil {
+		if err := s.Audit.Record(ctx, tx, fmt.Sprintf("news-audit-%s-%s-%d", action, id, version), action, id); err != nil {
 			return err
 		}
 	}
 	if s.Outbox != nil {
-		return s.Outbox.Enqueue(ctx, tx, fmt.Sprintf("news-outbox-%s-%d", id, version), action, id, 1)
+		return s.Outbox.Enqueue(ctx, tx, fmt.Sprintf("news-outbox-%s-%s-%d", action, id, version), action, id, 1)
 	}
 	return nil
 }

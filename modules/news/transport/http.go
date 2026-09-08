@@ -144,6 +144,10 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
+	if h.DB == nil {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	item, err := h.Service.Repository.GetPublishedByRoute(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
 	if err != nil {
 		http.Error(w, "news not found", http.StatusNotFound)
@@ -153,6 +157,10 @@ func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
+	if h.DB == nil {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	item, err := h.Service.Repository.Get(r.Context(), h.DB, id)
 	if err != nil {
 		http.Error(w, "news not found", http.StatusNotFound)

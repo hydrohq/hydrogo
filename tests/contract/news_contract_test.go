@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/jobs"
+	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 	newsstore "github.com/ardaozyildirim/hydrogo/modules/news/repository/sqlstore"
@@ -42,7 +44,7 @@ func runNewsContract(t *testing.T, dialect database.Dialect, dsn string) {
 		t.Fatal(err)
 	}
 	store := newsstore.Store{Dialect: dialect}
-	service := news.Service{Transactions: database.NewTransactor(db), Repository: store}
+	service := news.Service{Transactions: database.NewTransactor(db), Repository: store, Audit: auditstore.Store{Dialect: dialect}, Outbox: outboxstore.Store{Dialect: dialect}}
 	item := news.Item{ID: "news-1", Locale: "en", Slug: "launch", Title: "Launch", Body: "body", Status: news.StatusDraft}
 	if err := service.CreateDraft(ctx, item); err != nil {
 		t.Fatal(err)
