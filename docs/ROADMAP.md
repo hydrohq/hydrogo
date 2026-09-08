@@ -1,6 +1,6 @@
 # HydroGo uygulama roadmap'i
 
-**Tarih:** 2026-09-08 · **Durum:** R0 ve R1 tamamlandı; R2 ilk dikey dilimde.
+**Tarih:** 2026-09-08 · **Durum:** R0 ve R1 tamamlandı; R2 çıkış kanıtları turunda.
 
 Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
 
@@ -38,7 +38,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 - [x] Optimistic locking, kayıt/alan yetkisi ve iki editör conflict davranışı. (Stale editor conflict ve editor/admin mutation policy contract içinde doğrulanıyor.)
 - [x] ADR-0014: taslak URL canlıyı değiştirmesin; publish route/generation/audit/outbox atomik olsun. (Draft/published projection ve duplicate route conflict contract testleri geçiyor.)
 - [x] Local medya pending/ready, private/public, sanitizer ve immutable revision gövdesi. (Upload metadata service’i ve sanitized revision contract testi hazır.)
-- [ ] İlk dış Client Edition ve tipli view slotları; Core fork veya internal import olmasın.
+- [x] İlk dış Client Edition ve tipli view slotları; Core fork veya internal import olmasın. (examples/client-edition ve import boundary CI kanıtı.)
 - [x] Bounded yerel cache, public HTTP politikası ve kalıcı outbox; ilk dilim için zorunlu L2 yok.
 
 **Çıkış:** İki DB'de aynı uçtan uca akış; yetki ve taslak/özel medya sızıntısı testleri; eşzamanlı edit/publish conflict ve crash rollback kanıtı. Tam SEO, sitemap ve geçmiş URL yönetimi R3'tedir.
