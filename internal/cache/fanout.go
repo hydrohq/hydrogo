@@ -27,6 +27,7 @@ type Subscription struct {
 	Events <-chan Invalidation
 	Resync <-chan struct{}
 	cancel func()
+	sync   func(uint64) bool
 }
 
 func NewFanout(buffer int) *Fanout {
@@ -43,14 +44,23 @@ func (f *Fanout) Subscribe(buffer int) *Subscription {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.closed {
-		return &Subscription{Events: closedInvalidations(), Resync: closedSignals()}
+		return &Subscription{Events: closedInvalidations(), Resync: closedSignals(), sync: func(uint64) bool { return false }}
 	}
 	f.nextID++
 	id := f.nextID
 	resync := make(chan struct{}, 1)
 	sub := &fanoutSub{ch: make(chan Invalidation, buffer), resyncCh: resync}
 	f.subs[id] = sub
-	return &Subscription{Events: sub.ch, Resync: resync, cancel: func() { f.unsubscribe(id) }}
+	return &Subscription{Events: sub.ch, Resync: resync, cancel: func() { f.unsubscribe(id) }, sync: func(generation uint64) bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		current, ok := f.subs[id]
+		if !ok || generation != f.current {
+			return false
+		}
+		current.resync = false
+		return true
+	}}
 }
 
 func (s *Subscription) Close() {
@@ -58,6 +68,12 @@ func (s *Subscription) Close() {
 		s.cancel()
 		s.cancel = nil
 	}
+}
+
+// Reconcile clears a resync request after the subscriber rebuilt its cache
+// from the current bus generation.
+func (s *Subscription) Reconcile(generation uint64) bool {
+	return s != nil && s.sync != nil && s.sync(generation)
 }
 
 func (f *Fanout) Publish(key string) uint64 {
@@ -96,6 +112,7 @@ func (f *Fanout) Close() {
 	f.closed = true
 	for id, sub := range f.subs {
 		close(sub.ch)
+		close(sub.resyncCh)
 		delete(f.subs, id)
 	}
 }
@@ -105,6 +122,7 @@ func (f *Fanout) unsubscribe(id uint64) {
 	defer f.mu.Unlock()
 	if sub, ok := f.subs[id]; ok {
 		close(sub.ch)
+		close(sub.resyncCh)
 		delete(f.subs, id)
 	}
 }

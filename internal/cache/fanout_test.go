@@ -23,6 +23,9 @@ func TestFanoutBoundsSlowSubscriberAndSignalsResync(t *testing.T) {
 	if fanout.Generation() != 3 {
 		t.Fatalf("generation = %d", fanout.Generation())
 	}
+	if sub.Reconcile(2) || !sub.Reconcile(3) {
+		t.Fatal("generation reconciliation result is incorrect")
+	}
 }
 
 func TestFanoutCloseClosesSubscribers(t *testing.T) {
