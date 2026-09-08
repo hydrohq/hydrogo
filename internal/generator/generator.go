@@ -18,6 +18,7 @@ import (
 var (
 	ErrInvalidSpec        = errors.New("invalid collection spec")
 	ErrDestructiveSpec    = errors.New("destructive migration must be written by hand")
+	ErrPublishedMigration = errors.New("published generated migration cannot be changed")
 	identifierPattern     = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
 	forbiddenFieldPattern = regexp.MustCompile(`(?i)(password|secret|token|private_key)`)
 )
@@ -102,7 +103,14 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"contract_test.go": renderContractTest(spec),
 	}
 	for name, content := range files {
-		if err := writeGenerated(filepath.Join(root, "generated", spec.Name, name), []byte(content)); err != nil {
+		path := filepath.Join(root, "generated", spec.Name, name)
+		var err error
+		if name == "migration.sql" {
+			err = writeImmutableGenerated(path, []byte(content))
+		} else {
+			err = writeGenerated(path, []byte(content))
+		}
+		if err != nil {
 			return Lock{}, err
 		}
 	}
@@ -122,6 +130,18 @@ func writeGenerated(path string, content []byte) error {
 		return err
 	}
 	return os.WriteFile(path, content, 0o644)
+}
+
+func writeImmutableGenerated(path string, content []byte) error {
+	if existing, err := os.ReadFile(path); err == nil {
+		if string(existing) != string(content) {
+			return ErrPublishedMigration
+		}
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return writeGenerated(path, content)
 }
 
 func renderModel(spec Spec) string {

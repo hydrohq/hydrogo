@@ -56,3 +56,50 @@ func TestValidateDeniesSecretsAndDestructiveMigrations(t *testing.T) {
 		t.Fatal("destructive spec was accepted")
 	}
 }
+
+func TestGeneratePreservesPublishedMigration(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "pages", Table: "pages_generated", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"pages.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	migrationPath := filepath.Join(root, "generated", "pages", "migration.sql")
+	original, err := os.ReadFile(migrationPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatalf("identical generation rejected: %v", err)
+	}
+	if err := os.WriteFile(migrationPath, append(original, []byte("-- published\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Generate(root, spec); !errors.Is(err, ErrPublishedMigration) {
+		t.Fatalf("changed published migration error = %v", err)
+	}
+}
+
+func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
+	for _, spec := range []Spec{
+		{Name: "pages", Table: "pages", Fields: []Field{{Name: "title", Type: "string"}, {Name: "status", Type: "string"}}, Permissions: []string{"pages.read", "pages.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "news_items", Table: "news_items", Fields: []Field{{Name: "headline", Type: "string"}, {Name: "scheduled", Type: "bool"}}, Permissions: []string{"news.read", "news.write"}, Dialects: []string{"sqlite", "postgres"}},
+	} {
+		root := t.TempDir()
+		first, err := Generate(root, spec)
+		if err != nil {
+			t.Fatalf("%s: %v", spec.Name, err)
+		}
+		before, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "model.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := Generate(root, spec)
+		if err != nil {
+			t.Fatalf("%s second generation: %v", spec.Name, err)
+		}
+		after, _ := os.ReadFile(filepath.Join(root, "generated", spec.Name, "model.go"))
+		if first.SpecSHA256 != second.SpecSHA256 || !bytes.Equal(before, after) {
+			t.Fatalf("%s output is not deterministic", spec.Name)
+		}
+	}
+}

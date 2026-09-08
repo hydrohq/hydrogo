@@ -76,7 +76,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 
 **Bağımlılık:** R4. **Sorumluluk:** DX/SDK, veri, release.
 
-- [ ] Deterministik CRUD üretici, generated/custom koruması, deny varsayılanı ve incelenecek dialect migration taslağı. (Collection spec generator prototipi, secret/destructive deny ve reviewable migration skeleton hazır; gerçek Pages/News CRUD fixture'ı açık.) [Generator doğrulama raporu](validation/R5-generator-2026-09-08.md)
+- [ ] Deterministik CRUD üretici, generated/custom koruması, deny varsayılanı ve incelenecek dialect migration taslağı. (Collection spec generator prototipi, secret/destructive deny, Pages/News collection fixture'ları, published migration immutability ve reviewable migration skeleton hazır; gerçek CRUD repository/transport fixture'ı açık.) [Generator doğrulama raporu](validation/R5-generator-2026-09-08.md)
 - [ ] S08 tamamı: iki kez üretimde sıfır diff, custom hash korunması, published migration değişmezliği. (Prototipte deterministic output/custom preservation contract'ı geçti; published migration ve gerçek modül fixture'ı açık.)
 - [ ] S09: SQLite ↔ PostgreSQL export/import; kimlik/revision/locale/ilişkiler korunur, secret/session dışarı çıkmaz. (Allowlist tabanlı deterministic SQLite ve geçici schema'lı PostgreSQL round-trip contract'ları, auth/session dışlama hazır; büyük veri benchmark'ı ve gerçek müşteri fixture'ı açık.) [R5 doğrulama raporu](validation/R5-portable-export-2026-09-08.md)
 - [ ] Standard/PostgreSQL profilini, desteklenen OS/DB/provider sürümlerini ve upgrade yolunu sertifikala.
