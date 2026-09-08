@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -46,6 +48,35 @@ func TestTrafficPublishesOnlyGatedSlotAndRollsBack(t *testing.T) {
 	traffic.ServeHTTP(res, req)
 	if res.Body.String() != "blue" {
 		t.Fatalf("rollback response = %q", res.Body.String())
+	}
+}
+
+func TestTrafficSwitchRemainsBoundedUnderConcurrentRequests(t *testing.T) {
+	traffic, err := NewTraffic(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("blue")) }), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("green")) }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deployment, _ := NewDeployment(SlotBlue)
+	_ = deployment.PrepareGreen()
+	_ = deployment.MarkReady()
+	_ = deployment.Warmup(true)
+	_ = deployment.Switch(true)
+	var failures atomic.Int32
+	var wg sync.WaitGroup
+	for i := 0; i < 64; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res := httptest.NewRecorder()
+			traffic.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/", nil))
+			if res.Code != http.StatusOK || res.Body.String() != "green" {
+				failures.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if failures.Load() != 0 {
+		t.Fatalf("concurrent green requests failed: %d", failures.Load())
 	}
 }
 
