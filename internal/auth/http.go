@@ -1,0 +1,133 @@
+package auth
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net"
+	"net/http"
+	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/router"
+)
+
+// AuditRecorder records security-relevant authentication events.
+type AuditRecorder interface {
+	Record(ctx context.Context, action, targetID string) error
+}
+
+type AuditRecorderFunc func(context.Context, string, string) error
+
+func (f AuditRecorderFunc) Record(ctx context.Context, action, targetID string) error {
+	return f(ctx, action, targetID)
+}
+
+type HTTPRoute struct {
+	Pattern string
+	Public  bool
+	Handler http.Handler
+}
+
+// HTTPHandler exposes the small, session-backed authentication surface used by the server.
+type HTTPHandler struct {
+	Service *AuthService
+	Audit   AuditRecorder
+	Secure  bool
+}
+
+func (h HTTPHandler) Routes() []HTTPRoute {
+	return []HTTPRoute{
+		{Pattern: "POST /auth/login", Public: true, Handler: http.HandlerFunc(h.login)},
+		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
+		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
+	}
+}
+
+func (h HTTPHandler) RouterRoutes() []router.Route {
+	routes := h.Routes()
+	result := make([]router.Route, 0, len(routes))
+	for _, route := range routes {
+		access := router.Protected
+		if route.Public {
+			access = router.Public
+		}
+		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
+	}
+	return result
+}
+
+func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil {
+		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid login request", http.StatusBadRequest)
+		return
+	}
+	user, err := h.Service.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
+	if err != nil {
+		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, "authentication failed", http.StatusInternalServerError)
+		return
+	}
+	token, session, err := h.Service.CreateSession(r.Context(), user.ID, r.UserAgent(), clientIP(r), DefaultSessionTTL)
+	if err != nil {
+		http.Error(w, "authentication failed", http.StatusInternalServerError)
+		return
+	}
+	SetSessionCookie(w, token, session.ExpiresAt, h.Secure)
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), "auth.login", user.ID)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role})
+}
+
+func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {
+	session := SessionFromContext(r.Context())
+	if session != nil {
+		if err := h.Service.RevokeSession(r.Context(), sessionToken(r)); err != nil && !errors.Is(err, ErrSessionNotFound) {
+			http.Error(w, "logout failed", http.StatusInternalServerError)
+			return
+		}
+		if h.Audit != nil {
+			_ = h.Audit.Record(r.Context(), "auth.logout", session.UserID)
+		}
+	}
+	ClearSessionCookie(w)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active})
+}
+
+func sessionToken(r *http.Request) string {
+	cookie, _ := r.Cookie(SessionCookieName)
+	if cookie == nil {
+		return ""
+	}
+	return cookie.Value
+}
+
+func clientIP(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
+}
+
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
+}

@@ -3,6 +3,9 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,7 +14,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
+	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
@@ -83,10 +88,12 @@ func serve(args []string, stderr io.Writer) error {
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect)}
 
 	return server.Serve(ctx, server.Config{
 		Address: cfg.HTTP.Address,
 		AuthSvc: authSvc,
+		Routes:  authHTTP.RouterRoutes(),
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
 				return err
@@ -94,6 +101,23 @@ func serve(args []string, stderr io.Writer) error {
 			return database.CheckCompatibility(checkCtx, db, cfg.Database.Dialect, migrations.FS)
 		},
 	})
+}
+
+func newAuditRecorder(db *sql.DB, dialect database.Dialect) auth.AuditRecorder {
+	store := auditstore.Store{Dialect: dialect}
+	return auth.AuditRecorderFunc(func(ctx context.Context, action, targetID string) error {
+		return database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+			return store.Record(ctx, tx, newAuditID(), action, targetID)
+		})
+	})
+}
+
+func newAuditID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("audit-%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }
 
 func migrate(args []string, stderr io.Writer) error {

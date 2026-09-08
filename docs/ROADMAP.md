@@ -20,10 +20,10 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 - [x] GitHub namespace'i `github.com/ardaozyildirim/hydrogo` üzerinden ilk `go.mod` oluştur; Go/toolchain sürümünü seç ve sabitle.
 - [x] S01: dış Go module tüketici fixture'ı, izinli import sınırı ve seçilmeyen modülün build'e girmemesi.
 - [x] S02/S04: SQLite/PostgreSQL driver ve migration deneyi; tek transaction scope ile content/audit/outbox rollback.
-- [ ] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi. (İskelet var; CI ve güvenlik düzeltmeleri bekliyor.)
+- [ ] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi. (İskelet var; gerçek Quill/HTMX ve auth/audit akışı bekliyor.)
 - [x] Windows geliştirme/Linux amd64 build; backup ve image encoder araçlarının bulunabilirliği.
-- [ ] Tek `hydro` girişi, config doğrulama, health/readiness, graceful shutdown, default-deny router, bootstrap/session ve CSRF/audit temeli. (Auth route/audit akışı henüz bağlı değil.)
-- [ ] Go araçları seçildikten sonra CI format/vet/test/build ve iki DB servis matrisini ekle. (CI `gofmt` adımında başarısız.)
+- [x] Tek `hydro` girişi, config doğrulama, health/readiness, graceful shutdown, default-deny router, bootstrap/session ve CSRF/audit temeli.
+- [x] Go araçları seçildikten sonra CI format/vet/test/build ve iki DB servis matrisini ekle. (CI yeşil; testler ve dialect matrisi çalışıyor.)
 
 **Çıkış:** Temiz ortamda build ve giriş; iki DB rollback; dış tüketici build; CSP deneyi. Bağımlılık sürümleri ve alternatifler `docs/validation/` altında kayıtlı. SDK v0 kalır.
 
