@@ -48,6 +48,24 @@ func ReleaseRestoreQuarantine(ctx context.Context, db *sql.DB, dialect database.
 	return nil
 }
 
+// ReleaseRestoreWrites removes the old-deployment write fence after the old
+// slot has been drained. It cannot run while job egress is still quarantined.
+func ReleaseRestoreWrites(ctx context.Context, db *sql.DB, dialect database.Dialect) error {
+	if db == nil {
+		return errors.New("restore database is required")
+	}
+	result, err := db.ExecContext(ctx, "UPDATE restore_controls SET old_writes_blocked = 0 WHERE id = "+p(dialect, 1)+" AND egress_quarantined = 0", 1)
+	if err != nil {
+		return err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return err
+	} else if affected != 1 {
+		return errors.New("restore egress quarantine is still active")
+	}
+	return nil
+}
+
 func RestoreWritesBlocked(ctx context.Context, db database.Executor, dialect database.Dialect) (bool, error) {
 	var blocked int
 	err := db.QueryRowContext(ctx, "SELECT old_writes_blocked FROM restore_controls WHERE id = "+p(dialect, 1), 1).Scan(&blocked)

@@ -1,0 +1,25 @@
+id: "202609090016_restore_write_fence"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "e6f09986482694be75d6e356c43fac9a0a0df2e8936ca43d7b88ee30bb82220a"
+  postgres: "7ab59444633fed56a3dd41fcf761183a707b8014e2a84564e3c6383120209585"
+dependencies:
+  - "202609090015_restore_controls"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Restore control state and mutable content tables are present"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Trigger metadata only"
+compatibility: "Prevents old deployment writes while restore write fence is active"
+smoke:
+  - "Pages and durable jobs reject writes while old_writes_blocked is set"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

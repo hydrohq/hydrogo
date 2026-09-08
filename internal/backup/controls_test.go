@@ -51,10 +51,19 @@ func TestSQLiteRestoreControlsRevokeSessionsAndQuarantineJobs(t *testing.T) {
 	if _, _, ok, err := store.Claim(ctx, db, "restore-worker", now, time.Minute); err != nil || ok {
 		t.Fatalf("quarantined job claim = %v/%v", ok, err)
 	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,publication_generation,created_at,updated_at) VALUES ('blocked-page','Title',1,'en','blocked','body','draft',1,0,'2026-01-01','2026-01-01')`); err == nil {
+		t.Fatal("old deployment write unexpectedly succeeded")
+	}
 	if err := ReleaseRestoreQuarantine(ctx, db, database.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReleaseRestoreWrites(ctx, db, database.SQLite); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, ok, err := store.Claim(ctx, db, "restore-worker", now, time.Minute); err != nil || !ok {
 		t.Fatalf("released job claim = %v/%v", ok, err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,publication_generation,created_at,updated_at) VALUES ('new-page','Title',1,'en','new','body','draft',1,0,'2026-01-01','2026-01-01')`); err != nil {
+		t.Fatalf("write fence release: %v", err)
 	}
 }
