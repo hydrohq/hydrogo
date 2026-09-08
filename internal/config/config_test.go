@@ -58,6 +58,13 @@ func TestLoadCapacityProfile(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsPartialSMTPConfiguration(t *testing.T) {
+	_, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_FROM": "from@example.test"}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "mail host is required") {
+		t.Fatalf("partial SMTP error = %v", err)
+	}
+}
+
 func writeConfig(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "hydro.yaml")

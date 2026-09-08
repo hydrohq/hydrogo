@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -19,6 +20,7 @@ type Config struct {
 	Database Database         `yaml:"database"`
 	Media    Media            `yaml:"media"`
 	Security Security         `yaml:"security"`
+	Mail     Mail             `yaml:"mail"`
 }
 
 type HTTP struct {
@@ -39,6 +41,15 @@ type Security struct {
 	MFAMasterKey string `yaml:"mfa_master_key"`
 }
 
+type Mail struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	From     string `yaml:"from"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	StartTLS bool   `yaml:"starttls"`
+}
+
 type Overrides struct {
 	CapacityProfile *string
 	HTTPAddress     *string
@@ -49,7 +60,7 @@ type Overrides struct {
 type LookupEnv func(string) (string, bool)
 
 func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
-	result := Config{Profile: capacity.Compact, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}}
+	result := Config{Profile: capacity.Compact, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, Mail: Mail{Port: 587, StartTLS: true}}
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -80,6 +91,32 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_MFA_MASTER_KEY"); ok && value != "" {
 		result.Security.MFAMasterKey = value
+	}
+	if value, ok := lookup("HYDRO_SMTP_HOST"); ok && value != "" {
+		result.Mail.Host = value
+	}
+	if value, ok := lookup("HYDRO_SMTP_FROM"); ok && value != "" {
+		result.Mail.From = value
+	}
+	if value, ok := lookup("HYDRO_SMTP_USERNAME"); ok && value != "" {
+		result.Mail.Username = value
+	}
+	if value, ok := lookup("HYDRO_SMTP_PASSWORD"); ok && value != "" {
+		result.Mail.Password = value
+	}
+	if value, ok := lookup("HYDRO_SMTP_PORT"); ok && value != "" {
+		port, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_SMTP_PORT: %w", err)
+		}
+		result.Mail.Port = port
+	}
+	if value, ok := lookup("HYDRO_SMTP_STARTTLS"); ok && value != "" {
+		startTLS, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_SMTP_STARTTLS: %w", err)
+		}
+		result.Mail.StartTLS = startTLS
 	}
 
 	dsnSources := 0
@@ -130,6 +167,21 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.Media.Dir) == "" {
 		return errors.New("media directory is required")
+	}
+	if c.Mail.Host == "" {
+		if c.Mail.From != "" || c.Mail.Username != "" || c.Mail.Password != "" {
+			return errors.New("mail host is required when SMTP is configured")
+		}
+	} else {
+		if strings.TrimSpace(c.Mail.From) == "" {
+			return errors.New("mail from is required when SMTP is configured")
+		}
+		if c.Mail.Port <= 0 || c.Mail.Port > 65535 {
+			return errors.New("mail port is invalid")
+		}
+		if c.Mail.Username == "" && c.Mail.Password != "" {
+			return errors.New("mail password requires username")
+		}
 	}
 	return nil
 }

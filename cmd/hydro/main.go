@@ -24,6 +24,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
@@ -117,6 +118,15 @@ func serve(args []string, stderr io.Writer) error {
 	recoveryService := &auth.PasswordRecovery{Users: userStore, Tokens: userStore, Sessions: sessionStore, ArgonParams: auth.DefaultArgon2Params}
 	invitationService := &auth.InvitationService{Users: userStore, Invites: userStore, ArgonParams: auth.DefaultArgon2Params}
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), MFA: mfaService, MFADB: db, Transactions: database.NewTransactor(db), LoginLimiter: security.NewAttemptLimiter(10000, 5, time.Minute), MFALimiter: security.NewAttemptLimiter(10000, 5, time.Minute), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
+	if cfg.Mail.Host != "" {
+		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
+		if err != nil {
+			return err
+		}
+		notifier := mailer.NotificationSender{Sender: sender}
+		authHTTP.Notifier = notifier
+		authHTTP.InviteNotice = notifier
+	}
 	contentService := pageservice.ContentService{
 		Transactions: database.NewTransactor(db),
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},

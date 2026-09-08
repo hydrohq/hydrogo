@@ -26,6 +26,8 @@ Marker olmadan staging public trafiğe, worker'a veya export işlemine açılmaz
 
 Reset ve invite token'ları yalnız hash olarak saklanır. Token e-posta/notifier adapter'ına verildikten sonra log veya audit'e yazılmaz. Bilinmeyen reset e-postası `202 Accepted` ile aynı cevabı alır. Invite kabulünde token tüketimi ve kullanıcı oluşturma tek transaction'dadır.
 
+Üretimde notifier için `HYDRO_SMTP_HOST`, `HYDRO_SMTP_PORT`, `HYDRO_SMTP_FROM`, `HYDRO_SMTP_USERNAME`, `HYDRO_SMTP_PASSWORD` ve `HYDRO_SMTP_STARTTLS` secret/config kaynakları birlikte doğrulanır. SMTP teslimi başarısızsa reset/invite işlemi başarı ilan edilmez; provider retry ve alarm politikası deployment'a aittir.
+
 ## Disk dolması
 
 Yeni upload ve snapshot işlemleri güvenli hata ile durdurulur; mevcut ready medya ve DB silinmez. Önce geçici/pending medya, başarısız snapshot ve süresi dolmuş inbox kayıtları retention politikasına göre temizlenir. Dosya sistemi tekrar yazılabilir olmadan migration, restore aktivasyonu veya GC çalıştırılmaz.
