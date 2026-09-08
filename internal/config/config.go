@@ -15,6 +15,7 @@ import (
 type Config struct {
 	HTTP     HTTP     `yaml:"http"`
 	Database Database `yaml:"database"`
+	Media    Media    `yaml:"media"`
 }
 
 type HTTP struct {
@@ -26,6 +27,10 @@ type Database struct {
 	DSN     string           `yaml:"dsn"`
 }
 
+type Media struct {
+	Dir string `yaml:"dir"`
+}
+
 type Overrides struct {
 	HTTPAddress     *string
 	DatabaseDialect *string
@@ -35,7 +40,7 @@ type Overrides struct {
 type LookupEnv func(string) (string, bool)
 
 func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
-	result := Config{HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}}
+	result := Config{HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}}
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -54,6 +59,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_DATABASE_DIALECT"); ok {
 		result.Database.Dialect = database.Dialect(value)
+	}
+	if value, ok := lookup("HYDRO_MEDIA_DIR"); ok && value != "" {
+		result.Media.Dir = value
 	}
 
 	dsnSources := 0
@@ -95,6 +103,9 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.Database.DSN) == "" {
 		return errors.New("database DSN is required")
+	}
+	if strings.TrimSpace(c.Media.Dir) == "" {
+		return errors.New("media directory is required")
 	}
 	return nil
 }

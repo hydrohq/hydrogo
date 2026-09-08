@@ -22,6 +22,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/media"
+	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -104,7 +106,14 @@ func serve(args []string, stderr io.Writer) error {
 		PublicCache:  cache.New[pages.Page](256, 30*time.Second),
 	}
 	pageHTTP := pagetransport.Handler{DB: db, Content: contentService}
+	uploader, err := media.NewUploader(cfg.Media.Dir, 10<<20)
+	if err != nil {
+		return err
+	}
+	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediastore.Store{Dialect: cfg.Database.Dialect}}
+	mediaHTTP := media.HTTPHandler{Service: mediaService}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
+	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 
 	return server.Serve(ctx, server.Config{
 		Address: cfg.HTTP.Address,
@@ -120,6 +129,18 @@ func serve(args []string, stderr io.Writer) error {
 }
 
 func pageRouterRoutes(routes []pagetransport.Route) []router.Route {
+	result := make([]router.Route, 0, len(routes))
+	for _, route := range routes {
+		access := router.Protected
+		if !route.Protected {
+			access = router.Public
+		}
+		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
+	}
+	return result
+}
+
+func mediaRouterRoutes(routes []media.HTTPRoute) []router.Route {
 	result := make([]router.Route, 0, len(routes))
 	for _, route := range routes {
 		access := router.Protected
