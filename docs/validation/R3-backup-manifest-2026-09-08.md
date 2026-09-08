@@ -9,6 +9,8 @@
 
 `SnapshotSQLiteWithLimits` medya toplamı, SQLite page estimate'i/snapshot byte boyutu ve wall-clock bütçesini staging kopyası başlamadan ve kopya sırasında kontrol eder. Bütçe aşılırsa yeni destination temizlenir ve kullanılabilir restore marker'ı üretilmez. Snapshot dizini artık `manifest.json` ile kendi doğrulama girdisini taşır; contract test dönen manifest ile disk üzerindeki manifest'in eşleştiğini kontrol eder. `PostgresTools` ise password'ı process argümanına koymadan geçici `PGPASSFILE` ile custom-format `pg_dump`/`pg_restore` çağrısını sınırlar; `SnapshotPostgres` ve `RestorePostgresToStaging` manifest doğrulamalı medya kopyası, karantina marker'ı ve izole hedef database round-trip'ini CI client araçlarıyla doğrular. `ActivateStagingMedia` üç kontrolü taşıyan marker olmadan çalışmaz, staging kökünü aktif köke atomik olarak geçirir ve eski kökü önceden boş rollback dizininde korur.
 
+`PruneSnapshots`, yalnız geçerli `manifest.json` taşıyan yerel snapshot dizinlerini değerlendirir; en yeni snapshot sayısını ve pin'li dizinleri korur, bozuk/yarım manifest'te güvenli biçimde durur. Bu yardımcı dış object storage GC veya erasure log retention koordinasyonunun yerine geçmez.
+
 Çalıştırılan kontrol:
 
 ```text

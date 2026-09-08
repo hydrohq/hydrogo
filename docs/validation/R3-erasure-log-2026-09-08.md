@@ -9,7 +9,7 @@
 
 `Replay`, zinciri doğruladıktan sonra niyetleri sırayla handler'a verir. Handler hatasında checkpoint ilerletilmez; aynı başlangıç checkpoint'iyle yeniden çalıştırma contract testinde doğrulanır. `SQLAdapter`, `erase.page` için revision ve page kayıtlarını, `erase.media` için medya metadata'sını transaction içinde idempotent siler; aynı log checkpoint'i ikinci kez uygulandığında hata vermez.
 
-`ReplayFromCheckpoint` artık yalnız sıra numarasını kabul etmez; persisted checkpoint'in hash anchor'ını güncel zincirde doğrular. Log truncate/replacement veya yanlış eski checkpoint durumunda replay reddedilir ve dış trafik açılmadan operatör müdahalesi gerekir.
+`ReplayFromCheckpoint` artık yalnız sıra numarasını kabul etmez; persisted checkpoint'in hash anchor'ını güncel zincirde doğrular. Log truncate/replacement veya yanlış eski checkpoint durumunda replay reddedilir ve dış trafik açılmadan operatör müdahalesi gerekir. Backup tarafında `PruneSnapshots`, geçerli manifest'li yerel snapshot'larda en yeni/pin'li retention davranışını ve bozuk manifest'te fail-closed kuralını doğrular; dış provider GC'si henüz sertifikalı değildir.
 
 Çalıştırılan kontrol:
 
