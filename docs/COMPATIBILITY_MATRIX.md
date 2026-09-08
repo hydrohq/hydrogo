@@ -15,6 +15,6 @@ Bu tablo mevcut R3/R4 sözleşmelerinin kanıtlanmış sınırını gösterir. �
 
 ## Açık doğrulamalar
 
-- Gerçek eski müşteri verisiyle import/upgrade fixture'ı henüz repoya eklenmedi.
+- `tests/contract/testdata/legacy_customer.json` ile migration 008 seviyesinden tam şemaya yükseltme; yayınlanmış sayfa projection backfill'i, medya ve auth hash korunumu doğrulandı.
 - PostgreSQL SQL job lease için servis matrisi henüz çalıştırılmadı.
 - Online DDL lock süresi, rollback sonrası retained asset ve gerçek blue/green trafik tatbikatı S06/S07 kapılarında açık.

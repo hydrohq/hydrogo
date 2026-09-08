@@ -1,0 +1,38 @@
+{
+  "page": {
+    "id": "legacy-home",
+    "locale": "tr-tr",
+    "slug": "anasayfa",
+    "title": "Eski Anasayfa",
+    "body": "legacy body",
+    "status": "published",
+    "revision": 3,
+    "version": 3,
+    "created_at": "2026-01-02T10:00:00Z",
+    "updated_at": "2026-01-03T10:00:00Z"
+  },
+  "revision": {
+    "id": "legacy-home-r3",
+    "revision": 3,
+    "created_at": "2026-01-03T10:00:00Z"
+  },
+  "media": {
+    "id": "legacy-logo",
+    "storage_key": "legacy/logo.svg",
+    "original_filename": "logo.svg",
+    "mime_type": "image/svg+xml",
+    "size_bytes": 128,
+    "visibility": "public",
+    "status": "ready",
+    "created_at": "2026-01-02T10:00:00Z",
+    "updated_at": "2026-01-02T10:00:00Z"
+  },
+  "user": {
+    "id": "legacy-admin",
+    "email": "legacy-admin@example.test",
+    "password_hash": "legacy-hash",
+    "role": "admin",
+    "created_at": "2026-01-02T10:00:00Z",
+    "updated_at": "2026-01-02T10:00:00Z"
+  }
+}

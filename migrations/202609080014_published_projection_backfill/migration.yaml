@@ -1,0 +1,25 @@
+id: "202609080014_published_projection_backfill"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "011a26079cde8727b4aa74b10cca48f2ce221e1fe9e38c885671c776bb44f3d2"
+  postgres: "011a26079cde8727b4aa74b10cca48f2ce221e1fe9e38c885671c776bb44f3d2"
+dependencies:
+  - "202609080006_published_projection"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "Published projection columns are present"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One bounded row update per legacy published page"
+compatibility: "Backfills the published projection for pages created before projection support"
+smoke:
+  - "Legacy published pages resolve through the public route after upgrade"
+restart: "Safe to rerun; rows with published_revision are unchanged"
+rollback: "No production down migration; restore or forward migration only."
