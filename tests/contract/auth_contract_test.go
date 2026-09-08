@@ -2,6 +2,7 @@ package contract_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/pquerna/otp/totp"
 )
 
 func TestSQLiteAuthContract(t *testing.T) {
@@ -115,5 +117,35 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	}
 	if _, _, err := authSvc.ValidateSession(ctx, editorToken); err != auth.ErrSessionNotFound {
 		t.Fatalf("expected disabled user session to be revoked, got: %v", err)
+	}
+
+	// 10. TOTP and single-use recovery codes are stored safely.
+	mfa := auth.MFAService{Store: userStore, MasterKey: []byte("0123456789abcdef0123456789abcdef")}
+	var enrollment auth.MFAEnrollment
+	err = database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		var innerErr error
+		enrollment, innerErr = mfa.Enroll(ctx, tx, u.ID, u.Email)
+		return innerErr
+	})
+	if err != nil {
+		t.Fatalf("MFA enrollment failed: %v", err)
+	}
+	if len(enrollment.RecoveryCodes) != 8 || enrollment.Secret == "" {
+		t.Fatalf("unexpected MFA enrollment: %+v", enrollment)
+	}
+	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error { return mfa.Enable(ctx, tx, u.ID) }); err != nil {
+		t.Fatalf("enable MFA failed: %v", err)
+	}
+	code, err := totp.GenerateCode(enrollment.Secret, time.Now())
+	if err != nil || mfa.Verify(ctx, db, u.ID, code) != nil {
+		t.Fatalf("TOTP verification failed: %v", err)
+	}
+	recovery := enrollment.RecoveryCodes[0]
+	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error { return mfa.ConsumeRecoveryCode(ctx, tx, u.ID, recovery) }); err != nil {
+		t.Fatalf("recovery code consume failed: %v", err)
+	}
+	err = database.NewTransactor(db).Within(ctx, func(tx database.Executor) error { return mfa.ConsumeRecoveryCode(ctx, tx, u.ID, recovery) })
+	if !errors.Is(err, auth.ErrMFAInvalidCode) {
+		t.Fatalf("second recovery code consume = %v, want invalid code", err)
 	}
 }

@@ -1,0 +1,26 @@
+id: "202609080007_mfa"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "efec40a99453301ab01f3a0b2ae4d765005854327c8fc854a489dff075ec7f31"
+  postgres: "667537b7427a2f21666b12aa3b726fc147d3f75af004f355b9828ff77927e5a2"
+dependencies:
+  - "202609060002_auth_security"
+schema:
+  readable_epoch: 4
+  writable_epoch: 4
+preconditions:
+  - "The auth security migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Encrypted TOTP factors and hashed recovery codes"
+compatibility: "Adds optional MFA records; users without a factor remain unchanged"
+smoke:
+  - "Recovery code hashes are single-use"
+  - "TOTP verification is performed by the OTP library"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
