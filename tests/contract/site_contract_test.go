@@ -1,0 +1,69 @@
+package contract_test
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/site"
+	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
+)
+
+func TestSQLiteSiteEditionContract(t *testing.T) {
+	runSiteEditionContract(t, database.SQLite, filepath.Join(t.TempDir(), "site.sqlite"))
+}
+
+func TestPostgresSiteEditionContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	runSiteEditionContract(t, database.Postgres, dsn)
+}
+
+func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) {
+	t.Helper()
+	ctx := context.Background()
+	db, err := database.Open(ctx, dialect, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitestore.Store{Dialect: dialect}
+	transactor := database.NewTransactor(db)
+	service := site.Service{Store: store, Transactions: transactor}
+	if err := service.SaveSetting(ctx, site.Setting{Key: "site.name", Value: "HydroGo", Public: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.SaveNavigation(ctx, "EN", []site.NavigationItem{{ID: "home", Label: "Home", Href: "/", Position: 0, Visible: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.SaveRedirect(ctx, site.Redirect{SourcePath: "/old/", TargetPath: "/new/", Status: 301}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Submit(ctx, site.Submission{ID: "form-1", FormKey: "contact", Email: "user@example.com", Payload: `{"message":"hello"}`, SourceIPHash: "hash"}); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := store.ListPublicSettings(ctx, db)
+	if err != nil || len(settings) != 1 || settings[0].Value != "HydroGo" {
+		t.Fatalf("settings = %#v/%v", settings, err)
+	}
+	navigation, err := store.ListNavigation(ctx, db, "en")
+	if err != nil || len(navigation) != 1 || navigation[0].Href != "/" {
+		t.Fatalf("navigation = %#v/%v", navigation, err)
+	}
+	redirect, err := store.GetRedirect(ctx, db, "/old")
+	if err != nil || redirect.TargetPath != "/new" || redirect.Status != 301 {
+		t.Fatalf("redirect = %#v/%v", redirect, err)
+	}
+	submissions, err := store.ListSubmissions(ctx, db, "contact", 10)
+	if err != nil || len(submissions) != 1 || submissions[0].ID != "form-1" {
+		t.Fatalf("submissions = %#v/%v", submissions, err)
+	}
+}

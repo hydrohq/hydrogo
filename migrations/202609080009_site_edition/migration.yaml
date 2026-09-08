@@ -1,0 +1,26 @@
+id: "202609080009_site_edition"
+module: "site"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "a39340c385ddb29d9f5a763335fdf19c85be6d5fff1776155b92802a49f403e5"
+  postgres: "d12925731f39ba673c800edc01541940d4adaecb8e4c31dbe03f3ff8d2dd4ea8"
+dependencies:
+  - "202609080003_pages_content"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "Pages content migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Site settings, navigation, redirects and bounded form inbox records"
+compatibility: "Adds optional Site Edition projections without changing page publication semantics"
+smoke:
+  - "Repeated migration application is a no-op"
+  - "Settings, navigation, redirects and inbox records are isolated by explicit keys"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
