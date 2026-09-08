@@ -5,12 +5,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html/template"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
 
@@ -45,6 +47,11 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.schedule)},
 		{Pattern: "POST /api/news/{id}/publish", Protected: true, Handler: http.HandlerFunc(h.publish)},
 		{Pattern: "POST /api/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.retract)},
+		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
+		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
+		{Pattern: "POST /admin/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.adminSchedule)},
+		{Pattern: "POST /admin/news/{id}/publish", Protected: true, Handler: http.HandlerFunc(h.adminPublish)},
+		{Pattern: "POST /admin/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.adminRetract)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
 	}
 }
@@ -154,6 +161,113 @@ func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) || h.DB == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	item, err := h.Service.Repository.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "news not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `">
+<label>Locale <input name="locale" value="` + template.HTMLEscapeString(item.Locale) + `"></label>
+<label>Slug <input name="slug" value="` + template.HTMLEscapeString(item.Slug) + `"></label>
+<label>Title <input name="title" value="` + template.HTMLEscapeString(item.Title) + `"></label>
+<label>Body <textarea name="body">` + template.HTMLEscapeString(item.Body) + `</textarea></label>
+<input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `">
+<input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `">
+<button type="submit">Save draft</button>
+</form>
+<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `/schedule"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `"><input name="scheduled_at" type="datetime-local"><button type="submit">Schedule</button></form>
+<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `/publish"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `"><button type="submit">Publish</button></form>
+<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `/retract"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `"><button type="submit">Retract</button></form>`))
+}
+
+func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	version, err := strconv.Atoi(r.FormValue("version"))
+	if err != nil {
+		http.Error(w, "version is required", http.StatusBadRequest)
+		return
+	}
+	item := news.Item{ID: r.PathValue("id"), Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
+	if err := h.Service.UpdateDraft(r.Context(), item, version); err != nil {
+		writeError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/news/"+template.HTMLEscapeString(item.ID), http.StatusSeeOther)
+}
+
+func (h Handler) adminSchedule(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	version, err := strconv.Atoi(r.FormValue("version"))
+	if err != nil {
+		http.Error(w, "version is required", http.StatusBadRequest)
+		return
+	}
+	at, err := time.Parse("2006-01-02T15:04", r.FormValue("scheduled_at"))
+	if err != nil {
+		http.Error(w, "invalid schedule", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.Schedule(r.Context(), r.PathValue("id"), version, at); err != nil {
+		writeError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/news/"+template.HTMLEscapeString(r.PathValue("id")), http.StatusSeeOther)
+}
+
+func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
+	h.adminTransition(w, r, "publish")
+}
+
+func (h Handler) adminRetract(w http.ResponseWriter, r *http.Request) {
+	h.adminTransition(w, r, "retract")
+}
+
+func (h Handler) adminTransition(w http.ResponseWriter, r *http.Request, action string) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	version, err := strconv.Atoi(r.FormValue("version"))
+	if err != nil {
+		http.Error(w, "version is required", http.StatusBadRequest)
+		return
+	}
+	if action == "publish" {
+		err = h.Service.Publish(r.Context(), r.PathValue("id"), version)
+	} else {
+		err = h.Service.Retract(r.Context(), r.PathValue("id"), version)
+	}
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/news/"+template.HTMLEscapeString(r.PathValue("id")), http.StatusSeeOther)
 }
 
 func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
