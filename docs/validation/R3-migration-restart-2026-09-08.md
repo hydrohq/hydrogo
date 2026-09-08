@@ -10,10 +10,12 @@ Temiz SQLite dosyasında tüm migration'lar uygulanıp `schema_migrations` ledge
 go test ./internal/database
 ```
 
-Bu test eski binary ile yeni yazma/rollback uyumluluğunu, online DDL kilit davranışını veya medya retained asset sürekliliğini tek başına sertifikalamaz.
+Bu test eski binary ile yeni yazma/rollback uyumluluğunu, online DDL kilit davranışını veya gerçek slot trafiğini tek başına sertifikalamaz.
 
 ## S06 ilerleme doğrulaması — 2026-09-09
 
 `tests/contract/migration_rollback_test.go` tam migration seti uygulandıktan sonra yeni binary'nin zengin page projection'ı yazmasını, eski binary'nin yalnız `id/title/version` kolonlarını okuyup güncellemesini ve yeni alanları koruyan yeni binary okumasını SQLite'ta doğrular. `HYDRO_TEST_POSTGRES_URL` tanımlı CI koşulunda aynı contract PostgreSQL'de de çalışır.
 
-`TestSQLiteOnlineExpandAllowsConcurrentReadContract` WAL açık SQLite'ta aktif bir read transaction sürerken nullable expand migration'ın iki saniyelik deadline içinde tamamlandığını ve yeni kolonun görünür olduğunu doğrular. Bu deney migration'ın genel production lock süresini veya PostgreSQL DDL planını sertifikalamaz; gerçek blue/green trafik, retained asset rollback ve kapasite ölçümü S06/S07'nin açık kısmıdır.
+`internal/release.RetainAssets`, release manifest'indeki `static/`, `assets/` ve `public/assets/` artifact'lerini checksum ile doğrulayıp ortak retention dizinine atomik olarak taşır; aynı yoldaki mevcut asset farklıysa değişiklik reddedilir ve `VerifyRetainedAssets` rollback penceresinde bütünlüğü tekrar kontrol eder.
+
+`TestSQLiteOnlineExpandAllowsConcurrentReadContract` WAL açık SQLite'ta aktif bir read transaction sürerken nullable expand migration'ın iki saniyelik deadline içinde tamamlandığını ve yeni kolonun görünür olduğunu doğrular. Bu deney migration'ın genel production lock süresini veya PostgreSQL DDL planını sertifikalamaz; gerçek blue/green trafik, yeni yazımdan sonra production rollback ve kapasite ölçümü S06/S07'nin açık kısmıdır.

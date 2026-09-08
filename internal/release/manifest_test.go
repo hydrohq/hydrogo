@@ -55,3 +55,34 @@ func TestManifestRejectsSecretArtifact(t *testing.T) {
 		t.Fatalf("secret artifact error = %v", err)
 	}
 }
+
+func TestRetainAssetsVerifiesInventoryAndRejectsReplacement(t *testing.T) {
+	source := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(source, "static", "release"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	assetPath := filepath.Join(source, "static", "release", "app.123.css")
+	if err := os.WriteFile(assetPath, []byte("old-release-css"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "main.bin"), []byte("binary"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := Build(source, Input{Edition: "client", CoreVersion: "0.1.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared := t.TempDir()
+	if err := RetainAssets(source, manifest, shared); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyRetainedAssets(shared, manifest); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(shared, "static", "release", "app.123.css"), []byte("replacement"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := RetainAssets(source, manifest, shared); err == nil {
+		t.Fatal("changed retained asset was accepted")
+	}
+}

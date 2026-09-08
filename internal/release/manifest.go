@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -148,4 +149,152 @@ func cloneMap(source map[string]string) map[string]string {
 		result[key] = value
 	}
 	return result
+}
+
+// RetainAssets verifies the asset inventory from a release manifest and
+// materializes it in a shared directory used during the rollback window.
+// Existing files are immutable: an identical file is kept, while a different
+// file at the same path is rejected.
+func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) error {
+	sourceRoot, destinationRoot, err := absoluteRoots(sourceRoot, destinationRoot)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(destinationRoot, 0o750); err != nil {
+		return err
+	}
+	for _, artifact := range manifest.Artifacts {
+		if !isRetainedAsset(artifact.Path) {
+			continue
+		}
+		source, err := safeArtifactPath(sourceRoot, artifact.Path)
+		if err != nil {
+			return err
+		}
+		if err := verifyArtifact(source, artifact); err != nil {
+			return fmt.Errorf("asset %s: %w", artifact.Path, err)
+		}
+		destination, err := safeArtifactPath(destinationRoot, artifact.Path)
+		if err != nil {
+			return err
+		}
+		if existing, err := os.Stat(destination); err == nil {
+			if existing.IsDir() {
+				return fmt.Errorf("retained asset path is a directory: %s", artifact.Path)
+			}
+			if err := verifyArtifact(destination, artifact); err != nil {
+				return fmt.Errorf("retained asset conflict %s: %w", artifact.Path, err)
+			}
+			continue
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
+			return err
+		}
+		temporary, err := os.CreateTemp(filepath.Dir(destination), ".hydro-retain-*")
+		if err != nil {
+			return err
+		}
+		temporaryPath := temporary.Name()
+		ok := false
+		defer func() {
+			if !ok {
+				_ = os.Remove(temporaryPath)
+			}
+		}()
+		if err := copyBytes(temporary, source); err != nil {
+			_ = temporary.Close()
+			return err
+		}
+		if err := temporary.Chmod(0o640); err != nil {
+			_ = temporary.Close()
+			return err
+		}
+		if err := temporary.Close(); err != nil {
+			return err
+		}
+		if err := os.Rename(temporaryPath, destination); err != nil {
+			return err
+		}
+		ok = true
+	}
+	return nil
+}
+
+// VerifyRetainedAssets checks every retained asset in a manifest without
+// changing the shared directory.
+func VerifyRetainedAssets(root string, manifest Manifest) error {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	for _, artifact := range manifest.Artifacts {
+		if !isRetainedAsset(artifact.Path) {
+			continue
+		}
+		path, err := safeArtifactPath(root, artifact.Path)
+		if err != nil {
+			return err
+		}
+		if err := verifyArtifact(path, artifact); err != nil {
+			return fmt.Errorf("asset %s: %w", artifact.Path, err)
+		}
+	}
+	return nil
+}
+
+func absoluteRoots(sourceRoot, destinationRoot string) (string, string, error) {
+	if strings.TrimSpace(sourceRoot) == "" || strings.TrimSpace(destinationRoot) == "" {
+		return "", "", errors.New("source and destination roots are required")
+	}
+	sourceRoot, err := filepath.Abs(sourceRoot)
+	if err != nil {
+		return "", "", err
+	}
+	destinationRoot, err = filepath.Abs(destinationRoot)
+	if err != nil {
+		return "", "", err
+	}
+	return sourceRoot, destinationRoot, nil
+}
+
+func isRetainedAsset(path string) bool {
+	return strings.HasPrefix(path, "static/") || strings.HasPrefix(path, "assets/") || strings.HasPrefix(path, "public/assets/")
+}
+
+func safeArtifactPath(root, relative string) (string, error) {
+	if relative == "" || filepath.IsAbs(relative) {
+		return "", fmt.Errorf("invalid artifact path: %s", relative)
+	}
+	clean := filepath.Clean(filepath.FromSlash(relative))
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("artifact path escapes root: %s", relative)
+	}
+	return filepath.Join(root, clean), nil
+}
+
+func verifyArtifact(path string, expected Artifact) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if int64(len(data)) != expected.Size {
+		return fmt.Errorf("size mismatch: got %d want %d", len(data), expected.Size)
+	}
+	digest := sha256.Sum256(data)
+	if hex.EncodeToString(digest[:]) != expected.SHA256 {
+		return errors.New("checksum mismatch")
+	}
+	return nil
+}
+
+func copyBytes(destination *os.File, source string) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	_, err = io.Copy(destination, input)
+	return err
 }
