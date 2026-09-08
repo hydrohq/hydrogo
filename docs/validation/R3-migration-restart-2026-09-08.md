@@ -24,4 +24,6 @@ Migration runner artık metadata'daki `transactional.<dialect>` değerine uyar. 
 
 `internal/release.Deployment` ADR-0005 sırasını local state machine olarak zorlar: Green hazırlanır, readiness alınır, retained asset warm-up tamamlanır, schema rollback safety onaylanır, sonra switch/drain/rollback yapılır. Bu sözleşme gerçek reverse-proxy trafiğini veya process restart'ını tek başına sertifikalamaz.
 
+`internal/release.Traffic` aynı gate sonrasında process-local HTTP handler'ı atomik olarak Green'e geçirir ve güvenli rollback'te Blue'ya döndürür. Bu contract dış reverse-proxy entegrasyonu ve process restart tatbikatının yerine geçmez.
+
 `TestSQLiteOnlineExpandAllowsConcurrentReadContract` WAL açık SQLite'ta aktif bir read transaction sürerken nullable expand migration'ın iki saniyelik deadline içinde tamamlandığını ve yeni kolonun görünür olduğunu doğrular. Bu deney migration'ın genel production lock süresini veya PostgreSQL DDL planını sertifikalamaz; gerçek blue/green trafik, yeni yazımdan sonra production rollback ve kapasite ölçümü S06/S07'nin açık kısmıdır.

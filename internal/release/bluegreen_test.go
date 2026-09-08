@@ -2,8 +2,52 @@ package release
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
+
+func TestTrafficPublishesOnlyGatedSlotAndRollsBack(t *testing.T) {
+	traffic, err := NewTraffic(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("blue")) }), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("green")) }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deployment, err := NewDeployment(SlotBlue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := traffic.Switch(deployment); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("ungated traffic switch error = %v", err)
+	}
+	for _, step := range []func() error{deployment.PrepareGreen, deployment.MarkReady, func() error { return deployment.Warmup(true) }, func() error { return deployment.Switch(true) }} {
+		if err := step(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := traffic.Switch(deployment); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	res := httptest.NewRecorder()
+	traffic.ServeHTTP(res, req)
+	if res.Body.String() != "green" {
+		t.Fatalf("active response = %q", res.Body.String())
+	}
+	if err := deployment.DrainBlue(); err != nil {
+		t.Fatal(err)
+	}
+	if err := deployment.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if err := traffic.Rollback(deployment); err != nil {
+		t.Fatal(err)
+	}
+	res = httptest.NewRecorder()
+	traffic.ServeHTTP(res, req)
+	if res.Body.String() != "blue" {
+		t.Fatalf("rollback response = %q", res.Body.String())
+	}
+}
 
 func TestBlueGreenRequiresReadinessWarmupAndRollbackSafety(t *testing.T) {
 	deployment, err := NewDeployment(SlotBlue)
