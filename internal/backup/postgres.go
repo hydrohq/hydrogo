@@ -17,13 +17,26 @@ type PostgresTools struct {
 }
 
 func LocatePostgresTools() (PostgresTools, error) {
-	dump, err := exec.LookPath("pg_dump")
-	if err != nil {
-		return PostgresTools{}, fmt.Errorf("pg_dump is required: %w", err)
+	dump := os.Getenv("HYDRO_PG_DUMP")
+	if dump == "" {
+		var err error
+		dump, err = exec.LookPath("pg_dump")
+		if err != nil {
+			return PostgresTools{}, fmt.Errorf("pg_dump is required: %w", err)
+		}
 	}
-	restore, err := exec.LookPath("pg_restore")
-	if err != nil {
-		return PostgresTools{}, fmt.Errorf("pg_restore is required: %w", err)
+	restore := os.Getenv("HYDRO_PG_RESTORE")
+	if restore == "" {
+		var err error
+		restore, err = exec.LookPath("pg_restore")
+		if err != nil {
+			return PostgresTools{}, fmt.Errorf("pg_restore is required: %w", err)
+		}
+	}
+	for name, path := range map[string]string{"pg_dump": dump, "pg_restore": restore} {
+		if _, err := os.Stat(path); err != nil {
+			return PostgresTools{}, fmt.Errorf("%s binary %q: %w", name, path, err)
+		}
 	}
 	return PostgresTools{DumpBinary: dump, RestoreBinary: restore}, nil
 }

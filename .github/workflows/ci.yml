@@ -27,6 +27,8 @@ jobs:
           --health-retries 10
     env:
       HYDRO_TEST_POSTGRES_URL: postgres://hydro:hydro-test-password@127.0.0.1:5432/hydro_contract?sslmode=disable
+      HYDRO_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
+      HYDRO_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -35,10 +37,15 @@ jobs:
           check-latest: true
       - name: Install PostgreSQL client tools
         run: |
-          if ! command -v pg_dump >/dev/null || ! command -v pg_restore >/dev/null; then
+          if [ ! -x /usr/lib/postgresql/18/bin/pg_dump ] || [ ! -x /usr/lib/postgresql/18/bin/pg_restore ]; then
+            sudo install -d -m 0755 /etc/apt/keyrings
+            curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/postgresql.gpg
+            echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo \"$VERSION_CODENAME\")-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
             sudo apt-get update
-            sudo apt-get install -y postgresql-client
+            sudo apt-get install -y postgresql-client-18
           fi
+          test -x /usr/lib/postgresql/18/bin/pg_dump
+          test -x /usr/lib/postgresql/18/bin/pg_restore
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
