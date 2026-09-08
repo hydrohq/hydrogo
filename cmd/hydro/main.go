@@ -34,6 +34,8 @@ import (
 	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
 	pageservice "github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
+	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
+	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
 )
 
 const version = "0.0.0-dev"
@@ -116,8 +118,10 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediastore.Store{Dialect: cfg.Database.Dialect}}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
+	siteHTTP := sitetransport.Handler{DB: db, Store: sitestore.Store{Dialect: cfg.Database.Dialect}}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
+	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 
 	return server.Serve(ctx, server.Config{
 		Address: cfg.HTTP.Address,
@@ -149,6 +153,18 @@ func mediaRouterRoutes(routes []media.HTTPRoute) []router.Route {
 	for _, route := range routes {
 		access := router.Protected
 		if !route.Protected {
+			access = router.Public
+		}
+		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
+	}
+	return result
+}
+
+func siteRouterRoutes(routes []sitetransport.Route) []router.Route {
+	result := make([]router.Route, 0, len(routes))
+	for _, route := range routes {
+		access := router.Protected
+		if route.Public {
 			access = router.Public
 		}
 		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
