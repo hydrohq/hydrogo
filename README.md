@@ -2,7 +2,7 @@
 
 Müşteri başına ayrı deployment ile çalışan, Core fork gerektirmeyen modüler Go CMS ve JSON API platformu.
 
-**Durum:** R1 yürütülüyor. Go module, minimal `hydro` CLI/HTTP iskeleti ve CI çalışıyor; DB adapter'ları, gerçek modüller ve kararlı SDK henüz uygulanmadı.
+**Durum:** R0, R1, R2 ve R4 tamamlandı; R3 ticari pilot ve R5 kararlı v1 doğrulama kapıları sürüyor. Pages/News modülleri, SQLite/PostgreSQL sözleşmeleri, backup/restore, güvenlik, generator ve CI uygulanmış durumda. Açık işler ve gerçek ortam kanıtları [roadmap](docs/ROADMAP.md) içinde izlenir.
 
 - [Roadmap](docs/ROADMAP.md): iş sırası ve kabul ölçütleri.
 - [Manifesto](docs/HYDROGO_PHILOSOPHY.md): ürün ilkeleri.

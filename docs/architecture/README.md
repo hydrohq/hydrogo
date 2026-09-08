@@ -4,7 +4,7 @@ Bu dizin HydroGo'nun uzun ömürlü mimari kararlarının ana kaynağıdır. Uyg
 
 Henüz kabul edilmemiş sorular ve önerilen cevaplar [Architecture Decision Backlog](DECISION_BACKLOG.md) içinde izlenir.
 
-Kodlamaya hazırlık, riskler ve kanıt kapıları [Uygulama öncesi inceleme](../PRE_IMPLEMENTATION_REVIEW.md); güvenlik akışları [Tehdit modeli](../security/THREAT_MODEL.md) içindedir. **Kabul edilmiş ADR, uygulanmış veya test edilmiş özellik demek değildir.** Mevcut depo dokümantasyon aşamasındadır.
+Kodlama riskleri ve açık kanıt kapıları [Uygulama öncesi inceleme](../PRE_IMPLEMENTATION_REVIEW.md), roadmap ve [üretim kapısı kontrol listesinde](../validation/PRODUCTION-GATES.md); güvenlik akışları [Tehdit modeli](../security/THREAT_MODEL.md) içindedir. **Kabul edilmiş ADR tek başına uygulama veya test kanıtı değildir; her ADR'nin gerçek durumu roadmap ve doğrulama raporlarıyla birlikte değerlendirilir.**
 
 Yeni bir geliştirme aşağıdaki konulardan birini değiştiriyorsa ilgili ADR okunmalı ve gerekiyorsa yeni ADR yazılmalıdır:
 

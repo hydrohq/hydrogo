@@ -1,6 +1,6 @@
 # HydroGo Architecture Decision Backlog
 
-**Güncelleme:** 2026-09-05. Karar durumu ile uygulama durumu ayrı izlenir. Kabul edilen hiçbir özellik henüz kodlanmış/test edilmiş değildir. Kanıt planı [uygulama öncesi incelemede](../PRE_IMPLEMENTATION_REVIEW.md), aktif ADR dizini [README](README.md) içindedir.
+**Güncelleme:** 2026-09-09. Karar durumu ile uygulama durumu ayrı izlenir. Bazı kararların uygulaması ve contract kanıtı mevcut olsa da gerçek ortam kapıları ayrıca açık olabilir; güncel durum [roadmap](../ROADMAP.md) ve doğrulama raporlarında tutulur. Kanıt planı [uygulama öncesi incelemede](../PRE_IMPLEMENTATION_REVIEW.md), aktif ADR dizini [README](README.md) içindedir.
 
 ## Kapanan temel kararlar
 

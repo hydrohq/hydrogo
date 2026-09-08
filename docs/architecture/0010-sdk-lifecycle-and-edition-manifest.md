@@ -3,7 +3,7 @@
 - **Durum:** Kabul edildi
 - **Tarih:** 2026-09-05
 - **Değiştirdiği ADR:** [ADR-0008](0008-module-and-extension-contract.md)
-- **Uygulama durumu:** Tasarım kararı; SDK, CLI ve aşağıdaki dosyalar henüz uygulanmadı.
+- **Uygulama durumu:** SDK v0/v1 adayı, Edition manifest'i, generator ve release provenance sözleşmeleri uygulanıp contract testleriyle doğrulandı. Resmî v1 yayınlama ve production key/provenance kanıtları R5'te açık; güncel durum [roadmap](../ROADMAP.md) içindedir.
 
 ## Bağlam
 

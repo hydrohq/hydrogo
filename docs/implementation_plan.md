@@ -6,7 +6,7 @@
 > **İlk sürüm hedefi:** SQLite ve PostgreSQL üzerinde aynı iş sözleşmelerini destekleyen, yeni veritabanlarının sertifikalı adaptörlerle eklenebildiği yeniden markalanabilir CMS ve JSON API  
 > **Dağıtım modeli:** Uygulama varlıkları gömülü tek çalıştırılabilir dosya; veritabanı, medya, yapılandırma ve sırlar harici kalıcı veri dizininde
 
-> **Gerçekleşme durumu (2026-09-05):** Dokümantasyon aşaması. SDK, uygulama, CLI ve testler henüz uygulanmadı. Bu belgedeki davranışlar hedef ve kabul ölçütüdür. [Hazırlık incelemesi](PRE_IMPLEMENTATION_REVIEW.md) kanıt bekleyen konuları izler.
+> **Gerçekleşme durumu (2026-09-09):** Planın R0-R2 ve R4 kapsamı, R5 generator kapsamı ve R3/R5 doğrulama altyapısının önemli bölümü uygulanıp contract testleriyle doğrulandı. Gerçek müşteri/prod ortamı gerektiren açık kapılar [roadmap](ROADMAP.md) ve [üretim kapısı kontrol listesinde](validation/PRODUCTION-GATES.md) izlenir. Bu belge kapsam ve kabul ölçütlerinin ana kaynağıdır.
 
 ## 1. Amaç ve kapsam
 

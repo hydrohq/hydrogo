@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-09-05  
 **Kapsam:** Manifesto, ana plan, ADR-0001–0014 ve karar havuzu.  
-**Gerçek durum:** Depo dokümantasyon aşamasındadır; Go projesi, SDK, CLI, çalışan DB adapter'ı veya test sonucu yoktur.
+**Gerçek durum (2026-09-09):** Depo çalışan Go projesi, CLI, SQLite/PostgreSQL adapter'ları, Pages/News modülleri, SDK sözleşmeleri ve contract testleri içerir. Açık riskler ve gerçek ortam kanıtları [roadmap](ROADMAP.md) ile [üretim kapısı kontrol listesinde](validation/PRODUCTION-GATES.md) izlenir.
 
 ## Sonuç
 

@@ -4,7 +4,7 @@
 - **Tarih:** 2026-09-05
 - **Kısmen değiştirdiği kararlar:** [ADR-0003](0003-cache-architecture.md) invalidation/arıza garantisi; [ADR-0005](0005-zero-downtime-deployment.md) warm-up/geçiş doğrulaması.
 - **Kapsam:** Önceki kararların L0–L3 katmanları, profil seçimi, session/asset kuralları, proxy ve expand–migrate–contract yaklaşımı korunur. Aşağıdaki maddeler çelişen genel ifadelerin yerine geçer.
-- **Uygulama durumu:** Tasarım; testler henüz uygulanmadı.
+- **Uygulama durumu:** Migration, cache, restore, blue/green ve job/lease hükümlerinin önemli bölümü uygulanıp contract testleriyle doğrulandı. Gerçek proxy/process, multi-instance ve müşteri restore tatbikatları açık; güncel durum [roadmap](../ROADMAP.md) içindedir.
 
 ## Bağlam ve bulgular
 

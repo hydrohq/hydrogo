@@ -3,7 +3,7 @@
 - **Durum:** Değiştirildi (kısmen) — restore silme geçmişinin kaynağı için [ADR-0014](0014-publication-routes-and-erasure-recovery.md); diğer güvenlik hükümleri geçerlidir.
 - **Tarih:** 2026-09-05
 - **İlişkili belgeler:** [Tehdit modeli](../security/THREAT_MODEL.md), [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md)
-- **Uygulama durumu:** Tasarım; güvenlik kontrolleri henüz kodlanmadı/test edilmedi.
+- **Uygulama durumu:** Yerel kullanıcı/session, rol, CSRF, MFA, reset, invite, limiter ve audit kontrolleri uygulanıp contract testleriyle doğrulandı. OIDC/SAML ve production provider/alerting kapsam dışı veya R3/R6 açık kapısıdır; güncel durum [roadmap](../ROADMAP.md) içindedir.
 
 ## Karar
 
