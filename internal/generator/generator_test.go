@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -100,6 +101,30 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		after, _ := os.ReadFile(filepath.Join(root, "generated", spec.Name, "model.go"))
 		if first.SpecSHA256 != second.SpecSHA256 || !bytes.Equal(before, after) {
 			t.Fatalf("%s output is not deterministic", spec.Name)
+		}
+		repository, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "repository.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, method := range []string{"func (r " + exportName(spec.Name) + "Repository) Get", "func (r " + exportName(spec.Name) + "Repository) Create", "func (r " + exportName(spec.Name) + "Repository) Update", "func (r " + exportName(spec.Name) + "Repository) Delete"} {
+			if !bytes.Contains(repository, []byte(method)) {
+				t.Fatalf("%s repository missing %q", spec.Name, method)
+			}
+		}
+		migration, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "migration.sql"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(migration, []byte("CREATE TABLE "+spec.Table)) || !bytes.Contains(migration, []byte(spec.Fields[0].Name)) {
+			t.Fatalf("%s migration does not contain generated fields", spec.Name)
+		}
+		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module generatedfixture\n\ngo 1.27\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		command := exec.Command("go", "test", "./...")
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("%s generated fixture does not compile: %v\n%s", spec.Name, err, output)
 		}
 	}
 }
