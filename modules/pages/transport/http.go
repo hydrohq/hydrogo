@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
@@ -56,6 +57,10 @@ type Route struct {
 }
 
 func (h Handler) create(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var input pageInput
 	if err := decodeJSON(w, r, &input); err != nil {
 		return
@@ -82,6 +87,10 @@ func (h Handler) writePage(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 func (h Handler) update(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var input updateInput
 	if err := decodeJSON(w, r, &input); err != nil {
 		return
@@ -95,6 +104,10 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publish(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	expectedVersion, err := strconv.Atoi(r.URL.Query().Get("version"))
 	if err != nil || expectedVersion <= 0 {
 		http.Error(w, "version query parameter is required", http.StatusBadRequest)
@@ -150,4 +163,9 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+func editorAllowed(r *http.Request) bool {
+	user := auth.UserFromContext(r.Context())
+	return user != nil && user.Active && (user.Role == auth.RoleAdmin || user.Role == auth.RoleEditor)
 }
