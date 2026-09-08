@@ -24,6 +24,8 @@ type Sender interface {
 	Send(context.Context, Message) error
 }
 
+var ErrSenderRequired = errors.New("notification sender is required")
+
 // NotificationSender adapts password-reset and invitation events to the
 // application notifier interfaces without logging or persisting raw tokens.
 type NotificationSender struct{ Sender Sender }
