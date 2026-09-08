@@ -234,3 +234,49 @@ func TestSQLiteLargeContentFixtureRoundTripPreservesRelations(t *testing.T) {
 		t.Fatalf("auth users imported: %d", users)
 	}
 }
+
+func BenchmarkSQLitePortableRoundTrip256(b *testing.B) {
+	ctx := context.Background()
+	source, err := database.Open(ctx, database.SQLite, filepath.Join(b.TempDir(), "source.sqlite"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer source.Close()
+	if err := database.ApplyMigrations(ctx, source, database.SQLite, migrations.FS); err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < 256; i++ {
+		id := fmt.Sprintf("bench-page-%03d", i)
+		if _, err := source.ExecContext(ctx, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,publication_generation,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, id, id, 1, "en", id, "body", "published", 1, i, "2026-01-01", "2026-01-01"); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		document, err := Export(ctx, source)
+		if err != nil {
+			b.Fatal(err)
+		}
+		encoded, err := Marshal(document)
+		if err != nil {
+			b.Fatal(err)
+		}
+		decoded, err := Unmarshal(encoded)
+		if err != nil {
+			b.Fatal(err)
+		}
+		target, err := database.Open(ctx, database.SQLite, filepath.Join(b.TempDir(), fmt.Sprintf("target-%d.sqlite", i)))
+		if err != nil {
+			b.Fatal(err)
+		}
+		if err := database.ApplyMigrations(ctx, target, database.SQLite, migrations.FS); err != nil {
+			target.Close()
+			b.Fatal(err)
+		}
+		if err := database.NewTransactor(target).Within(ctx, func(tx database.Executor) error { return Import(ctx, tx, decoded, database.SQLite) }); err != nil {
+			target.Close()
+			b.Fatal(err)
+		}
+		target.Close()
+	}
+}
