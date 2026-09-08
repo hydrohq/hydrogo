@@ -2,6 +2,9 @@ package site
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,9 +24,14 @@ type Store interface {
 	PurgeSubmissionsBefore(context.Context, database.Executor, time.Time) (int64, error)
 }
 
+type AuditWriter interface {
+	Record(context.Context, database.Executor, string, string, string) error
+}
+
 type Service struct {
 	Transactions database.Transactor
 	Store        Store
+	Audit        AuditWriter
 }
 
 func (s Service) SaveSetting(ctx context.Context, value Setting) error {
@@ -31,7 +39,12 @@ func (s Service) SaveSetting(ctx context.Context, value Setting) error {
 	if err := ValidateSetting(value); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Store.UpsertSetting(ctx, tx, value) })
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Store.UpsertSetting(ctx, tx, value); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.setting.updated", value.Key)
+	})
 }
 
 func (s Service) SaveNavigation(ctx context.Context, locale string, items []NavigationItem) error {
@@ -50,7 +63,12 @@ func (s Service) SaveNavigation(ctx context.Context, locale string, items []Navi
 		}
 		seen[item.Position] = struct{}{}
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Store.ReplaceNavigation(ctx, tx, locale, items) })
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Store.ReplaceNavigation(ctx, tx, locale, items); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.navigation.updated", locale)
+	})
 }
 
 func (s Service) SaveRedirect(ctx context.Context, value Redirect) error {
@@ -59,14 +77,24 @@ func (s Service) SaveRedirect(ctx context.Context, value Redirect) error {
 	if err := ValidateRedirect(value); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Store.PutRedirect(ctx, tx, value) })
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Store.PutRedirect(ctx, tx, value); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.redirect.updated", value.SourcePath)
+	})
 }
 
 func (s Service) Submit(ctx context.Context, value Submission) error {
 	if err := ValidateSubmission(value); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Store.CreateSubmission(ctx, tx, value) })
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Store.CreateSubmission(ctx, tx, value); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.form.submitted", value.ID)
+	})
 }
 
 func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) error {
@@ -74,7 +102,10 @@ func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) err
 		return ErrInvalidInboxState
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
-		return s.Store.UpdateSubmissionStatus(ctx, tx, id, strings.TrimSpace(status))
+		if err := s.Store.UpdateSubmissionStatus(ctx, tx, id, strings.TrimSpace(status)); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.inbox.status_updated", id)
 	})
 }
 
@@ -86,7 +117,21 @@ func (s Service) PurgeInbox(ctx context.Context, before time.Time) (int64, error
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		var err error
 		purged, err = s.Store.PurgeSubmissionsBefore(ctx, tx, before.UTC())
-		return err
+		if err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.inbox.purged", before.UTC().Format(time.RFC3339))
 	})
 	return purged, err
+}
+
+func (s Service) audit(ctx context.Context, tx database.Executor, action, target string) error {
+	if s.Audit == nil {
+		return nil
+	}
+	idBytes := make([]byte, 16)
+	if _, err := rand.Read(idBytes); err != nil {
+		return s.Audit.Record(ctx, tx, fmt.Sprintf("site-%d", time.Now().UTC().UnixNano()), action, target)
+	}
+	return s.Audit.Record(ctx, tx, "site-"+hex.EncodeToString(idBytes), action, target)
 }

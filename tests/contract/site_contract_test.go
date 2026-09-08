@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
@@ -38,9 +39,12 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	}
 	store := sitestore.Store{Dialect: dialect}
 	transactor := database.NewTransactor(db)
-	service := site.Service{Store: store, Transactions: transactor}
+	service := site.Service{Store: store, Transactions: transactor, Audit: auditstore.Store{Dialect: dialect}}
 	if err := service.SaveSetting(ctx, site.Setting{Key: "site.name", Value: "HydroGo", Public: true}); err != nil {
 		t.Fatal(err)
+	}
+	if err := service.SaveSetting(ctx, site.Setting{Key: "site.name", Value: "HydroGo CMS", Public: true}); err != nil {
+		t.Fatalf("repeated setting update: %v", err)
 	}
 	if err := service.SaveNavigation(ctx, "EN", []site.NavigationItem{{ID: "home", Label: "Home", Href: "/", Position: 0, Visible: true}}); err != nil {
 		t.Fatal(err)
@@ -60,7 +64,7 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 		t.Fatal(err)
 	}
 	settings, err := store.ListPublicSettings(ctx, db)
-	if err != nil || len(settings) != 1 || settings[0].Value != "HydroGo" {
+	if err != nil || len(settings) != 1 || settings[0].Value != "HydroGo CMS" {
 		t.Fatalf("settings = %#v/%v", settings, err)
 	}
 	navigation, err := store.ListNavigation(ctx, db, "en")
@@ -80,6 +84,13 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	}
 	if purged, err := service.PurgeInbox(ctx, nowPlusHour()); err != nil || purged != 1 {
 		t.Fatalf("purge submissions = %d/%v", purged, err)
+	}
+	var auditCount int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_events").Scan(&auditCount); err != nil {
+		t.Fatal(err)
+	}
+	if auditCount < 6 {
+		t.Fatalf("site mutations recorded %d audit events, want at least 6", auditCount)
 	}
 }
 
