@@ -90,3 +90,32 @@ func TestLogAppendIsDurableIdempotentAndDetectsTampering(t *testing.T) {
 		t.Fatalf("tampered log error = %v", err)
 	}
 }
+
+func TestReplayFromCheckpointRequiresHashAnchor(t *testing.T) {
+	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := log.Append(Intent{ID: "one", EditionID: "edition", TargetID: "one", Kind: "erase.page"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Append(Intent{ID: "two", EditionID: "edition", TargetID: "two", Kind: "erase.page"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := log.VerifyCheckpoint(first); err != nil {
+		t.Fatalf("valid checkpoint rejected: %v", err)
+	}
+	seen := []string{}
+	latest, err := log.ReplayFromCheckpoint(context.Background(), first, func(_ context.Context, intent Intent) error {
+		seen = append(seen, intent.ID)
+		return nil
+	})
+	if err != nil || latest.Sequence != 2 || strings.Join(seen, ",") != "two" {
+		t.Fatalf("replay = %#v/%v/%v", latest, err, seen)
+	}
+	first.Hash = strings.Repeat("0", 64)
+	if _, err := log.ReplayFromCheckpoint(context.Background(), first, func(context.Context, Intent) error { return nil }); !errors.Is(err, ErrCheckpoint) {
+		t.Fatalf("stale checkpoint error = %v", err)
+	}
+}

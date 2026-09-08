@@ -19,6 +19,7 @@ import (
 var (
 	ErrInvalidIntent = errors.New("invalid erasure intent")
 	ErrCorruptLog    = errors.New("corrupt erasure log")
+	ErrCheckpoint    = errors.New("erasure checkpoint does not match log")
 )
 
 type Intent struct {
@@ -148,6 +149,28 @@ func (l *Log) EntriesAfter(sequence uint64) ([]Intent, Checkpoint, error) {
 	return result, Checkpoint{Sequence: last.Sequence, Hash: last.Hash}, nil
 }
 
+// VerifyCheckpoint proves that a persisted restore checkpoint still anchors
+// the current hash chain. A sequence number by itself is insufficient after
+// log replacement or retention pruning.
+func (l *Log) VerifyCheckpoint(checkpoint Checkpoint) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if checkpoint.Sequence == 0 && checkpoint.Hash == "" {
+		return nil
+	}
+	if checkpoint.Sequence == 0 || checkpoint.Hash == "" {
+		return ErrCheckpoint
+	}
+	records, err := readRecords(l.path)
+	if err != nil {
+		return err
+	}
+	if checkpoint.Sequence > uint64(len(records)) || records[checkpoint.Sequence-1].Hash != checkpoint.Hash {
+		return ErrCheckpoint
+	}
+	return nil
+}
+
 // Replay verifies the complete chain, then applies every intent after the
 // supplied checkpoint in order. The returned checkpoint is safe to persist
 // only when every handler invocation succeeds; a failed replay returns the
@@ -169,6 +192,31 @@ func (l *Log) Replay(ctx context.Context, sequence uint64, apply func(context.Co
 		}
 	}
 	return checkpoint, nil
+}
+
+// ReplayFromCheckpoint verifies the checkpoint hash before applying later
+// intents. A mismatch leaves the restore isolated and prevents replaying from
+// an unrelated or truncated log.
+func (l *Log) ReplayFromCheckpoint(ctx context.Context, checkpoint Checkpoint, apply func(context.Context, Intent) error) (Checkpoint, error) {
+	if apply == nil {
+		return Checkpoint{}, errors.New("erasure replay handler is required")
+	}
+	if err := l.VerifyCheckpoint(checkpoint); err != nil {
+		return Checkpoint{}, err
+	}
+	intents, latest, err := l.EntriesAfter(checkpoint.Sequence)
+	if err != nil {
+		return Checkpoint{}, err
+	}
+	for _, intent := range intents {
+		if err := ctx.Err(); err != nil {
+			return Checkpoint{}, err
+		}
+		if err := apply(ctx, intent); err != nil {
+			return Checkpoint{}, err
+		}
+	}
+	return latest, nil
 }
 
 func readRecords(path string) ([]record, error) {
