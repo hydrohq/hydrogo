@@ -73,3 +73,13 @@ func TestSitemapRouteUsesPublishedProvider(t *testing.T) {
 		t.Fatalf("sitemap response = %d %s", res.Code, res.Body.String())
 	}
 }
+
+func TestAdminSiteMutationRequiresAdminContext(t *testing.T) {
+	handler := Handler{Service: &site.Service{}}
+	req := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"x"}`))
+	res := httptest.NewRecorder()
+	handler.saveSetting(res, req)
+	if res.Code != http.StatusForbidden {
+		t.Fatalf("unauthorized mutation status = %d", res.Code)
+	}
+}

@@ -120,7 +120,9 @@ func serve(args []string, stderr io.Writer) error {
 	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediastore.Store{Dialect: cfg.Database.Dialect}}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
-	siteHTTP := sitetransport.Handler{DB: db, Store: sitestore.Store{Dialect: cfg.Database.Dialect}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
+	siteService := site.Service{Transactions: database.NewTransactor(db), Store: siteStore}
+	siteHTTP := sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 		published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 		if err != nil {
 			return nil, err
