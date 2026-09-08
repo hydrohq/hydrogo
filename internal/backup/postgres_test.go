@@ -96,6 +96,27 @@ func TestPostgresDumpRestoreContract(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(staging, "RESTORE_QUARANTINED.json")); err != nil {
 		t.Fatal(err)
 	}
+	active := filepath.Join(t.TempDir(), "active")
+	rollback := filepath.Join(t.TempDir(), "rollback")
+	if err := os.MkdirAll(active, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(active, "old.css"), []byte("old-release"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := ActivateStagingMedia(staging, active, rollback); err != nil {
+		t.Fatal(err)
+	}
+	if restored, err := os.ReadFile(filepath.Join(active, "media", "hero.webp")); err != nil {
+		t.Fatal(err)
+	} else if string(restored) != "media-restore-marker" {
+		t.Fatalf("activated media = %q", restored)
+	}
+	if retained, err := os.ReadFile(filepath.Join(rollback, "old.css")); err != nil {
+		t.Fatal(err)
+	} else if string(retained) != "old-release" {
+		t.Fatalf("retained asset = %q", retained)
+	}
 }
 
 func replacePostgresDatabase(t *testing.T, dsn, databaseName string) string {
