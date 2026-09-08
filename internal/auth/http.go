@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 // AuditRecorder records security-relevant authentication events.
@@ -36,6 +37,7 @@ type HTTPHandler struct {
 	Secure       bool
 	MFA          *MFAService
 	Transactions database.Transactor
+	LoginLimiter *security.AttemptLimiter
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -70,6 +72,10 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid login request", http.StatusBadRequest)
+		return
+	}
+	if h.LoginLimiter != nil && !h.LoginLimiter.Allow(clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
+		http.Error(w, "too many authentication attempts", http.StatusTooManyRequests)
 		return
 	}
 	user, err := h.Service.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))

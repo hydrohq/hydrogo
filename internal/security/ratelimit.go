@@ -1,0 +1,56 @@
+package security
+
+import (
+	"sync"
+	"time"
+)
+
+type attempt struct {
+	count   int
+	resetAt time.Time
+}
+
+// AttemptLimiter bounds authentication work per key and bounds its own memory.
+type AttemptLimiter struct {
+	mu         sync.Mutex
+	entries    map[string]attempt
+	maxEntries int
+	limit      int
+	window     time.Duration
+}
+
+func NewAttemptLimiter(maxEntries, limit int, window time.Duration) *AttemptLimiter {
+	if maxEntries < 1 {
+		maxEntries = 1
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	if window <= 0 {
+		window = time.Minute
+	}
+	return &AttemptLimiter{entries: make(map[string]attempt), maxEntries: maxEntries, limit: limit, window: window}
+}
+
+func (l *AttemptLimiter) Allow(key string) bool {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	value, ok := l.entries[key]
+	if !ok || !now.Before(value.resetAt) {
+		if !ok && len(l.entries) >= l.maxEntries {
+			for oldest := range l.entries {
+				delete(l.entries, oldest)
+				break
+			}
+		}
+		l.entries[key] = attempt{count: 1, resetAt: now.Add(l.window)}
+		return true
+	}
+	if value.count >= l.limit {
+		return false
+	}
+	value.count++
+	l.entries[key] = value
+	return true
+}
