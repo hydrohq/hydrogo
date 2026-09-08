@@ -26,4 +26,6 @@ Migration runner artık metadata'daki `transactional.<dialect>` değerine uyar. 
 
 `internal/release.Traffic` aynı gate sonrasında process-local HTTP handler'ı atomik olarak Green'e geçirir ve güvenli rollback'te Blue'ya döndürür. Bu contract dış reverse-proxy entegrasyonu ve process restart tatbikatının yerine geçmez.
 
+Reverse proxy handler'larıyla yapılan `httptest` contract'ı, gated switch sonrasında gerçek `httputil.ReverseProxy` akışının Green backend'e ulaştığını doğrular. Production proxy konfigürasyonu ve process restart tatbikatı açık kalır.
+
 `TestSQLiteOnlineExpandAllowsConcurrentReadContract` WAL açık SQLite'ta aktif bir read transaction sürerken nullable expand migration'ın iki saniyelik deadline içinde tamamlandığını ve yeni kolonun görünür olduğunu doğrular. Bu deney migration'ın genel production lock süresini veya PostgreSQL DDL planını sertifikalamaz; gerçek blue/green trafik, yeni yazımdan sonra production rollback ve kapasite ölçümü S06/S07'nin açık kısmıdır.
