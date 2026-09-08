@@ -1,9 +1,49 @@
 package cache
 
 import (
+	"errors"
+	"sync"
 	"testing"
 	"time"
 )
+
+func TestCacheCoalescesConcurrentLoads(t *testing.T) {
+	c := New[string](2, time.Minute)
+	var mu sync.Mutex
+	loads := 0
+	loader := func() (string, error) {
+		mu.Lock()
+		loads++
+		mu.Unlock()
+		return "value", nil
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			value, err := c.GetOrLoad("key", loader)
+			if err != nil || value != "value" {
+				t.Errorf("load = %q/%v", value, err)
+			}
+		}()
+	}
+	wg.Wait()
+	mu.Lock()
+	defer mu.Unlock()
+	if loads != 1 {
+		t.Fatalf("loader calls = %d, want 1", loads)
+	}
+}
+
+func TestCacheRejectsNilLoader(t *testing.T) {
+	c := New[string](1, time.Minute)
+	if _, err := c.GetOrLoad("key", nil); !errors.Is(err, errors.New("cache loader is required")) {
+		if err == nil || err.Error() != "cache loader is required" {
+			t.Fatalf("nil loader error = %v", err)
+		}
+	}
+}
 
 func TestCacheIsBoundedAndExpires(t *testing.T) {
 	c := New[string](1, 10*time.Millisecond)
@@ -33,5 +73,37 @@ func TestCacheRejectsRefillFromPreviousGeneration(t *testing.T) {
 	}
 	if !c.SetIfGeneration("fresh", "new", c.Generation()) {
 		t.Fatal("current generation refill was rejected")
+	}
+}
+
+func TestGetOrLoadDoesNotRefillAfterClear(t *testing.T) {
+	c := New[string](2, time.Minute)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	result := make(chan string, 1)
+	go func() {
+		value, err := c.GetOrLoad("slow", func() (string, error) {
+			close(started)
+			<-release
+			return "stale", nil
+		})
+		if err != nil {
+			t.Errorf("slow load error: %v", err)
+		}
+		result <- value
+	}()
+	<-started
+	c.Clear()
+	close(release)
+	if got := <-result; got != "stale" {
+		t.Fatalf("loader result = %q", got)
+	}
+	loads := 0
+	value, err := c.GetOrLoad("slow", func() (string, error) {
+		loads++
+		return "fresh", nil
+	})
+	if err != nil || value != "fresh" || loads != 1 {
+		t.Fatalf("fresh load = %q/%v, calls=%d", value, err, loads)
 	}
 }

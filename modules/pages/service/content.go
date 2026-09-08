@@ -42,21 +42,13 @@ type ContentService struct {
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
 	key := strings.ToLower(strings.Trim(locale, "/")) + ":" + strings.Trim(strings.ToLower(slug), "/")
-	generation := uint64(0)
-	if s.PublicCache != nil {
-		generation = s.PublicCache.Generation()
-		if page, ok := s.PublicCache.Get(key); ok {
-			return page, nil
-		}
-	}
-	page, err := s.Pages.GetPublishedByRoute(ctx, db, strings.ToLower(strings.TrimSpace(locale)), strings.Trim(strings.ToLower(strings.TrimSpace(slug)), "/"))
-	if err != nil {
-		return pages.Page{}, err
+	load := func() (pages.Page, error) {
+		return s.Pages.GetPublishedByRoute(ctx, db, strings.ToLower(strings.TrimSpace(locale)), strings.Trim(strings.ToLower(strings.TrimSpace(slug)), "/"))
 	}
 	if s.PublicCache != nil {
-		s.PublicCache.SetIfGeneration(key, page, generation)
+		return s.PublicCache.GetOrLoad(key, load)
 	}
-	return page, nil
+	return load()
 }
 
 func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error {
