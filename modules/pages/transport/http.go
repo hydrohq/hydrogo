@@ -5,11 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html/template"
 	"net/http"
 	"strconv"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 )
@@ -39,6 +41,9 @@ func (h Handler) Routes() []Route {
 		{Pattern: "PUT /api/pages/{id}", Handler: http.HandlerFunc(h.update), Protected: true},
 		{Pattern: "POST /api/pages/{id}/publish", Handler: http.HandlerFunc(h.publish), Protected: true},
 		{Pattern: "GET /public/pages/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
+		{Pattern: "GET /admin/pages/{id}", Handler: http.HandlerFunc(h.adminPage), Protected: true},
+		{Pattern: "POST /admin/pages/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
+		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
 	}
 }
 
@@ -124,6 +129,71 @@ func (h Handler) publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.writePage(w, r, r.PathValue("id"))
+}
+
+func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "page not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<form method="post" action="/admin/pages/` + template.HTMLEscapeString(page.ID) + `">
+<label>Locale <input name="locale" value="` + template.HTMLEscapeString(page.Locale) + `"></label>
+<label>Slug <input name="slug" value="` + template.HTMLEscapeString(page.Slug) + `"></label>
+<label>Title <input name="title" value="` + template.HTMLEscapeString(page.Title) + `"></label>
+<label>Body <textarea name="body">` + template.HTMLEscapeString(page.Body) + `</textarea></label>
+<input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `">
+<input type="hidden" name="version" value="` + strconv.Itoa(page.Version) + `">
+<button type="submit">Save draft</button>
+</form>`))
+}
+
+func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	version, err := strconv.Atoi(r.FormValue("version"))
+	if err != nil {
+		http.Error(w, "version is required", http.StatusBadRequest)
+		return
+	}
+	page := pages.Page{ID: r.PathValue("id"), Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body")}
+	if err := h.Content.UpdateDraft(r.Context(), page, version); err != nil {
+		http.Error(w, pageError(err), pageStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/pages/"+template.HTMLEscapeString(page.ID), http.StatusSeeOther)
+}
+
+func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	version, err := strconv.Atoi(r.FormValue("version"))
+	if err != nil {
+		http.Error(w, "version is required", http.StatusBadRequest)
+		return
+	}
+	if err := h.Content.Publish(r.Context(), r.PathValue("id"), version); err != nil {
+		http.Error(w, pageError(err), pageStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/pages/"+template.HTMLEscapeString(r.PathValue("id")), http.StatusSeeOther)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
