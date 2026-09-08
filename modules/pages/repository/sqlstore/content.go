@@ -40,7 +40,7 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 	var status string
 	var published any
 	var createdAt, updatedAt any
-	query := `SELECT id, locale, slug, title, body, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE locale = ` + s.placeholder(1) + ` AND slug = ` + s.placeholder(2) + ` AND status = 'published'`
+	query := `SELECT id, published_locale, published_slug, published_title, published_body, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_slug = ` + s.placeholder(2) + ` AND published_revision IS NOT NULL`
 	err := db.QueryRowContext(ctx, query, locale, slug).Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &page.Body, &status, &page.Version, &page.Revision, &published, &page.PublicationGeneration, &createdAt, &updatedAt)
 	if err != nil {
 		return pages.Page{}, err
@@ -94,7 +94,7 @@ func (s Store) CreateDraftContent(ctx context.Context, tx database.Executor, pag
 
 func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, page pages.Page, expectedVersion int) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	result, err := tx.ExecContext(ctx, `UPDATE pages SET title = `+s.placeholder(1)+`, slug = `+s.placeholder(2)+`, body = `+s.placeholder(3)+`, locale = `+s.placeholder(4)+`, revision = revision + 1, version = version + 1, updated_at = `+s.placeholder(5)+` WHERE id = `+s.placeholder(6)+` AND version = `+s.placeholder(7)+` AND status = 'draft'`, page.Title, page.Slug, page.Body, page.Locale, now, page.ID, expectedVersion)
+	result, err := tx.ExecContext(ctx, `UPDATE pages SET title = `+s.placeholder(1)+`, slug = `+s.placeholder(2)+`, body = `+s.placeholder(3)+`, locale = `+s.placeholder(4)+`, revision = revision + 1, version = version + 1, status = 'draft', updated_at = `+s.placeholder(5)+` WHERE id = `+s.placeholder(6)+` AND version = `+s.placeholder(7), page.Title, page.Slug, page.Body, page.Locale, now, page.ID, expectedVersion)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, pag
 
 func (s Store) Publish(ctx context.Context, tx database.Executor, pageID string, expectedVersion int) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	result, err := tx.ExecContext(ctx, `UPDATE pages SET status = 'published', published_revision = revision, publication_generation = publication_generation + 1, version = version + 1, updated_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND version = `+s.placeholder(3)+` AND status = 'draft'`, now, pageID, expectedVersion)
+	result, err := tx.ExecContext(ctx, `UPDATE pages SET status = 'published', published_revision = revision, published_locale = locale, published_slug = slug, published_title = title, published_body = body, publication_generation = publication_generation + 1, version = version + 1, updated_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND version = `+s.placeholder(3)+` AND status IN ('draft', 'published')`, now, pageID, expectedVersion)
 	if err != nil {
 		return err
 	}

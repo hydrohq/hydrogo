@@ -35,6 +35,7 @@ func (h Handler) Routes() []Route {
 	return []Route{
 		{Pattern: "POST /api/pages", Handler: http.HandlerFunc(h.create), Protected: true},
 		{Pattern: "GET /api/pages/{id}", Handler: http.HandlerFunc(h.get), Protected: true},
+		{Pattern: "GET /api/pages/{id}/preview", Handler: http.HandlerFunc(h.preview), Protected: true},
 		{Pattern: "PUT /api/pages/{id}", Handler: http.HandlerFunc(h.update), Protected: true},
 		{Pattern: "POST /api/pages/{id}/publish", Handler: http.HandlerFunc(h.publish), Protected: true},
 		{Pattern: "GET /public/pages/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
@@ -74,6 +75,11 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) get(w http.ResponseWriter, r *http.Request) {
+	h.writePage(w, r, r.PathValue("id"))
+}
+
+func (h Handler) preview(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	h.writePage(w, r, r.PathValue("id"))
 }
 

@@ -1,0 +1,25 @@
+id: "202609080006_published_projection"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "7796e61e9e37d3e778857cfd54cb2c69df0e5f4cb460516488025eff6c64ed65"
+  postgres: "7796e61e9e37d3e778857cfd54cb2c69df0e5f4cb460516488025eff6c64ed65"
+dependencies:
+  - "202609080005_published_route_index"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "The published route index migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Draft and published page projections"
+compatibility: "Allows draft edits without changing the published projection"
+smoke:
+  - "Draft edits leave the public projection unchanged until publish"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

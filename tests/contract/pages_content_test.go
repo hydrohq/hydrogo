@@ -76,12 +76,29 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 	if err != nil || publicPage.ID != page.ID {
 		t.Fatalf("published route lookup = %+v/%v", publicPage, err)
 	}
+	if publicPage.Title != "Hakkımızda güncel" {
+		t.Fatalf("unexpected first published title: %q", publicPage.Title)
+	}
+	if err := content.UpdateDraft(ctx, pages.Page{ID: page.ID, Locale: page.Locale, Slug: "hakkimizda", Title: "Yeni taslak", Body: "üçüncü"}, 3); err != nil {
+		t.Fatalf("edit published page as draft: %v", err)
+	}
+	publicPage, err = content.GetPublished(ctx, db, "tr-tr", "hakkimizda")
+	if err != nil || publicPage.Title != "Hakkımızda güncel" {
+		t.Fatalf("draft leaked into public projection: %+v/%v", publicPage, err)
+	}
+	if err := content.Publish(ctx, page.ID, 4); err != nil {
+		t.Fatalf("republish draft: %v", err)
+	}
+	publicPage, err = content.GetPublished(ctx, db, "tr-tr", "hakkimizda")
+	if err != nil || publicPage.Title != "Yeni taslak" {
+		t.Fatalf("republished projection = %+v/%v", publicPage, err)
+	}
 	var revisions int
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM page_revisions WHERE page_id = "+placeholderForTest(dialect, 1), page.ID).Scan(&revisions); err != nil {
 		t.Fatal(err)
 	}
-	if revisions != 2 {
-		t.Fatalf("revision count = %d, want 2", revisions)
+	if revisions != 3 {
+		t.Fatalf("revision count = %d, want 3", revisions)
 	}
 }
 

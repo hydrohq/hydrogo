@@ -98,10 +98,10 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 		if err := s.Pages.Publish(ctx, tx, pageID, expectedVersion); err != nil {
 			return err
 		}
-		if err := s.Audit.Record(ctx, tx, "audit-publish-"+pageID, "page.published", pageID); err != nil {
+		if err := s.Audit.Record(ctx, tx, "audit-publish-"+pageID+"-"+fmt.Sprint(expectedVersion+1), "page.published", pageID); err != nil {
 			return err
 		}
-		if err := s.Outbox.Enqueue(ctx, tx, "outbox-publish-"+pageID, "page.published", pageID, 1); err != nil {
+		if err := s.Outbox.Enqueue(ctx, tx, "outbox-publish-"+pageID+"-"+fmt.Sprint(expectedVersion+1), "page.published", pageID, 1); err != nil {
 			return err
 		}
 		if s.PublicCache != nil {
