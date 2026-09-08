@@ -56,6 +56,11 @@ func SnapshotSQLite(ctx context.Context, db *sql.DB, mediaDir, destination strin
 	if err != nil {
 		return Manifest{}, err
 	}
+	if _, err := os.Stat(destination); err == nil {
+		return Manifest{}, fmt.Errorf("destination already exists: %s", destination)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return Manifest{}, err
+	}
 	if err := os.MkdirAll(destination, 0o750); err != nil {
 		return Manifest{}, err
 	}
