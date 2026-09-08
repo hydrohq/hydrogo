@@ -46,6 +46,7 @@ func runTransactionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	if err := database.CheckCompatibility(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatalf("schema compatibility %s: %v", dialect, err)
 	}
+	resetContractData(t, db, dialect)
 	if dialect == database.SQLite {
 		assertSQLitePragmas(t, db)
 	}
@@ -158,5 +159,20 @@ func assertCount(t *testing.T, db *sql.DB, table string, want int) {
 	}
 	if got != want {
 		t.Fatalf("%s count = %d, want %d", table, got, want)
+	}
+}
+
+func resetContractData(t *testing.T, db *sql.DB, dialect database.Dialect) {
+	t.Helper()
+	if dialect == database.Postgres {
+		if _, err := db.Exec(`TRUNCATE TABLE page_revisions, media_assets, sessions, users, pages, audit_events, outbox_events RESTART IDENTITY CASCADE`); err != nil {
+			t.Fatalf("reset postgres contract data: %v", err)
+		}
+		return
+	}
+	for _, table := range []string{"page_revisions", "media_assets", "sessions", "users", "pages", "audit_events", "outbox_events"} {
+		if _, err := db.Exec("DELETE FROM " + table); err != nil {
+			t.Fatalf("reset sqlite contract data %s: %v", table, err)
+		}
 	}
 }

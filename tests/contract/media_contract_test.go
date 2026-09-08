@@ -34,6 +34,7 @@ func runMediaAssetLifecycle(t *testing.T, dialect database.Dialect, dsn string) 
 	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
+	resetContractData(t, db, dialect)
 	store := mediastore.Store{Dialect: dialect}
 	asset := media.Asset{ID: "asset-1", StorageKey: "sha256/asset-1.png", OriginalFilename: "logo.png", MimeType: "image/png", SizeBytes: 42, Width: 10, Height: 10}
 	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {

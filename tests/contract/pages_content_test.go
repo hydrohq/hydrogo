@@ -40,6 +40,7 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
+	resetContractData(t, db, dialect)
 
 	pagesStore := sqlstore.Store{Dialect: dialect}
 	content := service.ContentService{
