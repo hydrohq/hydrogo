@@ -82,7 +82,12 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	}
 	SetSessionCookie(w, token, session.ExpiresAt, h.Secure)
 	if h.Audit != nil {
-		_ = h.Audit.Record(r.Context(), "auth.login", user.ID)
+		if err := h.Audit.Record(r.Context(), "auth.login", user.ID); err != nil {
+			_ = h.Service.RevokeSession(r.Context(), token)
+			ClearSessionCookie(w)
+			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role})
 }
@@ -95,7 +100,11 @@ func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if h.Audit != nil {
-			_ = h.Audit.Record(r.Context(), "auth.logout", session.UserID)
+			if err := h.Audit.Record(r.Context(), "auth.logout", session.UserID); err != nil {
+				ClearSessionCookie(w)
+				http.Error(w, "logout failed", http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 	ClearSessionCookie(w)
