@@ -80,7 +80,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 - [ ] S08 tamamı: iki kez üretimde sıfır diff, custom hash korunması, published migration değişmezliği. (Prototipte deterministic output/custom preservation contract'ı geçti; published migration ve gerçek modül fixture'ı açık.)
 - [ ] S09: SQLite ↔ PostgreSQL export/import; kimlik/revision/locale/ilişkiler korunur, secret/session dışarı çıkmaz. (Allowlist tabanlı deterministic SQLite ve geçici schema'lı PostgreSQL round-trip contract'ları, auth/session dışlama hazır; büyük veri benchmark'ı ve gerçek müşteri fixture'ı açık.) [R5 doğrulama raporu](validation/R5-portable-export-2026-09-08.md)
 - [ ] Standard/PostgreSQL profilini, desteklenen OS/DB/provider sürümlerini ve upgrade yolunu sertifikala.
-- [ ] SDK v1, deprecation/destek takvimi, release imzası, lisans envanteri ve yeniden üretilebilir build.
+- [ ] SDK v1, deprecation/destek takvimi, release imzası, lisans envanteri ve yeniden üretilebilir build. (SDK v1 adayı ve deterministic Ed25519 manifest/signature contract'ı hazır; resmi deprecation takvimi, production key ceremony, CI provenance ve çapraz OS reproducible build açık.) [Release doğrulama raporu](validation/R5-release-manifest-2026-09-08.md)
 - [ ] Standart müşteri işini iki geliştirici/müşteri üzerinde mevcut yöntemle karşılaştırarak süre ölç.
 
 **Çıkış:** Belgeli destek matrisiyle kararlı v1. Ölçülmeyen hız/topoloji için vaat verilmez.
