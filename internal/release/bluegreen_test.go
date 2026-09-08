@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -80,6 +82,37 @@ func TestTrafficSwitchRemainsBoundedUnderConcurrentRequests(t *testing.T) {
 	wg.Wait()
 	if failures.Load() != 0 {
 		t.Fatalf("concurrent green requests failed: %d", failures.Load())
+	}
+}
+
+func TestTrafficWorksBehindReverseProxyHandlers(t *testing.T) {
+	blueServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("blue-proxy")) }))
+	defer blueServer.Close()
+	greenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("green-proxy")) }))
+	defer greenServer.Close()
+	proxyFor := func(raw string) http.Handler {
+		u, err := url.Parse(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return httputil.NewSingleHostReverseProxy(u)
+	}
+	traffic, err := NewTraffic(proxyFor(blueServer.URL), proxyFor(greenServer.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deployment, _ := NewDeployment(SlotBlue)
+	_ = deployment.PrepareGreen()
+	_ = deployment.MarkReady()
+	_ = deployment.Warmup(true)
+	_ = deployment.Switch(true)
+	if err := traffic.Switch(deployment); err != nil {
+		t.Fatal(err)
+	}
+	res := httptest.NewRecorder()
+	traffic.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "http://proxy/health", nil))
+	if res.Code != http.StatusOK || res.Body.String() != "green-proxy" {
+		t.Fatalf("proxied green response = %d %q", res.Code, res.Body.String())
 	}
 }
 
