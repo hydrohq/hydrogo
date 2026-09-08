@@ -1,6 +1,6 @@
 # HydroGo uygulama roadmap'i
 
-**Tarih:** 2026-09-08 · **Durum:** R0 ve R2 tamamlandı; R1 S03 Quill/HTMX deneyi açık; R3 güvenlik başlangıç kapısı tamamlandı, ticari pilot kapıları açık.
+**Tarih:** 2026-09-08 · **Durum:** R0, R1 S03 ve R2 tamamlandı; R3 güvenlik başlangıç kapısı tamamlandı, ticari pilot kapıları açık.
 
 Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
 
@@ -20,7 +20,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 - [x] GitHub namespace'i `github.com/ardaozyildirim/hydrogo` üzerinden ilk `go.mod` oluştur; Go/toolchain sürümünü seç ve sabitle.
 - [x] S01: dış Go module tüketici fixture'ı, izinli import sınırı ve seçilmeyen modülün build'e girmemesi.
 - [x] S02/S04: SQLite/PostgreSQL driver ve migration deneyi; tek transaction scope ile content/audit/outbox rollback.
-- [ ] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi. (Auth/audit ve upload akışı hazır; gerçek Quill/HTMX deneyi açık.)
+- [x] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi. (Yerel, sürümlenmiş asset'ler; nonce'lu CSP fixture'ı; sanitizer, medya ve harici edition build kanıtları tamam.)
 - [x] Windows geliştirme/Linux amd64 build; backup ve image encoder araçlarının bulunabilirliği.
 - [x] Tek `hydro` girişi, config doğrulama, health/readiness, graceful shutdown, default-deny router, bootstrap/session ve CSRF/audit temeli.
 - [x] Go araçları seçildikten sonra CI format/vet/test/build ve iki DB servis matrisini ekle. (CI yeşil; testler ve dialect matrisi çalışıyor.)

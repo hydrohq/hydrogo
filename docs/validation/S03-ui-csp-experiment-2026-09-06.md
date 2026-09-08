@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-09-06  
 **Roadmap maddesi:** R1 / S03  
-**Durum:** Düzeltme turunda; theme örnekleri escape ediliyor, CI ve gerçek Quill/HTMX akışı henüz kapanmadı.
+**Durum:** Başarılı; yerel Quill/HTMX asset'leri ve CSP uyumlu editör fixture'ı doğrulandı.
 
 ## Doğrulanan Davranışlar
 
@@ -26,6 +26,11 @@
      - Yol geçişi (`path traversal`) saldırıları engellendi; içerik tabanlı SHA-256 dosya adlandırması uygulandı.
      - Maksimum dosya boyutu sınırları test edildi.
 
+5. **Quill/HTMX yerel asset ve CSP fixture'ı:**
+   - Quill 2.0.3 (`static/vendor/quill`) ve HTMX 2.0.10 (`static/vendor/htmx`) CDN'e ihtiyaç duymadan repoya sabitlendi.
+   - `internal/ui.RenderEditor` nonce'lu inline başlatma ile Quill Delta JSON alanı, CSRF alanı ve HTMX form hedefini üretir.
+   - `allowEval=false` ve `allowScriptTags=false` ayarları ile HTMX dinamik değerlendirmesi kapatıldı; testte CDN URL'leri ve inline event handler'lar reddedilir.
+
 ## Çalıştırılan Komutlar
 
 ```text
@@ -34,4 +39,4 @@ go test -v ./internal/media/...
 cd examples/client-edition && go build ./...
 go run ./tools/importguard -root examples/client-edition
 ```
-Tüm adımlar hatasız geçti.
+Tüm adımlar hatasız geçti. Sürümlenen üçüncü taraf lisansları `static/vendor/*/LICENSE` altındadır.
