@@ -29,3 +29,9 @@ func TestRenderSitemapEscapesAndDeduplicates(t *testing.T) {
 		t.Fatalf("sitemap = %s", text)
 	}
 }
+
+func TestNavigationRejectsNetworkPathURL(t *testing.T) {
+	if err := ValidateNavigation(NavigationItem{ID: "x", Locale: "en", Label: "x", Href: "//evil.example", Position: 0}); err == nil {
+		t.Fatal("network path navigation URL accepted")
+	}
+}

@@ -63,7 +63,7 @@ func ValidateNavigation(value NavigationItem) error {
 		return ErrInvalidNavigation
 	}
 	parsed, err := url.Parse(href)
-	if err != nil || parsed.IsAbs() && parsed.Scheme != "https" || strings.HasPrefix(strings.ToLower(href), "javascript:") {
+	if err != nil || parsed.Host != "" || parsed.IsAbs() && parsed.Scheme != "https" || strings.HasPrefix(strings.ToLower(href), "javascript:") {
 		return ErrInvalidNavigation
 	}
 	return nil
