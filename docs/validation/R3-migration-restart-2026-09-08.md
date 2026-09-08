@@ -28,4 +28,6 @@ Migration runner artık metadata'daki `transactional.<dialect>` değerine uyar. 
 
 Reverse proxy handler'larıyla yapılan `httptest` contract'ı, gated switch sonrasında gerçek `httputil.ReverseProxy` akışının Green backend'e ulaştığını doğrular. Production proxy konfigürasyonu ve process restart tatbikatı açık kalır.
 
+PostgreSQL contract'ı ayrıca uzun ömürlü snapshot transaction açıkken `CREATE INDEX CONCURRENTLY` işleminin hemen bitmediğini, snapshot commit edildikten sonra migration'ın tamamlandığını doğrular. Bu, lock davranışını ölçer; production süre bütçesi ve gerçek rollback tatbikatı açık kalır.
+
 `TestSQLiteOnlineExpandAllowsConcurrentReadContract` WAL açık SQLite'ta aktif bir read transaction sürerken nullable expand migration'ın iki saniyelik deadline içinde tamamlandığını ve yeni kolonun görünür olduğunu doğrular. Bu deney migration'ın genel production lock süresini veya PostgreSQL DDL planını sertifikalamaz; gerçek blue/green trafik, yeni yazımdan sonra production rollback ve kapasite ölçümü S06/S07'nin açık kısmıdır.
