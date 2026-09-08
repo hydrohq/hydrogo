@@ -37,10 +37,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
+        timeout-minutes: 3
         with:
           go-version: '1.27.0'
           check-latest: false
       - name: Install PostgreSQL client tools
+        timeout-minutes: 4
         run: |
           if [ ! -x /usr/lib/postgresql/18/bin/pg_dump ] || [ ! -x /usr/lib/postgresql/18/bin/pg_restore ]; then
             sudo install -d -m 0755 /etc/apt/keyrings
@@ -56,6 +58,7 @@ jobs:
       - run: go test ./...
       - run: go build ./cmd/hydro
       - name: Verify reproducible hydro build
+        timeout-minutes: 3
         run: |
           set -euo pipefail
           mkdir -p .tmp/repro
@@ -89,6 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
+        timeout-minutes: 3
         with:
           go-version: '1.27.0'
           check-latest: false
@@ -101,6 +105,7 @@ jobs:
           go test ./...
           go build ./cmd/hydro
       - name: Verify reproducible hydro build
+        timeout-minutes: 3
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .tmp/repro | Out-Null
