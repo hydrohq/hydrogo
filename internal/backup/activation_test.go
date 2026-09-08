@@ -1,0 +1,74 @@
+package backup
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestActivateStagingMediaRetainsPreviousRoot(t *testing.T) {
+	root := t.TempDir()
+	staging := filepath.Join(root, "staging")
+	active := filepath.Join(root, "active")
+	rollback := filepath.Join(root, "rollback")
+	if err := os.MkdirAll(filepath.Join(staging, "media"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(active, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(active, "old.css"), []byte("old"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	marker := RestoreMarker{ManifestVersion: 1, Controls: RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}}
+	data, err := json.Marshal(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staging, "RESTORE_QUARANTINED.json"), data, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staging, "media", "new.css"), []byte("new"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ActivateStagingMedia(staging, active, rollback); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(active, "media", "new.css")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(active, "RESTORE_ACTIVE.json")); err != nil {
+		t.Fatal(err)
+	}
+	old, err := os.ReadFile(filepath.Join(rollback, "old.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(old) != "old" {
+		t.Fatalf("rollback asset = %q", old)
+	}
+	if _, err := os.Stat(staging); !os.IsNotExist(err) {
+		t.Fatalf("staging root still exists: %v", err)
+	}
+}
+
+func TestActivateStagingMediaRequiresQuarantineControls(t *testing.T) {
+	root := t.TempDir()
+	staging := filepath.Join(root, "staging")
+	if err := os.MkdirAll(staging, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	marker := RestoreMarker{ManifestVersion: 1}
+	data, err := json.Marshal(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staging, "RESTORE_QUARANTINED.json"), data, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := ActivateStagingMedia(staging, filepath.Join(root, "active"), filepath.Join(root, "rollback")); err == nil {
+		t.Fatal("activation without restore controls succeeded")
+	}
+}
