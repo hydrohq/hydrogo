@@ -54,6 +54,14 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 		PublicCache:  cache.New[pages.Page](4, time.Minute),
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
+	rollbackContent := content
+	rollbackContent.Outbox = failingOutbox{err: errors.New("injected publish pipeline failure")}
+	if err := rollbackContent.CreateDraft(ctx, pages.Page{ID: "rollback-page", Locale: "en", Slug: "rollback", Title: "rollback", Body: "body"}); err == nil {
+		t.Fatal("injected content transaction failure succeeded")
+	}
+	assertCount(t, db, "pages", 0)
+	assertCount(t, db, "page_revisions", 0)
+	assertCount(t, db, "audit_events", 0)
 	page := pages.Page{ID: "content-page", Locale: "tr-TR", Slug: "/hakkimizda/", Title: "Hakkımızda", Body: "ilk<script>alert(1)</script>"}
 	if err := content.CreateDraft(ctx, page); err != nil {
 		t.Fatalf("create draft: %v", err)

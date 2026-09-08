@@ -1,6 +1,6 @@
 # HydroGo uygulama roadmap'i
 
-**Tarih:** 2026-09-08 · **Durum:** R0 ve R1 tamamlandı; R2 çıkış kanıtları turunda.
+**Tarih:** 2026-09-08 · **Durum:** R0 ve R2 tamamlandı; R1 S03 Quill/HTMX deneyi açık; R3 başlamadı.
 
 Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
 
@@ -41,7 +41,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 - [x] İlk dış Client Edition ve tipli view slotları; Core fork veya internal import olmasın. (examples/client-edition ve import boundary CI kanıtı.)
 - [x] Bounded yerel cache, public HTTP politikası ve kalıcı outbox; ilk dilim için zorunlu L2 yok.
 
-**Çıkış:** İki DB'de aynı uçtan uca akış; yetki ve taslak/özel medya sızıntısı testleri; eşzamanlı edit/publish conflict ve crash rollback kanıtı. Tam SEO, sitemap ve geçmiş URL yönetimi R3'tedir.
+**Çıkış:** İki DB'de aynı uçtan uca akış; yetki ve taslak/özel medya sızıntısı testleri; eşzamanlı edit/publish conflict ve crash rollback kanıtı. Kanıt: [R2 doğrulama raporu](validation/R2-pages-media-2026-09-08.md). Tam SEO, sitemap ve geçmiş URL yönetimi R3'tedir.
 
 ## R3 — Compact ticari pilot
 
