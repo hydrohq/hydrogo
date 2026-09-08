@@ -13,6 +13,7 @@ import (
 const (
 	SessionCookieName = "hydro_session"
 	DefaultSessionTTL = 24 * time.Hour * 7
+	DefaultIdleTTL    = 24 * time.Hour
 )
 
 var (
@@ -32,6 +33,7 @@ type AuthService struct {
 	sessionRepo SessionRepository
 	argonParams Argon2Params
 	dummyHash   string
+	idleTTL     time.Duration
 }
 
 func NewAuthService(users UserRepository, sessions SessionRepository, params Argon2Params) *AuthService {
@@ -42,6 +44,7 @@ func NewAuthService(users UserRepository, sessions SessionRepository, params Arg
 		sessionRepo: sessions,
 		argonParams: params,
 		dummyHash:   dummyHash,
+		idleTTL:     DefaultIdleTTL,
 	}
 }
 
@@ -151,6 +154,10 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 	}
 	if !u.Active {
 		return nil, nil, ErrUserInactive
+	}
+	if s.idleTTL > 0 && time.Since(sess.LastSeenAt) > s.idleTTL {
+		_ = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
+		return nil, nil, ErrSessionExpired
 	}
 
 	// Update last seen periodically (fire and forget / non-blocking)
