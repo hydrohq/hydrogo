@@ -68,7 +68,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 - [x] İkinci dış Client Edition, ikinci tema ve farklı özel iş kuralı. (examples/news-edition ayrı module, EditorialTheme, importguard/build CI adımı ve Core'a bağımlı olmayan `EditorialDraft` onay/desk kuralı tamam.) [R4 doğrulama raporu](validation/R4-news-admin-2026-09-08.md)
 - [ ] İki modülde transaction, hook, event/job lease ve idempotency contract kitleri. (Pages/News transaction-audit/outbox desenleri, bounded queue, SQLite/PostgreSQL uyumlu kalıcı `jobs` lease store, News durable queue adapter'ı ve bounded idempotent `internal/hooks.Dispatcher` hazır; production worker bootstrap wiring'i açık.) [Job store doğrulama raporu](validation/R4-job-store-2026-09-08.md)
 - [ ] Core/modül/schema/config/content/event/job/asset uyumluluk matrisi ve eski müşteri fixture'ları. (Kanıtlanmış epoch/blue-green sınırları [COMPATIBILITY_MATRIX.md](COMPATIBILITY_MATRIX.md) içinde toplandı; gerçek eski müşteri veri fixture'ı açık.)
-- [ ] Kanıtlanan küçük SDK yüzeyini v1 adayı olarak belirle; generator için kalıpları çıkar.
+- [x] Kanıtlanan küçük SDK yüzeyini v1 adayı olarak belirle; generator için kalıpları çıkar. (`extension/v1` altında Theme/Module typed contract'ı ve açık candidate version sabitlendi.) [SDK doğrulama raporu](validation/R5-sdk-v1-candidate-2026-09-08.md)
 
 **Çıkış:** İki modül + iki ayrı Edition Core fork olmadan çalışır; SDK v1 adayı incelenir. S08'in SDK kısmı kapanır; generator kısmı R5'te kapanır.
 
