@@ -1,0 +1,25 @@
+id: "202609080011_navigation_position_unique"
+module: "site"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "b4dadab33729c84fe6465abbb607d2e3e7cc0e88494a32c249821ba143b3fe5b"
+  postgres: "b4dadab33729c84fe6465abbb607d2e3e7cc0e88494a32c249821ba143b3fe5b"
+dependencies:
+  - "202609080009_site_edition"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "Site Edition migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Navigation position uniqueness index"
+compatibility: "Rejects duplicate visible navigation positions within a locale"
+smoke:
+  - "Duplicate locale/position writes fail deterministically"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

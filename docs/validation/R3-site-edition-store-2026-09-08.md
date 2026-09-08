@@ -5,6 +5,8 @@
 
 `202609080009_site_edition` migration'ı her iki dialect için site settings, sıralı navigation, 301/308 redirect ve sınırlı form inbox tablolarını ekler. `modules/site` doğrulama katmanı key/path/URL/e-posta/payload boyutlarını sınırlar; SQL store görünür settings ve navigation'ı yalnız explicit public/visible alanlardan okur. Form submission kayıtları source IP'nin ham değeri yerine hash bekler.
 
+`202609080011_navigation_position_unique` ileri migration'ı locale içindeki navigation position değerini DB seviyesinde de unique yapar; servis doğrulamasını aşan eşzamanlı/direct writes contract testinde reddedilir.
+
 Çalıştırılan kontrol:
 
 ```text

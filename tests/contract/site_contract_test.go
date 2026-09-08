@@ -45,6 +45,14 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	if err := service.SaveNavigation(ctx, "EN", []site.NavigationItem{{ID: "home", Label: "Home", Href: "/", Position: 0, Visible: true}}); err != nil {
 		t.Fatal(err)
 	}
+	if err := transactor.Within(ctx, func(tx database.Executor) error {
+		return store.ReplaceNavigation(ctx, tx, "en", []site.NavigationItem{
+			{ID: "one", Locale: "en", Label: "One", Href: "/one", Position: 1, Visible: true},
+			{ID: "two", Locale: "en", Label: "Two", Href: "/two", Position: 1, Visible: true},
+		})
+	}); err == nil {
+		t.Fatal("duplicate navigation position was accepted")
+	}
 	if err := service.SaveRedirect(ctx, site.Redirect{SourcePath: "/old/", TargetPath: "/new/", Status: 301}); err != nil {
 		t.Fatal(err)
 	}
