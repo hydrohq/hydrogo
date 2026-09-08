@@ -148,4 +148,29 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if !errors.Is(err, auth.ErrMFAInvalidCode) {
 		t.Fatalf("second recovery code consume = %v, want invalid code", err)
 	}
+
+	// 11. Password reset tokens are purpose-bound, short-lived and single-use.
+	resetService := auth.PasswordRecovery{Users: userStore, Tokens: userStore, Sessions: sessionStore, ArgonParams: auth.TestArgon2Params}
+	var resetToken string
+	resetToken, err = resetService.Issue(ctx, db, u.Email, time.Minute)
+	if err != nil {
+		t.Fatalf("issue reset token failed: %v", err)
+	}
+	err = database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		return resetService.Reset(ctx, tx, resetToken, "NewStrongPassword123!")
+	})
+	if err != nil {
+		t.Fatalf("reset password failed: %v", err)
+	}
+	if _, err := authSvc.Authenticate(ctx, u.Email, "NewStrongPassword123!"); err != nil {
+		t.Fatalf("new password authentication failed: %v", err)
+	}
+	if _, err := authSvc.Authenticate(ctx, u.Email, "StrongSecretPassword123!"); err != auth.ErrInvalidCredentials {
+		t.Fatalf("old password result = %v, want invalid credentials", err)
+	}
+	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		return resetService.Reset(ctx, tx, resetToken, "AnotherPassword123!")
+	}); !errors.Is(err, auth.ErrRecoveryTokenInvalid) {
+		t.Fatalf("second reset result = %v, want invalid token", err)
+	}
 }

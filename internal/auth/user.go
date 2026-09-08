@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
 var (
@@ -40,4 +42,5 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	Count(ctx context.Context) (int64, error)
 	SetActive(ctx context.Context, id string, active bool) error
+	UpdatePassword(ctx context.Context, tx database.Executor, userID, passwordHash string) error
 }

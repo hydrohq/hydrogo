@@ -110,6 +110,15 @@ func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error 
 	return nil
 }
 
+func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executor, userID string) error {
+	query := `DELETE FROM sessions WHERE user_id = $1`
+	if s.dialect == database.SQLite {
+		query = `DELETE FROM sessions WHERE user_id = ?`
+	}
+	_, err := tx.ExecContext(ctx, query, userID)
+	return err
+}
+
 func (s *SessionStore) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
 	query := `DELETE FROM sessions WHERE expires_at <= $1`
 	var arg any = now.UTC()

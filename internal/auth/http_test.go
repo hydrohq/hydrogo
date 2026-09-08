@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
 type httpUserRepo struct{ user *User }
@@ -27,6 +29,9 @@ func (r httpUserRepo) GetByEmail(context.Context, string) (*User, error) {
 }
 func (r httpUserRepo) Count(context.Context) (int64, error)          { return 1, nil }
 func (r httpUserRepo) SetActive(context.Context, string, bool) error { return nil }
+func (r httpUserRepo) UpdatePassword(context.Context, database.Executor, string, string) error {
+	return nil
+}
 
 type httpSessionRepo struct{ session *Session }
 

@@ -1,0 +1,25 @@
+id: "202609080008_recovery_tokens"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "ed328b676e8201f07ced9efba1e4e941affd8cd620e8f874b499c537e1cce49b"
+  postgres: "425416c4190a4dea490c13b9740adbd4b9c78193083ca7a5a0960cd7d46c5892"
+dependencies:
+  - "202609060002_auth_security"
+schema:
+  readable_epoch: 4
+  writable_epoch: 4
+preconditions:
+  - "The auth security migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Short-lived hashed recovery tokens"
+compatibility: "Adds optional password reset token records"
+smoke:
+  - "Consumed and expired tokens cannot be used again"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
