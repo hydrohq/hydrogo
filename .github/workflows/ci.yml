@@ -42,6 +42,11 @@ jobs:
       - name: Build external Client Edition
         working-directory: examples/client-edition
         run: go build ./...
+      - name: Enforce News Edition import boundary
+        run: go run ./tools/importguard -root examples/news-edition
+      - name: Build external News Edition
+        working-directory: examples/news-edition
+        run: go build ./...
       - name: Prove Go internal boundary
         working-directory: tests/fixtures/internal-import-denied
         run: |

@@ -21,3 +21,5 @@ go test ./...
 ```
 
 PostgreSQL contract testi `HYDRO_TEST_POSTGRES_URL` yoksa atlanır. JSON/public route'ları aynı service/repository projection'ını kullanır; worker lease davranışı in-process contract ile doğrulanır. Kalıcı job backend'i, tam admin UI ve ikinci Client Edition sonraki R4 kapılarıdır.
+
+`examples/news-edition` ayrı Go module olarak yalnız `extension` yüzeyini import eder; `EditorialTheme` ile ikinci tema ve CI importguard/build kanıtı eklenmiştir. News modülünün internal SQL katmanı Client Edition'a açılmaz.
