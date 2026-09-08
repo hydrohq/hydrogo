@@ -9,6 +9,47 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
+func (s Store) GetContent(ctx context.Context, db database.Executor, pageID string) (pages.Page, error) {
+	var page pages.Page
+	var status string
+	var published any
+	var createdAt, updatedAt any
+	query := `SELECT id, locale, slug, title, body, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE id = ` + s.placeholder(1)
+	err := db.QueryRowContext(ctx, query, pageID).Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &page.Body, &status, &page.Version, &page.Revision, &published, &page.PublicationGeneration, &createdAt, &updatedAt)
+	if err != nil {
+		return pages.Page{}, err
+	}
+	page.Status = pages.Status(status)
+	if published != nil {
+		var value int
+		switch v := published.(type) {
+		case int64:
+			value = int(v)
+		case int:
+			value = v
+		}
+		page.PublishedRevision = &value
+	}
+	page.CreatedAt = parseStoredTime(createdAt)
+	page.UpdatedAt = parseStoredTime(updatedAt)
+	return page, nil
+}
+
+func parseStoredTime(value any) time.Time {
+	switch v := value.(type) {
+	case time.Time:
+		return v.UTC()
+	case string:
+		parsed, _ := time.Parse(time.RFC3339Nano, v)
+		return parsed.UTC()
+	case []byte:
+		parsed, _ := time.Parse(time.RFC3339Nano, string(v))
+		return parsed.UTC()
+	default:
+		return time.Time{}
+	}
+}
+
 func (s Store) CreateDraftContent(ctx context.Context, tx database.Executor, page pages.Page) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, err := tx.ExecContext(ctx, `INSERT INTO pages

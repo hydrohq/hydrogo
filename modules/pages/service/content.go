@@ -16,9 +16,17 @@ var (
 )
 
 type ContentRepository interface {
+	GetContent(context.Context, database.Executor, string) (pages.Page, error)
 	CreateDraftContent(context.Context, database.Executor, pages.Page) error
 	UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error
 	Publish(context.Context, database.Executor, string, int) error
+}
+
+func (s ContentService) Get(ctx context.Context, db database.Executor, pageID string) (pages.Page, error) {
+	if strings.TrimSpace(pageID) == "" {
+		return pages.Page{}, ErrInvalidPage
+	}
+	return s.Pages.GetContent(ctx, db, pageID)
 }
 
 type ContentService struct {

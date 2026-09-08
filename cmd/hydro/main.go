@@ -21,8 +21,13 @@ import (
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
+	pageservice "github.com/ardaozyildirim/hydrogo/modules/pages/service"
+	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
 )
 
 const version = "0.0.0-dev"
@@ -89,11 +94,19 @@ func serve(args []string, stderr io.Writer) error {
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect)}
+	contentService := pageservice.ContentService{
+		Transactions: database.NewTransactor(db),
+		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},
+		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect},
+		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect},
+	}
+	pageHTTP := pagetransport.Handler{DB: db, Content: contentService}
+	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 
 	return server.Serve(ctx, server.Config{
 		Address: cfg.HTTP.Address,
 		AuthSvc: authSvc,
-		Routes:  authHTTP.RouterRoutes(),
+		Routes:  routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
 				return err
@@ -101,6 +114,18 @@ func serve(args []string, stderr io.Writer) error {
 			return database.CheckCompatibility(checkCtx, db, cfg.Database.Dialect, migrations.FS)
 		},
 	})
+}
+
+func pageRouterRoutes(routes []pagetransport.Route) []router.Route {
+	result := make([]router.Route, 0, len(routes))
+	for _, route := range routes {
+		access := router.Protected
+		if !route.Protected {
+			access = router.Public
+		}
+		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
+	}
+	return result
 }
 
 func newAuditRecorder(db *sql.DB, dialect database.Dialect) auth.AuditRecorder {
