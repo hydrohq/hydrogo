@@ -71,7 +71,7 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	var job jobs.Job
 	var available, created string
 	var attempts int
-	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts)
+	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts)
 	if errors.Is(err, sql.ErrNoRows) {
 		return jobs.Job{}, "", false, nil
 	}

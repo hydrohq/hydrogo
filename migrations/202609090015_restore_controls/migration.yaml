@@ -1,0 +1,25 @@
+id: "202609090015_restore_controls"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "379e269c8e9f5f046c66c146ba06957136f7bfeab8d4f31c9d02a8f2f2563407"
+  postgres: "379e269c8e9f5f046c66c146ba06957136f7bfeab8d4f31c9d02a8f2f2563407"
+dependencies:
+  - "202609080014_published_projection_backfill"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Session, job and migration tables are present"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One control row"
+compatibility: "Persists restore session, egress and old-write controls"
+smoke:
+  - "Quarantined jobs are not claimable until the control is released"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
