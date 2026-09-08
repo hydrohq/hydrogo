@@ -67,7 +67,12 @@ func SnapshotPostgres(ctx context.Context, tools PostgresTools, dsn, mediaDir, d
 			return Manifest{}, err
 		}
 	}
-	return Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: databaseDigest, Media: media}, nil
+	manifest := Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: databaseDigest, Media: media}
+	if err := WriteManifest(filepath.Join(destination, "manifest.json"), manifest); err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
+	return manifest, nil
 }
 
 // RestorePostgresToStaging restores a dump into an already-created empty

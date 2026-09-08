@@ -38,6 +38,13 @@ func TestSnapshotSQLiteManifestVerifiesAndDetectsTampering(t *testing.T) {
 	if len(manifest.Media) != 1 || manifest.Media[0].Path != "media/nested/a.txt" {
 		t.Fatalf("unexpected media manifest: %#v", manifest.Media)
 	}
+	stored, err := ReadManifest(filepath.Join(destination, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Database != manifest.Database || len(stored.Media) != len(manifest.Media) {
+		t.Fatalf("stored manifest differs: %#v/%#v", stored, manifest)
+	}
 	if err := Verify(destination, manifest); err != nil {
 		t.Fatal(err)
 	}

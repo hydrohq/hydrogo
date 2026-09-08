@@ -150,7 +150,12 @@ func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destina
 			return Manifest{}, err
 		}
 	}
-	return Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: dbDigest, Media: media}, nil
+	manifest := Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: dbDigest, Media: media}
+	if err := WriteManifest(filepath.Join(destination, "manifest.json"), manifest); err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
+	return manifest, nil
 }
 
 func sqliteDatabaseBytes(ctx context.Context, db *sql.DB) (int64, error) {
