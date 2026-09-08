@@ -39,3 +39,7 @@ Yeni upload ve snapshot işlemleri güvenli hata ile durdurulur; mevcut ready me
 - Session: 7 gün mutlak TTL, 24 saat idle TTL.
 
 Bu değerler pilot trafiğiyle ölçülüp R3 kapasite raporunda güncellenmelidir; varsayılanlar donanım veya RPO/RTO garantisi değildir.
+
+## Kişisel veri inbox talepleri
+
+Form inbox erişim, export ve silme adımları [PERSONAL_DATA_POLICY.md](PERSONAL_DATA_POLICY.md) ile sınırlıdır. Operatör önce admin yetkisini ve talep kimliğini doğrular, sonra ilgili audit kaydını açar; export şifreli geçici konuma alınır ve teslim sonrası silinir. Silme işlemi dış erasure checkpoint'i ile replay edilmeden tamamlandı olarak işaretlenmez.
