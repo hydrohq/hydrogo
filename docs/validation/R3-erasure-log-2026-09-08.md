@@ -5,6 +5,8 @@
 
 `internal/erasure` append-only JSONL adapter'ı silme niyetlerini DB dışında saklar. Her kayıt edition, sabit hedef, işlem türü, sıra ve önceki hash bağlantısını taşır. Dosya yazımı `Sync` ile tamamlanır; aynı işlem kimliği idempotenttir ve farklı hedefle yeniden kullanılamaz. `Verify` sıra boşluğu, hash zinciri, bozuk JSON ve kayıt alanı hatalarını reddeder.
 
+`EntriesAfter` checkpoint sonrasındaki niyetleri doğrulanmış zincirden yeniden oynatılmak üzere döndürür; içerik ve medya temizleme işlemlerinin idempotent uygulaması üst katmanın sorumluluğundadır.
+
 Çalıştırılan kontrol:
 
 ```text

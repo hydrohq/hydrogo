@@ -35,6 +35,10 @@ func TestLogAppendIsDurableIdempotentAndDetectsTampering(t *testing.T) {
 	if err != nil || checkpoint.Sequence != 2 {
 		t.Fatalf("verify = %#v/%v", checkpoint, err)
 	}
+	entries, latest, err := log.EntriesAfter(1)
+	if err != nil || len(entries) != 1 || entries[0].ID != "op-2" || latest != checkpoint {
+		t.Fatalf("entries after = %#v/%#v/%v", entries, latest, err)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

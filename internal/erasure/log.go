@@ -125,6 +125,28 @@ func (l *Log) Verify() (Checkpoint, error) {
 	return Checkpoint{Sequence: last.Sequence, Hash: last.Hash}, nil
 }
 
+// EntriesAfter returns immutable intents after a previously applied sequence.
+// A caller must verify the returned checkpoint before opening public traffic.
+func (l *Log) EntriesAfter(sequence uint64) ([]Intent, Checkpoint, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	records, err := readRecords(l.path)
+	if err != nil {
+		return nil, Checkpoint{}, err
+	}
+	result := make([]Intent, 0)
+	for _, current := range records {
+		if current.Sequence > sequence {
+			result = append(result, current.Intent)
+		}
+	}
+	if len(records) == 0 {
+		return result, Checkpoint{}, nil
+	}
+	last := records[len(records)-1]
+	return result, Checkpoint{Sequence: last.Sequence, Hash: last.Hash}, nil
+}
+
 func readRecords(path string) ([]record, error) {
 	file, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
