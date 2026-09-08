@@ -20,7 +20,7 @@ Bu test eski binary ile yeni yazma/rollback uyumluluğunu, online DDL kilit davr
 
 `hydro upgrade check` migration çalıştırmadan config/profile, DB ping ve migration ledger checksum uyumluluğunu kontrol eder; başarılı preflight `upgrade-ready` çıktısı verir ve schema uyumsuzluğunda readiness açmaz.
 
-Migration runner artık metadata'daki `transactional.<dialect>` değerine uyar. Transaction'lı ardışık migration'lar aynı transaction grubunda kalır; `transactional: false` migration kendi bağlantı yürütmesi ve ledger kaydıyla çalışır. SQLite `VACUUM` fixture'ı bu ayrımı contract seviyesinde doğrular. PostgreSQL `CREATE INDEX CONCURRENTLY` lock/traffic deneyi ve gerçek slot rollback'i hâlâ ayrı S06 tatbikatıdır.
+Migration runner artık metadata'daki `transactional.<dialect>` değerine uyar. Transaction'lı ardışık migration'lar aynı transaction grubunda kalır; `transactional: false` migration kendi bağlantı yürütmesi ve ledger kaydıyla çalışır. SQLite `VACUUM` fixture'ı bu ayrımı contract seviyesinde doğrular. `HYDRO_TEST_POSTGRES_URL` tanımlı CI koşulunda `CREATE INDEX CONCURRENTLY` migration'ı aktif read transaction varken transaction dışında uygulanır ve indeks görünür hale gelir. Gerçek slot rollback'i hâlâ ayrı S06 tatbikatıdır.
 
 `internal/release.Deployment` ADR-0005 sırasını local state machine olarak zorlar: Green hazırlanır, readiness alınır, retained asset warm-up tamamlanır, schema rollback safety onaylanır, sonra switch/drain/rollback yapılır. Bu sözleşme gerçek reverse-proxy trafiğini veya process restart'ını tek başına sertifikalamaz.
 

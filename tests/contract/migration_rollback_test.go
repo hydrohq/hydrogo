@@ -177,3 +177,64 @@ func TestSQLiteOnlineExpandAllowsConcurrentReadContract(t *testing.T) {
 		t.Fatal("expand column was not applied")
 	}
 }
+
+func TestPostgresNonTransactionalConcurrentIndexAllowsReadContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	table := "online_contract_" + suffix
+	baseID := "online_" + suffix + "_base"
+	indexID := "online_" + suffix + "_index"
+	if _, err := db.ExecContext(ctx, "CREATE TABLE "+table+" (id BIGSERIAL PRIMARY KEY, value TEXT NOT NULL)"); err != nil {
+		t.Fatal(err)
+	}
+	defer db.ExecContext(context.Background(), "DROP TABLE "+table)
+	if _, err := db.ExecContext(ctx, "INSERT INTO "+table+" (value) VALUES ('before')"); err != nil {
+		t.Fatal(err)
+	}
+	baseMigrations := fstest.MapFS{
+		baseID + "/postgres.sql":   &fstest.MapFile{Data: []byte("SELECT 1;\n")},
+		baseID + "/migration.yaml": &fstest.MapFile{Data: []byte("transactional:\n  postgres: true\n")},
+	}
+	allMigrations := fstest.MapFS{
+		baseID + "/postgres.sql":    &fstest.MapFile{Data: []byte("SELECT 1;\n")},
+		baseID + "/migration.yaml":  &fstest.MapFile{Data: []byte("transactional:\n  postgres: true\n")},
+		indexID + "/postgres.sql":   &fstest.MapFile{Data: []byte("CREATE INDEX CONCURRENTLY " + table + "_value_idx ON " + table + " (value);\n")},
+		indexID + "/migration.yaml": &fstest.MapFile{Data: []byte("transactional:\n  postgres: false\n")},
+	}
+	if err := database.ApplyMigrations(ctx, db, database.Postgres, baseMigrations); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Rollback()
+	var value string
+	if err := reader.QueryRowContext(ctx, "SELECT value FROM "+table+" WHERE id = 1").Scan(&value); err != nil {
+		t.Fatal(err)
+	}
+	if value != "before" {
+		t.Fatalf("read transaction value = %q", value)
+	}
+	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := database.ApplyMigrations(deadline, db, database.Postgres, allMigrations); err != nil {
+		t.Fatalf("concurrent index migration while read transaction is active: %v", err)
+	}
+	var indexName string
+	if err := db.QueryRowContext(ctx, "SELECT indexname FROM pg_indexes WHERE tablename = $1 AND indexname = $2", table, table+"_value_idx").Scan(&indexName); err != nil {
+		t.Fatal(err)
+	}
+	if indexName != table+"_value_idx" {
+		t.Fatalf("index name = %q", indexName)
+	}
+}
