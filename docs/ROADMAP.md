@@ -20,7 +20,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 - [x] GitHub namespace'i `github.com/ardaozyildirim/hydrogo` üzerinden ilk `go.mod` oluştur; Go/toolchain sürümünü seç ve sabitle.
 - [x] S01: dış Go module tüketici fixture'ı, izinli import sınırı ve seçilmeyen modülün build'e girmemesi.
 - [x] S02/S04: SQLite/PostgreSQL driver ve migration deneyi; tek transaction scope ile content/audit/outbox rollback.
-- [ ] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi. (İskelet var; gerçek Quill/HTMX ve auth/audit akışı bekliyor.)
+- [ ] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi. (Auth/audit ve upload akışı hazır; gerçek Quill/HTMX deneyi açık.)
 - [x] Windows geliştirme/Linux amd64 build; backup ve image encoder araçlarının bulunabilirliği.
 - [x] Tek `hydro` girişi, config doğrulama, health/readiness, graceful shutdown, default-deny router, bootstrap/session ve CSRF/audit temeli.
 - [x] Go araçları seçildikten sonra CI format/vet/test/build ve iki DB servis matrisini ekle. (CI yeşil; testler ve dialect matrisi çalışıyor.)
@@ -31,7 +31,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 
 **Bağımlılık:** R1. **Sorumluluk:** Pages, auth, media, UI.
 
-İlk dikey dilim push edildi: Pages draft/revision/publish service’i, protected JSON route’ları, public published route, bounded process-local cache ve medya `pending → ready` metadata sözleşmesi hazır. Preview, admin UI, medya upload ile metadata’nın tek service transaction’ı ve tam çıkış kanıtları açık.
+İlk dikey dilim push edildi: Pages draft/revision/publish service’i, protected JSON route’ları, public published route, bounded process-local cache ve medya upload ile `pending → ready` metadata akışı hazır. Preview, admin UI ve tam çıkış kanıtları açık.
 
 - [ ] UUID/locale/revision, slug ve e-posta normalizasyonunu ilk kalıcı şemadan önce fixture ile sabitle.
 - [ ] Pages oluştur/düzenle/taslak/preview/publish; admin ve JSON aynı service/policy üzerinden çalışsın.
