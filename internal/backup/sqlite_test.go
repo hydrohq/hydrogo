@@ -73,3 +73,39 @@ func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRestoreToStagingPreservesRetainedMedia(t *testing.T) {
+	root := t.TempDir()
+	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TABLE pages (id TEXT PRIMARY KEY); INSERT INTO pages VALUES ('page-1')"); err != nil {
+		t.Fatal(err)
+	}
+	mediaDir := filepath.Join(root, "media")
+	if err := os.MkdirAll(filepath.Join(mediaDir, "retained"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	asset := filepath.Join(mediaDir, "retained", "hero.webp")
+	if err := os.WriteFile(asset, []byte("immutable-media"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := filepath.Join(root, "snapshot")
+	manifest, err := SnapshotSQLite(context.Background(), db, mediaDir, snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staging := filepath.Join(root, "staging")
+	if err := RestoreToStaging(snapshot, staging, manifest, RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := os.ReadFile(filepath.Join(staging, "media", "retained", "hero.webp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(restored) != "immutable-media" {
+		t.Fatalf("restored media = %q", restored)
+	}
+}
