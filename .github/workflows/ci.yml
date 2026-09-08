@@ -37,6 +37,13 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: go build ./cmd/hydro
+      - name: Verify reproducible hydro build
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/repro
+          go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp/repro/hydro-a ./cmd/hydro
+          go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp/repro/hydro-b ./cmd/hydro
+          test "$(sha256sum .tmp/repro/hydro-a | cut -d' ' -f1)" = "$(sha256sum .tmp/repro/hydro-b | cut -d' ' -f1)"
       - name: Enforce Client Edition import boundary
         run: go run ./tools/importguard -root examples/client-edition
       - name: Build external Client Edition
