@@ -56,6 +56,30 @@ func TestManifestRejectsSecretArtifact(t *testing.T) {
 	}
 }
 
+func TestManifestProvenanceAttestationBindsSubject(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "hydro"), []byte("binary"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := Build(root, Input{Edition: "client", CoreVersion: "1.0.0", SourceRevision: "abc", Toolchain: "go1.27"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, private, _ := ed25519.GenerateKey(rand.Reader)
+	signed, err := Attest(manifest, "ci/github-actions", private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attestation, err := VerifyAttestation(signed, manifest)
+	if err != nil || attestation.Builder != "ci/github-actions" {
+		t.Fatalf("attestation = %#v/%v", attestation, err)
+	}
+	manifest.CoreVersion = "1.0.1"
+	if _, err := VerifyAttestation(signed, manifest); err == nil {
+		t.Fatal("attestation accepted a changed manifest")
+	}
+}
+
 func TestRetainAssetsVerifiesInventoryAndRejectsReplacement(t *testing.T) {
 	source := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(source, "static", "release"), 0o750); err != nil {

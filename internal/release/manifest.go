@@ -44,6 +44,21 @@ type Signed struct {
 	Signature string          `json:"signature"`
 }
 
+// Attestation binds a release manifest digest to deterministic build inputs.
+type Attestation struct {
+	FormatVersion  int    `json:"format_version"`
+	SubjectSHA256  string `json:"subject_sha256"`
+	Builder        string `json:"builder"`
+	SourceRevision string `json:"source_revision"`
+	Toolchain      string `json:"toolchain"`
+}
+
+type SignedAttestation struct {
+	Attestation json.RawMessage `json:"attestation"`
+	PublicKey   string          `json:"public_key"`
+	Signature   string          `json:"signature"`
+}
+
 type Input struct {
 	Edition            string
 	CoreVersion        string
@@ -133,6 +148,48 @@ func Verify(signed Signed) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("invalid signed manifest: %w", err)
 	}
 	return manifest, nil
+}
+
+func Attest(manifest Manifest, builder string, privateKey ed25519.PrivateKey) (SignedAttestation, error) {
+	data, err := Marshal(manifest)
+	if err != nil {
+		return SignedAttestation{}, err
+	}
+	if strings.TrimSpace(builder) == "" || len(privateKey) != ed25519.PrivateKeySize {
+		return SignedAttestation{}, errors.New("builder and signing key are required")
+	}
+	digest := sha256.Sum256(data)
+	attestation := Attestation{FormatVersion: 1, SubjectSHA256: hex.EncodeToString(digest[:]), Builder: builder, SourceRevision: manifest.SourceRevision, Toolchain: manifest.Toolchain}
+	encoded, err := json.Marshal(attestation)
+	if err != nil {
+		return SignedAttestation{}, err
+	}
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	return SignedAttestation{Attestation: encoded, PublicKey: base64.RawStdEncoding.EncodeToString(publicKey), Signature: base64.RawStdEncoding.EncodeToString(ed25519.Sign(privateKey, encoded))}, nil
+}
+
+func VerifyAttestation(signed SignedAttestation, manifest Manifest) (Attestation, error) {
+	publicKey, err := base64.RawStdEncoding.DecodeString(signed.PublicKey)
+	if err != nil || len(publicKey) != ed25519.PublicKeySize {
+		return Attestation{}, errors.New("invalid attestation public key")
+	}
+	signature, err := base64.RawStdEncoding.DecodeString(signed.Signature)
+	if err != nil || !ed25519.Verify(ed25519.PublicKey(publicKey), signed.Attestation, signature) {
+		return Attestation{}, errors.New("attestation verification failed")
+	}
+	var attestation Attestation
+	if err := json.Unmarshal(signed.Attestation, &attestation); err != nil {
+		return Attestation{}, err
+	}
+	data, err := Marshal(manifest)
+	if err != nil {
+		return Attestation{}, err
+	}
+	digest := sha256.Sum256(data)
+	if attestation.FormatVersion != 1 || attestation.SubjectSHA256 != hex.EncodeToString(digest[:]) || strings.TrimSpace(attestation.Builder) == "" {
+		return Attestation{}, errors.New("attestation subject mismatch")
+	}
+	return attestation, nil
 }
 
 func secretLike(path string) bool {
