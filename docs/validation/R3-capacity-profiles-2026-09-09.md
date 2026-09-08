@@ -19,3 +19,5 @@ go test ./cmd/hydro -run TestRunMigrateAndCreateAdmin
 ```
 
 Gerçek Compact blue/green trafik, p95/p99 ve peak memory ölçümü; Standard PostgreSQL connection pool benchmark'ı; Distributed L2/fan-out ve backpressure deneyleri bu doğrulamanın kapsamı dışındadır.
+
+`BenchmarkCacheCoalesces64ConcurrentLookups` Windows amd64 geliştirme makinesinde `-benchtime=10x` ile 202 µs/op ölçtü ve her iterasyonda 64 lookup için loader çağrısını 1'de tuttu. Bu local benchmark müşteri kapasite/SLA kanıtı değildir; gerçek trafik ve profile soak ölçümü ayrıca gerekir.

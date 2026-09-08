@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -33,6 +34,31 @@ func TestCacheCoalescesConcurrentLoads(t *testing.T) {
 	defer mu.Unlock()
 	if loads != 1 {
 		t.Fatalf("loader calls = %d, want 1", loads)
+	}
+}
+
+func BenchmarkCacheCoalesces64ConcurrentLookups(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		c := New[string](64, time.Minute)
+		var loads atomic.Int32
+		var wg sync.WaitGroup
+		wg.Add(64)
+		for j := 0; j < 64; j++ {
+			go func() {
+				defer wg.Done()
+				_, err := c.GetOrLoad("public:home", func() (string, error) {
+					loads.Add(1)
+					return "projection", nil
+				})
+				if err != nil {
+					b.Errorf("cache load: %v", err)
+				}
+			}()
+		}
+		wg.Wait()
+		if got := loads.Load(); got != 1 {
+			b.Fatalf("loader calls = %d, want 1", got)
+		}
 	}
 }
 
