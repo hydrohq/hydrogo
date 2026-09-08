@@ -56,4 +56,12 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	if !strings.Contains(stdout.String(), "Created admin user: admin@example.com") {
 		t.Fatalf("unexpected create-admin output: %s", stdout.String())
 	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := run([]string{"doctor", "--database-dialect", "sqlite", "--database-dsn", dbPath, "--capacity-profile", "compact"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("doctor failed: %v, stderr: %s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "profile=compact database=sqlite") {
+		t.Fatalf("unexpected doctor output: %s", stdout.String())
+	}
 }

@@ -5,7 +5,7 @@ Bu belge Compact pilot için uygulanabilir işletim adımlarını toplar. Restor
 ## Deploy ve rollback
 
 1. Yeni binary, config ve migration manifest'i staging dizinine kopyalanır; `hydro migrate` çalıştırılır.
-2. `hydro serve` başlamadan önce `/readyz` beklenir ve `database.CheckCompatibility` tüm migration checksum'larını doğrular.
+2. `hydro doctor` ile seçilen kapasite profili, DB bağlantısı/checksum'ları ve medya dizini doğrulanır; ardından `hydro serve` başlatılır ve `/readyz` beklenir.
 3. Blue/green geçişinde green slot trafik almadan önce public route, private media, login, sitemap ve form submit smoke istekleri çalıştırılır.
 4. Eski slot yeni yazma almaya devam edemeyecek şekilde durdurulur; worker lease'leri drain/expiry politikasına bırakılır.
 5. Hata durumunda binary rollback yalnız eski şema ve content/event/job formatlarıyla uyumluluk doğrulanırsa yapılır. Yedekten restore ayrı prosedürdür.

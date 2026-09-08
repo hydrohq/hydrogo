@@ -8,11 +8,14 @@
 
 `Config` profile'ı YAML (`profile`), `HYDRO_CAPACITY_PROFILE` veya `--capacity-profile` ile alır ve bilinmeyen profilleri başlangıçta reddeder. `database.OpenWithOptions` pool sınırlarını profile bütçesine uygular; `hydro serve`, migration ve admin komutları aynı profile budget'ını kullanır. Compact cache/queue/media değerleri eski davranışla aynıdır; Standard ve Distributed değerleri ilk ölçüm varsayımlarıdır.
 
+`hydro doctor` migration uygulamadan aynı profile bütçesiyle DB ping/checksum uyumluluğunu ve medya dizinini kontrol eder; başarılı kontrolde seçilen profile ve sınırları operatöre yazdırır.
+
 Çalıştırılan kontroller:
 
 ```text
 go test ./internal/capacity ./internal/config ./internal/database ./cmd/hydro
 go vet ./internal/capacity ./internal/config ./internal/database ./cmd/hydro
+go test ./cmd/hydro -run TestRunMigrateAndCreateAdmin
 ```
 
 Gerçek Compact blue/green trafik, p95/p99 ve peak memory ölçümü; Standard PostgreSQL connection pool benchmark'ı; Distributed L2/fan-out ve backpressure deneyleri bu doğrulamanın kapsamı dışındadır.

@@ -72,6 +72,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return migrate(args[1:], stderr)
 	case "create-admin":
 		return createAdmin(args[1:], stdin, stdout, stderr)
+	case "doctor":
+		return doctor(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -164,9 +166,10 @@ func serve(args []string, stderr io.Writer) error {
 	go runNewsWorker(ctx, db, newsWorker, stderr)
 
 	return server.Serve(ctx, server.Config{
-		Address: cfg.HTTP.Address,
-		AuthSvc: authSvc,
-		Routes:  routes,
+		Address:         cfg.HTTP.Address,
+		ShutdownTimeout: budget.ShutdownTimeout,
+		AuthSvc:         authSvc,
+		Routes:          routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
 				return err
@@ -174,6 +177,44 @@ func serve(args []string, stderr io.Writer) error {
 			return database.CheckCompatibility(checkCtx, db, cfg.Database.Dialect, migrations.FS)
 		},
 	})
+}
+
+func doctor(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	defer db.Close()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("database ping: %w", err)
+	}
+	if err := database.CheckCompatibility(ctx, db, cfg.Database.Dialect, migrations.FS); err != nil {
+		return fmt.Errorf("schema compatibility: %w", err)
+	}
+	if err := os.MkdirAll(cfg.Media.Dir, 0o750); err != nil {
+		return fmt.Errorf("media directory: %w", err)
+	}
+	_, err = fmt.Fprintf(stdout, "profile=%s database=%s cache_entries=%d queue_entries=%d media_max_bytes=%d\n", cfg.Profile, cfg.Database.Dialect, budget.CacheEntries, budget.QueueEntries, budget.MediaMaxBytes)
+	return err
 }
 
 func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, stderr io.Writer) {
@@ -399,8 +440,9 @@ func printUsage(w io.Writer) {
 
 Usage:
   hydro version
-  hydro migrate [runtime flags]
+	hydro migrate [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
+  hydro doctor [runtime flags]
   hydro serve [runtime flags]
   hydro help
 

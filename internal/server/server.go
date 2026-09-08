@@ -15,13 +15,14 @@ import (
 const shutdownTimeout = 10 * time.Second
 
 type Config struct {
-	Address      string
-	Ready        func(context.Context) error
-	AuthSvc      *auth.AuthService
-	Routes       []router.Route
-	Authorizer   router.Authorizer
-	EnableHSTS   bool
-	SecureCookie bool
+	Address         string
+	ShutdownTimeout time.Duration
+	Ready           func(context.Context) error
+	AuthSvc         *auth.AuthService
+	Routes          []router.Route
+	Authorizer      router.Authorizer
+	EnableHSTS      bool
+	SecureCookie    bool
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -50,7 +51,11 @@ func Serve(ctx context.Context, config Config) error {
 		}
 		return err
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		timeout := config.ShutdownTimeout
+		if timeout <= 0 {
+			timeout = shutdownTimeout
+		}
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			return err
