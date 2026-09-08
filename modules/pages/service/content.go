@@ -101,7 +101,7 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 	if strings.TrimSpace(pageID) == "" || expectedVersion <= 0 {
 		return ErrInvalidPage
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Pages.Publish(ctx, tx, pageID, expectedVersion); err != nil {
 			return err
 		}
@@ -111,11 +111,14 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 		if err := s.Outbox.Enqueue(ctx, tx, "outbox-publish-"+pageID+"-"+fmt.Sprint(expectedVersion+1), "page.published", pageID, 1); err != nil {
 			return err
 		}
-		if s.PublicCache != nil {
-			s.PublicCache.Clear()
-		}
 		return nil
 	})
+	if err == nil && s.PublicCache != nil {
+		// Invalidate only after the publication transaction commits. Clearing
+		// inside the transaction can create a refill race for rolled-back data.
+		s.PublicCache.Clear()
+	}
+	return err
 }
 
 func validatePage(page *pages.Page) error {
