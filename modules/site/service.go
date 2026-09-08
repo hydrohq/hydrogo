@@ -3,6 +3,7 @@ package site
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
@@ -16,6 +17,8 @@ type Store interface {
 	GetRedirect(context.Context, database.Executor, string) (Redirect, error)
 	CreateSubmission(context.Context, database.Executor, Submission) error
 	ListSubmissions(context.Context, database.Executor, string, int) ([]Submission, error)
+	UpdateSubmissionStatus(context.Context, database.Executor, string, string) error
+	PurgeSubmissionsBefore(context.Context, database.Executor, time.Time) (int64, error)
 }
 
 type Service struct {
@@ -64,4 +67,26 @@ func (s Service) Submit(ctx context.Context, value Submission) error {
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Store.CreateSubmission(ctx, tx, value) })
+}
+
+func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) error {
+	if strings.TrimSpace(id) == "" || ValidateInboxStatus(status) != nil {
+		return ErrInvalidInboxState
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		return s.Store.UpdateSubmissionStatus(ctx, tx, id, strings.TrimSpace(status))
+	})
+}
+
+func (s Service) PurgeInbox(ctx context.Context, before time.Time) (int64, error) {
+	if before.IsZero() {
+		return 0, ErrInvalidInboxState
+	}
+	var purged int64
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		purged, err = s.Store.PurgeSubmissionsBefore(ctx, tx, before.UTC())
+		return err
+	})
+	return purged, err
 }

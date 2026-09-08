@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
@@ -33,6 +34,12 @@ func (fakeStore) CreateSubmission(context.Context, database.Executor, site.Submi
 }
 func (fakeStore) ListSubmissions(context.Context, database.Executor, string, int) ([]site.Submission, error) {
 	return nil, nil
+}
+func (fakeStore) UpdateSubmissionStatus(context.Context, database.Executor, string, string) error {
+	return nil
+}
+func (fakeStore) PurgeSubmissionsBefore(context.Context, database.Executor, time.Time) (int64, error) {
+	return 0, nil
 }
 
 type fakeExecutor struct{}

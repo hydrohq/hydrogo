@@ -41,8 +41,41 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/settings", Handler: http.HandlerFunc(h.saveSetting)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
 		{Pattern: "POST /admin/site/navigation/{locale}", Handler: http.HandlerFunc(h.saveNavigation)},
+		{Pattern: "GET /admin/site/inbox/{form}", Handler: http.HandlerFunc(h.inbox)},
+		{Pattern: "POST /admin/site/inbox/{id}/status", Handler: http.HandlerFunc(h.inboxStatus)},
 		{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
 	}
+}
+
+func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.DB == nil || h.Store == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Store.ListSubmissions(r.Context(), h.DB, r.PathValue("form"), 100)
+	if err != nil {
+		http.Error(w, "inbox unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(items)
+}
+
+func (h Handler) inboxStatus(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil || site.ValidateInboxStatus(r.FormValue("status")) != nil {
+		http.Error(w, "invalid inbox status", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SetSubmissionStatus(r.Context(), r.PathValue("id"), r.FormValue("status")); err != nil {
+		http.Error(w, "inbox update failed", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {

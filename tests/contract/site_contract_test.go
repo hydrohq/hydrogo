@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -66,4 +67,12 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	if err != nil || len(submissions) != 1 || submissions[0].ID != "form-1" {
 		t.Fatalf("submissions = %#v/%v", submissions, err)
 	}
+	if err := service.SetSubmissionStatus(ctx, "form-1", "resolved"); err != nil {
+		t.Fatalf("set submission status: %v", err)
+	}
+	if purged, err := service.PurgeInbox(ctx, nowPlusHour()); err != nil || purged != 1 {
+		t.Fatalf("purge submissions = %d/%v", purged, err)
+	}
 }
+
+func nowPlusHour() time.Time { return time.Now().UTC().Add(time.Hour) }

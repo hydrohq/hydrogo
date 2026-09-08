@@ -13,6 +13,7 @@ var (
 	ErrInvalidNavigation = errors.New("invalid navigation item")
 	ErrInvalidRedirect   = errors.New("invalid redirect")
 	ErrInvalidSubmission = errors.New("invalid form submission")
+	ErrInvalidInboxState = errors.New("invalid inbox state")
 )
 
 type Setting struct {
@@ -86,6 +87,15 @@ func ValidateSubmission(value Submission) error {
 		return ErrInvalidSubmission
 	}
 	return nil
+}
+
+func ValidateInboxStatus(status string) error {
+	switch strings.TrimSpace(status) {
+	case "new", "triaged", "resolved", "deleted":
+		return nil
+	default:
+		return ErrInvalidInboxState
+	}
 }
 
 func normalizePath(value string) string {

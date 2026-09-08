@@ -49,7 +49,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 
 R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user disable route’u, encrypted TOTP/recovery code, hashed single-use password reset, request/confirm HTTP akışı, admin davet/accept akışı ve ayrı bounded login/MFA limiter temeli hazır. Compact SQLite snapshot/manifest ve DB dışı hash-zincirli silme niyeti günlüğü deneyleri başarılıdır. Kanıt: [R3 MFA/session doğrulama raporu](validation/R3-mfa-session-2026-09-08.md), [SQLite backup manifest deneyi](validation/R3-backup-manifest-2026-09-08.md) ve [dış silme günlüğü deneyi](validation/R3-erasure-log-2026-09-08.md). Üretim notifier adapter'ı, temiz ortam restore, PostgreSQL, silme replay ve Compact kapasite kanıtları açık.
 
-- [ ] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects ve sınırlı form inbox. (Store, SQLite contract, public SEO/sitemap, admin mutation ve allowlist/rate-limited contact submit hazır; retention ve admin inbox işlemleri açık.)
+- [ ] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects ve sınırlı form inbox. (Store, SQLite contract, public SEO/sitemap, admin mutation, allowlist/rate-limited contact submit, inbox status ve retention purge hazır; kişisel veri erişim politikası/runbook açık.)
 - [ ] MFA, davet/reset/kurtarma, rol/session iptali ve güvenlik fixture'ları.
 - [ ] S05-C: Compact `all` ve blue/green geçişinde stale refill, kayıp invalidation, cache bypass/revalidation ve bounded DB yükü. L2 kesintisi bu kapının şartı değildir.
 - [ ] S06: desteklenecek tek sunucu topolojisinde online migration, eski binary restart, yeni yazımdan sonra rollback ve retained asset testi.

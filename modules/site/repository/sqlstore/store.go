@@ -183,6 +183,39 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	return result, rows.Err()
 }
 
+func (s Store) UpdateSubmissionStatus(ctx context.Context, tx database.Executor, id, status string) error {
+	query := `UPDATE form_inbox SET status = $1 WHERE id = $2`
+	if s.Dialect == database.SQLite {
+		query = `UPDATE form_inbox SET status = ? WHERE id = ?`
+	}
+	result, err := tx.ExecContext(ctx, query, status, id)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s Store) PurgeSubmissionsBefore(ctx context.Context, tx database.Executor, before time.Time) (int64, error) {
+	query := `DELETE FROM form_inbox WHERE created_at < $1`
+	arg := any(before)
+	if s.Dialect == database.SQLite {
+		query = `DELETE FROM form_inbox WHERE created_at < ?`
+		arg = before.Format(time.RFC3339Nano)
+	}
+	result, err := tx.ExecContext(ctx, query, arg)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 func parseBool(value any) bool {
 	switch value := value.(type) {
 	case bool:
