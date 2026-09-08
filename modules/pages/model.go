@@ -5,7 +5,10 @@ import (
 	"time"
 )
 
-var ErrConflict = errors.New("page update conflict")
+var (
+	ErrConflict      = errors.New("page update conflict")
+	ErrRouteConflict = errors.New("published route conflict")
+)
 
 type Status string
 

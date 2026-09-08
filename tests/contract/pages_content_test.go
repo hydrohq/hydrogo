@@ -2,6 +2,7 @@ package contract_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -71,6 +72,9 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 	}
 	if status != string(pages.StatusPublished) || publishedRevision != 2 {
 		t.Fatalf("published page = %s/%d, want published/2", status, publishedRevision)
+	}
+	if err := content.Publish(ctx, "second-draft", 1); !errors.Is(err, pages.ErrRouteConflict) {
+		t.Fatalf("duplicate published route error = %v, want route conflict", err)
 	}
 	publicPage, err := content.GetPublished(ctx, db, "TR-tr", "Hakkimizda")
 	if err != nil || publicPage.ID != page.ID {

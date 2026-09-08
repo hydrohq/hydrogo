@@ -144,6 +144,9 @@ func pageError(err error) string {
 	if errors.Is(err, service.ErrConflict) {
 		return "page was changed by another editor"
 	}
+	if errors.Is(err, pages.ErrRouteConflict) {
+		return "published route is already in use"
+	}
 	return "page operation failed"
 }
 
@@ -152,6 +155,9 @@ func pageStatus(err error) int {
 		return http.StatusBadRequest
 	}
 	if errors.Is(err, service.ErrConflict) {
+		return http.StatusConflict
+	}
+	if errors.Is(err, pages.ErrRouteConflict) {
 		return http.StatusConflict
 	}
 	return http.StatusInternalServerError
