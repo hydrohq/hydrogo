@@ -42,11 +42,35 @@ type RestoreMarker struct {
 	Controls        RestoreControls `json:"controls"`
 }
 
+// SnapshotLimits bounds the work performed before a snapshot can be used.
+// Zero values leave the corresponding limit disabled.
+type SnapshotLimits struct {
+	MaxDatabaseBytes int64
+	MaxMediaBytes    int64
+	MaxDuration      time.Duration
+}
+
+var ErrSnapshotBudget = errors.New("backup snapshot budget exceeded")
+
 // SnapshotSQLite creates a consistent SQLite snapshot and hashes every media file.
 // The caller is responsible for pausing application writes and background jobs.
 func SnapshotSQLite(ctx context.Context, db *sql.DB, mediaDir, destination string) (Manifest, error) {
+	return SnapshotSQLiteWithLimits(ctx, db, mediaDir, destination, SnapshotLimits{})
+}
+
+// SnapshotSQLiteWithLimits performs a preflight size check and enforces a
+// caller-provided wall-clock budget. A failed or over-budget snapshot never
+// leaves a usable destination directory behind.
+func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destination string, limits SnapshotLimits) (Manifest, error) {
 	if db == nil || strings.TrimSpace(destination) == "" {
 		return Manifest{}, errors.New("database and destination are required")
+	}
+	started := time.Now()
+	checkBudget := func() error {
+		if limits.MaxDuration > 0 && time.Since(started) > limits.MaxDuration {
+			return ErrSnapshotBudget
+		}
+		return nil
 	}
 	mediaDir, err := filepath.Abs(mediaDir)
 	if err != nil {
@@ -64,28 +88,80 @@ func SnapshotSQLite(ctx context.Context, db *sql.DB, mediaDir, destination strin
 	if err := os.MkdirAll(destination, 0o750); err != nil {
 		return Manifest{}, err
 	}
+	cleanup := func() {
+		_ = os.RemoveAll(destination)
+	}
+	databaseBytes, err := sqliteDatabaseBytes(ctx, db)
+	if err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
+	if limits.MaxDatabaseBytes > 0 && databaseBytes > limits.MaxDatabaseBytes {
+		cleanup()
+		return Manifest{}, fmt.Errorf("%w: database is %d bytes, limit is %d", ErrSnapshotBudget, databaseBytes, limits.MaxDatabaseBytes)
+	}
+	media, err := digestTree(mediaDir)
+	if err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
+	var mediaBytes int64
+	for _, file := range media {
+		mediaBytes += file.Bytes
+	}
+	if limits.MaxMediaBytes > 0 && mediaBytes > limits.MaxMediaBytes {
+		cleanup()
+		return Manifest{}, fmt.Errorf("%w: media is %d bytes, limit is %d", ErrSnapshotBudget, mediaBytes, limits.MaxMediaBytes)
+	}
+	if err := checkBudget(); err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
 	dbDestination := filepath.Join(destination, "database")
 	if _, err := db.ExecContext(ctx, "VACUUM INTO ?", dbDestination); err != nil {
+		cleanup()
 		return Manifest{}, fmt.Errorf("sqlite snapshot: %w", err)
 	}
 	dbDigest, err := digestFile(dbDestination, "database")
 	if err != nil {
+		cleanup()
 		return Manifest{}, err
 	}
-	media, err := digestTree(mediaDir)
-	if err != nil {
+	if limits.MaxDatabaseBytes > 0 && dbDigest.Bytes > limits.MaxDatabaseBytes {
+		cleanup()
+		return Manifest{}, fmt.Errorf("%w: snapshot database is %d bytes, limit is %d", ErrSnapshotBudget, dbDigest.Bytes, limits.MaxDatabaseBytes)
+	}
+	if err := checkBudget(); err != nil {
+		cleanup()
 		return Manifest{}, err
 	}
 	for _, file := range media {
 		source := filepath.Join(destination, filepath.FromSlash(file.Path))
 		if err := os.MkdirAll(filepath.Dir(source), 0o750); err != nil {
+			cleanup()
 			return Manifest{}, err
 		}
 		if err := copyFile(filepath.Join(mediaDir, filepath.FromSlash(strings.TrimPrefix(file.Path, "media/"))), source); err != nil {
+			cleanup()
+			return Manifest{}, err
+		}
+		if err := checkBudget(); err != nil {
+			cleanup()
 			return Manifest{}, err
 		}
 	}
 	return Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: dbDigest, Media: media}, nil
+}
+
+func sqliteDatabaseBytes(ctx context.Context, db *sql.DB) (int64, error) {
+	var pages, pageSize int64
+	if err := db.QueryRowContext(ctx, "PRAGMA page_count").Scan(&pages); err != nil {
+		return 0, fmt.Errorf("read sqlite page count: %w", err)
+	}
+	if err := db.QueryRowContext(ctx, "PRAGMA page_size").Scan(&pageSize); err != nil {
+		return 0, fmt.Errorf("read sqlite page size: %w", err)
+	}
+	return pages * pageSize, nil
 }
 
 func WriteManifest(path string, manifest Manifest) error {

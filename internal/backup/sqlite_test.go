@@ -3,9 +3,11 @@ package backup
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -44,6 +46,38 @@ func TestSnapshotSQLiteManifestVerifiesAndDetectsTampering(t *testing.T) {
 	}
 	if err := Verify(destination, manifest); err == nil {
 		t.Fatal("tampered media passed verification")
+	}
+}
+
+func TestSnapshotSQLiteEnforcesPreflightBudgets(t *testing.T) {
+	root := t.TempDir()
+	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test DEFAULT VALUES"); err != nil {
+		t.Fatal(err)
+	}
+	mediaDir := filepath.Join(root, "media")
+	if err := os.MkdirAll(mediaDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mediaDir, "asset.bin"), []byte("12345"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(root, "snapshot")
+	if _, err := SnapshotSQLiteWithLimits(context.Background(), db, mediaDir, destination, SnapshotLimits{MaxMediaBytes: 4}); !errors.Is(err, ErrSnapshotBudget) {
+		t.Fatalf("media budget error = %v", err)
+	}
+	if _, err := os.Stat(destination); !os.IsNotExist(err) {
+		t.Fatalf("over-budget destination still exists: %v", err)
+	}
+	if _, err := SnapshotSQLiteWithLimits(context.Background(), db, mediaDir, destination, SnapshotLimits{MaxDuration: time.Nanosecond}); !errors.Is(err, ErrSnapshotBudget) {
+		t.Fatalf("duration budget error = %v", err)
+	}
+	if _, err := os.Stat(destination); !os.IsNotExist(err) {
+		t.Fatalf("timed-out destination still exists: %v", err)
 	}
 }
 
