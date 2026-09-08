@@ -54,7 +54,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 - [ ] S05-C: Compact `all` ve blue/green geçişinde stale refill, kayıp invalidation, cache bypass/revalidation ve bounded DB yükü. (Local public cache generation guard stale refill'i reddediyor; blue/green bypass/revalidation ve ölçülmüş DB yükü açık.) L2 kesintisi bu kapının şartı değildir.
 - [ ] S06: desteklenecek tek sunucu topolojisinde online migration, eski binary restart, yeni yazımdan sonra rollback ve retained asset testi.
 - [ ] S07: DB+medya restore, session iptali, job/egress karantinası ve eski deployment'ın yazamaması. (Compact SQLite staging restore + kontrol marker'ı hazır; PostgreSQL, gerçek session/job karantinası ve eski deployment testi açık.) Her iki DB restore deneyi kaydedilsin; satılan profil ayrıca sertifikalansın.
-- [ ] ADR-0014 için dış silme günlüğü adapter'ı/checkpoint prototipi; backup sonrası silme, crash, eksik günlük ve retention testleri.
+- [ ] ADR-0014 için dış silme günlüğü adapter'ı/checkpoint prototipi; backup sonrası silme, crash, eksik günlük ve retention testleri. (Hash-zincirli JSONL, idempotent append ve doğrulanmış checkpoint'ten hata sonrası retry replay hazır; gerçek Pages/media adapter'ı, retention ve dış sağlayıcı tatbikatı açık.)
 - [ ] Kaynak limitleri, `max_stale`, session süreleri, RPO/RTO, retention ve rollback penceresini ölç ve sabitle.
 - [ ] Runbook, alarmlar, dış yedek/key kurtarma; müşteri teslim/lisans/destek koşullarını satış öncesi karara bağla. (İlk operasyon runbook'u [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md) eklendi; gerçek temiz ortam tatbikatı, alarmlar ve dış key/yedek kanıtı açık.)
 

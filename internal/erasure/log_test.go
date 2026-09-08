@@ -1,11 +1,50 @@
 package erasure
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestReplayRetriesFromCheckpointAfterFailure(t *testing.T) {
+	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"one", "two"} {
+		if _, err := log.Append(Intent{ID: id, EditionID: "edition", TargetID: id, Kind: "page"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var seen []string
+	fail := errors.New("temporary deletion failure")
+	if _, err := log.Replay(context.Background(), 0, func(_ context.Context, intent Intent) error {
+		seen = append(seen, intent.ID)
+		if intent.ID == "two" {
+			return fail
+		}
+		return nil
+	}); !errors.Is(err, fail) {
+		t.Fatalf("replay error = %v, want %v", err, fail)
+	}
+	if got := strings.Join(seen, ","); got != "one,two" {
+		t.Fatalf("first replay order = %q", got)
+	}
+	seen = nil
+	checkpoint, err := log.Replay(context.Background(), 1, func(_ context.Context, intent Intent) error {
+		seen = append(seen, intent.ID)
+		return nil
+	})
+	if err != nil || checkpoint.Sequence != 2 {
+		t.Fatalf("retry checkpoint = %+v/%v", checkpoint, err)
+	}
+	if got := strings.Join(seen, ","); got != "two" {
+		t.Fatalf("retry order = %q", got)
+	}
+}
 
 func TestLogAppendIsDurableIdempotentAndDetectsTampering(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "erasure.jsonl")

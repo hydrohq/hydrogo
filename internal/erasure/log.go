@@ -3,6 +3,7 @@ package erasure
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -145,6 +146,29 @@ func (l *Log) EntriesAfter(sequence uint64) ([]Intent, Checkpoint, error) {
 	}
 	last := records[len(records)-1]
 	return result, Checkpoint{Sequence: last.Sequence, Hash: last.Hash}, nil
+}
+
+// Replay verifies the complete chain, then applies every intent after the
+// supplied checkpoint in order. The returned checkpoint is safe to persist
+// only when every handler invocation succeeds; a failed replay returns the
+// original checkpoint so the caller can retry idempotently.
+func (l *Log) Replay(ctx context.Context, sequence uint64, apply func(context.Context, Intent) error) (Checkpoint, error) {
+	if apply == nil {
+		return Checkpoint{}, errors.New("erasure replay handler is required")
+	}
+	intents, checkpoint, err := l.EntriesAfter(sequence)
+	if err != nil {
+		return Checkpoint{}, err
+	}
+	for _, intent := range intents {
+		if err := ctx.Err(); err != nil {
+			return Checkpoint{}, err
+		}
+		if err := apply(ctx, intent); err != nil {
+			return Checkpoint{}, err
+		}
+	}
+	return checkpoint, nil
 }
 
 func readRecords(path string) ([]record, error) {
