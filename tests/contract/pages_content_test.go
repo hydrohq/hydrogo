@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
@@ -50,10 +52,18 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 		Audit:        auditstore.Store{Dialect: dialect},
 		Outbox:       outboxstore.Store{Dialect: dialect},
 		PublicCache:  cache.New[pages.Page](4, time.Minute),
+		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
-	page := pages.Page{ID: "content-page", Locale: "tr-TR", Slug: "/hakkimizda/", Title: "Hakkımızda", Body: "ilk"}
+	page := pages.Page{ID: "content-page", Locale: "tr-TR", Slug: "/hakkimizda/", Title: "Hakkımızda", Body: "ilk<script>alert(1)</script>"}
 	if err := content.CreateDraft(ctx, page); err != nil {
 		t.Fatalf("create draft: %v", err)
+	}
+	var firstBody string
+	if err := db.QueryRowContext(ctx, "SELECT body FROM page_revisions WHERE page_id = "+placeholderForTest(dialect, 1)+" AND revision = 1", page.ID).Scan(&firstBody); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(firstBody, "script") {
+		t.Fatalf("unsanitized revision body: %q", firstBody)
 	}
 	if err := content.UpdateDraft(ctx, pages.Page{ID: page.ID, Locale: page.Locale, Slug: "hakkimizda", Title: "Hakkımızda güncel", Body: "ikinci"}, 1); err != nil {
 		t.Fatalf("update draft: %v", err)

@@ -27,6 +27,7 @@ import (
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
@@ -104,6 +105,7 @@ func serve(args []string, stderr io.Writer) error {
 		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect},
 		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect},
 		PublicCache:  cache.New[pages.Page](256, 30*time.Second),
+		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	pageHTTP := pagetransport.Handler{DB: db, Content: contentService}
 	uploader, err := media.NewUploader(cfg.Media.Dir, 10<<20)

@@ -37,6 +37,7 @@ type ContentService struct {
 	Audit        AuditWriter
 	Outbox       OutboxWriter
 	PublicCache  *cache.Cache[pages.Page]
+	Sanitize     func(string) string
 }
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
@@ -57,6 +58,9 @@ func (s ContentService) GetPublished(ctx context.Context, db database.Executor, 
 }
 
 func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error {
+	if s.Sanitize != nil {
+		page.Body = s.Sanitize(page.Body)
+	}
 	if err := validatePage(&page); err != nil {
 		return err
 	}
@@ -72,6 +76,9 @@ func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error 
 }
 
 func (s ContentService) UpdateDraft(ctx context.Context, page pages.Page, expectedVersion int) error {
+	if s.Sanitize != nil {
+		page.Body = s.Sanitize(page.Body)
+	}
 	if err := validatePage(&page); err != nil {
 		return err
 	}
