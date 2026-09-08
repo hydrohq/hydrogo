@@ -1,0 +1,25 @@
+id: "202609080004_media_assets"
+module: "media"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "973d21bd3268230420ee82db5f9ca878f8b821c147178e64543d6108bc61c0d4"
+  postgres: "6f0edf9372fb4dc7b47f9b3ad9b94d712d5901acd1c760c290bb16b7c9cb9e80"
+dependencies:
+  - "202609080003_pages_content"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "The pages content migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Media metadata and status index"
+compatibility: "Adds pending/ready media metadata; no public URLs are created by migration"
+smoke:
+  - "Only ready assets are eligible for public delivery"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

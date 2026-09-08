@@ -23,7 +23,24 @@ var (
 	ErrDisallowedMimeType = errors.New("disallowed file mime type")
 	ErrInvalidImageData   = errors.New("corrupt or invalid image payload")
 	ErrImageTooLarge      = errors.New("image dimensions exceed maximum allowed pixels")
+	ErrInvalidVisibility  = errors.New("invalid media visibility")
+	ErrAssetState         = errors.New("invalid media asset state")
 )
+
+const (
+	VisibilityPrivate = "private"
+	VisibilityPublic  = "public"
+)
+
+type Asset struct {
+	ID               string
+	StorageKey       string
+	OriginalFilename string
+	MimeType         string
+	SizeBytes        int64
+	Width            int
+	Height           int
+}
 
 var AllowedMimeTypes = map[string]string{
 	"image/jpeg": ".jpg",

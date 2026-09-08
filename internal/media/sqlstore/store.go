@@ -1,0 +1,46 @@
+package sqlstore
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/media"
+)
+
+type Store struct{ Dialect database.Dialect }
+
+func (s Store) CreatePending(ctx context.Context, tx database.Executor, asset media.Asset) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := tx.ExecContext(ctx, `INSERT INTO media_assets
+        (id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, created_at, updated_at)
+        VALUES (`+s.p(1)+`, `+s.p(2)+`, `+s.p(3)+`, `+s.p(4)+`, `+s.p(5)+`, `+s.p(6)+`, `+s.p(7)+`, 'private', 'pending', `+s.p(8)+`, `+s.p(9)+`)`,
+		asset.ID, asset.StorageKey, asset.OriginalFilename, asset.MimeType, asset.SizeBytes, asset.Width, asset.Height, now, now)
+	return err
+}
+
+func (s Store) MarkReady(ctx context.Context, tx database.Executor, id, visibility string) error {
+	if visibility != media.VisibilityPrivate && visibility != media.VisibilityPublic {
+		return media.ErrInvalidVisibility
+	}
+	result, err := tx.ExecContext(ctx, "UPDATE media_assets SET status = 'ready', visibility = "+s.p(1)+", updated_at = "+s.p(2)+" WHERE id = "+s.p(3)+" AND status = 'pending'", visibility, time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return media.ErrAssetState
+	}
+	return nil
+}
+
+func (s Store) p(position int) string {
+	if s.Dialect == database.Postgres {
+		return fmt.Sprintf("$%d", position)
+	}
+	return "?"
+}
