@@ -16,6 +16,7 @@ type Config struct {
 	HTTP     HTTP     `yaml:"http"`
 	Database Database `yaml:"database"`
 	Media    Media    `yaml:"media"`
+	Security Security `yaml:"security"`
 }
 
 type HTTP struct {
@@ -29,6 +30,10 @@ type Database struct {
 
 type Media struct {
 	Dir string `yaml:"dir"`
+}
+
+type Security struct {
+	MFAMasterKey string `yaml:"mfa_master_key"`
 }
 
 type Overrides struct {
@@ -62,6 +67,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_MEDIA_DIR"); ok && value != "" {
 		result.Media.Dir = value
+	}
+	if value, ok := lookup("HYDRO_MFA_MASTER_KEY"); ok && value != "" {
+		result.Security.MFAMasterKey = value
 	}
 
 	dsnSources := 0

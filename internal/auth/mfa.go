@@ -69,6 +69,18 @@ func (s MFAService) Enable(ctx context.Context, tx database.Executor, userID str
 	return s.Store.PutFactor(ctx, tx, userID, factor, true)
 }
 
+func (s MFAService) EnableWithCode(ctx context.Context, tx database.Executor, userID, code string) error {
+	ciphertext, _, err := s.Store.GetFactor(ctx, tx, userID)
+	if err != nil {
+		return err
+	}
+	secret, err := decryptMFA(s.MasterKey, ciphertext)
+	if err != nil || !totp.Validate(strings.TrimSpace(code), string(secret)) {
+		return ErrMFAInvalidCode
+	}
+	return s.Store.PutFactor(ctx, tx, userID, ciphertext, true)
+}
+
 func (s MFAService) Verify(ctx context.Context, db database.Executor, userID, code string) error {
 	ciphertext, enabled, err := s.Store.GetFactor(ctx, db, userID)
 	if err != nil {

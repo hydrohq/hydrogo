@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 )
 
@@ -30,9 +31,11 @@ type HTTPRoute struct {
 
 // HTTPHandler exposes the small, session-backed authentication surface used by the server.
 type HTTPHandler struct {
-	Service *AuthService
-	Audit   AuditRecorder
-	Secure  bool
+	Service      *AuthService
+	Audit        AuditRecorder
+	Secure       bool
+	MFA          *MFAService
+	Transactions database.Transactor
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -41,6 +44,8 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
 		{Pattern: "POST /auth/users/{id}/disable", Handler: http.HandlerFunc(h.disableUser)},
+		{Pattern: "POST /auth/me/mfa/enroll", Handler: http.HandlerFunc(h.enrollMFA)},
+		{Pattern: "POST /auth/me/mfa/enable", Handler: http.HandlerFunc(h.enableMFA)},
 	}
 }
 
@@ -146,6 +151,51 @@ func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "audit failed", http.StatusInternalServerError)
 			return
 		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h HTTPHandler) enrollMFA(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil || !user.Active || h.MFA == nil {
+		http.Error(w, "MFA unavailable", http.StatusForbidden)
+		return
+	}
+	var enrollment MFAEnrollment
+	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		var err error
+		enrollment, err = h.MFA.Enroll(r.Context(), tx, user.ID, user.Email)
+		return err
+	})
+	if err != nil {
+		http.Error(w, "MFA enrollment failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusCreated, enrollment)
+}
+
+func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil || !user.Active || h.MFA == nil {
+		http.Error(w, "MFA unavailable", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid MFA request", http.StatusBadRequest)
+		return
+	}
+	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		return h.MFA.EnableWithCode(r.Context(), tx, user.ID, r.FormValue("code"))
+	}); err != nil {
+		if errors.Is(err, ErrMFAInvalidCode) {
+			http.Error(w, "invalid MFA code", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, "MFA enable failed", http.StatusInternalServerError)
+		return
+	}
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), "auth.mfa_enabled", user.ID)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -98,7 +98,8 @@ func serve(args []string, stderr io.Writer) error {
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect)}
+	mfaService := &auth.MFAService{Store: userStore, MasterKey: []byte(cfg.Security.MFAMasterKey)}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), MFA: mfaService, Transactions: database.NewTransactor(db)}
 	contentService := pageservice.ContentService{
 		Transactions: database.NewTransactor(db),
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},
