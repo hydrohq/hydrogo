@@ -35,7 +35,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 
 - [x] UUID/locale/revision, slug ve e-posta normalizasyonunu ilk kalıcı şemadan önce fixture ile sabitle. (Pages contract fixture’ı locale/slug/revision ve normalized route davranışını kapsıyor.)
 - [x] Pages oluştur/düzenle/taslak/preview/publish; admin ve JSON aynı service/policy üzerinden çalışsın. (Protected JSON ve CSRF’li admin form aynı ContentService’i kullanıyor.)
-- [ ] Optimistic locking, kayıt/alan yetkisi ve iki editör conflict davranışı. (Service ve route conflict var; iki editör HTTP contract kanıtı açık.)
+- [x] Optimistic locking, kayıt/alan yetkisi ve iki editör conflict davranışı. (Stale editor conflict ve editor/admin mutation policy contract içinde doğrulanıyor.)
 - [x] ADR-0014: taslak URL canlıyı değiştirmesin; publish route/generation/audit/outbox atomik olsun. (Draft/published projection ve duplicate route conflict contract testleri geçiyor.)
 - [x] Local medya pending/ready, private/public, sanitizer ve immutable revision gövdesi. (Upload metadata service’i ve sanitized revision contract testi hazır.)
 - [ ] İlk dış Client Edition ve tipli view slotları; Core fork veya internal import olmasın.
