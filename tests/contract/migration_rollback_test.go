@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -213,22 +215,37 @@ func TestPostgresNonTransactionalConcurrentIndexAllowsReadContract(t *testing.T)
 	if err := database.ApplyMigrations(ctx, db, database.Postgres, baseMigrations); err != nil {
 		t.Fatal(err)
 	}
-	reader, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reader.Rollback()
-	var value string
-	if err := reader.QueryRowContext(ctx, "SELECT value FROM "+table+" WHERE id = 1").Scan(&value); err != nil {
-		t.Fatal(err)
-	}
-	if value != "before" {
-		t.Fatalf("read transaction value = %q", value)
-	}
+	readCtx, stopReads := context.WithCancel(ctx)
+	var reads atomic.Int64
+	var readErrors atomic.Int64
+	var readers sync.WaitGroup
+	readers.Add(1)
+	go func() {
+		defer readers.Done()
+		for readCtx.Err() == nil {
+			var value string
+			if err := db.QueryRowContext(readCtx, "SELECT value FROM "+table+" WHERE id = 1").Scan(&value); err != nil {
+				if readCtx.Err() == nil {
+					readErrors.Add(1)
+				}
+				continue
+			}
+			if value == "before" {
+				reads.Add(1)
+			}
+		}
+	}()
 	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := database.ApplyMigrations(deadline, db, database.Postgres, allMigrations); err != nil {
-		t.Fatalf("concurrent index migration while read transaction is active: %v", err)
+		stopReads()
+		readers.Wait()
+		t.Fatalf("concurrent index migration while short reads are active: %v", err)
+	}
+	stopReads()
+	readers.Wait()
+	if readErrors.Load() != 0 || reads.Load() == 0 {
+		t.Fatalf("online reads = %d, errors = %d", reads.Load(), readErrors.Load())
 	}
 	var indexName string
 	if err := db.QueryRowContext(ctx, "SELECT indexname FROM pg_indexes WHERE tablename = $1 AND indexname = $2", table, table+"_value_idx").Scan(&indexName); err != nil {
