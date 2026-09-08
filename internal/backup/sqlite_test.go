@@ -46,3 +46,30 @@ func TestSnapshotSQLiteManifestVerifiesAndDetectsTampering(t *testing.T) {
 		t.Fatal("tampered media passed verification")
 	}
 }
+
+func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
+	root := t.TempDir()
+	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY)"); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := filepath.Join(root, "snapshot")
+	manifest, err := SnapshotSQLite(context.Background(), db, filepath.Join(root, "media"), snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RestoreToStaging(snapshot, filepath.Join(root, "staging"), manifest, RestoreControls{}); err == nil {
+		t.Fatal("restore without controls succeeded")
+	}
+	staging := filepath.Join(root, "staging")
+	if err := RestoreToStaging(snapshot, staging, manifest, RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(staging, "RESTORE_QUARANTINED.json")); err != nil {
+		t.Fatal(err)
+	}
+}

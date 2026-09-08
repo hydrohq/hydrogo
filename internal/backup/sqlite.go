@@ -30,6 +30,18 @@ type Manifest struct {
 	Media     []FileDigest `json:"media"`
 }
 
+type RestoreControls struct {
+	SessionsRevoked   bool `json:"sessions_revoked"`
+	EgressQuarantined bool `json:"egress_quarantined"`
+	OldWritesBlocked  bool `json:"old_writes_blocked"`
+}
+
+type RestoreMarker struct {
+	ManifestVersion int             `json:"manifest_version"`
+	VerifiedAt      time.Time       `json:"verified_at"`
+	Controls        RestoreControls `json:"controls"`
+}
+
 // SnapshotSQLite creates a consistent SQLite snapshot and hashes every media file.
 // The caller is responsible for pausing application writes and background jobs.
 func SnapshotSQLite(ctx context.Context, db *sql.DB, mediaDir, destination string) (Manifest, error) {
@@ -115,6 +127,40 @@ func Verify(root string, manifest Manifest) error {
 	return nil
 }
 
+// RestoreToStaging verifies a snapshot and copies it to a new, inactive target.
+// It never replaces an existing directory and writes a marker that operators can
+// require before enabling traffic or workers.
+func RestoreToStaging(source, destination string, manifest Manifest, controls RestoreControls) error {
+	if !controls.SessionsRevoked || !controls.EgressQuarantined || !controls.OldWritesBlocked {
+		return errors.New("restore controls are incomplete")
+	}
+	source, err := filepath.Abs(source)
+	if err != nil {
+		return err
+	}
+	destination, err = filepath.Abs(destination)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(destination); err == nil {
+		return fmt.Errorf("restore destination already exists: %s", destination)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := Verify(source, manifest); err != nil {
+		return fmt.Errorf("verify restore source: %w", err)
+	}
+	if err := copyTree(source, destination); err != nil {
+		return err
+	}
+	marker := RestoreMarker{ManifestVersion: manifest.Version, VerifiedAt: time.Now().UTC(), Controls: controls}
+	data, err := json.MarshalIndent(marker, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o640)
+}
+
 func digestTree(root string) ([]FileDigest, error) {
 	files := make([]string, 0)
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -175,4 +221,24 @@ func copyFile(source, destination string) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func copyTree(source, destination string) error {
+	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(destination, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o750)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported backup entry: %s", rel)
+		}
+		return copyFile(path, target)
+	})
 }

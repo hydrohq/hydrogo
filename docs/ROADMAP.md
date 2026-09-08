@@ -53,7 +53,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 - [ ] MFA, davet/reset/kurtarma, rol/session iptali ve güvenlik fixture'ları.
 - [ ] S05-C: Compact `all` ve blue/green geçişinde stale refill, kayıp invalidation, cache bypass/revalidation ve bounded DB yükü. L2 kesintisi bu kapının şartı değildir.
 - [ ] S06: desteklenecek tek sunucu topolojisinde online migration, eski binary restart, yeni yazımdan sonra rollback ve retained asset testi.
-- [ ] S07: DB+medya restore, session iptali, job/egress karantinası ve eski deployment'ın yazamaması. Her iki DB restore deneyi kaydedilsin; satılan profil ayrıca sertifikalansın.
+- [ ] S07: DB+medya restore, session iptali, job/egress karantinası ve eski deployment'ın yazamaması. (Compact SQLite staging restore + kontrol marker'ı hazır; PostgreSQL, gerçek session/job karantinası ve eski deployment testi açık.) Her iki DB restore deneyi kaydedilsin; satılan profil ayrıca sertifikalansın.
 - [ ] ADR-0014 için dış silme günlüğü adapter'ı/checkpoint prototipi; backup sonrası silme, crash, eksik günlük ve retention testleri.
 - [ ] Kaynak limitleri, `max_stale`, session süreleri, RPO/RTO, retention ve rollback penceresini ölç ve sabitle.
 - [ ] Runbook, alarmlar, dış yedek/key kurtarma; müşteri teslim/lisans/destek koşullarını satış öncesi karara bağla.
