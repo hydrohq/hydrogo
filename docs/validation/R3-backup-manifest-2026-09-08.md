@@ -7,7 +7,7 @@
 
 `202609090015_restore_controls` migration'ı restore state'ini DB'ye taşır. `202609090016_restore_write_fence` kritik pages/media/news/jobs tablolarına DB trigger'ı ekler. `ApplyRestoreControls` tüm session'ları iptal eder ve `restore_controls` satırını etkinleştirir; job store quarantine aktifken claim döndürmez, eski deployment yazıları trigger tarafından reddedilir. Staging doğrulamasından sonra `ReleaseRestoreQuarantine` job claim'lerini açar; eski slot drain edildikten sonra `ReleaseRestoreWrites` write fence'ini kaldırır. SQLite ve izole PostgreSQL schema contract'ları aynı kontrol sırasını doğrular.
 
-`SnapshotSQLiteWithLimits` medya toplamı, SQLite page estimate'i/snapshot byte boyutu ve wall-clock bütçesini staging kopyası başlamadan ve kopya sırasında kontrol eder. Bütçe aşılırsa yeni destination temizlenir ve kullanılabilir restore marker'ı üretilmez. Contract test medya ve süre bütçesi ihlalinde bu davranışı doğrular.
+`SnapshotSQLiteWithLimits` medya toplamı, SQLite page estimate'i/snapshot byte boyutu ve wall-clock bütçesini staging kopyası başlamadan ve kopya sırasında kontrol eder. Bütçe aşılırsa yeni destination temizlenir ve kullanılabilir restore marker'ı üretilmez. Contract test medya ve süre bütçesi ihlalinde bu davranışı doğrular. `PostgresTools` ise password'ı process argümanına koymadan geçici `PGPASSFILE` ile custom-format `pg_dump`/`pg_restore` çağrısını sınırlar; izole hedef database round-trip testi CI client araçlarıyla çalışır.
 
 Çalıştırılan kontrol:
 

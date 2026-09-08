@@ -33,6 +33,12 @@ jobs:
         with:
           go-version: '1.27.0'
           check-latest: true
+      - name: Install PostgreSQL client tools
+        run: |
+          if ! command -v pg_dump >/dev/null || ! command -v pg_restore >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
