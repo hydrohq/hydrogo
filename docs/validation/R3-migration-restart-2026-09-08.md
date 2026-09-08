@@ -22,4 +22,6 @@ Bu test eski binary ile yeni yazma/rollback uyumluluğunu, online DDL kilit davr
 
 Migration runner artık metadata'daki `transactional.<dialect>` değerine uyar. Transaction'lı ardışık migration'lar aynı transaction grubunda kalır; `transactional: false` migration kendi bağlantı yürütmesi ve ledger kaydıyla çalışır. SQLite `VACUUM` fixture'ı bu ayrımı contract seviyesinde doğrular. PostgreSQL `CREATE INDEX CONCURRENTLY` lock/traffic deneyi ve gerçek slot rollback'i hâlâ ayrı S06 tatbikatıdır.
 
+`internal/release.Deployment` ADR-0005 sırasını local state machine olarak zorlar: Green hazırlanır, readiness alınır, retained asset warm-up tamamlanır, schema rollback safety onaylanır, sonra switch/drain/rollback yapılır. Bu sözleşme gerçek reverse-proxy trafiğini veya process restart'ını tek başına sertifikalamaz.
+
 `TestSQLiteOnlineExpandAllowsConcurrentReadContract` WAL açık SQLite'ta aktif bir read transaction sürerken nullable expand migration'ın iki saniyelik deadline içinde tamamlandığını ve yeni kolonun görünür olduğunu doğrular. Bu deney migration'ın genel production lock süresini veya PostgreSQL DDL planını sertifikalamaz; gerçek blue/green trafik, yeni yazımdan sonra production rollback ve kapasite ölçümü S06/S07'nin açık kısmıdır.
