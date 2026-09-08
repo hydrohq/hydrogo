@@ -149,3 +149,88 @@ func TestPostgresContentExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("imported PostgreSQL title = %q", title)
 	}
 }
+
+func TestSQLiteLargeContentFixtureRoundTripPreservesRelations(t *testing.T) {
+	ctx := context.Background()
+	open := func(name string) *sql.DB {
+		db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+			db.Close()
+			t.Fatal(err)
+		}
+		return db
+	}
+	source := open("large-source.sqlite")
+	defer source.Close()
+	target := open("large-target.sqlite")
+	defer target.Close()
+	const records = 256
+	for i := 0; i < records; i++ {
+		id := fmt.Sprintf("fixture-page-%03d", i)
+		slug := fmt.Sprintf("fixture-%03d", i)
+		now := fmt.Sprintf("2026-01-%02dT00:00:00Z", (i%28)+1)
+		if _, err := source.ExecContext(ctx, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,created_at,updated_at,published_locale,published_slug,published_title,published_body) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, fmt.Sprintf("Fixture %03d", i), 2, "tr-tr", slug, "body", "published", 2, 2, int64(i), now, now, "tr-tr", slug, fmt.Sprintf("Fixture %03d", i), "body"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := source.ExecContext(ctx, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,created_at) VALUES (?,?,?,?,?,?,?,?)`, id+"-r2", id, 2, "tr-tr", slug, fmt.Sprintf("Fixture %03d", i), "body", now); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := source.ExecContext(ctx, `INSERT INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, "fixture-media-"+fmt.Sprint(i), "fixture/"+fmt.Sprint(i), "image.png", "image/png", 64+i, 0, 0, "public", "ready", now, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := source.ExecContext(ctx, `INSERT INTO users (id,email,password_hash,role,created_at,updated_at) VALUES (?,?,?,?,?,?)`, "fixture-user", "fixture@example.test", "secret-hash", "admin", "2026-01-01", "2026-01-01"); err != nil {
+		t.Fatal(err)
+	}
+	document, err := Export(ctx, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "secret-hash") || strings.Contains(string(encoded), "fixture-user") {
+		t.Fatal("large export contains auth state")
+	}
+	decoded, err := Unmarshal(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.NewTransactor(target).Within(ctx, func(tx database.Executor) error {
+		return Import(ctx, tx, decoded, database.SQLite)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var pages, revisions, media int
+	if err := target.QueryRowContext(ctx, "SELECT COUNT(*) FROM pages").Scan(&pages); err != nil {
+		t.Fatal(err)
+	}
+	if err := target.QueryRowContext(ctx, "SELECT COUNT(*) FROM page_revisions").Scan(&revisions); err != nil {
+		t.Fatal(err)
+	}
+	if err := target.QueryRowContext(ctx, "SELECT COUNT(*) FROM media_assets").Scan(&media); err != nil {
+		t.Fatal(err)
+	}
+	if pages != records || revisions != records || media != records {
+		t.Fatalf("large round trip counts = pages:%d revisions:%d media:%d", pages, revisions, media)
+	}
+	var pageID, locale, slug string
+	var revision int
+	if err := target.QueryRowContext(ctx, "SELECT id, locale, slug, revision FROM pages WHERE id = ?", "fixture-page-127").Scan(&pageID, &locale, &slug, &revision); err != nil {
+		t.Fatal(err)
+	}
+	if pageID != "fixture-page-127" || locale != "tr-tr" || slug != "fixture-127" || revision != 2 {
+		t.Fatalf("relation sample = %s/%s/%s/%d", pageID, locale, slug, revision)
+	}
+	var users int
+	if err := target.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&users); err != nil {
+		t.Fatal(err)
+	}
+	if users != 0 {
+		t.Fatalf("auth users imported: %d", users)
+	}
+}
