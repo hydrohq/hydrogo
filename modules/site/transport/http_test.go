@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -58,5 +59,17 @@ func TestPublicSiteRoutesExposeOnlyPublicProjection(t *testing.T) {
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", response.StatusCode)
+	}
+}
+
+func TestSitemapRouteUsesPublishedProvider(t *testing.T) {
+	handler := Handler{SitemapOrigin: "https://example.com", SitemapProvider: func(context.Context) ([]site.SitemapEntry, error) {
+		return []site.SitemapEntry{{URL: "https://example.com/en/home"}}, nil
+	}}
+	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
+	res := httptest.NewRecorder()
+	handler.sitemap(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "https://example.com/en/home") {
+		t.Fatalf("sitemap response = %d %s", res.Code, res.Body.String())
 	}
 }

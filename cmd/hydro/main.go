@@ -34,6 +34,7 @@ import (
 	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
 	pageservice "github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
+	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
 	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
 )
@@ -118,7 +119,22 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediastore.Store{Dialect: cfg.Database.Dialect}}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
-	siteHTTP := sitetransport.Handler{DB: db, Store: sitestore.Store{Dialect: cfg.Database.Dialect}}
+	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
+	siteHTTP := sitetransport.Handler{DB: db, Store: sitestore.Store{Dialect: cfg.Database.Dialect}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		published, err := pageStore.ListPublishedRoutes(providerCtx, db)
+		if err != nil {
+			return nil, err
+		}
+		entries := make([]site.SitemapEntry, 0, len(published))
+		for _, page := range published {
+			seo, err := site.BuildSEO(site.SEOInput{Origin: cfg.HTTP.PublicOrigin, Locale: page.Locale, Path: page.Slug, Title: page.Title})
+			if err != nil {
+				return nil, err
+			}
+			entries = append(entries, site.SitemapEntry{URL: seo.CanonicalURL, LastModified: page.UpdatedAt})
+		}
+		return entries, nil
+	}}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)

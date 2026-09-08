@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -15,15 +16,37 @@ type Route struct {
 }
 
 type Handler struct {
-	DB    database.Executor
-	Store site.Store
+	DB              database.Executor
+	Store           site.Store
+	SitemapOrigin   string
+	SitemapProvider func(context.Context) ([]site.SitemapEntry, error)
 }
 
 func (h Handler) Routes() []Route {
 	return []Route{
 		{Pattern: "GET /site/settings", Public: true, Handler: http.HandlerFunc(h.publicSettings)},
 		{Pattern: "GET /site/navigation/{locale}", Public: true, Handler: http.HandlerFunc(h.navigation)},
+		{Pattern: "GET /sitemap.xml", Public: true, Handler: http.HandlerFunc(h.sitemap)},
 	}
+}
+
+func (h Handler) sitemap(w http.ResponseWriter, r *http.Request) {
+	if h.SitemapProvider == nil || h.SitemapOrigin == "" {
+		http.Error(w, "sitemap unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	entries, err := h.SitemapProvider(r.Context())
+	if err != nil {
+		http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+		return
+	}
+	data, err := site.RenderSitemap(entries)
+	if err != nil {
+		http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	_, _ = w.Write(data)
 }
 
 func (h Handler) publicSettings(w http.ResponseWriter, r *http.Request) {

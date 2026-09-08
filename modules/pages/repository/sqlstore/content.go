@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,29 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
+
+// ListPublishedRoutes returns only the public projection used by discovery surfaces.
+func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Page, error) {
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL ORDER BY published_locale, published_slug, id`
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]pages.Page, 0)
+	for rows.Next() {
+		var page pages.Page
+		var status string
+		var updated any
+		if err := rows.Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &status, &page.Revision, &page.PublicationGeneration, &updated); err != nil {
+			return nil, err
+		}
+		page.Status = pages.Status(status)
+		page.UpdatedAt = parseStoredTime(updated)
+		result = append(result, page)
+	}
+	return result, rows.Err()
+}
 
 func (s Store) GetContent(ctx context.Context, db database.Executor, pageID string) (pages.Page, error) {
 	var page pages.Page

@@ -20,7 +20,8 @@ type Config struct {
 }
 
 type HTTP struct {
-	Address string `yaml:"address"`
+	Address      string `yaml:"address"`
+	PublicOrigin string `yaml:"public_origin"`
 }
 
 type Database struct {
@@ -61,6 +62,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 
 	if value, ok := lookup("HYDRO_HTTP_ADDRESS"); ok {
 		result.HTTP.Address = value
+	}
+	if value, ok := lookup("HYDRO_PUBLIC_ORIGIN"); ok && value != "" {
+		result.HTTP.PublicOrigin = value
 	}
 	if value, ok := lookup("HYDRO_DATABASE_DIALECT"); ok {
 		result.Database.Dialect = database.Dialect(value)
