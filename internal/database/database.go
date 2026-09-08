@@ -20,6 +20,11 @@ const (
 	Postgres Dialect = "postgres"
 )
 
+type OpenOptions struct {
+	MaxOpenConns int
+	MaxIdleConns int
+}
+
 type Executor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -47,6 +52,10 @@ func (t Transactor) Within(ctx context.Context, fn func(Executor) error) error {
 }
 
 func Open(ctx context.Context, dialect Dialect, dsn string) (*sql.DB, error) {
+	return OpenWithOptions(ctx, dialect, dsn, OpenOptions{})
+}
+
+func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options OpenOptions) (*sql.DB, error) {
 	if dsn == "" {
 		return nil, errors.New("database DSN is required")
 	}
@@ -70,13 +79,28 @@ func Open(ctx context.Context, dialect Dialect, dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if dialect == SQLite {
-		db.SetMaxOpenConns(1)
-		db.SetMaxIdleConns(1)
-	} else {
-		db.SetMaxOpenConns(10)
-		db.SetMaxIdleConns(5)
+	if options.MaxOpenConns <= 0 {
+		if dialect == SQLite {
+			options.MaxOpenConns = 1
+		} else {
+			options.MaxOpenConns = 10
+		}
 	}
+	if options.MaxIdleConns < 0 {
+		return nil, errors.New("database max idle connections cannot be negative")
+	}
+	if options.MaxIdleConns == 0 {
+		if dialect == SQLite {
+			options.MaxIdleConns = 1
+		} else {
+			options.MaxIdleConns = 5
+		}
+	}
+	if options.MaxIdleConns > options.MaxOpenConns {
+		return nil, errors.New("database max idle connections exceed max open connections")
+	}
+	db.SetMaxOpenConns(options.MaxOpenConns)
+	db.SetMaxIdleConns(options.MaxIdleConns)
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, err

@@ -20,6 +20,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
+	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
@@ -97,7 +98,11 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	db, err := database.Open(ctx, cfg.Database.Dialect, cfg.Database.DSN)
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
 	if err != nil {
 		return err
 	}
@@ -115,11 +120,11 @@ func serve(args []string, stderr io.Writer) error {
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},
 		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect},
 		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect},
-		PublicCache:  cache.New[pages.Page](256, 30*time.Second),
+		PublicCache:  cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL),
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	pageHTTP := pagetransport.Handler{DB: db, Content: contentService}
-	uploader, err := media.NewUploader(cfg.Media.Dir, 10<<20)
+	uploader, err := media.NewUploader(cfg.Media.Dir, budget.MediaMaxBytes)
 	if err != nil {
 		return err
 	}
@@ -147,7 +152,7 @@ func serve(args []string, stderr io.Writer) error {
 	newsService := newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
 	newsHTTP := newstransport.Handler{Service: newsService, DB: db}
 	newsWorker := newsservice.Worker{
-		Durable: jobstore.Queue{Store: jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: 10000}, DB: db},
+		Durable: jobstore.Queue{Store: jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}, DB: db},
 		Service: newsService,
 		Lease:   time.Minute,
 		Retry:   time.Minute,
@@ -280,7 +285,11 @@ func migrate(args []string, stderr io.Writer) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	db, err := database.Open(ctx, cfg.Database.Dialect, cfg.Database.DSN)
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
 	if err != nil {
 		return err
 	}
@@ -317,7 +326,11 @@ func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	db, err := database.Open(ctx, cfg.Database.Dialect, cfg.Database.DSN)
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
 	if err != nil {
 		return err
 	}
@@ -345,6 +358,7 @@ func readPassword(stdin io.Reader) (string, error) {
 }
 
 type runtimeFlags struct {
+	capacityProfile *string
 	configPath      *string
 	address         *string
 	databaseDialect *string
@@ -353,6 +367,7 @@ type runtimeFlags struct {
 
 func addRuntimeFlags(flags *flag.FlagSet) runtimeFlags {
 	return runtimeFlags{
+		capacityProfile: flags.String("capacity-profile", "", "compact, standard or distributed"),
 		configPath:      flags.String("config", "", "YAML config file"),
 		address:         flags.String("address", "", "HTTP listen address"),
 		databaseDialect: flags.String("database-dialect", "", "sqlite or postgres"),
@@ -364,6 +379,9 @@ func loadRuntimeConfig(flags *flag.FlagSet, values runtimeFlags) (config.Config,
 	set := make(map[string]bool)
 	flags.Visit(func(item *flag.Flag) { set[item.Name] = true })
 	overrides := config.Overrides{}
+	if set["capacity-profile"] {
+		overrides.CapacityProfile = values.capacityProfile
+	}
 	if set["address"] {
 		overrides.HTTPAddress = values.address
 	}
@@ -388,6 +406,7 @@ Usage:
 
 Runtime flags:
   --config PATH
+  --capacity-profile compact|standard|distributed
   --address HOST:PORT
   --database-dialect sqlite|postgres
   --database-dsn DSN

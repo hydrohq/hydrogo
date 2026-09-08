@@ -5,6 +5,7 @@ Bu tablo mevcut R3/R4 sözleşmelerinin kanıtlanmış sınırını gösterir. �
 | Alan | Epoch / kimlik | Eski → yeni deploy | Yeni → eski deploy | Kanıt |
 |---|---|---|---|---|
 | Core runtime/config | config schema mevcut sürüm; bilinmeyen alan deny | Yeni binary eski config'i okur; yeni zorunlu alan yoksa default doğrulanır | Eski binary yalnız kendi bilmediği route/module yoksa çalışır | config/router testleri |
+| Capacity profile | `compact`, `standard`, `distributed`; bounded budget | Yeni binary profile alanı yoksa Compact varsayılanını kullanır; açık profile pool/cache/queue/media sınırlarını uygular | Eski binary profile alanını okumaz ve kendi sabit bütçeleriyle çalışır | capacity/config contract; gerçek benchmark açık |
 | Module manifest | `extension.APIStatus`, edition import boundary | Yeni edition eski Core slotuna yalnız public extension sözleşmesiyle bağlanır | Eski edition yeni News/Site modülü yüklemez | Client/News importguard CI |
 | Schema/migration | `schema_migrations` SHA-256; 16 migration | Yeni binary önce migration uygular, sonra checksum compatibility kontrol eder | Eski binary yeni alanları kullanmadan mevcut page verisini okuyup güncelleyebilir | migration restart/checksum + rollback compatibility contract |
 | Pages/content | revision + optimistic `version`; published projection | Yeni revision eski published projection ile birlikte okunabilir | Eski binary yeni draft revision'ı görmez, published alanları korur | Pages SQLite/PostgreSQL contract |

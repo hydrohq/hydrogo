@@ -43,6 +43,21 @@ func TestLoadRejectsUnknownKey(t *testing.T) {
 	}
 }
 
+func TestLoadCapacityProfile(t *testing.T) {
+	path := writeConfig(t, "profile: standard\ndatabase:\n  dsn: postgres://example\n")
+	cfg, err := Load(path, lookup(nil), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(cfg.Profile) != "standard" {
+		t.Fatalf("profile = %q", cfg.Profile)
+	}
+	_, err = Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_CAPACITY_PROFILE": "invalid"}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "unsupported capacity profile") {
+		t.Fatalf("invalid profile error = %v", err)
+	}
+}
+
 func writeConfig(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "hydro.yaml")

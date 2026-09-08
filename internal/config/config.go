@@ -9,14 +9,16 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
 type Config struct {
-	HTTP     HTTP     `yaml:"http"`
-	Database Database `yaml:"database"`
-	Media    Media    `yaml:"media"`
-	Security Security `yaml:"security"`
+	Profile  capacity.Profile `yaml:"profile"`
+	HTTP     HTTP             `yaml:"http"`
+	Database Database         `yaml:"database"`
+	Media    Media            `yaml:"media"`
+	Security Security         `yaml:"security"`
 }
 
 type HTTP struct {
@@ -38,6 +40,7 @@ type Security struct {
 }
 
 type Overrides struct {
+	CapacityProfile *string
 	HTTPAddress     *string
 	DatabaseDialect *string
 	DatabaseDSN     *string
@@ -46,7 +49,7 @@ type Overrides struct {
 type LookupEnv func(string) (string, bool)
 
 func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
-	result := Config{HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}}
+	result := Config{Profile: capacity.Compact, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}}
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -62,6 +65,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 
 	if value, ok := lookup("HYDRO_HTTP_ADDRESS"); ok {
 		result.HTTP.Address = value
+	}
+	if value, ok := lookup("HYDRO_CAPACITY_PROFILE"); ok && value != "" {
+		result.Profile = capacity.Profile(value)
 	}
 	if value, ok := lookup("HYDRO_PUBLIC_ORIGIN"); ok && value != "" {
 		result.HTTP.PublicOrigin = value
@@ -95,6 +101,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if overrides.HTTPAddress != nil {
 		result.HTTP.Address = *overrides.HTTPAddress
 	}
+	if overrides.CapacityProfile != nil {
+		result.Profile = capacity.Profile(*overrides.CapacityProfile)
+	}
 	if overrides.DatabaseDialect != nil {
 		result.Database.Dialect = database.Dialect(*overrides.DatabaseDialect)
 	}
@@ -105,6 +114,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 }
 
 func (c Config) Validate() error {
+	if err := c.Profile.Validate(); err != nil {
+		return err
+	}
 	if _, _, err := net.SplitHostPort(c.HTTP.Address); err != nil {
 		return fmt.Errorf("invalid HTTP address %q: %w", c.HTTP.Address, err)
 	}
