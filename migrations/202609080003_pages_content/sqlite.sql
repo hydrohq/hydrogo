@@ -1,0 +1,23 @@
+ALTER TABLE pages ADD COLUMN locale TEXT NOT NULL DEFAULT 'en';
+ALTER TABLE pages ADD COLUMN slug TEXT NOT NULL DEFAULT '';
+ALTER TABLE pages ADD COLUMN body TEXT NOT NULL DEFAULT '';
+ALTER TABLE pages ADD COLUMN status TEXT NOT NULL DEFAULT 'draft';
+ALTER TABLE pages ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE pages ADD COLUMN published_revision INTEGER;
+ALTER TABLE pages ADD COLUMN publication_generation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE pages ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE pages ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE UNIQUE INDEX idx_pages_locale_slug ON pages(locale, slug) WHERE slug <> '';
+
+CREATE TABLE page_revisions (
+    id TEXT PRIMARY KEY,
+    page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+    revision INTEGER NOT NULL,
+    locale TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(page_id, revision)
+);

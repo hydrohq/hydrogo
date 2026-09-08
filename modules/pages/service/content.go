@@ -1,0 +1,94 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/modules/pages"
+)
+
+var (
+	ErrInvalidPage = errors.New("invalid page")
+	ErrConflict    = pages.ErrConflict
+)
+
+type ContentRepository interface {
+	CreateDraftContent(context.Context, database.Executor, pages.Page) error
+	UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error
+	Publish(context.Context, database.Executor, string, int) error
+}
+
+type ContentService struct {
+	Transactions Transactions
+	Pages        ContentRepository
+	Audit        AuditWriter
+	Outbox       OutboxWriter
+}
+
+func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error {
+	if err := validatePage(&page); err != nil {
+		return err
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Pages.CreateDraftContent(ctx, tx, page); err != nil {
+			return err
+		}
+		if err := s.Audit.Record(ctx, tx, "audit-"+page.ID, "page.created", page.ID); err != nil {
+			return err
+		}
+		return s.Outbox.Enqueue(ctx, tx, "outbox-"+page.ID, "page.created", page.ID, 1)
+	})
+}
+
+func (s ContentService) UpdateDraft(ctx context.Context, page pages.Page, expectedVersion int) error {
+	if err := validatePage(&page); err != nil {
+		return err
+	}
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Pages.UpdateDraftContent(ctx, tx, page, expectedVersion); err != nil {
+			return err
+		}
+		if err := s.Audit.Record(ctx, tx, "audit-update-"+page.ID+"-"+fmt.Sprint(expectedVersion+1), "page.updated", page.ID); err != nil {
+			return err
+		}
+		return s.Outbox.Enqueue(ctx, tx, "outbox-update-"+page.ID+"-"+fmt.Sprint(expectedVersion+1), "page.updated", page.ID, 1)
+	})
+	if errors.Is(err, pages.ErrConflict) {
+		return ErrConflict
+	}
+	return err
+}
+
+func (s ContentService) Publish(ctx context.Context, pageID string, expectedVersion int) error {
+	if strings.TrimSpace(pageID) == "" || expectedVersion <= 0 {
+		return ErrInvalidPage
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Pages.Publish(ctx, tx, pageID, expectedVersion); err != nil {
+			return err
+		}
+		if err := s.Audit.Record(ctx, tx, "audit-publish-"+pageID, "page.published", pageID); err != nil {
+			return err
+		}
+		return s.Outbox.Enqueue(ctx, tx, "outbox-publish-"+pageID, "page.published", pageID, 1)
+	})
+}
+
+func validatePage(page *pages.Page) error {
+	page.Locale = strings.ToLower(strings.TrimSpace(page.Locale))
+	page.Slug = strings.Trim(strings.ToLower(strings.TrimSpace(page.Slug)), "/")
+	page.Title = strings.TrimSpace(page.Title)
+	if page.ID == "" || page.Locale == "" || page.Slug == "" || page.Title == "" {
+		return ErrInvalidPage
+	}
+	if page.Status == "" {
+		page.Status = pages.StatusDraft
+	}
+	if page.Status != pages.StatusDraft {
+		return ErrInvalidPage
+	}
+	return nil
+}

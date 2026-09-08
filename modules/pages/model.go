@@ -1,0 +1,30 @@
+package pages
+
+import (
+	"errors"
+	"time"
+)
+
+var ErrConflict = errors.New("page update conflict")
+
+type Status string
+
+const (
+	StatusDraft     Status = "draft"
+	StatusPublished Status = "published"
+)
+
+type Page struct {
+	ID                    string
+	Locale                string
+	Slug                  string
+	Title                 string
+	Body                  string
+	Status                Status
+	Version               int
+	Revision              int
+	PublishedRevision     *int
+	PublicationGeneration int64
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}

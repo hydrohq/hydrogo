@@ -1,0 +1,26 @@
+id: "202609080003_pages_content"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "3851772746155731167e93b520a11a859327498d3691e0b649a75101cd79263f"
+  postgres: "2132b055e2aa63a79b85709241332af28b4d240dda31e6264eede2b130bb8874"
+dependencies:
+  - "202609060001_transaction_contract"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "The transaction contract migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Page metadata, immutable revisions and locale/slug index"
+compatibility: "Adds nullable publication state and revision data to pages"
+smoke:
+  - "Repeated migration application is a no-op"
+  - "Draft updates and publication use the same revision contract on both dialects"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
