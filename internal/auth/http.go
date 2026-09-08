@@ -35,6 +35,16 @@ func (f RecoveryNotifierFunc) SendPasswordReset(ctx context.Context, email, toke
 	return f(ctx, email, token)
 }
 
+type InviteNotifier interface {
+	SendInvite(context.Context, string, string) error
+}
+
+type InviteNotifierFunc func(context.Context, string, string) error
+
+func (f InviteNotifierFunc) SendInvite(ctx context.Context, email, token string) error {
+	return f(ctx, email, token)
+}
+
 type HTTPRoute struct {
 	Pattern string
 	Public  bool
@@ -53,6 +63,9 @@ type HTTPHandler struct {
 	Recovery     *PasswordRecovery
 	RecoveryDB   database.Executor
 	Notifier     RecoveryNotifier
+	Invitation   *InvitationService
+	InviteDB     database.Executor
+	InviteNotice InviteNotifier
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -65,7 +78,67 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/me/mfa/enable", Handler: http.HandlerFunc(h.enableMFA)},
 		{Pattern: "POST /auth/password-reset/request", Public: true, Handler: http.HandlerFunc(h.requestPasswordReset)},
 		{Pattern: "POST /auth/password-reset/confirm", Public: true, Handler: http.HandlerFunc(h.confirmPasswordReset)},
+		{Pattern: "POST /admin/auth/invites", Handler: http.HandlerFunc(h.issueInvite)},
+		{Pattern: "POST /auth/invites/accept", Public: true, Handler: http.HandlerFunc(h.acceptInvite)},
 	}
+}
+
+func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
+	if !h.adminUser(r) || h.Invitation == nil || h.InviteDB == nil || h.InviteNotice == nil {
+		http.Error(w, "invitation unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("email")) == "" {
+		http.Error(w, "invalid invitation request", http.StatusBadRequest)
+		return
+	}
+	role := Role(r.FormValue("role"))
+	token, err := h.Invitation.Issue(r.Context(), h.InviteDB, r.FormValue("email"), role, 24*time.Hour)
+	if errors.Is(err, ErrUserAlreadyExists) {
+		http.Error(w, "user already exists", http.StatusConflict)
+		return
+	}
+	if err != nil {
+		http.Error(w, "invitation failed", http.StatusBadRequest)
+		return
+	}
+	if err := h.InviteNotice.SendInvite(r.Context(), NormalizeEmail(r.FormValue("email")), token); err != nil {
+		http.Error(w, "invitation delivery failed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
+	if h.Invitation == nil || h.Transactions == (database.Transactor{}) {
+		http.Error(w, "invitation unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("token")) == "" || r.FormValue("password") == "" {
+		http.Error(w, "invalid invitation request", http.StatusBadRequest)
+		return
+	}
+	var user *User
+	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		var err error
+		user, err = h.Invitation.Accept(r.Context(), tx, r.FormValue("token"), r.FormValue("password"))
+		return err
+	})
+	if errors.Is(err, ErrInviteInvalid) {
+		http.Error(w, "invalid or expired invitation", http.StatusUnauthorized)
+		return
+	}
+	if errors.Is(err, ErrUserAlreadyExists) {
+		http.Error(w, "user already exists", http.StatusConflict)
+		return
+	}
+	if err != nil {
+		http.Error(w, "invitation acceptance failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"user_id": user.ID, "email": user.Email, "role": user.Role})
 }
 
 func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
@@ -303,6 +376,11 @@ func clientIP(r *http.Request) string {
 		return host
 	}
 	return strings.TrimSpace(r.RemoteAddr)
+}
+
+func (h HTTPHandler) adminUser(r *http.Request) bool {
+	user := UserFromContext(r.Context())
+	return user != nil && user.Active && user.Role == RoleAdmin
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

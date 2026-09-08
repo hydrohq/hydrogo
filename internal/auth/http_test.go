@@ -70,6 +70,13 @@ func (httpRecoveryStore) ConsumeRecoveryToken(context.Context, database.Executor
 	return "u1", nil
 }
 
+func (httpRecoveryStore) CreateInvite(context.Context, database.Executor, string, string, Role, string, time.Time, time.Time) error {
+	return nil
+}
+func (httpRecoveryStore) ConsumeInvite(context.Context, database.Executor, string, time.Time) (string, Role, error) {
+	return "", RoleEditor, ErrInviteInvalid
+}
+
 type httpExecutor struct{}
 
 func (httpExecutor) ExecContext(context.Context, string, ...any) (sql.Result, error) { return nil, nil }
@@ -128,5 +135,27 @@ func TestPasswordResetRequestDoesNotExposeAccountState(t *testing.T) {
 	handler(unknownRes, unknown)
 	if unknownRes.Code != http.StatusAccepted {
 		t.Fatalf("unknown reset status = %d", unknownRes.Code)
+	}
+}
+
+func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
+	service := &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params}
+	var notified string
+	handler := HTTPHandler{
+		Invitation: service,
+		InviteDB:   httpExecutor{},
+		InviteNotice: InviteNotifierFunc(func(_ context.Context, email, token string) error {
+			notified = email + ":" + token
+			return nil
+		}),
+	}.issueInvite
+	form := url.Values{"email": {"new@example.com"}, "role": {string(RoleEditor)}}
+	req := httptest.NewRequest(http.MethodPost, "/admin/auth/invites", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(WithUser(req.Context(), &User{ID: "admin", Role: RoleAdmin, Active: true}))
+	res := httptest.NewRecorder()
+	handler(res, req)
+	if res.Code != http.StatusAccepted || !strings.HasPrefix(notified, "new@example.com:") {
+		t.Fatalf("invite request = %d, notification=%q", res.Code, notified)
 	}
 }

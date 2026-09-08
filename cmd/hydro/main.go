@@ -104,7 +104,8 @@ func serve(args []string, stderr io.Writer) error {
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
 	mfaService := &auth.MFAService{Store: userStore, MasterKey: []byte(cfg.Security.MFAMasterKey)}
 	recoveryService := &auth.PasswordRecovery{Users: userStore, Tokens: userStore, Sessions: sessionStore, ArgonParams: auth.DefaultArgon2Params}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), MFA: mfaService, Transactions: database.NewTransactor(db), LoginLimiter: security.NewAttemptLimiter(10000, 5, time.Minute), MFALimiter: security.NewAttemptLimiter(10000, 5, time.Minute), Recovery: recoveryService, RecoveryDB: db}
+	invitationService := &auth.InvitationService{Users: userStore, Invites: userStore, ArgonParams: auth.DefaultArgon2Params}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), MFA: mfaService, Transactions: database.NewTransactor(db), LoginLimiter: security.NewAttemptLimiter(10000, 5, time.Minute), MFALimiter: security.NewAttemptLimiter(10000, 5, time.Minute), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
 	contentService := pageservice.ContentService{
 		Transactions: database.NewTransactor(db),
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},

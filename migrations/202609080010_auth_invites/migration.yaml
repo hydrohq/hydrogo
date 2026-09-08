@@ -1,0 +1,25 @@
+id: "202609080010_auth_invites"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "466b97748140bf895dbe36b0ff2e19c6b14831bfb2301f6ab654067d84ac6c5b"
+  postgres: "37b68584b1ef8b7473e5c89f7e50ba639e87d5aee4cd1e41be8c17831613b87f"
+dependencies:
+  - "202609060002_auth_security"
+schema:
+  readable_epoch: 5
+  writable_epoch: 5
+preconditions:
+  - "The auth security migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Short-lived hashed invitation tokens"
+compatibility: "Adds optional invitation records without changing active users"
+smoke:
+  - "Consumed and expired invitations cannot be accepted again"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

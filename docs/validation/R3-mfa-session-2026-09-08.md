@@ -15,6 +15,7 @@
 - Password reset token’ları purpose, hash, expiry ve tek kullanım taşır; reset aynı transaction’da parola değişimi ve session revoke ile uygulanır.
 - Login ve MFA denemeleri ayrı, bounded process-local limiter'larla sınırlanır; limiter kapasitesi dolduğunda yeni anahtarlar eski kayıtları tahliye eder.
 - Password reset request/confirm HTTP sözleşmesi eklendi; istek endpoint'i bilinmeyen hesaplarda da `202 Accepted` döner, token yalnız enjekte edilen notifier'a verilir ve confirm tek kullanımlı token ile session iptalini transaction içinde çalıştırır.
+- Davet token'ları yalnız SHA-256 hash olarak saklanır, yalnız editor/viewer rolü üretilebilir, kabul sırasında token tüketimi ve kullanıcı oluşturma aynı transaction'a bağlanır; aynı davet ikinci kez kabul edilemez.
 
 ## Çalıştırılan kontroller
 
@@ -28,4 +29,4 @@ MFA master key değeri `HYDRO_MFA_MASTER_KEY` üzerinden secret kaynağından al
 
 ## Açık kapsam
 
-Limiter'ın çoklu instance sözleşmesi, üretim notifier/invite adapter'ı, güvenlik bildirimi ve temiz ortamda restore/blue-green senaryoları R3’ün sonraki kapılarıdır.
+Limiter'ın çoklu instance sözleşmesi, üretim notifier adapter'ı, güvenlik bildirimi ve temiz ortamda restore/blue-green senaryoları R3’ün sonraki kapılarıdır.

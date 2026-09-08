@@ -173,4 +173,29 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	}); !errors.Is(err, auth.ErrRecoveryTokenInvalid) {
 		t.Fatalf("second reset result = %v, want invalid token", err)
 	}
+
+	// 12. Invitations are role-limited, hashed and single-use.
+	invitation := auth.InvitationService{Users: userStore, Invites: userStore, ArgonParams: auth.TestArgon2Params}
+	inviteToken, err := invitation.Issue(ctx, db, "new-editor@hydrogo.io", auth.RoleEditor, time.Hour)
+	if err != nil {
+		t.Fatalf("issue invitation failed: %v", err)
+	}
+	var invited *auth.User
+	err = database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		var inner error
+		invited, inner = invitation.Accept(ctx, tx, inviteToken, "InvitedStrongPassword123!")
+		return inner
+	})
+	if err != nil || invited.Role != auth.RoleEditor {
+		t.Fatalf("accept invitation = %#v/%v", invited, err)
+	}
+	if _, err := authSvc.Authenticate(ctx, invited.Email, "InvitedStrongPassword123!"); err != nil {
+		t.Fatalf("invited user authentication failed: %v", err)
+	}
+	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		_, inner := invitation.Accept(ctx, tx, inviteToken, "AnotherPassword123!")
+		return inner
+	}); !errors.Is(err, auth.ErrInviteInvalid) {
+		t.Fatalf("second invitation acceptance = %v, want invalid invitation", err)
+	}
 }

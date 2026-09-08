@@ -56,6 +56,28 @@ func (s *UserStore) Create(ctx context.Context, u *auth.User) error {
 	return nil
 }
 
+func (s *UserStore) CreateUserTx(ctx context.Context, tx database.Executor, u *auth.User) error {
+	now := time.Now().UTC()
+	if u.CreatedAt.IsZero() {
+		u.CreatedAt = now
+	}
+	if u.UpdatedAt.IsZero() {
+		u.UpdatedAt = now
+	}
+	query := `INSERT INTO users (id, email, password_hash, role, active, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`
+	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), u.Active, u.CreatedAt, u.UpdatedAt}
+	if s.dialect == database.SQLite {
+		query = `INSERT INTO users (id, email, password_hash, role, active, created_at, updated_at) VALUES (?,?,?,?,?,?,?)`
+		active := 0
+		if u.Active {
+			active = 1
+		}
+		args = []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, u.CreatedAt.Format(time.RFC3339Nano), u.UpdatedAt.Format(time.RFC3339Nano)}
+	}
+	_, err := tx.ExecContext(ctx, query, args...)
+	return err
+}
+
 func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) {
 	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = $1`
 	if s.dialect == database.SQLite {
