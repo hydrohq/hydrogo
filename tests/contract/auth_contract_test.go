@@ -3,8 +3,12 @@ package contract_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -139,6 +143,21 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	code, err := totp.GenerateCode(enrollment.Secret, time.Now())
 	if err != nil || mfa.Verify(ctx, db, u.ID, code) != nil {
 		t.Fatalf("TOTP verification failed: %v", err)
+	}
+	loginHTTP := auth.HTTPHandler{Service: authSvc, MFA: &mfa, MFADB: db, Transactions: database.NewTransactor(db)}
+	loginWithoutMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"StrongSecretPassword123!"}}.Encode()))
+	loginWithoutMFA.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginWithoutMFAResult := httptest.NewRecorder()
+	loginHTTP.Routes()[0].Handler.ServeHTTP(loginWithoutMFAResult, loginWithoutMFA)
+	if loginWithoutMFAResult.Code != http.StatusUnauthorized {
+		t.Fatalf("login without MFA status = %d", loginWithoutMFAResult.Code)
+	}
+	loginWithMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"StrongSecretPassword123!"}, "mfa_code": {code}}.Encode()))
+	loginWithMFA.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginWithMFAResult := httptest.NewRecorder()
+	loginHTTP.Routes()[0].Handler.ServeHTTP(loginWithMFAResult, loginWithMFA)
+	if loginWithMFAResult.Code != http.StatusOK {
+		t.Fatalf("login with MFA status = %d", loginWithMFAResult.Code)
 	}
 	recovery := enrollment.RecoveryCodes[0]
 	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error { return mfa.ConsumeRecoveryCode(ctx, tx, u.ID, recovery) }); err != nil {

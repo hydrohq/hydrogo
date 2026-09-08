@@ -33,6 +33,17 @@ type MFAService struct {
 	MasterKey []byte
 }
 
+func (s MFAService) Enabled(ctx context.Context, db database.Executor, userID string) (bool, error) {
+	_, enabled, err := s.Store.GetFactor(ctx, db, userID)
+	if err != nil {
+		if errors.Is(err, ErrMFAUnavailable) {
+			return false, nil
+		}
+		return false, err
+	}
+	return enabled, nil
+}
+
 type MFAEnrollment struct {
 	Secret        string
 	Provisioning  string

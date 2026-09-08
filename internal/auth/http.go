@@ -57,6 +57,7 @@ type HTTPHandler struct {
 	Audit        AuditRecorder
 	Secure       bool
 	MFA          *MFAService
+	MFADB        database.Executor
 	Transactions database.Transactor
 	LoginLimiter *security.AttemptLimiter
 	MFALimiter   *security.AttemptLimiter
@@ -232,6 +233,28 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, "authentication failed", http.StatusInternalServerError)
 		return
+	}
+	if h.MFA != nil && h.MFADB != nil {
+		enabled, err := h.MFA.Enabled(r.Context(), h.MFADB, user.ID)
+		if err != nil {
+			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			return
+		}
+		if enabled {
+			code := strings.TrimSpace(r.FormValue("mfa_code"))
+			if code == "" {
+				http.Error(w, "MFA code required", http.StatusUnauthorized)
+				return
+			}
+			if err := h.MFA.Verify(r.Context(), h.MFADB, user.ID, code); err != nil {
+				if recoveryErr := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+					return h.MFA.ConsumeRecoveryCode(r.Context(), tx, user.ID, code)
+				}); recoveryErr != nil {
+					http.Error(w, "invalid MFA code", http.StatusUnauthorized)
+					return
+				}
+			}
+		}
 	}
 	token, session, err := h.Service.CreateSession(r.Context(), user.ID, r.UserAgent(), clientIP(r), DefaultSessionTTL)
 	if err != nil {
