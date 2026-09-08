@@ -1,0 +1,25 @@
+id: "202609080013_jobs"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "0ad3faeb1b65c7eee8456f425e48dd680138bfc92555e93458c24df49593a797"
+  postgres: "0ad3faeb1b65c7eee8456f425e48dd680138bfc92555e93458c24df49593a797"
+dependencies:
+  - "202609080012_news_items"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "News migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One bounded row per pending job"
+compatibility: "Adds durable idempotent job leases"
+smoke:
+  - "Expired lease can be reclaimed by another worker"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

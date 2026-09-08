@@ -66,7 +66,7 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 
 - [x] News inceleme/zamanlama/yayın/geri çekme; sabit revision, schedule generation ve yeniden yetki kontrolü. (News migration, domain/repository, SQLite schedule generation contract'ı, worker lease/idempotency, JSON/public route'ları ve CSRF'li protected admin HTML formları hazır.) [R4 doğrulama raporu](validation/R4-news-admin-2026-09-08.md)
 - [x] İkinci dış Client Edition, ikinci tema ve farklı özel iş kuralı. (examples/news-edition ayrı module, EditorialTheme, importguard/build CI adımı ve Core'a bağımlı olmayan `EditorialDraft` onay/desk kuralı tamam.) [R4 doğrulama raporu](validation/R4-news-admin-2026-09-08.md)
-- [ ] İki modülde transaction, hook, event/job lease ve idempotency contract kitleri. (Pages/News transaction-audit/outbox desenleri ve News için bounded lease/idempotency queue hazır; ortak kalıcı job backend'i ve hook contract fixture'ları açık.)
+- [ ] İki modülde transaction, hook, event/job lease ve idempotency contract kitleri. (Pages/News transaction-audit/outbox desenleri, News bounded queue ve SQLite/PostgreSQL uyumlu kalıcı `jobs` lease store hazır; News worker wiring'i, gerçek PostgreSQL lease matrisi ve ortak hook fixture'ları açık.) [Job store doğrulama raporu](validation/R4-job-store-2026-09-08.md)
 - [ ] Core/modül/schema/config/content/event/job/asset uyumluluk matrisi ve eski müşteri fixture'ları.
 - [ ] Kanıtlanan küçük SDK yüzeyini v1 adayı olarak belirle; generator için kalıpları çıkar.
 
