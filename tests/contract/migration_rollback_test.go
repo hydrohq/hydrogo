@@ -218,6 +218,8 @@ func TestPostgresNonTransactionalConcurrentIndexAllowsReadContract(t *testing.T)
 	readCtx, stopReads := context.WithCancel(ctx)
 	var reads atomic.Int64
 	var readErrors atomic.Int64
+	ready := make(chan struct{})
+	var readyOnce sync.Once
 	var readers sync.WaitGroup
 	readers.Add(1)
 	go func() {
@@ -232,9 +234,17 @@ func TestPostgresNonTransactionalConcurrentIndexAllowsReadContract(t *testing.T)
 			}
 			if value == "before" {
 				reads.Add(1)
+				readyOnce.Do(func() { close(ready) })
 			}
 		}
 	}()
+	select {
+	case <-ready:
+	case <-time.After(5 * time.Second):
+		stopReads()
+		readers.Wait()
+		t.Fatal("read loop did not become ready")
+	}
 	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := database.ApplyMigrations(deadline, db, database.Postgres, allMigrations); err != nil {
