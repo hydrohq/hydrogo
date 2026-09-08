@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
@@ -17,6 +18,7 @@ var (
 
 type ContentRepository interface {
 	GetContent(context.Context, database.Executor, string) (pages.Page, error)
+	GetPublishedByRoute(context.Context, database.Executor, string, string) (pages.Page, error)
 	CreateDraftContent(context.Context, database.Executor, pages.Page) error
 	UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error
 	Publish(context.Context, database.Executor, string, int) error
@@ -34,6 +36,24 @@ type ContentService struct {
 	Pages        ContentRepository
 	Audit        AuditWriter
 	Outbox       OutboxWriter
+	PublicCache  *cache.Cache[pages.Page]
+}
+
+func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
+	key := strings.ToLower(strings.Trim(locale, "/")) + ":" + strings.Trim(strings.ToLower(slug), "/")
+	if s.PublicCache != nil {
+		if page, ok := s.PublicCache.Get(key); ok {
+			return page, nil
+		}
+	}
+	page, err := s.Pages.GetPublishedByRoute(ctx, db, strings.ToLower(strings.TrimSpace(locale)), strings.Trim(strings.ToLower(strings.TrimSpace(slug)), "/"))
+	if err != nil {
+		return pages.Page{}, err
+	}
+	if s.PublicCache != nil {
+		s.PublicCache.Set(key, page)
+	}
+	return page, nil
 }
 
 func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error {
@@ -81,7 +101,13 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 		if err := s.Audit.Record(ctx, tx, "audit-publish-"+pageID, "page.published", pageID); err != nil {
 			return err
 		}
-		return s.Outbox.Enqueue(ctx, tx, "outbox-publish-"+pageID, "page.published", pageID, 1)
+		if err := s.Outbox.Enqueue(ctx, tx, "outbox-publish-"+pageID, "page.published", pageID, 1); err != nil {
+			return err
+		}
+		if s.PublicCache != nil {
+			s.PublicCache.Clear()
+		}
+		return nil
 	})
 }
 

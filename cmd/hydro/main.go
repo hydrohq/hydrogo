@@ -19,12 +19,14 @@ import (
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
 	pageservice "github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
@@ -99,6 +101,7 @@ func serve(args []string, stderr io.Writer) error {
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},
 		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect},
 		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect},
+		PublicCache:  cache.New[pages.Page](256, 30*time.Second),
 	}
 	pageHTTP := pagetransport.Handler{DB: db, Content: contentService}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)

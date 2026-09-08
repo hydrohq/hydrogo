@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -45,6 +47,7 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 		Pages:        pagesStore,
 		Audit:        auditstore.Store{Dialect: dialect},
 		Outbox:       outboxstore.Store{Dialect: dialect},
+		PublicCache:  cache.New[pages.Page](4, time.Minute),
 	}
 	page := pages.Page{ID: "content-page", Locale: "tr-TR", Slug: "/hakkimizda/", Title: "Hakkımızda", Body: "ilk"}
 	if err := content.CreateDraft(ctx, page); err != nil {
@@ -64,6 +67,10 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 	}
 	if status != string(pages.StatusPublished) || publishedRevision != 2 {
 		t.Fatalf("published page = %s/%d, want published/2", status, publishedRevision)
+	}
+	publicPage, err := content.GetPublished(ctx, db, "TR-tr", "Hakkimizda")
+	if err != nil || publicPage.ID != page.ID {
+		t.Fatalf("published route lookup = %+v/%v", publicPage, err)
 	}
 	var revisions int
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM page_revisions WHERE page_id = "+placeholderForTest(dialect, 1), page.ID).Scan(&revisions); err != nil {
