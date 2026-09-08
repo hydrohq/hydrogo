@@ -1,0 +1,25 @@
+id: "202609080012_news_items"
+module: "news"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "9fc046f0875aca9dfbabced6b81f292fabf1936c3815a8e28f17ab522ae1bf9b"
+  postgres: "b67609e5b0908370b46e02125317eec49a4e4c36337118d5eeb5ea9e6bfe414f"
+dependencies:
+  - "202609080009_site_edition"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Site Edition migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "News revisions and schedule state"
+compatibility: "Adds revisioned news items with generation-guarded scheduling"
+smoke:
+  - "Cancelled schedules cannot publish a newer draft"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
