@@ -124,7 +124,7 @@ func serve(args []string, stderr io.Writer) error {
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
 	siteService := site.Service{Transactions: database.NewTransactor(db), Store: siteStore}
-	siteHTTP := sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+	siteHTTP := sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: security.NewAttemptLimiter(10000, 5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 		published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 		if err != nil {
 			return nil, err

@@ -2,11 +2,18 @@ package transport
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
@@ -17,11 +24,13 @@ type Route struct {
 }
 
 type Handler struct {
-	DB              database.Executor
-	Store           site.Store
-	Service         *site.Service
-	SitemapOrigin   string
-	SitemapProvider func(context.Context) ([]site.SitemapEntry, error)
+	DB                database.Executor
+	Store             site.Store
+	Service           *site.Service
+	SubmissionLimiter *security.AttemptLimiter
+	AllowedForms      map[string]struct{}
+	SitemapOrigin     string
+	SitemapProvider   func(context.Context) ([]site.SitemapEntry, error)
 }
 
 func (h Handler) Routes() []Route {
@@ -32,7 +41,54 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/settings", Handler: http.HandlerFunc(h.saveSetting)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
 		{Pattern: "POST /admin/site/navigation/{locale}", Handler: http.HandlerFunc(h.saveNavigation)},
+		{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
 	}
+}
+
+func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil {
+		http.Error(w, "form inbox unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	formKey := strings.TrimSpace(r.PathValue("form"))
+	if _, ok := h.AllowedForms[formKey]; !ok {
+		http.Error(w, "form not found", http.StatusNotFound)
+		return
+	}
+	if h.SubmissionLimiter != nil && !h.SubmissionLimiter.Allow(formKey+":"+requestIP(r)) {
+		http.Error(w, "too many form submissions", http.StatusTooManyRequests)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form submission", http.StatusBadRequest)
+		return
+	}
+	email := strings.TrimSpace(r.FormValue("email"))
+	message := strings.TrimSpace(r.FormValue("message"))
+	if email == "" || message == "" || len(message) > 32<<10 {
+		http.Error(w, "invalid form submission", http.StatusBadRequest)
+		return
+	}
+	payload, err := json.Marshal(map[string]string{"message": message, "name": strings.TrimSpace(r.FormValue("name"))})
+	if err != nil {
+		http.Error(w, "invalid form submission", http.StatusBadRequest)
+		return
+	}
+	digest := sha256.Sum256([]byte(requestIP(r)))
+	submission := site.Submission{ID: fmt.Sprintf("form-%d", time.Now().UnixNano()), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:])}
+	if err := h.Service.Submit(r.Context(), submission); err != nil {
+		http.Error(w, "form submission failed", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func requestIP(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
 }
 
 func (h Handler) saveSetting(w http.ResponseWriter, r *http.Request) {

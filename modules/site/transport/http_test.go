@@ -83,3 +83,14 @@ func TestAdminSiteMutationRequiresAdminContext(t *testing.T) {
 		t.Fatalf("unauthorized mutation status = %d", res.Code)
 	}
 }
+
+func TestFormSubmissionRejectsUnconfiguredForm(t *testing.T) {
+	handler := Handler{Service: &site.Service{}, AllowedForms: map[string]struct{}{"contact": {}}}
+	req := httptest.NewRequest(http.MethodPost, "/forms/unknown/submit", strings.NewReader("email=a%40b.test&message=x"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res := httptest.NewRecorder()
+	handler.submitForm(res, req)
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("unknown form status = %d", res.Code)
+	}
+}
