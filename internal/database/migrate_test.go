@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -57,6 +58,31 @@ func TestSQLiteMigrationRestartAndCompatibilityContract(t *testing.T) {
 	}
 	if err := database.CheckCompatibility(ctx, db, database.SQLite, migrations.FS); err == nil {
 		t.Fatal("checksum mismatch was accepted")
+	}
+}
+
+func TestNonTransactionalMigrationUsesMetadataExecutionMode(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "nontransactional.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	migrationFS := fstest.MapFS{
+		"0001_base/sqlite.sql":       &fstest.MapFile{Data: []byte("CREATE TABLE sample (id INTEGER PRIMARY KEY);\n")},
+		"0001_base/migration.yaml":   &fstest.MapFile{Data: []byte("transactional:\n  sqlite: true\n")},
+		"0002_vacuum/sqlite.sql":     &fstest.MapFile{Data: []byte("VACUUM;\n")},
+		"0002_vacuum/migration.yaml": &fstest.MapFile{Data: []byte("transactional:\n  sqlite: false\n")},
+	}
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrationFS); err != nil {
+		t.Fatal(err)
+	}
+	var applied int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&applied); err != nil {
+		t.Fatal(err)
+	}
+	if applied != 2 {
+		t.Fatalf("migration rows = %d, want 2", applied)
 	}
 }
 

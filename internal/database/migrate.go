@@ -5,9 +5,12 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
+
+	"gopkg.in/yaml.v3"
 )
 
 func discoverMigrations(migrationFS fs.FS) ([]string, error) {
@@ -30,48 +33,112 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 	if err != nil {
 		return fmt.Errorf("failed to discover migrations: %w", err)
 	}
-
-	return NewTransactor(db).Within(ctx, func(tx Executor) error {
-		if _, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
-            id TEXT PRIMARY KEY,
-            checksum TEXT NOT NULL
-        )`); err != nil {
+	if err := ensureMigrationLedger(ctx, db); err != nil {
+		return err
+	}
+	for index := 0; index < len(migrations); {
+		transactional, err := migrationIsTransactional(migrationFS, migrations[index], dialect)
+		if err != nil {
 			return err
 		}
-
-		for _, migrationID := range migrations {
-			path := fmt.Sprintf("%s/%s.sql", migrationID, dialect)
-			content, err := fs.ReadFile(migrationFS, path)
-			if err != nil {
-				return fmt.Errorf("missing migration script %s: %w", path, err)
-			}
-			digest := sha256.Sum256(content)
-			checksum := hex.EncodeToString(digest[:])
-
-			var existing string
-			err = tx.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE id = "+placeholder(dialect, 1), migrationID).Scan(&existing)
-			switch {
-			case err == nil && existing != checksum:
-				return fmt.Errorf("migration %s checksum mismatch", migrationID)
-			case err == nil:
-				continue
-			case !isNoRows(err):
+		if !transactional {
+			if err := applyNonTransactionalMigration(ctx, db, dialect, migrationFS, migrations[index]); err != nil {
 				return err
 			}
-
-			if _, err := tx.ExecContext(ctx, string(content)); err != nil {
-				return fmt.Errorf("failed executing migration %s: %w", migrationID, err)
-			}
-			_, err = tx.ExecContext(ctx,
-				"INSERT INTO schema_migrations (id, checksum) VALUES ("+placeholder(dialect, 1)+", "+placeholder(dialect, 2)+")",
-				migrationID, checksum,
-			)
-			if err != nil {
-				return fmt.Errorf("failed recording migration %s: %w", migrationID, err)
-			}
+			index++
+			continue
 		}
-		return nil
+		start := index
+		for index < len(migrations) {
+			transactional, err := migrationIsTransactional(migrationFS, migrations[index], dialect)
+			if err != nil {
+				return err
+			}
+			if !transactional {
+				break
+			}
+			index++
+		}
+		if err := NewTransactor(db).Within(ctx, func(tx Executor) error {
+			for _, migrationID := range migrations[start:index] {
+				if err := applyMigration(ctx, tx, dialect, migrationFS, migrationID); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ensureMigrationLedger(ctx context.Context, db *sql.DB) error {
+	return NewTransactor(db).Within(ctx, func(tx Executor) error {
+		_, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+            id TEXT PRIMARY KEY,
+            checksum TEXT NOT NULL
+        )`)
+		return err
 	})
+}
+
+func applyMigration(ctx context.Context, executor Executor, dialect Dialect, migrationFS fs.FS, migrationID string) error {
+	path := fmt.Sprintf("%s/%s.sql", migrationID, dialect)
+	content, err := fs.ReadFile(migrationFS, path)
+	if err != nil {
+		return fmt.Errorf("missing migration script %s: %w", path, err)
+	}
+	digest := sha256.Sum256(content)
+	checksum := hex.EncodeToString(digest[:])
+	var existing string
+	err = executor.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE id = "+placeholder(dialect, 1), migrationID).Scan(&existing)
+	switch {
+	case err == nil && existing != checksum:
+		return fmt.Errorf("migration %s checksum mismatch", migrationID)
+	case err == nil:
+		return nil
+	case !isNoRows(err):
+		return err
+	}
+	if _, err := executor.ExecContext(ctx, string(content)); err != nil {
+		return fmt.Errorf("failed executing migration %s: %w", migrationID, err)
+	}
+	if _, err := executor.ExecContext(ctx,
+		"INSERT INTO schema_migrations (id, checksum) VALUES ("+placeholder(dialect, 1)+", "+placeholder(dialect, 2)+")",
+		migrationID, checksum,
+	); err != nil {
+		return fmt.Errorf("failed recording migration %s: %w", migrationID, err)
+	}
+	return nil
+}
+
+func applyNonTransactionalMigration(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS, migrationID string) error {
+	if err := applyMigration(ctx, db, dialect, migrationFS, migrationID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dialect) (bool, error) {
+	data, err := fs.ReadFile(migrationFS, migrationID+"/migration.yaml")
+	if errors.Is(err, fs.ErrNotExist) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read migration metadata %s: %w", migrationID, err)
+	}
+	var metadata struct {
+		Transactional map[string]bool `yaml:"transactional"`
+	}
+	if err := yaml.Unmarshal(data, &metadata); err != nil {
+		return false, fmt.Errorf("parse migration metadata %s: %w", migrationID, err)
+	}
+	value, ok := metadata.Transactional[string(dialect)]
+	if !ok {
+		return false, fmt.Errorf("migration %s has no transactional metadata for %s", migrationID, dialect)
+	}
+	return value, nil
 }
 
 func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
