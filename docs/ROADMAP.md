@@ -1,6 +1,6 @@
 # HydroGo uygulama roadmap'i
 
-**Tarih:** 2026-09-06 · **Durum:** R0 tamamlandı; R1 düzeltme turunda; R2 başlamadı.
+**Tarih:** 2026-09-08 · **Durum:** R0 ve R1 tamamlandı; R2 ilk dikey dilimde.
 
 Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
 
@@ -30,6 +30,8 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 ## R2 — Pages ve ilk müşteri teması
 
 **Bağımlılık:** R1. **Sorumluluk:** Pages, auth, media, UI.
+
+İlk dikey dilim push edildi: Pages draft/revision/publish service’i, protected JSON route’ları, public published route, bounded process-local cache ve medya `pending → ready` metadata sözleşmesi hazır. Preview, admin UI, medya upload ile metadata’nın tek service transaction’ı ve tam çıkış kanıtları açık.
 
 - [ ] UUID/locale/revision, slug ve e-posta normalizasyonunu ilk kalıcı şemadan önce fixture ile sabitle.
 - [ ] Pages oluştur/düzenle/taslak/preview/publish; admin ve JSON aynı service/policy üzerinden çalışsın.
