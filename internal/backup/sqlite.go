@@ -108,11 +108,20 @@ func ReadManifest(path string) (Manifest, error) {
 	if manifest.Version != 1 || manifest.Database.Path != "database" {
 		return Manifest{}, errors.New("unsupported backup manifest")
 	}
+	if err := validateMediaManifest(manifest.Media); err != nil {
+		return Manifest{}, err
+	}
 	return manifest, nil
 }
 
 // Verify checks a snapshot directory without activating it.
 func Verify(root string, manifest Manifest) error {
+	if manifest.Version != 1 || manifest.Database.Path != "database" {
+		return errors.New("unsupported backup manifest")
+	}
+	if err := validateMediaManifest(manifest.Media); err != nil {
+		return err
+	}
 	db, err := digestFile(filepath.Join(root, manifest.Database.Path), "database")
 	if err != nil {
 		return err
@@ -128,6 +137,22 @@ func Verify(root string, manifest Manifest) error {
 		if actual.SHA256 != expected.SHA256 || actual.Bytes != expected.Bytes {
 			return fmt.Errorf("media checksum mismatch: %s", expected.Path)
 		}
+	}
+	return nil
+}
+
+func validateMediaManifest(files []FileDigest) error {
+	seen := make(map[string]struct{}, len(files))
+	for _, file := range files {
+		path := filepath.ToSlash(file.Path)
+		clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(path)))
+		if path == "" || path != clean || !strings.HasPrefix(path, "media/") || strings.Contains(path, "../") || filepath.IsAbs(filepath.FromSlash(path)) {
+			return fmt.Errorf("invalid media manifest path: %q", file.Path)
+		}
+		if _, ok := seen[path]; ok {
+			return fmt.Errorf("duplicate media manifest path: %q", path)
+		}
+		seen[path] = struct{}{}
 	}
 	return nil
 }

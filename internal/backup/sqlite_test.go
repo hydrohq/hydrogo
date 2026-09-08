@@ -109,3 +109,18 @@ func TestRestoreToStagingPreservesRetainedMedia(t *testing.T) {
 		t.Fatalf("restored media = %q", restored)
 	}
 }
+
+func TestBackupRejectsManifestPathTraversal(t *testing.T) {
+	root := t.TempDir()
+	manifestPath := filepath.Join(root, "manifest.json")
+	manifest := Manifest{Version: 1, Database: FileDigest{Path: "database", SHA256: "", Bytes: 0}, Media: []FileDigest{{Path: "media/../outside", SHA256: "", Bytes: 0}}}
+	if err := WriteManifest(manifestPath, manifest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadManifest(manifestPath); err == nil {
+		t.Fatal("path traversal manifest was accepted")
+	}
+	if err := Verify(root, manifest); err == nil {
+		t.Fatal("path traversal manifest passed verification")
+	}
+}
