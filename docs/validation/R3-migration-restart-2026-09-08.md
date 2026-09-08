@@ -18,4 +18,6 @@ Bu test eski binary ile yeni yazma/rollback uyumluluğunu, online DDL kilit davr
 
 `internal/release.RetainAssets`, release manifest'indeki `static/`, `assets/` ve `public/assets/` artifact'lerini checksum ile doğrulayıp ortak retention dizinine atomik olarak taşır; aynı yoldaki mevcut asset farklıysa değişiklik reddedilir ve `VerifyRetainedAssets` rollback penceresinde bütünlüğü tekrar kontrol eder.
 
+`hydro upgrade check` migration çalıştırmadan config/profile, DB ping ve migration ledger checksum uyumluluğunu kontrol eder; başarılı preflight `upgrade-ready` çıktısı verir ve schema uyumsuzluğunda readiness açmaz.
+
 `TestSQLiteOnlineExpandAllowsConcurrentReadContract` WAL açık SQLite'ta aktif bir read transaction sürerken nullable expand migration'ın iki saniyelik deadline içinde tamamlandığını ve yeni kolonun görünür olduğunu doğrular. Bu deney migration'ın genel production lock süresini veya PostgreSQL DDL planını sertifikalamaz; gerçek blue/green trafik, yeni yazımdan sonra production rollback ve kapasite ölçümü S06/S07'nin açık kısmıdır.

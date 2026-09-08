@@ -37,6 +37,14 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("migrate failed: %v, stderr: %s", err, stderr.String())
 	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := run([]string{"upgrade", "check", "--database-dialect", "sqlite", "--database-dsn", dbPath, "--capacity-profile", "compact"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("upgrade check failed: %v, stderr: %s", err, stderr.String())
+	}
+	if got := stdout.String(); got != "upgrade-ready profile=compact database=sqlite\n" {
+		t.Fatalf("unexpected upgrade output: %q", got)
+	}
 
 	// 2. Run create-admin
 	stdout.Reset()

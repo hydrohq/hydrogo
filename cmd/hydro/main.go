@@ -71,6 +71,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return serve(args[1:], stderr)
 	case "migrate":
 		return migrate(args[1:], stderr)
+	case "upgrade":
+		return upgrade(args[1:], stdout, stderr)
 	case "create-admin":
 		return createAdmin(args[1:], stdin, stdout, stderr)
 	case "doctor":
@@ -348,6 +350,44 @@ func migrate(args []string, stderr io.Writer) error {
 	return database.ApplyMigrations(ctx, db, cfg.Database.Dialect, migrations.FS)
 }
 
+func upgrade(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "check" {
+		return errors.New("upgrade requires the check subcommand")
+	}
+	flags := flag.NewFlagSet("upgrade check", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	defer db.Close()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("database ping: %w", err)
+	}
+	if err := database.CheckCompatibility(ctx, db, cfg.Database.Dialect, migrations.FS); err != nil {
+		return fmt.Errorf("upgrade is not ready: %w", err)
+	}
+	_, err = fmt.Fprintf(stdout, "upgrade-ready profile=%s database=%s\n", cfg.Profile, cfg.Database.Dialect)
+	return err
+}
+
 func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("create-admin", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -450,7 +490,8 @@ func printUsage(w io.Writer) {
 
 Usage:
   hydro version
-	hydro migrate [runtime flags]
+  hydro migrate [runtime flags]
+	hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro doctor [runtime flags]
   hydro serve [runtime flags]
