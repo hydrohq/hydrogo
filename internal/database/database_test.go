@@ -2,9 +2,24 @@ package database
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 )
+
+func TestTransactorRejectsMissingDatabaseAndCallback(t *testing.T) {
+	if err := (Transactor{}).Within(context.Background(), func(Executor) error { return nil }); !errors.Is(err, ErrDatabaseRequired) {
+		t.Fatalf("missing database error = %v, want %v", err, ErrDatabaseRequired)
+	}
+	db, err := Open(context.Background(), SQLite, filepath.Join(t.TempDir(), "transaction.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := NewTransactor(db).Within(context.Background(), nil); err == nil {
+		t.Fatal("nil transaction callback was accepted")
+	}
+}
 
 func TestOpenWithOptionsValidatesPoolLimits(t *testing.T) {
 	ctx := context.Background()

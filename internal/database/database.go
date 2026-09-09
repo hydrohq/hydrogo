@@ -34,11 +34,19 @@ type Transactor struct {
 	db *sql.DB
 }
 
+var ErrDatabaseRequired = errors.New("database is required")
+
 func NewTransactor(db *sql.DB) Transactor {
 	return Transactor{db: db}
 }
 
 func (t Transactor) Within(ctx context.Context, fn func(Executor) error) error {
+	if t.db == nil {
+		return ErrDatabaseRequired
+	}
+	if fn == nil {
+		return errors.New("transaction callback is required")
+	}
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
