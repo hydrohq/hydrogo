@@ -25,7 +25,7 @@ run_required 'full test suite' go test ./... -count=1 -p 1 -timeout=5m
 run_required 'shuffled test suite' go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
 
 run_required 'race-sensitive packages' go test -race -p 1 \
-  ./internal/... ./modules/... ./cmd/hydro -count=1 -timeout=5m
+  ./internal/... ./modules/... ./cmd/hydro ./tests/contract -count=1 -timeout=5m
 
 gate_dir=.tmp/gates
 mkdir -p "$gate_dir"

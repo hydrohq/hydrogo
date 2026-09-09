@@ -27,7 +27,7 @@ Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 -p 1 
 $previousCgo = $env:CGO_ENABLED
 $env:CGO_ENABLED = "1"
 try {
-    Invoke-Required "race-sensitive packages" { go test -race -p 1 ./internal/... ./modules/... ./cmd/hydro -count=1 -timeout=5m }
+    Invoke-Required "race-sensitive packages" { go test -race -p 1 ./internal/... ./modules/... ./cmd/hydro ./tests/contract -count=1 -timeout=5m }
 }
 finally {
     if ($null -eq $previousCgo) { Remove-Item Env:CGO_ENABLED -ErrorAction SilentlyContinue } else { $env:CGO_ENABLED = $previousCgo }
