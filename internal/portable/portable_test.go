@@ -95,6 +95,24 @@ func TestUnmarshalReaderEnforcesByteLimit(t *testing.T) {
 	}
 }
 
+func TestExportWithLimitRejectsOversizedRowsDuringRead(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "bounded-export.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,publication_generation,created_at,updated_at) VALUES ('large','title',1,'en','large',?,'published',1,1,'2026-01-01','2026-01-01')`, strings.Repeat("x", 1024)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExportWithLimit(ctx, db, 256); !errors.Is(err, ErrDocumentTooLarge) {
+		t.Fatalf("bounded export error = %v, want %v", err, ErrDocumentTooLarge)
+	}
+}
+
 func TestPostgresContentExportImportRoundTrip(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
 	if dsn == "" {

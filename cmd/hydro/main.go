@@ -195,7 +195,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		defer db.Close()
-		document, err := portable.Export(context.Background(), db)
+		document, err := portable.ExportWithLimit(context.Background(), db, *maxBytes)
 		if err != nil {
 			return fmt.Errorf("portable export: %w", err)
 		}

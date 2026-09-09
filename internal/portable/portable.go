@@ -57,14 +57,31 @@ var specByName = func() map[string]tableSpec {
 }()
 
 func Export(ctx context.Context, db database.Executor) (Document, error) {
+	return ExportWithLimit(ctx, db, DefaultMaxDocumentBytes)
+}
+
+// ExportWithLimit bounds the in-memory document while rows are read. The
+// returned Document format is still materialized for callers, but an
+// untrusted or unexpectedly large database cannot grow it without limit.
+func ExportWithLimit(ctx context.Context, db database.Executor, maxBytes int64) (Document, error) {
+	if maxBytes <= 0 {
+		return Document{}, ErrDocumentTooLarge
+	}
 	document := Document{FormatVersion: 1, Tables: make([]Table, 0, len(specs))}
 	for _, spec := range specs {
 		query := "SELECT " + strings.Join(spec.columns, ", ") + " FROM " + spec.name + " ORDER BY " + spec.orderBy
-		rows, err := queryRows(ctx, db, query, len(spec.columns))
+		rows, err := queryRows(ctx, db, query, len(spec.columns), maxBytes)
 		if err != nil {
 			return Document{}, fmt.Errorf("export %s: %w", spec.name, err)
 		}
 		document.Tables = append(document.Tables, Table{Name: spec.name, Columns: append([]string(nil), spec.columns...), Rows: rows})
+		encoded, err := json.Marshal(document)
+		if err != nil {
+			return Document{}, fmt.Errorf("size export %s: %w", spec.name, err)
+		}
+		if int64(len(encoded)) > maxBytes {
+			return Document{}, ErrDocumentTooLarge
+		}
 	}
 	return document, nil
 }
@@ -162,7 +179,7 @@ func Import(ctx context.Context, tx database.Executor, document Document, dialec
 	return nil
 }
 
-func queryRows(ctx context.Context, db database.Executor, query string, columnCount int) ([][]any, error) {
+func queryRows(ctx context.Context, db database.Executor, query string, columnCount int, maxBytes int64) ([][]any, error) {
 	queryer, ok := db.(interface {
 		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	})
@@ -175,6 +192,7 @@ func queryRows(ctx context.Context, db database.Executor, query string, columnCo
 	}
 	defer rows.Close()
 	result := make([][]any, 0)
+	var encodedRows int64
 	for rows.Next() {
 		values := make([]any, columnCount)
 		pointers := make([]any, columnCount)
@@ -188,6 +206,14 @@ func queryRows(ctx context.Context, db database.Executor, query string, columnCo
 			if bytes, ok := value.([]byte); ok {
 				values[i] = string(bytes)
 			}
+		}
+		encoded, err := json.Marshal(values)
+		if err != nil {
+			return nil, err
+		}
+		encodedRows += int64(len(encoded)) + 1
+		if encodedRows > maxBytes {
+			return nil, ErrDocumentTooLarge
 		}
 		result = append(result, values)
 	}
