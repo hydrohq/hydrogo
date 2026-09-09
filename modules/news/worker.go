@@ -23,14 +23,16 @@ type DurableQueue interface {
 	Claim(context.Context, string, time.Time, time.Duration) (jobs.Job, string, bool, error)
 	Ack(context.Context, string, string, string) error
 	Nack(context.Context, string, string, string, time.Time) error
+	DeadLetter(context.Context, string, string, string, string) error
 }
 
 type Worker struct {
-	Queue   *jobs.Queue
-	Durable DurableQueue
-	Service Service
-	Lease   time.Duration
-	Retry   time.Duration
+	Queue       *jobs.Queue
+	Durable     DurableQueue
+	Service     Service
+	Lease       time.Duration
+	Retry       time.Duration
+	MaxAttempts int
 }
 
 // EnqueueDue discovers scheduled items that are due and idempotently places
@@ -101,15 +103,17 @@ func (w Worker) RunOnce(ctx context.Context, workerID string, now time.Time) (bo
 	}
 	var payload scheduleJob
 	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
-		_ = w.ack(ctx, job.ID, workerID, token)
-		return true, err
+		return true, w.deadLetter(ctx, job.ID, workerID, token, err.Error())
 	}
 	err = w.Service.RunScheduled(ctx, payload.ItemID, payload.Generation, now)
 	if errors.Is(err, ErrScheduleStale) {
 		return true, w.ack(ctx, job.ID, workerID, token)
 	}
 	if err != nil {
-		return true, w.nack(ctx, job.ID, workerID, token, now.Add(retry))
+		if job.Attempts >= w.maxAttempts() {
+			return true, w.deadLetter(ctx, job.ID, workerID, token, err.Error())
+		}
+		return true, w.nack(ctx, job.ID, workerID, token, now.Add(retryDelay(retry, job.Attempts)), err.Error())
 	}
 	return true, w.ack(ctx, job.ID, workerID, token)
 }
@@ -121,9 +125,53 @@ func (w Worker) ack(ctx context.Context, id, worker, token string) error {
 	return w.Queue.Ack(id, worker, token)
 }
 
-func (w Worker) nack(ctx context.Context, id, worker, token string, retryAt time.Time) error {
+func (w Worker) nack(ctx context.Context, id, worker, token string, retryAt time.Time, reason string) error {
 	if w.Durable != nil {
+		if queue, ok := w.Durable.(interface {
+			NackWithError(context.Context, string, string, string, time.Time, string) error
+		}); ok {
+			return queue.NackWithError(ctx, id, worker, token, retryAt, reason)
+		}
 		return w.Durable.Nack(ctx, id, worker, token, retryAt)
 	}
+	if queue, ok := any(w.Queue).(interface {
+		NackWithError(string, string, string, time.Time, string) error
+	}); ok {
+		return queue.NackWithError(id, worker, token, retryAt, reason)
+	}
 	return w.Queue.Nack(id, worker, token, retryAt)
+}
+
+func (w Worker) deadLetter(ctx context.Context, id, worker, token, reason string) error {
+	if w.Durable != nil {
+		return w.Durable.DeadLetter(ctx, id, worker, token, reason)
+	}
+	return w.Queue.DeadLetter(id, worker, token, reason)
+}
+
+func (w Worker) maxAttempts() int {
+	if w.MaxAttempts <= 0 {
+		return 5
+	}
+	return w.MaxAttempts
+}
+
+func retryDelay(base time.Duration, attempts int) time.Duration {
+	if base <= 0 {
+		base = time.Minute
+	}
+	if attempts < 1 {
+		attempts = 1
+	}
+	delay := base
+	for i := 1; i < attempts && delay < time.Hour; i++ {
+		if delay > time.Hour/2 {
+			return time.Hour
+		}
+		delay *= 2
+	}
+	if delay > time.Hour {
+		return time.Hour
+	}
+	return delay
 }

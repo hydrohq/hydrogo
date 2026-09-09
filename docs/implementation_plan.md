@@ -213,7 +213,7 @@ MySQL ve diğer veritabanları yalnız connection driver eklenerek desteklenmiş
 Bir içerik değişikliği, yeni revizyon, geçerli durum geçişi, audit olayı ve gerekiyorsa kalıcı iş kaydını tek transaction içinde yazar. Repository, audit ve outbox aynı transaction scope'undan bağlanır; bağımsız pool çağrılarına ayrılmaz. E-posta ve ileride açılacak webhook gibi dış etkiler commit sonrasında kalıcı iş kuyruğundan işlenir.
 
 - İşler benzersiz idempotency anahtarı taşır.
-- Hatalarda sınırlı exponential backoff ve dead-letter durumu kullanılır.
+- Hatalarda sınırlı exponential backoff ve dead-letter durumu kullanılır. News worker için retry gecikmesi bounded olarak uygulanır; kalıcı/bozuk payload'lar lease doğrulamasıyla dead-letter edilir ve son hata tanısı saklanır.
 - Worker yeniden başladığında yarım kalan işler güvenli biçimde devam eder.
 - Tekrarlanan komutlarda DB içi yayın değişikliği idempotent korunur. Dış etkiler en az bir kez teslim edilir; sağlayıcı idempotency sunmadığında e-posta timeout'u belirsiz sonuç/tekrar riski taşır. Genel exactly-once garantisi verilmez. Lease, fencing, tüketici durumu ve payload uyumluluğu ADR-0011'de tanımlıdır.
 

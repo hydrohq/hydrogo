@@ -71,17 +71,17 @@ func runDurableJobLeaseContract(t *testing.T, db database.Executor, dialect data
 	if err := store.Nack(ctx, db, job.ID, "worker-b", token, now); !errors.Is(err, jobs.ErrLeaseInvalid) {
 		t.Fatalf("wrong worker nack = %v", err)
 	}
-	if err := store.Nack(ctx, db, job.ID, "worker-a", token, now); err != nil {
+	if err := store.NackWithError(ctx, db, job.ID, "worker-a", token, now, "temporary failure"); err != nil {
 		t.Fatal(err)
 	}
 	claimed, token, ok, err = store.Claim(ctx, db, "worker-b", now, time.Minute)
-	if err != nil || !ok || claimed.Attempts != 2 {
+	if err != nil || !ok || claimed.Attempts != 2 || claimed.LastError != "temporary failure" {
 		t.Fatalf("reclaim = %+v/%q/%v/%v", claimed, token, ok, err)
 	}
-	if err := store.Ack(ctx, db, job.ID, "worker-b", token); err != nil {
+	if err := store.DeadLetter(ctx, db, job.ID, "worker-b", token, "permanent failure"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, ok, err := store.Claim(ctx, db, "worker-c", now, time.Minute); err != nil || ok {
-		t.Fatalf("acked job remained claimable: %v/%v", ok, err)
+		t.Fatalf("dead-lettered job remained claimable: %v/%v", ok, err)
 	}
 }

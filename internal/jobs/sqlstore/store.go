@@ -71,7 +71,11 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	var job jobs.Job
 	var available, created string
 	var attempts int
-	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts)
+	deadLettered := "0"
+	if s.Dialect == database.Postgres {
+		deadLettered = "FALSE"
+	}
+	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts, &job.DeadLettered, &job.LastError)
 	if errors.Is(err, sql.ErrNoRows) {
 		return jobs.Job{}, "", false, nil
 	}
@@ -118,7 +122,30 @@ func (s Store) Ack(ctx context.Context, db database.Executor, id, worker, token 
 }
 
 func (s Store) Nack(ctx context.Context, db database.Executor, id, worker, token string, retryAt time.Time) error {
-	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+" WHERE id = "+s.p(2)+" AND lease_owner = "+s.p(3)+" AND lease_token = "+s.p(4), formatTime(retryAt.UTC()), id, worker, token)
+	return s.NackWithError(ctx, db, id, worker, token, retryAt, "")
+}
+
+func (s Store) NackWithError(ctx context.Context, db database.Executor, id, worker, token string, retryAt time.Time, reason string) error {
+	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", last_error = "+s.p(2)+" WHERE id = "+s.p(3)+" AND lease_owner = "+s.p(4)+" AND lease_token = "+s.p(5), formatTime(retryAt.UTC()), reason, id, worker, token)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return jobs.ErrLeaseInvalid
+	}
+	return nil
+}
+
+func (s Store) DeadLetter(ctx context.Context, db database.Executor, id, worker, token, reason string) error {
+	dead := "1"
+	if s.Dialect == database.Postgres {
+		dead = "TRUE"
+	}
+	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, dead_lettered = "+dead+", last_error = "+s.p(1)+" WHERE id = "+s.p(2)+" AND lease_owner = "+s.p(3)+" AND lease_token = "+s.p(4), reason, id, worker, token)
 	if err != nil {
 		return err
 	}

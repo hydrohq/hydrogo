@@ -30,3 +30,11 @@ func (q Queue) Ack(ctx context.Context, id, worker, token string) error {
 func (q Queue) Nack(ctx context.Context, id, worker, token string, retryAt time.Time) error {
 	return q.Store.Nack(ctx, q.DB, id, worker, token, retryAt)
 }
+
+func (q Queue) NackWithError(ctx context.Context, id, worker, token string, retryAt time.Time, reason string) error {
+	return q.Store.NackWithError(ctx, q.DB, id, worker, token, retryAt, reason)
+}
+
+func (q Queue) DeadLetter(ctx context.Context, id, worker, token, reason string) error {
+	return q.Store.DeadLetter(ctx, q.DB, id, worker, token, reason)
+}

@@ -36,4 +36,17 @@ func TestQueueIsBoundedIdempotentAndReclaimsExpiredLease(t *testing.T) {
 	if err := q.Ack(reclaimed.ID, "worker-b", retryToken); err != nil {
 		t.Fatal(err)
 	}
+	if err := q.Enqueue(Job{ID: "dead", Type: "news.publish", Payload: "bad", CreatedAt: created, AvailableAt: created}); err != nil {
+		t.Fatal(err)
+	}
+	dead, deadToken, ok := q.Claim("worker-c", created, time.Minute)
+	if !ok {
+		t.Fatal("dead-letter test job was not claimed")
+	}
+	if err := q.DeadLetter(dead.ID, "worker-c", deadToken, "permanent failure"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok := q.Claim("worker-d", created.Add(time.Hour), time.Minute); ok {
+		t.Fatal("dead-lettered job remained claimable")
+	}
 }

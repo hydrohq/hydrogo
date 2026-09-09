@@ -15,12 +15,14 @@ var (
 )
 
 type Job struct {
-	ID          string
-	Type        string
-	Payload     string
-	AvailableAt time.Time
-	CreatedAt   time.Time
-	Attempts    int
+	ID           string
+	Type         string
+	Payload      string
+	AvailableAt  time.Time
+	CreatedAt    time.Time
+	Attempts     int
+	DeadLettered bool
+	LastError    string
 }
 
 type lease struct {
@@ -76,6 +78,9 @@ func (q *Queue) Claim(worker string, now time.Time, duration time.Duration) (Job
 	}
 	candidates := make([]*lease, 0)
 	for _, candidate := range q.jobs {
+		if candidate.DeadLettered {
+			continue
+		}
 		if candidate.Worker != "" && now.Before(candidate.LeaseUntil) {
 			continue
 		}
@@ -113,6 +118,10 @@ func (q *Queue) Ack(id, worker, token string) error {
 }
 
 func (q *Queue) Nack(id, worker, token string, retryAt time.Time) error {
+	return q.NackWithError(id, worker, token, retryAt, "")
+}
+
+func (q *Queue) NackWithError(id, worker, token string, retryAt time.Time, reason string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	selected, ok := q.jobs[id]
@@ -123,5 +132,21 @@ func (q *Queue) Nack(id, worker, token string, retryAt time.Time) error {
 	selected.Token = ""
 	selected.LeaseUntil = time.Time{}
 	selected.AvailableAt = retryAt
+	selected.LastError = reason
+	return nil
+}
+
+func (q *Queue) DeadLetter(id, worker, token, reason string) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	selected, ok := q.jobs[id]
+	if !ok || selected.Worker != worker || selected.Token != token {
+		return ErrLeaseInvalid
+	}
+	selected.Worker = ""
+	selected.Token = ""
+	selected.LeaseUntil = time.Time{}
+	selected.DeadLettered = true
+	selected.LastError = reason
 	return nil
 }

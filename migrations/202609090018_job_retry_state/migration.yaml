@@ -1,0 +1,25 @@
+id: "202609090018_job_retry_state"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "534a400c754cdc10155bb6a3aa38209080073e0d5401da55b2a966905dc68d32"
+  postgres: "ce18ae15c744c0056b5bbfd5f259a9195c2647e2ae3a89049285b31437734769"
+dependencies:
+  - "202609080013_jobs"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Durable jobs table is present"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Two bounded job state columns"
+compatibility: "Adds retry error and dead-letter state without changing existing job payloads"
+smoke:
+  - "Retry state survives worker restart and dead-letter jobs are not claimable"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
