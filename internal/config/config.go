@@ -188,7 +188,7 @@ func (c Config) Validate() error {
 	if c.Security.EnableHSTS && !c.Security.SecureCookies {
 		return errors.New("HSTS requires secure cookies")
 	}
-	if c.Security.SecureCookies && publicOrigin != nil && publicOrigin.Scheme != "https" {
+	if c.Security.SecureCookies && (publicOrigin == nil || publicOrigin.Scheme != "https") {
 		return errors.New("secure cookies require an HTTPS public origin")
 	}
 	switch c.Database.Dialect {
