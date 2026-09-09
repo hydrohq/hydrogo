@@ -32,6 +32,20 @@ func TestActivateStagingMediaRetainsPreviousRoot(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(staging, "media", "new.css"), []byte("new"), 0o640); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(staging, "database"), []byte("database"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	databaseDigest, err := digestFile(filepath.Join(staging, "database"), "database")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mediaDigest, err := digestFile(filepath.Join(staging, "media", "new.css"), "media/new.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteManifest(filepath.Join(staging, "manifest.json"), Manifest{Version: 1, Database: databaseDigest, Media: []FileDigest{mediaDigest}}); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := ActivateStagingMedia(staging, active, rollback); err != nil {
 		t.Fatal(err)
@@ -70,6 +84,25 @@ func TestActivateStagingMediaRequiresQuarantineControls(t *testing.T) {
 	}
 	if err := ActivateStagingMedia(staging, filepath.Join(root, "active"), filepath.Join(root, "rollback")); err == nil {
 		t.Fatal("activation without restore controls succeeded")
+	}
+}
+
+func TestActivateStagingMediaRequiresVerifiedManifest(t *testing.T) {
+	root := t.TempDir()
+	staging := filepath.Join(root, "staging")
+	if err := os.MkdirAll(staging, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	marker := RestoreMarker{ManifestVersion: 1, Controls: RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}}
+	data, err := json.Marshal(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staging, "RESTORE_QUARANTINED.json"), data, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := ActivateStagingMedia(staging, filepath.Join(root, "active"), filepath.Join(root, "rollback")); err == nil {
+		t.Fatal("activation accepted staging without a verified manifest")
 	}
 }
 

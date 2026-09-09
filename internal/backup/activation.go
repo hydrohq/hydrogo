@@ -29,6 +29,13 @@ func ActivateStagingMedia(staging, active, rollback string) error {
 	if !marker.Controls.SessionsRevoked || !marker.Controls.EgressQuarantined || !marker.Controls.OldWritesBlocked {
 		return errors.New("restore controls are incomplete")
 	}
+	manifest, err := ReadManifest(filepath.Join(staging, "manifest.json"))
+	if err != nil {
+		return fmt.Errorf("restore manifest: %w", err)
+	}
+	if err := Verify(staging, manifest); err != nil {
+		return fmt.Errorf("verify restore staging: %w", err)
+	}
 	if info, err := os.Stat(staging); err != nil {
 		return fmt.Errorf("restore staging: %w", err)
 	} else if !info.IsDir() {
