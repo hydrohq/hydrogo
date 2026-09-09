@@ -23,6 +23,8 @@ type HTTPRoute struct {
 	Handler   http.Handler
 }
 
+const multipartOverheadBytes int64 = 1 << 20
+
 func (h HTTPHandler) Routes() []HTTPRoute {
 	return []HTTPRoute{
 		{Pattern: "POST /api/media", Protected: true, Handler: http.HandlerFunc(h.upload)},
@@ -64,7 +66,7 @@ func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, h.Service.Uploader.MaxBytes+1<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, multipartBodyLimit(h.Service.Uploader.MaxBytes))
 	if err := r.ParseMultipartForm(2 << 20); err != nil {
 		http.Error(w, "invalid media upload", http.StatusBadRequest)
 		return
@@ -81,6 +83,17 @@ func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]any{"asset_id": result.ID, "status": "pending", "mime_type": result.MimeType, "size_bytes": result.SizeBytes})
+}
+
+func multipartBodyLimit(fileLimit int64) int64 {
+	if fileLimit <= 0 {
+		return multipartOverheadBytes
+	}
+	const maxInt64 = int64(^uint64(0) >> 1)
+	if fileLimit > maxInt64-multipartOverheadBytes {
+		return maxInt64
+	}
+	return fileLimit + multipartOverheadBytes
 }
 
 func (h HTTPHandler) ready(w http.ResponseWriter, r *http.Request) {

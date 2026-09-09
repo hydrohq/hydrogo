@@ -41,6 +41,16 @@ func TestPrivateMediaIsNotServedWithoutSession(t *testing.T) {
 	}
 }
 
+func TestMultipartBodyLimitDoesNotOverflow(t *testing.T) {
+	const maxInt64 = int64(^uint64(0) >> 1)
+	if got := multipartBodyLimit(maxInt64 - 1); got != maxInt64 {
+		t.Fatalf("near-max multipart limit = %d, want %d", got, maxInt64)
+	}
+	if got := multipartBodyLimit(1 << 20); got != 2<<20 {
+		t.Fatalf("multipart limit = %d, want %d", got, 2<<20)
+	}
+}
+
 func TestPublicMediaIsServedWhenReady(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "public.txt"), []byte("public"), 0o600); err != nil {
