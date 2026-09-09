@@ -1,6 +1,7 @@
 package security
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -25,7 +26,9 @@ func RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 				if logger != nil {
 					logger.ErrorContext(r.Context(), "http_handler_panic",
 						slog.String("request_id", RequestIDFromContext(r.Context())),
-						slog.Any("panic", value),
+						// Panic values may contain credentials, tokens, or request
+						// data. Keep the type for diagnosis without logging the value.
+						slog.String("panic_type", fmt.Sprintf("%T", value)),
 						slog.String("stack", string(debug.Stack())),
 					)
 				}
