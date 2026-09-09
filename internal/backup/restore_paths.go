@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 )
 
 func validateRestorePaths(source, destination string) error {
@@ -33,10 +35,10 @@ func validateRestorePaths(source, destination string) error {
 			return statErr
 		}
 	}
-	if err := rejectRestoreSymlinkComponents(source); err != nil {
+	if err := pathguard.RejectSymlinkComponents(source); err != nil {
 		return fmt.Errorf("restore source path: %w", err)
 	}
-	if err := rejectRestoreSymlinkComponents(filepath.Dir(destination)); err != nil {
+	if err := pathguard.RejectSymlinkComponents(filepath.Dir(destination)); err != nil {
 		return fmt.Errorf("restore destination path: %w", err)
 	}
 	relative, err := filepath.Rel(source, destination)
@@ -45,36 +47,6 @@ func validateRestorePaths(source, destination string) error {
 	}
 	if relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))) {
 		return fmt.Errorf("restore destination must not be inside source: %s", destination)
-	}
-	return nil
-}
-
-func rejectRestoreSymlinkComponents(path string) error {
-	absolute, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-	volume := filepath.VolumeName(absolute)
-	current := volume + string(os.PathSeparator)
-	remainder := strings.TrimPrefix(absolute, current)
-	for _, component := range strings.Split(remainder, string(os.PathSeparator)) {
-		if component == "" {
-			continue
-		}
-		current = filepath.Join(current, component)
-		info, err := os.Lstat(current)
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("path contains a symlink: %s", current)
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("path component is not a directory: %s", current)
-		}
 	}
 	return nil
 }

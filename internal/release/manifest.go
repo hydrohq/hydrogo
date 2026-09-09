@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 )
 
 var ErrSecretArtifact = errors.New("secret-like artifact cannot enter a release manifest")
@@ -229,10 +231,10 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 	if err != nil {
 		return err
 	}
-	if err := rejectAssetSymlinkComponents(sourceRoot); err != nil {
+	if err := pathguard.RejectSymlinkComponents(sourceRoot); err != nil {
 		return fmt.Errorf("source asset path: %w", err)
 	}
-	if err := rejectAssetSymlinkComponents(filepath.Dir(destinationRoot)); err != nil {
+	if err := pathguard.RejectSymlinkComponents(filepath.Dir(destinationRoot)); err != nil {
 		return fmt.Errorf("destination asset path: %w", err)
 	}
 	if err := validateAssetRoot(sourceRoot, "source"); err != nil {
@@ -341,36 +343,6 @@ func VerifyRetainedAssets(root string, manifest Manifest) error {
 		}
 		if err := verifyArtifact(path, artifact); err != nil {
 			return fmt.Errorf("asset %s: %w", artifact.Path, err)
-		}
-	}
-	return nil
-}
-
-func rejectAssetSymlinkComponents(path string) error {
-	absolute, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-	volume := filepath.VolumeName(absolute)
-	current := volume + string(os.PathSeparator)
-	remainder := strings.TrimPrefix(absolute, current)
-	for _, component := range strings.Split(remainder, string(os.PathSeparator)) {
-		if component == "" {
-			continue
-		}
-		current = filepath.Join(current, component)
-		info, err := os.Lstat(current)
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("path contains a symlink: %s", current)
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("path component is not a directory: %s", current)
 		}
 	}
 	return nil
