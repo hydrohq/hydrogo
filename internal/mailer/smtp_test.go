@@ -43,6 +43,16 @@ func TestRetrySenderHonorsPermanentFailureAndCancellation(t *testing.T) {
 	}
 }
 
+func TestNotificationSenderFailsClosedWithoutTransport(t *testing.T) {
+	sender := NotificationSender{}
+	if err := sender.SendPasswordReset(context.Background(), "user@example.test", "token"); !errors.Is(err, ErrSenderRequired) {
+		t.Fatalf("password reset sender error = %v, want %v", err, ErrSenderRequired)
+	}
+	if err := sender.SendInvite(context.Background(), "user@example.test", "token"); !errors.Is(err, ErrSenderRequired) {
+		t.Fatalf("invite sender error = %v, want %v", err, ErrSenderRequired)
+	}
+}
+
 func TestNewSMTPValidatesConfiguration(t *testing.T) {
 	if _, err := NewSMTP(SMTPConfig{Port: 587, From: "from@example.test"}); err == nil {
 		t.Fatal("missing SMTP host accepted")
