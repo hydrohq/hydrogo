@@ -126,6 +126,7 @@ func NewHandler(config Config) http.Handler {
 	handler = security.RequestBodyLimitMiddleware(config.HTTPBodyLimit, func(r *http.Request) bool {
 		return r.URL.Path == "/api/media" || r.URL.Path == "/api/v1/media"
 	})(handler)
+	handler = security.RecoveryMiddleware(config.Logger)(handler)
 
 	// Normalize handler errors after the body limit and before the request ID
 	// middleware so even middleware-generated errors include request_id.
