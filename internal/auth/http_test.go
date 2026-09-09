@@ -90,7 +90,7 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	sessions := &httpSessionRepo{}
 	audit := &httpAudit{}
 	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Role: RoleAdmin, Active: true}}, sessions, TestArgon2Params)
-	handler := HTTPHandler{Service: service, Audit: audit}.login
+	handler := HTTPHandler{Service: service, Audit: audit, Secure: true}.login
 
 	form := url.Values{"email": {"admin@example.com"}, "password": {"secret"}}
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
@@ -101,7 +101,7 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	if res.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", res.Code, res.Body.String())
 	}
-	if len(res.Result().Cookies()) != 1 || res.Result().Cookies()[0].Name != SessionCookieName {
+	if len(res.Result().Cookies()) != 1 || res.Result().Cookies()[0].Name != SessionCookieName || !res.Result().Cookies()[0].Secure {
 		t.Fatalf("expected session cookie, got %v", res.Result().Cookies())
 	}
 	if len(audit.actions) != 1 || audit.actions[0] != "auth.login" {

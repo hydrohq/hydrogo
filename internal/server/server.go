@@ -119,7 +119,7 @@ func NewHandler(config Config) http.Handler {
 
 	// Apply Auth session context injection
 	if config.AuthSvc != nil {
-		handler = auth.Middleware(config.AuthSvc)(handler)
+		handler = auth.Middleware(config.AuthSvc, config.SecureCookie)(handler)
 	}
 
 	// Apply Security Headers with CSP nonces

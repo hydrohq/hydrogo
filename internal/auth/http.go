@@ -269,7 +269,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	if h.Audit != nil {
 		if err := h.Audit.Record(r.Context(), "auth.login", user.ID); err != nil {
 			_ = h.Service.RevokeSession(r.Context(), token)
-			ClearSessionCookie(w)
+			ClearSessionCookie(w, h.Secure)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
 		}
@@ -286,13 +286,13 @@ func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {
 		}
 		if h.Audit != nil {
 			if err := h.Audit.Record(r.Context(), "auth.logout", session.UserID); err != nil {
-				ClearSessionCookie(w)
+				ClearSessionCookie(w, h.Secure)
 				http.Error(w, "logout failed", http.StatusInternalServerError)
 				return
 			}
 		}
 	}
-	ClearSessionCookie(w)
+	ClearSessionCookie(w, h.Secure)
 	w.WriteHeader(http.StatusNoContent)
 }
 

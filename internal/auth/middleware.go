@@ -7,7 +7,7 @@ import (
 )
 
 // Middleware extracts the session cookie, validates the session, and attaches the user to the request context.
-func Middleware(authSvc *AuthService) func(http.Handler) http.Handler {
+func Middleware(authSvc *AuthService, secure bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(SessionCookieName)
@@ -18,7 +18,7 @@ func Middleware(authSvc *AuthService) func(http.Handler) http.Handler {
 
 			sess, u, err := authSvc.ValidateSession(r.Context(), cookie.Value)
 			if err != nil {
-				ClearSessionCookie(w)
+				ClearSessionCookie(w, secure)
 				next.ServeHTTP(w, r)
 				return
 			}
