@@ -107,6 +107,9 @@ func mediaStatus(err error) int {
 	if errors.Is(err, ErrFileTooLarge) || errors.Is(err, ErrImageTooLarge) || errors.Is(err, ErrDisallowedMimeType) || errors.Is(err, ErrInvalidImageData) || errors.Is(err, ErrInvalidVisibility) {
 		return http.StatusBadRequest
 	}
+	if errors.Is(err, ErrUploaderRequired) || errors.Is(err, ErrAssetRepositoryRequired) || errors.Is(err, database.ErrDatabaseRequired) {
+		return http.StatusServiceUnavailable
+	}
 	return http.StatusInternalServerError
 }
 

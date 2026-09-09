@@ -303,6 +303,10 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 }
 
 func writeError(w http.ResponseWriter, err error) {
+	if errors.Is(err, news.ErrRepositoryRequired) {
+		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	status := http.StatusInternalServerError
 	if errors.Is(err, news.ErrInvalidItem) {
 		status = http.StatusBadRequest

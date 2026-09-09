@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -72,7 +73,7 @@ func (h Handler) inboxStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.SetSubmissionStatus(r.Context(), r.PathValue("id"), r.FormValue("status")); err != nil {
-		http.Error(w, "inbox update failed", http.StatusBadRequest)
+		http.Error(w, "inbox update failed", siteStatus(err))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -111,7 +112,7 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 	digest := sha256.Sum256([]byte(requestIP(r)))
 	submission := site.Submission{ID: fmt.Sprintf("form-%d", time.Now().UnixNano()), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:])}
 	if err := h.Service.Submit(r.Context(), submission); err != nil {
-		http.Error(w, "form submission failed", http.StatusBadRequest)
+		http.Error(w, "form submission failed", siteStatus(err))
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
@@ -134,7 +135,7 @@ func (h Handler) saveSetting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.SaveSetting(r.Context(), value); err != nil {
-		http.Error(w, "invalid site setting", http.StatusBadRequest)
+		http.Error(w, "invalid site setting", siteStatus(err))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -150,7 +151,7 @@ func (h Handler) saveRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.SaveRedirect(r.Context(), value); err != nil {
-		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		http.Error(w, "invalid redirect", siteStatus(err))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -166,7 +167,7 @@ func (h Handler) saveNavigation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.SaveNavigation(r.Context(), r.PathValue("locale"), items); err != nil {
-		http.Error(w, "invalid navigation", http.StatusBadRequest)
+		http.Error(w, "invalid navigation", siteStatus(err))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -183,6 +184,13 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 		return false
 	}
 	return true
+}
+
+func siteStatus(err error) int {
+	if errors.Is(err, site.ErrStoreRequired) {
+		return http.StatusServiceUnavailable
+	}
+	return http.StatusBadRequest
 }
 
 func (h Handler) sitemap(w http.ResponseWriter, r *http.Request) {

@@ -50,7 +50,7 @@ func (h Handler) Routes() []Route {
 func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {
 	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
 	if err != nil {
-		http.Error(w, "page not found", http.StatusNotFound)
+		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
@@ -91,7 +91,7 @@ func (h Handler) preview(w http.ResponseWriter, r *http.Request) {
 func (h Handler) writePage(w http.ResponseWriter, r *http.Request, id string) {
 	page, err := h.Content.Get(r.Context(), h.DB, id)
 	if err != nil {
-		http.Error(w, "page not found", http.StatusNotFound)
+		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
@@ -138,7 +138,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "page not found", http.StatusNotFound)
+		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -227,7 +227,17 @@ func pageStatus(err error) int {
 	if errors.Is(err, pages.ErrRouteConflict) {
 		return http.StatusConflict
 	}
+	if errors.Is(err, service.ErrDependencyRequired) {
+		return http.StatusServiceUnavailable
+	}
 	return http.StatusInternalServerError
+}
+
+func pageReadStatus(err error) int {
+	if errors.Is(err, service.ErrDependencyRequired) {
+		return http.StatusServiceUnavailable
+	}
+	return http.StatusNotFound
 }
 
 func newID() string {
