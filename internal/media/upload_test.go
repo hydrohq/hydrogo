@@ -161,6 +161,29 @@ func TestUploadCorruptedImageData(t *testing.T) {
 	}
 }
 
+func TestUploadRejectsTruncatedImageAfterValidHeader(t *testing.T) {
+	tempDir := t.TempDir()
+	uploader, err := NewUploader(tempDir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := createTestPNG(32, 32)
+	if len(data) < 16 {
+		t.Fatal("test PNG is unexpectedly small")
+	}
+	truncated := data[:len(data)-12]
+	if _, err := uploader.Save(bytes.NewReader(truncated), "truncated.png"); !errors.Is(err, ErrInvalidImageData) {
+		t.Fatalf("truncated image error = %v, want %v", err, ErrInvalidImageData)
+	}
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("truncated image left %d storage entries", len(entries))
+	}
+}
+
 func TestUploadDeduplicatesOnlyMatchingContentHash(t *testing.T) {
 	tempDir := t.TempDir()
 	uploader, err := NewUploader(tempDir, 1<<20)

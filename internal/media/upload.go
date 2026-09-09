@@ -175,6 +175,20 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 		if err := validateImageDimensions(width, height, u.MaxPixels); err != nil {
 			return nil, err
 		}
+		// DecodeConfig validates only the image header. Decode the complete
+		// payload as well so truncated or malformed compressed data cannot be
+		// accepted into immutable storage and fail later when it is served.
+		if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+		decoded, _, err := image.Decode(tempFile)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrInvalidImageData, err)
+		}
+		bounds := decoded.Bounds()
+		if bounds.Dx() != width || bounds.Dy() != height {
+			return nil, ErrInvalidImageData
+		}
 	}
 
 	if err := tempFile.Sync(); err != nil {
