@@ -39,3 +39,38 @@ func TestFanoutCloseClosesSubscribers(t *testing.T) {
 		t.Fatal("closed fanout advanced generation")
 	}
 }
+
+func TestFanoutConcurrentSubscribersAndRace(t *testing.T) {
+	fanout := NewFanout(4)
+	subscribers := make([]*Subscription, 20)
+	for i := range subscribers {
+		subscribers[i] = fanout.Subscribe(2)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 50; i++ {
+			fanout.Publish("event")
+		}
+		close(done)
+	}()
+
+	for _, sub := range subscribers {
+		go func(s *Subscription) {
+			for {
+				select {
+				case <-s.Events:
+				case <-s.Resync:
+					s.Reconcile(fanout.Generation())
+				case <-done:
+					return
+				}
+			}
+		}(sub)
+	}
+
+	<-done
+	for _, sub := range subscribers {
+		sub.Close()
+	}
+}
