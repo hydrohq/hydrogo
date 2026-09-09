@@ -72,6 +72,21 @@ func TestManifestRejectsSecretArtifact(t *testing.T) {
 	}
 }
 
+func TestManifestRejectsSymlinkArtifact(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(t.TempDir(), "outside.bin")
+	if err := os.WriteFile(target, []byte("outside"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "app.bin")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if _, err := Build(root, Input{Edition: "client", CoreVersion: "0.1.0"}); err == nil {
+		t.Fatal("manifest build followed a symlink artifact")
+	}
+}
+
 func TestManifestProvenanceAttestationBindsSubject(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "hydro"), []byte("binary"), 0o600); err != nil {

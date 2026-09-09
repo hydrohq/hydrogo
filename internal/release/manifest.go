@@ -95,12 +95,14 @@ func Build(root string, input Input) (Manifest, error) {
 		if secretLike(relative) {
 			return ErrSecretArtifact
 		}
-		data, err := os.ReadFile(path)
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("release artifact cannot be a symlink: %s", relative)
+		}
+		size, checksum, err := digestArtifact(path)
 		if err != nil {
 			return err
 		}
-		digest := sha256.Sum256(data)
-		manifest.Artifacts = append(manifest.Artifacts, Artifact{Path: relative, Size: int64(len(data)), SHA256: hex.EncodeToString(digest[:])})
+		manifest.Artifacts = append(manifest.Artifacts, Artifact{Path: relative, Size: size, SHA256: checksum})
 		if strings.EqualFold(filepath.Base(relative), "LICENSE") || strings.HasPrefix(strings.ToUpper(filepath.Base(relative)), "LICENSE.") {
 			manifest.Licenses = append(manifest.Licenses, relative)
 		}
@@ -439,6 +441,20 @@ func verifyArtifact(path string, expected Artifact) error {
 	}
 	defer file.Close()
 	return verifyArtifactReader(file, io.Discard, expected)
+}
+
+func digestArtifact(path string) (int64, string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, "", err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	size, err := io.Copy(hash, file)
+	if err != nil {
+		return 0, "", err
+	}
+	return size, hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func copyVerifiedArtifact(source string, destination io.Writer, expected Artifact) error {
