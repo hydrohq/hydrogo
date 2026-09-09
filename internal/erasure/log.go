@@ -60,12 +60,8 @@ func New(path string) (*Log, error) {
 	if err := os.MkdirAll(parent, 0o750); err != nil {
 		return nil, err
 	}
-	parentInfo, err := os.Lstat(parent)
-	if err != nil {
+	if err := rejectSymlinkComponents(parent); err != nil {
 		return nil, err
-	}
-	if parentInfo.Mode()&os.ModeSymlink != 0 || !parentInfo.IsDir() {
-		return nil, errors.New("erasure log parent must be a real directory")
 	}
 	if info, err := os.Lstat(path); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
@@ -75,6 +71,33 @@ func New(path string) (*Log, error) {
 		return nil, err
 	}
 	return &Log{path: path}, nil
+}
+
+func rejectSymlinkComponents(path string) error {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	volume := filepath.VolumeName(absolute)
+	current := volume + string(os.PathSeparator)
+	remainder := strings.TrimPrefix(absolute, current)
+	for _, component := range strings.Split(remainder, string(os.PathSeparator)) {
+		if component == "" {
+			continue
+		}
+		current = filepath.Join(current, component)
+		info, err := os.Lstat(current)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("erasure log parent cannot contain a symlink: %s", current)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("erasure log parent is not a directory: %s", current)
+		}
+	}
+	return nil
 }
 
 func (l *Log) Append(intent Intent) (Checkpoint, error) {

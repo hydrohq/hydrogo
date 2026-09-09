@@ -121,6 +121,21 @@ func TestNewRejectsSymlinkedLogParent(t *testing.T) {
 	}
 }
 
+func TestNewRejectsNestedSymlinkedLogParent(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target-dir")
+	if err := os.MkdirAll(filepath.Join(target, "nested"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "log-dir-link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if _, err := New(filepath.Join(link, "nested", "erasure.jsonl")); err == nil {
+		t.Fatal("nested symlinked erasure log parent was accepted")
+	}
+}
+
 func TestReplayFromCheckpointRequiresHashAnchor(t *testing.T) {
 	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
 	if err != nil {
