@@ -78,6 +78,8 @@ jobs:
       - name: Build external News Edition
         working-directory: examples/news-edition
         run: go build ./...
+      - name: Run Linux binary health/readiness smoke
+        run: bash ./scripts/smoke-local.sh
       - name: Prove Go internal boundary
         working-directory: tests/fixtures/internal-import-denied
         run: |

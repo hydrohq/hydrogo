@@ -101,6 +101,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke-local.ps1
 
 The drill builds an isolated binary, migrates a temporary SQLite database, starts the
 server on an ephemeral loopback port, and verifies both `/healthz` and `/readyz`.
+Linux CI runs the equivalent `scripts/smoke-local.sh` drill.
 
 Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and `HYDRO_ENABLE_HSTS=true` (or the equivalent `security.secure_cookies` and `security.enable_hsts` YAML fields) together with an HTTPS `HYDRO_PUBLIC_ORIGIN`. Configuration rejects HSTS without an HTTPS canonical origin or secure cookies. These settings remain disabled by default for local HTTP development.
 
