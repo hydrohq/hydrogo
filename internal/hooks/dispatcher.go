@@ -29,38 +29,76 @@ type Dispatcher struct {
 	seen     map[string]struct{}
 	order    []string
 	handlers []Handler
+	inFlight map[string]*delivery
+}
+
+type delivery struct {
+	done chan struct{}
+	err  error
 }
 
 func New(maxSeen int, handlers ...Handler) *Dispatcher {
 	if maxSeen < 1 {
 		maxSeen = 1
 	}
-	return &Dispatcher{maxSeen: maxSeen, seen: make(map[string]struct{}), handlers: append([]Handler(nil), handlers...)}
+	return &Dispatcher{maxSeen: maxSeen, seen: make(map[string]struct{}), handlers: append([]Handler(nil), handlers...), inFlight: make(map[string]*delivery)}
 }
 
 func (d *Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	if d == nil || strings.TrimSpace(event.ID) == "" || strings.TrimSpace(event.Type) == "" || strings.TrimSpace(event.AggregateID) == "" || event.Version <= 0 {
 		return ErrInvalidEvent
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	d.mu.Lock()
-	defer d.mu.Unlock()
+	if d.seen == nil {
+		d.seen = make(map[string]struct{})
+	}
+	if d.inFlight == nil {
+		d.inFlight = make(map[string]*delivery)
+	}
 	if _, ok := d.seen[event.ID]; ok {
+		d.mu.Unlock()
 		return nil
 	}
-	for _, handler := range d.handlers {
+	if current, ok := d.inFlight[event.ID]; ok {
+		d.mu.Unlock()
+		select {
+		case <-current.done:
+			return current.err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	delivery := &delivery{done: make(chan struct{})}
+	d.inFlight[event.ID] = delivery
+	handlers := append([]Handler(nil), d.handlers...)
+	d.mu.Unlock()
+
+	var err error
+	for _, handler := range handlers {
 		if handler == nil {
 			continue
 		}
-		if err := handler(ctx, event); err != nil {
-			return err
+		if err = handler(ctx, event); err != nil {
+			break
 		}
 	}
-	d.seen[event.ID] = struct{}{}
-	d.order = append(d.order, event.ID)
-	if len(d.order) > d.maxSeen {
-		oldest := d.order[0]
-		d.order = d.order[1:]
-		delete(d.seen, oldest)
+
+	d.mu.Lock()
+	delete(d.inFlight, event.ID)
+	delivery.err = err
+	if err == nil {
+		d.seen[event.ID] = struct{}{}
+		d.order = append(d.order, event.ID)
+		if len(d.order) > d.maxSeen {
+			oldest := d.order[0]
+			d.order = d.order[1:]
+			delete(d.seen, oldest)
+		}
 	}
-	return nil
+	close(delivery.done)
+	d.mu.Unlock()
+	return err
 }
