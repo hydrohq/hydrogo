@@ -95,6 +95,13 @@ func TestUnmarshalReaderEnforcesByteLimit(t *testing.T) {
 	}
 }
 
+func TestImportRejectsMissingExecutor(t *testing.T) {
+	err := Import(context.Background(), nil, Document{FormatVersion: 1}, database.SQLite)
+	if !errors.Is(err, database.ErrDatabaseRequired) {
+		t.Fatalf("error = %v, want %v", err, database.ErrDatabaseRequired)
+	}
+}
+
 func TestExportWithLimitRejectsOversizedRowsDuringRead(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "bounded-export.sqlite"))

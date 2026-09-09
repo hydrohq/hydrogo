@@ -133,6 +133,9 @@ func UnmarshalReader(reader io.Reader, maxBytes int64) (Document, error) {
 // Import replaces only the allowlisted content tables. Authentication,
 // session, audit, outbox and job state are intentionally never imported.
 func Import(ctx context.Context, tx database.Executor, document Document, dialect database.Dialect) error {
+	if tx == nil {
+		return database.ErrDatabaseRequired
+	}
 	if err := validate(document); err != nil {
 		return err
 	}
