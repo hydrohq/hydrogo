@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 )
 
 var ErrInvalidSEOOrigin = errors.New("invalid SEO origin")
@@ -37,7 +39,7 @@ func BuildSEO(input SEOInput) (SEOView, error) {
 	}
 	path := normalizePath(input.Path)
 	if input.Locale != "" {
-		path = "/" + strings.Trim(strings.ToLower(input.Locale), "/") + path
+		path = "/" + canonical.Locale(input.Locale) + path
 	}
 	canonical := strings.TrimRight(origin, "/") + encodePath(path)
 	title := strings.TrimSpace(input.Title)

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
@@ -77,7 +78,7 @@ func (s Service) SaveNavigation(ctx context.Context, locale string, items []Navi
 }
 
 func normalizeNavigation(locale string, items []NavigationItem) (string, []NavigationItem, error) {
-	locale = strings.ToLower(strings.TrimSpace(locale))
+	locale = canonical.Locale(locale)
 	if locale == "" {
 		return "", nil, ErrInvalidNavigation
 	}

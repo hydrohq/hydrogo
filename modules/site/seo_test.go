@@ -14,6 +14,10 @@ func TestBuildSEOCanonicalAndFallbacks(t *testing.T) {
 	if view.CanonicalURL != "https://example.com/tr/hizmetler" || view.OGTitle != "Hizmetler" || view.OGDescription != "Açıklama" {
 		t.Fatalf("SEO view = %#v", view)
 	}
+	unicodeView, err := BuildSEO(SEOInput{Origin: "https://example.com", Locale: "TR", Path: "/cafe\u0301"})
+	if err != nil || unicodeView.CanonicalURL != "https://example.com/tr/caf%C3%A9" {
+		t.Fatalf("Unicode canonical URL = %#v/%v", unicodeView, err)
+	}
 	if _, err := BuildSEO(SEOInput{Origin: "javascript:alert(1)", Path: "/x"}); err == nil {
 		t.Fatal("unsafe SEO origin accepted")
 	}
