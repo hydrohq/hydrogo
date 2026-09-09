@@ -191,6 +191,9 @@ func (c Config) Validate() error {
 	if c.Security.SecureCookies && (publicOrigin == nil || publicOrigin.Scheme != "https") {
 		return errors.New("secure cookies require an HTTPS public origin")
 	}
+	if publicOrigin != nil && publicOrigin.Scheme == "https" && !c.Security.SecureCookies {
+		return errors.New("HTTPS public origin requires secure cookies")
+	}
 	switch c.Database.Dialect {
 	case database.SQLite, database.Postgres:
 	default:
