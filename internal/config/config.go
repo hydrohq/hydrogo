@@ -177,7 +177,7 @@ func (c Config) Validate() error {
 	var publicOrigin *url.URL
 	if strings.TrimSpace(c.HTTP.PublicOrigin) != "" {
 		parsed, err := url.Parse(c.HTTP.PublicOrigin)
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		if err != nil || !isHTTPOrigin(parsed) {
 			return fmt.Errorf("invalid public origin %q", c.HTTP.PublicOrigin)
 		}
 		publicOrigin = parsed
@@ -221,4 +221,14 @@ func (c Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+func isHTTPOrigin(parsed *url.URL) bool {
+	if parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
+		return false
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return false
+	}
+	return (parsed.Path == "" || parsed.Path == "/") && parsed.RawQuery == "" && parsed.Fragment == ""
 }

@@ -112,6 +112,23 @@ func TestLoadSecurityTransportOptions(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsNonOriginPublicURLs(t *testing.T) {
+	for _, value := range []string{
+		"https://user:pass@example.test",
+		"https://example.test/base",
+		"https://example.test/?tracking=1",
+		"https://example.test/#fragment",
+	} {
+		_, err := Load("", lookup(map[string]string{
+			"HYDRO_DATABASE_DSN":  "file:test.sqlite",
+			"HYDRO_PUBLIC_ORIGIN": value,
+		}), Overrides{})
+		if err == nil || !strings.Contains(err.Error(), "invalid public origin") {
+			t.Errorf("public origin %q error = %v", value, err)
+		}
+	}
+}
+
 func writeConfig(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "hydro.yaml")
