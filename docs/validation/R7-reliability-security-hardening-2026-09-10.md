@@ -1,7 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `06f57e8`  
+**Repository commit:** `03829dc`  
+**Validation baseline:** `06f57e8`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
