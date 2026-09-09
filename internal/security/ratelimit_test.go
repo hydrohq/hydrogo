@@ -26,6 +26,26 @@ func TestDistributedLimiterFailsClosedOnStoreFailure(t *testing.T) {
 	}
 }
 
+func TestDistributedLimiterRejectsEmptyKeysBeforeStore(t *testing.T) {
+	calls := 0
+	store := distributedStoreFunc(func(context.Context, string) (bool, error) {
+		calls++
+		return true, nil
+	})
+	if (DistributedLimiter{Store: store}).Allow(context.Background(), "") {
+		t.Fatal("empty distributed limiter key was accepted")
+	}
+	if calls != 0 {
+		t.Fatalf("empty key reached shared store %d times", calls)
+	}
+}
+
+type distributedStoreFunc func(context.Context, string) (bool, error)
+
+func (f distributedStoreFunc) Allow(ctx context.Context, key string) (bool, error) {
+	return f(ctx, key)
+}
+
 func TestAttemptLimiterBoundsAttemptsAndMemory(t *testing.T) {
 	limiter := NewAttemptLimiter(1, 2, time.Hour)
 	if !limiter.Allow("first") || !limiter.Allow("first") || limiter.Allow("first") {
