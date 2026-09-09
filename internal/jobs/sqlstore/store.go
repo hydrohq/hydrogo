@@ -85,6 +85,63 @@ func (s Store) RequeueDeadLetter(ctx context.Context, db database.Executor, id s
 	return nil
 }
 
+// PurgeDeadLetters removes at most limit old dead-letter rows. It never
+// touches leased or claimable jobs, and is intentionally bounded per call.
+func (s Store) PurgeDeadLetters(ctx context.Context, db database.Executor, before time.Time, limit int) (int, error) {
+	if before.IsZero() {
+		return 0, errors.New("dead-letter purge cutoff is required")
+	}
+	if limit < 1 {
+		return 0, nil
+	}
+	if limit > 10000 {
+		limit = 10000
+	}
+	dead := "1"
+	if s.Dialect == database.Postgres {
+		dead = "TRUE"
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return 0, errors.New("database executor does not support row queries")
+	}
+	rows, err := queryer.QueryContext(ctx, "SELECT id FROM jobs WHERE dead_lettered = "+dead+" AND created_at < "+s.p(1)+" ORDER BY created_at, id LIMIT "+s.p(2), formatTime(before.UTC()), limit)
+	if err != nil {
+		return 0, err
+	}
+	ids := make([]string, 0, limit)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return 0, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, id := range ids {
+		result, err := db.ExecContext(ctx, "DELETE FROM jobs WHERE id = "+s.p(1)+" AND dead_lettered = "+dead, id)
+		if err != nil {
+			return removed, err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return removed, err
+		}
+		removed += int(count)
+	}
+	return removed, nil
+}
+
 func (s Store) Enqueue(ctx context.Context, db database.Executor, job jobs.Job) error {
 	if strings.TrimSpace(job.ID) == "" || strings.TrimSpace(job.Type) == "" {
 		return jobs.ErrJobConflict

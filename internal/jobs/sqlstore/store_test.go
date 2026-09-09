@@ -101,6 +101,17 @@ func runDurableJobLeaseContract(t *testing.T, db database.Executor, dialect data
 	if err := store.Enqueue(ctx, db, jobs.Job{ID: "job-2", Type: "news.publish", Payload: "{}", AvailableAt: now, CreatedAt: now}); err != nil {
 		t.Fatalf("dead-lettered job consumed queue capacity: %v", err)
 	}
+	claimed, token, ok, err = store.Claim(ctx, db, "worker-e", now, time.Minute)
+	if err != nil || !ok {
+		t.Fatalf("second job claim = %+v/%q/%v/%v", claimed, token, ok, err)
+	}
+	if err := store.DeadLetter(ctx, db, claimed.ID, "worker-e", token, "cleanup me"); err != nil {
+		t.Fatal(err)
+	}
+	removed, err := store.PurgeDeadLetters(ctx, db, now.Add(time.Second), 10)
+	if err != nil || removed != 1 {
+		t.Fatalf("dead-letter purge = %d/%v", removed, err)
+	}
 }
 
 func TestDialectBooleanLiterals(t *testing.T) {

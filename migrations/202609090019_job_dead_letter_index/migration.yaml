@@ -1,0 +1,25 @@
+id: "202609090019_job_dead_letter_index"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "3b3d1598fd7d9cbb40e813619364d68c524aa0844f6887c49ee699181aee7b26"
+  postgres: "3b3d1598fd7d9cbb40e813619364d68c524aa0844f6887c49ee699181aee7b26"
+dependencies:
+  - "202609090018_job_retry_state"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Durable jobs retry state is present"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "One bounded index entry per job"
+compatibility: "Indexes dead-letter retention scans without changing job state"
+smoke:
+  - "Dead-letter retention selects oldest rows without claiming active jobs"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

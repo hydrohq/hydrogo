@@ -149,9 +149,10 @@ Dead-lettered background jobs can be reviewed without exposing their payloads:
 ```text
 hydro jobs dead-letter list --database-dialect sqlite --database-dsn PATH --json
 hydro jobs dead-letter requeue --id JOB_ID --confirm --database-dialect sqlite --database-dsn PATH
+hydro jobs dead-letter purge --older-than 720h --limit 100 --confirm --database-dialect sqlite --database-dsn PATH
 ```
 
-Requeue is an explicit operator action and preserves the job attempt count and last error for auditability.
+Requeue and purge are explicit operator actions. Requeue preserves the job attempt count and last error; purge is bounded by age and batch size.
 
 Run the automated release gates after configuring a PostgreSQL contract database:
 

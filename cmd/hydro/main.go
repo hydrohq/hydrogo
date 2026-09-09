@@ -816,6 +816,30 @@ func jobsCommand(args []string, stdout, stderr io.Writer) error {
 		}
 		_, err = fmt.Fprintf(stdout, "dead-letter-requeued id=%s\n", *id)
 		return err
+	case "purge":
+		olderThan := flags.Duration("older-than", 0, "Delete dead-letter jobs older than this duration, for example 720h")
+		limit := flags.Int("limit", 100, "Maximum number of jobs to delete")
+		confirm := flags.Bool("confirm", false, "Confirm deletion of the selected jobs")
+		if err := flags.Parse(args[2:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 || *olderThan <= 0 || *limit < 1 || *limit > 10000 {
+			return errors.New("purge requires --older-than, no positional arguments, and --limit between 1 and 10000")
+		}
+		if !*confirm {
+			return errors.New("purge requires --confirm")
+		}
+		cfg, budget, db, err := openJobsDatabase(flags, values)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		removed, err := (jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}).PurgeDeadLetters(context.Background(), db, time.Now().UTC().Add(-*olderThan), *limit)
+		if err != nil {
+			return fmt.Errorf("purge dead-letter jobs: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "dead-letter-purged count=%d\n", removed)
+		return err
 	default:
 		return fmt.Errorf("unknown jobs dead-letter subcommand %q", args[1])
 	}
@@ -1217,6 +1241,7 @@ Usage:
   hydro release verify --manifest PATH --public-key PATH
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
+  hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]
   hydro serve [runtime flags]
   hydro help
 

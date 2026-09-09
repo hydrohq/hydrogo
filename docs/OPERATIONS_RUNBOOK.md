@@ -45,6 +45,8 @@ News worker concurrency seçilen kapasite profilinden gelir: Compact tek worker,
 
 Dead-letter job'lar önce `hydro jobs dead-letter list` ile incelenir. Payload CLI çıktısına dahil edilmez. Operatör doğrulanmış bir düzeltmeden sonra yalnızca açık onayla `hydro jobs dead-letter requeue --id ID --confirm` çalıştırır; attempt ve son hata tanısı korunur.
 
+Artık gereksiz dead-letter kayıtları yalnızca saklama süresi ve batch sınırı verilerek temizlenir: `hydro jobs dead-letter purge --older-than 720h --limit 100 --confirm`. Aktif veya claim edilebilir işler bu işlemden etkilenmez.
+
 ## Mevcut limitler
 
 - Login/MFA: process-local limiter, 10.000 anahtar, anahtar başına 5 deneme / 1 dakika.
