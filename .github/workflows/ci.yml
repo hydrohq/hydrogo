@@ -51,8 +51,8 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client-18
           fi
-      test -x /usr/lib/postgresql/18/bin/pg_dump
-      test -x /usr/lib/postgresql/18/bin/pg_restore
+          test -x /usr/lib/postgresql/18/bin/pg_dump
+          test -x /usr/lib/postgresql/18/bin/pg_restore
       - run: go mod verify
       - name: Scan dependencies for reachable vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
