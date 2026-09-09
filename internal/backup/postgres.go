@@ -188,7 +188,16 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 			port = "5432"
 		}
 		database := strings.TrimPrefix(parsed.Path, "/")
-		line := strings.Join([]string{host, port, database, username, password}, ":") + "\n"
+		fields := []string{host, port, database, username, password}
+		for i, field := range fields {
+			escaped, err := escapePGPassField(field)
+			if err != nil {
+				passFile.Close()
+				return err
+			}
+			fields[i] = escaped
+		}
+		line := strings.Join(fields, ":") + "\n"
 		if _, err := passFile.WriteString(line); err != nil {
 			passFile.Close()
 			return err
@@ -222,6 +231,15 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 		return fmt.Errorf("%s failed: %w: %s", operation, err, strings.TrimSpace(string(output)))
 	}
 	return nil
+}
+
+func escapePGPassField(field string) (string, error) {
+	if strings.ContainsAny(field, "\r\n") {
+		return "", errors.New("PostgreSQL DSN contains a newline that cannot be represented in PGPASSFILE")
+	}
+	field = strings.ReplaceAll(field, `\`, `\\`)
+	field = strings.ReplaceAll(field, ":", `\:`)
+	return field, nil
 }
 
 func postgresAdminDSN(dsn string) (string, error) {

@@ -119,6 +119,19 @@ func TestPostgresDumpRestoreContract(t *testing.T) {
 	}
 }
 
+func TestEscapePGPassField(t *testing.T) {
+	got, err := escapePGPassField(`pa:ss\\word`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != `pa\:ss\\\\word` {
+		t.Fatalf("escaped pgpass field = %q", got)
+	}
+	if _, err := escapePGPassField("line\nbreak"); err == nil {
+		t.Fatal("newline accepted in pgpass field")
+	}
+}
+
 func replacePostgresDatabase(t *testing.T, dsn, databaseName string) string {
 	t.Helper()
 	parsed, err := url.Parse(dsn)
