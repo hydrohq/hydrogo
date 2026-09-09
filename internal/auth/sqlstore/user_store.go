@@ -21,6 +21,12 @@ func NewUserStore(db *sql.DB, dialect database.Dialect) *UserStore {
 }
 
 func (s *UserStore) Create(ctx context.Context, u *auth.User) error {
+	if err := requireUserDB(s); err != nil {
+		return err
+	}
+	if u == nil {
+		return errors.New("user is required")
+	}
 	now := time.Now().UTC()
 	if u.CreatedAt.IsZero() {
 		u.CreatedAt = now
@@ -57,6 +63,15 @@ func (s *UserStore) Create(ctx context.Context, u *auth.User) error {
 }
 
 func (s *UserStore) CreateUserTx(ctx context.Context, tx database.Executor, u *auth.User) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
+	if u == nil {
+		return errors.New("user is required")
+	}
 	now := time.Now().UTC()
 	if u.CreatedAt.IsZero() {
 		u.CreatedAt = now
@@ -79,6 +94,9 @@ func (s *UserStore) CreateUserTx(ctx context.Context, tx database.Executor, u *a
 }
 
 func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) {
+	if err := requireUserDB(s); err != nil {
+		return nil, err
+	}
 	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = $1`
 	if s.dialect == database.SQLite {
 		query = `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = ?`
@@ -106,6 +124,9 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) 
 }
 
 func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, error) {
+	if err := requireUserDB(s); err != nil {
+		return nil, err
+	}
 	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE email = $1`
 	if s.dialect == database.SQLite {
 		query = `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE email = ?`
@@ -133,6 +154,9 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 }
 
 func (s *UserStore) Count(ctx context.Context) (int64, error) {
+	if err := requireUserDB(s); err != nil {
+		return 0, err
+	}
 	var count int64
 	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
 	if err != nil {
@@ -142,6 +166,9 @@ func (s *UserStore) Count(ctx context.Context) (int64, error) {
 }
 
 func (s *UserStore) SetActive(ctx context.Context, id string, active bool) error {
+	if err := requireUserDB(s); err != nil {
+		return err
+	}
 	query := `UPDATE users SET active = $1, updated_at = $2 WHERE id = $3`
 	args := []any{active, time.Now().UTC(), id}
 	if s.dialect == database.SQLite {

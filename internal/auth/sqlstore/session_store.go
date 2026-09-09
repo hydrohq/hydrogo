@@ -21,6 +21,12 @@ func NewSessionStore(db *sql.DB, dialect database.Dialect) *SessionStore {
 }
 
 func (s *SessionStore) Create(ctx context.Context, sess *auth.Session) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
+	if sess == nil {
+		return errors.New("session is required")
+	}
 	now := time.Now().UTC()
 	if sess.CreatedAt.IsZero() {
 		sess.CreatedAt = now
@@ -53,6 +59,9 @@ func (s *SessionStore) Create(ctx context.Context, sess *auth.Session) error {
 }
 
 func (s *SessionStore) GetByTokenHash(ctx context.Context, tokenHash string) (*auth.Session, error) {
+	if err := requireSessionStore(s); err != nil {
+		return nil, err
+	}
 	query := `SELECT id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address
               FROM sessions WHERE token_hash = $1`
 	if s.dialect == database.SQLite {
@@ -87,6 +96,9 @@ func (s *SessionStore) GetByTokenHash(ctx context.Context, tokenHash string) (*a
 }
 
 func (s *SessionStore) DeleteByTokenHash(ctx context.Context, tokenHash string) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
 	query := `DELETE FROM sessions WHERE token_hash = $1`
 	if s.dialect == database.SQLite {
 		query = `DELETE FROM sessions WHERE token_hash = ?`
@@ -99,6 +111,9 @@ func (s *SessionStore) DeleteByTokenHash(ctx context.Context, tokenHash string) 
 }
 
 func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
 	query := `DELETE FROM sessions WHERE user_id = $1`
 	if s.dialect == database.SQLite {
 		query = `DELETE FROM sessions WHERE user_id = ?`
@@ -111,6 +126,12 @@ func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error 
 }
 
 func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executor, userID string) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
 	query := `DELETE FROM sessions WHERE user_id = $1`
 	if s.dialect == database.SQLite {
 		query = `DELETE FROM sessions WHERE user_id = ?`
@@ -120,6 +141,9 @@ func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executo
 }
 
 func (s *SessionStore) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
+	if err := requireSessionStore(s); err != nil {
+		return 0, err
+	}
 	query := `DELETE FROM sessions WHERE expires_at <= $1`
 	var arg any = now.UTC()
 	if s.dialect == database.SQLite {
@@ -134,6 +158,9 @@ func (s *SessionStore) DeleteExpired(ctx context.Context, now time.Time) (int64,
 }
 
 func (s *SessionStore) Touch(ctx context.Context, tokenHash string, lastSeen time.Time) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
 	query := `UPDATE sessions SET last_seen_at = $1 WHERE token_hash = $2`
 	var arg any = lastSeen.UTC()
 	if s.dialect == database.SQLite {

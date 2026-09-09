@@ -12,6 +12,12 @@ import (
 )
 
 func (s *UserStore) UpdatePassword(ctx context.Context, tx database.Executor, userID, passwordHash string) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
 	query := `UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3`
 	args := []any{passwordHash, time.Now().UTC(), userID}
 	if s.dialect == database.SQLite {
@@ -33,6 +39,12 @@ func (s *UserStore) UpdatePassword(ctx context.Context, tx database.Executor, us
 }
 
 func (s *UserStore) CreateRecoveryToken(ctx context.Context, tx database.Executor, id, userID, purpose, tokenHash string, expiresAt, createdAt time.Time) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
 	query := `INSERT INTO auth_recovery_tokens (id, user_id, purpose, token_hash, expires_at, created_at) VALUES ($1, $2, $3, $4, $5, $6)`
 	args := []any{id, userID, purpose, tokenHash, expiresAt, createdAt}
 	if s.dialect == database.SQLite {
@@ -44,6 +56,12 @@ func (s *UserStore) CreateRecoveryToken(ctx context.Context, tx database.Executo
 }
 
 func (s *UserStore) ConsumeRecoveryToken(ctx context.Context, tx database.Executor, purpose, tokenHash string, now time.Time) (string, error) {
+	if err := requireUserStore(s); err != nil {
+		return "", err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return "", err
+	}
 	query := `SELECT user_id FROM auth_recovery_tokens WHERE purpose = $1 AND token_hash = $2 AND consumed_at IS NULL AND expires_at > $3`
 	argNow := any(now)
 	if s.dialect == database.SQLite {

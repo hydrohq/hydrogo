@@ -10,6 +10,12 @@ import (
 )
 
 func (s *UserStore) CreateInvite(ctx context.Context, tx database.Executor, id, email string, role auth.Role, tokenHash string, expiresAt, createdAt time.Time) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
 	query := `INSERT INTO auth_invites (id,email,role,token_hash,expires_at,created_at) VALUES ($1,$2,$3,$4,$5,$6)`
 	args := []any{id, email, string(role), tokenHash, expiresAt, createdAt}
 	if s.dialect == database.SQLite {
@@ -22,6 +28,12 @@ func (s *UserStore) CreateInvite(ctx context.Context, tx database.Executor, id, 
 }
 
 func (s *UserStore) ConsumeInvite(ctx context.Context, tx database.Executor, tokenHash string, now time.Time) (string, auth.Role, error) {
+	if err := requireUserStore(s); err != nil {
+		return "", "", err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return "", "", err
+	}
 	query := `SELECT email,role FROM auth_invites WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > $2`
 	args := []any{tokenHash, now}
 	if s.dialect == database.SQLite {

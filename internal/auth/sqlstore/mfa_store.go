@@ -12,6 +12,12 @@ import (
 )
 
 func (s *UserStore) PutFactor(ctx context.Context, tx database.Executor, userID string, ciphertext []byte, enabled bool) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	query := `INSERT INTO user_mfa (user_id, secret_ciphertext, enabled, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) ON CONFLICT (user_id) DO UPDATE SET secret_ciphertext = EXCLUDED.secret_ciphertext, enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at`
 	args := []any{userID, ciphertext, enabled, now}
@@ -24,6 +30,12 @@ func (s *UserStore) PutFactor(ctx context.Context, tx database.Executor, userID 
 }
 
 func (s *UserStore) GetFactor(ctx context.Context, db database.Executor, userID string) ([]byte, bool, error) {
+	if err := requireUserStore(s); err != nil {
+		return nil, false, err
+	}
+	if err := requireAuthExecutor(db); err != nil {
+		return nil, false, err
+	}
 	query := `SELECT secret_ciphertext, enabled FROM user_mfa WHERE user_id = $1`
 	if s.dialect == database.SQLite {
 		query = `SELECT secret_ciphertext, enabled FROM user_mfa WHERE user_id = ?`
@@ -40,6 +52,12 @@ func (s *UserStore) GetFactor(ctx context.Context, db database.Executor, userID 
 }
 
 func (s *UserStore) PutRecoveryCode(ctx context.Context, tx database.Executor, userID, id, codeHash string) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
 	query := `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES ($1, $2, $3)`
 	if s.dialect == database.SQLite {
 		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES (?, ?, ?)`
@@ -49,6 +67,12 @@ func (s *UserStore) PutRecoveryCode(ctx context.Context, tx database.Executor, u
 }
 
 func (s *UserStore) ConsumeRecoveryCode(ctx context.Context, tx database.Executor, userID, codeHash string, usedAt time.Time) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
 	query := `UPDATE mfa_recovery_codes SET used_at = $1 WHERE user_id = $2 AND code_hash = $3 AND used_at IS NULL`
 	args := []any{usedAt, userID, codeHash}
 	if s.dialect == database.SQLite {
