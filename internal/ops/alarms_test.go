@@ -6,7 +6,7 @@ import (
 )
 
 func TestEvaluateFailsClosedForMissingBackupAndCriticalSignals(t *testing.T) {
-	alarms := Evaluate(Snapshot{Now: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), BackupMaxAge: time.Hour, DiskFreeBytes: 10, DiskMinBytes: 100, MigrationFailed: true, ReadinessFailures: 1, SMTPFailures: 2, DeadLettered: 1})
+	alarms := Evaluate(Snapshot{Now: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), BackupMaxAge: time.Hour, DiskFreeBytes: 10, DiskMinBytes: 100, MigrationFailed: true, ReadinessFailed: true, SMTPFailures: 2, DeadLettered: 1})
 	if len(alarms) != 6 {
 		t.Fatalf("alarm count = %d", len(alarms))
 	}

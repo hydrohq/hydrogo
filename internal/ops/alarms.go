@@ -4,15 +4,15 @@ package ops
 import "time"
 
 type Snapshot struct {
-	Now               time.Time
-	LastBackup        time.Time
-	BackupMaxAge      time.Duration
-	DiskFreeBytes     uint64
-	DiskMinBytes      uint64
-	MigrationFailed   bool
-	ReadinessFailures int64
-	SMTPFailures      int
-	DeadLettered      int64
+	Now             time.Time
+	LastBackup      time.Time
+	BackupMaxAge    time.Duration
+	DiskFreeBytes   uint64
+	DiskMinBytes    uint64
+	MigrationFailed bool
+	ReadinessFailed bool
+	SMTPFailures    int
+	DeadLettered    int64
 }
 
 type Alarm struct {
@@ -32,7 +32,7 @@ func Evaluate(s Snapshot) []Alarm {
 	if s.MigrationFailed {
 		alarms = append(alarms, Alarm{Code: "migration_failed", Severity: "critical", Message: "last migration did not complete successfully"})
 	}
-	if s.ReadinessFailures > 0 {
+	if s.ReadinessFailed {
 		alarms = append(alarms, Alarm{Code: "readiness_failed", Severity: "critical", Message: "readiness checks are failing and the instance is not safe to receive traffic"})
 	}
 	if s.SMTPFailures > 0 {
