@@ -69,6 +69,9 @@ func TestReadinessFailureDoesNotLeakDetails(t *testing.T) {
 	if strings.Contains(res.Body.String(), "secret") {
 		t.Fatalf("readiness leaked internal error: %q", res.Body.String())
 	}
+	if !strings.Contains(res.Body.String(), `"code":"service_unavailable"`) || !strings.Contains(res.Body.String(), `"request_id":"`) {
+		t.Fatalf("readiness error is not machine-readable: %q", res.Body.String())
+	}
 }
 
 func TestProtectedRouteAuthorization(t *testing.T) {
@@ -92,6 +95,12 @@ func TestProtectedRouteAuthorization(t *testing.T) {
 	handler.ServeHTTP(recUnauth, reqUnauth)
 	if recUnauth.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 Unauthorized, got %d", recUnauth.Code)
+	}
+	if got := recUnauth.Header().Get("Content-Type"); !strings.HasPrefix(got, "application/json") {
+		t.Fatalf("unauthorized content type = %q, want JSON", got)
+	}
+	if !strings.Contains(recUnauth.Body.String(), `"code":"unauthorized"`) {
+		t.Fatalf("unauthorized body = %q", recUnauth.Body.String())
 	}
 
 	// Authorized request

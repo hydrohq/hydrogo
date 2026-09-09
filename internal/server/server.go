@@ -114,6 +114,9 @@ func NewHandler(config Config) http.Handler {
 	// Generate a fresh correlation identifier before security and auth middleware.
 	handler = security.RequestIDMiddleware(handler)
 
+	// Normalize handler errors after a request ID has been attached to context.
+	handler = security.ErrorMiddleware(handler)
+
 	// Apply CSRF protection
 	handler = security.CSRFMiddleware(config.SecureCookie)(handler)
 
