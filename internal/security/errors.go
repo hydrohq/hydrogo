@@ -42,6 +42,10 @@ func newErrorCapture(destination http.ResponseWriter) *errorCapture {
 
 func (c *errorCapture) Header() http.Header { return c.header }
 
+// Unwrap lets http.ResponseController reach optional capabilities of the
+// underlying writer without exposing the buffered error body directly.
+func (c *errorCapture) Unwrap() http.ResponseWriter { return c.destination }
+
 func (c *errorCapture) WriteHeader(status int) {
 	if c.status != 0 {
 		return

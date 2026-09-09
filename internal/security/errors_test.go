@@ -51,3 +51,20 @@ func TestErrorMiddlewareDoesNotFlushInternalErrorDetails(t *testing.T) {
 		t.Fatalf("internal error details leaked after flush: %q", res.Body.String())
 	}
 }
+
+func TestErrorMiddlewareUnwrapsResponseWriter(t *testing.T) {
+	underlying := httptest.NewRecorder()
+	seen := false
+	handler := ErrorMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		unwrapper, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok || unwrapper.Unwrap() != underlying {
+			t.Error("error middleware did not expose the underlying response writer")
+			return
+		}
+		seen = true
+	}))
+	handler.ServeHTTP(underlying, httptest.NewRequest(http.MethodGet, "/", nil))
+	if !seen {
+		t.Fatal("underlying response writer was not unwrapped")
+	}
+}
