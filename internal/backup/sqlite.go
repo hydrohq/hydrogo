@@ -151,6 +151,14 @@ func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destina
 		}
 	}
 	manifest := Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: dbDigest, Media: media}
+	// Media is hashed before copying so the source can be measured and bounded.
+	// Verify the assembled tree again before declaring success; a concurrent
+	// writer or a copy-time failure must never produce a seemingly valid backup
+	// whose manifest does not match its contents.
+	if err := Verify(destination, manifest); err != nil {
+		cleanup()
+		return Manifest{}, fmt.Errorf("verify snapshot: %w", err)
+	}
 	if err := WriteManifest(filepath.Join(destination, "manifest.json"), manifest); err != nil {
 		cleanup()
 		return Manifest{}, err
