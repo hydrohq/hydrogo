@@ -112,6 +112,24 @@ func TestPortableRejectsTypedNilExecutor(t *testing.T) {
 	}
 }
 
+func TestPortableAPIsNormalizeNilContext(t *testing.T) {
+	db, err := database.Open(nil, database.SQLite, filepath.Join(t.TempDir(), "nil-portable-context.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(nil, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	document, err := Export(nil, db)
+	if err != nil {
+		t.Fatalf("export with nil context failed: %v", err)
+	}
+	if err := Import(nil, db, document, database.SQLite); err != nil {
+		t.Fatalf("import with nil context failed: %v", err)
+	}
+}
+
 func TestExportWithLimitRejectsOversizedRowsDuringRead(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "bounded-export.sqlite"))

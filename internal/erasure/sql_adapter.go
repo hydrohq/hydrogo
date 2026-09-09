@@ -16,6 +16,9 @@ type SQLAdapter struct {
 }
 
 func (a SQLAdapter) Apply(ctx context.Context, db database.Executor, intent Intent) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if a.Dialect != database.SQLite && a.Dialect != database.Postgres {
 		return fmt.Errorf("unsupported database dialect %q", a.Dialect)
 	}

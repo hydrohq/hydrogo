@@ -64,6 +64,9 @@ func Export(ctx context.Context, db database.Executor) (Document, error) {
 // returned Document format is still materialized for callers, but an
 // untrusted or unexpectedly large database cannot grow it without limit.
 func ExportWithLimit(ctx context.Context, db database.Executor, maxBytes int64) (Document, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if maxBytes <= 0 {
 		return Document{}, ErrDocumentTooLarge
 	}
@@ -136,6 +139,9 @@ func UnmarshalReader(reader io.Reader, maxBytes int64) (Document, error) {
 // Import replaces only the allowlisted content tables. Authentication,
 // session, audit, outbox and job state are intentionally never imported.
 func Import(ctx context.Context, tx database.Executor, document Document, dialect database.Dialect) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
