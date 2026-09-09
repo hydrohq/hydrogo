@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `da15818`  
-**Validation baseline:** `da15818`  
+**Repository commit:** `2d7239e`  
+**Validation baseline:** `2d7239e`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -31,6 +31,9 @@ verification improvements after the R3/R5 contract work.
   duplicate events, and safely handles nested/reentrant dispatch. HTTP error
   buffering preserves the underlying `ResponseWriter` capabilities through
   `Unwrap`.
+- Strict JSON request decoding fails closed for nil requests/bodies and invalid
+  limits, while retaining the unknown-field, single-value and byte-bound
+  contract.
 
 ## Evidence commands
 
