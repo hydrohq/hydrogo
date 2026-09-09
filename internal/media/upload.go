@@ -33,8 +33,9 @@ var (
 )
 
 const (
-	VisibilityPrivate = "private"
-	VisibilityPublic  = "public"
+	VisibilityPrivate    = "private"
+	VisibilityPublic     = "public"
+	maxUploadConcurrency = 1024
 )
 
 type Asset struct {
@@ -86,8 +87,14 @@ func NewUploaderWithConcurrency(storageDir string, maxBytes int64, maxConcurrent
 	if maxBytes <= 0 {
 		maxBytes = 10 << 20 // 10 MB default
 	}
+	if maxBytes == 1<<63-1 {
+		return nil, errors.New("maximum upload size is too large")
+	}
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1
+	}
+	if maxConcurrent > maxUploadConcurrency {
+		return nil, fmt.Errorf("maximum upload concurrency is %d", maxUploadConcurrency)
 	}
 	if err := os.MkdirAll(storageDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)

@@ -162,6 +162,15 @@ func TestNewUploaderRejectsEmptyStorageRoot(t *testing.T) {
 	}
 }
 
+func TestNewUploaderRejectsOverflowingLimits(t *testing.T) {
+	if _, err := NewUploaderWithConcurrency(t.TempDir(), 1<<63-1, 1); err == nil {
+		t.Fatal("uploader accepted a size limit that overflows bounded reads")
+	}
+	if _, err := NewUploaderWithConcurrency(t.TempDir(), 1<<20, maxUploadConcurrency+1); err == nil {
+		t.Fatal("uploader accepted an unbounded concurrency limit")
+	}
+}
+
 func TestUploadDisallowedMimeType(t *testing.T) {
 	tempDir := t.TempDir()
 	uploader, err := NewUploader(tempDir, 1<<20)
