@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	_ "modernc.org/sqlite"
 )
 
@@ -173,6 +174,35 @@ func TestPasswordResetRequestDoesNotExposeAccountState(t *testing.T) {
 	handler(unknownRes, unknown)
 	if unknownRes.Code != http.StatusAccepted {
 		t.Fatalf("unknown reset status = %d", unknownRes.Code)
+	}
+}
+
+func TestPasswordResetRequestIsRateLimited(t *testing.T) {
+	user := &User{ID: "u1", Email: "admin@example.com", Active: true}
+	service := &PasswordRecovery{Users: httpUserRepo{user: user}, Tokens: httpRecoveryStore{}, Sessions: &httpSessionRepo{}, ArgonParams: TestArgon2Params}
+	handler := HTTPHandler{
+		Recovery:        service,
+		RecoveryDB:      httpExecutor{},
+		RecoveryLimiter: security.NewAttemptLimiter(1, 1, time.Hour),
+		Notifier: RecoveryNotifierFunc(func(_ context.Context, _, _ string) error {
+			return nil
+		}),
+	}.requestPasswordReset
+	form := url.Values{"email": {user.Email}}
+	newRequest := func() *http.Request {
+		req := httptest.NewRequest(http.MethodPost, "/auth/password-reset/request", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		return req
+	}
+	first := httptest.NewRecorder()
+	handler(first, newRequest())
+	if first.Code != http.StatusAccepted {
+		t.Fatalf("first reset status = %d", first.Code)
+	}
+	second := httptest.NewRecorder()
+	handler(second, newRequest())
+	if second.Code != http.StatusTooManyRequests {
+		t.Fatalf("second reset status = %d, want %d", second.Code, http.StatusTooManyRequests)
 	}
 }
 
