@@ -510,6 +510,9 @@ func restoreCommand(args []string, stdout, stderr io.Writer) error {
 }
 
 func serve(args []string, stderr io.Writer) error {
+	if stderr == nil {
+		stderr = io.Discard
+	}
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
@@ -885,6 +888,9 @@ type expiredSessionCleaner interface {
 func runSessionCleanup(ctx context.Context, cleaner expiredSessionCleaner, stderr io.Writer) {
 	if cleaner == nil {
 		return
+	}
+	if stderr == nil {
+		stderr = io.Discard
 	}
 	const interval = 5 * time.Minute
 	run := func() {

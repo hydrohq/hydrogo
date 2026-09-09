@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -95,8 +96,29 @@ func TestSessionCleanupRunsImmediatelyAndStopsWithContext(t *testing.T) {
 	}
 }
 
+func TestSessionCleanupNilErrorWriterIsSafe(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		runSessionCleanup(ctx, failingSessionCleaner{}, nil)
+		close(done)
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("session cleanup did not stop after cancellation")
+	}
+}
+
 type recordingSessionCleaner struct {
 	cleaned chan<- struct{}
+}
+
+type failingSessionCleaner struct{}
+
+func (failingSessionCleaner) DeleteExpired(context.Context, time.Time) (int64, error) {
+	return 0, errors.New("cleanup failed")
 }
 
 func (r recordingSessionCleaner) DeleteExpired(context.Context, time.Time) (int64, error) {
