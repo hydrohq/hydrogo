@@ -164,6 +164,28 @@ func TestRetainAssetsValidatesRootsAndPaths(t *testing.T) {
 	if err := VerifyRetainedAssets(root, manifest); err == nil {
 		t.Fatal("expected error for escaping artifact path in VerifyRetainedAssets")
 	}
+	if err := VerifyRetainedAssets(" ", manifest); err == nil {
+		t.Fatal("expected empty asset root to be rejected")
+	}
+}
+
+func TestAssetRetentionRejectsSymlinkRoots(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "root")
+	if err := os.Mkdir(root, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(parent, "root-link")
+	if err := os.Symlink(root, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	manifest := Manifest{FormatVersion: 1, Edition: "site", CoreVersion: "1.0.0"}
+	if err := VerifyRetainedAssets(link, manifest); err == nil {
+		t.Fatal("verify accepted a symlink asset root")
+	}
+	if err := RetainAssets(link, manifest, filepath.Join(parent, "destination")); err == nil {
+		t.Fatal("retain accepted a symlink source root")
+	}
 }
 
 func TestRetainAssetsRejectsDuplicatePath(t *testing.T) {

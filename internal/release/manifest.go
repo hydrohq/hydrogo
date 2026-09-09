@@ -229,7 +229,13 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 	if err != nil {
 		return err
 	}
+	if err := validateAssetRoot(sourceRoot, "source"); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(destinationRoot, 0o750); err != nil {
+		return err
+	}
+	if err := validateAssetRoot(destinationRoot, "destination"); err != nil {
 		return err
 	}
 	seen := make(map[string]struct{})
@@ -306,8 +312,14 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 // VerifyRetainedAssets checks every retained asset in a manifest without
 // changing the shared directory.
 func VerifyRetainedAssets(root string, manifest Manifest) error {
+	if strings.TrimSpace(root) == "" {
+		return errors.New("asset root is required")
+	}
 	root, err := filepath.Abs(root)
 	if err != nil {
+		return err
+	}
+	if err := validateAssetRoot(root, "asset"); err != nil {
 		return err
 	}
 	for _, artifact := range manifest.Artifacts {
@@ -324,6 +336,20 @@ func VerifyRetainedAssets(root string, manifest Manifest) error {
 		if err := verifyArtifact(path, artifact); err != nil {
 			return fmt.Errorf("asset %s: %w", artifact.Path, err)
 		}
+	}
+	return nil
+}
+
+func validateAssetRoot(root, label string) error {
+	info, err := os.Lstat(root)
+	if err != nil {
+		return fmt.Errorf("%s asset root: %w", label, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%s asset root cannot be a symlink: %s", label, root)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s asset root is not a directory: %s", label, root)
 	}
 	return nil
 }
