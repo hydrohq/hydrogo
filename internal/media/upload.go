@@ -80,6 +80,9 @@ func NewUploader(storageDir string, maxBytes int64) (*Uploader, error) {
 // The limit covers the complete temporary-file, hashing and image validation
 // lifecycle of each upload.
 func NewUploaderWithConcurrency(storageDir string, maxBytes int64, maxConcurrent int) (*Uploader, error) {
+	if strings.TrimSpace(storageDir) == "" {
+		return nil, errors.New("media storage directory is required")
+	}
 	if maxBytes <= 0 {
 		maxBytes = 10 << 20 // 10 MB default
 	}

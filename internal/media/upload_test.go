@@ -156,6 +156,12 @@ func TestNewUploaderRejectsSymlinkedStorageRoot(t *testing.T) {
 	}
 }
 
+func TestNewUploaderRejectsEmptyStorageRoot(t *testing.T) {
+	if _, err := NewUploaderWithConcurrency("  ", 1<<20, 1); err == nil {
+		t.Fatal("empty media storage root was accepted")
+	}
+}
+
 func TestUploadDisallowedMimeType(t *testing.T) {
 	tempDir := t.TempDir()
 	uploader, err := NewUploader(tempDir, 1<<20)
