@@ -97,6 +97,36 @@ func TestSnapshotSQLiteEnforcesPreflightBudgets(t *testing.T) {
 	}
 }
 
+func TestSnapshotSQLiteRejectsSymlinkedMedia(t *testing.T) {
+	root := t.TempDir()
+	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test DEFAULT VALUES"); err != nil {
+		t.Fatal(err)
+	}
+	mediaDir := filepath.Join(root, "media")
+	if err := os.MkdirAll(mediaDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(root, "outside.txt")
+	if err := os.WriteFile(outside, []byte("outside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(mediaDir, "linked.txt")); err != nil {
+		t.Skipf("symlink creation is unavailable: %v", err)
+	}
+	destination := filepath.Join(root, "snapshot")
+	if _, err := SnapshotSQLite(context.Background(), db, mediaDir, destination); err == nil {
+		t.Fatal("snapshot accepted a symlinked media entry")
+	}
+	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("failed snapshot destination still exists: %v", err)
+	}
+}
+
 func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 	root := t.TempDir()
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))

@@ -342,14 +342,28 @@ func digestTree(root string) ([]FileDigest, error) {
 		if err != nil {
 			return err
 		}
+		if path == root && !info.IsDir() {
+			return fmt.Errorf("media root is not a directory: %s", root)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			return fmt.Errorf("unsupported media symlink: %s", filepath.ToSlash(rel))
+		}
+		if info.IsDir() {
+			return nil
+		}
 		if info.Mode().IsRegular() {
 			rel, err := filepath.Rel(root, path)
 			if err != nil {
 				return err
 			}
 			files = append(files, filepath.ToSlash(rel))
+			return nil
 		}
-		return nil
+		return fmt.Errorf("unsupported media entry: %s", path)
 	})
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
