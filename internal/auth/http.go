@@ -51,6 +51,8 @@ type HTTPRoute struct {
 	Handler http.Handler
 }
 
+const maxAuthFormBytes = 16 << 10
+
 // HTTPHandler exposes the small, session-backed authentication surface used by the server.
 type HTTPHandler struct {
 	Service      *AuthService
@@ -216,7 +218,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthFormBytes)
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid login request", http.StatusBadRequest)
 		return

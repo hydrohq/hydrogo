@@ -110,6 +110,25 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 }
 
+func TestHTTPLoginRejectsOversizedForm(t *testing.T) {
+	hash, err := HashPassword("secret", TestArgon2Params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Active: true}}, &httpSessionRepo{}, TestArgon2Params)
+	handler := HTTPHandler{Service: service}.login
+
+	form := url.Values{"email": {"admin@example.com"}, "password": {strings.Repeat("x", maxAuthFormBytes)}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res := httptest.NewRecorder()
+	handler(res, req)
+
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("oversized login status = %d, want %d", res.Code, http.StatusBadRequest)
+	}
+}
+
 func TestValidateSessionRejectsAbsoluteExpiryBeforeAdapter(t *testing.T) {
 	sessions := &httpSessionRepo{session: &Session{
 		ID:         "s1",
