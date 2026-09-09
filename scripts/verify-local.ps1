@@ -17,6 +17,7 @@ Invoke-Required "gofmt" {
     $unformatted = gofmt -l .
     if ($unformatted) { throw "gofmt required: $($unformatted -join ', ')" }
 }
+Invoke-Required "workflow action pins" { go run ./tools/actionguard }
 Invoke-Required "go vet" { go vet ./... }
 Invoke-Required "full test suite" { go test ./... -count=1 }
 Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 }

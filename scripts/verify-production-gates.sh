@@ -18,6 +18,7 @@ fi
 
 run_required 'gofmt' bash -c '[[ -z "$(gofmt -l .)" ]]'
 run_required 'module integrity' go mod verify
+run_required 'workflow action pins' go run ./tools/actionguard
 run_required 'dependency vulnerability scan' go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 run_required 'go vet' go vet ./...
 run_required 'full test suite' go test ./... -count=1 -p 1
