@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"strings"
 	"time"
 
@@ -34,6 +34,8 @@ type Service struct {
 	Store        Store
 	Audit        AuditWriter
 }
+
+var errAuditIDUnavailable = errors.New("audit id generation unavailable")
 
 func (s Service) requireStore() error {
 	if guards.IsNil(s.Store) {
@@ -157,7 +159,7 @@ func (s Service) audit(ctx context.Context, tx database.Executor, action, target
 	}
 	idBytes := make([]byte, 16)
 	if _, err := rand.Read(idBytes); err != nil {
-		return s.Audit.Record(ctx, tx, fmt.Sprintf("site-%d", time.Now().UTC().UnixNano()), action, target)
+		return errAuditIDUnavailable
 	}
 	return s.Audit.Record(ctx, tx, "site-"+hex.EncodeToString(idBytes), action, target)
 }
