@@ -226,3 +226,35 @@ func TestBackupRejectsManifestPathTraversal(t *testing.T) {
 		t.Fatal("path traversal manifest passed verification")
 	}
 }
+
+func TestVerifyRequiresMatchingStoredManifest(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "database"), []byte("database"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := digestFile(filepath.Join(root, "database"), "database")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := Manifest{Version: 1, Database: digest}
+	if err := WriteManifest(filepath.Join(root, "manifest.json"), manifest); err != nil {
+		t.Fatal(err)
+	}
+	if err := Verify(root, manifest); err != nil {
+		t.Fatalf("matching stored manifest rejected: %v", err)
+	}
+	stored := manifest
+	stored.CreatedAt = time.Now().UTC()
+	if err := WriteManifest(filepath.Join(root, "manifest.json"), stored); err != nil {
+		t.Fatal(err)
+	}
+	if err := Verify(root, manifest); err == nil {
+		t.Fatal("mismatched stored manifest unexpectedly verified")
+	}
+	if err := os.Remove(filepath.Join(root, "manifest.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := Verify(root, manifest); err == nil {
+		t.Fatal("snapshot without stored manifest unexpectedly verified")
+	}
+}

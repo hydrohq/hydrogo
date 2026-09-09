@@ -2,6 +2,7 @@
 package backup
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -151,6 +152,10 @@ func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destina
 		}
 	}
 	manifest := Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: dbDigest, Media: media}
+	if err := WriteManifest(filepath.Join(destination, "manifest.json"), manifest); err != nil {
+		cleanup()
+		return Manifest{}, err
+	}
 	// Media is hashed before copying so the source can be measured and bounded.
 	// Verify the assembled tree again before declaring success; a concurrent
 	// writer or a copy-time failure must never produce a seemingly valid backup
@@ -158,10 +163,6 @@ func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destina
 	if err := Verify(destination, manifest); err != nil {
 		cleanup()
 		return Manifest{}, fmt.Errorf("verify snapshot: %w", err)
-	}
-	if err := WriteManifest(filepath.Join(destination, "manifest.json"), manifest); err != nil {
-		cleanup()
-		return Manifest{}, err
 	}
 	return manifest, nil
 }
@@ -231,6 +232,21 @@ func Verify(root string, manifest Manifest) error {
 	}
 	if err := validateMediaManifest(manifest.Media); err != nil {
 		return err
+	}
+	stored, err := ReadManifest(filepath.Join(root, "manifest.json"))
+	if err != nil {
+		return fmt.Errorf("read snapshot manifest: %w", err)
+	}
+	wantBytes, err := json.Marshal(manifest)
+	if err != nil {
+		return fmt.Errorf("encode snapshot manifest: %w", err)
+	}
+	gotBytes, err := json.Marshal(stored)
+	if err != nil {
+		return fmt.Errorf("encode stored snapshot manifest: %w", err)
+	}
+	if !bytes.Equal(wantBytes, gotBytes) {
+		return errors.New("snapshot manifest mismatch")
 	}
 	db, err := digestFile(filepath.Join(root, manifest.Database.Path), "database")
 	if err != nil {
