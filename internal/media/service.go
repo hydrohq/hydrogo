@@ -2,11 +2,14 @@ package media
 
 import (
 	"context"
+	"errors"
 	"io"
 	"path/filepath"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
+
+var ErrAssetRepositoryRequired = errors.New("asset repository is required")
 
 type AssetRepository interface {
 	Get(context.Context, database.Executor, string) (Asset, error)
@@ -15,6 +18,9 @@ type AssetRepository interface {
 }
 
 func (s Service) Get(ctx context.Context, db database.Executor, id string) (Asset, error) {
+	if s.Assets == nil {
+		return Asset{}, ErrAssetRepositoryRequired
+	}
 	return s.Assets.Get(ctx, db, id)
 }
 
@@ -27,6 +33,12 @@ type Service struct {
 }
 
 func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) (*UploadResult, error) {
+	if s.Uploader == nil {
+		return nil, ErrUploaderRequired
+	}
+	if s.Assets == nil {
+		return nil, ErrAssetRepositoryRequired
+	}
 	result, err := s.Uploader.SaveContext(ctx, reader, filename)
 	if err != nil {
 		return nil, err
@@ -49,6 +61,9 @@ func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) 
 }
 
 func (s Service) MarkReady(ctx context.Context, id, visibility string) error {
+	if s.Assets == nil {
+		return ErrAssetRepositoryRequired
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		return s.Assets.MarkReady(ctx, tx, id, visibility)
 	})

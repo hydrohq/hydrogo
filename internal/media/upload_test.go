@@ -112,6 +112,25 @@ func TestUploadValidPNG(t *testing.T) {
 	}
 }
 
+func TestServiceFailsClosedWhenDependenciesAreMissing(t *testing.T) {
+	if _, err := (Service{}).Upload(context.Background(), bytes.NewReader(createTestPNG(2, 2)), "missing.png"); !errors.Is(err, ErrUploaderRequired) {
+		t.Fatalf("missing uploader error = %v, want %v", err, ErrUploaderRequired)
+	}
+	uploader, err := NewUploader(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (Service{Uploader: uploader}).Upload(context.Background(), bytes.NewReader(createTestPNG(2, 2)), "missing-repository.png"); !errors.Is(err, ErrAssetRepositoryRequired) {
+		t.Fatalf("missing repository upload error = %v, want %v", err, ErrAssetRepositoryRequired)
+	}
+	if _, err := (Service{}).Get(context.Background(), nil, "asset"); !errors.Is(err, ErrAssetRepositoryRequired) {
+		t.Fatalf("missing repository get error = %v, want %v", err, ErrAssetRepositoryRequired)
+	}
+	if err := (Service{}).MarkReady(context.Background(), "asset", VisibilityPrivate); !errors.Is(err, ErrAssetRepositoryRequired) {
+		t.Fatalf("missing repository ready error = %v, want %v", err, ErrAssetRepositoryRequired)
+	}
+}
+
 func TestUploadDisallowedMimeType(t *testing.T) {
 	tempDir := t.TempDir()
 	uploader, err := NewUploader(tempDir, 1<<20)
