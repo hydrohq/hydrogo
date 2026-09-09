@@ -83,6 +83,9 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 	if s == nil {
 		return errors.New("SMTP sender is required")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}

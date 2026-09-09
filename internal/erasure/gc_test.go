@@ -23,3 +23,13 @@ func TestGCStopsOnPinProviderFailure(t *testing.T) {
 		t.Fatalf("gc error = %v", err)
 	}
 }
+
+func TestGCNormalizesNilContext(t *testing.T) {
+	gc := GC{
+		Pinned: func(context.Context, string) (bool, error) { return false, nil },
+		Delete: func(context.Context, string) error { return nil },
+	}
+	if _, err := gc.Collect(nil, []string{"key"}); err != nil {
+		t.Fatalf("nil-context GC failed: %v", err)
+	}
+}

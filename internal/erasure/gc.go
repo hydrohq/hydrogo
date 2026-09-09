@@ -14,6 +14,9 @@ func (g GC) Collect(ctx context.Context, keys []string) ([]string, error) {
 	if g.Pinned == nil || g.Delete == nil {
 		return nil, ErrInvalidIntent
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	removed := make([]string, 0, len(keys))
 	for _, key := range keys {
 		if err := ctx.Err(); err != nil {

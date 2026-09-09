@@ -43,6 +43,14 @@ func TestRetrySenderHonorsPermanentFailureAndCancellation(t *testing.T) {
 	}
 }
 
+func TestRetrySenderNormalizesNilContext(t *testing.T) {
+	underlying := &flakySender{}
+	sender := RetrySender{Sender: underlying, Attempts: 1}
+	if err := sender.Send(nil, Message{}); err == nil {
+		t.Fatal("nil-context retry sender unexpectedly succeeded")
+	}
+}
+
 func TestNotificationSenderFailsClosedWithoutTransport(t *testing.T) {
 	sender := NotificationSender{}
 	if err := sender.SendPasswordReset(context.Background(), "user@example.test", "token"); !errors.Is(err, ErrSenderRequired) {
@@ -83,6 +91,16 @@ func TestSMTPSendHonorsCanceledContextAndMessageLimits(t *testing.T) {
 	}
 	if err := sender.Send(context.Background(), Message{To: "to\r\nBcc: bad@example.test", Subject: "subject"}); err == nil {
 		t.Fatal("recipient header injection accepted")
+	}
+}
+
+func TestSMTPSendNormalizesNilContext(t *testing.T) {
+	sender, err := NewSMTP(SMTPConfig{Host: "127.0.0.1", Port: 1, From: "from@example.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sender.Send(nil, Message{To: "to@example.test", Subject: "subject"}); err == nil {
+		t.Fatal("nil-context SMTP send unexpectedly succeeded")
 	}
 }
 

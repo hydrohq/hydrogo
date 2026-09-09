@@ -18,6 +18,9 @@ type RetrySender struct {
 }
 
 func (r RetrySender) Send(ctx context.Context, message Message) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
