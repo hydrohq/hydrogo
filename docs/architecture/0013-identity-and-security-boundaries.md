@@ -3,7 +3,7 @@
 - **Durum:** Değiştirildi (kısmen) — restore silme geçmişinin kaynağı için [ADR-0014](0014-publication-routes-and-erasure-recovery.md); diğer güvenlik hükümleri geçerlidir.
 - **Tarih:** 2026-09-05
 - **İlişkili belgeler:** [Tehdit modeli](../security/THREAT_MODEL.md), [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md)
-- **Uygulama durumu:** Yerel kullanıcı/session, rol, CSRF, MFA, reset, invite, limiter ve audit kontrolleri uygulanıp contract testleriyle doğrulandı. OIDC/SAML ve production provider/alerting kapsam dışı veya R3/R6 açık kapısıdır; güncel durum [roadmap](../ROADMAP.md) içindedir.
+- **Uygulama durumu:** Yerel kullanıcı/session, rol, CSRF, canonical-origin host binding, MFA, reset, invite, limiter ve audit kontrolleri uygulanıp contract testleriyle doğrulandı. OIDC/SAML ve production provider/alerting kapsam dışı veya R3/R6 açık kapısıdır; güncel durum [roadmap](../ROADMAP.md) içindedir.
 
 ## Karar
 
@@ -25,7 +25,7 @@ Kriptografik primitive, CSRF, parola hash'i ve TOTP algoritması sıfırdan yaz�
 
 Route sınıflandırması default-deny olur. Admin, public API, özel JSON endpoint ve background job aynı servis politikalarını kullanır. Role ek olarak kayıt sahipliği, durum, locale ve alan allowlist'i değerlendirilir. Hook'ların politikayı gevşetmesi desteklenmez.
 
-Admin state-changing isteklerinde CSRF zorunludur; `SameSite` ek savunmadır. CORS varsayılan çapraz-origin erişimi açmaz. Proxy header'ları yalnız güvenilen proxy'den kabul edilir; allowed-host listesi ve canonical origin config'i vardır. Health/readiness public çıktıları sürüm/sır/DB ayrıntısı taşımaz; ayrıntılı diagnostics ve metrics korunur.
+Admin state-changing isteklerinde CSRF zorunludur; `SameSite` ek savunmadır. CORS varsayılan çapraz-origin erişimi açmaz. Uygulama forwarded host header'larına güvenmez; `public_origin` tanımlıysa gelen `Host` canonical origin host/port ile eşleşmek zorundadır. Health/readiness public çıktıları sürüm/sır/DB ayrıntısı taşımaz; ayrıntılı diagnostics ve metrics korunur.
 
 Outbound webhook/remote fetch başlangıçta genel kullanıma açılmaz. Ekleneceğinde izinli hedef, özel/link-local/metadata ağ engeli, DNS/redirect yeniden kontrolü, timeout ve yanıt boyutu şarttır. Yalnız URL'nin ilk string kontrolü yeterli kabul edilmez.
 

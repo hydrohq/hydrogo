@@ -106,6 +106,8 @@ that the server exits cleanly after `SIGTERM`.
 
 Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and `HYDRO_ENABLE_HSTS=true` (or the equivalent `security.secure_cookies` and `security.enable_hsts` YAML fields) together with an HTTPS `HYDRO_PUBLIC_ORIGIN`. Configuration rejects HSTS without an HTTPS canonical origin or secure cookies. These settings remain disabled by default for local HTTP development.
 
+When `HYDRO_PUBLIC_ORIGIN` is configured, HydroGo also binds HTTP requests to that canonical host and port. Forwarded host headers are not trusted; configure the reverse proxy to preserve the public `Host` header. Leave the origin empty only for local development.
+
 Release builds can embed identity metadata with `-ldflags "-X main.buildCommit=COMMIT -X main.buildTime=UTC_TIME"`; inspect it with `hydro version --json`.
 
 ## Operational commands
