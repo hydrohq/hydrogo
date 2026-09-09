@@ -23,6 +23,8 @@ type Metrics struct {
 	workerProcessed     atomic.Uint64
 	workerFailures      atomic.Uint64
 	workerEnqueueErrors atomic.Uint64
+	workerRetries       atomic.Uint64
+	workerDeadLetters   atomic.Uint64
 	workerConcurrency   atomic.Int64
 }
 
@@ -87,6 +89,18 @@ func (m *Metrics) RecordWorkerFailure() {
 func (m *Metrics) RecordWorkerEnqueueError() {
 	if m != nil {
 		m.workerEnqueueErrors.Add(1)
+	}
+}
+
+func (m *Metrics) RecordWorkerRetry() {
+	if m != nil {
+		m.workerRetries.Add(1)
+	}
+}
+
+func (m *Metrics) RecordWorkerDeadLetter() {
+	if m != nil {
+		m.workerDeadLetters.Add(1)
 	}
 }
 
@@ -167,6 +181,8 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "hydro_worker_processed_total %d\n", m.workerProcessed.Load())
 	fmt.Fprintf(w, "hydro_worker_failures_total %d\n", m.workerFailures.Load())
 	fmt.Fprintf(w, "hydro_worker_enqueue_errors_total %d\n", m.workerEnqueueErrors.Load())
+	fmt.Fprintf(w, "hydro_worker_retries_total %d\n", m.workerRetries.Load())
+	fmt.Fprintf(w, "hydro_worker_dead_letters_total %d\n", m.workerDeadLetters.Load())
 	fmt.Fprintf(w, "hydro_worker_concurrency %d\n", m.workerConcurrency.Load())
 }
 

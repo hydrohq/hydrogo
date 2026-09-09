@@ -1,8 +1,11 @@
 package news
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/jobs"
 )
 
 func TestRetryDelayIsBoundedExponential(t *testing.T) {
@@ -15,5 +18,19 @@ func TestRetryDelayIsBoundedExponential(t *testing.T) {
 	}
 	if got := retryDelay(base, 20); got != time.Hour {
 		t.Fatalf("capped retry = %s", got)
+	}
+}
+
+func TestMalformedJobRecordsDeadLetterCallback(t *testing.T) {
+	queue := jobs.NewQueue(1)
+	created := time.Now().UTC()
+	if err := queue.Enqueue(jobs.Job{ID: "bad", Type: "news.publish", Payload: "not-json", AvailableAt: created, CreatedAt: created}); err != nil {
+		t.Fatal(err)
+	}
+	deadLetters := 0
+	worker := Worker{Queue: queue, OnDeadLetter: func() { deadLetters++ }}
+	processed, err := worker.RunOnce(context.Background(), "worker-1", created)
+	if err != nil || !processed || deadLetters != 1 {
+		t.Fatalf("malformed job result = processed:%v err:%v dead_letters:%d", processed, err, deadLetters)
 	}
 }

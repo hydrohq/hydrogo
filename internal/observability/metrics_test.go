@@ -10,6 +10,8 @@ import (
 func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 	m := NewMetrics()
 	m.SetWorkerConcurrency(4)
+	m.RecordWorkerRetry()
+	m.RecordWorkerDeadLetter()
 	m.SetJobStatsProvider(func() JobStats {
 		return JobStats{Depth: 2, Leased: 1, DeadLettered: 3}
 	})
@@ -21,5 +23,8 @@ func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), "hydro_worker_concurrency 4\n") {
 		t.Fatalf("metrics did not expose worker concurrency: %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "hydro_worker_retries_total 1\n") || !strings.Contains(res.Body.String(), "hydro_worker_dead_letters_total 1\n") {
+		t.Fatalf("metrics did not expose worker outcomes: %s", res.Body.String())
 	}
 }

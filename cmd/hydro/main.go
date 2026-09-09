@@ -601,6 +601,8 @@ func serve(args []string, stderr io.Writer) error {
 
 	metrics := observability.NewMetrics()
 	metrics.SetWorkerConcurrency(budget.WorkerConcurrency)
+	newsWorker.OnRetry = metrics.RecordWorkerRetry
+	newsWorker.OnDeadLetter = metrics.RecordWorkerDeadLetter
 	metrics.SetCacheStatsProvider(func() observability.CacheStats {
 		stats := contentService.PublicCache.Stats()
 		return observability.CacheStats{Hits: stats.Hits, Misses: stats.Misses, Loads: stats.Loads, LoadErrors: stats.LoadErrors, Evictions: stats.Evictions, Expirations: stats.Expirations}

@@ -27,12 +27,14 @@ type DurableQueue interface {
 }
 
 type Worker struct {
-	Queue       *jobs.Queue
-	Durable     DurableQueue
-	Service     Service
-	Lease       time.Duration
-	Retry       time.Duration
-	MaxAttempts int
+	Queue        *jobs.Queue
+	Durable      DurableQueue
+	Service      Service
+	Lease        time.Duration
+	Retry        time.Duration
+	MaxAttempts  int
+	OnRetry      func()
+	OnDeadLetter func()
 }
 
 // EnqueueDue discovers scheduled items that are due and idempotently places
@@ -103,7 +105,11 @@ func (w Worker) RunOnce(ctx context.Context, workerID string, now time.Time) (bo
 	}
 	var payload scheduleJob
 	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
-		return true, w.deadLetter(ctx, job.ID, workerID, token, err.Error())
+		if err := w.deadLetter(ctx, job.ID, workerID, token, err.Error()); err != nil {
+			return true, err
+		}
+		w.recordDeadLetter()
+		return true, nil
 	}
 	err = w.Service.RunScheduled(ctx, payload.ItemID, payload.Generation, now)
 	if errors.Is(err, ErrScheduleStale) {
@@ -111,11 +117,31 @@ func (w Worker) RunOnce(ctx context.Context, workerID string, now time.Time) (bo
 	}
 	if err != nil {
 		if job.Attempts >= w.maxAttempts() {
-			return true, w.deadLetter(ctx, job.ID, workerID, token, err.Error())
+			if deadLetterErr := w.deadLetter(ctx, job.ID, workerID, token, err.Error()); deadLetterErr != nil {
+				return true, deadLetterErr
+			}
+			w.recordDeadLetter()
+			return true, nil
 		}
-		return true, w.nack(ctx, job.ID, workerID, token, now.Add(retryDelay(retry, job.Attempts)), err.Error())
+		if nackErr := w.nack(ctx, job.ID, workerID, token, now.Add(retryDelay(retry, job.Attempts)), err.Error()); nackErr != nil {
+			return true, nackErr
+		}
+		w.recordRetry()
+		return true, nil
 	}
 	return true, w.ack(ctx, job.ID, workerID, token)
+}
+
+func (w Worker) recordRetry() {
+	if w.OnRetry != nil {
+		w.OnRetry()
+	}
+}
+
+func (w Worker) recordDeadLetter() {
+	if w.OnDeadLetter != nil {
+		w.OnDeadLetter()
+	}
 }
 
 func (w Worker) ack(ctx context.Context, id, worker, token string) error {
