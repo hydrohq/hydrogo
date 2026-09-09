@@ -632,6 +632,7 @@ func serve(args []string, stderr io.Writer) error {
 		stats := db.Stats()
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
 	})
+	go runSessionCleanup(ctx, sessionStore, stderr)
 	go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
 	logWriter := stderr
 	if logWriter == nil {
@@ -875,6 +876,33 @@ func checkDirectoryWritable(directory string) error {
 		return err
 	}
 	return os.Remove(path)
+}
+
+type expiredSessionCleaner interface {
+	DeleteExpired(context.Context, time.Time) (int64, error)
+}
+
+func runSessionCleanup(ctx context.Context, cleaner expiredSessionCleaner, stderr io.Writer) {
+	if cleaner == nil {
+		return
+	}
+	const interval = 5 * time.Minute
+	run := func() {
+		if _, err := cleaner.DeleteExpired(ctx, time.Now().UTC()); err != nil && ctx.Err() == nil {
+			_, _ = fmt.Fprintf(stderr, "hydro session cleanup: %v\n", err)
+		}
+	}
+	run()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			run()
+		}
+	}
 }
 
 func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, metrics *observability.Metrics, stderr io.Writer, concurrency int) {

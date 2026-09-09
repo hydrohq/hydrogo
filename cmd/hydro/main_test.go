@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,6 +71,37 @@ func TestNewsWorkerIDsAreDistinct(t *testing.T) {
 		}
 		seen[id] = struct{}{}
 	}
+}
+
+func TestSessionCleanupRunsImmediatelyAndStopsWithContext(t *testing.T) {
+	cleaned := make(chan struct{}, 1)
+	cleaner := recordingSessionCleaner{cleaned: cleaned}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		runSessionCleanup(ctx, cleaner, io.Discard)
+		close(done)
+	}()
+	select {
+	case <-cleaned:
+	case <-time.After(time.Second):
+		t.Fatal("session cleanup did not run immediately")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("session cleanup did not stop after cancellation")
+	}
+}
+
+type recordingSessionCleaner struct {
+	cleaned chan<- struct{}
+}
+
+func (r recordingSessionCleaner) DeleteExpired(context.Context, time.Time) (int64, error) {
+	r.cleaned <- struct{}{}
+	return 0, nil
 }
 
 func TestRunMigrateAndCreateAdmin(t *testing.T) {
