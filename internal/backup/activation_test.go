@@ -72,3 +72,28 @@ func TestActivateStagingMediaRequiresQuarantineControls(t *testing.T) {
 		t.Fatal("activation without restore controls succeeded")
 	}
 }
+
+func TestActivateStagingMediaValidatesDistinctPathsAndMissingMarker(t *testing.T) {
+	root := t.TempDir()
+	staging := filepath.Join(root, "staging")
+	active := filepath.Join(root, "active")
+	rollback := filepath.Join(root, "rollback")
+
+	// Missing staging directory / marker
+	if err := ActivateStagingMedia(staging, active, rollback); err == nil {
+		t.Fatal("expected error when staging directory does not exist")
+	}
+
+	// Empty paths
+	if err := ActivateStagingMedia("", active, rollback); err == nil {
+		t.Fatal("expected error with empty staging path")
+	}
+
+	// Identical paths
+	if err := ActivateStagingMedia(staging, staging, rollback); err == nil {
+		t.Fatal("expected error with identical staging and active paths")
+	}
+	if err := ActivateStagingMedia(staging, active, active); err == nil {
+		t.Fatal("expected error with identical active and rollback paths")
+	}
+}
