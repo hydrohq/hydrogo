@@ -156,6 +156,33 @@ func TestStructuredHTTPLogContainsRequestIDWithoutSensitiveData(t *testing.T) {
 	}
 }
 
+func TestMiddlewareChainPreservesResponseFlushing(t *testing.T) {
+	metrics := observability.NewMetrics()
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	handler := NewHandler(Config{
+		Metrics: metrics,
+		Logger:  logger,
+		Routes: []router.Route{{
+			Pattern: "GET /stream",
+			Access:  router.Public,
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				flusher, ok := w.(http.Flusher)
+				if !ok {
+					http.Error(w, "flush unavailable", http.StatusInternalServerError)
+					return
+				}
+				flusher.Flush()
+				_, _ = w.Write([]byte("ok"))
+			}),
+		}},
+	})
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/stream", nil))
+	if res.Code != http.StatusOK || res.Body.String() != "ok" {
+		t.Fatalf("stream response = %d/%q", res.Code, res.Body.String())
+	}
+}
+
 func TestMetricsAreProtectedAndBounded(t *testing.T) {
 	metrics := observability.NewMetrics()
 	metrics.SetDatabaseStatsProvider(func() observability.DatabaseStats {

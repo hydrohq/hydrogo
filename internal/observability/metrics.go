@@ -182,4 +182,13 @@ func (r *responseRecorder) Write(body []byte) (int, error) {
 	return r.ResponseWriter.Write(body)
 }
 
+func (r *responseRecorder) Flush() {
+	if !r.wroteHeader {
+		r.WriteHeader(http.StatusOK)
+	}
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 func (r *responseRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
