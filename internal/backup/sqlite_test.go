@@ -48,6 +48,15 @@ func TestSnapshotSQLiteManifestVerifiesAndDetectsTampering(t *testing.T) {
 	if err := Verify(destination, manifest); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(destination, "media", "nested", "unlisted.txt"), []byte("unlisted"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := Verify(destination, manifest); err == nil {
+		t.Fatal("unlisted snapshot file passed verification")
+	}
+	if err := os.Remove(filepath.Join(destination, "media", "nested", "unlisted.txt")); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(destination, "media", "nested", "a.txt"), []byte("tampered"), 0o640); err != nil {
 		t.Fatal(err)
 	}

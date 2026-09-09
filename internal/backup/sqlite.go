@@ -231,6 +231,7 @@ func Verify(root string, manifest Manifest) error {
 	if db.SHA256 != manifest.Database.SHA256 || db.Bytes != manifest.Database.Bytes {
 		return errors.New("database checksum mismatch")
 	}
+	expectedEntries := map[string]struct{}{"database": {}, "manifest.json": {}, "RESTORE_QUARANTINED.json": {}, "RESTORE_ACTIVE.json": {}}
 	for _, expected := range manifest.Media {
 		actual, err := digestFile(filepath.Join(root, expected.Path), expected.Path)
 		if err != nil {
@@ -239,8 +240,41 @@ func Verify(root string, manifest Manifest) error {
 		if actual.SHA256 != expected.SHA256 || actual.Bytes != expected.Bytes {
 			return fmt.Errorf("media checksum mismatch: %s", expected.Path)
 		}
+		expectedEntries[expected.Path] = struct{}{}
+	}
+	if err := validateSnapshotEntries(root, expectedEntries); err != nil {
+		return err
 	}
 	return nil
+}
+
+func validateSnapshotEntries(root string, expected map[string]struct{}) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == root {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("unsupported snapshot symlink: %s", rel)
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported snapshot entry: %s", rel)
+		}
+		if _, ok := expected[rel]; !ok {
+			return fmt.Errorf("snapshot entry is not listed in manifest: %s", rel)
+		}
+		return nil
+	})
 }
 
 func validateMediaManifest(files []FileDigest) error {
