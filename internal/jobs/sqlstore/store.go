@@ -27,7 +27,7 @@ func (s Store) Enqueue(ctx context.Context, db database.Executor, job jobs.Job) 
 	}
 	if s.MaxEntries > 0 {
 		var count int
-		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jobs").Scan(&count); err != nil {
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = "+s.boolLiteral(false)).Scan(&count); err != nil {
 			return err
 		}
 		if count >= s.MaxEntries {
@@ -75,7 +75,7 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	if s.Dialect == database.Postgres {
 		deadLettered = "FALSE"
 	}
-	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts, &job.DeadLettered, &job.LastError)
+	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = `+s.boolLiteral(true)+`) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts, &job.DeadLettered, &job.LastError)
 	if errors.Is(err, sql.ErrNoRows) {
 		return jobs.Job{}, "", false, nil
 	}
@@ -164,6 +164,19 @@ func (s Store) p(position int) string {
 		return fmt.Sprintf("$%d", position)
 	}
 	return "?"
+}
+
+func (s Store) boolLiteral(value bool) string {
+	if s.Dialect == database.Postgres {
+		if value {
+			return "TRUE"
+		}
+		return "FALSE"
+	}
+	if value {
+		return "1"
+	}
+	return "0"
 }
 
 func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }

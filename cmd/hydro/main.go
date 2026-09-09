@@ -601,11 +601,15 @@ func serve(args []string, stderr io.Writer) error {
 		stats := contentService.PublicCache.Stats()
 		return observability.CacheStats{Hits: stats.Hits, Misses: stats.Misses, Loads: stats.Loads, LoadErrors: stats.LoadErrors, Evictions: stats.Evictions, Expirations: stats.Expirations}
 	})
+	jobActive := "0"
+	if cfg.Database.Dialect == database.Postgres {
+		jobActive = "FALSE"
+	}
 	metrics.SetJobStatsProvider(func() observability.JobStats {
 		stats := observability.JobStats{}
 		statsCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
-		if err := db.QueryRowContext(statsCtx, "SELECT COUNT(*) FROM jobs").Scan(&stats.Depth); err != nil {
+		if err := db.QueryRowContext(statsCtx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = "+jobActive).Scan(&stats.Depth); err != nil {
 			return observability.JobStats{}
 		}
 		if err := db.QueryRowContext(statsCtx, "SELECT COUNT(*) FROM jobs WHERE lease_until IS NOT NULL").Scan(&stats.Leased); err != nil {

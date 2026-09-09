@@ -49,7 +49,7 @@ func TestPostgresDurableJobLeaseContract(t *testing.T) {
 func runDurableJobLeaseContract(t *testing.T, db database.Executor, dialect database.Dialect) {
 	t.Helper()
 	ctx := context.Background()
-	store := Store{Dialect: dialect, MaxEntries: 2}
+	store := Store{Dialect: dialect, MaxEntries: 1}
 	now := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
 	job := jobs.Job{ID: "job-1", Type: "news.publish", Payload: "{}", AvailableAt: now, CreatedAt: now}
 	if err := store.Enqueue(ctx, db, job); err != nil {
@@ -83,5 +83,23 @@ func runDurableJobLeaseContract(t *testing.T, db database.Executor, dialect data
 	}
 	if _, _, ok, err := store.Claim(ctx, db, "worker-c", now, time.Minute); err != nil || ok {
 		t.Fatalf("dead-lettered job remained claimable: %v/%v", ok, err)
+	}
+	if err := store.Enqueue(ctx, db, jobs.Job{ID: "job-2", Type: "news.publish", Payload: "{}", AvailableAt: now, CreatedAt: now}); err != nil {
+		t.Fatalf("dead-lettered job consumed queue capacity: %v", err)
+	}
+}
+
+func TestDialectBooleanLiterals(t *testing.T) {
+	if got := (Store{Dialect: database.SQLite}).boolLiteral(true); got != "1" {
+		t.Fatalf("sqlite true literal = %q", got)
+	}
+	if got := (Store{Dialect: database.SQLite}).boolLiteral(false); got != "0" {
+		t.Fatalf("sqlite false literal = %q", got)
+	}
+	if got := (Store{Dialect: database.Postgres}).boolLiteral(true); got != "TRUE" {
+		t.Fatalf("postgres true literal = %q", got)
+	}
+	if got := (Store{Dialect: database.Postgres}).boolLiteral(false); got != "FALSE" {
+		t.Fatalf("postgres false literal = %q", got)
 	}
 }
