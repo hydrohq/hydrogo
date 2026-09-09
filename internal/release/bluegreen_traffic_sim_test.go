@@ -148,13 +148,16 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	if err := deployment.DrainBlue(); err != nil {
 		t.Fatal(err)
 	}
-	c.Clear()
 	if err := deployment.Rollback(); err != nil {
 		t.Fatal(err)
 	}
 	if err := traffic.Rollback(deployment); err != nil {
 		t.Fatal(err)
 	}
+	// Invalidate after the active slot changes. Clearing before the switch
+	// leaves a window where an in-flight Green load can repopulate the cache
+	// after rollback has already selected Blue.
+	c.Clear()
 
 	time.Sleep(100 * time.Millisecond)
 	cancel()

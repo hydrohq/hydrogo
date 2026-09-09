@@ -44,8 +44,9 @@ type CacheStats struct {
 }
 
 type JobStats struct {
-	Depth  int64
-	Leased int64
+	Depth        int64
+	Leased       int64
+	DeadLettered int64
 }
 
 var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisecond, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 5 * time.Second}
@@ -154,6 +155,7 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 		stats := m.jobStats()
 		fmt.Fprintf(w, "hydro_jobs_depth %d\n", stats.Depth)
 		fmt.Fprintf(w, "hydro_jobs_leased %d\n", stats.Leased)
+		fmt.Fprintf(w, "hydro_jobs_dead_lettered %d\n", stats.DeadLettered)
 	}
 	fmt.Fprintf(w, "hydro_worker_processed_total %d\n", m.workerProcessed.Load())
 	fmt.Fprintf(w, "hydro_worker_failures_total %d\n", m.workerFailures.Load())

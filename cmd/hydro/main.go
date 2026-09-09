@@ -602,8 +602,10 @@ func serve(args []string, stderr io.Writer) error {
 		return observability.CacheStats{Hits: stats.Hits, Misses: stats.Misses, Loads: stats.Loads, LoadErrors: stats.LoadErrors, Evictions: stats.Evictions, Expirations: stats.Expirations}
 	})
 	jobActive := "0"
+	jobDead := "1"
 	if cfg.Database.Dialect == database.Postgres {
 		jobActive = "FALSE"
+		jobDead = "TRUE"
 	}
 	metrics.SetJobStatsProvider(func() observability.JobStats {
 		stats := observability.JobStats{}
@@ -614,6 +616,9 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		if err := db.QueryRowContext(statsCtx, "SELECT COUNT(*) FROM jobs WHERE lease_until IS NOT NULL").Scan(&stats.Leased); err != nil {
 			return observability.JobStats{Depth: stats.Depth}
+		}
+		if err := db.QueryRowContext(statsCtx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = "+jobDead).Scan(&stats.DeadLettered); err != nil {
+			return observability.JobStats{Depth: stats.Depth, Leased: stats.Leased}
 		}
 		return stats
 	})

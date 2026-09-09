@@ -1,0 +1,21 @@
+package observability
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestMetricsExposeDeadLetterDepth(t *testing.T) {
+	m := NewMetrics()
+	m.SetJobStatsProvider(func() JobStats {
+		return JobStats{Depth: 2, Leased: 1, DeadLettered: 3}
+	})
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	res := httptest.NewRecorder()
+	m.Handler(res, req)
+	if !strings.Contains(res.Body.String(), "hydro_jobs_dead_lettered 3\n") {
+		t.Fatalf("metrics did not expose dead-letter count: %s", res.Body.String())
+	}
+}
