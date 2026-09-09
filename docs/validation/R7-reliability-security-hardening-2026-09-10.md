@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `6b2d53f`  
-**Validation baseline:** `6b2d53f`  
+**Repository commit:** `af32cd2`  
+**Validation baseline:** `af32cd2`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -46,6 +46,8 @@ verification improvements after the R3/R5 contract work.
   symlink artifacts instead of following paths outside the release root.
 - Generator output paths reject symlinked parents and targets before writing,
   protecting generated files and published migrations from path redirection.
+- Generator output directories are checked before `MkdirAll`, preventing a
+  symlinked parent from causing external directory creation as a side effect.
 
 ## Evidence commands
 
