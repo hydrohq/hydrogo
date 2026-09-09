@@ -26,6 +26,9 @@ type Metrics struct {
 	workerRetries       atomic.Uint64
 	workerDeadLetters   atomic.Uint64
 	workerConcurrency   atomic.Int64
+	sessionCleanupRuns  atomic.Uint64
+	sessionCleanupRows  atomic.Uint64
+	sessionCleanupError atomic.Uint64
 }
 
 type DatabaseStats struct {
@@ -101,6 +104,21 @@ func (m *Metrics) RecordWorkerRetry() {
 func (m *Metrics) RecordWorkerDeadLetter() {
 	if m != nil {
 		m.workerDeadLetters.Add(1)
+	}
+}
+
+func (m *Metrics) RecordSessionCleanup(deleted int64) {
+	if m != nil {
+		m.sessionCleanupRuns.Add(1)
+		if deleted > 0 {
+			m.sessionCleanupRows.Add(uint64(deleted))
+		}
+	}
+}
+
+func (m *Metrics) RecordSessionCleanupError() {
+	if m != nil {
+		m.sessionCleanupError.Add(1)
 	}
 }
 
@@ -186,6 +204,9 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "hydro_worker_retries_total %d\n", m.workerRetries.Load())
 	fmt.Fprintf(w, "hydro_worker_dead_letters_total %d\n", m.workerDeadLetters.Load())
 	fmt.Fprintf(w, "hydro_worker_concurrency %d\n", m.workerConcurrency.Load())
+	fmt.Fprintf(w, "hydro_session_cleanup_runs_total %d\n", m.sessionCleanupRuns.Load())
+	fmt.Fprintf(w, "hydro_session_cleanup_rows_total %d\n", m.sessionCleanupRows.Load())
+	fmt.Fprintf(w, "hydro_session_cleanup_errors_total %d\n", m.sessionCleanupError.Load())
 }
 
 type responseRecorder struct {

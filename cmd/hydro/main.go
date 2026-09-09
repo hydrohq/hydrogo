@@ -635,7 +635,7 @@ func serve(args []string, stderr io.Writer) error {
 		stats := db.Stats()
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
 	})
-	go runSessionCleanup(ctx, sessionStore, stderr)
+	go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
 	go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
 	logWriter := stderr
 	if logWriter == nil {
@@ -886,6 +886,15 @@ type expiredSessionCleaner interface {
 }
 
 func runSessionCleanup(ctx context.Context, cleaner expiredSessionCleaner, stderr io.Writer) {
+	runSessionCleanupObserved(ctx, cleaner, stderr, nil)
+}
+
+type sessionCleanupObserver interface {
+	RecordSessionCleanup(int64)
+	RecordSessionCleanupError()
+}
+
+func runSessionCleanupObserved(ctx context.Context, cleaner expiredSessionCleaner, stderr io.Writer, observer sessionCleanupObserver) {
 	if cleaner == nil {
 		return
 	}
@@ -894,8 +903,18 @@ func runSessionCleanup(ctx context.Context, cleaner expiredSessionCleaner, stder
 	}
 	const interval = 5 * time.Minute
 	run := func() {
-		if _, err := cleaner.DeleteExpired(ctx, time.Now().UTC()); err != nil && ctx.Err() == nil {
-			_, _ = fmt.Fprintf(stderr, "hydro session cleanup: %v\n", err)
+		deleted, err := cleaner.DeleteExpired(ctx, time.Now().UTC())
+		if err != nil {
+			if ctx.Err() == nil {
+				if observer != nil {
+					observer.RecordSessionCleanupError()
+				}
+				_, _ = fmt.Fprintf(stderr, "hydro session cleanup: %v\n", err)
+			}
+			return
+		}
+		if observer != nil {
+			observer.RecordSessionCleanup(deleted)
 		}
 	}
 	run()

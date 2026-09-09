@@ -12,6 +12,8 @@ func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 	m.SetWorkerConcurrency(4)
 	m.RecordWorkerRetry()
 	m.RecordWorkerDeadLetter()
+	m.RecordSessionCleanup(3)
+	m.RecordSessionCleanupError()
 	m.SetJobStatsProvider(func() JobStats {
 		return JobStats{Depth: 2, Leased: 1, DeadLettered: 3}
 	})
@@ -26,5 +28,8 @@ func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), "hydro_worker_retries_total 1\n") || !strings.Contains(res.Body.String(), "hydro_worker_dead_letters_total 1\n") {
 		t.Fatalf("metrics did not expose worker outcomes: %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "hydro_session_cleanup_runs_total 1\n") || !strings.Contains(res.Body.String(), "hydro_session_cleanup_rows_total 3\n") || !strings.Contains(res.Body.String(), "hydro_session_cleanup_errors_total 1\n") {
+		t.Fatalf("metrics did not expose session cleanup outcomes: %s", res.Body.String())
 	}
 }
