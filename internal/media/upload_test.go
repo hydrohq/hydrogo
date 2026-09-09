@@ -11,6 +11,25 @@ import (
 	"testing"
 )
 
+func TestValidateImageDimensionsRejectsInvalidDimensions(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		width, height int
+		want          error
+	}{
+		{name: "zero width", width: 0, height: 10, want: ErrInvalidImageData},
+		{name: "zero height", width: 10, height: 0, want: ErrInvalidImageData},
+		{name: "negative width", width: -1, height: 10, want: ErrInvalidImageData},
+		{name: "pixel budget", width: 11, height: 10, want: ErrImageTooLarge},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := validateImageDimensions(tc.width, tc.height, 100); got != tc.want {
+				t.Fatalf("validateImageDimensions() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func createTestPNG(width, height int) []byte {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	img.Set(0, 0, color.RGBA{R: 255, A: 255})

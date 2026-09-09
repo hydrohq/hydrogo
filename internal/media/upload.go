@@ -142,10 +142,9 @@ func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, er
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrInvalidImageData, err)
 		}
-		width = imgConfig.Width
-		height = imgConfig.Height
-		if int64(width) > u.MaxPixels/int64(height) {
-			return nil, ErrImageTooLarge
+		width, height = imgConfig.Width, imgConfig.Height
+		if err := validateImageDimensions(width, height, u.MaxPixels); err != nil {
+			return nil, err
 		}
 	}
 
@@ -185,6 +184,16 @@ func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, er
 		Width:       width,
 		Height:      height,
 	}, nil
+}
+
+func validateImageDimensions(width, height int, maxPixels int64) error {
+	if width <= 0 || height <= 0 {
+		return ErrInvalidImageData
+	}
+	if maxPixels <= 0 || int64(width) > maxPixels/int64(height) {
+		return ErrImageTooLarge
+	}
+	return nil
 }
 
 func fileSHA256(path string) (string, error) {
