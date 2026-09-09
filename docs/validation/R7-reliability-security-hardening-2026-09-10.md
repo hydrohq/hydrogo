@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `af32cd2`  
-**Validation baseline:** `af32cd2`  
+**Repository commit:** `6dd153a`  
+**Validation baseline:** `6dd153a`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -48,6 +48,8 @@ verification improvements after the R3/R5 contract work.
   protecting generated files and published migrations from path redirection.
 - Generator output directories are checked before `MkdirAll`, preventing a
   symlinked parent from causing external directory creation as a side effect.
+- Media upload limits reject the integer-overflow boundary for bounded reads
+  and cap concurrent upload slots at 1024, with regression coverage.
 
 ## Evidence commands
 
