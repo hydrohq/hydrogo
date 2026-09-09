@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -461,11 +463,15 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 		flags := flag.NewFlagSet("release verify", flag.ContinueOnError)
 		flags.SetOutput(stderr)
 		manifestPath := flags.String("manifest", "", "Path to signed release manifest file")
+		publicKeyPath := flags.String("public-key", "", "Path to trusted Ed25519 public key (base64)")
 		if err := flags.Parse(args[1:]); err != nil {
 			return err
 		}
-		if *manifestPath == "" {
-			return errors.New("--manifest is required")
+		if flags.NArg() != 0 {
+			return fmt.Errorf("unexpected arguments: %v", flags.Args())
+		}
+		if *manifestPath == "" || *publicKeyPath == "" {
+			return errors.New("--manifest and --public-key are required")
 		}
 		data, err := os.ReadFile(*manifestPath)
 		if err != nil {
@@ -474,6 +480,17 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 		var signed release.Signed
 		if err := json.Unmarshal(data, &signed); err != nil {
 			return fmt.Errorf("parse signed manifest: %w", err)
+		}
+		keyData, err := os.ReadFile(*publicKeyPath)
+		if err != nil {
+			return fmt.Errorf("read public key: %w", err)
+		}
+		publicKey, err := base64.RawStdEncoding.DecodeString(strings.TrimSpace(string(keyData)))
+		if err != nil || len(publicKey) != ed25519.PublicKeySize {
+			return errors.New("invalid trusted Ed25519 public key")
+		}
+		if signed.PublicKey != base64.RawStdEncoding.EncodeToString(publicKey) {
+			return errors.New("manifest public key does not match trusted public key")
 		}
 		verified, err := release.Verify(signed)
 		if err != nil {
@@ -532,7 +549,7 @@ Usage:
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro doctor [runtime flags]
-  hydro release verify --manifest PATH
+  hydro release verify --manifest PATH --public-key PATH
   hydro serve [runtime flags]
   hydro help
 

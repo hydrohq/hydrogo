@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -99,13 +100,26 @@ func TestRunReleaseVerify(t *testing.T) {
 	if err := os.WriteFile(manifestFile, signedBytes, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	publicKeyFile := filepath.Join(root, "release.pub")
+	if err := os.WriteFile(publicKeyFile, []byte(signed.PublicKey), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	var stdout, stderr bytes.Buffer
-	err = run([]string{"release", "verify", "--manifest", manifestFile}, strings.NewReader(""), &stdout, &stderr)
+	err = run([]string{"release", "verify", "--manifest", manifestFile, "--public-key", publicKeyFile}, strings.NewReader(""), &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("run release verify failed: %v, stderr: %s", err, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "verified edition=site core=1.0.0") {
 		t.Fatalf("unexpected release verify output: %s", stdout.String())
+	}
+
+	wrongPublic, _, _ := ed25519.GenerateKey(rand.Reader)
+	wrongKeyFile := filepath.Join(root, "wrong.pub")
+	if err := os.WriteFile(wrongKeyFile, []byte(base64.RawStdEncoding.EncodeToString(wrongPublic)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"release", "verify", "--manifest", manifestFile, "--public-key", wrongKeyFile}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("manifest verified with an unrelated trusted key")
 	}
 }
