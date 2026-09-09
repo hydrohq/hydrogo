@@ -61,20 +61,9 @@ func (s Service) SaveSetting(ctx context.Context, value Setting) error {
 }
 
 func (s Service) SaveNavigation(ctx context.Context, locale string, items []NavigationItem) error {
-	locale = strings.ToLower(strings.TrimSpace(locale))
-	if locale == "" {
-		return ErrInvalidNavigation
-	}
-	seen := make(map[int]struct{}, len(items))
-	for _, item := range items {
-		item.Locale = locale
-		if err := ValidateNavigation(item); err != nil {
-			return err
-		}
-		if _, ok := seen[item.Position]; ok {
-			return ErrInvalidNavigation
-		}
-		seen[item.Position] = struct{}{}
+	locale, items, err := normalizeNavigation(locale, items)
+	if err != nil {
+		return err
 	}
 	if err := s.requireStore(); err != nil {
 		return err
@@ -85,6 +74,25 @@ func (s Service) SaveNavigation(ctx context.Context, locale string, items []Navi
 		}
 		return s.audit(ctx, tx, "site.navigation.updated", locale)
 	})
+}
+
+func normalizeNavigation(locale string, items []NavigationItem) (string, []NavigationItem, error) {
+	locale = strings.ToLower(strings.TrimSpace(locale))
+	if locale == "" {
+		return "", nil, ErrInvalidNavigation
+	}
+	seen := make(map[int]struct{}, len(items))
+	for i := range items {
+		items[i].Locale = locale
+		if err := ValidateNavigation(items[i]); err != nil {
+			return "", nil, err
+		}
+		if _, ok := seen[items[i].Position]; ok {
+			return "", nil, ErrInvalidNavigation
+		}
+		seen[items[i].Position] = struct{}{}
+	}
+	return locale, items, nil
 }
 
 func (s Service) SaveRedirect(ctx context.Context, value Redirect) error {
