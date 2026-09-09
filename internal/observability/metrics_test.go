@@ -13,6 +13,7 @@ func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 	m.RecordWorkerRetry()
 	m.RecordWorkerDeadLetter()
 	m.RecordReadinessFailure()
+	m.SetReadinessState(true)
 	m.RecordSessionCleanup(3)
 	m.RecordSessionCleanupError()
 	m.SetJobStatsProvider(func() JobStats {
@@ -32,6 +33,9 @@ func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), "hydro_readiness_failures_total 1\n") {
 		t.Fatalf("metrics did not expose readiness failures: %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "hydro_readiness_state 1\n") {
+		t.Fatalf("metrics did not expose readiness state: %s", res.Body.String())
 	}
 	if !strings.Contains(res.Body.String(), "hydro_session_cleanup_runs_total 1\n") || !strings.Contains(res.Body.String(), "hydro_session_cleanup_rows_total 3\n") || !strings.Contains(res.Body.String(), "hydro_session_cleanup_errors_total 1\n") {
 		t.Fatalf("metrics did not expose session cleanup outcomes: %s", res.Body.String())

@@ -90,6 +90,42 @@ func TestReadinessFailureDoesNotLeakDetails(t *testing.T) {
 	if !strings.Contains(metricsResponse.Body.String(), "hydro_readiness_failures_total 1\n") {
 		t.Fatalf("readiness failure metric missing: %q", metricsResponse.Body.String())
 	}
+	if !strings.Contains(metricsResponse.Body.String(), "hydro_readiness_state 0\n") {
+		t.Fatalf("readiness state metric missing: %q", metricsResponse.Body.String())
+	}
+}
+
+func TestReadinessStateMetricRecoversAfterSuccessfulProbe(t *testing.T) {
+	metrics := observability.NewMetrics()
+	ready := false
+	handler := NewHandler(Config{
+		Metrics: metrics,
+		Ready: func(context.Context) error {
+			if !ready {
+				return errors.New("not ready")
+			}
+			return nil
+		},
+	})
+
+	failed := httptest.NewRecorder()
+	handler.ServeHTTP(failed, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	if failed.Code != http.StatusServiceUnavailable {
+		t.Fatalf("initial readiness status = %d", failed.Code)
+	}
+	ready = true
+	recovered := httptest.NewRecorder()
+	handler.ServeHTTP(recovered, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	if recovered.Code != http.StatusOK {
+		t.Fatalf("recovered readiness status = %d", recovered.Code)
+	}
+
+	metricsResponse := httptest.NewRecorder()
+	metrics.Handler(metricsResponse, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	body := metricsResponse.Body.String()
+	if !strings.Contains(body, "hydro_readiness_failures_total 1\n") || !strings.Contains(body, "hydro_readiness_state 1\n") {
+		t.Fatalf("readiness recovery metrics = %q", body)
+	}
 }
 
 func TestUnexpectedHandlerPanicBecomesStructuredInternalError(t *testing.T) {

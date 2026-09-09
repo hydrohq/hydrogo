@@ -90,10 +90,14 @@ func NewHandler(config Config) http.Handler {
 			if err := config.Ready(checkCtx); err != nil {
 				if config.Metrics != nil {
 					config.Metrics.RecordReadinessFailure()
+					config.Metrics.SetReadinessState(false)
 				}
 				http.Error(w, "not ready", http.StatusServiceUnavailable)
 				return
 			}
+		}
+		if config.Metrics != nil {
+			config.Metrics.SetReadinessState(true)
 		}
 		_, _ = w.Write([]byte("ready\n"))
 	})
