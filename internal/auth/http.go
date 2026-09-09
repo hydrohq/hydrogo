@@ -106,7 +106,7 @@ func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(w, "invitation failed", http.StatusBadRequest)
+		writeAuthDependencyError(w, "invitation failed", err, http.StatusBadRequest)
 		return
 	}
 	if err := h.InviteNotice.SendInvite(r.Context(), NormalizeEmail(r.FormValue("email")), token); err != nil {
@@ -145,7 +145,7 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(w, "invitation acceptance failed", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "invitation acceptance failed", err, http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"user_id": user.ID, "email": user.Email, "role": user.Role})
@@ -172,12 +172,12 @@ func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err != nil {
-		http.Error(w, "password recovery unavailable", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "password recovery unavailable", err, http.StatusInternalServerError)
 		return
 	}
 	user, err := h.Recovery.Users.GetByEmail(r.Context(), NormalizeEmail(r.FormValue("email")))
 	if err != nil {
-		http.Error(w, "password recovery unavailable", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "password recovery unavailable", err, http.StatusInternalServerError)
 		return
 	}
 	if err := h.Notifier.SendPasswordReset(r.Context(), user.Email, token); err != nil {
@@ -209,7 +209,7 @@ func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err != nil {
-		http.Error(w, "password recovery failed", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "password recovery failed", err, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -248,17 +248,17 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
-		http.Error(w, "authentication failed", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "authentication failed", err, http.StatusInternalServerError)
 		return
 	}
 	if h.MFA != nil {
-		if h.MFADB == nil {
+		if err := database.RequireExecutor(h.MFADB); err != nil {
 			http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		enabled, err := h.MFA.Enabled(r.Context(), h.MFADB, user.ID)
 		if err != nil {
-			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			writeAuthDependencyError(w, "authentication failed", err, http.StatusInternalServerError)
 			return
 		}
 		if enabled {
@@ -272,9 +272,17 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err := h.MFA.Verify(r.Context(), h.MFADB, user.ID, code); err != nil {
+				if !errors.Is(err, ErrMFAInvalidCode) {
+					writeAuthDependencyError(w, "authentication failed", err, http.StatusInternalServerError)
+					return
+				}
 				if recoveryErr := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
 					return h.MFA.ConsumeRecoveryCode(r.Context(), tx, user.ID, code)
 				}); recoveryErr != nil {
+					if errors.Is(recoveryErr, database.ErrDatabaseRequired) || errors.Is(recoveryErr, ErrMFAStoreRequired) {
+						writeAuthDependencyError(w, "authentication failed", recoveryErr, http.StatusInternalServerError)
+						return
+					}
 					http.Error(w, "invalid MFA code", http.StatusUnauthorized)
 					return
 				}
@@ -283,7 +291,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	}
 	token, session, err := h.Service.CreateSession(r.Context(), user.ID, r.UserAgent(), clientIP(r), DefaultSessionTTL)
 	if err != nil {
-		http.Error(w, "authentication failed", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "authentication failed", err, http.StatusInternalServerError)
 		return
 	}
 	SetSessionCookie(w, token, session.ExpiresAt, h.Secure)
@@ -306,7 +314,7 @@ func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {
 	session := SessionFromContext(r.Context())
 	if session != nil {
 		if err := h.Service.RevokeSession(r.Context(), sessionToken(r)); err != nil && !errors.Is(err, ErrSessionNotFound) {
-			http.Error(w, "logout failed", http.StatusInternalServerError)
+			writeAuthDependencyError(w, "logout failed", err, http.StatusInternalServerError)
 			return
 		}
 		if h.Audit != nil {
@@ -350,7 +358,7 @@ func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "user not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "user state update failed", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "user state update failed", err, http.StatusInternalServerError)
 		return
 	}
 	if h.Audit != nil {
@@ -376,7 +384,7 @@ func (h HTTPHandler) enrollMFA(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 	if err != nil {
-		http.Error(w, "MFA enrollment failed", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "MFA enrollment failed", err, http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusCreated, enrollment)
@@ -403,7 +411,7 @@ func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid MFA code", http.StatusUnauthorized)
 			return
 		}
-		http.Error(w, "MFA enable failed", http.StatusInternalServerError)
+		writeAuthDependencyError(w, "MFA enable failed", err, http.StatusInternalServerError)
 		return
 	}
 	if h.Audit != nil {
@@ -443,4 +451,15 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+func writeAuthDependencyError(w http.ResponseWriter, message string, err error, fallbackStatus int) {
+	status := fallbackStatus
+	if errors.Is(err, database.ErrDatabaseRequired) ||
+		errors.Is(err, ErrUserRepositoryRequired) ||
+		errors.Is(err, ErrSessionRepositoryRequired) ||
+		errors.Is(err, ErrMFAStoreRequired) {
+		status = http.StatusServiceUnavailable
+	}
+	http.Error(w, message, status)
 }

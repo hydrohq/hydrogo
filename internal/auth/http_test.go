@@ -130,6 +130,45 @@ func TestHTTPLoginRejectsOversizedForm(t *testing.T) {
 	}
 }
 
+func TestHTTPLoginMapsMissingUserRepositoryToUnavailable(t *testing.T) {
+	service := NewAuthService(nil, &httpSessionRepo{}, TestArgon2Params)
+	handler := HTTPHandler{Service: service}.login
+	form := url.Values{"email": {"user@example.com"}, "password": {"secret"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res := httptest.NewRecorder()
+	handler(res, req)
+
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("missing user repository status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	}
+}
+
+func TestHTTPLoginRejectsTypedNilMFAExecutorAsUnavailable(t *testing.T) {
+	hash, err := HashPassword("secret", TestArgon2Params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var db *httpExecutor
+	service := NewAuthService(httpUserRepo{user: &User{
+		ID: "u1", Email: "user@example.com", PasswordHash: hash, Active: true,
+	}}, &httpSessionRepo{}, TestArgon2Params)
+	handler := HTTPHandler{
+		Service: service,
+		MFA:     &MFAService{},
+		MFADB:   db,
+	}.login
+	form := url.Values{"email": {"user@example.com"}, "password": {"secret"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res := httptest.NewRecorder()
+	handler(res, req)
+
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("typed nil MFA executor status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	}
+}
+
 func TestValidateSessionRejectsAbsoluteExpiryBeforeAdapter(t *testing.T) {
 	sessions := &httpSessionRepo{session: &Session{
 		ID:         "s1",
