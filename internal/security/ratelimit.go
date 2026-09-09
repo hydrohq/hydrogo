@@ -34,7 +34,7 @@ func NewAttemptLimiter(maxEntries, limit int, window time.Duration) *AttemptLimi
 }
 
 func (l *AttemptLimiter) Allow(key string) bool {
-	if l == nil || key == "" {
+	if l == nil || l.entries == nil || l.maxEntries < 1 || l.limit < 1 || l.window <= 0 || key == "" {
 		return false
 	}
 	// Keep attacker-controlled and potentially sensitive key material out of the

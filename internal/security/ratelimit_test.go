@@ -95,3 +95,14 @@ func TestAttemptLimiterStoresFixedSizeDigests(t *testing.T) {
 		t.Fatal("second key was not represented by its digest")
 	}
 }
+
+func TestAttemptLimiterFailsClosedWhenZeroValue(t *testing.T) {
+	var nilLimiter *AttemptLimiter
+	if nilLimiter.Allow("login") {
+		t.Fatal("nil limiter accepted an attempt")
+	}
+	zeroLimiter := AttemptLimiter{}
+	if zeroLimiter.Allow("login") {
+		t.Fatal("zero-value limiter accepted an attempt")
+	}
+}
