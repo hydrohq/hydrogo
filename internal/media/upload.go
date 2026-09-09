@@ -13,8 +13,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	_ "golang.org/x/image/webp"
 )
@@ -234,13 +236,28 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 
 	return &UploadResult{
 		ID:          hashHex,
-		Filename:    filepath.Base(originalFilename),
+		Filename:    safeOriginalFilename(originalFilename),
 		StoragePath: finalPath,
 		MimeType:    detectedMime,
 		SizeBytes:   totalSize,
 		Width:       width,
 		Height:      height,
 	}, nil
+}
+
+func safeOriginalFilename(value string) string {
+	value = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, "\\", "/")
+	name := path.Base(value)
+	if name == "." || name == "/" || name == "" {
+		return "unnamed"
+	}
+	return name
 }
 
 func (u *Uploader) acquire(ctx context.Context) error {

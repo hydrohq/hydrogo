@@ -106,6 +106,9 @@ func TestUploadValidPNG(t *testing.T) {
 	if res.Filename != "avatar.png" {
 		t.Errorf("expected sanitized basename 'avatar.png', got %q", res.Filename)
 	}
+	if res2, err := uploader.Save(bytes.NewReader(pngData), `..\windows\avatar.png`); err != nil || res2.Filename != "avatar.png" {
+		t.Fatalf("cross-platform filename sanitization = %#v/%v", res2, err)
+	}
 
 	// Verify file on disk
 	if _, err := os.Stat(res.StoragePath); err != nil {
