@@ -26,6 +26,7 @@ type Metrics struct {
 	workerRetries       atomic.Uint64
 	workerDeadLetters   atomic.Uint64
 	workerConcurrency   atomic.Int64
+	readinessFailures   atomic.Uint64
 	sessionCleanupRuns  atomic.Uint64
 	sessionCleanupRows  atomic.Uint64
 	sessionCleanupError atomic.Uint64
@@ -128,6 +129,14 @@ func (m *Metrics) SetWorkerConcurrency(value int) {
 	}
 }
 
+// RecordReadinessFailure records a failed readiness probe without exposing
+// the underlying dependency error or any user-controlled labels.
+func (m *Metrics) RecordReadinessFailure() {
+	if m != nil {
+		m.readinessFailures.Add(1)
+	}
+}
+
 // Middleware records request count, in-flight requests and coarse response
 // status counts without changing the request or response semantics.
 func (m *Metrics) Middleware(next http.Handler) http.Handler {
@@ -204,6 +213,7 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "hydro_worker_retries_total %d\n", m.workerRetries.Load())
 	fmt.Fprintf(w, "hydro_worker_dead_letters_total %d\n", m.workerDeadLetters.Load())
 	fmt.Fprintf(w, "hydro_worker_concurrency %d\n", m.workerConcurrency.Load())
+	fmt.Fprintf(w, "hydro_readiness_failures_total %d\n", m.readinessFailures.Load())
 	fmt.Fprintf(w, "hydro_session_cleanup_runs_total %d\n", m.sessionCleanupRuns.Load())
 	fmt.Fprintf(w, "hydro_session_cleanup_rows_total %d\n", m.sessionCleanupRows.Load())
 	fmt.Fprintf(w, "hydro_session_cleanup_errors_total %d\n", m.sessionCleanupError.Load())

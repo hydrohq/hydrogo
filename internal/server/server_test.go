@@ -69,8 +69,10 @@ func TestRequestIDIsFreshAndClientValueIsNotTrusted(t *testing.T) {
 }
 
 func TestReadinessFailureDoesNotLeakDetails(t *testing.T) {
+	metrics := observability.NewMetrics()
 	handler := NewHandler(Config{
-		Ready: func(context.Context) error { return errors.New("secret database detail") },
+		Metrics: metrics,
+		Ready:   func(context.Context) error { return errors.New("secret database detail") },
 	})
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/readyz", nil))
@@ -82,6 +84,11 @@ func TestReadinessFailureDoesNotLeakDetails(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"code":"service_unavailable"`) || !strings.Contains(res.Body.String(), `"request_id":"`) {
 		t.Fatalf("readiness error is not machine-readable: %q", res.Body.String())
+	}
+	metricsResponse := httptest.NewRecorder()
+	metrics.Handler(metricsResponse, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if !strings.Contains(metricsResponse.Body.String(), "hydro_readiness_failures_total 1\n") {
+		t.Fatalf("readiness failure metric missing: %q", metricsResponse.Body.String())
 	}
 }
 

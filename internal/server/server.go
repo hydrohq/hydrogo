@@ -88,6 +88,9 @@ func NewHandler(config Config) http.Handler {
 			checkCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 			defer cancel()
 			if err := config.Ready(checkCtx); err != nil {
+				if config.Metrics != nil {
+					config.Metrics.RecordReadinessFailure()
+				}
 				http.Error(w, "not ready", http.StatusServiceUnavailable)
 				return
 			}
