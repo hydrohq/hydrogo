@@ -136,6 +136,44 @@ func TestNewRejectsNestedSymlinkedLogParent(t *testing.T) {
 	}
 }
 
+func TestLogRejectsSymlinkReplacementAfterOpen(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "erasure.jsonl")
+	log, err := New(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Append(Intent{ID: "one", EditionID: "edition", TargetID: "one", Kind: "erase.page"}); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(root, "replacement.jsonl")
+	if err := os.WriteFile(target, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, path); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if _, err := log.Verify(); err == nil {
+		t.Fatal("log verification followed a replacement symlink")
+	}
+}
+
+func TestReplayNormalizesNilContext(t *testing.T) {
+	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Append(Intent{ID: "one", EditionID: "edition", TargetID: "one", Kind: "erase.page"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Replay(nil, 0, func(context.Context, Intent) error { return nil }); err != nil {
+		t.Fatalf("nil-context replay failed: %v", err)
+	}
+}
+
 func TestReplayFromCheckpointRequiresHashAnchor(t *testing.T) {
 	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
 	if err != nil {

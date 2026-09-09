@@ -59,6 +59,9 @@ func New(path string) (*Log, error) {
 		return nil, err
 	}
 	parent := filepath.Dir(path)
+	if err := pathguard.RejectSymlinkComponents(parent); err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(parent, 0o750); err != nil {
 		return nil, err
 	}
@@ -78,6 +81,9 @@ func New(path string) (*Log, error) {
 func (l *Log) Append(intent Intent) (Checkpoint, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if err := l.validatePath(); err != nil {
+		return Checkpoint{}, err
+	}
 	if err := validate(intent); err != nil {
 		return Checkpoint{}, err
 	}
@@ -129,6 +135,9 @@ func (l *Log) Append(intent Intent) (Checkpoint, error) {
 func (l *Log) Verify() (Checkpoint, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if err := l.validatePath(); err != nil {
+		return Checkpoint{}, err
+	}
 	records, err := readRecords(l.path)
 	if err != nil {
 		return Checkpoint{}, err
@@ -145,6 +154,9 @@ func (l *Log) Verify() (Checkpoint, error) {
 func (l *Log) EntriesAfter(sequence uint64) ([]Intent, Checkpoint, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if err := l.validatePath(); err != nil {
+		return nil, Checkpoint{}, err
+	}
 	records, err := readRecords(l.path)
 	if err != nil {
 		return nil, Checkpoint{}, err
@@ -168,6 +180,9 @@ func (l *Log) EntriesAfter(sequence uint64) ([]Intent, Checkpoint, error) {
 func (l *Log) VerifyCheckpoint(checkpoint Checkpoint) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if err := l.validatePath(); err != nil {
+		return err
+	}
 	if checkpoint.Sequence == 0 && checkpoint.Hash == "" {
 		return nil
 	}
@@ -192,6 +207,9 @@ func (l *Log) Replay(ctx context.Context, sequence uint64, apply func(context.Co
 	if apply == nil {
 		return Checkpoint{}, errors.New("erasure replay handler is required")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	intents, checkpoint, err := l.EntriesAfter(sequence)
 	if err != nil {
 		return Checkpoint{}, err
@@ -214,6 +232,9 @@ func (l *Log) ReplayFromCheckpoint(ctx context.Context, checkpoint Checkpoint, a
 	if apply == nil {
 		return Checkpoint{}, errors.New("erasure replay handler is required")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := l.VerifyCheckpoint(checkpoint); err != nil {
 		return Checkpoint{}, err
 	}
@@ -230,6 +251,26 @@ func (l *Log) ReplayFromCheckpoint(ctx context.Context, checkpoint Checkpoint, a
 		}
 	}
 	return latest, nil
+}
+
+func (l *Log) validatePath() error {
+	if l == nil || strings.TrimSpace(l.path) == "" {
+		return errors.New("erasure log path is required")
+	}
+	if err := pathguard.RejectSymlinkComponents(filepath.Dir(l.path)); err != nil {
+		return err
+	}
+	info, err := os.Lstat(l.path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return errors.New("erasure log path must be a regular file")
+	}
+	return nil
 }
 
 func readRecords(path string) ([]record, error) {
