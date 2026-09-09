@@ -589,7 +589,6 @@ func serve(args []string, stderr io.Writer) error {
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
-	go runNewsWorker(ctx, db, newsWorker, stderr)
 
 	metrics := observability.NewMetrics()
 	metrics.SetCacheStatsProvider(func() observability.CacheStats {
@@ -612,6 +611,7 @@ func serve(args []string, stderr io.Writer) error {
 		stats := db.Stats()
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
 	})
+	go runNewsWorker(ctx, db, newsWorker, metrics, stderr)
 	return server.Serve(ctx, server.Config{
 		Address:         cfg.HTTP.Address,
 		ShutdownTimeout: budget.ShutdownTimeout,
@@ -690,21 +690,26 @@ func checkDirectoryWritable(directory string) error {
 	return os.Remove(path)
 }
 
-func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, stderr io.Writer) {
+func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, metrics *observability.Metrics, stderr io.Writer) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
 		now := time.Now().UTC()
 		if err := worker.EnqueueDue(ctx, db, now); err != nil && ctx.Err() == nil {
+			metrics.RecordWorkerEnqueueError()
 			_, _ = fmt.Fprintf(stderr, "hydro news worker enqueue: %v\n", err)
 		}
 		for i := 0; i < 100; i++ {
 			processed, err := worker.RunOnce(ctx, "news-worker", now)
 			if err != nil {
+				metrics.RecordWorkerFailure()
 				if ctx.Err() == nil {
 					_, _ = fmt.Fprintf(stderr, "hydro news worker run: %v\n", err)
 				}
 				break
+			}
+			if processed {
+				metrics.RecordWorkerProcessed()
 			}
 			if !processed {
 				break

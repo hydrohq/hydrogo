@@ -11,15 +11,18 @@ import (
 // Metrics is safe for concurrent HTTP handlers. It intentionally has no
 // unbounded label cardinality: status is the only exported dimension.
 type Metrics struct {
-	requests      atomic.Uint64
-	inFlight      atomic.Int64
-	responses     [6]atomic.Uint64
-	latency       [6]atomic.Uint64
-	latencyCount  atomic.Uint64
-	latencyNanos  atomic.Uint64
-	databaseStats func() DatabaseStats
-	cacheStats    func() CacheStats
-	jobStats      func() JobStats
+	requests            atomic.Uint64
+	inFlight            atomic.Int64
+	responses           [6]atomic.Uint64
+	latency             [6]atomic.Uint64
+	latencyCount        atomic.Uint64
+	latencyNanos        atomic.Uint64
+	databaseStats       func() DatabaseStats
+	cacheStats          func() CacheStats
+	jobStats            func() JobStats
+	workerProcessed     atomic.Uint64
+	workerFailures      atomic.Uint64
+	workerEnqueueErrors atomic.Uint64
 }
 
 type DatabaseStats struct {
@@ -66,6 +69,22 @@ func (m *Metrics) SetCacheStatsProvider(provider func() CacheStats) {
 func (m *Metrics) SetJobStatsProvider(provider func() JobStats) {
 	if m != nil {
 		m.jobStats = provider
+	}
+}
+
+func (m *Metrics) RecordWorkerProcessed() {
+	if m != nil {
+		m.workerProcessed.Add(1)
+	}
+}
+func (m *Metrics) RecordWorkerFailure() {
+	if m != nil {
+		m.workerFailures.Add(1)
+	}
+}
+func (m *Metrics) RecordWorkerEnqueueError() {
+	if m != nil {
+		m.workerEnqueueErrors.Add(1)
 	}
 }
 
@@ -136,6 +155,9 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "hydro_jobs_depth %d\n", stats.Depth)
 		fmt.Fprintf(w, "hydro_jobs_leased %d\n", stats.Leased)
 	}
+	fmt.Fprintf(w, "hydro_worker_processed_total %d\n", m.workerProcessed.Load())
+	fmt.Fprintf(w, "hydro_worker_failures_total %d\n", m.workerFailures.Load())
+	fmt.Fprintf(w, "hydro_worker_enqueue_errors_total %d\n", m.workerEnqueueErrors.Load())
 }
 
 type responseRecorder struct {
