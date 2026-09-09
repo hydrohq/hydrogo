@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	ErrMFAInvalidCode = errors.New("invalid MFA code")
-	ErrMFAUnavailable = errors.New("MFA is unavailable")
+	ErrMFAInvalidCode   = errors.New("invalid MFA code")
+	ErrMFAUnavailable   = errors.New("MFA is unavailable")
+	ErrMFAStoreRequired = errors.New("MFA store is required")
 )
 
 type MFAStore interface {
@@ -34,6 +35,9 @@ type MFAService struct {
 }
 
 func (s MFAService) Enabled(ctx context.Context, db database.Executor, userID string) (bool, error) {
+	if s.Store == nil {
+		return false, ErrMFAStoreRequired
+	}
 	_, enabled, err := s.Store.GetFactor(ctx, db, userID)
 	if err != nil {
 		if errors.Is(err, ErrMFAUnavailable) {
@@ -51,6 +55,9 @@ type MFAEnrollment struct {
 }
 
 func (s MFAService) Enroll(ctx context.Context, tx database.Executor, userID, accountName string) (MFAEnrollment, error) {
+	if s.Store == nil {
+		return MFAEnrollment{}, ErrMFAStoreRequired
+	}
 	if len(s.MasterKey) != 16 && len(s.MasterKey) != 24 && len(s.MasterKey) != 32 {
 		return MFAEnrollment{}, ErrMFAUnavailable
 	}
@@ -73,6 +80,9 @@ func (s MFAService) Enroll(ctx context.Context, tx database.Executor, userID, ac
 }
 
 func (s MFAService) Enable(ctx context.Context, tx database.Executor, userID string) error {
+	if s.Store == nil {
+		return ErrMFAStoreRequired
+	}
 	factor, _, err := s.Store.GetFactor(ctx, tx, userID)
 	if err != nil {
 		return err
@@ -81,6 +91,9 @@ func (s MFAService) Enable(ctx context.Context, tx database.Executor, userID str
 }
 
 func (s MFAService) Disable(ctx context.Context, tx database.Executor, userID string) error {
+	if s.Store == nil {
+		return ErrMFAStoreRequired
+	}
 	factor, _, err := s.Store.GetFactor(ctx, tx, userID)
 	if err != nil {
 		return err
@@ -89,6 +102,9 @@ func (s MFAService) Disable(ctx context.Context, tx database.Executor, userID st
 }
 
 func (s MFAService) EnableWithCode(ctx context.Context, tx database.Executor, userID, code string) error {
+	if s.Store == nil {
+		return ErrMFAStoreRequired
+	}
 	ciphertext, _, err := s.Store.GetFactor(ctx, tx, userID)
 	if err != nil {
 		return err
@@ -101,6 +117,9 @@ func (s MFAService) EnableWithCode(ctx context.Context, tx database.Executor, us
 }
 
 func (s MFAService) Verify(ctx context.Context, db database.Executor, userID, code string) error {
+	if s.Store == nil {
+		return ErrMFAStoreRequired
+	}
 	ciphertext, enabled, err := s.Store.GetFactor(ctx, db, userID)
 	if err != nil {
 		return err
@@ -116,6 +135,9 @@ func (s MFAService) Verify(ctx context.Context, db database.Executor, userID, co
 }
 
 func (s MFAService) ConsumeRecoveryCode(ctx context.Context, tx database.Executor, userID, code string) error {
+	if s.Store == nil {
+		return ErrMFAStoreRequired
+	}
 	digest := sha256.Sum256([]byte(strings.TrimSpace(strings.ToUpper(code))))
 	return s.Store.ConsumeRecoveryCode(ctx, tx, userID, hex.EncodeToString(digest[:]), time.Now().UTC())
 }
