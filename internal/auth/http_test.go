@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -106,6 +107,24 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 	if len(audit.actions) != 1 || audit.actions[0] != "auth.login" {
 		t.Fatalf("unexpected audit actions: %v", audit.actions)
+	}
+}
+
+func TestValidateSessionRejectsAbsoluteExpiryBeforeAdapter(t *testing.T) {
+	sessions := &httpSessionRepo{session: &Session{
+		ID:         "s1",
+		UserID:     "u1",
+		TokenHash:  HashSessionToken("expired-token"),
+		ExpiresAt:  time.Now().UTC().Add(-time.Minute),
+		LastSeenAt: time.Now().UTC(),
+	}}
+	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Active: true}}, sessions, TestArgon2Params)
+
+	if _, _, err := service.ValidateSession(context.Background(), "expired-token"); !errors.Is(err, ErrSessionExpired) {
+		t.Fatalf("ValidateSession error = %v, want %v", err, ErrSessionExpired)
+	}
+	if sessions.session != nil {
+		t.Fatal("expired session was not revoked")
 	}
 }
 

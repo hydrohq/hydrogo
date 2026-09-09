@@ -147,6 +147,11 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 	if err != nil {
 		return nil, nil, err
 	}
+	now := time.Now().UTC()
+	if sess == nil || !sess.ExpiresAt.After(now) {
+		_ = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
+		return nil, nil, ErrSessionExpired
+	}
 
 	u, err := s.userRepo.GetByID(ctx, sess.UserID)
 	if err != nil {
@@ -155,14 +160,14 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 	if !u.Active {
 		return nil, nil, ErrUserInactive
 	}
-	if s.idleTTL > 0 && time.Since(sess.LastSeenAt) > s.idleTTL {
+	if s.idleTTL > 0 && now.Sub(sess.LastSeenAt) > s.idleTTL {
 		_ = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
 		return nil, nil, ErrSessionExpired
 	}
 
 	// Update last seen periodically (fire and forget / non-blocking)
-	if time.Since(sess.LastSeenAt) > 5*time.Minute {
-		_ = s.sessionRepo.Touch(ctx, tokenHash, time.Now().UTC())
+	if now.Sub(sess.LastSeenAt) > 5*time.Minute {
+		_ = s.sessionRepo.Touch(ctx, tokenHash, now)
 	}
 
 	return sess, u, nil
