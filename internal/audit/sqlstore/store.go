@@ -13,6 +13,9 @@ type Store struct {
 }
 
 func (s Store) Record(ctx context.Context, tx database.Executor, id, action, targetID string) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	var requestID any
 	if value := security.RequestIDFromContext(ctx); value != "" {
 		requestID = value

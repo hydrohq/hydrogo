@@ -12,6 +12,9 @@ type Store struct {
 }
 
 func (s Store) Enqueue(ctx context.Context, tx database.Executor, id, topic, aggregateID string, payloadVersion int) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	_, err := tx.ExecContext(ctx, "INSERT INTO outbox_events (id, topic, aggregate_id, payload_version) VALUES ("+s.placeholder(1)+", "+s.placeholder(2)+", "+s.placeholder(3)+", "+s.placeholder(4)+")", id, topic, aggregateID, payloadVersion)
 	return err
 }

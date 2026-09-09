@@ -23,6 +23,9 @@ func (s Store) p(n int) string {
 }
 
 func (s Store) UpsertSetting(ctx context.Context, tx database.Executor, value site.Setting) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	now := value.UpdatedAt.UTC().Format(time.RFC3339Nano)
 	if value.UpdatedAt.IsZero() {
 		now = time.Now().UTC().Format(time.RFC3339Nano)
@@ -63,6 +66,9 @@ func (s Store) ListPublicSettings(ctx context.Context, db database.Executor) ([]
 }
 
 func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, locale string, items []site.NavigationItem) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	deleteQuery := `DELETE FROM navigation_items WHERE locale = $1`
 	if s.Dialect == database.SQLite {
 		deleteQuery = `DELETE FROM navigation_items WHERE locale = ?`
@@ -113,6 +119,9 @@ func (s Store) ListNavigation(ctx context.Context, db database.Executor, locale 
 }
 
 func (s Store) PutRedirect(ctx context.Context, tx database.Executor, value site.Redirect) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	now := value.CreatedAt.UTC().Format(time.RFC3339Nano)
 	if value.CreatedAt.IsZero() {
 		now = time.Now().UTC().Format(time.RFC3339Nano)
@@ -126,6 +135,9 @@ func (s Store) PutRedirect(ctx context.Context, tx database.Executor, value site
 }
 
 func (s Store) GetRedirect(ctx context.Context, db database.Executor, source string) (site.Redirect, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return site.Redirect{}, err
+	}
 	query := `SELECT source_path,target_path,status,created_at FROM page_redirects WHERE source_path = $1`
 	if s.Dialect == database.SQLite {
 		query = `SELECT source_path,target_path,status,created_at FROM page_redirects WHERE source_path = ?`
@@ -141,6 +153,9 @@ func (s Store) GetRedirect(ctx context.Context, db database.Executor, source str
 }
 
 func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value site.Submission) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	query := `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`
 	if s.Dialect == database.SQLite {
 		query = `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at) VALUES (?,?,?,?,?,?,?)`
@@ -184,6 +199,9 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 }
 
 func (s Store) UpdateSubmissionStatus(ctx context.Context, tx database.Executor, id, status string) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	query := `UPDATE form_inbox SET status = $1 WHERE id = $2`
 	if s.Dialect == database.SQLite {
 		query = `UPDATE form_inbox SET status = ? WHERE id = ?`
@@ -203,6 +221,9 @@ func (s Store) UpdateSubmissionStatus(ctx context.Context, tx database.Executor,
 }
 
 func (s Store) PurgeSubmissionsBefore(ctx context.Context, tx database.Executor, before time.Time) (int64, error) {
+	if err := database.RequireExecutor(tx); err != nil {
+		return 0, err
+	}
 	query := `DELETE FROM form_inbox WHERE created_at < $1`
 	arg := any(before)
 	if s.Dialect == database.SQLite {
@@ -238,6 +259,9 @@ type queryExecutor interface {
 }
 
 func queryContext(ctx context.Context, db database.Executor, query string, args ...any) (*sql.Rows, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
 	queryer, ok := db.(queryExecutor)
 	if !ok {
 		return nil, fmt.Errorf("database executor does not support row queries")

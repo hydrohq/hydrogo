@@ -23,6 +23,9 @@ type Store struct {
 
 // ListDeadLetters returns a bounded operator view of jobs that require review.
 func (s Store) ListDeadLetters(ctx context.Context, db database.Executor, limit int) ([]jobs.Job, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
 	if limit < 1 {
 		limit = 1
 	}
@@ -67,6 +70,9 @@ func (s Store) ListDeadLetters(ctx context.Context, db database.Executor, limit 
 // RequeueDeadLetter makes one explicitly selected dead-letter job claimable.
 // The attempt count and last error remain available for operator audit.
 func (s Store) RequeueDeadLetter(ctx context.Context, db database.Executor, id string, availableAt time.Time) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
 	dead := "1"
 	if s.Dialect == database.Postgres {
 		dead = "TRUE"
@@ -88,6 +94,9 @@ func (s Store) RequeueDeadLetter(ctx context.Context, db database.Executor, id s
 // PurgeDeadLetters removes at most limit old dead-letter rows. It never
 // touches leased or claimable jobs, and is intentionally bounded per call.
 func (s Store) PurgeDeadLetters(ctx context.Context, db database.Executor, before time.Time, limit int) (int, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return 0, err
+	}
 	if before.IsZero() {
 		return 0, errors.New("dead-letter purge cutoff is required")
 	}
@@ -143,6 +152,9 @@ func (s Store) PurgeDeadLetters(ctx context.Context, db database.Executor, befor
 }
 
 func (s Store) Enqueue(ctx context.Context, db database.Executor, job jobs.Job) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
 	if rawDB, ok := db.(*sql.DB); ok && s.MaxEntries > 0 {
 		return database.NewTransactor(rawDB).Within(ctx, func(tx database.Executor) error {
 			return s.enqueue(ctx, tx, job)
@@ -152,6 +164,9 @@ func (s Store) Enqueue(ctx context.Context, db database.Executor, job jobs.Job) 
 }
 
 func (s Store) enqueue(ctx context.Context, db database.Executor, job jobs.Job) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
 	if strings.TrimSpace(job.ID) == "" || strings.TrimSpace(job.Type) == "" {
 		return jobs.ErrJobConflict
 	}
@@ -200,6 +215,9 @@ func (s Store) enqueue(ctx context.Context, db database.Executor, job jobs.Job) 
 }
 
 func (s Store) Claim(ctx context.Context, db database.Executor, worker string, now time.Time, duration time.Duration) (jobs.Job, string, bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return jobs.Job{}, "", false, err
+	}
 	if strings.TrimSpace(worker) == "" || duration <= 0 {
 		return jobs.Job{}, "", false, nil
 	}
@@ -244,6 +262,9 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 }
 
 func (s Store) Ack(ctx context.Context, db database.Executor, id, worker, token string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
 	result, err := db.ExecContext(ctx, "DELETE FROM jobs WHERE id = "+s.p(1)+" AND lease_owner = "+s.p(2)+" AND lease_token = "+s.p(3), id, worker, token)
 	if err != nil {
 		return err
@@ -263,6 +284,9 @@ func (s Store) Nack(ctx context.Context, db database.Executor, id, worker, token
 }
 
 func (s Store) NackWithError(ctx context.Context, db database.Executor, id, worker, token string, retryAt time.Time, reason string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
 	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", last_error = "+s.p(2)+" WHERE id = "+s.p(3)+" AND lease_owner = "+s.p(4)+" AND lease_token = "+s.p(5), formatTime(retryAt.UTC()), jobs.BoundError(reason), id, worker, token)
 	if err != nil {
 		return err
@@ -278,6 +302,9 @@ func (s Store) NackWithError(ctx context.Context, db database.Executor, id, work
 }
 
 func (s Store) DeadLetter(ctx context.Context, db database.Executor, id, worker, token, reason string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
 	dead := "1"
 	if s.Dialect == database.Postgres {
 		dead = "TRUE"

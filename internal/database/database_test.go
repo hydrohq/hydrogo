@@ -21,6 +21,12 @@ func TestTransactorRejectsMissingDatabaseAndCallback(t *testing.T) {
 	}
 }
 
+func TestRequireExecutorRejectsNil(t *testing.T) {
+	if err := RequireExecutor(nil); !errors.Is(err, ErrDatabaseRequired) {
+		t.Fatalf("nil executor error = %v, want %v", err, ErrDatabaseRequired)
+	}
+}
+
 func TestOpenWithOptionsValidatesPoolLimits(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "pool.sqlite")

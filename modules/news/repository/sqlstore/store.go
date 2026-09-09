@@ -21,6 +21,9 @@ func (s Store) p(n int) string {
 }
 
 func (s Store) CreateDraft(ctx context.Context, tx database.Executor, item news.Item) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	query := `INSERT INTO news_items (id,locale,slug,title,body,status,version,revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,'draft',1,1,0,$6,$7)`
 	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, now, now}
@@ -33,6 +36,9 @@ func (s Store) CreateDraft(ctx context.Context, tx database.Executor, item news.
 }
 
 func (s Store) UpdateDraft(ctx context.Context, tx database.Executor, item news.Item, expectedVersion int) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	query := `UPDATE news_items SET locale=$1,slug=$2,title=$3,body=$4,status='draft',revision=revision+1,version=version+1,updated_at=$5 WHERE id=$6 AND version=$7 AND status IN ('draft','retracted')`
 	args := []any{item.Locale, item.Slug, item.Title, item.Body, now, item.ID, expectedVersion}
@@ -52,6 +58,9 @@ func (s Store) UpdateDraft(ctx context.Context, tx database.Executor, item news.
 }
 
 func (s Store) Schedule(ctx context.Context, tx database.Executor, id string, expectedVersion int, at time.Time) (int64, error) {
+	if err := database.RequireExecutor(tx); err != nil {
+		return 0, err
+	}
 	query := `UPDATE news_items SET status='scheduled',scheduled_at=$1,schedule_generation=schedule_generation+1,version=version+1,updated_at=$1 WHERE id=$2 AND version=$3 AND status IN ('draft','retracted')`
 	args := []any{at, id, expectedVersion}
 	if s.Dialect == database.SQLite {
@@ -75,6 +84,9 @@ func (s Store) Schedule(ctx context.Context, tx database.Executor, id string, ex
 }
 
 func (s Store) PublishScheduled(ctx context.Context, tx database.Executor, id string, generation int64, now time.Time) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	query := `UPDATE news_items SET status='published',published_revision=revision,scheduled_at=NULL,version=version+1,updated_at=$1 WHERE id=$2 AND status='scheduled' AND schedule_generation=$3 AND scheduled_at <= $1`
 	args := []any{now, id, generation}
 	if s.Dialect == database.SQLite {
@@ -94,6 +106,9 @@ func (s Store) PublishScheduled(ctx context.Context, tx database.Executor, id st
 }
 
 func (s Store) PublishNow(ctx context.Context, tx database.Executor, id string, expectedVersion int) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	query := `UPDATE news_items SET status='published',published_revision=revision,scheduled_at=NULL,version=version+1,updated_at=$1 WHERE id=$2 AND version=$3 AND status IN ('draft','scheduled','retracted')`
 	args := []any{time.Now().UTC(), id, expectedVersion}
 	if s.Dialect == database.SQLite {
@@ -113,6 +128,9 @@ func (s Store) PublishNow(ctx context.Context, tx database.Executor, id string, 
 }
 
 func (s Store) Retract(ctx context.Context, tx database.Executor, id string, expectedVersion int) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	query := `UPDATE news_items SET status='retracted',version=version+1,updated_at=$1 WHERE id=$2 AND version=$3 AND status='published'`
 	args := []any{time.Now().UTC(), id, expectedVersion}
 	if s.Dialect == database.SQLite {
@@ -142,6 +160,9 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 }
 
 func (s Store) ListScheduled(ctx context.Context, db database.Executor, now time.Time) ([]news.Item, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
 	query := `SELECT id,schedule_generation,scheduled_at FROM news_items WHERE status='scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= ` + s.p(1) + ` ORDER BY scheduled_at,id`
 	argument := any(now.UTC())
 	if s.Dialect == database.SQLite {
@@ -173,6 +194,9 @@ func (s Store) ListScheduled(ctx context.Context, db database.Executor, now time
 }
 
 func (s Store) scan(ctx context.Context, db database.Executor, query string, args ...any) (news.Item, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return news.Item{}, err
+	}
 	var item news.Item
 	var status string
 	var published any

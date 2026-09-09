@@ -12,6 +12,9 @@ import (
 type Store struct{ Dialect database.Dialect }
 
 func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.Asset, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return media.Asset{}, err
+	}
 	var asset media.Asset
 	var visibility, status string
 	err := db.QueryRowContext(ctx, "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status FROM media_assets WHERE id = "+s.p(1), id).Scan(&asset.ID, &asset.StorageKey, &asset.OriginalFilename, &asset.MimeType, &asset.SizeBytes, &asset.Width, &asset.Height, &visibility, &status)
@@ -24,6 +27,9 @@ func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.
 }
 
 func (s Store) CreatePending(ctx context.Context, tx database.Executor, asset media.Asset) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, err := tx.ExecContext(ctx, `INSERT INTO media_assets
         (id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, created_at, updated_at)
@@ -33,6 +39,9 @@ func (s Store) CreatePending(ctx context.Context, tx database.Executor, asset me
 }
 
 func (s Store) MarkReady(ctx context.Context, tx database.Executor, id, visibility string) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
 	if visibility != media.VisibilityPrivate && visibility != media.VisibilityPublic {
 		return media.ErrInvalidVisibility
 	}

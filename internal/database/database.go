@@ -36,6 +36,15 @@ type Transactor struct {
 
 var ErrDatabaseRequired = errors.New("database is required")
 
+// RequireExecutor validates the common SQL adapter boundary before an
+// adapter invokes methods on an executor.
+func RequireExecutor(executor Executor) error {
+	if executor == nil {
+		return ErrDatabaseRequired
+	}
+	return nil
+}
+
 func NewTransactor(db *sql.DB) Transactor {
 	return Transactor{db: db}
 }
