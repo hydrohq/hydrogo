@@ -256,19 +256,31 @@ func ClearSessionCookie(w http.ResponseWriter, secure bool) {
 }
 
 func WithUser(ctx context.Context, u *User) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return context.WithValue(ctx, userCtxKey, u)
 }
 
 func WithSession(ctx context.Context, s *Session) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return context.WithValue(ctx, sessionCtxKey, s)
 }
 
 func UserFromContext(ctx context.Context) *User {
+	if ctx == nil {
+		return nil
+	}
 	u, _ := ctx.Value(userCtxKey).(*User)
 	return u
 }
 
 func SessionFromContext(ctx context.Context) *Session {
+	if ctx == nil {
+		return nil
+	}
 	s, _ := ctx.Value(sessionCtxKey).(*Session)
 	return s
 }
