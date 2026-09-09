@@ -44,6 +44,7 @@ func TestDecodeJSONStrictFailsClosedOnInvalidRequestInputs(t *testing.T) {
 		{name: "nil request", req: nil, max: 1 << 10},
 		{name: "nil body", req: &http.Request{}, max: 1 << 10},
 		{name: "zero limit", req: valid, max: 0},
+		{name: "unbounded limit", req: valid, max: 1<<63 - 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := DecodeJSONStrict(httptest.NewRecorder(), tc.req, &struct{}{}, tc.max); err != ErrInvalidJSON {

@@ -10,7 +10,7 @@ const DefaultRequestBodyLimit int64 = 1 << 20
 // RequestBodyLimitMiddleware bounds general request bodies. Multipart media
 // uploads can be excluded because they have their own profile-aware limit.
 func RequestBodyLimitMiddleware(maxBytes int64, skip func(*http.Request) bool) func(http.Handler) http.Handler {
-	if maxBytes <= 0 {
+	if maxBytes <= 0 || maxBytes == 1<<63-1 {
 		maxBytes = DefaultRequestBodyLimit
 	}
 	return func(next http.Handler) http.Handler {
