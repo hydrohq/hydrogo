@@ -31,6 +31,10 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 }
 
 func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
+	if h.Service.Uploader == nil {
+		http.Error(w, "media unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	asset, err := h.Service.Get(r.Context(), h.DB, r.PathValue("id"))
 	if err != nil || asset.Status != "ready" {
 		http.NotFound(w, r)
@@ -51,6 +55,10 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
+	if h.Service.Uploader == nil || h.Service.Assets == nil {
+		http.Error(w, "media unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if !editorAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return

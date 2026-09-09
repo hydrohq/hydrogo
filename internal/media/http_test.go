@@ -1,7 +1,9 @@
 package media
 
 import (
+	"bytes"
 	"context"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -77,5 +79,47 @@ func TestMediaDoesNotServeSymlinkedStorageEntry(t *testing.T) {
 	handler.serve(response, request)
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("symlinked media status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+}
+
+func TestMediaHTTPFailsClosedWhenUploaderIsMissing(t *testing.T) {
+	handler := HTTPHandler{}
+	request := httptest.NewRequest(http.MethodPost, "/api/media", bytes.NewReader(nil))
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
+	response := httptest.NewRecorder()
+	handler.upload(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("missing uploader upload status = %d, want %d", response.Code, http.StatusServiceUnavailable)
+	}
+
+	serveResponse := httptest.NewRecorder()
+	handler.serve(serveResponse, httptest.NewRequest(http.MethodGet, "/media/id", nil))
+	if serveResponse.Code != http.StatusServiceUnavailable {
+		t.Fatalf("missing uploader serve status = %d, want %d", serveResponse.Code, http.StatusServiceUnavailable)
+	}
+}
+
+func TestMediaHTTPFailsClosedWhenRepositoryIsMissing(t *testing.T) {
+	uploader, err := NewUploader(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	file, err := writer.CreateFormFile("file", "image.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = file.Write(createTestPNG(2, 2))
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/media", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
+	response := httptest.NewRecorder()
+	(HTTPHandler{Service: Service{Uploader: uploader}}).upload(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("missing repository upload status = %d, want %d", response.Code, http.StatusServiceUnavailable)
 	}
 }
