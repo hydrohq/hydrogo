@@ -226,3 +226,21 @@ func TestCacheStatsAreBoundedAndAccurate(t *testing.T) {
 		t.Fatalf("unexpected cache stats: %+v", stats)
 	}
 }
+
+func TestCacheFailsClosedWhenNilOrZeroValue(t *testing.T) {
+	var nilCache *Cache[string]
+	if _, err := nilCache.GetOrLoad("key", func() (string, error) { return "value", nil }); !errors.Is(err, ErrCacheUnavailable) {
+		t.Fatalf("nil cache load = %v, want %v", err, ErrCacheUnavailable)
+	}
+	if _, ok := nilCache.Get("key"); ok {
+		t.Fatal("nil cache returned a value")
+	}
+	zeroCache := Cache[string]{}
+	if _, err := zeroCache.GetOrLoad("key", func() (string, error) { return "value", nil }); !errors.Is(err, ErrCacheUnavailable) {
+		t.Fatalf("zero-value cache load = %v, want %v", err, ErrCacheUnavailable)
+	}
+	zeroCache.Set("key", "value")
+	if zeroCache.Stats() != (Stats{}) {
+		t.Fatal("zero-value cache reported non-zero stats")
+	}
+}

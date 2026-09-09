@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var ErrCacheUnavailable = errors.New("cache is unavailable")
+
 type generationContextKey struct{}
 
 // WithGeneration binds a request to the deployment/cache generation selected
@@ -76,6 +78,10 @@ func New[T any](maxEntries int, ttl time.Duration) *Cache[T] {
 // loader call. A loader started before Clear may still return to its caller,
 // but its value cannot repopulate the cache after the generation changes.
 func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
+	if !c.ready() {
+		var zero T
+		return zero, ErrCacheUnavailable
+	}
 	c.mu.Lock()
 	generation := c.generation
 	c.mu.Unlock()
@@ -86,6 +92,10 @@ func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
 // specific cache generation. A result from an older generation may be
 // returned to that request, but it can never refill the current cache.
 func (c *Cache[T]) GetOrLoadAtGeneration(key string, generation uint64, loader func() (T, error)) (T, error) {
+	if !c.ready() {
+		var zero T
+		return zero, ErrCacheUnavailable
+	}
 	if loader == nil {
 		var zero T
 		return zero, errors.New("cache loader is required")
@@ -133,6 +143,10 @@ func (c *Cache[T]) GetOrLoadAtGeneration(key string, generation uint64, loader f
 }
 
 func (c *Cache[T]) Get(key string) (T, bool) {
+	if !c.ready() {
+		var zero T
+		return zero, false
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	entry, ok := c.entries[key]
@@ -150,6 +164,9 @@ func (c *Cache[T]) Get(key string) (T, bool) {
 }
 
 func (c *Cache[T]) Set(key string, value T) {
+	if !c.ready() {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.setLocked(key, value)
@@ -167,10 +184,16 @@ func (c *Cache[T]) setLocked(key string, value T) {
 }
 
 func (c *Cache[T]) Stats() Stats {
+	if !c.ready() {
+		return Stats{}
+	}
 	return Stats{Hits: c.hits.Load(), Misses: c.misses.Load(), Loads: c.loadsTotal.Load(), LoadErrors: c.loadErrors.Load(), Evictions: c.evictions.Load(), Expirations: c.expirations.Load()}
 }
 
 func (c *Cache[T]) Generation() uint64 {
+	if !c.ready() {
+		return 0
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.generation
@@ -179,6 +202,9 @@ func (c *Cache[T]) Generation() uint64 {
 // SetIfGeneration prevents a slow read started before invalidation from
 // refilling the cache with a stale public projection.
 func (c *Cache[T]) SetIfGeneration(key string, value T, generation uint64) bool {
+	if !c.ready() {
+		return false
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.generation != generation {
@@ -189,8 +215,15 @@ func (c *Cache[T]) SetIfGeneration(key string, value T, generation uint64) bool 
 }
 
 func (c *Cache[T]) Clear() {
+	if !c.ready() {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries = make(map[string]item[T])
 	c.generation++
+}
+
+func (c *Cache[T]) ready() bool {
+	return c != nil && c.entries != nil && c.loads != nil && c.maxEntries > 0
 }
