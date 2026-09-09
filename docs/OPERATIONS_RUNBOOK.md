@@ -8,9 +8,10 @@ Bu belge Compact pilot için uygulanabilir işletim adımlarını toplar. Restor
 2. Üretimde `HYDRO_SECURE_COOKIES=true` ve `HYDRO_ENABLE_HSTS=true` ayarlanır; HTTPS sonlandırmasının gerçekten etkin olduğu doğrulanır. `hydro version --json` çıktısı deployment kaydına alınarak binary commit'i ve embedded schema migration seviyesi saklanır.
 3. `hydro doctor` ile seçilen kapasite profili, DB bağlantısı/checksum'ları, backup araçları ve medya dizininin yazılabilirliği doğrulanır; ardından `hydro serve` başlatılır ve `/readyz` beklenir.
 4. `/metrics` yalnızca authenticated operasyon erişimiyle okunur; HTTP toplamı, in-flight ve sınırlı status sınıfı sayaçları alarm/kapasite sistemine aktarılır.
-5. Blue/green geçişinde green slot trafik almadan önce public route, private media, login, sitemap ve form submit smoke istekleri çalıştırılır.
-6. Eski slot yeni yazma almaya devam edemeyecek şekilde durdurulur; worker lease'leri drain/expiry politikasına bırakılır.
-7. Hata durumunda binary rollback yalnız eski şema ve content/event/job formatlarıyla uyumluluk doğrulanırsa yapılır. Yedekten restore ayrı prosedürdür.
+5. `hydro serve` yapılandırılmış JSON HTTP loglarını stderr'e yazar. Loglarda request ID, method, path, status ve süre bulunur; query string, gövde, cookie ve response body bulunmaz.
+6. Blue/green geçişinde green slot trafik almadan önce public route, private media, login, sitemap ve form submit smoke istekleri çalıştırılır.
+7. Eski slot yeni yazma almaya devam edemeyecek şekilde durdurulur; worker lease'leri drain/expiry politikasına bırakılır.
+8. Hata durumunda binary rollback yalnız eski şema ve content/event/job formatlarıyla uyumluluk doğrulanırsa yapılır. Yedekten restore ayrı prosedürdür.
 
 ## Compact snapshot ve restore
 
