@@ -31,3 +31,14 @@ func TestRecoveryMiddlewarePreservesAbortHandler(t *testing.T) {
 	}()
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 }
+
+func TestRecoveryMiddlewareHandlesUncomparablePanicValues(t *testing.T) {
+	handler := RecoveryMiddleware(nil)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic([]string{"unexpected"})
+	}))
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/", nil))
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusInternalServerError)
+	}
+}

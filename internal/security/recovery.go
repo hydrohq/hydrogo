@@ -3,6 +3,7 @@ package security
 import (
 	"log/slog"
 	"net/http"
+	"reflect"
 	"runtime/debug"
 )
 
@@ -18,7 +19,7 @@ func RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 				if value == nil {
 					return
 				}
-				if value == http.ErrAbortHandler {
+				if isAbortHandler(value) {
 					panic(value)
 				}
 				if logger != nil {
@@ -33,4 +34,13 @@ func RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func isAbortHandler(value any) bool {
+	valueType := reflect.TypeOf(value)
+	abortType := reflect.TypeOf(http.ErrAbortHandler)
+	if valueType == nil || valueType != abortType || !reflect.ValueOf(value).Comparable() {
+		return false
+	}
+	return value == http.ErrAbortHandler
 }
