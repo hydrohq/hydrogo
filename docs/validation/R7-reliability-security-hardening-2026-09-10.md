@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `3aaec45`  
-**Validation baseline:** `3aaec45`  
+**Repository commit:** `56ee349`  
+**Validation baseline:** `56ee349`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -55,6 +55,8 @@ verification improvements after the R3/R5 contract work.
 - Erasure log operations revalidate the log file and parent path before each
   read/write, reject post-construction symlink replacement, and normalize nil
   replay contexts.
+- Erasure GC and SMTP/retry senders normalize nil contexts, avoiding runtime
+  panics at public cancellation-aware boundaries.
 
 ## Evidence commands
 
