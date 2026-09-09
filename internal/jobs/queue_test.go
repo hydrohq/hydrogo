@@ -2,8 +2,10 @@ package jobs
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestQueueIsBoundedIdempotentAndReclaimsExpiredLease(t *testing.T) {
@@ -48,5 +50,16 @@ func TestQueueIsBoundedIdempotentAndReclaimsExpiredLease(t *testing.T) {
 	}
 	if _, _, ok := q.Claim("worker-d", created.Add(time.Hour), time.Minute); ok {
 		t.Fatal("dead-lettered job remained claimable")
+	}
+}
+
+func TestBoundErrorTruncatesByRune(t *testing.T) {
+	reason := strings.Repeat("🚀", MaxErrorBytes+10)
+	got := BoundError(reason)
+	if len(got) > MaxErrorBytes {
+		t.Fatalf("bounded error bytes = %d", len(got))
+	}
+	if !utf8.ValidString(got) {
+		t.Fatal("bounded error is not valid UTF-8")
 	}
 }

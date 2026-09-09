@@ -4,8 +4,10 @@ package jobs
 import (
 	"errors"
 	"sort"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 var (
@@ -13,6 +15,22 @@ var (
 	ErrJobConflict  = errors.New("job id already has different payload")
 	ErrLeaseInvalid = errors.New("job lease is invalid")
 )
+
+const MaxErrorBytes = 1024
+
+// BoundError keeps retry/dead-letter diagnostics useful without allowing an
+// untrusted downstream error to grow the durable jobs table without bound.
+func BoundError(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if len(reason) <= MaxErrorBytes {
+		return reason
+	}
+	bounded := reason[:MaxErrorBytes]
+	for !utf8.ValidString(bounded) {
+		bounded = bounded[:len(bounded)-1]
+	}
+	return bounded
+}
 
 type Job struct {
 	ID           string
@@ -132,7 +150,7 @@ func (q *Queue) NackWithError(id, worker, token string, retryAt time.Time, reaso
 	selected.Token = ""
 	selected.LeaseUntil = time.Time{}
 	selected.AvailableAt = retryAt
-	selected.LastError = reason
+	selected.LastError = BoundError(reason)
 	return nil
 }
 
@@ -147,6 +165,6 @@ func (q *Queue) DeadLetter(id, worker, token, reason string) error {
 	selected.Token = ""
 	selected.LeaseUntil = time.Time{}
 	selected.DeadLettered = true
-	selected.LastError = reason
+	selected.LastError = BoundError(reason)
 	return nil
 }

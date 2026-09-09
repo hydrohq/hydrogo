@@ -126,7 +126,7 @@ func (s Store) Nack(ctx context.Context, db database.Executor, id, worker, token
 }
 
 func (s Store) NackWithError(ctx context.Context, db database.Executor, id, worker, token string, retryAt time.Time, reason string) error {
-	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", last_error = "+s.p(2)+" WHERE id = "+s.p(3)+" AND lease_owner = "+s.p(4)+" AND lease_token = "+s.p(5), formatTime(retryAt.UTC()), reason, id, worker, token)
+	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", last_error = "+s.p(2)+" WHERE id = "+s.p(3)+" AND lease_owner = "+s.p(4)+" AND lease_token = "+s.p(5), formatTime(retryAt.UTC()), jobs.BoundError(reason), id, worker, token)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (s Store) DeadLetter(ctx context.Context, db database.Executor, id, worker,
 	if s.Dialect == database.Postgres {
 		dead = "TRUE"
 	}
-	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, dead_lettered = "+dead+", last_error = "+s.p(1)+" WHERE id = "+s.p(2)+" AND lease_owner = "+s.p(3)+" AND lease_token = "+s.p(4), reason, id, worker, token)
+	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, dead_lettered = "+dead+", last_error = "+s.p(1)+" WHERE id = "+s.p(2)+" AND lease_owner = "+s.p(3)+" AND lease_token = "+s.p(4), jobs.BoundError(reason), id, worker, token)
 	if err != nil {
 		return err
 	}
