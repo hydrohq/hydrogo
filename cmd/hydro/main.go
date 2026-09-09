@@ -39,6 +39,7 @@ import (
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
@@ -177,6 +178,9 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if *confirm || *dryRun {
 			return errors.New("--confirm and --dry-run are only valid for portable import")
 		}
+		if err := validatePortableOutputPath(*path); err != nil {
+			return err
+		}
 		if _, err := os.Stat(*path); err == nil {
 			return fmt.Errorf("portable export destination already exists: %s", *path)
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -229,6 +233,9 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		_, err = fmt.Fprintf(stdout, "portable-exported path=%s tables=%d\n", *path, len(document.Tables))
 		return err
 	case "import":
+		if err := validatePortableInputPath(*path); err != nil {
+			return err
+		}
 		if *confirm && *dryRun {
 			return errors.New("--confirm and --dry-run cannot be used together")
 		}
@@ -271,6 +278,34 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 	default:
 		return fmt.Errorf("unknown portable subcommand %q", args[0])
 	}
+}
+
+func validatePortableOutputPath(path string) error {
+	if err := pathguard.RejectSymlinkComponents(filepath.Dir(path)); err != nil {
+		return fmt.Errorf("portable export destination: %w", err)
+	}
+	if info, err := os.Lstat(path); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return errors.New("portable export destination cannot be a symlink")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+func validatePortableInputPath(path string) error {
+	if err := pathguard.RejectSymlinkComponents(filepath.Dir(path)); err != nil {
+		return fmt.Errorf("portable import source: %w", err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("portable import source cannot be a symlink")
+	}
+	return nil
 }
 
 func backupCommand(args []string, stdout, stderr io.Writer) error {

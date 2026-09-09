@@ -308,6 +308,33 @@ func TestRunPortableExportImportRequiresExplicitConfirmation(t *testing.T) {
 	}
 }
 
+func TestPortablePathsRejectSymlinks(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target")
+	if err := os.Mkdir(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	linkDir := filepath.Join(root, "link-dir")
+	if err := os.Symlink(target, linkDir); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if err := validatePortableOutputPath(filepath.Join(linkDir, "export.json")); err == nil {
+		t.Fatal("portable export accepted a symlinked parent")
+	}
+
+	source := filepath.Join(root, "source.json")
+	if err := os.WriteFile(source, []byte("{}"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "source-link.json")
+	if err := os.Symlink(source, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := validatePortableInputPath(link); err == nil {
+		t.Fatal("portable import accepted a symlink source")
+	}
+}
+
 func TestCheckDirectoryWritable(t *testing.T) {
 	if err := checkDirectoryWritable(t.TempDir()); err != nil {
 		t.Fatalf("writable directory rejected: %v", err)
