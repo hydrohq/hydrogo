@@ -139,7 +139,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-local.ps1
 
 `verify-local.ps1` is the single local developer gate: it checks formatting, vet, the full test suite, a trimpath build, Client Edition import boundaries, and both external edition builds. It does not require PostgreSQL. The production-gate script remains stricter and requires a real PostgreSQL contract database.
 
-`hydro doctor --json` provides automation-friendly preflight output for the selected profile, database, backup tools, media writability, and transport security settings.
+`hydro doctor --json` provides automation-friendly preflight output for the selected profile, database, backup tools, media writability, transport security settings, binary identity, and embedded schema migration.
 
 Run the automated release gates after configuring a PostgreSQL contract database:
 
