@@ -11,17 +11,35 @@ import (
 // Metrics is safe for concurrent HTTP handlers. It intentionally has no
 // unbounded label cardinality: status is the only exported dimension.
 type Metrics struct {
-	requests     atomic.Uint64
-	inFlight     atomic.Int64
-	responses    [6]atomic.Uint64
-	latency      [6]atomic.Uint64
-	latencyCount atomic.Uint64
-	latencyNanos atomic.Uint64
+	requests      atomic.Uint64
+	inFlight      atomic.Int64
+	responses     [6]atomic.Uint64
+	latency       [6]atomic.Uint64
+	latencyCount  atomic.Uint64
+	latencyNanos  atomic.Uint64
+	databaseStats func() DatabaseStats
+}
+
+type DatabaseStats struct {
+	MaxOpenConnections int
+	OpenConnections    int
+	InUseConnections   int
+	IdleConnections    int
+	WaitCount          int64
+	WaitDuration       time.Duration
 }
 
 var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisecond, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 5 * time.Second}
 
 func NewMetrics() *Metrics { return &Metrics{} }
+
+// SetDatabaseStatsProvider installs a process-local provider before the
+// server starts. The provider must not expose user-controlled labels.
+func (m *Metrics) SetDatabaseStatsProvider(provider func() DatabaseStats) {
+	if m != nil {
+		m.databaseStats = provider
+	}
+}
 
 // Middleware records request count, in-flight requests and coarse response
 // status counts without changing the request or response semantics.
@@ -67,6 +85,15 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "hydro_http_request_duration_seconds_bucket{le=\"+Inf\"} %d\n", m.latencyCount.Load())
 	fmt.Fprintf(w, "hydro_http_request_duration_seconds_count %d\n", m.latencyCount.Load())
 	fmt.Fprintf(w, "hydro_http_request_duration_seconds_sum %.9f\n", float64(m.latencyNanos.Load())/float64(time.Second))
+	if m.databaseStats != nil {
+		stats := m.databaseStats()
+		fmt.Fprintf(w, "hydro_database_pool_max_open_connections %d\n", stats.MaxOpenConnections)
+		fmt.Fprintf(w, "hydro_database_pool_open_connections %d\n", stats.OpenConnections)
+		fmt.Fprintf(w, "hydro_database_pool_in_use_connections %d\n", stats.InUseConnections)
+		fmt.Fprintf(w, "hydro_database_pool_idle_connections %d\n", stats.IdleConnections)
+		fmt.Fprintf(w, "hydro_database_pool_wait_count_total %d\n", stats.WaitCount)
+		fmt.Fprintf(w, "hydro_database_pool_wait_duration_seconds_total %.9f\n", stats.WaitDuration.Seconds())
+	}
 }
 
 type responseRecorder struct {

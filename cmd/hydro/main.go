@@ -545,11 +545,16 @@ func serve(args []string, stderr io.Writer) error {
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
 	go runNewsWorker(ctx, db, newsWorker, stderr)
 
+	metrics := observability.NewMetrics()
+	metrics.SetDatabaseStatsProvider(func() observability.DatabaseStats {
+		stats := db.Stats()
+		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
+	})
 	return server.Serve(ctx, server.Config{
 		Address:         cfg.HTTP.Address,
 		ShutdownTimeout: budget.ShutdownTimeout,
 		AuthSvc:         authSvc,
-		Metrics:         observability.NewMetrics(),
+		Metrics:         metrics,
 		EnableHSTS:      cfg.Security.EnableHSTS,
 		SecureCookie:    cfg.Security.SecureCookies,
 		Routes:          routes,

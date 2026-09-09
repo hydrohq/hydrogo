@@ -106,6 +106,9 @@ func TestProtectedRouteAuthorization(t *testing.T) {
 
 func TestMetricsAreProtectedAndBounded(t *testing.T) {
 	metrics := observability.NewMetrics()
+	metrics.SetDatabaseStatsProvider(func() observability.DatabaseStats {
+		return observability.DatabaseStats{MaxOpenConnections: 10, OpenConnections: 2, WaitCount: 3}
+	})
 	handler := NewHandler(Config{
 		Metrics: metrics,
 		Authorizer: func(r *http.Request) bool {
@@ -124,7 +127,7 @@ func TestMetricsAreProtectedAndBounded(t *testing.T) {
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("metrics authorized status = %d", authorized.Code)
 	}
-	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) || !strings.Contains(authorized.Body.String(), "hydro_http_request_duration_seconds_bucket") {
+	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) || !strings.Contains(authorized.Body.String(), "hydro_http_request_duration_seconds_bucket") || !strings.Contains(authorized.Body.String(), "hydro_database_pool_max_open_connections 10") {
 		t.Fatalf("metrics output missing bounded counters: %q", authorized.Body.String())
 	}
 }
