@@ -17,8 +17,10 @@ if ([string]::IsNullOrWhiteSpace($env:HYDRO_TEST_POSTGRES_URL)) {
 }
 
 Invoke-Required "gofmt" { gofmt -l . | ForEach-Object { throw "gofmt required: $_" } }
+Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "go vet" { go vet ./... }
 Invoke-Required "full test suite" { go test ./... -count=1 }
+Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 }
 
 $previousCgo = $env:CGO_ENABLED
 $env:CGO_ENABLED = "1"

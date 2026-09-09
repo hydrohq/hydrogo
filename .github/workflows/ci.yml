@@ -53,9 +53,12 @@ jobs:
           fi
           test -x /usr/lib/postgresql/18/bin/pg_dump
           test -x /usr/lib/postgresql/18/bin/pg_restore
+      - run: go mod verify
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
+      - name: Run shuffled test suite
+        run: go test ./... -shuffle=on -count=1
       - run: go build -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3
@@ -101,8 +104,10 @@ jobs:
         run: |
           $formatted = gofmt -l .
           if ($formatted) { Write-Error "gofmt required: $formatted" }
+          go mod verify
           go vet ./...
           go test ./...
+          go test ./... -shuffle=on -count=1
           go build -ldflags "-X main.buildCommit=$env:GITHUB_SHA -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3

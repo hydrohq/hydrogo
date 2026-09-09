@@ -11,12 +11,14 @@ function Invoke-Required {
 
 Write-Host "HydroGo local verification"
 
+Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "gofmt" {
     $unformatted = gofmt -l .
     if ($unformatted) { throw "gofmt required: $($unformatted -join ', ')" }
 }
 Invoke-Required "go vet" { go vet ./... }
 Invoke-Required "full test suite" { go test ./... -count=1 }
+Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 }
 $buildLDFLAGS = "-X main.buildCommit=local -X main.buildTime=local-verification"
 Invoke-Required "hydro build" { go build -trimpath -buildvcs=false -ldflags $buildLDFLAGS -o .tmp\local\hydro.exe ./cmd/hydro }
 Invoke-Required "client edition import boundary" { go run ./tools/importguard -root examples/client-edition }
