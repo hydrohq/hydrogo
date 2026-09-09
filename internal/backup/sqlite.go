@@ -227,6 +227,9 @@ func ReadManifest(path string) (Manifest, error) {
 
 // Verify checks a snapshot directory without activating it.
 func Verify(root string, manifest Manifest) error {
+	if err := validateBackupRoot(root); err != nil {
+		return err
+	}
 	if manifest.Version != 1 || manifest.Database.Path != "database" {
 		return errors.New("unsupported backup manifest")
 	}
@@ -268,6 +271,28 @@ func Verify(root string, manifest Manifest) error {
 	}
 	if err := validateSnapshotEntries(root, expectedEntries); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateBackupRoot(root string) error {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return errors.New("backup root is required")
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	info, err := os.Lstat(absolute)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("backup root cannot be a symlink: %s", absolute)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("backup root is not a directory: %s", absolute)
 	}
 	return nil
 }

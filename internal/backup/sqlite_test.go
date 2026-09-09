@@ -165,6 +165,25 @@ func TestSnapshotSQLiteRejectsEmptyMediaRoot(t *testing.T) {
 	}
 }
 
+func TestVerifyRejectsUnsafeRoots(t *testing.T) {
+	manifest := Manifest{Version: 1, Database: FileDigest{Path: "database"}}
+	if err := Verify(" ", manifest); err == nil {
+		t.Fatal("verify accepted an empty root")
+	}
+	parent := t.TempDir()
+	target := filepath.Join(parent, "target")
+	if err := os.Mkdir(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(parent, "target-link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if err := Verify(link, manifest); err == nil {
+		t.Fatal("verify accepted a symlink root")
+	}
+}
+
 func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 	root := t.TempDir()
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
