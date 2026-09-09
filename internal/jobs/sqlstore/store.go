@@ -196,7 +196,9 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	if s.Dialect == database.Postgres {
 		deadLettered = "FALSE"
 	}
-	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = `+s.boolLiteral(true)+`) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts, &job.DeadLettered, &job.LastError)
+	// restore_controls stores its flags as INTEGER in both dialects. Keep the
+	// quarantine predicate numeric instead of using PostgreSQL's BOOLEAN literal.
+	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts, &job.DeadLettered, &job.LastError)
 	if errors.Is(err, sql.ErrNoRows) {
 		return jobs.Job{}, "", false, nil
 	}
