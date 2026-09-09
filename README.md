@@ -92,7 +92,7 @@ Endpoints:
 
 For PostgreSQL, set `HYDRO_DATABASE_DIALECT=postgres` and use an isolated `HYDRO_DATABASE_DSN`.
 
-Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and `HYDRO_ENABLE_HSTS=true` (or the equivalent `security.secure_cookies` and `security.enable_hsts` YAML fields). They remain disabled by default for local HTTP development.
+Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and `HYDRO_ENABLE_HSTS=true` (or the equivalent `security.secure_cookies` and `security.enable_hsts` YAML fields) together with an HTTPS `HYDRO_PUBLIC_ORIGIN`. Configuration rejects HSTS without an HTTPS canonical origin. These settings remain disabled by default for local HTTP development.
 
 ## Operational commands
 

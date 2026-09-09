@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -172,6 +173,20 @@ func (c Config) Validate() error {
 	}
 	if _, _, err := net.SplitHostPort(c.HTTP.Address); err != nil {
 		return fmt.Errorf("invalid HTTP address %q: %w", c.HTTP.Address, err)
+	}
+	var publicOrigin *url.URL
+	if strings.TrimSpace(c.HTTP.PublicOrigin) != "" {
+		parsed, err := url.Parse(c.HTTP.PublicOrigin)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return fmt.Errorf("invalid public origin %q", c.HTTP.PublicOrigin)
+		}
+		publicOrigin = parsed
+	}
+	if c.Security.EnableHSTS && (publicOrigin == nil || publicOrigin.Scheme != "https") {
+		return errors.New("HSTS requires an HTTPS public origin")
+	}
+	if c.Security.SecureCookies && publicOrigin != nil && publicOrigin.Scheme != "https" {
+		return errors.New("secure cookies require an HTTPS public origin")
 	}
 	switch c.Database.Dialect {
 	case database.SQLite, database.Postgres:
