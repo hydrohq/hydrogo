@@ -131,6 +131,28 @@ func TestDialectBooleanLiterals(t *testing.T) {
 	}
 }
 
+func TestSQLiteClaimFailsClosedDuringRestoreQuarantine(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "quarantine.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	if err := (Store{Dialect: database.SQLite}).Enqueue(ctx, db, jobs.Job{ID: "quarantine-job", Type: "news.publish", Payload: "{}", AvailableAt: now, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO restore_controls (id, sessions_revoked, egress_quarantined, old_writes_blocked, activated_at) VALUES (1, 1, 1, 1, ?)", formatTime(now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok, err := (Store{Dialect: database.SQLite}).Claim(ctx, db, "worker", now, time.Minute); err != nil || ok {
+		t.Fatalf("quarantined claim = ok:%v err:%v, want no claim", ok, err)
+	}
+}
+
 func TestSQLiteQueueCapacityIsBoundedForConcurrentProducers(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "jobs.sqlite"))

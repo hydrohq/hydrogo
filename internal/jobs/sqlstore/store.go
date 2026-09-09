@@ -229,7 +229,7 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	}
 	job.Attempts = attempts + 1
 	token := newToken(worker, job.ID, now)
-	result, err := db.ExecContext(ctx, `UPDATE jobs SET lease_owner = `+s.p(1)+`, lease_token = `+s.p(2)+`, lease_until = `+s.p(3)+`, attempts = attempts + 1 WHERE id = `+s.p(4)+` AND (lease_until IS NULL OR lease_until <= `+s.p(5)+`)`, worker, token, formatTime(now.Add(duration)), job.ID, formatTime(now))
+	result, err := db.ExecContext(ctx, `UPDATE jobs SET lease_owner = `+s.p(1)+`, lease_token = `+s.p(2)+`, lease_until = `+s.p(3)+`, attempts = attempts + 1 WHERE id = `+s.p(4)+` AND (lease_until IS NULL OR lease_until <= `+s.p(5)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1)`, worker, token, formatTime(now.Add(duration)), job.ID, formatTime(now))
 	if err != nil {
 		return jobs.Job{}, "", false, err
 	}
