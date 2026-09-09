@@ -16,6 +16,13 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
+func nonNilContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 type Config struct {
 	Address         string
 	ShutdownTimeout time.Duration
@@ -32,6 +39,7 @@ type Config struct {
 }
 
 func Serve(ctx context.Context, config Config) error {
+	ctx = nonNilContext(ctx)
 	listener, err := net.Listen("tcp", config.Address)
 	if err != nil {
 		return err

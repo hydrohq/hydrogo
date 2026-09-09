@@ -50,6 +50,16 @@ func TestOperationalRoutesAreExplicit(t *testing.T) {
 	}
 }
 
+func TestServeContextNormalization(t *testing.T) {
+	if nonNilContext(nil) == nil {
+		t.Fatal("nil context was not normalized")
+	}
+	ctx := context.Background()
+	if nonNilContext(ctx) != ctx {
+		t.Fatal("non-nil context was replaced")
+	}
+}
+
 func TestRequestIDIsFreshAndClientValueIsNotTrusted(t *testing.T) {
 	handler := NewHandler(Config{})
 	first := httptest.NewRecorder()
