@@ -19,6 +19,9 @@ func GenerateCSPNonce() (string, error) {
 }
 
 func NonceFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
 	if nonce, ok := ctx.Value(cspNonceContextKey{}).(string); ok {
 		return nonce
 	}
