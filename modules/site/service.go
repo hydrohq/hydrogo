@@ -34,9 +34,19 @@ type Service struct {
 	Audit        AuditWriter
 }
 
+func (s Service) requireStore() error {
+	if s.Store == nil {
+		return ErrStoreRequired
+	}
+	return nil
+}
+
 func (s Service) SaveSetting(ctx context.Context, value Setting) error {
 	value.Key = strings.TrimSpace(value.Key)
 	if err := ValidateSetting(value); err != nil {
+		return err
+	}
+	if err := s.requireStore(); err != nil {
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
@@ -63,6 +73,9 @@ func (s Service) SaveNavigation(ctx context.Context, locale string, items []Navi
 		}
 		seen[item.Position] = struct{}{}
 	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Store.ReplaceNavigation(ctx, tx, locale, items); err != nil {
 			return err
@@ -77,6 +90,9 @@ func (s Service) SaveRedirect(ctx context.Context, value Redirect) error {
 	if err := ValidateRedirect(value); err != nil {
 		return err
 	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Store.PutRedirect(ctx, tx, value); err != nil {
 			return err
@@ -87,6 +103,9 @@ func (s Service) SaveRedirect(ctx context.Context, value Redirect) error {
 
 func (s Service) Submit(ctx context.Context, value Submission) error {
 	if err := ValidateSubmission(value); err != nil {
+		return err
+	}
+	if err := s.requireStore(); err != nil {
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
@@ -101,6 +120,9 @@ func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) err
 	if strings.TrimSpace(id) == "" || ValidateInboxStatus(status) != nil {
 		return ErrInvalidInboxState
 	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Store.UpdateSubmissionStatus(ctx, tx, id, strings.TrimSpace(status)); err != nil {
 			return err
@@ -112,6 +134,9 @@ func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) err
 func (s Service) PurgeInbox(ctx context.Context, before time.Time) (int64, error) {
 	if before.IsZero() {
 		return 0, ErrInvalidInboxState
+	}
+	if err := s.requireStore(); err != nil {
+		return 0, err
 	}
 	var purged int64
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {

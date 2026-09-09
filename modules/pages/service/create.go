@@ -30,6 +30,9 @@ type CreateDraft struct {
 }
 
 func (s CreateDraft) Execute(ctx context.Context, id, title string) error {
+	if s.Transactions == nil || s.Pages == nil || s.Audit == nil || s.Outbox == nil {
+		return ErrDependencyRequired
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Pages.InsertDraft(ctx, tx, id, title); err != nil {
 			return err

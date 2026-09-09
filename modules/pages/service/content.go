@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	ErrInvalidPage = errors.New("invalid page")
-	ErrConflict    = pages.ErrConflict
+	ErrInvalidPage        = errors.New("invalid page")
+	ErrConflict           = pages.ErrConflict
+	ErrDependencyRequired = errors.New("page service dependency is required")
 )
 
 type ContentRepository interface {
@@ -28,6 +29,9 @@ func (s ContentService) Get(ctx context.Context, db database.Executor, pageID st
 	if strings.TrimSpace(pageID) == "" {
 		return pages.Page{}, ErrInvalidPage
 	}
+	if s.Pages == nil {
+		return pages.Page{}, ErrDependencyRequired
+	}
 	return s.Pages.GetContent(ctx, db, pageID)
 }
 
@@ -41,6 +45,9 @@ type ContentService struct {
 }
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
+	if s.Pages == nil {
+		return pages.Page{}, ErrDependencyRequired
+	}
 	key := strings.ToLower(strings.Trim(locale, "/")) + ":" + strings.Trim(strings.ToLower(slug), "/")
 	load := func() (pages.Page, error) {
 		return s.Pages.GetPublishedByRoute(ctx, db, strings.ToLower(strings.TrimSpace(locale)), strings.Trim(strings.ToLower(strings.TrimSpace(slug)), "/"))
@@ -61,6 +68,9 @@ func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error 
 	if err := validatePage(&page); err != nil {
 		return err
 	}
+	if err := s.requireMutationDependencies(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Pages.CreateDraftContent(ctx, tx, page); err != nil {
 			return err
@@ -77,6 +87,9 @@ func (s ContentService) UpdateDraft(ctx context.Context, page pages.Page, expect
 		page.Body = s.Sanitize(page.Body)
 	}
 	if err := validatePage(&page); err != nil {
+		return err
+	}
+	if err := s.requireMutationDependencies(); err != nil {
 		return err
 	}
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
@@ -98,6 +111,9 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 	if strings.TrimSpace(pageID) == "" || expectedVersion <= 0 {
 		return ErrInvalidPage
 	}
+	if err := s.requireMutationDependencies(); err != nil {
+		return err
+	}
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Pages.Publish(ctx, tx, pageID, expectedVersion); err != nil {
 			return err
@@ -116,6 +132,13 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 		s.PublicCache.Clear()
 	}
 	return err
+}
+
+func (s ContentService) requireMutationDependencies() error {
+	if s.Transactions == nil || s.Pages == nil || s.Audit == nil || s.Outbox == nil {
+		return ErrDependencyRequired
+	}
+	return nil
 }
 
 func validatePage(page *pages.Page) error {

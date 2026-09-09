@@ -14,6 +14,7 @@ var (
 	ErrInvalidRedirect   = errors.New("invalid redirect")
 	ErrInvalidSubmission = errors.New("invalid form submission")
 	ErrInvalidInboxState = errors.New("invalid inbox state")
+	ErrStoreRequired     = errors.New("site store is required")
 )
 
 type Setting struct {

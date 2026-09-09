@@ -7,9 +7,10 @@ import (
 )
 
 var (
-	ErrInvalidItem   = errors.New("invalid news item")
-	ErrConflict      = errors.New("news item conflict")
-	ErrScheduleStale = errors.New("news schedule is stale")
+	ErrInvalidItem        = errors.New("invalid news item")
+	ErrConflict           = errors.New("news item conflict")
+	ErrScheduleStale      = errors.New("news schedule is stale")
+	ErrRepositoryRequired = errors.New("news repository is required")
 )
 
 type Status string

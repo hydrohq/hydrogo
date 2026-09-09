@@ -37,8 +37,18 @@ type Service struct {
 	Outbox       OutboxWriter
 }
 
+func (s Service) requireRepository() error {
+	if s.Repository == nil {
+		return ErrRepositoryRequired
+	}
+	return nil
+}
+
 func (s Service) CreateDraft(ctx context.Context, item Item) error {
 	if err := Validate(item); err != nil {
+		return err
+	}
+	if err := s.requireRepository(); err != nil {
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
@@ -52,6 +62,9 @@ func (s Service) CreateDraft(ctx context.Context, item Item) error {
 func (s Service) UpdateDraft(ctx context.Context, item Item, expectedVersion int) error {
 	if err := Validate(item); err != nil || expectedVersion <= 0 {
 		return ErrInvalidItem
+	}
+	if err := s.requireRepository(); err != nil {
+		return err
 	}
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Repository.UpdateDraft(ctx, tx, item, expectedVersion); err != nil {
@@ -69,6 +82,9 @@ func (s Service) Schedule(ctx context.Context, id string, expectedVersion int, a
 	if strings.TrimSpace(id) == "" || expectedVersion <= 0 || at.IsZero() {
 		return ErrInvalidItem
 	}
+	if err := s.requireRepository(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		generation, err := s.Repository.Schedule(ctx, tx, id, expectedVersion, at.UTC())
 		if err != nil {
@@ -82,6 +98,9 @@ func (s Service) RunScheduled(ctx context.Context, id string, generation int64, 
 	if strings.TrimSpace(id) == "" || generation <= 0 {
 		return ErrScheduleStale
 	}
+	if err := s.requireRepository(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Repository.PublishScheduled(ctx, tx, id, generation, now.UTC()); err != nil {
 			return err
@@ -91,6 +110,9 @@ func (s Service) RunScheduled(ctx context.Context, id string, generation int64, 
 }
 
 func (s Service) Publish(ctx context.Context, id string, expectedVersion int) error {
+	if err := s.requireRepository(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Repository.PublishNow(ctx, tx, id, expectedVersion); err != nil {
 			return err
@@ -100,6 +122,9 @@ func (s Service) Publish(ctx context.Context, id string, expectedVersion int) er
 }
 
 func (s Service) Retract(ctx context.Context, id string, expectedVersion int) error {
+	if err := s.requireRepository(); err != nil {
+		return err
+	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Repository.Retract(ctx, tx, id, expectedVersion); err != nil {
 			return err
