@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+const maxRestoreMarkerBytes = 64 << 10
 
 // ActivateStagingMedia atomically promotes a verified restore staging root to
 // the active media root. The previous active root is retained for rollback.
@@ -116,9 +119,17 @@ func absoluteActivationPaths(staging, active, rollback string) (string, string, 
 }
 
 func readRestoreMarker(root string) (RestoreMarker, error) {
-	data, err := os.ReadFile(filepath.Join(root, "RESTORE_QUARANTINED.json"))
+	file, err := os.Open(filepath.Join(root, "RESTORE_QUARANTINED.json"))
 	if err != nil {
 		return RestoreMarker{}, fmt.Errorf("restore quarantine marker: %w", err)
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxRestoreMarkerBytes+1))
+	if err != nil {
+		return RestoreMarker{}, fmt.Errorf("restore quarantine marker: %w", err)
+	}
+	if len(data) > maxRestoreMarkerBytes {
+		return RestoreMarker{}, fmt.Errorf("restore quarantine marker exceeds %d-byte limit", maxRestoreMarkerBytes)
 	}
 	var marker RestoreMarker
 	if err := json.Unmarshal(data, &marker); err != nil {

@@ -1,11 +1,23 @@
 package backup
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestReadRestoreMarkerRejectsOversizedInput(t *testing.T) {
+	root := t.TempDir()
+	markerPath := filepath.Join(root, "RESTORE_QUARANTINED.json")
+	if err := os.WriteFile(markerPath, bytes.Repeat([]byte("x"), maxRestoreMarkerBytes+1), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readRestoreMarker(root); err == nil {
+		t.Fatal("oversized restore marker was accepted")
+	}
+}
 
 func TestActivateStagingMediaRetainsPreviousRoot(t *testing.T) {
 	root := t.TempDir()
