@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 )
 
@@ -100,5 +101,30 @@ func TestProtectedRouteAuthorization(t *testing.T) {
 	handler.ServeHTTP(recAuth, reqAuth)
 	if recAuth.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", recAuth.Code)
+	}
+}
+
+func TestMetricsAreProtectedAndBounded(t *testing.T) {
+	metrics := observability.NewMetrics()
+	handler := NewHandler(Config{
+		Metrics: metrics,
+		Authorizer: func(r *http.Request) bool {
+			return r.Header.Get("X-Test-Auth") == "authorized"
+		},
+	})
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("metrics unauthorized status = %d", unauthorized.Code)
+	}
+	authorizedRequest := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	authorizedRequest.Header.Set("X-Test-Auth", "authorized")
+	authorized := httptest.NewRecorder()
+	handler.ServeHTTP(authorized, authorizedRequest)
+	if authorized.Code != http.StatusOK {
+		t.Fatalf("metrics authorized status = %d", authorized.Code)
+	}
+	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) {
+		t.Fatalf("metrics output missing bounded counters: %q", authorized.Body.String())
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
@@ -21,6 +22,7 @@ type Config struct {
 	AuthSvc         *auth.AuthService
 	Routes          []router.Route
 	Authorizer      router.Authorizer
+	Metrics         *observability.Metrics
 	EnableHSTS      bool
 	SecureCookie    bool
 }
@@ -95,6 +97,9 @@ func NewHandler(config Config) http.Handler {
 	if authorizer == nil && config.AuthSvc != nil {
 		authorizer = auth.Authorizer()
 	}
+	if config.Metrics != nil && authorizer != nil {
+		routes = append(routes, router.Route{Pattern: "GET /metrics", Access: router.Protected, Handler: http.HandlerFunc(config.Metrics.Handler)})
+	}
 
 	routerHandler, err := router.New(routes, authorizer)
 	if err != nil {
@@ -102,6 +107,9 @@ func NewHandler(config Config) http.Handler {
 	}
 
 	var handler http.Handler = routerHandler
+	if config.Metrics != nil {
+		handler = config.Metrics.Middleware(handler)
+	}
 
 	// Generate a fresh correlation identifier before security and auth middleware.
 	handler = security.RequestIDMiddleware(handler)

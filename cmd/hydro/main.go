@@ -32,6 +32,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
@@ -494,6 +495,7 @@ func serve(args []string, stderr io.Writer) error {
 		Address:         cfg.HTTP.Address,
 		ShutdownTimeout: budget.ShutdownTimeout,
 		AuthSvc:         authSvc,
+		Metrics:         observability.NewMetrics(),
 		Routes:          routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
