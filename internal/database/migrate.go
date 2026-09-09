@@ -29,6 +29,7 @@ func discoverMigrations(migrationFS fs.FS) ([]string, error) {
 }
 
 func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+	ctx = nonNilContext(ctx)
 	if db == nil {
 		return errors.New("database is required")
 	}
@@ -108,6 +109,7 @@ type migrationQueryer interface {
 }
 
 func withinMigrationTransaction(ctx context.Context, starter migrationTransactionStarter, fn func(Executor) error) error {
+	ctx = nonNilContext(ctx)
 	tx, err := starter.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -203,6 +205,7 @@ func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dia
 }
 
 func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+	ctx = nonNilContext(ctx)
 	if db == nil {
 		return errors.New("database is required")
 	}

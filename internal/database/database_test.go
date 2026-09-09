@@ -22,6 +22,17 @@ func TestTransactorRejectsMissingDatabaseAndCallback(t *testing.T) {
 	}
 }
 
+func TestDatabaseBoundariesNormalizeNilContext(t *testing.T) {
+	db, err := Open(nil, SQLite, filepath.Join(t.TempDir(), "nil-context.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := NewTransactor(db).Within(nil, func(Executor) error { return nil }); err != nil {
+		t.Fatalf("transaction with nil context failed: %v", err)
+	}
+}
+
 func TestRequireExecutorRejectsNil(t *testing.T) {
 	if err := RequireExecutor(nil); !errors.Is(err, ErrDatabaseRequired) {
 		t.Fatalf("nil executor error = %v, want %v", err, ErrDatabaseRequired)

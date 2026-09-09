@@ -37,6 +37,13 @@ type Transactor struct {
 
 var ErrDatabaseRequired = errors.New("database is required")
 
+func nonNilContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 // RequireExecutor validates the common SQL adapter boundary before an
 // adapter invokes methods on an executor.
 func RequireExecutor(executor Executor) error {
@@ -67,6 +74,7 @@ func (t Transactor) Within(ctx context.Context, fn func(Executor) error) error {
 	if fn == nil {
 		return errors.New("transaction callback is required")
 	}
+	ctx = nonNilContext(ctx)
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -84,6 +92,7 @@ func Open(ctx context.Context, dialect Dialect, dsn string) (*sql.DB, error) {
 }
 
 func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options OpenOptions) (*sql.DB, error) {
+	ctx = nonNilContext(ctx)
 	if dsn == "" {
 		return nil, errors.New("database DSN is required")
 	}

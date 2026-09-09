@@ -31,6 +31,20 @@ func TestMigrationAPIsRejectMissingDatabaseAndDialect(t *testing.T) {
 	}
 }
 
+func TestMigrationAPIsNormalizeNilContext(t *testing.T) {
+	db, err := database.Open(nil, database.SQLite, filepath.Join(t.TempDir(), "nil-migration-context.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(nil, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatalf("migrations with nil context failed: %v", err)
+	}
+	if err := database.CheckCompatibility(nil, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatalf("compatibility with nil context failed: %v", err)
+	}
+}
+
 func TestSQLiteMigrationRestartAndCompatibilityContract(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "hydro.sqlite")
