@@ -4,14 +4,22 @@ import (
 	"errors"
 	"net/http"
 	"sync/atomic"
+
+	"github.com/ardaozyildirim/hydrogo/internal/cache"
 )
 
 // Traffic routes requests to the active deployment slot. It is deliberately
 // process-local; a reverse proxy integration can use the same gate sequence.
 type Traffic struct {
-	blue   http.Handler
-	green  http.Handler
-	active atomic.Value // Slot
+	blue               http.Handler
+	green              http.Handler
+	generationProvider func() uint64
+	active             atomic.Value // trafficState
+}
+
+type trafficState struct {
+	slot       Slot
+	generation uint64
 }
 
 func NewTraffic(blue, green http.Handler) (*Traffic, error) {
@@ -19,8 +27,17 @@ func NewTraffic(blue, green http.Handler) (*Traffic, error) {
 		return nil, errors.New("both blue and green handlers are required")
 	}
 	t := &Traffic{blue: blue, green: green}
-	t.active.Store(SlotBlue)
+	t.active.Store(trafficState{slot: SlotBlue})
 	return t, nil
+}
+
+// SetGenerationProvider binds request ingress to the cache generation used by
+// the surrounding deployment. It is optional for integrations that use the
+// traffic router without a generation-aware cache.
+func (t *Traffic) SetGenerationProvider(provider func() uint64) {
+	if t != nil {
+		t.generationProvider = provider
+	}
 }
 
 func (t *Traffic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +45,11 @@ func (t *Traffic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "traffic router unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	if t.active.Load().(Slot) == SlotGreen {
+	state := t.active.Load().(trafficState)
+	if t.generationProvider != nil {
+		r = r.WithContext(cache.WithGeneration(r.Context(), t.generationProvider()))
+	}
+	if state.slot == SlotGreen {
 		t.green.ServeHTTP(w, r)
 		return
 	}
@@ -40,7 +61,8 @@ func (t *Traffic) Switch(d Deployment) error {
 	if t == nil || d.ActiveSlot != SlotGreen || d.Phase != PhaseSwitched {
 		return ErrInvalidTransition
 	}
-	t.active.Store(SlotGreen)
+	state := t.active.Load().(trafficState)
+	t.active.Store(trafficState{slot: SlotGreen, generation: state.generation + 1})
 	return nil
 }
 
@@ -49,6 +71,7 @@ func (t *Traffic) Rollback(d Deployment) error {
 	if t == nil || d.ActiveSlot != SlotBlue || d.Phase != PhaseStable || !d.SchemaRollbackSafe {
 		return ErrNotRollbackSafe
 	}
-	t.active.Store(SlotBlue)
+	state := t.active.Load().(trafficState)
+	t.active.Store(trafficState{slot: SlotBlue, generation: state.generation + 1})
 	return nil
 }

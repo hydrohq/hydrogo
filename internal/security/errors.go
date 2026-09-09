@@ -93,7 +93,20 @@ func (c *errorCapture) commit(r *http.Request) {
 	if c.status == 0 {
 		c.status = http.StatusOK
 	}
-	if c.status >= http.StatusBadRequest && !isJSON(c.header.Get("Content-Type")) {
+	if c.status >= http.StatusInternalServerError {
+		payload, err := json.Marshal(ErrorResponse{
+			Code:      errorCode(c.status),
+			Message:   publicServerErrorMessage(c.status),
+			RequestID: RequestIDFromContext(r.Context()),
+		})
+		if err == nil {
+			c.header.Set("Content-Type", "application/json; charset=utf-8")
+			c.header.Del("Content-Length")
+			c.body.Reset()
+			_, _ = c.body.Write(payload)
+			_, _ = c.body.WriteString("\n")
+		}
+	} else if c.status >= http.StatusBadRequest && !isJSON(c.header.Get("Content-Type")) {
 		payload, err := json.Marshal(ErrorResponse{
 			Code:      errorCode(c.status),
 			Message:   strings.TrimSpace(c.body.String()),
@@ -140,4 +153,11 @@ func errorCode(status int) string {
 		return code
 	}
 	return "http_" + strconv.Itoa(status)
+}
+
+func publicServerErrorMessage(status int) string {
+	if status == http.StatusServiceUnavailable {
+		return "service unavailable"
+	}
+	return "internal server error"
 }

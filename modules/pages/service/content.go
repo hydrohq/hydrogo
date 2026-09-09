@@ -46,6 +46,9 @@ func (s ContentService) GetPublished(ctx context.Context, db database.Executor, 
 		return s.Pages.GetPublishedByRoute(ctx, db, strings.ToLower(strings.TrimSpace(locale)), strings.Trim(strings.ToLower(strings.TrimSpace(slug)), "/"))
 	}
 	if s.PublicCache != nil {
+		if generation, ok := cache.GenerationFromContext(ctx); ok {
+			return s.PublicCache.GetOrLoadAtGeneration(key, generation, load)
+		}
 		return s.PublicCache.GetOrLoad(key, load)
 	}
 	return load()

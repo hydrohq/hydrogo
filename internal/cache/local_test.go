@@ -172,6 +172,41 @@ func TestGetOrLoadRevalidatesAfterClearWhileOldLoadIsInFlight(t *testing.T) {
 	}
 }
 
+func TestGetOrLoadAtGenerationRejectsLateOldSlotRefill(t *testing.T) {
+	c := New[string](2, time.Minute)
+	oldGeneration := c.Generation()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	oldResult := make(chan string, 1)
+	go func() {
+		value, err := c.GetOrLoadAtGeneration("route", oldGeneration, func() (string, error) {
+			close(started)
+			<-release
+			return "old-slot", nil
+		})
+		if err != nil {
+			t.Errorf("old generation load error: %v", err)
+		}
+		oldResult <- value
+	}()
+	<-started
+	c.Clear()
+
+	fresh, err := c.GetOrLoadAtGeneration("route", c.Generation(), func() (string, error) {
+		return "active-slot", nil
+	})
+	if err != nil || fresh != "active-slot" {
+		t.Fatalf("fresh generation load = %q/%v", fresh, err)
+	}
+	close(release)
+	if got := <-oldResult; got != "old-slot" {
+		t.Fatalf("old generation result = %q", got)
+	}
+	if got, ok := c.Get("route"); !ok || got != "active-slot" {
+		t.Fatalf("old generation refilled cache: %q/%v", got, ok)
+	}
+}
+
 func TestCacheStatsAreBoundedAndAccurate(t *testing.T) {
 	c := New[string](1, time.Millisecond)
 	if _, err := c.GetOrLoad("key", func() (string, error) { return "value", nil }); err != nil {

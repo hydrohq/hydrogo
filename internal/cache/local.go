@@ -1,11 +1,29 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 )
+
+type generationContextKey struct{}
+
+// WithGeneration binds a request to the deployment/cache generation selected
+// before traffic was handed to its handler.
+func WithGeneration(ctx context.Context, generation uint64) context.Context {
+	return context.WithValue(ctx, generationContextKey{}, generation)
+}
+
+// GenerationFromContext returns the generation captured at request ingress.
+func GenerationFromContext(ctx context.Context) (uint64, bool) {
+	if ctx == nil {
+		return 0, false
+	}
+	generation, ok := ctx.Value(generationContextKey{}).(uint64)
+	return generation, ok
+}
 
 type item[T any] struct {
 	value     T
@@ -58,29 +76,42 @@ func New[T any](maxEntries int, ttl time.Duration) *Cache[T] {
 // loader call. A loader started before Clear may still return to its caller,
 // but its value cannot repopulate the cache after the generation changes.
 func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
+	c.mu.Lock()
+	generation := c.generation
+	c.mu.Unlock()
+	return c.GetOrLoadAtGeneration(key, generation, loader)
+}
+
+// GetOrLoadAtGeneration coalesces a load for a request that entered during a
+// specific cache generation. A result from an older generation may be
+// returned to that request, but it can never refill the current cache.
+func (c *Cache[T]) GetOrLoadAtGeneration(key string, generation uint64, loader func() (T, error)) (T, error) {
 	if loader == nil {
 		var zero T
 		return zero, errors.New("cache loader is required")
 	}
 	c.mu.Lock()
-	if entry, ok := c.entries[key]; ok && !time.Now().After(entry.expiresAt) {
-		c.hits.Add(1)
-		c.mu.Unlock()
-		return entry.value, nil
+	if c.generation == generation {
+		if entry, ok := c.entries[key]; ok && !time.Now().After(entry.expiresAt) {
+			c.hits.Add(1)
+			c.mu.Unlock()
+			return entry.value, nil
+		}
+		c.misses.Add(1)
+		if _, ok := c.entries[key]; ok {
+			c.expirations.Add(1)
+		}
+		delete(c.entries, key)
+	} else {
+		c.misses.Add(1)
 	}
-	c.misses.Add(1)
-	if _, ok := c.entries[key]; ok {
-		c.expirations.Add(1)
-	}
-	delete(c.entries, key)
-	if call, ok := c.loads[key]; ok && call.generation == c.generation {
+	if call, ok := c.loads[key]; ok && call.generation == generation {
 		c.mu.Unlock()
 		<-call.done
 		return call.value, call.err
 	}
-	call := &loadCall[T]{done: make(chan struct{}), generation: c.generation}
+	call := &loadCall[T]{done: make(chan struct{}), generation: generation}
 	c.loads[key] = call
-	generation := c.generation
 	c.mu.Unlock()
 
 	value, err := loader()

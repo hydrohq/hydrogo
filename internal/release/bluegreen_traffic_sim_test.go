@@ -28,8 +28,8 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	releaseGreen := make(chan struct{})
 	var firstBlue atomic.Bool
 	var greenNotification sync.Once
-	loadPage := func(slot string) string {
-		val, err := c.GetOrLoad("public:page", func() (string, error) {
+	loadPage := func(ctx context.Context, slot string) string {
+		loader := func() (string, error) {
 			dbQueryCount.Add(1)
 			if slot == "blue" && firstBlue.CompareAndSwap(false, true) {
 				close(firstBlueStarted)
@@ -40,19 +40,26 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 				<-releaseGreen
 			}
 			return fmt.Sprintf("content-from-%s", slot), nil
-		})
+		}
+		var val string
+		var err error
+		if generation, ok := cache.GenerationFromContext(ctx); ok {
+			val, err = c.GetOrLoadAtGeneration("public:page", generation, loader)
+		} else {
+			val, err = c.GetOrLoad("public:page", loader)
+		}
 		if err != nil {
 			return ""
 		}
 		return val
 	}
 
-	blueHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		res := loadPage("blue")
+	blueHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		res := loadPage(r.Context(), "blue")
 		_, _ = w.Write([]byte(res))
 	})
-	greenHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		res := loadPage("green")
+	greenHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		res := loadPage(r.Context(), "green")
 		_, _ = w.Write([]byte(res))
 	})
 
@@ -60,6 +67,7 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	traffic.SetGenerationProvider(c.Generation)
 
 	deployment, err := release.NewDeployment(release.SlotBlue)
 	if err != nil {
@@ -70,7 +78,7 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	// starts its own load. Green must win the cache refill; the late Blue
 	// result may still reach its caller but must not repopulate the cache.
 	blueResult := make(chan string, 1)
-	go func() { blueResult <- loadPage("blue") }()
+	go func() { blueResult <- loadPage(context.Background(), "blue") }()
 	<-firstBlueStarted
 	c.Clear()
 	if err := deployment.PrepareGreen(); err != nil {
@@ -89,7 +97,7 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	greenResult := make(chan string, 1)
-	go func() { greenResult <- loadPage("green") }()
+	go func() { greenResult <- loadPage(context.Background(), "green") }()
 	<-greenStarted
 	close(releaseGreen)
 	if got := <-greenResult; got != "content-from-green" {
@@ -140,7 +148,7 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	c.Clear()
 
 	time.Sleep(100 * time.Millisecond)
-	if got := loadPage("green"); got != "content-from-green" {
+	if got := loadPage(context.Background(), "green"); got != "content-from-green" {
 		t.Fatalf("green slot served %q", got)
 	}
 
@@ -174,7 +182,7 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 		t.Fatalf("excessive DB query count: %d for %d requests", dbQueries, totalRequests.Load())
 	}
 
-	if got := loadPage("blue"); got != "content-from-blue" {
+	if got := loadPage(context.Background(), "blue"); got != "content-from-blue" {
 		t.Fatalf("rollback to blue served %q", got)
 	}
 }
