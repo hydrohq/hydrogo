@@ -33,3 +33,22 @@ func TestDecodeJSONStrictAcceptsSingleKnownValue(t *testing.T) {
 		t.Fatalf("name = %q", got.Name)
 	}
 }
+
+func TestDecodeJSONStrictFailsClosedOnInvalidRequestInputs(t *testing.T) {
+	valid := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ok"}`))
+	for _, tc := range []struct {
+		name string
+		req  *http.Request
+		max  int64
+	}{
+		{name: "nil request", req: nil, max: 1 << 10},
+		{name: "nil body", req: &http.Request{}, max: 1 << 10},
+		{name: "zero limit", req: valid, max: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := DecodeJSONStrict(httptest.NewRecorder(), tc.req, &struct{}{}, tc.max); err != ErrInvalidJSON {
+				t.Fatalf("error = %v, want %v", err, ErrInvalidJSON)
+			}
+		})
+	}
+}
