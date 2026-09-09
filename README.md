@@ -99,6 +99,7 @@ Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and `HYD
 ```text
 hydro serve
 hydro migrate
+hydro version --json
 hydro doctor
 hydro upgrade check
 hydro create-admin --email EMAIL --password-stdin

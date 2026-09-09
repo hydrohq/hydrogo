@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,20 @@ func TestRunVersion(t *testing.T) {
 	}
 	if got := stdout.String(); got != version+"\n" {
 		t.Fatalf("version output = %q, want %q", got, version+"\n")
+	}
+}
+
+func TestRunVersionJSONIncludesSchemaMetadata(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"version", "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("run version --json: %v", err)
+	}
+	var info versionInfo
+	if err := json.Unmarshal(stdout.Bytes(), &info); err != nil {
+		t.Fatal(err)
+	}
+	if info.Version != version || info.SchemaMigration == "" || info.GoVersion == "" {
+		t.Fatalf("incomplete version info: %+v", info)
 	}
 }
 

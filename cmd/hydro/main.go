@@ -13,9 +13,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -55,6 +58,19 @@ import (
 
 const version = "0.0.0-dev"
 
+var (
+	buildCommit = "unknown"
+	buildTime   = "unknown"
+)
+
+type versionInfo struct {
+	Version         string `json:"version"`
+	Commit          string `json:"commit"`
+	BuildTime       string `json:"build_time"`
+	GoVersion       string `json:"go_version"`
+	SchemaMigration string `json:"schema_migration"`
+}
+
 func main() {
 	if err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "hydro:", err)
@@ -70,11 +86,23 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 
 	switch args[0] {
 	case "version":
-		if len(args) != 1 {
-			return errors.New("version does not accept arguments")
+		if len(args) == 1 {
+			_, err := fmt.Fprintln(stdout, version)
+			return err
 		}
-		_, err := fmt.Fprintln(stdout, version)
-		return err
+		if len(args) == 2 && args[1] == "--json" {
+			info, err := currentVersionInfo()
+			if err != nil {
+				return err
+			}
+			data, err := json.Marshal(info)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintln(stdout, string(data))
+			return err
+		}
+		return errors.New("version accepts only --json")
 	case "serve":
 		return serve(args[1:], stderr)
 	case "migrate":
@@ -100,6 +128,24 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+func currentVersionInfo() (versionInfo, error) {
+	entries, err := fs.ReadDir(migrations.FS, ".")
+	if err != nil {
+		return versionInfo{}, fmt.Errorf("read embedded migrations: %w", err)
+	}
+	ids := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			ids = append(ids, entry.Name())
+		}
+	}
+	sort.Strings(ids)
+	if len(ids) == 0 {
+		return versionInfo{}, errors.New("no embedded migrations found")
+	}
+	return versionInfo{Version: version, Commit: buildCommit, BuildTime: buildTime, GoVersion: runtime.Version(), SchemaMigration: ids[len(ids)-1]}, nil
 }
 
 func portableCommand(args []string, stdout, stderr io.Writer) error {
@@ -942,6 +988,7 @@ func printUsage(w io.Writer) {
 
 Usage:
   hydro version
+  hydro version --json
   hydro migrate [runtime flags]
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
