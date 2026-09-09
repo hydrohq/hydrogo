@@ -14,6 +14,13 @@ type dummyModule struct {
 	routes []extension.ModuleRoute
 }
 
+func TestRegisterRejectsTypedNilModule(t *testing.T) {
+	var module *dummyModule
+	if err := NewRegistry().Register(module); err == nil {
+		t.Fatal("typed nil module was accepted")
+	}
+}
+
 func (d dummyModule) Name() string                    { return d.name }
 func (d dummyModule) Routes() []extension.ModuleRoute { return d.routes }
 

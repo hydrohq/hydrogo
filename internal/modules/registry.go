@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/ardaozyildirim/hydrogo/extension"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 )
 
@@ -19,7 +20,7 @@ func NewRegistry() *Registry {
 }
 
 func (r *Registry) Register(m extension.Module) error {
-	if m == nil {
+	if guards.IsNil(m) {
 		return fmt.Errorf("cannot register nil module")
 	}
 	name := m.Name()

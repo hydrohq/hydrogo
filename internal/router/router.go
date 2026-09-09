@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 type Access uint8
@@ -26,7 +28,7 @@ type Authorizer func(*http.Request) bool
 func New(routes []Route, authorize Authorizer) (http.Handler, error) {
 	mux := http.NewServeMux()
 	for _, route := range routes {
-		if route.Pattern == "" || route.Handler == nil {
+		if route.Pattern == "" || guards.IsNil(route.Handler) {
 			return nil, errors.New("route pattern and handler are required")
 		}
 		for _, pattern := range apiVersionedPatterns(route.Pattern) {

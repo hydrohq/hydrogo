@@ -6,6 +6,17 @@ import (
 	"testing"
 )
 
+type nilHandler struct{}
+
+func (*nilHandler) ServeHTTP(http.ResponseWriter, *http.Request) {}
+
+func TestNewRejectsTypedNilHandler(t *testing.T) {
+	var handler *nilHandler
+	if _, err := New([]Route{{Pattern: "GET /nil", Access: Public, Handler: handler}}, nil); err == nil {
+		t.Fatal("typed nil handler was accepted")
+	}
+}
+
 func TestNewRejectsUnclassifiedRoute(t *testing.T) {
 	_, err := New([]Route{{Pattern: "GET /unsafe", Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}}, nil)
 	if err == nil {
