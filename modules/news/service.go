@@ -46,6 +46,9 @@ func (s Service) requireRepository() error {
 }
 
 func (s Service) CreateDraft(ctx context.Context, item Item) error {
+	if err := Canonicalize(&item); err != nil {
+		return ErrInvalidItem
+	}
 	if err := Validate(item); err != nil {
 		return err
 	}
@@ -61,6 +64,9 @@ func (s Service) CreateDraft(ctx context.Context, item Item) error {
 }
 
 func (s Service) UpdateDraft(ctx context.Context, item Item, expectedVersion int) error {
+	if err := Canonicalize(&item); err != nil {
+		return ErrInvalidItem
+	}
 	if err := Validate(item); err != nil || expectedVersion <= 0 {
 		return ErrInvalidItem
 	}

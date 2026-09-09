@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 )
 
 var (
@@ -39,11 +41,22 @@ type Item struct {
 }
 
 func Validate(item Item) error {
-	item.Locale = strings.ToLower(strings.TrimSpace(item.Locale))
-	item.Slug = strings.Trim(strings.ToLower(strings.TrimSpace(item.Slug)), "/")
+	if err := Canonicalize(&item); err != nil {
+		return ErrInvalidItem
+	}
 	item.Title = strings.TrimSpace(item.Title)
 	if item.ID == "" || item.Locale == "" || item.Slug == "" || item.Title == "" || item.Status != StatusDraft {
 		return ErrInvalidItem
 	}
 	return nil
+}
+
+func Canonicalize(item *Item) error {
+	if item == nil {
+		return canonical.ErrInvalidPath
+	}
+	item.Locale = canonical.Locale(item.Locale)
+	var err error
+	item.Slug, err = canonical.Path(item.Slug)
+	return err
 }

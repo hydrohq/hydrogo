@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -161,7 +162,13 @@ func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	item, err := h.Service.Repository.GetPublishedByRoute(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
+	locale := canonical.Locale(r.PathValue("locale"))
+	slug, err := canonical.Path(r.PathValue("slug"))
+	if locale == "" || err != nil || slug == "" {
+		http.Error(w, "news not found", http.StatusNotFound)
+		return
+	}
+	item, err := h.Service.Repository.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
 	if err != nil {
 		if errors.Is(err, database.ErrDatabaseRequired) {
 			http.Error(w, "news unavailable", http.StatusServiceUnavailable)

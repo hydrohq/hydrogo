@@ -3,9 +3,9 @@ package auth
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
@@ -33,7 +33,7 @@ type User struct {
 }
 
 func NormalizeEmail(email string) string {
-	return strings.ToLower(strings.TrimSpace(email))
+	return canonical.Email(email)
 }
 
 type UserRepository interface {

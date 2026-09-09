@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
@@ -49,9 +50,14 @@ func (s ContentService) GetPublished(ctx context.Context, db database.Executor, 
 	if guards.IsNil(s.Pages) {
 		return pages.Page{}, ErrDependencyRequired
 	}
-	key := strings.ToLower(strings.Trim(locale, "/")) + ":" + strings.Trim(strings.ToLower(slug), "/")
+	normalLocale := canonical.Locale(locale)
+	normalSlug, err := canonical.Path(slug)
+	if err != nil || normalLocale == "" || normalSlug == "" {
+		return pages.Page{}, ErrInvalidPage
+	}
+	key := normalLocale + ":" + normalSlug
 	load := func() (pages.Page, error) {
-		return s.Pages.GetPublishedByRoute(ctx, db, strings.ToLower(strings.TrimSpace(locale)), strings.Trim(strings.ToLower(strings.TrimSpace(slug)), "/"))
+		return s.Pages.GetPublishedByRoute(ctx, db, normalLocale, normalSlug)
 	}
 	if s.PublicCache != nil {
 		if generation, ok := cache.GenerationFromContext(ctx); ok {
@@ -143,10 +149,11 @@ func (s ContentService) requireMutationDependencies() error {
 }
 
 func validatePage(page *pages.Page) error {
-	page.Locale = strings.ToLower(strings.TrimSpace(page.Locale))
-	page.Slug = strings.Trim(strings.ToLower(strings.TrimSpace(page.Slug)), "/")
+	page.Locale = canonical.Locale(page.Locale)
+	var err error
+	page.Slug, err = canonical.Path(page.Slug)
 	page.Title = strings.TrimSpace(page.Title)
-	if page.ID == "" || page.Locale == "" || page.Slug == "" || page.Title == "" {
+	if err != nil || page.ID == "" || page.Locale == "" || page.Slug == "" || page.Title == "" {
 		return ErrInvalidPage
 	}
 	if page.Status == "" {

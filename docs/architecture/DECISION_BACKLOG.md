@@ -32,7 +32,7 @@ P0: ilk uygulama ayrıntısı; P1: pilot/v1 teslimi; P2: talep ile genişleme. B
 | P0 | Driver/toolchain/migration aracı | İki DB + Windows dev/Linux amd64 fixture; sürüm/build/lisans değerlendirmesi | Skeleton S02/S04 | Core/CI ve migration contract'ları uygulandı; provider sertifikasyonu ayrıca açık |
 | P0 | SDK imzaları/transaction executor | Küçük registration ve transaction scope; geniş interface dondurulmasın | S01/S02, kararlılık S08 | Uygulandı; extension/v1 ve transaction contract'ları doğrulandı |
 | P0 | UI bağımlılıkları/view slot | Templ + aday Quill/HTMX/Alpine CSP; iki tema ile doğrulama | S03 | Uygulandı; sürümlü asset, CSP ve tema contract'ları doğrulandı |
-| P0 | Slug/email canonicalization | Normalize yardımcı alanlar; Unicode/case/locale fixture'ları; veri taşınabilirliği | İlk kalıcı şema | Detay açık |
+| P0 | Slug/email canonicalization | Normalize yardımcı alanlar; Unicode/case/locale fixture'ları; veri taşınabilirliği | İlk kalıcı şema | Uygulandı; ortak NFC/case/URL-path canonicalization ve regression fixture'ları mevcut; gerçek veri migration/provider kanıtı ayrıca açık |
 | P1 | Sayısal kaynak/güvenlik/cache varsayılanları | Ölçülmüş limitler ve toplam max_stale; sessiz sonsuz varsayılan yok | Pilot/profil | Typed profile budgets, bounded cache/queue/body/upload limitleri uygulandı; gerçek kapasite ölçümü bekliyor |
 | P1 | Restore ve RPO/RTO | İki DB gerçek restore; medya/key ve egress karantinası | Pilot S07 | Kanıt bekliyor |
 | P1 | Restore silme geçmişi | ADR-0014 dış dayanıklı niyet günlüğü, güncel checkpoint, retention ve crash deneyi | Pilot R3 | Provider/protokol kanıtı bekliyor |
