@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `9b18bca`  
-**Validation baseline:** `9b18bca`  
+**Repository commit:** `03de3c3`  
+**Validation baseline:** `03de3c3`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -37,6 +37,8 @@ verification improvements after the R3/R5 contract work.
 - Release verification bounds operator-provided signed manifests to 1 MiB and
   trusted public-key files to 4 KiB, with regression coverage for oversized
   inputs.
+- Restore activation bounds the quarantine marker to 64 KiB, with regression
+  coverage for oversized marker input.
 
 ## Evidence commands
 
