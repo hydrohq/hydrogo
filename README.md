@@ -135,6 +135,8 @@ Portable import/export is bounded to 256 MiB by default; use `--max-bytes` when 
 
 `hydro release verify` does not trust the public key embedded in the manifest by itself. It requires a trusted Ed25519 public-key file distributed by the operator.
 
+Browser-originated state-changing requests must include a CSRF token that matches the `hydro_csrf` cookie. URL-encoded forms and small multipart forms may carry the token in the `_csrf` field. Large or chunked multipart uploads must send the same token in the `X-CSRF-Token` header; this avoids parsing an unbounded upload body merely to perform CSRF validation.
+
 Backup and restore are deliberately staging-first. SQLite and PostgreSQL backups create a new immutable snapshot directory; PostgreSQL uses `pg_dump`/`pg_restore` with a temporary password file and never puts the password in process arguments. Restore verification only checks hashes, staging never overwrites an existing destination, and media activation requires the quarantine marker plus all three operator controls. Pause application writes and background workers before taking a live snapshot.
 
 Portable import is also explicit: `--dry-run` validates the allowlisted, secret-free document without a database write, while a real import requires `--confirm` and runs in one transaction.

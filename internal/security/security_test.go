@@ -1,7 +1,9 @@
 package security
 
 import (
+	"bytes"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -123,5 +125,31 @@ func TestCSRFDoesNotReadLargeMultipartWithoutHeaderToken(t *testing.T) {
 	}
 	if got := body.reads.Load(); got != 0 {
 		t.Fatalf("large multipart body was read %d times before header validation", got)
+	}
+}
+
+func TestCSRFAcceptsSmallMultipartFormToken(t *testing.T) {
+	csrf := CSRFMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	cookie := &http.Cookie{Name: CSRFCookieName, Value: "csrf-token"}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField(CSRFFormField, cookie.Value); err != nil {
+		t.Fatalf("write CSRF form field: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewReader(body.Bytes()))
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.AddCookie(cookie)
+	res := httptest.NewRecorder()
+	csrf.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("small multipart CSRF status=%d, want 200", res.Code)
 	}
 }
