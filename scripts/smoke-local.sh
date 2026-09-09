@@ -53,3 +53,14 @@ if [[ "${ready}" -ne 1 ]]; then
   exit 1
 fi
 printf '%s\n' 'PASS: healthz and readyz returned 200 from the built binary.'
+
+printf '%s\n' '==> graceful shutdown'
+kill -TERM "${server_pid}"
+if wait "${server_pid}"; then
+  server_pid=""
+else
+  exit_code=$?
+  printf 'server exited with code %d during graceful shutdown\n' "${exit_code}" >&2
+  exit "${exit_code}"
+fi
+printf '%s\n' 'PASS: server stopped cleanly after SIGTERM.'
