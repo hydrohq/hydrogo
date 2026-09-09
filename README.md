@@ -214,7 +214,13 @@ The repository does not claim a production profile or SLA until those forms of e
 - [Support matrix](docs/SUPPORT_MATRIX.md): supported and uncertified profiles
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md): old/new release boundaries
 - [Threat model](docs/security/THREAT_MODEL.md): security assumptions and open risks
+- [Security policy](SECURITY.md): private vulnerability reporting and disclosure guidance
 - [Contribution guide](CONTRIBUTING.md) and [repository rules](AGENTS.md)
+
+Dependency vulnerability scanning (`govulncheck`), pinned GitHub Actions, weekly
+Dependabot updates, and CodeQL Go analysis run through the repository CI. These
+checks improve detection and supply-chain integrity; they do not replace the
+deployment-specific production drills listed above.
 
 ## Repository layout
 
