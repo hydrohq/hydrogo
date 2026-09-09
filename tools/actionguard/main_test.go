@@ -36,3 +36,18 @@ func TestCheckWorkflowsRejectsMutableAction(t *testing.T) {
 		t.Fatalf("mutable workflow was accepted: %v", err)
 	}
 }
+
+func TestCheckWorkflowsIgnoresUsesTextInOtherFields(t *testing.T) {
+	root := t.TempDir()
+	workflowDir := filepath.Join(root, ".github", "workflows")
+	if err := os.MkdirAll(workflowDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "jobs:\n  build:\n    name: \"uses: actions/checkout@v5\"\n"
+	if err := os.WriteFile(filepath.Join(workflowDir, "ci.yml"), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkWorkflows(workflowDir); err != nil {
+		t.Fatalf("non-action uses text was rejected: %v", err)
+	}
+}

@@ -49,11 +49,19 @@ func checkFile(path string) error {
 	for scanner.Scan() {
 		lineNumber++
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") || !strings.Contains(line, "uses:") {
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		value := strings.TrimSpace(strings.TrimPrefix(line, "- uses:"))
-		if value == line || strings.HasPrefix(value, "./") {
+		var value string
+		switch {
+		case strings.HasPrefix(line, "- uses:"):
+			value = strings.TrimSpace(strings.TrimPrefix(line, "- uses:"))
+		case strings.HasPrefix(line, "uses:"):
+			value = strings.TrimSpace(strings.TrimPrefix(line, "uses:"))
+		default:
+			continue
+		}
+		if strings.HasPrefix(value, "./") {
 			continue
 		}
 		if comment := strings.IndexByte(value, '#'); comment >= 0 {
