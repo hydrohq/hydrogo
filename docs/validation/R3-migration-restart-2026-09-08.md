@@ -4,7 +4,7 @@
 **Roadmap:** R3 / S06 başlangıç kapısı  
 **Durum:** SQLite restart/checksum ve expand/rollback uyumluluk başlangıç kapıları başarılı; gerçek blue/green trafik ve tam profil ölçümü açık.
 
-Temiz SQLite dosyasında tüm migration'lar uygulanıp `schema_migrations` ledger'ı doğrulandı. DB kapatılıp yeniden açıldıktan sonra ikinci `ApplyMigrations` çağrısı no-op oldu; migration satır sayısı değişmedi. Ledger checksum'ı değiştirilmiş gibi simüle edildiğinde `CheckCompatibility` servise başlamayı reddetti. Backup staging testi retained medya dosyasının doğrulama sonrası aynı byte içeriğiyle restore edildiğini de kanıtlar.
+Temiz SQLite dosyasında tüm migration'lar uygulanıp `schema_migrations` ledger'ı doğrulandı. DB kapatılıp yeniden açıldıktan sonra ikinci `ApplyMigrations` çağrısı no-op oldu; migration satır sayısı değişmedi. Ledger checksum'ı değiştirilmiş gibi simüle edildiğinde `CheckCompatibility` servise başlamayı reddetti. Daha yeni bir binary tarafından uygulanmış, mevcut binary'nin embedded migration setinde bulunmayan bir ledger kaydı da artık `ErrUnknownMigration` ile fail-closed reddedilir; böylece eski binary'nin ileri şemaya sahip veritabanına rollback yapması uyumlu görünmez. Backup staging testi retained medya dosyasının doğrulama sonrası aynı byte içeriğiyle restore edildiğini de kanıtlar.
 
 ```text
 go test ./internal/database
