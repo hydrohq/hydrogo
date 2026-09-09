@@ -28,6 +28,7 @@ type Config struct {
 	EnableHSTS      bool
 	SecureCookie    bool
 	HTTPBodyLimit   int64
+	PublicOrigin    string
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -114,6 +115,11 @@ func NewHandler(config Config) http.Handler {
 	}
 
 	var handler http.Handler = routerHandler
+	hostMiddleware, err := security.NewHostMiddleware(config.PublicOrigin)
+	if err != nil {
+		panic(err)
+	}
+	handler = hostMiddleware(handler)
 
 	// General requests use the selected capacity profile budget. Media uploads
 	// enforce their larger, uploader-specific limit in the media handler.
