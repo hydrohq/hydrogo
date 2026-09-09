@@ -8,10 +8,11 @@ Bu belge Compact pilot için uygulanabilir işletim adımlarını toplar. Restor
 2. Üretimde HTTPS `HYDRO_PUBLIC_ORIGIN` ile birlikte `HYDRO_SECURE_COOKIES=true` ve `HYDRO_ENABLE_HSTS=true` ayarlanır; bu üçlüden biri eksik veya çelişkiliyse config başlangıçta reddedilir. HTTPS sonlandırmasının gerçekten etkin olduğu doğrulanır. `hydro version --json` çıktısı deployment kaydına alınarak binary commit'i ve embedded schema migration seviyesi saklanır.
 3. `hydro doctor` ile seçilen kapasite profili, DB bağlantısı/checksum'ları, backup araçları ve medya dizininin yazılabilirliği doğrulanır; ardından `hydro serve` başlatılır ve `/readyz` beklenir.
 4. `/metrics` yalnızca authenticated operasyon erişimiyle okunur ve cache’lenmez; HTTP toplamı, in-flight, sınırlı status sınıfı, worker sonucu ve session cleanup sayaçları alarm/kapasite sistemine aktarılır.
-5. `hydro serve` yapılandırılmış JSON HTTP loglarını stderr'e yazar. Loglarda request ID, method, path, status ve süre bulunur; query string, gövde, cookie ve response body bulunmaz.
-6. Blue/green geçişinde green slot trafik almadan önce public route, private media, login, sitemap ve form submit smoke istekleri çalıştırılır.
-7. Eski slot yeni yazma almaya devam edemeyecek şekilde durdurulur; worker lease'leri drain/expiry politikasına bırakılır.
-8. Hata durumunda binary rollback yalnız eski şema ve content/event/job formatlarıyla uyumluluk doğrulanırsa yapılır. Yedekten restore ayrı prosedürdür.
+5. Her release doğrulamasında `go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...` çalıştırılır; reachable vulnerability sonucu temiz değilse release durdurulur ve advisory değerlendirilir.
+6. `hydro serve` yapılandırılmış JSON HTTP loglarını stderr'e yazar. Loglarda request ID, method, path, status ve süre bulunur; query string, gövde, cookie ve response body bulunmaz.
+7. Blue/green geçişinde green slot trafik almadan önce public route, private media, login, sitemap ve form submit smoke istekleri çalıştırılır.
+8. Eski slot yeni yazma almaya devam edemeyecek şekilde durdurulur; worker lease'leri drain/expiry politikasına bırakılır.
+9. Hata durumunda binary rollback yalnız eski şema ve content/event/job formatlarıyla uyumluluk doğrulanırsa yapılır. Yedekten restore ayrı prosedürdür.
 
 ## Compact snapshot ve restore
 

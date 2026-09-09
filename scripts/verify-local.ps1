@@ -12,6 +12,7 @@ function Invoke-Required {
 Write-Host "HydroGo local verification"
 
 Invoke-Required "module integrity" { go mod verify }
+Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }
 Invoke-Required "gofmt" {
     $unformatted = gofmt -l .
     if ($unformatted) { throw "gofmt required: $($unformatted -join ', ')" }

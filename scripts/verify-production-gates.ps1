@@ -18,6 +18,7 @@ if ([string]::IsNullOrWhiteSpace($env:HYDRO_TEST_POSTGRES_URL)) {
 
 Invoke-Required "gofmt" { gofmt -l . | ForEach-Object { throw "gofmt required: $_" } }
 Invoke-Required "module integrity" { go mod verify }
+Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }
 Invoke-Required "go vet" { go vet ./... }
 Invoke-Required "full test suite" { go test ./... -count=1 }
 Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 }
