@@ -222,7 +222,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.LoginLimiter != nil && !h.LoginLimiter.Allow(clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
-		http.Error(w, "too many authentication attempts", http.StatusTooManyRequests)
+		security.WriteRateLimitedResponse(w, "too many authentication attempts", time.Minute)
 		return
 	}
 	user, err := h.Service.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
@@ -242,7 +242,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		}
 		if enabled {
 			if h.MFALimiter != nil && !h.MFALimiter.Allow(clientIP(r)+":"+user.ID) {
-				http.Error(w, "too many MFA attempts", http.StatusTooManyRequests)
+				security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
 				return
 			}
 			code := strings.TrimSpace(r.FormValue("mfa_code"))
@@ -364,7 +364,7 @@ func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.MFALimiter != nil && !h.MFALimiter.Allow(clientIP(r)+":"+user.ID) {
-		http.Error(w, "too many MFA attempts", http.StatusTooManyRequests)
+		security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
 		return
 	}
 	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {

@@ -89,7 +89,7 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.SubmissionLimiter != nil && !h.SubmissionLimiter.Allow(formKey+":"+requestIP(r)) {
-		http.Error(w, "too many form submissions", http.StatusTooManyRequests)
+		security.WriteRateLimitedResponse(w, "too many form submissions", time.Minute)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
