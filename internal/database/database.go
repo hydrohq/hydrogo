@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -40,6 +41,16 @@ var ErrDatabaseRequired = errors.New("database is required")
 // adapter invokes methods on an executor.
 func RequireExecutor(executor Executor) error {
 	if executor == nil {
+		return ErrDatabaseRequired
+	}
+	value := reflect.ValueOf(executor)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		if value.IsNil() {
+			return ErrDatabaseRequired
+		}
+	}
+	if !value.IsValid() {
 		return ErrDatabaseRequired
 	}
 	return nil

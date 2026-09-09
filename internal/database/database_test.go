@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -24,6 +25,10 @@ func TestTransactorRejectsMissingDatabaseAndCallback(t *testing.T) {
 func TestRequireExecutorRejectsNil(t *testing.T) {
 	if err := RequireExecutor(nil); !errors.Is(err, ErrDatabaseRequired) {
 		t.Fatalf("nil executor error = %v, want %v", err, ErrDatabaseRequired)
+	}
+	var typedNil *sql.DB
+	if err := RequireExecutor(typedNil); !errors.Is(err, ErrDatabaseRequired) {
+		t.Fatalf("typed-nil executor error = %v, want %v", err, ErrDatabaseRequired)
 	}
 }
 
