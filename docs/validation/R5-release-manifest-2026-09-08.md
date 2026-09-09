@@ -7,7 +7,7 @@
 `internal/release` build kökündeki artifact'leri path/size/SHA-256 ile deterministically listeler; module, migration checksum, SDK/toolchain ve license inventory metadata'sını taşır. `.env`, `.key`, `.pem`, secret/credential isimli artifact'ler manifest'e alınmaz. Manifest Ed25519 ile imzalanır ve değişiklik sonrası Verify reddeder.
 
 ```text
-go test ./internal/release
+go test ./internal/release ./cmd/hydro
 ```
 
-İmzalama anahtarı runtime/config/manifest içine yazılmaz. CI, `hydro` binary'sini `-trimpath -buildvcs=false -ldflags=-buildid=` seçenekleriyle iki kez üretip SHA-256 değerlerini karşılaştırır. `Attest` manifest digest'ini builder, source revision ve toolchain ile imzalar; `VerifyAttestation` manifest değişikliğinde reddeder. Böylece aynı runner/toolchain üzerinde binary reproducibility ve subject bütünlüğü kanıtlanır. Production key ceremony, dış provenance yayınlama ve Linux/Windows karşılaştırması açık kalır.
+İmzalama anahtarı runtime/config/manifest içine yazılmaz. Operasyonel manifest doğrulaması için `hydro release verify --manifest <path>` CLI komutu eklenmiş ve test edilmiştir. CI, `hydro` binary'sini `-trimpath -buildvcs=false -ldflags=-buildid=` seçenekleriyle iki kez üretip SHA-256 değerlerini karşılaştırır. `Attest` manifest digest'ini builder, source revision ve toolchain ile imzalar; `VerifyAttestation` manifest değişikliğinde reddeder. Böylece aynı runner/toolchain üzerinde binary reproducibility ve subject bütünlüğü kanıtlanır. Production key ceremony, dış provenance yayınlama ve Linux/Windows karşılaştırması açık kalır.
