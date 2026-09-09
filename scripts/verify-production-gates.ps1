@@ -20,13 +20,13 @@ Invoke-Required "gofmt" { gofmt -l . | ForEach-Object { throw "gofmt required: $
 Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }
 Invoke-Required "go vet" { go vet ./... }
-Invoke-Required "full test suite" { go test ./... -count=1 }
-Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 }
+Invoke-Required "full test suite" { go test ./... -count=1 -p 1 }
+Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 -p 1 }
 
 $previousCgo = $env:CGO_ENABLED
 $env:CGO_ENABLED = "1"
 try {
-    Invoke-Required "race-sensitive packages" { go test -race ./internal/cache ./internal/release ./internal/database ./internal/backup ./internal/security ./internal/server ./internal/jobs ./internal/jobs/sqlstore ./modules/news ./cmd/hydro -count=1 }
+    Invoke-Required "race-sensitive packages" { go test -race -p 1 ./internal/cache ./internal/release ./internal/database ./internal/backup ./internal/security ./internal/server ./internal/jobs ./internal/jobs/sqlstore ./modules/news ./cmd/hydro -count=1 }
 }
 finally {
     if ($null -eq $previousCgo) { Remove-Item Env:CGO_ENABLED -ErrorAction SilentlyContinue } else { $env:CGO_ENABLED = $previousCgo }
