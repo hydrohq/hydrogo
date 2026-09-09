@@ -39,6 +39,9 @@ func (s InvitationService) Issue(ctx context.Context, db database.Executor, emai
 	if guards.IsNil(s.Users) || guards.IsNil(s.Invites) {
 		return "", ErrInviteDependencyRequired
 	}
+	if err := database.RequireExecutor(db); err != nil {
+		return "", err
+	}
 	email = NormalizeEmail(email)
 	if email == "" || (role != RoleEditor && role != RoleViewer) {
 		return "", ErrInviteInvalid
@@ -71,6 +74,9 @@ func (s InvitationService) Issue(ctx context.Context, db database.Executor, emai
 func (s InvitationService) Accept(ctx context.Context, tx database.Executor, rawToken, password string) (*User, error) {
 	if guards.IsNil(s.Users) || guards.IsNil(s.Invites) {
 		return nil, ErrInviteDependencyRequired
+	}
+	if err := database.RequireExecutor(tx); err != nil {
+		return nil, err
 	}
 	if strings.TrimSpace(rawToken) == "" || password == "" {
 		return nil, ErrInviteInvalid

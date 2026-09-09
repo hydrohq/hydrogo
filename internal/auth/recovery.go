@@ -40,6 +40,9 @@ func (r PasswordRecovery) Issue(ctx context.Context, tx database.Executor, email
 	if guards.IsNil(r.Users) || guards.IsNil(r.Tokens) {
 		return "", ErrRecoveryDependencyRequired
 	}
+	if err := database.RequireExecutor(tx); err != nil {
+		return "", err
+	}
 	user, err := r.Users.GetByEmail(ctx, NormalizeEmail(email))
 	if err != nil {
 		return "", err
@@ -70,6 +73,9 @@ func (r PasswordRecovery) Issue(ctx context.Context, tx database.Executor, email
 func (r PasswordRecovery) Reset(ctx context.Context, tx database.Executor, rawToken, newPassword string) error {
 	if guards.IsNil(r.Users) || guards.IsNil(r.Tokens) || guards.IsNil(r.Sessions) {
 		return ErrRecoveryDependencyRequired
+	}
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
 	}
 	if strings.TrimSpace(rawToken) == "" || newPassword == "" {
 		return ErrRecoveryTokenInvalid
