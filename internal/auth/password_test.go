@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -37,5 +38,18 @@ func TestVerifyPasswordInvalidFormat(t *testing.T) {
 	_, err := VerifyPassword("password", "not-a-valid-argon2-hash")
 	if err != ErrInvalidHash {
 		t.Fatalf("expected ErrInvalidHash, got: %v", err)
+	}
+}
+
+func TestArgon2ParametersAreBounded(t *testing.T) {
+	if _, err := HashPassword("password", Argon2Params{Memory: 512 * 1024, Iterations: 1, Parallelism: 1, SaltLength: 16, KeyLength: 32}); err != ErrInvalidArgonParams {
+		t.Fatalf("oversized hash parameters error = %v, want %v", err, ErrInvalidArgonParams)
+	}
+	malicious := "$argon2id$v=19$m=999999,t=1,p=1$YWJjZGVmZ2hpamts$YWJjZGVmZ2hpamts"
+	if _, err := VerifyPassword("password", malicious); err != ErrInvalidHash {
+		t.Fatalf("malicious encoded parameters error = %v, want %v", err, ErrInvalidHash)
+	}
+	if _, err := VerifyPassword("password", strings.Repeat("x", maxEncodedPasswordHashBytes+1)); err != ErrInvalidHash {
+		t.Fatalf("oversized encoded hash error = %v, want %v", err, ErrInvalidHash)
 	}
 }

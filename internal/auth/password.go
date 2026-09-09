@@ -14,6 +14,7 @@ import (
 var (
 	ErrInvalidHash         = errors.New("invalid password hash format")
 	ErrIncompatibleVersion = errors.New("incompatible argon2 version")
+	ErrInvalidArgonParams  = errors.New("invalid argon2 parameters")
 )
 
 type Argon2Params struct {
@@ -41,7 +42,19 @@ var TestArgon2Params = Argon2Params{
 	KeyLength:   16,
 }
 
+const maxEncodedPasswordHashBytes = 4096
+
+func validateArgon2Params(params Argon2Params) error {
+	if params.Memory < 8 || params.Memory > 256*1024 || params.Iterations < 1 || params.Iterations > 10 || params.Parallelism < 1 || params.Parallelism > 16 || params.Memory < uint32(params.Parallelism)*8 || params.SaltLength < 8 || params.SaltLength > 64 || params.KeyLength < 16 || params.KeyLength > 64 {
+		return ErrInvalidArgonParams
+	}
+	return nil
+}
+
 func HashPassword(password string, params Argon2Params) (string, error) {
+	if err := validateArgon2Params(params); err != nil {
+		return "", err
+	}
 	salt := make([]byte, params.SaltLength)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("failed to generate random salt: %w", err)
@@ -73,6 +86,9 @@ func HashPassword(password string, params Argon2Params) (string, error) {
 }
 
 func VerifyPassword(password, encodedHash string) (bool, error) {
+	if len(encodedHash) == 0 || len(encodedHash) > maxEncodedPasswordHashBytes {
+		return false, ErrInvalidHash
+	}
 	parts := strings.Split(encodedHash, "$")
 	if len(parts) != 6 {
 		return false, ErrInvalidHash
@@ -86,6 +102,9 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	if _, err := fmt.Sscanf(parts[2], "v=%d", &version); err != nil {
 		return false, ErrInvalidHash
 	}
+	if fmt.Sprintf("v=%d", version) != parts[2] {
+		return false, ErrInvalidHash
+	}
 	if version != argon2.Version {
 		return false, ErrIncompatibleVersion
 	}
@@ -93,6 +112,13 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	var memory, iterations uint32
 	var parallelism uint8
 	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &iterations, &parallelism); err != nil {
+		return false, ErrInvalidHash
+	}
+	if fmt.Sprintf("m=%d,t=%d,p=%d", memory, iterations, parallelism) != parts[3] {
+		return false, ErrInvalidHash
+	}
+	params := Argon2Params{Memory: memory, Iterations: iterations, Parallelism: parallelism, SaltLength: 0, KeyLength: 0}
+	if err := validateArgon2Params(paramsWithUnknownLengths(params)); err != nil {
 		return false, ErrInvalidHash
 	}
 
@@ -107,6 +133,11 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	}
 
 	keyLen := uint32(len(decodedHash))
+	params.SaltLength = uint32(len(salt))
+	params.KeyLength = keyLen
+	if err := validateArgon2Params(params); err != nil {
+		return false, ErrInvalidHash
+	}
 	computedHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, keyLen)
 
 	if subtle.ConstantTimeCompare(decodedHash, computedHash) == 1 {
@@ -114,4 +145,12 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// paramsWithUnknownLengths validates only the resource-bearing fields before
+// decoding attacker-controlled salt and key material.
+func paramsWithUnknownLengths(params Argon2Params) Argon2Params {
+	params.SaltLength = 8
+	params.KeyLength = 16
+	return params
 }
