@@ -127,6 +127,25 @@ func TestSnapshotSQLiteRejectsSymlinkedMedia(t *testing.T) {
 	}
 }
 
+func TestSnapshotSQLiteRejectsMissingMediaRoot(t *testing.T) {
+	root := t.TempDir()
+	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test DEFAULT VALUES"); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(root, "snapshot")
+	if _, err := SnapshotSQLite(context.Background(), db, filepath.Join(root, "missing-media"), destination); err == nil {
+		t.Fatal("snapshot accepted a missing media root")
+	}
+	if _, err := os.Stat(destination); !os.IsNotExist(err) {
+		t.Fatalf("failed snapshot destination still exists: %v", err)
+	}
+}
+
 func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 	root := t.TempDir()
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
@@ -135,6 +154,9 @@ func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 	}
 	defer db.Close()
 	if _, err := db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "media"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	snapshot := filepath.Join(root, "snapshot")

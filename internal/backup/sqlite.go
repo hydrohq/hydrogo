@@ -367,7 +367,7 @@ func digestTree(root string) ([]FileDigest, error) {
 	})
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
+			return nil, fmt.Errorf("media root does not exist: %s", root)
 		}
 		return nil, err
 	}
