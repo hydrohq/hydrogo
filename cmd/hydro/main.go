@@ -699,33 +699,43 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 		}
 		backupTools = "pg_dump,pg_restore"
 	}
+	deadLetteredLiteral := "0"
+	if cfg.Database.Dialect == database.Postgres {
+		deadLetteredLiteral = "TRUE"
+	}
+	var deadLetteredJobs int64
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = "+deadLetteredLiteral).Scan(&deadLetteredJobs); err != nil {
+		return fmt.Errorf("job diagnostics: %w", err)
+	}
 	if *jsonOutput {
 		version, err := currentVersionInfo()
 		if err != nil {
 			return err
 		}
 		data, err := json.Marshal(struct {
-			Version         string `json:"version"`
-			Commit          string `json:"commit"`
-			BuildTime       string `json:"build_time"`
-			SchemaMigration string `json:"schema_migration"`
-			Profile         string `json:"profile"`
-			Database        string `json:"database"`
-			BackupTools     string `json:"backup_tools"`
-			CacheEntries    int    `json:"cache_entries"`
-			QueueEntries    int    `json:"queue_entries"`
-			MediaMaxBytes   int64  `json:"media_max_bytes"`
-			MediaWritable   bool   `json:"media_writable"`
-			SecureCookies   bool   `json:"secure_cookies"`
-			HSTS            bool   `json:"hsts"`
-		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS})
+			Version           string `json:"version"`
+			Commit            string `json:"commit"`
+			BuildTime         string `json:"build_time"`
+			SchemaMigration   string `json:"schema_migration"`
+			Profile           string `json:"profile"`
+			Database          string `json:"database"`
+			BackupTools       string `json:"backup_tools"`
+			CacheEntries      int    `json:"cache_entries"`
+			QueueEntries      int    `json:"queue_entries"`
+			WorkerConcurrency int    `json:"worker_concurrency"`
+			DeadLetteredJobs  int64  `json:"dead_lettered_jobs"`
+			MediaMaxBytes     int64  `json:"media_max_bytes"`
+			MediaWritable     bool   `json:"media_writable"`
+			SecureCookies     bool   `json:"secure_cookies"`
+			HSTS              bool   `json:"hsts"`
+		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS})
 		if err != nil {
 			return err
 		}
 		_, err = fmt.Fprintln(stdout, string(data))
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "profile=%s database=%s backup_tools=%s cache_entries=%d queue_entries=%d media_max_bytes=%d\n", cfg.Profile, cfg.Database.Dialect, backupTools, budget.CacheEntries, budget.QueueEntries, budget.MediaMaxBytes)
+	_, err = fmt.Fprintf(stdout, "profile=%s database=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d\n", cfg.Profile, cfg.Database.Dialect, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes)
 	return err
 }
 

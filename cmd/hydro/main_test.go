@@ -266,16 +266,18 @@ func TestRunDoctorJSON(t *testing.T) {
 		t.Fatalf("doctor --json failed: %v", err)
 	}
 	var report struct {
-		Version         string `json:"version"`
-		SchemaMigration string `json:"schema_migration"`
-		Database        string `json:"database"`
-		MediaWritable   bool   `json:"media_writable"`
-		BackupTools     string `json:"backup_tools"`
+		Version           string `json:"version"`
+		SchemaMigration   string `json:"schema_migration"`
+		Database          string `json:"database"`
+		MediaWritable     bool   `json:"media_writable"`
+		BackupTools       string `json:"backup_tools"`
+		WorkerConcurrency int    `json:"worker_concurrency"`
+		DeadLetteredJobs  int64  `json:"dead_lettered_jobs"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if report.Version != version || report.SchemaMigration == "" || report.Database != "sqlite" || !report.MediaWritable || report.BackupTools != "sqlite" {
+	if report.Version != version || report.SchemaMigration == "" || report.Database != "sqlite" || !report.MediaWritable || report.BackupTools != "sqlite" || report.WorkerConcurrency != 1 || report.DeadLetteredJobs != 0 {
 		t.Fatalf("unexpected doctor report: %+v", report)
 	}
 }
