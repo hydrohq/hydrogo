@@ -58,6 +58,17 @@ func TestLoadCapacityProfile(t *testing.T) {
 	}
 }
 
+func TestLoadTreatsNilEnvironmentLookupAsEmpty(t *testing.T) {
+	dsn := "file:nil-lookup.sqlite"
+	cfg, err := Load("", nil, Overrides{DatabaseDSN: &dsn})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Database.DSN != dsn {
+		t.Fatalf("database DSN = %q, want %q", cfg.Database.DSN, dsn)
+	}
+}
+
 func TestLoadRejectsPartialSMTPConfiguration(t *testing.T) {
 	_, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_FROM": "from@example.test"}), Overrides{})
 	if err == nil || !strings.Contains(err.Error(), "mail host is required") {

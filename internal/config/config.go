@@ -63,6 +63,9 @@ type Overrides struct {
 type LookupEnv func(string) (string, bool)
 
 func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
+	if lookup == nil {
+		lookup = func(string) (string, bool) { return "", false }
+	}
 	result := Config{Profile: capacity.Compact, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, Mail: Mail{Port: 587, StartTLS: true}}
 	if path != "" {
 		file, err := os.Open(path)
