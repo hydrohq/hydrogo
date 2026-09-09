@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -262,8 +263,7 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 		if err := ensureContained(sourceRoot, source, true); err != nil {
 			return fmt.Errorf("asset %s: %w", artifact.Path, err)
 		}
-		data, err := readVerifiedArtifact(source, artifact)
-		if err != nil {
+		if err := verifyArtifact(source, artifact); err != nil {
 			return fmt.Errorf("asset %s: %w", artifact.Path, err)
 		}
 		destination, err := safeArtifactPath(destinationRoot, artifact.Path)
@@ -298,9 +298,9 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 				_ = os.Remove(temporaryPath)
 			}
 		}()
-		if _, err := temporary.Write(data); err != nil {
+		if err := copyVerifiedArtifact(source, temporary, artifact); err != nil {
 			_ = temporary.Close()
-			return err
+			return fmt.Errorf("asset %s: %w", artifact.Path, err)
 		}
 		if err := temporary.Chmod(0o640); err != nil {
 			_ = temporary.Close()
@@ -433,31 +433,41 @@ func ensureContained(root, target string, allowMissing bool) error {
 }
 
 func verifyArtifact(path string, expected Artifact) error {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	if int64(len(data)) != expected.Size {
-		return fmt.Errorf("size mismatch: got %d want %d", len(data), expected.Size)
+	defer file.Close()
+	return verifyArtifactReader(file, io.Discard, expected)
+}
+
+func copyVerifiedArtifact(source string, destination io.Writer, expected Artifact) error {
+	file, err := os.Open(source)
+	if err != nil {
+		return err
 	}
-	digest := sha256.Sum256(data)
-	if hex.EncodeToString(digest[:]) != expected.SHA256 {
+	defer file.Close()
+	return verifyArtifactReader(file, destination, expected)
+}
+
+func verifyArtifactReader(source io.Reader, destination io.Writer, expected Artifact) error {
+	if expected.Size < 0 || expected.Size == 1<<63-1 {
+		return errors.New("invalid artifact size")
+	}
+	hash := sha256.New()
+	writer := io.Writer(hash)
+	if destination != nil {
+		writer = io.MultiWriter(hash, destination)
+	}
+	read, err := io.Copy(writer, io.LimitReader(source, expected.Size+1))
+	if err != nil {
+		return err
+	}
+	if read != expected.Size {
+		return fmt.Errorf("size mismatch: got %d want %d", read, expected.Size)
+	}
+	if hex.EncodeToString(hash.Sum(nil)) != expected.SHA256 {
 		return errors.New("checksum mismatch")
 	}
 	return nil
-}
-
-func readVerifiedArtifact(path string, expected Artifact) ([]byte, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(data)) != expected.Size {
-		return nil, fmt.Errorf("size mismatch: got %d want %d", len(data), expected.Size)
-	}
-	digest := sha256.Sum256(data)
-	if hex.EncodeToString(digest[:]) != expected.SHA256 {
-		return nil, errors.New("checksum mismatch")
-	}
-	return data, nil
 }

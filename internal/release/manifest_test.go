@@ -3,11 +3,27 @@ package release
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestVerifyArtifactRejectsInvalidDeclaredSize(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "asset.css")
+	if err := os.WriteFile(path, []byte("css"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("css"))
+	checksum := hex.EncodeToString(digest[:])
+	for _, size := range []int64{-1, 1<<63 - 1} {
+		if err := verifyArtifact(path, Artifact{Path: "static/asset.css", Size: size, SHA256: checksum}); err == nil {
+			t.Fatalf("artifact with declared size %d was accepted", size)
+		}
+	}
+}
 
 func TestManifestIsDeterministicAndSigned(t *testing.T) {
 	root := t.TempDir()
