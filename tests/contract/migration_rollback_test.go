@@ -266,6 +266,53 @@ func TestPostgresNonTransactionalConcurrentIndexAllowsReadContract(t *testing.T)
 	}
 }
 
+func TestPostgresConcurrentMigrationRunnersSerializeContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	db, err := database.Open(ctx, database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	migrationID := fmt.Sprintf("lock_%d", time.Now().UnixNano())
+	migrationFS := fstest.MapFS{
+		migrationID + "/postgres.sql":   &fstest.MapFile{Data: []byte("SELECT pg_sleep(0.4);\n")},
+		migrationID + "/migration.yaml": &fstest.MapFile{Data: []byte("transactional:\n  postgres: true\n")},
+	}
+
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var runners sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		runners.Add(1)
+		go func() {
+			defer runners.Done()
+			<-start
+			results <- database.ApplyMigrations(ctx, db, database.Postgres, migrationFS)
+		}()
+	}
+	close(start)
+	runners.Wait()
+	close(results)
+	for err := range results {
+		if err != nil {
+			t.Fatalf("concurrent migration runner failed: %v", err)
+		}
+	}
+
+	var applied int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations WHERE id = $1", migrationID).Scan(&applied); err != nil {
+		t.Fatal(err)
+	}
+	if applied != 1 {
+		t.Fatalf("migration rows = %d, want 1", applied)
+	}
+}
+
 func TestPostgresConcurrentIndexWaitsForLongSnapshotContract(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
 	if dsn == "" {
