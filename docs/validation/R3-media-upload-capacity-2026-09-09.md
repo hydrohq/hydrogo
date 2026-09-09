@@ -7,7 +7,9 @@ görüntü boyutu doğrulamasını bounded bir semaphore üzerinden yürütür. 
 bootstrap'ı bu sınırı seçilen capacity profilinin `WorkerConcurrency` bütçesine
 bağlar. Görüntü boyut başlığından sonra tam payload decode'u da yapılır; böylece
 truncated veya bozuk görüntü immutable storage'a alınmaz. Semaphore bekleyen bir
-request'in context'i iptal edilirse upload başlamadan durur.
+request'in context'i iptal edilirse upload başlamadan durur. Uploader veya asset
+repository yanlış bağlanırsa medya service'i panic etmek yerine fail-closed hata
+döndürür.
 
 ## Kanıt
 
