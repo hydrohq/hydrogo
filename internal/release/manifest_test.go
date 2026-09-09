@@ -188,6 +188,32 @@ func TestAssetRetentionRejectsSymlinkRoots(t *testing.T) {
 	}
 }
 
+func TestRetainAssetsRejectsSymlinkedDestinationParent(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "static"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	asset := filepath.Join(root, "static", "app.css")
+	if err := os.WriteFile(asset, []byte("css"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := Build(root, Input{Edition: "site", CoreVersion: "1.0.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(root, "target")
+	if err := os.Mkdir(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "destination-link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if err := RetainAssets(root, manifest, filepath.Join(link, "shared")); err == nil {
+		t.Fatal("retain accepted a symlinked destination parent")
+	}
+}
+
 func TestRetainAssetsRejectsDuplicatePath(t *testing.T) {
 	root := t.TempDir()
 	asset := filepath.Join(root, "static", "app.css")
