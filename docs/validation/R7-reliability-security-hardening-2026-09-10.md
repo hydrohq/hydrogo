@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `03de3c3`  
-**Validation baseline:** `03de3c3`  
+**Repository commit:** `8bca834`  
+**Validation baseline:** `8bca834`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -39,6 +39,9 @@ verification improvements after the R3/R5 contract work.
   inputs.
 - Restore activation bounds the quarantine marker to 64 KiB, with regression
   coverage for oversized marker input.
+- Release asset retention and verification stream artifact bytes through a
+  bounded reader and hash instead of loading the full artifact into memory;
+  invalid declared sizes are rejected.
 
 ## Evidence commands
 
