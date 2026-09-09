@@ -1189,6 +1189,28 @@ func readPassword(stdin io.Reader) (string, error) {
 	return strings.TrimRight(line, "\r\n"), nil
 }
 
+const (
+	maxReleaseManifestBytes = 1 << 20
+	maxTrustedKeyFileBytes  = 4 << 10
+)
+
+func readBoundedFile(path string, limit int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("file exceeds %d-byte limit", limit)
+	}
+	return data, nil
+}
+
 func releaseCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("release command requires a subcommand (verify)")
@@ -1208,7 +1230,7 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 		if *manifestPath == "" || *publicKeyPath == "" {
 			return errors.New("--manifest and --public-key are required")
 		}
-		data, err := os.ReadFile(*manifestPath)
+		data, err := readBoundedFile(*manifestPath, maxReleaseManifestBytes)
 		if err != nil {
 			return fmt.Errorf("read manifest: %w", err)
 		}
@@ -1216,7 +1238,7 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 		if err := json.Unmarshal(data, &signed); err != nil {
 			return fmt.Errorf("parse signed manifest: %w", err)
 		}
-		keyData, err := os.ReadFile(*publicKeyPath)
+		keyData, err := readBoundedFile(*publicKeyPath, maxTrustedKeyFileBytes)
 		if err != nil {
 			return fmt.Errorf("read public key: %w", err)
 		}

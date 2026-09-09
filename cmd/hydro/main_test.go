@@ -213,6 +213,22 @@ func TestRunReleaseVerify(t *testing.T) {
 	if err := run([]string{"release", "verify", "--manifest", manifestFile, "--public-key", wrongKeyFile}, strings.NewReader(""), &stdout, &stderr); err == nil {
 		t.Fatal("manifest verified with an unrelated trusted key")
 	}
+
+	if err := os.WriteFile(manifestFile, bytes.Repeat([]byte("x"), maxReleaseManifestBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"release", "verify", "--manifest", manifestFile, "--public-key", publicKeyFile}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("oversized release manifest was accepted")
+	}
+	if err := os.WriteFile(manifestFile, signedBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(publicKeyFile, bytes.Repeat([]byte("k"), maxTrustedKeyFileBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"release", "verify", "--manifest", manifestFile, "--public-key", publicKeyFile}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("oversized trusted public key file was accepted")
+	}
 }
 
 func TestRunBackupAndRestoreGates(t *testing.T) {
