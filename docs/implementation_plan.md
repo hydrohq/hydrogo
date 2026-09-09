@@ -320,7 +320,7 @@ RPO/RTO, kabul edilen yazma duraklaması, retention ve anahtar kurtarma hedefler
 ## 10. Audit, gizlilik ve veri yaşam döngüsü
 
 - Giriş, başarısız giriş, parola/session değişikliği, içerik oluşturma/güncelleme/durum geçişi/silme, yetki değişikliği, yedekleme ve geri yükleme audit edilir.
-- Audit olayı aktör, eylem, hedef, zaman, request ID ve güvenli özet içerir; parola, session tokenı veya hassas tam gövde içermez.
+- Audit olayı aktör, eylem, hedef, zaman, request ID ve güvenli özet içerir; request ID `audit_events.request_id` alanında HTTP context'inden taşınır. Parola, session tokenı veya hassas tam gövde içermez.
 - Audit API'si append-only'dir. PostgreSQL runtime rolü UPDATE/DELETE yapamaz; migration/bakım rolü ayrıdır. SQLite dosyasına tam erişim sahibi karşısında aynı DB rol garantisi yoktur; OS izolasyonu ve gerekirse dış audit hedefi kullanılır. Saklama/dışa aktarma politikası vardır; ayrıntı ADR-0013'tedir.
 - KVKK için hangi kişisel verinin neden işlendiği, saklama süresi, silme/anonimleştirme ve veri dışa aktarma süreçleri tanımlanır.
 - Rıza çubuğu yalnız gerçekten rıza gerektiren istemci depolaması/izleme varsa gösterilir; zorunlu session çerezi ile analitik rıza ayrılır.

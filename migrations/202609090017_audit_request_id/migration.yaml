@@ -1,0 +1,25 @@
+id: "202609090017_audit_request_id"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "8e4512eb931983f9a3888355bfcdccfd41317f83615ef17935163a78caaa6951"
+  postgres: "8e4512eb931983f9a3888355bfcdccfd41317f83615ef17935163a78caaa6951"
+dependencies:
+  - "202609090016_restore_write_fence"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "audit_events table is present"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One nullable text column"
+compatibility: "Preserves audit correlation with the originating request"
+smoke:
+  - "Audit events written in an HTTP request retain its request ID"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

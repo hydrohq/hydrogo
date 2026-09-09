@@ -18,6 +18,16 @@ func RequestIDFromContext(ctx context.Context) string {
 	return requestID
 }
 
+// WithRequestID attaches an already validated internal correlation identifier.
+// External requests must use RequestIDMiddleware, which always generates a
+// fresh value instead of trusting a client header.
+func WithRequestID(ctx context.Context, requestID string) context.Context {
+	if requestID == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, requestIDContextKey{}, requestID)
+}
+
 // RequestIDMiddleware creates a fresh correlation identifier for every request.
 // Client-supplied identifiers are intentionally not trusted or propagated.
 func RequestIDMiddleware(next http.Handler) http.Handler {
@@ -28,7 +38,7 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		w.Header().Set(requestIDHeader, requestID)
-		ctx := context.WithValue(r.Context(), requestIDContextKey{}, requestID)
+		ctx := WithRequestID(r.Context(), requestID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
