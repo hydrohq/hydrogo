@@ -2,6 +2,7 @@ package database_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io/fs"
 	"path/filepath"
@@ -12,6 +13,23 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
+
+func TestMigrationAPIsRejectMissingDatabaseAndDialect(t *testing.T) {
+	ctx := context.Background()
+	if err := database.ApplyMigrations(ctx, nil, database.SQLite, migrations.FS); err == nil {
+		t.Fatal("ApplyMigrations accepted a nil database")
+	}
+	if err := database.CheckCompatibility(ctx, nil, database.SQLite, migrations.FS); err == nil {
+		t.Fatal("CheckCompatibility accepted a nil database")
+	}
+	db := &sql.DB{}
+	if err := database.ApplyMigrations(ctx, db, database.Dialect("oracle"), migrations.FS); err == nil {
+		t.Fatal("ApplyMigrations accepted an unsupported dialect")
+	}
+	if err := database.CheckCompatibility(ctx, db, database.Dialect("oracle"), migrations.FS); err == nil {
+		t.Fatal("CheckCompatibility accepted an unsupported dialect")
+	}
+}
 
 func TestSQLiteMigrationRestartAndCompatibilityContract(t *testing.T) {
 	ctx := context.Background()

@@ -32,6 +32,9 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 	if db == nil {
 		return errors.New("database is required")
 	}
+	if err := validateMigrationDialect(dialect); err != nil {
+		return err
+	}
 	migrations, err := discoverMigrations(migrationFS)
 	if err != nil {
 		return fmt.Errorf("failed to discover migrations: %w", err)
@@ -200,6 +203,12 @@ func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dia
 }
 
 func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+	if db == nil {
+		return errors.New("database is required")
+	}
+	if err := validateMigrationDialect(dialect); err != nil {
+		return err
+	}
 	migrations, err := discoverMigrations(migrationFS)
 	if err != nil {
 		return fmt.Errorf("failed to discover migrations: %w", err)
@@ -252,6 +261,13 @@ func rejectUnknownMigrations(ctx context.Context, queryer migrationQueryer, know
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("read migration ledger rows: %w", err)
+	}
+	return nil
+}
+
+func validateMigrationDialect(dialect Dialect) error {
+	if dialect != SQLite && dialect != Postgres {
+		return fmt.Errorf("unsupported database dialect %q", dialect)
 	}
 	return nil
 }
