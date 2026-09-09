@@ -17,6 +17,7 @@
 - Password reset request/confirm HTTP sözleşmesi eklendi; istek endpoint'i bilinmeyen hesaplarda da `202 Accepted` döner, token yalnız enjekte edilen notifier'a verilir ve confirm tek kullanımlı token ile session iptalini transaction içinde çalıştırır.
 - Davet token'ları yalnız SHA-256 hash olarak saklanır, yalnız editor/viewer rolü üretilebilir, kabul sırasında token tüketimi ve kullanıcı oluşturma aynı transaction'a bağlanır; aynı davet ikinci kez kabul edilemez.
 - MFA etkin bir kullanıcı parola ile doğrulandıktan sonra MFA kodu olmadan session alamaz; TOTP veya tek kullanımlı recovery code login contract testinde doğrulanır.
+- Argon2 password hash'lerinin encoded parametreleri bounded bellek/iterasyon/parallelism aralıklarında doğrulanır; oversized veya malformed hash login sırasında kaynak tüketimine dönüşmeden reddedilir.
 
 ## Çalıştırılan kontroller
 
