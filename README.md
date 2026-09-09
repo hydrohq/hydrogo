@@ -172,7 +172,14 @@ $env:HYDRO_TEST_POSTGRES_URL = "postgres://user:password@127.0.0.1:5432/hydro_co
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-production-gates.ps1
 ```
 
-The runner checks formatting, vet, the full test suite, race-sensitive packages, reproducible binary builds, and the portable benchmark. It fails when PostgreSQL is unavailable instead of silently treating contract tests as skipped.
+On Linux or macOS, run the equivalent gate runner:
+
+```bash
+export HYDRO_TEST_POSTGRES_URL='postgres://user:password@127.0.0.1:5432/hydro_contract?sslmode=disable'
+bash ./scripts/verify-production-gates.sh
+```
+
+Both runners check formatting, vet, the full test suite, race-sensitive packages, reproducible binary builds, and the portable benchmark. They fail when PostgreSQL is unavailable instead of silently treating contract tests as skipped.
 
 Real production gates additionally require:
 
