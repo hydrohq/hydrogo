@@ -70,7 +70,7 @@ func NewUploader(storageDir string, maxBytes int64) (*Uploader, error) {
 	if maxBytes <= 0 {
 		maxBytes = 10 << 20 // 10 MB default
 	}
-	if err := os.MkdirAll(storageDir, 0755); err != nil {
+	if err := os.MkdirAll(storageDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
 	return &Uploader{
@@ -149,15 +149,31 @@ func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, er
 		}
 	}
 
-	tempFile.Close()
+	if err := tempFile.Sync(); err != nil {
+		return nil, fmt.Errorf("failed syncing uploaded file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return nil, fmt.Errorf("failed closing uploaded file: %w", err)
+	}
 
 	// 5. Finalize storage with content hash
 	hashHex := hex.EncodeToString(hasher.Sum(nil))
 	finalFilename := hashHex + ext
 	finalPath := filepath.Join(u.StorageDir, finalFilename)
 
-	if err := os.Rename(tempFile.Name(), finalPath); err != nil {
-		return nil, fmt.Errorf("failed moving uploaded file: %w", err)
+	if info, err := os.Lstat(finalPath); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return nil, errors.New("existing media path is not a regular file")
+		}
+		if existingHash, hashErr := fileSHA256(finalPath); hashErr != nil || existingHash != hashHex {
+			return nil, errors.New("existing media content hash mismatch")
+		}
+	} else if errors.Is(err, os.ErrNotExist) {
+		if err := os.Rename(tempFile.Name(), finalPath); err != nil {
+			return nil, fmt.Errorf("failed moving uploaded file: %w", err)
+		}
+	} else {
+		return nil, fmt.Errorf("inspect existing media file: %w", err)
 	}
 
 	return &UploadResult{
@@ -169,4 +185,17 @@ func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, er
 		Width:       width,
 		Height:      height,
 	}, nil
+}
+
+func fileSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }

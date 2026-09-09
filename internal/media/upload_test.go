@@ -96,3 +96,29 @@ func TestUploadCorruptedImageData(t *testing.T) {
 		t.Errorf("expected 0 files in storage dir after failed upload, found %d", len(files))
 	}
 }
+
+func TestUploadDeduplicatesOnlyMatchingContentHash(t *testing.T) {
+	tempDir := t.TempDir()
+	uploader, err := NewUploader(tempDir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pngData := createTestPNG(16, 16)
+	first, err := uploader.Save(bytes.NewReader(pngData), "one.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := uploader.Save(bytes.NewReader(pngData), "two.png")
+	if err != nil {
+		t.Fatalf("duplicate content was rejected: %v", err)
+	}
+	if first.StoragePath != second.StoragePath {
+		t.Fatalf("duplicate storage paths differ: %q/%q", first.StoragePath, second.StoragePath)
+	}
+	if err := os.WriteFile(first.StoragePath, []byte("tampered"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := uploader.Save(bytes.NewReader(pngData), "three.png"); err == nil {
+		t.Fatal("tampered content-addressed file was accepted")
+	}
+}
