@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -40,6 +41,11 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := filepath.Join(h.Service.Uploader.StorageDir, filepath.Base(asset.StorageKey))
+	info, err := os.Lstat(path)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		http.NotFound(w, r)
+		return
+	}
 	w.Header().Set("Content-Type", asset.MimeType)
 	http.ServeFile(w, r, path)
 }

@@ -57,3 +57,25 @@ func TestPublicMediaIsServedWhenReady(t *testing.T) {
 		t.Fatalf("public media response = %d/%q", response.Code, response.Body.String())
 	}
 }
+
+func TestMediaDoesNotServeSymlinkedStorageEntry(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret outside storage"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "linked.txt")); err != nil {
+		t.Skipf("symlink creation is unavailable: %v", err)
+	}
+	uploader, err := NewUploader(dir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := HTTPHandler{Service: Service{Uploader: uploader, Assets: httpAssetRepo{asset: Asset{ID: "a3", StorageKey: "linked.txt", MimeType: "text/plain", Status: "ready", Visibility: VisibilityPublic}}}}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/media/a3", nil)
+	handler.serve(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("symlinked media status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+}
