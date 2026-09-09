@@ -36,3 +36,18 @@ func TestErrorMiddlewarePreservesSafeServiceUnavailableMessage(t *testing.T) {
 		t.Fatalf("unexpected service unavailable response: %d %q", res.Code, res.Body.String())
 	}
 }
+
+func TestErrorMiddlewareDoesNotFlushInternalErrorDetails(t *testing.T) {
+	handler := ErrorMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("secret database details"))
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	}))
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/", nil))
+	if strings.Contains(res.Body.String(), "secret database details") || !strings.Contains(res.Body.String(), "internal server error") {
+		t.Fatalf("internal error details leaked after flush: %q", res.Body.String())
+	}
+}

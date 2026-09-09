@@ -57,6 +57,11 @@ func (c *errorCapture) Write(p []byte) (int, error) {
 		return c.destination.Write(p)
 	}
 	if c.body.Len()+len(p) > maxBufferedErrorResponse {
+		if c.status >= http.StatusBadRequest {
+			// Never switch an error response to passthrough: doing so would
+			// bypass the status-based redaction performed by commit.
+			return len(p), nil
+		}
 		c.flushPassthrough()
 		return c.destination.Write(p)
 	}
@@ -66,6 +71,9 @@ func (c *errorCapture) Write(p []byte) (int, error) {
 func (c *errorCapture) Flush() {
 	if c.status == 0 {
 		c.status = http.StatusOK
+	}
+	if c.status >= http.StatusBadRequest {
+		return
 	}
 	c.flushPassthrough()
 	if flusher, ok := c.destination.(http.Flusher); ok {
