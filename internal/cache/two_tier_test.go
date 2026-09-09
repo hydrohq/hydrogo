@@ -114,3 +114,14 @@ func TestTwoTierCoalescesConcurrentMissesWhenL2Misses(t *testing.T) {
 		}
 	}
 }
+
+func TestTwoTierFailsClosedWhenUnavailable(t *testing.T) {
+	var nilCache *TwoTier[string]
+	if _, err := nilCache.GetOrLoad("key", func() (string, error) { return "value", nil }); !errors.Is(err, ErrTwoTierUnavailable) {
+		t.Fatalf("nil two-tier cache = %v, want %v", err, ErrTwoTierUnavailable)
+	}
+	zeroCache := TwoTier[string]{}
+	if _, err := zeroCache.GetOrLoad("key", func() (string, error) { return "value", nil }); !errors.Is(err, ErrTwoTierUnavailable) {
+		t.Fatalf("zero-value two-tier cache = %v, want %v", err, ErrTwoTierUnavailable)
+	}
+}
