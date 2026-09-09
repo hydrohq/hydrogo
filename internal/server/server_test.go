@@ -85,6 +85,28 @@ func TestReadinessFailureDoesNotLeakDetails(t *testing.T) {
 	}
 }
 
+func TestUnexpectedHandlerPanicBecomesStructuredInternalError(t *testing.T) {
+	handler := NewHandler(Config{Routes: []router.Route{{
+		Pattern: "GET /panic",
+		Access:  router.Public,
+		Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			panic("private panic detail")
+		}),
+	}}})
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/panic", nil))
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusInternalServerError)
+	}
+	if got := res.Header().Get("X-Request-ID"); len(got) != 32 {
+		t.Fatalf("request id = %q, want 32 hex characters", got)
+	}
+	body := res.Body.String()
+	if strings.Contains(body, "private panic detail") || !strings.Contains(body, `"code":"internal_server_error"`) || !strings.Contains(body, `"request_id":"`) {
+		t.Fatalf("panic response leaked details or was not structured: %q", body)
+	}
+}
+
 func TestProtectedRouteAuthorization(t *testing.T) {
 	adminHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
