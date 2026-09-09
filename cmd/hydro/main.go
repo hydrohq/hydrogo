@@ -33,6 +33,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/portable"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -87,6 +88,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return backupCommand(args[1:], stdout, stderr)
 	case "restore":
 		return restoreCommand(args[1:], stdout, stderr)
+	case "portable":
+		return portableCommand(args[1:], stdout, stderr)
 	case "release":
 		return releaseCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -95,6 +98,102 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	default:
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
+	}
+}
+
+func portableCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return errors.New("portable command requires a subcommand (export or import)")
+	}
+	flags := flag.NewFlagSet("portable "+args[0], flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	path := flags.String("path", "", "Portable document path")
+	confirm := flags.Bool("confirm", false, "Confirm replacing allowlisted content tables")
+	dryRun := flags.Bool("dry-run", false, "Validate the document without changing the database")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if strings.TrimSpace(*path) == "" {
+		return errors.New("--path is required")
+	}
+	switch args[0] {
+	case "export":
+		if *confirm || *dryRun {
+			return errors.New("--confirm and --dry-run are only valid for portable import")
+		}
+		if _, err := os.Stat(*path); err == nil {
+			return fmt.Errorf("portable export destination already exists: %s", *path)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		cfg, err := loadRuntimeConfig(flags, values)
+		if err != nil {
+			return err
+		}
+		budget, err := capacity.Defaults(cfg.Profile)
+		if err != nil {
+			return err
+		}
+		db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		document, err := portable.Export(context.Background(), db)
+		if err != nil {
+			return fmt.Errorf("portable export: %w", err)
+		}
+		data, err := portable.Marshal(document)
+		if err != nil {
+			return fmt.Errorf("marshal portable export: %w", err)
+		}
+		if err := os.WriteFile(*path, append(data, '\n'), 0o640); err != nil {
+			return fmt.Errorf("write portable export: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "portable-exported path=%s tables=%d\n", *path, len(document.Tables))
+		return err
+	case "import":
+		if !*confirm && !*dryRun {
+			return errors.New("portable import requires --confirm, or use --dry-run")
+		}
+		data, err := os.ReadFile(*path)
+		if err != nil {
+			return fmt.Errorf("read portable document: %w", err)
+		}
+		document, err := portable.Unmarshal(data)
+		if err != nil {
+			return fmt.Errorf("validate portable document: %w", err)
+		}
+		if *dryRun {
+			_, err = fmt.Fprintf(stdout, "portable-import-valid path=%s tables=%d\n", *path, len(document.Tables))
+			return err
+		}
+		cfg, err := loadRuntimeConfig(flags, values)
+		if err != nil {
+			return err
+		}
+		budget, err := capacity.Defaults(cfg.Profile)
+		if err != nil {
+			return err
+		}
+		db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		if err := database.NewTransactor(db).Within(context.Background(), func(tx database.Executor) error {
+			return portable.Import(context.Background(), tx, document, cfg.Database.Dialect)
+		}); err != nil {
+			return fmt.Errorf("portable import: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "portable-imported path=%s tables=%d\n", *path, len(document.Tables))
+		return err
+	default:
+		return fmt.Errorf("unknown portable subcommand %q", args[0])
 	}
 }
 
@@ -687,6 +786,9 @@ Usage:
   hydro restore verify --snapshot PATH
   hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
   hydro restore activate-media --staging PATH --active PATH --rollback PATH
+  hydro portable export --path PATH [runtime flags]
+  hydro portable import --path PATH --dry-run [runtime flags]
+  hydro portable import --path PATH --confirm [runtime flags]
   hydro release verify --manifest PATH --public-key PATH
   hydro serve [runtime flags]
   hydro help

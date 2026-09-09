@@ -172,3 +172,32 @@ func TestRunBackupAndRestoreGates(t *testing.T) {
 		t.Fatalf("staged restore failed verification: %v", err)
 	}
 }
+
+func TestRunPortableExportImportRequiresExplicitConfirmation(t *testing.T) {
+	root := t.TempDir()
+	dbPath := filepath.Join(root, "hydro.sqlite")
+	documentPath := filepath.Join(root, "portable.json")
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"migrate", "--database-dsn", dbPath}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("migrate failed: %v", err)
+	}
+	if err := run([]string{"portable", "export", "--database-dsn", dbPath, "--path", documentPath}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("portable export failed: %v", err)
+	}
+	if _, err := os.Stat(documentPath); err != nil {
+		t.Fatalf("portable document missing: %v", err)
+	}
+	stdout.Reset()
+	if err := run([]string{"portable", "import", "--path", documentPath, "--dry-run"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("portable dry-run failed: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "portable-import-valid") {
+		t.Fatalf("unexpected dry-run output: %q", stdout.String())
+	}
+	if err := run([]string{"portable", "import", "--database-dsn", dbPath, "--path", documentPath}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("portable import succeeded without explicit confirmation")
+	}
+	if err := run([]string{"portable", "import", "--database-dsn", dbPath, "--path", documentPath, "--confirm"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("portable import failed: %v", err)
+	}
+}
