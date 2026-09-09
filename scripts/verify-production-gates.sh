@@ -25,9 +25,9 @@ run_required 'shuffled test suite' go test ./... -shuffle=on -count=1 -p 1
 
 run_required 'race-sensitive packages' go test -race -p 1 \
   ./internal/cache ./internal/release ./internal/database ./internal/backup \
-  ./internal/security ./internal/server ./internal/jobs ./internal/jobs/sqlstore \
+  ./internal/canonical ./internal/security ./internal/server ./internal/jobs ./internal/jobs/sqlstore \
   ./internal/auth ./internal/media ./internal/mailer ./internal/portable \
-  ./modules/news ./modules/site ./cmd/hydro -count=1
+  ./modules/news ./modules/pages/... ./modules/site ./cmd/hydro -count=1
 
 gate_dir=.tmp/gates
 mkdir -p "$gate_dir"

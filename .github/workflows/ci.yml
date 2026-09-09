@@ -139,4 +139,4 @@ jobs:
       - name: Run race-sensitive contract tests
         env:
           CGO_ENABLED: '1'
-        run: go test -race -p 1 ./internal/cache ./internal/release ./internal/database ./internal/backup ./internal/security ./internal/server ./internal/jobs ./internal/jobs/sqlstore ./internal/auth ./internal/media ./internal/mailer ./internal/portable ./modules/news ./modules/site ./cmd/hydro
+        run: go test -race -p 1 ./internal/cache ./internal/canonical ./internal/release ./internal/database ./internal/backup ./internal/security ./internal/server ./internal/jobs ./internal/jobs/sqlstore ./internal/auth ./internal/media ./internal/mailer ./internal/portable ./modules/news ./modules/pages/... ./modules/site ./cmd/hydro
