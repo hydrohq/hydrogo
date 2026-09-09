@@ -56,8 +56,16 @@ func New(path string) (*Log, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+	parent := filepath.Dir(path)
+	if err := os.MkdirAll(parent, 0o750); err != nil {
 		return nil, err
+	}
+	parentInfo, err := os.Lstat(parent)
+	if err != nil {
+		return nil, err
+	}
+	if parentInfo.Mode()&os.ModeSymlink != 0 || !parentInfo.IsDir() {
+		return nil, errors.New("erasure log parent must be a real directory")
 	}
 	if info, err := os.Lstat(path); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
