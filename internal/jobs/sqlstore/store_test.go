@@ -141,7 +141,33 @@ func TestSQLiteQueueCapacityIsBoundedForConcurrentProducers(t *testing.T) {
 	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
-	store := Store{Dialect: database.SQLite, MaxEntries: 1}
+	runConcurrentCapacityContract(t, db, database.SQLite)
+}
+
+func TestPostgresQueueCapacityIsBoundedForConcurrentProducers(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.Postgres, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "DELETE FROM jobs"); err != nil {
+		t.Fatal(err)
+	}
+	runConcurrentCapacityContract(t, db, database.Postgres)
+}
+
+func runConcurrentCapacityContract(t *testing.T, db database.Executor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	store := Store{Dialect: dialect, MaxEntries: 1}
 	start := make(chan struct{})
 	errs := make(chan error, 2)
 	var wg sync.WaitGroup
