@@ -27,7 +27,7 @@ type Service struct {
 }
 
 func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) (*UploadResult, error) {
-	result, err := s.Uploader.Save(reader, filename)
+	result, err := s.Uploader.SaveContext(ctx, reader, filename)
 	if err != nil {
 		return nil, err
 	}

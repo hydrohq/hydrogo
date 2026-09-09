@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -19,6 +20,7 @@ import (
 )
 
 var (
+	ErrUploaderRequired   = errors.New("uploader is required")
 	ErrFileTooLarge       = errors.New("file exceeds maximum allowed size")
 	ErrDisallowedMimeType = errors.New("disallowed file mime type")
 	ErrInvalidImageData   = errors.New("corrupt or invalid image payload")
@@ -64,11 +66,22 @@ type Uploader struct {
 	StorageDir string
 	MaxBytes   int64
 	MaxPixels  int64
+	slots      chan struct{}
 }
 
 func NewUploader(storageDir string, maxBytes int64) (*Uploader, error) {
+	return NewUploaderWithConcurrency(storageDir, maxBytes, 1)
+}
+
+// NewUploaderWithConcurrency creates an uploader with bounded disk/CPU work.
+// The limit covers the complete temporary-file, hashing and image validation
+// lifecycle of each upload.
+func NewUploaderWithConcurrency(storageDir string, maxBytes int64, maxConcurrent int) (*Uploader, error) {
 	if maxBytes <= 0 {
 		maxBytes = 10 << 20 // 10 MB default
+	}
+	if maxConcurrent <= 0 {
+		maxConcurrent = 1
 	}
 	if err := os.MkdirAll(storageDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
@@ -77,10 +90,26 @@ func NewUploader(storageDir string, maxBytes int64) (*Uploader, error) {
 		StorageDir: storageDir,
 		MaxBytes:   maxBytes,
 		MaxPixels:  40_000_000,
+		slots:      make(chan struct{}, maxConcurrent),
 	}, nil
 }
 
 func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, error) {
+	return u.SaveContext(context.Background(), r, originalFilename)
+}
+
+func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilename string) (*UploadResult, error) {
+	if u == nil {
+		return nil, ErrUploaderRequired
+	}
+	if r == nil {
+		return nil, errors.New("upload reader is required")
+	}
+	if err := u.acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer u.release()
+
 	// 1. Create a bounded reader
 	lr := &io.LimitedReader{R: r, N: u.MaxBytes + 1}
 
@@ -184,6 +213,24 @@ func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, er
 		Width:       width,
 		Height:      height,
 	}, nil
+}
+
+func (u *Uploader) acquire(ctx context.Context) error {
+	if u.slots == nil {
+		return nil
+	}
+	select {
+	case u.slots <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (u *Uploader) release() {
+	if u.slots != nil {
+		<-u.slots
+	}
 }
 
 func validateImageDimensions(width, height int, maxPixels int64) error {

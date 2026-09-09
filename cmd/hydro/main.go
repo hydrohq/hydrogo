@@ -564,7 +564,7 @@ func serve(args []string, stderr io.Writer) error {
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	pageHTTP := pagetransport.Handler{DB: db, Content: contentService}
-	uploader, err := media.NewUploader(cfg.Media.Dir, budget.MediaMaxBytes)
+	uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
 	if err != nil {
 		return err
 	}

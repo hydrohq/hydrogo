@@ -2,14 +2,35 @@ package media
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 )
+
+type gatedReader struct {
+	data    []byte
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (r *gatedReader) Read(p []byte) (int, error) {
+	r.once.Do(func() { close(r.started) })
+	<-r.release
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, r.data)
+	r.data = r.data[n:]
+	return n, nil
+}
 
 func TestValidateImageDimensionsRejectsInvalidDimensions(t *testing.T) {
 	for _, tc := range []struct {
@@ -27,6 +48,30 @@ func TestValidateImageDimensionsRejectsInvalidDimensions(t *testing.T) {
 				t.Fatalf("validateImageDimensions() = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestUploaderSaveContextHonorsCancellationWhileBusy(t *testing.T) {
+	uploader, err := NewUploaderWithConcurrency(t.TempDir(), 1<<20, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := &gatedReader{data: createTestPNG(4, 4), started: make(chan struct{}), release: make(chan struct{})}
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := uploader.SaveContext(context.Background(), reader, "first.png")
+		firstDone <- err
+	}()
+	<-reader.started
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := uploader.SaveContext(ctx, bytes.NewReader(createTestPNG(4, 4)), "second.png"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("busy uploader error = %v, want context.Canceled", err)
+	}
+	close(reader.release)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first upload failed: %v", err)
 	}
 }
 
