@@ -29,11 +29,25 @@ func discoverMigrations(migrationFS fs.FS) ([]string, error) {
 }
 
 func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+	if db == nil {
+		return errors.New("database is required")
+	}
 	migrations, err := discoverMigrations(migrationFS)
 	if err != nil {
 		return fmt.Errorf("failed to discover migrations: %w", err)
 	}
-	if err := ensureMigrationLedger(ctx, db); err != nil {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("open migration connection: %w", err)
+	}
+	defer conn.Close()
+	if dialect == Postgres {
+		if err := acquireMigrationLock(ctx, conn); err != nil {
+			return err
+		}
+		defer releaseMigrationLock(context.Background(), conn)
+	}
+	if err := ensureMigrationLedger(ctx, conn); err != nil {
 		return err
 	}
 	for index := 0; index < len(migrations); {
@@ -42,7 +56,7 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 			return err
 		}
 		if !transactional {
-			if err := applyNonTransactionalMigration(ctx, db, dialect, migrationFS, migrations[index]); err != nil {
+			if err := applyNonTransactionalMigration(ctx, conn, dialect, migrationFS, migrations[index]); err != nil {
 				return err
 			}
 			index++
@@ -59,7 +73,7 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 			}
 			index++
 		}
-		if err := NewTransactor(db).Within(ctx, func(tx Executor) error {
+		if err := withinMigrationTransaction(ctx, conn, func(tx Executor) error {
 			for _, migrationID := range migrations[start:index] {
 				if err := applyMigration(ctx, tx, dialect, migrationFS, migrationID); err != nil {
 					return err
@@ -73,8 +87,24 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 	return nil
 }
 
-func ensureMigrationLedger(ctx context.Context, db *sql.DB) error {
-	return NewTransactor(db).Within(ctx, func(tx Executor) error {
+type migrationTransactionStarter interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func withinMigrationTransaction(ctx context.Context, starter migrationTransactionStarter, fn func(Executor) error) error {
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func ensureMigrationLedger(ctx context.Context, db migrationTransactionStarter) error {
+	return withinMigrationTransaction(ctx, db, func(tx Executor) error {
 		_, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
             id TEXT PRIMARY KEY,
             checksum TEXT NOT NULL
@@ -113,11 +143,26 @@ func applyMigration(ctx context.Context, executor Executor, dialect Dialect, mig
 	return nil
 }
 
-func applyNonTransactionalMigration(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS, migrationID string) error {
+func applyNonTransactionalMigration(ctx context.Context, db Executor, dialect Dialect, migrationFS fs.FS, migrationID string) error {
 	if err := applyMigration(ctx, db, dialect, migrationFS, migrationID); err != nil {
 		return err
 	}
 	return nil
+}
+
+const migrationAdvisoryLockKey int64 = 0x687964726f676f
+
+func acquireMigrationLock(ctx context.Context, conn *sql.Conn) error {
+	var ignored any
+	if err := conn.QueryRowContext(ctx, "SELECT pg_advisory_lock($1)", migrationAdvisoryLockKey).Scan(&ignored); err != nil {
+		return fmt.Errorf("acquire PostgreSQL migration lock: %w", err)
+	}
+	return nil
+}
+
+func releaseMigrationLock(ctx context.Context, conn *sql.Conn) {
+	var ignored any
+	_ = conn.QueryRowContext(ctx, "SELECT pg_advisory_unlock($1)", migrationAdvisoryLockKey).Scan(&ignored)
 }
 
 func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dialect) (bool, error) {
