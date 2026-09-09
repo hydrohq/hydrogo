@@ -540,8 +540,31 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	if err := os.MkdirAll(cfg.Media.Dir, 0o750); err != nil {
 		return fmt.Errorf("media directory: %w", err)
 	}
-	_, err = fmt.Fprintf(stdout, "profile=%s database=%s cache_entries=%d queue_entries=%d media_max_bytes=%d\n", cfg.Profile, cfg.Database.Dialect, budget.CacheEntries, budget.QueueEntries, budget.MediaMaxBytes)
+	if err := checkDirectoryWritable(cfg.Media.Dir); err != nil {
+		return fmt.Errorf("media directory is not writable: %w", err)
+	}
+	backupTools := "sqlite"
+	if cfg.Database.Dialect == database.Postgres {
+		if _, err := backupstore.LocatePostgresTools(); err != nil {
+			return fmt.Errorf("PostgreSQL backup tools: %w", err)
+		}
+		backupTools = "pg_dump,pg_restore"
+	}
+	_, err = fmt.Fprintf(stdout, "profile=%s database=%s backup_tools=%s cache_entries=%d queue_entries=%d media_max_bytes=%d\n", cfg.Profile, cfg.Database.Dialect, backupTools, budget.CacheEntries, budget.QueueEntries, budget.MediaMaxBytes)
 	return err
+}
+
+func checkDirectoryWritable(directory string) error {
+	probe, err := os.CreateTemp(directory, ".hydro-write-check-*")
+	if err != nil {
+		return err
+	}
+	path := probe.Name()
+	if err := probe.Close(); err != nil {
+		_ = os.Remove(path)
+		return err
+	}
+	return os.Remove(path)
 }
 
 func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, stderr io.Writer) {

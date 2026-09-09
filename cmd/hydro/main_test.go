@@ -201,3 +201,16 @@ func TestRunPortableExportImportRequiresExplicitConfirmation(t *testing.T) {
 		t.Fatalf("portable import failed: %v", err)
 	}
 }
+
+func TestCheckDirectoryWritable(t *testing.T) {
+	if err := checkDirectoryWritable(t.TempDir()); err != nil {
+		t.Fatalf("writable directory rejected: %v", err)
+	}
+	file := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(file, []byte("x"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkDirectoryWritable(file); err == nil {
+		t.Fatal("file accepted as writable directory")
+	}
+}
