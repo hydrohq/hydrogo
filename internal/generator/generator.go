@@ -87,7 +87,12 @@ func Generate(root string, spec Spec) (Lock, error) {
 	} else if !os.IsNotExist(err) {
 		return Lock{}, err
 	}
-	if err := os.MkdirAll(filepath.Join(root, "generated", spec.Name), 0o755); err != nil {
+	generatedRoot := filepath.Join(root, "generated")
+	generatedCollection := filepath.Join(generatedRoot, spec.Name)
+	if err := pathguard.RejectSymlinkComponents(generatedCollection); err != nil {
+		return Lock{}, fmt.Errorf("generator output path: %w", err)
+	}
+	if err := os.MkdirAll(generatedCollection, 0o755); err != nil {
 		return Lock{}, err
 	}
 	canonical, err := canonicalSpec(spec)
@@ -101,7 +106,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		return Lock{}, err
 	}
 	lockBytes = append(lockBytes, '\n')
-	if err := writeGenerated(filepath.Join(root, "generated", "generator.lock"), lockBytes); err != nil {
+	if err := writeGenerated(filepath.Join(generatedRoot, "generator.lock"), lockBytes); err != nil {
 		return Lock{}, err
 	}
 	files := map[string]string{
@@ -112,7 +117,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"contract_test.go": renderContractTest(spec),
 	}
 	for name, content := range files {
-		path := filepath.Join(root, "generated", spec.Name, name)
+		path := filepath.Join(generatedCollection, name)
 		var err error
 		if name == "migration.sql" {
 			err = writeImmutableGenerated(path, []byte(content))
