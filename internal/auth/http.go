@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
@@ -90,7 +91,7 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 }
 
 func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
-	if !h.adminUser(r) || h.Invitation == nil || h.InviteDB == nil || h.InviteNotice == nil {
+	if !h.adminUser(r) || h.Invitation == nil || database.RequireExecutor(h.InviteDB) != nil || guards.IsNil(h.InviteNotice) {
 		http.Error(w, "invitation unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -152,7 +153,7 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
-	if h.Recovery == nil || h.RecoveryDB == nil || h.Notifier == nil {
+	if h.Recovery == nil || database.RequireExecutor(h.RecoveryDB) != nil || guards.IsNil(h.Notifier) {
 		http.Error(w, "password recovery unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -458,7 +459,9 @@ func writeAuthDependencyError(w http.ResponseWriter, message string, err error, 
 	if errors.Is(err, database.ErrDatabaseRequired) ||
 		errors.Is(err, ErrUserRepositoryRequired) ||
 		errors.Is(err, ErrSessionRepositoryRequired) ||
-		errors.Is(err, ErrMFAStoreRequired) {
+		errors.Is(err, ErrMFAStoreRequired) ||
+		errors.Is(err, ErrRecoveryDependencyRequired) ||
+		errors.Is(err, ErrInviteDependencyRequired) {
 		status = http.StatusServiceUnavailable
 	}
 	http.Error(w, message, status)

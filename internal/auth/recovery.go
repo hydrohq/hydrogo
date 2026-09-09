@@ -10,11 +10,15 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 const PasswordResetPurpose = "password_reset"
 
-var ErrRecoveryTokenInvalid = errors.New("invalid or expired recovery token")
+var (
+	ErrRecoveryTokenInvalid       = errors.New("invalid or expired recovery token")
+	ErrRecoveryDependencyRequired = errors.New("password recovery dependency is required")
+)
 
 type RecoveryStore interface {
 	CreateRecoveryToken(context.Context, database.Executor, string, string, string, string, time.Time, time.Time) error
@@ -33,6 +37,9 @@ type PasswordRecovery struct {
 }
 
 func (r PasswordRecovery) Issue(ctx context.Context, tx database.Executor, email string, ttl time.Duration) (string, error) {
+	if guards.IsNil(r.Users) || guards.IsNil(r.Tokens) {
+		return "", ErrRecoveryDependencyRequired
+	}
 	user, err := r.Users.GetByEmail(ctx, NormalizeEmail(email))
 	if err != nil {
 		return "", err
@@ -61,6 +68,9 @@ func (r PasswordRecovery) Issue(ctx context.Context, tx database.Executor, email
 }
 
 func (r PasswordRecovery) Reset(ctx context.Context, tx database.Executor, rawToken, newPassword string) error {
+	if guards.IsNil(r.Users) || guards.IsNil(r.Tokens) || guards.IsNil(r.Sessions) {
+		return ErrRecoveryDependencyRequired
+	}
 	if strings.TrimSpace(rawToken) == "" || newPassword == "" {
 		return ErrRecoveryTokenInvalid
 	}

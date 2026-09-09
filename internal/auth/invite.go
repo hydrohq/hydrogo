@@ -10,11 +10,15 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 const InvitePurpose = "invite"
 
-var ErrInviteInvalid = errors.New("invalid or expired invitation")
+var (
+	ErrInviteInvalid            = errors.New("invalid or expired invitation")
+	ErrInviteDependencyRequired = errors.New("invitation dependency is required")
+)
 
 type InviteStore interface {
 	CreateInvite(context.Context, database.Executor, string, string, Role, string, time.Time, time.Time) error
@@ -32,6 +36,9 @@ type InvitationService struct {
 }
 
 func (s InvitationService) Issue(ctx context.Context, db database.Executor, email string, role Role, ttl time.Duration) (string, error) {
+	if guards.IsNil(s.Users) || guards.IsNil(s.Invites) {
+		return "", ErrInviteDependencyRequired
+	}
 	email = NormalizeEmail(email)
 	if email == "" || (role != RoleEditor && role != RoleViewer) {
 		return "", ErrInviteInvalid
@@ -62,6 +69,9 @@ func (s InvitationService) Issue(ctx context.Context, db database.Executor, emai
 }
 
 func (s InvitationService) Accept(ctx context.Context, tx database.Executor, rawToken, password string) (*User, error) {
+	if guards.IsNil(s.Users) || guards.IsNil(s.Invites) {
+		return nil, ErrInviteDependencyRequired
+	}
 	if strings.TrimSpace(rawToken) == "" || password == "" {
 		return nil, ErrInviteInvalid
 	}
