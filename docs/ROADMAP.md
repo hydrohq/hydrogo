@@ -103,6 +103,6 @@ R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user 
 
 ## Kanıt ve ilerleme kaydı
 
-Gerçek ortamda açık kalan kapıların gerekli koşulları ve kanıt formatı [Production gate evidence checklist](validation/PRODUCTION-GATES.md) içinde tutulur.
+Gerçek ortamda açık kalan kapıların gerekli koşulları ve kanıt formatı [Production gate evidence checklist](validation/PRODUCTION-GATES.md) içinde tutulur. Son otomatik güvenilirlik ve güvenlik hardening kanıtı: [R7 validation report](validation/R7-reliability-security-hardening-2026-09-10.md).
 
 Her çalışma küçük incelenebilir değişiklik olarak teslim edilir. Raporda commit, ortam/toolchain/DB sürümleri, komutlar, beklenen/görülen sonuç, sınırlamalar ve ilgili roadmap maddesi bulunur. `docs/validation/` yalnız gerçek sonuç taşır; planlanan test başarılı gösterilmez. Başarısız deneyde önce alternatif değerlendirilir; kabul edilmiş karar değişiyorsa yeni ADR yazılır.
