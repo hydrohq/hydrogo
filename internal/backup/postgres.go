@@ -91,6 +91,9 @@ func RestorePostgresToStaging(ctx context.Context, tools PostgresTools, dsn, sou
 	if err != nil {
 		return err
 	}
+	if err := validateRestorePaths(source, destination); err != nil {
+		return err
+	}
 	if _, err := os.Stat(destination); err == nil {
 		return fmt.Errorf("restore destination already exists: %s", destination)
 	} else if !errors.Is(err, os.ErrNotExist) {

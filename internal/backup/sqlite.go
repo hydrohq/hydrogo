@@ -253,6 +253,9 @@ func RestoreToStaging(source, destination string, manifest Manifest, controls Re
 	if err != nil {
 		return err
 	}
+	if err := validateRestorePaths(source, destination); err != nil {
+		return err
+	}
 	if _, err := os.Stat(destination); err == nil {
 		return fmt.Errorf("restore destination already exists: %s", destination)
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -262,14 +265,20 @@ func RestoreToStaging(source, destination string, manifest Manifest, controls Re
 		return fmt.Errorf("verify restore source: %w", err)
 	}
 	if err := copyTree(source, destination); err != nil {
+		_ = os.RemoveAll(destination)
 		return err
 	}
 	marker := RestoreMarker{ManifestVersion: manifest.Version, VerifiedAt: time.Now().UTC(), Controls: controls}
 	data, err := json.MarshalIndent(marker, "", "  ")
 	if err != nil {
+		_ = os.RemoveAll(destination)
 		return err
 	}
-	return os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o640)
+	if err := os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o640); err != nil {
+		_ = os.RemoveAll(destination)
+		return err
+	}
+	return nil
 }
 
 func digestTree(root string) ([]FileDigest, error) {
