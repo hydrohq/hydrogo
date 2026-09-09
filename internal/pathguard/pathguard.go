@@ -14,6 +14,9 @@ import (
 // path. Missing components are allowed so callers can create a new subtree;
 // all components that already exist must be real directories.
 func RejectSymlinkComponents(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return errors.New("path is required")
+	}
 	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return err

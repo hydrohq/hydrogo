@@ -28,3 +28,9 @@ func TestRejectSymlinkComponentsAllowsMissingTail(t *testing.T) {
 		t.Fatalf("missing path rejected: %v", err)
 	}
 }
+
+func TestRejectSymlinkComponentsRejectsEmptyPath(t *testing.T) {
+	if err := RejectSymlinkComponents(" "); err == nil {
+		t.Fatal("empty path was accepted")
+	}
+}
