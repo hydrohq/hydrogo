@@ -110,3 +110,23 @@ func TestRetainAssetsVerifiesInventoryAndRejectsReplacement(t *testing.T) {
 		t.Fatal("changed retained asset was accepted")
 	}
 }
+
+func TestRetainAssetsValidatesRootsAndPaths(t *testing.T) {
+	manifest := Manifest{
+		FormatVersion: 1,
+		Edition:       "site",
+		CoreVersion:   "1.0.0",
+		Artifacts: []Artifact{
+			{Path: "static/../secret.txt", Size: 10, SHA256: "abc"},
+		},
+	}
+	if err := RetainAssets("", manifest, "dest"); err == nil {
+		t.Fatal("expected error with empty source root")
+	}
+	if err := RetainAssets("source", manifest, ""); err == nil {
+		t.Fatal("expected error with empty destination root")
+	}
+	if err := VerifyRetainedAssets("root", manifest); err == nil {
+		t.Fatal("expected error for escaping artifact path in VerifyRetainedAssets")
+	}
+}
