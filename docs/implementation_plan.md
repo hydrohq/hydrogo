@@ -330,7 +330,7 @@ RPO/RTO, kabul edilen yazma duraklaması, retention ve anahtar kurtarma hedefler
 - JSON biçimli yapılandırılmış loglarda request ID bulunur; sırlar ve kişisel içerik maskelenir.
 - `/healthz` yalnız prosesin yaşadığını, `/readyz` veritabanı ve migration uygunluğunu gösterir.
 - HTTP sunucusunda read-header, read, write ve idle timeout; gövde boyutu ve kontrollü graceful shutdown bulunur.
-- Temel metrikler: istek süresi/hata oranı, DB pool/lock/deadlock/busy durumu, cache hit/miss/eviction, kuyruk derinliği, başarısız işler, disk kullanımı, yedek yaşı ve son yedek sonucu. Process-local HTTP request/status/latency, `sql.DB.Stats()` pool ve public cache hit/miss/load/error/eviction/expiration sayaçları authenticated `/metrics` endpoint'inde bounded label setiyle sunulur; DB lock/deadlock, queue/disk/exporter entegrasyonu ayrıca işletim kapısıdır.
+- Temel metrikler: istek süresi/hata oranı, DB pool/lock/deadlock/busy durumu, cache hit/miss/eviction, kuyruk derinliği, başarısız işler, disk kullanımı, yedek yaşı ve son yedek sonucu. Process-local HTTP request/status/latency, `sql.DB.Stats()` pool, public cache hit/miss/load/error/eviction/expiration ve durable jobs depth/leased sayaçları authenticated `/metrics` endpoint'inde bounded label setiyle sunulur; DB lock/deadlock, queue retry/failure, disk/exporter entegrasyonu ayrıca işletim kapısıdır.
 - Disk doluluk eşiği, sertifika süresi, başarısız yedek ve migration hatası için alarm tanımlanır.
 - Build sürümü, commit ve şema uyumluluğu `hydro version` ve erişimi korunan diagnostics çıktısında bulunur; public health/readiness ayrıntılı iç bilgi döndürmez.
 - Sırlar environment veya secret file üzerinden alınır; loglanmaz ve `config.env.example` içine gerçek değer konmaz.

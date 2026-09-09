@@ -19,6 +19,7 @@ type Metrics struct {
 	latencyNanos  atomic.Uint64
 	databaseStats func() DatabaseStats
 	cacheStats    func() CacheStats
+	jobStats      func() JobStats
 }
 
 type DatabaseStats struct {
@@ -39,6 +40,11 @@ type CacheStats struct {
 	Expirations uint64
 }
 
+type JobStats struct {
+	Depth  int64
+	Leased int64
+}
+
 var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisecond, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 5 * time.Second}
 
 func NewMetrics() *Metrics { return &Metrics{} }
@@ -54,6 +60,12 @@ func (m *Metrics) SetDatabaseStatsProvider(provider func() DatabaseStats) {
 func (m *Metrics) SetCacheStatsProvider(provider func() CacheStats) {
 	if m != nil {
 		m.cacheStats = provider
+	}
+}
+
+func (m *Metrics) SetJobStatsProvider(provider func() JobStats) {
+	if m != nil {
+		m.jobStats = provider
 	}
 }
 
@@ -118,6 +130,11 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "hydro_cache_load_errors_total %d\n", stats.LoadErrors)
 		fmt.Fprintf(w, "hydro_cache_evictions_total %d\n", stats.Evictions)
 		fmt.Fprintf(w, "hydro_cache_expirations_total %d\n", stats.Expirations)
+	}
+	if m.jobStats != nil {
+		stats := m.jobStats()
+		fmt.Fprintf(w, "hydro_jobs_depth %d\n", stats.Depth)
+		fmt.Fprintf(w, "hydro_jobs_leased %d\n", stats.Leased)
 	}
 }
 

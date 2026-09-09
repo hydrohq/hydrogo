@@ -596,6 +596,18 @@ func serve(args []string, stderr io.Writer) error {
 		stats := contentService.PublicCache.Stats()
 		return observability.CacheStats{Hits: stats.Hits, Misses: stats.Misses, Loads: stats.Loads, LoadErrors: stats.LoadErrors, Evictions: stats.Evictions, Expirations: stats.Expirations}
 	})
+	metrics.SetJobStatsProvider(func() observability.JobStats {
+		stats := observability.JobStats{}
+		statsCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		if err := db.QueryRowContext(statsCtx, "SELECT COUNT(*) FROM jobs").Scan(&stats.Depth); err != nil {
+			return observability.JobStats{}
+		}
+		if err := db.QueryRowContext(statsCtx, "SELECT COUNT(*) FROM jobs WHERE lease_until IS NOT NULL").Scan(&stats.Leased); err != nil {
+			return observability.JobStats{Depth: stats.Depth}
+		}
+		return stats
+	})
 	metrics.SetDatabaseStatsProvider(func() observability.DatabaseStats {
 		stats := db.Stats()
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
