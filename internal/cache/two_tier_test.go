@@ -40,3 +40,31 @@ func TestTwoTierFallsBackWhenL2Fails(t *testing.T) {
 		t.Fatalf("fallback = %q/%v", value, err)
 	}
 }
+
+func TestNewTwoTierRequiresLocal(t *testing.T) {
+	if _, err := NewTwoTier[string](nil, nil); err == nil {
+		t.Fatal("expected error when local cache is nil")
+	}
+}
+
+func TestTwoTierWithNilRemote(t *testing.T) {
+	cache, err := NewTwoTier(New[string](2, time.Minute), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loads := 0
+	val, err := cache.GetOrLoad("key", func() (string, error) {
+		loads++
+		return "val", nil
+	})
+	if err != nil || val != "val" || loads != 1 {
+		t.Fatalf("unexpected value %q, loads %d, err %v", val, loads, err)
+	}
+	val, err = cache.GetOrLoad("key", func() (string, error) {
+		loads++
+		return "val2", nil
+	})
+	if err != nil || val != "val" || loads != 1 {
+		t.Fatalf("unexpected cached value %q, loads %d, err %v", val, loads, err)
+	}
+}
