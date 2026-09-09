@@ -24,6 +24,7 @@ config.env.*
 /bin/
 /dist/
 /tmp/
+/.tmp/
 /coverage/
 *.test
 *.exe

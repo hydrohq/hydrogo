@@ -93,6 +93,15 @@ Endpoints:
 
 For PostgreSQL, set `HYDRO_DATABASE_DIALECT=postgres` and use an isolated `HYDRO_DATABASE_DSN`.
 
+Before opening a deployment change, run the local binary smoke drill on Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-local.ps1
+```
+
+The drill builds an isolated binary, migrates a temporary SQLite database, starts the
+server on an ephemeral loopback port, and verifies both `/healthz` and `/readyz`.
+
 Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and `HYDRO_ENABLE_HSTS=true` (or the equivalent `security.secure_cookies` and `security.enable_hsts` YAML fields) together with an HTTPS `HYDRO_PUBLIC_ORIGIN`. Configuration rejects HSTS without an HTTPS canonical origin or secure cookies. These settings remain disabled by default for local HTTP development.
 
 Release builds can embed identity metadata with `-ldflags "-X main.buildCommit=COMMIT -X main.buildTime=UTC_TIME"`; inspect it with `hydro version --json`.
