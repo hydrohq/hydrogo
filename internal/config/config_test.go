@@ -65,6 +65,19 @@ func TestLoadRejectsPartialSMTPConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsSMTPAuthWithoutTLS(t *testing.T) {
+	_, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":  "file:test.sqlite",
+		"HYDRO_SMTP_HOST":     "smtp.example.test",
+		"HYDRO_SMTP_FROM":     "from@example.test",
+		"HYDRO_SMTP_USERNAME": "user",
+		"HYDRO_SMTP_STARTTLS": "false",
+	}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "STARTTLS") {
+		t.Fatalf("SMTP AUTH without TLS error = %v", err)
+	}
+}
+
 func TestLoadSecurityTransportOptions(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{
 		"HYDRO_DATABASE_DSN":   "file:test.sqlite",

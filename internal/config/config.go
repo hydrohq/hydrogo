@@ -219,6 +219,9 @@ func (c Config) Validate() error {
 		if c.Mail.Username == "" && c.Mail.Password != "" {
 			return errors.New("mail password requires username")
 		}
+		if c.Mail.Username != "" && !c.Mail.StartTLS {
+			return errors.New("mail SMTP AUTH requires STARTTLS")
+		}
 	}
 	return nil
 }
