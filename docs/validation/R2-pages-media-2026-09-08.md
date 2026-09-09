@@ -12,6 +12,7 @@
 - Stale editor version ile yapılan update conflict döner.
 - Sanitizer, revision gövdesine yazılmadan önce uygulanır.
 - Media upload metadata’sı `pending → ready` geçişine sahiptir; ready olmayan asset servis edilmez.
+- JPEG/PNG/WebP upload'ları boyut başlığının yanında tam payload decode'undan geçirilir; truncated veya bozuk görüntüler immutable storage'a alınmaz.
 - Private media oturumsuz istekte 401, public ready media başarılı cevap verir.
 - Injected outbox hatasında page, revision ve audit kayıtları birlikte rollback olur.
 

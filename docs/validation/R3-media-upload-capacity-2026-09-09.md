@@ -5,8 +5,9 @@
 `media.Uploader` artık upload başına geçici dosya yazımı, SHA-256 hesaplama ve
 görüntü boyutu doğrulamasını bounded bir semaphore üzerinden yürütür. Runtime
 bootstrap'ı bu sınırı seçilen capacity profilinin `WorkerConcurrency` bütçesine
-bağlar. Semaphore bekleyen bir request'in context'i iptal edilirse upload
-başlamadan durur.
+bağlar. Görüntü boyut başlığından sonra tam payload decode'u da yapılır; böylece
+truncated veya bozuk görüntü immutable storage'a alınmaz. Semaphore bekleyen bir
+request'in context'i iptal edilirse upload başlamadan durur.
 
 ## Kanıt
 
