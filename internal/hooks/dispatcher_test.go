@@ -118,3 +118,26 @@ func TestDispatcherCanDispatchAnotherEventFromHandler(t *testing.T) {
 		t.Fatalf("nested dispatch handler calls = %d, want 2", count)
 	}
 }
+
+func TestDispatcherReentrantSameEventIsIdempotent(t *testing.T) {
+	var d *Dispatcher
+	event := Event{ID: "same", Type: "page.updated", AggregateID: "page-1", Version: 1}
+	count := 0
+	d = New(4, func(ctx context.Context, current Event) error {
+		count++
+		return d.Dispatch(ctx, current)
+	})
+	done := make(chan error, 1)
+	go func() { done <- d.Dispatch(context.Background(), event) }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("reentrant same-event dispatch deadlocked")
+	}
+	if count != 1 {
+		t.Fatalf("reentrant handler calls = %d, want 1", count)
+	}
+}

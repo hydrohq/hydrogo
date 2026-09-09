@@ -11,6 +11,8 @@ import (
 
 var ErrInvalidEvent = errors.New("invalid hook event")
 
+type dispatchEventContextKey struct{}
+
 type Event struct {
 	ID          string
 	Type        string
@@ -51,6 +53,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if currentID, ok := ctx.Value(dispatchEventContextKey{}).(string); ok && currentID == event.ID {
+		return nil
+	}
 	d.mu.Lock()
 	if d.seen == nil {
 		d.seen = make(map[string]struct{})
@@ -77,11 +82,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	d.mu.Unlock()
 
 	var err error
+	handlerContext := context.WithValue(ctx, dispatchEventContextKey{}, event.ID)
 	for _, handler := range handlers {
 		if handler == nil {
 			continue
 		}
-		if err = handler(ctx, event); err != nil {
+		if err = handler(handlerContext, event); err != nil {
 			break
 		}
 	}
