@@ -22,19 +22,9 @@ func PlanSnapshotPrune(root string, policy SnapshotRetention) ([]string, error) 
 	if policy.Keep < 1 {
 		return nil, errors.New("snapshot retention keep must be positive")
 	}
-	root, err := filepath.Abs(strings.TrimSpace(root))
+	root, _, err := snapshotRetentionRoot(root)
 	if err != nil {
 		return nil, err
-	}
-	info, err := os.Lstat(root)
-	if err != nil {
-		return nil, err
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return nil, fmt.Errorf("snapshot retention root cannot be a symlink: %s", root)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("snapshot retention root is not a directory: %s", root)
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -85,7 +75,7 @@ func PlanSnapshotPrune(root string, policy SnapshotRetention) ([]string, error) 
 // malformed or partially written snapshot fails closed instead of being
 // treated as disposable data.
 func PruneSnapshots(root string, policy SnapshotRetention) ([]string, error) {
-	root, err := filepath.Abs(strings.TrimSpace(root))
+	root, initialRoot, err := snapshotRetentionRoot(root)
 	if err != nil {
 		return nil, err
 	}
@@ -93,12 +83,55 @@ func PruneSnapshots(root string, policy SnapshotRetention) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := verifySnapshotRetentionRoot(root, initialRoot); err != nil {
+		return nil, err
+	}
 	removed := make([]string, 0, len(planned))
 	for _, name := range planned {
-		if err := os.RemoveAll(filepath.Join(root, name)); err != nil {
+		if err := verifySnapshotRetentionRoot(root, initialRoot); err != nil {
+			return removed, err
+		}
+		target := filepath.Join(root, name)
+		info, err := os.Lstat(target)
+		if err != nil {
+			return removed, fmt.Errorf("inspect snapshot %s: %w", name, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return removed, fmt.Errorf("snapshot %s is no longer a regular directory", name)
+		}
+		if err := os.RemoveAll(target); err != nil {
 			return removed, fmt.Errorf("remove snapshot %s: %w", name, err)
 		}
 		removed = append(removed, name)
 	}
 	return removed, nil
+}
+
+func snapshotRetentionRoot(root string) (string, os.FileInfo, error) {
+	absolute, err := filepath.Abs(strings.TrimSpace(root))
+	if err != nil {
+		return "", nil, err
+	}
+	info, err := os.Lstat(absolute)
+	if err != nil {
+		return "", nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", nil, fmt.Errorf("snapshot retention root cannot be a symlink: %s", absolute)
+	}
+	if !info.IsDir() {
+		return "", nil, fmt.Errorf("snapshot retention root is not a directory: %s", absolute)
+	}
+	return absolute, info, nil
+}
+
+func verifySnapshotRetentionRoot(root string, expected os.FileInfo) error {
+	_, current, err := snapshotRetentionRoot(root)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(expected, current) {
+		return fmt.Errorf("snapshot retention root changed during pruning: %s", root)
+	}
+	return nil
 }
