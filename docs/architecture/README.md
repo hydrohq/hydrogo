@@ -43,6 +43,7 @@ Kabul edilmiş bir karar sessizce değiştirilmez. Yeni bilgi kararı geçersiz 
 | [0012](0012-content-media-and-portability.md) | İçerik, medya ve veri taşınabilirliği | Kısmen değiştirildi: 0014; planlandı |
 | [0013](0013-identity-and-security-boundaries.md) | Kimlik, yetki ve güvenlik sınırları | Kısmen değiştirildi: 0014; planlandı |
 | [0014](0014-publication-routes-and-erasure-recovery.md) | Publish sırasında route/SEO ve restore'dan bağımsız silme geçmişi | Kabul edildi; planlandı |
+| [0015](0015-versioned-http-api.md) | Sürümlü HTTP API yolları ve geriye dönük alias | Kabul edildi |
 
 Uygulama sırası ve çıkış kapıları [Roadmap](../ROADMAP.md) içinde izlenir.
 

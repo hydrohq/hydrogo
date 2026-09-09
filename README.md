@@ -88,6 +88,7 @@ Endpoints:
 - `/healthz`: process liveness only
 - `/readyz`: database and migration compatibility readiness
 - `/metrics`: authenticated operational counters with bounded status labels
+- Versioned JSON API routes use `/api/v1/...`; existing `/api/...` paths remain compatibility aliases and advertise their successor.
 - Admin/API routes: default-deny routing and authorization policies
 
 For PostgreSQL, set `HYDRO_DATABASE_DIALECT=postgres` and use an isolated `HYDRO_DATABASE_DSN`.

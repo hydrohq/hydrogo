@@ -269,7 +269,7 @@ draft → in_review → scheduled → published → archived
 
 ## 7. API sözleşmesi
 
-- API `/api/v1` altında sürümlenir.
+- API `/api/v1` altında sürümlenir. İlk `/api/...` yolları geriye dönük uyumluluk alias'ı olarak korunur ve `Deprecation`/`Link` başlıklarıyla geçişe yönlendirir.
 - Liste uçları cursor tabanlı sayfalama ve üst sınır kullanır.
 - Hatalar tek bir makinece okunabilir biçimde döner: `code`, `message`, `fields`, `request_id`.
 - Tarihler RFC 3339 ve UTC olarak gönderilir.

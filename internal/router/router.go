@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type Access uint8
@@ -28,19 +29,46 @@ func New(routes []Route, authorize Authorizer) (http.Handler, error) {
 		if route.Pattern == "" || route.Handler == nil {
 			return nil, errors.New("route pattern and handler are required")
 		}
-		switch route.Access {
-		case Public:
-			mux.Handle(route.Pattern, route.Handler)
-		case Protected:
-			if authorize == nil {
-				return nil, fmt.Errorf("protected route %q requires an authorizer", route.Pattern)
+		for _, pattern := range apiVersionedPatterns(route.Pattern) {
+			handler := route.Handler
+			if isLegacyAPIPath(pattern) {
+				handler = legacyAPIHandler(handler)
 			}
-			mux.Handle(route.Pattern, requireAuthorization(authorize, route.Handler))
-		default:
-			return nil, fmt.Errorf("route %q is not classified", route.Pattern)
+			switch route.Access {
+			case Public:
+				mux.Handle(pattern, handler)
+			case Protected:
+				if authorize == nil {
+					return nil, fmt.Errorf("protected route %q requires an authorizer", route.Pattern)
+				}
+				mux.Handle(pattern, requireAuthorization(authorize, handler))
+			default:
+				return nil, fmt.Errorf("route %q is not classified", route.Pattern)
+			}
 		}
 	}
 	return mux, nil
+}
+
+func apiVersionedPatterns(pattern string) []string {
+	method, path, ok := strings.Cut(pattern, " ")
+	if !ok || !strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/api/v1/") {
+		return []string{pattern}
+	}
+	return []string{pattern, method + " /api/v1" + strings.TrimPrefix(path, "/api")}
+}
+
+func isLegacyAPIPath(pattern string) bool {
+	_, path, ok := strings.Cut(pattern, " ")
+	return ok && strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/api/v1/")
+}
+
+func legacyAPIHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Deprecation", "true")
+		w.Header().Set("Link", "</api/v1>; rel=\"successor-version\"")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func requireAuthorization(authorize Authorizer, next http.Handler) http.Handler {

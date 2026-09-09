@@ -37,3 +37,30 @@ func TestProtectedRouteRequiresAuthorization(t *testing.T) {
 		t.Fatalf("authorized status = %d", authorized.Code)
 	}
 }
+
+func TestAPIV1AliasPreservesAuthorizationAndDeprecatesLegacyPath(t *testing.T) {
+	handler, err := New([]Route{{
+		Pattern: "GET /api/pages/{id}",
+		Access:  Protected,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }),
+	}}, func(r *http.Request) bool { return r.Header.Get("Authorization") == "test" })
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, path := range []string{"/api/pages/one", "/api/v1/pages/one"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "test")
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, req)
+		if res.Code != http.StatusNoContent {
+			t.Fatalf("GET %s status = %d, want %d", path, res.Code, http.StatusNoContent)
+		}
+		legacy := path == "/api/pages/one"
+		if got := res.Header().Get("Deprecation"); legacy && got != "true" {
+			t.Fatalf("legacy deprecation header = %q", got)
+		} else if !legacy && got != "" {
+			t.Fatalf("v1 deprecation header = %q", got)
+		}
+	}
+}
