@@ -65,6 +65,7 @@ type HTTPHandler struct {
 	MFALimiter             *security.AttemptLimiter
 	RecoveryLimiter        *security.AttemptLimiter
 	RecoveryConfirmLimiter *security.AttemptLimiter
+	InviteAcceptLimiter    *security.AttemptLimiter
 	Recovery               *PasswordRecovery
 	RecoveryDB             database.Executor
 	Notifier               RecoveryNotifier
@@ -123,6 +124,10 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("token")) == "" || r.FormValue("password") == "" {
 		http.Error(w, "invalid invitation request", http.StatusBadRequest)
+		return
+	}
+	if h.InviteAcceptLimiter != nil && !h.InviteAcceptLimiter.Allow(clientIP(r)) {
+		security.WriteRateLimitedResponse(w, "too many invitation attempts", time.Minute)
 		return
 	}
 	var user *User

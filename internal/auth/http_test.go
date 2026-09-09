@@ -257,3 +257,33 @@ func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
 		t.Fatalf("invite request = %d, notification=%q", res.Code, notified)
 	}
 }
+
+func TestInviteAcceptanceIsRateLimitedByClient(t *testing.T) {
+	service := &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	handler := HTTPHandler{
+		Invitation:          service,
+		Transactions:        database.NewTransactor(db),
+		InviteAcceptLimiter: security.NewAttemptLimiter(1, 1, time.Hour),
+	}.acceptInvite
+	form := url.Values{"token": {"invalid-token"}, "password": {"new-secret"}}
+	newRequest := func() *http.Request {
+		req := httptest.NewRequest(http.MethodPost, "/auth/invites/accept", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		return req
+	}
+	first := httptest.NewRecorder()
+	handler(first, newRequest())
+	if first.Code != http.StatusUnauthorized {
+		t.Fatalf("first invite acceptance status = %d", first.Code)
+	}
+	second := httptest.NewRecorder()
+	handler(second, newRequest())
+	if second.Code != http.StatusTooManyRequests {
+		t.Fatalf("second invite acceptance status = %d, want %d", second.Code, http.StatusTooManyRequests)
+	}
+}
