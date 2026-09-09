@@ -4,7 +4,7 @@
 - **Tarih:** 2026-09-05
 - **Kısmen değiştirdiği ADR:** [ADR-0012](0012-content-media-and-portability.md) slug/301 etkinleşme zamanı; [ADR-0013](0013-identity-and-security-boundaries.md) restore sırasında silme kayıtlarının kaynağı.
 - **İlişkili ADR:** [ADR-0011](0011-consistency-upgrade-and-recovery.md)
-- **Uygulama durumu:** Tasarım kabul edildi; uygulama ve test kanıtları bekliyor.
+- **Uygulama durumu:** Kısmen uygulandı — route/canonicalization, idempotent erasure replay ve SQLite/PostgreSQL SQL adapter contract kanıtları mevcut. Gerçek backup-sonrası silme, dış storage provider, retention/key recovery ve temiz ortam restore kanıtları R3/S07 kapısı olarak açıktır.
 
 ## Bağlam
 
