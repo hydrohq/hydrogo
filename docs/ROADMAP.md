@@ -1,8 +1,15 @@
 # HydroGo uygulama roadmap'i
 
-**Tarih:** 2026-09-08 · **Durum:** R0, R1 S03 ve R2 tamamlandı; R3 güvenlik başlangıç kapısı tamamlandı, ticari pilot kapıları açık.
+**Tarih:** 2026-09-10 · **Durum:** R0, R1 S03 ve R2 tamamlandı; R3 güvenlik başlangıç kapısı tamamlandı, ticari pilot kapıları açık.
 
 Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
+
+## 2026-09-10 güvenilirlik ve güvenlik hardening ilerlemesi
+
+- Readiness için bounded failure counter ve anlık `hydro_readiness_state` gauge metriği eklendi; state-temelli alarm recovery contract'ı doğrulandı.
+- CI, local ve production gate akışları tüm Go paketlerinde bounded test timeout'ı, tekrar üretilebilir race çalıştırması ve immutable GitHub Action pinlerini uyguluyor.
+- `tools/actionguard`, Dependabot, CodeQL, dependency review ve özel güvenlik bildirim politikası eklendi.
+- Bu ilerlemeler otomatik teknik kapıları güçlendirir; gerçek proxy rollback'i, temiz ortam restore'u, dış key/backup recovery'si ve müşteri kapasite/RPO/RTO kanıtı aşağıdaki açık kapılar olarak kalır.
 
 ## R0 — Depo ve kararların hazırlanması
 
