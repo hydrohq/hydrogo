@@ -244,3 +244,41 @@ func TestCacheFailsClosedWhenNilOrZeroValue(t *testing.T) {
 		t.Fatal("zero-value cache reported non-zero stats")
 	}
 }
+
+func TestCacheLoaderPanicDoesNotBlockCoalescedWaiters(t *testing.T) {
+	c := New[string](2, time.Minute)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		_, err := c.GetOrLoad("panic", func() (string, error) {
+			close(started)
+			<-release
+			panic("private loader detail")
+		})
+		first <- err
+	}()
+	<-started
+	second := make(chan error, 1)
+	go func() {
+		_, err := c.GetOrLoad("panic", func() (string, error) { panic("private waiter detail") })
+		second <- err
+	}()
+	close(release)
+	select {
+	case err := <-first:
+		if !errors.Is(err, ErrCacheLoaderPanic) {
+			t.Fatalf("first loader error = %v, want %v", err, ErrCacheLoaderPanic)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("panicking loader did not complete")
+	}
+	select {
+	case err := <-second:
+		if !errors.Is(err, ErrCacheLoaderPanic) {
+			t.Fatalf("coalesced waiter error = %v, want %v", err, ErrCacheLoaderPanic)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("coalesced waiter remained blocked")
+	}
+}

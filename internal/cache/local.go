@@ -8,7 +8,10 @@ import (
 	"time"
 )
 
-var ErrCacheUnavailable = errors.New("cache is unavailable")
+var (
+	ErrCacheUnavailable = errors.New("cache is unavailable")
+	ErrCacheLoaderPanic = errors.New("cache loader panicked")
+)
 
 type generationContextKey struct{}
 
@@ -124,7 +127,7 @@ func (c *Cache[T]) GetOrLoadAtGeneration(key string, generation uint64, loader f
 	c.loads[key] = call
 	c.mu.Unlock()
 
-	value, err := loader()
+	value, err := runLoader(loader)
 	c.loadsTotal.Add(1)
 	if err != nil {
 		c.loadErrors.Add(1)
@@ -226,4 +229,15 @@ func (c *Cache[T]) Clear() {
 
 func (c *Cache[T]) ready() bool {
 	return c != nil && c.entries != nil && c.loads != nil && c.maxEntries > 0
+}
+
+func runLoader[T any](loader func() (T, error)) (value T, err error) {
+	defer func() {
+		if recover() != nil {
+			var zero T
+			value = zero
+			err = ErrCacheLoaderPanic
+		}
+	}()
+	return loader()
 }
