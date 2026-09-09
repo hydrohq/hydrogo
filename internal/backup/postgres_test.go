@@ -13,6 +13,13 @@ import (
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
+func TestRestorePostgresToStagingRejectsEmptyPaths(t *testing.T) {
+	controls := RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}
+	if err := RestorePostgresToStaging(context.Background(), PostgresTools{}, "", " ", "", Manifest{}, controls); err == nil {
+		t.Fatal("postgres restore accepted empty source and destination")
+	}
+}
+
 func TestPostgresDumpRestoreContract(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
 	if dsn == "" {

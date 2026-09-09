@@ -195,6 +195,13 @@ func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 	}
 }
 
+func TestRestoreToStagingRejectsEmptyPaths(t *testing.T) {
+	controls := RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}
+	if err := RestoreToStaging(" ", "", Manifest{}, controls); err == nil {
+		t.Fatal("restore accepted empty source and destination")
+	}
+}
+
 func TestRestoreToStagingPreservesRetainedMedia(t *testing.T) {
 	root := t.TempDir()
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))

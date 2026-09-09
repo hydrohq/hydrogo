@@ -87,6 +87,9 @@ func RestorePostgresToStaging(ctx context.Context, tools PostgresTools, dsn, sou
 	if !controls.SessionsRevoked || !controls.EgressQuarantined || !controls.OldWritesBlocked {
 		return errors.New("restore controls are incomplete")
 	}
+	if strings.TrimSpace(source) == "" || strings.TrimSpace(destination) == "" {
+		return errors.New("restore source and destination are required")
+	}
 	source, err := filepath.Abs(source)
 	if err != nil {
 		return err

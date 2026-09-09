@@ -324,6 +324,9 @@ func RestoreToStaging(source, destination string, manifest Manifest, controls Re
 	if !controls.SessionsRevoked || !controls.EgressQuarantined || !controls.OldWritesBlocked {
 		return errors.New("restore controls are incomplete")
 	}
+	if strings.TrimSpace(source) == "" || strings.TrimSpace(destination) == "" {
+		return errors.New("restore source and destination are required")
+	}
 	source, err := filepath.Abs(source)
 	if err != nil {
 		return err
