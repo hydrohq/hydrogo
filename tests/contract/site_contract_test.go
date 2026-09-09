@@ -37,6 +37,7 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
+	resetContractData(t, db, dialect)
 	store := sitestore.Store{Dialect: dialect}
 	transactor := database.NewTransactor(db)
 	service := site.Service{Store: store, Transactions: transactor, Audit: auditstore.Store{Dialect: dialect}}

@@ -165,12 +165,12 @@ func assertCount(t *testing.T, db *sql.DB, table string, want int) {
 func resetContractData(t *testing.T, db *sql.DB, dialect database.Dialect) {
 	t.Helper()
 	if dialect == database.Postgres {
-		if _, err := db.Exec(`TRUNCATE TABLE news_items, page_revisions, media_assets, sessions, users, pages, audit_events, outbox_events RESTART IDENTITY CASCADE`); err != nil {
+		if _, err := db.Exec(`TRUNCATE TABLE news_items, page_revisions, media_assets, sessions, users, pages, audit_events, outbox_events, site_settings, navigation_items, page_redirects, form_inbox RESTART IDENTITY CASCADE`); err != nil {
 			t.Fatalf("reset postgres contract data: %v", err)
 		}
 		return
 	}
-	for _, table := range []string{"news_items", "page_revisions", "media_assets", "sessions", "users", "pages", "audit_events", "outbox_events"} {
+	for _, table := range []string{"news_items", "page_revisions", "media_assets", "sessions", "users", "pages", "audit_events", "outbox_events", "site_settings", "navigation_items", "page_redirects", "form_inbox"} {
 		if _, err := db.Exec("DELETE FROM " + table); err != nil {
 			t.Fatalf("reset sqlite contract data %s: %v", table, err)
 		}
