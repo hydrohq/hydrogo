@@ -63,7 +63,10 @@ func TestNewSMTPValidatesConfiguration(t *testing.T) {
 	if _, err := NewSMTP(SMTPConfig{Host: "smtp.example.test", Port: 587, From: "from@example.test", Password: "secret"}); err == nil {
 		t.Fatal("password without username accepted")
 	}
-	if _, err := NewSMTP(SMTPConfig{Host: "smtp.example.test", Port: 587, From: "from@example.test", Username: "user"}); err != nil {
+	if _, err := NewSMTP(SMTPConfig{Host: "smtp.example.test", Port: 25, From: "from@example.test", Username: "user", Password: "secret"}); err == nil {
+		t.Fatal("SMTP AUTH without STARTTLS accepted")
+	}
+	if _, err := NewSMTP(SMTPConfig{Host: "smtp.example.test", Port: 587, From: "from@example.test", Username: "user", StartTLS: true}); err != nil {
 		t.Fatal(err)
 	}
 }

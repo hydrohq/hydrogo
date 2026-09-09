@@ -73,6 +73,9 @@ func NewSMTP(config SMTPConfig) (*SMTP, error) {
 	if config.Username == "" && config.Password != "" {
 		return nil, errors.New("SMTP password requires username")
 	}
+	if config.Username != "" && !config.StartTLS {
+		return nil, errors.New("SMTP AUTH requires STARTTLS")
+	}
 	return &SMTP{config: config}, nil
 }
 
