@@ -17,8 +17,10 @@ const (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrUserInactive       = errors.New("user account is inactive")
+	ErrInvalidCredentials        = errors.New("invalid email or password")
+	ErrUserInactive              = errors.New("user account is inactive")
+	ErrUserRepositoryRequired    = errors.New("user repository is required")
+	ErrSessionRepositoryRequired = errors.New("session repository is required")
 )
 
 type contextKey string
@@ -37,8 +39,15 @@ type AuthService struct {
 }
 
 func NewAuthService(users UserRepository, sessions SessionRepository, params Argon2Params) *AuthService {
+	dummyParams := params
+	if err := validateArgon2Params(params); err != nil {
+		// Keep authentication's timing defense usable even if an embedding
+		// application passes an invalid tuning profile. Keep the original
+		// profile so password creation still rejects the bad configuration.
+		dummyParams = DefaultArgon2Params
+	}
 	// Keep the unknown-user verification at the same Argon2 cost as real users.
-	dummyHash, _ := HashPassword("hydrogo-dummy-password", params)
+	dummyHash, _ := HashPassword("hydrogo-dummy-password", dummyParams)
 	return &AuthService{
 		userRepo:    users,
 		sessionRepo: sessions,
@@ -49,6 +58,9 @@ func NewAuthService(users UserRepository, sessions SessionRepository, params Arg
 }
 
 func (s *AuthService) CreateUser(ctx context.Context, email, password string, role Role) (*User, error) {
+	if s == nil || s.userRepo == nil {
+		return nil, ErrUserRepositoryRequired
+	}
 	normEmail := NormalizeEmail(email)
 	if existing, _ := s.userRepo.GetByEmail(ctx, normEmail); existing != nil {
 		return nil, ErrUserAlreadyExists
@@ -83,6 +95,9 @@ func (s *AuthService) CreateUser(ctx context.Context, email, password string, ro
 }
 
 func (s *AuthService) Authenticate(ctx context.Context, email, password string) (*User, error) {
+	if s == nil || s.userRepo == nil {
+		return nil, ErrUserRepositoryRequired
+	}
 	normEmail := NormalizeEmail(email)
 	u, err := s.userRepo.GetByEmail(ctx, normEmail)
 	if err != nil {
@@ -107,6 +122,9 @@ func (s *AuthService) Authenticate(ctx context.Context, email, password string) 
 }
 
 func (s *AuthService) CreateSession(ctx context.Context, userID, userAgent, ipAddress string, ttl time.Duration) (string, *Session, error) {
+	if s == nil || s.sessionRepo == nil {
+		return "", nil, ErrSessionRepositoryRequired
+	}
 	if ttl <= 0 {
 		ttl = DefaultSessionTTL
 	}
@@ -142,6 +160,12 @@ func (s *AuthService) CreateSession(ctx context.Context, userID, userAgent, ipAd
 }
 
 func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Session, *User, error) {
+	if s == nil || s.sessionRepo == nil {
+		return nil, nil, ErrSessionRepositoryRequired
+	}
+	if s.userRepo == nil {
+		return nil, nil, ErrUserRepositoryRequired
+	}
 	tokenHash := HashSessionToken(rawToken)
 	sess, err := s.sessionRepo.GetByTokenHash(ctx, tokenHash)
 	if err != nil {
@@ -174,15 +198,27 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 }
 
 func (s *AuthService) RevokeSession(ctx context.Context, rawToken string) error {
+	if s == nil || s.sessionRepo == nil {
+		return ErrSessionRepositoryRequired
+	}
 	tokenHash := HashSessionToken(rawToken)
 	return s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
 }
 
 func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID string) error {
+	if s == nil || s.sessionRepo == nil {
+		return ErrSessionRepositoryRequired
+	}
 	return s.sessionRepo.DeleteByUserID(ctx, userID)
 }
 
 func (s *AuthService) SetUserActive(ctx context.Context, userID string, active bool) error {
+	if s == nil || s.userRepo == nil {
+		return ErrUserRepositoryRequired
+	}
+	if !active && s.sessionRepo == nil {
+		return ErrSessionRepositoryRequired
+	}
 	if err := s.userRepo.SetActive(ctx, userID, active); err != nil {
 		return err
 	}
