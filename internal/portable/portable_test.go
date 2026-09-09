@@ -56,6 +56,11 @@ func TestSQLiteContentExportImportRoundTripExcludesAuthState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	withUnknownField := strings.TrimSpace(string(data))
+	withUnknownField = strings.TrimSuffix(withUnknownField, "}") + `,"unknown":true}`
+	if _, err := Unmarshal([]byte(withUnknownField)); err == nil {
+		t.Fatal("portable decoder accepted an unknown field")
+	}
 	if _, err := Unmarshal(append(append([]byte(nil), data...), []byte("{}")...)); err == nil {
 		t.Fatal("portable decoder accepted trailing JSON")
 	}

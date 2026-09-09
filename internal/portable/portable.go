@@ -2,6 +2,7 @@
 package portable
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -73,8 +74,9 @@ func Marshal(document Document) ([]byte, error) {
 }
 
 func Unmarshal(data []byte) (Document, error) {
-	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
+	decoder.DisallowUnknownFields()
 	var document Document
 	if err := decoder.Decode(&document); err != nil {
 		return Document{}, err
