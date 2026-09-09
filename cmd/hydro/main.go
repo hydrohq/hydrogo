@@ -151,12 +151,32 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("marshal portable export: %w", err)
 		}
-		if err := os.WriteFile(*path, append(data, '\n'), 0o640); err != nil {
+		temporary, err := os.CreateTemp(filepath.Dir(*path), ".hydro-portable-*.tmp")
+		if err != nil {
+			return fmt.Errorf("create portable export temp file: %w", err)
+		}
+		temporaryPath := temporary.Name()
+		defer os.Remove(temporaryPath)
+		if err := temporary.Chmod(0o640); err != nil {
+			temporary.Close()
+			return fmt.Errorf("protect portable export temp file: %w", err)
+		}
+		if _, err := temporary.Write(append(data, '\n')); err != nil {
+			temporary.Close()
 			return fmt.Errorf("write portable export: %w", err)
+		}
+		if err := temporary.Close(); err != nil {
+			return fmt.Errorf("close portable export: %w", err)
+		}
+		if err := os.Rename(temporaryPath, *path); err != nil {
+			return fmt.Errorf("publish portable export: %w", err)
 		}
 		_, err = fmt.Fprintf(stdout, "portable-exported path=%s tables=%d\n", *path, len(document.Tables))
 		return err
 	case "import":
+		if *confirm && *dryRun {
+			return errors.New("--confirm and --dry-run cannot be used together")
+		}
 		if !*confirm && !*dryRun {
 			return errors.New("portable import requires --confirm, or use --dry-run")
 		}
