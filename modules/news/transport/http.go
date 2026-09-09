@@ -151,12 +151,16 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
-	if h.DB == nil || h.Service.Repository == nil {
+	if database.RequireExecutor(h.DB) != nil || h.Service.Repository == nil {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	item, err := h.Service.Repository.GetPublishedByRoute(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
 	if err != nil {
+		if errors.Is(err, database.ErrDatabaseRequired) {
+			http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
@@ -164,12 +168,20 @@ func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) || h.DB == nil || h.Service.Repository == nil {
+	if !editorAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if database.RequireExecutor(h.DB) != nil || h.Service.Repository == nil {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	item, err := h.Service.Repository.Get(r.Context(), h.DB, r.PathValue("id"))
 	if err != nil {
+		if errors.Is(err, database.ErrDatabaseRequired) {
+			http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
@@ -271,12 +283,16 @@ func (h Handler) adminTransition(w http.ResponseWriter, r *http.Request, action 
 }
 
 func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
-	if h.DB == nil || h.Service.Repository == nil {
+	if database.RequireExecutor(h.DB) != nil || h.Service.Repository == nil {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	item, err := h.Service.Repository.Get(r.Context(), h.DB, id)
 	if err != nil {
+		if errors.Is(err, database.ErrDatabaseRequired) {
+			http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
@@ -303,7 +319,7 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 }
 
 func writeError(w http.ResponseWriter, err error) {
-	if errors.Is(err, news.ErrRepositoryRequired) {
+	if errors.Is(err, news.ErrRepositoryRequired) || errors.Is(err, database.ErrDatabaseRequired) {
 		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
 		return
 	}

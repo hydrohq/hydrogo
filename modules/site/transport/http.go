@@ -49,8 +49,12 @@ func (h Handler) Routes() []Route {
 }
 
 func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
-	if !h.admin(r) || h.DB == nil || h.Store == nil {
+	if !h.admin(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if database.RequireExecutor(h.DB) != nil || h.Store == nil {
+		http.Error(w, "inbox unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	items, err := h.Store.ListSubmissions(r.Context(), h.DB, r.PathValue("form"), 100)
@@ -187,7 +191,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 }
 
 func siteStatus(err error) int {
-	if errors.Is(err, site.ErrStoreRequired) {
+	if errors.Is(err, site.ErrStoreRequired) || errors.Is(err, database.ErrDatabaseRequired) {
 		return http.StatusServiceUnavailable
 	}
 	return http.StatusBadRequest
@@ -213,7 +217,7 @@ func (h Handler) sitemap(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicSettings(w http.ResponseWriter, r *http.Request) {
-	if h.DB == nil || h.Store == nil {
+	if database.RequireExecutor(h.DB) != nil || h.Store == nil {
 		http.Error(w, "site settings unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -231,7 +235,7 @@ func (h Handler) publicSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) navigation(w http.ResponseWriter, r *http.Request) {
-	if h.DB == nil || h.Store == nil {
+	if database.RequireExecutor(h.DB) != nil || h.Store == nil {
 		http.Error(w, "navigation unavailable", http.StatusServiceUnavailable)
 		return
 	}
