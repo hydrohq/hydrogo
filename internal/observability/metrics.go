@@ -18,6 +18,7 @@ type Metrics struct {
 	latencyCount  atomic.Uint64
 	latencyNanos  atomic.Uint64
 	databaseStats func() DatabaseStats
+	cacheStats    func() CacheStats
 }
 
 type DatabaseStats struct {
@@ -29,6 +30,15 @@ type DatabaseStats struct {
 	WaitDuration       time.Duration
 }
 
+type CacheStats struct {
+	Hits        uint64
+	Misses      uint64
+	Loads       uint64
+	LoadErrors  uint64
+	Evictions   uint64
+	Expirations uint64
+}
+
 var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisecond, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 5 * time.Second}
 
 func NewMetrics() *Metrics { return &Metrics{} }
@@ -38,6 +48,12 @@ func NewMetrics() *Metrics { return &Metrics{} }
 func (m *Metrics) SetDatabaseStatsProvider(provider func() DatabaseStats) {
 	if m != nil {
 		m.databaseStats = provider
+	}
+}
+
+func (m *Metrics) SetCacheStatsProvider(provider func() CacheStats) {
+	if m != nil {
+		m.cacheStats = provider
 	}
 }
 
@@ -93,6 +109,15 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "hydro_database_pool_idle_connections %d\n", stats.IdleConnections)
 		fmt.Fprintf(w, "hydro_database_pool_wait_count_total %d\n", stats.WaitCount)
 		fmt.Fprintf(w, "hydro_database_pool_wait_duration_seconds_total %.9f\n", stats.WaitDuration.Seconds())
+	}
+	if m.cacheStats != nil {
+		stats := m.cacheStats()
+		fmt.Fprintf(w, "hydro_cache_hits_total %d\n", stats.Hits)
+		fmt.Fprintf(w, "hydro_cache_misses_total %d\n", stats.Misses)
+		fmt.Fprintf(w, "hydro_cache_loads_total %d\n", stats.Loads)
+		fmt.Fprintf(w, "hydro_cache_load_errors_total %d\n", stats.LoadErrors)
+		fmt.Fprintf(w, "hydro_cache_evictions_total %d\n", stats.Evictions)
+		fmt.Fprintf(w, "hydro_cache_expirations_total %d\n", stats.Expirations)
 	}
 }
 

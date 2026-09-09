@@ -171,3 +171,23 @@ func TestGetOrLoadRevalidatesAfterClearWhileOldLoadIsInFlight(t *testing.T) {
 		t.Fatalf("cached revalidated value = %q/%v", got, ok)
 	}
 }
+
+func TestCacheStatsAreBoundedAndAccurate(t *testing.T) {
+	c := New[string](1, time.Millisecond)
+	if _, err := c.GetOrLoad("key", func() (string, error) { return "value", nil }); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := c.Get("key"); !ok {
+		t.Fatal("loaded value was not cached")
+	}
+	time.Sleep(2 * time.Millisecond)
+	if _, ok := c.Get("key"); ok {
+		t.Fatal("expired value was returned")
+	}
+	c.Set("one", "1")
+	c.Set("two", "2")
+	stats := c.Stats()
+	if stats.Loads != 1 || stats.Hits != 1 || stats.Expirations < 1 || stats.Evictions != 1 {
+		t.Fatalf("unexpected cache stats: %+v", stats)
+	}
+}

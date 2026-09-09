@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -20,12 +21,27 @@ type loadCall[T any] struct {
 
 // Cache is a bounded, process-local cache. It never grows beyond maxEntries.
 type Cache[T any] struct {
-	mu         sync.Mutex
-	entries    map[string]item[T]
-	maxEntries int
-	ttl        time.Duration
-	generation uint64
-	loads      map[string]*loadCall[T]
+	mu          sync.Mutex
+	entries     map[string]item[T]
+	maxEntries  int
+	ttl         time.Duration
+	generation  uint64
+	loads       map[string]*loadCall[T]
+	hits        atomic.Uint64
+	misses      atomic.Uint64
+	loadsTotal  atomic.Uint64
+	loadErrors  atomic.Uint64
+	evictions   atomic.Uint64
+	expirations atomic.Uint64
+}
+
+type Stats struct {
+	Hits        uint64
+	Misses      uint64
+	Loads       uint64
+	LoadErrors  uint64
+	Evictions   uint64
+	Expirations uint64
 }
 
 func New[T any](maxEntries int, ttl time.Duration) *Cache[T] {
@@ -48,8 +64,13 @@ func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
 	}
 	c.mu.Lock()
 	if entry, ok := c.entries[key]; ok && !time.Now().After(entry.expiresAt) {
+		c.hits.Add(1)
 		c.mu.Unlock()
 		return entry.value, nil
+	}
+	c.misses.Add(1)
+	if _, ok := c.entries[key]; ok {
+		c.expirations.Add(1)
 	}
 	delete(c.entries, key)
 	if call, ok := c.loads[key]; ok && call.generation == c.generation {
@@ -63,6 +84,10 @@ func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
 	c.mu.Unlock()
 
 	value, err := loader()
+	c.loadsTotal.Add(1)
+	if err != nil {
+		c.loadErrors.Add(1)
+	}
 	c.mu.Lock()
 	call.value, call.err = value, err
 	if err == nil && c.generation == generation {
@@ -81,10 +106,15 @@ func (c *Cache[T]) Get(key string) (T, bool) {
 	defer c.mu.Unlock()
 	entry, ok := c.entries[key]
 	if !ok || time.Now().After(entry.expiresAt) {
+		c.misses.Add(1)
+		if ok {
+			c.expirations.Add(1)
+		}
 		delete(c.entries, key)
 		var zero T
 		return zero, false
 	}
+	c.hits.Add(1)
 	return entry.value, true
 }
 
@@ -98,10 +128,15 @@ func (c *Cache[T]) setLocked(key string, value T) {
 	if _, exists := c.entries[key]; !exists && len(c.entries) >= c.maxEntries {
 		for oldestKey := range c.entries {
 			delete(c.entries, oldestKey)
+			c.evictions.Add(1)
 			break
 		}
 	}
 	c.entries[key] = item[T]{value: value, expiresAt: time.Now().Add(c.ttl)}
+}
+
+func (c *Cache[T]) Stats() Stats {
+	return Stats{Hits: c.hits.Load(), Misses: c.misses.Load(), Loads: c.loadsTotal.Load(), LoadErrors: c.loadErrors.Load(), Evictions: c.evictions.Load(), Expirations: c.expirations.Load()}
 }
 
 func (c *Cache[T]) Generation() uint64 {

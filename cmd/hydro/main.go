@@ -546,6 +546,10 @@ func serve(args []string, stderr io.Writer) error {
 	go runNewsWorker(ctx, db, newsWorker, stderr)
 
 	metrics := observability.NewMetrics()
+	metrics.SetCacheStatsProvider(func() observability.CacheStats {
+		stats := contentService.PublicCache.Stats()
+		return observability.CacheStats{Hits: stats.Hits, Misses: stats.Misses, Loads: stats.Loads, LoadErrors: stats.LoadErrors, Evictions: stats.Evictions, Expirations: stats.Expirations}
+	})
 	metrics.SetDatabaseStatsProvider(func() observability.DatabaseStats {
 		stats := db.Stats()
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}

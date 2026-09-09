@@ -109,6 +109,9 @@ func TestMetricsAreProtectedAndBounded(t *testing.T) {
 	metrics.SetDatabaseStatsProvider(func() observability.DatabaseStats {
 		return observability.DatabaseStats{MaxOpenConnections: 10, OpenConnections: 2, WaitCount: 3}
 	})
+	metrics.SetCacheStatsProvider(func() observability.CacheStats {
+		return observability.CacheStats{Hits: 4, Misses: 2, Evictions: 1}
+	})
 	handler := NewHandler(Config{
 		Metrics: metrics,
 		Authorizer: func(r *http.Request) bool {
@@ -127,7 +130,7 @@ func TestMetricsAreProtectedAndBounded(t *testing.T) {
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("metrics authorized status = %d", authorized.Code)
 	}
-	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) || !strings.Contains(authorized.Body.String(), "hydro_http_request_duration_seconds_bucket") || !strings.Contains(authorized.Body.String(), "hydro_database_pool_max_open_connections 10") {
+	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) || !strings.Contains(authorized.Body.String(), "hydro_http_request_duration_seconds_bucket") || !strings.Contains(authorized.Body.String(), "hydro_database_pool_max_open_connections 10") || !strings.Contains(authorized.Body.String(), "hydro_cache_hits_total 4") {
 		t.Fatalf("metrics output missing bounded counters: %q", authorized.Body.String())
 	}
 }
