@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -134,6 +135,21 @@ func TestServiceFailsClosedWhenDependenciesAreMissing(t *testing.T) {
 func TestZeroValueUploaderFailsClosed(t *testing.T) {
 	if _, err := (&Uploader{}).SaveContext(context.Background(), bytes.NewReader(createTestPNG(2, 2)), "image.png"); !errors.Is(err, ErrUploaderUnavailable) {
 		t.Fatalf("zero-value uploader error = %v, want %v", err, ErrUploaderUnavailable)
+	}
+}
+
+func TestNewUploaderRejectsSymlinkedStorageRoot(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target")
+	if err := os.Mkdir(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "media-link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if _, err := NewUploader(link, 1<<20); err == nil {
+		t.Fatal("symlinked media storage root was accepted")
 	}
 }
 

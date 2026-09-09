@@ -87,6 +87,13 @@ func NewUploaderWithConcurrency(storageDir string, maxBytes int64, maxConcurrent
 	if err := os.MkdirAll(storageDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
+	info, err := os.Lstat(storageDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect storage directory: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return nil, errors.New("media storage directory must be a real directory")
+	}
 	return &Uploader{
 		StorageDir: storageDir,
 		MaxBytes:   maxBytes,
