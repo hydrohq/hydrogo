@@ -289,8 +289,7 @@ func editorAllowed(r *http.Request) bool {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
+	if err := security.DecodeJSONStrict(w, r, target, 1<<20); err != nil {
 		http.Error(w, "invalid JSON request", http.StatusBadRequest)
 		return false
 	}

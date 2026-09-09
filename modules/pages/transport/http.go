@@ -197,10 +197,7 @@ func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(target); err != nil {
+	if err := security.DecodeJSONStrict(w, r, target, 1<<20); err != nil {
 		http.Error(w, "invalid JSON request", http.StatusBadRequest)
 		return err
 	}
