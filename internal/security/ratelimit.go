@@ -1,6 +1,7 @@
 package security
 
 import (
+	"crypto/sha256"
 	"sync"
 	"time"
 )
@@ -13,7 +14,7 @@ type attempt struct {
 // AttemptLimiter bounds authentication work per key and bounds its own memory.
 type AttemptLimiter struct {
 	mu         sync.Mutex
-	entries    map[string]attempt
+	entries    map[[32]byte]attempt
 	maxEntries int
 	limit      int
 	window     time.Duration
@@ -29,29 +30,32 @@ func NewAttemptLimiter(maxEntries, limit int, window time.Duration) *AttemptLimi
 	if window <= 0 {
 		window = time.Minute
 	}
-	return &AttemptLimiter{entries: make(map[string]attempt), maxEntries: maxEntries, limit: limit, window: window}
+	return &AttemptLimiter{entries: make(map[[32]byte]attempt), maxEntries: maxEntries, limit: limit, window: window}
 }
 
 func (l *AttemptLimiter) Allow(key string) bool {
 	if l == nil || key == "" {
 		return false
 	}
+	// Keep attacker-controlled and potentially sensitive key material out of the
+	// bounded map. A fixed-size digest also makes the memory bound meaningful.
+	keyDigest := sha256.Sum256([]byte(key))
 	now := time.Now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	value, ok := l.entries[key]
+	value, ok := l.entries[keyDigest]
 	if !ok || !now.Before(value.resetAt) {
 		if !ok && len(l.entries) >= l.maxEntries {
 			l.evict(now)
 		}
-		l.entries[key] = attempt{count: 1, resetAt: now.Add(l.window)}
+		l.entries[keyDigest] = attempt{count: 1, resetAt: now.Add(l.window)}
 		return true
 	}
 	if value.count >= l.limit {
 		return false
 	}
 	value.count++
-	l.entries[key] = value
+	l.entries[keyDigest] = value
 	return true
 }
 
@@ -64,15 +68,17 @@ func (l *AttemptLimiter) evict(now time.Time) {
 	if len(l.entries) < l.maxEntries {
 		return
 	}
-	oldestKey := ""
+	var oldestKey [32]byte
+	var foundOldest bool
 	var oldestReset time.Time
 	for key, value := range l.entries {
-		if oldestKey == "" || value.resetAt.Before(oldestReset) {
+		if !foundOldest || value.resetAt.Before(oldestReset) {
 			oldestKey = key
 			oldestReset = value.resetAt
+			foundOldest = true
 		}
 	}
-	if oldestKey != "" {
+	if foundOldest {
 		delete(l.entries, oldestKey)
 	}
 }

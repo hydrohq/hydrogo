@@ -2,7 +2,9 @@ package security
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -68,7 +70,28 @@ func TestAttemptLimiterRejectsEmptyKeysAndEvictsExpiredEntriesFirst(t *testing.T
 	if !limiter.Allow("fresh") {
 		t.Fatal("fresh key was rejected after expired entry cleanup")
 	}
-	if _, ok := limiter.entries["expired"]; ok {
+	if _, ok := limiter.entries[sha256.Sum256([]byte("expired"))]; ok {
 		t.Fatal("expired entry was not evicted")
+	}
+}
+
+func TestAttemptLimiterStoresFixedSizeDigests(t *testing.T) {
+	limiter := NewAttemptLimiter(2, 1, time.Hour)
+	first := strings.Repeat("a", 1<<20)
+	second := strings.Repeat("b", 1<<20)
+	if !limiter.Allow(first) || !limiter.Allow(second) {
+		t.Fatal("long limiter keys were rejected")
+	}
+
+	limiter.mu.Lock()
+	defer limiter.mu.Unlock()
+	if len(limiter.entries) != 2 {
+		t.Fatalf("stored %d limiter entries, want 2", len(limiter.entries))
+	}
+	if _, ok := limiter.entries[sha256.Sum256([]byte(first))]; !ok {
+		t.Fatal("first key was not represented by its digest")
+	}
+	if _, ok := limiter.entries[sha256.Sum256([]byte(second))]; !ok {
+		t.Fatal("second key was not represented by its digest")
 	}
 }
