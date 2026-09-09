@@ -143,6 +143,8 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 // Handler returns Prometheus-compatible text with no user-controlled labels.
 func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	fmt.Fprintf(w, "hydro_http_requests_total %d\n", m.requests.Load())
 	fmt.Fprintf(w, "hydro_http_in_flight %d\n", m.inFlight.Load())
 	for status := 1; status <= 5; status++ {

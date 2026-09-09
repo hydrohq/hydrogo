@@ -215,6 +215,12 @@ func TestMetricsAreProtectedAndBounded(t *testing.T) {
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("metrics authorized status = %d", authorized.Code)
 	}
+	if got := authorized.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("metrics cache-control = %q", got)
+	}
+	if got := authorized.Header().Get("Pragma"); got != "no-cache" {
+		t.Fatalf("metrics pragma = %q", got)
+	}
 	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) || !strings.Contains(authorized.Body.String(), "hydro_http_request_duration_seconds_bucket") || !strings.Contains(authorized.Body.String(), "hydro_database_pool_max_open_connections 10") || !strings.Contains(authorized.Body.String(), "hydro_cache_hits_total 4") || !strings.Contains(authorized.Body.String(), "hydro_jobs_depth 7") || !strings.Contains(authorized.Body.String(), "hydro_jobs_leased 2") {
 		t.Fatalf("metrics output missing bounded counters: %q", authorized.Body.String())
 	}
