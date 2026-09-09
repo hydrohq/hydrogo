@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `b211a09`  
-**Validation baseline:** `b211a09`  
+**Repository commit:** `14f73fd`  
+**Validation baseline:** `14f73fd`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -59,6 +59,8 @@ verification improvements after the R3/R5 contract work.
   panics at public cancellation-aware boundaries.
 - Database open, transaction, migration and compatibility entry points
   normalize nil contexts before calling `database/sql`.
+- Portable export/import and the SQL erasure adapter normalize nil contexts
+  before executing database operations, with round-trip regression coverage.
 
 ## Evidence commands
 
