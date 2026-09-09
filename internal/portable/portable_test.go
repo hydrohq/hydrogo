@@ -235,6 +235,60 @@ func TestSQLiteLargeContentFixtureRoundTripPreservesRelations(t *testing.T) {
 	}
 }
 
+func TestPortableExportImportPreservesUTF8AndSpecialCharacters(t *testing.T) {
+	ctx := context.Background()
+	source, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "utf8-src.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	if err := database.ApplyMigrations(ctx, source, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+
+	target, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "utf8-dst.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer target.Close()
+	if err := database.ApplyMigrations(ctx, target, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+
+	title := "Türkçe Başlık ğüşiöç İĞÜŞÖÇ 🚀 & <script>"
+	body := "Paragraf 1\n\nParagraf 2 ile \"özel\" karakterler & semboller: € £ ¥ ⚡"
+	if _, err := source.ExecContext(ctx, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,publication_generation,created_at,updated_at) VALUES ('p-utf8',?,1,'tr-tr','turkce-baslik',?,'published',1,1,'2026-01-01','2026-01-01')`, title, body); err != nil {
+		t.Fatal(err)
+	}
+
+	doc, err := Export(ctx, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := Unmarshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := database.NewTransactor(target).Within(ctx, func(tx database.Executor) error {
+		return Import(ctx, tx, decoded, database.SQLite)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var gotTitle, gotBody string
+	if err := target.QueryRowContext(ctx, "SELECT title, body FROM pages WHERE id = 'p-utf8'").Scan(&gotTitle, &gotBody); err != nil {
+		t.Fatal(err)
+	}
+	if gotTitle != title || gotBody != body {
+		t.Fatalf("UTF-8 mismatch:\ngotTitle: %q\nwantTitle: %q\ngotBody: %q\nwantBody: %q", gotTitle, title, gotBody, body)
+	}
+}
+
 func BenchmarkSQLitePortableRoundTrip256(b *testing.B) {
 	ctx := context.Background()
 	source, err := database.Open(ctx, database.SQLite, filepath.Join(b.TempDir(), "source.sqlite"))
