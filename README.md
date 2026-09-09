@@ -104,6 +104,7 @@ hydro upgrade check
 hydro create-admin --email EMAIL --password-stdin
 hydro backup sqlite --destination PATH [--media-dir PATH]
 hydro backup postgres --destination PATH [--media-dir PATH]
+hydro backup prune --root PATH --keep N --dry-run|--confirm [--pinned NAME,...]
 hydro restore verify --snapshot PATH
 hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
 hydro restore postgres --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
@@ -119,6 +120,8 @@ hydro release verify --manifest release.json --public-key release.pub
 Backup and restore are deliberately staging-first. SQLite and PostgreSQL backups create a new immutable snapshot directory; PostgreSQL uses `pg_dump`/`pg_restore` with a temporary password file and never puts the password in process arguments. Restore verification only checks hashes, staging never overwrites an existing destination, and media activation requires the quarantine marker plus all three operator controls. Pause application writes and background workers before taking a live snapshot.
 
 Portable import is also explicit: `--dry-run` validates the allowlisted, secret-free document without a database write, while a real import requires `--confirm` and runs in one transaction.
+
+Snapshot retention is explicit as well: run `hydro backup prune --dry-run` to inspect candidates, then repeat with `--confirm`. Pinned snapshot directory names are never removed.
 
 ## Tests and production gates
 

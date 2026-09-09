@@ -222,6 +222,9 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("backup command requires a subcommand (sqlite or postgres)")
 	}
+	if args[0] == "prune" {
+		return pruneBackups(args[1:], stdout, stderr)
+	}
 	if args[0] != "sqlite" && args[0] != "postgres" {
 		return fmt.Errorf("unknown backup subcommand %q", args[0])
 	}
@@ -280,6 +283,57 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	_, err = fmt.Fprintf(stdout, "backup-created destination=%s database-bytes=%d media-files=%d\n", *destination, manifest.Database.Bytes, len(manifest.Media))
 	return err
+}
+
+func pruneBackups(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("backup prune", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	root := flags.String("root", "", "Snapshot root directory")
+	keep := flags.Int("keep", 1, "Number of newest unpinned snapshots to retain")
+	pinned := flags.String("pinned", "", "Comma-separated snapshot directory names to retain")
+	dryRun := flags.Bool("dry-run", false, "Plan removals without changing the filesystem")
+	confirm := flags.Bool("confirm", false, "Confirm deletion of planned snapshots")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if strings.TrimSpace(*root) == "" {
+		return errors.New("--root is required")
+	}
+	if *dryRun && *confirm {
+		return errors.New("--dry-run and --confirm cannot be used together")
+	}
+	if !*dryRun && !*confirm {
+		return errors.New("backup prune requires --confirm, or use --dry-run")
+	}
+	policy := backupstore.SnapshotRetention{Keep: *keep, Pinned: parsePinnedNames(*pinned)}
+	planned, err := backupstore.PlanSnapshotPrune(*root, policy)
+	if err != nil {
+		return fmt.Errorf("plan backup retention: %w", err)
+	}
+	if *dryRun {
+		_, err = fmt.Fprintf(stdout, "backup-prune-plan root=%s snapshots=%s\n", *root, strings.Join(planned, ","))
+		return err
+	}
+	removed, err := backupstore.PruneSnapshots(*root, policy)
+	if err != nil {
+		return fmt.Errorf("prune backups: %w", err)
+	}
+	_, err = fmt.Fprintf(stdout, "backup-pruned root=%s snapshots=%s\n", *root, strings.Join(removed, ","))
+	return err
+}
+
+func parsePinnedNames(value string) map[string]struct{} {
+	pinned := make(map[string]struct{})
+	for _, name := range strings.Split(value, ",") {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			pinned[name] = struct{}{}
+		}
+	}
+	return pinned
 }
 
 func restoreCommand(args []string, stdout, stderr io.Writer) error {
@@ -885,6 +939,7 @@ Usage:
   hydro doctor [runtime flags]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
+  hydro backup prune --root PATH --keep N --dry-run|--confirm [--pinned NAME,...]
   hydro restore verify --snapshot PATH
   hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
   hydro restore postgres --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked [runtime flags]

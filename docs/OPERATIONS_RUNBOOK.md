@@ -34,6 +34,8 @@ Reset ve invite token'ları yalnız hash olarak saklanır. Token e-posta/notifie
 
 Yeni upload ve snapshot işlemleri güvenli hata ile durdurulur; mevcut ready medya ve DB silinmez. Önce geçici/pending medya, başarısız snapshot ve süresi dolmuş inbox kayıtları retention politikasına göre temizlenir. Dosya sistemi tekrar yazılabilir olmadan migration, restore aktivasyonu veya GC çalıştırılmaz.
 
+Snapshot retention için önce `hydro backup prune --root SNAPSHOTS --keep 3 --dry-run` çıktısı incelenir; yalnızca onaylanan adaylar `--confirm` ile silinir. Pinned snapshot adları `--pinned` ile belirtilir ve hiçbir koşulda silinmez. Manifest'i eksik veya bozuk snapshot ağacı fail-closed olarak işlemi durdurur.
+
 ## Alarm değerlendirmesi
 
 `internal/ops.Evaluate` son başarılı backup yaşı, minimum disk alanı, migration başarısızlığı ve SMTP delivery failure sinyallerini deterministic alarm kodlarına çevirir. `backup_stale`, `disk_low` ve `migration_failed` kritik; `smtp_delivery` uyarı seviyesindedir. Evaluator alarm delivery sisteminin yerine geçmez; production notifier ve dış backup/key kurtarma tatbikatı ayrıca doğrulanmalıdır.

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
@@ -212,5 +213,43 @@ func TestCheckDirectoryWritable(t *testing.T) {
 	}
 	if err := checkDirectoryWritable(file); err == nil {
 		t.Fatal("file accepted as writable directory")
+	}
+}
+
+func TestRunBackupPruneRequiresPreviewAndConfirmation(t *testing.T) {
+	root := t.TempDir()
+	for _, item := range []struct {
+		name string
+		when time.Time
+	}{
+		{name: "snapshot-old", when: time.Unix(1, 0)},
+		{name: "snapshot-new", when: time.Unix(2, 0)},
+	} {
+		dir := filepath.Join(root, item.name)
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := backupstore.WriteManifest(filepath.Join(dir, "manifest.json"), backupstore.Manifest{Version: 1, CreatedAt: item.when, Database: backupstore.FileDigest{Path: "database", SHA256: "0", Bytes: 0}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"backup", "prune", "--root", root, "--keep", "1", "--dry-run"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("backup prune dry-run failed: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "snapshot-old") {
+		t.Fatalf("dry-run did not list old snapshot: %q", stdout.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "snapshot-old")); err != nil {
+		t.Fatalf("dry-run removed snapshot: %v", err)
+	}
+	if err := run([]string{"backup", "prune", "--root", root, "--keep", "1"}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("backup prune succeeded without preview or confirmation")
+	}
+	if err := run([]string{"backup", "prune", "--root", root, "--keep", "1", "--confirm"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("backup prune confirm failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "snapshot-old")); !os.IsNotExist(err) {
+		t.Fatalf("old snapshot still exists, stat error = %v", err)
 	}
 }

@@ -16,11 +16,9 @@ type SnapshotRetention struct {
 	Pinned map[string]struct{}
 }
 
-// PruneSnapshots removes only directories containing a valid manifest.json.
-// The newest Keep snapshots and all pinned snapshots remain available. A
-// malformed or partially written snapshot fails closed instead of being
-// treated as disposable data.
-func PruneSnapshots(root string, policy SnapshotRetention) ([]string, error) {
+// PlanSnapshotPrune returns snapshot directory names that are safe to remove.
+// It never mutates the filesystem.
+func PlanSnapshotPrune(root string, policy SnapshotRetention) ([]string, error) {
 	if policy.Keep < 1 {
 		return nil, errors.New("snapshot retention keep must be positive")
 	}
@@ -64,13 +62,33 @@ func PruneSnapshots(root string, policy SnapshotRetention) ([]string, error) {
 	if keepUnpinned > len(candidates) {
 		keepUnpinned = len(candidates)
 	}
-	removed := make([]string, 0)
+	planned := make([]string, 0)
 	for _, item := range candidates[keepUnpinned:] {
-		if err := os.RemoveAll(filepath.Join(root, item.name)); err != nil {
-			return removed, fmt.Errorf("remove snapshot %s: %w", item.name, err)
-		}
-		removed = append(removed, item.name)
+		planned = append(planned, item.name)
 	}
-	sort.Strings(removed)
+	sort.Strings(planned)
+	return planned, nil
+}
+
+// PruneSnapshots removes only directories containing a valid manifest.json.
+// The newest Keep snapshots and all pinned snapshots remain available. A
+// malformed or partially written snapshot fails closed instead of being
+// treated as disposable data.
+func PruneSnapshots(root string, policy SnapshotRetention) ([]string, error) {
+	root, err := filepath.Abs(strings.TrimSpace(root))
+	if err != nil {
+		return nil, err
+	}
+	planned, err := PlanSnapshotPrune(root, policy)
+	if err != nil {
+		return nil, err
+	}
+	removed := make([]string, 0, len(planned))
+	for _, name := range planned {
+		if err := os.RemoveAll(filepath.Join(root, name)); err != nil {
+			return removed, fmt.Errorf("remove snapshot %s: %w", name, err)
+		}
+		removed = append(removed, name)
+	}
 	return removed, nil
 }
