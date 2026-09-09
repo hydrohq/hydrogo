@@ -2,6 +2,7 @@ package database_test
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -83,6 +84,24 @@ func TestNonTransactionalMigrationUsesMetadataExecutionMode(t *testing.T) {
 	}
 	if applied != 2 {
 		t.Fatalf("migration rows = %d, want 2", applied)
+	}
+}
+
+func TestCompatibilityRejectsUnknownAppliedMigration(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "future.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO schema_migrations (id, checksum) VALUES (?, ?)", "209901010001_future", strings.Repeat("f", 64)); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.CheckCompatibility(ctx, db, database.SQLite, migrations.FS); !errors.Is(err, database.ErrUnknownMigration) {
+		t.Fatalf("unknown migration compatibility error = %v, want %v", err, database.ErrUnknownMigration)
 	}
 }
 
