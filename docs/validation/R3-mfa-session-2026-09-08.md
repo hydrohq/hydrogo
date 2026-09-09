@@ -18,6 +18,7 @@
 - Davet token'ları yalnız SHA-256 hash olarak saklanır, yalnız editor/viewer rolü üretilebilir, kabul sırasında token tüketimi ve kullanıcı oluşturma aynı transaction'a bağlanır; aynı davet ikinci kez kabul edilemez.
 - MFA etkin bir kullanıcı parola ile doğrulandıktan sonra MFA kodu olmadan session alamaz; TOTP veya tek kullanımlı recovery code login contract testinde doğrulanır.
 - Argon2 password hash'lerinin encoded parametreleri bounded bellek/iterasyon/parallelism aralıklarında doğrulanır; oversized veya malformed hash login sırasında kaynak tüketimine dönüşmeden reddedilir.
+- MFA store bağlantısı eksikse servis panic etmez; `MFAStore` gereksinimi ayrı hata olarak fail-closed uygulanır ve login akışı MFA'yı yanlışlıkla devre dışı kabul etmez.
 
 ## Çalıştırılan kontroller
 
