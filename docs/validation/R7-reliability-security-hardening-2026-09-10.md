@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `1d300fd`  
-**Validation baseline:** `1d300fd`  
+**Repository commit:** `3aaec45`  
+**Validation baseline:** `3aaec45`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -52,6 +52,9 @@ verification improvements after the R3/R5 contract work.
   and cap concurrent upload slots at 1024, with regression coverage.
 - Portable CLI import/export paths reject symlinked source files and destination
   parents before reading or atomically publishing documents.
+- Erasure log operations revalidate the log file and parent path before each
+  read/write, reject post-construction symlink replacement, and normalize nil
+  replay contexts.
 
 ## Evidence commands
 
