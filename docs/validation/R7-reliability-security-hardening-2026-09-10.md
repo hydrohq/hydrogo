@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `8bca834`  
-**Validation baseline:** `8bca834`  
+**Repository commit:** `2abec01`  
+**Validation baseline:** `2abec01`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -42,6 +42,8 @@ verification improvements after the R3/R5 contract work.
 - Release asset retention and verification stream artifact bytes through a
   bounded reader and hash instead of loading the full artifact into memory;
   invalid declared sizes are rejected.
+- Release manifest generation also streams artifact hashing and rejects
+  symlink artifacts instead of following paths outside the release root.
 
 ## Evidence commands
 
