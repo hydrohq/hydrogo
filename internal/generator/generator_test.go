@@ -60,6 +60,41 @@ func TestGenerateRejectsSymlinkRoot(t *testing.T) {
 	}
 }
 
+func TestGenerateRejectsSymlinkOutputPaths(t *testing.T) {
+	spec := Spec{Name: "pages", Table: "pages_generated", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"pages.read"}, Dialects: []string{"sqlite"}}
+
+	root := t.TempDir()
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	migrationPath := filepath.Join(root, "generated", "pages", "migration.sql")
+	outsideFile := filepath.Join(t.TempDir(), "migration.sql")
+	if err := os.WriteFile(outsideFile, []byte("outside"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(migrationPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideFile, migrationPath); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if _, err := Generate(root, spec); err == nil {
+		t.Fatal("generator accepted a symlink output file")
+	}
+
+	parentRoot := t.TempDir()
+	outsideDir := filepath.Join(t.TempDir(), "generated")
+	if err := os.Mkdir(outsideDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideDir, filepath.Join(parentRoot, "generated")); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if _, err := Generate(parentRoot, spec); err == nil {
+		t.Fatal("generator accepted a symlink output parent")
+	}
+}
+
 func TestValidateDeniesSecretsAndDestructiveMigrations(t *testing.T) {
 	base := Spec{Name: "profile", Table: "profiles", Fields: []Field{{Name: "email", Type: "string"}}, Permissions: []string{"profile.read"}, Dialects: []string{"sqlite"}}
 	secret := base

@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 )
 
 var (
@@ -133,13 +135,22 @@ func canonicalSpec(spec Spec) ([]byte, error) {
 }
 
 func writeGenerated(path string, content []byte) error {
+	if err := validateGeneratedPath(path); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if err := validateGeneratedPath(path); err != nil {
 		return err
 	}
 	return os.WriteFile(path, content, 0o644)
 }
 
 func writeImmutableGenerated(path string, content []byte) error {
+	if err := validateGeneratedPath(path); err != nil {
+		return err
+	}
 	if existing, err := os.ReadFile(path); err == nil {
 		if string(existing) != string(content) {
 			return ErrPublishedMigration
@@ -149,6 +160,23 @@ func writeImmutableGenerated(path string, content []byte) error {
 		return err
 	}
 	return writeGenerated(path, content)
+}
+
+func validateGeneratedPath(path string) error {
+	if err := pathguard.RejectSymlinkComponents(filepath.Dir(path)); err != nil {
+		return fmt.Errorf("generated parent path: %w", err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("generated path cannot be a symlink: %s", path)
+	}
+	return nil
 }
 
 func renderModel(spec Spec) string {
