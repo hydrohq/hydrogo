@@ -55,21 +55,22 @@ const maxAuthFormBytes = 16 << 10
 
 // HTTPHandler exposes the small, session-backed authentication surface used by the server.
 type HTTPHandler struct {
-	Service         *AuthService
-	Audit           AuditRecorder
-	Secure          bool
-	MFA             *MFAService
-	MFADB           database.Executor
-	Transactions    database.Transactor
-	LoginLimiter    *security.AttemptLimiter
-	MFALimiter      *security.AttemptLimiter
-	RecoveryLimiter *security.AttemptLimiter
-	Recovery        *PasswordRecovery
-	RecoveryDB      database.Executor
-	Notifier        RecoveryNotifier
-	Invitation      *InvitationService
-	InviteDB        database.Executor
-	InviteNotice    InviteNotifier
+	Service                *AuthService
+	Audit                  AuditRecorder
+	Secure                 bool
+	MFA                    *MFAService
+	MFADB                  database.Executor
+	Transactions           database.Transactor
+	LoginLimiter           *security.AttemptLimiter
+	MFALimiter             *security.AttemptLimiter
+	RecoveryLimiter        *security.AttemptLimiter
+	RecoveryConfirmLimiter *security.AttemptLimiter
+	Recovery               *PasswordRecovery
+	RecoveryDB             database.Executor
+	Notifier               RecoveryNotifier
+	Invitation             *InvitationService
+	InviteDB               database.Executor
+	InviteNotice           InviteNotifier
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -189,6 +190,10 @@ func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("token")) == "" || r.FormValue("password") == "" {
 		http.Error(w, "invalid password recovery request", http.StatusBadRequest)
+		return
+	}
+	if h.RecoveryConfirmLimiter != nil && !h.RecoveryConfirmLimiter.Allow(clientIP(r)) {
+		security.WriteRateLimitedResponse(w, "too many password recovery attempts", time.Minute)
 		return
 	}
 	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
