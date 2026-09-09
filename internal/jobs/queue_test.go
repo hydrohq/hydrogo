@@ -63,3 +63,17 @@ func TestBoundErrorTruncatesByRune(t *testing.T) {
 		t.Fatal("bounded error is not valid UTF-8")
 	}
 }
+
+func TestQueueFailsClosedWhenNilOrZeroValue(t *testing.T) {
+	var nilQueue *Queue
+	if err := nilQueue.Enqueue(Job{ID: "job", Type: "work"}); !errors.Is(err, ErrQueueUnavailable) {
+		t.Fatalf("nil queue enqueue = %v, want %v", err, ErrQueueUnavailable)
+	}
+	if _, _, ok := nilQueue.Claim("worker", time.Now(), time.Minute); ok {
+		t.Fatal("nil queue unexpectedly claimed a job")
+	}
+	zeroQueue := Queue{}
+	if err := zeroQueue.Enqueue(Job{ID: "job", Type: "work"}); !errors.Is(err, ErrQueueUnavailable) {
+		t.Fatalf("zero-value queue enqueue = %v, want %v", err, ErrQueueUnavailable)
+	}
+}

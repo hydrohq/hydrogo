@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	ErrQueueFull    = errors.New("job queue is full")
-	ErrJobConflict  = errors.New("job id already has different payload")
-	ErrLeaseInvalid = errors.New("job lease is invalid")
+	ErrQueueFull        = errors.New("job queue is full")
+	ErrQueueUnavailable = errors.New("job queue is unavailable")
+	ErrJobConflict      = errors.New("job id already has different payload")
+	ErrLeaseInvalid     = errors.New("job lease is invalid")
 )
 
 const MaxErrorBytes = 1024
@@ -64,6 +65,9 @@ func NewQueue(maxEntries int) *Queue {
 }
 
 func (q *Queue) Enqueue(job Job) error {
+	if q == nil || q.jobs == nil || q.maxEntries < 1 {
+		return ErrQueueUnavailable
+	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if job.ID == "" || job.Type == "" {
@@ -89,6 +93,9 @@ func (q *Queue) Enqueue(job Job) error {
 }
 
 func (q *Queue) Claim(worker string, now time.Time, duration time.Duration) (Job, string, bool) {
+	if q == nil || q.jobs == nil || q.maxEntries < 1 {
+		return Job{}, "", false
+	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if worker == "" || duration <= 0 {
@@ -125,6 +132,9 @@ func (q *Queue) Claim(worker string, now time.Time, duration time.Duration) (Job
 }
 
 func (q *Queue) Ack(id, worker, token string) error {
+	if q == nil || q.jobs == nil || q.maxEntries < 1 {
+		return ErrQueueUnavailable
+	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	selected, ok := q.jobs[id]
@@ -140,6 +150,9 @@ func (q *Queue) Nack(id, worker, token string, retryAt time.Time) error {
 }
 
 func (q *Queue) NackWithError(id, worker, token string, retryAt time.Time, reason string) error {
+	if q == nil || q.jobs == nil || q.maxEntries < 1 {
+		return ErrQueueUnavailable
+	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	selected, ok := q.jobs[id]
@@ -155,6 +168,9 @@ func (q *Queue) NackWithError(id, worker, token string, retryAt time.Time, reaso
 }
 
 func (q *Queue) DeadLetter(id, worker, token, reason string) error {
+	if q == nil || q.jobs == nil || q.maxEntries < 1 {
+		return ErrQueueUnavailable
+	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	selected, ok := q.jobs[id]
