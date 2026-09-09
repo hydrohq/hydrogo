@@ -10,9 +10,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 func TestOperationalRoutesAreExplicit(t *testing.T) {
@@ -253,5 +255,23 @@ func TestMetricsIncludeMiddlewareRejectedRequests(t *testing.T) {
 	handler.ServeHTTP(metricsResponse, metricsRequest)
 	if !strings.Contains(metricsResponse.Body.String(), `hydro_http_responses_total{class="4xx"} 1`) {
 		t.Fatalf("metrics did not include middleware rejection: %q", metricsResponse.Body.String())
+	}
+}
+
+func TestErrorMiddlewarePreservesRetryAfter(t *testing.T) {
+	handler := NewHandler(Config{Routes: []router.Route{{
+		Pattern: "GET /limited",
+		Access:  router.Public,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			security.WriteRateLimitedResponse(w, "too many", time.Minute)
+		}),
+	}}})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/limited", nil))
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d", response.Code)
+	}
+	if got := response.Header().Get("Retry-After"); got != "60" {
+		t.Fatalf("Retry-After = %q, want 60", got)
 	}
 }
