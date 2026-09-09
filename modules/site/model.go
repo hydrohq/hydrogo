@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 )
 
 var (
@@ -100,9 +102,12 @@ func ValidateInboxStatus(status string) error {
 }
 
 func normalizePath(value string) string {
-	value = "/" + strings.Trim(strings.TrimSpace(value), "/")
-	if value == "/" {
-		return value
+	path, err := canonical.Path(value)
+	if err != nil {
+		return ""
 	}
-	return strings.ToLower(value)
+	if path == "" {
+		return "/"
+	}
+	return "/" + path
 }
