@@ -4,9 +4,9 @@ go 1.27.0
 
 require (
 	github.com/a-h/templ v0.3.833
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/microcosm-cc/bluemonday v1.0.27
-	github.com/pquerna/otp v1.4.0
+	github.com/pquerna/otp v1.5.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/image v0.45.0
 	gopkg.in/yaml.v3 v3.0.1
