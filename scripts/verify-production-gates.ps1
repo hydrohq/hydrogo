@@ -23,7 +23,7 @@ Invoke-Required "full test suite" { go test ./... -count=1 }
 $previousCgo = $env:CGO_ENABLED
 $env:CGO_ENABLED = "1"
 try {
-    Invoke-Required "race-sensitive packages" { go test -race ./internal/cache ./internal/release ./internal/database ./cmd/hydro -count=1 }
+    Invoke-Required "race-sensitive packages" { go test -race ./internal/cache ./internal/release ./internal/database ./internal/backup ./internal/security ./internal/server ./cmd/hydro -count=1 }
 }
 finally {
     if ($null -eq $previousCgo) { Remove-Item Env:CGO_ENABLED -ErrorAction SilentlyContinue } else { $env:CGO_ENABLED = $previousCgo }
