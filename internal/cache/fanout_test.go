@@ -83,3 +83,18 @@ func TestFanoutConcurrentSubscribersAndRace(t *testing.T) {
 	}
 	closeWG.Wait()
 }
+
+func TestFanoutFailsClosedWhenNilOrZeroValue(t *testing.T) {
+	var nilFanout *Fanout
+	if nilFanout.Publish("event") != 0 || nilFanout.Generation() != 0 {
+		t.Fatal("nil fanout produced an active generation")
+	}
+	if sub := nilFanout.Subscribe(1); sub == nil || sub.Reconcile(1) {
+		t.Fatal("nil fanout returned an active subscription")
+	}
+	zeroFanout := Fanout{}
+	if zeroFanout.Publish("event") != 0 || zeroFanout.Generation() != 0 {
+		t.Fatal("zero-value fanout produced an active generation")
+	}
+	zeroFanout.Close()
+}

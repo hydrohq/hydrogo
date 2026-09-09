@@ -42,6 +42,9 @@ func (f *Fanout) Subscribe(buffer int) *Subscription {
 	if buffer < 1 {
 		buffer = 1
 	}
+	if f == nil || f.subs == nil {
+		return &Subscription{Events: closedInvalidations(), Resync: closedSignals(), sync: func(uint64) bool { return false }}
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.closed {
@@ -82,6 +85,9 @@ func (s *Subscription) Reconcile(generation uint64) bool {
 }
 
 func (f *Fanout) Publish(key string) uint64 {
+	if f == nil || f.subs == nil {
+		return 0
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.closed {
@@ -103,12 +109,18 @@ func (f *Fanout) Publish(key string) uint64 {
 }
 
 func (f *Fanout) Generation() uint64 {
+	if f == nil || f.subs == nil {
+		return 0
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.current
 }
 
 func (f *Fanout) Close() {
+	if f == nil || f.subs == nil {
+		return
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.closed {
@@ -123,6 +135,9 @@ func (f *Fanout) Close() {
 }
 
 func (f *Fanout) unsubscribe(id uint64) {
+	if f == nil || f.subs == nil {
+		return
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if sub, ok := f.subs[id]; ok {
