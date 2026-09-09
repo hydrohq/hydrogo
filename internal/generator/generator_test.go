@@ -118,6 +118,13 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if !bytes.Contains(migration, []byte("CREATE TABLE "+spec.Table)) || !bytes.Contains(migration, []byte(spec.Fields[0].Name)) {
 			t.Fatalf("%s migration does not contain generated fields", spec.Name)
 		}
+		transport, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "transport.go"))
+		if err != nil {
+			t.Fatalf("%s transport: %v", spec.Name, err)
+		}
+		if !bytes.Contains(transport, []byte("/api/v1/"+spec.Name)) {
+			t.Fatalf("%s transport does not use versioned API path: %s", spec.Name, transport)
+		}
 		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module generatedfixture\n\ngo 1.27\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
