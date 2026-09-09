@@ -185,6 +185,9 @@ func (c Config) Validate() error {
 	if c.Security.EnableHSTS && (publicOrigin == nil || publicOrigin.Scheme != "https") {
 		return errors.New("HSTS requires an HTTPS public origin")
 	}
+	if c.Security.EnableHSTS && !c.Security.SecureCookies {
+		return errors.New("HSTS requires secure cookies")
+	}
 	if c.Security.SecureCookies && publicOrigin != nil && publicOrigin.Scheme != "https" {
 		return errors.New("secure cookies require an HTTPS public origin")
 	}

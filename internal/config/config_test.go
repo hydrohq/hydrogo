@@ -91,6 +91,13 @@ func TestLoadSecurityTransportOptions(t *testing.T) {
 	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "HSTS") {
 		t.Fatalf("insecure HSTS configuration error = %v", err)
 	}
+	if _, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":  "file:test.sqlite",
+		"HYDRO_ENABLE_HSTS":   "true",
+		"HYDRO_PUBLIC_ORIGIN": "https://example.test",
+	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "secure cookies") {
+		t.Fatalf("incomplete HSTS configuration error = %v", err)
+	}
 }
 
 func writeConfig(t *testing.T, body string) string {
