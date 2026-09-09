@@ -91,6 +91,21 @@ func TestLogAppendIsDurableIdempotentAndDetectsTampering(t *testing.T) {
 	}
 }
 
+func TestNewRejectsSymlinkedLogPath(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target.jsonl")
+	if err := os.WriteFile(target, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link.jsonl")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if _, err := New(link); err == nil {
+		t.Fatal("symlinked erasure log was accepted")
+	}
+}
+
 func TestReplayFromCheckpointRequiresHashAnchor(t *testing.T) {
 	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
 	if err != nil {
