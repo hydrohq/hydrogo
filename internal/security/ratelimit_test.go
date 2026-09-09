@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -39,6 +40,25 @@ func TestDistributedLimiterRejectsEmptyKeysBeforeStore(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Fatalf("empty key reached shared store %d times", calls)
+	}
+}
+
+func TestDistributedLimiterDoesNotForwardRawKeyToSharedStore(t *testing.T) {
+	const rawKey = "203.0.113.10:person@example.test"
+	var received string
+	store := distributedStoreFunc(func(_ context.Context, key string) (bool, error) {
+		received = key
+		return true, nil
+	})
+	if !(DistributedLimiter{Store: store}).Allow(context.Background(), rawKey) {
+		t.Fatal("shared store rejected valid key")
+	}
+	if received == rawKey || strings.Contains(received, "person@example.test") || strings.Contains(received, "203.0.113.10") {
+		t.Fatalf("raw limiter key reached shared store: %q", received)
+	}
+	want := sha256.Sum256([]byte(rawKey))
+	if received != fmt.Sprintf("%x", want) {
+		t.Fatalf("shared store key = %q, want sha256 digest %x", received, want)
 	}
 }
 

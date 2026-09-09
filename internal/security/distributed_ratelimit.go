@@ -2,6 +2,8 @@ package security
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
@@ -22,6 +24,11 @@ func (l DistributedLimiter) Allow(ctx context.Context, key string) bool {
 	if guards.IsNil(l.Store) || ctx.Err() != nil || key == "" {
 		return false
 	}
-	ok, err := l.Store.Allow(ctx, key)
+	// Keep the shared store from receiving raw IP addresses, email addresses,
+	// or composite authentication keys. The digest is fixed-size and opaque,
+	// while still preserving stable bucket identity across instances.
+	digest := sha256.Sum256([]byte(key))
+	opaqKey := hex.EncodeToString(digest[:])
+	ok, err := l.Store.Allow(ctx, opaqKey)
 	return err == nil && ok
 }
