@@ -4,9 +4,12 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
+
+const maxLoggedPathBytes = 512
 
 // LoggingMiddleware emits one bounded JSON event per request. It deliberately
 // excludes query strings, request bodies, cookies, and response bodies.
@@ -22,12 +25,23 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 			logger.InfoContext(r.Context(), "http_request",
 				slog.String("request_id", security.RequestIDFromContext(r.Context())),
 				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
+				slog.String("path", boundedPath(r.URL.Path)),
 				slog.Int("status", recorder.status),
 				slog.Int64("duration_ms", time.Since(started).Milliseconds()),
 			)
 		})
 	}
+}
+
+func boundedPath(path string) string {
+	if len(path) <= maxLoggedPathBytes {
+		return path
+	}
+	cut := maxLoggedPathBytes
+	for cut > 0 && !utf8.ValidString(path[:cut]) {
+		cut--
+	}
+	return path[:cut] + "…"
 }
 
 type statusRecorder struct {
