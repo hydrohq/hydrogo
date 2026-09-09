@@ -124,7 +124,7 @@ func TestMetricsAreProtectedAndBounded(t *testing.T) {
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("metrics authorized status = %d", authorized.Code)
 	}
-	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) {
+	if !strings.Contains(authorized.Body.String(), "hydro_http_requests_total") || !strings.Contains(authorized.Body.String(), `class="2xx"`) || !strings.Contains(authorized.Body.String(), "hydro_http_request_duration_seconds_bucket") {
 		t.Fatalf("metrics output missing bounded counters: %q", authorized.Body.String())
 	}
 }
