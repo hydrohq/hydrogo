@@ -157,6 +157,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
 	path := flags.String("path", "", "Portable document path")
+	maxBytes := flags.Int64("max-bytes", portable.DefaultMaxDocumentBytes, "Maximum portable document size in bytes")
 	confirm := flags.Bool("confirm", false, "Confirm replacing allowlisted content tables")
 	dryRun := flags.Bool("dry-run", false, "Validate the document without changing the database")
 	if err := flags.Parse(args[1:]); err != nil {
@@ -199,6 +200,9 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("marshal portable export: %w", err)
 		}
+		if *maxBytes <= 0 || int64(len(data)) > *maxBytes {
+			return portable.ErrDocumentTooLarge
+		}
 		temporary, err := os.CreateTemp(filepath.Dir(*path), ".hydro-portable-*.tmp")
 		if err != nil {
 			return fmt.Errorf("create portable export temp file: %w", err)
@@ -228,11 +232,12 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if !*confirm && !*dryRun {
 			return errors.New("portable import requires --confirm, or use --dry-run")
 		}
-		data, err := os.ReadFile(*path)
+		file, err := os.Open(*path)
 		if err != nil {
 			return fmt.Errorf("read portable document: %w", err)
 		}
-		document, err := portable.Unmarshal(data)
+		defer file.Close()
+		document, err := portable.UnmarshalReader(file, *maxBytes)
 		if err != nil {
 			return fmt.Errorf("validate portable document: %w", err)
 		}
@@ -1053,8 +1058,8 @@ Usage:
   hydro restore postgres --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked [runtime flags]
   hydro restore activate-media --staging PATH --active PATH --rollback PATH
   hydro portable export --path PATH [runtime flags]
-  hydro portable import --path PATH --dry-run [runtime flags]
-  hydro portable import --path PATH --confirm [runtime flags]
+  hydro portable import --path PATH --dry-run [--max-bytes BYTES] [runtime flags]
+  hydro portable import --path PATH --confirm [--max-bytes BYTES] [runtime flags]
   hydro release verify --manifest PATH --public-key PATH
   hydro serve [runtime flags]
   hydro help

@@ -16,6 +16,9 @@ import (
 )
 
 var ErrInvalidDocument = errors.New("invalid portable document")
+var ErrDocumentTooLarge = errors.New("portable document exceeds size limit")
+
+const DefaultMaxDocumentBytes int64 = 256 << 20
 
 type Document struct {
 	FormatVersion int     `json:"format_version"`
@@ -92,6 +95,22 @@ func Unmarshal(data []byte) (Document, error) {
 		return Document{}, err
 	}
 	return document, nil
+}
+
+// UnmarshalReader bounds bytes read from an operator-provided export before
+// decoding it, preventing an untrusted path from causing an unbounded read.
+func UnmarshalReader(reader io.Reader, maxBytes int64) (Document, error) {
+	if reader == nil || maxBytes <= 0 {
+		return Document{}, ErrInvalidDocument
+	}
+	data, err := io.ReadAll(io.LimitReader(reader, maxBytes+1))
+	if err != nil {
+		return Document{}, err
+	}
+	if int64(len(data)) > maxBytes {
+		return Document{}, ErrDocumentTooLarge
+	}
+	return Unmarshal(data)
 }
 
 // Import replaces only the allowlisted content tables. Authentication,

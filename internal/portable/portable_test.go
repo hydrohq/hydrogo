@@ -3,6 +3,7 @@ package portable
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -85,6 +86,12 @@ func TestSQLiteContentExportImportRoundTripExcludesAuthState(t *testing.T) {
 	}
 	if users != 0 {
 		t.Fatalf("auth users imported: %d", users)
+	}
+}
+
+func TestUnmarshalReaderEnforcesByteLimit(t *testing.T) {
+	if _, err := UnmarshalReader(strings.NewReader("12345"), 4); !errors.Is(err, ErrDocumentTooLarge) {
+		t.Fatalf("error = %v, want %v", err, ErrDocumentTooLarge)
 	}
 }
 

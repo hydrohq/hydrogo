@@ -120,6 +120,8 @@ hydro portable import --path PATH --confirm
 hydro release verify --manifest release.json --public-key release.pub
 ```
 
+Portable import/export is bounded to 256 MiB by default; use `--max-bytes` when an approved larger customer export is required.
+
 `hydro release verify` does not trust the public key embedded in the manifest by itself. It requires a trusted Ed25519 public-key file distributed by the operator.
 
 Backup and restore are deliberately staging-first. SQLite and PostgreSQL backups create a new immutable snapshot directory; PostgreSQL uses `pg_dump`/`pg_restore` with a temporary password file and never puts the password in process arguments. Restore verification only checks hashes, staging never overwrites an existing destination, and media activation requires the quarantine marker plus all three operator controls. Pause application writes and background workers before taking a live snapshot.
