@@ -30,9 +30,10 @@ finally {
 }
 
 New-Item -ItemType Directory -Force .tmp\gates | Out-Null
+$buildLDFLAGS = "-X main.buildCommit=production-gate -X main.buildTime=production-gate"
 Invoke-Required "reproducible hydro build" {
-    go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp\gates\hydro-a.exe ./cmd/hydro
-    go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp\gates\hydro-b.exe ./cmd/hydro
+    go build -trimpath -buildvcs=false -ldflags "$buildLDFLAGS -buildid=" -o .tmp\gates\hydro-a.exe ./cmd/hydro
+    go build -trimpath -buildvcs=false -ldflags "$buildLDFLAGS -buildid=" -o .tmp\gates\hydro-b.exe ./cmd/hydro
     $a = (Get-FileHash .tmp\gates\hydro-a.exe -Algorithm SHA256).Hash
     $b = (Get-FileHash .tmp\gates\hydro-b.exe -Algorithm SHA256).Hash
     if ($a -ne $b) { throw "reproducible build digests differ: $a / $b" }

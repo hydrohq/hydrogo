@@ -56,14 +56,14 @@ jobs:
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
-      - run: go build ./cmd/hydro
+      - run: go build -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3
         run: |
           set -euo pipefail
           mkdir -p .tmp/repro
-          go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp/repro/hydro-a ./cmd/hydro
-          go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp/repro/hydro-b ./cmd/hydro
+          go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci -buildid=" -o .tmp/repro/hydro-a ./cmd/hydro
+          go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci -buildid=" -o .tmp/repro/hydro-b ./cmd/hydro
           test "$(sha256sum .tmp/repro/hydro-a | cut -d' ' -f1)" = "$(sha256sum .tmp/repro/hydro-b | cut -d' ' -f1)"
       - name: Enforce Client Edition import boundary
         run: go run ./tools/importguard -root examples/client-edition
@@ -103,14 +103,15 @@ jobs:
           if ($formatted) { Write-Error "gofmt required: $formatted" }
           go vet ./...
           go test ./...
-          go build ./cmd/hydro
+          go build -ldflags "-X main.buildCommit=$env:GITHUB_SHA -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .tmp/repro | Out-Null
-          go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp/repro/hydro-a.exe ./cmd/hydro
-          go build -trimpath -buildvcs=false -ldflags=-buildid= -o .tmp/repro/hydro-b.exe ./cmd/hydro
+          $ldflags = "-X main.buildCommit=$env:GITHUB_SHA -X main.buildTime=ci -buildid="
+          go build -trimpath -buildvcs=false -ldflags $ldflags -o .tmp/repro/hydro-a.exe ./cmd/hydro
+          go build -trimpath -buildvcs=false -ldflags $ldflags -o .tmp/repro/hydro-b.exe ./cmd/hydro
           $a = (Get-FileHash .tmp/repro/hydro-a.exe -Algorithm SHA256).Hash
           $b = (Get-FileHash .tmp/repro/hydro-b.exe -Algorithm SHA256).Hash
           if ($a -ne $b) { Write-Error "reproducible build digests differ: $a / $b" }

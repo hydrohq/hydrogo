@@ -94,6 +94,8 @@ For PostgreSQL, set `HYDRO_DATABASE_DIALECT=postgres` and use an isolated `HYDRO
 
 Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and `HYDRO_ENABLE_HSTS=true` (or the equivalent `security.secure_cookies` and `security.enable_hsts` YAML fields) together with an HTTPS `HYDRO_PUBLIC_ORIGIN`. Configuration rejects HSTS without an HTTPS canonical origin or secure cookies. These settings remain disabled by default for local HTTP development.
 
+Release builds can embed identity metadata with `-ldflags "-X main.buildCommit=COMMIT -X main.buildTime=UTC_TIME"`; inspect it with `hydro version --json`.
+
 ## Operational commands
 
 ```text
