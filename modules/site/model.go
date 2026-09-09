@@ -67,7 +67,10 @@ func ValidateNavigation(value NavigationItem) error {
 		return ErrInvalidNavigation
 	}
 	parsed, err := url.Parse(href)
-	if err != nil || parsed.Host != "" || parsed.IsAbs() && parsed.Scheme != "https" || strings.HasPrefix(strings.ToLower(href), "javascript:") {
+	// Navigation links are internal references. Reject every absolute or
+	// network-path URI, including odd forms such as "https:foo" that have no
+	// host but still carry a scheme.
+	if err != nil || parsed.Host != "" || parsed.IsAbs() || strings.HasPrefix(strings.ToLower(href), "javascript:") {
 		return ErrInvalidNavigation
 	}
 	return nil

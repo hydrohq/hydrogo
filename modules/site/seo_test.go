@@ -34,4 +34,7 @@ func TestNavigationRejectsNetworkPathURL(t *testing.T) {
 	if err := ValidateNavigation(NavigationItem{ID: "x", Locale: "en", Label: "x", Href: "//evil.example", Position: 0}); err == nil {
 		t.Fatal("network path navigation URL accepted")
 	}
+	if err := ValidateNavigation(NavigationItem{ID: "x", Locale: "en", Label: "x", Href: "https:evil.example", Position: 0}); err == nil {
+		t.Fatal("absolute URI without host was accepted")
+	}
 }
