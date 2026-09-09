@@ -1,9 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -135,6 +137,22 @@ func TestGeneralRequestBodyLimitIsEnforced(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"code":"request_entity_too_large"`) {
 		t.Fatalf("body = %q", res.Body.String())
+	}
+}
+
+func TestStructuredHTTPLogContainsRequestIDWithoutSensitiveData(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
+	handler := NewHandler(Config{Logger: logger})
+	req := httptest.NewRequest(http.MethodGet, "/healthz?token=secret", nil)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	line := logs.String()
+	if !strings.Contains(line, `"msg":"http_request"`) || !strings.Contains(line, `"request_id":"`) {
+		t.Fatalf("structured log missing request fields: %q", line)
+	}
+	if strings.Contains(line, "secret") || strings.Contains(line, "token=") {
+		t.Fatalf("structured log leaked query data: %q", line)
 	}
 }
 

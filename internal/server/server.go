@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -23,6 +24,7 @@ type Config struct {
 	Routes          []router.Route
 	Authorizer      router.Authorizer
 	Metrics         *observability.Metrics
+	Logger          *slog.Logger
 	EnableHSTS      bool
 	SecureCookie    bool
 	HTTPBodyLimit   int64
@@ -121,6 +123,7 @@ func NewHandler(config Config) http.Handler {
 	// Normalize handler errors after the body limit and before the request ID
 	// middleware so even middleware-generated errors include request_id.
 	handler = security.ErrorMiddleware(handler)
+	handler = observability.LoggingMiddleware(config.Logger)(handler)
 
 	// Generate a fresh correlation identifier before security and auth middleware.
 	handler = security.RequestIDMiddleware(handler)

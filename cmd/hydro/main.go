@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -612,11 +613,17 @@ func serve(args []string, stderr io.Writer) error {
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
 	})
 	go runNewsWorker(ctx, db, newsWorker, metrics, stderr)
+	logWriter := stderr
+	if logWriter == nil {
+		logWriter = io.Discard
+	}
+	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	return server.Serve(ctx, server.Config{
 		Address:         cfg.HTTP.Address,
 		ShutdownTimeout: budget.ShutdownTimeout,
 		AuthSvc:         authSvc,
 		Metrics:         metrics,
+		Logger:          logger,
 		EnableHSTS:      cfg.Security.EnableHSTS,
 		SecureCookie:    cfg.Security.SecureCookies,
 		HTTPBodyLimit:   budget.HTTPBodyBytes,
