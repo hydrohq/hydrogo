@@ -189,3 +189,33 @@ func TestMetricsAreProtectedAndBounded(t *testing.T) {
 		t.Fatalf("metrics output missing bounded counters: %q", authorized.Body.String())
 	}
 }
+
+func TestMetricsIncludeMiddlewareRejectedRequests(t *testing.T) {
+	metrics := observability.NewMetrics()
+	handler := NewHandler(Config{
+		HTTPBodyLimit: 4,
+		Metrics:       metrics,
+		Authorizer: func(*http.Request) bool {
+			return true
+		},
+		Routes: []router.Route{{
+			Pattern: "GET /limited",
+			Access:  router.Public,
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }),
+		}},
+	})
+	rejected := httptest.NewRequest(http.MethodGet, "/limited", strings.NewReader("too large"))
+	rejected.ContentLength = int64(len("too large"))
+	rejectedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(rejectedResponse, rejected)
+	if rejectedResponse.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("rejected status = %d", rejectedResponse.Code)
+	}
+
+	metricsRequest := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	metricsResponse := httptest.NewRecorder()
+	handler.ServeHTTP(metricsResponse, metricsRequest)
+	if !strings.Contains(metricsResponse.Body.String(), `hydro_http_responses_total{class="4xx"} 1`) {
+		t.Fatalf("metrics did not include middleware rejection: %q", metricsResponse.Body.String())
+	}
+}

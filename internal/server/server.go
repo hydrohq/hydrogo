@@ -110,9 +110,6 @@ func NewHandler(config Config) http.Handler {
 	}
 
 	var handler http.Handler = routerHandler
-	if config.Metrics != nil {
-		handler = config.Metrics.Middleware(handler)
-	}
 
 	// General requests use the selected capacity profile budget. Media uploads
 	// enforce their larger, uploader-specific limit in the media handler.
@@ -140,6 +137,12 @@ func NewHandler(config Config) http.Handler {
 	handler = security.HeadersMiddleware(security.HeaderConfig{
 		EnableHSTS: config.EnableHSTS,
 	})(handler)
+
+	// Keep metrics outermost so rejected requests from every middleware layer
+	// (body limit, CSRF, auth, and routing) are visible to operators.
+	if config.Metrics != nil {
+		handler = config.Metrics.Middleware(handler)
+	}
 
 	return handler
 }
