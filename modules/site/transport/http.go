@@ -14,6 +14,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
@@ -53,7 +54,7 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if database.RequireExecutor(h.DB) != nil || h.Store == nil {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Store) {
 		http.Error(w, "inbox unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -222,7 +223,7 @@ func (h Handler) sitemap(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicSettings(w http.ResponseWriter, r *http.Request) {
-	if database.RequireExecutor(h.DB) != nil || h.Store == nil {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Store) {
 		http.Error(w, "site settings unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -240,7 +241,7 @@ func (h Handler) publicSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) navigation(w http.ResponseWriter, r *http.Request) {
-	if database.RequireExecutor(h.DB) != nil || h.Store == nil {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Store) {
 		http.Error(w, "navigation unavailable", http.StatusServiceUnavailable)
 		return
 	}

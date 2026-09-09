@@ -80,6 +80,17 @@ func TestPublicSiteRejectsTypedNilExecutorAsUnavailable(t *testing.T) {
 	}
 }
 
+func TestPublicSiteRejectsTypedNilStoreAsUnavailable(t *testing.T) {
+	var store *fakeStore
+	handler := Handler{DB: fakeExecutor{}, Store: store}
+	req := httptest.NewRequest(http.MethodGet, "/site/settings", nil)
+	res := httptest.NewRecorder()
+	handler.publicSettings(res, req)
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("typed nil store status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	}
+}
+
 func TestSitemapRouteUsesPublishedProvider(t *testing.T) {
 	handler := Handler{SitemapOrigin: "https://example.com", SitemapProvider: func(context.Context) ([]site.SitemapEntry, error) {
 		return []site.SitemapEntry{{URL: "https://example.com/en/home"}}, nil

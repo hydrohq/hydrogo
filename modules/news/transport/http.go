@@ -12,6 +12,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
@@ -156,7 +157,7 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
-	if database.RequireExecutor(h.DB) != nil || h.Service.Repository == nil {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -177,7 +178,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if database.RequireExecutor(h.DB) != nil || h.Service.Repository == nil {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -288,7 +289,7 @@ func (h Handler) adminTransition(w http.ResponseWriter, r *http.Request, action 
 }
 
 func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
-	if database.RequireExecutor(h.DB) != nil || h.Service.Repository == nil {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
