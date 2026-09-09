@@ -89,10 +89,6 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 		return nil, fmt.Errorf("unsupported database dialect %q", dialect)
 	}
 
-	db, err := sql.Open(driver, dsn)
-	if err != nil {
-		return nil, err
-	}
 	if options.MaxOpenConns <= 0 {
 		if dialect == SQLite {
 			options.MaxOpenConns = 1
@@ -109,6 +105,10 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	}
 	if options.MaxIdleConns > options.MaxOpenConns {
 		return nil, errors.New("database max idle connections exceed max open connections")
+	}
+	db, err := sql.Open(driver, dsn)
+	if err != nil {
+		return nil, err
 	}
 	db.SetMaxOpenConns(options.MaxOpenConns)
 	db.SetMaxIdleConns(options.MaxIdleConns)

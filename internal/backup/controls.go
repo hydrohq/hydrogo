@@ -16,6 +16,9 @@ func ApplyRestoreControls(ctx context.Context, db *sql.DB, dialect database.Dial
 	if db == nil {
 		return errors.New("restore database is required")
 	}
+	if err := validateDialect(dialect); err != nil {
+		return err
+	}
 	if !controls.SessionsRevoked || !controls.EgressQuarantined || !controls.OldWritesBlocked {
 		return errors.New("restore controls are incomplete")
 	}
@@ -36,6 +39,9 @@ func ReleaseRestoreQuarantine(ctx context.Context, db *sql.DB, dialect database.
 	if db == nil {
 		return errors.New("restore database is required")
 	}
+	if err := validateDialect(dialect); err != nil {
+		return err
+	}
 	result, err := db.ExecContext(ctx, "UPDATE restore_controls SET egress_quarantined = 0 WHERE id = "+p(dialect, 1), 1)
 	if err != nil {
 		return err
@@ -54,6 +60,9 @@ func ReleaseRestoreWrites(ctx context.Context, db *sql.DB, dialect database.Dial
 	if db == nil {
 		return errors.New("restore database is required")
 	}
+	if err := validateDialect(dialect); err != nil {
+		return err
+	}
 	result, err := db.ExecContext(ctx, "UPDATE restore_controls SET old_writes_blocked = 0 WHERE id = "+p(dialect, 1)+" AND egress_quarantined = 0", 1)
 	if err != nil {
 		return err
@@ -67,6 +76,12 @@ func ReleaseRestoreWrites(ctx context.Context, db *sql.DB, dialect database.Dial
 }
 
 func RestoreWritesBlocked(ctx context.Context, db database.Executor, dialect database.Dialect) (bool, error) {
+	if db == nil {
+		return false, errors.New("restore database is required")
+	}
+	if err := validateDialect(dialect); err != nil {
+		return false, err
+	}
 	var blocked int
 	err := db.QueryRowContext(ctx, "SELECT old_writes_blocked FROM restore_controls WHERE id = "+p(dialect, 1), 1).Scan(&blocked)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -76,6 +91,13 @@ func RestoreWritesBlocked(ctx context.Context, db database.Executor, dialect dat
 		return false, err
 	}
 	return blocked == 1, nil
+}
+
+func validateDialect(dialect database.Dialect) error {
+	if dialect != database.SQLite && dialect != database.Postgres {
+		return fmt.Errorf("unsupported database dialect %q", dialect)
+	}
+	return nil
 }
 
 func p(dialect database.Dialect, position int) string {

@@ -31,6 +31,20 @@ func TestSQLiteRestoreControlsRevokeSessionsAndQuarantineJobs(t *testing.T) {
 	runRestoreControlsContract(t, db, database.SQLite, "sqlite")
 }
 
+func TestRestoreControlsRejectMissingDatabaseAndDialect(t *testing.T) {
+	ctx := context.Background()
+	controls := RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}
+	if err := ApplyRestoreControls(ctx, nil, database.SQLite, controls); err == nil {
+		t.Fatal("expected missing database error")
+	}
+	if err := ApplyRestoreControls(ctx, &sql.DB{}, database.Dialect("oracle"), controls); err == nil {
+		t.Fatal("expected unsupported dialect error")
+	}
+	if _, err := RestoreWritesBlocked(ctx, nil, database.SQLite); err == nil {
+		t.Fatal("expected missing database error")
+	}
+}
+
 func TestPostgresRestoreControlsRevokeSessionsAndQuarantineJobs(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
 	if dsn == "" {
