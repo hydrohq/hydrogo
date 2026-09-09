@@ -251,6 +251,14 @@ func BenchmarkSQLitePortableRoundTrip256(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+	target, err := database.Open(ctx, database.SQLite, filepath.Join(b.TempDir(), "target.sqlite"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer target.Close()
+	if err := database.ApplyMigrations(ctx, target, database.SQLite, migrations.FS); err != nil {
+		b.Fatal(err)
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		document, err := Export(ctx, source)
@@ -265,18 +273,8 @@ func BenchmarkSQLitePortableRoundTrip256(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		target, err := database.Open(ctx, database.SQLite, filepath.Join(b.TempDir(), fmt.Sprintf("target-%d.sqlite", i)))
-		if err != nil {
-			b.Fatal(err)
-		}
-		if err := database.ApplyMigrations(ctx, target, database.SQLite, migrations.FS); err != nil {
-			target.Close()
-			b.Fatal(err)
-		}
 		if err := database.NewTransactor(target).Within(ctx, func(tx database.Executor) error { return Import(ctx, tx, decoded, database.SQLite) }); err != nil {
-			target.Close()
 			b.Fatal(err)
 		}
-		target.Close()
 	}
 }

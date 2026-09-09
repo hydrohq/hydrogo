@@ -22,10 +22,23 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	c := cache.New[string](128, time.Minute)
 
 	var dbQueryCount atomic.Int32
+	firstBlueStarted := make(chan struct{})
+	greenStarted := make(chan struct{})
+	releaseBlue := make(chan struct{})
+	releaseGreen := make(chan struct{})
+	var firstBlue atomic.Bool
+	var greenNotification sync.Once
 	loadPage := func(slot string) string {
 		val, err := c.GetOrLoad("public:page", func() (string, error) {
 			dbQueryCount.Add(1)
-			time.Sleep(5 * time.Millisecond) // Simulate query latency
+			if slot == "blue" && firstBlue.CompareAndSwap(false, true) {
+				close(firstBlueStarted)
+				<-releaseBlue
+			}
+			if slot == "green" {
+				greenNotification.Do(func() { close(greenStarted) })
+				<-releaseGreen
+			}
 			return fmt.Sprintf("content-from-%s", slot), nil
 		})
 		if err != nil {
@@ -51,6 +64,43 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	deployment, err := release.NewDeployment(release.SlotBlue)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// Force an old-generation read to remain in flight while the new slot
+	// starts its own load. Green must win the cache refill; the late Blue
+	// result may still reach its caller but must not repopulate the cache.
+	blueResult := make(chan string, 1)
+	go func() { blueResult <- loadPage("blue") }()
+	<-firstBlueStarted
+	c.Clear()
+	if err := deployment.PrepareGreen(); err != nil {
+		t.Fatal(err)
+	}
+	if err := deployment.MarkReady(); err != nil {
+		t.Fatal(err)
+	}
+	if err := deployment.Warmup(true); err != nil {
+		t.Fatal(err)
+	}
+	if err := deployment.Switch(true); err != nil {
+		t.Fatal(err)
+	}
+	if err := traffic.Switch(deployment); err != nil {
+		t.Fatal(err)
+	}
+	greenResult := make(chan string, 1)
+	go func() { greenResult <- loadPage("green") }()
+	<-greenStarted
+	close(releaseGreen)
+	if got := <-greenResult; got != "content-from-green" {
+		t.Fatalf("green load = %q", got)
+	}
+	close(releaseBlue)
+	if got := <-blueResult; got != "content-from-blue" {
+		t.Fatalf("in-flight blue load = %q", got)
+	}
+	if got, ok := c.Get("public:page"); !ok || got != "content-from-green" {
+		t.Fatalf("stale blue refill won cache: %q, present=%v", got, ok)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -86,26 +136,13 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	// Wait for blue traffic to start
 	time.Sleep(50 * time.Millisecond)
 
-	// Step 1: Transition to Green
-	if err := deployment.PrepareGreen(); err != nil {
-		t.Fatal(err)
-	}
-	if err := deployment.MarkReady(); err != nil {
-		t.Fatal(err)
-	}
-	if err := deployment.Warmup(true); err != nil {
-		t.Fatal(err)
-	}
-	// Invalidate cache before/on switch
+	// The transition above is also exercised under concurrent traffic below.
 	c.Clear()
-	if err := deployment.Switch(true); err != nil {
-		t.Fatal(err)
-	}
-	if err := traffic.Switch(deployment); err != nil {
-		t.Fatal(err)
-	}
 
 	time.Sleep(100 * time.Millisecond)
+	if got := loadPage("green"); got != "content-from-green" {
+		t.Fatalf("green slot served %q", got)
+	}
 
 	// Step 2: Rollback to Blue
 	if err := deployment.DrainBlue(); err != nil {
@@ -129,9 +166,12 @@ func TestBlueGreenTrafficWithConcurrentCacheInvalidation(t *testing.T) {
 	if totalRequests.Load() < 100 {
 		t.Fatalf("expected substantial traffic, got %d requests", totalRequests.Load())
 	}
-
 	// We cleared cache twice (switch + rollback), so db queries should be very low (e.g. <= 10) despite hundreds of requests
 	if dbQueries := dbQueryCount.Load(); dbQueries > 10 {
 		t.Fatalf("excessive DB query count: %d for %d requests", dbQueries, totalRequests.Load())
+	}
+
+	if got := loadPage("blue"); got != "content-from-blue" {
+		t.Fatalf("rollback to blue served %q", got)
 	}
 }

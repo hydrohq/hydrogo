@@ -2,9 +2,15 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/release"
 )
 
 func TestRunVersion(t *testing.T) {
@@ -71,5 +77,35 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "profile=compact database=sqlite") {
 		t.Fatalf("unexpected doctor output: %s", stdout.String())
+	}
+}
+
+func TestRunReleaseVerify(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "app.bin"), []byte("bin"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := release.Build(root, release.Input{Edition: "site", CoreVersion: "1.0.0", SDKVersion: "1.0.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	signed, err := release.Sign(manifest, priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signedBytes := []byte(fmt.Sprintf(`{"manifest":%s,"public_key":%q,"signature":%q}`, string(signed.Manifest), signed.PublicKey, signed.Signature))
+	manifestFile := filepath.Join(root, "release.json")
+	if err := os.WriteFile(manifestFile, signedBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err = run([]string{"release", "verify", "--manifest", manifestFile}, strings.NewReader(""), &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run release verify failed: %v, stderr: %s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "verified edition=site core=1.0.0") {
+		t.Fatalf("unexpected release verify output: %s", stdout.String())
 	}
 }

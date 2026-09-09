@@ -59,6 +59,12 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	if dsn == "" {
 		return nil, errors.New("database DSN is required")
 	}
+	if options.MaxOpenConns < 0 {
+		return nil, errors.New("database max open connections cannot be negative")
+	}
+	if options.MaxIdleConns < 0 {
+		return nil, errors.New("database max idle connections cannot be negative")
+	}
 
 	driver := ""
 	switch dialect {
@@ -85,9 +91,6 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 		} else {
 			options.MaxOpenConns = 10
 		}
-	}
-	if options.MaxIdleConns < 0 {
-		return nil, errors.New("database max idle connections cannot be negative")
 	}
 	if options.MaxIdleConns == 0 {
 		if dialect == SQLite {

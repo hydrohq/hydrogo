@@ -10,6 +10,11 @@ func TestOpenWithOptionsValidatesPoolLimits(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "pool.sqlite")
 
+	// Invalid: MaxOpenConns negative
+	if _, err := OpenWithOptions(ctx, SQLite, dbPath, OpenOptions{MaxOpenConns: -1}); err == nil {
+		t.Fatal("negative max open connections accepted")
+	}
+
 	// Invalid: MaxIdleConns negative
 	if _, err := OpenWithOptions(ctx, SQLite, dbPath, OpenOptions{MaxIdleConns: -1}); err == nil {
 		t.Fatal("negative max idle connections accepted")

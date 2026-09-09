@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -28,6 +29,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -77,6 +79,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return createAdmin(args[1:], stdin, stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
+	case "release":
+		return releaseCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -448,6 +452,40 @@ func readPassword(stdin io.Reader) (string, error) {
 	return strings.TrimRight(line, "\r\n"), nil
 }
 
+func releaseCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return errors.New("release command requires a subcommand (verify)")
+	}
+	switch args[0] {
+	case "verify":
+		flags := flag.NewFlagSet("release verify", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		manifestPath := flags.String("manifest", "", "Path to signed release manifest file")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *manifestPath == "" {
+			return errors.New("--manifest is required")
+		}
+		data, err := os.ReadFile(*manifestPath)
+		if err != nil {
+			return fmt.Errorf("read manifest: %w", err)
+		}
+		var signed release.Signed
+		if err := json.Unmarshal(data, &signed); err != nil {
+			return fmt.Errorf("parse signed manifest: %w", err)
+		}
+		verified, err := release.Verify(signed)
+		if err != nil {
+			return fmt.Errorf("verify manifest: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "verified edition=%s core=%s sdk=%s artifacts=%d\n", verified.Edition, verified.CoreVersion, verified.SDKVersion, len(verified.Artifacts))
+		return err
+	default:
+		return fmt.Errorf("unknown release subcommand %q", args[0])
+	}
+}
+
 type runtimeFlags struct {
 	capacityProfile *string
 	configPath      *string
@@ -491,9 +529,10 @@ func printUsage(w io.Writer) {
 Usage:
   hydro version
   hydro migrate [runtime flags]
-	hydro upgrade check [runtime flags]
+  hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro doctor [runtime flags]
+  hydro release verify --manifest PATH
   hydro serve [runtime flags]
   hydro help
 
