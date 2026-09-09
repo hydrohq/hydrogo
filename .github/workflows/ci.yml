@@ -139,4 +139,4 @@ jobs:
       - name: Run race-sensitive contract tests
         env:
           CGO_ENABLED: '1'
-        run: go test -race -p 1 ./internal/... ./modules/... ./cmd/hydro
+        run: go test -race -p 1 -count=1 ./internal/... ./modules/... ./cmd/hydro
