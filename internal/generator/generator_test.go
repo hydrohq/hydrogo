@@ -44,6 +44,22 @@ func TestGenerateIsDeterministicAndPreservesCustom(t *testing.T) {
 	}
 }
 
+func TestGenerateRejectsSymlinkRoot(t *testing.T) {
+	parent := t.TempDir()
+	target := filepath.Join(parent, "target")
+	if err := os.Mkdir(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(parent, "root-link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	spec := Spec{Name: "pages", Table: "pages_generated", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"pages.read"}, Dialects: []string{"sqlite"}}
+	if _, err := Generate(link, spec); err == nil {
+		t.Fatal("generator accepted a symlink root")
+	}
+}
+
 func TestValidateDeniesSecretsAndDestructiveMigrations(t *testing.T) {
 	base := Spec{Name: "profile", Table: "profiles", Fields: []Field{{Name: "email", Type: "string"}}, Permissions: []string{"profile.read"}, Dialects: []string{"sqlite"}}
 	secret := base

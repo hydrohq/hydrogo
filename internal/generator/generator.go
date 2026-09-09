@@ -78,6 +78,13 @@ func Generate(root string, spec Spec) (Lock, error) {
 	if strings.TrimSpace(root) == "" {
 		return Lock{}, ErrInvalidSpec
 	}
+	if info, err := os.Lstat(root); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return Lock{}, fmt.Errorf("generator root must be a real directory: %s", root)
+		}
+	} else if !os.IsNotExist(err) {
+		return Lock{}, err
+	}
 	if err := os.MkdirAll(filepath.Join(root, "generated", spec.Name), 0o755); err != nil {
 		return Lock{}, err
 	}
