@@ -37,6 +37,9 @@ func TestOperationalRoutesAreExplicit(t *testing.T) {
 		if res.Header().Get("Content-Security-Policy") == "" {
 			t.Errorf("GET %s missing Content-Security-Policy header", route.path)
 		}
+		if got := res.Header().Get("Permissions-Policy"); got != "camera=(), microphone=(), geolocation=()" {
+			t.Errorf("GET %s permissions policy = %q", route.path, got)
+		}
 		if route.path != "/unregistered" && (res.Header().Get("Cache-Control") != "no-store" || res.Header().Get("Pragma") != "no-cache") {
 			t.Errorf("GET %s is cacheable: cache-control=%q pragma=%q", route.path, res.Header().Get("Cache-Control"), res.Header().Get("Pragma"))
 		}

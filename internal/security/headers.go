@@ -51,6 +51,7 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 			w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 			w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+			w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
 			if cfg.EnableHSTS {
 				w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
