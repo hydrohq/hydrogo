@@ -93,6 +93,9 @@ func TestUnmarshalReaderEnforcesByteLimit(t *testing.T) {
 	if _, err := UnmarshalReader(strings.NewReader("12345"), 4); !errors.Is(err, ErrDocumentTooLarge) {
 		t.Fatalf("error = %v, want %v", err, ErrDocumentTooLarge)
 	}
+	if _, err := UnmarshalReader(strings.NewReader("{}"), 1<<63-1); !errors.Is(err, ErrInvalidDocument) {
+		t.Fatalf("overflowing limit error = %v, want %v", err, ErrInvalidDocument)
+	}
 }
 
 func TestImportRejectsMissingExecutor(t *testing.T) {

@@ -123,7 +123,7 @@ func Unmarshal(data []byte) (Document, error) {
 // UnmarshalReader bounds bytes read from an operator-provided export before
 // decoding it, preventing an untrusted path from causing an unbounded read.
 func UnmarshalReader(reader io.Reader, maxBytes int64) (Document, error) {
-	if reader == nil || maxBytes <= 0 {
+	if reader == nil || maxBytes <= 0 || maxBytes == 1<<63-1 {
 		return Document{}, ErrInvalidDocument
 	}
 	data, err := io.ReadAll(io.LimitReader(reader, maxBytes+1))
