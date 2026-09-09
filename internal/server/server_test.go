@@ -35,6 +35,9 @@ func TestOperationalRoutesAreExplicit(t *testing.T) {
 		if res.Header().Get("Content-Security-Policy") == "" {
 			t.Errorf("GET %s missing Content-Security-Policy header", route.path)
 		}
+		if route.path != "/unregistered" && (res.Header().Get("Cache-Control") != "no-store" || res.Header().Get("Pragma") != "no-cache") {
+			t.Errorf("GET %s is cacheable: cache-control=%q pragma=%q", route.path, res.Header().Get("Cache-Control"), res.Header().Get("Pragma"))
+		}
 		requestID := res.Header().Get("X-Request-ID")
 		if len(requestID) != 32 {
 			t.Errorf("GET %s request id length = %d, want 32", route.path, len(requestID))
