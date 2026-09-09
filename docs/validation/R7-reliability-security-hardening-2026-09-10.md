@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `9a810c1`  
-**Validation baseline:** `9a810c1`  
+**Repository commit:** `1709b82`  
+**Validation baseline:** `1709b82`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -65,6 +65,8 @@ verification improvements after the R3/R5 contract work.
   graceful-shutdown handling.
 - Portable reader limits reject the integer-overflow boundary before applying
   `maxBytes+1`, preserving the byte-bound contract for untrusted documents.
+- Multipart media request limits clamp the file-size-plus-overhead calculation
+  at the integer boundary, preventing negative body limits from overflow.
 
 ## Evidence commands
 
