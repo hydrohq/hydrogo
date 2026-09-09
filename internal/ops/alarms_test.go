@@ -21,3 +21,17 @@ func TestEvaluateReturnsNoAlarmForHealthySnapshot(t *testing.T) {
 		t.Fatalf("healthy alarms = %#v", alarms)
 	}
 }
+
+func TestEvaluateClearsReadinessAlarmAfterRecovery(t *testing.T) {
+	now := time.Now().UTC()
+	unhealthy := Snapshot{Now: now, LastBackup: now, BackupMaxAge: time.Hour, DiskFreeBytes: 1000, DiskMinBytes: 100, ReadinessFailed: true}
+	alarms := Evaluate(unhealthy)
+	if len(alarms) != 1 || alarms[0].Code != "readiness_failed" {
+		t.Fatalf("unhealthy readiness alarms = %#v", alarms)
+	}
+
+	unhealthy.ReadinessFailed = false
+	if alarms := Evaluate(unhealthy); len(alarms) != 0 {
+		t.Fatalf("recovered readiness alarms = %#v", alarms)
+	}
+}
