@@ -151,7 +151,7 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
-	if h.DB == nil {
+	if h.DB == nil || h.Service.Repository == nil {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -164,7 +164,7 @@ func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) || h.DB == nil {
+	if !editorAllowed(r) || h.DB == nil || h.Service.Repository == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -271,7 +271,7 @@ func (h Handler) adminTransition(w http.ResponseWriter, r *http.Request, action 
 }
 
 func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
-	if h.DB == nil {
+	if h.DB == nil || h.Service.Repository == nil {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}

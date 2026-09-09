@@ -251,7 +251,11 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "authentication failed", http.StatusInternalServerError)
 		return
 	}
-	if h.MFA != nil && h.MFADB != nil {
+	if h.MFA != nil {
+		if h.MFADB == nil {
+			http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		enabled, err := h.MFA.Enabled(r.Context(), h.MFADB, user.ID)
 		if err != nil {
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
@@ -295,6 +299,10 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil {
+		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	session := SessionFromContext(r.Context())
 	if session != nil {
 		if err := h.Service.RevokeSession(r.Context(), sessionToken(r)); err != nil && !errors.Is(err, ErrSessionNotFound) {
@@ -323,6 +331,10 @@ func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil {
+		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	actor := UserFromContext(r.Context())
 	if actor == nil || !actor.Active || actor.Role != RoleAdmin {
 		http.Error(w, "forbidden", http.StatusForbidden)
