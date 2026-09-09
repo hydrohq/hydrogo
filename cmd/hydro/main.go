@@ -15,6 +15,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -22,6 +23,7 @@ import (
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
+	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
@@ -81,6 +83,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return createAdmin(args[1:], stdin, stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
+	case "backup":
+		return backupCommand(args[1:], stdout, stderr)
+	case "restore":
+		return restoreCommand(args[1:], stdout, stderr)
 	case "release":
 		return releaseCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -89,6 +95,134 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	default:
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
+	}
+}
+
+func backupCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return errors.New("backup command requires a subcommand (sqlite)")
+	}
+	if args[0] != "sqlite" {
+		return fmt.Errorf("unknown backup subcommand %q", args[0])
+	}
+	flags := flag.NewFlagSet("backup sqlite", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	destination := flags.String("destination", "", "New snapshot directory")
+	mediaDir := flags.String("media-dir", "", "Media directory override")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if strings.TrimSpace(*destination) == "" {
+		return errors.New("--destination is required")
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	if cfg.Database.Dialect != database.SQLite {
+		return errors.New("backup sqlite requires --database-dialect sqlite")
+	}
+	if *mediaDir != "" {
+		cfg.Media.Dir = *mediaDir
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	manifest, err := backupstore.SnapshotSQLite(ctx, db, cfg.Media.Dir, *destination)
+	if err != nil {
+		return fmt.Errorf("create SQLite backup: %w", err)
+	}
+	_, err = fmt.Fprintf(stdout, "backup-created destination=%s database-bytes=%d media-files=%d\n", *destination, manifest.Database.Bytes, len(manifest.Media))
+	return err
+}
+
+func restoreCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return errors.New("restore command requires a subcommand (verify, stage or activate-media)")
+	}
+	switch args[0] {
+	case "verify":
+		flags := flag.NewFlagSet("restore verify", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		snapshot := flags.String("snapshot", "", "Snapshot directory")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 {
+			return fmt.Errorf("unexpected arguments: %v", flags.Args())
+		}
+		if strings.TrimSpace(*snapshot) == "" {
+			return errors.New("--snapshot is required")
+		}
+		manifest, err := backupstore.ReadManifest(filepath.Join(*snapshot, "manifest.json"))
+		if err != nil {
+			return fmt.Errorf("read backup manifest: %w", err)
+		}
+		if err := backupstore.Verify(*snapshot, manifest); err != nil {
+			return fmt.Errorf("verify backup: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "restore-verified snapshot=%s database-bytes=%d media-files=%d\n", *snapshot, manifest.Database.Bytes, len(manifest.Media))
+		return err
+	case "stage":
+		flags := flag.NewFlagSet("restore stage", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		snapshot := flags.String("snapshot", "", "Verified snapshot directory")
+		destination := flags.String("destination", "", "New inactive staging directory")
+		sessionsRevoked := flags.Bool("sessions-revoked", false, "Confirm all restored sessions are revoked")
+		egressQuarantined := flags.Bool("egress-quarantined", false, "Confirm outbound integrations are quarantined")
+		oldWritesBlocked := flags.Bool("old-writes-blocked", false, "Confirm old-version writes are blocked")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 {
+			return fmt.Errorf("unexpected arguments: %v", flags.Args())
+		}
+		if strings.TrimSpace(*snapshot) == "" || strings.TrimSpace(*destination) == "" {
+			return errors.New("--snapshot and --destination are required")
+		}
+		controls := backupstore.RestoreControls{SessionsRevoked: *sessionsRevoked, EgressQuarantined: *egressQuarantined, OldWritesBlocked: *oldWritesBlocked}
+		manifest, err := backupstore.ReadManifest(filepath.Join(*snapshot, "manifest.json"))
+		if err != nil {
+			return fmt.Errorf("read backup manifest: %w", err)
+		}
+		if err := backupstore.RestoreToStaging(*snapshot, *destination, manifest, controls); err != nil {
+			return fmt.Errorf("stage restore: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "restore-staged destination=%s controls=sessions-revoked,egress-quarantined,old-writes-blocked\n", *destination)
+		return err
+	case "activate-media":
+		flags := flag.NewFlagSet("restore activate-media", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		staging := flags.String("staging", "", "Quarantined staging directory")
+		active := flags.String("active", "", "Active media directory")
+		rollback := flags.String("rollback", "", "Rollback media directory")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 {
+			return fmt.Errorf("unexpected arguments: %v", flags.Args())
+		}
+		if strings.TrimSpace(*staging) == "" || strings.TrimSpace(*active) == "" || strings.TrimSpace(*rollback) == "" {
+			return errors.New("--staging, --active and --rollback are required")
+		}
+		if err := backupstore.ActivateStagingMedia(*staging, *active, *rollback); err != nil {
+			return fmt.Errorf("activate restored media: %w", err)
+		}
+		_, err := fmt.Fprintf(stdout, "restore-media-activated active=%s rollback=%s\n", *active, *rollback)
+		return err
+	default:
+		return fmt.Errorf("unknown restore subcommand %q", args[0])
 	}
 }
 
@@ -549,6 +683,10 @@ Usage:
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro doctor [runtime flags]
+  hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
+  hydro restore verify --snapshot PATH
+  hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
+  hydro restore activate-media --staging PATH --active PATH --rollback PATH
   hydro release verify --manifest PATH --public-key PATH
   hydro serve [runtime flags]
   hydro help

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 )
 
@@ -121,5 +122,53 @@ func TestRunReleaseVerify(t *testing.T) {
 	}
 	if err := run([]string{"release", "verify", "--manifest", manifestFile, "--public-key", wrongKeyFile}, strings.NewReader(""), &stdout, &stderr); err == nil {
 		t.Fatal("manifest verified with an unrelated trusted key")
+	}
+}
+
+func TestRunBackupAndRestoreGates(t *testing.T) {
+	root := t.TempDir()
+	dbPath := filepath.Join(root, "hydro.sqlite")
+	mediaDir := filepath.Join(root, "media")
+	snapshot := filepath.Join(root, "snapshot")
+	staging := filepath.Join(root, "staging")
+	if err := os.MkdirAll(filepath.Join(mediaDir, "nested"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mediaDir, "nested", "asset.txt"), []byte("asset"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"backup", "sqlite", "--database-dsn", dbPath, "--media-dir", mediaDir, "--destination", snapshot}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("backup failed: %v, stderr: %s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "backup-created") {
+		t.Fatalf("unexpected backup output: %q", stdout.String())
+	}
+
+	stdout.Reset()
+	if err := run([]string{"restore", "verify", "--snapshot", snapshot}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("restore verify failed: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "restore-verified") {
+		t.Fatalf("unexpected restore verify output: %q", stdout.String())
+	}
+
+	if err := run([]string{"restore", "stage", "--snapshot", snapshot, "--destination", staging}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("restore stage succeeded without quarantine controls")
+	}
+	stdout.Reset()
+	if err := run([]string{"restore", "stage", "--snapshot", snapshot, "--destination", staging, "--sessions-revoked", "--egress-quarantined", "--old-writes-blocked"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("restore stage failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(staging, "RESTORE_QUARANTINED.json")); err != nil {
+		t.Fatalf("restore marker missing: %v", err)
+	}
+	manifest, err := backupstore.ReadManifest(filepath.Join(snapshot, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := backupstore.Verify(staging, manifest); err != nil {
+		t.Fatalf("staged restore failed verification: %v", err)
 	}
 }

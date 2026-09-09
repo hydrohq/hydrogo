@@ -99,10 +99,16 @@ hydro migrate
 hydro doctor
 hydro upgrade check
 hydro create-admin --email EMAIL --password-stdin
+hydro backup sqlite --destination PATH [--media-dir PATH]
+hydro restore verify --snapshot PATH
+hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
+hydro restore activate-media --staging PATH --active PATH --rollback PATH
 hydro release verify --manifest release.json --public-key release.pub
 ```
 
 `hydro release verify` does not trust the public key embedded in the manifest by itself. It requires a trusted Ed25519 public-key file distributed by the operator.
+
+Backup and restore are deliberately staging-first. A SQLite backup creates a new immutable snapshot directory; restore verification only checks hashes, staging never overwrites an existing destination, and media activation requires the quarantine marker plus all three operator controls. Pause application writes and background workers before taking a live snapshot.
 
 ## Tests and production gates
 
