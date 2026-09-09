@@ -31,6 +31,28 @@ func TestOperationalRoutesAreExplicit(t *testing.T) {
 		if res.Header().Get("Content-Security-Policy") == "" {
 			t.Errorf("GET %s missing Content-Security-Policy header", route.path)
 		}
+		requestID := res.Header().Get("X-Request-ID")
+		if len(requestID) != 32 {
+			t.Errorf("GET %s request id length = %d, want 32", route.path, len(requestID))
+		}
+	}
+}
+
+func TestRequestIDIsFreshAndClientValueIsNotTrusted(t *testing.T) {
+	handler := NewHandler(Config{})
+	first := httptest.NewRecorder()
+	firstRequest := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	firstRequest.Header.Set("X-Request-ID", "attacker-controlled")
+	handler.ServeHTTP(first, firstRequest)
+	second := httptest.NewRecorder()
+	handler.ServeHTTP(second, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	firstID := first.Header().Get("X-Request-ID")
+	if firstID == "" || firstID == "attacker-controlled" {
+		t.Fatalf("client request id was trusted: %q", firstID)
+	}
+	if firstID == second.Header().Get("X-Request-ID") {
+		t.Fatalf("request id was reused: %q", firstID)
 	}
 }
 
