@@ -12,7 +12,7 @@ Bu belge Compact pilot için uygulanabilir işletim adımlarını toplar. Restor
 
 ## Compact snapshot ve restore
 
-Yazmalar ve worker dış egress kontrollü olarak durdurulur. `internal/backup.SnapshotSQLite` ile boş bir snapshot dizinine SQLite `VACUUM INTO` alınır; medya dosyaları checksum manifestiyle birlikte kopyalanır.
+Yazmalar ve worker dış egress kontrollü olarak durdurulur. SQLite için `hydro backup sqlite`, PostgreSQL için `hydro backup postgres` kullanılır; SQLite `VACUUM INTO`, PostgreSQL `pg_dump` custom format kullanır. Her iki akışta medya dosyaları checksum manifestiyle birlikte kopyalanır. PostgreSQL parolası geçici `PGPASSFILE` ile aktarılır; komut satırına yazılmaz.
 
 Restore hedefi boş staging dizini olmalıdır. `Verify` geçmeden hiçbir dosya aktive edilmez. `RestoreToStaging` yalnız şu üç koşul kanıtlandığında marker üretir:
 
@@ -20,7 +20,7 @@ Restore hedefi boş staging dizini olmalıdır. `Verify` geçmeden hiçbir dosya
 - Worker ve dış egress karantinaya alındı.
 - Eski deployment'ın yazması engellendi.
 
-Marker olmadan staging public trafiğe, worker'a veya export işlemine açılmaz. PostgreSQL restore ayrı boş DB/instance'a `pg_restore` ile yapılır; dosya dizini rename etmek PostgreSQL restore değildir.
+Marker olmadan staging public trafiğe, worker'a veya export işlemine açılmaz. SQLite restore için `hydro restore stage`, PostgreSQL restore için boş hedef DB/instance üzerinde `hydro restore postgres` kullanılır; dosya dizini rename etmek PostgreSQL restore değildir. `hydro restore verify` aktivasyondan önce checksum kontrolünü bağımsız çalıştırır.
 
 ## Parola kurtarma ve davet
 

@@ -219,9 +219,9 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 
 func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("backup command requires a subcommand (sqlite)")
+		return errors.New("backup command requires a subcommand (sqlite or postgres)")
 	}
-	if args[0] != "sqlite" {
+	if args[0] != "sqlite" && args[0] != "postgres" {
 		return fmt.Errorf("unknown backup subcommand %q", args[0])
 	}
 	flags := flag.NewFlagSet("backup sqlite", flag.ContinueOnError)
@@ -242,9 +242,6 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if cfg.Database.Dialect != database.SQLite {
-		return errors.New("backup sqlite requires --database-dialect sqlite")
-	}
 	if *mediaDir != "" {
 		cfg.Media.Dir = *mediaDir
 	}
@@ -253,6 +250,24 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	ctx := context.Background()
+	if args[0] == "postgres" {
+		if cfg.Database.Dialect != database.Postgres {
+			return errors.New("backup postgres requires --database-dialect postgres")
+		}
+		tools, err := backupstore.LocatePostgresTools()
+		if err != nil {
+			return err
+		}
+		manifest, err := backupstore.SnapshotPostgres(ctx, tools, cfg.Database.DSN, cfg.Media.Dir, *destination)
+		if err != nil {
+			return fmt.Errorf("create PostgreSQL backup: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "backup-created dialect=postgres destination=%s database-bytes=%d media-files=%d\n", *destination, manifest.Database.Bytes, len(manifest.Media))
+		return err
+	}
+	if cfg.Database.Dialect != database.SQLite {
+		return errors.New("backup sqlite requires --database-dialect sqlite")
+	}
 	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
 	if err != nil {
 		return err
@@ -268,7 +283,7 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 
 func restoreCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("restore command requires a subcommand (verify, stage or activate-media)")
+		return errors.New("restore command requires a subcommand (verify, stage, postgres or activate-media)")
 	}
 	switch args[0] {
 	case "verify":
@@ -319,6 +334,45 @@ func restoreCommand(args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("stage restore: %w", err)
 		}
 		_, err = fmt.Fprintf(stdout, "restore-staged destination=%s controls=sessions-revoked,egress-quarantined,old-writes-blocked\n", *destination)
+		return err
+	case "postgres":
+		flags := flag.NewFlagSet("restore postgres", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		values := addRuntimeFlags(flags)
+		snapshot := flags.String("snapshot", "", "Verified snapshot directory")
+		destination := flags.String("destination", "", "New inactive staging directory")
+		sessionsRevoked := flags.Bool("sessions-revoked", false, "Confirm all restored sessions are revoked")
+		egressQuarantined := flags.Bool("egress-quarantined", false, "Confirm outbound integrations are quarantined")
+		oldWritesBlocked := flags.Bool("old-writes-blocked", false, "Confirm old-version writes are blocked")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 {
+			return fmt.Errorf("unexpected arguments: %v", flags.Args())
+		}
+		if strings.TrimSpace(*snapshot) == "" || strings.TrimSpace(*destination) == "" {
+			return errors.New("--snapshot and --destination are required")
+		}
+		cfg, err := loadRuntimeConfig(flags, values)
+		if err != nil {
+			return err
+		}
+		if cfg.Database.Dialect != database.Postgres {
+			return errors.New("restore postgres requires --database-dialect postgres")
+		}
+		tools, err := backupstore.LocatePostgresTools()
+		if err != nil {
+			return err
+		}
+		manifest, err := backupstore.ReadManifest(filepath.Join(*snapshot, "manifest.json"))
+		if err != nil {
+			return fmt.Errorf("read backup manifest: %w", err)
+		}
+		controls := backupstore.RestoreControls{SessionsRevoked: *sessionsRevoked, EgressQuarantined: *egressQuarantined, OldWritesBlocked: *oldWritesBlocked}
+		if err := backupstore.RestorePostgresToStaging(context.Background(), tools, cfg.Database.DSN, *snapshot, *destination, manifest, controls); err != nil {
+			return fmt.Errorf("stage PostgreSQL restore: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "restore-staged dialect=postgres destination=%s controls=sessions-revoked,egress-quarantined,old-writes-blocked\n", *destination)
 		return err
 	case "activate-media":
 		flags := flag.NewFlagSet("restore activate-media", flag.ContinueOnError)
@@ -803,8 +857,10 @@ Usage:
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro doctor [runtime flags]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
+  hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
   hydro restore verify --snapshot PATH
   hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
+  hydro restore postgres --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked [runtime flags]
   hydro restore activate-media --staging PATH --active PATH --rollback PATH
   hydro portable export --path PATH [runtime flags]
   hydro portable import --path PATH --dry-run [runtime flags]

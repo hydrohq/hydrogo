@@ -100,8 +100,10 @@ hydro doctor
 hydro upgrade check
 hydro create-admin --email EMAIL --password-stdin
 hydro backup sqlite --destination PATH [--media-dir PATH]
+hydro backup postgres --destination PATH [--media-dir PATH]
 hydro restore verify --snapshot PATH
 hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
+hydro restore postgres --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
 hydro restore activate-media --staging PATH --active PATH --rollback PATH
 hydro portable export --path PATH
 hydro portable import --path PATH --dry-run
@@ -111,7 +113,7 @@ hydro release verify --manifest release.json --public-key release.pub
 
 `hydro release verify` does not trust the public key embedded in the manifest by itself. It requires a trusted Ed25519 public-key file distributed by the operator.
 
-Backup and restore are deliberately staging-first. A SQLite backup creates a new immutable snapshot directory; restore verification only checks hashes, staging never overwrites an existing destination, and media activation requires the quarantine marker plus all three operator controls. Pause application writes and background workers before taking a live snapshot.
+Backup and restore are deliberately staging-first. SQLite and PostgreSQL backups create a new immutable snapshot directory; PostgreSQL uses `pg_dump`/`pg_restore` with a temporary password file and never puts the password in process arguments. Restore verification only checks hashes, staging never overwrites an existing destination, and media activation requires the quarantine marker plus all three operator controls. Pause application writes and background workers before taking a live snapshot.
 
 Portable import is also explicit: `--dry-run` validates the allowlisted, secret-free document without a database write, while a real import requires `--confirm` and runs in one transaction.
 
