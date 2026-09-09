@@ -619,6 +619,7 @@ func serve(args []string, stderr io.Writer) error {
 		Metrics:         metrics,
 		EnableHSTS:      cfg.Security.EnableHSTS,
 		SecureCookie:    cfg.Security.SecureCookies,
+		HTTPBodyLimit:   budget.HTTPBodyBytes,
 		Routes:          routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {

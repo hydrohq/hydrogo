@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -110,6 +111,30 @@ func TestProtectedRouteAuthorization(t *testing.T) {
 	handler.ServeHTTP(recAuth, reqAuth)
 	if recAuth.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", recAuth.Code)
+	}
+}
+
+func TestGeneralRequestBodyLimitIsEnforced(t *testing.T) {
+	handler := NewHandler(Config{
+		HTTPBodyLimit: 4,
+		Routes: []router.Route{{
+			Pattern: "GET /body",
+			Access:  router.Public,
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.ReadAll(r.Body)
+				w.WriteHeader(http.StatusNoContent)
+			}),
+		}},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/body", strings.NewReader("too large"))
+	req.ContentLength = int64(len("too large"))
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	if res.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusRequestEntityTooLarge)
+	}
+	if !strings.Contains(res.Body.String(), `"code":"request_entity_too_large"`) {
+		t.Fatalf("body = %q", res.Body.String())
 	}
 }
 

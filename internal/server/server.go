@@ -25,6 +25,7 @@ type Config struct {
 	Metrics         *observability.Metrics
 	EnableHSTS      bool
 	SecureCookie    bool
+	HTTPBodyLimit   int64
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -111,11 +112,18 @@ func NewHandler(config Config) http.Handler {
 		handler = config.Metrics.Middleware(handler)
 	}
 
+	// General requests use the selected capacity profile budget. Media uploads
+	// enforce their larger, uploader-specific limit in the media handler.
+	handler = security.RequestBodyLimitMiddleware(config.HTTPBodyLimit, func(r *http.Request) bool {
+		return r.URL.Path == "/api/media" || r.URL.Path == "/api/v1/media"
+	})(handler)
+
+	// Normalize handler errors after the body limit and before the request ID
+	// middleware so even middleware-generated errors include request_id.
+	handler = security.ErrorMiddleware(handler)
+
 	// Generate a fresh correlation identifier before security and auth middleware.
 	handler = security.RequestIDMiddleware(handler)
-
-	// Normalize handler errors after a request ID has been attached to context.
-	handler = security.ErrorMiddleware(handler)
 
 	// Apply CSRF protection
 	handler = security.CSRFMiddleware(config.SecureCookie)(handler)
