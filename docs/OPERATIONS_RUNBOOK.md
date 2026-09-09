@@ -39,7 +39,7 @@ Snapshot retention için önce `hydro backup prune --root SNAPSHOTS --keep 3 --d
 
 ## Alarm değerlendirmesi
 
-`internal/ops.Evaluate` son başarılı backup yaşı, minimum disk alanı, migration başarısızlığı ve SMTP delivery failure sinyallerini deterministic alarm kodlarına çevirir. `backup_stale`, `disk_low` ve `migration_failed` kritik; `smtp_delivery` uyarı seviyesindedir. Evaluator alarm delivery sisteminin yerine geçmez; production notifier ve dış backup/key kurtarma tatbikatı ayrıca doğrulanmalıdır.
+`internal/ops.Evaluate` son başarılı backup yaşı, minimum disk alanı, migration başarısızlığı, SMTP delivery failure ve dead-letter job sinyallerini deterministic alarm kodlarına çevirir. `backup_stale`, `disk_low` ve `migration_failed` kritik; `smtp_delivery` ve `jobs_dead_lettered` uyarı seviyesindedir. Evaluator alarm delivery sisteminin yerine geçmez; production notifier ve dış backup/key kurtarma tatbikatı ayrıca doğrulanmalıdır.
 
 ## Mevcut limitler
 
