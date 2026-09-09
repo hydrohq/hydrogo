@@ -146,6 +146,25 @@ func TestSnapshotSQLiteRejectsMissingMediaRoot(t *testing.T) {
 	}
 }
 
+func TestSnapshotSQLiteRejectsEmptyMediaRoot(t *testing.T) {
+	root := t.TempDir()
+	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY)"); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(root, "snapshot")
+	if _, err := SnapshotSQLite(context.Background(), db, "  ", destination); err == nil {
+		t.Fatal("snapshot accepted an empty media root")
+	}
+	if _, err := os.Stat(destination); !os.IsNotExist(err) {
+		t.Fatalf("failed snapshot destination still exists: %v", err)
+	}
+}
+
 func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 	root := t.TempDir()
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))

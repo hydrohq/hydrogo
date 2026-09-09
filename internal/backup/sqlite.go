@@ -63,8 +63,8 @@ func SnapshotSQLite(ctx context.Context, db *sql.DB, mediaDir, destination strin
 // caller-provided wall-clock budget. A failed or over-budget snapshot never
 // leaves a usable destination directory behind.
 func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destination string, limits SnapshotLimits) (Manifest, error) {
-	if db == nil || strings.TrimSpace(destination) == "" {
-		return Manifest{}, errors.New("database and destination are required")
+	if db == nil || strings.TrimSpace(mediaDir) == "" || strings.TrimSpace(destination) == "" {
+		return Manifest{}, errors.New("database, media directory, and destination are required")
 	}
 	started := time.Now()
 	checkBudget := func() error {
