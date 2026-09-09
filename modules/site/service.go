@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 type Store interface {
@@ -35,7 +36,7 @@ type Service struct {
 }
 
 func (s Service) requireStore() error {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return ErrStoreRequired
 	}
 	return nil

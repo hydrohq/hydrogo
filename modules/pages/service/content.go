@@ -8,6 +8,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -29,7 +30,7 @@ func (s ContentService) Get(ctx context.Context, db database.Executor, pageID st
 	if strings.TrimSpace(pageID) == "" {
 		return pages.Page{}, ErrInvalidPage
 	}
-	if s.Pages == nil {
+	if guards.IsNil(s.Pages) {
 		return pages.Page{}, ErrDependencyRequired
 	}
 	return s.Pages.GetContent(ctx, db, pageID)
@@ -45,7 +46,7 @@ type ContentService struct {
 }
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
-	if s.Pages == nil {
+	if guards.IsNil(s.Pages) {
 		return pages.Page{}, ErrDependencyRequired
 	}
 	key := strings.ToLower(strings.Trim(locale, "/")) + ":" + strings.Trim(strings.ToLower(slug), "/")
@@ -135,7 +136,7 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 }
 
 func (s ContentService) requireMutationDependencies() error {
-	if s.Transactions == nil || s.Pages == nil || s.Audit == nil || s.Outbox == nil {
+	if guards.IsNil(s.Transactions) || guards.IsNil(s.Pages) || guards.IsNil(s.Audit) || guards.IsNil(s.Outbox) {
 		return ErrDependencyRequired
 	}
 	return nil

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 type PageWriter interface {
@@ -30,7 +31,7 @@ type CreateDraft struct {
 }
 
 func (s CreateDraft) Execute(ctx context.Context, id, title string) error {
-	if s.Transactions == nil || s.Pages == nil || s.Audit == nil || s.Outbox == nil {
+	if guards.IsNil(s.Transactions) || guards.IsNil(s.Pages) || guards.IsNil(s.Audit) || guards.IsNil(s.Outbox) {
 		return ErrDependencyRequired
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {

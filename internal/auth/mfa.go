@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/pquerna/otp/totp"
 )
 
@@ -35,7 +36,7 @@ type MFAService struct {
 }
 
 func (s MFAService) Enabled(ctx context.Context, db database.Executor, userID string) (bool, error) {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return false, ErrMFAStoreRequired
 	}
 	_, enabled, err := s.Store.GetFactor(ctx, db, userID)
@@ -55,7 +56,7 @@ type MFAEnrollment struct {
 }
 
 func (s MFAService) Enroll(ctx context.Context, tx database.Executor, userID, accountName string) (MFAEnrollment, error) {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return MFAEnrollment{}, ErrMFAStoreRequired
 	}
 	if len(s.MasterKey) != 16 && len(s.MasterKey) != 24 && len(s.MasterKey) != 32 {
@@ -80,7 +81,7 @@ func (s MFAService) Enroll(ctx context.Context, tx database.Executor, userID, ac
 }
 
 func (s MFAService) Enable(ctx context.Context, tx database.Executor, userID string) error {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return ErrMFAStoreRequired
 	}
 	factor, _, err := s.Store.GetFactor(ctx, tx, userID)
@@ -91,7 +92,7 @@ func (s MFAService) Enable(ctx context.Context, tx database.Executor, userID str
 }
 
 func (s MFAService) Disable(ctx context.Context, tx database.Executor, userID string) error {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return ErrMFAStoreRequired
 	}
 	factor, _, err := s.Store.GetFactor(ctx, tx, userID)
@@ -102,7 +103,7 @@ func (s MFAService) Disable(ctx context.Context, tx database.Executor, userID st
 }
 
 func (s MFAService) EnableWithCode(ctx context.Context, tx database.Executor, userID, code string) error {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return ErrMFAStoreRequired
 	}
 	ciphertext, _, err := s.Store.GetFactor(ctx, tx, userID)
@@ -117,7 +118,7 @@ func (s MFAService) EnableWithCode(ctx context.Context, tx database.Executor, us
 }
 
 func (s MFAService) Verify(ctx context.Context, db database.Executor, userID, code string) error {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return ErrMFAStoreRequired
 	}
 	ciphertext, enabled, err := s.Store.GetFactor(ctx, db, userID)
@@ -135,7 +136,7 @@ func (s MFAService) Verify(ctx context.Context, db database.Executor, userID, co
 }
 
 func (s MFAService) ConsumeRecoveryCode(ctx context.Context, tx database.Executor, userID, code string) error {
-	if s.Store == nil {
+	if guards.IsNil(s.Store) {
 		return ErrMFAStoreRequired
 	}
 	digest := sha256.Sum256([]byte(strings.TrimSpace(strings.ToUpper(code))))

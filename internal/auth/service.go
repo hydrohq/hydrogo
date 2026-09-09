@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 const (
@@ -58,7 +60,7 @@ func NewAuthService(users UserRepository, sessions SessionRepository, params Arg
 }
 
 func (s *AuthService) CreateUser(ctx context.Context, email, password string, role Role) (*User, error) {
-	if s == nil || s.userRepo == nil {
+	if s == nil || guards.IsNil(s.userRepo) {
 		return nil, ErrUserRepositoryRequired
 	}
 	normEmail := NormalizeEmail(email)
@@ -95,7 +97,7 @@ func (s *AuthService) CreateUser(ctx context.Context, email, password string, ro
 }
 
 func (s *AuthService) Authenticate(ctx context.Context, email, password string) (*User, error) {
-	if s == nil || s.userRepo == nil {
+	if s == nil || guards.IsNil(s.userRepo) {
 		return nil, ErrUserRepositoryRequired
 	}
 	normEmail := NormalizeEmail(email)
@@ -122,7 +124,7 @@ func (s *AuthService) Authenticate(ctx context.Context, email, password string) 
 }
 
 func (s *AuthService) CreateSession(ctx context.Context, userID, userAgent, ipAddress string, ttl time.Duration) (string, *Session, error) {
-	if s == nil || s.sessionRepo == nil {
+	if s == nil || guards.IsNil(s.sessionRepo) {
 		return "", nil, ErrSessionRepositoryRequired
 	}
 	if ttl <= 0 {
@@ -163,7 +165,7 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 	if s == nil || s.sessionRepo == nil {
 		return nil, nil, ErrSessionRepositoryRequired
 	}
-	if s.userRepo == nil {
+	if guards.IsNil(s.userRepo) {
 		return nil, nil, ErrUserRepositoryRequired
 	}
 	tokenHash := HashSessionToken(rawToken)
@@ -198,7 +200,7 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 }
 
 func (s *AuthService) RevokeSession(ctx context.Context, rawToken string) error {
-	if s == nil || s.sessionRepo == nil {
+	if s == nil || guards.IsNil(s.sessionRepo) {
 		return ErrSessionRepositoryRequired
 	}
 	tokenHash := HashSessionToken(rawToken)
@@ -206,17 +208,17 @@ func (s *AuthService) RevokeSession(ctx context.Context, rawToken string) error 
 }
 
 func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID string) error {
-	if s == nil || s.sessionRepo == nil {
+	if s == nil || guards.IsNil(s.sessionRepo) {
 		return ErrSessionRepositoryRequired
 	}
 	return s.sessionRepo.DeleteByUserID(ctx, userID)
 }
 
 func (s *AuthService) SetUserActive(ctx context.Context, userID string, active bool) error {
-	if s == nil || s.userRepo == nil {
+	if s == nil || guards.IsNil(s.userRepo) {
 		return ErrUserRepositoryRequired
 	}
-	if !active && s.sessionRepo == nil {
+	if !active && guards.IsNil(s.sessionRepo) {
 		return ErrSessionRepositoryRequired
 	}
 	if err := s.userRepo.SetActive(ctx, userID, active); err != nil {
