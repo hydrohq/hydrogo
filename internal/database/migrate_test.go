@@ -103,6 +103,9 @@ func TestCompatibilityRejectsUnknownAppliedMigration(t *testing.T) {
 	if err := database.CheckCompatibility(ctx, db, database.SQLite, migrations.FS); !errors.Is(err, database.ErrUnknownMigration) {
 		t.Fatalf("unknown migration compatibility error = %v, want %v", err, database.ErrUnknownMigration)
 	}
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); !errors.Is(err, database.ErrUnknownMigration) {
+		t.Fatalf("unknown migration apply error = %v, want %v", err, database.ErrUnknownMigration)
+	}
 }
 
 func migrationCount(t *testing.T) int {

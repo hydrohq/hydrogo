@@ -50,6 +50,13 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 	if err := ensureMigrationLedger(ctx, conn); err != nil {
 		return err
 	}
+	known := make(map[string]struct{}, len(migrations))
+	for _, migrationID := range migrations {
+		known[migrationID] = struct{}{}
+	}
+	if err := rejectUnknownMigrations(ctx, conn, known); err != nil {
+		return err
+	}
 	for index := 0; index < len(migrations); {
 		transactional, err := migrationIsTransactional(migrationFS, migrations[index], dialect)
 		if err != nil {
@@ -91,6 +98,10 @@ var ErrUnknownMigration = errors.New("database contains a migration unknown to t
 
 type migrationTransactionStarter interface {
 	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+type migrationQueryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
 func withinMigrationTransaction(ctx context.Context, starter migrationTransactionStarter, fn func(Executor) error) error {
@@ -218,7 +229,14 @@ func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrat
 	// by a newer binary. Checking only the migrations known to this binary would
 	// make that rollback look compatible and could expose old code to a newer
 	// schema. Treat the ledger as authoritative and fail closed on unknown IDs.
-	rows, err := db.QueryContext(ctx, "SELECT id FROM schema_migrations")
+	if err := rejectUnknownMigrations(ctx, db, known); err != nil {
+		return err
+	}
+	return nil
+}
+
+func rejectUnknownMigrations(ctx context.Context, queryer migrationQueryer, known map[string]struct{}) error {
+	rows, err := queryer.QueryContext(ctx, "SELECT id FROM schema_migrations")
 	if err != nil {
 		return fmt.Errorf("read migration ledger: %w", err)
 	}
