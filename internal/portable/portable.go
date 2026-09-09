@@ -67,6 +67,9 @@ func ExportWithLimit(ctx context.Context, db database.Executor, maxBytes int64) 
 	if maxBytes <= 0 {
 		return Document{}, ErrDocumentTooLarge
 	}
+	if err := database.RequireExecutor(db); err != nil {
+		return Document{}, err
+	}
 	document := Document{FormatVersion: 1, Tables: make([]Table, 0, len(specs))}
 	for _, spec := range specs {
 		query := "SELECT " + strings.Join(spec.columns, ", ") + " FROM " + spec.name + " ORDER BY " + spec.orderBy
@@ -133,8 +136,8 @@ func UnmarshalReader(reader io.Reader, maxBytes int64) (Document, error) {
 // Import replaces only the allowlisted content tables. Authentication,
 // session, audit, outbox and job state are intentionally never imported.
 func Import(ctx context.Context, tx database.Executor, document Document, dialect database.Dialect) error {
-	if tx == nil {
-		return database.ErrDatabaseRequired
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
 	}
 	if err := validate(document); err != nil {
 		return err

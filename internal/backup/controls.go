@@ -76,7 +76,7 @@ func ReleaseRestoreWrites(ctx context.Context, db *sql.DB, dialect database.Dial
 }
 
 func RestoreWritesBlocked(ctx context.Context, db database.Executor, dialect database.Dialect) (bool, error) {
-	if db == nil {
+	if err := database.RequireExecutor(db); err != nil {
 		return false, errors.New("restore database is required")
 	}
 	if err := validateDialect(dialect); err != nil {

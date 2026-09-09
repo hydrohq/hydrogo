@@ -102,6 +102,16 @@ func TestImportRejectsMissingExecutor(t *testing.T) {
 	}
 }
 
+func TestPortableRejectsTypedNilExecutor(t *testing.T) {
+	var db *sql.DB
+	if _, err := Export(context.Background(), db); !errors.Is(err, database.ErrDatabaseRequired) {
+		t.Fatalf("typed nil export error = %v, want %v", err, database.ErrDatabaseRequired)
+	}
+	if err := Import(context.Background(), db, Document{FormatVersion: 1}, database.SQLite); !errors.Is(err, database.ErrDatabaseRequired) {
+		t.Fatalf("typed nil import error = %v, want %v", err, database.ErrDatabaseRequired)
+	}
+}
+
 func TestExportWithLimitRejectsOversizedRowsDuringRead(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "bounded-export.sqlite"))

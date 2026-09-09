@@ -2,6 +2,7 @@ package erasure
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,14 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
+
+func TestSQLAdapterRejectsTypedNilExecutor(t *testing.T) {
+	var db *sql.DB
+	err := (SQLAdapter{Dialect: database.SQLite}).Apply(context.Background(), db, Intent{EditionID: "site", TargetID: "asset", Kind: "erase.media"})
+	if err == nil {
+		t.Fatal("typed nil erasure executor was accepted")
+	}
+}
 
 func TestSQLiteSQLAdapterReplayIsIdempotentForPagesAndMedia(t *testing.T) {
 	ctx := context.Background()

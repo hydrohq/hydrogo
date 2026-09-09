@@ -16,7 +16,7 @@ type SQLAdapter struct {
 }
 
 func (a SQLAdapter) Apply(ctx context.Context, db database.Executor, intent Intent) error {
-	if db == nil {
+	if err := database.RequireExecutor(db); err != nil {
 		return errors.New("erasure database is required")
 	}
 	if intent.EditionID == "" || intent.TargetID == "" {
