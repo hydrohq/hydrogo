@@ -89,6 +89,28 @@ func TestPlanSnapshotPruneRejectsSymlinkRoot(t *testing.T) {
 	}
 }
 
+func TestSnapshotRetentionRejectsEmptyRoot(t *testing.T) {
+	for _, operation := range []struct {
+		name string
+		call func() error
+	}{
+		{name: "plan", call: func() error {
+			_, err := PlanSnapshotPrune("   ", SnapshotRetention{Keep: 1})
+			return err
+		}},
+		{name: "prune", call: func() error {
+			_, err := PruneSnapshots("", SnapshotRetention{Keep: 1})
+			return err
+		}},
+	} {
+		t.Run(operation.name, func(t *testing.T) {
+			if err := operation.call(); err == nil {
+				t.Fatal("empty retention root was accepted")
+			}
+		})
+	}
+}
+
 func writeSnapshot(t *testing.T, root, name string, created time.Time) {
 	t.Helper()
 	dir := filepath.Join(root, name)

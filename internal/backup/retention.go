@@ -108,7 +108,11 @@ func PruneSnapshots(root string, policy SnapshotRetention) ([]string, error) {
 }
 
 func snapshotRetentionRoot(root string) (string, os.FileInfo, error) {
-	absolute, err := filepath.Abs(strings.TrimSpace(root))
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return "", nil, errors.New("snapshot retention root is required")
+	}
+	absolute, err := filepath.Abs(root)
 	if err != nil {
 		return "", nil, err
 	}
