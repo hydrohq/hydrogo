@@ -3,8 +3,10 @@ package sqlstore
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -126,5 +128,49 @@ func TestDialectBooleanLiterals(t *testing.T) {
 	}
 	if got := (Store{Dialect: database.Postgres}).boolLiteral(false); got != "FALSE" {
 		t.Fatalf("postgres false literal = %q", got)
+	}
+}
+
+func TestSQLiteQueueCapacityIsBoundedForConcurrentProducers(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "jobs.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Dialect: database.SQLite, MaxEntries: 1}
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for i := 1; i <= 2; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			errs <- store.Enqueue(ctx, db, jobs.Job{ID: fmt.Sprintf("concurrent-%d", id), Type: "news.publish", Payload: "{}", AvailableAt: time.Now().UTC()})
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	successes := 0
+	for err := range errs {
+		if err == nil {
+			successes++
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("concurrent enqueue successes = %d, want 1", successes)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = 0").Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count > 1 {
+		t.Fatalf("claimable jobs = %d, exceeded capacity 1", count)
 	}
 }

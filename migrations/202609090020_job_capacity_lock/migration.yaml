@@ -1,0 +1,25 @@
+id: "202609090020_job_capacity_lock"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "5be11e071864dc4355aaf103e97f0ad5f7677bc3f3e8b243148f5bc55579cb66"
+  postgres: "587859b61bc7c6e793a880daec6f083824e629587fd74c0e0106478c7cfe795f"
+dependencies:
+  - "202609090019_job_dead_letter_index"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Durable jobs table is present"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "One singleton lock row"
+compatibility: "Serializes durable queue capacity checks without changing job payloads"
+smoke:
+  - "Concurrent producers cannot commit more claimable jobs than the configured adapter limit"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

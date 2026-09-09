@@ -143,10 +143,24 @@ func (s Store) PurgeDeadLetters(ctx context.Context, db database.Executor, befor
 }
 
 func (s Store) Enqueue(ctx context.Context, db database.Executor, job jobs.Job) error {
+	if rawDB, ok := db.(*sql.DB); ok && s.MaxEntries > 0 {
+		return database.NewTransactor(rawDB).Within(ctx, func(tx database.Executor) error {
+			return s.enqueue(ctx, tx, job)
+		})
+	}
+	return s.enqueue(ctx, db, job)
+}
+
+func (s Store) enqueue(ctx context.Context, db database.Executor, job jobs.Job) error {
 	if strings.TrimSpace(job.ID) == "" || strings.TrimSpace(job.Type) == "" {
 		return jobs.ErrJobConflict
 	}
 	if s.MaxEntries > 0 {
+		// The singleton row is updated inside the enqueue transaction. PostgreSQL
+		// serializes producers on the row lock; SQLite serializes the write.
+		if _, err := db.ExecContext(ctx, "UPDATE job_queue_capacity_lock SET id = id WHERE id = "+s.p(1), 1); err != nil {
+			return err
+		}
 		var count int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = "+s.boolLiteral(false)).Scan(&count); err != nil {
 			return err
