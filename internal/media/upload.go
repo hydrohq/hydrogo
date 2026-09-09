@@ -20,13 +20,14 @@ import (
 )
 
 var (
-	ErrUploaderRequired   = errors.New("uploader is required")
-	ErrFileTooLarge       = errors.New("file exceeds maximum allowed size")
-	ErrDisallowedMimeType = errors.New("disallowed file mime type")
-	ErrInvalidImageData   = errors.New("corrupt or invalid image payload")
-	ErrImageTooLarge      = errors.New("image dimensions exceed maximum allowed pixels")
-	ErrInvalidVisibility  = errors.New("invalid media visibility")
-	ErrAssetState         = errors.New("invalid media asset state")
+	ErrUploaderRequired    = errors.New("uploader is required")
+	ErrUploaderUnavailable = errors.New("uploader is unavailable")
+	ErrFileTooLarge        = errors.New("file exceeds maximum allowed size")
+	ErrDisallowedMimeType  = errors.New("disallowed file mime type")
+	ErrInvalidImageData    = errors.New("corrupt or invalid image payload")
+	ErrImageTooLarge       = errors.New("image dimensions exceed maximum allowed pixels")
+	ErrInvalidVisibility   = errors.New("invalid media visibility")
+	ErrAssetState          = errors.New("invalid media asset state")
 )
 
 const (
@@ -102,8 +103,14 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 	if u == nil {
 		return nil, ErrUploaderRequired
 	}
+	if strings.TrimSpace(u.StorageDir) == "" || u.MaxBytes <= 0 || u.MaxPixels <= 0 {
+		return nil, ErrUploaderUnavailable
+	}
 	if r == nil {
 		return nil, errors.New("upload reader is required")
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	if err := u.acquire(ctx); err != nil {
 		return nil, err

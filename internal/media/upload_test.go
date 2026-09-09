@@ -131,6 +131,12 @@ func TestServiceFailsClosedWhenDependenciesAreMissing(t *testing.T) {
 	}
 }
 
+func TestZeroValueUploaderFailsClosed(t *testing.T) {
+	if _, err := (&Uploader{}).SaveContext(context.Background(), bytes.NewReader(createTestPNG(2, 2)), "image.png"); !errors.Is(err, ErrUploaderUnavailable) {
+		t.Fatalf("zero-value uploader error = %v, want %v", err, ErrUploaderUnavailable)
+	}
+}
+
 func TestUploadDisallowedMimeType(t *testing.T) {
 	tempDir := t.TempDir()
 	uploader, err := NewUploader(tempDir, 1<<20)
