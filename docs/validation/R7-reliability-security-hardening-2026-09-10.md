@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `2d7239e`  
-**Validation baseline:** `2d7239e`  
+**Repository commit:** `9b18bca`  
+**Validation baseline:** `9b18bca`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -34,6 +34,9 @@ verification improvements after the R3/R5 contract work.
 - Strict JSON request decoding fails closed for nil requests/bodies and invalid
   limits, while retaining the unknown-field, single-value and byte-bound
   contract.
+- Release verification bounds operator-provided signed manifests to 1 MiB and
+  trusted public-key files to 4 KiB, with regression coverage for oversized
+  inputs.
 
 ## Evidence commands
 
@@ -44,6 +47,7 @@ go test ./... -p 1 -count=1 -timeout=5m
 go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
 go test ./tools/actionguard -count=1
 go run ./tools/actionguard
+go test ./tools/importguard -count=1
 go vet ./...
 git diff --check
 ```
