@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `56ee349`  
-**Validation baseline:** `56ee349`  
+**Repository commit:** `b211a09`  
+**Validation baseline:** `b211a09`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -57,6 +57,8 @@ verification improvements after the R3/R5 contract work.
   replay contexts.
 - Erasure GC and SMTP/retry senders normalize nil contexts, avoiding runtime
   panics at public cancellation-aware boundaries.
+- Database open, transaction, migration and compatibility entry points
+  normalize nil contexts before calling `database/sql`.
 
 ## Evidence commands
 
