@@ -1,6 +1,15 @@
+profile: compact
 http:
   address: "127.0.0.1:8080"
+  # Set this to the canonical HTTPS origin in deployed environments.
+  public_origin: ""
 database:
   dialect: "sqlite"
   # Prefer HYDRO_DATABASE_DSN or a protected deployment secret file.
   dsn: ""
+media:
+  dir: "data/media"
+security:
+  # Keep false for local HTTP development; enable both for HTTPS deployments.
+  secure_cookies: false
+  enable_hsts: false
