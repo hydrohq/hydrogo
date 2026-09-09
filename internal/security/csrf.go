@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	CSRFCookieName = "hydro_csrf"
-	CSRFHeaderName = "X-CSRF-Token"
-	CSRFFormField  = "_csrf"
+	CSRFCookieName         = "hydro_csrf"
+	CSRFHeaderName         = "X-CSRF-Token"
+	CSRFFormField          = "_csrf"
+	maxCSRFFormBytes int64 = 1 << 20
 )
 
 type csrfContextKey struct{}
@@ -68,11 +69,14 @@ func CSRFMiddleware(secure bool) func(http.Handler) http.Handler {
 			// Validate state-changing methods
 			providedToken := r.Header.Get(CSRFHeaderName)
 			if providedToken == "" {
-				// Parse form if multipart or urlencoded
+				// Parse small forms only. Large/chunked multipart requests must send
+				// the token in the header so CSRF validation cannot buffer an upload.
 				contentType := r.Header.Get("Content-Type")
-				if strings.HasPrefix(contentType, "application/x-www-form-urlencoded") || strings.HasPrefix(contentType, "multipart/form-data") {
-					_ = r.ParseMultipartForm(32 << 20) // max 32MB in memory for form parsing
-					if r.MultipartForm == nil {
+				if strings.HasPrefix(contentType, "application/x-www-form-urlencoded") || (strings.HasPrefix(contentType, "multipart/form-data") && r.ContentLength >= 0 && r.ContentLength <= maxCSRFFormBytes) {
+					r.Body = http.MaxBytesReader(w, r.Body, maxCSRFFormBytes)
+					if strings.HasPrefix(contentType, "multipart/form-data") {
+						_ = r.ParseMultipartForm(2 << 20)
+					} else {
 						_ = r.ParseForm()
 					}
 					providedToken = r.FormValue(CSRFFormField)

@@ -1,11 +1,23 @@
 package security
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
+
+type countingReader struct {
+	reader io.Reader
+	reads  atomic.Int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	r.reads.Add(1)
+	return r.reader.Read(p)
+}
 
 func TestSecurityHeadersAndCSPNonce(t *testing.T) {
 	handler := HeadersMiddleware(HeaderConfig{EnableHSTS: true})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -89,5 +101,27 @@ func TestCSRFProtection(t *testing.T) {
 
 	if recPostGood.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK for valid CSRF header, got %d", recPostGood.Code)
+	}
+}
+
+func TestCSRFDoesNotReadLargeMultipartWithoutHeaderToken(t *testing.T) {
+	var called atomic.Bool
+	csrf := CSRFMiddleware(false)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called.Store(true)
+	}))
+	cookie := &http.Cookie{Name: CSRFCookieName, Value: "csrf-token"}
+	body := &countingReader{reader: strings.NewReader(strings.Repeat("x", int(maxCSRFFormBytes)+1))}
+	req := httptest.NewRequest(http.MethodPost, "/upload", body)
+	req.ContentLength = maxCSRFFormBytes + 1
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=hydro")
+	req.AddCookie(cookie)
+	res := httptest.NewRecorder()
+	csrf.ServeHTTP(res, req)
+
+	if res.Code != http.StatusForbidden || called.Load() {
+		t.Fatalf("large multipart CSRF status=%d called=%v", res.Code, called.Load())
+	}
+	if got := body.reads.Load(); got != 0 {
+		t.Fatalf("large multipart body was read %d times before header validation", got)
 	}
 }
