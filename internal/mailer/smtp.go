@@ -45,6 +45,7 @@ type SMTPConfig struct {
 	Username string
 	Password string
 	StartTLS bool
+	Timeout  time.Duration
 }
 
 type SMTP struct {
@@ -77,13 +78,19 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 	if err := validateMessage(message); err != nil {
 		return err
 	}
+	timeout := s.config.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	operationCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	address := net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port))
-	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+	conn, err := (&net.Dialer{}).DialContext(operationCtx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("SMTP dial: %w", err)
 	}
 	defer conn.Close()
-	if deadline, ok := ctx.Deadline(); ok {
+	if deadline, ok := operationCtx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)
 	}
 	client, err := smtp.NewClient(conn, s.config.Host)

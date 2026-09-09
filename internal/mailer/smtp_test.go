@@ -3,6 +3,8 @@ package mailer
 import (
 	"context"
 	"errors"
+	"io"
+	"net"
 	"testing"
 	"time"
 )
@@ -68,5 +70,31 @@ func TestSMTPSendHonorsCanceledContextAndMessageLimits(t *testing.T) {
 	}
 	if err := sender.Send(context.Background(), Message{To: "to\r\nBcc: bad@example.test", Subject: "subject"}); err == nil {
 		t.Fatal("recipient header injection accepted")
+	}
+}
+
+func TestSMTPSendAppliesTimeoutBeforeGreeting(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	go func() {
+		conn, err := listener.Accept()
+		if err == nil {
+			defer conn.Close()
+			_, _ = io.Copy(io.Discard, conn)
+		}
+	}()
+
+	sender, err := NewSMTP(SMTPConfig{Host: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port, From: "from@example.test", Timeout: 20 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	if err := sender.Send(context.Background(), Message{To: "to@example.test", Subject: "subject"}); err == nil {
+		t.Fatal("SMTP send succeeded without a server greeting")
+	} else if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("SMTP send exceeded timeout bound: %s", elapsed)
 	}
 }
