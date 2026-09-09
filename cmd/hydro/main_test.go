@@ -231,6 +231,34 @@ func TestCheckDirectoryWritable(t *testing.T) {
 	}
 }
 
+func TestRunDoctorJSON(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "hydro.yaml")
+	configData := fmt.Sprintf("profile: compact\ndatabase:\n  dialect: sqlite\n  dsn: %q\nmedia:\n  dir: %q\n", filepath.Join(root, "hydro.sqlite"), filepath.Join(root, "media"))
+	if err := os.WriteFile(configPath, []byte(configData), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"migrate", "--config", configPath}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("migrate failed: %v", err)
+	}
+	stdout.Reset()
+	if err := run([]string{"doctor", "--config", configPath, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("doctor --json failed: %v", err)
+	}
+	var report struct {
+		Database      string `json:"database"`
+		MediaWritable bool   `json:"media_writable"`
+		BackupTools   string `json:"backup_tools"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Database != "sqlite" || !report.MediaWritable || report.BackupTools != "sqlite" {
+		t.Fatalf("unexpected doctor report: %+v", report)
+	}
+}
+
 func TestRunBackupPruneRequiresPreviewAndConfirmation(t *testing.T) {
 	root := t.TempDir()
 	for _, item := range []struct {

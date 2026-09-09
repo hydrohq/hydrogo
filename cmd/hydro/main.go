@@ -633,6 +633,7 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
+	jsonOutput := flags.Bool("json", false, "Print machine-readable diagnostics")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -672,6 +673,24 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("PostgreSQL backup tools: %w", err)
 		}
 		backupTools = "pg_dump,pg_restore"
+	}
+	if *jsonOutput {
+		data, err := json.Marshal(struct {
+			Profile       string `json:"profile"`
+			Database      string `json:"database"`
+			BackupTools   string `json:"backup_tools"`
+			CacheEntries  int    `json:"cache_entries"`
+			QueueEntries  int    `json:"queue_entries"`
+			MediaMaxBytes int64  `json:"media_max_bytes"`
+			MediaWritable bool   `json:"media_writable"`
+			SecureCookies bool   `json:"secure_cookies"`
+			HSTS          bool   `json:"hsts"`
+		}{Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS})
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(stdout, string(data))
+		return err
 	}
 	_, err = fmt.Fprintf(stdout, "profile=%s database=%s backup_tools=%s cache_entries=%d queue_entries=%d media_max_bytes=%d\n", cfg.Profile, cfg.Database.Dialect, backupTools, budget.CacheEntries, budget.QueueEntries, budget.MediaMaxBytes)
 	return err
@@ -1009,7 +1028,7 @@ Usage:
   hydro migrate [runtime flags]
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
-  hydro doctor [runtime flags]
+  hydro doctor [--json] [runtime flags]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup prune --root PATH --keep N --dry-run|--confirm [--pinned NAME,...]
