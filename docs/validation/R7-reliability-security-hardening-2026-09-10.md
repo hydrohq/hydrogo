@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `65ec430`  
-**Validation baseline:** `65ec430`  
+**Repository commit:** `da15818`  
+**Validation baseline:** `da15818`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -27,6 +27,10 @@ verification improvements after the R3/R5 contract work.
 - Backup, erasure and release workflows share the tested
   `internal/pathguard` symlink-component contract; empty path input is rejected
   by the shared helper itself.
+- Hook dispatch releases its mutex while handlers run, coalesces in-flight
+  duplicate events, and safely handles nested/reentrant dispatch. HTTP error
+  buffering preserves the underlying `ResponseWriter` capabilities through
+  `Unwrap`.
 
 ## Evidence commands
 
