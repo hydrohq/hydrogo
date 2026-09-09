@@ -28,6 +28,7 @@ type Subscription struct {
 	Resync <-chan struct{}
 	cancel func()
 	sync   func(uint64) bool
+	once   sync.Once
 }
 
 func NewFanout(buffer int) *Fanout {
@@ -64,9 +65,13 @@ func (f *Fanout) Subscribe(buffer int) *Subscription {
 }
 
 func (s *Subscription) Close() {
-	if s != nil && s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
+	if s != nil {
+		s.once.Do(func() {
+			if s.cancel != nil {
+				s.cancel()
+				s.cancel = nil
+			}
+		})
 	}
 }
 

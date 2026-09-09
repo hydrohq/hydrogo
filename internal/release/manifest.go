@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -192,6 +191,19 @@ func VerifyAttestation(signed SignedAttestation, manifest Manifest) (Attestation
 	return attestation, nil
 }
 
+// VerifyAttestationWithPublicKey verifies both the signature and the signer
+// identity. VerifyAttestation alone only proves that the embedded key signed
+// the payload; callers that have a trusted release key must use this helper.
+func VerifyAttestationWithPublicKey(signed SignedAttestation, manifest Manifest, trusted ed25519.PublicKey) (Attestation, error) {
+	if len(trusted) != ed25519.PublicKeySize {
+		return Attestation{}, errors.New("invalid trusted attestation public key")
+	}
+	if signed.PublicKey != base64.RawStdEncoding.EncodeToString(trusted) {
+		return Attestation{}, errors.New("attestation public key does not match trusted public key")
+	}
+	return VerifyAttestation(signed, manifest)
+}
+
 func secretLike(path string) bool {
 	name := strings.ToLower(filepath.Base(path))
 	return name == ".env" || strings.HasSuffix(name, ".key") || strings.HasSuffix(name, ".pem") || strings.Contains(name, "secret") || strings.Contains(name, "credential")
@@ -220,20 +232,35 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 	if err := os.MkdirAll(destinationRoot, 0o750); err != nil {
 		return err
 	}
+	seen := make(map[string]struct{})
 	for _, artifact := range manifest.Artifacts {
 		if !isRetainedAsset(artifact.Path) {
 			continue
 		}
+		if _, exists := seen[artifact.Path]; exists {
+			return fmt.Errorf("duplicate retained asset path: %s", artifact.Path)
+		}
+		seen[artifact.Path] = struct{}{}
 		source, err := safeArtifactPath(sourceRoot, artifact.Path)
 		if err != nil {
 			return err
 		}
-		if err := verifyArtifact(source, artifact); err != nil {
+		if err := ensureContained(sourceRoot, source, true); err != nil {
+			return fmt.Errorf("asset %s: %w", artifact.Path, err)
+		}
+		data, err := readVerifiedArtifact(source, artifact)
+		if err != nil {
 			return fmt.Errorf("asset %s: %w", artifact.Path, err)
 		}
 		destination, err := safeArtifactPath(destinationRoot, artifact.Path)
 		if err != nil {
 			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
+			return err
+		}
+		if err := ensureContained(destinationRoot, destination, true); err != nil {
+			return fmt.Errorf("asset %s: %w", artifact.Path, err)
 		}
 		if existing, err := os.Stat(destination); err == nil {
 			if existing.IsDir() {
@@ -244,9 +271,6 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 			}
 			continue
 		} else if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
 			return err
 		}
 		temporary, err := os.CreateTemp(filepath.Dir(destination), ".hydro-retain-*")
@@ -260,7 +284,7 @@ func RetainAssets(sourceRoot string, manifest Manifest, destinationRoot string) 
 				_ = os.Remove(temporaryPath)
 			}
 		}()
-		if err := copyBytes(temporary, source); err != nil {
+		if _, err := temporary.Write(data); err != nil {
 			_ = temporary.Close()
 			return err
 		}
@@ -294,6 +318,9 @@ func VerifyRetainedAssets(root string, manifest Manifest) error {
 		if err != nil {
 			return err
 		}
+		if err := ensureContained(root, path, true); err != nil {
+			return fmt.Errorf("asset %s: %w", artifact.Path, err)
+		}
 		if err := verifyArtifact(path, artifact); err != nil {
 			return fmt.Errorf("asset %s: %w", artifact.Path, err)
 		}
@@ -324,11 +351,51 @@ func safeArtifactPath(root, relative string) (string, error) {
 	if relative == "" || filepath.IsAbs(relative) {
 		return "", fmt.Errorf("invalid artifact path: %s", relative)
 	}
+	for _, segment := range strings.Split(filepath.ToSlash(relative), "/") {
+		if segment == "." || segment == ".." {
+			return "", fmt.Errorf("artifact path contains traversal segment: %s", relative)
+		}
+	}
 	clean := filepath.Clean(filepath.FromSlash(relative))
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("artifact path escapes root: %s", relative)
 	}
 	return filepath.Join(root, clean), nil
+}
+
+func ensureContained(root, target string, allowMissing bool) error {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	rootResolved, err := filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		return err
+	}
+	targetAbs, err := filepath.Abs(target)
+	if err != nil {
+		return err
+	}
+	resolved := targetAbs
+	if _, err := os.Lstat(targetAbs); err == nil {
+		resolved, err = filepath.EvalSymlinks(targetAbs)
+		if err != nil {
+			return err
+		}
+	} else if errors.Is(err, os.ErrNotExist) && allowMissing {
+		parent, parentErr := filepath.EvalSymlinks(filepath.Dir(targetAbs))
+		if parentErr != nil {
+			return parentErr
+		}
+		resolved = filepath.Join(parent, filepath.Base(targetAbs))
+	} else {
+		return err
+	}
+	relative, err := filepath.Rel(rootResolved, resolved)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return fmt.Errorf("artifact path escapes root: %s", target)
+	}
+	return nil
 }
 
 func verifyArtifact(path string, expected Artifact) error {
@@ -346,12 +413,17 @@ func verifyArtifact(path string, expected Artifact) error {
 	return nil
 }
 
-func copyBytes(destination *os.File, source string) error {
-	input, err := os.Open(source)
+func readVerifiedArtifact(path string, expected Artifact) ([]byte, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer input.Close()
-	_, err = io.Copy(destination, input)
-	return err
+	if int64(len(data)) != expected.Size {
+		return nil, fmt.Errorf("size mismatch: got %d want %d", len(data), expected.Size)
+	}
+	digest := sha256.Sum256(data)
+	if hex.EncodeToString(digest[:]) != expected.SHA256 {
+		return nil, errors.New("checksum mismatch")
+	}
+	return data, nil
 }

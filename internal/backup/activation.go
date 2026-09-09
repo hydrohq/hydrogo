@@ -83,7 +83,27 @@ func absoluteActivationPaths(staging, active, rollback string) (string, string, 
 		if err != nil {
 			return "", "", "", err
 		}
-		paths[i] = filepath.Clean(absolute)
+		absolute = filepath.Clean(absolute)
+		info, statErr := os.Lstat(absolute)
+		if statErr == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return "", "", "", fmt.Errorf("activation root cannot be a symlink: %s", path)
+			}
+			resolved, err := filepath.EvalSymlinks(absolute)
+			if err != nil {
+				return "", "", "", err
+			}
+			paths[i] = filepath.Clean(resolved)
+			continue
+		}
+		if !errors.Is(statErr, os.ErrNotExist) {
+			return "", "", "", statErr
+		}
+		parent, err := filepath.EvalSymlinks(filepath.Dir(absolute))
+		if err != nil {
+			return "", "", "", err
+		}
+		paths[i] = filepath.Join(parent, filepath.Base(absolute))
 	}
 	return paths[0], paths[1], paths[2], nil
 }

@@ -2,6 +2,17 @@
 
 Bu liste contract testlerin yerine geçmez; gerçek ortamda açık kalan roadmap kapılarının kanıt formatını sabitler.
 
+## Otomatik preflight
+
+Windows geliştirici/CI ortamında aşağıdaki komut tüm otomatik kapıları aynı sırayla çalıştırır:
+
+```powershell
+$env:HYDRO_TEST_POSTGRES_URL = "postgres://user:password@127.0.0.1:5432/hydro_contract?sslmode=disable"
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-production-gates.ps1
+```
+
+Runner; format, vet, tam test, PostgreSQL contract ortamı zorunluluğu, race-sensitive paketler, reproducible `hydro` binary ve portable benchmark kontrollerini çalıştırır. PostgreSQL URL yoksa veya contract testleri skip edilebilecek durumdaysa başarısız olur. Bu preflight gerçek reverse proxy/process restart, temiz ortam restore, production key ceremony, harici yedek/key recovery veya müşteri RPO/RTO ölçümünü tamamlanmış saymaz.
+
 | Gate | Required environment | Evidence command | Pass condition |
 | --- | --- | --- | --- |
 | S06 proxy/restart/rollback | two deployable binaries, reverse proxy, retained asset root | `hydro upgrade check`, proxy smoke suite, old/new process restart log | green traffic, old writes fenced, rollback serves retained assets |

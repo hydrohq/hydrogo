@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -78,6 +79,13 @@ func Unmarshal(data []byte) (Document, error) {
 	if err := decoder.Decode(&document); err != nil {
 		return Document{}, err
 	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return Document{}, ErrInvalidDocument
+		}
+		return Document{}, err
+	}
 	if err := validate(document); err != nil {
 		return Document{}, err
 	}
@@ -89,6 +97,9 @@ func Unmarshal(data []byte) (Document, error) {
 func Import(ctx context.Context, tx database.Executor, document Document, dialect database.Dialect) error {
 	if err := validate(document); err != nil {
 		return err
+	}
+	if dialect != database.SQLite && dialect != database.Postgres {
+		return fmt.Errorf("unsupported portable import dialect %q", dialect)
 	}
 	for _, table := range []string{"page_revisions", "pages", "media_assets", "site_settings", "navigation_items", "page_redirects", "form_inbox", "news_items"} {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
@@ -181,6 +192,9 @@ func validate(document Document) error {
 				return ErrInvalidDocument
 			}
 		}
+	}
+	if len(seen) != len(specs) {
+		return ErrInvalidDocument
 	}
 	return nil
 }

@@ -74,9 +74,19 @@ func TestManifestProvenanceAttestationBindsSubject(t *testing.T) {
 	if err != nil || attestation.Builder != "ci/github-actions" {
 		t.Fatalf("attestation = %#v/%v", attestation, err)
 	}
+	if _, err := VerifyAttestationWithPublicKey(signed, manifest, private.Public().(ed25519.PublicKey)); err != nil {
+		t.Fatalf("trusted-key attestation verification failed: %v", err)
+	}
 	manifest.CoreVersion = "1.0.1"
 	if _, err := VerifyAttestation(signed, manifest); err == nil {
 		t.Fatal("attestation accepted a changed manifest")
+	}
+	if _, err := VerifyAttestationWithPublicKey(signed, manifest, private.Public().(ed25519.PublicKey)); err == nil {
+		t.Fatal("changed manifest passed trusted-key attestation verification")
+	}
+	otherPublic, _, _ := ed25519.GenerateKey(rand.Reader)
+	if _, err := VerifyAttestationWithPublicKey(signed, manifest, otherPublic); err == nil {
+		t.Fatal("attestation accepted an unrelated trusted key")
 	}
 
 	// Attest rejects empty builder or invalid key
@@ -127,21 +137,71 @@ func TestRetainAssetsVerifiesInventoryAndRejectsReplacement(t *testing.T) {
 }
 
 func TestRetainAssetsValidatesRootsAndPaths(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "static"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "secret.txt"), []byte("secret"), 0o640); err != nil {
+		t.Fatal(err)
+	}
 	manifest := Manifest{
 		FormatVersion: 1,
 		Edition:       "site",
 		CoreVersion:   "1.0.0",
 		Artifacts: []Artifact{
-			{Path: "static/../secret.txt", Size: 10, SHA256: "abc"},
+			{Path: "static/../secret.txt", Size: 6, SHA256: "2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b"},
 		},
 	}
 	if err := RetainAssets("", manifest, "dest"); err == nil {
 		t.Fatal("expected error with empty source root")
 	}
-	if err := RetainAssets("source", manifest, ""); err == nil {
+	if err := RetainAssets(root, manifest, ""); err == nil {
 		t.Fatal("expected error with empty destination root")
 	}
-	if err := VerifyRetainedAssets("root", manifest); err == nil {
+	if err := RetainAssets(root, manifest, filepath.Join(root, "dest")); err == nil {
+		t.Fatal("expected traversal path to be rejected even when target exists")
+	}
+	if err := VerifyRetainedAssets(root, manifest); err == nil {
 		t.Fatal("expected error for escaping artifact path in VerifyRetainedAssets")
+	}
+}
+
+func TestRetainAssetsRejectsDuplicatePath(t *testing.T) {
+	root := t.TempDir()
+	asset := filepath.Join(root, "static", "app.css")
+	if err := os.MkdirAll(filepath.Dir(asset), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(asset, []byte("css"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	manifest := Manifest{FormatVersion: 1, Edition: "site", CoreVersion: "1.0.0", Artifacts: []Artifact{
+		{Path: "static/app.css", Size: 3, SHA256: "36e64f19f57a05c8cd5b6bf7eff72703b4bbab19def7832eb4e686e7fa482eef"},
+		{Path: "static/app.css", Size: 3, SHA256: "36e64f19f57a05c8cd5b6bf7eff72703b4bbab19def7832eb4e686e7fa482eef"},
+	}}
+	if err := RetainAssets(root, manifest, filepath.Join(root, "dest")); err == nil {
+		t.Fatal("duplicate retained asset path was accepted")
+	}
+}
+
+func TestRetainAssetsRejectsSymlinkOutsideRoot(t *testing.T) {
+	source := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.css")
+	if err := os.WriteFile(outside, []byte("outside"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(source, "static", "link.css")
+	if err := os.MkdirAll(filepath.Dir(link), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	manifest, err := Build(source, Input{Edition: "site", CoreVersion: "1.0.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RetainAssets(source, manifest, filepath.Join(source, "dest")); err == nil {
+		t.Fatal("asset symlink escaping source root was accepted")
 	}
 }

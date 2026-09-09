@@ -1,38 +1,80 @@
 # HydroGo
 
-Müşteri başına ayrı deployment ile çalışan, Core fork gerektirmeyen modüler Go CMS ve JSON API platformu.
+HydroGo is a modular Go CMS and JSON API platform designed for customer-owned deployments without forking the Core.
 
-**Durum:** R0, R1, R2 ve R4 tamamlandı; R3 ticari pilot ve R5 kararlı v1 doğrulama kapıları sürüyor. Pages/News modülleri, SQLite/PostgreSQL sözleşmeleri, backup/restore, güvenlik, generator ve CI uygulanmış durumda. Açık işler ve gerçek ortam kanıtları [roadmap](docs/ROADMAP.md) içinde izlenir.
+Its purpose is:
 
-- [Roadmap](docs/ROADMAP.md): iş sırası ve kabul ölçütleri.
-- [Manifesto](docs/HYDROGO_PHILOSOPHY.md): ürün ilkeleri.
-- [Uygulama planı](docs/implementation_plan.md): kapsam ve hedef mimari.
-- [ADR indeksi](docs/architecture/README.md): bağlayıcı kararlar.
-- [Hazırlık incelemesi](docs/PRE_IMPLEMENTATION_REVIEW.md) ve [tehdit modeli](docs/security/THREAT_MODEL.md): kanıt bekleyen riskler.
-- [Katkı akışı](CONTRIBUTING.md) ve [depo kuralları](AGENTS.md).
+> Give customers control of their data and deployment through a secure, portable, operable CMS that does not add infrastructure they do not use.
 
-## Kaynak yerleşimi
+HydroGo is not designed as an “everything CMS.” It is a stable Core with attachable modules. Disabled modules must not create routes, migrations, workers, or mandatory external services.
 
-| Dizin | Sorumluluk |
-|---|---|
-| `cmd/hydro/` | Uygulama ve işletim alt komutlarının giriş noktası |
-| `internal/` | Core uygulama ayrıntıları; dış SDK değildir |
-| `extension/` | Deneysel v0 müşteri/modül sözleşmeleri |
-| `modules/pages/`, `modules/news/` | Modüle ait model, servis, repository ve sunum |
-| `examples/client-edition/` | Ayrı Go module olacak örnek; CI ayrıca dış tüketici fixture'ı kullanır |
-| `migrations/` | Dialect SQL ve uyumluluk metadata'sı |
-| `static/` | Sürümü ve checksum'ı sabitlenecek dağıtım varlıkları |
-| `tests/` | Ortak contract, entegrasyon ve dış tüketici fixture'ları |
-| `tools/`, `scripts/` | Sabitlenmiş geliştirme araçları ve PowerShell akışı |
-| `docs/validation/`, `docs/runbooks/` | Gerçek deney raporları ve doğrulanacak işletim prosedürleri |
+## Current status
 
-Boş dizinlerdeki `.gitkeep` dosyaları yalnız Git yer tutucusudur. İç paketler ihtiyaç oluşunca ayrılır. Go module yolu `github.com/ardaozyildirim/hydrogo` olarak ayrılmıştır; `go.mod` ve toolchain R1 deneyinde oluşturulur. Windows geliştirme ve Linux amd64 release ilk hedeflerdir.
+The repository provides a working technical foundation and a broad contract-test suite. Pages and News modules, Site Edition flows, authentication/MFA, media, cache, backup/restore, portable export/import, release manifests, and generator experiments are implemented.
 
-Kaynak kodun müşteri teslimi ve yeniden dağıtım lisansı henüz seçilmedi; açık kaynak lisansı verilmiş sayılmaz.
+This repository is not yet declared a fully certified, commercially supported v1 across all production profiles. The remaining R3 pilot, R5 v1, and R6 Distributed evidence gates are tracked separately in the roadmap.
 
-## Geliştirme iskeletini çalıştırma
+### Problems currently addressed
 
-Go 1.27.0 ile:
+- Page and news authoring with draft, revision, preview, scheduling, and publishing flows
+- Optimistic locking to prevent silent data loss between editors
+- Shared application services and authorization rules for HTML and JSON API paths
+- Public/private media lifecycle and safe upload metadata handling
+- Common SQLite and PostgreSQL behavioral contracts
+- Bounded L1 cache, generation invalidation, and single-flight miss coalescing
+- MFA, session revocation, password reset, invitations, and CSRF foundations
+- Audit, transactional outbox, job leasing, and idempotency infrastructure
+- SQLite snapshots, PostgreSQL dump/restore, and media manifest verification
+- Hash-chained external erasure log and idempotent erasure replay
+- Allowlist-based portable export/import excluding secrets and session state
+- Ed25519-signed release manifests and trusted public-key verification
+- Deterministic generation, Client Edition boundaries, and an SDK v1 candidate
+
+## How it works
+
+The web server and operational commands use the same Core inside one binary:
+
+```text
+hydro serve / migrate / doctor / upgrade check
+                         │
+                         ▼
+              HTTP handler / JSON API
+                         │
+                         ▼
+             Application service + policy
+                         │
+                         ▼
+             Module repository interface
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+           SQLite              PostgreSQL
+```
+
+The HTML admin panel and JSON API call the same service and policy layers. Domain and application-service code does not know SQL dialect details, cache drivers, or deployment proxy details.
+
+### Modules and Core boundaries
+
+- `modules/pages`: pages, revisions, drafts, previews, and publishing
+- `modules/news`: review, scheduling, publishing, withdrawal, and workers
+- `modules/site`: navigation, settings, SEO, redirects, and form inbox
+- `internal/auth`: users, sessions, MFA, reset, and invitations
+- `internal/media`: uploads, visibility, pending/ready state, and storage metadata
+- `internal/cache`: bounded L1, TwoTier cache, and invalidation fanout
+- `internal/backup`: SQLite/PostgreSQL snapshots, manifests, restore, and activation
+- `internal/release`: manifests, signatures, attestations, retained assets, and Blue/Green state
+- `internal/portable`: allowlist-based data portability
+- `internal/generator`: reviewable CRUD and migration drafts from collection specs
+
+## Quick start
+
+Requirements:
+
+- Go 1.27.0
+- No extra service is required for SQLite
+- PostgreSQL 18 and `HYDRO_TEST_POSTGRES_URL` are required for PostgreSQL contract tests
+
+Windows PowerShell:
 
 ```powershell
 go build -o bin/hydro.exe ./cmd/hydro
@@ -41,4 +83,89 @@ $env:HYDRO_DATABASE_DSN = "hydro.sqlite"
 ./bin/hydro.exe serve
 ```
 
-Ardından `/healthz` proses sağlığını, `/readyz` DB bağlantısı ve migration checksum uygunluğunu gösterir. Mevcut migration Pages transaction deneyi içindir; henüz üretim şeması veya satılabilir CMS değildir. PostgreSQL için `HYDRO_DATABASE_DIALECT=postgres` ve izole bir `HYDRO_DATABASE_DSN` kullanılır.
+Endpoints:
+
+- `/healthz`: process liveness only
+- `/readyz`: database and migration compatibility readiness
+- Admin/API routes: default-deny routing and authorization policies
+
+For PostgreSQL, set `HYDRO_DATABASE_DIALECT=postgres` and use an isolated `HYDRO_DATABASE_DSN`.
+
+## Operational commands
+
+```text
+hydro serve
+hydro migrate
+hydro doctor
+hydro upgrade check
+hydro create-admin --email EMAIL --password-stdin
+hydro release verify --manifest release.json --public-key release.pub
+```
+
+`hydro release verify` does not trust the public key embedded in the manifest by itself. It requires a trusted Ed25519 public-key file distributed by the operator.
+
+## Tests and production gates
+
+Daily development checks:
+
+```powershell
+go test ./...
+go vet ./...
+```
+
+Run the automated release gates after configuring a PostgreSQL contract database:
+
+```powershell
+$env:HYDRO_TEST_POSTGRES_URL = "postgres://user:password@127.0.0.1:5432/hydro_contract?sslmode=disable"
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-production-gates.ps1
+```
+
+The runner checks formatting, vet, the full test suite, race-sensitive packages, reproducible binary builds, and the portable benchmark. It fails when PostgreSQL is unavailable instead of silently treating contract tests as skipped.
+
+Real production gates additionally require:
+
+- Blue/Green restart and rollback with two real processes and a reverse proxy
+- Restore into clean SQLite and PostgreSQL targets
+- External backup and key-recovery drills
+- A production signing-key ceremony
+- RPO/RTO and capacity measurements using representative customer workloads
+
+The repository does not claim a production profile or SLA until those forms of evidence exist.
+
+## Architectural principles
+
+- Customer work is implemented through Client Editions and extension contracts, not HydroCore forks.
+- SQLite and PostgreSQL implement the same domain and application contracts.
+- Migration, cache, job, asset, and release changes move forward through explicit contract tests.
+- Unused services are disabled in Compact profiles; Distributed features are not defaults.
+- Secure-by-default routing, default-deny authorization, and data portability are core contracts.
+
+## Documentation
+
+- [Roadmap](docs/ROADMAP.md): phases, open gates, and acceptance criteria
+- [HydroGo philosophy](docs/HYDROGO_PHILOSOPHY.md): product and architectural principles
+- [Implementation plan](docs/implementation_plan.md): scope and target architecture
+- [ADR index](docs/architecture/README.md): binding architectural decisions
+- [Production gate checklist](docs/validation/PRODUCTION-GATES.md): evidence format for real environments
+- [Operations runbook](docs/OPERATIONS_RUNBOOK.md): deploy, backup, restore, and alarm flows
+- [Support matrix](docs/SUPPORT_MATRIX.md): supported and uncertified profiles
+- [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md): old/new release boundaries
+- [Threat model](docs/security/THREAT_MODEL.md): security assumptions and open risks
+- [Contribution guide](CONTRIBUTING.md) and [repository rules](AGENTS.md)
+
+## Repository layout
+
+| Directory | Responsibility |
+|---|---|
+| `cmd/hydro/` | Application and operational command entry point |
+| `internal/` | Core implementation details; not the external SDK |
+| `extension/` | Experimental v0 customer/module contracts |
+| `modules/pages/`, `modules/news/` | Module models, services, repositories, and transport |
+| `migrations/` | Dialect SQL and compatibility metadata |
+| `tests/` | Shared contracts, integration tests, and consumer fixtures |
+| `tools/`, `scripts/` | Development tools and production-gate automation |
+| `docs/validation/` | Experiment reports and verification gates |
+
+Commercial SLA claims for Compact or Standard remain blocked until the R3/R5 evidence gates are closed. Distributed, Redis/Valkey, S3/CDN, OIDC/SAML, advanced search, commerce, AI, and multi-tenant features require a real customer need, a separate ADR, and their own verification gate.
+
+The customer delivery and redistribution license has not yet been selected; this repository should not be treated as published under an open-source license.

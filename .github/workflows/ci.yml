@@ -114,3 +114,18 @@ jobs:
           $a = (Get-FileHash .tmp/repro/hydro-a.exe -Algorithm SHA256).Hash
           $b = (Get-FileHash .tmp/repro/hydro-b.exe -Algorithm SHA256).Hash
           if ($a -ne $b) { Write-Error "reproducible build digests differ: $a / $b" }
+
+  race:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        timeout-minutes: 3
+        with:
+          go-version: '1.27.0'
+          check-latest: false
+      - name: Run race-sensitive contract tests
+        env:
+          CGO_ENABLED: '1'
+        run: go test -race ./internal/cache ./internal/release ./internal/database ./cmd/hydro

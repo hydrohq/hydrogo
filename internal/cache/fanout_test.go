@@ -1,6 +1,9 @@
 package cache
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func TestFanoutBoundsSlowSubscriberAndSignalsResync(t *testing.T) {
 	fanout := NewFanout(1)
@@ -70,7 +73,13 @@ func TestFanoutConcurrentSubscribersAndRace(t *testing.T) {
 	}
 
 	<-done
+	var closeWG sync.WaitGroup
 	for _, sub := range subscribers {
-		sub.Close()
+		closeWG.Add(1)
+		go func(s *Subscription) {
+			defer closeWG.Done()
+			s.Close()
+		}(sub)
 	}
+	closeWG.Wait()
 }

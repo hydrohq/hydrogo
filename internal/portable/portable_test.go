@@ -56,10 +56,16 @@ func TestSQLiteContentExportImportRoundTripExcludesAuthState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := Unmarshal(append(append([]byte(nil), data...), []byte("{}")...)); err == nil {
+		t.Fatal("portable decoder accepted trailing JSON")
+	}
 	if err := database.NewTransactor(target).Within(ctx, func(tx database.Executor) error {
 		return Import(ctx, tx, decoded, database.SQLite)
 	}); err != nil {
 		t.Fatal(err)
+	}
+	if err := Import(ctx, target, decoded, database.Dialect("oracle")); err == nil {
+		t.Fatal("portable import accepted unsupported dialect")
 	}
 	var title string
 	if err := target.QueryRowContext(ctx, "SELECT title FROM pages WHERE id = 'p1'").Scan(&title); err != nil {

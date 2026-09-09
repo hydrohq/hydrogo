@@ -2,6 +2,8 @@ package cache
 
 import (
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -66,5 +68,49 @@ func TestTwoTierWithNilRemote(t *testing.T) {
 	})
 	if err != nil || val != "val" || loads != 1 {
 		t.Fatalf("unexpected cached value %q, loads %d, err %v", val, loads, err)
+	}
+}
+
+func TestTwoTierCoalescesConcurrentMissesWhenL2Misses(t *testing.T) {
+	l2 := &fakeRemote{}
+	cache, err := NewTwoTier(New[string](2, time.Minute), l2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const callers = 32
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var loads atomic.Int32
+	var wg sync.WaitGroup
+	values := make(chan string, callers)
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			value, err := cache.GetOrLoad("shared", func() (string, error) {
+				if loads.Add(1) == 1 {
+					close(started)
+					<-release
+				}
+				return "loaded", nil
+			})
+			if err != nil {
+				t.Errorf("concurrent load: %v", err)
+				return
+			}
+			values <- value
+		}()
+	}
+	<-started
+	close(release)
+	wg.Wait()
+	close(values)
+	if got := loads.Load(); got != 1 {
+		t.Fatalf("loader calls = %d, want 1", got)
+	}
+	for value := range values {
+		if value != "loaded" {
+			t.Fatalf("loaded value = %q", value)
+		}
 	}
 }

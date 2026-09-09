@@ -97,3 +97,18 @@ func TestActivateStagingMediaValidatesDistinctPathsAndMissingMarker(t *testing.T
 		t.Fatal("expected error with identical active and rollback paths")
 	}
 }
+
+func TestActivateStagingMediaRejectsSymlinkRoots(t *testing.T) {
+	root := t.TempDir()
+	realStaging := filepath.Join(root, "real-staging")
+	if err := os.MkdirAll(realStaging, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	symlink := filepath.Join(root, "staging-link")
+	if err := os.Symlink(realStaging, symlink); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if err := ActivateStagingMedia(symlink, filepath.Join(root, "active"), filepath.Join(root, "rollback")); err == nil {
+		t.Fatal("activation accepted a symlink staging root")
+	}
+}
