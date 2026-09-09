@@ -33,16 +33,16 @@ func NewAttemptLimiter(maxEntries, limit int, window time.Duration) *AttemptLimi
 }
 
 func (l *AttemptLimiter) Allow(key string) bool {
+	if l == nil || key == "" {
+		return false
+	}
 	now := time.Now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	value, ok := l.entries[key]
 	if !ok || !now.Before(value.resetAt) {
 		if !ok && len(l.entries) >= l.maxEntries {
-			for oldest := range l.entries {
-				delete(l.entries, oldest)
-				break
-			}
+			l.evict(now)
 		}
 		l.entries[key] = attempt{count: 1, resetAt: now.Add(l.window)}
 		return true
@@ -53,4 +53,26 @@ func (l *AttemptLimiter) Allow(key string) bool {
 	value.count++
 	l.entries[key] = value
 	return true
+}
+
+func (l *AttemptLimiter) evict(now time.Time) {
+	for key, value := range l.entries {
+		if !now.Before(value.resetAt) {
+			delete(l.entries, key)
+		}
+	}
+	if len(l.entries) < l.maxEntries {
+		return
+	}
+	oldestKey := ""
+	var oldestReset time.Time
+	for key, value := range l.entries {
+		if oldestKey == "" || value.resetAt.Before(oldestReset) {
+			oldestKey = key
+			oldestReset = value.resetAt
+		}
+	}
+	if oldestKey != "" {
+		delete(l.entries, oldestKey)
+	}
 }
