@@ -21,6 +21,70 @@ type Store struct {
 	Tx         database.Transactor
 }
 
+// ListDeadLetters returns a bounded operator view of jobs that require review.
+func (s Store) ListDeadLetters(ctx context.Context, db database.Executor, limit int) ([]jobs.Job, error) {
+	if limit < 1 {
+		limit = 1
+	}
+	dead := "1"
+	if s.Dialect == database.Postgres {
+		dead = "TRUE"
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("database executor does not support row queries")
+	}
+	rows, err := queryer.QueryContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE dead_lettered = `+dead+` ORDER BY created_at, id LIMIT `+s.p(1), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]jobs.Job, 0, limit)
+	for rows.Next() {
+		var job jobs.Job
+		var available, created string
+		if err := rows.Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &job.Attempts, &job.DeadLettered, &job.LastError); err != nil {
+			return nil, err
+		}
+		job.AvailableAt, err = parseTime(available)
+		if err != nil {
+			return nil, err
+		}
+		job.CreatedAt, err = parseTime(created)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, job)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// RequeueDeadLetter makes one explicitly selected dead-letter job claimable.
+// The attempt count and last error remain available for operator audit.
+func (s Store) RequeueDeadLetter(ctx context.Context, db database.Executor, id string, availableAt time.Time) error {
+	dead := "1"
+	if s.Dialect == database.Postgres {
+		dead = "TRUE"
+	}
+	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", dead_lettered = "+s.boolLiteral(false)+" WHERE id = "+s.p(2)+" AND dead_lettered = "+dead, formatTime(availableAt.UTC()), id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return jobs.ErrLeaseInvalid
+	}
+	return nil
+}
+
 func (s Store) Enqueue(ctx context.Context, db database.Executor, job jobs.Job) error {
 	if strings.TrimSpace(job.ID) == "" || strings.TrimSpace(job.Type) == "" {
 		return jobs.ErrJobConflict

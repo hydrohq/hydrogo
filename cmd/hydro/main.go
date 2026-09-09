@@ -122,6 +122,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return portableCommand(args[1:], stdout, stderr)
 	case "release":
 		return releaseCommand(args[1:], stdout, stderr)
+	case "jobs":
+		return jobsCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -726,6 +728,104 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	return err
 }
 
+func jobsCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "dead-letter" {
+		return errors.New("jobs requires the dead-letter subcommand")
+	}
+	if len(args) < 2 {
+		return errors.New("jobs dead-letter requires list or requeue")
+	}
+	flags := flag.NewFlagSet("jobs dead-letter "+args[1], flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	switch args[1] {
+	case "list":
+		limit := flags.Int("limit", 50, "Maximum number of jobs to display")
+		jsonOutput := flags.Bool("json", false, "Print machine-readable output")
+		if err := flags.Parse(args[2:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 || *limit < 1 || *limit > 1000 {
+			return errors.New("list requires no arguments and --limit between 1 and 1000")
+		}
+		cfg, budget, db, err := openJobsDatabase(flags, values)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		listed, err := (jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}).ListDeadLetters(context.Background(), db, *limit)
+		if err != nil {
+			return fmt.Errorf("list dead-letter jobs: %w", err)
+		}
+		if *jsonOutput {
+			type deadLetterSummary struct {
+				ID          string    `json:"id"`
+				Type        string    `json:"type"`
+				AvailableAt time.Time `json:"available_at"`
+				CreatedAt   time.Time `json:"created_at"`
+				Attempts    int       `json:"attempts"`
+				LastError   string    `json:"last_error"`
+			}
+			summaries := make([]deadLetterSummary, 0, len(listed))
+			for _, job := range listed {
+				summaries = append(summaries, deadLetterSummary{ID: job.ID, Type: job.Type, AvailableAt: job.AvailableAt, CreatedAt: job.CreatedAt, Attempts: job.Attempts, LastError: job.LastError})
+			}
+			data, err := json.Marshal(summaries)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintln(stdout, string(data))
+			return err
+		}
+		for _, job := range listed {
+			if _, err := fmt.Fprintf(stdout, "dead-letter id=%s type=%s attempts=%d created=%s last_error=%q\n", job.ID, job.Type, job.Attempts, job.CreatedAt.Format(time.RFC3339), job.LastError); err != nil {
+				return err
+			}
+		}
+		return nil
+	case "requeue":
+		id := flags.String("id", "", "Dead-letter job ID")
+		confirm := flags.Bool("confirm", false, "Confirm requeue of the selected job")
+		if err := flags.Parse(args[2:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 || strings.TrimSpace(*id) == "" {
+			return errors.New("requeue requires --id and no positional arguments")
+		}
+		if !*confirm {
+			return errors.New("requeue requires --confirm")
+		}
+		cfg, budget, db, err := openJobsDatabase(flags, values)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		if err := (jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}).RequeueDeadLetter(context.Background(), db, *id, time.Now().UTC()); err != nil {
+			return fmt.Errorf("requeue dead-letter job: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "dead-letter-requeued id=%s\n", *id)
+		return err
+	default:
+		return fmt.Errorf("unknown jobs dead-letter subcommand %q", args[1])
+	}
+}
+
+func openJobsDatabase(flags *flag.FlagSet, values runtimeFlags) (config.Config, capacity.Budget, *sql.DB, error) {
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return config.Config{}, capacity.Budget{}, nil, err
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return config.Config{}, capacity.Budget{}, nil, err
+	}
+	db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	if err != nil {
+		return config.Config{}, capacity.Budget{}, nil, fmt.Errorf("database: %w", err)
+	}
+	return cfg, budget, db, nil
+}
+
 func checkDirectoryWritable(directory string) error {
 	probe, err := os.CreateTemp(directory, ".hydro-write-check-*")
 	if err != nil {
@@ -1070,6 +1170,8 @@ Usage:
   hydro portable import --path PATH --dry-run [--max-bytes BYTES] [runtime flags]
   hydro portable import --path PATH --confirm [--max-bytes BYTES] [runtime flags]
   hydro release verify --manifest PATH --public-key PATH
+  hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
+  hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro serve [runtime flags]
   hydro help
 

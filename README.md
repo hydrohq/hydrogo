@@ -144,6 +144,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-local.ps1
 
 `hydro doctor --json` provides automation-friendly preflight output for the selected profile, database, backup tools, media writability, transport security settings, binary identity, and embedded schema migration.
 
+Dead-lettered background jobs can be reviewed without exposing their payloads:
+
+```text
+hydro jobs dead-letter list --database-dialect sqlite --database-dsn PATH --json
+hydro jobs dead-letter requeue --id JOB_ID --confirm --database-dialect sqlite --database-dsn PATH
+```
+
+Requeue is an explicit operator action and preserves the job attempt count and last error for auditability.
+
 Run the automated release gates after configuring a PostgreSQL contract database:
 
 ```powershell

@@ -41,6 +41,8 @@ Snapshot retention için önce `hydro backup prune --root SNAPSHOTS --keep 3 --d
 
 `internal/ops.Evaluate` son başarılı backup yaşı, minimum disk alanı, migration başarısızlığı, SMTP delivery failure ve dead-letter job sinyallerini deterministic alarm kodlarına çevirir. `backup_stale`, `disk_low` ve `migration_failed` kritik; `smtp_delivery` ve `jobs_dead_lettered` uyarı seviyesindedir. Evaluator alarm delivery sisteminin yerine geçmez; production notifier ve dış backup/key kurtarma tatbikatı ayrıca doğrulanmalıdır.
 
+Dead-letter job'lar önce `hydro jobs dead-letter list` ile incelenir. Payload CLI çıktısına dahil edilmez. Operatör doğrulanmış bir düzeltmeden sonra yalnızca açık onayla `hydro jobs dead-letter requeue --id ID --confirm` çalıştırır; attempt ve son hata tanısı korunur.
+
 ## Mevcut limitler
 
 - Login/MFA: process-local limiter, 10.000 anahtar, anahtar başına 5 deneme / 1 dakika.

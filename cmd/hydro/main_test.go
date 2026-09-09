@@ -52,6 +52,14 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestDeadLetterRequeueRequiresExplicitConfirmation(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"jobs", "dead-letter", "requeue", "--id", "job-1"}, strings.NewReader(""), &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "--confirm") {
+		t.Fatalf("requeue without confirmation error = %v", err)
+	}
+}
+
 func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	var stdout, stderr bytes.Buffer
