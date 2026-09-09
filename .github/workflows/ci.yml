@@ -60,9 +60,9 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
-      - run: go test ./... -p 1
+      - run: go test ./... -p 1 -timeout=5m
       - name: Run shuffled test suite
-        run: go test ./... -shuffle=on -count=1 -p 1
+        run: go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
       - run: go build -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3
@@ -113,8 +113,8 @@ jobs:
           go mod verify
           go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
           go vet ./...
-          go test ./... -p 1
-          go test ./... -shuffle=on -count=1 -p 1
+          go test ./... -p 1 -timeout=5m
+          go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
           go build -ldflags "-X main.buildCommit=$env:GITHUB_SHA -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3
@@ -141,4 +141,4 @@ jobs:
       - name: Run race-sensitive contract tests
         env:
           CGO_ENABLED: '1'
-        run: go test -race -p 1 -count=1 ./internal/... ./modules/... ./cmd/hydro
+        run: go test -race -p 1 -count=1 -timeout=5m ./internal/... ./modules/... ./cmd/hydro

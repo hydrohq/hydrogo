@@ -21,11 +21,11 @@ run_required 'module integrity' go mod verify
 run_required 'workflow action pins' go run ./tools/actionguard
 run_required 'dependency vulnerability scan' go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 run_required 'go vet' go vet ./...
-run_required 'full test suite' go test ./... -count=1 -p 1
-run_required 'shuffled test suite' go test ./... -shuffle=on -count=1 -p 1
+run_required 'full test suite' go test ./... -count=1 -p 1 -timeout=5m
+run_required 'shuffled test suite' go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
 
 run_required 'race-sensitive packages' go test -race -p 1 \
-  ./internal/... ./modules/... ./cmd/hydro -count=1
+  ./internal/... ./modules/... ./cmd/hydro -count=1 -timeout=5m
 
 gate_dir=.tmp/gates
 mkdir -p "$gate_dir"

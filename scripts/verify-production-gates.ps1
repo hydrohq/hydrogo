@@ -21,13 +21,13 @@ Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "workflow action pins" { go run ./tools/actionguard }
 Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }
 Invoke-Required "go vet" { go vet ./... }
-Invoke-Required "full test suite" { go test ./... -count=1 -p 1 }
-Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 -p 1 }
+Invoke-Required "full test suite" { go test ./... -count=1 -p 1 -timeout=5m }
+Invoke-Required "shuffled test suite" { go test ./... -shuffle=on -count=1 -p 1 -timeout=5m }
 
 $previousCgo = $env:CGO_ENABLED
 $env:CGO_ENABLED = "1"
 try {
-    Invoke-Required "race-sensitive packages" { go test -race -p 1 ./internal/... ./modules/... ./cmd/hydro -count=1 }
+    Invoke-Required "race-sensitive packages" { go test -race -p 1 ./internal/... ./modules/... ./cmd/hydro -count=1 -timeout=5m }
 }
 finally {
     if ($null -eq $previousCgo) { Remove-Item Env:CGO_ENABLED -ErrorAction SilentlyContinue } else { $env:CGO_ENABLED = $previousCgo }
