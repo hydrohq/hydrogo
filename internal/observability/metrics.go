@@ -23,6 +23,7 @@ type Metrics struct {
 	workerProcessed     atomic.Uint64
 	workerFailures      atomic.Uint64
 	workerEnqueueErrors atomic.Uint64
+	workerConcurrency   atomic.Int64
 }
 
 type DatabaseStats struct {
@@ -86,6 +87,12 @@ func (m *Metrics) RecordWorkerFailure() {
 func (m *Metrics) RecordWorkerEnqueueError() {
 	if m != nil {
 		m.workerEnqueueErrors.Add(1)
+	}
+}
+
+func (m *Metrics) SetWorkerConcurrency(value int) {
+	if m != nil && value > 0 {
+		m.workerConcurrency.Store(int64(value))
 	}
 }
 
@@ -160,6 +167,7 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "hydro_worker_processed_total %d\n", m.workerProcessed.Load())
 	fmt.Fprintf(w, "hydro_worker_failures_total %d\n", m.workerFailures.Load())
 	fmt.Fprintf(w, "hydro_worker_enqueue_errors_total %d\n", m.workerEnqueueErrors.Load())
+	fmt.Fprintf(w, "hydro_worker_concurrency %d\n", m.workerConcurrency.Load())
 }
 
 type responseRecorder struct {

@@ -600,6 +600,7 @@ func serve(args []string, stderr io.Writer) error {
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
 
 	metrics := observability.NewMetrics()
+	metrics.SetWorkerConcurrency(budget.WorkerConcurrency)
 	metrics.SetCacheStatsProvider(func() observability.CacheStats {
 		stats := contentService.PublicCache.Stats()
 		return observability.CacheStats{Hits: stats.Hits, Misses: stats.Misses, Loads: stats.Loads, LoadErrors: stats.LoadErrors, Evictions: stats.Evictions, Expirations: stats.Expirations}
