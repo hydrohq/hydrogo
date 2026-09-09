@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+const MaxManifestBytes int64 = 1 << 20
+
 type FileDigest struct {
 	Path   string `json:"path"`
 	SHA256 string `json:"sha256"`
@@ -208,9 +210,17 @@ func WriteManifest(path string, manifest Manifest) error {
 }
 
 func ReadManifest(path string) (Manifest, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return Manifest{}, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, MaxManifestBytes+1))
+	if err != nil {
+		return Manifest{}, err
+	}
+	if int64(len(data)) > MaxManifestBytes {
+		return Manifest{}, errors.New("backup manifest exceeds size limit")
 	}
 	var manifest Manifest
 	if err := json.Unmarshal(data, &manifest); err != nil {

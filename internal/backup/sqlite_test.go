@@ -184,6 +184,17 @@ func TestVerifyRejectsUnsafeRoots(t *testing.T) {
 	}
 }
 
+func TestReadManifestRejectsOversizedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "manifest.json")
+	data := make([]byte, MaxManifestBytes+1)
+	if err := os.WriteFile(path, data, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadManifest(path); err == nil {
+		t.Fatal("oversized manifest was accepted")
+	}
+}
+
 func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
 	root := t.TempDir()
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
