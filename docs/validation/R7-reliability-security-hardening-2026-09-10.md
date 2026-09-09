@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `60430dc`  
-**Validation baseline:** `60430dc`  
+**Repository commit:** `65ec430`  
+**Validation baseline:** `65ec430`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -24,6 +24,9 @@ verification improvements after the R3/R5 contract work.
 - Release asset retention and generator output roots apply the same fail-closed
   path policy. Distributed rate-limit keys are hashed before reaching a shared
   store, avoiding raw IP/email persistence.
+- Backup, erasure and release workflows share the tested
+  `internal/pathguard` symlink-component contract; empty path input is rejected
+  by the shared helper itself.
 
 ## Evidence commands
 
