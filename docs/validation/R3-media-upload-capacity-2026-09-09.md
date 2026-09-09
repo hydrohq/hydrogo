@@ -9,7 +9,8 @@ bağlar. Görüntü boyut başlığından sonra tam payload decode'u da yapılı
 truncated veya bozuk görüntü immutable storage'a alınmaz. Semaphore bekleyen bir
 request'in context'i iptal edilirse upload başlamadan durur. Uploader veya asset
 repository yanlış bağlanırsa medya service'i panic etmek yerine fail-closed hata
-döndürür.
+döndürür; HTTP upload/serve sınırı da bu eksik bağımlılıkları 503 ile güvenli
+şekilde reddeder.
 
 ## Kanıt
 
