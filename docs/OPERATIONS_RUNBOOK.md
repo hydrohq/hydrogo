@@ -5,11 +5,12 @@ Bu belge Compact pilot için uygulanabilir işletim adımlarını toplar. Restor
 ## Deploy ve rollback
 
 1. Yeni binary, config ve migration manifest'i staging dizinine kopyalanır; `hydro migrate` çalıştırılır.
-2. `hydro doctor` ile seçilen kapasite profili, DB bağlantısı/checksum'ları ve medya dizini doğrulanır; ardından `hydro serve` başlatılır ve `/readyz` beklenir.
-3. `/metrics` yalnızca authenticated operasyon erişimiyle okunur; HTTP toplamı, in-flight ve sınırlı status sınıfı sayaçları alarm/kapasite sistemine aktarılır.
-4. Blue/green geçişinde green slot trafik almadan önce public route, private media, login, sitemap ve form submit smoke istekleri çalıştırılır.
-5. Eski slot yeni yazma almaya devam edemeyecek şekilde durdurulur; worker lease'leri drain/expiry politikasına bırakılır.
-6. Hata durumunda binary rollback yalnız eski şema ve content/event/job formatlarıyla uyumluluk doğrulanırsa yapılır. Yedekten restore ayrı prosedürdür.
+2. Üretimde `HYDRO_SECURE_COOKIES=true` ve `HYDRO_ENABLE_HSTS=true` ayarlanır; HTTPS sonlandırmasının gerçekten etkin olduğu doğrulanır.
+3. `hydro doctor` ile seçilen kapasite profili, DB bağlantısı/checksum'ları, backup araçları ve medya dizininin yazılabilirliği doğrulanır; ardından `hydro serve` başlatılır ve `/readyz` beklenir.
+4. `/metrics` yalnızca authenticated operasyon erişimiyle okunur; HTTP toplamı, in-flight ve sınırlı status sınıfı sayaçları alarm/kapasite sistemine aktarılır.
+5. Blue/green geçişinde green slot trafik almadan önce public route, private media, login, sitemap ve form submit smoke istekleri çalıştırılır.
+6. Eski slot yeni yazma almaya devam edemeyecek şekilde durdurulur; worker lease'leri drain/expiry politikasına bırakılır.
+7. Hata durumunda binary rollback yalnız eski şema ve content/event/job formatlarıyla uyumluluk doğrulanırsa yapılır. Yedekten restore ayrı prosedürdür.
 
 ## Compact snapshot ve restore
 

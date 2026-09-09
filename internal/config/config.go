@@ -38,7 +38,9 @@ type Media struct {
 }
 
 type Security struct {
-	MFAMasterKey string `yaml:"mfa_master_key"`
+	MFAMasterKey  string `yaml:"mfa_master_key"`
+	SecureCookies bool   `yaml:"secure_cookies"`
+	EnableHSTS    bool   `yaml:"enable_hsts"`
 }
 
 type Mail struct {
@@ -91,6 +93,20 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_MFA_MASTER_KEY"); ok && value != "" {
 		result.Security.MFAMasterKey = value
+	}
+	if value, ok := lookup("HYDRO_SECURE_COOKIES"); ok && value != "" {
+		secureCookies, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_SECURE_COOKIES: %w", err)
+		}
+		result.Security.SecureCookies = secureCookies
+	}
+	if value, ok := lookup("HYDRO_ENABLE_HSTS"); ok && value != "" {
+		enableHSTS, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_ENABLE_HSTS: %w", err)
+		}
+		result.Security.EnableHSTS = enableHSTS
 	}
 	if value, ok := lookup("HYDRO_SMTP_HOST"); ok && value != "" {
 		result.Mail.Host = value

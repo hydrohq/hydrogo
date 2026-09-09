@@ -65,6 +65,26 @@ func TestLoadRejectsPartialSMTPConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadSecurityTransportOptions(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":   "file:test.sqlite",
+		"HYDRO_SECURE_COOKIES": "true",
+		"HYDRO_ENABLE_HSTS":    "true",
+	}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Security.SecureCookies || !cfg.Security.EnableHSTS {
+		t.Fatalf("security transport options were not loaded: %+v", cfg.Security)
+	}
+	if _, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":   "file:test.sqlite",
+		"HYDRO_SECURE_COOKIES": "maybe",
+	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "HYDRO_SECURE_COOKIES") {
+		t.Fatalf("invalid secure cookie option error = %v", err)
+	}
+}
+
 func writeConfig(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "hydro.yaml")

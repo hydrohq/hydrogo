@@ -496,6 +496,8 @@ func serve(args []string, stderr io.Writer) error {
 		ShutdownTimeout: budget.ShutdownTimeout,
 		AuthSvc:         authSvc,
 		Metrics:         observability.NewMetrics(),
+		EnableHSTS:      cfg.Security.EnableHSTS,
+		SecureCookie:    cfg.Security.SecureCookies,
 		Routes:          routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
