@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -16,6 +17,13 @@ func TestSQLAdapterRejectsTypedNilExecutor(t *testing.T) {
 	err := (SQLAdapter{Dialect: database.SQLite}).Apply(context.Background(), db, Intent{EditionID: "site", TargetID: "asset", Kind: "erase.media"})
 	if err == nil {
 		t.Fatal("typed nil erasure executor was accepted")
+	}
+}
+
+func TestSQLAdapterRejectsUnsupportedDialect(t *testing.T) {
+	err := (SQLAdapter{Dialect: database.Dialect("oracle")}).Apply(context.Background(), nil, Intent{EditionID: "site", TargetID: "asset", Kind: "erase.media"})
+	if err == nil || !strings.Contains(err.Error(), "unsupported database dialect") {
+		t.Fatalf("unsupported dialect error = %v", err)
 	}
 }
 
