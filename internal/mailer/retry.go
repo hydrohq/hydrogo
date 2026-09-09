@@ -3,6 +3,8 @@ package mailer
 import (
 	"context"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 // RetrySender retries transport failures with bounded exponential backoff.
@@ -19,7 +21,7 @@ func (r RetrySender) Send(ctx context.Context, message Message) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	if r.Sender == nil {
+	if guards.IsNil(r.Sender) {
 		return ErrSenderRequired
 	}
 	attempts := r.Attempts

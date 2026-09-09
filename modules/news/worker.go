@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/jobs"
 )
 
@@ -40,7 +41,7 @@ type Worker struct {
 // EnqueueDue discovers scheduled items that are due and idempotently places
 // their generation-guarded jobs on the configured queue.
 func (w Worker) EnqueueDue(ctx context.Context, db database.Executor, now time.Time) error {
-	if w.Service.Repository == nil || db == nil {
+	if guards.IsNil(w.Service.Repository) || database.RequireExecutor(db) != nil {
 		return errors.New("news scheduler repository is unavailable")
 	}
 	items, err := w.Service.Repository.ListScheduled(ctx, db, now)
@@ -60,7 +61,7 @@ func (w Worker) EnqueueSchedule(itemID string, generation int64, availableAt tim
 }
 
 func (w Worker) EnqueueScheduleContext(ctx context.Context, itemID string, generation int64, availableAt time.Time) error {
-	if (w.Queue == nil && w.Durable == nil) || itemID == "" || generation <= 0 {
+	if (w.Queue == nil && guards.IsNil(w.Durable)) || itemID == "" || generation <= 0 {
 		return ErrScheduleStale
 	}
 	payload, err := json.Marshal(scheduleJob{ItemID: itemID, Generation: generation})
@@ -68,14 +69,14 @@ func (w Worker) EnqueueScheduleContext(ctx context.Context, itemID string, gener
 		return err
 	}
 	job := jobs.Job{ID: fmt.Sprintf("news.schedule.%s.%d", itemID, generation), Type: "news.publish", Payload: string(payload), AvailableAt: availableAt.UTC()}
-	if w.Durable != nil {
+	if !guards.IsNil(w.Durable) {
 		return w.Durable.Enqueue(ctx, job)
 	}
 	return w.Queue.Enqueue(job)
 }
 
 func (w Worker) RunOnce(ctx context.Context, workerID string, now time.Time) (bool, error) {
-	if w.Queue == nil && w.Durable == nil {
+	if w.Queue == nil && guards.IsNil(w.Durable) {
 		return false, errors.New("news worker queue is unavailable")
 	}
 	lease := w.Lease
@@ -92,7 +93,7 @@ func (w Worker) RunOnce(ctx context.Context, workerID string, now time.Time) (bo
 		ok    bool
 		err   error
 	)
-	if w.Durable != nil {
+	if !guards.IsNil(w.Durable) {
 		job, token, ok, err = w.Durable.Claim(ctx, workerID, now, lease)
 	} else {
 		job, token, ok = w.Queue.Claim(workerID, now, lease)
@@ -145,14 +146,14 @@ func (w Worker) recordDeadLetter() {
 }
 
 func (w Worker) ack(ctx context.Context, id, worker, token string) error {
-	if w.Durable != nil {
+	if !guards.IsNil(w.Durable) {
 		return w.Durable.Ack(ctx, id, worker, token)
 	}
 	return w.Queue.Ack(id, worker, token)
 }
 
 func (w Worker) nack(ctx context.Context, id, worker, token string, retryAt time.Time, reason string) error {
-	if w.Durable != nil {
+	if !guards.IsNil(w.Durable) {
 		if queue, ok := w.Durable.(interface {
 			NackWithError(context.Context, string, string, string, time.Time, string) error
 		}); ok {
@@ -169,7 +170,7 @@ func (w Worker) nack(ctx context.Context, id, worker, token string, retryAt time
 }
 
 func (w Worker) deadLetter(ctx context.Context, id, worker, token, reason string) error {
-	if w.Durable != nil {
+	if !guards.IsNil(w.Durable) {
 		return w.Durable.DeadLetter(ctx, id, worker, token, reason)
 	}
 	return w.Queue.DeadLetter(id, worker, token, reason)

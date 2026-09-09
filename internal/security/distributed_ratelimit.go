@@ -1,6 +1,10 @@
 package security
 
-import "context"
+import (
+	"context"
+
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
+)
 
 // DistributedAttemptStore is the minimal shared-counter contract required by
 // multi-instance authentication limiting. Implementations own atomicity and
@@ -15,7 +19,7 @@ type DistributedAttemptStore interface {
 type DistributedLimiter struct{ Store DistributedAttemptStore }
 
 func (l DistributedLimiter) Allow(ctx context.Context, key string) bool {
-	if l.Store == nil || ctx.Err() != nil || key == "" {
+	if guards.IsNil(l.Store) || ctx.Err() != nil || key == "" {
 		return false
 	}
 	ok, err := l.Store.Allow(ctx, key)

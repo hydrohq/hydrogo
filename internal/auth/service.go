@@ -162,7 +162,7 @@ func (s *AuthService) CreateSession(ctx context.Context, userID, userAgent, ipAd
 }
 
 func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Session, *User, error) {
-	if s == nil || s.sessionRepo == nil {
+	if s == nil || guards.IsNil(s.sessionRepo) {
 		return nil, nil, ErrSessionRepositoryRequired
 	}
 	if guards.IsNil(s.userRepo) {

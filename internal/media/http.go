@@ -9,6 +9,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 type HTTPHandler struct {
@@ -55,7 +56,7 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
-	if h.Service.Uploader == nil || h.Service.Assets == nil {
+	if h.Service.Uploader == nil || guards.IsNil(h.Service.Assets) {
 		http.Error(w, "media unavailable", http.StatusServiceUnavailable)
 		return
 	}

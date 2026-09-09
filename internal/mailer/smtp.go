@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
 type Message struct {
@@ -31,14 +33,14 @@ var ErrSenderRequired = errors.New("notification sender is required")
 type NotificationSender struct{ Sender Sender }
 
 func (n NotificationSender) SendPasswordReset(ctx context.Context, email, token string) error {
-	if n.Sender == nil {
+	if guards.IsNil(n.Sender) {
 		return ErrSenderRequired
 	}
 	return n.Sender.Send(ctx, Message{To: email, Subject: "HydroGo password reset", Body: "Password reset token: " + token})
 }
 
 func (n NotificationSender) SendInvite(ctx context.Context, email, token string) error {
-	if n.Sender == nil {
+	if guards.IsNil(n.Sender) {
 		return ErrSenderRequired
 	}
 	return n.Sender.Send(ctx, Message{To: email, Subject: "HydroGo invitation", Body: "Invitation token: " + token})
