@@ -60,6 +60,17 @@ func TestDeadLetterRequeueRequiresExplicitConfirmation(t *testing.T) {
 	}
 }
 
+func TestNewsWorkerIDsAreDistinct(t *testing.T) {
+	seen := map[string]struct{}{}
+	for i := 0; i < 16; i++ {
+		id := newsWorkerID(i)
+		if _, exists := seen[id]; exists {
+			t.Fatalf("duplicate worker id %q", id)
+		}
+		seen[id] = struct{}{}
+	}
+}
+
 func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	var stdout, stderr bytes.Buffer
