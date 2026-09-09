@@ -26,6 +26,16 @@ func PlanSnapshotPrune(root string, policy SnapshotRetention) ([]string, error) 
 	if err != nil {
 		return nil, err
 	}
+	info, err := os.Lstat(root)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("snapshot retention root cannot be a symlink: %s", root)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("snapshot retention root is not a directory: %s", root)
+	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, err

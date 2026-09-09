@@ -74,6 +74,21 @@ func TestPlanSnapshotPruneDoesNotMutate(t *testing.T) {
 	}
 }
 
+func TestPlanSnapshotPruneRejectsSymlinkRoot(t *testing.T) {
+	parent := t.TempDir()
+	target := filepath.Join(parent, "snapshots")
+	if err := os.MkdirAll(target, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(parent, "snapshots-link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if _, err := PlanSnapshotPrune(link, SnapshotRetention{Keep: 1}); err == nil {
+		t.Fatal("symlinked retention root was accepted")
+	}
+}
+
 func writeSnapshot(t *testing.T, root, name string, created time.Time) {
 	t.Helper()
 	dir := filepath.Join(root, name)
