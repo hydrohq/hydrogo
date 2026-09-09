@@ -71,7 +71,12 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSON(w, r, &input); err != nil {
 		return
 	}
-	page := pages.Page{ID: newID(), Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body}
+	id, err := newID()
+	if err != nil {
+		http.Error(w, "page service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	page := pages.Page{ID: id, Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body}
 	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
@@ -240,12 +245,12 @@ func pageReadStatus(err error) int {
 	return http.StatusNotFound
 }
 
-func newID() string {
+func newID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return "page-generated"
+		return "", err
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

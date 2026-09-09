@@ -2,11 +2,11 @@ package transport
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -114,7 +114,12 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	digest := sha256.Sum256([]byte(requestIP(r)))
-	submission := site.Submission{ID: fmt.Sprintf("form-%d", time.Now().UnixNano()), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:])}
+	idBytes := make([]byte, 16)
+	if _, err := rand.Read(idBytes); err != nil {
+		http.Error(w, "form inbox unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	submission := site.Submission{ID: "form-" + hex.EncodeToString(idBytes), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:])}
 	if err := h.Service.Submit(r.Context(), submission); err != nil {
 		http.Error(w, "form submission failed", siteStatus(err))
 		return

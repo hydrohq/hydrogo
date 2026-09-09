@@ -65,7 +65,12 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &value) {
 		return
 	}
-	item := news.Item{ID: newID(), Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, Status: news.StatusDraft}
+	id, err := newID()
+	if err != nil {
+		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	item := news.Item{ID: id, Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, Status: news.StatusDraft}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -333,10 +338,10 @@ func writeError(w http.ResponseWriter, err error) {
 	http.Error(w, "news operation failed", status)
 }
 
-func newID() string {
+func newID() (string, error) {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
-		return "news-generated"
+		return "", err
 	}
-	return hex.EncodeToString(bytes)
+	return hex.EncodeToString(bytes), nil
 }
