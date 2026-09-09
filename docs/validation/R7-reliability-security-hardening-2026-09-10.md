@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `2abec01`  
-**Validation baseline:** `2abec01`  
+**Repository commit:** `6b2d53f`  
+**Validation baseline:** `6b2d53f`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -44,6 +44,8 @@ verification improvements after the R3/R5 contract work.
   invalid declared sizes are rejected.
 - Release manifest generation also streams artifact hashing and rejects
   symlink artifacts instead of following paths outside the release root.
+- Generator output paths reject symlinked parents and targets before writing,
+  protecting generated files and published migrations from path redirection.
 
 ## Evidence commands
 
