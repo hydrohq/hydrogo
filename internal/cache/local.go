@@ -18,6 +18,9 @@ type generationContextKey struct{}
 // WithGeneration binds a request to the deployment/cache generation selected
 // before traffic was handed to its handler.
 func WithGeneration(ctx context.Context, generation uint64) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return context.WithValue(ctx, generationContextKey{}, generation)
 }
 

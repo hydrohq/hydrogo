@@ -14,6 +14,9 @@ type requestIDContextKey struct{}
 
 // RequestIDFromContext returns the server-generated identifier for a request.
 func RequestIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
 	requestID, _ := ctx.Value(requestIDContextKey{}).(string)
 	return requestID
 }
@@ -24,6 +27,9 @@ func RequestIDFromContext(ctx context.Context) string {
 func WithRequestID(ctx context.Context, requestID string) context.Context {
 	if requestID == "" {
 		return ctx
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	return context.WithValue(ctx, requestIDContextKey{}, requestID)
 }

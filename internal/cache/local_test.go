@@ -282,3 +282,9 @@ func TestCacheLoaderPanicDoesNotBlockCoalescedWaiters(t *testing.T) {
 		t.Fatal("coalesced waiter remained blocked")
 	}
 }
+
+func TestWithGenerationAcceptsNilContext(t *testing.T) {
+	if generation, ok := GenerationFromContext(WithGeneration(nil, 7)); !ok || generation != 7 {
+		t.Fatalf("generation from nil context = %d/%v", generation, ok)
+	}
+}

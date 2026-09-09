@@ -27,6 +27,9 @@ func GenerateCSRFToken() (string, error) {
 }
 
 func CSRFTokenFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
 	if tok, ok := ctx.Value(csrfContextKey{}).(string); ok {
 		return tok
 	}
