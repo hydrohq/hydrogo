@@ -78,6 +78,21 @@ func TestManifestProvenanceAttestationBindsSubject(t *testing.T) {
 	if _, err := VerifyAttestation(signed, manifest); err == nil {
 		t.Fatal("attestation accepted a changed manifest")
 	}
+
+	// Attest rejects empty builder or invalid key
+	if _, err := Attest(manifest, "", private); err == nil {
+		t.Fatal("expected error with empty builder")
+	}
+	if _, err := Attest(manifest, "ci", []byte("short")); err == nil {
+		t.Fatal("expected error with short private key")
+	}
+
+	// VerifyAttestation rejects corrupted signature
+	corrupted := signed
+	corrupted.Signature = "invalid-base64"
+	if _, err := VerifyAttestation(corrupted, manifest); err == nil {
+		t.Fatal("expected error on invalid base64 signature")
+	}
 }
 
 func TestRetainAssetsVerifiesInventoryAndRejectsReplacement(t *testing.T) {
