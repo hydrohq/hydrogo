@@ -54,3 +54,20 @@ func TestHostMiddlewareAllowsUnconfiguredLocalDevelopment(t *testing.T) {
 		t.Fatalf("unconfigured host status = %d, want %d", res.Code, http.StatusNoContent)
 	}
 }
+
+func TestHostMiddlewareCanonicalizesIDNHostnames(t *testing.T) {
+	middleware, err := NewHostMiddleware("https://bücher.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "https://xn--bcher-kva.example/", nil)
+	req.Host = "xn--bcher-kva.example:443"
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("IDN host status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+}

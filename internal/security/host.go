@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/idna"
 )
 
 type expectedHost struct {
@@ -43,9 +45,9 @@ func parseExpectedHost(origin string) (expectedHost, error) {
 	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Path != "" && parsed.Path != "/" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return expectedHost{}, fmt.Errorf("invalid public origin %q", origin)
 	}
-	hostname := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
-	if hostname == "" {
-		return expectedHost{}, errors.New("public origin hostname is required")
+	hostname, err := canonicalHostname(parsed.Hostname())
+	if err != nil {
+		return expectedHost{}, err
 	}
 	port := parsed.Port()
 	if port == "" {
@@ -79,7 +81,11 @@ func requestMatchesHost(value string, expected expectedHost) bool {
 	if port == "" {
 		port = expected.port
 	}
-	hostname = strings.TrimSuffix(strings.ToLower(hostname), ".")
+	var err error
+	hostname, err = canonicalHostname(hostname)
+	if err != nil {
+		return false
+	}
 	if port == "" {
 		return false
 	}
@@ -87,4 +93,19 @@ func requestMatchesHost(value string, expected expectedHost) bool {
 		return false
 	}
 	return hostname == expected.host && port == expected.port
+}
+
+func canonicalHostname(value string) (string, error) {
+	value = strings.TrimSuffix(strings.TrimSpace(strings.ToLower(value)), ".")
+	if value == "" {
+		return "", errors.New("public origin hostname is required")
+	}
+	if ip := net.ParseIP(value); ip != nil {
+		return ip.String(), nil
+	}
+	ascii, err := idna.Lookup.ToASCII(value)
+	if err != nil || ascii == "" {
+		return "", fmt.Errorf("invalid hostname %q", value)
+	}
+	return strings.TrimSuffix(strings.ToLower(ascii), "."), nil
 }
