@@ -35,3 +35,16 @@ func TestRichTextHTMLEscapesEmbeddedMarkup(t *testing.T) {
 		t.Fatalf("embedded markup was not escaped: %s", got)
 	}
 }
+
+func TestRichTextHTMLRendersListsAndImages(t *testing.T) {
+	got := RichTextHTML(`{"ops":[{"insert":"Madde 1"},{"attributes":{"list":"bullet"},"insert":"\n"},{"insert":{"image":"https://example.com/photo.jpg"}},{"insert":"\n"},{"insert":"Kod"},{"attributes":{"code":true},"insert":" ornegi"},{"insert":"\n"}]}`)
+	if !strings.Contains(got, "<ul><li>Madde 1</li></ul>") {
+		t.Fatalf("expected bullet list, got: %s", got)
+	}
+	if !strings.Contains(got, `<img src="https://example.com/photo.jpg"`) {
+		t.Fatalf("expected image rendering, got: %s", got)
+	}
+	if !strings.Contains(got, "<code> ornegi</code>") {
+		t.Fatalf("expected inline code rendering, got: %s", got)
+	}
+}

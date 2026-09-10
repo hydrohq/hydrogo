@@ -47,15 +47,39 @@ type deltaOp struct {
 func renderDelta(ops []deltaOp) string {
 	var out strings.Builder
 	var line strings.Builder
+	currentList := "" // "ul" or "ol"
+
+	closeList := func() {
+		if currentList != "" {
+			out.WriteString("</" + currentList + ">")
+			currentList = ""
+		}
+	}
+
 	flush := func(attrs map[string]interface{}) {
 		text := line.String()
 		line.Reset()
-		if text == "" {
+		if text == "" && (attrs == nil || attrs["list"] == nil) {
 			return
 		}
 		if attrs != nil {
-			if header, ok := attrs["header"].(float64); ok && header >= 1 && header <= 3 {
-				tag := []string{"", "h1", "h2", "h3"}[int(header)]
+			if listType, ok := attrs["list"].(string); ok {
+				targetList := "ul"
+				if listType == "ordered" {
+					targetList = "ol"
+				}
+				if currentList != targetList {
+					closeList()
+					out.WriteString("<" + targetList + ">")
+					currentList = targetList
+				}
+				out.WriteString("<li>" + text + "</li>")
+				return
+			}
+			closeList()
+
+			if header, ok := attrs["header"].(float64); ok && header >= 1 && header <= 4 {
+				tag := []string{"", "h1", "h2", "h3", "h4"}[int(header)]
 				out.WriteString("<" + tag + ">" + text + "</" + tag + ">")
 				return
 			}
@@ -63,23 +87,41 @@ func renderDelta(ops []deltaOp) string {
 				out.WriteString("<blockquote>" + text + "</blockquote>")
 				return
 			}
+			if _, ok := attrs["code-block"]; ok {
+				out.WriteString("<pre><code>" + text + "</code></pre>")
+				return
+			}
+		} else {
+			closeList()
 		}
-		out.WriteString("<p>" + text + "</p>")
+		if text != "" {
+			out.WriteString("<p>" + text + "</p>")
+		}
 	}
+
 	for _, op := range ops {
-		text, ok := op.Insert.(string)
-		if !ok {
-			continue
-		}
-		parts := strings.Split(text, "\n")
-		for i, part := range parts {
-			line.WriteString(formatDeltaText(part, op.Attrs))
-			if i < len(parts)-1 {
-				flush(op.Attrs)
+		switch ins := op.Insert.(type) {
+		case string:
+			parts := strings.Split(ins, "\n")
+			for i, part := range parts {
+				line.WriteString(formatDeltaText(part, op.Attrs))
+				if i < len(parts)-1 {
+					flush(op.Attrs)
+				}
+			}
+		case map[string]interface{}:
+			// Embedded objects like {"image": "url"}
+			if imageSrc, ok := ins["image"].(string); ok {
+				imageSrc = strings.TrimSpace(imageSrc)
+				if strings.HasPrefix(imageSrc, "https://") || strings.HasPrefix(imageSrc, "http://") || strings.HasPrefix(imageSrc, "/media/") || strings.HasPrefix(imageSrc, "data:image/") {
+					closeList()
+					line.WriteString(`<img src="` + html.EscapeString(imageSrc) + `" alt="Görsel" loading="lazy" class="richtext-image" />`)
+				}
 			}
 		}
 	}
 	flush(nil)
+	closeList()
 	return out.String()
 }
 
@@ -88,8 +130,11 @@ func formatDeltaText(text string, attrs map[string]interface{}) string {
 	if attrs == nil {
 		return text
 	}
-	if link, ok := attrs["link"].(string); ok && (strings.HasPrefix(link, "https://") || strings.HasPrefix(link, "http://") || strings.HasPrefix(link, "mailto:")) {
-		text = `<a href="` + html.EscapeString(link) + `" rel="noopener noreferrer">` + text + "</a>"
+	if link, ok := attrs["link"].(string); ok {
+		link = strings.TrimSpace(link)
+		if strings.HasPrefix(link, "https://") || strings.HasPrefix(link, "http://") || strings.HasPrefix(link, "mailto:") || strings.HasPrefix(link, "/") || strings.HasPrefix(link, "#") {
+			text = `<a href="` + html.EscapeString(link) + `" target="_blank" rel="noopener noreferrer">` + text + "</a>"
+		}
 	}
 	if _, ok := attrs["bold"]; ok {
 		text = "<strong>" + text + "</strong>"
@@ -102,6 +147,9 @@ func formatDeltaText(text string, attrs map[string]interface{}) string {
 	}
 	if _, ok := attrs["strike"]; ok {
 		text = "<s>" + text + "</s>"
+	}
+	if _, ok := attrs["code"]; ok {
+		text = "<code>" + text + "</code>"
 	}
 	return text
 }
