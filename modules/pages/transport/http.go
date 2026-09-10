@@ -148,11 +148,13 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	blocks, _ := json.Marshal(page.Blocks)
 	_, _ = w.Write([]byte(`<form method="post" action="/admin/pages/` + template.HTMLEscapeString(page.ID) + `">
 <label>Locale <input name="locale" value="` + template.HTMLEscapeString(page.Locale) + `"></label>
 <label>Slug <input name="slug" value="` + template.HTMLEscapeString(page.Slug) + `"></label>
 <label>Title <input name="title" value="` + template.HTMLEscapeString(page.Title) + `"></label>
 <label>Body <textarea name="body">` + template.HTMLEscapeString(page.Body) + `</textarea></label>
+<label>Blocks (JSON) <textarea name="blocks" rows="12" placeholder='[{"type":"hero","payload":{"title":"Welcome"}}]'>` + template.HTMLEscapeString(string(blocks)) + `</textarea></label>
 <input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `">
 <input type="hidden" name="version" value="` + strconv.Itoa(page.Version) + `">
 <button type="submit">Save draft</button>
@@ -173,7 +175,14 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "version is required", http.StatusBadRequest)
 		return
 	}
-	page := pages.Page{ID: r.PathValue("id"), Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body")}
+	var blocks []pages.Block
+	if raw := r.FormValue("blocks"); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &blocks); err != nil {
+			http.Error(w, "invalid blocks JSON", http.StatusBadRequest)
+			return
+		}
+	}
+	page := pages.Page{ID: r.PathValue("id"), Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Blocks: blocks}
 	if err := h.Content.UpdateDraft(r.Context(), page, version); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
