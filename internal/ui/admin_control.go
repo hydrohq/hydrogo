@@ -6,9 +6,10 @@ import (
 )
 
 type AdminControlData struct {
-	Email string
-	Nonce string
-	CSRF  string
+	Email  string
+	Nonce  string
+	CSRF   string
+	Active string
 }
 
 var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<section class="dashboard-welcome"><div><p class="eyebrow">YÖNETİM ARAÇLARI</p><h2>Platformun tamamını tek yerden yönetin.</h2><p class="dashboard-subtitle">Site, medya, güvenlik ve operasyon yetenekleri aynı Studio çalışma alanında.</p></div></section>
@@ -18,7 +19,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<s
 <section class="studio-card control-next"><div><p class="eyebrow">İÇERİK</p><h2>Haber, sayfa ve Commerce</h2><p class="muted">Mevcut modül panelleri aynı servis ve yetki katmanını kullanır.</p></div><div class="studio-actions"><a class="button" href="/admin/news#new-news">Yeni haber</a><a class="button button-quiet" href="/admin/pages">Sayfalar</a><a class="button button-quiet" href="/admin/commerce/products">Commerce</a></div></section><script nonce="{{.Nonce}}">(()=>{const csrf={{printf "%q" .CSRF}};const json=(form,url,body,status)=>{fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(body)}).then(async r=>{if(!r.ok)throw Error(await r.text());status.textContent='Kaydedildi';form.reset()}).catch(e=>status.textContent='Hata: '+e.message)};document.getElementById('setting-form').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.currentTarget);json(e.currentTarget,'/admin/site/settings',{key:f.get('key'),value:f.get('value'),public:true},document.getElementById('site-status'))});document.getElementById('redirect-form').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.currentTarget);json(e.currentTarget,'/admin/site/redirects',{source_path:f.get('source_path'),target_path:f.get('target_path'),status:Number(f.get('status'))},document.getElementById('site-status'))});document.getElementById('media-form').addEventListener('submit',async e=>{e.preventDefault();const r=await fetch('/api/media',{method:'POST',headers:{'X-CSRF-Token':csrf},body:new FormData(e.currentTarget)});document.getElementById('media-status').textContent=r.ok?'Yüklendi; ready aşaması bekleniyor':'Yükleme başarısız'});document.getElementById('invite-form').addEventListener('submit',async e=>{e.preventDefault();const r=await fetch('/admin/auth/invites',{method:'POST',headers:{'X-CSRF-Token':csrf},body:new URLSearchParams(new FormData(e.currentTarget))});document.getElementById('invite-status').textContent=r.ok?'Davet gönderildi':'Davet gönderilemedi'})})()</script>`))
 
 func RenderAdminControl(w io.Writer, data AdminControlData) error {
-	if err := AdminStart(w, "Yönetim araçları", "Platform yönetimi", data.Nonce, "control"); err != nil {
+	if err := AdminStart(w, "Yönetim araçları", "Platform yönetimi", data.Nonce, data.Active); err != nil {
 		return err
 	}
 	if err := adminControlTemplate.Execute(w, data); err != nil {

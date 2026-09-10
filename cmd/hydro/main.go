@@ -729,17 +729,33 @@ func serve(args []string, stderr io.Writer) error {
 	})
 	routes = append(routes, router.Route{Pattern: "GET /admin", Access: router.Protected, Handler: adminDashboardHandler})
 	routes = append(routes, router.Route{Pattern: "GET /admin/reports", Access: router.Protected, Handler: adminDashboardHandler})
-	routes = append(routes, router.Route{Pattern: "GET /admin/control", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	adminControlHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context())}); err != nil {
+		active := "control"
+		if r.URL.Path == "/admin/site" {
+			active = "site"
+		}
+		if r.URL.Path == "/admin/media" {
+			active = "media"
+		}
+		if r.URL.Path == "/admin/security" {
+			active = "security"
+		}
+		if r.URL.Path == "/admin/operations" {
+			active = "operations"
+		}
+		if err := ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active}); err != nil {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
-	})})
+	})
+	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/media", "GET /admin/security", "GET /admin/operations"} {
+		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
+	}
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
