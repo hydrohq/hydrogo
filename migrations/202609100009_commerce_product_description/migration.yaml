@@ -1,0 +1,25 @@
+id: "202609100009_commerce_product_description"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "1517f252994a001bdfd0d0017c02f161e6dce0c86c737abbcbc2ed5461784301"
+  postgres: "1517f252994a001bdfd0d0017c02f161e6dce0c86c737abbcbc2ed5461784301"
+dependencies:
+  - "202609100002_commerce_core"
+schema:
+  readable_epoch: 5
+  writable_epoch: 5
+preconditions:
+  - "The commerce core migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One optional rich-text product description column"
+compatibility: "Adds an optional product description without changing existing catalog rows"
+smoke:
+  - "Existing products remain readable with an empty description"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

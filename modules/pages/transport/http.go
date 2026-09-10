@@ -170,7 +170,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if h.Theme != nil {
 		var content strings.Builder
-		fmt.Fprintf(&content, `<h1>%s</h1><div class="content-body">%s</div>`, template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body))
+		fmt.Fprintf(&content, `<h1>%s</h1><div class="content-body">%s</div>`, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body))
 		for _, block := range page.Blocks {
 			block, err = h.withPublicMedia(r.Context(), block)
 			if err != nil {
@@ -197,7 +197,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body), blocks)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body), blocks)
 }
 
 func (h Handler) withPublicMedia(ctx context.Context, block pages.Block) (pages.Block, error) {
@@ -332,7 +332,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
 		return
 	}

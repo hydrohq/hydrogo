@@ -309,7 +309,7 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 		if h.CatalogVariants != nil {
 			variants, _ = h.Catalog.ListVariants(r.Context(), h.DB, product.ID, true)
 		}
-		_, _ = fmt.Fprintf(w, `<article class="product-card"><h2>%s</h2><p class="product-price">%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
+		_, _ = fmt.Fprintf(w, `<article class="product-card"><h2>%s</h2><div class="product-description">%s</div><p class="product-price">%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, template.HTMLEscapeString(product.Title), ui.RichTextHTML(product.Description), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
 		if len(variants) > 0 {
 			_, _ = w.Write([]byte(`<label>Variant <select name="variant_id" required><option value="">Choose a variant</option>`))
 			for _, variant := range variants {
@@ -430,12 +430,14 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	collection := h.AdminCollection
+	collection.Fields = append([]adminstudio.Field{{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"}}, collection.Fields...)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStart(w, "Commerce katalog", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
 	_, _ = w.Write([]byte(`<section class="studio-card"><h2>Ürün kataloğu</h2><p>Ürünleri, fiyatları ve stok durumunu yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products">`))
-	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/commerce/products", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"currency": "TRY", "status": "draft"}}); err != nil {
+	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: collection, Action: "/admin/commerce/products", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"currency": "TRY", "status": "draft"}}); err != nil {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -444,7 +446,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	for _, product := range products {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
 	}
-	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: collection, Rows: rows}); err != nil {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -464,7 +466,7 @@ func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.VariantCollection, Action: "/admin/commerce/products/" + r.PathValue("productID") + "/variants", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"status": "draft"}, SubmitLabel: "Varyant oluştur"}); err != nil {
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.VariantCollection, Action: "/admin/commerce/products/" + r.PathValue("productID") + "/variants", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"status": "draft"}, SubmitLabel: "Varyant oluştur"}); err != nil {
 		http.Error(w, "admin studio variants unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -535,7 +537,7 @@ func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	product := commerce.Product{ID: id, SKU: r.FormValue("sku"), Title: r.FormValue("title"), PriceCents: price, Currency: r.FormValue("currency"), Stock: stock, Status: commerce.ProductStatus(r.FormValue("status"))}
+	product := commerce.Product{ID: id, SKU: r.FormValue("sku"), Title: r.FormValue("title"), Description: r.FormValue("description"), PriceCents: price, Currency: r.FormValue("currency"), Stock: stock, Status: commerce.ProductStatus(r.FormValue("status"))}
 	if err := h.Catalog.CreateProduct(r.Context(), product); err != nil {
 		http.Error(w, "invalid product", http.StatusBadRequest)
 		return

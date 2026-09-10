@@ -64,13 +64,14 @@ func (h Handler) schema() (graphql.Schema, error) {
 		"blocks": &graphql.Field{Type: graphql.NewList(blockType)},
 	}})
 	productType := graphql.NewObject(graphql.ObjectConfig{Name: "Product", Fields: graphql.Fields{
-		"id":         &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"sku":        &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"title":      &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"priceCents": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
-		"currency":   &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"stock":      &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
-		"status":     &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+		"id":          &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+		"sku":         &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+		"title":       &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+		"description": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+		"priceCents":  &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+		"currency":    &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+		"stock":       &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+		"status":      &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 	}})
 	root := graphql.NewObject(graphql.ObjectConfig{Name: "Query", Fields: graphql.Fields{
 		"page": &graphql.Field{Type: pageType, Args: graphql.FieldConfigArgument{
@@ -104,7 +105,7 @@ func (h Handler) resolveProducts(p graphql.ResolveParams) (any, error) {
 	}
 	result := make([]map[string]any, 0, len(products))
 	for _, product := range products {
-		result = append(result, map[string]any{"id": product.ID, "sku": product.SKU, "title": product.Title, "priceCents": product.PriceCents, "currency": product.Currency, "stock": product.Stock, "status": product.Status})
+		result = append(result, map[string]any{"id": product.ID, "sku": product.SKU, "title": product.Title, "description": product.Description, "priceCents": product.PriceCents, "currency": product.Currency, "stock": product.Stock, "status": product.Status})
 	}
 	return result, nil
 }

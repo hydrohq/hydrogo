@@ -14,13 +14,14 @@ const (
 )
 
 type Product struct {
-	ID         string        `json:"id"`
-	SKU        string        `json:"sku"`
-	Title      string        `json:"title"`
-	PriceCents int64         `json:"price_cents"`
-	Currency   string        `json:"currency"`
-	Stock      int           `json:"stock"`
-	Status     ProductStatus `json:"status"`
+	ID          string        `json:"id"`
+	SKU         string        `json:"sku"`
+	Title       string        `json:"title"`
+	Description string        `json:"description,omitempty"`
+	PriceCents  int64         `json:"price_cents"`
+	Currency    string        `json:"currency"`
+	Stock       int           `json:"stock"`
+	Status      ProductStatus `json:"status"`
 }
 
 type ProductVariant struct {

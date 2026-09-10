@@ -38,7 +38,7 @@ func TestRenderCreateFormSupportsTextareaAndReadonlyFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := out.String()
-	for _, want := range []string{`<textarea name="body" required>`, "&lt;strong&gt;safe&lt;/strong&gt;", "Save draft"} {
+	for _, want := range []string{`class="richtext-field"`, `name="body"`, "&lt;strong&gt;safe&lt;/strong&gt;", "Save draft"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("form missing %q: %s", want, html)
 		}

@@ -695,10 +695,20 @@ func serve(args []string, stderr io.Writer) error {
 	if !ok {
 		return errors.New("admin studio pages collection missing")
 	}
+	for i := range pageCollection.Fields {
+		if pageCollection.Fields[i].ID == "body" {
+			pageCollection.Fields[i].Widget = "richtext"
+		}
+	}
 	pageHTTP := pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection}
 	newsCollection, ok := studioRegistry.Collection("news")
 	if !ok {
 		return errors.New("admin studio news collection missing")
+	}
+	for i := range newsCollection.Fields {
+		if newsCollection.Fields[i].ID == "body" {
+			newsCollection.Fields[i].Widget = "richtext"
+		}
 	}
 	newsHTTP := newstransport.Handler{Service: newsService, DB: db, AdminCollection: newsCollection}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
@@ -774,6 +784,9 @@ func serve(args []string, stderr io.Writer) error {
 	if selectedTheme != nil {
 		routes = append(routes, router.Route{Pattern: "GET /theme/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(selectedTheme.ServeAsset)})
 	}
+	// Local editor assets are served from the versioned static vendor bundle.
+	// The route is read-only and scoped below static/vendor by construction.
+	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.Dir("static/vendor")))})
 	if moduleEnabled(cfg.Modules, "commerce") {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
@@ -795,6 +808,7 @@ func serve(args []string, stderr io.Writer) error {
 		if !ok {
 			return errors.New("commerce admin studio metadata missing")
 		}
+		commerceCollection.Fields = append([]adminstudio.Field{{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"}}, commerceCollection.Fields...)
 		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}, AdminCollection: commerceCollection}
 		variantCollection, ok := studioRegistry.Collection("commerce_variants")
 		if !ok {

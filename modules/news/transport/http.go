@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -133,7 +134,7 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">YENİ İÇERİK</p><h2>Yeni haber oluştur</h2><p class="muted">İçerik önce taslak olarak kaydedilir. Daha sonra detay sayfasından düzenleyebilir, zamanlayabilir veya yayınlayabilirsiniz.</p></div><a class="button button-quiet" href="/admin/news">Listeye dön</a></div><form class="studio-form" method="post" action="/admin/news">`)
-	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"locale": "tr"}, SubmitLabel: "Taslak oluştur"}); err != nil {
+	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"locale": "tr"}, SubmitLabel: "Taslak oluştur"}); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `</form></section>`)
@@ -396,6 +397,9 @@ func newsDocumentStart(locale, title string) string {
 }
 
 func newsLead(body string) string {
+	if strings.HasPrefix(strings.TrimSpace(body), "{") {
+		body = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(ui.RichTextHTML(body), " ")
+	}
 	body = strings.Join(strings.Fields(body), " ")
 	if len([]rune(body)) > 180 {
 		return string([]rune(body)[:180]) + "…"
@@ -403,14 +407,7 @@ func newsLead(body string) string {
 	return body
 }
 func renderParagraphs(body string) string {
-	var out strings.Builder
-	for _, paragraph := range strings.Split(body, "\n") {
-		paragraph = strings.TrimSpace(paragraph)
-		if paragraph != "" {
-			out.WriteString(`<p>` + template.HTMLEscapeString(paragraph) + `</p>`)
-		}
-	}
-	return out.String()
+	return ui.RichTextHTML(body)
 }
 
 func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
@@ -432,7 +429,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body}}); err != nil {
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body}}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
