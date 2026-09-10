@@ -433,11 +433,16 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = w.Write([]byte(`</form><ul>`))
+	_, _ = w.Write([]byte(`</form>`))
+	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
-		_, _ = fmt.Fprintf(w, `<li>%s (%s) — %d %s — stock %d — %s — <a href="/admin/commerce/products/%s/variants">Variants</a></li>`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.SKU), product.PriceCents, template.HTMLEscapeString(product.Currency), product.Stock, template.HTMLEscapeString(string(product.Status)), template.HTMLEscapeString(product.ID))
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
 	}
-	_, _ = w.Write([]byte(`</ul></body></html>`))
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
+		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write([]byte(`</body></html>`))
 }
 
 func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
