@@ -1,12 +1,14 @@
 # HydroGo headless starter
 
-This minimal starter consumes the versioned Pages API without importing HydroGo internals.
+This is an independent TypeScript frontend foundation. It imports no HydroGo Go package and consumes only the versioned `/api/v1` surface.
 
-```ts
-import { getPage } from "./src/hydrogo";
-
-const page = await getPage("en", "home");
-console.log(page.title, page.blocks);
+```powershell
+npm install
+$env:HYDRO_API_ORIGIN="http://127.0.0.1:8090"
+npm run build
+npm run demo
 ```
 
-Configure `HYDRO_API_ORIGIN` for the deployment. The public HTML alternative is `/public/pages/{locale}/{slug}/html`; headless clients should use `/api/v1/pages/...` and render only the published projection.
+`src/hydrogo.ts` exposes a typed client for published Pages, products, variants, cart and checkout. A real Next.js, Nuxt or Astro application can import this client and own all rendering, routing, SEO and component decisions.
+
+For authenticated browser calls, pass the CSRF value together with the browser session cookie; `addCartItem`, `removeCartItem` and `checkout` intentionally require it. Cross-origin cookie, CORS and preview-token policy are not guessed by this starter: they are a separate Core security contract in the headless migration plan.
