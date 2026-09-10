@@ -40,6 +40,14 @@ func TestProtectedRouteRequiresAuthorization(t *testing.T) {
 		t.Fatalf("unauthorized status = %d", unauthorized.Code)
 	}
 
+	browserRequest := httptest.NewRequest(http.MethodGet, "/admin?tab=drafts", nil)
+	browserRequest.Header.Set("Accept", "text/html")
+	browserRedirect := httptest.NewRecorder()
+	handler.ServeHTTP(browserRedirect, browserRequest)
+	if browserRedirect.Code != http.StatusSeeOther || browserRedirect.Header().Get("Location") != "/login?return_to=%2Fadmin%3Ftab%3Ddrafts" {
+		t.Fatalf("browser redirect = %d %q", browserRedirect.Code, browserRedirect.Header().Get("Location"))
+	}
+
 	request := httptest.NewRequest(http.MethodGet, "/admin", nil)
 	request.Header.Set("Authorization", "test")
 	authorized := httptest.NewRecorder()
