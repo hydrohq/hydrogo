@@ -1470,41 +1470,114 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		}
 		return seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,'tr',$3,$4,$5,$6,$7) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,'tr',?3,?4,?5,?6,?7)`, id+"-rev-1", id, slug, title, body, blocks, now)
 	}
-	homeBlocks := `[{"type":"hero","payload":{"title":"HydroGo Demo","subtitle":"Headless CMS, Admin Studio ve commerce API sözleşmelerini keşfedin.","button_text":"API'yi incele","button_url":"/api/pages?locale=tr"}},{"type":"cta","payload":{"title":"İçeriği Studio'da yönetin","button_text":"Admin Studio","button_url":"/admin"}},{"type":"faq","payload":{"items":[{"question":"Bu demo ne içeriyor?","answer":"Pages, News, medya, ürün, varyant, sipariş ve sürümlü API sözleşmelerini içerir."},{"question":"Örnek frontend nerede?","answer":"Core API-first çalışır. Son kullanıcı frontend'i Client Edition veya frontend starter ile ayrı geliştirilir."}]}}]`
-	showcaseBlocks := `[{"type":"hero","payload":{"title":"HydroGo Showcase","subtitle":"Hero, CTA, pricing, testimonials ve FAQ bloklarının tamamı tek içerik modeli üzerinden yönetilir.","button_text":"Commerce API","button_url":"/api/v1/commerce/products"}},{"type":"pricing_table","payload":{"items":[{"name":"Starter","price_cents":0,"currency":"TRY","features":["SQLite ile hızlı başlangıç","Admin Studio","REST ve GraphQL API"]},{"name":"Growth","price_cents":49900,"currency":"TRY","features":["Commerce katalog","Varyant ve stok","Headless frontend starter"]},{"name":"Enterprise","price_cents":149900,"currency":"TRY","features":["PostgreSQL profili","Background worker","Audit, outbox ve backup"]}]}},{"type":"testimonials","payload":{"items":[{"name":"Derya — Product Lead","quote":"İçerik, tema ve commerce aynı çalışma alanında birleşiyor."},{"name":"Mert — Developer","quote":"Core sözleşmeleri sayesinde bağımsız frontend geliştirmek kontrollü ilerliyor."}]}},{"type":"faq","payload":{"items":[{"question":"Ödeme sağlayıcıları var mı?","answer":"Stripe, iyzico Checkout Form ve PayTR token akışları yapılandırılabilir."},{"question":"Headless kullanım destekleniyor mu?","answer":"REST, GraphQL ve frontend starter'ları üzerinden headless tüketim desteklenir."}]}}]`
-	if err := seedPage("demo-home", "demo", "HydroGo Demo", "Demo sayfası", homeBlocks); err != nil {
+	homeBlocks := `[{"type":"hero","payload":{"title":"Geleceğin Dijital Deneyimi: HydroGo","subtitle":"Modüler mimari, tip güvenli Go backend'i, tam yetenekli Admin Studio ve yüksek performanslı e-ticaret sözleşmeleri.","button_text":"Tüm Yetenekleri Keşfet","button_url":"/public/pages/tr/showcase/html"}},{"type":"cta","payload":{"title":"İçeriği ve Kataloğu Yönetin","button_text":"Admin Studio'ya Git →","button_url":"/admin"}},{"type":"testimonials","payload":{"items":[{"name":"Selin Yılmaz — Head of Engineering","quote":"HydroGo sayesinde içerik modellerimizi dakikalar içinde kurgulayıp doğrudan API üzerinden uygulamalarımıza servis edebiliyoruz."},{"name":"Barış Demir — E-Ticaret Direktörü","quote":"Varyant ve stok yönetimi ile sipariş akışı hem SQLite hem PostgreSQL üzerinde kusursuz çalışıyor."}]}},{"type":"faq","payload":{"items":[{"question":"HydroGo mimarisi hangi prensiplere dayanır?","answer":"Core ve Modül ayrımı, dialect bağımsız veri katmanı, outbox pattern ile asenkron olaylar ve sıfır dış bağımlılık prensibiyle geliştirilmiştir."},{"question":"Haberler ve sayfalar nasıl yönetilir?","answer":"Admin Studio içerisindeki zengin metin editörü (Quill), etiketler, anahtar çıkarımlar ve dinamik sayfa blokları ile tam kontrol sağlanır."},{"question":"E-Ticaret ve ödeme altyapısı hazır mı?","answer":"Evet; ürünler, varyantlar, sepet, sipariş ve Stripe, iyzico, PayTR ödeme sağlayıcı sözleşmeleri entegredir."}]}}]`
+	showcaseBlocks := `[{"type":"hero","payload":{"title":"HydroGo Blok & Mimari Vitrini","subtitle":"Hero, CTA, Pricing Tablosu, Testimonials ve SSS (FAQ) bileşenleri ile dinamik web deneyimi.","button_text":"Mağazaya Göz At","button_url":"/shop"}},{"type":"pricing_table","payload":{"items":[{"name":"Starter Edition","price_cents":0,"currency":"TRY","features":["SQLite gömülü veritabanı","Admin Studio & Zengin Editör","REST & GraphQL API","Kompakt profil"]},{"name":"Growth Edition","price_cents":49900,"currency":"TRY","features":["Tüm CMS özellikleri","Commerce katalog ve varyantlar","Stok & Sipariş takibi","Headless Starter desteği"]},{"name":"Enterprise Edition","price_cents":149900,"currency":"TRY","features":["PostgreSQL yüksek erişilebilirlik","Arka plan worker & Outbox","Kapsamlı Audit & Kurtarma","Özelleştirilmiş SLA"]}]}},{"type":"testimonials","payload":{"items":[{"name":"Kaan Öztürk — Senior Fullstack Architect","quote":"Admin Studio'nun blok bazlı sayfa kurgusu ve haberlerdeki key takeaways alanı editoryal üretkenliği üçe katladı."},{"name":"Ayşe Kaya — Tech Lead","quote":"Veritabanı dialect testleri ve sıfır sızıntı politikası sayesinde deployment süreçlerimiz tamamen stressiz."}]}},{"type":"cta","payload":{"title":"Kendi projenizi HydroGo ile hemen başlatın","button_text":"Hemen Başla","button_url":"/public/news/tr/html"}},{"type":"faq","payload":{"items":[{"question":"PostgreSQL ve SQLite arasında geçiş nasıl yapılır?","answer":"Runtime yapılandırmasında database dialect parametresi ve connection string belirtilerek kolayca geçiş yapılır."},{"question":"Medya dosyaları nasıl optimize edilir?","answer":"Görsel ve dosyalar yerel veya güvenli medya deposunda SHA-256 bütünlük kontrolü ile saklanır."}]}}]`
+	aboutBlocks := `[{"type":"hero","payload":{"title":"HydroGo Vizyonu ve Mimari Felsefesi","subtitle":"Performanslı, güvenli ve sürdürülebilir kurumsal içerik & ticaret altyapısı.","button_text":"Haber Merkezini Gör","button_url":"/public/news/tr/html"}},{"type":"cta","payload":{"title":"Geliştirici veya İçerik Yöneticisi misiniz?","button_text":"Studio Çalışma Alanı","button_url":"/admin"}},{"type":"faq","payload":{"items":[{"question":"Modüler CMS + Commerce nedir?","answer":"HydroCore genel sözleşmeleri tanımlar, Pages, News ve Commerce modülleri bağımsız olarak takılıp çalıştırılabilir."},{"question":"Güvenlik standartları nelerdir?","answer":"CSP, CSRF koruması, Argon2id parola şifreleme, TOTP MFA ve sıkı oturum izolasyonu mevcuttur."}]}}]`
+	if err := seedPage("demo-home", "demo", "HydroGo Platformu", "HydroGo kurumsal içerik yönetim ve e-ticaret platformuna hoş geldiniz.", homeBlocks); err != nil {
 		return fmt.Errorf("seed demo home: %w", err)
 	}
-	if err := seedPage("demo-showcase", "showcase", "HydroGo Showcase", "Tüm blok tiplerini ve mimari yetenekleri keşfet.", showcaseBlocks); err != nil {
+	if err := seedPage("demo-showcase", "showcase", "HydroGo Showcase", "Tüm blok tiplerini ve mimari yetenekleri keşfedin.", showcaseBlocks); err != nil {
 		return fmt.Errorf("seed demo showcase: %w", err)
 	}
-	if err := seedPage("demo-about", "about", "HydroGo Hakkında", "HydroCore, modüller ve Client Edition yaklaşımı.", `[{"type":"hero","payload":{"title":"Modüler CMS + Commerce","subtitle":"Core sözleşmeleri, bağımsız modüller, güvenli yayın akışları."}},{"type":"cta","payload":{"title":"İçerik çalışma alanını aç","button_text":"Admin Studio","button_url":"/admin"}}]`); err != nil {
+	if err := seedPage("demo-about", "about", "HydroGo Hakkında", "HydroCore, modüller ve Client Edition yaklaşımı.", aboutBlocks); err != nil {
 		return fmt.Errorf("seed demo about: %w", err)
 	}
 	for _, product := range []struct {
-		id, sku, title string
-		price, stock   int
-	}{{"demo-bottle", "DEMO-BOTTLE", "HydroGo Bottle", 24900, 25}, {"demo-shirt", "DEMO-SHIRT", "HydroGo T-Shirt", 49900, 12}} {
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO commerce_products (id,sku,title,price_cents,currency,stock,status,created_at,updated_at) VALUES ($1,$2,$3,$4,'TRY',$5,'published',$6,$6) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO commerce_products (id,sku,title,price_cents,currency,stock,status,created_at,updated_at) VALUES (?,?,?,?,'TRY',?,'published',?,?)`, product.id, product.sku, product.title, product.price, product.stock, now, now); err != nil {
+		id, sku, title, desc string
+		price, stock         int
+	}{
+		{"demo-bottle", "DEMO-BOTTLE", "HydroGo Akıllı Termos (750ml)", "Çift katmanlı paslanmaz çelik gövde, 24 saat sıcak/soğuk koruma ve dijital sıcaklık göstergesi.", 34900, 45},
+		{"demo-shirt", "DEMO-SHIRT", "HydroGo Developer T-Shirt", "%100 organik pamuk, nefes alabilir kumaş ve modern geliştirici tasarım baskısı.", 49900, 30},
+		{"demo-keyboard", "DEMO-KEYBOARD", "HydroGo Mekanik Klavye (Hot-Swap)", "Gateron Brown switch'ler, RGB aydınlatma, PBT tuş takımı ve alüminyum gövde.", 189900, 15},
+		{"demo-backpack", "DEMO-BACKPACK", "HydroGo Tech Sırt Çantası", "Su geçirmez kumaş, 16 inç laptop bölmesi, USB şarj portu ve ergonomik sırt desteği.", 89900, 20},
+	} {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO commerce_products (id,sku,title,description,price_cents,currency,stock,status,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,'TRY',$6,'published',$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO commerce_products (id,sku,title,description,price_cents,currency,stock,status,created_at,updated_at) VALUES (?,?,?,?,?,'TRY',?,'published',?,?)`, product.id, product.sku, product.title, product.desc, product.price, product.stock, now, now); err != nil {
 			return fmt.Errorf("seed product %s: %w", product.id, err)
+		}
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE commerce_products SET title=$1,description=$2,price_cents=$3,stock=$4,status='published',updated_at=$5 WHERE id=$6`, `UPDATE commerce_products SET title=?1,description=?2,price_cents=?3,stock=?4,status='published',updated_at=?5 WHERE id=?6`, product.title, product.desc, product.price, product.stock, now, product.id); err != nil {
+			return fmt.Errorf("update seed product %s: %w", product.id, err)
 		}
 	}
 	for _, variant := range []struct {
 		id, product, sku, title string
 		price, stock            int
-	}{{"demo-shirt-blue", "demo-shirt", "DEMO-SHIRT-BLUE", "Mavi / M", 49900, 6}, {"demo-shirt-black", "demo-shirt", "DEMO-SHIRT-BLACK", "Siyah / L", 49900, 6}} {
+	}{
+		{"demo-shirt-blue-m", "demo-shirt", "DEMO-SHIRT-BLUE-M", "Okyanus Mavisi / M", 49900, 10},
+		{"demo-shirt-black-l", "demo-shirt", "DEMO-SHIRT-BLACK-L", "Gece Siyahı / L", 49900, 12},
+		{"demo-shirt-white-s", "demo-shirt", "DEMO-SHIRT-WHITE-S", "Saf Beyaz / S", 49900, 8},
+		{"demo-bottle-matte", "demo-bottle", "DEMO-BOTTLE-MATTE", "Mat Siyah 750ml", 34900, 25},
+		{"demo-bottle-silver", "demo-bottle", "DEMO-BOTTLE-SILVER", "Fırçalanmış Gümüş 750ml", 34900, 20},
+		{"demo-kb-linear", "demo-keyboard", "DEMO-KB-RED", "Red Linear Switch (Sessiz)", 189900, 8},
+		{"demo-kb-tactile", "demo-keyboard", "DEMO-KB-BROWN", "Brown Tactile Switch (Dengeli)", 189900, 7},
+	} {
 		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO commerce_product_variants (id,product_id,sku,title,price_cents,stock,status,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,'published',$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO commerce_product_variants (id,product_id,sku,title,price_cents,stock,status,created_at,updated_at) VALUES (?,?,?,?,?,?,'published',?,?)`, variant.id, variant.product, variant.sku, variant.title, variant.price, variant.stock, now, now); err != nil {
 			return fmt.Errorf("seed variant %s: %w", variant.id, err)
 		}
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE commerce_product_variants SET title=$1,price_cents=$2,stock=$3,status='published',updated_at=$4 WHERE id=$5`, `UPDATE commerce_product_variants SET title=?1,price_cents=?2,stock=?3,status='published',updated_at=?4 WHERE id=?5`, variant.title, variant.price, variant.stock, now, variant.id); err != nil {
+			return fmt.Errorf("update seed variant %s: %w", variant.id, err)
+		}
 	}
-	for _, item := range []struct{ id, slug, title, body string }{
-		{"demo-news", "release-notes", "HydroGo Demo Release Notes", "Bu demo; Admin Studio, sayfa blokları, haber yayınlama, commerce katalog, varyant, sipariş ve sürümlü API akışlarını gösterir."},
-		{"demo-news-guide", "getting-started", "HydroGo ile Başlangıç", "Önce Admin Studio'da içerik ve katalog yönetimini deneyin; ardından uygulamanızı REST veya GraphQL API üzerinden bağlayın."},
+	for _, item := range []struct {
+		id, slug, title, excerpt, takeaways, category, author, tags, body string
+		featured                                                          bool
+	}{
+		{
+			id:           "demo-news-release-v2",
+			slug:         "hydrogo-2-0-yayinda",
+			title:        "HydroGo 2.0 Yayında: Zengin Editör, Gelişmiş Güvenlik ve Modern UI",
+			excerpt:      "Yeni sürüm ile birlikte Quill tabanlı zengin metin editörü, key takeaways ve etiket yönetimi, CSP sıkılaştırması ve baştan tasarlanan arayüz kullanıma sunuldu.",
+			takeaways:    "- Quill tabanlı zengin metin editörü tüm biçimlendirme araçlarıyla entegre edildi.\n- XSS ve SVG data URL vektörlerine karşı çok katmanlı sanitizasyon getirildi.\n- Kategori, etiket ve öne çıkan içerik rozetleri public haber odasına eklendi.\n- Dev server ve Admin Studio modern mavi tasarım sistemine kavuştu.",
+			category:     "Ürün Güncellemeleri",
+			author:       "Arda Özyıldırım",
+			featured:     true,
+			tags:         "hydrogo, release, security, richtext, go",
+			body:         `{"ops":[{"insert":"HydroGo 2.0 İle İçerik Yönetimi Yeni Bir Boyuta Taşınıyor\n","attributes":{"header":1}},{"insert":"HydroGo ekibi olarak, platformun en kapsamlı güncellemesi olan 2.0 sürümünü duyurmaktan büyük heyecan duyuyoruz. Bu sürümde editoryal deneyimi güçlendirirken kurumsal güvenlik gereksinimlerini en üst seviyede karşılamayı hedefledik.\n\n"},{"insert":"Öne Çıkan Başlıca Yenilikler:\n","attributes":{"header":2}},{"insert":"Zengin Metin Editörü: ","attributes":{"bold":true}},{"insert":"Başlık hiyerarşisi, kalın/italik/altı çizili stiller, kod blokları, alıntılar ve medya entegrasyonu.\n"},{"insert":"Editoryal Metadata: ","attributes":{"bold":true}},{"insert":"Haber kategorileri, etiketler, yazar bilgisi, özet ve önemli çıkarımlar (Key Takeaways).\n"},{"insert":"Güvenlik Sertleştirmesi: ","attributes":{"bold":true}},{"insert":"Sıkı Content Security Policy (CSP), CSRF token koruması ve XSS temizleme filtreleri.\n\n"},{"insert":"\"Güvenilir, tip güvenli ve modern bir CMS deneyimi için HydroCore mimarisini her geçen gün daha da ileri taşıyoruz.\"\n","attributes":{"blockquote":true}},{"insert":"Geliştirici deneyimini keşfetmek için Admin Studio'ya giriş yapabilir veya API dokümantasyonunu inceleyebilirsiniz.\n"}]}`,
+		},
+		{
+			id:           "demo-news-guide",
+			slug:         "hydrogo-ile-baslangic-rehberi",
+			title:        "Geliştiriciler İçin HydroGo Başlangıç ve Entegrasyon Rehberi",
+			excerpt:      "Admin Studio üzerinden içerik ve e-ticaret kataloğu yönetimi, REST ve GraphQL API uç noktalarının tüketimi hakkında adım adım kılavuz.",
+			takeaways:    "- Admin Studio içerisinden Sayfalar, Haberler ve Commerce ürünleri yönetilebilir.\n- REST API üzerinden tüm yayınlanmış verilere anında JSON formatında erişilir.\n- Headless starter'lar bağımsız frontend mimarileri kurmayı kolaylaştırır.",
+			category:     "Rehberler",
+			author:       "HydroGo Core Team",
+			featured:     false,
+			tags:         "guide, tutorial, api, headless, cms",
+			body:         `{"ops":[{"insert":"HydroGo Mimarisine Hızlı Bir Bakış\n","attributes":{"header":1}},{"insert":"HydroGo, modern web uygulamaları ve e-ticaret projeleri için geliştirilmiş yüksek performanslı bir Go CMS çekirdeğidir.\n\n"},{"insert":"1. Adım: Admin Studio ile İçerik Oluşturma\n","attributes":{"header":2}},{"insert":"Admin paneline erişerek yeni sayfalar oluşturabilir, hero, CTA, FAQ gibi blokları sürükleyip yapılandırabilir ve haberlerinizi yayına alabilirsiniz.\n\n"},{"insert":"2. Adım: API Uç Noktalarını Bağlama\n","attributes":{"header":2}},{"insert":"Frontend uygulamanızdan ","attributes":{}},{"insert":"/api/pages","attributes":{"code":true}},{"insert":" veya ","attributes":{}},{"insert":"/api/commerce/products","attributes":{"code":true}},{"insert":" adreslerine istek atarak içerikleri doğrudan tüketebilirsiniz.\n"}]}`,
+		},
+		{
+			id:           "demo-news-security",
+			slug:         "kurumsal-seviyede-cms-guvenligi",
+			title:        "HydroGo Güvenlik Mimarisi: Çok Katmanlı Koruma ve Sıfır Sızıntı",
+			excerpt:      "Argon2id parola şifreleme, TOTP MFA, CSP nonces ve SQL enjeksiyonlarına karşı parameterized query standartları.",
+			takeaways:    "- Tüm formlar dinamik CSRF token ve zaman aşımı korumalıdır.\n- Parolalar endüstri standardı Argon2id ile hash'lenir.\n- Çift veritabanı desteği (PostgreSQL & SQLite) kontrat testleri ile korunur.",
+			category:     "Güvenlik & Mimari",
+			author:       "Güvenlik Mühendisliği",
+			featured:     false,
+			tags:         "security, mfa, argon2id, csp, database",
+			body:         `{"ops":[{"insert":"Kurumsal Güvenlik Standartlarımız\n","attributes":{"header":1}},{"insert":"HydroGo, finansal ve hassas veri taşıyan uygulamalarda güvenle çalışacak şekilde tasarlanmıştır. Kimlik doğrulama, yetkilendirme ve veri yaşam döngüsü kuralları ADR-0013 ve ADR-0014 standartlarına tam uyum sağlar.\n\n"},{"insert":"Denetim ve İzlenebilirlik:\n","attributes":{"header":2}},{"insert":"Tüm kritik yönetici hareketleri (içerik yayınlama, kullanıcı davetleri, iade işlemleri) değiştirilemez audit log tablosunda kayıt altına alınır.\n"}]}`,
+		},
+		{
+			id:           "demo-news-commerce",
+			slug:         "e-ticarette-stok-ve-varyant-yonetimi",
+			title:        "E-Ticarette Yeni Dönem: Esnek Varyantlar, Stok Rezervasyonu ve Siparişler",
+			excerpt:      "Tek bir ana ürün altında sınırsız varyant, otomatik stok takibi ve ödeme sağlayıcıları entegrasyonu.",
+			takeaways:    "- Renk, beden ve teknik özellik bazlı esnek varyant desteği.\n- Stok tükenmesi durumunda anında sepet koruması.\n- Stripe, iyzico ve PayTR ile sorunsuz ödeme alma kabiliyeti.",
+			category:     "E-Ticaret",
+			author:       "Commerce Ekibi",
+			featured:     false,
+			tags:         "commerce, products, variants, payments, shop",
+			body:         `{"ops":[{"insert":"Esnek ve Güvenilir E-Ticaret Altyapısı\n","attributes":{"header":1}},{"insert":"Commerce modülü, modern bir e-ticaret operasyonunun ihtiyaç duyduğu tüm bileşenleri sunar. Müşterileriniz sepete ürün ekleyebilir, varyant seçebilir ve güvenli ödeme adımlarını tamamlayabilir.\n"}]}`,
+		},
 	} {
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,'tr',$2,$3,$4,'published',1,1,1,0,$5,$5) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,'tr',?2,?3,?4,'published',1,1,1,0,?5,?5)`, item.id, item.slug, item.title, item.body, now); err != nil {
+		featuredInt := 0
+		if item.featured {
+			featuredInt = 1
+		}
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,'tr',$2,$3,$4,$5,$6,$7,$8,$9,$10,'published',1,1,1,0,$11,$11) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,'tr',?2,?3,?4,?5,?6,?7,?8,?9,?10,'published',1,1,1,0,?11,?11)`, item.id, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, featuredInt, item.tags, item.body, now); err != nil {
 			return fmt.Errorf("seed news %s: %w", item.id, err)
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale='tr',slug=$1,title=$2,body=$3,status='published',published_revision=revision WHERE id=$4`, `UPDATE news_items SET locale='tr',slug=?1,title=?2,body=?3,status='published',published_revision=revision WHERE id=?4`, item.slug, item.title, item.body, item.id); err != nil {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale='tr',slug=$1,title=$2,excerpt=$3,key_takeaways=$4,category=$5,author_name=$6,featured=$7,tags=$8,body=$9,status='published',published_revision=revision WHERE id=$10`, `UPDATE news_items SET locale='tr',slug=?1,title=?2,excerpt=?3,key_takeaways=?4,category=?5,author_name=?6,featured=?7,tags=?8,body=?9,status='published',published_revision=revision WHERE id=?10`, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, featuredInt, item.tags, item.body, item.id); err != nil {
 			return fmt.Errorf("publish news %s: %w", item.id, err)
 		}
 	}
@@ -1514,7 +1587,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `DELETE FROM navigation_items WHERE id LIKE $1`, `DELETE FROM navigation_items WHERE id LIKE ?`, "demo-nav-%"); err != nil {
 		return fmt.Errorf("remove legacy demo navigation: %w", err)
 	}
-	_, err = fmt.Fprintln(stdout, "demo-seeded pages=3 news=2 products=2 variants=2 navigation=0")
+	_, err = fmt.Fprintln(stdout, "demo-seeded pages=3 news=4 products=4 variants=7 navigation=0")
 	return err
 }
 

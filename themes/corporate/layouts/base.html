@@ -3,21 +3,40 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{.Title}}</title>
+    <title>{{.Title}} · HydroGo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=block">
     <link rel="stylesheet" href="/theme/static/theme.css?v=20260910">
   </head>
   <body>
     <header class="theme-corporate-header">
-      <a class="theme-brand" href="/public/pages/tr/demo/html">HydroGo</a>
+      <a class="theme-brand" href="/public/pages/tr/demo/html"><span>HYDRO<b>GO</b></span></a>
       <nav aria-label="Ana navigasyon">
+        <a href="/public/pages/tr/demo/html">Ana Sayfa</a>
         <a href="/public/pages/tr/showcase/html">Showcase</a>
         <a href="/public/pages/tr/about/html">Hakkında</a>
-        <a href="/public/news/tr/release-notes/html">Haberler</a>
+        <a href="/public/news/tr/html">Haberler</a>
         <a href="/shop">Mağaza</a>
+        <a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a>
       </nav>
     </header>
     {{slot "header"}}
     <main class="theme-corporate-content">{{slot "content"}}</main>
     {{slot "footer"}}
+    <footer class="news-footer" style="margin-top: 48px;">
+      <div class="footer-left">
+        <strong>HYDROGO <span>PLATFORM</span></strong>
+        <p>Gelişmiş Go Tabanlı CMS &amp; E-Ticaret Deneyimi</p>
+      </div>
+      <nav>
+        <a href="/public/pages/tr/demo/html">Ana Sayfa</a>
+        <a href="/public/pages/tr/showcase/html">Showcase</a>
+        <a href="/public/pages/tr/about/html">Hakkında</a>
+        <a href="/public/news/tr/html">Haberler</a>
+        <a href="/shop">Mağaza</a>
+        <a href="/admin">Studio Admin</a>
+      </nav>
+    </footer>
   </body>
 </html>
