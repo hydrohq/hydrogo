@@ -666,8 +666,9 @@ func serve(args []string, stderr io.Writer) error {
 		if cfg.Payments.PayTRMerchantKey != "" {
 			providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency}
 		}
-		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}
-		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: providers}}
+		paymentService := commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: providers}
+		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}
+		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: paymentService}
 		routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
 		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
 	}

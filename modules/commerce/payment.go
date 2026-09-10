@@ -22,6 +22,15 @@ type PaymentIntent struct {
 	ClientToken string `json:"client_token,omitempty"`
 }
 
+type PaymentTransaction struct {
+	OrderID           string `json:"order_id"`
+	Provider          string `json:"provider"`
+	ProviderPaymentID string `json:"provider_payment_id"`
+	AmountCents       int64  `json:"amount_cents"`
+	Currency          string `json:"currency"`
+	Status            string `json:"status"`
+}
+
 type WebhookEvent struct {
 	ID              string
 	Provider        string
@@ -58,6 +67,11 @@ type PaymentWebhookStore interface {
 	ApplyPaymentEvent(context.Context, database.Executor, WebhookEvent) error
 }
 
+type PaymentRefundStore interface {
+	GetPaymentTransaction(context.Context, database.Executor, string) (PaymentTransaction, error)
+	MarkPaymentRefunded(context.Context, database.Executor, string, string) error
+}
+
 type PaymentService struct {
 	Transactions database.Transactor
 	Store        PaymentWebhookStore
@@ -86,4 +100,26 @@ func (s PaymentService) HandleWebhook(ctx context.Context, providerName string, 
 		}
 		return s.Store.ApplyPaymentEvent(ctx, tx, event)
 	})
+}
+
+func (s PaymentService) Refund(ctx context.Context, db database.Executor, orderID, providerName, paymentID string, amountCents int64) error {
+	provider, ok := s.Providers[providerName]
+	if !ok || provider == nil {
+		return fmt.Errorf("payment provider %q is not configured", providerName)
+	}
+	store, ok := s.Store.(PaymentRefundStore)
+	if !ok {
+		return errors.New("payment refund store is not configured")
+	}
+	transaction, err := store.GetPaymentTransaction(ctx, db, orderID)
+	if err != nil {
+		return err
+	}
+	if transaction.Provider != providerName || transaction.ProviderPaymentID != paymentID || transaction.Status != "paid" || transaction.AmountCents != amountCents {
+		return ErrPaymentMismatch
+	}
+	if err := provider.Refund(ctx, paymentID, amountCents); err != nil {
+		return err
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error { return store.MarkPaymentRefunded(ctx, tx, orderID, paymentID) })
 }

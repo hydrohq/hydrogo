@@ -60,6 +60,16 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM commerce_payment_transactions WHERE provider_payment_id = 'pi-1'`).Scan(&paymentCount); err != nil || paymentCount != 1 {
 		t.Fatalf("payment transaction count = %d, %v", paymentCount, err)
 	}
+	transaction, err := store.GetPaymentTransaction(context.Background(), db, "o1")
+	if err != nil || transaction.ProviderPaymentID != "pi-1" || transaction.Status != "paid" {
+		t.Fatalf("payment transaction = %+v, %v", transaction, err)
+	}
+	if err := store.MarkPaymentRefunded(context.Background(), db, "o1", "pi-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT payment_status FROM commerce_orders WHERE id = 'o1'`).Scan(&transaction.Status); err != nil || transaction.Status != "refunded" {
+		t.Fatalf("order refund status = %q, %v", transaction.Status, err)
+	}
 	orders, err := store.ListOrders(context.Background(), db, 10)
 	if err != nil || len(orders) != 1 || len(orders[0].Items) != 1 || orders[0].Items[0].VariantID != "v1" {
 		t.Fatalf("list orders = %#v, %v", orders, err)

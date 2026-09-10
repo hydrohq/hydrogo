@@ -25,6 +25,7 @@ type Handler struct {
 	CatalogVariants commerce.VariantStore
 	Orders          commerce.OrderReader
 	Payments        map[string]commerce.PaymentProvider
+	PaymentService  commerce.PaymentService
 }
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
@@ -61,6 +62,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminVariants), Protected: true},
 		{Pattern: "POST /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminCreateVariant), Protected: true},
 		{Pattern: "GET /admin/commerce/orders", Handler: http.HandlerFunc(h.adminOrders), Protected: true},
+		{Pattern: "POST /admin/commerce/orders/{orderID}/refund", Handler: http.HandlerFunc(h.adminRefund), Protected: true},
 	}
 }
 
@@ -501,9 +503,31 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Commerce orders</title></head><body><nav><a href="/admin/commerce/products">Catalog</a></nav><h1>Commerce orders</h1><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th></tr></thead><tbody>`))
 	for _, order := range orders {
-		_, _ = fmt.Fprintf(w, `<tr><td><code>%s</code></td><td><code>%s</code></td><td>%d %s</td><td>%s</td><td>%s</td><td>%d</td></tr>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.UserID), order.TotalCents, template.HTMLEscapeString(order.Currency), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ShippingStatus), len(order.Items))
+		_, _ = fmt.Fprintf(w, `<tr><td><code>%s</code></td><td><code>%s</code></td><td>%d %s</td><td>%s</td><td>%s</td><td>%d</td><td><form method="post" action="/admin/commerce/orders/%s/refund"><input type="hidden" name="_csrf" value="%s"><input name="provider" placeholder="stripe" required><input name="payment_id" placeholder="provider payment id" required><input name="amount_cents" type="number" min="1" value="%d" required><button type="submit">Refund full order</button></form></td></tr>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.UserID), order.TotalCents, template.HTMLEscapeString(order.Currency), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ShippingStatus), len(order.Items), template.HTMLEscapeString(order.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), order.TotalCents)
 	}
 	_, _ = w.Write([]byte(`</tbody></table></body></html>`))
+}
+
+func (h Handler) adminRefund(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid refund", http.StatusBadRequest)
+		return
+	}
+	amount, err := strconv.ParseInt(r.FormValue("amount_cents"), 10, 64)
+	if err != nil || amount <= 0 {
+		http.Error(w, "invalid refund amount", http.StatusBadRequest)
+		return
+	}
+	if err := h.PaymentService.Refund(r.Context(), h.DB, r.PathValue("orderID"), r.FormValue("provider"), r.FormValue("payment_id"), amount); err != nil {
+		http.Error(w, "refund failed", http.StatusBadGateway)
+		return
+	}
+	http.Redirect(w, r, "/admin/commerce/orders", http.StatusSeeOther)
 }
 
 func (h Handler) removeCartItemForm(w http.ResponseWriter, r *http.Request) {

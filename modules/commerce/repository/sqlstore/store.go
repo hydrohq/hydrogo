@@ -432,3 +432,39 @@ func (s Store) ApplyPaymentEvent(ctx context.Context, db database.Executor, even
 	}
 	return nil
 }
+
+func (s Store) GetPaymentTransaction(ctx context.Context, db database.Executor, orderID string) (commerce.PaymentTransaction, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return commerce.PaymentTransaction{}, err
+	}
+	var transaction commerce.PaymentTransaction
+	q := `SELECT order_id, provider, provider_payment_id, amount_cents, currency, status FROM commerce_payment_transactions WHERE order_id = ` + s.placeholder(1) + ` ORDER BY created_at DESC LIMIT 1`
+	err := db.QueryRowContext(ctx, q, orderID).Scan(&transaction.OrderID, &transaction.Provider, &transaction.ProviderPaymentID, &transaction.AmountCents, &transaction.Currency, &transaction.Status)
+	return transaction, err
+}
+
+func (s Store) MarkPaymentRefunded(ctx context.Context, db database.Executor, orderID, paymentID string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	q := `UPDATE commerce_payment_transactions SET status = ` + s.placeholder(1) + `, updated_at = ` + s.placeholder(2) + ` WHERE order_id = ` + s.placeholder(3) + ` AND provider_payment_id = ` + s.placeholder(4) + ` AND status = 'paid'`
+	result, err := db.ExecContext(ctx, q, "refunded", now, orderID, paymentID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil || changed != 1 {
+		return commerce.ErrPaymentMismatch
+	}
+	q = `UPDATE commerce_orders SET payment_status = ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2) + ` AND payment_status = 'paid'`
+	result, err = db.ExecContext(ctx, q, "refunded", orderID)
+	if err != nil {
+		return err
+	}
+	changed, err = result.RowsAffected()
+	if err != nil || changed != 1 {
+		return commerce.ErrPaymentMismatch
+	}
+	return nil
+}
