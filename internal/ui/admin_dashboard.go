@@ -11,6 +11,7 @@ type AdminDashboardData struct {
 	Email       string
 	Collections []adminstudio.Collection
 	Nonce       string
+	Active      string
 }
 
 var adminDashboardTemplate = template.Must(template.New("admin-dashboard").Parse(`<section class="dashboard-welcome"><div><p class="eyebrow">YÖNETİM MERKEZİ</p><h2>İçerik ve commerce kontrolü.</h2><p class="dashboard-subtitle">{{.Email}} · Bugün çalışma alanınızda neler olduğunu tek bakışta görün.</p></div><div class="studio-actions"><a class="button" href="/admin/news#new-news">+ Yeni haber</a><a class="button button-quiet" href="/public/news/tr/html">Canlı site ↗</a></div></section>
@@ -19,7 +20,7 @@ var adminDashboardTemplate = template.Must(template.New("admin-dashboard").Parse
 <section class="studio-card dashboard-card"><div class="dashboard-card-head"><div><p class="eyebrow">SİSTEM</p><h2>Bağlantılar ve araçlar</h2></div></div><div class="tool-grid"><a class="tool-tile" href="/api/v1/commerce/products"><strong>Commerce REST API</strong><small>Ürün ve katalog verisini incele</small><b>↗</b></a><a class="tool-tile" href="/public/news/tr/html"><strong>Newsroom frontend</strong><small>Son kullanıcı görünümünü aç</small><b>↗</b></a><a class="tool-tile" href="/api/graphql"><strong>GraphQL endpoint</strong><small>Headless sorgu yüzeyi</small><b>↗</b></a><a class="tool-tile" href="/healthz"><strong>Health check</strong><small>Servis sağlık kontrolü</small><b>↗</b></a></div></section>`))
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
-	if err := AdminStart(w, "Dashboard", "Yönetim merkezi", data.Nonce); err != nil {
+	if err := AdminStart(w, "Dashboard", "Yönetim merkezi", data.Nonce, data.Active); err != nil {
 		return err
 	}
 	if err := adminDashboardTemplate.Execute(w, data); err != nil {

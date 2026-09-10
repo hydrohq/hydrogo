@@ -431,7 +431,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Commerce katalog", "Commerce", security.NonceFromContext(r.Context())); err != nil {
+	if err := ui.AdminStart(w, "Commerce katalog", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
 	_, _ = w.Write([]byte(`<section class="studio-card"><h2>Ürün kataloğu</h2><p>Ürünleri, fiyatları ve stok durumunu yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products">`))
@@ -469,7 +469,7 @@ func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Varyantlar", "Commerce", security.NonceFromContext(r.Context())); err != nil {
+	if err := ui.AdminStart(w, "Varyantlar", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><a href="/admin/commerce/products">← Kataloğa dön</a><h2>Ürün varyantları</h2><p>SKU, fiyat ve stok seçeneklerini yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products/%s/variants">%s</form></section><section class="studio-card"><h2>Varyant listesi</h2><div class="table-wrap">`, template.HTMLEscapeString(r.PathValue("productID")), form.String())
@@ -559,7 +559,7 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Siparişler", "Commerce", security.NonceFromContext(r.Context())); err != nil {
+	if err := ui.AdminStart(w, "Siparişler", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
 	_, _ = w.Write([]byte(`<section class="studio-card"><a href="/admin/commerce/products">← Kataloğa dön</a><h2>Siparişler</h2><p>Ödeme ve teslimat durumlarını izleyin.</p><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))

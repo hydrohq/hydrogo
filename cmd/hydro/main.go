@@ -717,7 +717,11 @@ func serve(args []string, stderr io.Writer) error {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: studioRegistry.Collections(), Nonce: security.NonceFromContext(r.Context())}); err != nil {
+		active := "dashboard"
+		if r.URL.Path == "/admin/reports" {
+			active = "reports"
+		}
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: studioRegistry.Collections(), Nonce: security.NonceFromContext(r.Context()), Active: active}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
