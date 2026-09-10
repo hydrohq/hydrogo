@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -33,6 +34,10 @@ type Handler struct {
 	AdminCollection adminstudio.Collection
 }
 
+type publishedListRepository interface {
+	ListPublished(context.Context, database.Executor, string, int) ([]news.Item, error)
+}
+
 type input struct {
 	Locale string `json:"locale"`
 	Slug   string `json:"slug"`
@@ -53,6 +58,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.schedule)},
 		{Pattern: "POST /api/news/{id}/publish", Protected: true, Handler: http.HandlerFunc(h.publish)},
 		{Pattern: "POST /api/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.retract)},
+		{Pattern: "GET /api/news", Handler: http.HandlerFunc(h.publicList)},
+		{Pattern: "GET /api/news/by-slug", Handler: http.HandlerFunc(h.publicGetByQuery)},
 		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
 		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
 		{Pattern: "POST /admin/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.adminSchedule)},
@@ -61,6 +68,38 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /public/news/{locale}/{slug}/html", Handler: http.HandlerFunc(h.publicGetHTML)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
 	}
+}
+
+func (h Handler) publicList(w http.ResponseWriter, r *http.Request) {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	repository, ok := h.Service.Repository.(publishedListRepository)
+	if !ok {
+		http.Error(w, "news list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	locale := canonical.Locale(r.URL.Query().Get("locale"))
+	if locale == "" {
+		http.Error(w, "locale is required", http.StatusBadRequest)
+		return
+	}
+	limit := 20
+	if value := r.URL.Query().Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 || parsed > 100 {
+			http.Error(w, "limit must be between 1 and 100", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+	items, err := repository.ListPublished(r.Context(), h.DB, locale, limit)
+	if err != nil {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, http.StatusOK, items)
 }
 
 func (h Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -163,12 +202,20 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
+	h.publicGetWithRoute(w, r, r.PathValue("locale"), r.PathValue("slug"))
+}
+
+func (h Handler) publicGetByQuery(w http.ResponseWriter, r *http.Request) {
+	h.publicGetWithRoute(w, r, r.URL.Query().Get("locale"), r.URL.Query().Get("slug"))
+}
+
+func (h Handler) publicGetWithRoute(w http.ResponseWriter, r *http.Request, rawLocale, rawSlug string) {
 	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	locale := canonical.Locale(r.PathValue("locale"))
-	slug, err := canonical.Path(r.PathValue("slug"))
+	locale := canonical.Locale(rawLocale)
+	slug, err := canonical.Path(rawSlug)
 	if locale == "" || err != nil || slug == "" {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return

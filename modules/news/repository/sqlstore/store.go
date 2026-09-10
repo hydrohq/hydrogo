@@ -159,6 +159,36 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 	return s.scan(ctx, db, query, locale, slug)
 }
 
+// ListPublished returns only the published projection for a locale. Callers
+// supply a bounded limit; drafts, scheduled and retracted items never cross
+// this repository boundary into a public response.
+func (s Store) ListPublished(ctx context.Context, db database.Executor, locale string, limit int) ([]news.Item, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("news published list requires a query-capable executor")
+	}
+	query := `SELECT id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND status='published' AND published_revision IS NOT NULL ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(2)
+	rows, err := queryer.QueryContext(ctx, query, locale, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]news.Item, 0)
+	for rows.Next() {
+		item, err := scanItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (s Store) ListScheduled(ctx context.Context, db database.Executor, now time.Time) ([]news.Item, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
@@ -205,6 +235,25 @@ func (s Store) scan(ctx context.Context, db database.Executor, query string, arg
 	if err != nil {
 		return news.Item{}, err
 	}
+	return itemFromColumns(item, status, published, scheduled, created, updated), nil
+}
+
+type rowScanner interface {
+	Scan(...any) error
+}
+
+func scanItem(row rowScanner) (news.Item, error) {
+	var item news.Item
+	var status string
+	var published any
+	var scheduled, created, updated any
+	if err := row.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &created, &updated); err != nil {
+		return news.Item{}, err
+	}
+	return itemFromColumns(item, status, published, scheduled, created, updated), nil
+}
+
+func itemFromColumns(item news.Item, status string, published, scheduled, created, updated any) news.Item {
 	item.Status = news.Status(status)
 	if published != nil {
 		var value int
@@ -223,7 +272,7 @@ func (s Store) scan(ctx context.Context, db database.Executor, query string, arg
 		}
 	}
 	item.CreatedAt, item.UpdatedAt = parseTime(created), parseTime(updated)
-	return item, nil
+	return item
 }
 
 func parseTime(value any) time.Time {
