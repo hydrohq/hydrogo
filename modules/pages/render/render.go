@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"strconv"
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
@@ -69,6 +70,42 @@ func blockHTML(block pages.Block) (string, error) {
 		out.WriteString(`<section data-block="faq">`)
 		for _, item := range items {
 			out.WriteString(`<details><summary>` + template.HTMLEscapeString(item.Question) + `</summary><p>` + template.HTMLEscapeString(item.Answer) + `</p></details>`)
+		}
+		out.WriteString(`</section>`)
+		return out.String(), nil
+	case "pricing_table":
+		var items []struct {
+			Name       string   `json:"name"`
+			PriceCents int64    `json:"price_cents"`
+			Currency   string   `json:"currency"`
+			Features   []string `json:"features"`
+		}
+		if err := json.Unmarshal(data["items"], &items); err != nil {
+			return "", ErrInvalidBlock
+		}
+		var out strings.Builder
+		out.WriteString(`<section data-block="pricing_table"><div class="pricing-grid">`)
+		for _, item := range items {
+			out.WriteString(`<article><h2>` + template.HTMLEscapeString(item.Name) + `</h2><p>` + template.HTMLEscapeString(strconv.FormatInt(item.PriceCents, 10)) + ` ` + template.HTMLEscapeString(item.Currency) + `</p><ul>`)
+			for _, feature := range item.Features {
+				out.WriteString(`<li>` + template.HTMLEscapeString(feature) + `</li>`)
+			}
+			out.WriteString(`</ul></article>`)
+		}
+		out.WriteString(`</div></section>`)
+		return out.String(), nil
+	case "testimonials":
+		var items []struct {
+			Name  string `json:"name"`
+			Quote string `json:"quote"`
+		}
+		if err := json.Unmarshal(data["items"], &items); err != nil {
+			return "", ErrInvalidBlock
+		}
+		var out strings.Builder
+		out.WriteString(`<section data-block="testimonials">`)
+		for _, item := range items {
+			out.WriteString(`<blockquote><p>` + template.HTMLEscapeString(item.Quote) + `</p><cite>` + template.HTMLEscapeString(item.Name) + `</cite></blockquote>`)
 		}
 		out.WriteString(`</section>`)
 		return out.String(), nil

@@ -10,6 +10,8 @@ func TestValidateBlocksAllowsSupportedPayloads(t *testing.T) {
 	blocks := []Block{
 		{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","button_url":"/start"}`)},
 		{Type: "faq", Payload: json.RawMessage(`{"items":[{"question":"Q","answer":"A"}]}`)},
+		{Type: "pricing_table", Payload: json.RawMessage(`{"items":[{"name":"Pro","price_cents":1299,"currency":"TRY","features":["Email support"]}]}`)},
+		{Type: "testimonials", Payload: json.RawMessage(`{"items":[{"name":"Ada","quote":"Excellent"}]}`)},
 	}
 	if err := ValidateBlocks(blocks); err != nil {
 		t.Fatalf("valid blocks rejected: %v", err)

@@ -244,7 +244,7 @@ func renderBlockEditor(blocks []pages.Block, csrf string) string {
 		if i < len(blocks) {
 			blockType, title, subtitle, buttonText, buttonURL, items = blockEditorValues(blocks[i])
 		}
-		fmt.Fprintf(&out, `<div class="block-editor-row"><strong>Block %d</strong><select name="block_type_%d"><option value="">Remove</option><option value="hero" %s>Hero</option><option value="faq" %s>FAQ</option><option value="cta" %s>CTA</option></select><input name="block_title_%d" value="%s" placeholder="Title"><input name="block_subtitle_%d" value="%s" placeholder="Subtitle"><input name="block_button_text_%d" value="%s" placeholder="Button text"><input name="block_button_url_%d" value="%s" placeholder="Button URL"><textarea name="block_items_%d" placeholder='[{"question":"Q","answer":"A"}]'>%s</textarea><input type="hidden" name="block_csrf_%d" value="%s"></div>`, i+1, i, selected(blockType, "hero"), selected(blockType, "faq"), selected(blockType, "cta"), i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), i, template.HTMLEscapeString(csrf))
+		fmt.Fprintf(&out, `<div class="block-editor-row"><strong>Block %d</strong><select name="block_type_%d"><option value="">Remove</option><option value="hero" %s>Hero</option><option value="faq" %s>FAQ</option><option value="cta" %s>CTA</option><option value="pricing_table" %s>Pricing table</option><option value="testimonials" %s>Testimonials</option></select><input name="block_title_%d" value="%s" placeholder="Title"><input name="block_subtitle_%d" value="%s" placeholder="Subtitle"><input name="block_button_text_%d" value="%s" placeholder="Button text"><input name="block_button_url_%d" value="%s" placeholder="Button URL"><textarea name="block_items_%d" placeholder='[{"question":"Q","answer":"A"}]'>%s</textarea><input type="hidden" name="block_csrf_%d" value="%s"></div>`, i+1, i, selected(blockType, "hero"), selected(blockType, "faq"), selected(blockType, "cta"), selected(blockType, "pricing_table"), selected(blockType, "testimonials"), i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), i, template.HTMLEscapeString(csrf))
 	}
 	return out.String()
 }
@@ -283,6 +283,12 @@ func parseBlockForm(r *http.Request) ([]pages.Block, error) {
 		payload := map[string]any{"title": r.FormValue("block_title_" + strconv.Itoa(i))}
 		if typ == "faq" {
 			var items []map[string]string
+			if json.Unmarshal([]byte(r.FormValue("block_items_"+strconv.Itoa(i))), &items) != nil {
+				return nil, pages.ErrInvalidBlocks
+			}
+			payload = map[string]any{"items": items}
+		} else if typ == "pricing_table" || typ == "testimonials" {
+			var items []json.RawMessage
 			if json.Unmarshal([]byte(r.FormValue("block_items_"+strconv.Itoa(i))), &items) != nil {
 				return nil, pages.ErrInvalidBlocks
 			}

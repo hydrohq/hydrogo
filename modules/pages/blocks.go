@@ -38,6 +38,36 @@ func ValidateBlocks(blocks []Block) error {
 			if err := requireString(object, "title"); err != nil {
 				return err
 			}
+		case "pricing_table":
+			var items []struct {
+				Name       string   `json:"name"`
+				PriceCents int64    `json:"price_cents"`
+				Currency   string   `json:"currency"`
+				Features   []string `json:"features"`
+			}
+			raw, ok := object["items"]
+			if !ok || json.Unmarshal(raw, &items) != nil || len(items) == 0 || len(items) > 32 {
+				return ErrInvalidBlocks
+			}
+			for _, item := range items {
+				if strings.TrimSpace(item.Name) == "" || item.PriceCents < 0 || len(strings.TrimSpace(item.Currency)) != 3 || len(item.Features) > 32 {
+					return ErrInvalidBlocks
+				}
+			}
+		case "testimonials":
+			var items []struct {
+				Name  string `json:"name"`
+				Quote string `json:"quote"`
+			}
+			raw, ok := object["items"]
+			if !ok || json.Unmarshal(raw, &items) != nil || len(items) == 0 || len(items) > 32 {
+				return ErrInvalidBlocks
+			}
+			for _, item := range items {
+				if strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.Quote) == "" {
+					return ErrInvalidBlocks
+				}
+			}
 		case "faq":
 			var items []struct {
 				Question string `json:"question"`

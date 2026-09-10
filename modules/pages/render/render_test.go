@@ -25,3 +25,14 @@ func TestBlocksRejectUnknownType(t *testing.T) {
 		t.Fatal("unknown block rendered")
 	}
 }
+
+func TestBlocksRenderPricingAndTestimonialsSafely(t *testing.T) {
+	blocks := []pages.Block{
+		{Type: "pricing_table", Payload: json.RawMessage(`{"items":[{"name":"Pro","price_cents":1299,"currency":"TRY","features":["<fast>"]}]}`)},
+		{Type: "testimonials", Payload: json.RawMessage(`{"items":[{"name":"<Ada>","quote":"Great"}]}`)},
+	}
+	html, err := Blocks(blocks)
+	if err != nil || !strings.Contains(html, "pricing_table") || !strings.Contains(html, "testimonials") || strings.Contains(html, "<fast>") {
+		t.Fatalf("block render = %s, %v", html, err)
+	}
+}
