@@ -431,7 +431,6 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	collection := h.AdminCollection
-	collection.Fields = append([]adminstudio.Field{{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"}}, collection.Fields...)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStart(w, "Commerce katalog", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return

@@ -58,3 +58,14 @@ func TestRenderCreateFormCanLeaveSubmitToModuleExtension(t *testing.T) {
 		t.Fatalf("extension form output = %s", out.String())
 	}
 }
+
+func TestRenderCreateFormSupportsRichTextWithNonce(t *testing.T) {
+	collection := Collection{ID: "commerce", Label: "Commerce", Fields: []Field{{ID: "description", Label: "Description", Kind: FieldText, Widget: "richtext"}}, Actions: []Action{{Label: "Catalog", Href: "/admin/commerce/products"}}}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/commerce/products", CSRFToken: "csrf", Nonce: "nonce", Values: map[string]string{"description": "hello"}}); err != nil {
+		t.Fatalf("rich text form render failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "/vendor/quill/quill.js") {
+		t.Fatalf("rich text assets missing: %s", out.String())
+	}
+}
