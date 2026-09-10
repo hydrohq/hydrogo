@@ -48,6 +48,14 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 		view.AreaLabel, view.Title, view.Description = "GÜVENLİK", "Kullanıcı ve erişim güvenliği", "Davet, MFA, oturum ve parola kurtarma akışları."
 		view.PrimaryEyebrow, view.PrimaryTitle, view.PrimaryText = "ACCESS CONTROL", "Güvenlik merkezi", "Yönetici işlemleri default-deny, CSRF ve audit koruması üzerinden yürütülür."
 		view.Links = []adminAreaLink{{"Editör daveti", "Davet formunu aç", "/admin/control#security", false}, {"Oturum bilgisi", "Mevcut hesabı incele", "/auth/me", true}, {"MFA ve hesap API", "Güvenli endpoint’ler", "/auth/me/mfa/enroll", true}}
+	case "account":
+		view.AreaLabel, view.Title, view.Description = "HESAP AYARLARI", "Yönetici hesabı", "Oturum ve hesap güvenliği için mevcut kullanıcı bilgileri."
+		view.PrimaryEyebrow, view.PrimaryTitle, view.PrimaryText = "CURRENT USER", "Hesap özeti", "Bu hesabın rolü ve aktif oturum bilgisi güvenli API üzerinden görüntülenebilir."
+		view.Links = []adminAreaLink{{"Hesap bilgileri", data.Email, "/auth/me", true}, {"Güvenlik ayarları", "MFA ve erişim yönetimi", "/admin/security", false}, {"Oturumu kapat", "Güvenli çıkış", "/login?return_to=%2Fadmin", false}}
+	case "permissions":
+		view.AreaLabel, view.Title, view.Description = "GÜVENLİK VE YETKİLER", "Rol erişim matrisi", "Hangi rolün hangi çalışma alanında ne yapabildiğini bu matriste görün."
+		view.PrimaryEyebrow, view.PrimaryTitle, view.PrimaryText = "ROLE POLICY", "Yetki matrisi", "Yetkilendirme yalnızca menü görünürlüğü değil, her application service mutasyonunda da uygulanır."
+		view.Links = []adminAreaLink{{"Admin", "Tüm içerik, commerce, site ve operasyon yönetimi", "/admin", false}, {"Editor", "Haber ve sayfa taslağı oluşturma/düzenleme; yayın yetkisi politika kontrollüdür", "/admin/news", false}, {"Viewer", "Salt okunur API ve yayınlanmış içerik görünümü", "/public/news/tr/html", true}, {"Güvenlik merkezi", "Davet ve MFA akışları", "/admin/security", false}}
 	default:
 		view.AreaLabel, view.Title, view.Description = "OPERASYON", "Sağlık ve operasyon merkezi", "Health, readiness, metrik, background job ve bakım akışları."
 		view.PrimaryEyebrow, view.PrimaryTitle, view.PrimaryText = "OBSERVABILITY", "Platform operasyonu", "Sistem görünürlüğü ve bakım uçları tek operasyon ekranında toplanır."

@@ -749,6 +749,12 @@ func serve(args []string, stderr io.Writer) error {
 		if r.URL.Path == "/admin/operations" {
 			active = "operations"
 		}
+		if r.URL.Path == "/admin/account" {
+			active = "account"
+		}
+		if r.URL.Path == "/admin/permissions" {
+			active = "permissions"
+		}
 		var err error
 		if active == "control" {
 			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active})
@@ -759,7 +765,7 @@ func serve(args []string, stderr io.Writer) error {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
 	})
-	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/media", "GET /admin/security", "GET /admin/operations"} {
+	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/media", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions"} {
 		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
 	}
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
