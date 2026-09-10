@@ -3,7 +3,7 @@
 - **Durum:** Kabul edildi
 - **Tarih:** 2026-09-10
 - **İlişkili kararlar:** [ADR-0006](0006-extensible-database-adapters.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0015](0015-versioned-http-api.md)
-- **Uygulama durumu:** Commerce domain/service, SQL store, HTTP checkout, provider-neutral payment contract ve webhook replay migration'ı uygulandı. Gerçek provider adapter'ları ve sandbox contract testleri sonraki aşamalardır.
+- **Uygulama durumu:** Commerce domain/service, SQL store, HTTP checkout, provider-neutral payment contract, webhook replay migration'ı ve Stripe/iyzico/PayTR imza doğrulayıcıları uygulandı. iyzico/PayTR ödeme oluşturma ve iade akışları sağlayıcı hesap/API konfigürasyonu ile ayrı sandbox kapısına tabidir.
 
 ## Karar
 
