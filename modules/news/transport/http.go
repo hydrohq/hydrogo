@@ -103,7 +103,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Haberler", "Yayın merkezi"); err != nil {
+	if err := ui.AdminStart(w, "Haberler", "Yayın merkezi", security.NonceFromContext(r.Context())); err != nil {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>İçerik akışı</h2><p>Haberleri taslak olarak oluşturun, zamanlayın ve tek tıkla yayınlayın.</p><div class="studio-actions"><a class="button" href="#new-news">Yeni haber oluştur</a><a class="button button-quiet" href="/public/news/tr/html">Canlı siteyi aç</a></div></section><section class="studio-card"><h2>Haberler <span class="muted">(%d)</span></h2><div class="table-wrap">`, len(rows))
@@ -416,7 +416,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Haber düzenle", "Yayın merkezi"); err != nil {
+	if err := ui.AdminStart(w, "Haber düzenle", "Yayın merkezi", security.NonceFromContext(r.Context())); err != nil {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Yayın revizyonu</span></div><div class="meta-item"><strong>%s</strong><span>Dil</span></div></div><form class="studio-form" method="post" action="/admin/news/%s">%s<input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayın akışı</h2><p class="muted">Taslağı kaydedin, ileri tarihli yayın planlayın veya anında yayınlayın.</p><div class="studio-actions">`, template.HTMLEscapeString(string(item.Status)), item.Version, item.PublishedRevision, template.HTMLEscapeString(item.Locale), template.HTMLEscapeString(item.ID), template.HTML(form.String()), item.Version)
