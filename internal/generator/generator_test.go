@@ -2,11 +2,14 @@ package generator
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 )
 
 func TestGenerateIsDeterministicAndPreservesCustom(t *testing.T) {
@@ -176,6 +179,17 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if !bytes.Contains(transport, []byte("/api/v1/"+spec.Name)) {
 			t.Fatalf("%s transport does not use versioned API path: %s", spec.Name, transport)
 		}
+		manifest, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "admin_manifest.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var collection adminstudio.Collection
+		if err := json.Unmarshal(manifest, &collection); err != nil {
+			t.Fatalf("%s admin manifest is not JSON: %v", spec.Name, err)
+		}
+		if collection.ID != spec.Name || len(collection.Fields) != len(spec.Fields) || len(collection.Actions) == 0 {
+			t.Fatalf("%s admin manifest = %#v", spec.Name, collection)
+		}
 		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module generatedfixture\n\ngo 1.27\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -184,5 +198,26 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("%s generated fixture does not compile: %v\n%s", spec.Name, err, output)
 		}
+	}
+}
+
+func TestAdminCollectionUsesExplicitPresentationMetadata(t *testing.T) {
+	spec := Spec{
+		Name:        "product",
+		Table:       "products",
+		Permissions: []string{"product.read"},
+		Dialects:    []string{"sqlite", "postgres"},
+		Fields: []Field{
+			{Name: "title", Type: "string", Admin: FieldAdmin{Label: "Product title", VisibleInList: true}},
+			{Name: "price_cents", Type: "integer", Admin: FieldAdmin{Label: "Price", Widget: "currency", VisibleInList: true}},
+		},
+		Admin: Admin{Label: "Catalog", Description: "Sellable products", Actions: []adminstudio.Action{{Label: "Products", Href: "/admin/commerce/products"}}},
+	}
+	collection, err := AdminCollection(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.Label != "Catalog" || collection.Fields[1].Kind != adminstudio.FieldNumber || !collection.Fields[0].VisibleInList || collection.Actions[0].Href != "/admin/commerce/products" {
+		t.Fatalf("collection = %#v", collection)
 	}
 }

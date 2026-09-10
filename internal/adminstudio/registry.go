@@ -20,26 +20,26 @@ const (
 )
 
 type Field struct {
-	ID            string
-	Label         string
-	Kind          FieldKind
-	Required      bool
-	VisibleInList bool
+	ID            string    `json:"id"`
+	Label         string    `json:"label"`
+	Kind          FieldKind `json:"kind"`
+	Required      bool      `json:"required"`
+	VisibleInList bool      `json:"visible_in_list"`
 }
 
 type Action struct {
-	Label string
-	Href  string
+	Label string `json:"label"`
+	Href  string `json:"href"`
 }
 
 // Collection is presentation metadata only. Mutations must still go through
 // the module application service and its authorization policy.
 type Collection struct {
-	ID          string
-	Label       string
-	Description string
-	Fields      []Field
-	Actions     []Action
+	ID          string   `json:"id"`
+	Label       string   `json:"label"`
+	Description string   `json:"description"`
+	Fields      []Field  `json:"fields"`
+	Actions     []Action `json:"actions"`
 }
 
 type Registry struct {
