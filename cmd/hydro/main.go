@@ -47,6 +47,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	commerce "github.com/ardaozyildirim/hydrogo/modules/commerce"
 	iyzicoprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/iyzico"
@@ -706,6 +707,15 @@ func serve(args []string, stderr io.Writer) error {
 	})
 	go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
 	go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
+	webhookEndpoints := make([]webhooks.Endpoint, 0, len(cfg.Webhooks))
+	for _, configured := range cfg.Webhooks {
+		topics := make(map[string]struct{}, len(configured.Topics))
+		for _, topic := range configured.Topics {
+			topics[strings.TrimSpace(topic)] = struct{}{}
+		}
+		webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
+	}
+	go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect}, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
 	logWriter := stderr
 	if logWriter == nil {
 		logWriter = io.Discard
@@ -729,6 +739,27 @@ func serve(args []string, stderr io.Writer) error {
 			return database.CheckCompatibilityForModules(checkCtx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
 		},
 	})
+}
+
+func runOutboxWorker(ctx context.Context, worker webhooks.Worker, stderr io.Writer) {
+	if len(worker.Dispatcher.Endpoints) == 0 {
+		return
+	}
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		processed, err := worker.RunOnce(ctx, time.Now().UTC())
+		if err != nil && ctx.Err() == nil && stderr != nil {
+			_, _ = fmt.Fprintf(stderr, "hydro outbox worker: %v\n", err)
+		}
+		if !processed {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}
 }
 
 func doctor(args []string, stdout, stderr io.Writer) error {

@@ -25,7 +25,15 @@ type Config struct {
 	Theme    string           `yaml:"theme"`
 	Security Security         `yaml:"security"`
 	Mail     Mail             `yaml:"mail"`
+	Webhooks []Webhook        `yaml:"webhooks"`
 	Payments Payments         `yaml:"-"`
+}
+
+type Webhook struct {
+	ID     string   `yaml:"id"`
+	URL    string   `yaml:"url"`
+	Secret string   `yaml:"-"`
+	Topics []string `yaml:"topics"`
 }
 
 type HTTP struct {
@@ -113,6 +121,25 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_THEME"); ok && value != "" {
 		result.Theme = value
+	}
+	if value, ok := lookup("HYDRO_WEBHOOK_URL"); ok && value != "" {
+		if len(result.Webhooks) == 0 {
+			result.Webhooks = []Webhook{{ID: "default", URL: value}}
+		} else {
+			result.Webhooks[0].URL = value
+		}
+	}
+	if value, ok := lookup("HYDRO_WEBHOOK_SECRET"); ok && value != "" {
+		if len(result.Webhooks) == 0 {
+			result.Webhooks = []Webhook{{ID: "default"}}
+		}
+		result.Webhooks[0].Secret = value
+	}
+	if value, ok := lookup("HYDRO_WEBHOOK_TOPICS"); ok && value != "" {
+		if len(result.Webhooks) == 0 {
+			result.Webhooks = []Webhook{{ID: "default"}}
+		}
+		result.Webhooks[0].Topics = strings.Split(value, ",")
 	}
 	if value, ok := lookup("HYDRO_MFA_MASTER_KEY"); ok && value != "" {
 		result.Security.MFAMasterKey = value
@@ -218,6 +245,23 @@ func (c Config) Validate() error {
 	}
 	if (c.Payments.PayTRMerchantKey == "") != (c.Payments.PayTRMerchantSalt == "") {
 		return errors.New("PayTR merchant key and salt must be configured together")
+	}
+	for _, webhook := range c.Webhooks {
+		if strings.TrimSpace(webhook.ID) == "" || strings.TrimSpace(webhook.URL) == "" || strings.TrimSpace(webhook.Secret) == "" {
+			return errors.New("webhook id, url and environment secret are required")
+		}
+		parsed, err := url.Parse(webhook.URL)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+			return fmt.Errorf("invalid webhook URL %q", webhook.URL)
+		}
+		if len(webhook.Topics) > 64 {
+			return errors.New("webhook topics exceed limit")
+		}
+		for _, topic := range webhook.Topics {
+			if strings.TrimSpace(topic) == "" {
+				return errors.New("webhook topic cannot be empty")
+			}
+		}
 	}
 	if _, _, err := net.SplitHostPort(c.HTTP.Address); err != nil {
 		return fmt.Errorf("invalid HTTP address %q: %w", c.HTTP.Address, err)

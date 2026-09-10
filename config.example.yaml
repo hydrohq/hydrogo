@@ -11,6 +11,8 @@ media:
   dir: "data/media"
 theme_dir: "themes"
 theme: "corporate"
+# Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,
+# and HYDRO_WEBHOOK_TOPICS in the deployment environment.
 security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false
