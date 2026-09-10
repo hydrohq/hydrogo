@@ -54,6 +54,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /shop/checkout", Handler: http.HandlerFunc(h.checkoutForm), Protected: true},
 		{Pattern: "GET /admin/commerce/products", Handler: http.HandlerFunc(h.adminProducts), Protected: true},
 		{Pattern: "POST /admin/commerce/products", Handler: http.HandlerFunc(h.adminCreateProduct), Protected: true},
+		{Pattern: "GET /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminVariants), Protected: true},
+		{Pattern: "POST /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminCreateVariant), Protected: true},
 		{Pattern: "GET /admin/commerce/orders", Handler: http.HandlerFunc(h.adminOrders), Protected: true},
 	}
 }
@@ -342,9 +344,58 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Commerce catalog</title></head><body><h1>Commerce catalog</h1><form method="post" action="/admin/commerce/products"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input name="sku" placeholder="SKU" required><input name="title" placeholder="Title" required><input name="price_cents" type="number" min="0" required><input name="currency" value="TRY" maxlength="3" required><input name="stock" type="number" min="0" required><select name="status"><option value="draft">Draft</option><option value="published">Published</option></select><button type="submit">Create product</button></form><ul>`))
 	for _, product := range products {
-		_, _ = fmt.Fprintf(w, `<li>%s (%s) — %d %s — stock %d — %s</li>`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.SKU), product.PriceCents, template.HTMLEscapeString(product.Currency), product.Stock, template.HTMLEscapeString(string(product.Status)))
+		_, _ = fmt.Fprintf(w, `<li>%s (%s) — %d %s — stock %d — %s — <a href="/admin/commerce/products/%s/variants">Variants</a></li>`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.SKU), product.PriceCents, template.HTMLEscapeString(product.Currency), product.Stock, template.HTMLEscapeString(string(product.Status)), template.HTMLEscapeString(product.ID))
 	}
 	_, _ = w.Write([]byte(`</ul></body></html>`))
+}
+
+func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.CatalogVariants == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	variants, err := h.Catalog.ListVariants(r.Context(), h.DB, r.PathValue("productID"), false)
+	if err != nil {
+		http.Error(w, "variants unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	token := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Product variants</title></head><body><a href="/admin/commerce/products">Catalog</a><h1>Product variants</h1><form method="post" action="/admin/commerce/products/%s/variants"><input type="hidden" name="_csrf" value="%s"><input name="sku" placeholder="SKU" required><input name="title" placeholder="Title" required><input name="price_cents" type="number" min="0" required><input name="stock" type="number" min="0" required><select name="status"><option value="draft">Draft</option><option value="published">Published</option></select><button type="submit">Create variant</button></form><ul>`, template.HTMLEscapeString(r.PathValue("productID")), token)
+	for _, variant := range variants {
+		_, _ = fmt.Fprintf(w, `<li>%s (%s) — %d %s — stock %d — %s</li>`, template.HTMLEscapeString(variant.Title), template.HTMLEscapeString(variant.SKU), variant.PriceCents, template.HTMLEscapeString(variant.Currency), variant.Stock, template.HTMLEscapeString(string(variant.Status)))
+	}
+	_, _ = w.Write([]byte(`</ul></body></html>`))
+}
+
+func (h Handler) adminCreateVariant(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.CatalogVariants == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid variant", http.StatusBadRequest)
+		return
+	}
+	price, err1 := strconv.ParseInt(r.FormValue("price_cents"), 10, 64)
+	stock, err2 := strconv.Atoi(r.FormValue("stock"))
+	if err1 != nil || err2 != nil {
+		http.Error(w, "invalid variant", http.StatusBadRequest)
+		return
+	}
+	id, err := newID()
+	if err != nil {
+		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	variant := commerce.ProductVariant{ID: id, ProductID: r.PathValue("productID"), SKU: r.FormValue("sku"), Title: r.FormValue("title"), PriceCents: price, Stock: stock, Status: commerce.ProductStatus(r.FormValue("status"))}
+	if err := h.Catalog.CreateVariant(r.Context(), variant); err != nil {
+		http.Error(w, "invalid variant", http.StatusBadRequest)
+		return
+	}
+	http.Redirect(w, r, "/admin/commerce/products/"+template.URLQueryEscaper(variant.ProductID)+"/variants", http.StatusSeeOther)
 }
 
 func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {
