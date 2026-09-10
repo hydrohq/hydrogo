@@ -46,6 +46,7 @@ type Checkout struct {
 	ID             string
 	UserID         string
 	IdempotencyKey string
+	CartID         string
 	Items          []CheckoutItem
 }
 
@@ -61,7 +62,7 @@ var (
 )
 
 func (c Checkout) Validate() error {
-	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.UserID) == "" || strings.TrimSpace(c.IdempotencyKey) == "" || len(c.Items) == 0 {
+	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.UserID) == "" || strings.TrimSpace(c.IdempotencyKey) == "" || (len(c.Items) == 0 && strings.TrimSpace(c.CartID) == "") {
 		return ErrInvalidCheckout
 	}
 	seen := make(map[string]struct{}, len(c.Items))

@@ -13,6 +13,10 @@ type Store interface {
 	CreateOrder(context.Context, database.Executor, Order, string) error
 }
 
+type CheckoutCartReader interface {
+	GetCart(context.Context, database.Executor, string, string) (Cart, error)
+}
+
 type Outbox interface {
 	Enqueue(context.Context, database.Executor, string, string, string, int) error
 }
@@ -37,6 +41,23 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 		} else if found {
 			order = existing
 			return nil
+		}
+		if checkout.CartID != "" {
+			reader, ok := s.Store.(CheckoutCartReader)
+			if !ok {
+				return errorsDependency
+			}
+			cart, err := reader.GetCart(ctx, tx, checkout.UserID, checkout.CartID)
+			if err != nil || cart.ID != checkout.CartID {
+				return ErrInvalidCheckout
+			}
+			checkout.Items = make([]CheckoutItem, 0, len(cart.Items))
+			for _, item := range cart.Items {
+				checkout.Items = append(checkout.Items, CheckoutItem{ProductID: item.ProductID, Quantity: item.Quantity})
+			}
+			if err := checkout.Validate(); err != nil {
+				return err
+			}
 		}
 		order = Order{ID: checkout.ID, UserID: checkout.UserID, PaymentStatus: "pending", ShippingStatus: "pending"}
 		for _, item := range checkout.Items {

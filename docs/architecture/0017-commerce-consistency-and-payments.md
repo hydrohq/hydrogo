@@ -30,3 +30,5 @@ Para değerleri minor-unit integer ve ISO currency koduyla tutulur. Stok negatif
 HTTP sözleşmesi [commerce-v1.yaml](../api/commerce-v1.yaml) içinde sürümlenir. `/api` uyumluluk alias'ı router tarafından sağlanır; yeni istemciler `/api/v1` kullanır.
 
 Sepet, kullanıcı başına tek aktif kayıt ve ürün başına tek satır kullanır. Sepete ekleme transaction içinde ürün fiyatını snapshot'lar; checkout sırasında güncel ürün/fiyat ve stok yeniden doğrulanır.
+
+Checkout tercihen `cart_id` ile yapılır. Eski doğrudan `items` biçimi geçiş dönemi uyumluluğu için desteklenir; iki biçim aynı idempotency ve stok transaction'ını kullanır.

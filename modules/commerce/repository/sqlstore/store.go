@@ -66,8 +66,12 @@ func (s Store) GetOrCreateCart(ctx context.Context, db database.Executor, userID
 	return s.findCart(ctx, db, userID)
 }
 
-func (s Store) GetCart(ctx context.Context, db database.Executor, userID, currency string) (commerce.Cart, error) {
-	return s.GetOrCreateCart(ctx, db, userID, currency)
+func (s Store) GetCart(ctx context.Context, db database.Executor, userID, cartID string) (commerce.Cart, error) {
+	cart, err := s.findCart(ctx, db, userID)
+	if err != nil || cart.ID != cartID {
+		return commerce.Cart{}, sql.ErrNoRows
+	}
+	return cart, nil
 }
 
 func (s Store) findCart(ctx context.Context, db database.Executor, userID string) (commerce.Cart, error) {

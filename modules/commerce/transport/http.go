@@ -20,7 +20,8 @@ type Handler struct {
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
 type checkoutInput struct {
-	Items []commerce.CheckoutItem `json:"items"`
+	CartID string                  `json:"cart_id"`
+	Items  []commerce.CheckoutItem `json:"items"`
 }
 
 type Route struct {
@@ -171,7 +172,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: user.ID, IdempotencyKey: key, Items: input.Items})
+	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: user.ID, IdempotencyKey: key, CartID: input.CartID, Items: input.Items})
 	if err != nil {
 		http.Error(w, "checkout failed", http.StatusConflict)
 		return

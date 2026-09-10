@@ -80,8 +80,8 @@ components:
   schemas:
     CheckoutRequest:
       type: object
-      required: [items]
       properties:
+        cart_id: { type: string }
         items:
           type: array
           minItems: 1
