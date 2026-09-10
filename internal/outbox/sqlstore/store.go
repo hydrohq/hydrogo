@@ -2,9 +2,13 @@ package sqlstore
 
 import (
 	"context"
+	"crypto/rand"
+	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/outbox"
 )
 
 type Store struct {
@@ -15,8 +19,87 @@ func (s Store) Enqueue(ctx context.Context, tx database.Executor, id, topic, agg
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	_, err := tx.ExecContext(ctx, "INSERT INTO outbox_events (id, topic, aggregate_id, payload_version) VALUES ("+s.placeholder(1)+", "+s.placeholder(2)+", "+s.placeholder(3)+", "+s.placeholder(4)+")", id, topic, aggregateID, payloadVersion)
+	_, err := tx.ExecContext(ctx, "INSERT INTO outbox_events (id, topic, aggregate_id, payload_version, available_at, attempts) VALUES ("+s.placeholder(1)+", "+s.placeholder(2)+", "+s.placeholder(3)+", "+s.placeholder(4)+", "+s.placeholder(5)+", 0)", id, topic, aggregateID, payloadVersion, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
+}
+
+func (s Store) Claim(ctx context.Context, db database.Executor, worker string, now time.Time, lease time.Duration) (outbox.Event, string, bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return outbox.Event{}, "", false, err
+	}
+	if worker == "" || lease <= 0 {
+		return outbox.Event{}, "", false, nil
+	}
+	var event outbox.Event
+	var available, leaseUntil, owner, token, lastError string
+	q := `SELECT id, topic, aggregate_id, payload_version, attempts, available_at, COALESCE(lease_until, ''), COALESCE(lease_owner, ''), COALESCE(lease_token, ''), COALESCE(last_error, '') FROM outbox_events WHERE available_at <= ` + s.placeholder(1) + ` AND (lease_until IS NULL OR lease_until <= ` + s.placeholder(2) + `) ORDER BY available_at, id LIMIT 1`
+	err := db.QueryRowContext(ctx, q, now.UTC().Format(time.RFC3339Nano), now.UTC().Format(time.RFC3339Nano)).Scan(&event.ID, &event.Topic, &event.AggregateID, &event.PayloadVersion, &event.Attempts, &available, &leaseUntil, &owner, &token, &lastError)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return outbox.Event{}, "", false, nil
+		}
+		return outbox.Event{}, "", false, err
+	}
+	event.AvailableAt, err = time.Parse(time.RFC3339Nano, available)
+	if err != nil {
+		return outbox.Event{}, "", false, err
+	}
+	leaseToken := newToken(worker, event.ID, now)
+	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = `+s.placeholder(1)+`, lease_token = `+s.placeholder(2)+`, lease_until = `+s.placeholder(3)+`, attempts = attempts + 1 WHERE id = `+s.placeholder(4)+` AND (lease_until IS NULL OR lease_until <= `+s.placeholder(5)+`)`, worker, leaseToken, now.Add(lease).UTC().Format(time.RFC3339Nano), event.ID, now.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return outbox.Event{}, "", false, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil || changed != 1 {
+		return outbox.Event{}, "", false, err
+	}
+	event.Attempts++
+	event.LastError = lastError
+	return event, leaseToken, true, nil
+}
+
+func (s Store) Ack(ctx context.Context, db database.Executor, id, worker, token string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	result, err := db.ExecContext(ctx, `DELETE FROM outbox_events WHERE id = `+s.placeholder(1)+` AND lease_owner = `+s.placeholder(2)+` AND lease_token = `+s.placeholder(3), id, worker, token)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return outbox.ErrLeaseInvalid
+	}
+	return nil
+}
+
+func (s Store) Retry(ctx context.Context, db database.Executor, id, worker, token string, availableAt time.Time, reason string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = `+s.placeholder(1)+`, last_error = `+s.placeholder(2)+` WHERE id = `+s.placeholder(3)+` AND lease_owner = `+s.placeholder(4)+` AND lease_token = `+s.placeholder(5), availableAt.UTC().Format(time.RFC3339Nano), reason, id, worker, token)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return outbox.ErrLeaseInvalid
+	}
+	return nil
+}
+
+func newToken(worker, id string, now time.Time) string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%s-%s-%d", worker, id, now.UnixNano())
+	}
+	return fmt.Sprintf("%x", b)
 }
 
 func (s Store) placeholder(position int) string {

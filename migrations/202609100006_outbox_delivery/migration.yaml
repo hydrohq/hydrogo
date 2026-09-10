@@ -1,0 +1,25 @@
+id: "202609100006_outbox_delivery"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "7082b740196c0f0f9ca857090aa2f603e72bab9311bdb2485392677542088eeb"
+  postgres: "7082b740196c0f0f9ca857090aa2f603e72bab9311bdb2485392677542088eeb"
+dependencies:
+  - "202609060001_transaction_contract"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The transaction contract migration is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Outbox delivery lease metadata and claim index"
+compatibility: "Adds retryable delivery state without changing existing event identity"
+smoke:
+  - "Claimed events can be acknowledged or retried without losing identity"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
