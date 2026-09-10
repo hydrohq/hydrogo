@@ -51,9 +51,10 @@ type Media struct {
 }
 
 type Security struct {
-	MFAMasterKey  string `yaml:"mfa_master_key"`
-	SecureCookies bool   `yaml:"secure_cookies"`
-	EnableHSTS    bool   `yaml:"enable_hsts"`
+	MFAMasterKey     string   `yaml:"mfa_master_key"`
+	SecureCookies    bool     `yaml:"secure_cookies"`
+	EnableHSTS       bool     `yaml:"enable_hsts"`
+	PublicAPIOrigins []string `yaml:"public_api_origins"`
 }
 
 type Mail struct {
@@ -164,6 +165,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 			return Config{}, fmt.Errorf("invalid HYDRO_ENABLE_HSTS: %w", err)
 		}
 		result.Security.EnableHSTS = enableHSTS
+	}
+	if value, ok := lookup("HYDRO_PUBLIC_API_ORIGINS"); ok && value != "" {
+		result.Security.PublicAPIOrigins = strings.Split(value, ",")
 	}
 	if value, ok := lookup("HYDRO_SMTP_HOST"); ok && value != "" {
 		result.Mail.Host = value
@@ -311,6 +315,21 @@ func (c Config) Validate() error {
 	}
 	if publicOrigin != nil && publicOrigin.Scheme == "https" && !c.Security.SecureCookies {
 		return errors.New("HTTPS public origin requires secure cookies")
+	}
+	seenOrigins := make(map[string]struct{}, len(c.Security.PublicAPIOrigins))
+	if len(c.Security.PublicAPIOrigins) > 32 {
+		return errors.New("public API origin allowlist exceeds limit")
+	}
+	for _, origin := range c.Security.PublicAPIOrigins {
+		parsed, err := url.Parse(strings.TrimSpace(origin))
+		if err != nil || !isHTTPOrigin(parsed) {
+			return fmt.Errorf("invalid public API origin %q", origin)
+		}
+		key := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(origin)), "/")
+		if _, exists := seenOrigins[key]; exists {
+			return fmt.Errorf("public API origin %q is configured more than once", origin)
+		}
+		seenOrigins[key] = struct{}{}
 	}
 	switch c.Database.Dialect {
 	case database.SQLite, database.Postgres:

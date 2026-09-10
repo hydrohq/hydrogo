@@ -804,16 +804,17 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	return server.Serve(ctx, server.Config{
-		Address:         cfg.HTTP.Address,
-		ShutdownTimeout: budget.ShutdownTimeout,
-		AuthSvc:         authSvc,
-		Metrics:         metrics,
-		Logger:          logger,
-		EnableHSTS:      cfg.Security.EnableHSTS,
-		SecureCookie:    cfg.Security.SecureCookies,
-		HTTPBodyLimit:   budget.HTTPBodyBytes,
-		PublicOrigin:    cfg.HTTP.PublicOrigin,
-		Routes:          routes,
+		Address:          cfg.HTTP.Address,
+		ShutdownTimeout:  budget.ShutdownTimeout,
+		AuthSvc:          authSvc,
+		Metrics:          metrics,
+		Logger:           logger,
+		EnableHSTS:       cfg.Security.EnableHSTS,
+		SecureCookie:     cfg.Security.SecureCookies,
+		HTTPBodyLimit:    budget.HTTPBodyBytes,
+		PublicOrigin:     cfg.HTTP.PublicOrigin,
+		PublicAPIOrigins: cfg.Security.PublicAPIOrigins,
+		Routes:           routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
 				return err

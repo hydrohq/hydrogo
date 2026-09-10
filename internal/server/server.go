@@ -24,18 +24,19 @@ func nonNilContext(ctx context.Context) context.Context {
 }
 
 type Config struct {
-	Address         string
-	ShutdownTimeout time.Duration
-	Ready           func(context.Context) error
-	AuthSvc         *auth.AuthService
-	Routes          []router.Route
-	Authorizer      router.Authorizer
-	Metrics         *observability.Metrics
-	Logger          *slog.Logger
-	EnableHSTS      bool
-	SecureCookie    bool
-	HTTPBodyLimit   int64
-	PublicOrigin    string
+	Address          string
+	ShutdownTimeout  time.Duration
+	Ready            func(context.Context) error
+	AuthSvc          *auth.AuthService
+	Routes           []router.Route
+	Authorizer       router.Authorizer
+	Metrics          *observability.Metrics
+	Logger           *slog.Logger
+	EnableHSTS       bool
+	SecureCookie     bool
+	HTTPBodyLimit    int64
+	PublicOrigin     string
+	PublicAPIOrigins []string
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -135,6 +136,11 @@ func NewHandler(config Config) http.Handler {
 		panic(err)
 	}
 	handler = hostMiddleware(handler)
+	publicCORS, err := security.NewPublicReadCORSMiddleware(config.PublicAPIOrigins)
+	if err != nil {
+		panic(err)
+	}
+	handler = publicCORS(handler)
 
 	// General requests use the selected capacity profile budget. Media uploads
 	// enforce their larger, uploader-specific limit in the media handler.

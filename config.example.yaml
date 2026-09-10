@@ -22,3 +22,6 @@ security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false
   enable_hsts: false
+  # Optional explicit allowlist for credential-free published /api/v1 reads.
+  # Browser writes remain same-site or BFF-only; wildcard origins are not supported.
+  public_api_origins: []

@@ -153,6 +153,26 @@ func TestValidateRejectsNonOriginPublicURLs(t *testing.T) {
 	}
 }
 
+func TestLoadValidatesPublicAPIOriginAllowlist(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":       "file:test.sqlite",
+		"HYDRO_PUBLIC_API_ORIGINS": "https://store.example.test,http://localhost:3000",
+	}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Security.PublicAPIOrigins) != 2 {
+		t.Fatalf("public API origins = %#v", cfg.Security.PublicAPIOrigins)
+	}
+	_, err = Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":       "file:test.sqlite",
+		"HYDRO_PUBLIC_API_ORIGINS": "https://store.example.test/path",
+	}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "invalid public API origin") {
+		t.Fatalf("invalid API origin error = %v", err)
+	}
+}
+
 func writeConfig(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "hydro.yaml")
