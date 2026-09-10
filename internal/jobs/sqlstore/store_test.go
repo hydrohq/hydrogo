@@ -215,7 +215,7 @@ func runConcurrentCapacityContract(t *testing.T, db database.Executor, dialect d
 		t.Fatalf("concurrent enqueue successes = %d, want 1", successes)
 	}
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = 0").Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM jobs WHERE dead_lettered = "+store.boolLiteral(false)).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count > 1 {

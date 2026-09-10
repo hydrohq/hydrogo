@@ -276,10 +276,10 @@ func TestRetainAssetsRejectsSymlinkOutsideRoot(t *testing.T) {
 	if err := os.Symlink(outside, link); err != nil {
 		t.Skipf("symlink creation unavailable: %v", err)
 	}
-	manifest, err := Build(source, Input{Edition: "site", CoreVersion: "1.0.0"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	digest := sha256.Sum256([]byte("outside"))
+	manifest := Manifest{FormatVersion: 1, Edition: "site", CoreVersion: "1.0.0", Artifacts: []Artifact{{
+		Path: "static/link.css", Size: int64(len("outside")), SHA256: hex.EncodeToString(digest[:]),
+	}}}
 	if err := RetainAssets(source, manifest, filepath.Join(source, "dest")); err == nil {
 		t.Fatal("asset symlink escaping source root was accepted")
 	}

@@ -2,6 +2,7 @@ package contract_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,11 +46,17 @@ func TestMigrationRollbackCompatibilityContract(t *testing.T) {
 func runMigrationRollbackCompatibility(t *testing.T, dialect database.Dialect, dsn string) {
 	t.Helper()
 	ctx := context.Background()
-	db, err := database.Open(ctx, dialect, dsn)
-	if err != nil {
-		t.Fatal(err)
+	var db *sql.DB
+	var err error
+	if dialect == database.Postgres {
+		db = openIsolatedPostgres(t, ctx)
+	} else {
+		db, err = database.Open(ctx, dialect, dsn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = db.Close() })
 	}
-	t.Cleanup(func() { _ = db.Close() })
 	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
@@ -186,11 +193,7 @@ func TestPostgresNonTransactionalConcurrentIndexAllowsReadContract(t *testing.T)
 		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := database.Open(ctx, database.Postgres, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := openIsolatedPostgres(t, ctx)
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
 	table := "online_contract_" + suffix
 	baseID := "online_" + suffix + "_base"
@@ -273,11 +276,7 @@ func TestPostgresConcurrentMigrationRunnersSerializeContract(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	db, err := database.Open(ctx, database.Postgres, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := openIsolatedPostgres(t, ctx)
 	migrationID := fmt.Sprintf("lock_%d", time.Now().UnixNano())
 	migrationFS := fstest.MapFS{
 		migrationID + "/postgres.sql":   &fstest.MapFile{Data: []byte("SELECT pg_sleep(0.4);\n")},
@@ -319,11 +318,7 @@ func TestPostgresConcurrentIndexWaitsForLongSnapshotContract(t *testing.T) {
 		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := database.Open(ctx, database.Postgres, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := openIsolatedPostgres(t, ctx)
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
 	table := "snapshot_contract_" + suffix
 	baseID := "snapshot_" + suffix + "_base"
