@@ -131,8 +131,24 @@ jobs:
   race:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: hydro
+          POSTGRES_PASSWORD: hydro-test-password
+          POSTGRES_DB: hydro_contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hydro -d hydro_contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       HYDRO_TEST_POSTGRES_URL: postgres://hydro:hydro-test-password@127.0.0.1:5432/hydro_contract?sslmode=disable
+      HYDRO_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
+      HYDRO_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -140,6 +156,18 @@ jobs:
         with:
           go-version: '1.27.0'
           check-latest: false
+      - name: Install PostgreSQL client tools
+        timeout-minutes: 4
+        run: |
+          if [ ! -x /usr/lib/postgresql/18/bin/pg_dump ] || [ ! -x /usr/lib/postgresql/18/bin/pg_restore ]; then
+            sudo install -d -m 0755 /etc/apt/keyrings
+            curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/postgresql.gpg
+            echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo \"$VERSION_CODENAME\")-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-18
+          fi
+          test -x /usr/lib/postgresql/18/bin/pg_dump
+          test -x /usr/lib/postgresql/18/bin/pg_restore
       - name: Run race-sensitive contract tests
         env:
           CGO_ENABLED: '1'
