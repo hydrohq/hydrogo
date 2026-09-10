@@ -432,7 +432,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	collection := h.AdminCollection
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Commerce katalog", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
+	if err := ui.AdminStart(w, "Ürün Kataloğu", "", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
 	var formBuf bytes.Buffer
@@ -440,7 +440,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>Ürün kataloğu</h2><p>Ürünleri, fiyatları, varyantları ve stok durumunu yönetin.</p><div class="studio-actions"><button id="toggle-product-form-btn" class="button" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg> Yeni ürün ekle</button><a class="button button-quiet" href="/shop" target="_blank">Canlı mağazayı aç <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3h7v7"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg></a></div></section><section id="new-product-section" class="studio-card" hidden><div class="dashboard-card-head"><div><p class="eyebrow">YENİ ÜRÜN</p><h2>Yeni ürün ekle</h2><p class="muted">Ürün bilgisi, SKU, fiyat ve stok miktarını girin.</p></div><button id="close-product-form-btn" class="button button-quiet" type="button">Kapat</button></div><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></section><section class="studio-card"><h2>Ürünler <span class="muted">(%d)</span></h2><div class="table-wrap">`, formBuf.String(), len(products))
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><h2>Ürün Kataloğu <span class="muted">(%d)</span></h2></div><div class="studio-actions"><button id="toggle-product-form-btn" class="button" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg> Yeni ürün ekle</button></div></div><div id="new-product-section" hidden style="margin-bottom:24px;padding:20px;background:var(--bg-subtle);border-radius:var(--radius-md);border:1px solid var(--line);"><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></div><div class="table-wrap">`, len(products), formBuf.String())
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
@@ -449,7 +449,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = w.Write([]byte(`</div></section><script nonce="` + template.HTMLEscapeString(security.NonceFromContext(r.Context())) + `">(()=>{const sec=document.getElementById('new-product-section');const toggleBtn=document.getElementById('toggle-product-form-btn');const closeBtn=document.getElementById('close-product-form-btn');if(toggleBtn&&sec){toggleBtn.addEventListener('click',()=>{const isHidden=sec.hasAttribute('hidden');if(isHidden){sec.removeAttribute('hidden');sec.scrollIntoView({behavior:'smooth'});}else{sec.setAttribute('hidden','');}});}if(closeBtn&&sec){closeBtn.addEventListener('click',()=>{sec.setAttribute('hidden','');});}if(window.location.hash==='#new-product'&&sec){sec.removeAttribute('hidden');sec.scrollIntoView({behavior:'smooth'});}})();</script>`))
+	_, _ = w.Write([]byte(`</div></section><script nonce="` + template.HTMLEscapeString(security.NonceFromContext(r.Context())) + `">(()=>{const sec=document.getElementById('new-product-section');const toggleBtn=document.getElementById('toggle-product-form-btn');if(toggleBtn&&sec){toggleBtn.addEventListener('click',()=>{const isHidden=sec.hasAttribute('hidden');if(isHidden){sec.removeAttribute('hidden');sec.scrollIntoView({behavior:'smooth'});}else{sec.setAttribute('hidden','');}});}if(window.location.hash==='#new-product'&&sec){sec.removeAttribute('hidden');sec.scrollIntoView({behavior:'smooth'});}})();</script>`))
 	_ = ui.AdminEnd(w)
 }
 

@@ -112,10 +112,10 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Haberler", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
+	if err := ui.AdminStart(w, "Haberler", "", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>İçerik akışı</h2><p>Haberleri taslak olarak oluşturun, zamanlayın ve tek tıkla yayınlayın.</p><div class="studio-actions"><a class="button" href="/admin/news/new">Yeni haber oluştur</a><a class="button button-quiet" href="/public/news/tr/html" target="_blank">Canlı siteyi aç ↗</a></div></section><section class="studio-card"><h2>Haberler <span class="muted">(%d)</span></h2><div class="table-wrap">`, len(rows))
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><h2>Tüm Haberler <span class="muted">(%d)</span></h2></div><div class="studio-actions"><a class="button" href="/admin/news/new">Yeni haber oluştur</a></div></div><div class="table-wrap">`, len(rows))
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		return

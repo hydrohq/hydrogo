@@ -109,10 +109,10 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Sayfalar", "İçerik stüdyosu", security.NonceFromContext(r.Context()), "pages"); err != nil {
+	if err := ui.AdminStart(w, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>Sayfa içerikleri <span class="muted">(%d)</span></h2><p>Temalı sayfalarınızı ve blok kompozisyonlarını yönetin.</p><div class="table-wrap">`, len(rows))
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><h2>Tüm Sayfalar <span class="muted">(%d)</span></h2></div><div class="studio-actions"><a class="button button-quiet" href="/public/pages/tr/demo/html" target="_blank">Canlı görünüm ↗</a></div></div><div class="table-wrap">`, len(rows))
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 		return
