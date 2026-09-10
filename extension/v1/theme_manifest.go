@@ -1,8 +1,12 @@
 package v1
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -41,9 +45,74 @@ func (m ThemeManifest) Validate() error {
 		}
 	}
 	for _, asset := range m.Assets {
-		if strings.TrimSpace(asset) == "" || strings.Contains(asset, "..") || strings.HasPrefix(asset, "/") {
+		if !safeThemePath(asset) {
 			return ErrInvalidThemeManifest
 		}
 	}
 	return nil
+}
+
+func safeThemePath(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || filepath.IsAbs(value) || strings.Contains(value, "\\") {
+		return false
+	}
+	clean := filepath.ToSlash(filepath.Clean(value))
+	return clean != "." && clean != ".." && !strings.HasPrefix(clean, "../")
+}
+
+// ThemeBundle is a validated, filesystem-backed theme package. Only files
+// declared by theme.json are exposed; callers choose when to render it.
+type ThemeBundle struct {
+	Manifest ThemeManifest
+	Root     string
+	Layout   string
+}
+
+type PageTemplateData struct {
+	Title   string
+	Slug    string
+	Locale  string
+	Content template.HTML
+	Slots   map[string]template.HTML
+}
+
+func LoadTheme(root, name string) (ThemeBundle, error) {
+	if !themeName.MatchString(name) {
+		return ThemeBundle{}, ErrInvalidThemeManifest
+	}
+	base, err := filepath.Abs(root)
+	if err != nil {
+		return ThemeBundle{}, err
+	}
+	themeRoot := filepath.Join(base, name)
+	rel, err := filepath.Rel(base, themeRoot)
+	if err != nil || rel == ".." || strings.HasPrefix(filepath.ToSlash(rel), "../") {
+		return ThemeBundle{}, ErrInvalidThemeManifest
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(themeRoot, "theme.json"))
+	if err != nil {
+		return ThemeBundle{}, fmt.Errorf("read theme manifest: %w", err)
+	}
+	var manifest ThemeManifest
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		return ThemeBundle{}, fmt.Errorf("decode theme manifest: %w", err)
+	}
+	if manifest.Name != name {
+		return ThemeBundle{}, ErrInvalidThemeManifest
+	}
+	if err := manifest.Validate(); err != nil {
+		return ThemeBundle{}, err
+	}
+	layoutPath := filepath.Join(themeRoot, "layouts", "base.html")
+	layout, err := os.ReadFile(layoutPath)
+	if err != nil {
+		return ThemeBundle{}, fmt.Errorf("read theme layout: %w", err)
+	}
+	for _, asset := range manifest.Assets {
+		if _, err := os.Stat(filepath.Join(themeRoot, filepath.FromSlash(asset))); err != nil {
+			return ThemeBundle{}, fmt.Errorf("theme asset %q: %w", asset, err)
+		}
+	}
+	return ThemeBundle{Manifest: manifest, Root: themeRoot, Layout: string(layout)}, nil
 }
