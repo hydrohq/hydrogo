@@ -1,0 +1,27 @@
+id: "202609100005_commerce_variants"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "014c218c8be7b96181c01ac38ffb0dfd2c8884f961ce54c4cdee29c48b09d0fd"
+  postgres: "e319825ffe51767c2a80fbcac77ab8235aa5ff51bb8017f1b0ee3adbab7bae4b"
+dependencies:
+  - "202609100002_commerce_core"
+schema:
+  readable_epoch: 4
+  writable_epoch: 4
+preconditions:
+  - "The commerce core migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Product variant SKU, price and stock rows"
+compatibility: "Adds optional variant inventory without changing variantless products"
+smoke:
+  - "Variant SKU values are unique"
+  - "Variant stock and price cannot be negative"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
+

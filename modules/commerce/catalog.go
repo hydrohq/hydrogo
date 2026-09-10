@@ -15,9 +15,42 @@ type CatalogStore interface {
 	ListProducts(context.Context, database.Executor, bool) ([]Product, error)
 }
 
+type VariantStore interface {
+	CreateVariant(context.Context, database.Executor, ProductVariant) error
+	ListVariants(context.Context, database.Executor, string, bool) ([]ProductVariant, error)
+}
+
 type CatalogService struct {
 	Transactions database.Transactor
 	Store        CatalogStore
+	Variants     VariantStore
+}
+
+func ValidateVariant(variant ProductVariant) error {
+	if strings.TrimSpace(variant.ID) == "" || strings.TrimSpace(variant.ProductID) == "" || strings.TrimSpace(variant.SKU) == "" || strings.TrimSpace(variant.Title) == "" || variant.PriceCents < 0 || variant.Stock < 0 {
+		return ErrInvalidProduct
+	}
+	if variant.Status != ProductDraft && variant.Status != ProductPublished && variant.Status != ProductOutOfStock {
+		return ErrInvalidProduct
+	}
+	return nil
+}
+
+func (s CatalogService) CreateVariant(ctx context.Context, variant ProductVariant) error {
+	if err := ValidateVariant(variant); err != nil {
+		return err
+	}
+	if s.Variants == nil {
+		return errors.New("commerce variant dependency is required")
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Variants.CreateVariant(ctx, tx, variant) })
+}
+
+func (s CatalogService) ListVariants(ctx context.Context, db database.Executor, productID string, publicOnly bool) ([]ProductVariant, error) {
+	if s.Variants == nil {
+		return nil, errors.New("commerce variant dependency is required")
+	}
+	return s.Variants.ListVariants(ctx, db, productID, publicOnly)
 }
 
 func ValidateProduct(product Product) error {

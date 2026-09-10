@@ -16,10 +16,11 @@ import (
 )
 
 type Handler struct {
-	DB       database.Executor
-	Commerce commerce.Service
-	Catalog  commerce.CatalogService
-	Cart     commerce.CartService
+	DB              database.Executor
+	Commerce        commerce.Service
+	Catalog         commerce.CatalogService
+	Cart            commerce.CartService
+	CatalogVariants commerce.VariantStore
 }
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
@@ -38,6 +39,8 @@ func (h Handler) Routes() []Route {
 	return []Route{
 		{Pattern: "GET /api/commerce/products", Handler: http.HandlerFunc(h.products), Protected: false},
 		{Pattern: "POST /api/commerce/products", Handler: http.HandlerFunc(h.createProduct), Protected: true},
+		{Pattern: "GET /api/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.variants), Protected: false},
+		{Pattern: "POST /api/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.createVariant), Protected: true},
 		{Pattern: "GET /api/commerce/cart", Handler: http.HandlerFunc(h.cart), Protected: true},
 		{Pattern: "POST /api/commerce/cart/items", Handler: http.HandlerFunc(h.addCartItem), Protected: true},
 		{Pattern: "DELETE /api/commerce/cart/items/{productID}", Handler: http.HandlerFunc(h.removeCartItem), Protected: true},
@@ -65,6 +68,58 @@ type productInput struct {
 type cartItemInput struct {
 	ProductID string `json:"product_id"`
 	Quantity  int    `json:"quantity"`
+}
+
+type variantInput struct {
+	SKU        string                 `json:"sku"`
+	Title      string                 `json:"title"`
+	PriceCents int64                  `json:"price_cents"`
+	Stock      int                    `json:"stock"`
+	Status     commerce.ProductStatus `json:"status"`
+}
+
+func (h Handler) variants(w http.ResponseWriter, r *http.Request) {
+	if h.CatalogVariants == nil {
+		http.Error(w, "variant catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	variants, err := h.Catalog.ListVariants(r.Context(), h.DB, r.PathValue("productID"), true)
+	if err != nil {
+		http.Error(w, "variant catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(variants)
+}
+
+func (h Handler) createVariant(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.CatalogVariants == nil {
+		http.Error(w, "variant catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var input variantInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil {
+		http.Error(w, "invalid variant", http.StatusBadRequest)
+		return
+	}
+	id, err := newID()
+	if err != nil {
+		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	variant := commerce.ProductVariant{ID: id, ProductID: r.PathValue("productID"), SKU: input.SKU, Title: input.Title, PriceCents: input.PriceCents, Stock: input.Stock, Status: input.Status}
+	if err := h.Catalog.CreateVariant(r.Context(), variant); err != nil {
+		http.Error(w, "invalid variant", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(variant)
 }
 
 func (h Handler) cart(w http.ResponseWriter, r *http.Request) {

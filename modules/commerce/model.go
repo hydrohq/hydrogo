@@ -23,6 +23,16 @@ type Product struct {
 	Status     ProductStatus
 }
 
+type ProductVariant struct {
+	ID         string        `json:"id"`
+	ProductID  string        `json:"product_id"`
+	SKU        string        `json:"sku"`
+	Title      string        `json:"title"`
+	PriceCents int64         `json:"price_cents"`
+	Stock      int           `json:"stock"`
+	Status     ProductStatus `json:"status"`
+}
+
 type OrderItem struct {
 	ProductID  string `json:"product_id"`
 	SKU        string `json:"sku"`

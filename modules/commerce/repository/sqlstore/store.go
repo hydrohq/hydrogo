@@ -14,6 +14,41 @@ import (
 
 type Store struct{ Dialect database.Dialect }
 
+func (s Store) CreateVariant(ctx context.Context, db database.Executor, variant commerce.ProductVariant) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	q := `INSERT INTO commerce_product_variants (id, product_id, sku, title, price_cents, stock, status, created_at, updated_at) VALUES (` + s.placeholder(1) + `,` + s.placeholder(2) + `,` + s.placeholder(3) + `,` + s.placeholder(4) + `,` + s.placeholder(5) + `,` + s.placeholder(6) + `,` + s.placeholder(7) + `,` + s.placeholder(8) + `,` + s.placeholder(9) + `)`
+	_, err := db.ExecContext(ctx, q, variant.ID, variant.ProductID, variant.SKU, variant.Title, variant.PriceCents, variant.Stock, variant.Status, now, now)
+	return err
+}
+
+func (s Store) ListVariants(ctx context.Context, db database.Executor, productID string, publicOnly bool) ([]commerce.ProductVariant, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	q := `SELECT id, product_id, sku, title, price_cents, stock, status FROM commerce_product_variants WHERE product_id = ` + s.placeholder(1)
+	if publicOnly {
+		q += ` AND status IN ('published', 'out_of_stock')`
+	}
+	q += ` ORDER BY title, id`
+	rows, err := queryRows(ctx, db, q, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	variants := make([]commerce.ProductVariant, 0)
+	for rows.Next() {
+		var variant commerce.ProductVariant
+		if err := rows.Scan(&variant.ID, &variant.ProductID, &variant.SKU, &variant.Title, &variant.PriceCents, &variant.Stock, &variant.Status); err != nil {
+			return nil, err
+		}
+		variants = append(variants, variant)
+	}
+	return variants, rows.Err()
+}
+
 func (s Store) CreateProduct(ctx context.Context, db database.Executor, product commerce.Product) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
