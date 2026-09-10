@@ -295,6 +295,12 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
+	// Browser links may use the short public URL. Keep the JSON contract for
+	// API clients while serving the editorial page when HTML is requested.
+	if strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html") {
+		h.publicGetHTML(w, r)
+		return
+	}
 	h.publicGetWithRoute(w, r, r.PathValue("locale"), r.PathValue("slug"))
 }
 
