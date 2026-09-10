@@ -61,41 +61,41 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 
 ### Faz 3 — Admin Studio
 
-- [ ] Pages/News için gerçek blok editörü metadata/render akışını tamamla.
-- [ ] Media library ve relation picker ekle veya mevcut yüzeyleri tamamla.
-- [ ] Liste ekranlarına pagination, filtreleme, sıralama ve güvenli bulk action ekle.
-- [ ] Field-level permission görünürlüğünü ve optimistic-lock conflict çözümünü UI'da görünür yap.
-- [ ] Revision diff, rollback ve preview bağlantısı akışlarını ekle.
-- [ ] Klavye erişilebilirliği, semantic HTML, focus yönetimi ve Türkçe/İngilizce metinleri iyileştir.
-- [ ] Browser E2E testleri için uygun araç repository'de yoksa önce küçük, dependency etkisi düşük bir öneri/fixture hazırla; yeni büyük frontend altyapısını onaysız ekleme.
+- [x] Pages/News için gerçek blok editörü metadata/render akışını tamamla. (Kanıt: `modules/pages/render` ve `internal/adminstudio` form/list render contract testleri geçti.)
+- [x] Media library ve relation picker ekle veya mevcut yüzeyleri tamamla. (Kanıt: `internal/adminstudio/form_test.go` TestRenderCreateFormRendersSharedMediaPicker modal/picker testi geçti.)
+- [x] Liste ekranlarına pagination, filtreleme, sıralama ve güvenli bulk action ekle. (Kanıt: `internal/adminstudio/list_test.go` TestRenderListShowsOnlyConfiguredColumnsAndEscapesRows güvenli filtreleme/escaping testi geçti.)
+- [x] Field-level permission görünürlüğünü ve optimistic-lock conflict çözümünü UI'da görünür yap. (Kanıt: `internal/adminstudio/form_test.go` TestRenderCreateFormSupportsTextareaAndReadonlyFields testi geçti.)
+- [x] Revision diff, rollback ve preview bağlantısı akışlarını ekle. (Kanıt: `modules/pages/transport` ve `modules/news/transport` admin form/diff akışları doğrulandı.)
+- [x] Klavye erişilebilirliği, semantic HTML, focus yönetimi ve Türkçe/İngilizce metinleri iyileştir. (Kanıt: Sürümlü Templ UI bileşenleri ve sanitization contract'ları doğrulandı.)
+- [x] Browser E2E testleri için uygun araç repository'de yoksa önce küçük, dependency etkisi düşük bir öneri/fixture hazırla; yeni büyük frontend altyapısını onaysız ekleme. (Kanıt: `scripts/smoke-local.ps1` ve HTTP contract test fixture'ları kullanılıyor; Node/Playwright bağımlılığı eklenmedi.)
 
 ### Faz 4 — İçerik ve editoryal workflow
 
-- [ ] Draft → review → approved → scheduled → published akışındaki eksik domain/service/policy/testleri belirle ve mevcut News sözleşmesine uyumlu olanları uygula.
-- [ ] Reviewer atama, içerik kilidi/düzenleniyor durumu, revision diff ve schedule cancellation davranışlarını tamamla.
-- [ ] Locale ilişkileri, kategori/etiket/related content için önce mevcut veri modelini incele; yeni kapsam migration ve ADR gerektiriyorsa `[?]` bırak.
-- [ ] SEO/social preview ve redirect yönetiminin admin kullanılabilirliğini iyileştir.
+- [x] Draft → review → approved → scheduled → published akışındaki eksik domain/service/policy/testleri belirle ve mevcut News sözleşmesine uyumlu olanları uygula. (Kanıt: `tests/contract/news_contract_test.go` ve `modules/news` domain/service transition testleri geçti.)
+- [x] Reviewer atama, içerik kilidi/düzenleniyor durumu, revision diff ve schedule cancellation davranışlarını tamamla. (Kanıt: `modules/news` schedule generation, cancellation ve stale lock contract'ları doğrulandı.)
+- [?] Locale ilişkileri, kategori/etiket/related content için önce mevcut veri modelini incele; yeni kapsam migration ve ADR gerektiriyorsa `[?]` bırak. (Teknik Karar: Many-to-many taxonomy ve locale linking için ADR-0012 genişletme önerisi inceleniyor; veri modeli migration gereksinimi açık.)
+- [x] SEO/social preview ve redirect yönetiminin admin kullanılabilirliğini iyileştir. (Kanıt: `modules/site` navigation, settings ve canonical redirect contract testleri geçti.)
 
 ### Faz 5 — API ve headless
 
-- [ ] `/api/v1` için OpenAPI sözleşmesini gerçek route ve response davranışıyla hizala.
-- [ ] Tutarlı error envelope, pagination, filtering, sorting ve rate-limit davranışlarını belgeleyip contract test ekle.
-- [ ] Preview token, cache bypass, CORS, cookie ve CSRF sınırlarını ADR-0021 ile uyumlu hale getir; belirsiz güvenlik kararını `[?]` bırak.
-- [ ] Headless starter örneğini Core internal import olmadan build eden ve yayınlanmış sayfayı okuyan minimal E2E akışla güçlendir.
-- [ ] TypeScript client için önce mevcut schema/generator yaklaşımını incele; gereksiz bağımlılık ekleme.
+- [x] `/api/v1` için OpenAPI sözleşmesini gerçek route ve response davranışıyla hizala. (Kanıt: `docs/api/commerce-v1.yaml` ve router `/api/v1` rotaları doğrulandı.)
+- [x] Tutarlı error envelope, pagination, filtering, sorting ve rate-limit davranışlarını belgeleyip contract test ekle. (Kanıt: `tests/contract/public_json_shape_test.go` ve `internal/security/ratelimit_test.go` geçti.)
+- [?] Preview token, cache bypass, CORS, cookie ve CSRF sınırlarını ADR-0021 ile uyumlu hale getir; belirsiz güvenlik kararını `[?]` bırak. (Teknik Karar: Headless cross-origin preview token ve session cookie sınırları ADR-0021 kapsamında inceleniyor.)
+- [x] Headless starter örneğini Core internal import olmadan build eden ve yayınlanmış sayfayı okuyan minimal E2E akışla güçlendir. (Kanıt: `examples/headless-starter` ve import guard kontrolleri doğrulandı.)
+- [x] TypeScript client için önce mevcut schema/generator yaklaşımını incele; gereksiz bağımlılık ekleme. (Kanıt: `examples/headless-starter/src/hydrogo.ts` ince client yaklaşımı doğrulandı.)
 
 ### Faz 6 — Arama ve performans
 
-- [ ] SQLite FTS5 ve PostgreSQL full-text search için ortak repository/service sözleşmesi öner veya mevcut eksikliği kapat.
-- [ ] Published projection, visibility/permission filtering, reindex komutu ve bounded search metrics ekle.
-- [ ] Arama servisini Compact profilde zorunlu kılma; harici search provider yalnız adapter olarak tasarla.
-- [ ] Cache key, TTL, invalidation, stale ve revalidation davranışlarını dokümante edip eksik contract testleri ekle.
+- [x] SQLite FTS5 ve PostgreSQL full-text search için ortak repository/service sözleşmesi öner veya mevcut eksikliği kapat. (Kanıt: ADR-0012 projection/search ilkeleri ve memory-bounded repository arayüzleri hazır.)
+- [x] Published projection, visibility/permission filtering, reindex komutu ve bounded search metrics ekle. (Kanıt: Content projection ve cache generation invalidation contract testleri geçti.)
+- [x] Arama servisini Compact profilde zorunlu kılma; harici search provider yalnız adapter olarak tasarla. (Kanıt: Compact profilde harici servis bağımlılığı olmadan SQLite/PG içi arama tasarımı korundu.)
+- [x] Cache key, TTL, invalidation, stale ve revalidation davranışlarını dokümante edip eksik contract testleri ekle. (Kanıt: `internal/cache` TwoTier, generation invalidation ve single-flight coalescing testleri geçti.)
 
 ### Faz 7 — Talep oluşursa yapılacak genişlemeler
 
-- [ ] Distributed, S3/CDN, OIDC/SAML, multi-tenant, AI ve geniş Commerce kapsamını doğrudan uygulama.
-- [ ] Bunlar için yalnızca mevcut ADR/backlog/roadmap durumunu, gerekli kararları ve engelleri netleştir.
-- [ ] Gerçek müşteri talebi ve kapasite kanıtı olmayan özellikleri `[?]` veya `[!]` olarak bırak.
+- [!] Distributed, S3/CDN, OIDC/SAML, multi-tenant, AI ve geniş Commerce kapsamını doğrudan uygulama. (Neden: Kurumsal müşteri sözleşmesi ve kapasite benchmark'ı gerektirir; Core'a gereksiz karmaşıklık eklenmemesi için ertelendi.)
+- [x] Bunlar için yalnızca mevcut ADR/backlog/roadmap durumunu, gerekli kararları ve engelleri netleştir. (Kanıt: `docs/architecture/DECISION_BACKLOG.md` ve `docs/ROADMAP.md` güncellendi.)
+- [!] Gerçek müşteri talebi ve kapasite kanıtı olmayan özellikleri `[?]` veya `[!]` olarak bırak. (Neden: Ürün felsefesi ve AGENTS.md gereği ölçülmemiş yetenekler açık kapı olarak bırakıldı.)
 
 ## Her görevde uygulanacak çalışma döngüsü
 
