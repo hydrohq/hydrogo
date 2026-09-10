@@ -124,6 +124,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return upgrade(args[1:], stdout, stderr)
 	case "create-admin":
 		return createAdmin(args[1:], stdin, stdout, stderr)
+	case "seed-demo":
+		return seedDemo(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "backup":
@@ -1268,6 +1270,75 @@ func upgrade(args []string, stdout, stderr io.Writer) error {
 	return err
 }
 
+func seedDemo(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("seed-demo", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	blocks := `[{"type":"hero","payload":{"title":"HydroGo demo","subtitle":"Temalanabilir içerik ve commerce akışını keşfedin.","button_text":"Mağazaya git","button_url":"/shop"}},{"type":"faq","payload":{"items":[{"question":"Bu demo ne içeriyor?","answer":"Pages, tema, medya, ürün, varyant, sepet ve checkout örneklerini içerir."}]}}]`
+	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,$3,$4,$5,'published',1,1,1,$6,$6,$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,?3,?4,?5,'published',1,1,1,?6,?6,?7,?7)`, "demo-home", "HydroGo Demo", "tr", "demo", "Demo sayfası", blocks, now); err != nil {
+		return fmt.Errorf("seed demo page: %w", err)
+	}
+	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,?3,?4,?5,?6,?7,?8)`, "demo-home-rev-1", "demo-home", "tr", "demo", "HydroGo Demo", "Demo sayfası", blocks, now); err != nil {
+		return fmt.Errorf("seed demo revision: %w", err)
+	}
+	for _, product := range []struct {
+		id, sku, title string
+		price, stock   int
+	}{{"demo-bottle", "DEMO-BOTTLE", "HydroGo Bottle", 24900, 25}, {"demo-shirt", "DEMO-SHIRT", "HydroGo T-Shirt", 49900, 12}} {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO commerce_products (id,sku,title,price_cents,currency,stock,status,created_at,updated_at) VALUES ($1,$2,$3,$4,'TRY',$5,'published',$6,$6) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO commerce_products (id,sku,title,price_cents,currency,stock,status,created_at,updated_at) VALUES (?,?,?,?,'TRY',?,'published',?,?)`, product.id, product.sku, product.title, product.price, product.stock, now, now); err != nil {
+			return fmt.Errorf("seed product %s: %w", product.id, err)
+		}
+	}
+	for _, variant := range []struct {
+		id, product, sku, title string
+		price, stock            int
+	}{{"demo-shirt-blue", "demo-shirt", "DEMO-SHIRT-BLUE", "Mavi / M", 49900, 6}, {"demo-shirt-black", "demo-shirt", "DEMO-SHIRT-BLACK", "Siyah / L", 49900, 6}} {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO commerce_product_variants (id,product_id,sku,title,price_cents,stock,status,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,'published',$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO commerce_product_variants (id,product_id,sku,title,price_cents,stock,status,created_at,updated_at) VALUES (?,?,?,?,?,?,'published',?,?)`, variant.id, variant.product, variant.sku, variant.title, variant.price, variant.stock, now, now); err != nil {
+			return fmt.Errorf("seed variant %s: %w", variant.id, err)
+		}
+	}
+	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO site_settings (key,value,is_public,updated_at) VALUES ($1,$2,1,$3) ON CONFLICT (key) DO NOTHING`, `INSERT OR IGNORE INTO site_settings (key,value,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
+		return fmt.Errorf("seed setting: %w", err)
+	}
+	for index, item := range []struct{ id, label, href string }{{"demo-nav-home", "Ana Sayfa", "/public/pages/tr/demo"}, {"demo-nav-shop", "Mağaza", "/shop"}} {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO navigation_items (id,locale,label,href,position,is_visible,updated_at) VALUES ($1,'tr',$2,$3,$4,1,$5) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO navigation_items (id,locale,label,href,position,is_visible,updated_at) VALUES (?,'tr',?,?,?,1,?)`, item.id, item.label, item.href, index+1, now); err != nil {
+			return fmt.Errorf("seed navigation: %w", err)
+		}
+	}
+	_, err = fmt.Fprintln(stdout, "demo-seeded page=demo-home products=2 variants=2 navigation=2")
+	return err
+}
+
+func seedExec(ctx context.Context, db database.Executor, dialect database.Dialect, postgresQuery, sqliteQuery string, args ...any) error {
+	query := postgresQuery
+	if dialect == database.SQLite {
+		query = sqliteQuery
+	}
+	_, err := db.ExecContext(ctx, query, args...)
+	return err
+}
+
 func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("create-admin", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -1445,6 +1516,7 @@ Usage:
   hydro migrate [runtime flags]
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
+  hydro seed-demo [runtime flags]
   hydro doctor [--json] [runtime flags]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
