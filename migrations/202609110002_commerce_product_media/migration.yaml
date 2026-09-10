@@ -1,0 +1,25 @@
+id: "202609110002_commerce_product_media"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "7f24c92b8faf556d05b1e69fbb08ce69729c9a3b573e7746fb708e116fea9541"
+  postgres: "7f24c92b8faf556d05b1e69fbb08ce69729c9a3b573e7746fb708e116fea9541"
+dependencies:
+  - "202609100009_commerce_product_description"
+schema:
+  readable_epoch: 6
+  writable_epoch: 6
+preconditions:
+  - "Commerce core migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One optional shared media identifier per product"
+compatibility: "Adds an optional shared-media product image reference."
+smoke:
+  - "Existing products remain readable with an empty media identifier"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

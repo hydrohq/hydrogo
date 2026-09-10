@@ -18,6 +18,7 @@ type Product struct {
 	SKU         string        `json:"sku"`
 	Title       string        `json:"title"`
 	Description string        `json:"description,omitempty"`
+	MediaID     string        `json:"media_id,omitempty"`
 	PriceCents  int64         `json:"price_cents"`
 	Currency    string        `json:"currency"`
 	Stock       int           `json:"stock"`

@@ -309,7 +309,7 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 		if h.CatalogVariants != nil {
 			variants, _ = h.Catalog.ListVariants(r.Context(), h.DB, product.ID, true)
 		}
-		_, _ = fmt.Fprintf(w, `<article class="product-card"><h2>%s</h2><div class="product-description">%s</div><p class="product-price">%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, template.HTMLEscapeString(product.Title), ui.RichTextHTML(product.Description), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
+		_, _ = fmt.Fprintf(w, `<article class="product-card">%s<h2>%s</h2><div class="product-description">%s</div><p class="product-price">%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, productMediaMarkup(product), template.HTMLEscapeString(product.Title), ui.RichTextHTML(product.Description), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
 		if len(variants) > 0 {
 			_, _ = w.Write([]byte(`<label>Variant <select name="variant_id" required><option value="">Choose a variant</option>`))
 			for _, variant := range variants {
@@ -419,6 +419,13 @@ func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Order received</title></head><body><h1>Order received</h1><p>Order ID: <code>%s</code></p><p>Status: %s</p><p>Payment is pending.</p><form id="payment-form"><input type="hidden" id="csrf-token" value="%s"><label>Provider <select id="payment-provider"><option value="stripe">Stripe</option><option value="iyzico">iyzico</option><option value="paytr">PayTR</option></select></label><button id="payment-submit" type="submit">Start payment</button></form><p id="payment-status" role="status"></p><pre id="payment-token" hidden></pre><a href="/shop">Back to shop</a><script>(function(){const form=document.getElementById('payment-form');const button=document.getElementById('payment-submit');const status=document.getElementById('payment-status');const token=document.getElementById('payment-token');form.addEventListener('submit',async function(event){event.preventDefault();button.disabled=true;status.textContent='Starting payment…';token.hidden=true;try{const response=await fetch('/api/commerce/orders/%s/payment-intent',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':document.getElementById('csrf-token').value},body:JSON.stringify({provider:document.getElementById('payment-provider').value})});const data=await response.json().catch(function(){return {};});if(!response.ok)throw new Error(data.error||'Payment intent unavailable');if(data.redirect_url){window.location.assign(data.redirect_url);return;}status.textContent='Payment intent created. Continue with the selected provider.';token.textContent=data.client_token||data.id||'';token.hidden=!token.textContent;}catch(error){status.textContent=error.message||'Payment could not be started.';button.disabled=false;}})})();</script></body></html>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(order.ID))
 }
 
+func productMediaMarkup(product commerce.Product) template.HTML {
+	if strings.TrimSpace(product.MediaID) == "" {
+		return ""
+	}
+	return template.HTML(`<img class="product-image" src="/media/` + template.URLQueryEscaper(product.MediaID) + `" alt="` + template.HTMLEscapeString(product.Title) + `">`)
+}
+
 func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
 	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
@@ -440,7 +447,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><button id="toggle-product-form-btn" class="button" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg> Yeni ürün ekle</button></div><div id="new-product-section" hidden style="margin-bottom:24px;padding:20px;background:var(--bg-subtle);border-radius:var(--radius-md);border:1px solid var(--line);"><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></div><div class="table-wrap">`, formBuf.String())
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">KATALOG YÖNETİMİ</p><h2>Yeni ürün</h2><p class="muted">Ürünü taslak olarak oluşturun; açıklama ve stok bilgilerini kaydettikten sonra varyantlarını yönetin.</p></div></div><div class="new-product-section"><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></div><div class="table-wrap">`, formBuf.String())
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
@@ -536,7 +543,7 @@ func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	product := commerce.Product{ID: id, SKU: r.FormValue("sku"), Title: r.FormValue("title"), Description: r.FormValue("description"), PriceCents: price, Currency: r.FormValue("currency"), Stock: stock, Status: commerce.ProductStatus(r.FormValue("status"))}
+	product := commerce.Product{ID: id, SKU: r.FormValue("sku"), Title: r.FormValue("title"), Description: r.FormValue("description"), MediaID: r.FormValue("media_id"), PriceCents: price, Currency: r.FormValue("currency"), Stock: stock, Status: commerce.ProductStatus(r.FormValue("status"))}
 	if err := h.Catalog.CreateProduct(r.Context(), product); err != nil {
 		http.Error(w, "invalid product", http.StatusBadRequest)
 		return
