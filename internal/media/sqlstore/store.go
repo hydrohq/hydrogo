@@ -86,6 +86,27 @@ func (s Store) MarkReady(ctx context.Context, tx database.Executor, id, visibili
 	return nil
 }
 
+func (s Store) SetVisibility(ctx context.Context, tx database.Executor, id, visibility string) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	if visibility != media.VisibilityPrivate && visibility != media.VisibilityPublic {
+		return media.ErrInvalidVisibility
+	}
+	result, err := tx.ExecContext(ctx, "UPDATE media_assets SET visibility = "+s.p(1)+", updated_at = "+s.p(2)+" WHERE id = "+s.p(3)+" AND status = 'ready'", visibility, time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return media.ErrAssetState
+	}
+	return nil
+}
+
 func (s Store) p(position int) string {
 	if s.Dialect == database.Postgres {
 		return fmt.Sprintf("$%d", position)

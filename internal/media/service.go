@@ -12,6 +12,7 @@ import (
 
 var ErrAssetRepositoryRequired = errors.New("asset repository is required")
 var ErrAssetListingUnsupported = errors.New("asset repository does not support listing")
+var ErrAssetVisibilityUnsupported = errors.New("asset repository does not support visibility updates")
 
 type AssetRepository interface {
 	Get(context.Context, database.Executor, string) (Asset, error)
@@ -23,6 +24,13 @@ type AssetRepository interface {
 // upload tests do not gain a read-heavy admin dependency.
 type AssetListRepository interface {
 	List(context.Context, database.Executor, int) ([]Asset, error)
+}
+
+// AssetVisibilityRepository is deliberately separate from the upload state
+// transition: ready assets can be reclassified without pretending to upload
+// them again.
+type AssetVisibilityRepository interface {
+	SetVisibility(context.Context, database.Executor, string, string) error
 }
 
 func (s Service) Get(ctx context.Context, db database.Executor, id string) (Asset, error) {
@@ -85,5 +93,18 @@ func (s Service) MarkReady(ctx context.Context, id, visibility string) error {
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		return s.Assets.MarkReady(ctx, tx, id, visibility)
+	})
+}
+
+func (s Service) SetVisibility(ctx context.Context, id, visibility string) error {
+	if guards.IsNil(s.Assets) {
+		return ErrAssetRepositoryRequired
+	}
+	repository, ok := s.Assets.(AssetVisibilityRepository)
+	if !ok {
+		return ErrAssetVisibilityUnsupported
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		return repository.SetVisibility(ctx, tx, id, visibility)
 	})
 }
