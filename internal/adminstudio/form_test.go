@@ -78,8 +78,8 @@ func TestRenderCreateFormSupportsRichTextWithNonce(t *testing.T) {
 	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/commerce/products", CSRFToken: "csrf", Nonce: "nonce", Values: map[string]string{"description": "hello"}}); err != nil {
 		t.Fatalf("rich text form render failed: %v", err)
 	}
-	if !strings.Contains(out.String(), "/vendor/quill/quill.js") {
-		t.Fatalf("rich text assets missing: %s", out.String())
+	if !strings.Contains(out.String(), "data-richtext") || !strings.Contains(out.String(), "HydroInitQuill") {
+		t.Fatalf("rich text elements missing: %s", out.String())
 	}
 }
 
