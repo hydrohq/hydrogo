@@ -44,7 +44,7 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), cspNonceContextKey{}, nonce)
 
 			csp := fmt.Sprintf(
-				"default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self' 'nonce-%s'; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';",
+				"default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self' https://fonts.googleapis.com 'nonce-%s'; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';",
 				nonce, nonce,
 			)
 
