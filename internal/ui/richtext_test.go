@@ -21,3 +21,17 @@ func TestRichTextHTMLKeepsLegacyPlainTextReadable(t *testing.T) {
 		t.Fatalf("legacy render = %s", got)
 	}
 }
+
+func TestRichTextHTMLRejectsUnsafeLinkProtocols(t *testing.T) {
+	got := RichTextHTML(`{"ops":[{"insert":"click","attributes":{"link":"javascript:alert(1)"}}]}`)
+	if strings.Contains(got, "javascript:") || strings.Contains(got, "href=") {
+		t.Fatalf("unsafe link rendered: %s", got)
+	}
+}
+
+func TestRichTextHTMLEscapesEmbeddedMarkup(t *testing.T) {
+	got := RichTextHTML(`{"ops":[{"insert":"<script>alert(1)</script>\n"}]}`)
+	if strings.Contains(got, "<script>") || !strings.Contains(got, "&lt;script&gt;") {
+		t.Fatalf("embedded markup was not escaped: %s", got)
+	}
+}
