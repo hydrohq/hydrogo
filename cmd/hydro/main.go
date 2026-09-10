@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -654,6 +655,14 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
+	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		returnTo := r.URL.Query().Get("return_to")
+		if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
+			returnTo = "/shop"
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo giriş</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><main class="theme-corporate-content login-page"><h1>Demo hesabıyla giriş</h1><p>Sepet, checkout ve admin ekranlarını deneyimlemek için giriş yapın.</p><form id="login-form"><input type="hidden" name="_csrf" value="%s"><label>E-posta <input name="email" type="email" value="admin@hydrogo.local" required></label><label>Şifre <input name="password" type="password" value="HydroGoDemo!2026" required></label><button type="submit">Giriş yap</button><p id="login-status" role="status"></p></form><a href="%s">Mağazaya dön</a><script nonce="%s">document.getElementById('login-form').addEventListener('submit',async function(e){e.preventDefault();const form=e.currentTarget;const status=document.getElementById('login-status');status.textContent='Giriş yapılıyor…';const response=await fetch('/auth/login',{method:'POST',headers:{'X-CSRF-Token':form.elements._csrf.value},body:new URLSearchParams(new FormData(form))});if(response.ok){window.location.assign('%s');}else{status.textContent='Giriş başarısız. Demo bilgilerini kontrol edin.';}});</script></main></body></html>`, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(returnTo), template.HTMLEscapeString(security.NonceFromContext(r.Context())), template.HTMLEscapeString(returnTo))
+	})})
 	routes = append(routes, router.Route{Pattern: "GET /admin", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {

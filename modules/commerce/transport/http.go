@@ -293,7 +293,12 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Shop</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><main class="theme-corporate-content shop-page"><nav class="shop-nav"><a href="/shop">HydroGo Shop</a><a href="/shop/cart">Cart</a></nav><h1>Shop</h1><section class="shop-grid">`))
+	user := auth.UserFromContext(r.Context())
+	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Shop</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><main class="theme-corporate-content shop-page"><nav class="shop-nav"><a href="/shop">HydroGo Shop</a><a href="/shop/cart">Cart</a></nav><h1>Shop</h1>`))
+	if user == nil || !user.Active {
+		_, _ = w.Write([]byte(`<aside class="login-notice"><strong>Sepete eklemek için giriş yapın.</strong> <a href="/login?return_to=%2Fshop">Demo hesabıyla giriş</a></aside>`))
+	}
+	_, _ = w.Write([]byte(`<section class="shop-grid">`))
 	for _, product := range products {
 		variants := []commerce.ProductVariant(nil)
 		if h.CatalogVariants != nil {
@@ -310,7 +315,11 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 			}
 			_, _ = w.Write([]byte(`</select></label>`))
 		}
-		_, _ = w.Write([]byte(`<label>Quantity <input name="quantity" type="number" min="1" max="1000" value="1"></label><button type="submit">Add to cart</button></form></article>`))
+		button := `<button type="submit">Add to cart</button>`
+		if user == nil || !user.Active {
+			button = `<button type="button" disabled title="Login required">Login required</button>`
+		}
+		_, _ = fmt.Fprintf(w, `<label>Quantity <input name="quantity" type="number" min="1" max="1000" value="1"></label>%s</form></article>`, button)
 	}
 	_, _ = w.Write([]byte(`</section></main></body></html>`))
 }
