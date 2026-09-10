@@ -17,6 +17,7 @@ import (
 
 type Config struct {
 	Profile  capacity.Profile `yaml:"profile"`
+	Modules  []string         `yaml:"modules"`
 	HTTP     HTTP             `yaml:"http"`
 	Database Database         `yaml:"database"`
 	Media    Media            `yaml:"media"`
@@ -66,7 +67,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, Mail: Mail{Port: 587, StartTLS: true}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, Mail: Mail{Port: 587, StartTLS: true}}
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -173,6 +174,17 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 func (c Config) Validate() error {
 	if err := c.Profile.Validate(); err != nil {
 		return err
+	}
+	seenModules := make(map[string]struct{}, len(c.Modules))
+	for _, module := range c.Modules {
+		module = strings.TrimSpace(module)
+		if module == "" {
+			return errors.New("module name cannot be empty")
+		}
+		if _, exists := seenModules[module]; exists {
+			return fmt.Errorf("module %q is configured more than once", module)
+		}
+		seenModules[module] = struct{}{}
 	}
 	if _, _, err := net.SplitHostPort(c.HTTP.Address); err != nil {
 		return fmt.Errorf("invalid HTTP address %q: %w", c.HTTP.Address, err)

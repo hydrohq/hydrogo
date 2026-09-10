@@ -47,6 +47,9 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	commerce "github.com/ardaozyildirim/hydrogo/modules/commerce"
+	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
+	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 	newsservice "github.com/ardaozyildirim/hydrogo/modules/news"
 	newsstore "github.com/ardaozyildirim/hydrogo/modules/news/repository/sqlstore"
 	newstransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
@@ -636,6 +639,14 @@ func serve(args []string, stderr io.Writer) error {
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
+	if moduleEnabled(cfg.Modules, "commerce") {
+		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
+		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
+		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService}
+		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: map[string]commerce.PaymentProvider{}}}
+		routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
+		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
+	}
 
 	metrics := observability.NewMetrics()
 	metrics.SetWorkerConcurrency(budget.WorkerConcurrency)
@@ -692,7 +703,7 @@ func serve(args []string, stderr io.Writer) error {
 			if err := db.PingContext(checkCtx); err != nil {
 				return err
 			}
-			return database.CheckCompatibility(checkCtx, db, cfg.Database.Dialect, migrations.FS)
+			return database.CheckCompatibilityForModules(checkCtx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
 		},
 	})
 }
@@ -726,7 +737,7 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	if err := db.PingContext(ctx); err != nil {
 		return fmt.Errorf("database ping: %w", err)
 	}
-	if err := database.CheckCompatibility(ctx, db, cfg.Database.Dialect, migrations.FS); err != nil {
+	if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
 		return fmt.Errorf("schema compatibility: %w", err)
 	}
 	if err := os.MkdirAll(cfg.Media.Dir, 0o750); err != nil {
@@ -1081,6 +1092,35 @@ func newsRouterRoutes(routes []newstransport.Route) []router.Route {
 	return result
 }
 
+func commerceRouterRoutes(routes []commercetransport.Route) []router.Route {
+	result := make([]router.Route, 0, len(routes))
+	for _, route := range routes {
+		access := router.Public
+		if route.Protected {
+			access = router.Protected
+		}
+		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
+	}
+	return result
+}
+
+func moduleEnabled(modules []string, wanted string) bool {
+	for _, module := range modules {
+		if module == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func enabledModuleSet(modules []string) map[string]bool {
+	result := make(map[string]bool, len(modules))
+	for _, module := range modules {
+		result[module] = true
+	}
+	return result
+}
+
 func newAuditRecorder(db *sql.DB, dialect database.Dialect) auth.AuditRecorder {
 	store := auditstore.Store{Dialect: dialect}
 	return auth.AuditRecorderFunc(func(ctx context.Context, action, targetID string) error {
@@ -1123,7 +1163,7 @@ func migrate(args []string, stderr io.Writer) error {
 		return err
 	}
 	defer db.Close()
-	return database.ApplyMigrations(ctx, db, cfg.Database.Dialect, migrations.FS)
+	return database.ApplyMigrationsForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
 }
 
 func upgrade(args []string, stdout, stderr io.Writer) error {
@@ -1157,7 +1197,7 @@ func upgrade(args []string, stdout, stderr io.Writer) error {
 	if err := db.PingContext(ctx); err != nil {
 		return fmt.Errorf("database ping: %w", err)
 	}
-	if err := database.CheckCompatibility(ctx, db, cfg.Database.Dialect, migrations.FS); err != nil {
+	if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
 		return fmt.Errorf("upgrade is not ready: %w", err)
 	}
 	_, err = fmt.Fprintf(stdout, "upgrade-ready profile=%s database=%s\n", cfg.Profile, cfg.Database.Dialect)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,6 +30,13 @@ func discoverMigrations(migrationFS fs.FS) ([]string, error) {
 }
 
 func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+	return ApplyMigrationsForModules(ctx, db, dialect, migrationFS, nil)
+}
+
+// ApplyMigrationsForModules applies only selected module migrations. A nil
+// module set preserves the legacy all-modules behavior used by low-level
+// tooling and tests. Core migrations are always included when filtering.
+func ApplyMigrationsForModules(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS, enabled map[string]bool) error {
 	ctx = nonNilContext(ctx)
 	if db == nil {
 		return errors.New("database is required")
@@ -39,6 +47,19 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 	migrations, err := discoverMigrations(migrationFS)
 	if err != nil {
 		return fmt.Errorf("failed to discover migrations: %w", err)
+	}
+	allMigrations := append([]string(nil), migrations...)
+	if enabled != nil {
+		migrations = migrations[:0]
+		for _, migrationID := range allMigrations {
+			module, err := migrationModule(migrationFS, migrationID)
+			if err != nil {
+				return err
+			}
+			if module == "core" || enabled[module] {
+				migrations = append(migrations, migrationID)
+			}
+		}
 	}
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -54,8 +75,8 @@ func ApplyMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migration
 	if err := ensureMigrationLedger(ctx, conn); err != nil {
 		return err
 	}
-	known := make(map[string]struct{}, len(migrations))
-	for _, migrationID := range migrations {
+	known := make(map[string]struct{}, len(allMigrations))
+	for _, migrationID := range allMigrations {
 		known[migrationID] = struct{}{}
 	}
 	if err := rejectUnknownMigrations(ctx, conn, known); err != nil {
@@ -205,6 +226,10 @@ func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dia
 }
 
 func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS) error {
+	return CheckCompatibilityForModules(ctx, db, dialect, migrationFS, nil)
+}
+
+func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS, enabled map[string]bool) error {
 	ctx = nonNilContext(ctx)
 	if db == nil {
 		return errors.New("database is required")
@@ -216,10 +241,20 @@ func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrat
 	if err != nil {
 		return fmt.Errorf("failed to discover migrations: %w", err)
 	}
-	known := make(map[string]struct{}, len(migrations))
+	allMigrations := append([]string(nil), migrations...)
+	known := make(map[string]struct{}, len(allMigrations))
 
-	for _, migrationID := range migrations {
+	for _, migrationID := range allMigrations {
 		known[migrationID] = struct{}{}
+		if enabled != nil {
+			module, err := migrationModule(migrationFS, migrationID)
+			if err != nil {
+				return err
+			}
+			if module != "core" && !enabled[module] {
+				continue
+			}
+		}
 		path := fmt.Sprintf("%s/%s.sql", migrationID, dialect)
 		content, err := fs.ReadFile(migrationFS, path)
 		if err != nil {
@@ -245,6 +280,27 @@ func CheckCompatibility(ctx context.Context, db *sql.DB, dialect Dialect, migrat
 		return err
 	}
 	return nil
+}
+
+func migrationModule(migrationFS fs.FS, migrationID string) (string, error) {
+	data, err := fs.ReadFile(migrationFS, migrationID+"/migration.yaml")
+	if errors.Is(err, fs.ErrNotExist) {
+		return "core", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read migration metadata %s: %w", migrationID, err)
+	}
+	var metadata struct {
+		Module string `yaml:"module"`
+	}
+	if err := yaml.Unmarshal(data, &metadata); err != nil {
+		return "", fmt.Errorf("parse migration metadata %s: %w", migrationID, err)
+	}
+	module := strings.TrimSpace(metadata.Module)
+	if module == "" {
+		return "core", nil
+	}
+	return module, nil
 }
 
 func rejectUnknownMigrations(ctx context.Context, queryer migrationQueryer, known map[string]struct{}) error {
