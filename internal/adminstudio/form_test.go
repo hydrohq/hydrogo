@@ -24,6 +24,19 @@ func TestRenderCreateFormUsesCollectionMetadataAndEscapesValues(t *testing.T) {
 	}
 }
 
+func TestRenderCreateFormRendersSharedMediaPicker(t *testing.T) {
+	collection := Collection{ID: "news", Label: "News", Fields: []Field{{ID: "cover_media_id", Label: "Cover", Kind: FieldText, Widget: "media"}}, Actions: []Action{{Label: "News", Href: "/admin/news"}}}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/news", CSRFToken: "csrf", Nonce: "nonce", Values: map[string]string{"cover_media_id": "asset-1"}}); err != nil {
+		t.Fatalf("render media form: %v", err)
+	}
+	for _, expected := range []string{`name="cover_media_id"`, `data-media-target="media_cover_media_id"`, `id="admin-media-picker-modal"`, `/api/media`} {
+		if !strings.Contains(out.String(), expected) {
+			t.Fatalf("media form missing %q: %s", expected, out.String())
+		}
+	}
+}
+
 func TestRenderCreateFormRejectsUnsafeAction(t *testing.T) {
 	collection := Collection{ID: "products", Label: "Products", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}}, Actions: []Action{{Label: "Catalog", Href: "/admin/commerce/products"}}}
 	if err := RenderCreateForm(&bytes.Buffer{}, FormData{Collection: collection, Action: "https://example.test", CSRFToken: "csrf"}); err == nil {

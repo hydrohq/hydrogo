@@ -30,6 +30,7 @@ type Item struct {
 	Slug               string     `json:"slug"`
 	Title              string     `json:"title"`
 	Body               string     `json:"body"`
+	CoverMediaID       string     `json:"cover_media_id,omitempty"`
 	Status             Status     `json:"status"`
 	Version            int        `json:"version"`
 	Revision           int        `json:"revision"`

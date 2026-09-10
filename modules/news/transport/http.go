@@ -54,10 +54,11 @@ type adminListRepository interface {
 }
 
 type input struct {
-	Locale string `json:"locale"`
-	Slug   string `json:"slug"`
-	Title  string `json:"title"`
-	Body   string `json:"body"`
+	Locale       string `json:"locale"`
+	Slug         string `json:"slug"`
+	Title        string `json:"title"`
+	Body         string `json:"body"`
+	CoverMediaID string `json:"cover_media_id"`
 }
 
 type updateInput struct {
@@ -167,7 +168,7 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 	if locale == "" {
 		locale = h.defaultLocale()
 	}
-	item := news.Item{ID: id, Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
+	item := news.Item{ID: id, Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Status: news.StatusDraft}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -221,7 +222,7 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	item := news.Item{ID: id, Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, Status: news.StatusDraft}
+	item := news.Item{ID: id, Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Status: news.StatusDraft}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -240,7 +241,7 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &value) {
 		return
 	}
-	item := news.Item{ID: r.PathValue("id"), Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, Status: news.StatusDraft}
+	item := news.Item{ID: r.PathValue("id"), Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Status: news.StatusDraft}
 	if err := h.Service.UpdateDraft(r.Context(), item, value.Version); err != nil {
 		writeError(w, err)
 		return
@@ -371,7 +372,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	if item.PublishedRevision != nil {
 		rev = *item.PublishedRevision
 	}
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><div class="news-breadcrumb"><a href="/public/news/%s/html">← Tüm Haberler</a><span class="sep">/</span><span class="current">%s</span></div><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar"><div class="meta-item-badge"><span class="status-dot"></span>Yayında</div><span class="meta-sep">•</span><span class="meta-text">%d. Revizyon</span><span class="meta-sep">•</span><span class="meta-text">Dil: %s</span><span class="meta-sep">•</span><span class="meta-text">Slug: <code>%s</code></span></div><div class="news-article-body">%s</div><div class="news-share-box"><strong>Bu haberi paylaş:</strong><a class="share-btn" href="mailto:?subject=%s&amp;body=http://127.0.0.1:8090/public/news/%s/%s/html">✉ E-posta ile Gönder</a><button class="share-btn" type="button" onclick="navigator.clipboard.writeText(window.location.href);this.textContent='Bağlantı Kopyalandı!';">🔗 Bağlantıyı Kopyala</button></div></article></main><footer class="news-footer"><div class="footer-left"><strong>HYDROGO <span>NEWSROOM</span></strong><p>Kurumsal yayın ve içerik platformu</p></div><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/news/tr/html">Haberler</a><a href="/shop">Mağaza</a><a href="/admin">Studio Admin</a></nav></footer></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Title), rev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Slug), renderParagraphs(item.Body), template.URLQueryEscaper(item.Title), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><div class="news-breadcrumb"><a href="/public/news/%s/html">← Tüm Haberler</a><span class="sep">/</span><span class="current">%s</span></div><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar"><div class="meta-item-badge"><span class="status-dot"></span>Yayında</div><span class="meta-sep">•</span><span class="meta-text">%d. Revizyon</span><span class="meta-sep">•</span><span class="meta-text">Dil: %s</span><span class="meta-sep">•</span><span class="meta-text">Slug: <code>%s</code></span></div>%s<div class="news-article-body">%s</div><div class="news-share-box"><strong>Bu haberi paylaş:</strong><a class="share-btn" href="mailto:?subject=%s&amp;body=http://127.0.0.1:8090/public/news/%s/%s/html">✉ E-posta ile Gönder</a><button class="share-btn" type="button" onclick="navigator.clipboard.writeText(window.location.href);this.textContent='Bağlantı Kopyalandı!';">🔗 Bağlantıyı Kopyala</button></div></article></main><footer class="news-footer"><div class="footer-left"><strong>HYDROGO <span>NEWSROOM</span></strong><p>Kurumsal yayın ve içerik platformu</p></div><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/news/tr/html">Haberler</a><a href="/shop">Mağaza</a><a href="/admin">Studio Admin</a></nav></footer></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Title), rev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Slug), newsCoverMarkup(item), renderParagraphs(item.Body), template.URLQueryEscaper(item.Title), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
 }
 
 func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
@@ -406,7 +407,7 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		if featured.PublishedRevision != nil {
 			featRev = *featured.PublishedRevision
 		}
-		_, _ = fmt.Fprintf(w, `<section class="news-featured-section"><div class="section-badge">SON YAYINLANAN MANŞET</div><article class="featured-card"><div class="featured-card-body"><div class="featured-kicker">ÖNE ÇIKAN İÇERİK</div><h2><a href="/public/news/%s/%s/html">%s</a></h2><p class="featured-lead">%s</p><div class="featured-footer"><div class="featured-meta"><span>Rev. %d</span><span>•</span><span>Dil: %s</span></div><a class="read-more-btn" href="/public/news/%s/%s/html">Haberi Oku →</a></div></div></article></section>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug), template.HTMLEscapeString(featured.Title), template.HTMLEscapeString(newsLead(featured.Body)), featRev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug))
+		_, _ = fmt.Fprintf(w, `<section class="news-featured-section"><div class="section-badge">SON YAYINLANAN MANŞET</div><article class="featured-card">%s<div class="featured-card-body"><div class="featured-kicker">ÖNE ÇIKAN İÇERİK</div><h2><a href="/public/news/%s/%s/html">%s</a></h2><p class="featured-lead">%s</p><div class="featured-footer"><div class="featured-meta"><span>Rev. %d</span><span>•</span><span>Dil: %s</span></div><a class="read-more-btn" href="/public/news/%s/%s/html">Haberi Oku →</a></div></div></article></section>`, newsCoverMarkup(featured), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug), template.HTMLEscapeString(featured.Title), template.HTMLEscapeString(newsLead(featured.Body)), featRev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug))
 
 		// Grid for all items
 		_, _ = fmt.Fprintf(w, `<section class="news-grid-section"><div class="section-header"><div><div class="section-badge">TÜM YAYINLAR</div><h2>Haber Akışı (%d)</h2></div><span class="section-desc">Panelde aktif olan tüm kayıtlar</span></div><div class="news-cards-grid">`, len(items))
@@ -415,7 +416,7 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 			if item.PublishedRevision != nil {
 				itemRev = *item.PublishedRevision
 			}
-			_, _ = fmt.Fprintf(w, `<article class="news-card"><div class="card-header"><span class="card-kicker">YAYIN</span><span class="card-rev">Rev. %d</span></div><h3 class="card-title"><a href="/public/news/%s/%s/html">%s</a></h3><p class="card-lead">%s</p><div class="card-footer"><span class="card-slug">/%s</span><a class="card-link" href="/public/news/%s/%s/html">Detaylar →</a></div></article>`, itemRev, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLead(item.Body)), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
+			_, _ = fmt.Fprintf(w, `<article class="news-card">%s<div class="card-header"><span class="card-kicker">YAYIN</span><span class="card-rev">Rev. %d</span></div><h3 class="card-title"><a href="/public/news/%s/%s/html">%s</a></h3><p class="card-lead">%s</p><div class="card-footer"><span class="card-slug">/%s</span><a class="card-link" href="/public/news/%s/%s/html">Detaylar →</a></div></article>`, newsCoverMarkup(item), itemRev, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLead(item.Body)), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
 		}
 		_, _ = fmt.Fprint(w, `</div></section>`)
 	}
@@ -435,6 +436,13 @@ func newsLead(body string) string {
 		return string([]rune(body)[:160]) + "…"
 	}
 	return body
+}
+
+func newsCoverMarkup(item news.Item) template.HTML {
+	if strings.TrimSpace(item.CoverMediaID) == "" {
+		return ""
+	}
+	return template.HTML(`<img class="news-cover-image" src="/media/` + template.URLQueryEscaper(item.CoverMediaID) + `" alt="` + template.HTMLEscapeString(item.Title) + `">`)
 }
 func renderParagraphs(body string) string {
 	return ui.RichTextHTML(body)
@@ -459,7 +467,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body}}); err != nil {
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body, "cover_media_id": item.CoverMediaID}}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -490,7 +498,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if locale == "" {
 		locale = h.defaultLocale()
 	}
-	item := news.Item{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
+	item := news.Item{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Status: news.StatusDraft}
 	if err := h.Service.UpdateDraft(r.Context(), item, version); err != nil {
 		writeError(w, err)
 		return
