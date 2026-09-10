@@ -76,6 +76,18 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 		}
 	}
 
+	// Keep the local database schema aligned with the binary before restarting.
+	// A failed migration must not take down the currently running child.
+	s.state.set("migrating", 48, "Veritabanı migration'ları uygulanıyor…", "")
+	migration := exec.CommandContext(ctx, s.binary, "migrate", "--database-dsn", s.databaseDSN)
+	migration.Dir = s.root
+	var migrationOutput bytes.Buffer
+	migration.Stdout, migration.Stderr = &migrationOutput, &migrationOutput
+	if err := migration.Run(); err != nil {
+		s.state.set("error", 100, "Migration başarısız; çalışan sürüm korunuyor.", shorten(migrationOutput.String(), 12000))
+		return
+	}
+
 	s.state.set("restarting", 75, "Uygulama yeniden başlatılıyor…", "")
 	s.mu.Lock()
 	if s.child != nil && s.child.Process != nil {
