@@ -749,7 +749,13 @@ func serve(args []string, stderr io.Writer) error {
 		if r.URL.Path == "/admin/operations" {
 			active = "operations"
 		}
-		if err := ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active}); err != nil {
+		var err error
+		if active == "control" {
+			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active})
+		} else {
+			err = ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active})
+		}
+		if err != nil {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
 	})
