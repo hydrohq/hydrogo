@@ -592,7 +592,7 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Siparişler", "Commerce", security.NonceFromContext(r.Context()), "orders"); err != nil {
 		return
 	}
-	_, _ = w.Write([]byte(`<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button button-quiet" href="/admin/commerce/products">← Kataloğa dön</a></div><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))
+	_, _ = w.Write([]byte(`<section class="studio-card"><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))
 	for _, order := range orders {
 		refund := `<span>Unavailable</span>`
 		if order.PaymentStatus == "paid" {
