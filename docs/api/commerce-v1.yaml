@@ -6,6 +6,31 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/commerce/cart:
+    get:
+      operationId: getCart
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Current cart, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+  /api/v1/commerce/cart/items:
+    post:
+      operationId: addCartItem
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CartItemInput' } } }
+      responses:
+        '200': { description: Updated cart, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+  /api/v1/commerce/cart/items/{productID}:
+    delete:
+      operationId: removeCartItem
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - in: path
+          name: productID
+          required: true
+          schema: { type: string }
+      responses: { '204': { description: Item removed. } }
   /api/v1/commerce/cart/checkout:
     post:
       operationId: checkoutCart
@@ -67,6 +92,25 @@ components:
             properties:
               product_id: { type: string }
               quantity: { type: integer, minimum: 1, maximum: 1000 }
+    CartItemInput:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id: { type: string }
+        quantity: { type: integer, minimum: 1, maximum: 1000 }
+    Cart:
+      type: object
+      required: [id, user_id, currency, items, total_cents]
+      properties:
+        id: { type: string }
+        user_id: { type: string }
+        currency: { type: string }
+        total_cents: { type: integer, format: int64, minimum: 0 }
+        items:
+          type: array
+          items:
+            type: object
+            required: [product_id, quantity, unit_cents, total_cents]
     Order:
       type: object
       required: [id, user_id, currency, items, total_cents, payment_status, shipping_status]

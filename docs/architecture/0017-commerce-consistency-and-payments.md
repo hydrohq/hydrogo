@@ -28,3 +28,5 @@ Para değerleri minor-unit integer ve ISO currency koduyla tutulur. Stok negatif
 İlk commerce teslimi ödeme sağlayıcısı olmadan test edilebilir. Stripe, iyzico ve PayTR ayrı adapter ve sandbox contract testleriyle eklenir; sağlayıcı SDK ayrıntıları domain'e sızmaz.
 
 HTTP sözleşmesi [commerce-v1.yaml](../api/commerce-v1.yaml) içinde sürümlenir. `/api` uyumluluk alias'ı router tarafından sağlanır; yeni istemciler `/api/v1` kullanır.
+
+Sepet, kullanıcı başına tek aktif kayıt ve ürün başına tek satır kullanır. Sepete ekleme transaction içinde ürün fiyatını snapshot'lar; checkout sırasında güncel ürün/fiyat ve stok yeniden doğrulanır.

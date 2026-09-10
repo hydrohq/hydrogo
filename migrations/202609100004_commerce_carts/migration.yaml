@@ -1,0 +1,27 @@
+id: "202609100004_commerce_carts"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "5ff8a0fc29a30979cbf72d51f66a8909869a418ba42c2d5ed7636103c835745a"
+  postgres: "3ba238484a3ed45b4bb0dc62b995ddbd100bb709509151cfe780169a9bace11a"
+dependencies:
+  - "202609100002_commerce_core"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "The commerce core migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "User carts and cart item snapshots"
+compatibility: "Adds one active cart per user and bounded cart items"
+smoke:
+  - "Cart items are unique per cart and product"
+  - "Deleting a cart removes its items"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
+

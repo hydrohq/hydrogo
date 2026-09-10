@@ -15,6 +15,7 @@ type Handler struct {
 	DB       database.Executor
 	Commerce commerce.Service
 	Catalog  commerce.CatalogService
+	Cart     commerce.CartService
 }
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
@@ -32,6 +33,9 @@ func (h Handler) Routes() []Route {
 	return []Route{
 		{Pattern: "GET /api/commerce/products", Handler: http.HandlerFunc(h.products), Protected: false},
 		{Pattern: "POST /api/commerce/products", Handler: http.HandlerFunc(h.createProduct), Protected: true},
+		{Pattern: "GET /api/commerce/cart", Handler: http.HandlerFunc(h.cart), Protected: true},
+		{Pattern: "POST /api/commerce/cart/items", Handler: http.HandlerFunc(h.addCartItem), Protected: true},
+		{Pattern: "DELETE /api/commerce/cart/items/{productID}", Handler: http.HandlerFunc(h.removeCartItem), Protected: true},
 		{Pattern: "POST /api/commerce/cart/checkout", Handler: http.HandlerFunc(h.checkout), Protected: true},
 	}
 }
@@ -43,6 +47,59 @@ type productInput struct {
 	Currency   string                 `json:"currency"`
 	Stock      int                    `json:"stock"`
 	Status     commerce.ProductStatus `json:"status"`
+}
+
+type cartItemInput struct {
+	ProductID string `json:"product_id"`
+	Quantity  int    `json:"quantity"`
+}
+
+func (h Handler) cart(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	cart, err := h.Cart.Get(r.Context(), h.DB, user.ID)
+	if err != nil {
+		http.Error(w, "cart unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(cart)
+}
+
+func (h Handler) addCartItem(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var input cartItemInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil {
+		http.Error(w, "invalid cart item", http.StatusBadRequest)
+		return
+	}
+	cart, err := h.Cart.Add(r.Context(), user.ID, input.ProductID, input.Quantity)
+	if err != nil {
+		http.Error(w, "cannot add cart item", http.StatusConflict)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(cart)
+}
+
+func (h Handler) removeCartItem(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := h.Cart.Remove(r.Context(), user.ID, r.PathValue("productID")); err != nil {
+		http.Error(w, "cannot remove cart item", http.StatusConflict)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handler) products(w http.ResponseWriter, r *http.Request) {

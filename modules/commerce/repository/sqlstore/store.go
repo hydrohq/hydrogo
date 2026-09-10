@@ -49,6 +49,102 @@ func (s Store) ListProducts(ctx context.Context, db database.Executor, publicOnl
 	return products, rows.Err()
 }
 
+func (s Store) GetOrCreateCart(ctx context.Context, db database.Executor, userID, currency string) (commerce.Cart, error) {
+	cart, err := s.findCart(ctx, db, userID)
+	if err != nil {
+		return commerce.Cart{}, err
+	}
+	if cart.ID != "" {
+		return cart, nil
+	}
+	id := fmt.Sprintf("cart-%d", time.Now().UnixNano())
+	now := time.Now().UTC()
+	q := `INSERT INTO commerce_carts (id, user_id, currency, created_at, updated_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `)`
+	if _, err := db.ExecContext(ctx, q, id, userID, currency, now, now); err != nil {
+		return commerce.Cart{}, err
+	}
+	return s.findCart(ctx, db, userID)
+}
+
+func (s Store) GetCart(ctx context.Context, db database.Executor, userID, currency string) (commerce.Cart, error) {
+	return s.GetOrCreateCart(ctx, db, userID, currency)
+}
+
+func (s Store) findCart(ctx context.Context, db database.Executor, userID string) (commerce.Cart, error) {
+	var cart commerce.Cart
+	q := `SELECT id, user_id, currency FROM commerce_carts WHERE user_id = ` + s.placeholder(1)
+	err := db.QueryRowContext(ctx, q, userID).Scan(&cart.ID, &cart.UserID, &cart.Currency)
+	if errors.Is(err, sql.ErrNoRows) {
+		return cart, nil
+	}
+	if err != nil {
+		return cart, err
+	}
+	q = `SELECT i.id, i.cart_id, i.product_id, p.sku, p.title, i.quantity, i.unit_cents FROM commerce_cart_items i JOIN commerce_products p ON p.id = i.product_id WHERE i.cart_id = ` + s.placeholder(1) + ` ORDER BY i.id`
+	rows, err := queryRows(ctx, db, q, cart.ID)
+	if err != nil {
+		return commerce.Cart{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item commerce.CartItem
+		if err := rows.Scan(&item.ID, &item.CartID, &item.ProductID, &item.SKU, &item.Title, &item.Quantity, &item.UnitCents); err != nil {
+			return commerce.Cart{}, err
+		}
+		item.TotalCents = item.UnitCents * int64(item.Quantity)
+		cart.Items = append(cart.Items, item)
+		cart.TotalCents += item.TotalCents
+	}
+	return cart, rows.Err()
+}
+
+func (s Store) AddCartItem(ctx context.Context, db database.Executor, userID, productID string, quantity int) (commerce.Cart, error) {
+	cart, err := s.GetOrCreateCart(ctx, db, userID, "TRY")
+	if err != nil {
+		return commerce.Cart{}, err
+	}
+	var price int64
+	var status string
+	var stock int
+	q := `SELECT price_cents, status, stock FROM commerce_products WHERE id = ` + s.placeholder(1)
+	if err := db.QueryRowContext(ctx, q, productID).Scan(&price, &status, &stock); err != nil {
+		return commerce.Cart{}, err
+	}
+	if status != string(commerce.ProductPublished) || stock < quantity {
+		return commerce.Cart{}, commerce.ErrOutOfStock
+	}
+	var existing int
+	q = `SELECT quantity FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1) + ` AND product_id = ` + s.placeholder(2)
+	err = db.QueryRowContext(ctx, q, cart.ID, productID).Scan(&existing)
+	if errors.Is(err, sql.ErrNoRows) {
+		q = `INSERT INTO commerce_cart_items (id, cart_id, product_id, quantity, unit_cents) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `)`
+		_, err = db.ExecContext(ctx, q, fmt.Sprintf("cart-item-%d", time.Now().UnixNano()), cart.ID, productID, quantity, price)
+	} else if err == nil {
+		if existing+quantity > stock {
+			return commerce.Cart{}, commerce.ErrOutOfStock
+		}
+		q = `UPDATE commerce_cart_items SET quantity = quantity + ` + s.placeholder(1) + `, unit_cents = ` + s.placeholder(2) + ` WHERE cart_id = ` + s.placeholder(3) + ` AND product_id = ` + s.placeholder(4)
+		_, err = db.ExecContext(ctx, q, quantity, price, cart.ID, productID)
+	}
+	if err != nil {
+		return commerce.Cart{}, err
+	}
+	return s.findCart(ctx, db, userID)
+}
+
+func (s Store) RemoveCartItem(ctx context.Context, db database.Executor, userID, productID string) error {
+	cart, err := s.findCart(ctx, db, userID)
+	if err != nil {
+		return err
+	}
+	if cart.ID == "" {
+		return nil
+	}
+	q := `DELETE FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1) + ` AND product_id = ` + s.placeholder(2)
+	_, err = db.ExecContext(ctx, q, cart.ID, productID)
+	return err
+}
+
 func (s Store) placeholder(n int) string {
 	if s.Dialect == database.Postgres {
 		return fmt.Sprintf("$%d", n)
