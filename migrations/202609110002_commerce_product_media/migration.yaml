@@ -7,8 +7,8 @@ transactional:
   sqlite: true
   postgres: true
 checksum_sha256:
-  sqlite: "7f24c92b8faf556d05b1e69fbb08ce69729c9a3b573e7746fb708e116fea9541"
-  postgres: "7f24c92b8faf556d05b1e69fbb08ce69729c9a3b573e7746fb708e116fea9541"
+  sqlite: "e150ca1f619e98be0c03826212de58ab42ec111fd2b86c0b5f3466658bb61be4"
+  postgres: "e150ca1f619e98be0c03826212de58ab42ec111fd2b86c0b5f3466658bb61be4"
 dependencies:
   - "202609100009_commerce_product_description"
 schema:
