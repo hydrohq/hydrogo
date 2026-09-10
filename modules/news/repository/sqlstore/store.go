@@ -189,6 +189,35 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	return items, rows.Err()
 }
 
+// ListAdmin returns bounded editorial summaries for the protected Studio list.
+// Unlike ListPublished it may include drafts, but never returns body content.
+func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) ([]news.Item, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("news admin list requires a query-capable executor")
+	}
+	query := `SELECT id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(1)
+	rows, err := queryer.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]news.Item, 0)
+	for rows.Next() {
+		item, err := scanItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (s Store) ListScheduled(ctx context.Context, db database.Executor, now time.Time) ([]news.Item, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err

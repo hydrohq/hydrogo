@@ -38,6 +38,10 @@ type publishedListRepository interface {
 	ListPublished(context.Context, database.Executor, string, int) ([]news.Item, error)
 }
 
+type adminListRepository interface {
+	ListAdmin(context.Context, database.Executor, int) ([]news.Item, error)
+}
+
 type input struct {
 	Locale string `json:"locale"`
 	Slug   string `json:"slug"`
@@ -60,6 +64,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.retract)},
 		{Pattern: "GET /api/news", Handler: http.HandlerFunc(h.publicList)},
 		{Pattern: "GET /api/news/by-slug", Handler: http.HandlerFunc(h.publicGetByQuery)},
+		{Pattern: "GET /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminList)},
 		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
 		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
 		{Pattern: "POST /admin/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.adminSchedule)},
@@ -67,6 +72,35 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.adminRetract)},
 		{Pattern: "GET /public/news/{locale}/{slug}/html", Handler: http.HandlerFunc(h.publicGetHTML)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
+	}
+}
+
+func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	repository, ok := h.Service.Repository.(adminListRepository)
+	if !ok {
+		http.Error(w, "news admin list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	items, err := repository.ListAdmin(r.Context(), h.DB, 100)
+	if err != nil {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	rows := make([]adminstudio.Row, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
+		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 	}
 }
 

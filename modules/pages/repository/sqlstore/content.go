@@ -71,6 +71,39 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	return result, rows.Err()
 }
 
+// ListAdmin returns bounded protected Studio summaries, including unpublished
+// records, without selecting body or block payloads.
+func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) ([]pages.Page, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("page admin list requires a query-capable executor")
+	}
+	query := `SELECT id, locale, slug, title, status, version, revision, updated_at FROM pages ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(1)
+	rows, err := queryer.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]pages.Page, 0)
+	for rows.Next() {
+		var page pages.Page
+		var status string
+		var updated any
+		if err := rows.Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &status, &page.Version, &page.Revision, &updated); err != nil {
+			return nil, err
+		}
+		page.Status = pages.Status(status)
+		page.UpdatedAt = parseStoredTime(updated)
+		result = append(result, page)
+	}
+	return result, rows.Err()
+}
+
 func (s Store) GetContent(ctx context.Context, db database.Executor, pageID string) (pages.Page, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return pages.Page{}, err

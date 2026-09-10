@@ -18,6 +18,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
@@ -73,8 +74,42 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /api/pages/by-slug", Handler: http.HandlerFunc(h.getPublishedByQuery)},
 		{Pattern: "GET /public/pages/{locale}/{slug}/html", Handler: http.HandlerFunc(h.getPublishedHTML)},
 		{Pattern: "GET /admin/pages/{id}", Handler: http.HandlerFunc(h.adminPage), Protected: true},
+		{Pattern: "GET /admin/pages", Handler: http.HandlerFunc(h.adminList), Protected: true},
 		{Pattern: "POST /admin/pages/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
+	}
+}
+
+type adminListRepository interface {
+	ListAdmin(context.Context, database.Executor, int) ([]pages.Page, error)
+}
+
+func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Content.Pages) {
+		http.Error(w, "page unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	repository, ok := h.Content.Pages.(adminListRepository)
+	if !ok {
+		http.Error(w, "page admin list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	items, err := repository.ListAdmin(r.Context(), h.DB, 100)
+	if err != nil {
+		http.Error(w, "page unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	rows := make([]adminstudio.Row, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
+		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 	}
 }
 
