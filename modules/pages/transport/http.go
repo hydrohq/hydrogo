@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	blockrender "github.com/ardaozyildirim/hydrogo/modules/pages/render"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 )
 
@@ -42,6 +44,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "PUT /api/pages/{id}", Handler: http.HandlerFunc(h.update), Protected: true},
 		{Pattern: "POST /api/pages/{id}/publish", Handler: http.HandlerFunc(h.publish), Protected: true},
 		{Pattern: "GET /public/pages/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
+		{Pattern: "GET /api/pages/by-slug", Handler: http.HandlerFunc(h.getPublishedByQuery)},
+		{Pattern: "GET /public/pages/{locale}/{slug}/html", Handler: http.HandlerFunc(h.getPublishedHTML)},
 		{Pattern: "GET /admin/pages/{id}", Handler: http.HandlerFunc(h.adminPage), Protected: true},
 		{Pattern: "POST /admin/pages/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
@@ -50,6 +54,34 @@ func (h Handler) Routes() []Route {
 
 func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {
 	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
+	if err != nil {
+		http.Error(w, "page lookup failed", pageReadStatus(err))
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
+func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
+	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
+	if err != nil {
+		http.Error(w, "page lookup failed", pageReadStatus(err))
+		return
+	}
+	blocks, err := blockrender.Blocks(page.Blocks)
+	if err != nil {
+		http.Error(w, "page render failed", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body), blocks)
+}
+
+func (h Handler) getPublishedByQuery(w http.ResponseWriter, r *http.Request) {
+	h.getPublishedWithRoute(w, r, r.URL.Query().Get("locale"), r.URL.Query().Get("slug"))
+}
+
+func (h Handler) getPublishedWithRoute(w http.ResponseWriter, r *http.Request, locale, slug string) {
+	page, err := h.Content.GetPublished(r.Context(), h.DB, locale, slug)
 	if err != nil {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
