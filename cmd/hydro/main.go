@@ -836,7 +836,7 @@ func serve(args []string, stderr io.Writer) error {
 		if !ok {
 			return errors.New("commerce admin studio metadata missing")
 		}
-		commerceCollection.Fields = append([]adminstudio.Field{{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"}}, commerceCollection.Fields...)
+		commerceCollection.Fields = append(commerceCollection.Fields, adminstudio.Field{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"})
 		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}, AdminCollection: commerceCollection}
 		variantCollection, ok := studioRegistry.Collection("commerce_variants")
 		if !ok {

@@ -131,6 +131,36 @@ func (s Store) CreateProduct(ctx context.Context, db database.Executor, product 
 	return err
 }
 
+func (s Store) UpdateProduct(ctx context.Context, db database.Executor, product commerce.Product) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	q := `UPDATE commerce_products SET sku = ` + s.placeholder(1) + `, title = ` + s.placeholder(2) + `, description = ` + s.placeholder(3) + `, media_id = ` + s.placeholder(4) + `, price_cents = ` + s.placeholder(5) + `, currency = ` + s.placeholder(6) + `, stock = ` + s.placeholder(7) + `, status = ` + s.placeholder(8) + `, updated_at = ` + s.placeholder(9) + ` WHERE id = ` + s.placeholder(10)
+	result, err := db.ExecContext(ctx, q, product.SKU, product.Title, product.Description, product.MediaID, product.PriceCents, product.Currency, product.Stock, product.Status, now, product.ID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s Store) GetProduct(ctx context.Context, db database.Executor, id string) (commerce.Product, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return commerce.Product{}, err
+	}
+	var product commerce.Product
+	q := `SELECT id, sku, title, description, media_id, price_cents, currency, stock, status FROM commerce_products WHERE id = ` + s.placeholder(1)
+	err := db.QueryRowContext(ctx, q, id).Scan(&product.ID, &product.SKU, &product.Title, &product.Description, &product.MediaID, &product.PriceCents, &product.Currency, &product.Stock, &product.Status)
+	return product, err
+}
+
 func (s Store) ListProducts(ctx context.Context, db database.Executor, publicOnly bool) ([]commerce.Product, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err

@@ -13,6 +13,8 @@ var ErrInvalidProduct = errors.New("invalid product")
 
 type CatalogStore interface {
 	CreateProduct(context.Context, database.Executor, Product) error
+	UpdateProduct(context.Context, database.Executor, Product) error
+	GetProduct(context.Context, database.Executor, string) (Product, error)
 	ListProducts(context.Context, database.Executor, bool) ([]Product, error)
 }
 
@@ -84,6 +86,23 @@ func (s CatalogService) CreateProduct(ctx context.Context, product Product) erro
 		return errors.New("commerce catalog dependency is required")
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Store.CreateProduct(ctx, tx, product) })
+}
+
+func (s CatalogService) UpdateProduct(ctx context.Context, product Product) error {
+	if err := ValidateProduct(product); err != nil {
+		return err
+	}
+	if s.Store == nil {
+		return errors.New("commerce catalog dependency is required")
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error { return s.Store.UpdateProduct(ctx, tx, product) })
+}
+
+func (s CatalogService) GetProduct(ctx context.Context, db database.Executor, productID string) (Product, error) {
+	if s.Store == nil {
+		return Product{}, errors.New("commerce catalog dependency is required")
+	}
+	return s.Store.GetProduct(ctx, db, productID)
 }
 
 func (s CatalogService) ListProducts(ctx context.Context, db database.Executor, publicOnly bool) ([]Product, error) {

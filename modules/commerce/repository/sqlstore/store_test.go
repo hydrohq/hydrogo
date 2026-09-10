@@ -16,7 +16,7 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	}
 	defer db.Close()
 	for _, statement := range []string{
-		`CREATE TABLE commerce_products (id TEXT PRIMARY KEY, sku TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', price_cents INTEGER NOT NULL, currency TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE commerce_products (id TEXT PRIMARY KEY, sku TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', media_id TEXT NOT NULL DEFAULT '', price_cents INTEGER NOT NULL, currency TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE commerce_orders (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, currency TEXT NOT NULL, total_cents INTEGER NOT NULL, payment_status TEXT NOT NULL, shipping_status TEXT NOT NULL, customer_name TEXT NOT NULL DEFAULT '', customer_identity_number TEXT NOT NULL DEFAULT '', customer_email TEXT NOT NULL DEFAULT '', customer_phone TEXT NOT NULL DEFAULT '', customer_address TEXT NOT NULL DEFAULT '', customer_city TEXT NOT NULL DEFAULT '', customer_country TEXT NOT NULL DEFAULT '', customer_postal_code TEXT NOT NULL DEFAULT '', customer_client_ip TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(user_id, idempotency_key))`,
 		`CREATE TABLE commerce_payment_transactions (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, provider TEXT NOT NULL, provider_payment_id TEXT NOT NULL UNIQUE, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE commerce_order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, sku TEXT NOT NULL, title TEXT NOT NULL, quantity INTEGER NOT NULL, unit_cents INTEGER NOT NULL, total_cents INTEGER NOT NULL, variant_id TEXT)`,
@@ -26,7 +26,7 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_, err = db.Exec(`INSERT INTO commerce_products (id, sku, title, description, price_cents, currency, stock, status, created_at, updated_at) VALUES ('p1','P1','Bottle','',1000,'TRY',10,'published','now','now')`)
+	_, err = db.Exec(`INSERT INTO commerce_products (id, sku, title, description, media_id, price_cents, currency, stock, status, created_at, updated_at) VALUES ('p1','P1','Bottle','','',1000,'TRY',10,'published','now','now')`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,6 +73,20 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	orders, err := store.ListOrders(context.Background(), db, 10)
 	if err != nil || len(orders) != 1 || len(orders[0].Items) != 1 || orders[0].Items[0].VariantID != "v1" {
 		t.Fatalf("list orders = %#v, %v", orders, err)
+	}
+
+	prod, err := store.GetProduct(context.Background(), db, "p1")
+	if err != nil || prod.Title != "Bottle" {
+		t.Fatalf("get product = %#v, %v", prod, err)
+	}
+	prod.Title = "Updated Bottle"
+	prod.PriceCents = 1500
+	if err := store.UpdateProduct(context.Background(), db, prod); err != nil {
+		t.Fatalf("update product = %v", err)
+	}
+	prod2, err := store.GetProduct(context.Background(), db, "p1")
+	if err != nil || prod2.Title != "Updated Bottle" || prod2.PriceCents != 1500 {
+		t.Fatalf("get updated product = %#v, %v", prod2, err)
 	}
 }
 

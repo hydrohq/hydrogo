@@ -66,6 +66,8 @@ func (h Handler) Routes() []Route {
 	return []Route{
 		{Pattern: "GET /api/commerce/products", Handler: http.HandlerFunc(h.products), Protected: false},
 		{Pattern: "POST /api/commerce/products", Handler: http.HandlerFunc(h.createProduct), Protected: true},
+		{Pattern: "GET /api/commerce/products/{productID}", Handler: http.HandlerFunc(h.getProduct), Protected: false},
+		{Pattern: "PUT /api/commerce/products/{productID}", Handler: http.HandlerFunc(h.updateProduct), Protected: true},
 		{Pattern: "GET /api/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.variants), Protected: false},
 		{Pattern: "POST /api/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.createVariant), Protected: true},
 		{Pattern: "GET /api/commerce/cart", Handler: http.HandlerFunc(h.cart), Protected: true},
@@ -82,6 +84,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /admin/commerce/products", Handler: http.HandlerFunc(h.adminProducts), Protected: true},
 		{Pattern: "GET /admin/commerce/products/new", Handler: http.HandlerFunc(h.adminNewProduct), Protected: true},
 		{Pattern: "POST /admin/commerce/products", Handler: http.HandlerFunc(h.adminCreateProduct), Protected: true},
+		{Pattern: "GET /admin/commerce/products/{productID}", Handler: http.HandlerFunc(h.adminProductPage), Protected: true},
+		{Pattern: "POST /admin/commerce/products/{productID}", Handler: http.HandlerFunc(h.adminUpdateProduct), Protected: true},
 		{Pattern: "GET /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminVariants), Protected: true},
 		{Pattern: "POST /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminCreateVariant), Protected: true},
 		{Pattern: "GET /admin/commerce/orders", Handler: http.HandlerFunc(h.adminOrders), Protected: true},
@@ -90,12 +94,14 @@ func (h Handler) Routes() []Route {
 }
 
 type productInput struct {
-	SKU        string                 `json:"sku"`
-	Title      string                 `json:"title"`
-	PriceCents int64                  `json:"price_cents"`
-	Currency   string                 `json:"currency"`
-	Stock      int                    `json:"stock"`
-	Status     commerce.ProductStatus `json:"status"`
+	SKU         string                 `json:"sku"`
+	Title       string                 `json:"title"`
+	Description string                 `json:"description"`
+	MediaID     string                 `json:"media_id"`
+	PriceCents  int64                  `json:"price_cents"`
+	Currency    string                 `json:"currency"`
+	Stock       int                    `json:"stock"`
+	Status      commerce.ProductStatus `json:"status"`
 }
 
 type cartItemInput struct {
@@ -282,13 +288,44 @@ func (h Handler) createProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	product := commerce.Product{ID: id, SKU: input.SKU, Title: input.Title, PriceCents: input.PriceCents, Currency: input.Currency, Stock: input.Stock, Status: input.Status}
+	product := commerce.Product{ID: id, SKU: input.SKU, Title: input.Title, Description: input.Description, MediaID: input.MediaID, PriceCents: input.PriceCents, Currency: input.Currency, Stock: input.Stock, Status: input.Status}
 	if err := h.Catalog.CreateProduct(r.Context(), product); err != nil {
 		http.Error(w, "invalid product", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(product)
+}
+
+func (h Handler) getProduct(w http.ResponseWriter, r *http.Request) {
+	product, err := h.Catalog.GetProduct(r.Context(), h.DB, r.PathValue("productID"))
+	if err != nil {
+		http.Error(w, "product not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(product)
+}
+
+func (h Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var input productInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil {
+		http.Error(w, "invalid product", http.StatusBadRequest)
+		return
+	}
+	productID := r.PathValue("productID")
+	product := commerce.Product{ID: productID, SKU: input.SKU, Title: input.Title, Description: input.Description, MediaID: input.MediaID, PriceCents: input.PriceCents, Currency: input.Currency, Stock: input.Stock, Status: input.Status}
+	if err := h.Catalog.UpdateProduct(r.Context(), product); err != nil {
+		http.Error(w, "invalid product", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(product)
 }
 
@@ -446,7 +483,20 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button" href="/admin/commerce/products/new"><span data-studio-icon="plus"></span> Yeni ürün ekle</a></div><div class="table-wrap">`)
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
-		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Varyantlar", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
+		rows = append(rows, adminstudio.Row{
+			Values: map[string]string{
+				"title":       product.Title,
+				"sku":         product.SKU,
+				"price_cents": strconv.FormatInt(product.PriceCents, 10),
+				"currency":    product.Currency,
+				"stock":       strconv.Itoa(product.Stock),
+				"status":      string(product.Status),
+			},
+			Actions: []adminstudio.Action{
+				{Label: "Düzenle", Href: "/admin/commerce/products/" + product.ID},
+				{Label: "Varyantlar", Href: "/admin/commerce/products/" + product.ID + "/variants"},
+			},
+		})
 	}
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: collection, Rows: rows}); err != nil {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
@@ -567,6 +617,82 @@ func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	product := commerce.Product{ID: id, SKU: r.FormValue("sku"), Title: r.FormValue("title"), Description: r.FormValue("description"), MediaID: r.FormValue("media_id"), PriceCents: price, Currency: r.FormValue("currency"), Stock: stock, Status: commerce.ProductStatus(r.FormValue("status"))}
 	if err := h.Catalog.CreateProduct(r.Context(), product); err != nil {
+		http.Error(w, "invalid product", http.StatusBadRequest)
+		return
+	}
+	http.Redirect(w, r, "/admin/commerce/products", http.StatusSeeOther)
+}
+
+func (h Handler) adminProductPage(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	productID := r.PathValue("productID")
+	product, err := h.Catalog.GetProduct(r.Context(), h.DB, productID)
+	if err != nil {
+		http.Error(w, "product not found", http.StatusNotFound)
+		return
+	}
+	var form bytes.Buffer
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{
+		Collection:  h.AdminCollection,
+		Action:      "/admin/commerce/products/" + product.ID,
+		CSRFToken:   security.CSRFTokenFromContext(r.Context()),
+		Nonce:       security.NonceFromContext(r.Context()),
+		Values: map[string]string{
+			"title":       product.Title,
+			"sku":         product.SKU,
+			"media_id":    product.MediaID,
+			"price_cents": strconv.FormatInt(product.PriceCents, 10),
+			"currency":    product.Currency,
+			"stock":       strconv.Itoa(product.Stock),
+			"status":      string(product.Status),
+			"description": product.Description,
+		},
+		SubmitLabel: "Ürünü kaydet",
+	}); err != nil {
+		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Ürün Düzenle", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button button-quiet" href="/admin/commerce/products">← Kataloğa dön</a><a class="button" href="/admin/commerce/products/%s/variants">Varyantları yönet →</a></div><form class="studio-form" method="post" action="/admin/commerce/products/%s">%s</form></section>`, template.HTMLEscapeString(product.ID), template.HTMLEscapeString(product.ID), form.String())
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminUpdateProduct(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid product", http.StatusBadRequest)
+		return
+	}
+	price, err1 := strconv.ParseInt(r.FormValue("price_cents"), 10, 64)
+	stock, err2 := strconv.Atoi(r.FormValue("stock"))
+	if err1 != nil || err2 != nil {
+		http.Error(w, "invalid product", http.StatusBadRequest)
+		return
+	}
+	productID := r.PathValue("productID")
+	product := commerce.Product{
+		ID:          productID,
+		SKU:         r.FormValue("sku"),
+		Title:       r.FormValue("title"),
+		Description: r.FormValue("description"),
+		MediaID:     r.FormValue("media_id"),
+		PriceCents:  price,
+		Currency:    r.FormValue("currency"),
+		Stock:       stock,
+		Status:      commerce.ProductStatus(r.FormValue("status")),
+	}
+	if err := h.Catalog.UpdateProduct(r.Context(), product); err != nil {
 		http.Error(w, "invalid product", http.StatusBadRequest)
 		return
 	}
