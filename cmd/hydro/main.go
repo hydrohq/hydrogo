@@ -1299,6 +1299,9 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,$3,$4,$5,'published',1,1,1,$6,$6,$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,?3,?4,?5,'published',1,1,1,?6,?6,?7,?7)`, "demo-home", "HydroGo Demo", "tr", "demo", "Demo sayfası", blocks, now); err != nil {
 		return fmt.Errorf("seed demo page: %w", err)
 	}
+	if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE pages SET published_locale=$1,published_slug=$2,published_title=$3,published_body=$4,published_blocks=$5 WHERE id=$6`, `UPDATE pages SET published_locale=?1,published_slug=?2,published_title=?3,published_body=?4,published_blocks=?5 WHERE id=?6`, "tr", "demo", "HydroGo Demo", "Demo sayfası", blocks, "demo-home"); err != nil {
+		return fmt.Errorf("seed demo publication: %w", err)
+	}
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,?3,?4,?5,?6,?7,?8)`, "demo-home-rev-1", "demo-home", "tr", "demo", "HydroGo Demo", "Demo sayfası", blocks, now); err != nil {
 		return fmt.Errorf("seed demo revision: %w", err)
 	}
