@@ -67,6 +67,7 @@ type productInput struct {
 
 type cartItemInput struct {
 	ProductID string `json:"product_id"`
+	VariantID string `json:"variant_id"`
 	Quantity  int    `json:"quantity"`
 }
 
@@ -148,7 +149,7 @@ func (h Handler) addCartItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid cart item", http.StatusBadRequest)
 		return
 	}
-	cart, err := h.Cart.Add(r.Context(), user.ID, input.ProductID, input.Quantity)
+	cart, err := h.Cart.Add(r.Context(), user.ID, input.ProductID, input.VariantID, input.Quantity)
 	if err != nil {
 		http.Error(w, "cannot add cart item", http.StatusConflict)
 		return
@@ -235,7 +236,7 @@ func (h Handler) addCartItemForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid quantity", http.StatusBadRequest)
 		return
 	}
-	if _, err := h.Cart.Add(r.Context(), user.ID, r.FormValue("product_id"), quantity); err != nil {
+	if _, err := h.Cart.Add(r.Context(), user.ID, r.FormValue("product_id"), r.FormValue("variant_id"), quantity); err != nil {
 		http.Error(w, "cannot add cart item", http.StatusConflict)
 		return
 	}

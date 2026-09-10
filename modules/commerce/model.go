@@ -29,12 +29,14 @@ type ProductVariant struct {
 	SKU        string        `json:"sku"`
 	Title      string        `json:"title"`
 	PriceCents int64         `json:"price_cents"`
+	Currency   string        `json:"currency,omitempty"`
 	Stock      int           `json:"stock"`
 	Status     ProductStatus `json:"status"`
 }
 
 type OrderItem struct {
 	ProductID  string `json:"product_id"`
+	VariantID  string `json:"variant_id,omitempty"`
 	SKU        string `json:"sku"`
 	Title      string `json:"title"`
 	Quantity   int    `json:"quantity"`
@@ -62,6 +64,7 @@ type Checkout struct {
 
 type CheckoutItem struct {
 	ProductID string
+	VariantID string
 	Quantity  int
 }
 

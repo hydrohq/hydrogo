@@ -24,6 +24,28 @@ func (s Store) CreateVariant(ctx context.Context, db database.Executor, variant 
 	return err
 }
 
+func (s Store) ReserveVariant(ctx context.Context, db database.Executor, id string, quantity int) (commerce.ProductVariant, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return commerce.ProductVariant{}, err
+	}
+	q := `UPDATE commerce_product_variants SET stock = stock - ` + s.placeholder(1) + `, status = CASE WHEN stock - ` + s.placeholder(1) + ` = 0 THEN 'out_of_stock' ELSE status END, updated_at = ` + s.placeholder(2) + ` WHERE id = ` + s.placeholder(3) + ` AND status IN ('published', 'out_of_stock') AND stock >= ` + s.placeholder(4)
+	result, err := db.ExecContext(ctx, q, quantity, time.Now().UTC(), id, quantity)
+	if err != nil {
+		return commerce.ProductVariant{}, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return commerce.ProductVariant{}, err
+	}
+	if changed != 1 {
+		return commerce.ProductVariant{}, commerce.ErrOutOfStock
+	}
+	var variant commerce.ProductVariant
+	q = `SELECT v.id, v.product_id, v.sku, v.title, v.price_cents, p.currency, v.stock, v.status FROM commerce_product_variants v JOIN commerce_products p ON p.id = v.product_id WHERE v.id = ` + s.placeholder(1)
+	err = db.QueryRowContext(ctx, q, id).Scan(&variant.ID, &variant.ProductID, &variant.SKU, &variant.Title, &variant.PriceCents, &variant.Currency, &variant.Stock, &variant.Status)
+	return variant, err
+}
+
 func (s Store) ListVariants(ctx context.Context, db database.Executor, productID string, publicOnly bool) ([]commerce.ProductVariant, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
@@ -119,7 +141,7 @@ func (s Store) findCart(ctx context.Context, db database.Executor, userID string
 	if err != nil {
 		return cart, err
 	}
-	q = `SELECT i.id, i.cart_id, i.product_id, p.sku, p.title, i.quantity, i.unit_cents FROM commerce_cart_items i JOIN commerce_products p ON p.id = i.product_id WHERE i.cart_id = ` + s.placeholder(1) + ` ORDER BY i.id`
+	q = `SELECT i.id, i.cart_id, i.product_id, COALESCE(i.variant_id, ''), COALESCE(v.sku, p.sku), COALESCE(v.title, p.title), i.quantity, i.unit_cents FROM commerce_cart_items i JOIN commerce_products p ON p.id = i.product_id LEFT JOIN commerce_product_variants v ON v.id = i.variant_id WHERE i.cart_id = ` + s.placeholder(1) + ` ORDER BY i.id`
 	rows, err := queryRows(ctx, db, q, cart.ID)
 	if err != nil {
 		return commerce.Cart{}, err
@@ -127,7 +149,7 @@ func (s Store) findCart(ctx context.Context, db database.Executor, userID string
 	defer rows.Close()
 	for rows.Next() {
 		var item commerce.CartItem
-		if err := rows.Scan(&item.ID, &item.CartID, &item.ProductID, &item.SKU, &item.Title, &item.Quantity, &item.UnitCents); err != nil {
+		if err := rows.Scan(&item.ID, &item.CartID, &item.ProductID, &item.VariantID, &item.SKU, &item.Title, &item.Quantity, &item.UnitCents); err != nil {
 			return commerce.Cart{}, err
 		}
 		item.TotalCents = item.UnitCents * int64(item.Quantity)
@@ -137,7 +159,7 @@ func (s Store) findCart(ctx context.Context, db database.Executor, userID string
 	return cart, rows.Err()
 }
 
-func (s Store) AddCartItem(ctx context.Context, db database.Executor, userID, productID string, quantity int) (commerce.Cart, error) {
+func (s Store) AddCartItem(ctx context.Context, db database.Executor, userID, productID, variantID string, quantity int) (commerce.Cart, error) {
 	cart, err := s.GetOrCreateCart(ctx, db, userID, "TRY")
 	if err != nil {
 		return commerce.Cart{}, err
@@ -145,25 +167,37 @@ func (s Store) AddCartItem(ctx context.Context, db database.Executor, userID, pr
 	var price int64
 	var status string
 	var stock int
-	q := `SELECT price_cents, status, stock FROM commerce_products WHERE id = ` + s.placeholder(1)
-	if err := db.QueryRowContext(ctx, q, productID).Scan(&price, &status, &stock); err != nil {
-		return commerce.Cart{}, err
+	var q string
+	if variantID != "" {
+		q := `SELECT price_cents, status, stock, product_id FROM commerce_product_variants WHERE id = ` + s.placeholder(1)
+		if err := db.QueryRowContext(ctx, q, variantID).Scan(&price, &status, &stock, &productID); err != nil {
+			return commerce.Cart{}, err
+		}
+	} else {
+		q := `SELECT price_cents, status, stock FROM commerce_products WHERE id = ` + s.placeholder(1)
+		if err := db.QueryRowContext(ctx, q, productID).Scan(&price, &status, &stock); err != nil {
+			return commerce.Cart{}, err
+		}
 	}
 	if status != string(commerce.ProductPublished) || stock < quantity {
 		return commerce.Cart{}, commerce.ErrOutOfStock
 	}
 	var existing int
-	q = `SELECT quantity FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1) + ` AND product_id = ` + s.placeholder(2)
-	err = db.QueryRowContext(ctx, q, cart.ID, productID).Scan(&existing)
+	q = `SELECT quantity FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1) + ` AND product_id = ` + s.placeholder(2) + ` AND COALESCE(variant_id, '') = ` + s.placeholder(3)
+	err = db.QueryRowContext(ctx, q, cart.ID, productID, variantID).Scan(&existing)
 	if errors.Is(err, sql.ErrNoRows) {
-		q = `INSERT INTO commerce_cart_items (id, cart_id, product_id, quantity, unit_cents) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `)`
-		_, err = db.ExecContext(ctx, q, fmt.Sprintf("cart-item-%d", time.Now().UnixNano()), cart.ID, productID, quantity, price)
+		q = `INSERT INTO commerce_cart_items (id, cart_id, product_id, variant_id, quantity, unit_cents) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `)`
+		var variantArg any
+		if variantID != "" {
+			variantArg = variantID
+		}
+		_, err = db.ExecContext(ctx, q, fmt.Sprintf("cart-item-%d", time.Now().UnixNano()), cart.ID, productID, variantArg, quantity, price)
 	} else if err == nil {
 		if existing+quantity > stock {
 			return commerce.Cart{}, commerce.ErrOutOfStock
 		}
-		q = `UPDATE commerce_cart_items SET quantity = quantity + ` + s.placeholder(1) + `, unit_cents = ` + s.placeholder(2) + ` WHERE cart_id = ` + s.placeholder(3) + ` AND product_id = ` + s.placeholder(4)
-		_, err = db.ExecContext(ctx, q, quantity, price, cart.ID, productID)
+		q = `UPDATE commerce_cart_items SET quantity = quantity + ` + s.placeholder(1) + `, unit_cents = ` + s.placeholder(2) + ` WHERE cart_id = ` + s.placeholder(3) + ` AND product_id = ` + s.placeholder(4) + ` AND COALESCE(variant_id, '') = ` + s.placeholder(5)
+		_, err = db.ExecContext(ctx, q, quantity, price, cart.ID, productID, variantID)
 	}
 	if err != nil {
 		return commerce.Cart{}, err
@@ -225,7 +259,7 @@ func (s Store) FindOrderByIdempotency(ctx context.Context, db database.Executor,
 }
 
 func (s Store) loadItems(ctx context.Context, db database.Executor, order *commerce.Order) error {
-	q := `SELECT product_id, sku, title, quantity, unit_cents, total_cents FROM commerce_order_items WHERE order_id = ` + s.placeholder(1) + ` ORDER BY id`
+	q := `SELECT product_id, COALESCE(variant_id, ''), sku, title, quantity, unit_cents, total_cents FROM commerce_order_items WHERE order_id = ` + s.placeholder(1) + ` ORDER BY id`
 	rows, err := queryRows(ctx, db, q, order.ID)
 	if err != nil {
 		return err
@@ -233,7 +267,7 @@ func (s Store) loadItems(ctx context.Context, db database.Executor, order *comme
 	defer rows.Close()
 	for rows.Next() {
 		var item commerce.OrderItem
-		if err := rows.Scan(&item.ProductID, &item.SKU, &item.Title, &item.Quantity, &item.UnitCents, &item.TotalCents); err != nil {
+		if err := rows.Scan(&item.ProductID, &item.VariantID, &item.SKU, &item.Title, &item.Quantity, &item.UnitCents, &item.TotalCents); err != nil {
 			return err
 		}
 		order.Items = append(order.Items, item)
@@ -287,8 +321,12 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 		return err
 	}
 	for index, item := range order.Items {
-		q = `INSERT INTO commerce_order_items (id, order_id, product_id, sku, title, quantity, unit_cents, total_cents) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `)`
-		if _, err := db.ExecContext(ctx, q, fmt.Sprintf("%s-item-%d", order.ID, index), order.ID, item.ProductID, item.SKU, item.Title, item.Quantity, item.UnitCents, item.TotalCents); err != nil {
+		q = `INSERT INTO commerce_order_items (id, order_id, product_id, variant_id, sku, title, quantity, unit_cents, total_cents) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `)`
+		var variantArg any
+		if item.VariantID != "" {
+			variantArg = item.VariantID
+		}
+		if _, err := db.ExecContext(ctx, q, fmt.Sprintf("%s-item-%d", order.ID, index), order.ID, item.ProductID, variantArg, item.SKU, item.Title, item.Quantity, item.UnitCents, item.TotalCents); err != nil {
 			return err
 		}
 	}

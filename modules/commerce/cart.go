@@ -21,6 +21,7 @@ type CartItem struct {
 	ID         string `json:"id"`
 	CartID     string `json:"cart_id"`
 	ProductID  string `json:"product_id"`
+	VariantID  string `json:"variant_id,omitempty"`
 	SKU        string `json:"sku"`
 	Title      string `json:"title"`
 	Quantity   int    `json:"quantity"`
@@ -31,7 +32,7 @@ type CartItem struct {
 type CartStore interface {
 	GetOrCreateCart(context.Context, database.Executor, string, string) (Cart, error)
 	GetCart(context.Context, database.Executor, string, string) (Cart, error)
-	AddCartItem(context.Context, database.Executor, string, string, int) (Cart, error)
+	AddCartItem(context.Context, database.Executor, string, string, string, int) (Cart, error)
 	RemoveCartItem(context.Context, database.Executor, string, string) error
 }
 
@@ -46,14 +47,14 @@ func (s CartService) Get(ctx context.Context, db database.Executor, userID strin
 	}
 	return s.Store.GetOrCreateCart(ctx, db, userID, "TRY")
 }
-func (s CartService) Add(ctx context.Context, userID, productID string, quantity int) (Cart, error) {
+func (s CartService) Add(ctx context.Context, userID, productID, variantID string, quantity int) (Cart, error) {
 	if strings.TrimSpace(userID) == "" || strings.TrimSpace(productID) == "" || quantity < 1 || quantity > 1000 || s.Store == nil {
 		return Cart{}, ErrInvalidCart
 	}
 	var cart Cart
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		var err error
-		cart, err = s.Store.AddCartItem(ctx, tx, userID, productID, quantity)
+		cart, err = s.Store.AddCartItem(ctx, tx, userID, productID, variantID, quantity)
 		return err
 	})
 	return cart, err

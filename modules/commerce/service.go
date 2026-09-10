@@ -21,6 +21,10 @@ type CheckoutCartClearer interface {
 	ClearCart(context.Context, database.Executor, string, string) error
 }
 
+type VariantCheckoutStore interface {
+	ReserveVariant(context.Context, database.Executor, string, int) (ProductVariant, error)
+}
+
 type Outbox interface {
 	Enqueue(context.Context, database.Executor, string, string, string, int) error
 }
@@ -57,7 +61,7 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 			}
 			checkout.Items = make([]CheckoutItem, 0, len(cart.Items))
 			for _, item := range cart.Items {
-				checkout.Items = append(checkout.Items, CheckoutItem{ProductID: item.ProductID, Quantity: item.Quantity})
+				checkout.Items = append(checkout.Items, CheckoutItem{ProductID: item.ProductID, VariantID: item.VariantID, Quantity: item.Quantity})
 			}
 			if err := checkout.Validate(); err != nil {
 				return err
@@ -65,9 +69,25 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 		}
 		order = Order{ID: checkout.ID, UserID: checkout.UserID, PaymentStatus: "pending", ShippingStatus: "pending"}
 		for _, item := range checkout.Items {
-			product, err := s.Store.ReserveProduct(ctx, tx, item.ProductID, item.Quantity)
-			if err != nil {
-				return err
+			var product Product
+			variantID := ""
+			if item.VariantID != "" {
+				variantStore, ok := s.Store.(VariantCheckoutStore)
+				if !ok {
+					return errorsDependency
+				}
+				variant, err := variantStore.ReserveVariant(ctx, tx, item.VariantID, item.Quantity)
+				if err != nil {
+					return err
+				}
+				product = Product{ID: variant.ProductID, SKU: variant.SKU, Title: variant.Title, PriceCents: variant.PriceCents, Currency: variant.Currency, Status: variant.Status}
+				variantID = variant.ID
+			} else {
+				var err error
+				product, err = s.Store.ReserveProduct(ctx, tx, item.ProductID, item.Quantity)
+				if err != nil {
+					return err
+				}
 			}
 			if order.Currency == "" {
 				order.Currency = product.Currency
@@ -75,7 +95,7 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 			if order.Currency != product.Currency {
 				return ErrInvalidCheckout
 			}
-			line := OrderItem{ProductID: product.ID, SKU: product.SKU, Title: product.Title, Quantity: item.Quantity, UnitCents: product.PriceCents, TotalCents: product.PriceCents * int64(item.Quantity)}
+			line := OrderItem{ProductID: product.ID, VariantID: variantID, SKU: product.SKU, Title: product.Title, Quantity: item.Quantity, UnitCents: product.PriceCents, TotalCents: product.PriceCents * int64(item.Quantity)}
 			order.Items = append(order.Items, line)
 			order.TotalCents += line.TotalCents
 		}

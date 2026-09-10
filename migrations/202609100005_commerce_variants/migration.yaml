@@ -7,8 +7,8 @@ transactional:
   sqlite: true
   postgres: true
 checksum_sha256:
-  sqlite: "014c218c8be7b96181c01ac38ffb0dfd2c8884f961ce54c4cdee29c48b09d0fd"
-  postgres: "e319825ffe51767c2a80fbcac77ab8235aa5ff51bb8017f1b0ee3adbab7bae4b"
+  sqlite: "9f36a1c1c05d773c4e48a1b3b4e15791f0d2499241440d4ebae7147d89a044a9"
+  postgres: "7051776b702f49d8d6b7b09a5839747910342701842f860ab50a05605a06bd3a"
 dependencies:
   - "202609100002_commerce_core"
 schema:
@@ -24,4 +24,3 @@ smoke:
   - "Variant stock and price cannot be negative"
 restart: "Safe to rerun; committed checksum is verified before no-op"
 rollback: "No production down migration; restore or forward migration only."
-

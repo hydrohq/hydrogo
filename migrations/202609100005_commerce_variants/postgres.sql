@@ -10,3 +10,5 @@ CREATE TABLE commerce_product_variants (
     updated_at TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX idx_commerce_variants_product ON commerce_product_variants(product_id, title, id);
+ALTER TABLE commerce_cart_items ADD COLUMN variant_id TEXT REFERENCES commerce_product_variants(id);
+ALTER TABLE commerce_order_items ADD COLUMN variant_id TEXT REFERENCES commerce_product_variants(id);
