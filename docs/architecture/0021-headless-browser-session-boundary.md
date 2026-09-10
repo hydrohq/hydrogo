@@ -3,6 +3,7 @@
 - **Durum:** Önerildi
 - **Tarih:** 2026-09-10
 - **İlişkili kararlar:** [ADR-0013](0013-identity-and-security-boundaries.md), [ADR-0015](0015-versioned-http-api.md), [ADR-0020](0020-headless-first-admin-studio-and-frontend-templates.md)
+- **Uygulama durumu:** Credential-free published read CORS allowlist middleware'i ve config doğrulaması uygulanmıştır; cross-origin browser mutation/BFF e2e kabul kapıları açıktır.
 
 ## Bağlam
 
