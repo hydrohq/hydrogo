@@ -654,6 +654,17 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
+	routes = append(routes, router.Route{Pattern: "GET /admin", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email}); err != nil {
+			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
+		}
+	})})
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
@@ -1295,15 +1306,25 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	}
 	defer db.Close()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	blocks := `[{"type":"hero","payload":{"title":"HydroGo demo","subtitle":"Temalanabilir içerik ve commerce akışını keşfedin.","button_text":"Mağazaya git","button_url":"/shop"}},{"type":"faq","payload":{"items":[{"question":"Bu demo ne içeriyor?","answer":"Pages, tema, medya, ürün, varyant, sepet ve checkout örneklerini içerir."}]}}]`
-	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,$3,$4,$5,'published',1,1,1,$6,$6,$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,?3,?4,?5,'published',1,1,1,?6,?6,?7,?7)`, "demo-home", "HydroGo Demo", "tr", "demo", "Demo sayfası", blocks, now); err != nil {
-		return fmt.Errorf("seed demo page: %w", err)
+	seedPage := func(id, slug, title, body, blocks string) error {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,'tr',$3,$4,'published',1,1,1,$5,$5,$6,$6) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,'tr',?3,?4,'published',1,1,1,?5,?5,?6,?6)`, id, title, slug, body, blocks, now); err != nil {
+			return err
+		}
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE pages SET published_locale='tr',published_slug=$1,published_title=$2,published_body=$3,published_blocks=$4 WHERE id=$5`, `UPDATE pages SET published_locale='tr',published_slug=?1,published_title=?2,published_body=?3,published_blocks=?4 WHERE id=?5`, slug, title, body, blocks, id); err != nil {
+			return err
+		}
+		return seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,'tr',$3,$4,$5,$6,$7) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,'tr',?3,?4,?5,?6,?7)`, id+"-rev-1", id, slug, title, body, blocks, now)
 	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE pages SET published_locale=$1,published_slug=$2,published_title=$3,published_body=$4,published_blocks=$5 WHERE id=$6`, `UPDATE pages SET published_locale=?1,published_slug=?2,published_title=?3,published_body=?4,published_blocks=?5 WHERE id=?6`, "tr", "demo", "HydroGo Demo", "Demo sayfası", blocks, "demo-home"); err != nil {
-		return fmt.Errorf("seed demo publication: %w", err)
+	homeBlocks := `[{"type":"hero","payload":{"title":"HydroGo demo","subtitle":"Temalanabilir içerik ve commerce akışını keşfedin.","button_text":"Mağazaya git","button_url":"/shop"}},{"type":"cta","payload":{"title":"Tüm yetenekleri keşfet","button_text":"Showcase sayfası","button_url":"/public/pages/tr/showcase"}},{"type":"faq","payload":{"items":[{"question":"Bu demo ne içeriyor?","answer":"Pages, tema, haber, ürün, varyant, sepet, checkout ve ödeme başlangıcı örneklerini içerir."},{"question":"Admin ekranları nerede?","answer":"Demo admin hesabıyla /admin/pages/demo-showcase, /admin/news/demo-news ve commerce admin rotalarını açabilirsiniz."}]}}]`
+	showcaseBlocks := `[{"type":"hero","payload":{"title":"HydroGo Showcase","subtitle":"Hero, CTA, pricing, testimonials ve FAQ bloklarının tamamı aynı sayfada.","button_text":"Mağazaya geç","button_url":"/shop"}},{"type":"pricing_table","payload":{"items":[{"name":"Starter","price_cents":0,"currency":"TRY","features":["SQLite ile hızlı başlangıç","Temalanabilir sayfalar","REST ve GraphQL API"]},{"name":"Growth","price_cents":49900,"currency":"TRY","features":["Commerce katalog","Varyant ve stok","Checkout ve webhook akışları"]},{"name":"Enterprise","price_cents":149900,"currency":"TRY","features":["PostgreSQL profili","Background worker","Audit, outbox ve backup"]}]}},{"type":"testimonials","payload":{"items":[{"name":"Derya — Product Lead","quote":"İçerik, tema ve commerce aynı çalışma alanında birleşiyor."},{"name":"Mert — Developer","quote":"Core sözleşmeleri sayesinde yeni modül eklemek kontrollü ilerliyor."}]}},{"type":"faq","payload":{"items":[{"question":"Ödeme sağlayıcıları var mı?","answer":"Stripe, iyzico Checkout Form ve PayTR token akışları yapılandırılabilir."},{"question":"Headless kullanım destekleniyor mu?","answer":"REST, GraphQL ve examples/headless-starter ile headless tüketim destekleniyor."}]}}]`
+	if err := seedPage("demo-home", "demo", "HydroGo Demo", "Demo sayfası", homeBlocks); err != nil {
+		return fmt.Errorf("seed demo home: %w", err)
 	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,?3,?4,?5,?6,?7,?8)`, "demo-home-rev-1", "demo-home", "tr", "demo", "HydroGo Demo", "Demo sayfası", blocks, now); err != nil {
-		return fmt.Errorf("seed demo revision: %w", err)
+	if err := seedPage("demo-showcase", "showcase", "HydroGo Showcase", "Tüm blok tiplerini ve mimari yetenekleri keşfet.", showcaseBlocks); err != nil {
+		return fmt.Errorf("seed demo showcase: %w", err)
+	}
+	if err := seedPage("demo-about", "about", "HydroGo Hakkında", "HydroCore, modüller ve Client Edition yaklaşımı.", `[{"type":"hero","payload":{"title":"Modüler CMS + Commerce","subtitle":"Core sözleşmeleri, bağımsız modüller, güvenli yayın akışları."}},{"type":"cta","payload":{"title":"Hemen ürünleri incele","button_text":"Mağazayı aç","button_url":"/shop"}}]`); err != nil {
+		return fmt.Errorf("seed demo about: %w", err)
 	}
 	for _, product := range []struct {
 		id, sku, title string
@@ -1321,15 +1342,26 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("seed variant %s: %w", variant.id, err)
 		}
 	}
+	for _, item := range []struct{ id, slug, title, body string }{
+		{"demo-news", "release-notes", "HydroGo Demo Release Notes", "Bu demo; sayfa blokları, tema assetleri, haber yayınlama, commerce katalog, varyant, sepet, checkout ve ödeme intent akışlarını gösterir."},
+		{"demo-news-guide", "getting-started", "HydroGo ile Başlangıç", "Önce Showcase sayfasını inceleyin, ardından mağazadan ürün seçin ve admin ekranlarında içerik ile katalog yönetimini deneyin."},
+	} {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,'tr',$2,$3,$4,'published',1,1,1,0,$5,$5) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,'tr',?2,?3,?4,'published',1,1,1,0,?5,?5)`, item.id, item.slug, item.title, item.body, now); err != nil {
+			return fmt.Errorf("seed news %s: %w", item.id, err)
+		}
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale='tr',slug=$1,title=$2,body=$3,status='published',published_revision=revision WHERE id=$4`, `UPDATE news_items SET locale='tr',slug=?1,title=?2,body=?3,status='published',published_revision=revision WHERE id=?4`, item.slug, item.title, item.body, item.id); err != nil {
+			return fmt.Errorf("publish news %s: %w", item.id, err)
+		}
+	}
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO site_settings (key,value,is_public,updated_at) VALUES ($1,$2,1,$3) ON CONFLICT (key) DO NOTHING`, `INSERT OR IGNORE INTO site_settings (key,value,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
 		return fmt.Errorf("seed setting: %w", err)
 	}
-	for index, item := range []struct{ id, label, href string }{{"demo-nav-home", "Ana Sayfa", "/public/pages/tr/demo"}, {"demo-nav-shop", "Mağaza", "/shop"}} {
+	for index, item := range []struct{ id, label, href string }{{"demo-nav-home", "Ana Sayfa", "/public/pages/tr/demo"}, {"demo-nav-showcase", "Showcase", "/public/pages/tr/showcase"}, {"demo-nav-about", "Hakkında", "/public/pages/tr/about"}, {"demo-nav-news", "Haberler", "/public/news/tr/release-notes"}, {"demo-nav-shop", "Mağaza", "/shop"}} {
 		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO navigation_items (id,locale,label,href,position,is_visible,updated_at) VALUES ($1,'tr',$2,$3,$4,1,$5) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO navigation_items (id,locale,label,href,position,is_visible,updated_at) VALUES (?,'tr',?,?,?,1,?)`, item.id, item.label, item.href, index+1, now); err != nil {
 			return fmt.Errorf("seed navigation: %w", err)
 		}
 	}
-	_, err = fmt.Fprintln(stdout, "demo-seeded page=demo-home products=2 variants=2 navigation=2")
+	_, err = fmt.Fprintln(stdout, "demo-seeded pages=3 news=2 products=2 variants=2 navigation=5")
 	return err
 }
 
