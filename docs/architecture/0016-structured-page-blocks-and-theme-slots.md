@@ -3,11 +3,11 @@
 - **Durum:** Kabul edildi
 - **Tarih:** 2026-09-10
 - **İlişkili kararlar:** [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0012](0012-content-media-and-portability.md), [ADR-0015](0015-versioned-http-api.md)
-- **Uygulama durumu:** İlk blok sözleşmesi, SQLite/PostgreSQL migration'ları ve store round-trip doğrulaması uygulandı. Admin blok editörü ve görsel tema renderer'ları sonraki dilimlerdir.
+- **Uygulama durumu:** Blok sözleşmesi, SQLite/PostgreSQL migration'ları, store round-trip doğrulaması, admin görsel editörü ve güvenli renderer uygulandı.
 
 ## Karar
 
-Pages, rich text gövdesine ek olarak sıralı ve sürümlü `Block` listesi taşıyabilir. Blok payload'ları JSON olarak saklanır; ancak çalışma zamanı yalnızca ilan edilmiş blok tiplerini kabul eder. İlk sözleşme `hero`, `faq` ve `cta` tiplerini kapsar.
+Pages, rich text gövdesine ek olarak sıralı ve sürümlü `Block` listesi taşıyabilir. Blok payload'ları JSON olarak saklanır; ancak çalışma zamanı yalnızca ilan edilmiş blok tiplerini kabul eder. Sözleşme `hero`, `faq`, `cta`, `pricing_table` ve `testimonials` tiplerini kapsar.
 
 - En fazla 64 blok ve blok başına 64 KiB payload kabul edilir.
 - Payload JSON object olmalıdır ve tip bazlı zorunlu alanlardan geçmelidir.
