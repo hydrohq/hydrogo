@@ -30,8 +30,9 @@ type Handler struct {
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
 type checkoutInput struct {
-	CartID string                  `json:"cart_id"`
-	Items  []commerce.CheckoutItem `json:"items"`
+	CartID   string                   `json:"cart_id"`
+	Items    []commerce.CheckoutItem  `json:"items"`
+	Customer commerce.PaymentCustomer `json:"customer"`
 }
 
 type Route struct {
@@ -351,7 +352,7 @@ func (h Handler) checkoutPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout</title></head><body><h1>Checkout</h1><p>Total: %d %s</p><form method="post" action="/shop/checkout"><input type="hidden" name="_csrf" value="%s"><button type="submit">Place order</button></form><a href="/shop/cart">Back to cart</a></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout</title></head><body><h1>Checkout</h1><p>Total: %d %s</p><form method="post" action="/shop/checkout"><input type="hidden" name="_csrf" value="%s"><label>Name <input name="customer_name" required maxlength="120"></label><label>Identity number <input name="customer_identity_number" required maxlength="20"></label><label>Email <input name="customer_email" type="email" required maxlength="254"></label><label>Phone <input name="customer_phone" required maxlength="32"></label><label>Address <textarea name="customer_address" required maxlength="500"></textarea></label><label>City <input name="customer_city" required maxlength="100"></label><label>Country <input name="customer_country" value="TR" required maxlength="2"></label><label>Postal code <input name="customer_postal_code" maxlength="20"></label><button type="submit">Place order</button></form><a href="/shop/cart">Back to cart</a></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
 }
 
 func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
@@ -379,7 +380,7 @@ func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: orderID, UserID: user.ID, CartID: cart.ID, IdempotencyKey: key})
+	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: orderID, UserID: user.ID, CartID: cart.ID, IdempotencyKey: key, Customer: commerce.PaymentCustomer{Name: r.FormValue("customer_name"), IdentityNumber: r.FormValue("customer_identity_number"), Email: r.FormValue("customer_email"), Phone: r.FormValue("customer_phone"), Address: r.FormValue("customer_address"), City: r.FormValue("customer_city"), Country: r.FormValue("customer_country"), PostalCode: r.FormValue("customer_postal_code")}})
 	if err != nil {
 		http.Error(w, "checkout failed", http.StatusConflict)
 		return
@@ -584,7 +585,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: user.ID, IdempotencyKey: key, CartID: input.CartID, Items: input.Items})
+	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: user.ID, IdempotencyKey: key, CartID: input.CartID, Items: input.Items, Customer: input.Customer})
 	if err != nil {
 		http.Error(w, "checkout failed", http.StatusConflict)
 		return

@@ -19,8 +19,8 @@ func (s Store) GetOrder(ctx context.Context, db database.Executor, orderID strin
 		return commerce.Order{}, err
 	}
 	var order commerce.Order
-	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status FROM commerce_orders WHERE id = ` + s.placeholder(1)
-	if err := db.QueryRowContext(ctx, q, orderID).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
+	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code FROM commerce_orders WHERE id = ` + s.placeholder(1)
+	if err := db.QueryRowContext(ctx, q, orderID).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode); err != nil {
 		return commerce.Order{}, err
 	}
 	if err := s.loadItems(ctx, db, &order); err != nil {
@@ -93,7 +93,7 @@ func (s Store) ListOrders(ctx context.Context, db database.Executor, limit int) 
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status FROM commerce_orders ORDER BY created_at DESC, id DESC LIMIT ` + s.placeholder(1)
+	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code FROM commerce_orders ORDER BY created_at DESC, id DESC LIMIT ` + s.placeholder(1)
 	rows, err := queryRows(ctx, db, q, limit)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (s Store) ListOrders(ctx context.Context, db database.Executor, limit int) 
 	orders := make([]commerce.Order, 0)
 	for rows.Next() {
 		var order commerce.Order
-		if err := rows.Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
+		if err := rows.Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode); err != nil {
 			return nil, err
 		}
 		orders = append(orders, order)
@@ -294,8 +294,8 @@ func (s Store) FindOrderByIdempotency(ctx context.Context, db database.Executor,
 	}
 	var order commerce.Order
 	var created string
-	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, created_at FROM commerce_orders WHERE user_id = ` + s.placeholder(1) + ` AND idempotency_key = ` + s.placeholder(2)
-	err := db.QueryRowContext(ctx, q, userID, key).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &created)
+	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, created_at FROM commerce_orders WHERE user_id = ` + s.placeholder(1) + ` AND idempotency_key = ` + s.placeholder(2)
+	err := db.QueryRowContext(ctx, q, userID, key).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return commerce.Order{}, false, nil
 	}
@@ -366,8 +366,8 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 		return err
 	}
 	now := time.Now().UTC()
-	q := `INSERT INTO commerce_orders (id, user_id, idempotency_key, currency, total_cents, payment_status, shipping_status, created_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `)`
-	if _, err := db.ExecContext(ctx, q, order.ID, order.UserID, key, order.Currency, order.TotalCents, order.PaymentStatus, order.ShippingStatus, now); err != nil {
+	q := `INSERT INTO commerce_orders (id, user_id, idempotency_key, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, created_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `, ` + s.placeholder(10) + `, ` + s.placeholder(11) + `, ` + s.placeholder(12) + `, ` + s.placeholder(13) + `, ` + s.placeholder(14) + `, ` + s.placeholder(15) + `, ` + s.placeholder(16) + `)`
+	if _, err := db.ExecContext(ctx, q, order.ID, order.UserID, key, order.Currency, order.TotalCents, order.PaymentStatus, order.ShippingStatus, order.Customer.Name, order.Customer.IdentityNumber, order.Customer.Email, order.Customer.Phone, order.Customer.Address, order.Customer.City, order.Customer.Country, order.Customer.PostalCode, now); err != nil {
 		return err
 	}
 	for index, item := range order.Items {

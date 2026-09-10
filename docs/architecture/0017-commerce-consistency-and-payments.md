@@ -3,7 +3,7 @@
 - **Durum:** Kabul edildi
 - **Tarih:** 2026-09-10
 - **İlişkili kararlar:** [ADR-0006](0006-extensible-database-adapters.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0015](0015-versioned-http-api.md)
-- **Uygulama durumu:** Commerce domain/service, SQL store, HTTP checkout, provider-neutral payment contract, webhook replay migration'ı ve Stripe/iyzico/PayTR imza doğrulayıcıları uygulandı. iyzico/PayTR ödeme oluşturma ve iade akışları sağlayıcı hesap/API konfigürasyonu ile ayrı sandbox kapısına tabidir.
+- **Uygulama durumu:** Commerce domain/service, SQL store, HTTP checkout, provider-neutral payment contract, webhook replay migration'ı ve Stripe/iyzico/PayTR imza doğrulayıcıları uygulandı. Siparişler provider'a gönderilecek müşteri/adres verisini immutable checkout snapshot olarak taşır; migration 202609100007 ile eski siparişler geriye dönük okunabilir kalır. iyzico/PayTR ödeme oluşturma ve iade akışları sağlayıcı hesap/API konfigürasyonu ile ayrı sandbox kapısına tabidir.
 
 ## Karar
 
@@ -23,7 +23,7 @@ Para değerleri minor-unit integer ve ISO currency koduyla tutulur. Stok negatif
 
 ## Ödeme
 
-Ödeme sağlayıcısı adapter sözleşmesi `CreatePaymentIntent`, imza doğrulamalı webhook ve `Refund` işlemlerini kapsar. Stripe intent/refund, iyzico Refund V2 ve PayTR Refund API gerçek HTTP adapter'larıyla uygulanır; hosted intent için gerekli buyer/merchant alanları yoksa adapter sahte başarı üretmeden yapılandırma hatası döndürür. Webhook event ID'si ve provider idempotency key'i kalıcı olarak kaydedilir. Bilinmeyen veya imzası geçersiz event reddedilir; ödeme durumu yalnız doğrulanmış provider event'iyle ilerler.
+Ödeme sağlayıcısı adapter sözleşmesi `CreatePaymentIntent`, imza doğrulamalı webhook ve `Refund` işlemlerini kapsar. Stripe intent/refund, iyzico Refund V2 ve PayTR Refund API gerçek HTTP adapter'larıyla uygulanır. Hosted intent için gereken buyer/adres alanları sipariş oluşturulurken snapshot'lanır; merchant callback/return URL gibi sağlayıcı sırları ve deployment ayarları config/env'den gelir, siparişe yazılmaz. Zorunlu veri veya sağlayıcı ayarı yoksa adapter sahte başarı üretmeden yapılandırma hatası döndürür. Webhook event ID'si ve provider idempotency key'i kalıcı olarak kaydedilir. Bilinmeyen veya imzası geçersiz event reddedilir; ödeme durumu yalnız doğrulanmış provider event'iyle ilerler.
 
 İlk commerce teslimi ödeme sağlayıcısı olmadan test edilebilir. Stripe, iyzico ve PayTR ayrı adapter ve sandbox contract testleriyle eklenir; sağlayıcı SDK ayrıntıları domain'e sızmaz.
 

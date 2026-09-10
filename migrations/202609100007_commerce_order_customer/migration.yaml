@@ -1,0 +1,26 @@
+id: "202609100007_commerce_order_customer"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "ad3d4f2bd20d80e343b55bb1a130a8f269ad597dcbb3cde614d06dc03bf39eb4"
+  postgres: "ad3d4f2bd20d80e343b55bb1a130a8f269ad597dcbb3cde614d06dc03bf39eb4"
+dependencies:
+  - "202609100002_commerce_core"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "The commerce core migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Seven immutable checkout customer snapshot columns per order"
+compatibility: "Adds optional payment customer data without changing existing orders"
+smoke:
+  - "Existing orders remain readable with empty customer snapshots"
+  - "New checkout attempts can retain provider-required buyer data"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

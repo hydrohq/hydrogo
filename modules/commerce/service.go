@@ -67,7 +67,7 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 				return err
 			}
 		}
-		order = Order{ID: checkout.ID, UserID: checkout.UserID, PaymentStatus: "pending", ShippingStatus: "pending"}
+		order = Order{ID: checkout.ID, UserID: checkout.UserID, PaymentStatus: "pending", ShippingStatus: "pending", Customer: checkout.Customer}
 		for _, item := range checkout.Items {
 			var product Product
 			variantID := ""

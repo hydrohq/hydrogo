@@ -45,13 +45,28 @@ type OrderItem struct {
 }
 
 type Order struct {
-	ID             string      `json:"id"`
-	UserID         string      `json:"user_id"`
-	Currency       string      `json:"currency"`
-	Items          []OrderItem `json:"items"`
-	TotalCents     int64       `json:"total_cents"`
-	PaymentStatus  string      `json:"payment_status"`
-	ShippingStatus string      `json:"shipping_status"`
+	ID             string          `json:"id"`
+	UserID         string          `json:"user_id"`
+	Currency       string          `json:"currency"`
+	Items          []OrderItem     `json:"items"`
+	TotalCents     int64           `json:"total_cents"`
+	PaymentStatus  string          `json:"payment_status"`
+	ShippingStatus string          `json:"shipping_status"`
+	Customer       PaymentCustomer `json:"customer,omitempty"`
+}
+
+// PaymentCustomer is the immutable checkout snapshot needed by hosted
+// payment providers. It is copied into the order so a later payment attempt
+// does not depend on mutable account profile data.
+type PaymentCustomer struct {
+	Name           string `json:"name"`
+	IdentityNumber string `json:"identity_number,omitempty"`
+	Email          string `json:"email"`
+	Phone          string `json:"phone"`
+	Address        string `json:"address"`
+	City           string `json:"city"`
+	Country        string `json:"country"`
+	PostalCode     string `json:"postal_code"`
 }
 
 type Checkout struct {
@@ -60,6 +75,7 @@ type Checkout struct {
 	IdempotencyKey string
 	CartID         string
 	Items          []CheckoutItem
+	Customer       PaymentCustomer
 }
 
 type CheckoutItem struct {
