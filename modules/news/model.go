@@ -32,6 +32,7 @@ type Item struct {
 	Body               string     `json:"body"`
 	CoverMediaID       string     `json:"cover_media_id,omitempty"`
 	Excerpt            string     `json:"excerpt,omitempty"`
+	KeyTakeaways       string     `json:"key_takeaways,omitempty"`
 	Category           string     `json:"category,omitempty"`
 	AuthorName         string     `json:"author_name,omitempty"`
 	Featured           bool       `json:"featured"`

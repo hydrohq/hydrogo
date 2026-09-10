@@ -1,0 +1,25 @@
+id: "202609110004_news_key_takeaways"
+module: "news"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "49e3c2cbdb7677b1b026d670fe271802827003bb10cebe64bf072a3d1766ad58"
+  postgres: "49e3c2cbdb7677b1b026d670fe271802827003bb10cebe64bf072a3d1766ad58"
+dependencies:
+  - "202609110003_news_editorial_metadata"
+schema:
+  readable_epoch: 8
+  writable_epoch: 8
+preconditions:
+  - "News editorial metadata migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Key takeaways column for news items"
+compatibility: "Adds optional key takeaways metadata; existing news remains readable."
+smoke:
+  - "Existing news rows load with empty key takeaways"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

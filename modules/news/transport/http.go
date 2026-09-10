@@ -60,6 +60,7 @@ type input struct {
 	Body           string `json:"body"`
 	CoverMediaID   string `json:"cover_media_id"`
 	Excerpt        string `json:"excerpt"`
+	KeyTakeaways   string `json:"key_takeaways"`
 	Category       string `json:"category"`
 	AuthorName     string `json:"author_name"`
 	Featured       bool   `json:"featured"`
@@ -175,7 +176,7 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 	if locale == "" {
 		locale = h.defaultLocale()
 	}
-	item := news.Item{ID: id, Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Excerpt: r.FormValue("excerpt"), Category: r.FormValue("category"), AuthorName: r.FormValue("author_name"), Featured: r.FormValue("featured") == "on", Tags: r.FormValue("tags"), SEOTitle: r.FormValue("seo_title"), SEODescription: r.FormValue("seo_description"), Status: news.StatusDraft}
+	item := news.Item{ID: id, Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Excerpt: r.FormValue("excerpt"), KeyTakeaways: r.FormValue("key_takeaways"), Category: r.FormValue("category"), AuthorName: r.FormValue("author_name"), Featured: r.FormValue("featured") == "on", Tags: r.FormValue("tags"), SEOTitle: r.FormValue("seo_title"), SEODescription: r.FormValue("seo_description"), Status: news.StatusDraft}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -229,7 +230,7 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	item := news.Item{ID: id, Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Excerpt: value.Excerpt, Category: value.Category, AuthorName: value.AuthorName, Featured: value.Featured, Tags: value.Tags, SEOTitle: value.SEOTitle, SEODescription: value.SEODescription, Status: news.StatusDraft}
+	item := news.Item{ID: id, Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Excerpt: value.Excerpt, KeyTakeaways: value.KeyTakeaways, Category: value.Category, AuthorName: value.AuthorName, Featured: value.Featured, Tags: value.Tags, SEOTitle: value.SEOTitle, SEODescription: value.SEODescription, Status: news.StatusDraft}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -248,7 +249,7 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &value) {
 		return
 	}
-	item := news.Item{ID: r.PathValue("id"), Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Excerpt: value.Excerpt, Category: value.Category, AuthorName: value.AuthorName, Featured: value.Featured, Tags: value.Tags, SEOTitle: value.SEOTitle, SEODescription: value.SEODescription, Status: news.StatusDraft}
+	item := news.Item{ID: r.PathValue("id"), Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Excerpt: value.Excerpt, KeyTakeaways: value.KeyTakeaways, Category: value.Category, AuthorName: value.AuthorName, Featured: value.Featured, Tags: value.Tags, SEOTitle: value.SEOTitle, SEODescription: value.SEODescription, Status: news.StatusDraft}
 	if err := h.Service.UpdateDraft(r.Context(), item, value.Version); err != nil {
 		writeError(w, err)
 		return
@@ -379,7 +380,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	if item.PublishedRevision != nil {
 		rev = *item.PublishedRevision
 	}
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><div class="news-breadcrumb"><a href="/public/news/%s/html">← Tüm Haberler</a><span class="sep">/</span><span class="current">%s</span></div><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar"><div class="meta-item-badge"><span class="status-dot"></span>Yayında</div><span class="meta-sep">•</span><span class="meta-text">%d. Revizyon</span><span class="meta-sep">•</span><span class="meta-text">Dil: %s</span><span class="meta-sep">•</span><span class="meta-text">Slug: <code>%s</code></span></div>%s<div class="news-article-body">%s</div><div class="news-share-box"><strong>Bu haberi paylaş:</strong><a class="share-btn" href="mailto:?subject=%s&amp;body=http://127.0.0.1:8090/public/news/%s/%s/html">✉ E-posta ile Gönder</a><button class="share-btn" type="button" onclick="navigator.clipboard.writeText(window.location.href);this.textContent='Bağlantı Kopyalandı!';">🔗 Bağlantıyı Kopyala</button></div></article></main><footer class="news-footer"><div class="footer-left"><strong>HYDROGO <span>NEWSROOM</span></strong><p>Kurumsal yayın ve içerik platformu</p></div><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/news/tr/html">Haberler</a><a href="/shop">Mağaza</a><a href="/admin">Studio Admin</a></nav></footer></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Title), rev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Slug), newsCoverMarkup(item), renderParagraphs(item.Body), template.URLQueryEscaper(item.Title), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><div class="news-breadcrumb"><a href="/public/news/%s/html">← Tüm Haberler</a><span class="sep">/</span><span class="current">%s</span></div><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar"><div class="meta-item-badge"><span class="status-dot"></span>Yayında</div><span class="meta-sep">•</span><span class="meta-text">%d. Revizyon</span><span class="meta-sep">•</span><span class="meta-text">Dil: %s</span><span class="meta-sep">•</span><span class="meta-text">Slug: <code>%s</code></span></div>%s%s<div class="news-article-body">%s</div><div class="news-share-box"><strong>Bu haberi paylaş:</strong><a class="share-btn" href="mailto:?subject=%s&amp;body=http://127.0.0.1:8090/public/news/%s/%s/html">✉ E-posta ile Gönder</a><button class="share-btn" type="button" onclick="navigator.clipboard.writeText(window.location.href);this.textContent='Bağlantı Kopyalandı!';">🔗 Bağlantıyı Kopyala</button></div></article></main><footer class="news-footer"><div class="footer-left"><strong>HYDROGO <span>NEWSROOM</span></strong><p>Kurumsal yayın ve içerik platformu</p></div><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/news/tr/html">Haberler</a><a href="/shop">Mağaza</a><a href="/admin">Studio Admin</a></nav></footer></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Title), rev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Slug), newsCoverMarkup(item), newsKeyTakeawaysMarkup(item), renderParagraphs(item.Body), template.URLQueryEscaper(item.Title), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
 }
 
 func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
@@ -464,6 +465,27 @@ func newsCoverMarkup(item news.Item) template.HTML {
 	}
 	return template.HTML(`<img class="news-cover-image" src="/media/` + template.URLQueryEscaper(item.CoverMediaID) + `" alt="` + template.HTMLEscapeString(item.Title) + `">`)
 }
+
+func newsKeyTakeawaysMarkup(item news.Item) template.HTML {
+	if strings.TrimSpace(item.KeyTakeaways) == "" {
+		return ""
+	}
+	lines := strings.Split(item.KeyTakeaways, "\n")
+	var itemsHTML strings.Builder
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		trimmed = strings.TrimPrefix(trimmed, "•")
+		trimmed = strings.TrimSpace(trimmed)
+		if trimmed != "" {
+			itemsHTML.WriteString("<li>" + template.HTMLEscapeString(trimmed) + "</li>")
+		}
+	}
+	if itemsHTML.Len() == 0 {
+		return ""
+	}
+	return template.HTML(`<div class="news-key-takeaways" style="margin:24px 0;padding:20px 24px;background:var(--brand-subtle,#eff6ff);border-left:4px solid var(--brand,#2563eb);border-radius:8px;"><h3 style="margin:0 0 12px 0;font-size:1.1rem;font-weight:700;color:var(--ink,#1e293b);display:flex;align-items:center;gap:8px;">📌 Önemli Noktalar</h3><ul style="margin:0;padding-left:20px;line-height:1.6;color:var(--ink-secondary,#334155);">` + itemsHTML.String() + `</ul></div>`)
+}
+
 func renderParagraphs(body string) string {
 	return ui.RichTextHTML(body)
 }
@@ -487,7 +509,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body, "cover_media_id": item.CoverMediaID, "excerpt": item.Excerpt, "category": item.Category, "author_name": item.AuthorName, "featured": boolText(item.Featured), "tags": item.Tags, "seo_title": item.SEOTitle, "seo_description": item.SEODescription}}); err != nil {
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body, "cover_media_id": item.CoverMediaID, "excerpt": item.Excerpt, "key_takeaways": item.KeyTakeaways, "category": item.Category, "author_name": item.AuthorName, "featured": boolText(item.Featured), "tags": item.Tags, "seo_title": item.SEOTitle, "seo_description": item.SEODescription}}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -525,7 +547,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if locale == "" {
 		locale = h.defaultLocale()
 	}
-	item := news.Item{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Status: news.StatusDraft}
+	item := news.Item{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Excerpt: r.FormValue("excerpt"), KeyTakeaways: r.FormValue("key_takeaways"), Category: r.FormValue("category"), AuthorName: r.FormValue("author_name"), Featured: r.FormValue("featured") == "on", Tags: r.FormValue("tags"), SEOTitle: r.FormValue("seo_title"), SEODescription: r.FormValue("seo_description"), Status: news.StatusDraft}
 	if err := h.Service.UpdateDraft(r.Context(), item, version); err != nil {
 		writeError(w, err)
 		return
