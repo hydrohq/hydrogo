@@ -3,10 +3,13 @@ package commerce
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"net/http"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
 type PaymentIntent struct {
@@ -39,10 +42,48 @@ type PaymentProvider interface {
 }
 
 var ErrInvalidPaymentEvent = errors.New("invalid payment event")
+var ErrPaymentMismatch = errors.New("payment does not match order")
 
 func ValidateWebhookEvent(event WebhookEvent) error {
 	if strings.TrimSpace(event.ID) == "" || strings.TrimSpace(event.Provider) == "" || strings.TrimSpace(event.ProviderEventID) == "" || strings.TrimSpace(event.OrderID) == "" || event.AmountCents < 0 || strings.TrimSpace(event.Currency) == "" || strings.TrimSpace(event.Status) == "" {
 		return ErrInvalidPaymentEvent
 	}
 	return nil
+}
+
+// PaymentWebhookStore is kept separate from the catalog store so a provider
+// adapter cannot accidentally bypass the order/payment consistency boundary.
+type PaymentWebhookStore interface {
+	ClaimWebhook(context.Context, database.Executor, string, string) (bool, error)
+	ApplyPaymentEvent(context.Context, database.Executor, WebhookEvent) error
+}
+
+type PaymentService struct {
+	Transactions database.Transactor
+	Store        PaymentWebhookStore
+	Providers    map[string]PaymentProvider
+}
+
+func (s PaymentService) HandleWebhook(ctx context.Context, providerName string, request *http.Request) error {
+	provider, ok := s.Providers[providerName]
+	if !ok || provider == nil {
+		return fmt.Errorf("payment provider %q is not configured", providerName)
+	}
+	event, err := provider.VerifyWebhookSignature(request)
+	if err != nil {
+		return err
+	}
+	if err := ValidateWebhookEvent(event); err != nil {
+		return err
+	}
+	if event.Provider != providerName {
+		return ErrInvalidPaymentEvent
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		claimed, err := s.Store.ClaimWebhook(ctx, tx, event.Provider, event.ProviderEventID)
+		if err != nil || !claimed {
+			return err
+		}
+		return s.Store.ApplyPaymentEvent(ctx, tx, event)
+	})
 }

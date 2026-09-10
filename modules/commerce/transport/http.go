@@ -15,6 +15,8 @@ type Handler struct {
 	DB       database.Executor
 	Commerce commerce.Service
 }
+
+type PaymentWebhookHandler struct{ Service commerce.PaymentService }
 type checkoutInput struct {
 	Items []commerce.CheckoutItem `json:"items"`
 }
@@ -27,6 +29,18 @@ type Route struct {
 
 func (h Handler) Routes() []Route {
 	return []Route{{Pattern: "POST /api/commerce/cart/checkout", Handler: http.HandlerFunc(h.checkout), Protected: true}}
+}
+
+func (h PaymentWebhookHandler) Routes() []Route {
+	return []Route{{Pattern: "POST /api/webhooks/payment/{provider}", Handler: http.HandlerFunc(h.webhook)}}
+}
+
+func (h PaymentWebhookHandler) webhook(w http.ResponseWriter, r *http.Request) {
+	if err := h.Service.HandleWebhook(r.Context(), r.PathValue("provider"), r); err != nil {
+		http.Error(w, "invalid payment webhook", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {

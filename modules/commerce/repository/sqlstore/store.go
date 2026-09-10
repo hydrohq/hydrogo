@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -107,6 +108,50 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 		if _, err := db.ExecContext(ctx, q, fmt.Sprintf("%s-item-%d", order.ID, index), order.ID, item.ProductID, item.SKU, item.Title, item.Quantity, item.UnitCents, item.TotalCents); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s Store) ClaimWebhook(ctx context.Context, db database.Executor, provider, eventID string) (bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return false, err
+	}
+	q := `INSERT INTO commerce_payment_webhook_events (provider, provider_event_id, received_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `)`
+	_, err := db.ExecContext(ctx, q, provider, eventID, time.Now().UTC())
+	if err != nil {
+		message := strings.ToLower(err.Error())
+		if strings.Contains(message, "unique") || strings.Contains(message, "duplicate") || strings.Contains(message, "constraint") {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (s Store) ApplyPaymentEvent(ctx context.Context, db database.Executor, event commerce.WebhookEvent) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	var total int64
+	var currency string
+	q := `SELECT total_cents, currency FROM commerce_orders WHERE id = ` + s.placeholder(1)
+	if err := db.QueryRowContext(ctx, q, event.OrderID).Scan(&total, &currency); err != nil {
+		return err
+	}
+	if total != event.AmountCents || currency != event.Currency {
+		return commerce.ErrPaymentMismatch
+	}
+	q = `UPDATE commerce_orders SET payment_status = ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2) + ` AND payment_status IN ('pending', 'failed')`
+	result, err := db.ExecContext(ctx, q, event.Status, event.OrderID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return commerce.ErrPaymentMismatch
 	}
 	return nil
 }
