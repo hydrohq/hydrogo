@@ -31,9 +31,24 @@ type Handler struct {
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
 type checkoutInput struct {
-	CartID   string                   `json:"cart_id"`
-	Items    []commerce.CheckoutItem  `json:"items"`
-	Customer commerce.PaymentCustomer `json:"customer"`
+	CartID   string                  `json:"cart_id"`
+	Items    []commerce.CheckoutItem `json:"items"`
+	Customer paymentCustomerInput    `json:"customer"`
+}
+
+type paymentCustomerInput struct {
+	Name           string `json:"name"`
+	IdentityNumber string `json:"identity_number"`
+	Email          string `json:"email"`
+	Phone          string `json:"phone"`
+	Address        string `json:"address"`
+	City           string `json:"city"`
+	Country        string `json:"country"`
+	PostalCode     string `json:"postal_code"`
+}
+
+func (input paymentCustomerInput) model(clientIP string) commerce.PaymentCustomer {
+	return commerce.PaymentCustomer{Name: input.Name, IdentityNumber: input.IdentityNumber, Email: input.Email, Phone: input.Phone, Address: input.Address, City: input.City, Country: input.Country, PostalCode: input.PostalCode, ClientIP: clientIP}
 }
 
 type Route struct {
@@ -581,15 +596,13 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid checkout", http.StatusBadRequest)
 		return
 	}
-	if input.Customer.ClientIP == "" {
-		input.Customer.ClientIP = requestClientIP(r)
-	}
+	customer := input.Customer.model(requestClientIP(r))
 	id, err := newID()
 	if err != nil {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: user.ID, IdempotencyKey: key, CartID: input.CartID, Items: input.Items, Customer: input.Customer})
+	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: user.ID, IdempotencyKey: key, CartID: input.CartID, Items: input.Items, Customer: customer})
 	if err != nil {
 		http.Error(w, "checkout failed", http.StatusConflict)
 		return

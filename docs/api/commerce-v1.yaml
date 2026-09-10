@@ -211,6 +211,7 @@ components:
       required: [name, email, phone, address, city, country]
       properties:
         name: { type: string, maxLength: 120 }
+        identity_number: { type: string, maxLength: 20, writeOnly: true }
         email: { type: string, format: email, maxLength: 254 }
         phone: { type: string, maxLength: 32 }
         address: { type: string, maxLength: 500 }
