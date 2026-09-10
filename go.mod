@@ -3,7 +3,7 @@ module github.com/ardaozyildirim/hydrogo
 go 1.27.0
 
 require (
-	github.com/a-h/templ v0.3.833
+	github.com/a-h/templ v0.3.1020
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pquerna/otp v1.5.0
