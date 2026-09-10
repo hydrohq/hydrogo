@@ -27,34 +27,34 @@ var (
 )
 
 type Field struct {
-	Name     string     `json:"name"`
-	Type     string     `json:"type"`
-	Nullable bool       `json:"nullable"`
-	Admin    FieldAdmin `json:"admin"`
+	Name     string     `json:"name" yaml:"name"`
+	Type     string     `json:"type" yaml:"type"`
+	Nullable bool       `json:"nullable" yaml:"nullable"`
+	Admin    FieldAdmin `json:"admin" yaml:"admin"`
 }
 
 // FieldAdmin is presentation metadata. It does not change persistence or
 // authorization rules, which remain explicit in the generated review surface.
 type FieldAdmin struct {
-	Label         string `json:"label"`
-	Widget        string `json:"widget"`
-	VisibleInList bool   `json:"visible_in_list"`
+	Label         string `json:"label" yaml:"label"`
+	Widget        string `json:"widget" yaml:"widget"`
+	VisibleInList bool   `json:"visible_in_list" yaml:"visible_in_list"`
 }
 
 type Admin struct {
-	Label       string               `json:"label"`
-	Description string               `json:"description"`
-	Actions     []adminstudio.Action `json:"actions"`
+	Label       string               `json:"label" yaml:"label"`
+	Description string               `json:"description" yaml:"description"`
+	Actions     []adminstudio.Action `json:"actions" yaml:"actions"`
 }
 
 type Spec struct {
-	Name        string   `json:"name"`
-	Table       string   `json:"table"`
-	Fields      []Field  `json:"fields"`
-	Permissions []string `json:"permissions"`
-	Dialects    []string `json:"dialects"`
-	Destructive bool     `json:"destructive"`
-	Admin       Admin    `json:"admin"`
+	Name        string   `json:"name" yaml:"name"`
+	Table       string   `json:"table" yaml:"table"`
+	Fields      []Field  `json:"fields" yaml:"fields"`
+	Permissions []string `json:"permissions" yaml:"permissions"`
+	Dialects    []string `json:"dialects" yaml:"dialects"`
+	Destructive bool     `json:"destructive" yaml:"destructive"`
+	Admin       Admin    `json:"admin" yaml:"admin"`
 }
 
 type Lock struct {

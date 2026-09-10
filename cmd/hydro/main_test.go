@@ -55,6 +55,38 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestRunGenerateModuleFromVersionedSpec(t *testing.T) {
+	root := t.TempDir()
+	specPath := filepath.Join(root, "testimonial.yaml")
+	spec := `version: v0
+collection:
+  name: testimonial
+  table: testimonials
+  permissions: [testimonial.read]
+  dialects: [sqlite, postgres]
+  fields:
+    - name: quote
+      type: string
+      admin:
+        label: Quote
+        visible_in_list: true
+`
+	if err := os.WriteFile(specPath, []byte(spec), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	outputRoot := filepath.Join(root, "output")
+	if err := run([]string{"generate", "module", "--spec", specPath, "--out", outputRoot}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("generate module: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "generated collection=testimonial") {
+		t.Fatalf("generate output = %q", stdout.String())
+	}
+	if _, err := os.Stat(filepath.Join(outputRoot, "generated", "testimonial", "admin_manifest.json")); err != nil {
+		t.Fatalf("admin manifest missing: %v", err)
+	}
+}
+
 func TestDeadLetterRequeueRequiresExplicitConfirmation(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	err := run([]string{"jobs", "dead-letter", "requeue", "--id", "job-1"}, strings.NewReader(""), &stdout, &stderr)

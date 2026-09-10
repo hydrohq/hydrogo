@@ -37,6 +37,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
@@ -128,6 +129,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return createAdmin(args[1:], stdin, stdout, stderr)
 	case "seed-demo":
 		return seedDemo(args[1:], stdout, stderr)
+	case "generate":
+		return generateCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "backup":
@@ -147,6 +150,32 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+func generateCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "module" {
+		return errors.New("generate requires the module subcommand")
+	}
+	flags := flag.NewFlagSet("generate module", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	specPath := flags.String("spec", "", "Versioned module spec (.yaml, .yml, or .json)")
+	outputRoot := flags.String("out", "", "Output root for generated review artifacts")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*specPath) == "" || strings.TrimSpace(*outputRoot) == "" {
+		return errors.New("generate module requires --spec and --out")
+	}
+	spec, err := generator.LoadSpec(*specPath)
+	if err != nil {
+		return err
+	}
+	lock, err := generator.Generate(*outputRoot, spec)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "generated collection=%s spec_sha256=%s generator=%s\n", spec.Name, lock.SpecSHA256, lock.GeneratorVersion)
+	return err
 }
 
 func currentVersionInfo() (versionInfo, error) {

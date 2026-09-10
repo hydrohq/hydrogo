@@ -221,3 +221,41 @@ func TestAdminCollectionUsesExplicitPresentationMetadata(t *testing.T) {
 		t.Fatalf("collection = %#v", collection)
 	}
 }
+
+func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "testimonial.yaml")
+	content := `version: v0
+collection:
+  name: testimonial
+  table: testimonials
+  permissions: [testimonial.read]
+  dialects: [sqlite, postgres]
+  fields:
+    - name: quote
+      type: string
+      admin:
+        label: Customer quote
+        visible_in_list: true
+  admin:
+    label: Testimonials
+    actions:
+      - label: Open testimonials
+        href: /admin/testimonials
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := LoadSpec(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Name != "testimonial" || !spec.Fields[0].Admin.VisibleInList || spec.Admin.Actions[0].Href != "/admin/testimonials" {
+		t.Fatalf("loaded spec = %#v", spec)
+	}
+	if err := os.WriteFile(path, []byte(content+"  unknown: value\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadSpec(path); err == nil {
+		t.Fatal("unknown YAML field was accepted")
+	}
+}
