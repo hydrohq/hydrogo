@@ -83,6 +83,22 @@ $env:HYDRO_DATABASE_DSN = "hydro.sqlite"
 ./bin/hydro.exe serve
 ```
 
+### Canlı geliştirme
+
+Yerel geliştirmede proxy adresi sabit kalırken (`127.0.0.1:8090`) HydroGo
+uygulaması içeride yeniden başlatılır. Böylece tarayıcı oturumu korunur; Go,
+HTML ve Templ değişiklikleri yeniden derlenir, CSS/JS değişiklikleri yalnızca
+sayfayı yeniler. Derleme hatası oluşursa önceki çalışan sürüm açık kalır ve
+tarayıcıda hata ayrıntısını gösteren kırmızı bir geliştirme paneli görünür.
+
+```powershell
+go run ./tools/devserver
+```
+
+Varsayılan demo veritabanı `data/demo.sqlite` kullanılır. Başka bir veritabanı
+için `--database-dsn` verin; proxy veya iç uygulama portları sırasıyla
+`--address` ve `--app-address` ile değiştirilebilir.
+
 Endpoints:
 
 - `/healthz`: process liveness only
