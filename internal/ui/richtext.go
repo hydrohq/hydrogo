@@ -113,7 +113,10 @@ func renderDelta(ops []deltaOp) string {
 			// Embedded objects like {"image": "url"}
 			if imageSrc, ok := ins["image"].(string); ok {
 				imageSrc = strings.TrimSpace(imageSrc)
-				if strings.HasPrefix(imageSrc, "https://") || strings.HasPrefix(imageSrc, "http://") || strings.HasPrefix(imageSrc, "/media/") || strings.HasPrefix(imageSrc, "data:image/") {
+				lowerSrc := strings.ToLower(imageSrc)
+				isSafeURL := strings.HasPrefix(lowerSrc, "https://") || strings.HasPrefix(lowerSrc, "http://") || strings.HasPrefix(lowerSrc, "/media/")
+				isSafeData := strings.HasPrefix(lowerSrc, "data:image/jpeg;") || strings.HasPrefix(lowerSrc, "data:image/png;") || strings.HasPrefix(lowerSrc, "data:image/gif;") || strings.HasPrefix(lowerSrc, "data:image/webp;")
+				if isSafeURL || isSafeData {
 					closeList()
 					line.WriteString(`<img src="` + html.EscapeString(imageSrc) + `" alt="Görsel" loading="lazy" class="richtext-image" />`)
 				}
@@ -132,7 +135,8 @@ func formatDeltaText(text string, attrs map[string]interface{}) string {
 	}
 	if link, ok := attrs["link"].(string); ok {
 		link = strings.TrimSpace(link)
-		if strings.HasPrefix(link, "https://") || strings.HasPrefix(link, "http://") || strings.HasPrefix(link, "mailto:") || strings.HasPrefix(link, "/") || strings.HasPrefix(link, "#") {
+		lower := strings.ToLower(link)
+		if strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "mailto:") || (strings.HasPrefix(link, "/") && !strings.HasPrefix(link, "//")) || strings.HasPrefix(link, "#") {
 			text = `<a href="` + html.EscapeString(link) + `" target="_blank" rel="noopener noreferrer">` + text + "</a>"
 		}
 	}

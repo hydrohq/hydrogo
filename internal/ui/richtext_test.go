@@ -48,3 +48,15 @@ func TestRichTextHTMLRendersListsAndImages(t *testing.T) {
 		t.Fatalf("expected inline code rendering, got: %s", got)
 	}
 }
+
+func TestRichTextHTMLRejectsProtocolRelativeAndDataSVG(t *testing.T) {
+	gotLink := RichTextHTML(`{"ops":[{"insert":"click","attributes":{"link":"//evil.com"}}]}`)
+	if strings.Contains(gotLink, "evil.com") && strings.Contains(gotLink, "<a href=") {
+		t.Fatalf("protocol-relative link should not be rendered: %s", gotLink)
+	}
+
+	gotImg := RichTextHTML(`{"ops":[{"insert":{"image":"data:image/svg+xml;utf8,<svg onload=alert(1)>"}}]}`)
+	if strings.Contains(gotImg, "<img") || strings.Contains(gotImg, "onload") {
+		t.Fatalf("unsafe SVG data URL rendered: %s", gotImg)
+	}
+}
