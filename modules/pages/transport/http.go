@@ -341,7 +341,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	blockEditor := renderBlockEditor(page.Blocks, security.CSRFTokenFromContext(r.Context()))
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Blok</span></div></div><form class="studio-form" method="post" action="/admin/pages/%s">%s<div class="block-editor"><fieldset><legend>İçerik blokları</legend>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section>`, template.HTMLEscapeString(string(page.Status)), page.Version, len(page.Blocks), template.HTMLEscapeString(page.ID), form.String(), blockEditor, page.Version)
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Blok</span></div></div><form class="studio-form" method="post" action="/admin/pages/%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section>`, template.HTMLEscapeString(string(page.Status)), page.Version, len(page.Blocks), template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version)
 	_ = ui.AdminEnd(w)
 }
 
