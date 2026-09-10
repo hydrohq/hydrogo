@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -180,13 +181,13 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	blocks, _ := json.Marshal(page.Blocks)
+	blockEditor := renderBlockEditor(page.Blocks, security.CSRFTokenFromContext(r.Context()))
 	_, _ = w.Write([]byte(`<form method="post" action="/admin/pages/` + template.HTMLEscapeString(page.ID) + `">
 <label>Locale <input name="locale" value="` + template.HTMLEscapeString(page.Locale) + `"></label>
 <label>Slug <input name="slug" value="` + template.HTMLEscapeString(page.Slug) + `"></label>
 <label>Title <input name="title" value="` + template.HTMLEscapeString(page.Title) + `"></label>
 <label>Body <textarea name="body">` + template.HTMLEscapeString(page.Body) + `</textarea></label>
-<label>Blocks (JSON) <textarea name="blocks" rows="12" placeholder='[{"type":"hero","payload":{"title":"Welcome"}}]'>` + template.HTMLEscapeString(string(blocks)) + `</textarea></label>
+<fieldset><legend>Content blocks</legend>` + blockEditor + `</fieldset>
 <input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `">
 <input type="hidden" name="version" value="` + strconv.Itoa(page.Version) + `">
 <button type="submit">Save draft</button>
@@ -208,7 +209,13 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var blocks []pages.Block
-	if raw := r.FormValue("blocks"); raw != "" {
+	if r.FormValue("block_count") != "" {
+		blocks, err = parseBlockForm(r)
+		if err != nil {
+			http.Error(w, "invalid block fields", http.StatusBadRequest)
+			return
+		}
+	} else if raw := r.FormValue("blocks"); raw != "" {
 		if err := json.Unmarshal([]byte(raw), &blocks); err != nil {
 			http.Error(w, "invalid blocks JSON", http.StatusBadRequest)
 			return
@@ -220,6 +227,81 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/pages/"+template.HTMLEscapeString(page.ID), http.StatusSeeOther)
+}
+
+func renderBlockEditor(blocks []pages.Block, csrf string) string {
+	count := len(blocks)
+	if count < 1 {
+		count = 1
+	}
+	if count > 8 {
+		count = 8
+	}
+	var out strings.Builder
+	out.WriteString(`<input type="hidden" name="block_count" value="` + strconv.Itoa(count) + `">`)
+	for i := 0; i < count; i++ {
+		blockType, title, subtitle, buttonText, buttonURL, items := "", "", "", "", "", "[]"
+		if i < len(blocks) {
+			blockType, title, subtitle, buttonText, buttonURL, items = blockEditorValues(blocks[i])
+		}
+		fmt.Fprintf(&out, `<div class="block-editor-row"><strong>Block %d</strong><select name="block_type_%d"><option value="">Remove</option><option value="hero" %s>Hero</option><option value="faq" %s>FAQ</option><option value="cta" %s>CTA</option></select><input name="block_title_%d" value="%s" placeholder="Title"><input name="block_subtitle_%d" value="%s" placeholder="Subtitle"><input name="block_button_text_%d" value="%s" placeholder="Button text"><input name="block_button_url_%d" value="%s" placeholder="Button URL"><textarea name="block_items_%d" placeholder='[{"question":"Q","answer":"A"}]'>%s</textarea><input type="hidden" name="block_csrf_%d" value="%s"></div>`, i+1, i, selected(blockType, "hero"), selected(blockType, "faq"), selected(blockType, "cta"), i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), i, template.HTMLEscapeString(csrf))
+	}
+	return out.String()
+}
+
+func selected(value, wanted string) string {
+	if value == wanted {
+		return `selected`
+	}
+	return ""
+}
+
+func blockEditorValues(block pages.Block) (string, string, string, string, string, string) {
+	var data map[string]json.RawMessage
+	if json.Unmarshal(block.Payload, &data) != nil {
+		return block.Type, "", "", "", "", "[]"
+	}
+	get := func(key string) string { var value string; _ = json.Unmarshal(data[key], &value); return value }
+	items := "[]"
+	if raw, ok := data["items"]; ok {
+		items = string(raw)
+	}
+	return block.Type, get("title"), get("subtitle"), get("button_text"), get("button_url"), items
+}
+
+func parseBlockForm(r *http.Request) ([]pages.Block, error) {
+	count, err := strconv.Atoi(r.FormValue("block_count"))
+	if err != nil || count < 0 || count > 8 {
+		return nil, pages.ErrInvalidBlocks
+	}
+	blocks := make([]pages.Block, 0, count)
+	for i := 0; i < count; i++ {
+		typ := strings.TrimSpace(r.FormValue("block_type_" + strconv.Itoa(i)))
+		if typ == "" {
+			continue
+		}
+		payload := map[string]any{"title": r.FormValue("block_title_" + strconv.Itoa(i))}
+		if typ == "faq" {
+			var items []map[string]string
+			if json.Unmarshal([]byte(r.FormValue("block_items_"+strconv.Itoa(i))), &items) != nil {
+				return nil, pages.ErrInvalidBlocks
+			}
+			payload = map[string]any{"items": items}
+		} else {
+			payload["subtitle"] = r.FormValue("block_subtitle_" + strconv.Itoa(i))
+			payload["button_text"] = r.FormValue("block_button_text_" + strconv.Itoa(i))
+			payload["button_url"] = r.FormValue("block_button_url_" + strconv.Itoa(i))
+		}
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, pages.Block{Type: typ, Payload: raw})
+	}
+	if err := pages.ValidateBlocks(blocks); err != nil {
+		return nil, err
+	}
+	return blocks, nil
 }
 
 func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
