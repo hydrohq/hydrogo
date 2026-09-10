@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -54,6 +55,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.adminSchedule)},
 		{Pattern: "POST /admin/news/{id}/publish", Protected: true, Handler: http.HandlerFunc(h.adminPublish)},
 		{Pattern: "POST /admin/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.adminRetract)},
+		{Pattern: "GET /public/news/{locale}/{slug}/html", Handler: http.HandlerFunc(h.publicGetHTML)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
 	}
 }
@@ -178,6 +180,32 @@ func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+// publicGetHTML exposes a human-facing counterpart to the JSON public route.
+// The JSON endpoint remains stable for headless clients.
+func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	locale := canonical.Locale(r.PathValue("locale"))
+	slug, err := canonical.Path(r.PathValue("slug"))
+	if locale == "" || err != nil || slug == "" {
+		http.Error(w, "news not found", http.StatusNotFound)
+		return
+	}
+	item, err := h.Service.Repository.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
+	if err != nil {
+		if errors.Is(err, database.ErrDatabaseRequired) {
+			http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		http.Error(w, "news not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><header class="theme-corporate-header"><a class="theme-brand" href="/public/pages/tr/demo/html">HydroGo</a><nav aria-label="Ana navigasyon"><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/release-notes/html">Haberler</a><a href="/shop">Mağaza</a></nav></header><main class="theme-corporate-content news-page"><a href="/public/pages/tr/demo/html">← Ana sayfa</a><article><p class="news-kicker">HABER</p><h1>%s</h1><p class="news-body">%s</p></article></main></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(item.Body))
 }
 
 func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
