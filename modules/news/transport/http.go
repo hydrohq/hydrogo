@@ -340,7 +340,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	locale := canonical.Locale(r.PathValue("locale"))
 	slug, err := canonical.Path(r.PathValue("slug"))
-	if locale == "" || err != nil || slug == "" {
+	if locale == "" || err != nil {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
@@ -355,7 +355,11 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = fmt.Fprint(w, newsDocumentStart(locale, item.Title))
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article"><a class="news-back" href="/public/news/%s/html">← Tüm haberler</a><article><div class="news-article-kicker">HYDROGO / EDITORIAL</div><h1>%s</h1><div class="news-article-meta"><span>Yayınlanmış içerik</span><span>%d. revizyon</span></div><p class="news-lead">%s</p><div class="news-prose">%s</div><div class="news-share"><strong>Paylaş</strong><a href="mailto:?subject=%s">E-posta</a><a href="/public/news/%s/html">Permalink</a></div></article></main><footer class="news-footer"><span>HydroGo Newsroom</span><a href="/shop">Mağazaya geç</a></footer></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), item.PublishedRevision, template.HTMLEscapeString(newsLead(item.Body)), renderParagraphs(item.Body), template.URLQueryEscaper(item.Title), template.HTMLEscapeString(r.PathValue("slug")))
+	rev := 1
+	if item.PublishedRevision != nil {
+		rev = *item.PublishedRevision
+	}
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><div class="news-breadcrumb"><a href="/public/news/%s/html">← Tüm Haberler</a><span class="sep">/</span><span class="current">%s</span></div><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar"><div class="meta-item-badge"><span class="status-dot"></span>Yayında</div><span class="meta-sep">•</span><span class="meta-text">%d. Revizyon</span><span class="meta-sep">•</span><span class="meta-text">Dil: %s</span><span class="meta-sep">•</span><span class="meta-text">Slug: <code>%s</code></span></div><div class="news-article-body">%s</div><div class="news-share-box"><strong>Bu haberi paylaş:</strong><a class="share-btn" href="mailto:?subject=%s&amp;body=http://127.0.0.1:8090/public/news/%s/%s/html">✉ E-posta ile Gönder</a><button class="share-btn" type="button" onclick="navigator.clipboard.writeText(window.location.href);this.textContent='Bağlantı Kopyalandı!';">🔗 Bağlantıyı Kopyala</button></div></article></main><footer class="news-footer"><div class="footer-left"><strong>HYDROGO <span>NEWSROOM</span></strong><p>Kurumsal yayın ve içerik platformu</p></div><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/news/tr/html">Haberler</a><a href="/shop">Mağaza</a><a href="/admin">Studio Admin</a></nav></footer></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Title), rev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(item.Slug), renderParagraphs(item.Body), template.URLQueryEscaper(item.Title), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
 }
 
 func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
@@ -379,27 +383,35 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprint(w, newsDocumentStart(locale, "Haberler"))
-	_, _ = fmt.Fprintf(w, `<main class="news-portal"><section class="news-intro"><div><div class="news-article-kicker">HYDROGO / NEWSROOM</div><h1>Ürün, içerik ve teknoloji notları.</h1><p>HydroGo’nun nasıl geliştiğini, yeni yetenekleri ve ekipten kısa notları takip edin.</p></div><a class="news-primary" href="/public/pages/tr/showcase/html">Platformu keşfet →</a></section>`)
+	_, _ = fmt.Fprint(w, newsDocumentStart(locale, "Haberler & Duyurular"))
+	_, _ = fmt.Fprintf(w, `<main class="news-portal"><section class="news-hero-banner"><div class="news-hero-content"><div class="news-tag-badge">HYDROGO YAYIN MERKEZİ</div><h1>Haberler, Duyurular ve Güncellemeler</h1><p>Panelden yönetilen tüm editoryal içerikler, ürün notları ve sistem duyuruları anlık olarak burada listelenir.</p><div class="news-hero-actions"><a class="btn-primary" href="/shop">Mağazayı Keşfet →</a><a class="btn-secondary" href="/admin/news">Admin Panelinde Düzenle ↗</a></div></div></section>`)
 	if len(items) == 0 {
-		_, _ = fmt.Fprint(w, `<section class="news-empty">Henüz yayınlanmış haber yok.</section>`)
+		_, _ = fmt.Fprint(w, `<section class="news-empty-state"><div class="empty-icon">📰</div><h2>Henüz yayınlanmış bir haber bulunmuyor</h2><p>Admin panelinden yeni bir haber oluşturup yayınlayarak burada görüntüleyebilirsiniz.</p><a class="btn-primary" href="/admin/news">Yeni Haber Ekle</a></section>`)
 	} else {
-		_, _ = fmt.Fprint(w, `<section class="news-lead-grid"><article class="news-feature"><div class="news-number">01</div><div class="news-article-kicker">ÖNE ÇIKAN</div><h2><a href="`)
-		_, _ = fmt.Fprintf(w, `/public/news/%s/%s/html">%s</a></h2><p>%s</p><a class="news-read" href="/public/news/%s/%s/html">Hikâyeyi oku →</a></article><div class="news-side-list">`, template.HTMLEscapeString(locale), template.HTMLEscapeString(items[0].Slug), template.HTMLEscapeString(items[0].Title), template.HTMLEscapeString(newsLead(items[0].Body)), template.HTMLEscapeString(locale), template.HTMLEscapeString(items[0].Slug))
-		for i, item := range items[1:] {
-			_, _ = fmt.Fprintf(w, `<article class="news-side-card"><span>%02d</span><div><div class="news-article-kicker">YAYIN</div><h3><a href="/public/news/%s/%s/html">%s</a></h3><p>%s</p></div></article>`, i+2, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLead(item.Body)))
+		// Featured item
+		featured := items[0]
+		featRev := 1
+		if featured.PublishedRevision != nil {
+			featRev = *featured.PublishedRevision
 		}
-		_, _ = fmt.Fprint(w, `</div></section><section class="news-latest"><div class="news-section-title"><div><div class="news-article-kicker">ARŞİV</div><h2>Son yayınlar</h2></div><span>Güncel içerikler</span></div>`)
+		_, _ = fmt.Fprintf(w, `<section class="news-featured-section"><div class="section-badge">SON YAYINLANAN MANŞET</div><article class="featured-card"><div class="featured-card-body"><div class="featured-kicker">ÖNE ÇIKAN İÇERİK</div><h2><a href="/public/news/%s/%s/html">%s</a></h2><p class="featured-lead">%s</p><div class="featured-footer"><div class="featured-meta"><span>Rev. %d</span><span>•</span><span>Dil: %s</span></div><a class="read-more-btn" href="/public/news/%s/%s/html">Haberi Oku →</a></div></div></article></section>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug), template.HTMLEscapeString(featured.Title), template.HTMLEscapeString(newsLead(featured.Body)), featRev, strings.ToUpper(template.HTMLEscapeString(locale)), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug))
+
+		// Grid for all items
+		_, _ = fmt.Fprintf(w, `<section class="news-grid-section"><div class="section-header"><div><div class="section-badge">TÜM YAYINLAR</div><h2>Haber Akışı (%d)</h2></div><span class="section-desc">Panelde aktif olan tüm kayıtlar</span></div><div class="news-cards-grid">`, len(items))
 		for _, item := range items {
-			_, _ = fmt.Fprintf(w, `<a class="news-row" href="/public/news/%s/%s/html"><span class="news-row-arrow">↗</span><span><strong>%s</strong><small>%s</small></span><time>Rev. %d</time></a>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLead(item.Body)), item.PublishedRevision)
+			itemRev := 1
+			if item.PublishedRevision != nil {
+				itemRev = *item.PublishedRevision
+			}
+			_, _ = fmt.Fprintf(w, `<article class="news-card"><div class="card-header"><span class="card-kicker">YAYIN</span><span class="card-rev">Rev. %d</span></div><h3 class="card-title"><a href="/public/news/%s/%s/html">%s</a></h3><p class="card-lead">%s</p><div class="card-footer"><span class="card-slug">/%s</span><a class="card-link" href="/public/news/%s/%s/html">Detaylar →</a></div></article>`, itemRev, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLead(item.Body)), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
 		}
-		_, _ = fmt.Fprint(w, `</section>`)
+		_, _ = fmt.Fprint(w, `</div></section>`)
 	}
-	_, _ = fmt.Fprint(w, `</main><footer class="news-footer"><span>HydroGo Newsroom</span><nav><a href="/public/pages/tr/demo/html">Ana sayfa</a><a href="/shop">Mağaza</a></nav></footer></body></html>`)
+	_, _ = fmt.Fprint(w, `</main><footer class="news-footer"><div class="footer-left"><strong>HYDROGO <span>NEWSROOM</span></strong><p>Kurumsal yayın ve içerik platformu</p></div><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/news/tr/html">Haberler</a><a href="/shop">Mağaza</a><a href="/admin">Studio Admin</a></nav></footer></body></html>`)
 }
 
 func newsDocumentStart(locale, title string) string {
-	return fmt.Sprintf(`<!doctype html><html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo Newsroom</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><header class="news-header"><a class="news-logo" href="/public/news/%s/html">HYDROGO <span>NEWSROOM</span></a><nav><a href="/public/pages/tr/demo/html">Ana sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/shop">Mağaza</a></nav></header>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(title), template.HTMLEscapeString(locale))
+	return fmt.Sprintf(`<!doctype html><html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo Newsroom</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=block"><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><header class="news-header"><div class="header-container"><a class="news-logo" href="/public/news/%s/html"><div class="logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDRO<b>GO</b></span><small>NEWSROOM</small></div></a><nav class="news-nav"><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/html" class="is-active">Haberler</a><a href="/shop">Mağaza</a><a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a></nav></div></header>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(title), template.HTMLEscapeString(locale))
 }
 
 func newsLead(body string) string {
@@ -407,8 +419,8 @@ func newsLead(body string) string {
 		body = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(ui.RichTextHTML(body), " ")
 	}
 	body = strings.Join(strings.Fields(body), " ")
-	if len([]rune(body)) > 180 {
-		return string([]rune(body)[:180]) + "…"
+	if len([]rune(body)) > 160 {
+		return string([]rune(body)[:160]) + "…"
 	}
 	return body
 }
