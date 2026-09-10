@@ -759,6 +759,12 @@ func serve(args []string, stderr io.Writer) error {
 		if r.URL.Path == "/admin/operations" {
 			active = "operations"
 		}
+		if r.URL.Path == "/admin/developer" {
+			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer"}); err != nil {
+				http.Error(w, "developer tools unavailable", http.StatusInternalServerError)
+			}
+			return
+		}
 		if r.URL.Path == "/admin/account" {
 			active = "account"
 		}
@@ -775,7 +781,7 @@ func serve(args []string, stderr io.Writer) error {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
 	})
-	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/media", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions"} {
+	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/media", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions", "GET /admin/developer"} {
 		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
 	}
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)

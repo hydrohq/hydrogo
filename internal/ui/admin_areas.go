@@ -56,6 +56,10 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 		view.AreaLabel, view.Title, view.Description = "GÜVENLİK VE YETKİLER", "Rol erişim matrisi", "Hangi rolün hangi çalışma alanında ne yapabildiğini bu matriste görün."
 		view.PrimaryEyebrow, view.PrimaryTitle, view.PrimaryText = "ROLE POLICY", "Yetki matrisi", "Yetkilendirme yalnızca menü görünürlüğü değil, her application service mutasyonunda da uygulanır."
 		view.Links = []adminAreaLink{{"Admin", "Tüm içerik, commerce, site ve operasyon yönetimi", "/admin", false}, {"Editor", "Haber ve sayfa taslağı oluşturma/düzenleme; yayın yetkisi politika kontrollüdür", "/admin/news", false}, {"Viewer", "Salt okunur API ve yayınlanmış içerik görünümü", "/public/news/tr/html", true}, {"Güvenlik merkezi", "Davet ve MFA akışları", "/admin/security", false}}
+	case "developer":
+		view.AreaLabel, view.Title, view.Description = "GELİŞTİRİCİ", "Geliştirici araçları", "API, headless tüketim ve sistem tanılarını ayrı bir çalışma alanında yönetin."
+		view.PrimaryEyebrow, view.PrimaryTitle, view.PrimaryText = "DEVELOPER TOOLBOX", "Teknik çalışma alanı", "Bu ekran uygulama geliştiricileri içindir; günlük içerik ve commerce işlemleri dashboard’da sade tutulur."
+		view.Links = []adminAreaLink{{"Commerce REST API", "Ürün ve katalog JSON uçlarını incele", "/api/v1/commerce/products", true}, {"GraphQL", "Headless sorgu yüzeyini aç", "/api/graphql", true}, {"Health check", "Servis canlılığını doğrula", "/healthz", true}, {"Readiness check", "Veritabanı ve migration hazır oluşu", "/readyz", true}, {"Metrikler", "Authenticated runtime metrikleri", "/metrics", true}, {"News API", "Yayınlanmış haber JSON uçları", "/api/news?locale=tr", true}}
 	default:
 		view.AreaLabel, view.Title, view.Description = "OPERASYON", "Sağlık ve operasyon merkezi", "Health, readiness, metrik, background job ve bakım akışları."
 		view.PrimaryEyebrow, view.PrimaryTitle, view.PrimaryText = "OBSERVABILITY", "Platform operasyonu", "Sistem görünürlüğü ve bakım uçları tek operasyon ekranında toplanır."
