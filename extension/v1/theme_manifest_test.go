@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"encoding/json"
+	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -54,5 +56,36 @@ func TestThemeManifestRejectsTraversalAsset(t *testing.T) {
 	manifest := ThemeManifest{Name: "corporate", Version: "1.0.0", Assets: []string{"../secret.css"}}
 	if err := manifest.Validate(); err == nil {
 		t.Fatal("traversal asset accepted")
+	}
+}
+
+func TestThemeBundleRendersEscapedBlockOverride(t *testing.T) {
+	root := t.TempDir()
+	themeRoot := filepath.Join(root, "corporate")
+	if err := os.MkdirAll(filepath.Join(themeRoot, "layouts", "blocks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "theme.json"), []byte(`{"name":"corporate","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "layouts", "base.html"), []byte(`{{slot "content"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(themeRoot, "blocks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "blocks", "hero.html"), []byte(`<h1>{{.Payload.title}}</h1>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := LoadTheme(root, "corporate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	if err := bundle.RenderBlock(&out, pages.Block{Type: "hero", Payload: json.RawMessage(`{"title":"<unsafe>"}`)}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "<unsafe>") || !strings.Contains(out.String(), "&lt;unsafe&gt;") {
+		t.Fatalf("unsafe block output: %s", out.String())
 	}
 }

@@ -78,7 +78,23 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if h.Theme != nil {
 		var content strings.Builder
-		fmt.Fprintf(&content, `<h1>%s</h1><div class="content-body">%s</div>%s`, template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body), blocks)
+		fmt.Fprintf(&content, `<h1>%s</h1><div class="content-body">%s</div>`, template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body))
+		for _, block := range page.Blocks {
+			var themed strings.Builder
+			if err := h.Theme.RenderBlock(&themed, block); err == nil {
+				content.WriteString(themed.String())
+			} else if errors.Is(err, themev1.ErrThemeBlockUnavailable) {
+				fallback, fallbackErr := blockrender.Blocks([]pages.Block{block})
+				if fallbackErr != nil {
+					http.Error(w, "page render failed", http.StatusInternalServerError)
+					return
+				}
+				content.WriteString(fallback)
+			} else {
+				http.Error(w, "page render failed", http.StatusInternalServerError)
+				return
+			}
+		}
 		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String())}}); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
 		}
