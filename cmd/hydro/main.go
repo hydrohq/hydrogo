@@ -642,12 +642,17 @@ func serve(args []string, stderr io.Writer) error {
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	var selectedTheme *themev1.ThemeBundle
-	if cfg.Theme != "" {
-		bundle, err := themev1.LoadTheme(cfg.ThemeDir, cfg.Theme)
-		if err != nil {
+	themeName := cfg.Theme
+	if themeName == "" {
+		themeName = "corporate"
+	}
+	if themeName != "" {
+		bundle, err := themev1.LoadTheme(cfg.ThemeDir, themeName)
+		if err == nil {
+			selectedTheme = &bundle
+		} else if cfg.Theme != "" {
 			return fmt.Errorf("load theme %q: %w", cfg.Theme, err)
 		}
-		selectedTheme = &bundle
 	}
 	uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
 	if err != nil {
