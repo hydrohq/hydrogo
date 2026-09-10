@@ -46,6 +46,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /shop/cart", Handler: http.HandlerFunc(h.cartPage), Protected: true},
 		{Pattern: "POST /shop/cart/items", Handler: http.HandlerFunc(h.addCartItemForm), Protected: true},
 		{Pattern: "POST /shop/cart/items/{productID}/remove", Handler: http.HandlerFunc(h.removeCartItemForm), Protected: true},
+		{Pattern: "GET /shop/checkout", Handler: http.HandlerFunc(h.checkoutPage), Protected: true},
+		{Pattern: "POST /shop/checkout", Handler: http.HandlerFunc(h.checkoutForm), Protected: true},
 		{Pattern: "GET /admin/commerce/products", Handler: http.HandlerFunc(h.adminProducts), Protected: true},
 		{Pattern: "POST /admin/commerce/products", Handler: http.HandlerFunc(h.adminCreateProduct), Protected: true},
 	}
@@ -201,7 +203,56 @@ func (h Handler) cartPage(w http.ResponseWriter, r *http.Request) {
 	for _, item := range cart.Items {
 		_, _ = fmt.Fprintf(w, `<li>%s × %d — %d %s <form method="post" action="/shop/cart/items/%s/remove"><input type="hidden" name="_csrf" value="%s"><button type="submit">Remove</button></form></li>`, template.HTMLEscapeString(item.Title), item.Quantity, item.TotalCents, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(item.ProductID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
 	}
-	_, _ = fmt.Fprintf(w, `</ul><p>Total: %d %s</p><p>Checkout via the authenticated JSON API using Idempotency-Key.</p></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency))
+	_, _ = fmt.Fprintf(w, `</ul><p>Total: %d %s</p><a href="/shop/checkout">Checkout</a></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency))
+}
+
+func (h Handler) checkoutPage(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	cart, err := h.Cart.Get(r.Context(), h.DB, user.ID)
+	if err != nil {
+		http.Error(w, "cart unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout</title></head><body><h1>Checkout</h1><p>Total: %d %s</p><form method="post" action="/shop/checkout"><input type="hidden" name="_csrf" value="%s"><button type="submit">Place order</button></form><a href="/shop/cart">Back to cart</a></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
+}
+
+func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid checkout", http.StatusBadRequest)
+		return
+	}
+	cart, err := h.Cart.Get(r.Context(), h.DB, user.ID)
+	if err != nil || cart.ID == "" || len(cart.Items) == 0 {
+		http.Error(w, "cart is empty", http.StatusConflict)
+		return
+	}
+	orderID, err := newID()
+	if err != nil {
+		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	key, err := newID()
+	if err != nil {
+		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: orderID, UserID: user.ID, CartID: cart.ID, IdempotencyKey: key})
+	if err != nil {
+		http.Error(w, "checkout failed", http.StatusConflict)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Order received</title></head><body><h1>Order received</h1><p>Order ID: <code>%s</code></p><p>Status: %s</p><p>Payment is pending. Continue with the configured payment provider.</p><a href="/shop">Back to shop</a></body></html>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.PaymentStatus))
 }
 
 func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {

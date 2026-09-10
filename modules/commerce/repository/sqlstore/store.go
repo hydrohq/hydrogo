@@ -149,6 +149,19 @@ func (s Store) RemoveCartItem(ctx context.Context, db database.Executor, userID,
 	return err
 }
 
+func (s Store) ClearCart(ctx context.Context, db database.Executor, userID, cartID string) error {
+	cart, err := s.findCart(ctx, db, userID)
+	if err != nil {
+		return err
+	}
+	if cart.ID != cartID {
+		return sql.ErrNoRows
+	}
+	q := `DELETE FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1)
+	_, err = db.ExecContext(ctx, q, cartID)
+	return err
+}
+
 func (s Store) placeholder(n int) string {
 	if s.Dialect == database.Postgres {
 		return fmt.Sprintf("$%d", n)

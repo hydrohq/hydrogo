@@ -17,6 +17,10 @@ type CheckoutCartReader interface {
 	GetCart(context.Context, database.Executor, string, string) (Cart, error)
 }
 
+type CheckoutCartClearer interface {
+	ClearCart(context.Context, database.Executor, string, string) error
+}
+
 type Outbox interface {
 	Enqueue(context.Context, database.Executor, string, string, string, int) error
 }
@@ -77,6 +81,13 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 		}
 		if err := s.Store.CreateOrder(ctx, tx, order, checkout.IdempotencyKey); err != nil {
 			return err
+		}
+		if checkout.CartID != "" {
+			if clearer, ok := s.Store.(CheckoutCartClearer); ok {
+				if err := clearer.ClearCart(ctx, tx, checkout.UserID, checkout.CartID); err != nil {
+					return err
+				}
+			}
 		}
 		if s.Outbox != nil {
 			return s.Outbox.Enqueue(ctx, tx, fmt.Sprintf("commerce-order-%s", order.ID), "order.created", order.ID, 1)
