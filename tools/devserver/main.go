@@ -31,6 +31,7 @@ import (
 const (
 	statusPath = "/__hydrogo/dev/status"
 	clientPath = "/__hydrogo/dev/client.js"
+	stylePath  = "/__hydrogo/dev/client.css"
 )
 
 type state struct {
@@ -146,7 +147,7 @@ func main() {
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, proxyErr error) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		_, _ = io.WriteString(w, `<!doctype html><title>HydroGo yeniden başlıyor</title><script src="`+clientPath+`"></script><main style="font:16px system-ui;padding:3rem">HydroGo geliştirici sunucusu yeniden başlıyor…</main>`)
+		_, _ = io.WriteString(w, `<!doctype html><title>HydroGo yeniden başlıyor</title><link rel="stylesheet" href="`+stylePath+`"><script src="`+clientPath+`"></script><main class="hydrogo-dev-wait">HydroGo geliştirici sunucusu yeniden başlıyor…</main>`)
 	}
 	proxy.ModifyResponse = injectClient
 	mux := http.NewServeMux()
@@ -156,6 +157,7 @@ func main() {
 		_ = json.NewEncoder(w).Encode(status.snapshot())
 	})
 	mux.HandleFunc(clientPath, serveClient)
+	mux.HandleFunc(stylePath, serveStyles)
 	mux.Handle("/", proxy)
 
 	go watch(ctx, root, *poll, func(change fileChange) {
@@ -211,6 +213,11 @@ func injectClient(response *http.Response) error {
 func serveClient(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	_, _ = io.WriteString(w, devClient)
+}
+
+func serveStyles(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	_, _ = io.WriteString(w, devStyles)
 }
 
 type fileChange struct {
@@ -322,4 +329,6 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-const devClient = `(()=>{if(window.__hydrogoDev)return;window.__hydrogoDev=true;const box=document.createElement('aside');box.id='hydrogo-dev-status';box.innerHTML='<div class="hdev-head"><strong>HydroGo Dev</strong><span class="hdev-value">Başlatılıyor</span></div><div class="hdev-track"><i></i></div><pre hidden></pre>';document.documentElement.append(box);const style=document.createElement('style');style.textContent='#hydrogo-dev-status{position:fixed;right:16px;bottom:16px;z-index:2147483647;width:min(440px,calc(100vw - 32px));padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;color:#0f172a;box-shadow:0 12px 32px rgba(15,23,42,.18);font:12px/1.45 ui-sans-serif,system-ui,sans-serif}.hdev-head{display:flex;justify-content:space-between;gap:12px}.hdev-head strong{color:#4f46e5}.hdev-value{color:#475569}.hdev-track{height:4px;margin-top:9px;overflow:hidden;border-radius:99px;background:#e2e8f0}.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:#4f46e5;transition:width .25s ease}#hydrogo-dev-status.hdev-error{border-color:#fecaca;background:#fff7f7}#hydrogo-dev-status.hdev-error .hdev-head strong,#hydrogo-dev-status.hdev-error .hdev-value{color:#b91c1c}#hydrogo-dev-status pre{max-height:220px;margin:10px 0 0;padding:10px;overflow:auto;border-radius:8px;background:#1e293b;color:#f8fafc;font:11px/1.45 ui-monospace,monospace;white-space:pre-wrap}';document.documentElement.append(style);const value=box.querySelector('.hdev-value'),bar=box.querySelector('i'),details=box.querySelector('pre');let revision=-1,initialized=false,reloadOnReady=false;async function poll(){try{const response=await fetch('` + statusPath + `',{cache:'no-store'});const status=await response.json();value.textContent=status.message+' · '+status.progress+'%';bar.style.width=status.progress+'%';box.classList.toggle('hdev-error',status.phase==='error');details.hidden=!status.error;details.textContent=status.error||'';if(initialized&&status.revision!==revision){if(status.phase==='ready'){setTimeout(()=>location.reload(),180);return}reloadOnReady=true}if(initialized&&reloadOnReady&&status.phase==='ready'){setTimeout(()=>location.reload(),180);return}initialized=true;revision=status.revision}catch(_){value.textContent='Proxy bağlantısı bekleniyor…'}}poll();setInterval(poll,700)})();`
+const devClient = `(()=>{if(window.__hydrogoDev)return;window.__hydrogoDev=true;const link=document.createElement('link');link.rel='stylesheet';link.href='` + stylePath + `';document.head.append(link);const box=document.createElement('aside');box.id='hydrogo-dev-status';box.innerHTML='<div class="hdev-head"><strong>HydroGo Dev</strong><span class="hdev-value">Başlatılıyor</span></div><div class="hdev-track"><i></i></div><pre hidden></pre>';document.documentElement.append(box);const value=box.querySelector('.hdev-value'),bar=box.querySelector('i'),details=box.querySelector('pre');let revision=-1,initialized=false,reloadOnReady=false;async function poll(){try{const response=await fetch('` + statusPath + `',{cache:'no-store'});const status=await response.json();value.textContent=status.message+' · '+status.progress+'%';bar.style.width=status.progress+'%';box.classList.toggle('hdev-error',status.phase==='error');details.hidden=!status.error;details.textContent=status.error||'';if(initialized&&status.revision!==revision){if(status.phase==='ready'){setTimeout(()=>location.reload(),180);return}reloadOnReady=true}if(initialized&&reloadOnReady&&status.phase==='ready'){setTimeout(()=>location.reload(),180);return}initialized=true;revision=status.revision}catch(_){value.textContent='Proxy bağlantısı bekleniyor…'}}poll();setInterval(poll,700)})();`
+
+const devStyles = `#hydrogo-dev-status{position:fixed;right:16px;bottom:16px;z-index:2147483647;width:min(440px,calc(100vw - 32px));padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;color:#0f172a;box-shadow:0 12px 32px rgba(15,23,42,.18);font:12px/1.45 ui-sans-serif,system-ui,sans-serif}.hdev-head{display:flex;justify-content:space-between;gap:12px}.hdev-head strong{color:#4f46e5}.hdev-value{color:#475569}.hdev-track{height:4px;margin-top:9px;overflow:hidden;border-radius:99px;background:#e2e8f0}.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:#4f46e5;transition:width .25s ease}#hydrogo-dev-status.hdev-error{border-color:#fecaca;background:#fff7f7}#hydrogo-dev-status.hdev-error .hdev-head strong,#hydrogo-dev-status.hdev-error .hdev-value{color:#b91c1c}#hydrogo-dev-status pre{max-height:220px;margin:10px 0 0;padding:10px;overflow:auto;border-radius:8px;background:#1e293b;color:#f8fafc;font:11px/1.45 ui-monospace,monospace;white-space:pre-wrap}.hydrogo-dev-wait{padding:3rem;font:16px/1.5 ui-sans-serif,system-ui,sans-serif}`
