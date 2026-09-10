@@ -23,6 +23,10 @@ config.env.*
 # Build and local tooling
 /bin/
 /dist/
+/node_modules/
+examples/admin-news-compare/react/node_modules/
+examples/admin-news-compare/react/dist/
+examples/admin-news-compare/react/*.tsbuildinfo
 /tmp/
 /.tmp/
 /coverage/
