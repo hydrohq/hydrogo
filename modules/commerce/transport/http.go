@@ -435,12 +435,12 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Commerce katalog", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
-	_, _ = w.Write([]byte(`<section class="studio-card"><h2>Ürün kataloğu</h2><p>Ürünleri, fiyatları ve stok durumunu yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products">`))
-	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: collection, Action: "/admin/commerce/products", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"currency": "TRY", "status": "draft"}}); err != nil {
+	var formBuf bytes.Buffer
+	if err := adminstudio.RenderCreateForm(&formBuf, adminstudio.FormData{Collection: collection, Action: "/admin/commerce/products", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"currency": "TRY", "status": "draft"}, SubmitLabel: "Ürün ekle"}); err != nil {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = w.Write([]byte(`</form></section><section class="studio-card"><h2>Ürünler</h2><div class="table-wrap">`))
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>Ürün kataloğu</h2><p>Ürünleri, fiyatları, varyantları ve stok durumunu yönetin.</p><div class="studio-actions"><button id="toggle-product-form-btn" class="button" type="button" onclick="const f=document.getElementById('new-product-section');if(f){const isHidden=f.hasAttribute('hidden');if(isHidden){f.removeAttribute('hidden');f.scrollIntoView({behavior:'smooth'});}else{f.setAttribute('hidden','');}}">＋ Yeni ürün ekle</button><a class="button button-quiet" href="/shop" target="_blank">Canlı mağazayı aç ↗</a></div></section><section id="new-product-section" class="studio-card" hidden><div class="dashboard-card-head"><div><p class="eyebrow">YENİ ÜRÜN</p><h2>Yeni ürün ekle</h2><p class="muted">Ürün bilgisi, SKU, fiyat ve stok miktarını girin.</p></div><button class="button button-quiet" type="button" onclick="document.getElementById('new-product-section').setAttribute('hidden','');">Kapat</button></div><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></section><section class="studio-card"><h2>Ürünler <span class="muted">(%d)</span></h2><div class="table-wrap">`, formBuf.String(), len(products))
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
@@ -449,7 +449,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = w.Write([]byte(`</div></section>`))
+	_, _ = w.Write([]byte(`</div></section><script nonce="` + template.HTMLEscapeString(security.NonceFromContext(r.Context())) + `">if(window.location.hash==='#new-product'){const el=document.getElementById('new-product-section');if(el){el.removeAttribute('hidden');el.scrollIntoView({behavior:'smooth'});}}</script>`))
 	_ = ui.AdminEnd(w)
 }
 
