@@ -48,6 +48,9 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	commerce "github.com/ardaozyildirim/hydrogo/modules/commerce"
+	iyzicoprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/iyzico"
+	paytrprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/paytr"
+	stripeprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/stripe"
 	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 	newsservice "github.com/ardaozyildirim/hydrogo/modules/news"
@@ -643,7 +646,17 @@ func serve(args []string, stderr io.Writer) error {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
 		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService}
-		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: map[string]commerce.PaymentProvider{}}}
+		providers := make(map[string]commerce.PaymentProvider)
+		if cfg.Payments.StripeSecretKey != "" {
+			providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
+		}
+		if cfg.Payments.IyzicoSecretKey != "" {
+			providers["iyzico"] = iyzicoprovider.Provider{SecretKey: cfg.Payments.IyzicoSecretKey}
+		}
+		if cfg.Payments.PayTRMerchantKey != "" {
+			providers["paytr"] = paytrprovider.Provider{MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency}
+		}
+		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: providers}}
 		routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
 		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
 	}

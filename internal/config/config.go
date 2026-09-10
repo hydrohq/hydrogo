@@ -23,6 +23,7 @@ type Config struct {
 	Media    Media            `yaml:"media"`
 	Security Security         `yaml:"security"`
 	Mail     Mail             `yaml:"mail"`
+	Payments Payments         `yaml:"-"`
 }
 
 type HTTP struct {
@@ -52,6 +53,15 @@ type Mail struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 	StartTLS bool   `yaml:"starttls"`
+}
+
+type Payments struct {
+	StripeSecretKey     string
+	StripeWebhookSecret string
+	IyzicoSecretKey     string
+	PayTRMerchantKey    string
+	PayTRMerchantSalt   string
+	PayTRCurrency       string
 }
 
 type Overrides struct {
@@ -139,6 +149,15 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		}
 		result.Mail.StartTLS = startTLS
 	}
+	result.Payments.StripeSecretKey, _ = lookup("HYDRO_STRIPE_SECRET_KEY")
+	result.Payments.StripeWebhookSecret, _ = lookup("HYDRO_STRIPE_WEBHOOK_SECRET")
+	result.Payments.IyzicoSecretKey, _ = lookup("HYDRO_IYZICO_SECRET_KEY")
+	result.Payments.PayTRMerchantKey, _ = lookup("HYDRO_PAYTR_MERCHANT_KEY")
+	result.Payments.PayTRMerchantSalt, _ = lookup("HYDRO_PAYTR_MERCHANT_SALT")
+	result.Payments.PayTRCurrency, _ = lookup("HYDRO_PAYTR_CURRENCY")
+	if result.Payments.PayTRCurrency == "" {
+		result.Payments.PayTRCurrency = "TRY"
+	}
 
 	dsnSources := 0
 	if result.Database.DSN != "" {
@@ -185,6 +204,12 @@ func (c Config) Validate() error {
 			return fmt.Errorf("module %q is configured more than once", module)
 		}
 		seenModules[module] = struct{}{}
+	}
+	if (c.Payments.StripeSecretKey == "") != (c.Payments.StripeWebhookSecret == "") {
+		return errors.New("Stripe secret and webhook secret must be configured together")
+	}
+	if (c.Payments.PayTRMerchantKey == "") != (c.Payments.PayTRMerchantSalt == "") {
+		return errors.New("PayTR merchant key and salt must be configured together")
 	}
 	if _, _, err := net.SplitHostPort(c.HTTP.Address); err != nil {
 		return fmt.Errorf("invalid HTTP address %q: %w", c.HTTP.Address, err)
