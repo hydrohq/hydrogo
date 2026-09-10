@@ -293,13 +293,13 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Shop</title></head><body><h1>Shop</h1><a href="/shop/cart">Cart</a><main>`))
+	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Shop</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><main class="theme-corporate-content shop-page"><nav class="shop-nav"><a href="/shop">HydroGo Shop</a><a href="/shop/cart">Cart</a></nav><h1>Shop</h1><section class="shop-grid">`))
 	for _, product := range products {
 		variants := []commerce.ProductVariant(nil)
 		if h.CatalogVariants != nil {
 			variants, _ = h.Catalog.ListVariants(r.Context(), h.DB, product.ID, true)
 		}
-		_, _ = fmt.Fprintf(w, `<article><h2>%s</h2><p>%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
+		_, _ = fmt.Fprintf(w, `<article class="product-card"><h2>%s</h2><p class="product-price">%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
 		if len(variants) > 0 {
 			_, _ = w.Write([]byte(`<label>Variant <select name="variant_id" required><option value="">Choose a variant</option>`))
 			for _, variant := range variants {
@@ -312,7 +312,7 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = w.Write([]byte(`<label>Quantity <input name="quantity" type="number" min="1" max="1000" value="1"></label><button type="submit">Add to cart</button></form></article>`))
 	}
-	_, _ = w.Write([]byte(`</main></body></html>`))
+	_, _ = w.Write([]byte(`</section></main></body></html>`))
 }
 
 func (h Handler) addCartItemForm(w http.ResponseWriter, r *http.Request) {
@@ -349,11 +349,11 @@ func (h Handler) cartPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Cart</title></head><body><a href="/shop">Continue shopping</a><h1>Cart</h1><ul>`))
+	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cart</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><main class="theme-corporate-content shop-page"><a href="/shop">Continue shopping</a><h1>Cart</h1><ul class="cart-list">`))
 	for _, item := range cart.Items {
 		_, _ = fmt.Fprintf(w, `<li>%s × %d — %d %s <form method="post" action="/shop/cart/items/%s/remove"><input type="hidden" name="_csrf" value="%s"><button type="submit">Remove</button></form></li>`, template.HTMLEscapeString(item.Title), item.Quantity, item.TotalCents, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(item.ProductID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
 	}
-	_, _ = fmt.Fprintf(w, `</ul><p>Total: %d %s</p><a href="/shop/checkout">Checkout</a></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency))
+	_, _ = fmt.Fprintf(w, `</ul><p class="cart-total">Total: %d %s</p><a class="theme-corporate-hero" href="/shop/checkout">Checkout</a></main></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency))
 }
 
 func (h Handler) checkoutPage(w http.ResponseWriter, r *http.Request) {
@@ -368,7 +368,7 @@ func (h Handler) checkoutPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout</title></head><body><h1>Checkout</h1><p>Total: %d %s</p><form method="post" action="/shop/checkout"><input type="hidden" name="_csrf" value="%s"><label>Name <input name="customer_name" required maxlength="120"></label><label>Identity number <input name="customer_identity_number" required maxlength="20"></label><label>Email <input name="customer_email" type="email" required maxlength="254"></label><label>Phone <input name="customer_phone" required maxlength="32"></label><label>Address <textarea name="customer_address" required maxlength="500"></textarea></label><label>City <input name="customer_city" required maxlength="100"></label><label>Country <input name="customer_country" value="TR" required maxlength="2"></label><label>Postal code <input name="customer_postal_code" maxlength="20"></label><button type="submit">Place order</button></form><a href="/shop/cart">Back to cart</a></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checkout</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><main class="theme-corporate-content shop-page"><h1>Checkout</h1><p>Total: %d %s</p><form method="post" action="/shop/checkout"><input type="hidden" name="_csrf" value="%s"><label>Name <input name="customer_name" required maxlength="120"></label><label>Identity number <input name="customer_identity_number" required maxlength="20"></label><label>Email <input name="customer_email" type="email" required maxlength="254"></label><label>Phone <input name="customer_phone" required maxlength="32"></label><label>Address <textarea name="customer_address" required maxlength="500"></textarea></label><label>City <input name="customer_city" required maxlength="100"></label><label>Country <input name="customer_country" value="TR" required maxlength="2"></label><label>Postal code <input name="customer_postal_code" maxlength="20"></label><button type="submit">Place order</button></form><a href="/shop/cart">Back to cart</a></main></body></html>`, cart.TotalCents, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
 }
 
 func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {

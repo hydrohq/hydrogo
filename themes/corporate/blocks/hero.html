@@ -1,1 +1,1 @@
-<section class="theme-corporate-hero">{{with .Payload.media_url}}<img src="{{.}}" alt="">{{end}}<h1>{{.Payload.title}}</h1>{{with .Payload.subtitle}}<p>{{.}}</p>{{end}}</section>
+<section class="theme-corporate-hero">{{with .Payload.media_url}}<img src="{{.}}" alt="">{{end}}<h1>{{.Payload.title}}</h1>{{with .Payload.subtitle}}<p>{{.}}</p>{{end}}{{with .Payload.button_url}}<a href="{{.}}">{{with $.Payload.button_text}}{{.}}{{else}}Devam et{{end}}</a>{{end}}</section>
