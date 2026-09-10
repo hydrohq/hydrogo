@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"context"
 	"net/url"
 	"os"
@@ -12,6 +13,21 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
+
+func TestBoundedPostgresCommandOutput(t *testing.T) {
+	var output boundedCommandOutput
+	output.remaining = maxPostgresCommandOutput
+	input := bytes.Repeat([]byte("x"), maxPostgresCommandOutput+1024)
+	if written, err := output.Write(input); err != nil || written != len(input) {
+		t.Fatalf("bounded output write = %d/%v", written, err)
+	}
+	if output.buffer.Len() != maxPostgresCommandOutput {
+		t.Fatalf("bounded output size = %d, want %d", output.buffer.Len(), maxPostgresCommandOutput)
+	}
+	if !output.truncated || !bytes.HasSuffix([]byte(output.String()), []byte("[postgres command output truncated]")) {
+		t.Fatal("bounded output did not record truncation")
+	}
+}
 
 func TestRestorePostgresToStagingRejectsEmptyPaths(t *testing.T) {
 	controls := RestoreControls{SessionsRevoked: true, EgressQuarantined: true, OldWritesBlocked: true}

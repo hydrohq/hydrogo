@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,41 @@ import (
 	"strings"
 	"time"
 )
+
+const maxPostgresCommandOutput = 64 << 10
+
+type boundedCommandOutput struct {
+	buffer    bytes.Buffer
+	remaining int
+	truncated bool
+}
+
+func (o *boundedCommandOutput) Write(p []byte) (int, error) {
+	if o.remaining <= 0 {
+		o.truncated = true
+		return len(p), nil
+	}
+	if len(p) > o.remaining {
+		_, _ = o.buffer.Write(p[:o.remaining])
+		o.remaining = 0
+		o.truncated = true
+		return len(p), nil
+	}
+	_, _ = o.buffer.Write(p)
+	o.remaining -= len(p)
+	return len(p), nil
+}
+
+func (o *boundedCommandOutput) String() string {
+	if o == nil {
+		return ""
+	}
+	result := o.buffer.String()
+	if o.truncated {
+		result += "\n[postgres command output truncated]"
+	}
+	return result
+}
 
 type PostgresTools struct {
 	DumpBinary    string
@@ -236,9 +272,13 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 	}
 	command := exec.CommandContext(ctx, binary, args...)
 	command.Env = append(os.Environ(), "PGPASSFILE="+passPath)
-	output, err := command.CombinedOutput()
+	var output boundedCommandOutput
+	output.remaining = maxPostgresCommandOutput
+	command.Stdout = &output
+	command.Stderr = &output
+	err = command.Run()
 	if err != nil {
-		return fmt.Errorf("%s failed: %w: %s", operation, err, strings.TrimSpace(string(output)))
+		return fmt.Errorf("%s failed: %w: %s", operation, err, strings.TrimSpace(output.String()))
 	}
 	return nil
 }
