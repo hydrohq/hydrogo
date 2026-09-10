@@ -440,7 +440,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><h2>Ürün Kataloğu <span class="muted">(%d)</span></h2></div><div class="studio-actions"><button id="toggle-product-form-btn" class="button" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg> Yeni ürün ekle</button></div></div><div id="new-product-section" hidden style="margin-bottom:24px;padding:20px;background:var(--bg-subtle);border-radius:var(--radius-md);border:1px solid var(--line);"><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></div><div class="table-wrap">`, len(products), formBuf.String())
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><button id="toggle-product-form-btn" class="button" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg> Yeni ürün ekle</button></div><div id="new-product-section" hidden style="margin-bottom:24px;padding:20px;background:var(--bg-subtle);border-radius:var(--radius-md);border:1px solid var(--line);"><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></div><div class="table-wrap">`, formBuf.String())
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
@@ -563,7 +563,7 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Siparişler", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
-	_, _ = w.Write([]byte(`<section class="studio-card"><a href="/admin/commerce/products">← Kataloğa dön</a><h2>Siparişler</h2><p>Ödeme ve teslimat durumlarını izleyin.</p><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))
+	_, _ = w.Write([]byte(`<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button button-quiet" href="/admin/commerce/products">← Kataloğa dön</a></div><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))
 	for _, order := range orders {
 		refund := `<span>Unavailable</span>`
 		if order.PaymentStatus == "paid" {

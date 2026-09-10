@@ -112,7 +112,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><h2>Tüm Sayfalar <span class="muted">(%d)</span></h2></div><div class="studio-actions"><a class="button button-quiet" href="/public/pages/tr/demo/html" target="_blank">Canlı görünüm ↗</a></div></div><div class="table-wrap">`, len(rows))
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="table-wrap">`)
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 		return

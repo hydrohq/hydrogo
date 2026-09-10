@@ -115,7 +115,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Haberler", "", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><h2>Tüm Haberler <span class="muted">(%d)</span></h2></div><div class="studio-actions"><a class="button" href="/admin/news/new">Yeni haber oluştur</a></div></div><div class="table-wrap">`, len(rows))
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button" href="/admin/news/new"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg> Yeni haber oluştur</a></div><div class="table-wrap">`)
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		return
