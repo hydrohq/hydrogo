@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HydroGo News · HTMX</title><link rel="stylesheet" href="/style.css">
+  <script src="http://127.0.0.1:8090/vendor/htmx/htmx.min.js"></script>
+</head>
+<body>
+  <aside><div class="brand">HYDRO<span>GO</span><small>HTMX STUDY</small></div><nav><a class="active" href="/">◈ Haberler</a><a href="/">▤ Sayfalar</a><a href="/">◫ Commerce</a></nav></aside>
+  <main><header><div class="search">⌕ <input placeholder="Haberlerde ara..." name="q" hx-get="/admin/news?fragment=table" hx-trigger="keyup changed delay:300ms" hx-target="#news-table" hx-include="this"></div><span class="user">● Admin</span></header>
+    <section class="heading"><div><p>YAYIN MERKEZİ</p><h1>Haberler</h1><span>Server-rendered fragment ile hızlı içerik yönetimi.</span></div><button>+ Yeni haber</button></section>
+    <section class="card"><div class="card-head"><h2>İçerik akışı</h2><span>HTMX · fragment swap</span></div><div id="news-table" hx-get="/admin/news?fragment=table" hx-trigger="load" hx-swap="innerHTML"><div class="loading">Haberler yükleniyor...</div></div></section>
+  </main>
+</body>
+</html>

@@ -102,6 +102,11 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	for _, item := range items {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
 	}
+	if r.URL.Query().Get("fragment") == "table" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil { http.Error(w, "news admin unavailable", http.StatusInternalServerError) }
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStart(w, "Haberler", "Yayın merkezi", security.NonceFromContext(r.Context())); err != nil {
 		return
