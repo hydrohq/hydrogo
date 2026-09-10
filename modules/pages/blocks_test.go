@@ -8,7 +8,7 @@ import (
 
 func TestValidateBlocksAllowsSupportedPayloads(t *testing.T) {
 	blocks := []Block{
-		{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","button_url":"/start"}`)},
+		{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","button_url":"/start","media_asset_id":"asset-1"}`)},
 		{Type: "faq", Payload: json.RawMessage(`{"items":[{"question":"Q","answer":"A"}]}`)},
 		{Type: "pricing_table", Payload: json.RawMessage(`{"items":[{"name":"Pro","price_cents":1299,"currency":"TRY","features":["Email support"]}]}`)},
 		{Type: "testimonials", Payload: json.RawMessage(`{"items":[{"name":"Ada","quote":"Excellent"}]}`)},
@@ -22,6 +22,7 @@ func TestValidateBlocksRejectsUnsafeOrUnknownPayloads(t *testing.T) {
 	cases := []Block{
 		{Type: "unknown", Payload: json.RawMessage(`{"title":"x"}`)},
 		{Type: "hero", Payload: json.RawMessage(`{"title":"x","button_url":"javascript:alert(1)"}`)},
+		{Type: "hero", Payload: json.RawMessage(`{"title":"x","media_asset_id":"asset id"}`)},
 		{Type: "hero", Payload: json.RawMessage(`{"button_url":"/missing-title"}`)},
 	}
 	for _, block := range cases {

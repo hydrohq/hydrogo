@@ -38,6 +38,12 @@ func ValidateBlocks(blocks []Block) error {
 			if err := requireString(object, "title"); err != nil {
 				return err
 			}
+			if raw, ok := object["media_asset_id"]; ok {
+				var assetID string
+				if json.Unmarshal(raw, &assetID) != nil || !safeAssetID(assetID) {
+					return ErrInvalidBlocks
+				}
+			}
 		case "pricing_table":
 			var items []struct {
 				Name       string   `json:"name"`
@@ -114,6 +120,20 @@ func safeBlockURL(value string) bool {
 		return false
 	}
 	return u.Scheme == "" || strings.EqualFold(u.Scheme, "http") || strings.EqualFold(u.Scheme, "https")
+}
+
+func safeAssetID(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 128 {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func EncodeBlocksForStore(blocks []Block) (string, error) {

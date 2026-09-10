@@ -49,7 +49,12 @@ func blockHTML(block pages.Block) (string, error) {
 			return "", err
 		}
 		subtitle, _ := textOptional(data, "subtitle")
-		return `<section data-block="hero"><h1>` + title + `</h1><p>` + subtitle + `</p></section>`, nil
+		assetID, _ := textOptional(data, "media_asset_id")
+		attribute := ""
+		if assetID != "" {
+			attribute = ` data-media-asset-id="` + assetID + `"`
+		}
+		return `<section data-block="hero"` + attribute + `><h1>` + title + `</h1><p>` + subtitle + `</p></section>`, nil
 	case "cta":
 		title, err := text("title")
 		if err != nil {
