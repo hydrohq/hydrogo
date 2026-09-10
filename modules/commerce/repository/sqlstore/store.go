@@ -14,6 +14,41 @@ import (
 
 type Store struct{ Dialect database.Dialect }
 
+func (s Store) CreateProduct(ctx context.Context, db database.Executor, product commerce.Product) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	q := `INSERT INTO commerce_products (id, sku, title, price_cents, currency, stock, status, created_at, updated_at) VALUES (` + s.placeholder(1) + `,` + s.placeholder(2) + `,` + s.placeholder(3) + `,` + s.placeholder(4) + `,` + s.placeholder(5) + `,` + s.placeholder(6) + `,` + s.placeholder(7) + `,` + s.placeholder(8) + `,` + s.placeholder(9) + `)`
+	now := time.Now().UTC()
+	_, err := db.ExecContext(ctx, q, product.ID, product.SKU, product.Title, product.PriceCents, product.Currency, product.Stock, product.Status, now, now)
+	return err
+}
+
+func (s Store) ListProducts(ctx context.Context, db database.Executor, publicOnly bool) ([]commerce.Product, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	q := `SELECT id, sku, title, price_cents, currency, stock, status FROM commerce_products`
+	if publicOnly {
+		q += ` WHERE status IN ('published', 'out_of_stock')`
+	}
+	q += ` ORDER BY title, id`
+	rows, err := queryRows(ctx, db, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	products := make([]commerce.Product, 0)
+	for rows.Next() {
+		var product commerce.Product
+		if err := rows.Scan(&product.ID, &product.SKU, &product.Title, &product.PriceCents, &product.Currency, &product.Stock, &product.Status); err != nil {
+			return nil, err
+		}
+		products = append(products, product)
+	}
+	return products, rows.Err()
+}
+
 func (s Store) placeholder(n int) string {
 	if s.Dialect == database.Postgres {
 		return fmt.Sprintf("$%d", n)
