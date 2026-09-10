@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -20,15 +21,16 @@ import (
 )
 
 type Handler struct {
-	DB              database.Executor
-	Commerce        commerce.Service
-	Catalog         commerce.CatalogService
-	Cart            commerce.CartService
-	CatalogVariants commerce.VariantStore
-	Orders          commerce.OrderReader
-	Payments        map[string]commerce.PaymentProvider
-	PaymentService  commerce.PaymentService
-	AdminCollection adminstudio.Collection
+	DB                database.Executor
+	Commerce          commerce.Service
+	Catalog           commerce.CatalogService
+	Cart              commerce.CartService
+	CatalogVariants   commerce.VariantStore
+	Orders            commerce.OrderReader
+	Payments          map[string]commerce.PaymentProvider
+	PaymentService    commerce.PaymentService
+	AdminCollection   adminstudio.Collection
+	VariantCollection adminstudio.Collection
 }
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
@@ -456,13 +458,22 @@ func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "variants unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	token := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Product variants</title></head><body><a href="/admin/commerce/products">Catalog</a><h1>Product variants</h1><form method="post" action="/admin/commerce/products/%s/variants"><input type="hidden" name="_csrf" value="%s"><input name="sku" placeholder="SKU" required><input name="title" placeholder="Title" required><input name="price_cents" type="number" min="0" required><input name="stock" type="number" min="0" required><select name="status"><option value="draft">Draft</option><option value="published">Published</option></select><button type="submit">Create variant</button></form><ul>`, template.HTMLEscapeString(r.PathValue("productID")), token)
-	for _, variant := range variants {
-		_, _ = fmt.Fprintf(w, `<li>%s (%s) — %d %s — stock %d — %s</li>`, template.HTMLEscapeString(variant.Title), template.HTMLEscapeString(variant.SKU), variant.PriceCents, template.HTMLEscapeString(variant.Currency), variant.Stock, template.HTMLEscapeString(string(variant.Status)))
+	var form bytes.Buffer
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.VariantCollection, Action: "/admin/commerce/products/" + r.PathValue("productID") + "/variants", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"status": "draft"}, SubmitLabel: "Varyant oluştur"}); err != nil {
+		http.Error(w, "admin studio variants unavailable", http.StatusInternalServerError)
+		return
 	}
-	_, _ = w.Write([]byte(`</ul></body></html>`))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Product variants</title></head><body><a href="/admin/commerce/products">Catalog</a><h1>Product variants</h1><form method="post" action="/admin/commerce/products/%s/variants">%s</form>`, template.HTMLEscapeString(r.PathValue("productID")), form.String())
+	rows := make([]adminstudio.Row, 0, len(variants))
+	for _, variant := range variants {
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"sku": variant.SKU, "title": variant.Title, "price_cents": strconv.FormatInt(variant.PriceCents, 10), "currency": variant.Currency, "stock": strconv.Itoa(variant.Stock), "status": string(variant.Status)}})
+	}
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.VariantCollection, Rows: rows}); err != nil {
+		http.Error(w, "admin studio variants unavailable", http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write([]byte(`</body></html>`))
 }
 
 func (h Handler) adminCreateVariant(w http.ResponseWriter, r *http.Request) {
