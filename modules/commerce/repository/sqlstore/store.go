@@ -14,6 +14,21 @@ import (
 
 type Store struct{ Dialect database.Dialect }
 
+func (s Store) GetOrder(ctx context.Context, db database.Executor, orderID string) (commerce.Order, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return commerce.Order{}, err
+	}
+	var order commerce.Order
+	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status FROM commerce_orders WHERE id = ` + s.placeholder(1)
+	if err := db.QueryRowContext(ctx, q, orderID).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
+		return commerce.Order{}, err
+	}
+	if err := s.loadItems(ctx, db, &order); err != nil {
+		return commerce.Order{}, err
+	}
+	return order, nil
+}
+
 func (s Store) CreateVariant(ctx context.Context, db database.Executor, variant commerce.ProductVariant) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err

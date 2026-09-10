@@ -646,7 +646,6 @@ func serve(args []string, stderr io.Writer) error {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
 		commerceCatalog := commerce.CatalogService{Transactions: database.NewTransactor(db), Store: commerceStore, Variants: commerceStore}
-		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}
 		providers := make(map[string]commerce.PaymentProvider)
 		if cfg.Payments.StripeSecretKey != "" {
 			providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
@@ -657,6 +656,7 @@ func serve(args []string, stderr io.Writer) error {
 		if cfg.Payments.PayTRMerchantKey != "" {
 			providers["paytr"] = paytrprovider.Provider{MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency}
 		}
+		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}
 		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: providers}}
 		routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
 		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)

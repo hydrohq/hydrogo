@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -22,6 +24,7 @@ type Handler struct {
 	Cart            commerce.CartService
 	CatalogVariants commerce.VariantStore
 	Orders          commerce.OrderReader
+	Payments        map[string]commerce.PaymentProvider
 }
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
@@ -46,6 +49,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/commerce/cart/items", Handler: http.HandlerFunc(h.addCartItem), Protected: true},
 		{Pattern: "DELETE /api/commerce/cart/items/{productID}", Handler: http.HandlerFunc(h.removeCartItem), Protected: true},
 		{Pattern: "POST /api/commerce/cart/checkout", Handler: http.HandlerFunc(h.checkout), Protected: true},
+		{Pattern: "POST /api/commerce/orders/{orderID}/payment-intent", Handler: http.HandlerFunc(h.paymentIntent), Protected: true},
 		{Pattern: "GET /shop", Handler: http.HandlerFunc(h.shop), Protected: false},
 		{Pattern: "GET /shop/cart", Handler: http.HandlerFunc(h.cartPage), Protected: true},
 		{Pattern: "POST /shop/cart/items", Handler: http.HandlerFunc(h.addCartItemForm), Protected: true},
@@ -81,6 +85,58 @@ type variantInput struct {
 	PriceCents int64                  `json:"price_cents"`
 	Stock      int                    `json:"stock"`
 	Status     commerce.ProductStatus `json:"status"`
+}
+
+type paymentIntentInput struct {
+	Provider string `json:"provider"`
+}
+
+func (h Handler) paymentIntent(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || h.Orders == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var input paymentIntentInput
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid payment request", http.StatusBadRequest)
+			return
+		}
+		input.Provider = r.FormValue("provider")
+	} else if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil && err != io.EOF && err != http.ErrBodyReadAfterClose {
+		http.Error(w, "invalid payment request", http.StatusBadRequest)
+		return
+	}
+	providerName := input.Provider
+	if providerName == "" {
+		providerName = "stripe"
+	}
+	provider, ok := h.Payments[providerName]
+	if !ok || provider == nil {
+		http.Error(w, "payment provider is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	order, err := h.Orders.GetOrder(r.Context(), h.DB, r.PathValue("orderID"))
+	if err != nil {
+		http.Error(w, "order unavailable", http.StatusNotFound)
+		return
+	}
+	if order.UserID != user.ID {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if order.PaymentStatus != "pending" {
+		http.Error(w, "order is not payable", http.StatusConflict)
+		return
+	}
+	intent, err := provider.CreatePaymentIntent(r.Context(), order)
+	if err != nil {
+		http.Error(w, "payment intent unavailable", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(intent)
 }
 
 func (h Handler) variants(w http.ResponseWriter, r *http.Request) {
@@ -327,7 +383,7 @@ func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Order received</title></head><body><h1>Order received</h1><p>Order ID: <code>%s</code></p><p>Status: %s</p><p>Payment is pending. Continue with the configured payment provider.</p><a href="/shop">Back to shop</a></body></html>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.PaymentStatus))
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Order received</title></head><body><h1>Order received</h1><p>Order ID: <code>%s</code></p><p>Status: %s</p><p>Payment is pending.</p><form method="post" action="/api/commerce/orders/%s/payment-intent"><input type="hidden" name="_csrf" value="%s"><label>Provider <select name="provider"><option value="stripe">Stripe</option><option value="iyzico">iyzico</option><option value="paytr">PayTR</option></select></label><button type="submit">Start payment</button></form><a href="/shop">Back to shop</a></body></html>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
 }
 
 func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {

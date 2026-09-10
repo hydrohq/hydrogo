@@ -22,6 +22,7 @@ type VariantStore interface {
 
 type OrderReader interface {
 	ListOrders(context.Context, database.Executor, int) ([]Order, error)
+	GetOrder(context.Context, database.Executor, string) (Order, error)
 }
 
 type CatalogService struct {

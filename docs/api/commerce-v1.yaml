@@ -70,6 +70,26 @@ paths:
         '400': { description: Invalid request or missing idempotency key. }
         '401': { description: Authentication required. }
         '409': { description: Stock, currency, or idempotency conflict. }
+  /api/v1/commerce/orders/{orderID}/payment-intent:
+    post:
+      operationId: createPaymentIntent
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - in: path
+          name: orderID
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider: { type: string, enum: [stripe, iyzico, paytr] }
+      responses:
+        '200': { description: Provider payment intent, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentIntent' } } } }
+        '403': { description: Order does not belong to the authenticated user. }
+        '503': { description: Provider is not configured. }
   /api/v1/webhooks/payment/{provider}:
     post:
       operationId: receivePaymentWebhook
@@ -172,3 +192,14 @@ components:
           items:
             type: object
             required: [product_id, sku, title, quantity, unit_cents, total_cents]
+    PaymentIntent:
+      type: object
+      required: [id, provider, order_id, amount_cents, currency, status]
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        order_id: { type: string }
+        amount_cents: { type: integer, format: int64 }
+        currency: { type: string }
+        status: { type: string }
+        client_token: { type: string }
