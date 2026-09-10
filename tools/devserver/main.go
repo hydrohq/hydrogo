@@ -367,20 +367,20 @@ const devClient = `(()=>{if(window.__hydrogoDev)return;window.__hydrogoDev=true;
 
 const devStyles = `body.hydrogo-dev-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#090d16;color:#f8fafc;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;padding:24px;box-sizing:border-box}
 .hydrogo-dev-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:36px 32px 32px;max-width:380px;width:100%;background:#131d31;border:1px solid #1e293b;border-radius:18px;box-shadow:0 20px 45px rgba(0,0,0,.45)}
-.hdev-spinner{width:36px;height:36px;border:3px solid rgba(99,102,241,0.18);border-top-color:#6366f1;border-radius:50%;animation:hdev-spin .85s cubic-bezier(.5,.1,.4,.9) infinite;margin-bottom:18px}
+.hdev-spinner{width:36px;height:36px;border:3px solid rgba(37,99,235,0.18);border-top-color:#3b82f6;border-radius:50%;animation:hdev-spin .85s cubic-bezier(.5,.1,.4,.9) infinite;margin-bottom:18px}
 @keyframes hdev-spin{to{transform:rotate(360deg)}}
 .hydrogo-dev-card h2{margin:0 0 8px;font-size:1.15rem;font-weight:700;letter-spacing:-.02em;color:#f8fafc}
 .hydrogo-dev-card p{margin:0 0 20px;font-size:.86rem;color:#94a3b8;line-height:1.5}
 .hdev-bar-wrap{width:100%;height:4px;border-radius:99px;background:#1e293b;overflow:hidden;position:relative}
-.hdev-bar-indeterminate{position:absolute;height:100%;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:99px;animation:hdev-progress 1.4s infinite ease-in-out}
+.hdev-bar-indeterminate{position:absolute;height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);border-radius:99px;animation:hdev-progress 1.4s infinite ease-in-out}
 @keyframes hdev-progress{0%{left:-40%;width:40%}50%{left:20%;width:60%}100%{left:100%;width:40%}}
 #hydrogo-dev-status{position:fixed;right:16px;bottom:16px;z-index:2147483647;width:min(360px,calc(100vw - 32px));padding:12px 14px;border:1px solid #1e293b;border-radius:12px;background:#131d31;color:#f8fafc;box-shadow:0 12px 30px rgba(0,0,0,.35);font:12px/1.45 'Plus Jakarta Sans',sans-serif;transition:all .2s ease}
 #hydrogo-dev-status.hdev-hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
 .hdev-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.hdev-head strong{color:#818cf8;font-weight:700;font-size:.82rem}
+.hdev-head strong{color:#60a5fa;font-weight:700;font-size:.82rem}
 .hdev-value{color:#94a3b8;font-size:.78rem}
 .hdev-track{height:3px;margin-top:8px;overflow:hidden;border-radius:99px;background:#1e293b}
-.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#6366f1,#818cf8);transition:width .25s ease}
+.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#60a5fa);transition:width .25s ease}
 #hydrogo-dev-status.hdev-error{border-color:rgba(239,68,68,0.4);background:#1a1114}
 #hydrogo-dev-status.hdev-error .hdev-head strong,#hydrogo-dev-status.hdev-error .hdev-value{color:#f87171}
 #hydrogo-dev-status pre{max-height:200px;margin:8px 0 0;padding:10px;overflow:auto;border-radius:6px;background:#090d16;color:#fca5a5;font:11px/1.45 monospace;white-space:pre-wrap;border:1px solid rgba(239,68,68,0.2)}`
