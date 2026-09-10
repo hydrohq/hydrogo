@@ -45,10 +45,14 @@ func (t *Traffic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "traffic router unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	state := t.active.Load().(trafficState)
+	// Capture the cache generation before reading the active slot. This ordering
+	// prevents a request that observed the old slot from pairing it with a
+	// generation created by a concurrent switch or rollback. Such a pairing
+	// could let stale slot data refill the current cache generation.
 	if t.generationProvider != nil {
 		r = r.WithContext(cache.WithGeneration(r.Context(), t.generationProvider()))
 	}
+	state := t.active.Load().(trafficState)
 	if state.slot == SlotGreen {
 		t.green.ServeHTTP(w, r)
 		return
