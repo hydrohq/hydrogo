@@ -39,3 +39,50 @@ func TestPathRejectsMalformedOrUnsafeInput(t *testing.T) {
 		}
 	}
 }
+
+func FuzzPath(f *testing.F) {
+	seeds := []string{
+		"/",
+		"home",
+		"/hakkimizda/",
+		"café",
+		"cafe\u0301",
+		"/docs/%C3%BCr\u00fcn/",
+		"%zz",
+		"a%00b",
+		"a\\b",
+		"../secrets",
+		"//multiple//slashes",
+		"",
+	}
+	for _, seed := range seeds {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, input string) {
+		res, err := Path(input)
+		if err == nil {
+			if len(res) > 0 && (res[0] == '/' || res[len(res)-1] == '/') {
+				t.Fatalf("Path(%q) produced unstripped slashes: %q", input, res)
+			}
+		}
+	})
+}
+
+func FuzzEmail(f *testing.F) {
+	seeds := []string{
+		"admin@hydrogo.io",
+		"  Admin@HydroGo.IO ",
+		"e\u0301xample@example.com",
+		"",
+		"invalid-email",
+		"test@sub.domain.co.uk",
+	}
+	for _, seed := range seeds {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, input string) {
+		_ = Email(input)
+	})
+}

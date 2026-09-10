@@ -406,3 +406,27 @@ func BenchmarkSQLitePortableRoundTrip256(b *testing.B) {
 		}
 	}
 }
+
+func FuzzUnmarshalPortable(f *testing.F) {
+	seeds := [][]byte{
+		[]byte(`{"format_version":1,"tables":[]}`),
+		[]byte(`{"format_version":1,"tables":[{"name":"pages","columns":["id"],"rows":[["p1"]]}]}`),
+		[]byte(`{"format_version":2,"tables":[]}`),
+		[]byte(`{"malformed": true`),
+		[]byte(`{}`),
+		[]byte(``),
+	}
+	for _, seed := range seeds {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		doc, err := Unmarshal(data)
+		if err == nil {
+			if doc.FormatVersion != 1 {
+				t.Fatalf("Unmarshal allowed unsupported format version: %d", doc.FormatVersion)
+			}
+		}
+	})
+}
+

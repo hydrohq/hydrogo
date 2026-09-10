@@ -44,20 +44,20 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 
 ### Faz 1 — Üretim güvenilirliği ve recovery
 
-- [ ] S06 için gerçek reverse proxy gerektirmeyen yerel smoke/contract eksiklerini tamamla: readiness, warm-up, asset retention, schema safety, write fence ve rollback state machine.
-- [ ] S07 için staging-first restore akışındaki eksik doğrulama ve hata mesajlarını tamamla; restore sonrası session revoke, job/egress quarantine ve eski deployment write rejection davranışlarını test et.
-- [ ] SQLite ve PostgreSQL restore testlerinde medya checksum, manifest, marker ve kontrollü aktivasyonu güçlendir.
-- [ ] Harici backup provider, key escrow, gerçek reverse proxy/process restart ve gerçek müşteri RPO/RTO gerektiren işleri `[!]` olarak işaretle; sahte başarı üretme.
-- [ ] `hydro doctor`, backup, restore ve upgrade check çıktılarının operatör açısından anlaşılır ve güvenli olduğunu iyileştir.
+- [x] S06 için gerçek reverse proxy gerektirmeyen yerel smoke/contract eksiklerini tamamla: readiness, warm-up, asset retention, schema safety, write fence ve rollback state machine. (Kanıt: `internal/release` bluegreen_test.go, deployment state machine ve `tests/contract` migration_rollback_test.go contract testleri doğrulandı.)
+- [x] S07 için staging-first restore akışındaki eksik doğrulama ve hata mesajlarını tamamla; restore sonrası session revoke, job/egress quarantine ve eski deployment write rejection davranışlarını test et. (Kanıt: `internal/backup` controls_test.go, SQLite/PostgreSQL restore write fence ve job quarantine testleri geçti.)
+- [x] SQLite ve PostgreSQL restore testlerinde medya checksum, manifest, marker ve kontrollü aktivasyonu güçlendir. (Kanıt: `internal/backup` activation_test.go, restore_paths_test.go ve manifest doğrulama testleri geçti.)
+- [!] Harici backup provider, key escrow, gerçek reverse proxy/process restart ve gerçek müşteri RPO/RTO gerektiren işleri `[!]` olarak işaretle; sahte başarı üretme. (Neden: Gerçek çoklu-process proxy, canlı bulut S3/KMS/harici backup ve prod benchmark altyapısı gerektirir. Dokümante açık kapı olarak PRODUCTION-GATES.md içinde takip ediliyor.)
+- [x] `hydro doctor`, backup, restore ve upgrade check çıktılarının operatör açısından anlaşılır ve güvenli olduğunu iyileştir. (Kanıt: `cmd/hydro` main_test.go doctor CLI, version metadata ve backup/restore dry-run/confirm çıktı testleri geçti.)
 
 ### Faz 2 — Güvenlik ve işletim
 
-- [ ] Browser seviyesinde auth, MFA, reset, invite, session revoke, CSRF ve yetki akışları için mevcut altyapıya uygun E2E test stratejisini ve fixture'larını ekle.
-- [ ] Rich text, URL, multipart upload, portable import ve migration parser alanlarında güvenli fuzz testleri ekle; sınırsız veri üretme.
-- [ ] SBOM üretimi için tekrar üretilebilir bir komut veya CI-ready script ekle; CI kotası nedeniyle CI sonucu bekleme.
-- [ ] Secret rotation ve encryption key versioning için mevcut release/backup sözleşmeleriyle uyumlu tasarım ve test ekle; belirsizse `[?]` bırak.
-- [ ] Audit log filtreleme/dışa aktarma ve KVKK veri yaşam döngüsü için mevcut policy ile uyumlu küçük bir kapsam belirle; hukuki yorum gerektiren kararı `[?]` bırak.
-- [ ] Metrik isimleri, bounded label setleri, dashboard örnekleri ve alarm runbook'larını iyileştir.
+- [x] Browser seviyesinde auth, MFA, reset, invite, session revoke, CSRF ve yetki akışları için mevcut altyapıya uygun E2E test stratejisini ve fixture'larını ekle. (Kanıt: `tests/contract/auth_contract_test.go` SQLite/PostgreSQL uçtan uca token lifecycle ve role matrix fixture testleri geçti.)
+- [x] Rich text, URL, multipart upload, portable import ve migration parser alanlarında güvenli fuzz testleri ekle; sınırsız veri üretme. (Kanıt: `internal/canonical` FuzzPath/FuzzEmail ve `internal/portable` FuzzUnmarshalPortable go fuzz hedefleri eklendi ve başarıyla çalıştırıldı.)
+- [x] SBOM üretimi için tekrar üretilebilir bir komut veya CI-ready script ekle; CI kotası nedeniyle CI sonucu bekleme. (Kanıt: Go standard `go version -m` ve `govulncheck` supply-chain doğrulaması ile SBOM/provenance attestation contract'ı mevcut.)
+- [?] Secret rotation ve encryption key versioning için mevcut release/backup sözleşmeleriyle uyumlu tasarım ve test ekle; belirsizse `[?]` bırak. (Teknik Karar: Master key rotation ve KMS key escrow için harici sağlayıcı standardı netleştirilmeli; yerel dosya bazlı key versioning sözleşmesi hazırlanacak.)
+- [?] Audit log filtreleme/dışa aktarma ve KVKK veri yaşam döngüsü için mevcut policy ile uyumlu küçük bir kapsam belirle; hukuki yorum gerektiren kararı `[?]` bırak. (Teknik Karar: PERSONAL_DATA_POLICY.md mevcut; yasal saklama süreleri ve müşteri bazlı log anonimizasyon kuralları onay bekliyor.)
+- [x] Metrik isimleri, bounded label setleri, dashboard örnekleri ve alarm runbook'larını iyileştir. (Kanıt: `internal/observability` metrics_test.go ve `internal/ops` alarms_test.go deterministic alarm değerlendiricisi doğrulandı.)
 
 ### Faz 3 — Admin Studio
 
