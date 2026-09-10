@@ -49,6 +49,7 @@ Kabul edilmiş bir karar sessizce değiştirilmez. Yeni bilgi kararı geçersiz 
 | [0018](0018-filesystem-theme-bundles.md) | Dosya tabanlı tema paketleri ve güvenli slot renderer | Kabul edildi |
 | [0019](0019-external-webhook-delivery.md) | İmzalı dış webhook teslimi | Kabul edildi |
 | [0020](0020-headless-first-admin-studio-and-frontend-templates.md) | Headless-first Admin Studio ve frontend template sınırı | Önerildi |
+| [0021](0021-headless-browser-session-boundary.md) | Headless browser session ve cross-origin sınırı | Önerildi |
 
 Uygulama sırası ve çıkış kapıları [Roadmap](../ROADMAP.md) içinde izlenir.
 

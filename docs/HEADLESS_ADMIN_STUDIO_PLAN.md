@@ -58,7 +58,7 @@ Küçük kurulumda `presentation=integrated` seçeneği server-rendered template
 
 - OpenAPI/GraphQL schema'dan typed TypeScript client üret veya sürümlü ince client yaz.
 - Public read, preview, auth/session, cart ve checkout için net `/api/v1` sözleşmelerini belgeleyip fixture ekle.
-- CORS, cookie domain, CSRF ve preview token kararlarını ayrı threat-model ekiyle doğrula.
+- CORS, cookie domain, CSRF ve preview token kararlarını [ADR-0021](architecture/0021-headless-browser-session-boundary.md) ile doğrula.
 - Public route sahipliğini frontend uygulamasına ver; Core sadece API/admin/webhook yollarını sunar.
 
 **Kabul:** Başka repository'deki fixture frontend, Core internal import etmeden yalnız SDK ile build ve e2e test yapar.
