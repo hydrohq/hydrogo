@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -47,6 +48,19 @@ type updateInput struct {
 	Version int `json:"version"`
 }
 
+// pageSummary is the intentionally small public discovery projection. Detail
+// content remains behind the by-slug endpoint so list clients do not mistake
+// empty draft fields for published content.
+type pageSummary struct {
+	ID                    string    `json:"id"`
+	Locale                string    `json:"locale"`
+	Slug                  string    `json:"slug"`
+	Title                 string    `json:"title"`
+	Revision              int       `json:"revision"`
+	PublicationGeneration int64     `json:"publication_generation"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
 func (h Handler) Routes() []Route {
 	return []Route{
 		{Pattern: "POST /api/pages", Handler: http.HandlerFunc(h.create), Protected: true},
@@ -79,7 +93,15 @@ func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
-	writeJSON(w, http.StatusOK, items)
+	writeJSON(w, http.StatusOK, summarizePages(items))
+}
+
+func summarizePages(items []pages.Page) []pageSummary {
+	summaries := make([]pageSummary, 0, len(items))
+	for _, page := range items {
+		summaries = append(summaries, pageSummary{ID: page.ID, Locale: page.Locale, Slug: page.Slug, Title: page.Title, Revision: page.Revision, PublicationGeneration: page.PublicationGeneration, UpdatedAt: page.UpdatedAt})
+	}
+	return summaries
 }
 
 func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {

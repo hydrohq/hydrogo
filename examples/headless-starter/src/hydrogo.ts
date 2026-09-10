@@ -1,5 +1,6 @@
 export type Block = { type: string; payload: Record<string, unknown> };
 export type Page = { id: string; locale: string; slug: string; title: string; body: string; blocks: Block[]; status: "draft" | "published"; revision: number; published_revision?: number };
+export type PageSummary = { id: string; locale: string; slug: string; title: string; revision: number; publication_generation: number; updated_at: string };
 export type NewsItem = { id: string; locale: string; slug: string; title: string; body: string; status: "published"; revision: number; published_revision: number; updated_at: string };
 export type Product = { id: string; sku: string; title: string; price_cents: number; currency: string; stock: number; status: "draft" | "published" | "out_of_stock" };
 export type ProductVariant = Product & { product_id: string };
@@ -27,9 +28,9 @@ export class HydroGoClient {
     return this.request<Page>(`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`);
   }
 
-  async listPages(locale: string, limit = 20): Promise<Page[]> {
+  async listPages(locale: string, limit = 20): Promise<PageSummary[]> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
-    return this.request<Page[]>(`/api/v1/pages?locale=${encodeURIComponent(locale)}&limit=${limit}`);
+    return this.request<PageSummary[]>(`/api/v1/pages?locale=${encodeURIComponent(locale)}&limit=${limit}`);
   }
 
   async listNews(locale: string, limit = 20): Promise<NewsItem[]> {
