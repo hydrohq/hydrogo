@@ -49,6 +49,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	graphqlapi "github.com/ardaozyildirim/hydrogo/modules/api/graphql"
 	commerce "github.com/ardaozyildirim/hydrogo/modules/commerce"
 	iyzicoprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/iyzico"
 	paytrprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/paytr"
@@ -648,6 +649,7 @@ func serve(args []string, stderr io.Writer) error {
 		Lease:   time.Minute,
 		Retry:   time.Minute,
 	}
+	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
@@ -656,6 +658,8 @@ func serve(args []string, stderr io.Writer) error {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
 		commerceCatalog := commerce.CatalogService{Transactions: database.NewTransactor(db), Store: commerceStore, Variants: commerceStore}
+		graphqlHTTP.Catalog = commerceCatalog
+		graphqlHTTP.Commerce = true
 		providers := make(map[string]commerce.PaymentProvider)
 		if cfg.Payments.StripeSecretKey != "" {
 			providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
@@ -672,6 +676,7 @@ func serve(args []string, stderr io.Writer) error {
 		routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
 		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
 	}
+	routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: graphqlHTTP})
 
 	metrics := observability.NewMetrics()
 	metrics.SetWorkerConcurrency(budget.WorkerConcurrency)
