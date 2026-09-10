@@ -26,3 +26,5 @@ Para değerleri minor-unit integer ve ISO currency koduyla tutulur. Stok negatif
 Ödeme sağlayıcısı adapter sözleşmesi `CreatePaymentIntent`, imza doğrulamalı webhook ve `Refund` işlemlerini kapsar. Webhook event ID'si ve provider idempotency key'i kalıcı olarak kaydedilir. Bilinmeyen veya imzası geçersiz event reddedilir; ödeme durumu yalnız doğrulanmış provider event'iyle ilerler.
 
 İlk commerce teslimi ödeme sağlayıcısı olmadan test edilebilir. Stripe, iyzico ve PayTR ayrı adapter ve sandbox contract testleriyle eklenir; sağlayıcı SDK ayrıntıları domain'e sızmaz.
+
+HTTP sözleşmesi [commerce-v1.yaml](../api/commerce-v1.yaml) içinde sürümlenir. `/api` uyumluluk alias'ı router tarafından sağlanır; yeni istemciler `/api/v1` kullanır.

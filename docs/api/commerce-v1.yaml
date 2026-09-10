@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: HydroGo Commerce API
+  version: 1.0.0
+  description: Provider-neutral checkout and payment webhook contract.
+servers:
+  - url: /
+paths:
+  /api/v1/commerce/cart/checkout:
+    post:
+      operationId: checkoutCart
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutRequest' }
+      responses:
+        '200':
+          description: Existing or newly created order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400': { description: Invalid request or missing idempotency key. }
+        '401': { description: Authentication required. }
+        '409': { description: Stock, currency, or idempotency conflict. }
+  /api/v1/webhooks/payment/{provider}:
+    post:
+      operationId: receivePaymentWebhook
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { type: string, enum: [stripe, iyzico, paytr] }
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { type: object } }
+          application/x-www-form-urlencoded: { schema: { type: object } }
+      responses:
+        '204': { description: Event accepted or safely replayed. }
+        '400': { description: Invalid signature, event, or amount. }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: hydro_session
+  schemas:
+    CheckoutRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: string }
+              quantity: { type: integer, minimum: 1, maximum: 1000 }
+    Order:
+      type: object
+      required: [id, user_id, currency, items, total_cents, payment_status, shipping_status]
+      properties:
+        id: { type: string }
+        user_id: { type: string }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        total_cents: { type: integer, format: int64, minimum: 0 }
+        payment_status: { type: string, enum: [pending, paid, failed, refunded] }
+        shipping_status: { type: string, enum: [pending, processing, shipped, delivered, cancelled] }
+        items:
+          type: array
+          items:
+            type: object
+            required: [product_id, sku, title, quantity, unit_cents, total_cents]
