@@ -12,6 +12,7 @@ import (
 
 func TestParseBlockFormBuildsStructuredBlocks(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("block_count=1&block_type_0=hero&block_title_0=Welcome&block_button_url_0=%2Fstart"))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if err := r.ParseForm(); err != nil {
 		t.Fatal(err)
 	}
