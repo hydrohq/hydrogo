@@ -17,6 +17,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
 
@@ -430,12 +431,15 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Commerce catalog</title></head><body><h1>Commerce catalog</h1><form method="post" action="/admin/commerce/products">`))
+	if err := ui.AdminStart(w, "Commerce katalog", "Commerce"); err != nil {
+		return
+	}
+	_, _ = w.Write([]byte(`<section class="studio-card"><h2>Ürün kataloğu</h2><p>Ürünleri, fiyatları ve stok durumunu yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products">`))
 	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/commerce/products", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"currency": "TRY", "status": "draft"}}); err != nil {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = w.Write([]byte(`</form>`))
+	_, _ = w.Write([]byte(`</form></section><section class="studio-card"><h2>Ürünler</h2><div class="table-wrap">`))
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
@@ -444,7 +448,8 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = w.Write([]byte(`</body></html>`))
+	_, _ = w.Write([]byte(`</div></section>`))
+	_ = ui.AdminEnd(w)
 }
 
 func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
@@ -464,7 +469,10 @@ func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Product variants</title></head><body><a href="/admin/commerce/products">Catalog</a><h1>Product variants</h1><form method="post" action="/admin/commerce/products/%s/variants">%s</form>`, template.HTMLEscapeString(r.PathValue("productID")), form.String())
+	if err := ui.AdminStart(w, "Varyantlar", "Commerce"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><a href="/admin/commerce/products">← Kataloğa dön</a><h2>Ürün varyantları</h2><p>SKU, fiyat ve stok seçeneklerini yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products/%s/variants">%s</form></section><section class="studio-card"><h2>Varyant listesi</h2><div class="table-wrap">`, template.HTMLEscapeString(r.PathValue("productID")), form.String())
 	rows := make([]adminstudio.Row, 0, len(variants))
 	for _, variant := range variants {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"sku": variant.SKU, "title": variant.Title, "price_cents": strconv.FormatInt(variant.PriceCents, 10), "currency": variant.Currency, "stock": strconv.Itoa(variant.Stock), "status": string(variant.Status)}})
@@ -473,7 +481,8 @@ func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio variants unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = w.Write([]byte(`</body></html>`))
+	_, _ = w.Write([]byte(`</div></section>`))
+	_ = ui.AdminEnd(w)
 }
 
 func (h Handler) adminCreateVariant(w http.ResponseWriter, r *http.Request) {
@@ -550,7 +559,10 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Commerce orders</title></head><body><nav><a href="/admin/commerce/products">Catalog</a></nav><h1>Commerce orders</h1><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))
+	if err := ui.AdminStart(w, "Siparişler", "Commerce"); err != nil {
+		return
+	}
+	_, _ = w.Write([]byte(`<section class="studio-card"><a href="/admin/commerce/products">← Kataloğa dön</a><h2>Siparişler</h2><p>Ödeme ve teslimat durumlarını izleyin.</p><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))
 	for _, order := range orders {
 		refund := `<span>Unavailable</span>`
 		if order.PaymentStatus == "paid" {
@@ -558,7 +570,8 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = fmt.Fprintf(w, `<tr><td><code>%s</code></td><td><code>%s</code></td><td>%d %s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.UserID), order.TotalCents, template.HTMLEscapeString(order.Currency), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ShippingStatus), len(order.Items), refund)
 	}
-	_, _ = w.Write([]byte(`</tbody></table></body></html>`))
+	_, _ = w.Write([]byte(`</tbody></table></div></section>`))
+	_ = ui.AdminEnd(w)
 }
 
 func (h Handler) adminRefund(w http.ResponseWriter, r *http.Request) {

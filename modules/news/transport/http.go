@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -19,6 +20,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
 
@@ -65,12 +67,14 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /api/news", Handler: http.HandlerFunc(h.publicList)},
 		{Pattern: "GET /api/news/by-slug", Handler: http.HandlerFunc(h.publicGetByQuery)},
 		{Pattern: "GET /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminList)},
+		{Pattern: "POST /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminCreate)},
 		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
 		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
 		{Pattern: "POST /admin/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.adminSchedule)},
 		{Pattern: "POST /admin/news/{id}/publish", Protected: true, Handler: http.HandlerFunc(h.adminPublish)},
 		{Pattern: "POST /admin/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.adminRetract)},
 		{Pattern: "GET /public/news/{locale}/{slug}/html", Handler: http.HandlerFunc(h.publicGetHTML)},
+		{Pattern: "GET /public/news/{locale}/html", Handler: http.HandlerFunc(h.publicListHTML)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
 	}
 }
@@ -99,9 +103,42 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Haberler", "Yayın merkezi"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>İçerik akışı</h2><p>Haberleri taslak olarak oluşturun, zamanlayın ve tek tıkla yayınlayın.</p><div class="studio-actions"><a class="button" href="#new-news">Yeni haber oluştur</a><a class="button button-quiet" href="/public/news/tr/html">Canlı siteyi aç</a></div></section><section class="studio-card"><h2>Haberler <span class="muted">(%d)</span></h2><div class="table-wrap">`, len(rows))
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
+		return
 	}
+	_, _ = fmt.Fprintf(w, `</div></section><section class="studio-card" id="new-news"><h2>Yeni haber</h2><p>İçerik önce taslak kaydedilir; yayınlamak için haber detayındaki akışı kullanın.</p><form class="studio-form" method="post" action="/admin/news">`)
+	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"locale": "tr"}, SubmitLabel: "Taslak oluştur"}); err != nil {
+		return
+	}
+	_, _ = fmt.Fprint(w, `</form></section>`)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	id, err := newID()
+	if err != nil {
+		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	item := news.Item{ID: id, Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
+	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
+		writeError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/news/"+template.URLQueryEscaper(id), http.StatusSeeOther)
 }
 
 func (h Handler) publicList(w http.ResponseWriter, r *http.Request) {
@@ -289,7 +326,70 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><header class="theme-corporate-header"><a class="theme-brand" href="/public/pages/tr/demo/html">HydroGo</a><nav aria-label="Ana navigasyon"><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/release-notes/html">Haberler</a><a href="/shop">Mağaza</a></nav></header><main class="theme-corporate-content news-page"><a href="/public/pages/tr/demo/html">← Ana sayfa</a><article><p class="news-kicker">HABER</p><h1>%s</h1><p class="news-body">%s</p></article></main></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(item.Body))
+	_, _ = fmt.Fprint(w, newsDocumentStart(locale, item.Title))
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article"><a class="news-back" href="/public/news/%s/html">← Tüm haberler</a><article><div class="news-article-kicker">HYDROGO / EDITORIAL</div><h1>%s</h1><div class="news-article-meta"><span>Yayınlanmış içerik</span><span>%d. revizyon</span></div><p class="news-lead">%s</p><div class="news-prose">%s</div><div class="news-share"><strong>Paylaş</strong><a href="mailto:?subject=%s">E-posta</a><a href="/public/news/%s/html">Permalink</a></div></article></main><footer class="news-footer"><span>HydroGo Newsroom</span><a href="/shop">Mağazaya geç</a></footer></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Title), item.PublishedRevision, template.HTMLEscapeString(newsLead(item.Body)), renderParagraphs(item.Body), template.URLQueryEscaper(item.Title), template.HTMLEscapeString(r.PathValue("slug")))
+}
+
+func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	repository, ok := h.Service.Repository.(publishedListRepository)
+	if !ok {
+		http.Error(w, "news list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	locale := canonical.Locale(r.PathValue("locale"))
+	if locale == "" {
+		http.Error(w, "news not found", http.StatusNotFound)
+		return
+	}
+	items, err := repository.ListPublished(r.Context(), h.DB, locale, 50)
+	if err != nil {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprint(w, newsDocumentStart(locale, "Haberler"))
+	_, _ = fmt.Fprintf(w, `<main class="news-portal"><section class="news-intro"><div><div class="news-article-kicker">HYDROGO / NEWSROOM</div><h1>Ürün, içerik ve teknoloji notları.</h1><p>HydroGo’nun nasıl geliştiğini, yeni yetenekleri ve ekipten kısa notları takip edin.</p></div><a class="news-primary" href="/public/pages/tr/showcase/html">Platformu keşfet →</a></section>`)
+	if len(items) == 0 {
+		_, _ = fmt.Fprint(w, `<section class="news-empty">Henüz yayınlanmış haber yok.</section>`)
+	} else {
+		_, _ = fmt.Fprint(w, `<section class="news-lead-grid"><article class="news-feature"><div class="news-number">01</div><div class="news-article-kicker">ÖNE ÇIKAN</div><h2><a href="`)
+		_, _ = fmt.Fprintf(w, `/public/news/%s/%s/html">%s</a></h2><p>%s</p><a class="news-read" href="/public/news/%s/%s/html">Hikâyeyi oku →</a></article><div class="news-side-list">`, template.HTMLEscapeString(locale), template.HTMLEscapeString(items[0].Slug), template.HTMLEscapeString(items[0].Title), template.HTMLEscapeString(newsLead(items[0].Body)), template.HTMLEscapeString(locale), template.HTMLEscapeString(items[0].Slug))
+		for i, item := range items[1:] {
+			_, _ = fmt.Fprintf(w, `<article class="news-side-card"><span>%02d</span><div><div class="news-article-kicker">YAYIN</div><h3><a href="/public/news/%s/%s/html">%s</a></h3><p>%s</p></div></article>`, i+2, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLead(item.Body)))
+		}
+		_, _ = fmt.Fprint(w, `</div></section><section class="news-latest"><div class="news-section-title"><div><div class="news-article-kicker">ARŞİV</div><h2>Son yayınlar</h2></div><span>Güncel içerikler</span></div>`)
+		for _, item := range items {
+			_, _ = fmt.Fprintf(w, `<a class="news-row" href="/public/news/%s/%s/html"><span class="news-row-arrow">↗</span><span><strong>%s</strong><small>%s</small></span><time>Rev. %d</time></a>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLead(item.Body)), item.PublishedRevision)
+		}
+		_, _ = fmt.Fprint(w, `</section>`)
+	}
+	_, _ = fmt.Fprint(w, `</main><footer class="news-footer"><span>HydroGo Newsroom</span><nav><a href="/public/pages/tr/demo/html">Ana sayfa</a><a href="/shop">Mağaza</a></nav></footer></body></html>`)
+}
+
+func newsDocumentStart(locale, title string) string {
+	return fmt.Sprintf(`<!doctype html><html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo Newsroom</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><header class="news-header"><a class="news-logo" href="/public/news/%s/html">HYDROGO <span>NEWSROOM</span></a><nav><a href="/public/pages/tr/demo/html">Ana sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/shop">Mağaza</a></nav></header>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(title), template.HTMLEscapeString(locale))
+}
+
+func newsLead(body string) string {
+	body = strings.Join(strings.Fields(body), " ")
+	if len([]rune(body)) > 180 {
+		return string([]rune(body)[:180]) + "…"
+	}
+	return body
+}
+func renderParagraphs(body string) string {
+	var out strings.Builder
+	for _, paragraph := range strings.Split(body, "\n") {
+		paragraph = strings.TrimSpace(paragraph)
+		if paragraph != "" {
+			out.WriteString(`<p>` + template.HTMLEscapeString(paragraph) + `</p>`)
+		}
+	}
+	return out.String()
 }
 
 func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
@@ -316,10 +416,12 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<form method="post" action="/admin/news/%s">%s<input type="hidden" name="version" value="%d"></form>
-<form method="post" action="/admin/news/`+template.HTMLEscapeString(item.ID)+`/schedule"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><input type="hidden" name="version" value="`+strconv.Itoa(item.Version)+`"><input name="scheduled_at" type="datetime-local"><button type="submit">Schedule</button></form>
-<form method="post" action="/admin/news/`+template.HTMLEscapeString(item.ID)+`/publish"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><input type="hidden" name="version" value="`+strconv.Itoa(item.Version)+`"><button type="submit">Publish</button></form>
-<form method="post" action="/admin/news/`+template.HTMLEscapeString(item.ID)+`/retract"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><input type="hidden" name="version" value="`+strconv.Itoa(item.Version)+`"><button type="submit">Retract</button></form>`, template.HTMLEscapeString(item.ID), template.HTML(form.String()), item.Version)
+	if err := ui.AdminStart(w, "Haber düzenle", "Yayın merkezi"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Yayın revizyonu</span></div><div class="meta-item"><strong>%s</strong><span>Dil</span></div></div><form class="studio-form" method="post" action="/admin/news/%s">%s<input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayın akışı</h2><p class="muted">Taslağı kaydedin, ileri tarihli yayın planlayın veya anında yayınlayın.</p><div class="studio-actions">`, template.HTMLEscapeString(string(item.Status)), item.Version, item.PublishedRevision, template.HTMLEscapeString(item.Locale), template.HTMLEscapeString(item.ID), template.HTML(form.String()), item.Version)
+	_, _ = fmt.Fprintf(w, `<form method="post" action="/admin/news/%s/schedule"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><input name="scheduled_at" type="datetime-local"><button type="submit">Zamanla</button></form><form method="post" action="/admin/news/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit">Yayınla</button></form><form method="post" action="/admin/news/%s/retract"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button-quiet">Geri çek</button></form></div></section>`, template.HTMLEscapeString(item.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), item.Version, template.HTMLEscapeString(item.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), item.Version, template.HTMLEscapeString(item.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), item.Version)
+	_ = ui.AdminEnd(w)
 }
 
 func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
