@@ -231,7 +231,10 @@ func (c *Cache[T]) Clear() {
 }
 
 func (c *Cache[T]) ready() bool {
-	return c != nil && c.entries != nil && c.loads != nil && c.maxEntries > 0
+	// entries and loads are protected by mu and are replaced by Clear. Readiness
+	// must therefore depend only on immutable construction state; inspecting the
+	// maps here would race with an invalidation under concurrent traffic.
+	return c != nil && c.maxEntries > 0
 }
 
 func runLoader[T any](loader func() (T, error)) (value T, err error) {
