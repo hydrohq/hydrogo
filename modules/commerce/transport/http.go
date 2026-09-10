@@ -478,7 +478,7 @@ func (h Handler) adminNewProduct(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Yeni ürün", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">KATALOG YÖNETİMİ</p><h2>Yeni ürün oluştur</h2><p class="muted">Ürün bilgilerini girin. Oluşturduktan sonra varyant ve stok seçeneklerini ayrı sayfadan yönetebilirsiniz.</p></div><a class="button button-quiet" href="/admin/commerce/products">Kataloğa dön</a></div><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></section>`, form.String())
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></section>`, form.String())
 	_ = ui.AdminEnd(w)
 }
 

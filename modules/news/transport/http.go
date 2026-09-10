@@ -149,7 +149,7 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Yeni haber", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">YENİ İÇERİK</p><h2>Yeni haber oluştur</h2><p class="muted">İçerik önce taslak olarak kaydedilir. Daha sonra detay sayfasından düzenleyebilir, zamanlayabilir veya yayınlayabilirsiniz.</p></div><a class="button button-quiet" href="/admin/news">Listeye dön</a></div><form class="studio-form" method="post" action="/admin/news">`)
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/news">`)
 	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"locale": h.defaultLocale()}, SubmitLabel: "Taslak oluştur"}); err != nil {
 		return
 	}
