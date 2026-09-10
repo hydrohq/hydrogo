@@ -1,0 +1,62 @@
+package sqlstore
+
+import (
+	"context"
+	"database/sql"
+	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+)
+
+func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, "file:commerce-contract?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, statement := range []string{
+		`CREATE TABLE commerce_products (id TEXT PRIMARY KEY, sku TEXT NOT NULL UNIQUE, title TEXT NOT NULL, price_cents INTEGER NOT NULL, currency TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE commerce_orders (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, currency TEXT NOT NULL, total_cents INTEGER NOT NULL, payment_status TEXT NOT NULL, shipping_status TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(user_id, idempotency_key))`,
+		`CREATE TABLE commerce_order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, sku TEXT NOT NULL, title TEXT NOT NULL, quantity INTEGER NOT NULL, unit_cents INTEGER NOT NULL, total_cents INTEGER NOT NULL, variant_id TEXT)`,
+		`CREATE TABLE commerce_product_variants (id TEXT PRIMARY KEY, product_id TEXT NOT NULL, sku TEXT NOT NULL UNIQUE, title TEXT NOT NULL, price_cents INTEGER NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+	} {
+		if _, err := db.ExecContext(context.Background(), statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = db.Exec(`INSERT INTO commerce_products (id, sku, title, price_cents, currency, stock, status, created_at, updated_at) VALUES ('p1','P1','Bottle',1000,'TRY',10,'published','now','now')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO commerce_product_variants (id, product_id, sku, title, price_cents, stock, status, created_at, updated_at) VALUES ('v1','p1','V1','Blue',1200,2,'published','now','now')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store := Store{Dialect: database.SQLite}
+	variant, err := store.ReserveVariant(context.Background(), db, "v1", 1)
+	if err != nil || variant.Currency != "TRY" || variant.Stock != 1 {
+		t.Fatalf("reserve variant = %#v, %v", variant, err)
+	}
+	variants, err := store.ListVariants(context.Background(), db, "p1", true)
+	if err != nil || len(variants) != 1 || variants[0].Currency != "TRY" {
+		t.Fatalf("list variants = %#v, %v", variants, err)
+	}
+
+	_, err = db.Exec(`INSERT INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,created_at) VALUES ('o1','u1','k1','TRY',1200,'pending','pending','now')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO commerce_order_items (id,order_id,product_id,variant_id,sku,title,quantity,unit_cents,total_cents) VALUES ('oi1','o1','p1','v1','V1','Blue',1,1200,1200)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orders, err := store.ListOrders(context.Background(), db, 10)
+	if err != nil || len(orders) != 1 || len(orders[0].Items) != 1 || orders[0].Items[0].VariantID != "v1" {
+		t.Fatalf("list orders = %#v, %v", orders, err)
+	}
+}
+
+var _ database.Executor = (*sql.DB)(nil)
+var _ commerce.OrderReader = Store{}

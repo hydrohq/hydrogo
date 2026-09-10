@@ -29,7 +29,7 @@ func (s Store) ReserveVariant(ctx context.Context, db database.Executor, id stri
 		return commerce.ProductVariant{}, err
 	}
 	q := `UPDATE commerce_product_variants SET stock = stock - ` + s.placeholder(1) + `, status = CASE WHEN stock - ` + s.placeholder(1) + ` = 0 THEN 'out_of_stock' ELSE status END, updated_at = ` + s.placeholder(2) + ` WHERE id = ` + s.placeholder(3) + ` AND status IN ('published', 'out_of_stock') AND stock >= ` + s.placeholder(4)
-	result, err := db.ExecContext(ctx, q, quantity, time.Now().UTC(), id, quantity)
+	result, err := db.ExecContext(ctx, q, quantity, quantity, time.Now().UTC(), id, quantity)
 	if err != nil {
 		return commerce.ProductVariant{}, err
 	}
@@ -52,9 +52,9 @@ func (s Store) ListVariants(ctx context.Context, db database.Executor, productID
 	}
 	q := `SELECT v.id, v.product_id, v.sku, v.title, v.price_cents, p.currency, v.stock, v.status FROM commerce_product_variants v JOIN commerce_products p ON p.id = v.product_id WHERE v.product_id = ` + s.placeholder(1)
 	if publicOnly {
-		q += ` AND status IN ('published', 'out_of_stock')`
+		q += ` AND v.status IN ('published', 'out_of_stock')`
 	}
-	q += ` ORDER BY title, id`
+	q += ` ORDER BY v.title, v.id`
 	rows, err := queryRows(ctx, db, q, productID)
 	if err != nil {
 		return nil, err
@@ -90,12 +90,20 @@ func (s Store) ListOrders(ctx context.Context, db database.Executor, limit int) 
 		if err := rows.Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
 			return nil, err
 		}
-		if err := s.loadItems(ctx, db, &order); err != nil {
-			return nil, err
-		}
 		orders = append(orders, order)
 	}
-	return orders, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for index := range orders {
+		if err := s.loadItems(ctx, db, &orders[index]); err != nil {
+			return nil, err
+		}
+	}
+	return orders, nil
 }
 
 func (s Store) CreateProduct(ctx context.Context, db database.Executor, product commerce.Product) error {
@@ -321,7 +329,7 @@ func (s Store) ReserveProduct(ctx context.Context, db database.Executor, id stri
 		return commerce.Product{}, err
 	}
 	q := `UPDATE commerce_products SET stock = stock - ` + s.placeholder(1) + `, status = CASE WHEN stock - ` + s.placeholder(1) + ` = 0 THEN 'out_of_stock' ELSE status END, updated_at = ` + s.placeholder(2) + ` WHERE id = ` + s.placeholder(3) + ` AND status IN ('published', 'out_of_stock') AND stock >= ` + s.placeholder(4)
-	result, err := db.ExecContext(ctx, q, quantity, time.Now().UTC(), id, quantity)
+	result, err := db.ExecContext(ctx, q, quantity, quantity, time.Now().UTC(), id, quantity)
 	if err != nil {
 		return commerce.Product{}, err
 	}
