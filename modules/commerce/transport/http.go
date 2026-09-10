@@ -443,10 +443,10 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Ürün Kataloğu", "", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">KATALOG YÖNETİMİ</p><h2>Ürün kataloğu</h2><p class="muted">Mevcut ürünleri ve varyantlarını yönetin.</p></div><a class="button" href="/admin/commerce/products/new">Yeni ürün ekle</a></div><div class="table-wrap">`)
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button" href="/admin/commerce/products/new"><span data-studio-icon="plus"></span> Yeni ürün ekle</a></div><div class="table-wrap">`)
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
-		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Varyantlar", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
 	}
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: collection, Rows: rows}); err != nil {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
@@ -502,7 +502,7 @@ func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Varyantlar", "Commerce", security.NonceFromContext(r.Context()), "commerce"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><a href="/admin/commerce/products">← Kataloğa dön</a><h2>Ürün varyantları</h2><p>SKU, fiyat ve stok seçeneklerini yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products/%s/variants">%s</form></section><section class="studio-card"><h2>Varyant listesi</h2><div class="table-wrap">`, template.HTMLEscapeString(r.PathValue("productID")), form.String())
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button button-quiet" href="/admin/commerce/products">← Kataloğa dön</a></div><h2>Yeni varyant ekle</h2><p class="muted">SKU, fiyat ve stok seçeneklerini yönetin.</p><form class="studio-form" method="post" action="/admin/commerce/products/%s/variants">%s</form></section><section class="studio-card"><h2>Varyant listesi</h2><div class="table-wrap">`, template.HTMLEscapeString(r.PathValue("productID")), form.String())
 	rows := make([]adminstudio.Row, 0, len(variants))
 	for _, variant := range variants {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"sku": variant.SKU, "title": variant.Title, "price_cents": strconv.FormatInt(variant.PriceCents, 10), "currency": variant.Currency, "stock": strconv.Itoa(variant.Stock), "status": string(variant.Status)}})
@@ -592,13 +592,13 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Siparişler", "Commerce", security.NonceFromContext(r.Context()), "orders"); err != nil {
 		return
 	}
-	_, _ = w.Write([]byte(`<section class="studio-card"><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th><th>Refund</th></tr></thead><tbody>`))
+	_, _ = w.Write([]byte(`<section class="studio-card"><div class="table-wrap"><table><thead><tr><th>Sipariş No</th><th>Müşteri</th><th>Tutar</th><th>Ödeme Durumu</th><th>Kargo Durumu</th><th>Ürün Adedi</th><th style="text-align:right">İşlem</th></tr></thead><tbody>`))
 	for _, order := range orders {
-		refund := `<span>Unavailable</span>`
+		refund := `<span>-</span>`
 		if order.PaymentStatus == "paid" {
-			refund = fmt.Sprintf(`<form method="post" action="/admin/commerce/orders/%s/refund"><input type="hidden" name="_csrf" value="%s"><input name="provider" placeholder="stripe" required><input name="payment_id" placeholder="provider payment id" required><input name="amount_cents" type="number" min="1" value="%d" required><button type="submit">Refund full order</button></form>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), order.TotalCents)
+			refund = fmt.Sprintf(`<form method="post" action="/admin/commerce/orders/%s/refund"><input type="hidden" name="_csrf" value="%s"><input name="provider" placeholder="stripe" required style="width:70px;display:inline-block;padding:4px 8px;font-size:.78rem;"><input name="payment_id" placeholder="id" required style="width:70px;display:inline-block;padding:4px 8px;font-size:.78rem;"><input name="amount_cents" type="number" min="1" value="%d" required style="width:60px;display:inline-block;padding:4px 8px;font-size:.78rem;"><button type="submit" class="button button-quiet button-danger" style="padding:4px 10px;font-size:.78rem;">İade et</button></form>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), order.TotalCents)
 		}
-		_, _ = fmt.Fprintf(w, `<tr><td><code>%s</code></td><td><code>%s</code></td><td>%d %s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.UserID), order.TotalCents, template.HTMLEscapeString(order.Currency), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ShippingStatus), len(order.Items), refund)
+		_, _ = fmt.Fprintf(w, `<tr><td><code>%s</code></td><td><code>%s</code></td><td><strong>%d %s</strong></td><td><span class="status">%s</span></td><td>%s</td><td>%d</td><td style="text-align:right">%s</td></tr>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.UserID), order.TotalCents, template.HTMLEscapeString(order.Currency), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ShippingStatus), len(order.Items), refund)
 	}
 	_, _ = w.Write([]byte(`</tbody></table></div></section>`))
 	_ = ui.AdminEnd(w)

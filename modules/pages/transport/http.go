@@ -82,8 +82,10 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /public/pages/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
 		{Pattern: "GET /api/pages/by-slug", Handler: http.HandlerFunc(h.getPublishedByQuery)},
 		{Pattern: "GET /public/pages/{locale}/{slug}/html", Handler: http.HandlerFunc(h.getPublishedHTML)},
+		{Pattern: "GET /admin/pages/new", Handler: http.HandlerFunc(h.adminNewPage), Protected: true},
 		{Pattern: "GET /admin/pages/{id}", Handler: http.HandlerFunc(h.adminPage), Protected: true},
 		{Pattern: "GET /admin/pages", Handler: http.HandlerFunc(h.adminList), Protected: true},
+		{Pattern: "POST /admin/pages", Handler: http.HandlerFunc(h.adminCreateForm), Protected: true},
 		{Pattern: "POST /admin/pages/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
 	}
@@ -120,13 +122,70 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="table-wrap">`)
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions" style="margin-bottom:16px;"><a class="button" href="/admin/pages/new"><span data-studio-icon="plus"></span> Yeni sayfa oluştur</a></div><div class="table-wrap">`)
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 		return
 	}
 	_, _ = fmt.Fprint(w, `</div></section>`)
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Yeni sayfa", "Sayfa yönetimi", security.NonceFromContext(r.Context()), "pages"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages">`)
+	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{
+		Collection:  h.AdminCollection,
+		Action:      "/admin/pages",
+		CSRFToken:   security.CSRFTokenFromContext(r.Context()),
+		Nonce:       security.NonceFromContext(r.Context()),
+		Values:      map[string]string{"locale": "tr"},
+		SubmitLabel: "Taslak oluştur",
+	}); err != nil {
+		return
+	}
+	_, _ = fmt.Fprint(w, `</form></section>`)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminCreateForm(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	id, err := newID()
+	if err != nil {
+		http.Error(w, "page service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	locale := r.FormValue("locale")
+	if locale == "" {
+		locale = "tr"
+	}
+	page := pages.Page{
+		ID:     id,
+		Locale: locale,
+		Slug:   r.FormValue("slug"),
+		Title:  r.FormValue("title"),
+		Body:   r.FormValue("body"),
+		Status: pages.StatusDraft,
+	}
+	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
+		http.Error(w, pageError(err), pageStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/pages/"+template.URLQueryEscaper(id), http.StatusSeeOther)
 }
 
 func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
@@ -349,7 +408,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	blockEditor := renderBlockEditor(page.Blocks, security.CSRFTokenFromContext(r.Context()))
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Blok</span></div></div><form class="studio-form" method="post" action="/admin/pages/%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section>%s`, template.HTMLEscapeString(string(page.Status)), page.Version, len(page.Blocks), template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version, renderMediaPicker(security.NonceFromContext(r.Context())))
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Blok</span></div></div><form class="studio-form" method="post" action="/admin/pages/%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayınlama</h2><p class="muted">Taslağı kaydedin veya doğrudan yayına alın.</p><div class="studio-actions"><form method="post" action="/admin/pages/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form></div></section>%s`, template.HTMLEscapeString(string(page.Status)), page.Version, len(page.Blocks), template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), page.Version, renderMediaPicker(security.NonceFromContext(r.Context())))
 	_ = ui.AdminEnd(w)
 }
 

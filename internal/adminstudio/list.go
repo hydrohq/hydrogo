@@ -15,7 +15,7 @@ type ListData struct {
 	Rows       []Row
 }
 
-var listTemplate = template.Must(template.New("admin-list").Parse(`<table><thead><tr>{{range .Collection.Fields}}{{if .VisibleInList}}<th>{{.Label}}</th>{{end}}{{end}}<th>Actions</th></tr></thead><tbody>{{range .Rows}}{{$row := .}}<tr>{{range $.Collection.Fields}}{{if .VisibleInList}}<td>{{index $row.Values .ID}}</td>{{end}}{{end}}<td>{{range .Actions}}<a href="{{.Href}}">{{.Label}}</a> {{end}}</td></tr>{{end}}</tbody></table>`))
+var listTemplate = template.Must(template.New("admin-list").Parse(`<table><thead><tr>{{range .Collection.Fields}}{{if .VisibleInList}}<th>{{.Label}}</th>{{end}}{{end}}<th style="text-align:right">İşlemler</th></tr></thead><tbody>{{range .Rows}}{{$row := .}}<tr>{{range $.Collection.Fields}}{{if .VisibleInList}}<td>{{index $row.Values .ID}}</td>{{end}}{{end}}<td style="text-align:right">{{range .Actions}}<a href="{{.Href}}">{{.Label}}</a> {{end}}</td></tr>{{end}}</tbody></table>`))
 
 // RenderList renders read-only collection rows. Action URLs are constrained by
 // the collection registry, while record mutations remain module-owned routes.
