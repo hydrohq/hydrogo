@@ -1,11 +1,69 @@
-# Geliştirme akışı
+# Contributing to HydroGo
 
-Önce [AGENTS.md](AGENTS.md), manifesto, ana plan ve etkilenen ADR'leri oku. [Roadmap](docs/ROADMAP.md) içinden küçük bir kabul ölçütü seç. Mimari değişiklikte kabul edilmiş eski kararı sessizce değiştirme; yeni ADR ile ilişkilendir.
+HydroGo is developed around a small, portable Core with explicit module and
+Client Edition boundaries. Contributions should improve a real customer or
+operator outcome without adding infrastructure that an active profile does not
+need.
 
-1. Kısa ömürlü çalışma branch'i aç; tek somut sonuç hedefle.
-2. SDK'yı v0 tut; iki modül/Edition kanıtı olmadan genel sözleşmeyi dondurma.
-3. Uygulamaya uygun testleri çalıştır. DB davranışı değişiyorsa SQLite ve PostgreSQL contract sonuçlarını kaydet.
-4. Migration gerekiyorsa dialect ve rollback/uyumluluk metadata'sını birlikte hazırla; yayımlanmış migration'ı değiştirme.
-5. İlgili roadmap maddesini yalnız kanıtla kapat; risk ve sınırlamaları PR açıklamasına yaz.
+## Before making a change
 
-Desteklenen geliştirme toolchain'i Go 1.27.0'dır; CI Linux ve Windows üzerinde format, vet, vulnerability scan, test, build ve PostgreSQL contract kapılarını çalıştırır. Yerel hızlı doğrulama için `powershell -ExecutionPolicy Bypass -File .\scripts\verify-local.ps1`, PostgreSQL dahil üretim öncesi kapılar için `scripts/verify-production-gates.ps1` veya `.sh` kullanılır. Workflow action pinleri ve test timeout'ları bu gate'lerin parçasıdır. Windows geliştirme ortamında C compiler yoksa `go test -race` çalışmaz; tüm paketleri kapsayan Linux CI race job'ı bu kapının otoritatif doğrulamasıdır. Gerçekte çalışmayan test veya build komutlarını başarılı diye raporlama. Sırlar, müşteri verileri, DB dosyaları, yedekler ve kişisel medya repoya girmez.
+Read [AGENTS.md](AGENTS.md), the [philosophy](docs/HYDROGO_PHILOSOPHY.md),
+the [implementation plan](docs/implementation_plan.md), the
+[architecture index](docs/architecture/README.md), and every affected ADR.
+Choose one concrete acceptance criterion from the [roadmap](docs/ROADMAP.md).
+Do not silently change an accepted architectural decision; supersede it with a
+new ADR and link the two decisions.
+
+## Development rules
+
+1. Use a short-lived branch and target one concrete outcome per pull request.
+2. Keep the SDK at v0 until two independent modules or Editions demonstrate a
+   stable general contract.
+3. Add the narrowest useful test first. Changes to database behavior must cover
+   both SQLite and PostgreSQL contracts when the behavior is shared.
+4. If a migration is needed, include dialect handling, rollback or compatibility
+   metadata, and the corresponding contract tests. Never rewrite a published
+   migration.
+5. Keep SQL dialect, cache-driver, and deployment-proxy details out of domain
+   and application services.
+6. Disabled modules must not create routes, migrations, workers, assets, or
+   mandatory external services.
+7. Treat paths, uploaded data, manifests, restore markers, and operator input as
+   untrusted. Preserve bounded reads, symlink defenses, idempotency, and
+   fail-closed behavior.
+8. Record capacity, deployment, compatibility, security, and data-lifecycle
+   effects in the pull request when they apply.
+
+## Local verification
+
+The supported toolchain is Go 1.27.0. Run the focused tests while iterating and
+the complete local gate before opening a pull request:
+
+```powershell
+go test ./...
+go vet ./...
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-local.ps1
+```
+
+For PostgreSQL and production-style checks, configure an isolated
+`HYDRO_TEST_POSTGRES_URL` and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-production-gates.ps1
+```
+
+The equivalent shell script is `scripts/verify-production-gates.sh`. Linux CI
+is authoritative for the full race job when a local Windows environment has no
+C compiler. Never report a command as passing unless it actually ran and
+passed. A PostgreSQL contract test must not be silently treated as skipped.
+
+## Pull requests and commits
+
+Pull requests should explain the problem, the intended behavior, the tests
+executed, and any remaining evidence gap. Prefer focused Conventional Commit
+messages such as `fix(cache): reject stale refill` or `docs(roadmap): record
+restore evidence`.
+
+Do not commit secrets, customer data, database files, backups, personal media,
+or generated build output. Keep the working tree clean after verification and
+push only the commits that belong to the change.

@@ -1,8 +1,8 @@
 # R7 reliability and security hardening validation
 
 **Date:** 2026-09-10  
-**Repository commit:** `1709b82`  
-**Validation baseline:** `1709b82`  
+**Repository commit:** `138fe12`  
+**Validation baseline:** `138fe12`  
 **Scope:** automated reliability, observability, supply-chain and contributor
 verification improvements after the R3/R5 contract work.
 
@@ -67,6 +67,8 @@ verification improvements after the R3/R5 contract work.
   `maxBytes+1`, preserving the byte-bound contract for untrusted documents.
 - Multipart media request limits clamp the file-size-plus-overhead calculation
   at the integer boundary, preventing negative body limits from overflow.
+- General HTTP and strict JSON body limits reject the unbounded integer
+  boundary and fall back to the safe bounded profile limit.
 
 ## Evidence commands
 

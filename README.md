@@ -214,6 +214,7 @@ The repository does not claim a production profile or SLA until those forms of e
 - [Support matrix](docs/SUPPORT_MATRIX.md): supported and uncertified profiles
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md): old/new release boundaries
 - [Threat model](docs/security/THREAT_MODEL.md): security assumptions and open risks
+- [Project status](docs/PROJECT_STATUS.md): what HydroGo currently provides and the evidence still required
 - [Security policy](SECURITY.md): private vulnerability reporting and disclosure guidance
 - [Contribution guide](CONTRIBUTING.md) and [repository rules](AGENTS.md)
 
