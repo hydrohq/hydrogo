@@ -14,7 +14,7 @@ Write-Host "HydroGo local verification"
 Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }
 Invoke-Required "gofmt" {
-    $unformatted = gofmt -l .
+    $unformatted = gofmt -l . | Where-Object { $_ -notlike ".tmp*" -and $_ -notlike "*.tmp\*" }
     if ($unformatted) { throw "gofmt required: $($unformatted -join ', ')" }
 }
 Invoke-Required "workflow action pins" { go run ./tools/actionguard }

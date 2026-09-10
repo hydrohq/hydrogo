@@ -13,5 +13,7 @@ Bu tablo satılabilir destek garantisi değildir; her satırın yanındaki CI ve
 | Compact profil | Typed budget ve `hydro doctor`; gerçek müşteri benchmark'ı | Açık |
 | Standard profil | Typed budget; gerçek PostgreSQL pool/throughput benchmark'ı | Açık |
 | Distributed profil | Mimari sözleşme mevcut; çoklu instance/L2/S3/CDN tatbikatı yok | Açık |
+| Modüller (Pages & News) | SQLite & PostgreSQL contract testleri, admin/API akışları | Teknik contract hazır (Pilot adayı) |
+| Modül (Commerce) | Domain/SQL store/checkout contract testleri, webhook & sandbox provider testleri | Deneysel / Pilot adayı (Prod sertifikasyonu açık) |
 
 Sürüm yükseltme, provider ve işletim sistemi desteği; gerçek benchmark, temiz ortam restore ve release/deprecation takvimi tamamlandıktan sonra ayrı bir release kararıyla sabitlenir.

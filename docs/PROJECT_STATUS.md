@@ -42,6 +42,9 @@ migrations, workers, assets, or mandatory infrastructure.
 - Release tooling verifies signed manifests against an operator-supplied
   trusted Ed25519 public key, verifies retained assets, records provenance,
   and supports deterministic generation and Client Edition boundaries.
+- Commerce is available as an optional experimental/pilot module with contract-tested
+  order/cart idempotency, atomic stock reservation, and Stripe/iyzico/PayTR sandbox adapters;
+  commercial production certification remains open.
 - Cache behavior includes bounded L1 caching, optional TwoTier caching,
   generation invalidation, stale-refill rejection, single-flight misses, and
   invalidation fanout/reconciliation tests.

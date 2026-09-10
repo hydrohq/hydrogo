@@ -643,10 +643,10 @@ func (h Handler) adminProductPage(w http.ResponseWriter, r *http.Request) {
 	}
 	var form bytes.Buffer
 	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{
-		Collection:  h.AdminCollection,
-		Action:      "/admin/commerce/products/" + product.ID,
-		CSRFToken:   security.CSRFTokenFromContext(r.Context()),
-		Nonce:       security.NonceFromContext(r.Context()),
+		Collection: h.AdminCollection,
+		Action:     "/admin/commerce/products/" + product.ID,
+		CSRFToken:  security.CSRFTokenFromContext(r.Context()),
+		Nonce:      security.NonceFromContext(r.Context()),
 		Values: map[string]string{
 			"title":       product.Title,
 			"sku":         product.SKU,
