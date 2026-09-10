@@ -27,10 +27,24 @@ const multipartOverheadBytes int64 = 1 << 20
 
 func (h HTTPHandler) Routes() []HTTPRoute {
 	return []HTTPRoute{
+		{Pattern: "GET /api/media", Protected: true, Handler: http.HandlerFunc(h.list)},
 		{Pattern: "POST /api/media", Protected: true, Handler: http.HandlerFunc(h.upload)},
 		{Pattern: "POST /api/media/{id}/ready", Protected: true, Handler: http.HandlerFunc(h.ready)},
 		{Pattern: "GET /media/{id}", Handler: http.HandlerFunc(h.serve)},
 	}
+}
+
+func (h HTTPHandler) list(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	assets, err := h.Service.List(r.Context(), h.DB, 100)
+	if err != nil {
+		http.Error(w, "media list unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, http.StatusOK, assets)
 }
 
 func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {

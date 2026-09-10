@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -24,6 +25,32 @@ func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.
 	asset.Visibility = visibility
 	asset.Status = status
 	return asset, nil
+}
+
+func (s Store) List(ctx context.Context, db database.Executor, limit int) ([]media.Asset, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if limit < 1 || limit > 200 {
+		return nil, fmt.Errorf("media list limit must be between 1 and 200")
+	}
+	rows, err := queryContext(ctx, db, "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status FROM media_assets ORDER BY updated_at DESC, id ASC LIMIT "+s.p(1), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	assets := make([]media.Asset, 0, limit)
+	for rows.Next() {
+		var asset media.Asset
+		if err := rows.Scan(&asset.ID, &asset.StorageKey, &asset.OriginalFilename, &asset.MimeType, &asset.SizeBytes, &asset.Width, &asset.Height, &asset.Visibility, &asset.Status); err != nil {
+			return nil, err
+		}
+		assets = append(assets, asset)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return assets, nil
 }
 
 func (s Store) CreatePending(ctx context.Context, tx database.Executor, asset media.Asset) error {
@@ -64,4 +91,19 @@ func (s Store) p(position int) string {
 		return fmt.Sprintf("$%d", position)
 	}
 	return "?"
+}
+
+type queryExecutor interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func queryContext(ctx context.Context, db database.Executor, query string, args ...any) (*sql.Rows, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(queryExecutor)
+	if !ok {
+		return nil, fmt.Errorf("database executor does not support row queries")
+	}
+	return queryer.QueryContext(ctx, query, args...)
 }

@@ -11,6 +11,7 @@ import (
 )
 
 var ErrAssetRepositoryRequired = errors.New("asset repository is required")
+var ErrAssetListingUnsupported = errors.New("asset repository does not support listing")
 
 type AssetRepository interface {
 	Get(context.Context, database.Executor, string) (Asset, error)
@@ -18,11 +19,28 @@ type AssetRepository interface {
 	MarkReady(context.Context, database.Executor, string, string) error
 }
 
+// AssetListRepository is optional so existing storage adapters and focused
+// upload tests do not gain a read-heavy admin dependency.
+type AssetListRepository interface {
+	List(context.Context, database.Executor, int) ([]Asset, error)
+}
+
 func (s Service) Get(ctx context.Context, db database.Executor, id string) (Asset, error) {
 	if guards.IsNil(s.Assets) {
 		return Asset{}, ErrAssetRepositoryRequired
 	}
 	return s.Assets.Get(ctx, db, id)
+}
+
+func (s Service) List(ctx context.Context, db database.Executor, limit int) ([]Asset, error) {
+	if guards.IsNil(s.Assets) {
+		return nil, ErrAssetRepositoryRequired
+	}
+	repository, ok := s.Assets.(AssetListRepository)
+	if !ok {
+		return nil, ErrAssetListingUnsupported
+	}
+	return repository.List(ctx, db, limit)
 }
 
 // Service coordinates immutable file creation with the pending/ready metadata state.
