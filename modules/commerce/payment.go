@@ -20,6 +20,7 @@ type PaymentIntent struct {
 	Currency    string `json:"currency"`
 	Status      string `json:"status"`
 	ClientToken string `json:"client_token,omitempty"`
+	RedirectURL string `json:"redirect_url,omitempty"`
 }
 
 type PaymentTransaction struct {

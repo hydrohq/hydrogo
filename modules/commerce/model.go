@@ -60,13 +60,14 @@ type Order struct {
 // does not depend on mutable account profile data.
 type PaymentCustomer struct {
 	Name           string `json:"name"`
-	IdentityNumber string `json:"identity_number,omitempty"`
+	IdentityNumber string `json:"-"`
 	Email          string `json:"email"`
 	Phone          string `json:"phone"`
 	Address        string `json:"address"`
 	City           string `json:"city"`
 	Country        string `json:"country"`
 	PostalCode     string `json:"postal_code"`
+	ClientIP       string `json:"-"`
 }
 
 type Checkout struct {

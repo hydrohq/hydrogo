@@ -1,0 +1,25 @@
+id: "202609100008_commerce_order_client_ip"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "902a7d8e2ac01b14bc09e9605105dded473f406d496cfaff597be1ff71a9ca8e"
+  postgres: "902a7d8e2ac01b14bc09e9605105dded473f406d496cfaff597be1ff71a9ca8e"
+dependencies:
+  - "202609100007_commerce_order_customer"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "The commerce order customer migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One client IP snapshot column per order"
+compatibility: "Adds the trusted checkout client IP required by PayTR token signing"
+smoke:
+  - "Existing orders remain readable with an empty client IP"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

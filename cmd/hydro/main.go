@@ -661,10 +661,10 @@ func serve(args []string, stderr io.Writer) error {
 			providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
 		}
 		if cfg.Payments.IyzicoSecretKey != "" {
-			providers["iyzico"] = iyzicoprovider.Provider{APIKey: cfg.Payments.IyzicoAPIKey, SecretKey: cfg.Payments.IyzicoSecretKey}
+			providers["iyzico"] = iyzicoprovider.Provider{APIKey: cfg.Payments.IyzicoAPIKey, SecretKey: cfg.Payments.IyzicoSecretKey, BaseURL: cfg.Payments.IyzicoBaseURL, CallbackURL: cfg.Payments.IyzicoCallbackURL}
 		}
 		if cfg.Payments.PayTRMerchantKey != "" {
-			providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency}
+			providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency, BaseURL: cfg.Payments.PayTRBaseURL, SuccessURL: cfg.Payments.PayTRSuccessURL, FailURL: cfg.Payments.PayTRFailURL}
 		}
 		paymentService := commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: providers}
 		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}

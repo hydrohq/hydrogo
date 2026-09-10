@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -380,7 +381,7 @@ func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: orderID, UserID: user.ID, CartID: cart.ID, IdempotencyKey: key, Customer: commerce.PaymentCustomer{Name: r.FormValue("customer_name"), IdentityNumber: r.FormValue("customer_identity_number"), Email: r.FormValue("customer_email"), Phone: r.FormValue("customer_phone"), Address: r.FormValue("customer_address"), City: r.FormValue("customer_city"), Country: r.FormValue("customer_country"), PostalCode: r.FormValue("customer_postal_code")}})
+	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: orderID, UserID: user.ID, CartID: cart.ID, IdempotencyKey: key, Customer: commerce.PaymentCustomer{Name: r.FormValue("customer_name"), IdentityNumber: r.FormValue("customer_identity_number"), Email: r.FormValue("customer_email"), Phone: r.FormValue("customer_phone"), Address: r.FormValue("customer_address"), City: r.FormValue("customer_city"), Country: r.FormValue("customer_country"), PostalCode: r.FormValue("customer_postal_code"), ClientIP: requestClientIP(r)}})
 	if err != nil {
 		http.Error(w, "checkout failed", http.StatusConflict)
 		return
@@ -580,6 +581,9 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid checkout", http.StatusBadRequest)
 		return
 	}
+	if input.Customer.ClientIP == "" {
+		input.Customer.ClientIP = requestClientIP(r)
+	}
 	id, err := newID()
 	if err != nil {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
@@ -598,4 +602,15 @@ func newID() (string, error) {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
 	return hex.EncodeToString(b), err
+}
+
+func requestClientIP(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
 }

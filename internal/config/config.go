@@ -70,10 +70,15 @@ type Payments struct {
 	StripeWebhookSecret string
 	IyzicoAPIKey        string
 	IyzicoSecretKey     string
+	IyzicoBaseURL       string
+	IyzicoCallbackURL   string
 	PayTRMerchantID     string
 	PayTRMerchantKey    string
 	PayTRMerchantSalt   string
 	PayTRCurrency       string
+	PayTRBaseURL        string
+	PayTRSuccessURL     string
+	PayTRFailURL        string
 }
 
 type Overrides struct {
@@ -190,10 +195,15 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	result.Payments.StripeWebhookSecret, _ = lookup("HYDRO_STRIPE_WEBHOOK_SECRET")
 	result.Payments.IyzicoAPIKey, _ = lookup("HYDRO_IYZICO_API_KEY")
 	result.Payments.IyzicoSecretKey, _ = lookup("HYDRO_IYZICO_SECRET_KEY")
+	result.Payments.IyzicoBaseURL, _ = lookup("HYDRO_IYZICO_BASE_URL")
+	result.Payments.IyzicoCallbackURL, _ = lookup("HYDRO_IYZICO_CALLBACK_URL")
 	result.Payments.PayTRMerchantID, _ = lookup("HYDRO_PAYTR_MERCHANT_ID")
 	result.Payments.PayTRMerchantKey, _ = lookup("HYDRO_PAYTR_MERCHANT_KEY")
 	result.Payments.PayTRMerchantSalt, _ = lookup("HYDRO_PAYTR_MERCHANT_SALT")
 	result.Payments.PayTRCurrency, _ = lookup("HYDRO_PAYTR_CURRENCY")
+	result.Payments.PayTRBaseURL, _ = lookup("HYDRO_PAYTR_BASE_URL")
+	result.Payments.PayTRSuccessURL, _ = lookup("HYDRO_PAYTR_SUCCESS_URL")
+	result.Payments.PayTRFailURL, _ = lookup("HYDRO_PAYTR_FAIL_URL")
 	if result.Payments.PayTRCurrency == "" {
 		result.Payments.PayTRCurrency = "TRY"
 	}
@@ -253,8 +263,14 @@ func (c Config) Validate() error {
 	if (c.Payments.IyzicoAPIKey == "") != (c.Payments.IyzicoSecretKey == "") {
 		return errors.New("iyzico API key and secret key must be configured together")
 	}
+	if c.Payments.IyzicoAPIKey != "" && c.Payments.IyzicoCallbackURL == "" {
+		return errors.New("iyzico callback URL is required when iyzico is configured")
+	}
 	if (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantKey == "") || (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantSalt == "") {
 		return errors.New("PayTR merchant ID, key and salt must be configured together")
+	}
+	if c.Payments.PayTRMerchantID != "" && (c.Payments.PayTRSuccessURL == "" || c.Payments.PayTRFailURL == "") {
+		return errors.New("PayTR success and fail URLs are required when PayTR is configured")
 	}
 	for _, webhook := range c.Webhooks {
 		if strings.TrimSpace(webhook.ID) == "" || strings.TrimSpace(webhook.URL) == "" || strings.TrimSpace(webhook.Secret) == "" {

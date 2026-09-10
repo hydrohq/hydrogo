@@ -13,9 +13,10 @@ theme_dir: "themes"
 theme: "corporate"
 # Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,
 # and HYDRO_WEBHOOK_TOPICS in the deployment environment.
-# Payment credentials are environment-only: HYDRO_IYZICO_API_KEY,
-# HYDRO_IYZICO_SECRET_KEY, HYDRO_PAYTR_MERCHANT_ID,
-# HYDRO_PAYTR_MERCHANT_KEY and HYDRO_PAYTR_MERCHANT_SALT.
+# Payment credentials and hosted-flow URLs are environment-only:
+# HYDRO_IYZICO_API_KEY, HYDRO_IYZICO_SECRET_KEY, HYDRO_IYZICO_CALLBACK_URL,
+# HYDRO_PAYTR_MERCHANT_ID, HYDRO_PAYTR_MERCHANT_KEY,
+# HYDRO_PAYTR_MERCHANT_SALT, HYDRO_PAYTR_SUCCESS_URL and HYDRO_PAYTR_FAIL_URL.
 security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false
