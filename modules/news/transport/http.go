@@ -67,6 +67,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /api/news", Handler: http.HandlerFunc(h.publicList)},
 		{Pattern: "GET /api/news/by-slug", Handler: http.HandlerFunc(h.publicGetByQuery)},
 		{Pattern: "GET /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminList)},
+		{Pattern: "GET /admin/news/new", Protected: true, Handler: http.HandlerFunc(h.adminNewPage)},
 		{Pattern: "POST /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminCreate)},
 		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
 		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
@@ -113,16 +114,29 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Haberler", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>İçerik akışı</h2><p>Haberleri taslak olarak oluşturun, zamanlayın ve tek tıkla yayınlayın.</p><div class="studio-actions"><button class="button" type="button" id="new-news-open">Yeni haber oluştur</button><a class="button button-quiet" href="/public/news/tr/html" target="_blank">Canlı siteyi aç ↗</a></div></section><section class="studio-card"><h2>Haberler <span class="muted">(%d)</span></h2><div class="table-wrap">`, len(rows))
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><h2>İçerik akışı</h2><p>Haberleri taslak olarak oluşturun, zamanlayın ve tek tıkla yayınlayın.</p><div class="studio-actions"><a class="button" href="/admin/news/new">Yeni haber oluştur</a><a class="button button-quiet" href="/public/news/tr/html" target="_blank">Canlı siteyi aç ↗</a></div></section><section class="studio-card"><h2>Haberler <span class="muted">(%d)</span></h2><div class="table-wrap">`, len(rows))
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = fmt.Fprintf(w, `</div></section><div class="studio-modal" id="new-news" hidden><div class="studio-modal-card"><div class="dashboard-card-head"><div><p class="eyebrow">YENİ İÇERİK</p><h2>Yeni haber oluştur</h2></div><button class="button button-quiet" type="button" id="new-news-close" aria-label="Kapat">×</button></div><p class="muted">İçerik önce taslak kaydedilir; yayınlamak için haber detayındaki akışı kullanın.</p><form class="studio-form" method="post" action="/admin/news">`)
+	_, _ = fmt.Fprintf(w, `</div></section>`)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Yeni haber", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">YENİ İÇERİK</p><h2>Yeni haber oluştur</h2><p class="muted">İçerik önce taslak olarak kaydedilir. Daha sonra detay sayfasından düzenleyebilir, zamanlayabilir veya yayınlayabilirsiniz.</p></div><a class="button button-quiet" href="/admin/news">Listeye dön</a></div><form class="studio-form" method="post" action="/admin/news">`)
 	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"locale": "tr"}, SubmitLabel: "Taslak oluştur"}); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `</form></div></div><script nonce="`+template.HTMLEscapeString(security.NonceFromContext(r.Context()))+`">(()=>{const modal=document.getElementById('new-news'),open=document.getElementById('new-news-open'),close=document.getElementById('new-news-close');if(open&&modal){open.addEventListener('click',()=>{modal.hidden=false});close.addEventListener('click',()=>{modal.hidden=true});modal.addEventListener('click',e=>{if(e.target===modal)modal.hidden=true})}})()</script>`)
+	_, _ = fmt.Fprint(w, `</form></section>`)
 	_ = ui.AdminEnd(w)
 }
 
