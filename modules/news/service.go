@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/content"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
@@ -46,6 +47,9 @@ func (s Service) requireRepository() error {
 }
 
 func (s Service) CreateDraft(ctx context.Context, item Item) error {
+	if err := content.ValidateRichText(item.Body); err != nil {
+		return ErrInvalidItem
+	}
 	if err := Canonicalize(&item); err != nil {
 		return ErrInvalidItem
 	}
@@ -64,6 +68,9 @@ func (s Service) CreateDraft(ctx context.Context, item Item) error {
 }
 
 func (s Service) UpdateDraft(ctx context.Context, item Item, expectedVersion int) error {
+	if err := content.ValidateRichText(item.Body); err != nil {
+		return ErrInvalidItem
+	}
 	if err := Canonicalize(&item); err != nil {
 		return ErrInvalidItem
 	}

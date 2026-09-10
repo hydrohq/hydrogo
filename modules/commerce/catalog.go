@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/content"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
@@ -59,6 +60,9 @@ func (s CatalogService) ListVariants(ctx context.Context, db database.Executor, 
 }
 
 func ValidateProduct(product Product) error {
+	if err := content.ValidateRichText(product.Description); err != nil {
+		return ErrInvalidProduct
+	}
 	if strings.TrimSpace(product.ID) == "" || strings.TrimSpace(product.SKU) == "" || strings.TrimSpace(product.Title) == "" || product.PriceCents < 0 || product.Stock < 0 {
 		return ErrInvalidProduct
 	}
