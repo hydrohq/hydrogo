@@ -736,7 +736,7 @@ func serve(args []string, stderr io.Writer) error {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context())}); err != nil {
+		if err := ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context())}); err != nil {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
 	})})
