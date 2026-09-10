@@ -1,6 +1,6 @@
 # Headless-first Admin Studio ve frontend starter planı
 
-**Durum:** Planlandı; uygulama başlamadı. Mimari yön için [ADR-0020](architecture/0020-headless-first-admin-studio-and-frontend-templates.md) önerisi incelenecek ve ancak deney kapılarından sonra kabul edilecektir.
+**Durum:** Uygulama deneyleri sürüyor; mimari yön için [ADR-0020](architecture/0020-headless-first-admin-studio-and-frontend-templates.md) hâlâ öneri durumundadır ve ancak deney kapılarından sonra kabul edilecektir.
 
 ## Hedef deneyim
 
@@ -27,7 +27,7 @@ Küçük kurulumda `presentation=integrated` seçeneği server-rendered template
 - Kullanıcı yolculuğunu ölç: collection ekleme, alan ekleme, publish, katalog yönetimi, frontendte liste/detail/cart.
 - Her URL'yi admin, API veya frontend sahibi olarak sınıflandır; API/HTML karışan rotaları kayda al.
 
-**Çıkış:** Tekrarlanan CRUD alanları ile custom kod gerektiren kurallar yazılı kanıtla ayrılmış olur. Bu faz `module-spec` v1'i dondurmaz.
+**Çıkış:** Tekrarlanan CRUD alanları ile custom kod gerektiren kurallar yazılı kanıtla ayrılmış olur. Bu faz `module-spec` v1'i dondurmaz. İlk envanter: [Admin Studio yüzey envanteri](validation/admin-studio-inventory-2026-09-10.md).
 
 ## Faz 1 — Module spec v0 ve metadata compiler
 
