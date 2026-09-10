@@ -802,9 +802,10 @@ func serve(args []string, stderr io.Writer) error {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
 	})
-	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/media", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions", "GET /admin/developer"} {
+	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions", "GET /admin/developer"} {
 		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
 	}
+	routes = append(routes, mediaRouterRoutes(mediaHTTP.AdminRoutes())...)
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)

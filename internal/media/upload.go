@@ -39,15 +39,15 @@ const (
 )
 
 type Asset struct {
-	ID               string
-	StorageKey       string
-	OriginalFilename string
-	MimeType         string
-	SizeBytes        int64
-	Width            int
-	Height           int
-	Visibility       string
-	Status           string
+	ID               string `json:"id"`
+	StorageKey       string `json:"storage_key"`
+	OriginalFilename string `json:"original_filename"`
+	MimeType         string `json:"mime_type"`
+	SizeBytes        int64  `json:"size_bytes"`
+	Width            int    `json:"width"`
+	Height           int    `json:"height"`
+	Visibility       string `json:"visibility"`
+	Status           string `json:"status"`
 }
 
 var AllowedMimeTypes = map[string]string{
