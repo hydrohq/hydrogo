@@ -47,3 +47,14 @@ func TestRenderCreateFormSupportsTextareaAndReadonlyFields(t *testing.T) {
 		t.Fatalf("readonly field rendered as writable: %s", html)
 	}
 }
+
+func TestRenderCreateFormCanLeaveSubmitToModuleExtension(t *testing.T) {
+	collection := Collection{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, Required: true}}, Actions: []Action{{Label: "Pages", Href: "/admin/pages/demo"}}}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/pages/demo", CSRFToken: "csrf", HideSubmit: true}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), `<button type="submit">`) || !strings.Contains(out.String(), `name="_csrf" value="csrf"`) {
+		t.Fatalf("extension form output = %s", out.String())
+	}
+}

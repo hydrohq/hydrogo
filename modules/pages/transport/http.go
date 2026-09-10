@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
@@ -29,6 +31,7 @@ type Handler struct {
 	Media   interface {
 		Get(context.Context, database.Executor, string) (media.Asset, error)
 	}
+	AdminCollection adminstudio.Collection
 }
 
 type pageInput struct {
@@ -244,18 +247,14 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
+	var form bytes.Buffer
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
+		http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	blockEditor := renderBlockEditor(page.Blocks, security.CSRFTokenFromContext(r.Context()))
-	_, _ = w.Write([]byte(`<form method="post" action="/admin/pages/` + template.HTMLEscapeString(page.ID) + `">
-<label>Locale <input name="locale" value="` + template.HTMLEscapeString(page.Locale) + `"></label>
-<label>Slug <input name="slug" value="` + template.HTMLEscapeString(page.Slug) + `"></label>
-<label>Title <input name="title" value="` + template.HTMLEscapeString(page.Title) + `"></label>
-<label>Body <textarea name="body">` + template.HTMLEscapeString(page.Body) + `</textarea></label>
-<fieldset><legend>Content blocks</legend>` + blockEditor + `</fieldset>
-<input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `">
-<input type="hidden" name="version" value="` + strconv.Itoa(page.Version) + `">
-<button type="submit">Save draft</button>
-</form>`))
+	_, _ = fmt.Fprintf(w, `<form method="post" action="/admin/pages/%s">%s<fieldset><legend>Content blocks</legend>%s</fieldset><input type="hidden" name="version" value="%d"><button type="submit">Save draft</button></form>`, template.HTMLEscapeString(page.ID), form.String(), blockEditor, page.Version)
 }
 
 func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
