@@ -25,11 +25,11 @@ func (s Store) CreateDraft(ctx context.Context, tx database.Executor, item news.
 		return err
 	}
 	now := time.Now().UTC()
-	query := `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,status,version,revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,'draft',1,1,0,$7,$8)`
-	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, now, now}
+	query := `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'draft',1,1,0,$14,$15)`
+	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.Category, item.AuthorName, boolInt(item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, now}
 	if s.Dialect == database.SQLite {
-		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,status,version,revision,schedule_generation,created_at,updated_at) VALUES (?,?,?,?,?,?,'draft',1,1,0,?,?)`
-		args[6], args[7] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
+		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'draft',1,1,0,?,?)`
+		args[13], args[14] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
 	}
 	_, err := tx.ExecContext(ctx, query, args...)
 	return err
@@ -40,11 +40,11 @@ func (s Store) UpdateDraft(ctx context.Context, tx database.Executor, item news.
 		return err
 	}
 	now := time.Now().UTC()
-	query := `UPDATE news_items SET locale=$1,slug=$2,title=$3,body=$4,cover_media_id=$5,status='draft',revision=revision+1,version=version+1,updated_at=$6 WHERE id=$7 AND version=$8 AND status IN ('draft','retracted')`
-	args := []any{item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, now, item.ID, expectedVersion}
+	query := `UPDATE news_items SET locale=$1,slug=$2,title=$3,body=$4,cover_media_id=$5,excerpt=$6,category=$7,author_name=$8,featured=$9,tags=$10,seo_title=$11,seo_description=$12,status='draft',revision=revision+1,version=version+1,updated_at=$13 WHERE id=$14 AND version=$15 AND status IN ('draft','retracted')`
+	args := []any{item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.Category, item.AuthorName, boolInt(item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, item.ID, expectedVersion}
 	if s.Dialect == database.SQLite {
-		query = `UPDATE news_items SET locale=?,slug=?,title=?,body=?,cover_media_id=?,status='draft',revision=revision+1,version=version+1,updated_at=? WHERE id=? AND version=? AND status IN ('draft','retracted')`
-		args[5] = now.Format(time.RFC3339Nano)
+		query = `UPDATE news_items SET locale=?,slug=?,title=?,body=?,cover_media_id=?,excerpt=?,category=?,author_name=?,featured=?,tags=?,seo_title=?,seo_description=?,status='draft',revision=revision+1,version=version+1,updated_at=? WHERE id=? AND version=? AND status IN ('draft','retracted')`
+		args[12] = now.Format(time.RFC3339Nano)
 	}
 	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -150,12 +150,12 @@ func (s Store) Retract(ctx context.Context, tx database.Executor, id string, exp
 }
 
 func (s Store) Get(ctx context.Context, db database.Executor, id string) (news.Item, error) {
-	query := `SELECT id,locale,slug,title,body,cover_media_id,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE id = ` + s.p(1)
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE id = ` + s.p(1)
 	return s.scan(ctx, db, query, id)
 }
 
 func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, locale, slug string) (news.Item, error) {
-	query := `SELECT id,locale,slug,title,body,cover_media_id,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND slug = ` + s.p(2) + ` AND status='published' AND published_revision IS NOT NULL`
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND slug = ` + s.p(2) + ` AND status='published' AND published_revision IS NOT NULL`
 	return s.scan(ctx, db, query, locale, slug)
 }
 
@@ -172,7 +172,7 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	if !ok {
 		return nil, errors.New("news published list requires a query-capable executor")
 	}
-	query := `SELECT id,locale,slug,title,body,cover_media_id,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND status='published' AND published_revision IS NOT NULL ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(2)
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND status='published' AND published_revision IS NOT NULL ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(2)
 	rows, err := queryer.QueryContext(ctx, query, locale, limit)
 	if err != nil {
 		return nil, err
@@ -201,7 +201,7 @@ func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) (
 	if !ok {
 		return nil, errors.New("news admin list requires a query-capable executor")
 	}
-	query := `SELECT id,locale,slug,title,body,cover_media_id,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(1)
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(1)
 	rows, err := queryer.QueryContext(ctx, query, limit)
 	if err != nil {
 		return nil, err
@@ -259,11 +259,15 @@ func (s Store) scan(ctx context.Context, db database.Executor, query string, arg
 	var item news.Item
 	var status string
 	var published any
+	var featured any
+	var excerpt, category, authorName, tags, seoTitle, seoDescription string
 	var scheduled, created, updated any
-	err := db.QueryRowContext(ctx, query, args...).Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &created, &updated)
+	err := db.QueryRowContext(ctx, query, args...).Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &excerpt, &category, &authorName, &featured, &tags, &seoTitle, &seoDescription, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &created, &updated)
 	if err != nil {
 		return news.Item{}, err
 	}
+	item.Excerpt, item.Category, item.AuthorName, item.Tags, item.SEOTitle, item.SEODescription = excerpt, category, authorName, tags, seoTitle, seoDescription
+	item.Featured = boolValue(featured)
 	return itemFromColumns(item, status, published, scheduled, created, updated), nil
 }
 
@@ -275,11 +279,39 @@ func scanItem(row rowScanner) (news.Item, error) {
 	var item news.Item
 	var status string
 	var published any
+	var featured any
+	var excerpt, category, authorName, tags, seoTitle, seoDescription string
 	var scheduled, created, updated any
-	if err := row.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &created, &updated); err != nil {
+	if err := row.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &excerpt, &category, &authorName, &featured, &tags, &seoTitle, &seoDescription, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &created, &updated); err != nil {
 		return news.Item{}, err
 	}
+	item.Excerpt, item.Category, item.AuthorName, item.Tags, item.SEOTitle, item.SEODescription = excerpt, category, authorName, tags, seoTitle, seoDescription
+	item.Featured = boolValue(featured)
 	return itemFromColumns(item, status, published, scheduled, created, updated), nil
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func boolValue(value any) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case int64:
+		return v != 0
+	case int:
+		return v != 0
+	case []byte:
+		return string(v) == "1" || string(v) == "true"
+	case string:
+		return v == "1" || v == "true"
+	default:
+		return false
+	}
 }
 
 func itemFromColumns(item news.Item, status string, published, scheduled, created, updated any) news.Item {

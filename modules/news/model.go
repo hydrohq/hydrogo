@@ -31,6 +31,13 @@ type Item struct {
 	Title              string     `json:"title"`
 	Body               string     `json:"body"`
 	CoverMediaID       string     `json:"cover_media_id,omitempty"`
+	Excerpt            string     `json:"excerpt,omitempty"`
+	Category           string     `json:"category,omitempty"`
+	AuthorName         string     `json:"author_name,omitempty"`
+	Featured           bool       `json:"featured"`
+	Tags               string     `json:"tags,omitempty"`
+	SEOTitle           string     `json:"seo_title,omitempty"`
+	SEODescription     string     `json:"seo_description,omitempty"`
 	Status             Status     `json:"status"`
 	Version            int        `json:"version"`
 	Revision           int        `json:"revision"`
