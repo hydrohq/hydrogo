@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -27,6 +28,7 @@ type Handler struct {
 	Orders          commerce.OrderReader
 	Payments        map[string]commerce.PaymentProvider
 	PaymentService  commerce.PaymentService
+	AdminCollection adminstudio.Collection
 }
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
@@ -426,7 +428,12 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Commerce catalog</title></head><body><h1>Commerce catalog</h1><form method="post" action="/admin/commerce/products"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input name="sku" placeholder="SKU" required><input name="title" placeholder="Title" required><input name="price_cents" type="number" min="0" required><input name="currency" value="TRY" maxlength="3" required><input name="stock" type="number" min="0" required><select name="status"><option value="draft">Draft</option><option value="published">Published</option></select><button type="submit">Create product</button></form><ul>`))
+	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Commerce catalog</title></head><body><h1>Commerce catalog</h1><form method="post" action="/admin/commerce/products">`))
+	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/commerce/products", CSRFToken: security.CSRFTokenFromContext(r.Context()), Values: map[string]string{"currency": "TRY", "status": "draft"}}); err != nil {
+		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write([]byte(`</form><ul>`))
 	for _, product := range products {
 		_, _ = fmt.Fprintf(w, `<li>%s (%s) — %d %s — stock %d — %s — <a href="/admin/commerce/products/%s/variants">Variants</a></li>`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.SKU), product.PriceCents, template.HTMLEscapeString(product.Currency), product.Stock, template.HTMLEscapeString(string(product.Status)), template.HTMLEscapeString(product.ID))
 	}

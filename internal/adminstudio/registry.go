@@ -25,6 +25,7 @@ type Field struct {
 	Kind          FieldKind `json:"kind"`
 	Required      bool      `json:"required"`
 	VisibleInList bool      `json:"visible_in_list"`
+	Options       []string  `json:"options,omitempty"`
 }
 
 type Action struct {
@@ -63,7 +64,20 @@ func NewRegistry(collections []Collection) (Registry, error) {
 }
 
 func (r Registry) Collections() []Collection {
-	return append([]Collection(nil), r.collections...)
+	collections := make([]Collection, len(r.collections))
+	for i, collection := range r.collections {
+		collections[i] = cloneCollection(collection)
+	}
+	return collections
+}
+
+func (r Registry) Collection(id string) (Collection, bool) {
+	for _, collection := range r.collections {
+		if collection.ID == id {
+			return cloneCollection(collection), true
+		}
+	}
+	return Collection{}, false
 }
 
 func validateCollection(collection Collection) error {
@@ -79,6 +93,16 @@ func validateCollection(collection Collection) error {
 			return ErrInvalidCollection
 		}
 		seenFields[field.ID] = struct{}{}
+		seenOptions := make(map[string]struct{}, len(field.Options))
+		for _, option := range field.Options {
+			if strings.TrimSpace(option) == "" {
+				return ErrInvalidCollection
+			}
+			if _, exists := seenOptions[option]; exists {
+				return ErrInvalidCollection
+			}
+			seenOptions[option] = struct{}{}
+		}
 	}
 	for _, action := range collection.Actions {
 		if strings.TrimSpace(action.Label) == "" || !strings.HasPrefix(action.Href, "/") || strings.HasPrefix(action.Href, "//") {
@@ -86,4 +110,15 @@ func validateCollection(collection Collection) error {
 		}
 	}
 	return nil
+}
+
+func cloneCollection(collection Collection) Collection {
+	clone := collection
+	clone.Fields = make([]Field, len(collection.Fields))
+	for i, field := range collection.Fields {
+		clone.Fields[i] = field
+		clone.Fields[i].Options = append([]string(nil), field.Options...)
+	}
+	clone.Actions = append([]Action(nil), collection.Actions...)
+	return clone
 }
