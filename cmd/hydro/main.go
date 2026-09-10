@@ -615,12 +615,12 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		selectedTheme = &bundle
 	}
-	pageHTTP := pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme}
 	uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
 	if err != nil {
 		return err
 	}
 	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediastore.Store{Dialect: cfg.Database.Dialect}}
+	pageHTTP := pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	blockrender "github.com/ardaozyildirim/hydrogo/modules/pages/render"
@@ -24,6 +26,9 @@ type Handler struct {
 	DB      database.Executor
 	Content service.ContentService
 	Theme   *themev1.ThemeBundle
+	Media   interface {
+		Get(context.Context, database.Executor, string) (media.Asset, error)
+	}
 }
 
 type pageInput struct {
@@ -80,6 +85,11 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		var content strings.Builder
 		fmt.Fprintf(&content, `<h1>%s</h1><div class="content-body">%s</div>`, template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body))
 		for _, block := range page.Blocks {
+			block, err = h.withPublicMedia(r.Context(), block)
+			if err != nil {
+				http.Error(w, "page media lookup failed", http.StatusInternalServerError)
+				return
+			}
 			var themed strings.Builder
 			if err := h.Theme.RenderBlock(&themed, block); err == nil {
 				content.WriteString(themed.String())
@@ -101,6 +111,34 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body), blocks)
+}
+
+func (h Handler) withPublicMedia(ctx context.Context, block pages.Block) (pages.Block, error) {
+	if h.Media == nil || block.Type != "hero" {
+		return block, nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(block.Payload, &payload); err != nil {
+		return block, err
+	}
+	var assetID string
+	if err := json.Unmarshal(payload["media_asset_id"], &assetID); err != nil || assetID == "" {
+		return block, nil
+	}
+	asset, err := h.Media.Get(ctx, h.DB, assetID)
+	if err != nil {
+		return block, nil
+	}
+	if asset.Status != "ready" || asset.Visibility != media.VisibilityPublic {
+		return block, nil
+	}
+	payload["media_url"] = json.RawMessage(`"/media/` + asset.ID + `"`)
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return block, err
+	}
+	block.Payload = encoded
+	return block, nil
 }
 
 func (h Handler) getPublishedByQuery(w http.ResponseWriter, r *http.Request) {
