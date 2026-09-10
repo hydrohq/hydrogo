@@ -23,7 +23,9 @@ type Field struct {
 	ID            string    `json:"id"`
 	Label         string    `json:"label"`
 	Kind          FieldKind `json:"kind"`
+	Widget        string    `json:"widget,omitempty"`
 	Required      bool      `json:"required"`
+	ReadOnly      bool      `json:"read_only,omitempty"`
 	VisibleInList bool      `json:"visible_in_list"`
 	Options       []string  `json:"options,omitempty"`
 }
@@ -87,6 +89,9 @@ func validateCollection(collection Collection) error {
 	seenFields := make(map[string]struct{}, len(collection.Fields))
 	for _, field := range collection.Fields {
 		if strings.TrimSpace(field.ID) == "" || strings.TrimSpace(field.Label) == "" || field.Kind == "" {
+			return ErrInvalidCollection
+		}
+		if field.Widget != "" && field.Widget != "textarea" && field.Widget != "currency" {
 			return ErrInvalidCollection
 		}
 		if _, exists := seenFields[field.ID]; exists {

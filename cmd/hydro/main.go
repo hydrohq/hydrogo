@@ -676,7 +676,6 @@ func serve(args []string, stderr io.Writer) error {
 	}}
 	newsStore := newsstore.Store{Dialect: cfg.Database.Dialect}
 	newsService := newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
-	newsHTTP := newstransport.Handler{Service: newsService, DB: db}
 	newsWorker := newsservice.Worker{
 		Durable: jobstore.Queue{Store: jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}, DB: db},
 		Service: newsService,
@@ -686,12 +685,17 @@ func serve(args []string, stderr io.Writer) error {
 	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService}
 	studioRegistry, err := adminstudio.NewRegistry([]adminstudio.Collection{
 		{ID: "pages", Label: "Sayfalar", Description: "Taslak, bloklar ve yayınlanmış içerik.", Fields: []adminstudio.Field{{ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, VisibleInList: true}, {ID: "blocks", Label: "Bloklar", Kind: adminstudio.FieldRelation}}, Actions: []adminstudio.Action{{Label: "Ana sayfayı düzenle", Href: "/admin/pages/demo-home"}, {Label: "Showcase'i düzenle", Href: "/admin/pages/demo-showcase"}, {Label: "Hakkında sayfasını düzenle", Href: "/admin/pages/demo-about"}}},
-		{ID: "news", Label: "Haberler", Description: "Taslak, zamanlama ve yayın akışı.", Fields: []adminstudio.Field{{ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, VisibleInList: true}}, Actions: []adminstudio.Action{{Label: "Release notes", Href: "/admin/news/demo-news"}, {Label: "Başlangıç rehberi", Href: "/admin/news/demo-news-guide"}}},
+		{ID: "news", Label: "Haberler", Description: "Taslak, zamanlama ve yayın akışı.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}}, Actions: []adminstudio.Action{{Label: "Release notes", Href: "/admin/news/demo-news"}, {Label: "Başlangıç rehberi", Href: "/admin/news/demo-news-guide"}}},
 		{ID: "commerce", Label: "Commerce", Description: "Katalog, varyant, stok, sipariş ve iade.", Fields: []adminstudio.Field{{ID: "title", Label: "Ürün adı", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "sku", Label: "SKU", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "price_cents", Label: "Fiyat", Kind: adminstudio.FieldNumber, Required: true, VisibleInList: true}, {ID: "currency", Label: "Para birimi", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "stock", Label: "Stok", Kind: adminstudio.FieldNumber, Required: true, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, Required: true, VisibleInList: true, Options: []string{"draft", "published"}}}, Actions: []adminstudio.Action{{Label: "Ürün kataloğu", Href: "/admin/commerce/products"}, {Label: "Varyant ve stok", Href: "/admin/commerce/products/demo-shirt/variants"}, {Label: "Siparişler ve iade", Href: "/admin/commerce/orders"}}},
 	})
 	if err != nil {
 		return fmt.Errorf("admin studio registry: %w", err)
 	}
+	newsCollection, ok := studioRegistry.Collection("news")
+	if !ok {
+		return errors.New("admin studio news collection missing")
+	}
+	newsHTTP := newstransport.Handler{Service: newsService, DB: db, AdminCollection: newsCollection}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := r.URL.Query().Get("return_to")

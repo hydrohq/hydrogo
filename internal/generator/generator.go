@@ -38,6 +38,7 @@ type Field struct {
 type FieldAdmin struct {
 	Label         string `json:"label" yaml:"label"`
 	Widget        string `json:"widget" yaml:"widget"`
+	ReadOnly      bool   `json:"read_only" yaml:"read_only"`
 	VisibleInList bool   `json:"visible_in_list" yaml:"visible_in_list"`
 }
 
@@ -111,7 +112,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		if fieldLabel == "" {
 			fieldLabel = exportName(field.Name)
 		}
-		fields = append(fields, adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Required: !field.Nullable, VisibleInList: field.Admin.VisibleInList})
+		fields = append(fields, adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList})
 	}
 	actions := append([]adminstudio.Action(nil), spec.Admin.Actions...)
 	if len(actions) == 0 {

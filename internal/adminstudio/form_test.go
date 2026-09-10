@@ -30,3 +30,20 @@ func TestRenderCreateFormRejectsUnsafeAction(t *testing.T) {
 		t.Fatal("unsafe action accepted")
 	}
 }
+
+func TestRenderCreateFormSupportsTextareaAndReadonlyFields(t *testing.T) {
+	collection := Collection{ID: "news", Label: "News", Fields: []Field{{ID: "body", Label: "Body", Kind: FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Status", Kind: FieldStatus, ReadOnly: true, Options: []string{"draft"}}}, Actions: []Action{{Label: "News", Href: "/admin/news/item"}}}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/news/item", CSRFToken: "csrf", SubmitLabel: "Save draft", Values: map[string]string{"body": "<strong>safe</strong>", "status": "draft"}}); err != nil {
+		t.Fatal(err)
+	}
+	html := out.String()
+	for _, want := range []string{`<textarea name="body" required>`, "&lt;strong&gt;safe&lt;/strong&gt;", "Save draft"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("form missing %q: %s", want, html)
+		}
+	}
+	if strings.Contains(html, `name="status"`) {
+		t.Fatalf("readonly field rendered as writable: %s", html)
+	}
+}

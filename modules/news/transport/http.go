@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -26,8 +28,9 @@ type Route struct {
 }
 
 type Handler struct {
-	Service news.Service
-	DB      database.Executor
+	Service         news.Service
+	DB              database.Executor
+	AdminCollection adminstudio.Collection
 }
 
 type input struct {
@@ -226,19 +229,16 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
+	var form bytes.Buffer
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body}}); err != nil {
+		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `">
-<label>Locale <input name="locale" value="` + template.HTMLEscapeString(item.Locale) + `"></label>
-<label>Slug <input name="slug" value="` + template.HTMLEscapeString(item.Slug) + `"></label>
-<label>Title <input name="title" value="` + template.HTMLEscapeString(item.Title) + `"></label>
-<label>Body <textarea name="body">` + template.HTMLEscapeString(item.Body) + `</textarea></label>
-<input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `">
-<input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `">
-<button type="submit">Save draft</button>
-</form>
-<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `/schedule"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `"><input name="scheduled_at" type="datetime-local"><button type="submit">Schedule</button></form>
-<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `/publish"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `"><button type="submit">Publish</button></form>
-<form method="post" action="/admin/news/` + template.HTMLEscapeString(item.ID) + `/retract"><input type="hidden" name="_csrf" value="` + template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())) + `"><input type="hidden" name="version" value="` + strconv.Itoa(item.Version) + `"><button type="submit">Retract</button></form>`))
+	_, _ = fmt.Fprintf(w, `<form method="post" action="/admin/news/%s">%s<input type="hidden" name="version" value="%d"></form>
+<form method="post" action="/admin/news/`+template.HTMLEscapeString(item.ID)+`/schedule"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><input type="hidden" name="version" value="`+strconv.Itoa(item.Version)+`"><input name="scheduled_at" type="datetime-local"><button type="submit">Schedule</button></form>
+<form method="post" action="/admin/news/`+template.HTMLEscapeString(item.ID)+`/publish"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><input type="hidden" name="version" value="`+strconv.Itoa(item.Version)+`"><button type="submit">Publish</button></form>
+<form method="post" action="/admin/news/`+template.HTMLEscapeString(item.ID)+`/retract"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><input type="hidden" name="version" value="`+strconv.Itoa(item.Version)+`"><button type="submit">Retract</button></form>`, template.HTMLEscapeString(item.ID), template.HTML(form.String()), item.Version)
 }
 
 func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {

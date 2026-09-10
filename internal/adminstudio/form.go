@@ -9,13 +9,14 @@ import (
 var ErrInvalidForm = errors.New("invalid admin form")
 
 type FormData struct {
-	Collection Collection
-	Action     string
-	CSRFToken  string
-	Values     map[string]string
+	Collection  Collection
+	Action      string
+	CSRFToken   string
+	Values      map[string]string
+	SubmitLabel string
 }
 
-var createFormTemplate = template.Must(template.New("admin-create-form").Parse(`{{range .Collection.Fields}}{{$field := .}}{{if ne .Kind "relation"}}<label>{{.Label}}{{if .Required}} *{{end}}{{if eq .Kind "status"}}<select name="{{.ID}}"{{if .Required}} required{{end}}>{{range .Options}}<option value="{{.}}"{{if eq (index $.Values $field.ID) .}} selected{{end}}>{{.}}</option>{{end}}</select>{{else}}<input name="{{.ID}}" type="{{if eq .Kind "number"}}number{{else}}text{{end}}" value="{{index $.Values .ID}}"{{if .Required}} required{{end}}>{{end}}</label>{{end}}{{end}}<input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit">Create</button>`))
+var createFormTemplate = template.Must(template.New("admin-create-form").Parse(`{{range .Collection.Fields}}{{$field := .}}{{if and (ne .Kind "relation") (not .ReadOnly)}}<label>{{.Label}}{{if .Required}} *{{end}}{{if eq .Kind "status"}}<select name="{{.ID}}"{{if .Required}} required{{end}}>{{range .Options}}<option value="{{.}}"{{if eq (index $.Values $field.ID) .}} selected{{end}}>{{.}}</option>{{end}}</select>{{else if eq .Widget "textarea"}}<textarea name="{{.ID}}"{{if .Required}} required{{end}}>{{index $.Values .ID}}</textarea>{{else}}<input name="{{.ID}}" type="{{if eq .Kind "number"}}number{{else}}text{{end}}" value="{{index $.Values .ID}}"{{if .Required}} required{{end}}>{{end}}</label>{{end}}{{end}}<input type="hidden" name="_csrf" value="{{.CSRFToken}}"><button type="submit">{{if .SubmitLabel}}{{.SubmitLabel}}{{else}}Create{{end}}</button>`))
 
 // RenderCreateForm renders metadata-driven controls only. The surrounding
 // module handler remains responsible for authorization, validation, service
