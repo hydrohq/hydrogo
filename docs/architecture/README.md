@@ -47,6 +47,7 @@ Kabul edilmiş bir karar sessizce değiştirilmez. Yeni bilgi kararı geçersiz 
 | [0016](0016-structured-page-blocks-and-theme-slots.md) | Yapılandırılmış sayfa blokları ve tema slotları | Kabul edildi |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce tutarlılığı ve ödeme sağlayıcıları | Kabul edildi |
 | [0018](0018-filesystem-theme-bundles.md) | Dosya tabanlı tema paketleri ve güvenli slot renderer | Kabul edildi |
+| [0019](0019-external-webhook-delivery.md) | İmzalı dış webhook teslimi | Kabul edildi |
 
 Uygulama sırası ve çıkış kapıları [Roadmap](../ROADMAP.md) içinde izlenir.
 
