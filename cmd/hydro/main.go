@@ -28,6 +28,7 @@ import (
 	"time"
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
@@ -654,6 +655,14 @@ func serve(args []string, stderr io.Writer) error {
 		Retry:   time.Minute,
 	}
 	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService}
+	studioRegistry, err := adminstudio.NewRegistry([]adminstudio.Collection{
+		{ID: "pages", Label: "Sayfalar", Description: "Taslak, bloklar ve yayınlanmış içerik.", Fields: []adminstudio.Field{{ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, VisibleInList: true}, {ID: "blocks", Label: "Bloklar", Kind: adminstudio.FieldRelation}}, Actions: []adminstudio.Action{{Label: "Ana sayfayı düzenle", Href: "/admin/pages/demo-home"}, {Label: "Showcase'i düzenle", Href: "/admin/pages/demo-showcase"}, {Label: "Hakkında sayfasını düzenle", Href: "/admin/pages/demo-about"}}},
+		{ID: "news", Label: "Haberler", Description: "Taslak, zamanlama ve yayın akışı.", Fields: []adminstudio.Field{{ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, VisibleInList: true}}, Actions: []adminstudio.Action{{Label: "Release notes", Href: "/admin/news/demo-news"}, {Label: "Başlangıç rehberi", Href: "/admin/news/demo-news-guide"}}},
+		{ID: "commerce", Label: "Commerce", Description: "Katalog, varyant, stok, sipariş ve iade.", Fields: []adminstudio.Field{{ID: "title", Label: "Ürün adı", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "sku", Label: "SKU", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "price_cents", Label: "Fiyat", Kind: adminstudio.FieldNumber, Required: true, VisibleInList: true}, {ID: "stock", Label: "Stok", Kind: adminstudio.FieldNumber, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, VisibleInList: true}}, Actions: []adminstudio.Action{{Label: "Ürün kataloğu", Href: "/admin/commerce/products"}, {Label: "Varyant ve stok", Href: "/admin/commerce/products/demo-shirt/variants"}, {Label: "Siparişler ve iade", Href: "/admin/commerce/orders"}}},
+	})
+	if err != nil {
+		return fmt.Errorf("admin studio registry: %w", err)
+	}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := r.URL.Query().Get("return_to")
@@ -670,7 +679,7 @@ func serve(args []string, stderr io.Writer) error {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: studioRegistry.Collections()}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})})

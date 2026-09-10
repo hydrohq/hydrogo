@@ -1,0 +1,34 @@
+package adminstudio
+
+import "testing"
+
+func TestRegistrySortsAndDefensivelyCopiesCollections(t *testing.T) {
+	registry, err := NewRegistry([]Collection{
+		{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}}, Actions: []Action{{Label: "Open", Href: "/admin/pages/demo"}}},
+		{ID: "commerce", Label: "Commerce", Fields: []Field{{ID: "sku", Label: "SKU", Kind: FieldText}}, Actions: []Action{{Label: "Open", Href: "/admin/commerce/products"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	collections := registry.Collections()
+	if len(collections) != 2 || collections[0].ID != "commerce" {
+		t.Fatalf("collections = %#v", collections)
+	}
+	collections[0].Label = "changed"
+	if registry.Collections()[0].Label == "changed" {
+		t.Fatal("registry leaked collection slice")
+	}
+}
+
+func TestRegistryRejectsAmbiguousOrUnsafeMetadata(t *testing.T) {
+	base := Collection{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}}, Actions: []Action{{Label: "Open", Href: "/admin/pages/demo"}}}
+	duplicate := base
+	if _, err := NewRegistry([]Collection{base, duplicate}); err == nil {
+		t.Fatal("duplicate collection accepted")
+	}
+	unsafe := base
+	unsafe.Actions = []Action{{Label: "External", Href: "https://example.test"}}
+	if _, err := NewRegistry([]Collection{unsafe}); err == nil {
+		t.Fatal("external action accepted")
+	}
+}
