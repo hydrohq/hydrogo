@@ -15,7 +15,7 @@ Sipariş oluşturma şu işlemleri tek DB transaction'ında yapar:
 2. Ürün stoklarını atomik olarak rezerve eder.
 3. Fiyat ve para birimini ürün snapshot'ı olarak sipariş satırına yazar.
 4. Siparişi oluşturur.
-5. `order.created` outbox olayını ekler.
+5. `order.created` ve `email.send_invoice` outbox olaylarını ekler.
 
 İdempotency key aynı kullanıcıda farklı sipariş gövdesiyle tekrar kullanılırsa hata döner. Sipariş transaction'ı ödeme sağlayıcısına ağ çağrısı yapmaz.
 

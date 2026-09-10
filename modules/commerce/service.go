@@ -110,7 +110,12 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 			}
 		}
 		if s.Outbox != nil {
-			return s.Outbox.Enqueue(ctx, tx, fmt.Sprintf("commerce-order-%s", order.ID), "order.created", order.ID, 1)
+			if err := s.Outbox.Enqueue(ctx, tx, fmt.Sprintf("commerce-order-%s", order.ID), "order.created", order.ID, 1); err != nil {
+				return err
+			}
+			if err := s.Outbox.Enqueue(ctx, tx, fmt.Sprintf("commerce-invoice-%s", order.ID), "email.send_invoice", order.ID, 1); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
