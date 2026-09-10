@@ -14,13 +14,13 @@ const (
 )
 
 type Product struct {
-	ID         string
-	SKU        string
-	Title      string
-	PriceCents int64
-	Currency   string
-	Stock      int
-	Status     ProductStatus
+	ID         string        `json:"id"`
+	SKU        string        `json:"sku"`
+	Title      string        `json:"title"`
+	PriceCents int64         `json:"price_cents"`
+	Currency   string        `json:"currency"`
+	Stock      int           `json:"stock"`
+	Status     ProductStatus `json:"status"`
 }
 
 type ProductVariant struct {
@@ -80,9 +80,9 @@ type Checkout struct {
 }
 
 type CheckoutItem struct {
-	ProductID string
-	VariantID string
-	Quantity  int
+	ProductID string `json:"product_id"`
+	VariantID string `json:"variant_id,omitempty"`
+	Quantity  int    `json:"quantity"`
 }
 
 var (

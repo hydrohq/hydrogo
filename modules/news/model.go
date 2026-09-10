@@ -25,19 +25,19 @@ const (
 )
 
 type Item struct {
-	ID                 string
-	Locale             string
-	Slug               string
-	Title              string
-	Body               string
-	Status             Status
-	Version            int
-	Revision           int
-	PublishedRevision  *int
-	ScheduleGeneration int64
-	ScheduledAt        *time.Time
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID                 string     `json:"id"`
+	Locale             string     `json:"locale"`
+	Slug               string     `json:"slug"`
+	Title              string     `json:"title"`
+	Body               string     `json:"body"`
+	Status             Status     `json:"status"`
+	Version            int        `json:"version"`
+	Revision           int        `json:"revision"`
+	PublishedRevision  *int       `json:"published_revision,omitempty"`
+	ScheduleGeneration int64      `json:"schedule_generation"`
+	ScheduledAt        *time.Time `json:"scheduled_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 func Validate(item Item) error {

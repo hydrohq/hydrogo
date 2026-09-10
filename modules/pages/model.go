@@ -18,17 +18,17 @@ const (
 )
 
 type Page struct {
-	ID                    string
-	Locale                string
-	Slug                  string
-	Title                 string
-	Body                  string
-	Blocks                []Block
-	Status                Status
-	Version               int
-	Revision              int
-	PublishedRevision     *int
-	PublicationGeneration int64
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
+	ID                    string    `json:"id"`
+	Locale                string    `json:"locale"`
+	Slug                  string    `json:"slug"`
+	Title                 string    `json:"title"`
+	Body                  string    `json:"body"`
+	Blocks                []Block   `json:"blocks"`
+	Status                Status    `json:"status"`
+	Version               int       `json:"version"`
+	Revision              int       `json:"revision"`
+	PublishedRevision     *int      `json:"published_revision,omitempty"`
+	PublicationGeneration int64     `json:"publication_generation"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
