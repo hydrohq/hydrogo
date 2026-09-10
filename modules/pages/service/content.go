@@ -22,9 +22,23 @@ var (
 type ContentRepository interface {
 	GetContent(context.Context, database.Executor, string) (pages.Page, error)
 	GetPublishedByRoute(context.Context, database.Executor, string, string) (pages.Page, error)
+	ListPublished(context.Context, database.Executor, string, int) ([]pages.Page, error)
 	CreateDraftContent(context.Context, database.Executor, pages.Page) error
 	UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error
 	Publish(context.Context, database.Executor, string, int) error
+}
+
+// ListPublished exposes a bounded, locale-scoped public projection for
+// headless discovery surfaces. It never reads draft fields or revisions.
+func (s ContentService) ListPublished(ctx context.Context, db database.Executor, locale string, limit int) ([]pages.Page, error) {
+	if guards.IsNil(s.Pages) {
+		return nil, ErrDependencyRequired
+	}
+	locale = canonical.Locale(locale)
+	if locale == "" || limit < 1 || limit > 100 {
+		return nil, ErrInvalidPage
+	}
+	return s.Pages.ListPublished(ctx, db, locale, limit)
 }
 
 func (s ContentService) Get(ctx context.Context, db database.Executor, pageID string) (pages.Page, error) {

@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -18,6 +19,39 @@ func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Pag
 	}
 	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL ORDER BY published_locale, published_slug, id`
 	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]pages.Page, 0)
+	for rows.Next() {
+		var page pages.Page
+		var status string
+		var updated any
+		if err := rows.Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &status, &page.Revision, &page.PublicationGeneration, &updated); err != nil {
+			return nil, err
+		}
+		page.Status = pages.Status(status)
+		page.UpdatedAt = parseStoredTime(updated)
+		result = append(result, page)
+	}
+	return result, rows.Err()
+}
+
+// ListPublished returns bounded public page summaries for a locale. Draft
+// fields and unpublished routes are intentionally absent from this query.
+func (s Store) ListPublished(ctx context.Context, db database.Executor, locale string, limit int) ([]pages.Page, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("published page list requires a query-capable executor")
+	}
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(2)
+	rows, err := queryer.QueryContext(ctx, query, locale, limit)
 	if err != nil {
 		return nil, err
 	}

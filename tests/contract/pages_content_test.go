@@ -104,6 +104,13 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 	if publicPage.Title != "Hakkımızda güncel" {
 		t.Fatalf("unexpected first published title: %q", publicPage.Title)
 	}
+	listedPages, err := content.ListPublished(ctx, db, "TR-tr", 20)
+	if err != nil || len(listedPages) != 1 {
+		t.Fatalf("published page list = %#v/%v", listedPages, err)
+	}
+	if listedPages[0].ID != page.ID || listedPages[0].Title != "Hakkımızda güncel" || listedPages[0].Body != "" || len(listedPages[0].Blocks) != 0 {
+		t.Fatalf("published page summary leaked or mismatched: %#v", listedPages[0])
+	}
 	if err := content.UpdateDraft(ctx, pages.Page{ID: page.ID, Locale: page.Locale, Slug: "hakkimizda", Title: "Yeni taslak", Body: "üçüncü"}, 3); err != nil {
 		t.Fatalf("edit published page as draft: %v", err)
 	}

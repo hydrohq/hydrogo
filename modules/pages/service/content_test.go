@@ -26,6 +26,9 @@ func (r *countingPublicRepository) GetPublishedByRoute(context.Context, database
 	r.mu.Unlock()
 	return r.page, nil
 }
+func (r *countingPublicRepository) ListPublished(context.Context, database.Executor, string, int) ([]pages.Page, error) {
+	return []pages.Page{r.page}, nil
+}
 func (r *countingPublicRepository) CreateDraftContent(context.Context, database.Executor, pages.Page) error {
 	return nil
 }
@@ -60,5 +63,17 @@ func TestGetPublishedCoalescesConcurrentDBMisses(t *testing.T) {
 	wg.Wait()
 	if got := repo.count(); got != 1 {
 		t.Fatalf("repository calls = %d, want 1", got)
+	}
+}
+
+func TestListPublishedRejectsInvalidPublicQuery(t *testing.T) {
+	service := ContentService{Pages: &countingPublicRepository{}}
+	for _, test := range []struct {
+		locale string
+		limit  int
+	}{{"", 1}, {"tr", 0}, {"tr", 101}} {
+		if _, err := service.ListPublished(context.Background(), nil, test.locale, test.limit); err != ErrInvalidPage {
+			t.Errorf("ListPublished(%q, %d) error = %v", test.locale, test.limit, err)
+		}
 	}
 }

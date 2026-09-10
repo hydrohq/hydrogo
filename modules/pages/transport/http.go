@@ -50,6 +50,7 @@ type updateInput struct {
 func (h Handler) Routes() []Route {
 	return []Route{
 		{Pattern: "POST /api/pages", Handler: http.HandlerFunc(h.create), Protected: true},
+		{Pattern: "GET /api/pages", Handler: http.HandlerFunc(h.listPublished)},
 		{Pattern: "GET /api/pages/{id}", Handler: http.HandlerFunc(h.get), Protected: true},
 		{Pattern: "GET /api/pages/{id}/preview", Handler: http.HandlerFunc(h.preview), Protected: true},
 		{Pattern: "PUT /api/pages/{id}", Handler: http.HandlerFunc(h.update), Protected: true},
@@ -61,6 +62,24 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/pages/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
 	}
+}
+
+func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
+	limit := 20
+	if value := r.URL.Query().Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 || parsed > 100 {
+			http.Error(w, "limit must be between 1 and 100", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+	items, err := h.Content.ListPublished(r.Context(), h.DB, r.URL.Query().Get("locale"), limit)
+	if err != nil {
+		http.Error(w, "page lookup failed", pageReadStatus(err))
+		return
+	}
+	writeJSON(w, http.StatusOK, items)
 }
 
 func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {

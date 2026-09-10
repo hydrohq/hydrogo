@@ -39,7 +39,7 @@ func NewPublicReadCORSMiddleware(origins []string) (func(http.Handler) http.Hand
 }
 
 func isPublicReadAPIPath(path string) bool {
-	if path == "/api/v1/pages/by-slug" || path == "/api/v1/news" || path == "/api/v1/news/by-slug" || path == "/api/v1/commerce/products" {
+	if path == "/api/v1/pages" || path == "/api/v1/pages/by-slug" || path == "/api/v1/news" || path == "/api/v1/news/by-slug" || path == "/api/v1/commerce/products" {
 		return true
 	}
 	return strings.HasPrefix(path, "/api/v1/commerce/products/") && strings.HasSuffix(path, "/variants")

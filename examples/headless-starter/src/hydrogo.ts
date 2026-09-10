@@ -27,6 +27,11 @@ export class HydroGoClient {
     return this.request<Page>(`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`);
   }
 
+  async listPages(locale: string, limit = 20): Promise<Page[]> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
+    return this.request<Page[]>(`/api/v1/pages?locale=${encodeURIComponent(locale)}&limit=${limit}`);
+  }
+
   async listNews(locale: string, limit = 20): Promise<NewsItem[]> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
     return this.request<NewsItem[]>(`/api/v1/news?locale=${encodeURIComponent(locale)}&limit=${limit}`);

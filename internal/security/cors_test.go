@@ -12,18 +12,20 @@ func TestPublicReadCORSAllowsOnlyConfiguredPublishedGET(t *testing.T) {
 		t.Fatal(err)
 	}
 	next := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/news?locale=tr", nil)
-	request.Header.Set("Origin", "https://store.example.test")
-	recorder := httptest.NewRecorder()
-	next.ServeHTTP(recorder, request)
-	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "https://store.example.test" {
-		t.Fatalf("allow origin = %q", got)
-	}
-	if got := recorder.Header().Get("Access-Control-Allow-Credentials"); got != "" {
-		t.Fatalf("credentialed CORS unexpectedly enabled: %q", got)
-	}
-	if got := recorder.Header().Get("Vary"); got != "Origin" {
-		t.Fatalf("vary = %q", got)
+	for _, path := range []string{"/api/v1/news?locale=tr", "/api/v1/pages?locale=tr"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		request.Header.Set("Origin", "https://store.example.test")
+		recorder := httptest.NewRecorder()
+		next.ServeHTTP(recorder, request)
+		if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "https://store.example.test" {
+			t.Fatalf("%s allow origin = %q", path, got)
+		}
+		if got := recorder.Header().Get("Access-Control-Allow-Credentials"); got != "" {
+			t.Fatalf("%s credentialed CORS unexpectedly enabled: %q", path, got)
+		}
+		if got := recorder.Header().Get("Vary"); got != "Origin" {
+			t.Fatalf("%s vary = %q", path, got)
+		}
 	}
 }
 
