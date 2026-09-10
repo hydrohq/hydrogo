@@ -6,6 +6,21 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/commerce/products:
+    get:
+      operationId: listProducts
+      responses:
+        '200': { description: Published products, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Product' } } } } }
+  /api/v1/commerce/products/{productID}/variants:
+    get:
+      operationId: listProductVariants
+      parameters:
+        - in: path
+          name: productID
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Published variants, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ProductVariant' } } } } }
   /api/v1/commerce/cart:
     get:
       operationId: getCart
@@ -91,12 +106,14 @@ components:
             required: [product_id, quantity]
             properties:
               product_id: { type: string }
+              variant_id: { type: string }
               quantity: { type: integer, minimum: 1, maximum: 1000 }
     CartItemInput:
       type: object
       required: [product_id, quantity]
       properties:
         product_id: { type: string }
+        variant_id: { type: string }
         quantity: { type: integer, minimum: 1, maximum: 1000 }
     Cart:
       type: object
@@ -111,6 +128,35 @@ components:
           items:
             type: object
             required: [product_id, quantity, unit_cents, total_cents]
+            properties:
+              product_id: { type: string }
+              variant_id: { type: string }
+              quantity: { type: integer }
+              unit_cents: { type: integer, format: int64 }
+              total_cents: { type: integer, format: int64 }
+    Product:
+      type: object
+      required: [id, sku, title, price_cents, currency, stock, status]
+      properties:
+        id: { type: string }
+        sku: { type: string }
+        title: { type: string }
+        price_cents: { type: integer, format: int64 }
+        currency: { type: string }
+        stock: { type: integer }
+        status: { type: string }
+    ProductVariant:
+      type: object
+      required: [id, product_id, sku, title, price_cents, currency, stock, status]
+      properties:
+        id: { type: string }
+        product_id: { type: string }
+        sku: { type: string }
+        title: { type: string }
+        price_cents: { type: integer, format: int64 }
+        currency: { type: string }
+        stock: { type: integer }
+        status: { type: string }
     Order:
       type: object
       required: [id, user_id, currency, items, total_cents, payment_status, shipping_status]

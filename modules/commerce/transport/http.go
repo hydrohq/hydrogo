@@ -21,6 +21,7 @@ type Handler struct {
 	Catalog         commerce.CatalogService
 	Cart            commerce.CartService
 	CatalogVariants commerce.VariantStore
+	Orders          commerce.OrderReader
 }
 
 type PaymentWebhookHandler struct{ Service commerce.PaymentService }
@@ -53,6 +54,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /shop/checkout", Handler: http.HandlerFunc(h.checkoutForm), Protected: true},
 		{Pattern: "GET /admin/commerce/products", Handler: http.HandlerFunc(h.adminProducts), Protected: true},
 		{Pattern: "POST /admin/commerce/products", Handler: http.HandlerFunc(h.adminCreateProduct), Protected: true},
+		{Pattern: "GET /admin/commerce/orders", Handler: http.HandlerFunc(h.adminOrders), Protected: true},
 	}
 }
 
@@ -216,7 +218,22 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Shop</title></head><body><h1>Shop</h1><a href="/shop/cart">Cart</a><main>`))
 	for _, product := range products {
-		_, _ = fmt.Fprintf(w, `<article><h2>%s</h2><p>%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s"><label>Quantity <input name="quantity" type="number" min="1" max="1000" value="1"></label><button type="submit">Add to cart</button></form></article>`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
+		variants := []commerce.ProductVariant(nil)
+		if h.CatalogVariants != nil {
+			variants, _ = h.Catalog.ListVariants(r.Context(), h.DB, product.ID, true)
+		}
+		_, _ = fmt.Fprintf(w, `<article><h2>%s</h2><p>%s %d</p><form method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, template.HTMLEscapeString(product.Title), template.HTMLEscapeString(product.Currency), product.PriceCents, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
+		if len(variants) > 0 {
+			_, _ = w.Write([]byte(`<label>Variant <select name="variant_id" required><option value="">Choose a variant</option>`))
+			for _, variant := range variants {
+				if variant.Status == commerce.ProductOutOfStock || variant.Stock == 0 {
+					continue
+				}
+				_, _ = fmt.Fprintf(w, `<option value="%s">%s — %d %s</option>`, template.HTMLEscapeString(variant.ID), template.HTMLEscapeString(variant.Title), variant.PriceCents, template.HTMLEscapeString(variant.Currency))
+			}
+			_, _ = w.Write([]byte(`</select></label>`))
+		}
+		_, _ = w.Write([]byte(`<label>Quantity <input name="quantity" type="number" min="1" max="1000" value="1"></label><button type="submit">Add to cart</button></form></article>`))
 	}
 	_, _ = w.Write([]byte(`</main></body></html>`))
 }
@@ -357,6 +374,29 @@ func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/commerce/products", http.StatusSeeOther)
+}
+
+func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Orders == nil {
+		http.Error(w, "order management unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	orders, err := h.Orders.ListOrders(r.Context(), h.DB, 100)
+	if err != nil {
+		http.Error(w, "orders unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Commerce orders</title></head><body><nav><a href="/admin/commerce/products">Catalog</a></nav><h1>Commerce orders</h1><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Shipping</th><th>Items</th></tr></thead><tbody>`))
+	for _, order := range orders {
+		_, _ = fmt.Fprintf(w, `<tr><td><code>%s</code></td><td><code>%s</code></td><td>%d %s</td><td>%s</td><td>%s</td><td>%d</td></tr>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.UserID), order.TotalCents, template.HTMLEscapeString(order.Currency), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ShippingStatus), len(order.Items))
+	}
+	_, _ = w.Write([]byte(`</tbody></table></body></html>`))
 }
 
 func (h Handler) removeCartItemForm(w http.ResponseWriter, r *http.Request) {

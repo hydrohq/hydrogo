@@ -20,6 +20,10 @@ type VariantStore interface {
 	ListVariants(context.Context, database.Executor, string, bool) ([]ProductVariant, error)
 }
 
+type OrderReader interface {
+	ListOrders(context.Context, database.Executor, int) ([]Order, error)
+}
+
 type CatalogService struct {
 	Transactions database.Transactor
 	Store        CatalogStore

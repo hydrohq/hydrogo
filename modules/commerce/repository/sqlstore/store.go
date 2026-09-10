@@ -50,7 +50,7 @@ func (s Store) ListVariants(ctx context.Context, db database.Executor, productID
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
-	q := `SELECT id, product_id, sku, title, price_cents, stock, status FROM commerce_product_variants WHERE product_id = ` + s.placeholder(1)
+	q := `SELECT v.id, v.product_id, v.sku, v.title, v.price_cents, p.currency, v.stock, v.status FROM commerce_product_variants v JOIN commerce_products p ON p.id = v.product_id WHERE v.product_id = ` + s.placeholder(1)
 	if publicOnly {
 		q += ` AND status IN ('published', 'out_of_stock')`
 	}
@@ -63,12 +63,39 @@ func (s Store) ListVariants(ctx context.Context, db database.Executor, productID
 	variants := make([]commerce.ProductVariant, 0)
 	for rows.Next() {
 		var variant commerce.ProductVariant
-		if err := rows.Scan(&variant.ID, &variant.ProductID, &variant.SKU, &variant.Title, &variant.PriceCents, &variant.Stock, &variant.Status); err != nil {
+		if err := rows.Scan(&variant.ID, &variant.ProductID, &variant.SKU, &variant.Title, &variant.PriceCents, &variant.Currency, &variant.Stock, &variant.Status); err != nil {
 			return nil, err
 		}
 		variants = append(variants, variant)
 	}
 	return variants, rows.Err()
+}
+
+func (s Store) ListOrders(ctx context.Context, db database.Executor, limit int) ([]commerce.Order, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status FROM commerce_orders ORDER BY created_at DESC, id DESC LIMIT ` + s.placeholder(1)
+	rows, err := queryRows(ctx, db, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	orders := make([]commerce.Order, 0)
+	for rows.Next() {
+		var order commerce.Order
+		if err := rows.Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
+			return nil, err
+		}
+		if err := s.loadItems(ctx, db, &order); err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+	return orders, rows.Err()
 }
 
 func (s Store) CreateProduct(ctx context.Context, db database.Executor, product commerce.Product) error {

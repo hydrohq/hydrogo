@@ -646,7 +646,7 @@ func serve(args []string, stderr io.Writer) error {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
 		commerceCatalog := commerce.CatalogService{Transactions: database.NewTransactor(db), Store: commerceStore, Variants: commerceStore}
-		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}
+		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}
 		providers := make(map[string]commerce.PaymentProvider)
 		if cfg.Payments.StripeSecretKey != "" {
 			providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
