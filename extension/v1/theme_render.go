@@ -5,8 +5,10 @@ import (
 	"errors"
 	htmltemplate "html/template"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
@@ -27,6 +29,42 @@ func (b ThemeBundle) RenderPage(w io.Writer, data PageTemplateData) error {
 		return err
 	}
 	return tpl.Execute(w, data)
+}
+
+// ServeAsset exposes only files declared in theme.json. The route is expected
+// to pass the path below /theme/static, so a theme asset cannot escape its
+// bundle or become an arbitrary filesystem read.
+func (b ThemeBundle) ServeAsset(w http.ResponseWriter, r *http.Request) {
+	rel := strings.TrimPrefix(r.PathValue("path"), "/")
+	if rel == "" || !safeThemePath(rel) {
+		http.NotFound(w, r)
+		return
+	}
+	asset := filepath.ToSlash(filepath.Join("static", rel))
+	declared := false
+	for _, candidate := range b.Manifest.Assets {
+		if filepath.ToSlash(filepath.Clean(candidate)) == asset {
+			declared = true
+			break
+		}
+	}
+	if !declared {
+		http.NotFound(w, r)
+		return
+	}
+	path := filepath.Join(b.Root, filepath.FromSlash(asset))
+	file, err := os.Open(path)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeContent(w, r, filepath.Base(path), info.ModTime(), file)
 }
 
 type BlockTemplateData struct {

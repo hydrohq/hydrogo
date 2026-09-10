@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"html/template"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,5 +89,43 @@ func TestThemeBundleRendersEscapedBlockOverride(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "<unsafe>") || !strings.Contains(out.String(), "&lt;unsafe&gt;") {
 		t.Fatalf("unsafe block output: %s", out.String())
+	}
+}
+
+func TestThemeBundleServesDeclaredStaticAssetOnly(t *testing.T) {
+	root := t.TempDir()
+	themeRoot := filepath.Join(root, "corporate")
+	if err := os.MkdirAll(filepath.Join(themeRoot, "layouts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(themeRoot, "static"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "theme.json"), []byte(`{"name":"corporate","version":"1.0.0","assets":["static/theme.css"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "layouts", "base.html"), []byte(`{{slot "content"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(themeRoot, "static", "theme.css"), []byte("body{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := LoadTheme(root, "corporate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/theme/static/theme.css", nil)
+	req.SetPathValue("path", "theme.css")
+	res := httptest.NewRecorder()
+	bundle.ServeAsset(res, req)
+	if res.Code != http.StatusOK || res.Body.String() != "body{}" {
+		t.Fatalf("asset response = %d %q", res.Code, res.Body.String())
+	}
+	req = httptest.NewRequest(http.MethodGet, "/theme/static/secret.txt", nil)
+	req.SetPathValue("path", "secret.txt")
+	res = httptest.NewRecorder()
+	bundle.ServeAsset(res, req)
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("undeclared asset response = %d", res.Code)
 	}
 }
