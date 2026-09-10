@@ -18,6 +18,7 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	for _, statement := range []string{
 		`CREATE TABLE commerce_products (id TEXT PRIMARY KEY, sku TEXT NOT NULL UNIQUE, title TEXT NOT NULL, price_cents INTEGER NOT NULL, currency TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE commerce_orders (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, currency TEXT NOT NULL, total_cents INTEGER NOT NULL, payment_status TEXT NOT NULL, shipping_status TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(user_id, idempotency_key))`,
+		`CREATE TABLE commerce_payment_transactions (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, provider TEXT NOT NULL, provider_payment_id TEXT NOT NULL UNIQUE, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE commerce_order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, sku TEXT NOT NULL, title TEXT NOT NULL, quantity INTEGER NOT NULL, unit_cents INTEGER NOT NULL, total_cents INTEGER NOT NULL, variant_id TEXT)`,
 		`CREATE TABLE commerce_product_variants (id TEXT PRIMARY KEY, product_id TEXT NOT NULL, sku TEXT NOT NULL UNIQUE, title TEXT NOT NULL, price_cents INTEGER NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 	} {
@@ -51,6 +52,13 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO commerce_order_items (id,order_id,product_id,variant_id,sku,title,quantity,unit_cents,total_cents) VALUES ('oi1','o1','p1','v1','V1','Blue',1,1200,1200)`)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := store.ApplyPaymentEvent(context.Background(), db, commerce.WebhookEvent{ID: "evt-1", Provider: "stripe", ProviderEventID: "evt-1", OrderID: "o1", PaymentID: "pi-1", Status: "paid", AmountCents: 1200, Currency: "TRY"}); err != nil {
+		t.Fatal(err)
+	}
+	var paymentCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM commerce_payment_transactions WHERE provider_payment_id = 'pi-1'`).Scan(&paymentCount); err != nil || paymentCount != 1 {
+		t.Fatalf("payment transaction count = %d, %v", paymentCount, err)
 	}
 	orders, err := store.ListOrders(context.Background(), db, 10)
 	if err != nil || len(orders) != 1 || len(orders[0].Items) != 1 || orders[0].Items[0].VariantID != "v1" {

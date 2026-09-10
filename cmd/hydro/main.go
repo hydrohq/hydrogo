@@ -661,10 +661,10 @@ func serve(args []string, stderr io.Writer) error {
 			providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
 		}
 		if cfg.Payments.IyzicoSecretKey != "" {
-			providers["iyzico"] = iyzicoprovider.Provider{SecretKey: cfg.Payments.IyzicoSecretKey}
+			providers["iyzico"] = iyzicoprovider.Provider{APIKey: cfg.Payments.IyzicoAPIKey, SecretKey: cfg.Payments.IyzicoSecretKey}
 		}
 		if cfg.Payments.PayTRMerchantKey != "" {
-			providers["paytr"] = paytrprovider.Provider{MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency}
+			providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency}
 		}
 		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}}
 		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: providers}}

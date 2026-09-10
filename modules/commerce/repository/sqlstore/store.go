@@ -412,6 +412,12 @@ func (s Store) ApplyPaymentEvent(ctx context.Context, db database.Executor, even
 	if total != event.AmountCents || currency != event.Currency {
 		return commerce.ErrPaymentMismatch
 	}
+	transactionID := event.Provider + "-" + event.ProviderEventID
+	q = `INSERT INTO commerce_payment_transactions (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `)`
+	now := time.Now().UTC()
+	if _, err := db.ExecContext(ctx, q, transactionID, event.OrderID, event.Provider, event.PaymentID, event.AmountCents, event.Currency, event.Status, now, now); err != nil {
+		return err
+	}
 	q = `UPDATE commerce_orders SET payment_status = ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2) + ` AND payment_status IN ('pending', 'failed')`
 	result, err := db.ExecContext(ctx, q, event.Status, event.OrderID)
 	if err != nil {

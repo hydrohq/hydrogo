@@ -68,7 +68,9 @@ type Mail struct {
 type Payments struct {
 	StripeSecretKey     string
 	StripeWebhookSecret string
+	IyzicoAPIKey        string
 	IyzicoSecretKey     string
+	PayTRMerchantID     string
 	PayTRMerchantKey    string
 	PayTRMerchantSalt   string
 	PayTRCurrency       string
@@ -186,7 +188,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	result.Payments.StripeSecretKey, _ = lookup("HYDRO_STRIPE_SECRET_KEY")
 	result.Payments.StripeWebhookSecret, _ = lookup("HYDRO_STRIPE_WEBHOOK_SECRET")
+	result.Payments.IyzicoAPIKey, _ = lookup("HYDRO_IYZICO_API_KEY")
 	result.Payments.IyzicoSecretKey, _ = lookup("HYDRO_IYZICO_SECRET_KEY")
+	result.Payments.PayTRMerchantID, _ = lookup("HYDRO_PAYTR_MERCHANT_ID")
 	result.Payments.PayTRMerchantKey, _ = lookup("HYDRO_PAYTR_MERCHANT_KEY")
 	result.Payments.PayTRMerchantSalt, _ = lookup("HYDRO_PAYTR_MERCHANT_SALT")
 	result.Payments.PayTRCurrency, _ = lookup("HYDRO_PAYTR_CURRENCY")
@@ -245,6 +249,12 @@ func (c Config) Validate() error {
 	}
 	if (c.Payments.PayTRMerchantKey == "") != (c.Payments.PayTRMerchantSalt == "") {
 		return errors.New("PayTR merchant key and salt must be configured together")
+	}
+	if (c.Payments.IyzicoAPIKey == "") != (c.Payments.IyzicoSecretKey == "") {
+		return errors.New("iyzico API key and secret key must be configured together")
+	}
+	if (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantKey == "") || (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantSalt == "") {
+		return errors.New("PayTR merchant ID, key and salt must be configured together")
 	}
 	for _, webhook := range c.Webhooks {
 		if strings.TrimSpace(webhook.ID) == "" || strings.TrimSpace(webhook.URL) == "" || strings.TrimSpace(webhook.Secret) == "" {

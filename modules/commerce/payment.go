@@ -45,7 +45,7 @@ var ErrInvalidPaymentEvent = errors.New("invalid payment event")
 var ErrPaymentMismatch = errors.New("payment does not match order")
 
 func ValidateWebhookEvent(event WebhookEvent) error {
-	if strings.TrimSpace(event.ID) == "" || strings.TrimSpace(event.Provider) == "" || strings.TrimSpace(event.ProviderEventID) == "" || strings.TrimSpace(event.OrderID) == "" || event.AmountCents < 0 || strings.TrimSpace(event.Currency) == "" || strings.TrimSpace(event.Status) == "" {
+	if strings.TrimSpace(event.ID) == "" || strings.TrimSpace(event.Provider) == "" || strings.TrimSpace(event.ProviderEventID) == "" || strings.TrimSpace(event.OrderID) == "" || strings.TrimSpace(event.PaymentID) == "" || event.AmountCents < 0 || strings.TrimSpace(event.Currency) == "" || strings.TrimSpace(event.Status) == "" {
 		return ErrInvalidPaymentEvent
 	}
 	return nil
