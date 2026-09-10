@@ -45,6 +45,7 @@ Kabul edilmiş bir karar sessizce değiştirilmez. Yeni bilgi kararı geçersiz 
 | [0014](0014-publication-routes-and-erasure-recovery.md) | Publish sırasında route/SEO ve restore'dan bağımsız silme geçmişi | Kabul edildi; planlandı |
 | [0015](0015-versioned-http-api.md) | Sürümlü HTTP API yolları ve geriye dönük alias | Kabul edildi |
 | [0016](0016-structured-page-blocks-and-theme-slots.md) | Yapılandırılmış sayfa blokları ve tema slotları | Kabul edildi |
+| [0017](0017-commerce-consistency-and-payments.md) | Commerce tutarlılığı ve ödeme sağlayıcıları | Kabul edildi |
 
 Uygulama sırası ve çıkış kapıları [Roadmap](../ROADMAP.md) içinde izlenir.
 

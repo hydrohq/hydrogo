@@ -1,0 +1,27 @@
+id: "202609100002_commerce_core"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "2dd7b64bff8d11c1acbd7b0b98c470094f6da1355c1d9a4b50cc1df42c377996"
+  postgres: "33aa055489026aa2e340b49a53597a22259a960b0ff1e12ab7274d083c56562e"
+dependencies:
+  - "202609060001_transaction_contract"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The transaction contract migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Commerce catalog, order and order item rows"
+compatibility: "Adds commerce tables; inactive editions do not enable this migration"
+smoke:
+  - "Stock and money constraints reject invalid values"
+  - "User and idempotency key are unique per order"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
+
