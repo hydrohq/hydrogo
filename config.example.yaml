@@ -9,6 +9,8 @@ database:
   dsn: ""
 media:
   dir: "data/media"
+theme_dir: "themes"
+theme: "corporate"
 security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false

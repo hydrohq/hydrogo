@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -22,6 +23,7 @@ import (
 type Handler struct {
 	DB      database.Executor
 	Content service.ContentService
+	Theme   *themev1.ThemeBundle
 }
 
 type pageInput struct {
@@ -74,6 +76,14 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if h.Theme != nil {
+		var content strings.Builder
+		fmt.Fprintf(&content, `<h1>%s</h1><div class="content-body">%s</div>%s`, template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body), blocks)
+		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String())}}); err != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+		}
+		return
+	}
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Body), blocks)
 }
 

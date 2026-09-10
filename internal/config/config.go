@@ -21,6 +21,8 @@ type Config struct {
 	HTTP     HTTP             `yaml:"http"`
 	Database Database         `yaml:"database"`
 	Media    Media            `yaml:"media"`
+	ThemeDir string           `yaml:"theme_dir"`
+	Theme    string           `yaml:"theme"`
 	Security Security         `yaml:"security"`
 	Mail     Mail             `yaml:"mail"`
 	Payments Payments         `yaml:"-"`
@@ -77,7 +79,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, Mail: Mail{Port: 587, StartTLS: true}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}}
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -105,6 +107,12 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_MEDIA_DIR"); ok && value != "" {
 		result.Media.Dir = value
+	}
+	if value, ok := lookup("HYDRO_THEME_DIR"); ok && value != "" {
+		result.ThemeDir = value
+	}
+	if value, ok := lookup("HYDRO_THEME"); ok && value != "" {
+		result.Theme = value
 	}
 	if value, ok := lookup("HYDRO_MFA_MASTER_KEY"); ok && value != "" {
 		result.Security.MFAMasterKey = value

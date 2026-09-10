@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
@@ -604,7 +605,15 @@ func serve(args []string, stderr io.Writer) error {
 		PublicCache:  cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL),
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
-	pageHTTP := pagetransport.Handler{DB: db, Content: contentService}
+	var selectedTheme *themev1.ThemeBundle
+	if cfg.Theme != "" {
+		bundle, err := themev1.LoadTheme(cfg.ThemeDir, cfg.Theme)
+		if err != nil {
+			return fmt.Errorf("load theme %q: %w", cfg.Theme, err)
+		}
+		selectedTheme = &bundle
+	}
+	pageHTTP := pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme}
 	uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
 	if err != nil {
 		return err
