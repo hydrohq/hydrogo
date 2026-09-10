@@ -1,0 +1,3 @@
+ALTER TABLE pages ADD COLUMN blocks TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE pages ADD COLUMN published_blocks TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE page_revisions ADD COLUMN blocks TEXT NOT NULL DEFAULT '[]';

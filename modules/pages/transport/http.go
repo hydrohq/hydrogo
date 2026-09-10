@@ -22,10 +22,11 @@ type Handler struct {
 }
 
 type pageInput struct {
-	Locale string `json:"locale"`
-	Slug   string `json:"slug"`
-	Title  string `json:"title"`
-	Body   string `json:"body"`
+	Locale string        `json:"locale"`
+	Slug   string        `json:"slug"`
+	Title  string        `json:"title"`
+	Body   string        `json:"body"`
+	Blocks []pages.Block `json:"blocks"`
 }
 
 type updateInput struct {
@@ -76,7 +77,7 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	page := pages.Page{ID: id, Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body}
+	page := pages.Page{ID: id, Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks}
 	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
@@ -111,7 +112,7 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSON(w, r, &input); err != nil {
 		return
 	}
-	page := pages.Page{ID: r.PathValue("id"), Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body}
+	page := pages.Page{ID: r.PathValue("id"), Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks}
 	if err := h.Content.UpdateDraft(r.Context(), page, input.Version); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return

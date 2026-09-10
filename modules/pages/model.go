@@ -23,6 +23,7 @@ type Page struct {
 	Slug                  string
 	Title                 string
 	Body                  string
+	Blocks                []Block
 	Status                Status
 	Version               int
 	Revision              int

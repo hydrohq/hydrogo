@@ -46,6 +46,7 @@ Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'le
 - [x] ADR-0014: taslak URL canlıyı değiştirmesin; publish route/generation/audit/outbox atomik olsun. (Draft/published projection ve duplicate route conflict contract testleri geçiyor.)
 - [x] Local medya pending/ready, private/public, sanitizer ve immutable revision gövdesi. (Upload metadata service’i ve sanitized revision contract testi hazır.)
 - [x] İlk dış Client Edition ve tipli view slotları; Core fork veya internal import olmasın. (examples/client-edition ve import boundary CI kanıtı.)
+- [x] Yapılandırılmış Pages bloklarının ilk sözleşmesi ve SQLite/PostgreSQL saklama katmanı. (Sürümlü `hero`, `faq`, `cta` blokları, bounded payload doğrulaması, draft/revision/published projection aktarımı ve ADR-0016.) Admin block editor ve görsel renderer sonraki dilimdir.
 - [x] Bounded yerel cache, public HTTP politikası ve kalıcı outbox; ilk dilim için zorunlu L2 yok.
 
 **Çıkış:** İki DB'de aynı uçtan uca akış; yetki ve taslak/özel medya sızıntısı testleri; eşzamanlı edit/publish conflict ve crash rollback kanıtı. Kanıt: [R2 doğrulama raporu](validation/R2-pages-media-2026-09-08.md). Tam SEO, sitemap ve geçmiş URL yönetimi R3'tedir.

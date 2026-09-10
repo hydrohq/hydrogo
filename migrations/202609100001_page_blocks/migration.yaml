@@ -1,0 +1,26 @@
+id: "202609100001_page_blocks"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "ac5fa2b5e6b06c78af013a25f40cd7abda426fe4aeebb0e6736e38b162a444e1"
+  postgres: "8afa81962f4a23a791e562aacd3a4f2680bc60fee3e3683237aa886dad7bf849"
+dependencies:
+  - "202609080003_pages_content"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "The pages content migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Page block payloads and immutable revision copies"
+compatibility: "Adds versioned block payloads without changing existing rich text"
+smoke:
+  - "Existing pages read as an empty block list"
+  - "Draft and published block payloads match on both dialects"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

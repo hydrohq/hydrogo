@@ -72,6 +72,9 @@ func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error 
 	if s.Sanitize != nil {
 		page.Body = s.Sanitize(page.Body)
 	}
+	if err := pages.ValidateBlocks(page.Blocks); err != nil {
+		return ErrInvalidPage
+	}
 	if err := validatePage(&page); err != nil {
 		return err
 	}
@@ -92,6 +95,9 @@ func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error 
 func (s ContentService) UpdateDraft(ctx context.Context, page pages.Page, expectedVersion int) error {
 	if s.Sanitize != nil {
 		page.Body = s.Sanitize(page.Body)
+	}
+	if err := pages.ValidateBlocks(page.Blocks); err != nil {
+		return ErrInvalidPage
 	}
 	if err := validatePage(&page); err != nil {
 		return err
