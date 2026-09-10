@@ -41,6 +41,17 @@ func TestPrivateMediaIsNotServedWithoutSession(t *testing.T) {
 	}
 }
 
+func TestPrivateMediaIsNotServedToViewer(t *testing.T) {
+	handler := HTTPHandler{Service: Service{Uploader: &Uploader{}, Assets: httpAssetRepo{asset: Asset{Status: "ready", Visibility: VisibilityPrivate}}}}
+	request := httptest.NewRequest(http.MethodGet, "/media/a1", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "viewer", Active: true, Role: auth.RoleViewer}))
+	response := httptest.NewRecorder()
+	handler.serve(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("private media viewer status = %d, want 401", response.Code)
+	}
+}
+
 func TestMultipartBodyLimitDoesNotOverflow(t *testing.T) {
 	const maxInt64 = int64(^uint64(0) >> 1)
 	if got := multipartBodyLimit(maxInt64 - 1); got != maxInt64 {

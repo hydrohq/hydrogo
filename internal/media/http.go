@@ -57,7 +57,7 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if asset.Visibility == VisibilityPrivate && auth.UserFromContext(r.Context()) == nil {
+	if asset.Visibility == VisibilityPrivate && !editorAllowed(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
