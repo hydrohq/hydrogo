@@ -35,6 +35,14 @@ type Handler struct {
 		Get(context.Context, database.Executor, string) (media.Asset, error)
 	}
 	AdminCollection adminstudio.Collection
+	DefaultLocale   string
+}
+
+func (h Handler) defaultLocale() string {
+	if h.DefaultLocale != "" {
+		return h.DefaultLocale
+	}
+	return "tr"
 }
 
 type pageInput struct {
@@ -372,7 +380,11 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	page := pages.Page{ID: r.PathValue("id"), Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Blocks: blocks}
+	locale := r.FormValue("locale")
+	if locale == "" {
+		locale = h.defaultLocale()
+	}
+	page := pages.Page{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Blocks: blocks}
 	if err := h.Content.UpdateDraft(r.Context(), page, version); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return

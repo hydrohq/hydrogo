@@ -23,6 +23,7 @@ type Config struct {
 	Media    Media            `yaml:"media"`
 	ThemeDir string           `yaml:"theme_dir"`
 	Theme    string           `yaml:"theme"`
+	I18N     I18N             `yaml:"i18n"`
 	Security Security         `yaml:"security"`
 	Mail     Mail             `yaml:"mail"`
 	Webhooks []Webhook        `yaml:"webhooks"`
@@ -55,6 +56,12 @@ type Security struct {
 	SecureCookies    bool     `yaml:"secure_cookies"`
 	EnableHSTS       bool     `yaml:"enable_hsts"`
 	PublicAPIOrigins []string `yaml:"public_api_origins"`
+}
+
+type I18N struct {
+	Enabled       bool     `yaml:"enabled"`
+	DefaultLocale string   `yaml:"default_locale"`
+	Locales       []string `yaml:"locales"`
 }
 
 type Mail struct {
@@ -95,7 +102,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "pages", "media", "site", "news", "commerce"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "pages", "media", "site", "news", "commerce"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}}
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -129,6 +136,27 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_THEME"); ok && value != "" {
 		result.Theme = value
+	}
+	if value, ok := lookup("HYDRO_I18N_ENABLED"); ok && value != "" {
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_I18N_ENABLED: %w", err)
+		}
+		result.I18N.Enabled = enabled
+	}
+	if value, ok := lookup("HYDRO_DEFAULT_LOCALE"); ok && value != "" {
+		result.I18N.DefaultLocale = value
+	}
+	if value, ok := lookup("HYDRO_LOCALES"); ok && value != "" {
+		var locales []string
+		for _, item := range strings.Split(value, ",") {
+			if trimmed := strings.TrimSpace(item); trimmed != "" {
+				locales = append(locales, trimmed)
+			}
+		}
+		if len(locales) > 0 {
+			result.I18N.Locales = locales
+		}
 	}
 	if value, ok := lookup("HYDRO_WEBHOOK_URL"); ok && value != "" {
 		if len(result.Webhooks) == 0 {
@@ -246,6 +274,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 func (c Config) Validate() error {
 	if err := c.Profile.Validate(); err != nil {
 		return err
+	}
+	if strings.TrimSpace(c.I18N.DefaultLocale) == "" {
+		return errors.New("i18n default locale cannot be empty")
 	}
 	seenModules := make(map[string]struct{}, len(c.Modules))
 	for _, module := range c.Modules {

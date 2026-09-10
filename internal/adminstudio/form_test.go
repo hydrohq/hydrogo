@@ -69,3 +69,32 @@ func TestRenderCreateFormSupportsRichTextWithNonce(t *testing.T) {
 		t.Fatalf("rich text assets missing: %s", out.String())
 	}
 }
+
+func TestRenderCreateFormSupportsHiddenWidgetAndOptionsSelect(t *testing.T) {
+	collection := Collection{
+		ID:    "news",
+		Label: "News",
+		Fields: []Field{
+			{ID: "locale", Label: "Dil", Kind: FieldText, Widget: "hidden"},
+			{ID: "category", Label: "Kategori", Kind: FieldText, Options: []string{"tech", "business"}},
+			{ID: "title", Label: "Başlık", Kind: FieldText, Required: true},
+		},
+		Actions: []Action{{Label: "News", Href: "/admin/news"}},
+	}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{
+		Collection: collection,
+		Action:     "/admin/news",
+		CSRFToken:  "csrf",
+		Values:     map[string]string{"locale": "tr", "category": "tech"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	html := out.String()
+	if !strings.Contains(html, `<input type="hidden" name="locale" value="tr">`) {
+		t.Fatalf("hidden input missing: %s", html)
+	}
+	if !strings.Contains(html, `<select name="category"`) || !strings.Contains(html, `<option value="tech" selected>tech</option>`) {
+		t.Fatalf("select options missing: %s", html)
+	}
+}

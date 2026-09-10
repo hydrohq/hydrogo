@@ -91,7 +91,7 @@ func validateCollection(collection Collection) error {
 		if strings.TrimSpace(field.ID) == "" || strings.TrimSpace(field.Label) == "" || field.Kind == "" {
 			return ErrInvalidCollection
 		}
-		if field.Widget != "" && field.Widget != "textarea" && field.Widget != "currency" && field.Widget != "richtext" {
+		if field.Widget != "" && field.Widget != "textarea" && field.Widget != "currency" && field.Widget != "richtext" && field.Widget != "hidden" {
 			return ErrInvalidCollection
 		}
 		if _, exists := seenFields[field.ID]; exists {

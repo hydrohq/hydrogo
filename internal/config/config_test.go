@@ -173,6 +173,21 @@ func TestLoadValidatesPublicAPIOriginAllowlist(t *testing.T) {
 	}
 }
 
+func TestLoadI18NConfig(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":   "file:test.sqlite",
+		"HYDRO_I18N_ENABLED":   "true",
+		"HYDRO_DEFAULT_LOCALE": "en",
+		"HYDRO_LOCALES":        "en,tr,de",
+	}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.I18N.Enabled || cfg.I18N.DefaultLocale != "en" || len(cfg.I18N.Locales) != 3 {
+		t.Fatalf("unexpected I18N config: %+v", cfg.I18N)
+	}
+}
+
 func writeConfig(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "hydro.yaml")

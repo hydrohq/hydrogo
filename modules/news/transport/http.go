@@ -35,6 +35,14 @@ type Handler struct {
 	Service         news.Service
 	DB              database.Executor
 	AdminCollection adminstudio.Collection
+	DefaultLocale   string
+}
+
+func (h Handler) defaultLocale() string {
+	if h.DefaultLocale != "" {
+		return h.DefaultLocale
+	}
+	return "tr"
 }
 
 type publishedListRepository interface {
@@ -134,7 +142,7 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">YENİ İÇERİK</p><h2>Yeni haber oluştur</h2><p class="muted">İçerik önce taslak olarak kaydedilir. Daha sonra detay sayfasından düzenleyebilir, zamanlayabilir veya yayınlayabilirsiniz.</p></div><a class="button button-quiet" href="/admin/news">Listeye dön</a></div><form class="studio-form" method="post" action="/admin/news">`)
-	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"locale": "tr"}, SubmitLabel: "Taslak oluştur"}); err != nil {
+	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"locale": h.defaultLocale()}, SubmitLabel: "Taslak oluştur"}); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `</form></section>`)
@@ -155,7 +163,11 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	item := news.Item{ID: id, Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
+	locale := r.FormValue("locale")
+	if locale == "" {
+		locale = h.defaultLocale()
+	}
+	item := news.Item{ID: id, Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -474,7 +486,11 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "version is required", http.StatusBadRequest)
 		return
 	}
-	item := news.Item{ID: r.PathValue("id"), Locale: r.FormValue("locale"), Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
+	locale := r.FormValue("locale")
+	if locale == "" {
+		locale = h.defaultLocale()
+	}
+	item := news.Item{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Status: news.StatusDraft}
 	if err := h.Service.UpdateDraft(r.Context(), item, version); err != nil {
 		writeError(w, err)
 		return
