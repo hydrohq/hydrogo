@@ -717,16 +717,29 @@ func serve(args []string, stderr io.Writer) error {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		active := "dashboard"
 		if r.URL.Path == "/admin/reports" {
-			active = "reports"
+			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{Email: user.Email, Collections: studioRegistry.Collections(), Nonce: security.NonceFromContext(r.Context()), Active: "reports"}); err != nil {
+				http.Error(w, "admin reports unavailable", http.StatusInternalServerError)
+			}
+			return
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: studioRegistry.Collections(), Nonce: security.NonceFromContext(r.Context()), Active: active}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: studioRegistry.Collections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard"}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
 	routes = append(routes, router.Route{Pattern: "GET /admin", Access: router.Protected, Handler: adminDashboardHandler})
 	routes = append(routes, router.Route{Pattern: "GET /admin/reports", Access: router.Protected, Handler: adminDashboardHandler})
+	routes = append(routes, router.Route{Pattern: "GET /admin/control", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context())}); err != nil {
+			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
+		}
+	})})
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
