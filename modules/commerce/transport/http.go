@@ -447,7 +447,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin studio catalog unavailable", http.StatusInternalServerError)
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">KATALOG YÖNETİMİ</p><h2>Yeni ürün</h2><p class="muted">Ürünü taslak olarak oluşturun; açıklama ve stok bilgilerini kaydettikten sonra varyantlarını yönetin.</p></div></div><div class="new-product-section"><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></div><div class="table-wrap">`, formBuf.String())
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="dashboard-card-head"><div><p class="eyebrow">KATALOG YÖNETİMİ</p><h2>Ürün kataloğu</h2><p class="muted">Mevcut ürünleri yönetin veya yeni bir ürün oluşturun.</p></div><button id="toggle-product-form-btn" class="button" type="button">Yeni ürün ekle</button></div><div id="new-product-section" class="new-product-section" hidden><form class="studio-form" method="post" action="/admin/commerce/products">%s</form></div><div class="table-wrap">`, formBuf.String())
 	rows := make([]adminstudio.Row, 0, len(products))
 	for _, product := range products {
 		rows = append(rows, adminstudio.Row{Values: map[string]string{"title": product.Title, "sku": product.SKU, "price_cents": strconv.FormatInt(product.PriceCents, 10), "currency": product.Currency, "stock": strconv.Itoa(product.Stock), "status": string(product.Status)}, Actions: []adminstudio.Action{{Label: "Variants", Href: "/admin/commerce/products/" + product.ID + "/variants"}}})
