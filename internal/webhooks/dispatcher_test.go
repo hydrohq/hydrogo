@@ -44,8 +44,30 @@ func TestDispatcherSignsAndRetriesIdempotently(t *testing.T) {
 }
 
 func TestDispatcherRejectsInvalidEndpoint(t *testing.T) {
-	err := (Dispatcher{Endpoints: []Endpoint{{ID: "bad", URL: "file:///secret", Secret: "x", Topics: map[string]struct{}{"x": {}}}}}).Dispatch(context.Background(), Event{ID: "e", Topic: "x", PayloadVersion: 1})
-	if !strings.Contains(err.Error(), "invalid webhook endpoint") {
-		t.Fatalf("error = %v", err)
+	for _, badURL := range []string{"file:///secret", "http://user:pass@example.com/hook", "ftp://example.com", "not-a-url", "http://example.com:bad/hook", "http://example.com/hook#fragment"} {
+		err := (Dispatcher{Endpoints: []Endpoint{{ID: "bad", URL: badURL, Secret: "x", Topics: map[string]struct{}{"x": {}}}}}).Dispatch(context.Background(), Event{ID: "e", Topic: "x", PayloadVersion: 1})
+		if err == nil || !strings.Contains(err.Error(), "invalid webhook endpoint") {
+			t.Fatalf("badURL %q error = %v, want invalid webhook endpoint", badURL, err)
+		}
+	}
+}
+
+func TestDispatcherRejectsInvalidRedirectTarget(t *testing.T) {
+	targetCalled := atomic.Bool{}
+	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		targetCalled.Store(true)
+	}))
+	defer target.Close()
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, strings.Replace(target.URL, "http://", "http://user:pass@", 1), http.StatusFound)
+	}))
+	defer redirect.Close()
+
+	err := (Dispatcher{Endpoints: []Endpoint{{ID: "redirect", URL: redirect.URL, Secret: "secret", Topics: map[string]struct{}{"x": {}}}}}).Dispatch(context.Background(), Event{ID: "e", Topic: "x", PayloadVersion: 1})
+	if err == nil || !strings.Contains(err.Error(), "invalid webhook endpoint") {
+		t.Fatalf("redirect error = %v, want invalid webhook endpoint", err)
+	}
+	if targetCalled.Load() {
+		t.Fatal("invalid redirect target received a request")
 	}
 }

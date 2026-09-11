@@ -56,6 +56,7 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
+	client = safeClient(client)
 	attempts := d.MaxAttempts
 	if attempts < 1 || attempts > 10 {
 		attempts = 3
@@ -133,11 +134,42 @@ func validateEndpoint(endpoint Endpoint) error {
 	if strings.TrimSpace(endpoint.ID) == "" || strings.TrimSpace(endpoint.Secret) == "" {
 		return ErrInvalidEndpoint
 	}
-	u, err := url.Parse(endpoint.URL)
-	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+	if err := validateURL(endpoint.URL); err != nil {
 		return ErrInvalidEndpoint
 	}
 	return nil
+}
+
+func validateURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.Hostname() == "" || u.User != nil || u.Opaque != "" || u.Fragment != "" {
+		return ErrInvalidEndpoint
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return ErrInvalidEndpoint
+	}
+	if u.Port() == "" && strings.Contains(u.Host, ":") && !strings.HasPrefix(u.Host, "[") {
+		return ErrInvalidEndpoint
+	}
+	return nil
+}
+
+// safeClient preserves the caller's transport and redirect policy while
+// preventing a valid public webhook URL from redirecting to an invalid target.
+// Redirects are a second URL boundary and must receive the same validation as
+// the configured endpoint.
+func safeClient(client *http.Client) *http.Client {
+	copy := *client
+	previous := copy.CheckRedirect
+	copy.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if previous != nil {
+			if err := previous(req, via); err != nil {
+				return err
+			}
+		}
+		return validateURL(req.URL.String())
+	}
+	return &copy
 }
 
 func signature(body []byte, secret string) string {
