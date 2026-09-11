@@ -44,9 +44,6 @@ func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 	if err := adminReportsPathTemplate.Execute(w, data); err != nil {
 		return err
 	}
-	if err := adminReportsActionTemplate.Execute(w, data); err != nil {
-		return err
-	}
 	return AdminEnd(w)
 }
 
@@ -238,52 +235,3 @@ var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths")
 	</div>
 </section>
 <script nonce="{{.Nonce}}">(()=>{const path=document.getElementById('report-path-filter'),kind=document.getElementById('report-kind-filter');if(!path||!kind)return;const apply=()=>document.querySelectorAll('[data-report-row]').forEach(row=>{const match=row.dataset.path.toLowerCase().includes(path.value.toLowerCase());const visible=kind.value==='views'?Number(row.dataset.views)>0:kind.value==='errors'?Number(row.dataset.errors)>0:true;row.hidden=!(match&&visible)});path.addEventListener('input',apply);kind.addEventListener('change',apply)})()</script>`))
-
-var adminReportsActionTemplate = template.Must(template.New("admin-reports-actions").Parse(`<section class="report-info-grid">
-	<article class="report-info-card">
-		<div class="card-title-group">
-			<h2>Yayınlanmayı bekleyen işler</h2>
-			<span class="studio-info-tip" tabindex="0" role="button" aria-label="Bilgi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><span class="studio-tip-popover"><span class="tip-eyebrow">İÇERİK AKIŞI</span><p>Taslak haber ve sayfaları gözden geçirin; eksik görsel, metin veya yayın tarihi olan içerikleri tamamlayın.</p></span></span>
-		</div>
-		<a class="button button-quiet" href="/admin/news">Haberleri incele →</a>
-	</article>
-	<article class="report-info-card">
-		<div class="card-title-group">
-			<h2>Satışa hazır ürünler</h2>
-			<span class="studio-info-tip" tabindex="0" role="button" aria-label="Bilgi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><span class="studio-tip-popover"><span class="tip-eyebrow">KATALOG</span><p>Ürün fiyatı, stok durumu, varyant ve görsel bilgilerini kontrol ederek katalog kalitesini koruyun.</p></span></span>
-		</div>
-		<a class="button button-quiet" href="/admin/commerce/products">Ürün kataloğunu aç →</a>
-	</article>
-	<article class="report-info-card">
-		<div class="card-title-group">
-			<h2>Sipariş takibi</h2>
-			<span class="studio-info-tip" tabindex="0" role="button" aria-label="Bilgi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><span class="studio-tip-popover"><span class="tip-eyebrow">OPERASYON</span><p>Yeni siparişleri, ödeme durumlarını ve teslimat adımlarını tek ekrandan kontrol edin.</p></span></span>
-		</div>
-		<a class="button button-quiet" href="/admin/commerce/orders">Siparişleri aç →</a>
-	</article>
-	<article class="report-info-card">
-		<div class="card-title-group">
-			<h2>Üye Yönetimi</h2>
-			<span class="studio-info-tip" tabindex="0" role="button" aria-label="Bilgi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><span class="studio-tip-popover"><span class="tip-eyebrow">GÜVENLİK</span><p>Üye hesaplarını, oturum sonlandırma ve e-posta doğrulama durumlarını kontrol edin.</p></span></span>
-		</div>
-		<a class="button button-quiet" href="/admin/members">Üyeleri Yönet →</a>
-	</article>
-</section>
-
-<section class="studio-card dashboard-card">
-	<div class="dashboard-card-head">
-		<div class="card-title-group">
-			<h2>Yönetim için kısa yollar</h2>
-			<span class="studio-info-tip" tabindex="0" role="button" aria-label="Bilgi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><span class="studio-tip-popover"><span class="tip-eyebrow">HIZLI KONTROLLER</span><p>Operasyonel karar için ilgili modülün güncel kayıtlarını açar.</p></span></span>
-		</div>
-		<span class="muted">Canlı veriyi ilgili ekranda açın</span>
-	</div>
-	<div class="report-action-list">
-		<a href="/admin/pages"><strong>Sayfaları yönet</strong><span>Kurumsal içerik ve revizyonlar</span></a>
-		<a href="/admin/control"><strong>Site ayarları</strong><span>Genel yönetim araçları</span></a>
-		<a href="/admin/operations"><strong>Operasyon durumu</strong><span>Kuyruk ve çalışma kontrolleri</span></a>
-		<a href="/admin/security"><strong>Güvenlik</strong><span>Yetki ve koruma kontrolleri</span></a>
-		<a href="/public/news/tr/html" target="_blank"><strong>Yayını görüntüle</strong><span>Son kullanıcının gördüğü site</span></a>
-		<a href="/metrics" target="_blank"><strong>Teknik metrikler</strong><span>Geliştirici gözlem uç noktası</span></a>
-	</div>
-</section>`))
