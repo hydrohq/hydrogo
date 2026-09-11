@@ -1,0 +1,4 @@
+generated/
+artifacts/
+auth-state*.json
+test-results/

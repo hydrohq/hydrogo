@@ -86,6 +86,8 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - [ ] Pages/News public read, admin validation ve optimistic-lock conflict senaryolarını izole fixture'larla üret.
 - [x] Unknown route/action/permission/selector için fail-closed generator ve manifest diff testi ekle. (Bilinmeyen/duplicate route, collection, field veya test ID generator validation ile reddediliyor; permission/action kapsamı runtime export aşamasında tamamlanacak.)
 - [!] Browser binary/runner kurulumu ve gerçek browser E2E çalıştırması geliştirme/CI ortamı gerektirir; production binary'ye browser bağımlılığı ekleme.
+- [x] Bağımsız E2E runner workspace'i ve admin storage-state desteğini ekle. (`e2e/package.json`, `e2e/playwright.config.ts`, generated testlerde `HYDRO_E2E_STORAGE_STATE`; browser kurulumu ve gerçek çalıştırma ortamı hâlâ dış kapıdır.)
+- [x] E2E runner bağımlılığını vulnerability audit ile doğrula. (Playwright `1.52.0` yüksek önem dereceli advisory aralığındaydı; `1.63.0`a yükseltildi ve lockfile yenilendi. Browser binary kurulumu ayrıca izole ortamda yapılmalıdır.)
 
 ### Faz 4 — İçerik ve editoryal workflow
 

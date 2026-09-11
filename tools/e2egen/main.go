@@ -124,6 +124,7 @@ func render(m manifest) string {
 	}
 	b.WriteString("});\n\n")
 	b.WriteString("test.describe('HydroGo generated Admin Studio', () => {\n")
+	b.WriteString("  test.use({ storageState: process.env.HYDRO_E2E_STORAGE_STATE || undefined });\n")
 	b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page).toHaveURL(new RegExp(%q));\n  });\n", "admin: login surface", m.Admin.LoginPath, escapeRegex(m.Admin.LoginPath)))
 	for _, c := range collections {
 		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page).toHaveURL(new RegExp(%q));\n", "admin: "+c.ID, c.Route, escapeRegex(c.Route)))
