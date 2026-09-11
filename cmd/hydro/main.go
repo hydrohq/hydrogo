@@ -733,6 +733,15 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	newsHTTP := newstransport.Handler{Service: newsService, DB: db, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
 	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
+	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(studioRegistry.E2EManifest())
+	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := r.URL.Query().Get("return_to")
 		if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {

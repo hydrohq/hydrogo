@@ -81,7 +81,8 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - [x] Admin Studio Registry ve frontend E2E manifest'i için sürümlü, allowlist tabanlı ortak test metadata sözleşmesi tasarla. (ADR-0023 ve `e2e/manifest.json`.)
 - [x] `data-testid`/erişilebilir rol sözleşmesini ve generated/custom test ayrımını belirle; CSS/metin taramasını kabul etme. (`e2e/README.md` ve generator validation.)
 - [x] Metadata'dan deterministik Playwright test üreten `hydro e2e generate` veya eşdeğer aracı prototiple. (`tools/e2egen`; output sıralı ve determinism testli.)
-- [ ] Admin Studio runtime Registry'sinden manifest export ve frontend build manifest entegrasyonunu tamamla.
+- [x] Admin Studio runtime Registry'sinden güvenli manifest export'u tamamla. (Yalnız admin yetkili `GET /admin/studio/manifest` endpoint'i ve `Registry.E2EManifest()` projection'ı eklendi; secret/policy bilgisi dışa aktarılmaz.)
+- [ ] Frontend build manifest'ini generator input'una bağla; frontend route ve selector sözleşmesini build çıktısından deterministik biçimde üret.
 - [ ] Pages/News public read, admin validation ve optimistic-lock conflict senaryolarını izole fixture'larla üret.
 - [x] Unknown route/action/permission/selector için fail-closed generator ve manifest diff testi ekle. (Bilinmeyen/duplicate route, collection, field veya test ID generator validation ile reddediliyor; permission/action kapsamı runtime export aşamasında tamamlanacak.)
 - [!] Browser binary/runner kurulumu ve gerçek browser E2E çalıştırması geliştirme/CI ortamı gerektirir; production binary'ye browser bağımlılığı ekleme.

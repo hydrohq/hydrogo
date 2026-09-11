@@ -32,3 +32,18 @@ func TestRegistryRejectsAmbiguousOrUnsafeMetadata(t *testing.T) {
 		t.Fatal("external action accepted")
 	}
 }
+
+func TestE2EManifestIsSafeAndDeterministic(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, Required: true}}, Actions: []Action{{Label: "Open", Href: "/admin/pages"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := registry.E2EManifest()
+	if manifest.Version != 1 || manifest.Admin.LoginPath != "/login" || len(manifest.Admin.Collections) != 1 {
+		t.Fatalf("unexpected manifest: %#v", manifest)
+	}
+	collection := manifest.Admin.Collections[0]
+	if collection.Route != "/admin/pages/new" || collection.Fields[0].TestID != "admin-field-pages-title" {
+		t.Fatalf("unexpected collection manifest: %#v", collection)
+	}
+}
