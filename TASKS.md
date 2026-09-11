@@ -59,7 +59,7 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 
 ### Faz 2 — Güvenlik ve işletim
 
-- [!] Browser seviyesinde auth, MFA, reset, invite, session revoke, CSRF ve yetki akışları için gerçek browser E2E altyapısı ve fixture'ları ekle. (Mevcut kanıt HTTP contract, transport, render ve smoke testleridir; repository'de Playwright/Selenium/chromedp benzeri browser runner yok. Gerçek browser E2E için araç ve çalıştırma ortamı gerekiyor.)
+- [!] Browser seviyesinde auth, MFA, reset, invite, session revoke, CSRF ve yetki akışları için gerçek browser E2E altyapısı ve fixture'ları ekle. (Metadata-driven generator prototipi `tools/e2egen`, ortak `e2e/manifest.json` ve generated/custom ayrımı eklendi; gerçek Playwright runner/browser kurulumu ve çalışan panel ortamı gerekiyor.)
 - [x] Rich text, URL, multipart upload, portable import ve migration parser alanlarında güvenli fuzz testleri ekle ve belirli süreyle çalıştır. (FuzzPath, FuzzEmail ve FuzzUnmarshalPortable hedefleri mevcut; her biri bu ortamda `-fuzztime=10s` ile PASS oldu. Daha uzun release koşusu ayrıca kapasite kanıtıdır.)
 - [x] Tekrarlanabilir SBOM üretim komutu veya CI-ready script ekle. (`tools/sbom` standart Go ile SPDX 2.3 JSON üretir; `scripts/generate-sbom.ps1`, `scripts/generate-sbom.sh` ve local gate içindeki SBOM adımı giriş noktalarıdır. `run-fuzz.ps1` de sabit fuzz hedeflerini çalıştırır. Sabit epoch varsayılanı, sıralı module graph, determinism testi ve iki bağımsız üretimde eş SHA-256 doğrulandı; lisanslar `NOASSERTION` ise ayrıca lisans envanteri gereklidir.)
 - [?] Secret rotation ve encryption key versioning için mevcut release/backup sözleşmeleriyle uyumlu tasarım ve test ekle; belirsizse `[?]` bırak. (Teknik Karar: Master key rotation ve KMS key escrow için harici sağlayıcı standardı netleştirilmeli; yerel dosya bazlı key versioning sözleşmesi hazırlanacak.)
@@ -78,11 +78,12 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 
 #### Metadata-driven E2E planı — ADR-0023
 
-- [ ] Admin Studio Registry ve frontend E2E manifest'i için sürümlü, allowlist tabanlı ortak test metadata sözleşmesi tasarla.
-- [ ] `data-testid`/erişilebilir rol sözleşmesini ve generated/custom test ayrımını belirle; CSS/metin taramasını kabul etme.
-- [ ] Metadata'dan deterministik Playwright test üreten `hydro e2e generate` veya eşdeğer aracı prototiple.
+- [x] Admin Studio Registry ve frontend E2E manifest'i için sürümlü, allowlist tabanlı ortak test metadata sözleşmesi tasarla. (ADR-0023 ve `e2e/manifest.json`.)
+- [x] `data-testid`/erişilebilir rol sözleşmesini ve generated/custom test ayrımını belirle; CSS/metin taramasını kabul etme. (`e2e/README.md` ve generator validation.)
+- [x] Metadata'dan deterministik Playwright test üreten `hydro e2e generate` veya eşdeğer aracı prototiple. (`tools/e2egen`; output sıralı ve determinism testli.)
+- [ ] Admin Studio runtime Registry'sinden manifest export ve frontend build manifest entegrasyonunu tamamla.
 - [ ] Pages/News public read, admin validation ve optimistic-lock conflict senaryolarını izole fixture'larla üret.
-- [ ] Unknown route/action/permission/selector için fail-closed generator ve manifest diff testi ekle.
+- [x] Unknown route/action/permission/selector için fail-closed generator ve manifest diff testi ekle. (Bilinmeyen/duplicate route, collection, field veya test ID generator validation ile reddediliyor; permission/action kapsamı runtime export aşamasında tamamlanacak.)
 - [!] Browser binary/runner kurulumu ve gerçek browser E2E çalıştırması geliştirme/CI ortamı gerektirir; production binary'ye browser bağımlılığı ekleme.
 
 ### Faz 4 — İçerik ve editoryal workflow
