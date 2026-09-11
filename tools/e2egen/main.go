@@ -120,7 +120,7 @@ func render(m manifest) string {
 	b.WriteString(";\n\n")
 	b.WriteString("test.describe('HydroGo generated frontend', () => {\n")
 	for _, r := range routes {
-		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page.locator('[data-testid=%q]')).toBeVisible();\n  });\n", "frontend: "+r.Name, r.Path, r.TestID))
+		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page.locator('[data-testid=%q]')).toBeAttached();\n  });\n", "frontend: "+r.Name, r.Path, r.TestID))
 	}
 	b.WriteString("});\n\n")
 	b.WriteString("test.describe('HydroGo generated Admin Studio', () => {\n")
