@@ -13,6 +13,8 @@ Write-Host "HydroGo local verification"
 
 Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }
+New-Item -ItemType Directory -Force .tmp\local | Out-Null
+Invoke-Required "deterministic SPDX SBOM" { go run ./tools/sbom -output .tmp\local\hydro-sbom.spdx.json }
 Invoke-Required "gofmt" {
     $unformatted = gofmt -l . | Where-Object { $_ -notlike ".tmp*" -and $_ -notlike "*.tmp\*" }
     if ($unformatted) { throw "gofmt required: $($unformatted -join ', ')" }
