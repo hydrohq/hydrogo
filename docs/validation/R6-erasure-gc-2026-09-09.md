@@ -1,5 +1,5 @@
-# R6 erasure/storage GC doğrulaması
+# R6 erasure/storage GC validation
 
-`internal/erasure.GC` her storage key için silmeden hemen önce pin kontrolü yapar; pinli key atlanır, provider hatasında silme durur ve silinen key listesi deterministically döner. Provider delete işlemi idempotent olmalıdır.
+`internal/erasure.GC` performs a pin check right before deleting each storage key; a pinned key is skipped, deletion stops upon a provider error, and the list of deleted keys is deterministically returned. The provider delete operation must be idempotent.
 
-Bu process-local orchestration contract'ıdır. Gerçek S3 uyumlu provider, pin ile delete arasındaki dağıtık atomiklik, crash recovery ve GC yarış yük testi açık kalır.
+This is a process-local orchestration contract. The actual S3-compatible provider, distributed atomicity between pin and delete, crash recovery, and GC race load testing remain open.

@@ -1,30 +1,21 @@
-# R4 durable job queue kapasite doğrulaması
+# R4 durable job queue capacity validation
 
-## Kapsam
+## Scope
 
-Durable SQL queue'nun `MaxEntries` kontrolü artık producer transaction'ı içinde
-singleton kapasite satırını güncelleyerek serialize edilir. PostgreSQL'de satır
-kilidi, SQLite'ta writer serialization aynı kapasite kontrolünü korur. Yeni
-`202609090020_job_capacity_lock` migration'ı her dialect için aynı lock satırını
-oluşturur ve idempotent biçimde seed eder.
+The `MaxEntries` control of the durable SQL queue is now serialized by updating the singleton capacity row within the producer transaction. A row lock in PostgreSQL and writer serialization in SQLite preserve the same capacity control. The new `202609090020_job_capacity_lock` migration creates and idempotently seeds the same lock row for each dialect.
 
-## Kanıt
+## Evidence
 
 - Commit: `c8f4104`
-- Ortam: Windows geliştirici ortamı
-- Komutlar:
+- Environment: Windows development environment
+- Commands:
   - `go test ./internal/jobs/sqlstore -count=5`
   - `go test ./... -p 1`
   - `go vet ./...`
   - `git diff --check`
-- Sonuç: tüm yerel testler ve statik kontroller başarılı.
-- Contract: `TestSQLiteQueueCapacityIsBoundedForConcurrentProducers`, iki eşzamanlı
-  producer ile kapasite `1` iken yalnız bir işin commit edilebildiğini ve claimable
-  iş sayısının sınırı aşmadığını doğrular.
+- Result: all local tests and static checks succeeded.
+- Contract: `TestSQLiteQueueCapacityIsBoundedForConcurrentProducers` validates that with two concurrent producers and capacity set to `1`, only one job can be committed and the claimable job count does not exceed the limit.
 
-## Sınırlar
+## Limits
 
-Bu turda `HYDRO_TEST_POSTGRES_URL` tanımlı olmadığından PostgreSQL concurrency
-contract'ı yerel çalıştırılmadı; CI/production gate tarafından çalıştırılmalıdır.
-Bu kanıt ayrıca çoklu müşteri donanımı veya harici broker kapasitesini
-sertifikalamaz.
+Since `HYDRO_TEST_POSTGRES_URL` is not defined in this run, the PostgreSQL concurrency contract was not executed locally; it must be run by the CI/production gate. This evidence also does not certify multiple customer hardware or external broker capacity.

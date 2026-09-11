@@ -1,88 +1,88 @@
-# ADR-0020: Headless-first Admin Studio ve frontend template sınırı
+# ADR-0020: Headless-first Admin Studio and frontend template boundary
 
-- **Durum:** Önerildi
-- **Tarih:** 2026-09-10
-- **İlişkili kararlar:** [ADR-0009](0009-site-edition-and-delivery-scope.md), [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0015](0015-versioned-http-api.md), [ADR-0016](0016-structured-page-blocks-and-theme-slots.md), [ADR-0018](0018-filesystem-theme-bundles.md)
+- **Status:** Proposed
+- **Date:** 2026-09-10
+- **Related decisions:** [ADR-0009](0009-site-edition-and-delivery-scope.md), [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0015](0015-versioned-http-api.md), [ADR-0016](0016-structured-page-blocks-and-theme-slots.md), [ADR-0018](0018-filesystem-theme-bundles.md)
 
-## Bağlam
+## Context
 
-Mevcut integrated sunum, JSON API, server-rendered public görünüm ve tema paketlerini aynı binary içinde taşıyabilir. Bu, küçük Site Edition teslimleri için hızlıdır; ancak frontend geliştiren müşterilerde API ile HTML rota ayrımını belirsizleştirir ve her modülün el yazımı admin ekranı geliştirme maliyetini artırır.
+The current integrated presentation can carry the JSON API, server-rendered public view, and theme bundles within the same binary. This is fast for small Site Edition deliveries; however, for customers developing frontends, it blurs the separation between API and HTML routes and increases the cost of manually developing an admin screen for every module.
 
-Ürün hedefi iki gereksinimi aynı anda karşılamalıdır:
+The product goal must satisfy two requirements simultaneously:
 
-1. Standart veri odaklı modüller için güvenli admin CRUD yüzeyi tekrar yazılmamalıdır.
-2. Müşteri, HydroCore fork etmeden kendi framework'ü ve deployment'ı ile frontend geliştirebilmelidir.
+1. A secure admin CRUD surface should not be rewritten for standard data-driven modules.
+2. The customer must be able to develop a frontend with their own framework and deployment without forking HydroCore.
 
-## Önerilen karar
+## Proposed decision
 
-HydroGo'nun varsayılan ürün yönü **headless-first** olur:
+The default product direction of HydroGo becomes **headless-first**:
 
-- HydroCore; domain servisleri, sürümlü API, medya, auth, yetki, workflow, audit ve commerce altyapısını sağlar.
-- **Admin Studio**, modül spec'inden türetilen metadata ile liste, detay, form, ilişki, publish ve audit yüzeylerini üretir.
-- Public frontend ayrı bir istemcidir; Core API'sini tüketir. Core public HTML üretmek zorunda değildir.
-- Resmî frontend starter/template'leri ayrı repository veya ayrı paket olarak dağıtılır; Core'a gömülü bir iş kuralı taşımaz.
-- Mevcut filesystem theme sistemi kaldırılmaz; küçük integrated kurulumlar için opsiyonel `presentation=integrated` adapter'ı olarak kalır. Template, Core API sözleşmesinin yerine geçmez.
+- HydroCore provides domain services, versioned API, media, auth, authorization, workflow, audit, and commerce infrastructure.
+- **Admin Studio** generates list, detail, form, relation, publish, and audit surfaces with metadata derived from the module spec.
+- The public frontend is a separate client; it consumes the Core API. Core is not obligated to produce public HTML.
+- Official frontend starters/templates are distributed as separate repositories or separate packages; they do not carry any business logic embedded in Core.
+- The existing filesystem theme system is not removed; it remains as an optional `presentation=integrated` adapter for small integrated setups. A template does not replace the Core API contract.
 
-Rota sahipliği kesin ayrılır:
+Route ownership is strictly separated:
 
 ```text
-/admin/...  Admin Studio ve operatör yüzeyi
-/api/v1/... Sürümlü makine API'si
-/webhooks/... Sağlayıcı callback'leri
-frontend domain'i veya ayrı uygulaması  Müşteri görünümü
+/admin/...  Admin Studio and operator surface
+/api/v1/... Versioned machine API
+/webhooks/... Provider callbacks
+frontend domain or separate app  Customer view
 ```
 
-`/public/...` ad alanı yeni frontend sözleşmesi olarak büyütülmez. Mevcut public HTML/API yüzeyleri, belgeli uyumluluk süresi boyunca korunur veya sürümlü geçiş rehberiyle ayrı adapter'a taşınır.
+The `/public/...` namespace will not be expanded as a new frontend contract. Existing public HTML/API surfaces are preserved during the documented compatibility period or moved to a separate adapter with a versioned transition guide.
 
-## Admin Studio sözleşmesi
+## Admin Studio contract
 
-Bir collection/module spec'i en az aşağıdakileri açıkça tanımlar:
+A collection/module spec explicitly defines at least the following:
 
-- sabit alan kimliği, türü, required/null/default davranışı ve validasyon;
-- ilişki, indeks, locale/revision/export davranışı;
-- alan/kayıt yetkisi ve workflow capability'leri;
-- admin görünürlüğü, sıralama, filtreleme ve form widget ipucu;
-- API exposure ve projection tanımı;
-- migration etkisi ve rename/deprecation kaydı.
+- static field ID, type, required/null/default behavior, and validation;
+- relations, indexes, locale/revision/export behavior;
+- field/record authorization and workflow capabilities;
+- admin visibility, sorting, filtering, and form widget hint;
+- API exposure and projection definition;
+- migration impact and rename/deprecation record.
 
-Spec yalnız standart CRUD metadata'sı üretir. Özel iş akışı, finansal kurallar, provider entegrasyonu ve destructive dönüşümler açık module kodu ve incelenebilir migration ister. Runtime'da spec yükleyerek DDL çalıştırılmaz.
+The spec only generates standard CRUD metadata. Custom workflows, financial rules, provider integrations, and destructive transformations require explicit module code and reviewable migrations. DDL is not executed by loading a spec at runtime.
 
-Admin Studio, Core servislerini atlayıp DB'ye doğrudan erişmez. Her mutation aynı application service, yetki, CSRF, audit ve outbox politikasından geçer.
+Admin Studio does not bypass Core services to directly access the DB. Every mutation goes through the same application service, authorization, CSRF, audit, and outbox policy.
 
-## Frontend template modeli
+## Frontend template model
 
-Resmî template'ler ayrı starter'lar olur:
+Official templates are separate starters:
 
-| Template | Kapsam | Core bağımlılığı |
+| Template | Scope | Core dependency |
 |---|---|---|
 | `site-starter` | SEO, navigation, pages, media, contact form | REST/GraphQL SDK |
-| `storefront-starter` | katalog, varyant, cart, checkout, account | Commerce API SDK |
+| `storefront-starter` | catalog, variants, cart, checkout, account | Commerce API SDK |
 | `editorial-starter` | news listing/detail, locale, preview integration | Content API SDK |
 
-Her starter'ın kendi lockfile'ı, environment örneği, e2e fixture'ı ve Core API compatibility matrix kaydı olur. Temalar yalnız demo veya integrated deployment için asset/layout paketi olarak kalır; müşteri frontend'inin runtime bağımlılığı değildir.
+Each starter has its own lockfile, environment sample, e2e fixture, and Core API compatibility matrix record. Themes remain only as an asset/layout bundle for demo or integrated deployment; they are not a runtime dependency of the customer frontend.
 
-## Geçiş ve uyumluluk
+## Transition and compatibility
 
-- `/api/v1` ana makine sözleşmesidir; ADR-0015 alias davranışı korunur.
-- Mevcut server-rendered rotalar kaldırılmadan önce kullanıcıya görünen linkler frontend adapter URL'lerine taşınır; JSON endpoint ile HTML endpoint aynı rota adı altında karıştırılmaz.
-- Admin Studio ilk aşamada Pages, News ve Commerce üzerinde mevcut handler'larla davranış eşitliği kanıtlar. Eski admin rotaları yeni Studio ekranlarına yönlendirme ancak form/CSRF/audit contract'ı korunduktan sonra yapılır.
-- Yeni spec alanı migration planına, release metadata'sına ve SQLite/PostgreSQL contract kitine girer. Yayınlanmış migration veya field ID geriye dönük değiştirilmez.
+- `/api/v1` is the main machine contract; ADR-0015 alias behavior is preserved.
+- Before existing server-rendered routes are removed, user-visible links are migrated to frontend adapter URLs; the JSON endpoint and HTML endpoint are not mixed under the same route name.
+- In the first phase, Admin Studio proves behavioral equivalence with existing handlers on Pages, News, and Commerce. Redirecting old admin routes to new Studio screens is done only after preserving the form/CSRF/audit contract.
+- The new spec domain enters the migration plan, release metadata, and SQLite/PostgreSQL contract kit. Published migrations or field IDs are not retroactively changed.
 
-## Kabul kapıları
+## Acceptance gates
 
-Bu öneri ancak aşağıdaki deneyler başarılı olursa kabul edilir:
+This proposal is only accepted if the following experiments succeed:
 
-1. Pages ve News için aynı spec'ten deterministik Admin Studio surface'i üretilir; özel workflow kodu korunur.
-2. Ayrı bir storefront starter, yalnız `/api/v1` üzerinden login, cart ve checkout happy path'ini e2e testte tamamlar.
-3. Integrated tema ve headless edition aynı published projection'ı tüketir; taslak veya private medya sızıntısı oluşmaz.
-4. SQLite ve PostgreSQL üzerinde generated admin mutation'ları aynı yetki, conflict, audit ve migration contract testlerini geçer.
-5. Compact profilde headless edition public theme asset/route/worker yüklemez.
-6. Eski integrated edition yeni Core sürümüyle ve yeni starter eski desteklenen API sürümüyle compatibility fixture'larını geçer.
+1. A deterministic Admin Studio surface is generated from the same spec for Pages and News; custom workflow code is preserved.
+2. A separate storefront starter completes the login, cart, and checkout happy path via only `/api/v1` in an e2e test.
+3. The integrated theme and headless edition consume the same published projection; no draft or private media leak occurs.
+4. Generated admin mutations on SQLite and PostgreSQL pass the same authorization, conflict, audit, and migration contract tests.
+5. In the Compact profile, the headless edition does not load public theme assets/routes/workers.
+6. The old integrated edition passes compatibility fixtures with the new Core version, and the new starter with the old supported API version.
 
-## Alternatifler
+## Alternatives
 
-- **Sadece Core içine tema:** hızlı başlangıç sağlar fakat frontend özgürlüğünü ve deployment ayrımını zayıflatır.
-- **Sadece headless, starter yok:** mimariyi temiz tutar ama müşteri başlangıç maliyetini yükseltir.
-- **Runtime schema builder:** hızlı görünür; migration, yetki, audit, rollback ve DB taşınabilirliği için denetlenemeyen risk oluşturur.
+- **Theme inside Core only:** provides a fast start but weakens frontend freedom and deployment separation.
+- **Headless only, no starters:** keeps the architecture clean but increases the initial customer cost.
+- **Runtime schema builder:** appears fast; creates an unauditable risk for migrations, authorization, audit, rollback, and DB portability.
 
-Önerilen hibrit model, otomatik admin deneyimini ve frontend özgürlüğünü aynı anda korur; fakat iki gerçek müşteri akışında doğrulanmadan kararlı v1 sözleşmesi yapılmaz.
+The proposed hybrid model simultaneously preserves the automated admin experience and frontend freedom; however, a stable v1 contract is not established without validation in two real customer flows.

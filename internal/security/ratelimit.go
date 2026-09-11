@@ -20,6 +20,10 @@ type AttemptLimiter struct {
 	window     time.Duration
 }
 
+type RateLimiter interface {
+	Allow(string) bool
+}
+
 func NewAttemptLimiter(maxEntries, limit int, window time.Duration) *AttemptLimiter {
 	if maxEntries < 1 {
 		maxEntries = 1

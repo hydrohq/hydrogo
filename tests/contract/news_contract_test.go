@@ -79,3 +79,32 @@ func runNewsContract(t *testing.T, dialect database.Dialect, dsn string) {
 		t.Fatal("retracted news remained public")
 	}
 }
+
+func TestMemberSecurityAndIsolationContract(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "members.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify member table isolation and sessions
+	var count int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM members").Scan(&count); err != nil {
+		t.Fatalf("members table should exist and be queryable: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("initial member count = %d, want 0", count)
+	}
+
+	var sessionCount int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM member_sessions").Scan(&sessionCount); err != nil {
+		t.Fatalf("member_sessions table should exist and be queryable: %v", err)
+	}
+	if sessionCount != 0 {
+		t.Errorf("initial member session count = %d, want 0", sessionCount)
+	}
+}

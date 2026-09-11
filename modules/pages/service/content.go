@@ -56,8 +56,13 @@ type ContentService struct {
 	Pages        ContentRepository
 	Audit        AuditWriter
 	Outbox       OutboxWriter
-	PublicCache  *cache.Cache[pages.Page]
-	Sanitize     func(string) string
+	PublicCache  interface {
+		GetOrLoad(string, func() (pages.Page, error)) (pages.Page, error)
+		GetOrLoadAtGeneration(string, uint64, func() (pages.Page, error)) (pages.Page, error)
+		Clear()
+		Stats() cache.Stats
+	}
+	Sanitize func(string) string
 }
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {

@@ -1,46 +1,46 @@
-# Admin Studio yüzey envanteri — 2026-09-10
+# Admin Studio surface inventory — 2026-09-10
 
-Bu envanter, [Headless Admin Studio planının Faz 0](../HEADLESS_ADMIN_STUDIO_PLAN.md) için mevcut Pages, News ve Commerce HTTP handler'larının okunmasına dayanır. Amaç, metadata ile üretilebilecek tekrarları özel iş kurallarından ayırmaktır; yeni bir API veya runtime schema sözü değildir.
+This inventory is based on reading the current Pages, News, and Commerce HTTP handlers for [Phase 0 of the Headless Admin Studio plan](../HEADLESS_ADMIN_STUDIO_PLAN.md). The goal is to separate metadata-generatable repetition from custom business rules; it is not a new API or runtime schema promise.
 
-## Rota sahipliği
+## Route ownership
 
-| Alan | Admin sahibi | Makine API'si | Mevcut integrated görünüm |
+| Domain | Admin owner | Machine API | Current integrated view |
 |---|---|---|---|
 | Pages | `/admin/pages/{id}` | `/api/pages/*` | `/public/pages/{locale}/{slug}/html` |
 | News | `/admin/news/{id}` | `/api/news/*` | `/public/news/{locale}/{slug}/html` |
 | Commerce | `/admin/commerce/*` | `/api/commerce/*` | `/shop/*` |
 
-`/public/*` rotaları mevcut integrated adapter uyumluluğu için kalır. Yeni headless istemciler için bunlar genişletilecek rota alanı değildir; hedef sürümlü `/api/v1/*` sözleşmesidir.
+The `/public/*` routes remain for compatibility with the current integrated adapter. These are not extension route spaces for new headless clients; the target is the versioned `/api/v1/*` contract.
 
-## Tekrarlanan Studio yüzeyi
+## Repeated Studio surface
 
-| Yetenek | Pages | News | Commerce | Metadata ile üretim durumu |
+| Capability | Pages | News | Commerce | Metadata generation status |
 |---|---|---|---|---|
-| Field label/type/required | Evet | Evet | Evet | `adminstudio.Collection` |
-| Text, number, status, textarea widget | Kısmen | Evet | Evet | Ortak form renderer |
-| Liste sütunları ve kayıt aksiyonu | İhtiyaç var | İhtiyaç var | Evet | Ortak list renderer |
-| CSRF alanı ve HTML escaping | Evet | Evet | Evet | Ortak form renderer |
-| Optimistic version alanı | Evet | Evet | Modüle bağlı | Handler/service sorumluluğu |
-| Role policy, audit, outbox | Evet | Evet | Evet | Metadata değil; application service |
+| Field label/type/required | Yes | Yes | Yes | `adminstudio.Collection` |
+| Text, number, status, textarea widget | Partially | Yes | Yes | Shared form renderer |
+| List columns and record action | Needed | Needed | Yes | Shared list renderer |
+| CSRF field and HTML escaping | Yes | Yes | Yes | Shared form renderer |
+| Optimistic version field | Yes | Yes | Module dependent | Handler/service responsibility |
+| Role policy, audit, outbox | Yes | Yes | Yes | Not metadata; application service |
 
-## Özel extension sınırları
+## Custom extension boundaries
 
 ### Pages
 
-- Locale, slug, title ve body standart form alanlarıdır.
-- Blok düzenleyici (`hero`, `faq`, `cta`, `pricing_table`, `testimonials`), blok başına payload doğrulaması ve medya asset seçimi özel extension olarak kalır.
-- Draft/publish revision ve public projection `ContentService` içinden geçer. Studio yalnız form kabuğunu ortaklaştırabilir; publish işlemini doğrudan DB'ye taşıyamaz.
+- Locale, slug, title, and body are standard form fields.
+- The block editor (`hero`, `faq`, `cta`, `pricing_table`, `testimonials`), per-block payload validation, and media asset selection remain custom extensions.
+- Draft/publish revision and public projection flow through `ContentService`. Studio can only share the form shell; it cannot push the publish operation directly to the DB.
 
 ### News
 
-- Locale, slug, title ve body metadata formuna uygundur. Bu ekran ortak renderer'a geçirilmiştir.
-- Schedule, publish ve retract state transition'ları `news.Service` içindeki generation/version sözleşmesini kullanır; ayrı Studio workflow action extension'ı olarak kalır.
+- Locale, slug, title, and body fit the metadata form. This screen has been migrated to the shared renderer.
+- Schedule, publish, and retract state transitions use the generation/version contract in `news.Service`; they remain a separate Studio workflow action extension.
 
 ### Commerce
 
-- Ürün kataloğu alanları ve ürün listesi ortak metadata ile render edilir.
-- Varyant/stok, ödeme sağlayıcısı redirect'i, sipariş/iade ve refund finansal yan etkileri collection CRUD değildir; Commerce service ve provider sınırında kalır.
+- Product catalog fields and the product list are rendered with shared metadata.
+- Variant/stock, payment provider redirect, order/return, and refund financial side effects are not collection CRUD; they remain on the Commerce service and provider boundary.
 
-## Sonraki deney kapısı
+## Next experiment gate
 
-Pages editörünün standart alanları ortak forma alınmadan önce blok extension için şu arayüz kanıtlanmalıdır: formdan block payload'a geçiş, asset relation picker, CSRF/version taşıma ve invalid payload hata sunumu. Bu kanıt olmadan blokları genel `relation` widget'ına zorlamak ADR-0016'nın typed block sözleşmesini zayıflatır.
+Before moving the standard fields of the Pages editor to the shared form, this interface must be proven for the block extension: form to block payload transfer, asset relation picker, CSRF/version forwarding, and invalid payload error presentation. Forcing blocks into a generic `relation` widget without this proof weakens ADR-0016's typed block contract.

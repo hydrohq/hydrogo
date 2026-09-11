@@ -1,22 +1,22 @@
-# ADR-0005: Blue/green ve kesintisiz sürüm geçişi
+# ADR-0005: Blue/green and zero-downtime release transition
 
-- **Durum:** Değiştirildi (kısmen)
-- **Tarih:** 2026-09-05
-- **Yerine geçen hükümler:** [ADR-0011](0011-consistency-upgrade-and-recovery.md)
+- **Status:** Superseded (partially)
+- **Date:** 2026-09-05
+- **Superseded by provisions in:** [ADR-0011](0011-consistency-upgrade-and-recovery.md)
 
-> Blue/green, proses rolleri, proxy ve expand–migrate–contract yaklaşımı geçerlidir. Warm-up/invalidation, üretimde contract testi, schema/job/content uyumluluğu ve restore ayrıntılarında ADR-0011 esas alınır. Kesintisizlik ürün hedefidir; sertifikalı topoloji ve test edilmiş release koşulları sağlanmadan gerçekleştirilmiş garanti değildir.
+> Blue/green, process roles, proxy, and expand-migrate-contract approach remain valid. Warm-up/invalidation, contract testing in production, schema/job/content compatibility, and restore details are based on ADR-0011. Zero downtime is a product goal; it is not a realized guarantee without providing the certified topology and tested release conditions.
 
-## Bağlam
+## Context
 
-HydroGo müşterileri içerik yayını sırasında kesinti yaşamamalı; aynı zamanda veritabanı migration'ları ve background job'lar veri bütünlüğünü bozmamalıdır.
+HydroGo customers should not experience downtime during content publication; at the same time, database migrations and background jobs must not corrupt data integrity.
 
-## Karar
+## Decision
 
-HydroGo public web trafiğinde blue/green deployment destekler. Kesintisiz garanti yalnız eski ve yeni binary ile geriye uyumlu `online` migration'lar için verilir. Geriye uyumsuz tablo dönüşümleri kontrollü bakım penceresi gerektirir.
+HydroGo supports blue/green deployment for public web traffic. The zero-downtime guarantee is provided only for `online` migrations that are backward compatible with the old and new binary. Backward-incompatible table transformations require a controlled maintenance window.
 
-## Proses rolleri
+## Process roles
 
-Aynı binary farklı rollerle çalışabilir:
+The same binary can run with different roles:
 
 ```text
 hydro serve --role=all
@@ -25,78 +25,78 @@ hydro serve --role=worker
 ```
 
 - Compact: `all`
-- Blue/green: İki web slotu ve tek aktif worker
-- Distributed: Birden fazla web ve lease kullanan birden fazla worker
+- Blue/green: Two web slots and a single active worker
+- Distributed: Multiple web and multiple workers using lease
 
-## Tek sunucu blue/green akışı
+## Single server blue/green flow
 
-1. Yeni release pasif slota indirilir ve imzası doğrulanır.
-2. `hydro upgrade check` config, disk, DB capability ve migration sınıfını doğrular.
-3. Deployment öncesi yedek/snapshot alınır.
-4. `online` expand migration uygulanır; migration lock çift çalışmayı önler.
-5. Green web, worker kapalı ve farklı port/socket üzerinde başlar.
-6. Readiness, DB contract ve dahili smoke test çalışır.
-7. Kritik public yollar çağrılarak L1 cache ısıtılır.
-8. Reverse proxy trafiği Green'e atomik olarak geçirir.
-9. Blue yeni istek almayı bırakır ve mevcut isteklerini tamamlar.
-10. Worker yeni release ile yeniden başlar veya liderlik Green'e geçer.
-11. Blue önceki release olarak rollback süresi boyunca saklanır.
+1. The new release is downloaded to the passive slot and its signature is verified.
+2. `hydro upgrade check` verifies the config, disk, DB capability, and migration class.
+3. A backup/snapshot is taken before deployment.
+4. The `online` expand migration is applied; a migration lock prevents concurrent execution.
+5. Green web starts with the worker off and on a different port/socket.
+6. Readiness, DB contract, and internal smoke tests run.
+7. Critical public paths are called to warm up the L1 cache.
+8. The reverse proxy atomically switches traffic to Green.
+9. Blue stops receiving new requests and completes its current requests.
+10. The worker restarts with the new release, or leadership passes to Green.
+11. Blue is kept as the previous release for the rollback period.
 
-Caddy config reload yeni konfigürasyonu eskisini durdurmadan yükleyebildiği için varsayılan tek sunucu reverse proxy çözümüdür. Admin API yalnız yerel socket/arayüz üzerinden korunur.
+Caddy is the default single-server reverse proxy solution because its config reload can load the new configuration without stopping the old one. The Admin API is protected only over the local socket/interface.
 
-## Migration sınıfları
+## Migration classes
 
 ### Online
 
-Eski ve yeni binary aynı şemada birlikte çalışabilir. Genellikle yeni tablo, nullable kolon veya geriye uyumlu index/constraint hazırlığıdır.
+The old and new binary can work together on the same schema. Generally, it is the preparation for a new table, nullable column, or a backward-compatible index/constraint.
 
 ### Backfill
 
-Şema genişletilir; veri küçük ve tekrar başlanabilir parçalarla taşınır. Kod geçiş süresinde eski ve yeni gösterimi okuyabilir/yazabilir.
+The schema is expanded; data is migrated in small, restartable chunks. During the code transition period, it can read/write the old and new representations.
 
 ### Maintenance
 
-Tablo rewrite, geriye uyumsuz constraint, kolon kaldırma veya eski binary'nin okuyamayacağı dönüşümdür. Deployment bakım sayfası ve açık RTO ile yürütülür.
+It is a table rewrite, a backward-incompatible constraint, column removal, or a transformation that the old binary cannot read. Deployment is carried out with a maintenance page and an explicit RTO.
 
 ## Expand–migrate–contract
 
-Kırılabilir değişiklikler sürümlere yayılır:
+Breaking changes are spread across releases:
 
-1. **Expand:** Yeni yapı eklenir, eski yapı korunur.
-2. **Migrate:** Veri arka planda taşınır ve doğrulanır.
-3. **Switch:** Yeni kod yeni yapıyı asıl kaynak olarak kullanır.
-4. **Contract:** Eski yapı ancak destek penceresi bittikten sonra kaldırılır.
+1. **Expand:** The new structure is added, the old structure is kept.
+2. **Migrate:** Data is migrated in the background and verified.
+3. **Switch:** The new code uses the new structure as the primary source.
+4. **Contract:** The old structure is removed only after the support window ends.
 
-## Veritabanı profilleri
+## Database profiles
 
-- SQLite: Blue ve Green aynı makinede ve yerel diskte kısa süre birlikte çalışabilir; aynı anda tek writer sınırı korunur.
-- PostgreSQL: Çoklu web instance ve rolling/canary deployment desteklenebilir.
-- Gelecekte sertifikalanan adaptörler online migration ve çoklu instance contract testlerini ayrıca geçmelidir.
-- Her sürücü için online DDL gerçekte doğrulanır; yalnız SQL sözdizimine bakılarak “online” etiketi verilmez.
+- SQLite: Blue and Green can briefly co-exist on the same machine and local disk; the single writer at a time limit is preserved.
+- PostgreSQL: Multiple web instances and rolling/canary deployments can be supported.
+- Future certified adapters must also pass online migration and multi-instance contract tests.
+- Online DDL is actually verified for each driver; the "online" tag is not given solely by looking at SQL syntax.
 
-## Session, medya ve asset
+## Session, media and assets
 
-- Session proses belleğinde tek doğruluk kaydı olmaz; DB'de tutulduğu için slot değişiminde kullanıcı çıkış yapmaz.
-- Medya immutable ve iki slot tarafından erişilebilir depoda bulunur.
-- Asset URL'leri içerik hash'i taşır.
-- Yeni release eski cache'li HTML'nin referans verdiği asset'leri cache ömrü boyunca sunar.
+- Session is not a single source of truth in process memory; since it is kept in the DB, the user is not logged out upon slot switch.
+- Media is immutable and resides in a storage accessible by both slots.
+- Asset URLs carry a content hash.
+- The new release serves assets referenced by the old cached HTML for the duration of the cache lifetime.
 
-## Cache tutarlılığı
+## Cache consistency
 
-- Atomik slot geçişinde Green cache önceden ısıtılır.
-- Kısa Blue/Green örtüşmesinde versioned cache key kullanılır.
-- Canary veya uzun süre eşzamanlı trafik varsa L2 distributed cache/invalidation zorunludur.
+- In atomic slot transition, the Green cache is pre-warmed.
+- Versioned cache keys are used in the short Blue/Green overlap.
+- If there is canary or long-term concurrent traffic, L2 distributed cache/invalidation is mandatory.
 
 ## Rollback
 
-Proxy önceki slota ancak mevcut şema önceki binary'nin ilan ettiği uyumluluk aralığındaysa döner. Migration geriye uyumsuzsa otomatik binary rollback yapılmaz; kontrollü restore veya ileri düzeltme uygulanır.
+The proxy returns to the previous slot only if the current schema is within the compatibility range declared by the previous binary. If the migration is backward-incompatible, automatic binary rollback is not performed; controlled restore or roll forward is applied.
 
-## Garanti
+## Guarantee
 
-HydroGo şu ifadeyi kullanır:
+HydroGo uses the following statement:
 
-> Geriye uyumlu sürümler public trafikte kesintisiz yayımlanır. Yapısal veri dönüşümleri güvenli ve önceden bildirilen bakım penceresiyle uygulanır.
+> Backward-compatible releases are deployed without interruption to public traffic. Structural data transformations are applied with a safe and pre-announced maintenance window.
 
-## Kaynak
+## References
 
 - [Caddy zero-downtime configuration reload](https://caddyserver.com/docs/getting-started#reloading-config)

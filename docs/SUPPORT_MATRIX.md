@@ -1,19 +1,19 @@
-# Destek matrisi başlangıç kanıtı
+# Initial Support Matrix Evidence
 
-Bu tablo satılabilir destek garantisi değildir; her satırın yanındaki CI veya contract kanıtı tamamlanmadan profil desteklenmiş ilan edilmez.
+This table is not a commercial support SLA; a profile is not declared supported until the CI or contract evidence next to each row is fully completed.
 
-| Alan | CI/contract kanıtı | Durum |
+| Area | CI / Contract Evidence | Status |
 |---|---|---|
-| Go toolchain | Go 1.27.0 ile Linux ve Windows build/test/vet | Doğrulanıyor |
-| SQLite | `modernc.org/sqlite` v1.58.0; migration, rollback, export/import contract'ları | Teknik contract hazır |
-| PostgreSQL | PostgreSQL 18 service; migration, transaction, restore ve export/import contract'ları | Teknik contract hazır |
-| PostgreSQL backup araçları | PostgreSQL 18 `pg_dump`/`pg_restore`; custom-format dump/restore round-trip | Teknik contract hazır |
-| Linux amd64 | `ubuntu-latest` CI build/test ve reproducible binary | CI doğruluyor |
-| Windows amd64 | `windows-latest` CI build/test ve reproducible binary | CI doğruluyor |
-| Compact profil | Typed budget ve `hydro doctor`; gerçek müşteri benchmark'ı | Açık |
-| Standard profil | Typed budget; gerçek PostgreSQL pool/throughput benchmark'ı | Açık |
-| Distributed profil | Mimari sözleşme mevcut; çoklu instance/L2/S3/CDN tatbikatı yok | Açık |
-| Modüller (Pages & News) | SQLite & PostgreSQL contract testleri, admin/API akışları | Teknik contract hazır (Pilot adayı) |
-| Modül (Commerce) | Domain/SQL store/checkout contract testleri, webhook & sandbox provider testleri | Deneysel / Pilot adayı (Prod sertifikasyonu açık) |
+| Go toolchain | Go 1.27.0 build/test/vet on Linux and Windows | Verifying |
+| SQLite | `modernc.org/sqlite` v1.58.0; migration, rollback, export/import contracts | Technical contract ready |
+| PostgreSQL | PostgreSQL 18 service; migration, transaction, restore, and export/import contracts | Technical contract ready |
+| PostgreSQL backup tools | PostgreSQL 18 `pg_dump`/`pg_restore`; custom-format dump/restore round-trip | Technical contract ready |
+| Linux amd64 | `ubuntu-latest` CI build/test and reproducible binary | CI verified |
+| Windows amd64 | `windows-latest` CI build/test and reproducible binary | CI verified |
+| Compact profile | Typed budget and `hydro doctor`; real customer benchmark | Open |
+| Standard profile | Typed budget; real PostgreSQL pool/throughput benchmark | Open |
+| Distributed profile | Architectural contract exists; multi-instance/L2/S3/CDN drill pending | Open |
+| Modules (Pages & News) | SQLite & PostgreSQL contract tests, admin/API flows | Technical contract ready (Pilot candidate) |
+| Module (Commerce) | Domain/SQL store/checkout contract tests, webhook & sandbox provider tests | Experimental / Pilot candidate (Prod certification open) |
 
-Sürüm yükseltme, provider ve işletim sistemi desteği; gerçek benchmark, temiz ortam restore ve release/deprecation takvimi tamamlandıktan sonra ayrı bir release kararıyla sabitlenir.
+Version upgrades, provider support, and operating system support are officially locked with a separate release decision only after real benchmarks, clean target restores, and release/deprecation schedules are completed.

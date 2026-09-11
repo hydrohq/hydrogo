@@ -3,40 +3,94 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{.Title}} · HydroGo</title>
+    <title>{{.Title}} · HydroGo Platform</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=block">
-    <link rel="stylesheet" href="/theme/static/theme.css?v=20260910">
+    <link rel="stylesheet" href="/theme/static/theme.css?v=20260912">
   </head>
-  <body>
-    <header class="theme-corporate-header">
-      <a class="theme-brand" href="/public/pages/tr/demo/html"><span>HYDRO<b>GO</b></span></a>
-      <nav aria-label="Ana navigasyon">
-        <a href="/public/pages/tr/demo/html">Ana Sayfa</a>
-        <a href="/public/pages/tr/showcase/html">Showcase</a>
-        <a href="/public/pages/tr/about/html">Hakkında</a>
-        <a href="/public/news/tr/html">Haberler</a>
-        <a href="/shop">Mağaza</a>
-        <a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a>
-      </nav>
+  <body class="theme-corporate-body">
+    <div class="site-announcement">
+      <div class="announcement-content">
+        <span class="announcement-badge">Yeni Sürüm v2.0</span>
+        <span class="announcement-text">HydroGo Çift Veritabanı ve Modüler Mimari Motoru Yayında!</span>
+        <a class="announcement-link" href="/public/news/tr/html">Detayları İncele →</a>
+      </div>
+    </div>
+    <header class="news-header">
+      <div class="header-container">
+        <a class="news-logo" href="/public/pages/tr/demo/html">
+          <div class="logo-mark">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <span>HYDRO<b>GO</b></span>
+            <small>ENTERPRISE PLATFORM</small>
+          </div>
+        </a>
+        <nav class="news-nav" aria-label="Ana navigasyon">
+          <a href="/public/pages/tr/demo/html">Ana Sayfa</a>
+          <a href="/public/pages/tr/showcase/html">Showcase</a>
+          <a href="/public/pages/tr/about/html">Hakkında</a>
+          <a href="/public/news/tr/html">Haberler</a>
+          <a href="/shop">Mağaza</a>
+          <a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a>
+        </nav>
+      </div>
     </header>
     {{slot "header"}}
-    <main class="theme-corporate-content">{{slot "content"}}</main>
+    <main class="page-container">{{slot "content"}}</main>
     {{slot "footer"}}
-    <footer class="news-footer" style="margin-top: 48px;">
-      <div class="footer-left">
-        <strong>HYDROGO <span>PLATFORM</span></strong>
-        <p>Gelişmiş Go Tabanlı CMS &amp; E-Ticaret Deneyimi</p>
+    <footer class="news-footer">
+      <div class="footer-container">
+        <div class="footer-brand-col">
+          <div class="footer-logo">
+            <div class="logo-mark">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+            </div>
+            <strong>HYDROGO <span>PLATFORM</span></strong>
+          </div>
+          <p>Yüksek performanslı Go altyapısı, katı mimari sınırlar ve sözleşme testli çift veritabanı desteği ile kurumsal içerik ve e-ticaret platformu.</p>
+          <div class="footer-badge-list">
+            <span class="f-badge">⚡ Go 1.22+</span>
+            <span class="f-badge">🛡️ Tip Güvenli</span>
+            <span class="f-badge">📦 Modüler Core</span>
+          </div>
+        </div>
+        <div class="footer-nav-col">
+          <h4>Platform</h4>
+          <nav>
+            <a href="/public/pages/tr/demo/html">Ana Sayfa</a>
+            <a href="/public/pages/tr/showcase/html">Showcase</a>
+            <a href="/public/pages/tr/about/html">Hakkında</a>
+            <a href="/public/news/tr/html">Haberler & Blog</a>
+          </nav>
+        </div>
+        <div class="footer-nav-col">
+          <h4>Çözümler</h4>
+          <nav>
+            <a href="/shop">E-Ticaret Mağazası</a>
+            <a href="/admin">Admin Studio Paneli</a>
+            <a href="/api/v1/pages">REST API v1</a>
+          </nav>
+        </div>
       </div>
-      <nav>
-        <a href="/public/pages/tr/demo/html">Ana Sayfa</a>
-        <a href="/public/pages/tr/showcase/html">Showcase</a>
-        <a href="/public/pages/tr/about/html">Hakkında</a>
-        <a href="/public/news/tr/html">Haberler</a>
-        <a href="/shop">Mağaza</a>
-        <a href="/admin">Studio Admin</a>
-      </nav>
+      <div class="footer-bottom-bar">
+        <p>© 2026 HydroGo Platform. Tüm hakları saklıdır.</p>
+        <div class="footer-sub-links">
+          <a href="/public/pages/tr/about/html">Güvenlik & Felsefe</a>
+          <span>•</span>
+          <a href="/admin">Yönetim Girişi</a>
+        </div>
+      </div>
     </footer>
   </body>
 </html>

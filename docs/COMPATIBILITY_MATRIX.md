@@ -1,21 +1,21 @@
-# HydroGo uyumluluk matrisi
+# HydroGo Compatibility Matrix
 
-Bu tablo mevcut R3/R4 sözleşmelerinin kanıtlanmış sınırını gösterir. “Uyumlu” ifadesi ilgili contract testleri ve migration checksum kontrolüyle doğrulanmış davranışı anlatır; desteklenmeyen kombinasyonlar satış taahhüdü değildir.
+This table defines the proven boundaries of current R3/R4 contracts. The term "Compatible" indicates behavior verified through corresponding contract tests and migration checksum validation; unlisted or unsupported combinations do not constitute a sales guarantee.
 
-| Alan | Epoch / kimlik | Eski → yeni deploy | Yeni → eski deploy | Kanıt |
+| Area | Epoch / Identity | Old → New Deploy | New → Old Deploy | Evidence |
 |---|---|---|---|---|
-| Core runtime/config | config schema mevcut sürüm; bilinmeyen alan deny | Yeni binary eski config'i okur; yeni zorunlu alan yoksa default doğrulanır | Eski binary yalnız kendi bilmediği route/module yoksa çalışır | config/router testleri |
-| Capacity profile | `compact`, `standard`, `distributed`; bounded budget | Yeni binary profile alanı yoksa Compact varsayılanını kullanır; açık profile pool/cache/queue/media sınırlarını uygular | Eski binary profile alanını okumaz ve kendi sabit bütçeleriyle çalışır | capacity/config contract; gerçek benchmark açık |
-| Module manifest | `extension.APIStatus`, edition import boundary | Yeni edition eski Core slotuna yalnız public extension sözleşmesiyle bağlanır | Eski edition yeni News/Site modülü yüklemez | Client/News importguard CI |
-| Schema/migration | `schema_migrations` SHA-256; 16 migration | Yeni binary önce migration uygular, sonra checksum compatibility kontrol eder | Eski binary yeni alanları kullanmadan mevcut page verisini okuyup güncelleyebilir | migration restart/checksum + rollback compatibility contract |
-| Pages/content | revision + optimistic `version`; published projection | Yeni revision eski published projection ile birlikte okunabilir | Eski binary yeni draft revision'ı görmez, published alanları korur | Pages SQLite/PostgreSQL contract |
-| Site/SEO/forms | Site Edition migration 009–011; form retention | Yeni route'lar eski binary'de yoksa trafik almaz; publish projection korunur | Eski binary yeni navigation/form tablolarına yazmaz | Site contract + runbook |
-| News/events | revision + `schedule_generation`; event id action/version içerir | Yeni scheduler eski draft'ı generation kontrolüyle güvenle atlar | Eski binary scheduled News tablosunu kullanmaz; News route'u açılmadıysa etkilenmez | News schedule/worker contract |
-| Jobs | migration 013; lease token + expiry | Yeni worker eski queued row'ları lease ile devralabilir | Eski in-process worker SQL job tablosunu görmez | SQL job store SQLite contract |
-| Assets/media | immutable storage key, pending → ready | Yeni binary eski ready asset'leri private/public metadata ile sunar | Eski binary retained asset'i silmez | media upload/backup contract |
+| Core runtime/config | Config schema current version; unknown fields denied | New binary reads old config; defaults validated if no new required fields | Old binary operates only if it encounters no unknown routes/modules | config/router tests |
+| Capacity profile | `compact`, `standard`, `distributed`; bounded budgets | New binary defaults to Compact if profile is omitted; enforces pool/cache/queue/media bounds when configured | Old binary ignores profile field and runs with fixed built-in budgets | capacity/config contracts; live benchmark open |
+| Module manifest | `extension.APIStatus`, edition import boundary | New edition attaches to old Core slot via public extension contracts only | Old edition does not load new News/Site module | Client/News importguard CI |
+| Schema/migration | `schema_migrations` SHA-256; 16 migrations | New binary applies migrations first, then validates checksum compatibility | Old binary reads and updates existing page data without using new columns | migration restart/checksum + rollback compatibility contracts |
+| Pages/content | revision + optimistic `version`; published projection | New revision readable alongside old published projection | Old binary does not see new draft revisions, preserves published fields | Pages SQLite/PostgreSQL contracts |
+| Site/SEO/forms | Site Edition migrations 009–011; form retention | New routes receive no traffic on old binary; publish projection preserved | Old binary does not write to new navigation/form tables | Site contracts + runbook |
+| News/events | revision + `schedule_generation`; event id contains action/version | New scheduler safely skips old drafts via generation check | Old binary ignores scheduled news tables; unaffected if news route is inactive | News schedule/worker contracts |
+| Jobs | migration 013; lease token + expiry | New worker claims and handles old queued rows via lease | Old in-process worker does not see SQL job table | SQL job store SQLite contract |
+| Assets/media | immutable storage key, pending → ready | New binary serves old ready assets with private/public metadata | Old binary does not delete retained assets | media upload/backup contracts |
 
-## Açık doğrulamalar
+## Open Verifications
 
-- `tests/contract/testdata/legacy_customer.json` ile migration 008 seviyesinden tam şemaya yükseltme; yayınlanmış sayfa projection backfill'i, medya ve auth hash korunumu doğrulandı.
-- PostgreSQL SQL job lease için servis matrisi henüz çalıştırılmadı.
-- PostgreSQL online DDL lock ölçümü, rollback sonrası retained asset ve gerçek blue/green trafik tatbikatı S06/S07 kapılarında açık; SQLite expand/read ve iki dialect eski binary rollback okuma-yazma contract'ı doğrulandı.
+- Upgrade verification from migration 008 to the complete schema using `tests/contract/testdata/legacy_customer.json`; verified preservation of published page projections, media metadata, and auth hashes.
+- PostgreSQL service matrix run for SQL job leasing is pending.
+- PostgreSQL online DDL lock measurement, retained asset verification after rollback, and live Blue/Green traffic drills remain open under S06/S07 gates; SQLite expand/read and dual-dialect old binary rollback read-write contracts are verified.

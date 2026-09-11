@@ -1,35 +1,35 @@
-# S02/S04 veritabanı transaction ve migration doğrulaması
+# S02/S04 database transaction and migration validation
 
-**Tarih:** 2026-09-06  
-**Roadmap maddesi:** R1 / S02–S04 DB bölümü  
-**Durum:** Başarılı; backup/encoder ve tam destek matrisi ayrı R1/P1 kapılarında bekliyor.
+**Date:** 2026-09-06  
+**Roadmap item:** R1 / S02–S04 DB section  
+**Status:** Succeeded; backup/encoder and full support matrix await separate R1/P1 gates.
 
-## Seçimler
+## Selections
 
-- SQLite: `modernc.org/sqlite` v1.58.0. Saf Go sürücüsü Windows amd64 ve Linux amd64 hedeflerini kapsıyor; cgo toolchain gerektirmiyor. Sürücünün bağlı `modernc.org/libc` sürümü v1.75.6 olarak module graph içinde sabitlendi.
-- PostgreSQL: `github.com/jackc/pgx/v5` v5.10.0, `database/sql` uyumluluk katmanı üzerinden.
-- Migration: İlk deneyde harici migration framework'ü eklenmedi. Dialect SQL, değişmez SHA-256 metadata'sı ve transaction içindeki ledger davranışı küçük HydroGo runner'ıyla kanıtlandı. Daha geniş bir aracın gerekliliği sonraki migration örnekleriyle değerlendirilecek.
+- SQLite: `modernc.org/sqlite` v1.58.0. Pure Go driver covering Windows amd64 and Linux amd64 targets; does not require cgo toolchain. The linked `modernc.org/libc` version of the driver is pinned at v1.75.6 in the module graph.
+- PostgreSQL: `github.com/jackc/pgx/v5` v5.10.0, via the `database/sql` compatibility layer.
+- Migration: No external migration framework was added in the initial experiment. Dialect SQL, immutable SHA-256 metadata, and ledger behavior within a transaction were proven with a small HydroGo runner. The necessity of a broader tool will be evaluated with subsequent migration examples.
 
-Kaynaklar: [modernc SQLite paket belgeleri](https://pkg.go.dev/modernc.org/sqlite), [pgx stdlib paket belgeleri](https://pkg.go.dev/github.com/jackc/pgx/v5/stdlib).
+Sources: [modernc SQLite package docs](https://pkg.go.dev/modernc.org/sqlite), [pgx stdlib package docs](https://pkg.go.dev/github.com/jackc/pgx/v5/stdlib).
 
-## Ortam ve sonuç
+## Environment and result
 
-| Hedef | Veritabanı | Sonuç |
+| Target | Database | Result |
 |---|---|---|
-| Windows amd64, Go 1.27.0 | Dosya tabanlı SQLite / WAL | Başarılı |
-| GitHub Actions Ubuntu, Go 1.27.0 | PostgreSQL 18 izole service container | Başarılı |
+| Windows amd64, Go 1.27.0 | File-based SQLite / WAL | Succeeded |
+| GitHub Actions Ubuntu, Go 1.27.0 | PostgreSQL 18 isolated service container | Succeeded |
 
-CI kanıtı: [run 33993049815](https://github.com/ardaozyildirim/hydrogo/actions/runs/33993049815).
+CI evidence: [run 33993049815](https://github.com/ardaozyildirim/hydrogo/actions/runs/33993049815).
 
-## Kanıtlanan sözleşme
+## Proven contract
 
-- SQLite her bağlantıda `foreign_keys=on`, `journal_mode=WAL`, `synchronous=NORMAL` ve `busy_timeout=5000` değerlerini uyguladı. Windows sürücü harfi için `file:///C:/...` URI düzeltmesi test sırasında bulundu ve kalıcılaştırıldı.
-- Pages draft, audit olayı ve outbox olayı aynı `sql.Tx` executor'ını kullandı. Outbox'a enjekte edilen hata sonrası üç tabloda da satır kalmadı.
-- Başarılı çağrıda üç kayıt birlikte commit edildi.
-- Aynı page/version üzerinde eşzamanlı iki güncellemeden yalnız biri satır değiştirdi; sessiz son-yazan-kazan oluşmadı.
-- Aynı migration'ın ikinci çalışması no-op oldu. SQL içeriği değiştirilince ledger checksum uyuşmazlığı işlemi reddetti.
-- Migration metadata'sındaki iki dialect checksum'ı CI testiyle gerçek SQL dosyalarına bağlandı.
+- SQLite applied `foreign_keys=on`, `journal_mode=WAL`, `synchronous=NORMAL`, and `busy_timeout=5000` values on every connection. The `file:///C:/...` URI fix for the Windows drive letter was found and persisted during testing.
+- Pages draft, audit event, and outbox event used the same `sql.Tx` executor. After an error injected into the outbox, no rows remained in any of the three tables.
+- In a successful call, the three records were committed together.
+- Of two concurrent updates on the same page/version, only one changed a row; a silent last-writer-wins did not occur.
+- A second run of the same migration was a no-op. When the SQL content was altered, the ledger checksum mismatch rejected the operation.
+- Two dialect checksums in the migration metadata were tied to actual SQL files via CI testing.
 
-## Sınırlar
+## Limits
 
-Bu deney üretim şeması değildir. PostgreSQL testi müşteri DB'sine değil, her CI çalışmasında oluşturulan `hydro_contract` veritabanına yazdı. Yerel PostgreSQL servisi parola verilmediği için kullanılmadı. Deadlock/serialization retry, online DDL, backup/restore, connection pool kapasitesi ve desteklenen PostgreSQL minor sürüm matrisi henüz sertifikalanmadı.
+This experiment is not a production schema. The PostgreSQL test wrote to the `hydro_contract` database created in each CI run, not a customer DB. The local PostgreSQL service was not used since no password was provided. Deadlock/serialization retry, online DDL, backup/restore, connection pool capacity, and the supported PostgreSQL minor version matrix are not yet certified.

@@ -1,26 +1,26 @@
-# R1 Toolchain, Çapraz Derleme ve Yedekleme Araçları Doğrulaması
+# R1 Toolchain, Cross Compilation and Backup Tools Validation
 
-**Tarih:** 2026-09-06  
-**Roadmap maddesi:** R1 Toolchain ve Taşınabilirlik  
-**Durum:** Kısmi; çapraz derleme ve encoder seçimi doğrulandı, gerçek backup/restore çalıştırması ayrıca gerekiyor.
+**Date:** 2026-09-06  
+**Roadmap item:** R1 Toolchain and Portability  
+**Status:** Partial; cross-compilation and encoder selection validated, actual backup/restore execution required separately.
 
-## Doğrulanan Davranışlar
+## Validated Behaviors
 
-1. **Çapraz Derleme (Cross-Platform Compilation):**
-   - Proje tamamen saf Go (CGO-free) bağımlılıklarla yapılandırıldı:
+1. **Cross-Platform Compilation:**
+   - The project is configured entirely with pure Go (CGO-free) dependencies:
      - SQLite: `modernc.org/sqlite`
      - PostgreSQL: `github.com/jackc/pgx/v5`
-     - Kriptografi & Parola: `golang.org/x/crypto/argon2`
-     - Görsel: Go standart kütüphanesi (`image/png`, `image/jpeg`, `image/gif`) + `golang.org/x/image/webp`
-   - Hem Windows amd64 (`hydro.exe`) hem de Linux amd64 (`bin/hydro-linux-amd64`) hedefleri hiçbir dış C kütüphanesine ihtiyaç duymadan başarıyla derlendi:
+     - Cryptography & Password: `golang.org/x/crypto/argon2`
+     - Image: Go standard library (`image/png`, `image/jpeg`, `image/gif`) + `golang.org/x/image/webp`
+   - Both Windows amd64 (`hydro.exe`) and Linux amd64 (`bin/hydro-linux-amd64`) targets were successfully compiled without requiring any external C libraries:
      ```powershell
      $env:GOOS="linux"; $env:GOARCH="amd64"; go build -o bin/hydro-linux-amd64 ./cmd/hydro
      $env:GOOS="windows"; $env:GOARCH="amd64"; go build -o bin/hydro.exe ./cmd/hydro
      ```
 
-2. **Yedekleme ve Kurtarma Araçları Değerlendirmesi:**
-   - **SQLite (Compact Profil):** CGO gerektirmeyen `VACUUM INTO` ve SQLite online backup mantığı veya WAL checkpoint sonrası anlık dosya kopyalama ile bağımsız işletim doğrulanabilir.
-   - **PostgreSQL (Standard/Distributed):** Standart `pg_dump` / `pg_restore` CLI araçları ve S09 mantıksal veri aktarım sözleşmeleriyle uyumludur.
+2. **Backup and Recovery Tools Evaluation:**
+   - **SQLite (Compact Profile):** Independent operation can be validated with CGO-free `VACUUM INTO` and SQLite online backup logic, or immediate file copying after a WAL checkpoint.
+   - **PostgreSQL (Standard/Distributed):** Compatible with standard `pg_dump` / `pg_restore` CLI tools and S09 logical data export contracts.
 
-3. **Görsel İşleme / Encoder Kararı:**
-   - CGO ve `libvips` gibi dış C bağımlılıkları tek ikili (single-binary) dağıtımı ve taşınabilirlik ilkesini (Manifesto Madde 2 & 5) zedelediği için saf Go kütüphaneleri seçildi.
+3. **Image Processing / Encoder Decision:**
+   - Pure Go libraries were chosen because CGO and external C dependencies like `libvips` compromise the single-binary distribution and portability principle (Manifesto Article 2 & 5).

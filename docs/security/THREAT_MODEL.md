@@ -1,74 +1,74 @@
-# HydroGo — İlk tehdit modeli
+# HydroGo — Initial threat model
 
-**Tarih:** 2026-09-05 · **Durum:** Tasarım analizi; uygulama doğrulaması bekliyor.
+**Date:** 2026-09-05 · **Status:** Design analysis; pending implementation validation.
 
-Kapsam: Site Edition, müşteri başına ayrı deployment, SQLite/PostgreSQL, admin/public HTML/JSON, local medya ve sonraki object storage profili. Commerce, multi-tenant SaaS ve güvenilmeyen runtime plugin kapsam dışıdır. Bağlayıcı güvenlik kararları [ADR-0013](../architecture/0013-identity-and-security-boundaries.md), tutarlılık/kurtarma [ADR-0011](../architecture/0011-consistency-upgrade-and-recovery.md) içindedir.
+Scope: Site Edition, per-customer isolated deployment, SQLite/PostgreSQL, admin/public HTML/JSON, local media, and subsequent object storage profile. Commerce, multi-tenant SaaS, and untrusted runtime plugins are out of scope. Binding security decisions are in [ADR-0013](../architecture/0013-identity-and-security-boundaries.md), consistency/recovery in [ADR-0011](../architecture/0011-consistency-upgrade-and-recovery.md).
 
-## Varlıklar ve aktörler
+## Assets and actors
 
-Korunan varlıklar: kimlik bilgileri ve session'lar; taslak/özel medya; yayın bütünlüğü; form kişisel verileri; müşteri sırları; DB/backup/key'ler; release imzası; audit; servis erişilebilirliği.
+Protected assets: credentials and sessions; draft/private media; publication integrity; form personal data; customer secrets; DB/backup/keys; release signatures; audit; service availability.
 
-Aktörler: anonim ziyaretçi/bot, oturumlu editör, publisher/admin, işletim yetkilisi, CI/release sistemi, güvenilen modül geliştiricisi ve dış servis sağlayıcısı. Editörün oturumlu olması bütün veriye yetkisi olduğu anlamına gelmez. Binary'ye derlenen kod ve host root, uygulamanın sandbox sınırı dışındadır.
+Actors: anonymous visitor/bot, sessioned editor, publisher/admin, operations authority, CI/release system, trusted module developer, and external service provider. Being a sessioned editor does not mean having authorization over all data. Code compiled into the binary and the host root are outside the application's sandbox boundary.
 
-## Veri akışı ve güven sınırları
+## Data flow and trust boundaries
 
 ```mermaid
 flowchart LR
-    B[Tarayıcı / API istemcisi] -->|Güvenilmeyen HTTP| E[Proxy / CDN]
-    E -->|Güvenilen proxy header sınırı| H[Handler: auth, CSRF, input]
-    H --> S[Service: kayıt ve alan yetkisi]
-    S -->|Tek transaction| D[(DB: içerik, session, audit, outbox)]
-    S -->|Doğrulanan upload| M[Quarantine / immutable medya]
-    D --> W[Worker: lease ve tekrar teslim]
-    W -->|Dış servis sınırı| X[E-posta / CDN / sonraki webhook]
-    H --> C[L1 / L2: yalnız izinli türetilmiş veri]
-    R[İmzalı release / işletim CLI] --> H
-    D --> K[Şifreli backup ve ayrı key kurtarma]
+    B[Browser / API client] -->|Untrusted HTTP| E[Proxy / CDN]
+    E -->|Trusted proxy header boundary| H[Handler: auth, CSRF, input]
+    H --> S[Service: record and field authorization]
+    S -->|Single transaction| D[(DB: content, session, audit, outbox)]
+    S -->|Validated upload| M[Quarantine / immutable media]
+    D --> W[Worker: lease and retry delivery]
+    W -->|External service boundary| X[Email / CDN / subsequent webhook]
+    H --> C[L1 / L2: only allowed derived data]
+    R[Signed release / operations CLI] --> H
+    D --> K[Encrypted backup and separate key recovery]
     M --> K
 ```
 
-Proxy origin'e gelen her isteği güvenli hale getirmez. DB ve object store ayrı hata/transaction alanıdır. CDN/browser'daki public kopyaların ömrü uygulama transaction'ından bağımsızdır. CI ve CLI operasyonları kullanıcı web rollerinden daha güçlüdür ve ayrı erişim kontrolü gerektirir.
+The proxy does not magically secure every request coming to the origin. DB and object store are separate failure/transaction domains. The lifespan of public copies in the CDN/browser is independent of application transactions. CI and CLI operations are stronger than user web roles and require separate access control.
 
-## Tehdit ve doğrulama matrisi
+## Threat and validation matrix
 
-Tüm satırların kanıt durumu **bekliyor**. Sahipler kişi ataması değil sorumluluk rolüdür; geliştirme issue'su açıldığında somut sahip ve sonuç eklenir.
+The evidence status of all rows is **pending**. Owners represent a responsibility role rather than a person assignment; when a development issue is opened, a concrete owner and outcome are added.
 
-| ID | Somut saldırı/hata | Kararlaştırılan kontrol | Gerekli kanıt ve kapı | Sahip |
+| ID | Concrete attack/failure | Decided control | Required evidence and gate | Owner |
 |---|---|---|---|---|
-| T01 | Başka editörün taslağı ID değiştirerek okunur/yayımlanır | Service kayıt/alan yetkisi, public projection | HTML/JSON/ilişki/worker yollarında rol matrisi; ilk dilim | Core auth + modül |
-| T02 | Çalınan/eski session rol iptalinden sonra çalışır | Session rotate/revoke, canlı policy | Login fixation, rol değişimi, iki slotta revoke testi; ilk dilim | Core auth |
-| T03 | Reset/davet tekrar kullanılır, hesap listesi keşfedilir | Purpose/hash/expiry/atomic consume, genel yanıt | Aynı token eşzamanlı iki kez tüketilemez; pilot | Core auth |
-| T04 | Yönetici parolası ele geçirilir; recovery MFA'yı bypass eder | Pilot MFA, recovery audit ve rate limit | TOTP replay, seed gizliliği, kurtarma akışı; pilot | Core auth + işletim |
-| T05 | Başka site kullanıcının browser session'ıyla değişiklik yapar | CSRF, origin/proxy doğrulaması, dar CORS | Eksik/yanlış token, çapraz origin ve HTML/JSON mutasyon testi; ilk dilim | HTTP |
-| T06 | Rich text/URL/override kalıcı XSS üretir | Escaping, sanitizer, typed output, CSP | Zararlı fixture, Quill/Templ/HTMX CSP akışı; ilk dilim | UI + güvenlik |
-| T07 | Medya decode bomb, path traversal, private dosya sızıntısı | Byte/piksel/concurrency, quarantine, visibility | Sahte MIME, aşırı boyut, private origin erişimi, crash; ilk dilim | Media |
-| T08 | Cache poisoning veya taslak/kişisel verinin shared cache'e girmesi | Allowlisted host/query, representation key, private bypass | Host/HX-Request/Cookie/Authorization varyantları; ilk dilim, edge için profil kapısı | HTTP + cache |
-| T09 | Webhook/remote fetch iç ağa veya metadata'ya erişir | Özellik başlangıçta kapalı; eklendiğinde egress kontrolleri | Redirect/DNS/private ağ fixture'ları; özellik açılmadan | Entegrasyon |
-| T10 | Login/hash/image/form/search yükü kaynakları tüketir | Admission, pool/worker/byte/queue bütçeleri | Soak + arıza sırasında bounded bellek/kuyruk, kontrollü ret; pilot | Core + işletim |
-| T11 | Eski invalidation geç gelir, L1 eski yayını tutar | Generation, fan-out, reconnect uzlaştırması | İki web + worker, kayıp event/stale refill; ayrı proses profili | Cache |
-| T12 | Crash/retry çift dış etki üretir veya işi kaybeder | Outbox, lease/token, tüketici idempotency, belirsizlik raporu | Commit sonrası crash, provider kabul sonrası timeout; pilot | Jobs |
-| T13 | Yanlış migration/rollback veri ve eski client'ı bozar | Uyumluluk matrisi, per-dialect metadata | Eski binary restart + yeni yazımdan sonra rollback; release | DB + release |
-| T14 | Backup eksik/sızdırılmış; restore eski session/job'ı canlandırır | Şifreleme, manifest, ayrı key, restore izolasyonu | Temiz hedefte restore, session iptali ve egress karantinası; pilot | İşletim |
-| T15 | Sahte release veya dependency güncellemesi müşterilere yayılır | İmza, güvenilen key, lock, lisans/SBOM, dar CI secret yetkisi | Değiştirilmiş artifact reddi, gerçek module graph denetimi; dağıtım | Release |
-| T16 | Audit “değişmez” sanılır; local host sahibi kayıt siler | Profile göre dürüst sınır, PG roller, dosya izolasyonu | Runtime audit update reddi; dış hedef gerekiyorsa ayrı test; pilot | Core + işletim |
-| T17 | Silinen kişisel veri revision/search/restore ile geri gelir | ADR-0014: restore'dan bağımsız dayanıklı silme niyeti günlüğü, checkpoint ve retention; eksikte izolasyon | Backup→silme→eski backup restore; niyet/DB arası crash, eksik/eski günlük, export ve medya kontrolü; kişisel veri alan pilot | Modül + işletim |
-| T18 | Core güncellemesi müşteri hook'unu yetki atlama yoluna çevirir | Güvenilen kod, dar SDK, son servis kontrolü | İki dış Client Edition policy/contract testleri; SDK v1 | SDK |
+| T01 | Another editor's draft is read/published by changing ID | Service record/field authorization, public projection | Role matrix on HTML/JSON/relation/worker paths; first slice | Core auth + module |
+| T02 | Stolen/old session works after role revocation | Session rotate/revoke, live policy | Login fixation, role change, revoke test in two slots; first slice | Core auth |
+| T03 | Reset/invite is reused, account list is discovered | Purpose/hash/expiry/atomic consume, generic response | Same token cannot be concurrently consumed twice; pilot | Core auth |
+| T04 | Admin password compromised; bypasses recovery MFA | Pilot MFA, recovery audit and rate limit | TOTP replay, seed secrecy, recovery flow; pilot | Core auth + operations |
+| T05 | Another site makes changes with user's browser session | CSRF, origin/proxy validation, narrow CORS | Missing/invalid token, cross origin and HTML/JSON mutation test; first slice | HTTP |
+| T06 | Rich text/URL/override produces persistent XSS | Escaping, sanitizer, typed output, CSP | Malicious fixture, Quill/Templ/HTMX CSP flow; first slice | UI + security |
+| T07 | Media decode bomb, path traversal, private file leak | Byte/pixel/concurrency, quarantine, visibility | Fake MIME, oversized, private origin access, crash; first slice | Media |
+| T08 | Cache poisoning or draft/personal data entering shared cache | Allowlisted host/query, representation key, private bypass | Host/HX-Request/Cookie/Authorization variants; first slice, profile gate for edge | HTTP + cache |
+| T09 | Webhook/remote fetch accesses internal network or metadata | Feature disabled initially; egress controls when added | Redirect/DNS/private network fixtures; before feature flag | Integration |
+| T10 | Login/hash/image/form/search payload exhausts resources | Admission, pool/worker/byte/queue budgets | Soak + bounded memory/queue during failure, controlled rejection; pilot | Core + operations |
+| T11 | Stale invalidation arrives late, L1 holds stale publication | Generation, fan-out, reconnect reconciliation | Two web + worker, missed event/stale refill; separate process profile | Cache |
+| T12 | Crash/retry produces double external effect or loses job | Outbox, lease/token, consumer idempotency, uncertainty report | Crash post-commit, timeout post-provider accept; pilot | Jobs |
+| T13 | Bad migration/rollback breaks data and old client | Compatibility matrix, per-dialect metadata | Old binary restart + rollback after new write; release | DB + release |
+| T14 | Backup incomplete/leaked; restore resurrects old session/job | Encryption, manifest, separate key, restore isolation | Restore on clean target, session revocation and egress quarantine; pilot | Operations |
+| T15 | Fake release or dependency update propagates to customers | Signature, trusted key, lock, license/SBOM, narrow CI secret auth | Modified artifact rejection, actual module graph audit; distribution | Release |
+| T16 | Audit assumed "immutable"; local host owner deletes record | Honest boundary per profile, PG roles, file isolation | Runtime audit update rejection; separate test if external target needed; pilot | Core + operations |
+| T17 | Deleted personal data returns via revision/search/restore | ADR-0014: restore-independent durable deletion intent log, checkpoint and retention; isolation on miss | Backup→delete→old backup restore; crash between intent/DB, missing/old log, export and media check; personal data domain pilot | Module + operations |
+| T18 | Core update turns customer hook into authorization bypass | Trusted code, narrow SDK, final service check | Two external Client Edition policy/contract tests; SDK v1 | SDK |
 
-## Kabul edilmeyen varsayımlar
+## Unaccepted assumptions
 
-- Templ tek başına bütün XSS yollarını kapatır.
-- Redis veya pub/sub veri doğruluğu sağlar.
-- UUID/hash URL erişim kontrolüdür.
-- Aynı binary'deki modül kötü niyetli koddan yalıtılmıştır.
-- Başarılı backup komutu başarılı restore anlamına gelir.
-- Online migration etiketi her DB'de kesintisizdir.
-- Yerel SQLite audit kaydı host sahibine karşı değişmezdir.
-- Silinen public içeriğin kullanıcıdaki kopyası geri alınabilir.
+- Templ alone closes all XSS paths.
+- Redis or pub/sub provides data correctness.
+- UUID/hash is URL access control.
+- Module in the same binary is isolated from malicious code.
+- Successful backup command means successful restore.
+- Online migration tag is seamless on every DB.
+- Local SQLite audit log is immutable against host owner.
+- User's copy of deleted public content can be retrieved.
 
-## Artık riskler ve takip
+## Residual risks and follow-up
 
-E-posta sağlayıcısı idempotency sunmuyorsa belirsiz gönderim sonucu kalır. Host/release anahtarının tam ele geçirilmesi web policy ile çözülemez; key rotasyonu, izole backup ve olay müdahalesi gerekir. Public cache yayılım gecikmesi sayısal bütçeyle kabul edilir. Bu riskler müşteri/topoloji seçimine göre ölçülür; belgenin yazılması riski kapatmaz.
+If the email provider does not offer idempotency, the delivery result remains uncertain. Full compromise of the host/release key cannot be resolved by web policy; key rotation, isolated backup, and incident response are required. Public cache propagation delay is accepted with a numerical budget. These risks are measured based on customer/topology selection; writing this document does not eliminate the risk.
 
-Pilot öncesi yapılacaklar: parametre/limit değerlerini ölçerek sabitlemek, threat fixture'larını CI'ya eklemek, deployment secret envanteri ve acil iptal/restore runbook'unu doğrulamak. Yeni endpoint, dış entegrasyon, modül, veri sınıfı veya topoloji eklendiğinde ilgili satırlar yeniden değerlendirilir.
+Pre-pilot tasks: measuring and fixing parameter/limit values, adding threat fixtures to CI, verifying deployment secret inventory and emergency revoke/restore runbook. Corresponding rows are re-evaluated when a new endpoint, external integration, module, data class, or topology is added.
 
-Kontrol kaynakları [ADR-0013](../architecture/0013-identity-and-security-boundaries.md) içinde bağlantılıdır. Bu model mimari risk analizidir; penetrasyon testi sonucu değildir.
+Control sources are linked within [ADR-0013](../architecture/0013-identity-and-security-boundaries.md). This model is an architectural risk analysis; it is not a penetration test result.

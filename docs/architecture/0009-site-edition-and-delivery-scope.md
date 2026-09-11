@@ -1,51 +1,51 @@
-# ADR-0009: İlk ürün, geliştirme sırası ve teslim sınırı
+# ADR-0009: Initial product, development order and delivery scope
 
-- **Durum:** Kabul edildi
-- **Tarih:** 2026-09-05
-- **İlişkili kararlar:** [ADR-0001](0001-product-and-deployment-model.md), [ADR-0006](0006-extensible-database-adapters.md)
-- **Uygulama durumu:** Planlandı; çalışan ürün veya sertifikalı adapter henüz yok.
+- **Status:** Accepted
+- **Date:** 2026-09-05
+- **Related decisions:** [ADR-0001](0001-product-and-deployment-model.md), [ADR-0006](0006-extensible-database-adapters.md)
+- **Implementation status:** Planned; no working product or certified adapter yet.
 
-## Bağlam
+## Context
 
-Ana plan haber akışını ilk ürün gibi anlatırken backlog genel Site Edition öneriyordu. Ticari ürünün ilk kapsamı ile mimariyi doğrulayan ikinci modül birbirinden ayrılmalıdır. Tenancy kararı zaten ADR-0001'de kabul edilmiştir; yeniden açık soru değildir.
+While the master plan described a news feed as the initial product, the backlog suggested a general Site Edition. The initial scope of the commercial product and the second module that verifies the architecture must be separated from each other. The tenancy decision was already accepted in ADR-0001; it is no longer an open question.
 
-## Karar
+## Decision
 
-İlk satılabilir ürün **Site Edition** olur. İlk hedef müşteri; kurumsal sayfalar, hizmetler, ekip/referans içerikleri ve iletişim formu isteyen, kendine ait tasarımla teslim edilen ajans müşterisidir. News ikinci doğrulama modülüdür; commerce ayrı ürün yatırımıdır.
+The first sellable product will be **Site Edition**. The initial target customer is an agency client who wants corporate pages, services, team/reference content, and a contact form, delivered with a custom design. News is the second validation module; commerce is a separate product investment.
 
-| Teslim | Kapsam | Çıkış koşulu |
+| Delivery | Scope | Exit condition |
 |---|---|---|
-| İlk çalışan dilim | Auth, Pages, sınırlı Media, taslak/yayın, admin, public HTML ve public JSON | Aynı kullanım iki DB'de çalışır; yetkisiz erişim reddedilir |
-| Pilot Site Edition | Navigation, settings, SEO/redirects, revisions, elle tanımlanan sınırlı iletişim formu/inbox, backup/restore, müşteri teması | Gerçek müşteri işi core fork olmadan tamamlanır |
-| SDK doğrulaması | News: inceleme, zamanlama, özel yetkiler; ikinci Client Edition | İki farklı modül ve iki tema aynı extension sınırını kullanır |
-| Kararlı v1 | Sertifikalı SQLite/PostgreSQL, belgeli upgrade, destek matrisi, güvenlik/restore testleri, doğrulanmış CRUD üretici | Hazırlık belgesindeki release kapıları geçilir |
+| First working slice | Auth, Pages, limited Media, draft/publish, admin, public HTML and public JSON | The same use case works on two DBs; unauthorized access is rejected |
+| Pilot Site Edition | Navigation, settings, SEO/redirects, revisions, manually defined limited contact form/inbox, backup/restore, customer theme | Actual customer work is completed without a core fork |
+| SDK validation | News: review, scheduling, custom permissions; second Client Edition | Two different modules and two themes use the same extension boundary |
+| Stable v1 | Certified SQLite/PostgreSQL, documented upgrade, support matrix, security/restore tests, verified CRUD generator | Release gates in the preparation document are passed |
 
-Form inbox keyfi form tasarımcısı değildir. İlk form alanları edition kodunda tanımlanır; boyut sınırı, spam/rate limit, saklama ve kişisel veri erişimi bulunur. İleri Form Builder ertelenir.
+The form inbox is not an arbitrary form designer. The initial form fields are defined in the edition code; it features size limit, spam/rate limit, retention, and personal data access. An advanced Form Builder is deferred.
 
-Müşteri başına ayrı uygulama, veri, medya, sırlar ve yedek kullanılır. Çok kiracılı SaaS v1 kapsamında değildir. Bir deployment'taki locale'ler ayrı tenant değildir. Edition kimliği cache ve operasyon namespace'i sağlar; tek başına güvenlik izolasyonu sayılmaz.
+Separate application, data, media, secrets, and backups are used per customer. Multi-tenant SaaS is not in the scope of v1. Locales in one deployment are not separate tenants. Edition identity provides a cache and operational namespace; it is not considered security isolation on its own.
 
-## Şema ve özel kod
+## Schema and custom code
 
-- Pages ve News önce elle yazılır. Ortak kalıp kanıtlandıktan sonra build sırasında kullanılan sürümlü collection tanımı standart CRUD üretir.
-- Üretici tipli Go kodu, admin/API iskeleti, repository ve **incelenecek** dialect migration taslağı üretir. Çalışma anında şema tanımından otomatik DDL çalıştırılmaz.
-- İş akışı, kayıt/alan yetkisi ve destructive değişiklikler tahmin edilmez. Üretilen erişim başlangıçta reddedilir; izinler açıkça tanımlanır.
-- Yeni alan için belirlenmiş indeks, null/default, doğrulama ve export davranışı gerekir. Yeniden adlandırma drop+add olarak tahmin edilmez; açık alan kimliği ve rename kaydı gerekir.
-- Müşterinin editörde içerik değiştirmesi build gerektirmez. Yeni collection şeması veya Go/Templ özelleştirmesi build ve gerekirse migration gerektirir. Bu sınır satış ve geliştirici belgelerinde belirtilir.
+- Pages and News are first written manually. Once the common pattern is proven, the versioned collection definition used during build generates standard CRUD.
+- The generator produces typed Go code, admin/API skeletons, repositories, and dialect migration skeletons **to be reviewed**. Automated DDL from the schema definition is not executed at runtime.
+- Workflow, record/field authority, and destructive changes are not guessed. Generated access is initially rejected; permissions are explicitly defined.
+- A new field requires a designated index, null/default, validation, and export behavior. Renaming is not guessed as drop+add; explicit field identity and rename records are required.
+- The customer modifying content in the editor does not require a build. A new collection schema or Go/Templ customization requires a build and, if necessary, a migration. This boundary is specified in sales and developer documentation.
 
-## Dağıtım kapsamı
+## Deployment scope
 
-Compact tek sunucu ilk pilot hedefidir. Standard/PostgreSQL aynı davranışlarla v1'e hazırlanır. Distributed mimarisi korunur ancak çok düğümlü operasyon, S3 uyumlu medya ve arıza testleri geçmeden sertifikalı seçenek olarak satılmaz. İlk pilotun bitmesi Distributed desteğinin tamamlandığı anlamına gelmez.
+Compact single-server is the first pilot target. Standard/PostgreSQL is prepared for v1 with the same behaviors. Distributed architecture is preserved, but it is not sold as a certified option until multi-node operation, S3-compatible media, and failure tests pass. The completion of the first pilot does not mean Distributed support is finished.
 
-İlk üretim hedefi Linux amd64; Windows geliştirme akışı zorunlu doğrulanır. Linux arm64, Windows üretim ve diğer hedefler ayrı build/driver/işletim testlerinden sonra destek matrisine alınır. Tek binary sözü işletim sistemi ve mimari başına üretilen uygulama dosyasını anlatır; proxy, veri veya harici servislerin binary içinde olduğu anlamına gelmez.
+The first production target is Linux amd64; the Windows development workflow is mandatorily verified. Linux arm64, Windows production, and other targets are included in the support matrix after separate build/driver/operation tests. The promise of a single binary refers to the application file generated per operating system and architecture; it does not mean the proxy, data, or external services are inside the binary.
 
-## Alternatifler ve maliyet
+## Alternatives and cost
 
-Haber odaklı ilk ürün daha dar bir müşteriye hitap eder; genel Site Edition ajans tekrarını daha iyi ölçer. Her şeyi şemadan üretmek iş akışlarını zorla genelleştirir. İlk günden tüm topolojileri bitirmek pilotu geciktirir. Seçilen sıra, sonraki sertifikasyon işini ortadan kaldırmaz.
+A news-focused first product appeals to a narrower customer; a general Site Edition better measures agency repetition. Generating everything from schema forcefully generalizes workflows. Trying to finish all topologies from day one delays the pilot. The selected order does not eliminate subsequent certification work.
 
-## Etki ve doğrulama
+## Impact and validation
 
-- SQLite/PostgreSQL contract testleri ilk Pages diliminden başlar; PostgreSQL sona bırakılmaz. Yeni DB'ler ADR-0006 sertifikasyonuna tabidir.
-- Compact ek cache/queue servisi istemez; kaynaklar bounded olur. Distributed pool, worker ve backpressure doğrulaması kendi teslim kapısıdır.
-- Pages public cache'i locale, publication ve edition sınırlarına uyar. Form/admin/preview shared cache'e girmez.
-- Modül ekleme ve schema değişikliği release manifest'ine/migration planına girer; online olup olmadığı iki dialect için ayrı kanıtlanır.
-- Aynı kapsamlı örnek işi mevcut geliştirme yöntemi ve HydroGo ile ölç: kurulum, tema, collection, özel kural, test, build/deploy ve hata düzeltme dahil. İlk tasarım emeği ile tekrarlanan kurulum süresini ayrı raporla. Tek başarılı örnekten 1–2 saat garantisi çıkarma.
+- SQLite/PostgreSQL contract tests start from the first Pages slice; PostgreSQL is not left to the end. New DBs are subject to ADR-0006 certification.
+- Compact does not ask for an additional cache/queue service; resources are bounded. Distributed pool, worker, and backpressure validation is its own delivery gate.
+- Pages public cache obeys locale, publication, and edition boundaries. Form/admin/preview do not enter the shared cache.
+- Adding a module and schema changes enter the release manifest/migration plan; whether it is online or not is proven separately for the two dialects.
+- Measure a sample job of the same scope with the current development method and with HydroGo: including setup, theme, collection, custom rule, test, build/deploy, and bug fixing. Report the initial design effort and the repeated setup time separately. Do not extract a 1–2 hour guarantee from a single successful example.

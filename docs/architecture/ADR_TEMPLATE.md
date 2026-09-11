@@ -1,56 +1,56 @@
-# ADR-NNNN: Karar başlığı
+# ADR-NNNN: Decision title
 
-- **Durum:** Önerildi
-- **Tarih:** YYYY-MM-DD
-- **Değiştirdiği ADR:** Yok
-- **Yerine geçen ADR:** Yok
+- **Status:** Proposed
+- **Date:** YYYY-MM-DD
+- **Supersedes:** None
+- **Superseded by:** None
 
-## Bağlam
+## Context
 
-Hangi somut problem, sınır ve gereksinim bu kararı gerekli kılıyor?
+Which concrete problem, boundary, and requirement necessitate this decision?
 
-## Karar
+## Decision
 
-Seçilen yaklaşım nedir? Zorunlu kuralları açık ve test edilebilir şekilde yaz.
+What is the chosen approach? Write mandatory rules clearly and in a testable way.
 
-## Alternatifler
+## Alternatives
 
-Değerlendirilen gerçek alternatifler ve neden seçilmedikleri.
+Real alternatives evaluated and why they were not selected.
 
-## Sonuçlar
+## Consequences
 
-### Kazanımlar
-
-- ...
-
-### Maliyetler ve riskler
+### Benefits
 
 - ...
 
-## Ölçek etkisi
+### Costs and risks
+
+- ...
+
+## Scale impact
 
 - Compact:
 - Standard:
 - Distributed:
 
-## Veritabanı etkisi
+## Database impact
 
 - SQLite:
 - PostgreSQL:
-- Gelecekteki adaptörler:
+- Future adapters:
 
-## Cache etkisi
+## Cache impact
 
-Key, TTL, invalidation, stampede, fallback ve ölçüm davranışı.
+Key, TTL, invalidation, stampede, fallback, and measurement behavior.
 
-## Deployment ve uyumluluk
+## Deployment and compatibility
 
-Blue/green, migration sınıfı, eski/yeni binary birlikteliği ve rollback etkisi.
+Blue/green, migration class, old/new binary coexistence, and rollback impact.
 
-## Doğrulama
+## Validation
 
-Kararın doğru uygulandığını kanıtlayan test, benchmark, metric veya kabul ölçütleri.
+Test, benchmark, metric, or acceptance criteria proving the decision is implemented correctly.
 
-## Kaynaklar
+## References
 
 - ...

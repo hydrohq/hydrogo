@@ -1,53 +1,53 @@
-# ADR-0014: Yayın route'ları ve silme geçmişiyle güvenli kurtarma
+# ADR-0014: Publication routes and safe recovery with erasure history
 
-- **Durum:** Kabul edildi
-- **Tarih:** 2026-09-05
-- **Kısmen değiştirdiği ADR:** [ADR-0012](0012-content-media-and-portability.md) slug/301 etkinleşme zamanı; [ADR-0013](0013-identity-and-security-boundaries.md) restore sırasında silme kayıtlarının kaynağı.
-- **İlişkili ADR:** [ADR-0011](0011-consistency-upgrade-and-recovery.md)
-- **Uygulama durumu:** Kısmen uygulandı — route/canonicalization, idempotent erasure replay ve SQLite/PostgreSQL SQL adapter contract kanıtları mevcut. Gerçek backup-sonrası silme, dış storage provider, retention/key recovery ve temiz ortam restore kanıtları R3/S07 kapısı olarak açıktır.
+- **Status:** Accepted
+- **Date:** 2026-09-05
+- **Partially supersedes ADR:** [ADR-0012](0012-content-media-and-portability.md) for slug/301 activation time; [ADR-0013](0013-identity-and-security-boundaries.md) for the source of deletion records during restore.
+- **Related ADR:** [ADR-0011](0011-consistency-upgrade-and-recovery.md)
+- **Implementation status:** Partially implemented — route/canonicalization, idempotent erasure replay, and SQLite/PostgreSQL SQL adapter contract evidence exist. Actual post-backup deletion, external storage provider, retention/key recovery, and clean environment restore evidence are open as an R3/S07 gate.
 
-## Bağlam
+## Context
 
-Taslak gövdesi canlı revision'dan ayrılmıştı; slug ve SEO değişikliklerinin ne zaman görünür olduğu açık değildi. Eski yedeğe dönüşten sonra silme kayıtlarını uzlaştırmak isteniyordu; aynı DB yedeği, yedekten sonra gerçekleşen silme işlemlerini içermez.
+The draft body was separated from the live revision; it was unclear when slug and SEO changes become visible. It was desired to reconcile deletion records after reverting to an old backup; the DB backup itself does not contain deletions that occurred after the backup.
 
-## Yayın kararı
+## Publication decision
 
-- Taslak slug, canonical/SEO alanları ve gövde revision'a aittir. Taslak kaydetmek canlı route, redirect, sitemap veya public API projection'ını değiştirmez.
-- Publish transaction'ı revision işaretçisini, aktif route'u, gerekiyorsa önceki aktif route'tan 301 kaydını, audit/outbox ve publication generation'larını birlikte günceller. İlk yayında önceki aktif route yoksa redirect oluşmaz.
-- Slug normalizasyonu, reserved path, benzersizlik ve redirect döngüsü publish sırasında tekrar kontrol edilir. Taslakta uygun görünen path sonradan alınmışsa publish conflict verir; önceki canlı yayın korunur.
-- İlk dilimde taslak path rezervasyonu yoktur. İki taslak aynı path'i isteyebilir; ilk başarılı publish kazanır. Hata kullanıcıya görünürdür.
-- Önizleme revizyona bağlı özel URL kullanır; public route'u veya shared cache'i değiştirmez. Zamanlanmış yayın aynı publish politikasını sabit revision ve schedule generation ile çalıştırır.
-- Public cache yayılımı ADR-0011'in stale bütçesine tabidir. Redirect ve sitemap invalidation'ı da aynı publication olayına dahildir.
+- Draft slug, canonical/SEO fields, and the body belong to the revision. Saving a draft does not alter the live route, redirect, sitemap, or public API projection.
+- The publish transaction updates the revision pointer, active route, 301 record from the previous active route if needed, audit/outbox, and publication generations all together. If there is no previous active route in the initial publication, no redirect is created.
+- Slug normalization, reserved path, uniqueness, and redirect loop are re-checked during publish. If a path that seemed available in the draft was subsequently taken, publish yields a conflict; the previous live state is preserved.
+- There is no draft path reservation in the first slice. Two drafts can request the same path; the first successful publish wins. The error is visible to the user.
+- Preview uses a revision-bound custom URL; it does not change the public route or shared cache. Scheduled publication runs the same publish policy with a static revision and schedule generation.
+- Public cache propagation is subject to the stale budget of ADR-0011. Redirect and sitemap invalidation are also included in the same publication event.
 
-## Silme geçmişi ve restore kararı
+## Erasure history and restore decision
 
-Bu protokol sıradan unpublish/soft-delete değil, restore sonrasında da uygulanması gereken kalıcı silme veya anonimleştirme talebi içindir.
+This protocol is not for ordinary unpublish/soft-delete, but for permanent deletion or anonymization requests that must be enforced even after a restore.
 
-- Silme niyeti, üretim DB'sinin restore işleminden bağımsız, sunucu dışında korunan dayanıklı bir günlüğe önce kaydedilir ve kalıcılık onayı alınır. Yalnız aynı DB'deki audit/outbox yeterli değildir.
-- Kayıt edition kimliği, benzersiz işlem kimliği, sıralı checkpoint, zaman, işlem türü ve yeniden uygulamaya yeterli sabit hedef kimliklerini taşır. Silinen içerik, form gövdesi veya secret taşımaz; kimlikler de erişimi sınırlı ve şifreli tutulur.
-- Sonra DB'de silme/anonimleştirme ve audit transaction'ı uygulanır. Dış günlük ile DB arasında atomik transaction varsayılmaz. Niyet kaydedilip DB işlemi başarısız olursa işlem pending kalır ve idempotent tekrar yürütülür; kullanıcıya tamamlandı denmez. Günlük ulaşılamıyorsa kalıcı silme tamamlanmaz.
-- Günlükteki niyet geri alınabilir sıradan bir düzenleme değildir. Yetki ve hedef kontrolü niyet yazılmadan yapılır. Aynı işlem kimliğiyle tekrar içerik, revision, ilişki, medya ve arama temizliğini güvenle sürdürebilmelidir.
-- Backup manifest'i günlük kimliğini ve gördüğü checkpoint'i içerir. Restore, yedekten bağımsız güncel günlüğü edinir ve uygulanabilir silme niyetlerini staging hedefe idempotent uygular. Yedek sonrası kayıtlar özellikle kapsanır.
-- Günlüğün bütünlüğü, sıra sürekliliği ve güncel checkpoint'i doğrulanmadan public trafik, export, worker veya dış egress açılmaz. Eksik günlükle kurtarma izolasyonda kalır; operatör eksik kaynağı kurtarmalıdır. Eski backup'ın checkpoint'i tek başına güncellik kanıtı değildir.
-- Günlük retention'ı geri yüklenmesine izin verilen en eski backup ve onun bütün dış kopyalarıyla koordine edilir. Gerekli silme kaydı düşürülmeden önce ilgili eski backup'lar desteklenen restore kümesinden çıkarılır. Günlük ve anahtar kurtarma tatbikatı pilot kapısıdır.
-- Compact için ayrı sürekli servis zorunlu değildir: mevcut güvenli dış yedek hedefi üzerinde sürümlü günlük adapter'ı kullanılabilir. Kesin sağlayıcı, eşzamanlı append/checkpoint ve dayanıklılık protokolü R3 deneyinde seçilir. Bu kanıt olmadan kalıcı silme/restore garantisi sunulmaz.
+- The deletion intent is first recorded in a durable log maintained off-server, independent of the production DB's restore process, and an acknowledgment of persistence is received. The audit/outbox in the same DB alone is not sufficient.
+- The record carries the edition ID, unique transaction ID, sequential checkpoint, timestamp, operation type, and static target IDs sufficient for re-application. It does not carry deleted content, form body, or secrets; the IDs are also kept restricted and encrypted.
+- Then, the deletion/anonymization and audit transaction are applied in the DB. An atomic transaction between the external log and DB is not assumed. If the intent is recorded but the DB operation fails, the operation remains pending and is replayed idempotently; it is not reported as completed to the user. If the log is unreachable, permanent deletion is not completed.
+- The intent in the log is not an ordinary reversible edit. Authorization and target checks are performed before the intent is written. It must be able to safely continue content, revision, relation, media, and search cleanup using the same transaction ID.
+- The backup manifest contains the log identity and the checkpoint it observed. Restore fetches the current log independent of the backup and applies applicable deletion intents idempotently to the staging target. Post-backup records are specifically covered.
+- Public traffic, export, worker, or external egress are not opened until the log's integrity, sequence continuity, and current checkpoint are validated. Recovery with a missing log stays in isolation; the operator must recover the missing source. The old backup's checkpoint alone is not proof of currency.
+- Log retention is coordinated with the oldest backup allowed to be restored and all its external copies. Before a required deletion record is dropped, the relevant old backups are removed from the supported restore set. The log and key recovery drill is a pilot gate.
+- A separate continuously running service is not mandatory for Compact: a versioned log adapter over the existing secure external backup target can be used. The definitive provider, concurrent append/checkpoint, and durability protocol will be chosen in the R3 experiment. No permanent deletion/restore guarantee is provided without this evidence.
 
-## Alternatifler
+## Alternatives
 
-Slug değişikliğini taslak kaydında etkinleştirmek taslak/canlı ayrımını bozar. Her taslağa path rezervasyonu ilk dilimde gereksiz yaşam döngüsü ekler. Silme geçmişini yalnız DB yedeğinde tutmak yedek sonrası talepleri kaybeder. Genel DB+harici günlük atomikliği varsaymak yerine önce dayanıklı niyet ve idempotent tamamlama seçilir.
+Activating the slug change upon draft save breaks the draft/live separation. Path reservation for every draft adds unnecessary lifecycle in the first slice. Keeping the deletion history only in the DB backup loses post-backup requests. Instead of assuming general DB+external log atomicity, durable intent and idempotent completion are chosen first.
 
-## Etkiler ve uyumluluk
+## Impacts and compatibility
 
-- SQLite/PostgreSQL: route uniqueness, publish conflict ve içerik/route/audit/outbox atomikliği aynı contract kitini geçer. SQL ve locking adapter içinde kalır; yeni DB de aynı semantiği sağlamalıdır.
-- Migration: route/revision ilişkileri ve silme işlem kimliği için gerekli metadata uygulama sırasında dialect başına hazırlanır. Henüz SQL migration yayımlanmadı. Eski okuyucu/yazıcı bu semantiği koruyamıyorsa online release ilan edilmez.
-- Compact: route cache sınırlı kalır; dış günlük çağrıları deadline/concurrency bütçesi taşır. Sınırsız retry veya bellek kuyruğu yoktur.
-- Standard/Distributed: eşzamanlı niyet kayıtları kaybolmamalı; global sıra/checkpoint ve tekrar davranışı provider testinden geçmelidir. Bütün web/worker cache'leri publication generation'ını izler.
-- Blue/green: iki slot aynı publish ve silme protokolünü destekler. Restore eski deployment yazmalarını kapatır; session iptali, retained asset ve job karantinası ADR-0011'e tabidir.
+- SQLite/PostgreSQL: route uniqueness, publish conflict, and content/route/audit/outbox atomicity pass the same contract kit. SQL and locking remain within the adapter; a new DB must provide the same semantics.
+- Migration: the required metadata for route/revision relations and deletion transaction ID is prepared per dialect during implementation. No SQL migration is published yet. If the old reader/writer cannot preserve this semantics, an online release is not declared.
+- Compact: route cache remains bounded; external log calls carry a deadline/concurrency budget. There is no unbounded retry or memory queue.
+- Standard/Distributed: concurrent intent records must not be lost; global sequence/checkpoint and replay behavior must pass the provider test. All web/worker caches observe the publication generation.
+- Blue/green: the two slots support the same publish and deletion protocol. Restore shuts down the old deployment writes; session revocation, retained assets, and job quarantine are subject to ADR-0011.
 
-## Zorunlu kanıtlar
+## Mandatory evidence
 
-1. Yayındaki sayfanın taslak slug/SEO değişikliği public URL, canonical ve sitemap'i etkilemez; publish hepsini doğru revision'a taşır.
-2. İki içerik aynı path'e publish olurken tek işlem başarılıdır; kaybeden eski canlı durumunu korur. Redirect döngüsü ve publish ortasında hata iki DB'de rollback olur.
-3. Pazartesi backup → salı kalıcı silme → çarşamba pazartesiye restore: veri public, export, revision, medya ve aramadan geri görünmez.
-4. Niyet onayı sonrası DB crash, günlük kesintisi, eksik/eski checkpoint ve yinelenen silme işlemleri güvenli sonuç verir.
-5. Günlük retention/anahtar kaybı durumunda restore trafik açmaz; dış günlük ve backup birlikte temiz ortamda kurtarılır.
+1. A draft slug/SEO change on a live page does not affect the public URL, canonical, and sitemap; publish moves them all to the correct revision.
+2. When two contents publish to the same path, only one transaction succeeds; the loser preserves its old live state. A redirect loop and a failure mid-publish result in a rollback in both DBs.
+3. Monday backup → Tuesday permanent deletion → Wednesday restore to Monday: data does not reappear from public, export, revision, media, and search.
+4. DB crash after intent acknowledgment, log outage, missing/old checkpoint, and duplicate deletion operations yield safe results.
+5. In case of log retention/key loss, restore does not open traffic; the external log and backup are recovered together in a clean environment.

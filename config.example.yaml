@@ -1,5 +1,5 @@
 profile: compact
-modules: [core, auth, pages, media, site, news, commerce]
+modules: [core, auth, members, pages, media, site, news, commerce]
 http:
   address: "127.0.0.1:8080"
   # Set this to the canonical HTTPS origin in deployed environments.
@@ -10,6 +10,10 @@ database:
   dsn: ""
 media:
   dir: "data/media"
+# Optional Redis/Valkey endpoint. Leave empty for Compact/local mode.
+redis:
+  url: ""
+  key_prefix: "hydro:"
 theme_dir: "themes"
 theme: "corporate"
 # Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,

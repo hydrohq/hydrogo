@@ -1,29 +1,29 @@
-# ADR-0016: Yapılandırılmış sayfa blokları ve tema slotları
+# ADR-0016: Structured page blocks and theme slots
 
-- **Durum:** Kabul edildi
-- **Tarih:** 2026-09-10
-- **İlişkili kararlar:** [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0012](0012-content-media-and-portability.md), [ADR-0015](0015-versioned-http-api.md)
-- **Uygulama durumu:** Blok sözleşmesi, SQLite/PostgreSQL migration'ları, store round-trip doğrulaması, admin görsel editörü ve güvenli renderer uygulandı.
+- **Status:** Accepted
+- **Date:** 2026-09-10
+- **Related decisions:** [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0012](0012-content-media-and-portability.md), [ADR-0015](0015-versioned-http-api.md)
+- **Implementation status:** Block contract, SQLite/PostgreSQL migrations, store round-trip validation, admin visual editor, and safe renderer have been implemented.
 
-## Karar
+## Decision
 
-Pages, rich text gövdesine ek olarak sıralı ve sürümlü `Block` listesi taşıyabilir. Blok payload'ları JSON olarak saklanır; ancak çalışma zamanı yalnızca ilan edilmiş blok tiplerini kabul eder. Sözleşme `hero`, `faq`, `cta`, `pricing_table` ve `testimonials` tiplerini kapsar.
+Pages can carry an ordered and versioned list of `Block`s in addition to the rich text body. Block payloads are stored as JSON; however, the runtime only accepts declared block types. The contract covers `hero`, `faq`, `cta`, `pricing_table`, and `testimonials` types.
 
-- En fazla 64 blok ve blok başına 64 KiB payload kabul edilir.
-- Payload JSON object olmalıdır ve tip bazlı zorunlu alanlardan geçmelidir.
-- URL alanlarında `javascript:` ve `data:` şemaları reddedilir.
-- Draft, immutable revision ve published projection aynı blok listesini transaction içinde taşır.
-- Yeni blok tipi migration gerektirmez; fakat sürümlü sözleşme, renderer ve export/import testi gerektirir.
-- Bilinmeyen blok tipi fail-closed reddedilir; boş içerikle sessizce kaybolmaz.
+- A maximum of 64 blocks and 64 KiB payload per block are accepted.
+- The payload must be a JSON object and must pass type-based mandatory fields.
+- `javascript:` and `data:` schemes are rejected in URL fields.
+- Draft, immutable revision, and published projection carry the same block list within the transaction.
+- A new block type does not require a DB migration; but it requires a versioned contract, renderer, and export/import testing.
+- An unknown block type is rejected fail-closed; it is not silently dropped with empty content.
 
-Tema sistemi mevcut `Theme` sözleşmesini kırmaz. Blok destekleyen temalar opsiyonel `BlockTheme` sözleşmesini uygular. Tema seçimi build/edition composition ile yapılır; runtime'da keyfi Go kodu veya güvenilmeyen tema yüklenmez.
+The theme system does not break the existing `Theme` contract. Themes supporting blocks implement the optional `BlockTheme` contract. Theme selection is done via build/edition composition; arbitrary Go code or untrusted themes are not loaded at runtime.
 
-## Veri ve uyumluluk
+## Data and compatibility
 
-`pages.blocks`, `pages.published_blocks` ve `page_revisions.blocks` alanları SQLite'ta bounded TEXT, PostgreSQL'te JSONB olarak saklanır. Domain ve service katmanı SQL dialect bilmez. Eski kayıtlar boş blok listesiyle okunur. Format değişikliği yeni content format/version ve expand-migrate-contract geçişi gerektirir.
+The `pages.blocks`, `pages.published_blocks`, and `page_revisions.blocks` fields are stored as bounded TEXT in SQLite and JSONB in PostgreSQL. The domain and service layers do not know SQL dialects. Legacy records are read with an empty block list. A format change requires a new content format/version and an expand-migrate-contract transition.
 
-Public ve headless çıktılar aynı published projection ve yetki politikasını kullanır. Blok renderer'ı doğrudan DB kaydı değil, güvenli doğrulanmış model alır. Media ID'leri yalnız media service üzerinden çözülür; payload içine kalıcı sağlayıcı URL'si yazılmaz.
+Public and headless outputs use the same published projection and authorization policy. The block renderer receives a safely validated model, not the raw DB record. Media IDs are resolved only via the media service; permanent provider URLs are not written into the payload.
 
-## Sonraki kapılar
+## Next gates
 
-Admin block editor, her blok için alan bazlı yetki ve sanitizer davranışı; HTML renderer; JSON/OpenAPI örnekleri; iki dialect migration contract'ı; export/import; tema asset inventory ve blue/green retained asset testiyle tamamlanır.
+Completed by admin block editor, field-based authorization and sanitizer behavior for each block; HTML renderer; JSON/OpenAPI examples; two dialect migration contracts; export/import; theme asset inventory and blue/green retained asset testing.

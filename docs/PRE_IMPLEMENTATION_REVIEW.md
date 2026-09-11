@@ -1,71 +1,111 @@
-# HydroGo — Uygulama öncesi mimari inceleme ve kanıt planı
+# HydroGo — Pre-Implementation Architectural Review and Evidence Plan
 
-**Tarih:** 2026-09-05  
-**Kapsam:** Manifesto, ana plan, ADR-0001–0014 ve karar havuzu.  
-**Gerçek durum (2026-09-09):** Depo çalışan Go projesi, CLI, SQLite/PostgreSQL adapter'ları, Pages/News modülleri, SDK sözleşmeleri ve contract testleri içerir. Açık riskler ve gerçek ortam kanıtları [roadmap](ROADMAP.md) ile [üretim kapısı kontrol listesinde](validation/PRODUCTION-GATES.md) izlenir.
+**Date:** 2026-09-05  
+**Scope:** Manifesto, master plan, ADR-0001–0014, and decision backlog.  
+**Current State (2026-09-09):** The repository contains a working Go codebase, CLI, SQLite/PostgreSQL adapters, Pages/News modules, SDK contracts, and contract tests. Open risks and empirical environment evidence are tracked in the [roadmap](ROADMAP.md) and [production gates checklist](validation/PRODUCTION-GATES.md).
 
-## Sonuç
+## Summary
 
-HydroGo için temel yön yeterince belirgindir: müşteri başına ayrı deployment, modüler Go uygulaması, Core fork etmeden Client Edition, ilk sertifikalı DB hedefleri SQLite/PostgreSQL ve ihtiyaçla açılan altyapı katmanları. Ana risk bundan sonra yeni özellik fikri eksikliği değil, planın henüz çalıştırılmamış olmasıdır.
+The core trajectory for HydroGo is explicit: dedicated deployments per customer, a modular Go architecture, Client Editions without HydroCore forks, initial certified databases targeting SQLite and PostgreSQL, and infrastructure layers activated strictly upon demand. The primary risk is no longer a lack of architectural ideas, but rather the empirical execution of the plan.
 
-Bu inceleme mimari temel kararlarını ve tespit edilen çelişkilerin karşılıklarını kaydeder. Takip incelemesindeki route/yayın ve restore silme geçmişi açıkları ADR-0014 ile karara bağlanmıştır; uygulama kanıtı bekler. **Uygulama tamamlanmış değildir; Aşama 0'ın dokümantasyon çıktısı hazırlanmıştır.** Sonraki kapı sınırlı teknik deneyler ve ilk çalışan dilimdir. Her sorunun sonsuza kadar kapanmasını beklemek yerine hangi belirsizliğin hangi teslimi engellediği aşağıda belirtilmiştir.
+This review records foundational architectural decisions and reconciles identified contradictions. Route/publishing atomicity and restore erasure log gaps noted in follow-up reviews were resolved via ADR-0014; empirical proof remains open. **Documentation represents Phase 0 deliverables.** Subsequent gates consist of bounded technical experiments and the initial vertical slice. Below, we detail which uncertainty gates which delivery rather than expecting every theoretical question to be closed indefinitely.
 
-## Tespit edilen sorunlar ve karşılıkları
+## Identified Inconsistencies and Current Decisions
 
-| ID | Eski planın sorunu | Etki | Güncel karar |
+| ID | Issue in Previous Plan | Impact | Current Decision |
 |---|---|---|---|
-| F01 | Haber ilk ürün, Site Edition başka yerde öneri | Kapsam ve geliştirme sırası ayrışıyordu | Pages ilk dilim, News ikinci modül; ADR-0009 |
-| F02 | Ayrı deployment backlog'da hâlâ açık | Kabul edilmiş karar yeniden tartışılıyordu | ADR-0001 geçerli; backlog düzeltildi |
-| F03 | Geniş Module interface kararlı SDK gibi görünüyordu | İki örnekten önce API kilitleniyordu | Sınırlar kabul; Go API v0; iki modül/iki Edition sonrası v1; ADR-0010 |
-| F04 | Kök core/ ve aynı ağaçtaki client/ izolasyonu belirsiz | Müşteri iç uygulamaya bağlanabilirdi | Dış Go module, internal + CI allowlist; ADR-0010 |
-| F05 | Pasif modülün binary'ye dahil olma durumu açıklanmamıştı | Sıfır yük vaadi ölçülemiyordu | Seçili import/embed ile Edition build; lifecycle/parked jobs; ADR-0010 |
-| F06 | Yeni bütün schema sürümlerini reddetme | Expand sonrası eski slot restart edemezdi | Core/modül schema ve format uyumluluk matrisi; ADR-0011 |
-| F07 | Worker kendi L1'ini temizliyordu | Diğer web'ler eski içerik sunabilirdi | Her instance'a invalidation + generation uzlaştırması; ADR-0011 |
-| F08 | Warm-up sırasında yayın değişmesi ele alınmamıştı | Green eski veriyi trafik geçince sunabilirdi | Cache bypass/revalidation/flush ve stale bütçesi; ADR-0011 |
-| F09 | Cache kaybı kesinti yaratmaz gibi mutlak ifade | DB fallback origin'i aşırı yükleyebilirdi | Bounded fallback ve kontrollü 429/503; ADR-0011 |
-| F10 | Idempotency alanı çift e-postayı kesin engeller deniyordu | Harici servis belirsizliği gizleniyordu | En az bir kez teslim, provider idempotency, uzlaştırma; ADR-0011 |
-| F11 | Repository/audit/outbox aynı transaction'a nasıl bağlanacak belirsizdi | Sözde atomiklik, pratikte ayrı connection riski | Ortak transaction scope; ADR-0011 |
-| F12 | PostgreSQL restore dizin rename'e indirgenmişti | Kurtarma prosedürü uygulanamazdı | Ayrı DB restore + kontrollü bağlantı geçişi; ADR-0011 |
-| F13 | Büyük medya kopyası boyunca kısa backup kilidi varsayılmıştı | Büyüdükçe yazma kesintisi uzardı | Bütçeli Compact snapshot; büyük profilde snapshot+GC pin; ADR-0011 |
-| F14 | Tek binary eski embedded asset'leri sunmayabilirdi | Cache'li sayfalarda eksik CSS/JS | Retained asset inventory ve GC penceresi; ADR-0011 |
-| F15 | Restore eski session ve işleri canlandırabilirdi | Eski erişim/çift dış etki | Session iptali, job/egress karantinası; ADR-0011 |
-| F16 | Quill formatı ve locale/revision modeli erken örtük bağımlılıktı | Editör/depolama değişikliği zorlaşırdı | Versioned content zarfı, ayrı revision/locale; ADR-0012 |
-| F17 | Object write ve DB commit tek işlem gibi ele alınabilirdi | Kayıp/öksüz/private medya riski | Pending/ready + quarantine + GC/backup pin; ADR-0012 |
-| F18 | SQLite audit için DB rolü seviyesinde değişmezlik varsayılmıştı | Güvenlik sözü platformu aşıyordu | Append-only API, profile göre sınır, gerekirse dış hedef; ADR-0013 |
-| F19 | S3 medya hem planlı hem ertelenmiş/yasak görünüyordu | Distributed kapsamı tutarsızdı | Local pilot; S3 Distributed önkoşulu; SQLite remote dosya farklı konu |
-| F20 | Üretimde DB contract testi ifadesi vardı | Müşteri verisinde test mutasyonu riski | Contract CI/izole kopyada; prod güvenli smoke/readiness |
+| F01 | News as first product, Site Edition proposed elsewhere | Scope and delivery sequencing diverged | Pages is first slice, News is second module; ADR-0009 |
+| F02 | Dedicated deployment still marked open in backlog | Re-debating an already accepted decision | ADR-0001 is active; backlog corrected |
+| F03 | Broad Module interface masqueraded as a stable SDK | API frozen prematurely before multiple use cases | Boundaries accepted; Go API v0; v1 after two modules/two Editions; ADR-0010 |
+| F04 | Root core/ and co-located client/ isolation was ambiguous | Customers could couple to internal core packages | External Go module, internal + CI allowlist; ADR-0010 |
+| F05 | Inactive modules inclusion in binary was unspecified | Zero-overhead promise could not be measured | Selected import/embed via Edition build; lifecycle/parked jobs; ADR-0010 |
+| F06 | Rejecting all new schema versions outright | Old slot could not restart after expand migrations | Core/module schema and format compatibility matrix; ADR-0011 |
+| F07 | Worker evicted only its local L1 cache | Other web instances served stale content | Per-instance invalidation + generation reconciliation; ADR-0011 |
+| F08 | Unhandled publication updates during warmup | Green slot served old data after cutover | Cache bypass/revalidation/flush and stale budgets; ADR-0011 |
+| F09 | Claiming cache loss never creates outages | Database fallback could overwhelm origin | Bounded fallback and controlled 429/503 responses; ADR-0011 |
+| F10 | Claiming idempotency fields absolutely prevent duplicate emails | Obscured external service non-determinism | At-least-once delivery, provider idempotency, reconciliation; ADR-0011 |
+| F11 | Unclear how repository/audit/outbox bound to same transaction | Pseudo-atomicity risking multi-connection splits | Shared transaction scope; ADR-0011 |
+| F12 | PostgreSQL restore reduced to directory renaming | Recovery procedures were unworkable | Distinct DB restore + controlled connection switch; ADR-0011 |
+| F13 | Assumed brief backup lock during large media copies | Write pauses grew as media volume expanded | Budgeted Compact snapshots; snapshot+GC pin in large profiles; ADR-0011 |
+| F14 | Single binary could omit historical embedded assets | Cache-hit HTML missing corresponding CSS/JS | Retained asset inventory and GC window; ADR-0011 |
+| F15 | Restore could resurrect obsolete sessions and background jobs | Stale access and duplicate external side effects | Session revocation, job/egress quarantine; ADR-0011 |
+| F16 | Implicit early coupling to Quill and locale/revision formats | Impeded future editor and storage evolution | Versioned content envelope, distinct revision/locale; ADR-0012 |
+| F17 | Treating object storage write and DB commit as one transaction | Risk of orphan, lost, or leaked private media | Pending/ready + quarantine + GC/backup pinning; ADR-0012 |
+| F18 | Assuming database-role immutability for SQLite audit logs | Security promise exceeded underlying platform capabilities | Append-only API, profile-appropriate boundaries, external sinks if required; ADR-0013 |
+| F19 | S3 media simultaneously planned and deferred/forbidden | Distributed scope was self-contradictory | Local storage for pilot; S3 prerequisite for Distributed; SQLite remote DB distinct topic |
+| F20 | Database contract testing mentioned in production | Risk of test mutations against live customer data | Contracts run in CI/isolated copies; production runs safe smoke/readiness; ADR-0011 |
 
-Eski ADR-0008 korunup ADR-0010 ile değiştirildi. ADR-0003 ve 0005'in değişen hükümleri üstlerinde işaretlendi; kalan katman/topoloji kararları geçerlidir. Çelişkiler yeni kararlara bağlanmadan sessizce kapatılmadı.
+ADR-0008 was superseded by ADR-0010. Modified provisions in ADR-0003 and ADR-0005 are explicitly annotated; their remaining layer/topology decisions remain in force. Contradictions were not closed silently without linking to updated ADRs.
 
-## Karar, deney ve teslim ayrımı
+## Separation of Decisions, Experiments, and Deliveries
 
-| Kapı | Şimdi ne durumda? | Kapanması için gereken |
+| Gate | Current Status | Requirements for Closure |
 |---|---|---|
-| Mimari temel | Dokümante edildi | Uygulama ilerledikçe ADR/plan tutarlılığının korunması |
-| Walking skeleton'a geçiş | Deneyler planlandı, başlamadı | S01–S04'ün temel sonuçları, module path/toolchain seçimi; ilk kod bu kanıtı üretir |
-| İlk Pages dilimi | Başlamadı | İki DB contract, auth/policy, draft/public ayrımı, yerel medya |
-| Ticari pilot | Başlamadı | S05-C, S06–S07, ADR-0014 dış silme günlüğü deneyi, MFA, restore, ölçülü kapasite ve runbook |
-| Kararlı SDK/v1 | Başlamadı | İki modül + iki Edition, upgrade matrisi, generator/export ve destek politikası |
-| Distributed | Mimari hedef | Çoklu web/worker/L2/object store arıza, yük ve tutarlılık testleri |
+| Architectural Foundation | Documented | Sustaining ADR/plan consistency as implementation progresses |
+| Transition to Walking Skeleton | Experiments planned | Core results for S01–S04, module path/toolchain pinning; code provides this evidence |
+| Initial Pages Slice | Completed | Dual DB contracts, auth/policy, draft/public separation, local media |
+| Commercial Pilot | In progress | S05-C, S06–S07, ADR-0014 external erasure log experiment, MFA, restore, measured capacity, runbooks |
+| Stable SDK / v1 | Planned | Two modules + two Editions, upgrade matrix, generator/export, and support policy |
+| Distributed | Architectural Target | Multi-instance web/worker/L2/object store failure, load, and consistency drills |
 
-“Kodlamadan önce her şeyden emin olmak” için gereken çıktı bir garanti belgesi değildir: test edilebilir sınırlar ve başarısız deney karşısında değiştirilebilecek uygulama ayrıntılarıdır. Go interface imzaları, ORM/query aracı veya slot mekanizması kanıt üretilmeden kararlı API sayılmaz.
+The deliverable for "being confident before coding" is not a speculative guarantee: it consists of testable boundaries and implementation details that can be adapted if an experiment fails. Go interface signatures, ORMs, and view slot mechanisms are not considered stable APIs without empirical evidence.
 
-## Sınırlı teknik deneyler
+## Targeted Technical Experiments
 
-Her deney en küçük bağımsız fixture ile yapılır; üretim koduna otomatik taşınmaz. Sonuç raporu kod revizyonu, ortam/sürümler, kullanılan veri, beklenen/görülen davranış, başarısızlık ve seçilen alternatifi içerir. Aşağıdaki testler **çalıştırılmadı**.
+Each experiment is conducted with the smallest isolated fixture; it is not automatically promoted to production code. Evaluation reports include code revisions, environment/versions, dataset used, expected vs. observed behavior, failure modes, and the selected alternative. The following were the initial technical experiments:
 
-| ID | Deney / somut başarı ölçütü | Başarısızsa alternatif | Sahip rol / kapı |
+| ID | Experiment / Concrete Success Criterion | Alternative on Failure | Owner Role / Gate |
 |---|---|---|---|
-| S01 | Dış Client Edition Core internal import edemez; izinli extension ile derlenir; seçilmeyen modül route/embed/worker'a girmez | Paket ağacını ve build composition'ı daralt | SDK / skeleton |
-| S02 | Aynı service iki DB'de content+audit+outbox yazarken ortada hata üret; üçü de rollback olur. İki editor version yarışında tek başarı olur | Transaction scope ve repository sözleşmesini düzelt; sürücü seçimini yeniden değerlendir | DB / ilk dilim |
-| S03 | İki küçük Templ teması aynı view model'le build olur; Quill/HTMX giriş-kayıt-upload akışı CSP altında çalışır | Registry'yi küçült; uyumsuz client bileşenini değiştir; format reader'ı koru | UI / ilk dilim |
-| S04 | SQLite ve PostgreSQL driver/migration fixture'ı Windows geliştirme ve Linux amd64 release'de çalışır; seçilen backup/encoder araçları bulunur | Destek matrisini açık daralt veya driver/araç değiştir; karar kaydet | Build/DB / skeleton |
-| S05-C | Compact all ve blue/green'de yayın değiştir, invalidation düşür ve geç eski refill yarat; gizli veri sızmasın, toplam stale bütçesi ve DB yükü sınırlı kalsın. Slot geçişinde bypass/revalidation doğrulansın | Mutable cache'i bypass et veya yerel koordinasyonu düzelt | Cache / pilot |
-| S05-D | Çoklu web+worker ve L2'de fan-out, reconnect/generation uzlaştırması, kayıp invalidation ve bounded DB fallback kanıtlansın | Mutable cache'i bypass et; dağıtık koordinasyonu düzelt | Cache / L2 kullanan profil; Distributed önkoşulu |
-| S06 | Her DB'de online expand sonrası eski binary yeniden başlasın; yeni yazımdan sonra rollback okusun; önceki asset'ler çalışsın | Değişikliği maintenance sınıfına al veya sürümlere böl | Release / pilot |
-| S07 | DB+medya yedeğini boş hedefe restore et; hash/referanslar doğru, eski session'lar kapalı, dış işler karantinada | Backup/restore akışını düzelt; RPO/RTO iddiasını yayımlama | İşletim / pilot |
-| S08 | Pages ve News + iki Client Edition Core fork olmadan çalışsın; generator iki kez aynı çıktı versin ve custom hash'leri değişmesin | Genel interface'i küçült; generator kapsamını daralt | SDK / v1 |
-| S09 | SQLite export → PostgreSQL import ve tersinde mantıksal kimlik/revision/locale/ilişkiler aynı; özel secret/session dışarı çıkmasın | Format/spec'i düzelt; bilinmeyen modülü açıkça reddet | Veri / v1 |
+| S01 | External Client Edition cannot import Core internal packages; compiles via allowed extensions; unselected modules do not enter routes/embed/workers | Narrow package graph and build composition | SDK / skeleton |
+| S02 | Same service writes content+audit+outbox across both DBs with injected mid-transaction failure; all 3 rollback. Single winner on editor version race | Correct transaction scope and repository contracts; re-evaluate driver choice | DB / first slice |
+| S03 | Two small Templ themes compile against identical view models; Quill/HTMX login-save-upload flow operates under strict CSP | Shrink registry; replace incompatible client component; preserve format reader | UI / first slice |
+| S04 | SQLite and PostgreSQL driver/migration fixtures run on Windows dev and Linux amd64 release; backup/encoder tools discoverable | Narrow support matrix or swap driver/tools; record decision | Build/DB / skeleton |
+| S05-C | Compact profile Blue/Green publication switch, dropped invalidations, and late stale refills; no data leaks, bounded stale budget and DB load. Verify bypass/revalidation during switch | Bypass mutable cache or correct local coordination | Cache / pilot |
+| S05-D | Multi-web+worker with L2 fan-out, reconnect/generation reconciliation, lost invalidation, and bounded DB fallback | Bypass mutable cache; correct distributed coordination | Cache / L2 profile; Distributed prerequisite |
+| S06 | Old binary restarts after online expand migrations across each DB; reads after new writes on rollback; prior assets operational | Reclassify change as requiring maintenance window or partition into multi-release steps | Release / pilot |
+| S07 | Restore DB+media snapshot to clean target; hashes/references match, old sessions revoked, external jobs quarantined | Correct backup/restore flow; withhold RPO/RTO claims | Operations / pilot |
+| S08 | Pages and News + two Client Editions run without Core forks; generator yields deterministic zero-diff output and preserves custom hashes | Shrink general interface; narrow generator scope | SDK / v1 |
+| S09 | SQLite export → PostgreSQL import round-trip preserves logical identity/revision/locale/relations; secrets/sessions excluded | Correct format/spec; fail-closed on unknown modules | Data / v1 |
+
+Follow-up notes: SEO/redirects belong to the pilot scope; the initial Pages slice covers route/publish atomicity. ADR-0014 external erasure logging and detailed task sequencing are tracked in [Roadmap](ROADMAP.md) Phase R3.
+
+Specific DB/Go/OS/library versions were not arbitrarily invented here. S04 results pin the support matrix; S03 results pin UI dependencies. The Go module namespace is established before the initial `go.mod` using customer-controlled repositories; brand names do not impose technical import constraints.
+
+## Quantifiable Metrics Prior to Initial Pilot
+
+- RPO, RTO, acceptable write pauses, and rollback retention windows.
+- Total `max_stale` per content type, publication propagation alerts, and CDN/browser cache policies.
+- HTTP body/in-flight/deadline, DB pool, queue, worker, image transform, and password hashing concurrency limits.
+- Session idle/absolute timeouts, reset/invite/preview/MFA rate-limit and attempt policies.
+- Backup, log/audit, form inbox, revision, and media retention/GC thresholds.
+- Acceptable p95/p99 latency and error rates; benchmarks specifying warm/cold cache, write ratios, dataset volume, and hardware.
+
+These numbers are never asserted via speculative marketing claims. They are measured using pilot fixtures and incorporated into config defaults and support matrices. Go memory limits alone are not assumed to bound total process native/cgo/OS memory; RSS and peak memory are measured empirically.
+
+## Proving Development Velocity
+
+Reference scenario: Adding a services collection to an existing Site Edition, defining five fields and one relationship, writing custom validation, binding a list/detail view, and delivering to staging.
+
+Measure the same acceptance criteria using current legacy methods vs. HydroGo. Separately record scaffolding, training, repeat implementation, bug fixing, security/testing, and deployment durations. Repeat across different engineers and a second customer. The 1–2 hour velocity target applies specifically to this standardized workflow; it is not an arbitrary blanket guarantee for bespoke workflows or custom designs.
+
+CLI subcommands may evolve; the developer journey remains constant: Initialize Edition → Select off-the-shelf module → Define standard content → Add custom behavior → Preview locally → Validate → Build/Deploy → Upgrade/Restore as needed. Success is measured by total safe delivery duration, not the quantity of CLI commands.
+
+## Remaining Commercial Decisions
+
+The architecture supports these options; definitive commercial policies must be selected separately:
+
+- Recommendation: Managed service as primary tier, self-hosted as secondary option; license expiration does not disable public sites, but governs updates and support entitlements. Offline operational constraints and enforcement models are not yet accepted product commitments.
+- Source code delivery, redistribution rights, dependency licensing, and trademark boundaries must be clarified. "Control remains with us" does not mean intellectual property of third-party dependencies transfers to us.
+- The same-major SDK policy is accepted; the number of supported majors, LTS deprecation timelines, and critical security SLAs must be determined prior to commercial launch.
+- Trademark and domain availability for HydroGo/HydroCore were not evaluated in this review; distinct research is required prior to marketing materials.
+
+Pricing and legal licensing terms were not decided in this review; the checklist here serves as input to commercial decision-makers.
+
+## Scope of Verification in this Review
+
+Work performed: Document cross-referencing, recording contradictions, drafting new ADRs, linking superseded ADR states, aligning plans and backlogs, and verifying local Markdown links. No Go/DB/operational/security test outcomes are asserted here. Leaving test gates open represents accurate status accounting rather than obscuring issues.
+
+Primary sources for technical mechanisms are cited in the References section of respective ADRs: Go internal boundaries; SQLite concurrency; PostgreSQL DDL; transactional outbox; OWASP session/reset/SSRF guidelines. References do not constitute proof of HydroGo implementation.
 
 Takip düzeltmeleri: SEO/redirects pilot kapsamındadır; ilk Pages dilimi route/publish atomikliğini kapsar. ADR-0014 dış silme günlüğü deneyi ve ayrıntılı iş sırası [Roadmap](ROADMAP.md) R3'te izlenir.
 

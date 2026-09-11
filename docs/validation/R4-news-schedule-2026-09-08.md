@@ -1,25 +1,25 @@
-# R4 News schedule doğrulaması
+# R4 News schedule validation
 
-**Tarih:** 2026-09-08  
-**Durum:** İlk News domain/repository, JSON/public route ve bounded worker lease dilimi başarılı; tam admin UI ve kalıcı job backend kapısı açık.
+**Date:** 2026-09-08  
+**Status:** Initial News domain/repository, JSON/public route, and bounded worker lease slice succeeded; full admin UI and durable job backend gates remain open.
 
-`202609080012_news_items` migration'ı revision, optimistic version, yayınlanan revision, schedule generation ve zaman alanlarını ekler. `modules/news` service'i draft/update, immediate publish, retract ve generation-guarded scheduled publish akışlarını aynı transaction içinde audit/outbox writer'larına bağlanabilir şekilde sunar.
+Migration `202609080012_news_items` adds revision, optimistic version, published revision, schedule generation, and time fields. The `modules/news` service exposes draft/update, immediate publish, retract, and generation-guarded scheduled publish flows, bindable to audit/outbox writers within the same transaction.
 
-`internal/jobs.Queue` bounded/idempotent enqueue, lease expiry reclaim ve worker token doğrulamalı ack/nack davranışını sağlar. News worker stale generation işini ack'leyip yeniden yayınlamaz; geçici hatayı retry için nack'ler.
+`internal/jobs.Queue` provides bounded/idempotent enqueue, lease expiry reclaim, and worker token validated ack/nack behavior. The News worker does not ack and republish a stale generation job; it nacks for retry on transient errors.
 
-Contract testi SQLite'da şunları kanıtlar:
+The contract test proves the following on SQLite:
 
-- stale editor update reddedilir;
-- schedule generation yanlışsa yayın reddedilir;
-- zamanı gelen doğru generation yayınlanır;
-- published projection route üzerinden okunur;
-- retract sonrası public route bulunamaz.
+- a stale editor update is rejected;
+- publishing is rejected if the schedule generation is incorrect;
+- the correct generation is published when due;
+- it can be read via the published projection route;
+- the public route cannot be found post-retract.
 
 ```text
 go test ./tests/contract -run NewsContract -count=1
 go test ./...
 ```
 
-PostgreSQL contract testi `HYDRO_TEST_POSTGRES_URL` yoksa atlanır. JSON/public route'ları aynı service/repository projection'ını kullanır; worker lease davranışı in-process contract ile doğrulanır. Kalıcı job backend'i, tam admin UI ve ikinci Client Edition sonraki R4 kapılarıdır.
+The PostgreSQL contract test is skipped if `HYDRO_TEST_POSTGRES_URL` is absent. JSON/public routes use the same service/repository projection; worker lease behavior is verified with an in-process contract. The durable job backend, full admin UI, and second Client Edition are subsequent R4 gates.
 
-`examples/news-edition` ayrı Go module olarak yalnız `extension` yüzeyini import eder; `EditorialTheme` ile ikinci tema ve CI importguard/build kanıtı eklenmiştir. News modülünün internal SQL katmanı Client Edition'a açılmaz.
+`examples/news-edition` as a separate Go module only imports the `extension` surface; a second theme and CI importguard/build proof were added with `EditorialTheme`. The internal SQL layer of the News module is not exposed to the Client Edition.

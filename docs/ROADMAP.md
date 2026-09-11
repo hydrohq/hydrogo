@@ -1,109 +1,109 @@
-# HydroGo uygulama roadmap'i
+# HydroGo application roadmap
 
-**Tarih:** 2026-09-10 · **Durum:** R0, R1 S03 ve R2 tamamlandı; R3 güvenlik başlangıç kapısı tamamlandı, ticari pilot kapıları açık.
+**Date:** 2026-09-10 · **Status:** R0, R1 S03, and R2 completed; R3 security start gate completed, commercial pilot gates open.
 
-Bu dosya iş sırasını ve teslim kapılarını izler. Mimari hükümler ADR'lerde, ayrıntılı kapsam [ana planda](implementation_plan.md), deney tanımları [hazırlık incelemesindedir](PRE_IMPLEMENTATION_REVIEW.md). Takvim tahmini ilk teknik deneyler tamamlandıktan sonra yapılır. Bir kapı yalnız kod revizyonu ve doğrulama raporuyla kapanır.
+This file tracks the order of work and delivery gates. Architectural rulings are in ADRs, detailed scope is in the [master plan](implementation_plan.md), and experiment definitions are in the [pre-implementation review](PRE_IMPLEMENTATION_REVIEW.md). Schedule estimation will be made after the initial technical experiments are completed. A gate only closes with a code revision and a validation report.
 
-## 2026-09-10 güvenilirlik ve güvenlik hardening ilerlemesi
+## 2026-09-10 reliability and security hardening progress
 
-- Readiness için bounded failure counter ve anlık `hydro_readiness_state` gauge metriği eklendi; state-temelli alarm recovery contract'ı doğrulandı.
-- CI, local ve production gate akışları tüm Go paketlerinde bounded test timeout'ı, tekrar üretilebilir race çalıştırması ve immutable GitHub Action pinlerini uyguluyor.
-- `tools/actionguard`, Dependabot, CodeQL, dependency review ve özel güvenlik bildirim politikası eklendi.
-- Bu ilerlemeler otomatik teknik kapıları güçlendirir; gerçek proxy rollback'i, temiz ortam restore'u, dış key/backup recovery'si ve müşteri kapasite/RPO/RTO kanıtı aşağıdaki açık kapılar olarak kalır.
+- Added a bounded failure counter and a real-time `hydro_readiness_state` gauge metric for readiness; validated state-based alarm recovery contract.
+- CI, local, and production gate flows enforce bounded test timeouts, reproducible race runs, and immutable GitHub Action pins across all Go packages.
+- Added `tools/actionguard`, Dependabot, CodeQL, dependency review, and a private security reporting policy.
+- These advancements strengthen automated technical gates; true proxy rollback, clean environment restore, external key/backup recovery, and customer capacity/RPO/RTO evidence remain as open gates below.
 
-## R0 — Depo ve kararların hazırlanması
+## R0 — Preparation of repository and decisions
 
-- [x] Taslak route/publish ve silme geçmişiyle restore sınırını ADR-0014 ile tanımla.
-- [x] SEO/redirects'i pilot kapsamına yerleştir; ilk dilimde route kimliği ve publish atomikliği kalsın.
-- [x] Compact pilot testlerini L2/Distributed testlerinden ayır.
-- [x] Başlangıç klasörlerini, README ve katkı akışını oluştur.
+- [x] Define the initial route/publish and restore boundary with deletion history via ADR-0014.
+- [x] Place SEO/redirects in pilot scope; keep route identity and publish atomicity in the first slice.
+- [x] Separate Compact pilot tests from L2/Distributed tests.
+- [x] Create starter folders, README, and contributing flow.
 
-Çıktı: geliştirmeye hazır kaynak yerleşimi ve bu roadmap. Çalışan uygulama veya SDK içermez.
+Output: development-ready source layout and this roadmap. Contains no working application or SDK.
 
-## R1 — Teknik deneyler ve çalışan iskelet
+## R1 — Technical experiments and walking skeleton
 
-**Bağımlılık:** R0. **Sorumluluk:** Core/SDK, DB, UI, build.
+**Dependency:** R0. **Responsibility:** Core/SDK, DB, UI, build.
 
-- [x] GitHub namespace'i `github.com/ardaozyildirim/hydrogo` üzerinden ilk `go.mod` oluştur; Go/toolchain sürümünü seç ve sabitle.
-- [x] S01: dış Go module tüketici fixture'ı, izinli import sınırı ve seçilmeyen modülün build'e girmemesi.
-- [x] S02/S04: SQLite/PostgreSQL driver ve migration deneyi; tek transaction scope ile content/audit/outbox rollback.
-- [x] S03: Templ, Quill, HTMX ve gerekli ise Alpine CSP uyumu; iki küçük tema ve upload deneyi. (Yerel, sürümlenmiş asset'ler; nonce'lu CSP fixture'ı; sanitizer, medya ve harici edition build kanıtları tamam.)
-- [x] Windows geliştirme/Linux amd64 build; backup ve image encoder araçlarının bulunabilirliği.
-- [x] Tek `hydro` girişi, config doğrulama, health/readiness, graceful shutdown, default-deny router, bootstrap/session ve CSRF/audit temeli.
-- [x] Go araçları seçildikten sonra CI format/vet/test/build ve iki DB servis matrisini ekle. (CI yeşil; testler ve dialect matrisi çalışıyor.)
+- [x] Create the first `go.mod` via the `github.com/ardaozyildirim/hydrogo` GitHub namespace; choose and pin Go/toolchain version.
+- [x] S01: external Go module consumer fixture, allowed import boundary, and ensuring unselected modules do not enter the build.
+- [x] S02/S04: SQLite/PostgreSQL driver and migration experiment; content/audit/outbox rollback with a single transaction scope.
+- [x] S03: Templ, Quill, HTMX, and Alpine CSP compliance if necessary; two small themes and an upload experiment. (Local, versioned assets; CSP fixture with nonce; sanitizer, media, and external edition build evidence complete.)
+- [x] Windows development/Linux amd64 build; availability of backup and image encoder tools.
+- [x] Single `hydro` entry, config validation, health/readiness, graceful shutdown, default-deny router, bootstrap/session, and CSRF/audit foundation.
+- [x] After Go tools are selected, add CI format/vet/test/build and two DB service matrices. (CI green; tests and dialect matrix running.)
 
-**Çıkış:** Temiz ortamda build ve giriş; iki DB rollback; dış tüketici build; CSP deneyi. Bağımlılık sürümleri ve alternatifler `docs/validation/` altında kayıtlı. SDK v0 kalır.
+**Output:** Build and entry in a clean environment; rollback in two DBs; external consumer build; CSP experiment. Dependency versions and alternatives are logged under `docs/validation/`. SDK remains v0.
 
-## R2 — Pages ve ilk müşteri teması
+## R2 — Pages and first customer theme
 
-**Bağımlılık:** R1. **Sorumluluk:** Pages, auth, media, UI.
+**Dependency:** R1. **Responsibility:** Pages, auth, media, UI.
 
-İlk dikey dilim push edildi: Pages draft/revision/publish service’i, protected JSON route’ları, public published route, bounded process-local cache ve medya upload ile `pending → ready` metadata akışı hazır. Preview, admin UI ve tam çıkış kanıtları açık.
+First vertical slice pushed: Pages draft/revision/publish service, protected JSON routes, public published route, bounded process-local cache, and media upload with `pending → ready` metadata flow are ready. Preview, admin UI, and full output evidence are open.
 
-- [x] UUID/locale/revision, slug ve e-posta normalizasyonunu ilk kalıcı şemadan önce fixture ile sabitle. (Pages contract fixture’ı locale/slug/revision ve normalized route davranışını kapsıyor.)
-- [x] Pages oluştur/düzenle/taslak/preview/publish; admin ve JSON aynı service/policy üzerinden çalışsın. (Protected JSON ve CSRF’li admin form aynı ContentService’i kullanıyor.)
-- [x] Optimistic locking, kayıt/alan yetkisi ve iki editör conflict davranışı. (Stale editor conflict ve editor/admin mutation policy contract içinde doğrulanıyor.)
-- [x] ADR-0014: taslak URL canlıyı değiştirmesin; publish route/generation/audit/outbox atomik olsun. (Draft/published projection ve duplicate route conflict contract testleri geçiyor.)
-- [x] Local medya pending/ready, private/public, sanitizer ve immutable revision gövdesi. (Upload metadata service’i ve sanitized revision contract testi hazır.)
-- [x] İlk dış Client Edition ve tipli view slotları; Core fork veya internal import olmasın. (examples/client-edition ve import boundary CI kanıtı.)
-- [x] Yapılandırılmış Pages bloklarının ilk sözleşmesi ve SQLite/PostgreSQL saklama katmanı. (Sürümlü `hero`, `faq`, `cta` blokları, bounded payload doğrulaması, draft/revision/published projection aktarımı ve ADR-0016.) Admin block editor ve görsel renderer sonraki dilimdir.
-- [x] Bounded yerel cache, public HTTP politikası ve kalıcı outbox; ilk dilim için zorunlu L2 yok.
+- [x] Pin UUID/locale/revision, slug, and email normalization via a fixture before the first persistent schema. (Pages contract fixture covers locale/slug/revision and normalized route behavior.)
+- [x] Pages create/edit/draft/preview/publish; admin and JSON should run over the same service/policy. (Protected JSON and admin form with CSRF use the same ContentService.)
+- [x] Optimistic locking, record/field authorization, and conflict behavior of two editors. (Stale editor conflict and editor/admin mutation policy are validated within the contract.)
+- [x] ADR-0014: draft URL must not alter live; publish route/generation/audit/outbox should be atomic. (Draft/published projection and duplicate route conflict contract tests pass.)
+- [x] Local media pending/ready, private/public, sanitizer, and immutable revision body. (Upload metadata service and sanitized revision contract test are ready.)
+- [x] First external Client Edition and typed view slots; no Core fork or internal imports. (examples/client-edition and import boundary CI evidence.)
+- [x] First contract of structured Pages blocks and SQLite/PostgreSQL storage layer. (Versioned `hero`, `faq`, `cta` blocks, bounded payload validation, draft/revision/published projection transfer, and ADR-0016.) Admin block editor and visual renderer belong to the next slice.
+- [x] Bounded local cache, public HTTP policy, and persistent outbox; no mandatory L2 for the first slice.
 
-**Çıkış:** İki DB'de aynı uçtan uca akış; yetki ve taslak/özel medya sızıntısı testleri; eşzamanlı edit/publish conflict ve crash rollback kanıtı. Kanıt: [R2 doğrulama raporu](validation/R2-pages-media-2026-09-08.md). Tam SEO, sitemap ve geçmiş URL yönetimi R3'tedir.
+**Output:** The same end-to-end flow in two DBs; authorization and draft/private media leak tests; concurrent edit/publish conflict and crash rollback evidence. Evidence: [R2 validation report](validation/R2-pages-media-2026-09-08.md). Full SEO, sitemap, and historical URL management are in R3.
 
-## R3 — Compact ticari pilot
+## R3 — Compact commercial pilot
 
-**Bağımlılık:** R2. **Sorumluluk:** Site Edition, güvenlik, release/işletim.
+**Dependency:** R2. **Responsibility:** Site Edition, security, release/ops.
 
-R3 başlangıç commit’i: disabled user/session revoke, admin kontrollü user disable route’u, encrypted TOTP/recovery code, MFA-zorunlu login, hashed single-use password reset, request/confirm HTTP akışı, admin davet/accept akışı ve ayrı bounded login/MFA limiter temeli hazır. Compact SQLite snapshot/manifest ve DB dışı hash-zincirli silme niyeti günlüğü deneyleri başarılıdır. Kanıt: [R3 MFA/session doğrulama raporu](validation/R3-mfa-session-2026-09-08.md), [SQLite backup manifest deneyi](validation/R3-backup-manifest-2026-09-08.md) ve [dış silme günlüğü deneyi](validation/R3-erasure-log-2026-09-08.md). Üretim notifier adapter'ı, temiz ortam restore, PostgreSQL, silme replay ve Compact kapasite kanıtları açık.
+R3 initial commit: disabled user/session revoke, admin-controlled user disable route, encrypted TOTP/recovery code, MFA-enforced login, hashed single-use password reset, request/confirm HTTP flow, admin invite/accept flow, and separate bounded login/MFA limiter foundation are ready. Compact SQLite snapshot/manifest and non-DB hash-chained erasure log intent experiments are successful. Evidence: [R3 MFA/session validation report](validation/R3-mfa-session-2026-09-08.md), [SQLite backup manifest experiment](validation/R3-backup-manifest-2026-09-08.md), and [external erasure log experiment](validation/R3-erasure-log-2026-09-08.md). Production notifier adapter, clean environment restore, PostgreSQL, erasure replay, and Compact capacity evidence are open.
 
-- [x] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects ve sınırlı form inbox. (Store, SQLite contract, DB-level navigation position uniqueness, public SEO/sitemap, admin mutation, allowlist/rate-limited contact submit, inbox status, retention purge ve transaction içi audit hazır; kişisel veri erişim ve runbook politikası [PERSONAL_DATA_POLICY.md](PERSONAL_DATA_POLICY.md) ile tanımlı.)
-- [x] MFA, davet/reset/kurtarma, rol/session iptali ve güvenlik fixture'ları. (TOTP/recovery, single-use reset, transactional invite accept, disabled-user session revoke, login/MFA limiter contract'ları, fail-closed shared-store limiter contract'ı, STARTTLS/AUTH notifier adapter'ı, bounded retry sender contract'ı ve HTTP request ID'sini audit olayına taşıyan migration/contract testi tamam; gerçek SMTP teslimi, provider bounce/alerting ve çoklu-instance store implementasyonu R3 işletim kapısında.)
-- [ ] S05-C: Compact `all` ve blue/green geçişinde stale refill, kayıp invalidation, cache bypass/revalidation ve bounded DB yükü. (Local public cache generation guard, generation değişiminde in-flight bypass/revalidation, aynı anahtar için single-flight miss, 64 concurrent lookup → 1 repository call contract'ı ve benchmark'ı, profile budget sözleşmesi, eşzamanlı Blue/Green trafik ve cache invalidation simülasyon contract'ı ve stale refill reddi hazır; gerçek blue/green trafik ve profil kapasite ölçümü açık.) [Cache doğrulama raporu](validation/R3-cache-generation-2026-09-08.md) ve [kapasite profili doğrulaması](validation/R3-capacity-profiles-2026-09-09.md). L2 kesintisi bu kapının şartı değildir.
-- [ ] S06: desteklenecek tek sunucu topolojisinde online migration, eski binary restart, yeni yazımdan sonra rollback ve retained asset testi. (SQLite temiz kurulum/restart/no-op/checksum, bilinmeyen ileri migration'ı eski binary'nin fail-closed reddetmesi, eski binary rollback okuma-yazma, release manifest'inden checksum doğrulamalı immutable retained asset kopyası, `hydro upgrade check` preflight komutu, metadata'ya göre transactional/non-transactional migration runner, PostgreSQL `CREATE INDEX CONCURRENTLY` kısa-read ve uzun snapshot lock contract'ları, readiness/warmup/asset-retention/schema-safety kapılarını zorlayan blue-green state machine ve gated process-local HTTP slot switch/rollback contract'ı hazır; reverse-proxy handler entegrasyonu contract seviyesinde doğrulandı; gerçek proxy/process restart tatbikatı ve yeni yazımdan sonra rollback açık.) [Migration doğrulama raporu](validation/R3-migration-restart-2026-09-08.md)
-- [ ] S07: DB+medya restore, session iptali, job/egress karantinası ve eski deployment'ın yazamaması. (Compact SQLite staging restore + kontrol marker'ı, snapshot içinde `manifest.json`, `restore_controls`/write-fence migration'ları, SQLite ve izole PostgreSQL schema üzerinde session iptali, eski deployment write rejection ve job claim quarantine/release contract'ları, custom-format PostgreSQL dump/restore adapter'ı, manifest doğrulamalı PostgreSQL medya staging'i, kontrol marker'ı zorunlu atomik medya aktivasyonu, izole hedef database round-trip testi ve staging-first `hydro restore verify|stage|activate-media` CLI akışı hazır; satılan profil sertifikasyonu açık.) Yerel PostgreSQL 18.6 contract/restore kanıtı [R3 doğrulama raporunda](validation/R3-postgres-local-contract-2026-09-09.md) kaydedildi; temiz harici hedef ve satılan profil restore tatbikatı açık.
-- [ ] ADR-0014 için dış silme günlüğü adapter'ı/checkpoint prototipi; backup sonrası silme, crash, eksik günlük ve retention testleri. (Hash-zincirli JSONL, hash-anchor doğrulamalı checkpoint replay, idempotent append, hata sonrası retry replay, SQLite ve PostgreSQL Pages/media SQL adapter'ı, final pin check kullanan idempotent GC contract'ı ve manifest doğrulamalı pin-aware yerel snapshot retention temizleyicisi hazır; backup sonrası silme, gerçek storage provider ve dış sağlayıcı tatbikatı açık.)
-- [ ] Kaynak limitleri, `max_stale`, session süreleri, RPO/RTO, retention ve rollback penceresini ölç ve sabitle. (SQLite snapshot için medya/DB byte ve süre bütçesi API'si ile aşımda staging cleanup contract'ı hazır; gerçek müşteri RPO/RTO ölçümü ve retention penceresi açık.)
-- [ ] Runbook, alarmlar, dış yedek/key kurtarma; müşteri teslim/lisans/destek koşullarını satış öncesi karara bağla. (İlk operasyon runbook'u, profile/checksum/media/backup-tool/writability kontrolü yapan `hydro doctor`, SQLite/PostgreSQL staging-first backup/restore CLI'sı, dry-run/confirm snapshot retention, protected bounded HTTP/request-latency/DB-pool/cache/jobs/worker metrics ve backup/disk/migration/SMTP/dead-letter için deterministic `internal/ops` alarm evaluator contract'ı hazır; gerçek temiz ortam tatbikatı, alarm delivery ve dış key/yedek kanıtı açık.)
+- [x] Navigation, settings, SEO/canonical/Open Graph/sitemap, redirects, and limited form inbox. (Store, SQLite contract, DB-level navigation position uniqueness, public SEO/sitemap, admin mutation, allowlist/rate-limited contact submit, inbox status, retention purge, and in-transaction audit are ready; personal data access and runbook policy are defined in [PERSONAL_DATA_POLICY.md](PERSONAL_DATA_POLICY.md).)
+- [x] MFA, invite/reset/recover, role/session revocation, and security fixtures. (TOTP/recovery, single-use reset, transactional invite accept, disabled-user session revoke, login/MFA limiter contracts, fail-closed shared-store limiter contract, STARTTLS/AUTH notifier adapter, bounded retry sender contract, and migration/contract test carrying HTTP request ID to audit event are complete; real SMTP delivery, provider bounce/alerting, and multi-instance store implementation are at the R3 ops gate.)
+- [ ] S05-C: Stale refill, lost invalidation, cache bypass/revalidation, and bounded DB load in Compact `all` and blue/green transition. (Local public cache generation guard, in-flight bypass/revalidation on generation change, single-flight miss for the same key, 64 concurrent lookup → 1 repository call contract and benchmark, profile budget contract, concurrent Blue/Green traffic and cache invalidation simulation contract, and stale refill rejection are ready; real blue/green traffic and profile capacity measurement are open.) [Cache validation report](validation/R3-cache-generation-2026-09-08.md) and [capacity profile validation](validation/R3-capacity-profiles-2026-09-09.md). L2 outage is not a requirement for this gate.
+- [ ] S06: online migration on the single supported server topology, old binary restart, rollback after a new write, and retained asset testing. (SQLite clean install/restart/no-op/checksum, fail-closed rejection of unknown forward migration by old binary, old binary rollback read-write, immutable retained asset copy with checksum validation from release manifest, `hydro upgrade check` preflight command, transactional/non-transactional migration runner based on metadata, PostgreSQL `CREATE INDEX CONCURRENTLY` short-read and long snapshot lock contracts, blue-green state machine enforcing readiness/warmup/asset-retention/schema-safety gates, and gated process-local HTTP slot switch/rollback contract are ready; reverse-proxy handler integration is validated at the contract level; real proxy/process restart drill and rollback after a new write are open.) [Migration validation report](validation/R3-migration-restart-2026-09-08.md)
+- [ ] S07: DB+media restore, session revocation, job/egress quarantine, and old deployment write prevention. (Compact SQLite staging restore + control marker, `manifest.json` inside snapshot, `restore_controls`/write-fence migrations, session revocation on isolated PostgreSQL schema and SQLite, old deployment write rejection and job claim quarantine/release contracts, custom-format PostgreSQL dump/restore adapter, manifest-validated PostgreSQL media staging, atomic media activation requiring control marker, isolated target database round-trip test, and staging-first `hydro restore verify|stage|activate-media` CLI flow are ready; sold profile certification is open.) Local PostgreSQL 18.6 contract/restore evidence is recorded in the [R3 validation report](validation/R3-postgres-local-contract-2026-09-09.md); clean external target and sold profile restore drill are open.
+- [ ] External erasure log adapter/checkpoint prototype for ADR-0014; post-backup deletion, crash, missing log, and retention tests. (Hash-chained JSONL, checkpoint replay with hash-anchor validation, idempotent append, retry replay after failure, SQLite and PostgreSQL Pages/media SQL adapter, idempotent GC contract using final pin check, and manifest-validated pin-aware local snapshot retention pruner are ready; post-backup deletion, real storage provider, and external provider drill are open.)
+- [ ] Measure and fix resource limits, `max_stale`, session durations, RPO/RTO, retention, and rollback window. (Media/DB byte and duration budget API for SQLite snapshot, along with staging cleanup contract on exceedance, are ready; real customer RPO/RTO measurement and retention window are open.)
+- [ ] Runbook, alarms, external backup/key recovery; finalize customer delivery/license/support terms pre-sale. (Initial operations runbook, `hydro doctor` checking profile/checksum/media/backup-tool/writability, SQLite/PostgreSQL staging-first backup/restore CLI, dry-run/confirm snapshot retention, protected bounded HTTP/request-latency/DB-pool/cache/jobs/worker metrics, and deterministic `internal/ops` alarm evaluator contract for backup/disk/migration/SMTP/dead-letter are ready; real clean environment drill, alarm delivery, and external key/backup evidence are open.)
 
-**Çıkış:** Bir gerçek müşteri işi, güvenlik/restore ve ölçülmüş Compact kapasite kanıtı. Her runbook temiz ortamda uygulanmış. SDK hâlâ v0; Distributed satış kapsamı değil.
+**Output:** One real customer job, security/restore, and measured Compact capacity evidence. Each runbook has been executed in a clean environment. SDK is still v0; Distributed is not in sales scope.
 
-## R4 — News ve SDK doğrulaması
+## R4 — News and SDK validation
 
-**Bağımlılık:** R3. **Sorumluluk:** News, SDK, DB/release.
+**Dependency:** R3. **Responsibility:** News, SDK, DB/release.
 
-- [x] News inceleme/zamanlama/yayın/geri çekme; sabit revision, schedule generation ve yeniden yetki kontrolü. (News migration, domain/repository, SQLite schedule generation contract'ı, worker lease/idempotency, JSON/public route'ları ve CSRF'li protected admin HTML formları hazır.) [R4 doğrulama raporu](validation/R4-news-admin-2026-09-08.md)
-- [x] İkinci dış Client Edition, ikinci tema ve farklı özel iş kuralı. (examples/news-edition ayrı module, EditorialTheme, importguard/build CI adımı ve Core'a bağımlı olmayan `EditorialDraft` onay/desk kuralı tamam.) [R4 doğrulama raporu](validation/R4-news-admin-2026-09-08.md)
-- [x] İki modülde transaction, hook, event/job lease ve idempotency contract kitleri. (Pages/News transaction-audit/outbox desenleri, bounded queue, SQLite/PostgreSQL uyumlu kalıcı `jobs` lease store, transaction içi serialize edilen durable queue kapasite kontrolü, News durable queue adapter'ı, due scheduler discovery, profile bütçesine bağlı benzersiz worker kimlikleriyle bounded concurrency, production worker bootstrap, bounded exponential retry, lease doğrulamalı dead-letter geçişi, bounded hata tanıları, retry/dead-letter/concurrency metrics görünürlüğü ile bounded idempotent `internal/hooks.Dispatcher` hazır.) [Job store doğrulama raporu](validation/R4-job-store-2026-09-08.md) · [Kapasite doğrulama raporu](validation/R4-job-capacity-2026-09-09.md)
-- [x] Core/modül/schema/config/content/event/job/asset uyumluluk matrisi ve eski müşteri fixture'ları. (Kanıtlanmış epoch/blue-green sınırları [COMPATIBILITY_MATRIX.md](COMPATIBILITY_MATRIX.md) içinde toplandı; migration 008 seviyesinden tam şemaya legacy müşteri upgrade fixture'ı, published projection backfill'i, medya ve auth hash korunumu contract test ile doğrulandı.)
-- [x] Kanıtlanan küçük SDK yüzeyini v1 adayı olarak belirle; generator için kalıpları çıkar. (`extension/v1` altında Theme/Module typed contract'ı ve açık candidate version sabitlendi.) [SDK doğrulama raporu](validation/R5-sdk-v1-candidate-2026-09-08.md)
+- [x] News review/schedule/publish/withdraw; immutable revision, schedule generation, and re-authorization check. (News migration, domain/repository, SQLite schedule generation contract, worker lease/idempotency, JSON/public routes, and protected admin HTML forms with CSRF are ready.) [R4 validation report](validation/R4-news-admin-2026-09-08.md)
+- [x] Second external Client Edition, second theme, and different custom business rule. (examples/news-edition separate module, EditorialTheme, importguard/build CI step, and `EditorialDraft` approval/desk rule independent of Core are complete.) [R4 validation report](validation/R4-news-admin-2026-09-08.md)
+- [x] Transaction, hook, event/job lease, and idempotency contract kits across two modules. (Pages/News transaction-audit/outbox patterns, bounded queue, SQLite/PostgreSQL compatible durable `jobs` lease store, durable queue capacity check serialized in transaction, News durable queue adapter, due scheduler discovery, bounded concurrency with unique worker IDs tied to profile budgets, production worker bootstrap, bounded exponential retry, dead-letter transition with lease validation, bounded error diagnostics, and bounded idempotent `internal/hooks.Dispatcher` with retry/dead-letter/concurrency metrics visibility are ready.) [Job store validation report](validation/R4-job-store-2026-09-08.md) · [Capacity validation report](validation/R4-job-capacity-2026-09-09.md)
+- [x] Core/module/schema/config/content/event/job/asset compatibility matrix and legacy customer fixtures. (Proven epoch/blue-green boundaries gathered in [COMPATIBILITY_MATRIX.md](COMPATIBILITY_MATRIX.md); legacy customer upgrade fixture from migration 008 to full schema, published projection backfill, media and auth hash preservation are validated via contract test.)
+- [x] Identify the proven small SDK surface as a v1 candidate; extract patterns for the generator. (Theme/Module typed contract under `extension/v1` and explicit candidate version are pinned.) [SDK validation report](validation/R5-sdk-v1-candidate-2026-09-08.md)
 
-**Çıkış:** İki modül + iki ayrı Edition Core fork olmadan çalışır; SDK v1 adayı incelenir. S08'in SDK kısmı kapanır; generator kısmı R5'te kapanır.
+**Output:** Two modules + two separate Editions run without a Core fork; SDK v1 candidate is reviewed. The SDK part of S08 closes; the generator part closes in R5.
 
-## R5 — Generator ve kararlı v1
+## R5 — Generator and stable v1
 
-**Bağımlılık:** R4. **Sorumluluk:** DX/SDK, veri, release.
+**Dependency:** R4. **Responsibility:** DX/SDK, data, release.
 
-- [x] Deterministik CRUD üretici, generated/custom koruması, deny varsayılanı ve incelenecek dialect migration taslağı. (Collection spec generator, gerçek CRUD repository/transport üretimi, secret/destructive deny, Pages/News derlenebilir fixture'ları, published migration immutability ve reviewable dialect migration skeleton hazır.) [Generator doğrulama raporu](validation/R5-generator-2026-09-08.md)
-- [x] S08 tamamı: iki kez üretimde sıfır diff, custom hash korunması, published migration değişmezliği. (Pages/News fixture'larında deterministic output, custom preservation, CRUD derleme ve published migration immutability contract'ları geçti.)
-- [ ] S09: SQLite ↔ PostgreSQL export/import; kimlik/revision/locale/ilişkiler korunur, secret/session dışarı çıkmaz. (Allowlist tabanlı deterministic SQLite ve geçici schema'lı PostgreSQL round-trip contract'ları, auth/session dışlama, 256 kayıtlı büyük SQLite fixture'ı, tekrarlanabilir portable round-trip benchmark'ı ve açık onaylı/dry-run destekli atomik `hydro portable export|import` CLI akışı hazır; gerçek müşteri donanımıyla karşılaştırmalı benchmark açık.) [R5 doğrulama raporu](validation/R5-portable-export-2026-09-08.md)
-- [ ] Standard/PostgreSQL profilini, desteklenen OS/DB/provider sürümlerini ve upgrade yolunu sertifikala. (Typed profile budgets ve pool uygulaması ile Linux/Windows CI destek matrisi başlangıç kanıtı hazır; gerçek PostgreSQL benchmark'ı, provider/upgrade sertifikasyonu açık.) [Destek matrisi](SUPPORT_MATRIX.md)
-- [ ] SDK v1, deprecation/destek takvimi, release imzası, lisans envanteri ve yeniden üretilebilir build. (SDK v1 adayı, aynı-major uyumluluk contract'ı, [destek politikası](SDK_SUPPORT_POLICY.md), deterministic Ed25519 manifest/signature ve manifest subject'ine bağlı builder/toolchain provenance attestation contract'ları ile aynı CI runner/toolchain üzerinde gerçek binary reproducibility kontrolü hazır; resmi deprecation tarihleri, production key ceremony, dış provenance yayınlama ve çapraz OS reproducibility açık.) [Release doğrulama raporu](validation/R5-release-manifest-2026-09-08.md)
-- [ ] Standart müşteri işini iki geliştirici/müşteri üzerinde mevcut yöntemle karşılaştırarak süre ölç.
+- [x] Deterministic CRUD generator, generated/custom protection, deny default, and reviewable dialect migration draft. (Collection spec generator, true CRUD repository/transport generation, secret/destructive deny, compilable Pages/News fixtures, published migration immutability, and reviewable dialect migration skeleton are ready.) [Generator validation report](validation/R5-generator-2026-09-08.md)
+- [x] Complete S08: zero diff on double generation, custom hash preservation, published migration immutability. (Deterministic output, custom preservation, CRUD compilation, and published migration immutability contracts passed on Pages/News fixtures.)
+- [ ] S09: SQLite ↔ PostgreSQL export/import; identity/revision/locale/relations are preserved, secret/session does not leak. (Allowlist-based deterministic SQLite and transient-schema PostgreSQL round-trip contracts, auth/session exclusion, large SQLite fixture with 256 records, reproducible portable round-trip benchmark, and atomic `hydro portable export|import` CLI flow with explicit confirm/dry-run support are ready; comparative benchmark with real customer hardware is open.) [R5 validation report](validation/R5-portable-export-2026-09-08.md)
+- [ ] Certify Standard/PostgreSQL profile, supported OS/DB/provider versions, and upgrade path. (Linux/Windows CI support matrix initial evidence with typed profile budgets and pool implementation is ready; real PostgreSQL benchmark, provider/upgrade certification are open.) [Support matrix](SUPPORT_MATRIX.md)
+- [ ] SDK v1, deprecation/support schedule, release signature, license inventory, and reproducible build. (SDK v1 candidate, same-major compatibility contract, [support policy](SDK_SUPPORT_POLICY.md), deterministic Ed25519 manifest/signature, and builder/toolchain provenance attestation contracts tied to manifest subject are ready, along with true binary reproducibility check on the same CI runner/toolchain; official deprecation dates, production key ceremony, publishing external provenance, and cross-OS reproducibility are open.) [Release validation report](validation/R5-release-manifest-2026-09-08.md)
+- [ ] Measure time by comparing a standard customer job on two developers/customers using the current method.
 
-**Çıkış:** Belgeli destek matrisiyle kararlı v1. Ölçülmeyen hız/topoloji için vaat verilmez.
+**Output:** Stable v1 with a documented support matrix. No promises are made for unmeasured speed/topology.
 
-## R6 — Talebe bağlı genişleme
+## R6 — On-demand expansion
 
-**Bağımlılık:** İlgili v1 sözleşmeleri ve doğrulanmış müşteri ihtiyacı.
+**Dependency:** Relevant v1 contracts and validated customer need.
 
-- [ ] S05-D: çoklu web/worker, L2 kaybı, fan-out/reconnect, generation uzlaştırması ve bounded fallback. (Bounded process-local invalidation fan-out, slow subscriber resync/generation reconciliation ve L2 hata durumunda local loader'a düşen TwoTier contract'ı hazır; gerçek çoklu-instance/L2 provider ve partition tatbikatı açık.)
-- [ ] S3 uyumlu medya/CDN, online büyük yedek ve GC pin yarışları; Distributed yük/arıza sertifikasyonu.
-- [ ] Talep varsa yeni DB adapter'ı, gelişmiş arama, OIDC/SAML veya özel mobil API; her biri ayrı karar ve test kapısıyla.
-- [ ] Commerce, AI ve multi-tenant ayrı kapsam/ADR ile değerlendirilir.
+- [ ] S05-D: multi web/worker, L2 loss, fan-out/reconnect, generation reconciliation, and bounded fallback. (Bounded process-local invalidation fan-out, slow subscriber resync/generation reconciliation, and TwoTier contract falling back to local loader on L2 failure are ready; real multi-instance/L2 provider and partition drill are open.)
+- [ ] S3-compatible media/CDN, online large backup, and GC pin races; Distributed load/failure certification.
+- [ ] New DB adapter, advanced search, OIDC/SAML, or custom mobile API if there's demand; each with a separate decision and test gate.
+- [ ] Commerce, AI, and multi-tenant are evaluated with separate scope/ADRs.
 
-## Kanıt ve ilerleme kaydı
+## Evidence and progress tracking
 
-Gerçek ortamda açık kalan kapıların gerekli koşulları ve kanıt formatı [Production gate evidence checklist](validation/PRODUCTION-GATES.md) içinde tutulur. Son otomatik güvenilirlik ve güvenlik hardening kanıtı: [R7 validation report](validation/R7-reliability-security-hardening-2026-09-10.md).
+The necessary conditions and evidence format for gates left open in real environments are maintained in the [Production gate evidence checklist](validation/PRODUCTION-GATES.md). Latest automated reliability and security hardening evidence: [R7 validation report](validation/R7-reliability-security-hardening-2026-09-10.md).
 
-Her çalışma küçük incelenebilir değişiklik olarak teslim edilir. Raporda commit, ortam/toolchain/DB sürümleri, komutlar, beklenen/görülen sonuç, sınırlamalar ve ilgili roadmap maddesi bulunur. `docs/validation/` yalnız gerçek sonuç taşır; planlanan test başarılı gösterilmez. Başarısız deneyde önce alternatif değerlendirilir; kabul edilmiş karar değişiyorsa yeni ADR yazılır.
+Every piece of work is delivered as a small reviewable change. The report includes commit, environment/toolchain/DB versions, commands, expected/observed outcome, limitations, and the related roadmap item. `docs/validation/` only holds real results; planned tests are not shown as successful. In a failed experiment, an alternative is evaluated first; if an accepted decision changes, a new ADR is written.

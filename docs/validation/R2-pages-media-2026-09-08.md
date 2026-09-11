@@ -1,22 +1,22 @@
-# R2 Pages ve medya çıkış doğrulaması
+# R2 Pages and media output validation
 
-**Tarih:** 2026-09-08  
-**Roadmap:** R2 Pages ve ilk müşteri teması  
-**Durum:** Başarılı; R1 S03 Quill/HTMX deneyi ayrı açık kapıdır.
+**Date:** 2026-09-08  
+**Roadmap:** R2 Pages and initial customer contact  
+**Status:** Success; R1 S03 Quill/HTMX experiment is a separate open gate.
 
-## Kanıtlanan davranışlar
+## Validated behaviors
 
-- SQLite ve PostgreSQL migration contract’ları aynı Pages draft/revision/publish akışını çalıştırır.
-- Draft güncellemesi published projection’ı değiştirmez; publish generation, audit ve outbox aynı transaction içinde ilerler.
-- Aynı locale/slug için iki draft oluşturulabilir; yalnız ilk başarılı publish route’u kazanır ve kaybeden conflict döner.
-- Stale editor version ile yapılan update conflict döner.
-- Sanitizer, revision gövdesine yazılmadan önce uygulanır.
-- Media upload metadata’sı `pending → ready` geçişine sahiptir; ready olmayan asset servis edilmez.
-- JPEG/PNG/WebP upload'ları boyut başlığının yanında tam payload decode'undan geçirilir; truncated veya bozuk görüntüler immutable storage'a alınmaz.
-- Private media oturumsuz istekte 401, public ready media başarılı cevap verir.
-- Injected outbox hatasında page, revision ve audit kayıtları birlikte rollback olur.
+- SQLite and PostgreSQL migration contracts run the same Pages draft/revision/publish flow.
+- A draft update does not change the published projection; publish generation, audit, and outbox progress within the same transaction.
+- Two drafts can be created for the same locale/slug; only the first successful publish route wins, and the losing one returns a conflict.
+- An update made with a stale editor version returns a conflict.
+- The sanitizer is applied before writing to the revision body.
+- Media upload metadata has a `pending → ready` transition; non-ready assets are not served.
+- JPEG/PNG/WebP uploads are fully decoded in addition to the size header; truncated or corrupt images are not committed to immutable storage.
+- Private media returns 401 for unauthenticated requests, public ready media responds successfully.
+- In the event of an injected outbox error, page, revision, and audit records roll back together.
 
-## Çalıştırılan kontroller
+## Executed checks
 
 ```text
 go test ./...
@@ -25,9 +25,9 @@ go build ./cmd/hydro
 cd examples/client-edition && go build ./...
 ```
 
-GitHub CI’de SQLite ve PostgreSQL contract servisleriyle aynı kontroller çalıştırıldı. Migration metadata checksum’ları ve fixture izolasyonu doğrulandı.
+The same checks were run on GitHub CI with SQLite and PostgreSQL contract services. Migration metadata checksums and fixture isolation were validated.
 
-## Açık sınırlamalar
+## Open limitations
 
-- R3 kapsamındaki SEO, restore, blue/green, MFA ve ticari Compact kapasite kanıtları bu raporun kapsamında değildir. Publish sonrası public cache generation guard'ı ayrı S05-C ilerleme commit'inde doğrulanmıştır.
-- R1 S03 için gerçek Quill/HTMX asset ve CSP deneyinin tamamlanması gerekir.
+- SEO, restore, blue/green, MFA, and commercial Compact capacity evidence within the R3 scope are outside the scope of this report. The post-publish public cache generation guard was validated in a separate S05-C progress commit.
+- Completion of the actual Quill/HTMX asset and CSP experiment is required for R1 S03.

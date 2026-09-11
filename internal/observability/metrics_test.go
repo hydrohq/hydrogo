@@ -41,3 +41,161 @@ func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 		t.Fatalf("metrics did not expose session cleanup outcomes: %s", res.Body.String())
 	}
 }
+
+func TestMetricsSkipStaticAssetPaths(t *testing.T) {
+	m := NewMetrics()
+	handler := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/public/news/tr/html" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	for _, path := range []string{"/vendor/quill/quill.js", "/vendor/quill/quill.snow.css", "/theme/static/theme.css", "/public/news/tr/html"} {
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
+	}
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/public/news/tr/html", nil))
+	stats := m.PathStats()
+	if len(stats) != 1 || stats[0].Path != "/public/news/tr/html" || stats[0].Views != 1 || stats[0].Requests != 2 {
+		t.Fatalf("path stats = %#v, want only one public view", stats)
+	}
+}
+
+func TestMetricsEmptyState(t *testing.T) {
+	m := NewMetrics()
+	if m.TotalRequests() != 0 {
+		t.Errorf("TotalRequests = %d, want 0", m.TotalRequests())
+	}
+	if m.TotalViews() != 0 {
+		t.Errorf("TotalViews = %d, want 0", m.TotalViews())
+	}
+	if m.TotalErrors() != 0 {
+		t.Errorf("TotalErrors = %d, want 0", m.TotalErrors())
+	}
+	if m.AvgLatencyMS() != 0 {
+		t.Errorf("AvgLatencyMS = %d, want 0", m.AvgLatencyMS())
+	}
+	if m.UniqueVisitorsCount() != 0 {
+		t.Errorf("UniqueVisitorsCount = %d, want 0", m.UniqueVisitorsCount())
+	}
+	if len(m.PathStats()) != 0 {
+		t.Errorf("PathStats length = %d, want 0", len(m.PathStats()))
+	}
+	if len(m.TopPages(5)) != 0 {
+		t.Errorf("TopPages length = %d, want 0", len(m.TopPages(5)))
+	}
+	if len(m.TopErrors(5)) != 0 {
+		t.Errorf("TopErrors length = %d, want 0", len(m.TopErrors(5)))
+	}
+}
+
+func TestMetricsVisitorRefreshAndDeduplication(t *testing.T) {
+	m := NewMetrics()
+	handler := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+
+	// Test with pre-existing visitor A cookie
+	visitorACookie := &http.Cookie{Name: "hydro_visitor", Value: "visitor-token-12345"}
+	for i := 0; i < 5; i++ {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/public/news/tr/html", nil)
+		req.RemoteAddr = "192.168.1.50:1234"
+		req.AddCookie(visitorACookie)
+		handler.ServeHTTP(rec, req)
+	}
+
+	stats := m.PathStats()
+	if len(stats) != 1 {
+		t.Fatalf("expected 1 path stats entry, got %d", len(stats))
+	}
+	if stats[0].Views != 1 {
+		t.Errorf("expected 1 view for visitor A, got %d", stats[0].Views)
+	}
+	if stats[0].Requests != 5 {
+		t.Errorf("expected 5 total requests, got %d", stats[0].Requests)
+	}
+	if m.UniqueVisitorsCount() != 1 {
+		t.Errorf("expected 1 unique visitor, got %d", m.UniqueVisitorsCount())
+	}
+
+	// Second distinct visitor B
+	visitorBCookie := &http.Cookie{Name: "hydro_visitor", Value: "visitor-token-67890"}
+	rec2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/public/news/tr/html", nil)
+	req2.RemoteAddr = "10.0.0.99:5678"
+	req2.AddCookie(visitorBCookie)
+	handler.ServeHTTP(rec2, req2)
+
+	if m.UniqueVisitorsCount() != 2 {
+		t.Errorf("expected 2 unique visitors, got %d", m.UniqueVisitorsCount())
+	}
+	if m.TotalViews() != 2 {
+		t.Errorf("expected 2 total views across unique visitors, got %d", m.TotalViews())
+	}
+}
+
+func TestMetricsProcessRestartResetsInMemoryCounters(t *testing.T) {
+	// Simulate Process 1
+	p1 := NewMetrics()
+	h1 := p1.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	h1.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/public/pages/tr/demo/html", nil))
+	h1.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/public/pages/tr/demo/html", nil))
+
+	if p1.TotalRequests() != 2 || p1.TotalViews() != 1 {
+		t.Fatalf("process 1 state unexpected: req=%d, views=%d", p1.TotalRequests(), p1.TotalViews())
+	}
+
+	// Process Restart (new in-memory metrics instance)
+	p2 := NewMetrics()
+	if p2.TotalRequests() != 0 || p2.TotalViews() != 0 || p2.UniqueVisitorsCount() != 0 {
+		t.Errorf("restarted process must start with 0 metrics (in-memory lifetime); got req=%d, views=%d", p2.TotalRequests(), p2.TotalViews())
+	}
+	if p2.StartedAt().Before(p1.StartedAt()) {
+		t.Errorf("restarted process startedAt must be newer or equal")
+	}
+}
+
+func TestMetricsErrorTrackingAndTopErrors(t *testing.T) {
+	m := NewMetrics()
+	handler := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/error":
+			w.WriteHeader(http.StatusInternalServerError)
+		case "/api/v1/notfound":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v1/ok":
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+
+	// Generate 3 server errors on /api/v1/error
+	for i := 0; i < 3; i++ {
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/error", nil))
+	}
+	// Generate 1 client error on /api/v1/notfound
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/notfound", nil))
+	// Generate 5 success requests on /api/v1/ok
+	for i := 0; i < 5; i++ {
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/ok", nil))
+	}
+
+	if m.TotalErrors() != 4 {
+		t.Errorf("TotalErrors = %d, want 4", m.TotalErrors())
+	}
+	topErrors := m.TopErrors(5)
+	if len(topErrors) != 2 {
+		t.Fatalf("expected 2 error routes, got %d", len(topErrors))
+	}
+	if topErrors[0].Path != "/api/v1/error" || topErrors[0].Errors != 3 {
+		t.Errorf("top error = %+v, want /api/v1/error with 3 errors", topErrors[0])
+	}
+	if topErrors[1].Path != "/api/v1/notfound" || topErrors[1].Errors != 1 {
+		t.Errorf("second error = %+v, want /api/v1/notfound with 1 error", topErrors[1])
+	}
+}

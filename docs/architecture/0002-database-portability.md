@@ -1,47 +1,47 @@
-# ADR-0002: SQLite, MySQL ve PostgreSQL desteği
+# ADR-0002: SQLite, MySQL and PostgreSQL support
 
-- **Durum:** Değiştirildi — [ADR-0006](0006-extensible-database-adapters.md)
-- **Tarih:** 2026-09-05
+- **Status:** Superseded — [ADR-0006](0006-extensible-database-adapters.md)
+- **Date:** 2026-09-05
 
-## Bağlam
+## Context
 
-HydroGo 512 MB RAM'li küçük VPS'ten yüksek trafikli ve çok düğümlü kurulumlara kadar çalışmalıdır. Tek veritabanı seçimi ya küçük kurulumları gereksiz ağırlaştırır ya da büyük kurulumları sınırlar.
+HydroGo must work from a small VPS with 512 MB RAM to high-traffic and multi-node installations. A single database choice either unnecessarily burdens small installations or limits large installations.
 
-## Karar
+## Decision
 
-HydroGo üç birinci sınıf veritabanı profili sunar:
+HydroGo provides three first-class database profiles:
 
-| Sürücü | Ana kullanım | Deployment sınırı |
+| Driver | Main use | Deployment limit |
 |---|---|---|
-| SQLite | Nano/Standalone, tek düğüm | Yerel kalıcı disk, tek aktif uygulama düğümü |
-| PostgreSQL | Scale-out ve yüksek eşzamanlılık | Birden fazla HydroGo instance, managed veya ayrı DB |
-| MySQL | MySQL standardı bulunan kurumlar | InnoDB, desteklenen sürüm matrisi |
+| SQLite | Nano/Standalone, single node | Local persistent disk, single active application node |
+| PostgreSQL | Scale-out and high concurrency | Multiple HydroGo instances, managed or separate DB |
+| MySQL | Enterprises with MySQL standard | InnoDB, supported version matrix |
 
-`psql`, PostgreSQL'in komut satırı aracıdır; mimari sürücü adı `postgres` olacaktır.
+`psql` is PostgreSQL's command-line tool; the architectural driver name will be `postgres`.
 
-SQLite ilk referans uygulamadır. PostgreSQL ve MySQL adaptörleri kararlı `v1` sürümünden önce aynı repository contract testlerinden geçmelidir.
+SQLite is the initial reference implementation. PostgreSQL and MySQL adapters must pass the same repository contract tests before the stable `v1` release.
 
-## Tasarım kuralları
+## Design rules
 
-### Alan ve servis katmanı
+### Domain and service layer
 
-- Domain ve application service kodu SQL dialect'i bilmez.
-- Repository arayüzleri onları kullanan modül tarafından tanımlanır.
-- Transaction sınırı application service tarafından istenir, platform tarafından sürücüye uygulanır.
-- Veritabanına özgü hata kodları ortak `conflict`, `not_found`, `unavailable` ve `retryable` sınıflarına çevrilir.
+- Domain and application service code are unaware of the SQL dialect.
+- Repository interfaces are defined by the module that uses them.
+- Transaction boundary is requested by the application service, applied to the driver by the platform.
+- Database-specific error codes are translated into common `conflict`, `not_found`, `unavailable`, and `retryable` classes.
 
-### Fiziksel şema
+### Physical schema
 
-- Her dialect normal tablo ve index kullanır; EAV ana veri modeli kullanılmaz.
-- ID'ler uygulama tarafında üretilen taşınabilir UUID/ULID olur.
-- Tarihler UTC tutulur.
-- Para tamsayı minor-unit ve currency ile saklanır; floating point kullanılmaz.
-- Boolean, JSON, full-text, generated column ve collation farkları capability olarak ele alınır.
-- Core işlevi yalnız bir veritabanının özel özelliğine zorunlu biçimde bağlanmaz.
+- Each dialect uses standard tables and indexes; EAV main data model is not used.
+- IDs are portable UUID/ULID generated on the application side.
+- Dates are stored in UTC.
+- Money is stored with integer minor-unit and currency; floating point is not used.
+- Boolean, JSON, full-text, generated column, and collation differences are treated as capabilities.
+- Core functionality is not strictly tied to the specific feature of a single database.
 
-### Sorgular ve kod üretimi
+### Queries and code generation
 
-Ortak davranış tek service sözleşmesinde kalır; SQL gerektiğinde dialect'e göre ayrı yazılır:
+Common behavior remains in a single service contract; when SQL is needed, it is written separately according to the dialect:
 
 ```text
 modules/news/store/sqlite/
@@ -49,11 +49,11 @@ modules/news/store/postgres/
 modules/news/store/mysql/
 ```
 
-`sqlc` değerlendirme adayıdır; güncel dokümantasyon Go için MySQL ve PostgreSQL desteğini kararlı, SQLite desteğini beta olarak tanımlar. Bu nedenle seçim, üç sürücülü prototip ve benchmark tamamlanmadan kalıcı mimari kural değildir.
+`sqlc` is an evaluation candidate; current documentation describes MySQL and PostgreSQL support for Go as stable, and SQLite support as beta. Therefore, the choice is not a permanent architectural rule until the three-driver prototype and benchmark are completed.
 
 ### Migration
 
-Her mantıksal migration üç dialect uygulamasına sahip olabilir:
+Each logical migration can have three dialect implementations:
 
 ```text
 migrations/202609050001_create_articles/
@@ -63,45 +63,45 @@ migrations/202609050001_create_articles/
 └── migration.yaml
 ```
 
-`migration.yaml` şunları taşır:
+`migration.yaml` carries the following:
 
-- Migration kimliği ve checksum
-- `online`, `backfill` veya `maintenance` sınıfı
-- Geriye uyumlu binary aralığı
-- Tahmini kilit ve disk etkisi
-- Geri dönüş stratejisi
+- Migration ID and checksum
+- `online`, `backfill`, or `maintenance` class
+- Backward compatible binary range
+- Estimated lock and disk impact
+- Rollback strategy
 
-Migration bir kez yayımlandıktan sonra değiştirilmez.
+Once published, a migration is not changed.
 
-## Test matrisi
+## Test matrix
 
-Her modül için aynı davranış testleri şu matris üzerinde çalışır:
+For each module, the same behavior tests run on this matrix:
 
 ```text
 SQLite × current
-PostgreSQL × desteklenen ana sürümler
-MySQL/InnoDB × desteklenen ana sürümler
+PostgreSQL × supported major versions
+MySQL/InnoDB × supported major versions
 ```
 
-Testler CRUD ile sınırlı değildir; optimistic locking, isolation, unique conflict, rollback, deadlock retry, pagination ve migration senaryolarını içerir. PostgreSQL ve MySQL farklı concurrency/locking davranışlarına sahip olduğundan yalnız aynı SQL'i çalıştırmak eşit destek sayılmaz.
+Tests are not limited to CRUD; they include optimistic locking, isolation, unique conflict, rollback, deadlock retry, pagination, and migration scenarios. Since PostgreSQL and MySQL have different concurrency/locking behaviors, just running the same SQL is not considered equal support.
 
-## Yedekleme
+## Backup
 
-- SQLite: Online Backup API veya doğrulanmış `VACUUM INTO`, immutable medya manifestiyle birlikte.
-- PostgreSQL: Sağlayıcının snapshot/PITR sistemi veya PostgreSQL uyumlu araçlar.
-- MySQL: Sağlayıcının snapshot/PITR sistemi veya MySQL uyumlu araçlar.
+- SQLite: Online Backup API or verified `VACUUM INTO`, along with an immutable media manifest.
+- PostgreSQL: Provider's snapshot/PITR system or PostgreSQL compatible tools.
+- MySQL: Provider's snapshot/PITR system or MySQL compatible tools.
 
-HydroGo her motorun kendi güvenilir yedekleme yöntemini orkestre eder; bütün motorlara tek dosya kopyalama yaklaşımı uygulamaz.
+HydroGo orchestrates the reliable backup method of each engine; it does not apply a single file copy approach to all engines.
 
-## Sonuçlar
+## Consequences
 
-- Küçük kurulumlar harici DB servisine ihtiyaç duymaz.
-- Büyük kurulumlar yatay ölçeklenebilir.
-- Üç dialect geliştirme ve CI maliyetini belirgin artırır.
-- Yeni modül üç sürücü için tamamlanmadan “birinci sınıf” kabul edilmez.
-- En düşük ortak payda uğruna performans feda edilmez; capability ve sürücüye özel optimize sorgular kullanılabilir.
+- Small installations do not need an external DB service.
+- Large installations can scale horizontally.
+- Three dialects significantly increase development and CI costs.
+- A new module is not considered "first-class" until it is completed for the three drivers.
+- Performance is not sacrificed for the lowest common denominator; capabilities and driver-specific optimized queries can be used.
 
-## Kaynaklar
+## References
 
 - [PostgreSQL concurrency control](https://www.postgresql.org/docs/current/mvcc.html)
 - [MySQL InnoDB transaction model](https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-model.html)

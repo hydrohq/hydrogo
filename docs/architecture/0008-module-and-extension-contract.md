@@ -1,30 +1,30 @@
-# ADR-0008: Core, modül ve müşteri extension sınırı
+# ADR-0008: Core, module and customer extension boundary
 
-- **Durum:** Değiştirildi
-- **Tarih:** 2026-09-05
-- **Yerine geçen ADR:** [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md)
+- **Status:** Superseded
+- **Date:** 2026-09-05
+- **Superseded by:** [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md)
 
-> Tarihsel karar: Aşağıdaki geniş interface kararlı SDK değildir. Güncel paketleme, v0/v1 olgunluğu, modül yaşam döngüsü ve sunum tanımları ADR-0010'dadır. Bu metin karar geçmişi için korunur.
+> Historical decision: The wide interface below is not a stable SDK. Current packaging, v0/v1 maturity, module lifecycle, and presentation definitions are in ADR-0010. This text is preserved for the decision history.
 
-## Bağlam
+## Context
 
-HydroGo'nun geliştirme hızını artırması ve müşteri projelerinin Core güncellemelerini alabilmesi için hangi kodun kararlı sözleşme, hangi kodun iç uygulama ayrıntısı olduğu kesin olmalıdır.
+To increase HydroGo's development speed and allow customer projects to receive Core updates, it must be definitive which code is a stable contract and which code is an internal implementation detail.
 
-## Karar
+## Decision
 
-Kod üç görünürlük seviyesine ayrılır:
+The code is divided into three visibility levels:
 
 ```text
-internal/     HydroGo iç uygulaması; müşteri için uyumluluk garantisi yok
-extension/    Sürümlü müşteri ve modül SDK'sı
-client/       Müşteriye özel edition kodu
+internal/     HydroGo internal implementation; no compatibility guarantee for the customer
+extension/    Versioned customer and module SDK
+client/       Customer-specific edition code
 ```
 
-Client Edition yalnız `extension` sözleşmelerini ve açık modül API'lerini kullanabilir. CI yasak internal import'larını reddeder.
+The Client Edition can only use `extension` contracts and public module APIs. CI rejects forbidden internal imports.
 
-## Modül sözleşmesi
+## Module contract
 
-Bir modül en az şunları ilan eder:
+A module declares at least the following:
 
 ```go
 type Module interface {
@@ -41,44 +41,44 @@ type Module interface {
 }
 ```
 
-- Modül bağımlılık grafiği döngüsüzdür.
-- Etkin olmayan modül hiçbir route, migration, asset veya worker yüklemez.
-- Modülü devre dışı bırakmak veriyi otomatik silmez.
-- Modülün kaldırılması açık veri saklama/silme planı gerektirir.
-- Gerekli DB/cache/storage capability başlangıçta doğrulanır.
+- The module dependency graph is acyclic.
+- An inactive module does not load any routes, migrations, assets, or workers.
+- Disabling a module does not automatically delete data.
+- Uninstalling a module requires an explicit data retention/deletion plan.
+- The required DB/cache/storage capabilities are verified at startup.
 
-## Extension biçimleri
+## Extension formats
 
-Tercih sırası:
+Order of preference:
 
-1. Yapılandırma ve tema tokenları
-2. Sürümlü hook/event sözleşmeleri
+1. Configuration and theme tokens
+2. Versioned hook/event contracts
 3. Component/view slot composition
-4. Müşteriye özel application service veya route
-5. Tam görünüm override'ı
+4. Customer-specific application service or route
+5. Full view override
 
-HydroCore fork'u desteklenen extension biçimi değildir.
+HydroCore fork is not a supported extension format.
 
-## Kod üretimi
+## Code generation
 
-- `generated/` tamamen yeniden üretilebilir ve elle değiştirilmez.
-- `custom/` insan kodudur ve generator tarafından yazılmaz.
-- Generator standart CRUD, migration taslağı, admin formu, API ve test iskeleti üretir.
-- İş kuralı, yetki kararı ve destructive migration otomatik tahmin edilmez.
+- `generated/` is completely reproducible and is not edited manually.
+- `custom/` is human code and is not written by the generator.
+- The generator creates standard CRUD, migration skeletons, admin forms, API, and test scaffolding.
+- Business rules, authorization decisions, and destructive migrations are not automatically guessed.
 
-## Sunum modları
+## Presentation modes
 
-Edition şu çalışma modlarından birini açıkça seçer:
+The Edition explicitly chooses one of the following operating modes:
 
 - `integrated`: Admin + Templ public site
 - `headless`: Admin + API
-- `hybrid`: Templ ve API birlikte
+- `hybrid`: Templ and API together
 
-İlk ticari Site Edition için `integrated` varsayılandır.
+For the first commercial Site Edition, `integrated` is the default.
 
-## Uyumluluk
+## Compatibility
 
-- Aynı major sürümde yayımlanmış extension sözleşmeleri korunur.
-- Deneysel API ayrı namespace ve açık etiket taşır.
-- Kırılma yeni major, deprecation dönemi ve migration rehberi gerektirir.
-- Desteklenen Client Edition contract testleri geçmeden Core release yayımlanmaz.
+- Published extension contracts in the same major version are preserved.
+- Experimental APIs carry a separate namespace and an explicit label.
+- A breaking change requires a new major version, a deprecation period, and a migration guide.
+- A Core release is not published without passing the supported Client Edition contract tests.

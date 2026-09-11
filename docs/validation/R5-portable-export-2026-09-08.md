@@ -1,22 +1,22 @@
-# R5 taşınabilir export/import doğrulaması
+# R5 portable export/import validation
 
-**Tarih:** 2026-09-09  
+**Date:** 2026-09-09  
 **Roadmap:** R5 / S09  
-**Durum:** Allowlist tabanlı SQLite round-trip başarılı; PostgreSQL round-trip CI contract'ı ve büyük SQLite fixture'ı eklendi. Tekrarlanabilir benchmark komutu eklendi; müşteri donanımıyla karşılaştırmalı benchmark hâlâ açık.
+**Status:** Allowlist-based SQLite round-trip succeeded; PostgreSQL round-trip CI contract and large SQLite fixture added. Reproducible benchmark command added; comparative benchmark with customer hardware remains open.
 
-`internal/portable` deterministic JSON formatında pages, page revisions, media metadata, Site Edition, form inbox ve News kayıtlarını taşır. Kimlik, revision, locale ve ilişkiler korunur; `users`, `sessions`, MFA/recovery/invite token'ları, audit, outbox ve jobs tabloları formatın allowlist'ine dahil değildir. `ExportWithLimit`, satırları okurken ve kısmi document oluştururken byte sınırını uygular; CLI `--max-bytes` kontrolü document tamamen büyüdükten sonra yapılmaz.
+`internal/portable` carries pages, page revisions, media metadata, Site Edition, form inbox, and News records in a deterministic JSON format. Identity, revision, locale, and relationships are preserved; `users`, `sessions`, MFA/recovery/invite tokens, audit, outbox, and jobs tables are not included in the format allowlist. `ExportWithLimit` applies a byte limit while reading rows and creating a partial document; the CLI `--max-bytes` check is not performed after the document has fully grown.
 
-Çalıştırılan kontrol:
+Executed check:
 
 ```text
 go test ./internal/portable
 ```
 
-Memory sınırı için `TestExportWithLimitRejectsOversizedRowsDuringRead` testi
-eklenmiş ve `fix(portable): bound export memory during reads` (`70bbc43`)
-commit'inde doğrulanmıştır. Tam doğrulama ayrıca `go test ./... -p 1`,
-`go vet ./...` ve `git diff --check` ile başarılıdır.
+For the memory limit, the `TestExportWithLimitRejectsOversizedRowsDuringRead` test
+was added and validated in the `fix(portable): bound export memory during reads` (`70bbc43`)
+commit. Full validation is also successful via `go test ./... -p 1`,
+`go vet ./...` and `git diff --check`.
 
-Contract test source SQLite'dan export alıp ayrı SQLite hedefe import eder; page ve revision korunur, auth state'in dışarı çıkmadığı doğrulanır. 256 page/revision/media kaydından oluşan fixture kimlik, locale, revision ve ilişkileri round-trip sonrasında doğrular. `HYDRO_TEST_POSTGRES_URL` tanımlı CI koşulunda aynı API geçici PostgreSQL schema'larında source/target round-trip yapar; yerel ortamda test skip edilir.
+The contract test takes an export from a source SQLite and imports it to a separate SQLite target; page and revision are preserved, and it is validated that auth state does not leak out. A fixture of 256 page/revision/media records verifies identity, locale, revision, and relationships post-round-trip. Under the CI condition with `HYDRO_TEST_POSTGRES_URL` defined, the same API performs a source/target round-trip on temporary PostgreSQL schemas; the test is skipped locally.
 
-`BenchmarkSQLitePortableRoundTrip256` Windows amd64 geliştirme makinesinde (Intel(R) Core(TM) 7 240H) hedef şema benchmark başlamadan hazırlanarak `-benchtime=10x` son çalıştırmada 15.4 ms/round-trip ölçtü. Aynı makinede çalıştırmalar arasında belirgin oynaklık görüldü (15.4–369.9 ms/op); bu nedenle sonuç deterministik performans veya SLA kanıtı değildir. Ölçüm export + JSON encode/decode + mevcut hedefe transaction içi import maliyetini kapsar; SQLite açılışı ve migration kurulumu kapsam dışıdır. Pilot müşteri donanımında yük altında tekrar ölçülüp RPO/RTO ve teslim süresine bağlanmalıdır.
+`BenchmarkSQLitePortableRoundTrip256` measured 15.4 ms/round-trip on the last run with `-benchtime=10x` on a Windows amd64 development machine (Intel(R) Core(TM) 7 240H), with the target schema prepared before the benchmark starts. Significant volatility (15.4–369.9 ms/op) was observed between runs on the same machine; therefore, the result is not proof of deterministic performance or SLA. The measurement covers export + JSON encode/decode + in-transaction import to the existing target; SQLite startup and migration setup are out of scope. It should be re-measured under load on pilot customer hardware and tied to RPO/RTO and delivery times.

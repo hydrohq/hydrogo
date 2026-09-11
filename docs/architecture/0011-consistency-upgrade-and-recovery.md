@@ -1,87 +1,87 @@
-# ADR-0011: Cache tutarlılığı, işlem sınırı, yükseltme ve kurtarma
+# ADR-0011: Cache consistency, transaction boundary, upgrade and recovery
 
-- **Durum:** Kabul edildi
-- **Tarih:** 2026-09-05
-- **Kısmen değiştirdiği kararlar:** [ADR-0003](0003-cache-architecture.md) invalidation/arıza garantisi; [ADR-0005](0005-zero-downtime-deployment.md) warm-up/geçiş doğrulaması.
-- **Kapsam:** Önceki kararların L0–L3 katmanları, profil seçimi, session/asset kuralları, proxy ve expand–migrate–contract yaklaşımı korunur. Aşağıdaki maddeler çelişen genel ifadelerin yerine geçer.
-- **Uygulama durumu:** Migration, cache, restore, blue/green ve job/lease hükümlerinin önemli bölümü uygulanıp contract testleriyle doğrulandı. Gerçek proxy/process, multi-instance ve müşteri restore tatbikatları açık; güncel durum [roadmap](../ROADMAP.md) içindedir.
+- **Status:** Accepted
+- **Date:** 2026-09-05
+- **Partially supersedes:** [ADR-0003](0003-cache-architecture.md) invalidation/failure guarantees; [ADR-0005](0005-zero-downtime-deployment.md) warm-up/transition validation.
+- **Scope:** L0–L3 layers of previous decisions, profile selection, session/asset rules, proxy and expand–migrate–contract approach are preserved. The items below replace conflicting general statements.
+- **Implementation status:** A significant portion of migration, cache, restore, blue/green and job/lease provisions have been implemented and verified with contract tests. Actual proxy/process, multi-instance and customer restore drills are open; current status is in [roadmap](../ROADMAP.md).
 
-## Bağlam ve bulgular
+## Context and findings
 
-Worker ayrı proses ise kendi L1'ini temizlemek web L1'lerini temizlemez. Release sürümü içeren cache key, aynı release sırasında değişen yayın verisini güncel tutmaz. Daha yeni her şemayı reddeden eski binary expand migration sonrasında yeniden başlayamaz. Bir transaction'dan sonra gönderilen e-postanın ağ cevabı kaybolursa yalnız idempotency alanı çift göndermeyi engellemez. PostgreSQL restore dosya dizini rename işlemine indirgenemez.
+If the worker is a separate process, clearing its own L1 does not clear web L1s. A cache key containing the release version does not keep the published data updated if it changes during the same release. An old binary that rejects any newer schema cannot restart after an expand migration. If the network response of an email sent after a transaction is lost, the idempotency key alone does not prevent double sending. PostgreSQL restore cannot be reduced to a file directory rename operation.
 
-## İşlem ve job sözleşmesi
+## Transaction and job contract
 
-- İçerik, revision, yayın işaretçisi, audit ve outbox aynı DB transaction'ında yazılır. Modül repository ve Core audit/outbox portları aynı transaction scope'undan oluşturulur; ayrı pool bağlantısına kaçamaz. Commit başarısızsa hiçbiri görünür olmaz.
-- Transaction retry yalnız tekrar çalıştırılması güvenli DB işi üzerinde, sınırlı deneme ve deadline ile yapılır. HTTP sonucu commit tamamlanmadan başarılı sayılmaz.
-- Job kuyruğu başlangıçta aynı DB'dedir: `pending/leased/succeeded/dead/parked`, attempt, next-attempt, lease-owner, lease-until, fencing/claim token ve payload-version taşır. Tam Go alan isimleri prototipte belirlenir.
-- Claim atomiktir. Bitirme/yenileme yalnız güncel claim token sahibinden kabul edilir. DB tarafındaki zaman ve adapter testleri lease hesabını tutarlı kılar. Süresi biten eski worker dış servise hâlâ ulaşabilir; fencing DB güncellemesini korur, harici yan etkiyi tek başına korumaz.
-- Tüketici başına teslim kaydı ve idempotency scope'u vardır. Aggregate revision sırası eski olayın yeni durumu geri almasını engeller. Bilinmeyen payload sürümü karantinaya alınır; uyumsuz worker tarafından çalıştırılmaz.
-- Teslim **en az bir kez** olur. Sağlayıcının idempotency anahtarı varsa kullanılır. Yoksa örneğin e-posta kabul edildikten sonra cevap kaybolduğunda tekrar gönderim ihtimali açıkça kalır; uzlaştırma/operatör kararı gerekir. Genel exactly-once vaadi verilmez.
-- Compact polling/backoff ile sınırlı worker kullanır. PostgreSQL claim/locking optimizasyonları adapter içindedir. Yeni DB aynı crash/lease/retry contract kitini geçer.
+- Content, revision, publication pointer, audit, and outbox are written in the same DB transaction. Module repository and Core audit/outbox ports are instantiated from the same transaction scope; they cannot escape to a separate pool connection. If commit fails, none of them become visible.
+- Transaction retry is only performed on DB operations safe to retry, with limited attempts and a deadline. The HTTP response is not considered successful until the commit is complete.
+- The job queue is initially in the same DB: it carries `pending/leased/succeeded/dead/parked`, attempt, next-attempt, lease-owner, lease-until, fencing/claim token, and payload-version. Exact Go field names are determined in the prototype.
+- Claim is atomic. Completion/renewal is accepted only from the current claim token owner. Time on the DB side and adapter tests make the lease calculation consistent. An expired worker can still reach an external service; fencing protects the DB update, it does not protect the external side effect alone.
+- There is a delivery record and idempotency scope per consumer. Aggregate revision order prevents an old event from undoing a new state. An unknown payload version is quarantined; it is not executed by an incompatible worker.
+- Delivery is **at least once**. If the provider has an idempotency key, it is used. If not, for example if an email's response is lost after being accepted, the possibility of resending explicitly remains; reconciliation/operator decision is required. No general exactly-once promise is made.
+- Compact uses limited workers with polling/backoff. PostgreSQL claim/locking optimizations are inside the adapter. A new DB passes the same crash/lease/retry contract kit.
 
-## Cache ve yayın görünürlüğü
+## Cache and publication visibility
 
-1. Immutable revision gövdesi cache edilebilir. Hangi revision'ın güncel olduğu ayrı mutable lookup'tır; yalnız key'e revision yazmak bu lookup'ın eskimesini çözmez.
-2. Yayın transaction'ı içerik ve koleksiyon generation'larını artırır; outbox olayı bu sürümleri taşır. L1 girdisi yüklendiği generation ile etiketlenir. Geç tamamlanan eski okuma yeni generation altında yazılamaz.
-3. Tek `all` prosesinde commit sonrası yerel invalidation yapılır; outbox retry yolu kalır. Web/worker ayrıldığında **her web prosesine** bildirim/fan-out gerekir. Tek kuyruk mesajını tek worker'ın alması fan-out değildir.
-4. Compact blue/green geçişinde mutable public response/lookup cache'i geçici bypass edilir. Green readinesstan sonra warm-up yapılabilir; trafik geçmeden generation yeniden doğrulanır veya ısıtılan mutable cache temizlenir. Slot geçişi boyunca yayın değişmesi eski ısınmış cevabı sabitlemez.
-5. Distributed profilde L2 invalidation yanında her instance için kopma tespiti ve generation uzlaştırması bulunur. Pub/sub tek başına kayıpsız doğruluk kaydı değildir. Kopma sırasında mutable L1 bypass/flush edilir; yeniden bağlantıda senkronizasyon tamamlanmadan tekrar kullanılmaz.
-6. Normal public içerik için bounded eventual consistency kabul edilir. Politika `max_stale` süresini tanımlar; L1, L2, edge ve browser yaşları bu toplam bütçeyi aşamaz. TTL katman geçişinde yeniden başlayıp eski verinin ömrünü sınırsız uzatamaz. Sayısal bütçe trafik ölçümü ve içerik ihtiyacıyla pilot öncesi atanır.
-7. Admin kaydetme sonucu DB'den yeni revision'ı gösterir. Public yayının tamamlanması ayrı durumdur: `committed`, `propagating`, `propagated` veya `failed`. CDN purge onayı kullanıcının tarayıcısındaki kopyanın silindiği anlamına gelmez; private/no-store preview üzerinden anlık doğrulama sağlanır.
-8. Taslak, özel medya, session ve yetkiyle kişiselleşmiş cevap shared cache'e girmez. Public olmuş içeriğin bütün kullanıcı kopyalarını geri alma garantisi verilmez. Hızlı geri çekme gerektiren route, cache politikası ve purge süresiyle ayrıca sertifikalanır.
+1. Immutable revision body can be cached. Which revision is current is a separate mutable lookup; just writing the revision to the key does not solve this lookup going stale.
+2. The publication transaction increments content and collection generations; the outbox event carries these versions. The L1 entry is tagged with the generation it was loaded under. A late-completing old read cannot be written under a new generation.
+3. Local invalidation after commit is performed in the single `all` process; outbox retry path remains. When web/worker are separated, a notification/fan-out to **every web process** is required. A single worker taking a single queue message is not a fan-out.
+4. During Compact blue/green transition, the mutable public response/lookup cache is temporarily bypassed. Warm-up can be done after green readiness; generation is re-validated before traffic is switched, or the warmed mutable cache is cleared. A publication changing during slot transition does not lock in the old warmed response.
+5. In the Distributed profile, alongside L2 invalidation, there is disconnection detection and generation reconciliation for each instance. Pub/sub alone is not a lossless correctness record. During a disconnect, mutable L1 is bypassed/flushed; it is not reused upon reconnection until synchronization is complete.
+6. Bounded eventual consistency is accepted for normal public content. The policy defines the `max_stale` duration; L1, L2, edge, and browser ages cannot exceed this total budget. The TTL cannot restart at a layer transition and infinitely extend the old data's life. The numeric budget is assigned before the pilot based on traffic measurement and content needs.
+7. Admin save result shows the new revision from DB. Completion of public publication is a separate state: `committed`, `propagating`, `propagated`, or `failed`. CDN purge confirmation does not mean the copy in the user's browser is deleted; instant validation is provided via private/no-store preview.
+8. Drafts, private media, sessions, and responses personalized by authorization do not enter the shared cache. No guarantee is given to recall all user copies of content that has become public. Routes requiring rapid recall are separately certified with their cache policy and purge time.
 
-## Cache arızası ve aşırı yük
+## Cache failure and overload
 
-Cache kaybı asıl veriyi kaybettirmez; her arızada hizmetin kesintisiz kalacağı anlamına gelmez. L2 arızasında bounded DB fallback, singleflight, concurrency admission, circuit breaker ve retry bütçesi vardır. DB kapasitesi dolduğunda kontrollü 429/503, sınırsız DB kuyruğuna tercih edilir. Yalnız public, izinli ve `max_stale` sınırındaki veri stale sunulabilir; gizli içerik için bu yol yoktur.
+Cache loss does not cause loss of the actual data; it does not mean the service will remain uninterrupted in every failure. Bounded DB fallback, singleflight, concurrency admission, circuit breaker, and retry budget exist for L2 failure. When DB capacity is full, a controlled 429/503 is preferred over an unlimited DB queue. Only public, permitted data within the `max_stale` limit can be served stale; this path does not exist for hidden content.
 
-Cache key allowlist query normalization, edition/site, locale, representation (HTML/fragment/JSON), izinli host, publication generation ve serialization sürümünü kapsar. Authorization/Cookie taşıyan kişiselleşmiş cevaplar bypass edilir. Host ve `X-Forwarded-*` yalnız doğrulanmış domain ve güvenilen proxy'den kabul edilir. `Vary` tek başına cache sağlayıcısının doğru davranacağını garanti etmez; edge contract testi gerekir. Etkin olmayan modül key, invalidation worker veya tag envanteri oluşturmaz.
+The cache key allowlist covers query normalization, edition/site, locale, representation (HTML/fragment/JSON), allowed host, publication generation, and serialization version. Personalized responses carrying Authorization/Cookie are bypassed. Host and `X-Forwarded-*` are accepted only from a validated domain and trusted proxy. `Vary` alone does not guarantee the cache provider will behave correctly; an edge contract test is required. An inactive module does not generate a key, invalidation worker, or tag inventory.
 
-## Release uyumluluk metadata'sı
+## Release compatibility metadata
 
-Binary yalnız tek “schema version” sayısına bakmaz. Core ve etkin modüller için okunabilir/yazılabilir schema epoch aralığı, gerekli migration ID'leri, config/content/job/event formatları ve uyumlu release seti ilan eder. Ledger checksum'ları ve gerekli migration varlığı birlikte doğrulanır; yalnız geniş bir sayı aralığı yeterli değildir.
+The binary does not rely on a single "schema version" number. Core and active modules declare the readable/writable schema epoch range, required migration IDs, config/content/job/event formats, and the compatible release set. Ledger checksums and required migration existence are verified together; a wide number range alone is not sufficient.
 
-Migration metadata'sı her dialect için şunları içerir:
+Migration metadata includes the following for each dialect:
 
-- Mantıksal kimlik, modül, bağımlılıklar ve yayımlanmış checksum
-- `online/backfill/maintenance` sınıfı ve transactional/nontransactional yürütme biçimi
-- Önkoşullar, lock/statement timeout, disk tahmini ve smoke/sonkoşul kontrolleri
-- Eski/yeni binary okuma/yazma uyumluluğu ve job/content sürüm etkisi
-- Başarısızlık/yeniden başlatma prosedürü, backfill checkpoint'i ve rollback kısıtı
+- Logical identity, module, dependencies, and published checksum
+- `online/backfill/maintenance` class and transactional/nontransactional execution mode
+- Prerequisites, lock/statement timeout, disk estimate, and smoke/postcondition checks
+- Old/new binary read/write compatibility and job/content version impact
+- Failure/restart procedure, backfill checkpoint, and rollback constraint
 
-Online sınıfı SQL ifadesinin adına göre seçilmez. Aynı migration PostgreSQL'de online, SQLite'ta maintenance olabilir. Uygulama başlangıcı eksik/uyumsuz schema durumunda readiness vermez; deploy orchestrator migration'ı ayrı çalıştırır. Üretimde “contract test” müşteri verisine yazan test takımı değildir: contract testleri izole DB kopyasında/CI'da, üretimde yalnız güvenli readiness ve smoke kontrolleri çalışır.
+The online class is not chosen by the SQL statement's name. The same migration might be online in PostgreSQL and maintenance in SQLite. Application startup does not return readiness in case of missing/incompatible schema; the deploy orchestrator runs the migration separately. A "contract test" in production is not a test suite writing to customer data: contract tests run on an isolated DB copy/in CI, only safe readiness and smoke checks run in production.
 
-## Blue/green ve rollback
+## Blue/green and rollback
 
-ADR-0005 akışı korunur; preflight tüm format uyumluluklarını ve iki slot için kaynak payını kontrol eder. Online migration sonrası eski binary de mevcut ledger ile yeniden başlayabilmelidir. Yeni worker başlamadan eski lease'ler drain/expiry politikasıyla devredilir; eski web'in ürettiği event yeni worker tarafından okunabilir olmalıdır.
+The ADR-0005 flow is preserved; preflight checks all format compatibilities and resource quota for the two slots. The old binary must also be able to restart with the current ledger after an online migration. Before the new worker starts, old leases are handed over with a drain/expiry policy; events produced by the old web must be readable by the new worker.
 
-Rollback yalnız binary'yi geri çevirir; yeni release'in yazdığı veriyi geri almaz. Yeni yazımlar eski binary tarafından okunabiliyorsa geri dönüş mümkündür. Restore ise yedekten sonraki yazımları kaybettirebilen ayrı kurtarma işlemidir; sessiz otomatik rollback gibi sunulmaz.
+Rollback only reverts the binary; it does not undo data written by the new release. If new writes can be read by the old binary, returning is possible. Restore is a separate recovery operation that can lose post-backup writes; it is not presented as a silent automatic rollback.
 
-Yeni release yalnız kendi embedded asset'lerini taşırsa eski HTML kırılabilir. Deploy, imzalı asset inventory'den hash'li dosyaları ortak release asset dizinine çıkarır veya önceki paketlerin asset'lerini sunan katmanı korur. GC minimum rollback penceresi ve izinli HTML/CDN cache ömrü dolmadan bunları silemez. HTTP servis uygulaması tek binary kalır; retained asset'ler deployment verisidir.
+If the new release only carries its own embedded assets, old HTML might break. Deploy extracts hashed files from the signed asset inventory to a common release asset directory or preserves the layer serving previous packages' assets. GC cannot delete these before the minimum rollback window and allowed HTML/CDN cache lifetime expire. The HTTP service application remains a single binary; retained assets are deployment data.
 
-## Backup ve restore
+## Backup and restore
 
-Backup (aynı DB'ye felaket kurtarma), export (taşınabilir mantıksal veri) ve binary rollback ayrı komut/sözleşmelerdir.
+Backup (disaster recovery to the same DB), export (portable logical data), and binary rollback are separate commands/contracts.
 
-- Compact ilk uygulaması yazmaları/worker'ları kontrollü durdurup tutarlı DB snapshot ve immutable medya manifest'i alabilir. Beklenen duraklama/byte bütçesi preflight'ta hesaplanır; süre sınırı aşılırsa güvenli iptal edilir. Bütün büyük medya kopyası boyunca “kısa kilit” vaadi verilmez.
-- Standard/Distributed için DB snapshot'ındaki referanslı immutable medya envanteri ile GC retention/pin koordine edilir. Pin oluşturma ve silme kararı aynı koordinasyon sınırını kullanır; bütün kopyalama boyunca yazmaları durdurmak gerekmez. Bu yol doğrulanmadan online büyük yedek satılmaz.
-- Local/S3 nesne listelemesi DB snapshot'ının yerine geçmez. DB, medya manifest'i, checksum, key referansları, sürümler ve yedek durumu aynı backup kimliğine bağlanır.
-- SQLite kapalı hedefte staging dosya/dizin üzerinden restore edilebilir; platforma özel atomik devreye alma ve WAL/SHM temizliği doğrulanır.
-- PostgreSQL ayrı boş DB/instance'a kendi restore yöntemiyle döner. Referanslar/smoke doğrulandıktan sonra uygulama yazmaları durdurulur ve bağlantı hedefi kontrollü değiştirilir. DB restore “medya dizinini rename et” işlemi değildir.
-- PITR desteği ancak DB geçmişiyle uyumlu medya retention ve key kurtarma modeliyle sunulur. Yalnız DB PITR olması bütün ürün için aynı RPO'yu garanti etmez.
-- Restore edilmiş outbox/job'lar eski e-posta/webhook'ları yeniden gönderebilir. Restore önce izole, worker ve dış egress kapalı açılır; yan etkiler uzlaştırıldıktan sonra açıkça etkinleştirilir.
-- Restore edilmiş session'lar varsayılan iptal edilir; imza/preview/API secret sürümleri ve eski aktif deployment'ın kapatılması runbook'ta yer alır. Secret kurtarma ayrı güvenli kanaldadır, backup'ın yanında açık anahtar tutulmaz.
+- Compact's first implementation can halt writes/workers in a controlled manner to take a consistent DB snapshot and immutable media manifest. The expected pause/byte budget is calculated in preflight; if the time limit is exceeded, it is safely cancelled. No "short lock" promise is given during an entire large media copy.
+- For Standard/Distributed, GC retention/pin is coordinated with the referenced immutable media inventory in the DB snapshot. Pin creation and deletion decisions use the same coordination boundary; it is not necessary to stop writes throughout the entire copy. Online large backups are not sold before this path is validated.
+- Local/S3 object listing does not replace the DB snapshot. DB, media manifest, checksum, key references, versions, and backup state are tied to the same backup identity.
+- SQLite can be restored to a closed target via a staging file/directory; platform-specific atomic activation and WAL/SHM cleanup are validated.
+- PostgreSQL is restored to a separate empty DB/instance with its own restore method. After references/smoke checks are validated, application writes are stopped and the connection target is changed in a controlled manner. DB restore is not a "rename the media directory" operation.
+- PITR support is offered only with a media retention and key recovery model compatible with the DB history. Having only DB PITR does not guarantee the same RPO for the entire product.
+- Restored outbox/jobs can resend old emails/webhooks. A restore is initially started isolated, with worker and external egress closed; side effects are explicitly enabled after being reconciled.
+- Restored sessions are revoked by default; signature/preview/API secret versions and the shutdown of the old active deployment are in the runbook. Secret recovery is on a separate secure channel, public keys are not kept next to the backup.
 
-## Alternatifler ve doğrulama
+## Alternatives and validation
 
-Senkron DB+cache çift yazımı seçilmez: tek atomik transaction değildir. Cache'i tamamen kaldırmak doğruluğu sadeleştirir fakat yük hedefini karşılamayabilir; ihtiyaç olmayan girdilerde Noop/bypass geçerlidir. Kuyruk için harici broker ilk şart değildir. Genel down migration veri dönüşümünün güvenli tersini garanti etmez.
+Synchronous DB+cache dual write is not chosen: it is not a single atomic transaction. Removing the cache entirely simplifies correctness but may not meet the load target; Noop/bypass is valid for unnecessary entries. An external broker for the queue is not a prerequisite. General down migration does not guarantee the safe reverse of data transformation.
 
-Zorunlu kanıtlar: commit sonrası crash, event tekrar/sıra değişimi, lease expiry, provider timeout belirsizliği, ayrı iki web L1'i, kayıp invalidation, stale refill yarışı, L2 kesintisinde bounded DB yükü, migration sırasında eski binary restart, yeni yazımlardan sonra rollback, önceki asset URL'leri, iki DB'de gerçek restore ve restore sonrası yan etki karantinası. Başarı ölçüleri [hazırlık incelemesinde](../PRE_IMPLEMENTATION_REVIEW.md) izlenir.
+Mandatory evidence: crash after commit, event replay/reordering, lease expiry, provider timeout ambiguity, two separate web L1s, lost invalidation, stale refill race, bounded DB load during L2 outage, old binary restart during migration, rollback after new writes, previous asset URLs, actual restore in two DBs, and post-restore side effect quarantine. Success metrics are tracked in the [pre-implementation review](../PRE_IMPLEMENTATION_REVIEW.md).
 
-## Kaynaklar
+## References
 
-- [SQLite isolation](https://www.sqlite.org/isolation.html): Eşzamanlı bağlantılara rağmen tek writer sınırı.
-- [PostgreSQL CREATE INDEX](https://www.postgresql.org/docs/current/sql-createindex.html): Concurrent index ve transaction/lock kısıtları; dialect başına migration yürütme gereksinimi.
-- [Transactional outbox](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html): Atomik DB+event kaydı ve tekrar teslim olasılığı.
+- [SQLite isolation](https://www.sqlite.org/isolation.html): Single writer limit despite concurrent connections.
+- [PostgreSQL CREATE INDEX](https://www.postgresql.org/docs/current/sql-createindex.html): Concurrent index and transaction/lock constraints; need for migration execution per dialect.
+- [Transactional outbox](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html): Atomic DB+event recording and retry delivery possibility.
 
-Bu kaynaklar mekanizma kısıtlarını destekler; HydroGo'nun tercih ettiği akış ve kabul ölçütleri ürün tasarımıdır.
+These references support the mechanism constraints; the flow and acceptance criteria preferred by HydroGo are product design decisions.

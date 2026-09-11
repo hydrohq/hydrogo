@@ -1,67 +1,46 @@
-# ADR-0023: Metadata-driven Admin ve Frontend E2E
+# ADR-0023: Metadata-driven Admin and Frontend E2E
 
-**Durum:** Önerildi
+**Status:** Proposed
 
-## Bağlam
+## Context
 
-HydroGo'nun Admin Studio yüzeyi collection, field, action ve widget metadata'sı
-ile tanımlanıyor. Headless frontend ise sürümlü API client üzerinden çalışıyor.
-Bu yüzeylerden bağımsız, elle yazılmış E2E testleri zamanla panel ve frontend
-değişikliklerinden kopabilir. Ham HTML taraması ise kırılgan selector'lar,
-yetki bypass'ları ve yanlış pozitifler üretir.
+HydroGo's Admin Studio surface is defined by collection, field, action, and widget metadata. The headless frontend operates via a versioned API client. Independent, hand-written E2E tests for these surfaces can detach from panel and frontend changes over time. Raw HTML crawling produces brittle selectors, authorization bypasses, and false positives.
 
-## Karar önerisi
+## Proposed decision
 
-E2E test senaryoları iki açık metadata kaynağından üretilecek:
+E2E test scenarios will be generated from two explicit metadata sources:
 
-1. Admin Studio `Registry`: collection, field, widget, readonly/required bilgisi,
-   action ve route sahipliği.
-2. Frontend E2E manifest'i: route, görünür sayfa amacı, erişim seviyesi,
-   kararlı `data-testid` değerleri ve beklenen API projection'ı.
+1. Admin Studio `Registry`: collection, field, widget, readonly/required information, action, and route ownership.
+2. Frontend E2E manifest: route, visible page purpose, access level, stable `data-testid` values, and expected API projection.
 
-`hydro e2e generate` veya eşdeğer build aracı bu metadata'dan incelenebilir,
-deterministik Playwright testleri üretir. Üretim çıktısı ayrı `generated/`
-alanında tutulur; müşteri/özel akışlar `custom/` altında bulunur ve yeniden
-üretimde korunur.
+`hydro e2e generate` or an equivalent build tool inspects this metadata and generates deterministic Playwright tests. The generated output is kept in a separate `generated/` directory; customer/custom flows are located under `custom/` and preserved during regeneration.
 
-Üretici yalnızca güvenli ve tanımlı senaryoları oluşturur:
+The generator only creates safe and defined scenarios:
 
-- public sayfa açılışı ve yayınlanmış içerik görünürlüğü;
-- admin login/session ve yetkili sayfa açılışı;
-- metadata'dan required/readonly/widget doğrulamaları;
-- form validation ve optimistic-lock conflict akışı;
-- Pages/News publish, schedule ve preview gibi açıkça ilan edilmiş action'lar.
+- public page load and published content visibility;
+- admin login/session and authorized page load;
+- required/readonly/widget validations from metadata;
+- form validation and optimistic-lock conflict flow;
+- explicitly declared actions like Pages/News publish, schedule, and preview.
 
-Yazma senaryoları yalnızca izole seed veritabanında, idempotent fixture'larla
-çalışır. Gerçek production, gerçek ödeme, gerçek e-posta veya dış webhook
-çağrısı E2E kapsamına alınmaz. Bilinmeyen route, selector, action veya permission
-fail-closed biçimde üretimi durdurur.
+Write scenarios only run in an isolated seed database, with idempotent fixtures. Real production, real payment, real email, or external webhook calls are not included in the E2E scope. An unknown route, selector, action, or permission stops generation in a fail-closed manner.
 
-## Sınırlar
+## Boundaries
 
-- HTML/CSS sınıfı veya metin içeriği otomatik selector olarak kullanılmaz;
-  uygulama kararlı `data-testid` veya erişilebilir rol/etiket sözleşmesi sağlar.
-- Admin registry doğrudan DB erişimi veya yetki kararı taşımaz.
-- Frontend manifest'i API contract'ını genişletmez; yalnız test niyetini ve
-  gözlemlenecek yüzeyi tarif eder.
-- Browser runner ve browser binary'si Compact production binary'sine eklenmez;
-  yalnız geliştirme/CI test aracı olur.
-- Generated testler bir güvenlik kanıtının yerine geçmez; HTTP/service contract
-  testleri korunur.
+- HTML/CSS classes or text content are not used as automatic selectors; the application provides a stable `data-testid` or accessible role/label contract.
+- The Admin registry does not carry direct DB access or authorization decisions.
+- The Frontend manifest does not expand the API contract; it only describes the test intent and the surface to be observed.
+- The browser runner and browser binary are not added to the Compact production binary; they remain only as a development/CI test tool.
+- Generated tests do not replace a security proof; HTTP/service contract tests are preserved.
 
-## Kabul ölçütleri
+## Acceptance criteria
 
-- Aynı registry ve manifest iki kez üretildiğinde sıfır diff oluşur.
-- Bilinmeyen veya yetkisiz metadata üretimi fail-closed reddedilir.
-- Pages ve News için generated happy path ile validation/conflict path çalışır.
-- Headless starter, Core internal import etmeden generated public read testini
-  çalıştırabilir.
-- Gerçek browser çalıştırması ayrı raporlanır; browser kurulumu yoksa test
-  “atlandı” değil, açık ortam kapısı olarak raporlanır.
+- Generating the same registry and manifest twice produces zero diff.
+- Generation of unknown or unauthorized metadata is rejected fail-closed.
+- The generated happy path and validation/conflict path work for Pages and News.
+- The headless starter can run the generated public read test without importing Core internals.
+- Actual browser execution is reported separately; if there is no browser setup, the test is not reported as "skipped", but as an open environment gate.
 
-## Sonuç
+## Conclusion
 
-Bu yaklaşım Admin Studio ve headless frontend'in gerçek sözleşmelerinden test
-üretir, fakat rastgele HTML keşfi veya sınırsız otomasyonla sisteme kırılganlık
-eklemez. Uygulama öncesi selector, manifest formatı, runner sürümü ve fixture
-izolasyonu ayrıca doğrulanmalıdır.
+This approach generates tests from the actual contracts of the Admin Studio and headless frontend, but does not introduce brittleness to the system with random HTML discovery or unbounded automation. Pre-implementation selector, manifest format, runner version, and fixture isolation must be additionally validated.

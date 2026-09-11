@@ -1,34 +1,34 @@
-# R1 Güvenlik, Kimlik Doğrulama ve CSRF Doğrulaması
+# R1 Security, Authentication and CSRF Validation
 
-**Tarih:** 2026-09-06  
-**Roadmap maddesi:** R1 Çalışma Zamanı Güvenlik Temeli  
-**Durum:** Düzeltme turunda; yerel testler başarılı, CI ve auth akışının tamamı henüz kapanmadı.
+**Date:** 2026-09-06  
+**Roadmap item:** R1 Runtime Security Foundation  
+**Status:** In fix cycle; local tests passed, CI and full auth flow not yet closed.
 
-## Doğrulanan Davranışlar
+## Validated Behaviors
 
-1. **Argon2id Parola Hashing:**
-   - OWASP uyumlu parametrelerle (`memory=64MB`, `iterations=1`, `parallelism=4`, `saltLength=16`, `keyLength=32`) parola hashing ve sabit zamanlı (`subtle.ConstantTimeCompare`) doğrulama uygulandı.
-    - Zamanlama saldırılarına karşı geçersiz kullanıcı sorgularında gerçek kullanıcı hash'iyle aynı maliyetli sahte doğrulama işletilir.
+1. **Argon2id Password Hashing:**
+   - Password hashing and constant-time (`subtle.ConstantTimeCompare`) validation implemented with OWASP compliant parameters (`memory=64MB`, `iterations=1`, `parallelism=4`, `saltLength=16`, `keyLength=32`).
+   - To prevent timing attacks, invalid user queries trigger a fake validation with the same cost as an actual user hash.
 
-2. **Opaque DB-Backed Session Yönetimi:**
-   - 32 byte kriptografik rastgele token üretimi (`crypto/rand`).
-   - Veritabanında yalnızca token'ın SHA-256 özeti (`token_hash`) saklanır; veritabanı sızıntısında açık oturum token'ları ele geçirilemez.
-   - Oturum çerezi `HttpOnly`, `SameSite=Lax`, `Secure` bayraklarıyla ayarlanır.
-   - SQLite ve PostgreSQL üzerinde oturum oluşturma, doğrulama, son görülme güncelleme (`touch`), silme ve süresi dolanları temizleme sözleşmeleri `tests/contract/auth_contract_test.go` ile test edildi.
+2. **Opaque DB-Backed Session Management:**
+   - 32-byte cryptographic random token generation (`crypto/rand`).
+   - Only the SHA-256 digest (`token_hash`) of the token is stored in the database; plaintext session tokens cannot be compromised in a database leak.
+   - Session cookie is set with `HttpOnly`, `SameSite=Lax`, and `Secure` flags.
+   - Session creation, validation, last seen update (`touch`), deletion, and expired cleanup contracts are tested with `tests/contract/auth_contract_test.go` on SQLite and PostgreSQL.
 
-3. **CSRF Koruması:**
-   - Durum değiştiren HTTP metotlarında (`POST`, `PUT`, `PATCH`, `DELETE`) `X-CSRF-Token` başlığı veya `_csrf` form parametresi zorunlu kılındı.
-   - Geçersiz veya eksik CSRF token içeren istekler 403 Forbidden ile engellendi.
+3. **CSRF Protection:**
+   - The `X-CSRF-Token` header or `_csrf` form parameter is enforced on state-changing HTTP methods (`POST`, `PUT`, `PATCH`, `DELETE`).
+   - Requests with invalid or missing CSRF tokens are blocked with 403 Forbidden.
 
-4. **Sıkı Güvenlik Başlıkları & Dinamik CSP Nonce:**
-   - Her HTTP isteği için kriptografik CSP nonce üretilerek bağlama (`context`) enjekte edildi.
-   - `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-...'; style-src 'self' 'nonce-...'; img-src 'self' data: blob:; object-src 'none'; frame-ancestors 'none'; form-action 'self'` başlığı uygulandı.
-   - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` başlıkları zorunlu kılındı.
+4. **Strict Security Headers & Dynamic CSP Nonce:**
+   - A cryptographic CSP nonce is generated for every HTTP request and injected into the context.
+   - The `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-...'; style-src 'self' 'nonce-...'; img-src 'self' data: blob:; object-src 'none'; frame-ancestors 'none'; form-action 'self'` header is applied.
+   - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: strict-origin-when-cross-origin` headers are enforced.
 
 5. **CLI Bootstrap:**
-    - `hydro create-admin --email ... --password-stdin` komutu ile ilk yönetici hesabı oluşturma CLI seviyesinde doğrulandı; parola komut satırına yazılmaz.
+   - Initial admin account creation via `hydro create-admin --email ... --password-stdin` is validated at the CLI level; the password is not written to the command line.
 
-## Çalıştırılan Komutlar ve Test Çıktısı
+## Executed Commands and Test Output
 
 ```text
 go test -v ./internal/auth/...
@@ -37,4 +37,4 @@ go test -v ./internal/server/...
 go test -v ./tests/contract/...
 go test -v ./cmd/hydro/...
 ```
-Tüm testler başarıyla (PASS) sonuçlandı.
+All tests resulted in success (PASS).

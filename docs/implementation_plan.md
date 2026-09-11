@@ -1,35 +1,35 @@
-# HydroGo (HydroCore) — Birleştirilmiş Uygulama Planı ve Üretim Mimarisi
+# HydroGo (HydroCore) — Unified Implementation Plan and Production Architecture
 
-> **Belge durumu:** Uygulamaya esas ana plan  
-> **Proje kod adı:** `HydroGo` / `HydroCore`  
-> **CLI:** `hydro` (kısa takma ad isteğe bağlı olarak `hy`)  
-> **İlk sürüm hedefi:** SQLite ve PostgreSQL üzerinde aynı iş sözleşmelerini destekleyen, yeni veritabanlarının sertifikalı adaptörlerle eklenebildiği yeniden markalanabilir CMS ve JSON API  
-> **Dağıtım modeli:** Uygulama varlıkları gömülü tek çalıştırılabilir dosya; veritabanı, medya, yapılandırma ve sırlar harici kalıcı veri dizininde
+> **Document status:** Master plan for implementation  
+> **Project code name:** `HydroGo` / `HydroCore`  
+> **CLI:** `hydro` (short alias `hy` optionally)  
+> **First release target:** Rebrandable CMS and JSON API that supports the same business contracts on SQLite and PostgreSQL, with new databases added via certified adapters  
+> **Deployment model:** Application assets embedded in a single executable; database, media, config, and secrets in an external persistent data directory
 
-> **Gerçekleşme durumu (2026-09-09):** Planın R0-R2 ve R4 kapsamı, R5 generator kapsamı ve R3/R5 doğrulama altyapısının önemli bölümü uygulanıp contract testleriyle doğrulandı. Gerçek müşteri/prod ortamı gerektiren açık kapılar [roadmap](ROADMAP.md) ve [üretim kapısı kontrol listesinde](validation/PRODUCTION-GATES.md) izlenir. Bu belge kapsam ve kabul ölçütlerinin ana kaynağıdır.
+> **Realization status (2026-09-09):** R0-R2 and R4 scopes, R5 generator scope, and a significant portion of the R3/R5 validation infrastructure of the plan have been implemented and validated via contract tests. Open gates requiring a true customer/prod environment are tracked in the [roadmap](ROADMAP.md) and [production gate checklist](validation/PRODUCTION-GATES.md). This document is the primary source of scope and acceptance criteria.
 
-## 1. Amaç ve kapsam
+## 1. Purpose and scope
 
-HydroGo; kurumsal siteler, haber portalları ve mobil uygulama backend'leri için Go ile geliştirilen, çalışma ve üretim derlemesi sırasında Node.js/npm gerektirmeyen, HTML yönetim paneli ile JSON API'nin aynı iş mantığını kullandığı modüler bir CMS ürün fabrikasıdır. Aynı Core sözleşmeleri Compact, Standard ve Distributed kapasite profillerinde kullanılır.
+HydroGo is a modular CMS product factory developed in Go for corporate sites, news portals, and mobile application backends, which does not require Node.js/npm during runtime and production build, and where the HTML admin panel and JSON API use the same business logic. The same Core contracts are used across Compact, Standard, and Distributed capacity profiles.
 
-Mimari kararların ana kaynağı [`docs/architecture`](architecture/README.md) dizinidir. Yeni geliştirmeler ilgili ADR'lerle uyumlu olmalıdır.
+The primary source for architectural decisions is the [`docs/architecture`](architecture/README.md) directory. New developments must be consistent with relevant ADRs.
 
-İlk sürüm yalnızca şu sonucu kanıtlamaya odaklanır:
+The initial release focuses solely on proving the following result:
 
-- Yönetici güvenli biçimde giriş yapabilir.
-- Yetkili editör sayfa oluşturabilir, taslak revizyonunu önizleyebilir ve yayımlayabilir. News ikinci modülde inceleme ve zamanlama davranışını kanıtlar.
-- HTML yönetim paneli ile JSON API aynı doğrulama ve yetki kurallarını uygular.
-- İki editörün eşzamanlı değişiklikleri sessizce birbirini ezmez.
-- Veritabanı ve medya birlikte yedeklenip temiz bir kuruluma geri yüklenebilir.
-- Müşteri görünüm özelleştirmeleri derleme veya başlangıç sırasında doğrulanır.
+- Admin can log in securely.
+- Authorized editor can create a page, preview a draft revision, and publish it. News proves the review and scheduling behavior in a second module.
+- HTML admin panel and JSON API enforce the same validation and authorization rules.
+- Concurrent changes by two editors do not silently overwrite each other.
+- Database and media can be backed up together and restored to a clean installation.
+- Customer view customizations are validated at compile or startup time.
 
-İlk ticari ürün Site Edition'dır; kapsam ve pilot/v1/Distributed ayrımı [ADR-0009](architecture/0009-site-edition-and-delivery-scope.md) içindedir. Form Builder, e-ticaret ve yapay zekâ sonraki kapsamlardır. SQLite hızlı yerel geliştirme sunar; PostgreSQL contract testleri ilk Pages diliminden başlar ve kararlı v1 öncesinde tamamlanır. MySQL ve diğer motorlar gerçek talep üzerine adapter sertifikasyonuyla eklenir.
+The first commercial product is the Site Edition; scope and pilot/v1/Distributed separation are in [ADR-0009](architecture/0009-site-edition-and-delivery-scope.md). Form Builder, e-commerce, and AI are subsequent scopes. SQLite provides fast local development; PostgreSQL contract tests start from the first Pages slice and are completed before the stable v1. MySQL and other engines are added with adapter certification upon real demand.
 
-## 2. Temel mimari kararlar
+## 2. Core architectural decisions
 
-### 2.1 Katmanlar ve bağımlılık yönü
+### 2.1 Layers and dependency direction
 
-Akış aşağıdaki gibidir:
+The flow is as follows:
 
 ```text
 HTTP Handler (Templ/JSON)
@@ -41,20 +41,20 @@ Module-owned Repository Interface
 SQLite / PostgreSQL / Future Certified Adapter
 ```
 
-- HTML ve JSON handler'ları doğrudan veritabanına erişmez.
-- Doğrulama, yetki, durum geçişleri, işlem sınırları ve audit üretimi uygulama servislerinde yaşar.
-- Haberle ilgili model, servis ve repository arayüzleri `modules/news` altında bulunur.
-- HydroCore ortak altyapıyı `internal/` altında uygular; sürümlü müşteri/modül yüzeyi `extension/` ve ilan edilmiş modül API'leridir. Medya domain'i ile storage altyapısı ayrıdır. Client Edition ayrı Go module olarak Core'u kullanır; ayrıntı [ADR-0010](architecture/0010-sdk-lifecycle-and-edition-manifest.md) içindedir.
-- Servis metotları `context.Context` alır; veritabanı ve dış işlem zaman aşımını taşır.
-- Paketler global değişkenlere dayanmaz; bağımlılıklar uygulama başlangıcında açıkça bağlanır.
+- HTML and JSON handlers do not directly access the database.
+- Validation, authorization, state transitions, transaction boundaries, and audit generation live in application services.
+- Models, services, and repository interfaces related to news reside under `modules/news`.
+- HydroCore implements shared infrastructure under `internal/`; the versioned customer/module surface is `extension/` and declared module APIs. The media domain is separate from storage infra. The Client Edition uses Core as a separate Go module; details are in [ADR-0010](architecture/0010-sdk-lifecycle-and-edition-manifest.md).
+- Service methods take `context.Context`; carrying database and external operation timeouts.
+- Packages do not rely on global variables; dependencies are explicitly bound at application startup.
 
-### 2.2 Önce çalışan modül, sonra jeneratör
+### 2.2 Working module first, then generator
 
-İlk Pages modülü, ardından iş akışlı News modülü uçtan uca elle geliştirilir. İki farklı Client Edition ile SDK v0 doğrulanır; ardından v1 yüzeyi ve kod üretici sabitlenir. Tek örneğe özgü ayrıntılar kalıcı jeneratör sözleşmesine dönüşmez. Standart CRUD şeması build girdisidir; çalışma anında otomatik DDL uygulanmaz.
+The first Pages module, followed by the News module with its workflows, are developed end-to-end manually. SDK v0 is validated with two different Client Editions; then the v1 surface and code generator are fixed. Details specific to one instance do not turn into a permanent generator contract. The standard CRUD schema is a build input; automatic DDL is not applied at runtime.
 
-### 2.3 Tek binary sözleşmesi
+### 2.3 Single binary contract
 
-Tek çalıştırılabilir dosya hedefi için web sunucusu ve işletim komutları aynı binary altında alt komut olarak sunulur:
+For the single executable goal, the web server and operational commands are offered as subcommands under the same binary:
 
 ```text
 hydro serve
@@ -66,123 +66,123 @@ hydro generate module
 hydro doctor
 ```
 
-Templ çıktıları, statik CSS ve sabit istemci kütüphaneleri `embed.FS` ile binary içine alınır. Veritabanı, yüklenen medya, yapılandırma, şifreleme anahtarları ve çalışma logları gömülmez; harici kalıcı kaynaklarda tutulur. PostgreSQL harici servis olabilir. Önceki HTML'nin ihtiyaç duyduğu hash'li asset'ler deploy sırasında imzalı inventory'den ortak asset dizinine çıkarılıp retention süresince korunabilir. Uygulama binary'si, bakım araçlarını içerse de ilk kararlı SDK doğrulanmadan generator tamamlanmış sayılmaz.
+Templ outputs, static CSS, and static client libraries are bundled into the binary via `embed.FS`. Database, uploaded media, configuration, encryption keys, and runtime logs are not embedded; they are kept in external persistent resources. Hashed assets needed by previous HTML can be extracted from the signed inventory to a common asset directory during deployment and retained for their retention period. Although the application binary includes maintenance tools, the generator is not considered complete until the first stable SDK is validated.
 
-## 3. Klasör yapısı
+## 3. Folder structure
 
-Bu bir hedef yerleşimdir; mevcut depoda yalnız belgeler vardır. Modül içindeki her sorumluluk için hemen ayrı paket açılmaz; ihtiyaç oluşunca ayrılır. `client/` altındaki eski aynı-module örneği yerine dış Client Edition kullanılır.
+This is a target layout; currently, the repository only has docs. Separate packages are not immediately created for every responsibility inside a module; they are split when the need arises. Instead of the old same-module example under `client/`, an external Client Edition is used.
 
 ```text
 C:\dev\cms
 ├── cmd/
-│   └── hydro/                 # Tek giriş noktası ve alt komutlar
+│   └── hydro/                 # Single entry point and subcommands
 ├── internal/
-│   ├── audit/                 # Uygulama düzeyinde append-only audit
-│   ├── auth/                  # Kullanıcı, parola, session ve yetki altyapısı
-│   ├── config/                # Tipli yapılandırma ve başlangıç doğrulaması
-│   ├── database/              # SQLite/PostgreSQL ve genişletilebilir adaptörler
-│   ├── cache/                 # Noop, bounded memory ve Redis/Valkey cache
-│   ├── jobs/                  # Kalıcı işler, retry ve e-posta worker'ı
-│   ├── mailer/                # E-posta sağlayıcı arayüzü
-│   ├── media/                 # Dosya doğrulama ve saklama
-│   ├── observability/         # Log, metric ve health/readiness
-│   ├── router/                # Güvenli router ve middleware zinciri
-│   └── ui/                    # İç layout/Templ uygulaması
-├── extension/                 # Deneysel v0; kanıt sonrası sürümlü SDK v1
+│   ├── audit/                 # Application-level append-only audit
+│   ├── auth/                  # User, password, session, and authorization infra
+│   ├── config/                # Typed configuration and startup validation
+│   ├── database/              # SQLite/PostgreSQL and extensible adapters
+│   ├── cache/                 # Noop, bounded memory, and Redis/Valkey cache
+│   ├── jobs/                  # Durable jobs, retry, and email worker
+│   ├── mailer/                # Email provider interface
+│   ├── media/                 # File validation and storage
+│   ├── observability/         # Log, metric, and health/readiness
+│   ├── router/                # Secure router and middleware chain
+│   └── ui/                    # Internal layout/Templ implementation
+├── extension/                 # Experimental v0; versioned SDK v1 post-proof
 ├── modules/
-│   ├── pages/                 # İlk uçtan uca içerik modülü
+│   ├── pages/                 # First end-to-end content module
 │   └── news/
-│       ├── domain/            # Article ve durum kuralları
-│       ├── service/           # Use case'ler ve yetki
-│       ├── repository/        # Arayüz ve sertifikalı dialect uygulamaları
-│       ├── httpadmin/         # Templ/HTMX handler'ları
-│       ├── httpapi/           # JSON handler'ları
-│       └── ui/                # Haber Templ bileşenleri
+│       ├── domain/            # Article and state rules
+│       ├── service/           # Use cases and authorization
+│       ├── repository/        # Interface and certified dialect implementations
+│       ├── httpadmin/         # Templ/HTMX handlers
+│       ├── httpapi/           # JSON handlers
+│       └── ui/                # News Templ components
 ├── examples/
-│   └── client-edition/        # Ayrı Go module ile dış tüketici fixture'ı
-├── migrations/                # Dialect bazlı, sıralı ve değişmez migration'lar
+│   └── client-edition/        # External consumer fixture via separate Go module
+├── migrations/                # Dialect-based, sequential, and immutable migrations
 ├── docs/
-│   └── architecture/          # ADR kayıtları ve karar indeksi
+│   └── architecture/          # ADR records and decision index
 ├── static/
-│   ├── vendor/                # Sabitlenmiş htmx, Alpine CSP, Quill dosyaları
-│   └── css/                   # Önceden üretilmiş Tailwind çıktısı
+│   ├── vendor/                # Pinned htmx, Alpine CSP, Quill files
+│   └── css/                   # Pre-generated Tailwind output
 ├── tests/
 │   ├── integration/
 │   └── fixtures/
-├── tools/                     # Geliştirme araçlarının sürüm tanımları
+├── tools/                     # Version definitions of development tools
 ├── Makefile
 ├── go.mod
 ├── go.sum
 └── config.env.example
 ```
 
-`schema/user.yaml` kullanılmayacaktır. Çalışma zamanı şeması SQL migration'larıyla yönetilir. Jeneratörün ileride alacağı YAML tanımı ayrı bir `module-specs/` dizininde tutulur ve veritabanı şemasıyla karıştırılmaz.
+`schema/user.yaml` will not be used. Runtime schema is managed by SQL migrations. The YAML definition that the generator will take in the future is kept in a separate `module-specs/` directory and is not mixed with the database schema.
 
-Gerçek müşteri projesi ayrı repository'de `edition.yaml`, `edition.lock`, `custom/`, `generated/` ve kendi build girişine sahiptir. İmzalanan release metadata'sı `release.json` ile üretilir. Dosya formatları ADR-0010 doğrulama aşamasında sabitlenir.
+A real customer project has a separate repository with its own `edition.yaml`, `edition.lock`, `custom/`, `generated/`, and build entry. Signed release metadata is produced with `release.json`. File formats are pinned during the ADR-0010 validation phase.
 
-## 4. Güvenlik mimarisi
+## 4. Security architecture
 
-Kimlik yaşam döngüsü [ADR-0013](architecture/0013-identity-and-security-boundaries.md), aktörler/güven sınırları ve saldırı testleri [tehdit modeli](security/THREAT_MODEL.md) içindedir. Güvenilen modül kodu aynı proses içinde sandbox değildir. Ticari pilotta internetten erişilen admin/publisher hesapları MFA kapısını geçmelidir.
+Identity lifecycle is in [ADR-0013](architecture/0013-identity-and-security-boundaries.md), actors/trust boundaries and attack tests are in the [threat model](security/THREAT_MODEL.md). Trusted module code is not sandboxed within the same process. In the commercial pilot, internet-accessible admin/publisher accounts must pass an MFA gate.
 
-### 4.1 Varsayılan erişim reddi
+### 4.1 Default deny access
 
-- Rotalar açıkça public veya yetki gerektiren rota olarak kaydedilir; sınıflandırılmamış rota başlangıçta hata üretir.
-- Yetkilendirme yalnızca role dayanmaz. `CanEdit`, `CanSubmit`, `CanPublish`, `CanDelete` gibi kayıt ve durum bazlı politikalar kullanılır.
-- API ve HTML akışlarında aynı servis metotları çağrılır.
-- Kimlik doğrulama başarısızlığı ile yetki reddi doğru `401/403` davranışını verir; hassas kaydın varlığını açığa çıkarmamak gereken yerlerde `404` kullanılır.
+- Routes are explicitly registered as public or auth-required routes; an unclassified route initially yields an error.
+- Authorization does not rely solely on roles. Record and state-based policies like `CanEdit`, `CanSubmit`, `CanPublish`, `CanDelete` are used.
+- API and HTML flows call the same service methods.
+- Authentication failure and authorization denial yield proper `401/403` behavior; `404` is used where exposing the existence of a sensitive record is unwanted.
 
-### 4.2 Oturum ve parola güvenliği
+### 4.2 Session and password security
 
-- Parolalar Argon2id ile, sürümlenmiş parametrelerle saklanır; parametreler güvenlik testi ve sunucu kapasitesine göre belirlenir.
-- Session kimlikleri kriptografik rastgelelikte üretilir; veritabanında ham değer yerine hash saklanır.
-- Çerezler `HttpOnly`, `Secure` ve `SameSite=Lax` olur; üretimde HTTPS zorunludur.
-- Girişte session kimliği yenilenir. Mutlak oturum süresi ile boşta kalma süresi ayrı tanımlanır.
-- Parola değişikliği ve acil CLI sıfırlaması kullanıcının bütün aktif oturumlarını iptal eder.
-- Giriş uç noktasında kullanıcı ve IP düzeyinde hız sınırlama ile artan bekleme uygulanır.
-- Hassas formlarda yeniden kimlik doğrulama gerekebilir.
-- İlk yönetici rastgele başlangıç parolasıyla otomatik oluşturulmaz; açık bootstrap komutuyla oluşturulur.
+- Passwords are stored with Argon2id using versioned parameters; parameters are determined by security testing and server capacity.
+- Session IDs are generated with cryptographic randomness; a hash is stored in the database instead of the raw value.
+- Cookies will be `HttpOnly`, `Secure`, and `SameSite=Lax`; HTTPS is mandatory in production.
+- Session ID is refreshed on login. Absolute session duration and idle timeout are defined separately.
+- Password change and emergency CLI reset revoke all active sessions of the user.
+- User and IP-level rate limiting with increasing backoff is applied at the login endpoint.
+- Re-authentication may be required in sensitive forms.
+- The initial admin is not automatically created with a random startup password; it is created via an explicit bootstrap command.
 
-### 4.3 CSRF, CSP ve istemci tarafı güvenliği
+### 4.3 CSRF, CSP, and client-side security
 
-- Durum değiştiren HTML isteklerinde bağlanmış CSRF token doğrulanır.
-- `script-src 'self'` ile nonce/hash gerektirmeyen katı CSP uygulanır; satır içi script ve event handler kullanılmaz.
-- Alpine.js CSP dağıtımı kullanılır.
-- HTMX için `allowEval: false` ve `allowScriptTags: false` ayarlanır.
-- `frame-ancestors 'none'`, `base-uri 'self'`, `object-src 'none'`, uygun `Referrer-Policy`, `X-Content-Type-Options` ve `Permissions-Policy` gönderilir.
-- Güvenlik başlıkları ve CSP ihlalleri otomatik test edilir.
+- Bound CSRF tokens are validated on state-changing HTML requests.
+- Strict CSP without requiring nonces/hashes is applied with `script-src 'self'`; inline scripts and event handlers are not used.
+- Alpine.js CSP distribution is used.
+- `allowEval: false` and `allowScriptTags: false` are set for HTMX.
+- `frame-ancestors 'none'`, `base-uri 'self'`, `object-src 'none'`, proper `Referrer-Policy`, `X-Content-Type-Options`, and `Permissions-Policy` are sent.
+- Security headers and CSP violations are tested automatically.
 
-### 4.4 Zengin metin güvenliği
+### 4.4 Rich text security
 
-- İlk editör adayı Quill'dir. Delta JSON `format`, `format_version`, `document` zarfında saklanır; temiz HTML renderer/sanitizer sürümü taşıyan türetilmiş çıktıdır. Eski formatın okunması ve dönüşümde kayıp raporu [ADR-0012](architecture/0012-content-media-and-portability.md) ile tanımlıdır.
-- Sunucu yalnızca tanımlı Delta operasyonlarını kabul eder; istemciden gelen HTML güvenilir sayılmaz.
-- HTML sunucuda izin listesiyle temizlenir. Etiketlerin yanında öznitelik ve URL protokolleri de sınırlandırılır.
-- `javascript:`, tehlikeli `data:` türleri, event handler'lar, `style`, `iframe`, `script` ve bilinmeyen öznitelikler reddedilir.
-- Harici görsel politikası açıkça belirlenir; ilk sürümde yalnızca yerel medya URL'lerine izin verilir.
-- Sanitizer sürümü içerikle birlikte saklanır. Politika değiştiğinde Delta'dan toplu HTML yeniden üretme komutu sağlanır.
-- `templ.Raw` yalnızca sanitizer tarafından üretilmiş türlendirilmiş güvenli içerik üzerinde kullanılabilir.
+- The first editor candidate is Quill. The Delta JSON is stored inside a `format`, `format_version`, `document` envelope; clean HTML is a derived output carrying the renderer/sanitizer version. Reading the old format and loss reporting on conversion are defined in [ADR-0012](architecture/0012-content-media-and-portability.md).
+- The server only accepts defined Delta operations; HTML coming from the client is not considered trusted.
+- HTML is sanitized on the server with an allowlist. Besides tags, attributes and URL protocols are also restricted.
+- `javascript:`, dangerous `data:` types, event handlers, `style`, `iframe`, `script`, and unknown attributes are rejected.
+- The external image policy is explicitly defined; only local media URLs are allowed in the first version.
+- The sanitizer version is stored with the content. When the policy changes, a command to bulk-regenerate HTML from Delta is provided.
+- `templ.Raw` can only be used on typed safe content produced by the sanitizer.
 
-### 4.5 Medya yükleme
+### 4.5 Media upload
 
-- Dosya uzantısı, bildirilen MIME ve dosya imzası birlikte kontrol edilir.
-- İzin verilen formatlar ilk sürümde JPEG, PNG ve WebP ile sınırlandırılır; SVG kabul edilmez.
-- Dosya ve açılmış görüntü için byte, piksel ve boyut sınırı uygulanır.
-- Görseller decode edilip yeniden encode edilerek tehlikeli ek veri ve metadata temizlenir.
-- İstemci dosya adı saklama anahtarı olarak kullanılmaz; rastgele/icerik-hash tabanlı ad kullanılır.
-- Medya web kökünün dışında saklanır ve kontrollü handler üzerinden doğru `Content-Type` ile sunulur.
-- Sahipsiz medya temizliği referans ve bekleme süresi üzerinden güvenli bir iş olarak çalışır.
-- Private/public visibility, pending→ready upload ve crash/GC davranışı ADR-0012'ye tabidir. Draft medya sırf hash'li URL aldı diye public sayılmaz; backup pin ve revision referansları GC'den korunur.
+- File extension, declared MIME, and file signature are checked together.
+- Allowed formats are restricted to JPEG, PNG, and WebP in the first release; SVG is not accepted.
+- Byte, pixel, and dimension limits are applied for the file and decoded image.
+- Images are decoded and re-encoded to strip dangerous payload and metadata.
+- The client filename is not used as a storage key; a random/content-hash based name is used.
+- Media is stored outside the web root and served with the correct `Content-Type` via a controlled handler.
+- Orphan media cleanup runs as a safe job based on references and retention period.
+- Private/public visibility, pending→ready upload, and crash/GC behavior are subject to ADR-0012. Draft media is not considered public just because it has a hashed URL; backup pins and revision references are protected from GC.
 
-## 5. Veritabanı, cache ve tutarlılık
+## 5. Database, cache, and consistency
 
-### 5.1 Veritabanı profilleri
+### 5.1 Database profiles
 
-Domain ve application service kodu SQL dialect'i bilmez. İlk sürümde SQLite ve PostgreSQL aynı modül repository sözleşmelerini uygular; sorgular, migration'lar ve transaction ayrıntıları sürücüye aittir. Yeni motorlar capability ve contract testleriyle sertifikalı adaptör olarak eklenir. Ayrıntılı karar [ADR-0006](architecture/0006-extensible-database-adapters.md) içinde tanımlıdır.
+Domain and application service code do not know the SQL dialect. In the first release, SQLite and PostgreSQL implement the same module repository contracts; queries, migrations, and transaction details belong to the driver. New engines are added as certified adapters with capability and contract tests. Detailed decisions are defined in [ADR-0006](architecture/0006-extensible-database-adapters.md).
 
 #### SQLite
 
-İlk sürüm tek uygulama instance'ı ve yerel kalıcı NVMe/SSD üzerinde çalışır. NFS ve ağ dosya sistemleri desteklenmez.
+The first release runs on a single application instance and local persistent NVMe/SSD. NFS and network file systems are not supported.
 
-Her yeni bağlantıda aşağıdaki ayarlar uygulanır ve sonuçları başlangıçta doğrulanır:
+The following settings are applied on every new connection and their results are verified at startup:
 
 ```sql
 PRAGMA journal_mode = WAL;
@@ -191,35 +191,35 @@ PRAGMA synchronous = NORMAL;
 PRAGMA foreign_keys = ON;
 ```
 
-`synchronous=NORMAL` performans ile güvenlik dengesi olarak kabul edilir; güç kaybında son onaylanmış işlemlerin kaybolabileceği işletim kararına kaydedilir. Finansal/sipariş profilinde `FULL` veya PostgreSQL kullanılır.
+`synchronous=NORMAL` is considered a balance of performance and safety; it is logged as an operational decision that the last committed transactions might be lost on power loss. `FULL` or PostgreSQL is used for financial/order profiles.
 
-- Connection pool boyutu SQLite'ın tek yazarlı yapısına göre sınırlandırılır.
-- Yazma transaction'ları kısa tutulur; ağ, e-posta veya dosya dönüştürme işlemleri transaction içinde yapılmaz.
-- Migration'lar sürümlü, sıralı ve yayınlandıktan sonra değişmezdir.
-- Uygulama Core/modül bazında gerekli migration/checksum ve ilan edilmiş schema okuma/yazma uyumluluğunu doğrular. Uyumlu expand migration sonrası eski binary başlayabilir; destek aralığı dışındaki şema reddedilir. Ayrıntı [ADR-0011](architecture/0011-consistency-upgrade-and-recovery.md) içindedir.
-- Migration öncesi otomatik yedek ve geri dönüş prosedürü tanımlanır.
-- `PRAGMA integrity_check` ve `foreign_key_check` bakım/geri yükleme doğrulamasında çalıştırılır.
+- Connection pool size is limited according to SQLite's single-writer nature.
+- Write transactions are kept short; network, email, or file conversion operations are not done inside a transaction.
+- Migrations are versioned, sequential, and immutable once published.
+- The application validates the required migration/checksum and the declared schema read/write compatibility per Core/module. After a compatible expand migration, an old binary can start; schemas outside the support range are rejected. Details are in [ADR-0011](architecture/0011-consistency-upgrade-and-recovery.md).
+- An automatic backup and rollback procedure prior to migration is defined.
+- `PRAGMA integrity_check` and `foreign_key_check` are run during maintenance/restore validation.
 
 #### PostgreSQL
 
-PostgreSQL çoklu instance, yüksek yazma eşzamanlılığı ve scale-out kurulumların önerilen sürücüsüdür. Connection pool, isolation seviyesi, serialization/deadlock retry ve online migration davranışı açıkça yapılandırılır.
+PostgreSQL is the recommended driver for multi-instance, high write concurrency, and scale-out setups. Connection pool, isolation level, serialization/deadlock retry, and online migration behavior are explicitly configured.
 
-#### Gelecekteki adaptörler
+#### Future adapters
 
-MySQL ve diğer veritabanları yalnız connection driver eklenerek desteklenmiş sayılmaz. Modül sorguları, migration, error mapping, transaction/locking, backup/restore ve ortak contract testleri tamamlandığında sertifikalı adaptör olur.
+MySQL and other databases are not considered supported just by adding a connection driver. They become certified adapters when module queries, migration, error mapping, transaction/locking, backup/restore, and common contract tests are completed.
 
-### 5.2 İşlem sınırları ve kalıcı işler
+### 5.2 Transaction boundaries and durable jobs
 
-Bir içerik değişikliği, yeni revizyon, geçerli durum geçişi, audit olayı ve gerekiyorsa kalıcı iş kaydını tek transaction içinde yazar. Repository, audit ve outbox aynı transaction scope'undan bağlanır; bağımsız pool çağrılarına ayrılmaz. E-posta ve ileride açılacak webhook gibi dış etkiler commit sonrasında kalıcı iş kuyruğundan işlenir.
+A content change, new revision, valid state transition, audit event, and (if needed) durable job record are written within a single transaction. Repository, audit, and outbox are bound from the same transaction scope; they are not split into independent pool calls. External effects like emails and future webhooks are processed from the durable job queue after commit.
 
-- İşler benzersiz idempotency anahtarı taşır.
-- Hatalarda sınırlı exponential backoff ve dead-letter durumu kullanılır. News worker için retry gecikmesi bounded olarak uygulanır; kalıcı/bozuk payload'lar lease doğrulamasıyla dead-letter edilir ve son hata tanısı saklanır.
-- Worker yeniden başladığında yarım kalan işler güvenli biçimde devam eder.
-- Tekrarlanan komutlarda DB içi yayın değişikliği idempotent korunur. Dış etkiler en az bir kez teslim edilir; sağlayıcı idempotency sunmadığında e-posta timeout'u belirsiz sonuç/tekrar riski taşır. Genel exactly-once garantisi verilmez. Lease, fencing, tüketici durumu ve payload uyumluluğu ADR-0011'de tanımlıdır.
+- Jobs carry unique idempotency keys.
+- Bounded exponential backoff and dead-letter states are used on errors. For the News worker, retry delay is bounded; persistent/poison payloads are dead-lettered with lease validation and the last error diagnosis is stored.
+- When the worker restarts, half-finished jobs safely resume.
+- For repeated commands, in-DB publish changes are kept idempotent. External effects are delivered at-least-once; when the provider offers no idempotency, email timeouts carry ambiguous result/retry risks. General exactly-once guarantees are not provided. Lease, fencing, consumer state, and payload compatibility are defined in ADR-0011.
 
-### 5.3 Eşzamanlı düzenleme
+### 5.3 Concurrent editing
 
-`articles` tablosunda artan `version` alanı bulunur. Güncelleme şu koşulla yapılır:
+An incrementing `version` field exists in the `articles` table. Updates are performed with this condition:
 
 ```sql
 UPDATE articles
@@ -227,247 +227,247 @@ SET ..., version = version + 1
 WHERE id = ? AND version = ?;
 ```
 
-Sıfır satır değişirse servis `conflict` sonucu döndürür. Yönetim paneli kullanıcıya kayıt yeniden yükleme ve değişiklikleri karşılaştırma imkânı verir; sessiz son-yazan-kazan davranışı kullanılmaz.
+If zero rows change, the service returns a `conflict` result. The admin panel gives the user the ability to reload the record and compare changes; a silent last-writer-wins behavior is not used.
 
-### 5.4 Çok katmanlı cache
+### 5.4 Multi-tier cache
 
-Cache; request-scope memoization, bounded L1 memory, isteğe bağlı Redis/Valkey uyumlu L2 ve HTTP/CDN L3 katmanlarından oluşur. Compact profilde harici cache servisi gerekmez; Distributed profilde dağıtık cache zorunludur.
+The cache consists of request-scope memoization, bounded L1 memory, optional Redis/Valkey-compatible L2, and HTTP/CDN L3 tiers. An external cache service is not required in the Compact profile; distributed cache is mandatory in the Distributed profile.
 
-- Cache yalnız yeniden üretilebilir veri taşır; arızada bounded DB fallback ve backpressure uygulanır. Kapasite aşımında kontrollü 429/503 olabilir; asıl veri kaybolmaması kesintisizlik garantisi değildir.
-- TTL, jitter, versioned key, tag invalidation, stampede koruması ve boyut sınırı zorunludur.
-- Publish transaction'ı cache/CDN invalidation için outbox olayı yazar.
-- Admin, preview, session, audit, para ve stok doğruluk kayıtları public/shared cache'e girmez.
-- Hit/miss, latency, eviction, byte kullanımı ve invalidation failure ölçülür.
+- The cache only carries reproducible data; bounded DB fallback and backpressure are applied on failure. Controlled 429/503 may occur on capacity overflow; the fact that core data isn't lost does not mean a zero-downtime guarantee.
+- TTL, jitter, versioned keys, tag invalidation, stampede protection, and size limits are mandatory.
+- A publish transaction writes an outbox event for cache/CDN invalidation.
+- Admin, preview, session, audit, money, and stock records do not enter the public/shared cache.
+- Hit/miss, latency, eviction, byte usage, and invalidation failures are measured.
 
-Ayrıntılı katman sözleşmesi [ADR-0003](architecture/0003-cache-architecture.md), güncel fan-out/generation/stale bütçesi ve arıza kuralları [ADR-0011](architecture/0011-consistency-upgrade-and-recovery.md) içindedir. Worker'ın yerel L1 temizliği diğer web proseslerinin L1'ini temizlemez; ayrık topoloji bu testi geçmeden sertifikalanmaz.
+Detailed tier contracts are in [ADR-0003](architecture/0003-cache-architecture.md); current fan-out/generation/stale budget and failure rules are in [ADR-0011](architecture/0011-consistency-upgrade-and-recovery.md). The worker's local L1 flush does not flush other web processes' L1; split topology is not certified until it passes this test.
 
-## 6. Haber alan modeli
+## 6. News domain model
 
-Bu bölüm ikinci modül News'in davranışıdır; ilk Pages dilimi taslak/yayın/revision üzerine kurulur. Ortak içerik kimliği, locale, route ve medya sınırları [ADR-0012](architecture/0012-content-media-and-portability.md) içindedir. Genel Pages modeline News'in bütün iş akışı yüklenmez.
+This section is the behavior of the second module, News; the first Pages slice is built on draft/publish/revision. Common content ID, locale, route, and media boundaries are in [ADR-0012](architecture/0012-content-media-and-portability.md). The entire workflow of News is not imposed on the general Pages model.
 
-### 6.1 Durumlar
+### 6.1 States
 
 ```text
 draft → in_review → scheduled → published → archived
    ↑         ↓           ↓           ↓
-   └─────────┴───────────┴───────────┘ (yetkili geri çekme)
+   └─────────┴───────────┴───────────┘ (authorized withdrawal)
 ```
 
-- `preview` kalıcı durum değildir; yetkili kullanıcının belirli revizyonu görüntüleme işlemidir.
-- Her geçişin kaynak durumu, hedef durumu ve gerekli yetkisi açık bir tabloda tanımlanır.
-- Zamanlanmış yayın UTC olarak saklanır; arayüzde kullanıcı saat dilimine çevrilir.
-- Yayındaki içerik düzenlenirken yeni taslak revizyon oluşturulur; canlı sürüm kaydetme anında değişmez.
-- Önizleme URL'si kısa ömürlü, imzalı ve revizyona bağlıdır; arama motorlarınca indekslenmez.
+- `preview` is not a persistent state; it is the action of an authorized user viewing a specific revision.
+- Source state, target state, and required authorization of every transition are defined in an explicit table.
+- Scheduled publishing is stored as UTC; translated to the user's timezone in the UI.
+- Editing published content creates a new draft revision; the live version does not change at the moment of saving.
+- Preview URLs are short-lived, signed, tied to a revision, and are not indexed by search engines.
 
-### 6.2 Kimlik, slug ve SEO
+### 6.2 Identity, slug, and SEO
 
-- Kayıt kimliği URL'den bağımsız sabit bir ID'dir.
-- Slug benzersizlik ve normalizasyon kuralları tanımlanır.
-- Taslak slug değişikliği canlı yolu etkilemez. Publish sırasında önceki aktif yol gerekiyorsa 301 yönlendirmesine eklenir; path conflict ve döngü kontrolleri aynı transaction içinde uygulanır. [ADR-0014](architecture/0014-publication-routes-and-erasure-recovery.md) bağlayıcıdır.
-- Canonical URL, meta başlık/açıklama, Open Graph alanları, sitemap ve geçmiş URL yönetimi Pilot Site Edition kabul ölçütüdür (Aşama 3). İlk Pages dilimi route kimliği ve taslak/publish atomikliğini kanıtlar.
-- Silme ilk aşamada soft-delete olur; kalıcı silme ayrı yetki, bekleme süresi ve audit gerektirir.
+- Record ID is a stable ID independent of the URL.
+- Slug uniqueness and normalization rules are defined.
+- Changing a draft slug does not affect the live path. If the previous active path is needed during publish, it is added to a 301 redirect; path conflict and cycle checks are applied in the same transaction. [ADR-0014](architecture/0014-publication-routes-and-erasure-recovery.md) is binding.
+- Canonical URL, meta title/description, Open Graph fields, sitemap, and historical URL management are Pilot Site Edition acceptance criteria (Phase 3). The first Pages slice proves route identity and draft/publish atomicity.
+- Deletion is a soft-delete initially; hard deletion requires separate authorization, waiting period, and audit.
 
-## 7. API sözleşmesi
+## 7. API contract
 
-- API `/api/v1` altında sürümlenir. İlk `/api/...` yolları geriye dönük uyumluluk alias'ı olarak korunur ve `Deprecation`/`Link` başlıklarıyla geçişe yönlendirir.
-- Liste uçları cursor tabanlı sayfalama ve üst sınır kullanır.
-- Hatalar tek bir makinece okunabilir biçimde döner: `code`, `message`, `fields`, `request_id`.
-- Tarihler RFC 3339 ve UTC olarak gönderilir.
-- İstek gövdelerinde bilinmeyen alanlar reddedilir; boyut sınırı uygulanır.
-- Yalnız izin verilen alanlar yazılabilir; toplu model binding ile rol, yayın durumu veya sahiplik değiştirilemez.
-- Public API yalnız yayımlanmış güncel revizyonu döndürür. Taslak ve zamanlanmış içerik yetkisiz çağrıda açığa çıkmaz.
-- ETag/`If-Match` veya açık sürüm alanı ile API güncellemelerinde de optimistic locking uygulanır.
-- OpenAPI sözleşmesi kodla birlikte sürümlenir ve sözleşme testlerinde doğrulanır.
-- Mobil istemci kimlik doğrulaması yönetim paneli session'ından ayrı bir ADR ile belirlenmeden public olmayan mobil API yayımlanmaz.
+- The API is versioned under `/api/v1`. Initial `/api/...` paths are preserved as backward compatibility aliases and route to the transition using `Deprecation`/`Link` headers.
+- List endpoints use cursor-based pagination and upper limits.
+- Errors return in a single machine-readable format: `code`, `message`, `fields`, `request_id`.
+- Dates are sent as RFC 3339 in UTC.
+- Unknown fields in request bodies are rejected; size limits are applied.
+- Only permitted fields are writable; role, publish state, or ownership cannot be changed via mass model binding.
+- Public APIs return only the published, current revision. Drafts and scheduled content do not leak in unauthorized calls.
+- Optimistic locking is also applied in API updates using ETag/`If-Match` or an explicit version field.
+- The OpenAPI contract is versioned alongside the code and validated in contract tests.
+- Mobile client authentication is not published without a separate ADR determining the token/OAuth model distinct from the admin panel session.
 
-## 8. View Registry ve müşteri özelleştirmesi
+## 8. View Registry and customer customization
 
-Sabit sözleşme tipli view/component slotudur; runtime registry aşağıdaki davranışlara gerçekten ihtiyaç olduğu iki temada kanıtlanırsa kullanılır. İlk implementation derleme zamanı composition ile başlayabilir. SDK olgunluğu [ADR-0010](architecture/0010-sdk-lifecycle-and-edition-manifest.md) ile yönetilir.
+It is a fixed-contract typed view/component slot; the runtime registry is used if these behaviors are truly needed and proven in two themes. Initial implementation may start with compile-time composition. SDK maturity is managed with [ADR-0010](architecture/0010-sdk-lifecycle-and-edition-manifest.md).
 
-- Çekirdek ve modüller kararlı görünüm anahtarlarını açıkça kaydeder.
-- Müşteri override'ı bilinmeyen anahtar, eksik parametre veya uyumsuz sözleşme kullanırsa derleme ya da başlangıç başarısız olur.
-- Templ bileşenleri derleme zamanı Go kodudur; çalışma zamanında keyfi `.templ` dosyası yüklenmez.
-- Override'lar aynı binary içine derlenir. Bir müşteri tasarımını değiştirmek yeni build gerektirir.
-- Registry çakışmaları deterministik değildir diye sessizce çözülmez; çift kayıt hata üretir.
-- Haber kartı ve detay sayfası override'ı snapshot/golden görsel veya HTML yapısı testiyle doğrulanır.
+- Core and modules explicitly register stable view keys.
+- If a customer override uses an unknown key, missing parameter, or incompatible contract, compilation or startup fails.
+- Templ components are compile-time Go code; arbitrary `.templ` files are not loaded at runtime.
+- Overrides are compiled into the same binary. Changing a customer design requires a new build.
+- Registry conflicts are not silently resolved via non-deterministic loading; double registrations generate errors.
+- News card and detail page overrides are validated by snapshot/golden visual or HTML structure tests.
 
-## 9. Yedekleme ve geri yükleme
+## 9. Backup and restore
 
-Güncel protokol [ADR-0011](architecture/0011-consistency-upgrade-and-recovery.md) içindedir. Backup, mantıksal export ve binary rollback ayrı işlemlerdir.
+Current protocol is in [ADR-0011](architecture/0011-consistency-upgrade-and-recovery.md). Backup, logical export, and binary rollback are separate operations.
 
-### 9.1 Tutarlı yedek
+### 9.1 Consistent backup
 
-`hydro backup` driver'ın güvenilir snapshot mekanizmasını kullanır. SQLite Online Backup API veya doğrulanmış `VACUUM INTO`; PostgreSQL sürüme uygun backup aracı veya sertifikalı sağlayıcı snapshot/PITR entegrasyonu ile çalışır. Adapter araç/sürüm gereksinimleri `hydro doctor` tarafından doğrulanır. Tek uygulama binary'si harici DB backup aracının gereksiz olduğu anlamına gelmez.
+`hydro backup` uses the driver's reliable snapshot mechanism. SQLite Online Backup API or verified `VACUUM INTO`; PostgreSQL uses a version-appropriate backup tool or certified provider snapshot/PITR integration. Adapter tool/version requirements are validated by `hydro doctor`. Having a single application binary does not mean external DB backup tools are unnecessary.
 
-- İlk Compact yöntemi uygulama/worker yazmalarını kontrollü durdurabilir. Byte ve süre bütçesi önceden ölçülür; bütün medya kopyası boyunca kısa duraklama garantisi verilmez.
-- Büyük/dağıtık yöntemde DB snapshot'ının referanslı immutable medya manifest'i GC pin/retention ile korunur. GC ile pin yarışı engellenir; büyük kopya boyunca bütün yazmalar durdurulmaz. Bu yöntem profil testi geçmeden sunulmaz.
-- Manifest backup kimliği, Core/modül/schema sürümleri, dosya/nesne envanteri ve SHA-256 doğrulamalarını içerir. Eksik medya tamamlanmış yedek kabul edilmez.
-- Arşiv belgeli güçlü şifreleme kullanır; anahtar aynı yerde açık saklanmaz. Secret/key kurtarma ayrı kontrollü kanaldadır.
-- Geçici çıktı doğrulanmadan tamamlanmış olarak işaretlenmez. Başarısızlık kilitleri/pinleri güvenli biçimde çözer, korunması gereken nesneleri erken silmez.
-- Sunucu dışı kopya, saklama, son başarı/yaş alarmı ve düzenli restore tatbikatı zorunludur.
+- The first Compact method can perform a controlled halt on application/worker writes. Byte and duration budgets are pre-measured; there is no guarantee for a brief pause for the entire media copy.
+- In the large/distributed method, the referenced immutable media manifest of the DB snapshot is protected by a GC pin/retention. Race between GC and pin is prevented; not all writes are paused during the large copy. This method is not offered before passing the profile test.
+- The manifest includes the backup ID, Core/module/schema versions, file/object inventory, and SHA-256 verifications. A backup with missing media is not considered complete.
+- The archive uses documented strong encryption; the key is not stored in plaintext at the same location. Secret/key recovery is via a separate controlled channel.
+- Temporary output is not marked complete until verified. Failures safely release locks/pins, without prematurely deleting objects that must be kept.
+- Off-server copy, retention, last success/age alarm, and regular restore drills are mandatory.
 
-### 9.2 Geri yükleme
+### 9.2 Restore
 
-`hydro restore` çalışan uygulamanın hedefini doğrudan ezmez; boş/staging hedef kullanır. Önce manifest, sürüm, DB bütünlüğü/referansları ve medya checksum'ları doğrulanır.
+`hydro restore` does not directly overwrite the running application's target; it uses an empty/staging target. First, manifest, version, DB integrity/references, and media checksums are verified.
 
-- SQLite kapalı staging veri dizininde hazırlanıp platforma uygun biçimde devreye alınır; WAL/SHM ve açık prosesler ayrıca kontrol edilir.
-- PostgreSQL ayrı DB/instance'a restore edilir. Smoke doğrulaması ve kontrollü yazma durdurma sonrasında bağlantı hedefi değiştirilir; dosya dizini rename işlemi PostgreSQL restore değildir.
-- İlk açılışta worker ve dış egress kapalıdır. Eski outbox/e-posta/webhook etkileri uzlaştırılır; session'lar varsayılan iptal edilir. Silme geçmişi ADR-0014 uyarınca restore'dan bağımsız dış günlükten alınır; güncel ve eksiksiz olduğu doğrulanmadan trafik açılmaz. Secret/key sürümleri değerlendirilir.
-- Eski deployment yeniden yazamayacak şekilde kapatılır. Binary rollback ile yedekten restore karıştırılmaz; restore yedekten sonraki yazımları kaybettirebilir.
+- SQLite is prepared in an offline staging data directory and deployed appropriately for the platform; WAL/SHM and open processes are checked additionally.
+- PostgreSQL is restored to a separate DB/instance. After smoke validation and a controlled write halt, the connection target is swapped; directory renaming is not a PostgreSQL restore.
+- Workers and external egress are disabled on first boot. Old outbox/email/webhook effects are reconciled; sessions are revoked by default. Per ADR-0014, deletion history is fetched from an external log independent of the restore; traffic is not opened until it is verified as current and complete. Secret/key versions are evaluated.
+- The old deployment is fenced off so it cannot write again. Binary rollback is not mixed with restoring from backup; restoring can lose writes after the backup.
 
-RPO/RTO, kabul edilen yazma duraklaması, retention ve anahtar kurtarma hedefleri ilk pilot öncesi sayılandırılır. DB PITR ve medya geçmişi birlikte doğrulanmadan bütün ürün için PITR garantisi verilmez. DB bağımsız export/import modeli ADR-0012'ye tabidir.
+RPO/RTO, acceptable write pause, retention, and key recovery targets are quantified before the first pilot. Without verifying DB PITR and media history together, a whole-product PITR guarantee is not provided. DB independent export/import model is subject to ADR-0012.
 
-## 10. Audit, gizlilik ve veri yaşam döngüsü
+## 10. Audit, privacy, and data lifecycle
 
-- Giriş, başarısız giriş, parola/session değişikliği, içerik oluşturma/güncelleme/durum geçişi/silme, yetki değişikliği, yedekleme ve geri yükleme audit edilir.
-- Audit olayı aktör, eylem, hedef, zaman, request ID ve güvenli özet içerir; request ID `audit_events.request_id` alanında HTTP context'inden taşınır. Parola, session tokenı veya hassas tam gövde içermez.
-- Audit API'si append-only'dir. PostgreSQL runtime rolü UPDATE/DELETE yapamaz; migration/bakım rolü ayrıdır. SQLite dosyasına tam erişim sahibi karşısında aynı DB rol garantisi yoktur; OS izolasyonu ve gerekirse dış audit hedefi kullanılır. Saklama/dışa aktarma politikası vardır; ayrıntı ADR-0013'tedir.
-- KVKK için hangi kişisel verinin neden işlendiği, saklama süresi, silme/anonimleştirme ve veri dışa aktarma süreçleri tanımlanır.
-- Rıza çubuğu yalnız gerçekten rıza gerektiren istemci depolaması/izleme varsa gösterilir; zorunlu session çerezi ile analitik rıza ayrılır.
+- Login, failed login, password/session change, content creation/update/state transition/deletion, authorization change, backup, and restore are audited.
+- An audit event contains the actor, action, target, time, request ID, and a safe summary; request ID is carried from the HTTP context in `audit_events.request_id`. It does not contain passwords, session tokens, or sensitive full bodies.
+- The Audit API is append-only. PostgreSQL runtime role cannot run UPDATE/DELETE; the migration/maintenance role is separate. There is no equivalent DB role guarantee against someone with full access to the SQLite file; OS isolation and an external audit target if needed are used. There is a retention/export policy; details are in ADR-0013.
+- For GDPR/KVKK, what personal data is processed, why, retention period, deletion/anonymization, and data export processes are defined.
+- A consent banner is only shown if there is client storage/tracking that truly requires consent; a mandatory session cookie is separated from analytics consent.
 
-## 11. Gözlemlenebilirlik ve işletim
+## 11. Observability and operations
 
-- `hydro serve` JSON biçimli yapılandırılmış HTTP loglarında request ID, method, path, status ve süreyi yazar; query string, gövde, cookie ve response body loglanmaz. Sırlar ve kişisel içerik maskelenir.
-- `/healthz` yalnız prosesin yaşadığını, `/readyz` veritabanı ve migration uygunluğunu gösterir.
-- HTTP sunucusunda read-header, read, write ve idle timeout; gövde boyutu ve kontrollü graceful shutdown bulunur.
-- Temel metrikler: istek süresi/hata oranı, readiness state/failure, DB pool/lock/deadlock/busy durumu, cache hit/miss/eviction, kuyruk derinliği, başarısız işler, disk kullanımı, yedek yaşı ve son yedek sonucu. Process-local HTTP request/status/latency, `hydro_readiness_state` (anlık 0/1), `hydro_readiness_failures_total` (kümülatif olay sayısı), `sql.DB.Stats()` pool, public cache hit/miss/load/error/eviction/expiration, durable jobs depth/leased ve worker processed/failure/enqueue-error sayaçları authenticated `/metrics` endpoint'inde bounded label setiyle sunulur; DB lock/deadlock, queue retry/failure, disk/exporter entegrasyonu ayrıca işletim kapısıdır.
-- Disk doluluk eşiği, sertifika süresi, başarısız yedek ve migration hatası için alarm tanımlanır.
-- Build sürümü, commit ve şema uyumluluğu `hydro version` ve erişimi korunan diagnostics çıktısında bulunur; public health/readiness ayrıntılı iç bilgi döndürmez.
-- Sırlar environment veya secret file üzerinden alınır; loglanmaz ve `config.env.example` içine gerçek değer konmaz.
+- `hydro serve` writes request ID, method, path, status, and duration in JSON-formatted structured HTTP logs; query strings, body, cookies, and response body are not logged. Secrets and personal content are masked.
+- `/healthz` only shows process liveness, `/readyz` shows database and migration compatibility.
+- HTTP server includes read-header, read, write, and idle timeouts; body size limits, and controlled graceful shutdown.
+- Key metrics: request duration/error rate, readiness state/failure, DB pool/lock/deadlock/busy status, cache hit/miss/eviction, queue depth, failed jobs, disk usage, backup age, and last backup result. Process-local HTTP request/status/latency, `hydro_readiness_state` (instant 0/1), `hydro_readiness_failures_total` (cumulative event count), `sql.DB.Stats()` pool, public cache hit/miss/load/error/eviction/expiration, durable jobs depth/leased and worker processed/failure/enqueue-error counters are served on the authenticated `/metrics` endpoint with a bounded label set; DB lock/deadlock, queue retry/failure, disk/exporter integration are separate ops gates.
+- Alarms are defined for disk full threshold, certificate expiration, failed backup, and migration failure.
+- Build version, commit, and schema compatibility are available in `hydro version` and diagnostics output protected by access; public health/readiness does not return detailed internal info.
+- Secrets are sourced via environment or a secret file; they are not logged, and real values are not placed in `config.env.example`.
 
-## 12. Geliştirici deneyimi ve tedarik zinciri
+## 12. Developer experience and supply chain
 
-- Üretim binary'sini derlemek için Node.js/npm gerekmez. Tailwind CSS çıktısı sabitlenmiş standalone araçla geliştirme veya release hazırlığı sırasında üretilip repoya alınır.
-- Go, Templ, Air, Tailwind standalone ve diğer araç sürümleri sabitlenir.
-- Windows için PowerShell komutları veya çapraz platform Go tabanlı görev aracı sağlanır; `make` zorunlu tek yol olmaz.
-- Üçüncü taraf JS dosyaları sürüm ve SHA-256 ile sabitlenir; lisansları dağıtıma eklenir.
-- Release build yeniden üretilebilirlik, `go test`, `go vet`, format, migration ve gömülü varlık kontrollerinden geçer.
-- `go:generate` çıktılarının güncel olup olmadığı CI'da doğrulanır.
+- Node.js/npm is not required to compile the production binary. Tailwind CSS output is generated with a pinned standalone tool during development or release prep, and checked into the repo.
+- Go, Templ, Air, Tailwind standalone, and other tool versions are pinned.
+- PowerShell commands for Windows or a cross-platform Go-based task tool are provided; `make` will not be the sole mandatory path.
+- Third-party JS files are pinned with version and SHA-256; their licenses are included in the distribution.
+- Release build passes reproducibility, `go test`, `go vet`, formatting, migration, and embedded asset checks.
+- CI verifies whether `go:generate` outputs are up to date.
 
-## 13. Test stratejisi
+## 13. Test strategy
 
-Testler katman davranışını ve kritik riskleri kanıtlar:
+Tests prove layer behavior and critical risks:
 
-- **Birim:** Durum geçişleri, yetki politikaları, slug ve sanitizer kuralları.
-- **Repository entegrasyonu:** SQLite ve PostgreSQL üzerinde ortak contract testleri; migration, foreign key, transaction, deadlock/retry ve optimistic locking. Gelecekteki adaptör aynı test kitini kullanır.
-- **HTTP entegrasyonu:** CSRF/CSP, auth, HTML/API davranış eşitliği, doğru hata kodları ve taslak sızıntısı olmaması.
-- **Güvenlik:** Zararlı HTML/URL örnekleri, dosya imzası uyuşmazlığı, aşırı büyük görsel, session fixation ve rate limit.
-- **Cache:** TTL/jitter, invalidation, stampede, bounded memory, L2 kesintisinde DB fallback ve gizli içeriğin cache'lenmemesi.
-- **Yedek/geri yükleme:** Her veritabanı sürücüsünde eşzamanlı yazma altında tutarlı snapshot, manifest bozulması, eksik medya ve temiz kuruluma gerçek restore.
-- **Kapasite profilleri:** Compact kaynak bütçesi ve Distributed concurrency/topoloji testi.
-- **Migration:** Desteklenen eski üretim şemasından geçiş, uyumlu expand sonrası eski binary restart, aralık dışı schema reddi ve her dialect için online/backfill/maintenance davranışı.
-- **Eşzamanlılık:** İki editör aynı sürümü kaydettiğinde birinin açık conflict alması.
-- **View Registry:** Bilinmeyen override ve çift kaydın fail-fast davranışı.
-- **Kurtarma/dağıtım:** Yeni yazımdan sonra eski binary rollback; retained asset'ler; restore edilmiş session iptali ve job/egress karantinası; gerçek müşteri DB'sinde yazan contract testleri çalıştırılmaması.
+- **Unit:** State transitions, authorization policies, slug, and sanitizer rules.
+- **Repository integration:** Common contract tests on SQLite and PostgreSQL; migration, foreign keys, transaction, deadlock/retry, and optimistic locking. Future adapters use the same test kit.
+- **HTTP integration:** CSRF/CSP, auth, HTML/API behavior parity, proper error codes, and absence of draft leaks.
+- **Security:** Malicious HTML/URL samples, file signature mismatch, overly large image, session fixation, and rate limit.
+- **Cache:** TTL/jitter, invalidation, stampede, bounded memory, safe fallback on L2 failure, and no caching of sensitive content.
+- **Backup/restore:** Consistent snapshot under concurrent writes in each DB driver, manifest corruption, missing media, and real restore to a clean installation.
+- **Capacity profiles:** Compact resource budgets and Distributed concurrency/topology tests.
+- **Migration:** Transition from supported legacy production schema, old binary restart post-compatible expand, out-of-bounds schema rejection, and online/backfill/maintenance behavior for each dialect.
+- **Concurrency:** When two editors save the same version, one receives an explicit conflict.
+- **View Registry:** Fail-fast behavior for unknown overrides and double registrations.
+- **Recovery/deployment:** Old binary rollback after a new write; retained assets; restored session revocation and job/egress quarantine; not running contract tests that write to a real customer DB.
 
-Testler yalnız uygulamayı tekrar eden yüzeysel kontrollerden oluşmaz; her biri tanımlı bir riski doğrular.
+Tests are not merely superficial checks that repeat the implementation; each proves a defined risk.
 
-## 14. Aşamalı yol haritası ve çıkış ölçütleri
+## 14. Phased roadmap and exit criteria
 
-Her aşama uygulama/test kanıtıyla kapanır. Kabul edilmiş ADR uygulamanın tamamlandığı anlamına gelmez. Ayrıntılı deneyler [hazırlık incelemesinde](PRE_IMPLEMENTATION_REVIEW.md) izlenir.
+Every phase closes with implementation/test evidence. An accepted ADR does not mean the implementation is complete. Detailed experiments are tracked in the [pre-implementation review](PRE_IMPLEMENTATION_REVIEW.md).
 
-İş bazında ilerleme ve kanıt kapıları [Roadmap](ROADMAP.md) içinde izlenir; R0–R6 bu aşamalarla eşleşir.
+Job-by-job progress and evidence gates are tracked in the [Roadmap](ROADMAP.md); R0–R6 align with these phases.
 
-### Aşama 0 — Mimari temel ve risk kaydı
+### Phase 0 — Architectural foundation and risk log
 
-- İlk ürün/tenancy, schema/custom sınırı, SDK yaşam döngüsü, cache/transaction, migration, içerik/medya ve auth kararları ADR-0009–0013 ile netleştirilir.
-- Tehdit modeli, kapsam dışı özellikler ve kararların doğrulama yöntemi kaydedilir.
-- Açık soruların hangi teslimi engellediği belirtilir; bütün geleceğin detaylarını kapatma şartı yoktur.
+- First product/tenancy, schema/custom boundary, SDK lifecycle, cache/transaction, migration, content/media, and auth decisions are clarified with ADR-0009–0013.
+- Threat model, out-of-scope features, and the validation method for decisions are recorded.
+- It is specified which open questions block which deliveries; there is no requirement to lock down all future details.
 
-**Çıkış:** Temel kararlar tutarlı; kalan belirsizliklerin sahibi, deney ve kapısı belli. Bu belge güncellemesi tasarım kısmını sağlar, teknik doğrulama aşağıdaki aşamada bekler.
+**Output:** Core decisions are consistent; the owner, experiment, and gate of remaining uncertainties are clear. This document update provides the design part, technical validation waits in the following phase.
 
-### Aşama 1 — Teknik deneyler ve walking skeleton
+### Phase 1 — Technical experiments and walking skeleton
 
-- Dış Client Edition import sınırı, Go module yolu, toolchain/driver/migration/UI bağımlılıkları değerlendirilir ve sürümlenir.
-- `go mod`, tek `hydro` giriş noktası, tipli config, manifest preflight, health/readiness ve graceful shutdown.
-- SQLite ve PostgreSQL bağlantısı, transaction-scope, migration ledger/uyumluluk deneyi.
-- Default-deny router, session/bootstrap, CSRF/CSP ve temel audit.
-- Compact kaynak bütçeleri, bounded L1 ve public HTTP cache; ek queue/cache servisi zorunlu değil.
-- Windows geliştirme ve Linux amd64 build akışı; Templ/editör/HTMX CSP uyumu.
+- External Client Edition import boundary, Go module path, toolchain/driver/migration/UI dependencies are evaluated and versioned.
+- `go mod`, single `hydro` entry point, typed config, manifest preflight, health/readiness, and graceful shutdown.
+- SQLite and PostgreSQL connection, transaction-scope, migration ledger/compatibility experiment.
+- Default-deny router, session/bootstrap, CSRF/CSP, and basic audit.
+- Compact resource budgets, bounded L1 and public HTTP cache; extra queue/cache services not mandatory.
+- Windows development and Linux amd64 build flow; Templ/editor/HTMX CSP compliance.
 
-**Çıkış:** Temiz ortamda build/giriş yapılır; iki DB'de transaction rollback ve gerekli migration kontrolleri geçer. Somut teknoloji seçimleri deney sonuçlarıyla kaydedilir.
+**Output:** Build/entry succeeds in a clean environment; transaction rollback and required migration checks pass in both DBs. Concrete technology choices are recorded with experiment results.
 
-### Aşama 2 — Elle Pages ve ilk Client Edition
+### Phase 2 — Manual Pages and first Client Edition
 
-- Pages oluşturma/düzenleme, draft/revision/publish, optimistic locking, locale/route temeli.
-- Admin, public HTML ve JSON aynı service/policy üzerinden çalışır.
-- Sürümlü rich-text, sanitizer ve private/public medya akışı.
-- Local storage, sınırlı cache invalidation ve kalıcı outbox.
-- Tipli view slotlarıyla gerçek müşteri teması; Core fork veya internal import yok.
+- Pages create/edit, draft/revision/publish, optimistic locking, locale/route fundamentals.
+- Admin, public HTML, and JSON run through the same service/policy.
+- Versioned rich-text, sanitizer, and private/public media flow.
+- Local storage, limited cache invalidation, and persistent outbox.
+- Real customer theme with typed view slots; no Core fork or internal imports.
 
-**Çıkış:** İki editör çakışması, taslak/özel medya sızıntısı ve SQLite/PostgreSQL ortak davranış testleri geçer. SDK hâlâ v0'dır.
+**Output:** Two-editor conflict, draft/private media leak, and SQLite/PostgreSQL common behavior tests pass. SDK is still v0.
 
-### Aşama 3 — Pilot Site Edition ve işletim
+### Phase 3 — Pilot Site Edition and operations
 
-- Navigation, settings, SEO/redirects, sınırlı form inbox, revisions ve public API tamamlanır.
-- MFA, davet/reset/kurtarma, role/session iptali; güvenlik fixture'ları.
-- Backup/restore, harici kopya, key kurtarma; restore job/egress karantinası ve dış silme günlüğü/checkpoint deneyi (ADR-0014).
-- Ölçülmüş RPO/RTO, kaynak/soak testleri, log/metrik/alarmlar, veri saklama ve runbook.
-- Sertifikalanacak tek sunucu profilinde online migration, blue/green, eski asset ve rollback deneyi.
+- Navigation, settings, SEO/redirects, limited form inbox, revisions, and public API are completed.
+- MFA, invite/reset/recover, role/session revoke; security fixtures.
+- Backup/restore, external copy, key recovery; restore job/egress quarantine, and external erasure log/checkpoint experiment (ADR-0014).
+- Measured RPO/RTO, resource/soak tests, log/metric/alarms, data retention, and runbook.
+- Online migration, blue/green, legacy asset, and rollback experiment on the single server profile to be certified.
 
-**Çıkış:** Pilotun gerçek müşteri akışı, güvenlik ve işletim kapıları geçer. Henüz doğrulanmamış Distributed desteği veya kararlı SDK sözü verilmez.
+**Output:** The real customer flow, security, and operation gates of the pilot pass. No unverified Distributed support or stable SDK promise is made.
 
-### Aşama 4 — News, ikinci Edition ve SDK doğrulaması
+### Phase 4 — News, second Edition, and SDK validation
 
-- News: draft/in-review/scheduled/published/archived, kayıt/alan yetkisi, schedule iptali, revizyon preview.
-- İkinci tema ve özel iş kuralı; iki modülde aynı transaction/extension sınırı.
-- İki DB için job lease, tekrar/sıra değişimi, migration ve cache contract kitleri.
-- Core/modül/config/content/event/job/asset release uyumluluk matrisi; geriye uyumluluk fixture'ları.
+- News: draft/in-review/scheduled/published/archived, record/field authorization, schedule cancellation, revision preview.
+- Second theme and custom business rule; same transaction/extension boundary across two modules.
+- Job lease, retry/reorder, migration, and cache contract kits for two DBs.
+- Core/module/config/content/event/job/asset release compatibility matrix; backward compatibility fixtures.
 
-**Çıkış:** İki farklı modül ve iki markalı dış Client Edition geçer; SDK v1'e açılacak küçük yüzey belirlenir. Gelecekteki DB sertifikasyon kiti yayıma hazırdır.
+**Output:** Two different modules and two branded external Client Editions pass; the small surface to be opened for SDK v1 is determined. The future DB certification kit is ready for release.
 
-### Aşama 5 — Generator ve kararlı v1
+### Phase 5 — Generator and stable v1
 
-- Sürümlü collection spec'ten Go/Templ CRUD ve incelenecek dialect migration taslağı.
-- Deterministik üretim, diff, generated/custom koruması; published migration checksum'ları değişmez.
-- Yetki varsayılanı deny; özel iş kuralı ve destructive değişiklik tahmin edilmez.
-- Gerçek standart müşteri işinde süre ölçümü; tekrar üretim ve özel kural değişikliği dahil.
-- SDK v1, SQLite/PostgreSQL sertifikasyonu, taşınabilir export/import fixture'ı, desteklenen topoloji/OS/DB sürüm matrisi.
-- Lisans/destek/deprecation takvimi ve sürüm yükseltme rehberi yayımlanmadan önce kesinleşir.
+- Go/Templ CRUD and reviewable dialect migration draft from versioned collection spec.
+- Deterministic generation, diff, generated/custom protection; published migration checksums are immutable.
+- Authorization defaults to deny; custom business rules and destructive changes are not guessed.
+- Duration measurement on a real standard customer job; including regeneration and custom rule change.
+- SDK v1, SQLite/PostgreSQL certification, portable export/import fixture, supported topology/OS/DB version matrix.
+- License/support/deprecation schedule and upgrade guide are finalized before publication.
 
-**Çıkış:** Belgeli kapsamıyla satılabilir v1; eksik profile ait ölçümler başarı gibi gösterilmez.
+**Output:** Salable v1 with documented scope; unmeasured profile metrics are not passed off as success.
 
-### Aşama 6 — Talep ile genişleme
+### Phase 6 — Expansion with demand
 
-- PostgreSQL üzerinde çoklu web/worker, L2, S3 uyumlu object storage ve CDN içeren Distributed profil; fan-out/reconnect, aşırı yük ve arıza testleri.
-- Gerçek talebe göre MySQL veya yeni sertifikalı adapter; bulk veri taşıma.
-- Form Builder, gelişmiş arama, OIDC/SAML ve private mobil API ayrı kapsam/tehdit incelemeleriyle.
-- Commerce para/stok/transaction/ledger ADR'leriyle; AI ise yetki, gizlilik, audit, maliyet ve insan kontrolüyle ayrı tasarlanır.
+- Distributed profile with multi web/worker, L2, S3-compatible object storage, and CDN on PostgreSQL; fan-out/reconnect, overload, and failure tests.
+- MySQL or a new certified adapter based on real demand; bulk data transfer.
+- Form Builder, advanced search, OIDC/SAML, and private mobile API with separate scope/threat reviews.
+- Commerce money/stock/transaction/ledger via ADRs; AI designed separately with authorization, privacy, audit, cost, and human oversight.
 
-**Çıkış:** Her yeni özellik ve profil kendi kanıtıyla destek matrisine eklenir.
+**Output:** Each new feature and profile is added to the support matrix with its own evidence.
 
-## 15. Üretime çıkış kontrol listesi
+## 15. Production release checklist
 
-- [ ] Tüm rotalar public/yetkili olarak sınıflandırılmış ve default-deny testi geçiyor.
-- [ ] Session yenileme, süre aşımı, iptal ve rate limit testleri geçiyor.
-- [ ] Ticari pilot için admin/publisher MFA, davet/reset ve kurtarma akışları doğrulanmış.
-- [ ] HTML sanitizer ve medya kötüye kullanım testleri geçiyor.
-- [ ] SQLite PRAGMA'ları ve PostgreSQL pool/isolation ayarları başlangıçta doğrulanıyor.
-- [ ] SQLite ve PostgreSQL ortak contract ve migration testlerini geçiyor.
-- [ ] Cache sınırlı, gözlemlenebilir ve L2 kesintisinde güvenli fallback yapıyor.
-- [ ] Release ile desteklendiği ilan edilen her profil tanımlı referans yükte benchmark/soak testlerini geçiyor; Distributed ayrıca sertifikalanıyor.
-- [ ] Online migration içeren release blue/green ile public kesinti oluşturmuyor.
-- [ ] Eşzamanlı düzenleme sessiz veri kaybı üretmiyor.
-- [ ] Public API taslak, silinmiş veya zamanlanmış içeriği sızdırmıyor.
-- [ ] Migration eski üretim kopyası üzerinde denenmiş.
-- [ ] Yedek sunucu dışında saklanıyor ve temiz ortama restore edilmiş.
-- [ ] Restore sonrası session iptali ve job/egress karantinası doğrulanmış; geçmiş silme işlemleri uzlaştırılmış.
-- [ ] RPO/RTO, saklama ve anahtar kurtarma prosedürü yazılmış.
-- [ ] Loglarda parola, token ve hassas içerik bulunmadığı doğrulanmış.
-- [ ] HTTP timeout, graceful shutdown, disk ve yedek alarmları çalışıyor.
-- [ ] Binary, JS/CSS varlıkları, lisanslar ve sürüm bilgisi eksiksiz.
-- [ ] Release imzası/manifest'i doğrulanmış; schema/content/job/config uyumluluğu ve önceki asset retention'ı test edilmiş.
-- [ ] Runbook: deploy, rollback, backup, restore, parola sıfırlama ve disk dolması senaryolarını kapsıyor.
+- [ ] All routes classified as public/authorized and pass default-deny test.
+- [ ] Session refresh, timeout, revocation, and rate limit tests pass.
+- [ ] Admin/publisher MFA, invite/reset, and recovery flows validated for the commercial pilot.
+- [ ] HTML sanitizer and media abuse tests pass.
+- [ ] SQLite PRAGMAs and PostgreSQL pool/isolation settings are validated at startup.
+- [ ] Passes common contract and migration tests for SQLite and PostgreSQL.
+- [ ] Cache is bounded, observable, and falls back safely on L2 failure.
+- [ ] Benchmark/soak tests pass under defined reference load for every profile declared supported by the release; Distributed is additionally certified.
+- [ ] Releases with online migrations do not cause public downtime during blue/green.
+- [ ] Concurrent editing does not produce silent data loss.
+- [ ] Public API does not leak draft, deleted, or scheduled content.
+- [ ] Migration tested on an old production copy.
+- [ ] Backup stored off-server and restored to a clean environment.
+- [ ] Post-restore session revocation and job/egress quarantine validated; past deletions reconciled.
+- [ ] RPO/RTO, retention, and key recovery procedure written.
+- [ ] Verified no passwords, tokens, or sensitive content in logs.
+- [ ] HTTP timeout, graceful shutdown, disk, and backup alarms working.
+- [ ] Binary, JS/CSS assets, licenses, and version info are complete.
+- [ ] Release signature/manifest validated; schema/content/job/config compatibility and previous asset retention tested.
+- [ ] Runbook covers deploy, rollback, backup, restore, password reset, and disk-full scenarios.
 
-## 16. Ertelenmiş kararlar
+## 16. Deferred decisions
 
-Aşağıdaki konuların destek ve erteleme sınırı açıktır. Yeni yetenekler açılmadan önce ilgili ADR güncellenir veya yeni karar yazılır:
+The boundary of support and deferral for the following topics is clear. Relevant ADRs will be updated or new decisions written before new capabilities are unblocked:
 
-- SQLite dosyasını NFS veya object storage üzerinde çalıştırma desteklenmez. Medya için S3 uyumlu adapter ADR-0012 ile planlıdır; Distributed sertifikasyonu öncesi uygulanır.
-- Çok kiracılı veri modeli.
-- Mobil özel API token/OAuth modeli.
-- E-ticaret ödeme, stok ve sipariş tutarlılığı.
-- Sertifikalı veritabanları arasında kesintisiz canlı veri taşıma.
-- Yapay zekâ araçlarının yazma/yayımlama yetkisi.
+- Running the SQLite file on NFS or object storage is not supported. An S3-compatible adapter for media is planned via ADR-0012; it will be implemented before Distributed certification.
+- Multi-tenant data model.
+- Mobile-specific API token/OAuth model.
+- E-commerce payment, stock, and order consistency.
+- Seamless live data transfer between certified databases.
+- Write/publish authorization for AI agents.
 
-Bu planın başarısı dosya ve katmanların oluşturulmasıyla değil; güvenli yayınlama akışının, çakışmasız düzenlemenin ve doğrulanmış geri yüklemenin uçtan uca kanıtlanmasıyla ölçülür.
+The success of this plan is not measured by the creation of files and layers, but by the end-to-end proof of secure publishing flows, conflict-free editing, and verified restores.

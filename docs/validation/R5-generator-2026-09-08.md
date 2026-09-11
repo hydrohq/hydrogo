@@ -1,15 +1,15 @@
-# R5 deterministic generator başlangıç doğrulaması
+# R5 deterministic generator foundation validation
 
-**Tarih:** 2026-09-08  
-**Roadmap:** R5 / generator ve S08 başlangıcı  
-**Durum:** Spec doğrulama, Pages/News collection fixture'ları ve derlenebilir CRUD repository/transport üretimi başarılı.
+**Date:** 2026-09-08  
+**Roadmap:** R5 / generator and S08 foundation  
+**Status:** Spec validation, Pages/News collection fixtures, and compilable CRUD repository/transport generation succeeded.
 
-`internal/generator` collection spec'ten generated model, CRUD repository, transport route, migration ve contract skeleton'ı ile spec hash'li `generator.lock` üretir. Çıktı yalnız `generated/` altına yazılır; `custom/` dosyalarına dokunulmaz. Secret alan adları, eksik permission/dialect ve destructive migration spec'leri deny edilir. Runtime otomatik DDL veya yetki kararı üretilmez. Pages ve News fixture'ları iki kez üretimde aynı hash ve byte çıktısını verir, üretilen Go paketi derlenir; yayınlanmış migration dosyası elle değiştirilmişse `ErrPublishedMigration` ile reddedilir.
+From a collection spec, `internal/generator` generates a model, CRUD repository, transport route, migration, and contract skeleton, along with a `generator.lock` carrying the spec hash. Output is written only under `generated/`; `custom/` files are left untouched. Secret field names, missing permission/dialect, and destructive migration specs are denied. Runtime automatic DDL or authorization decisions are not generated. The Pages and News fixtures yield the exact same hash and byte output across two generations, and the generated Go package compiles; if the published migration file is manually altered, it is rejected with `ErrPublishedMigration`.
 
-Çalıştırılan kontrol:
+Executed check:
 
 ```text
 go test ./internal/generator
 ```
 
-Test ikinci üretimde generated dosyanın byte-for-byte aynı kaldığını, custom dosyanın hash'inin korunduğunu, Pages/News fixture hash'lerini, CRUD repository/transport yöntemlerini, derlenebilirliği ve migration değişmezliğini doğrular.
+The test validates that the generated file remains byte-for-byte identical on a second run, the custom file hash is preserved, Pages/News fixture hashes, CRUD repository/transport methods, compilability, and migration immutability.

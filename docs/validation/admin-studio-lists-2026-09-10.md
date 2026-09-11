@@ -1,22 +1,22 @@
-# Admin Studio liste doğrulaması — 2026-09-10
+# Admin Studio list validation — 2026-09-10
 
-İlgili plan: [HEADLESS_ADMIN_STUDIO_PLAN.md](../HEADLESS_ADMIN_STUDIO_PLAN.md). Güncel seed edilmiş SQLite demo binary'si üzerinde ortak metadata list renderer'ı doğrulandı.
+Related plan: [HEADLESS_ADMIN_STUDIO_PLAN.md](../HEADLESS_ADMIN_STUDIO_PLAN.md). The shared metadata list renderer has been validated on the current seeded SQLite demo binary.
 
-## Otomatik kanıt
+## Automated evidence
 
 - `go test ./...`
-- `internal/adminstudio` form/list/registry testleri
-- Pages service contract'ı: published summary listesi draft body ve blocks taşımaz.
+- `internal/adminstudio` form/list/registry tests
+- Pages service contract: published summary list does not carry draft body and blocks.
 
-## Yerel HTTP smoke
+## Local HTTP smoke
 
-Demo credentials ile session açıldıktan sonra:
+After opening a session with demo credentials:
 
-| Rota | Sonuç |
+| Route | Result |
 |---|---|
-| `GET /admin/news` | `200`; ortak `<table>` ve `HydroGo Demo Release Notes` görünüyor |
-| `GET /admin/pages` | `200`; ortak `<table>` ve `HydroGo Showcase` görünüyor |
+| `GET /admin/news` | `200`; shared `<table>` and `HydroGo Demo Release Notes` are visible |
+| `GET /admin/pages` | `200`; shared `<table>` and `HydroGo Showcase` are visible |
 
-Genişletilmiş güncel binary smoke'unda `GET /admin/commerce/products/demo-shirt/variants` de `200` ve ortak tablo/form renderer'ını kullandı. `GET /admin/pages/demo-showcase` blok editörünü, `GET /admin/news/demo-news` ise metadata textarea'sını ve schedule/publish workflow aksiyonlarını birlikte sundu.
+In the expanded current binary smoke, `GET /admin/commerce/products/demo-shirt/variants` also returned `200` and used the shared table/form renderer. `GET /admin/pages/demo-showcase` presented the block editor, while `GET /admin/news/demo-news` presented the metadata textarea along with schedule/publish workflow actions.
 
-Her satırın `Düzenle` aksiyonu modülün mevcut detay route'una gider. Mutation ve publish/schedule kuralları hâlâ ilgili application service'lerine aittir; liste renderer'ı DB erişimi veya yetki kararı taşımaz.
+The `Edit` action of each row navigates to the module's existing detail route. Mutation and publish/schedule rules still belong to the respective application services; the list renderer carries no DB access or authorization decisions.

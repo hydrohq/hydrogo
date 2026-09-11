@@ -1,26 +1,26 @@
-# Headless public CORS doğrulaması — 2026-09-10
+# Headless public CORS validation — 2026-09-10
 
-İlgili karar: [ADR-0021](../architecture/0021-headless-browser-session-boundary.md). Bu kayıt credentialed browser session desteği kanıtı değildir; yalnız published read allowlist davranışını doğrular.
+Related decision: [ADR-0021](../architecture/0021-headless-browser-session-boundary.md). This record is not evidence of credentialed browser session support; it only validates the published read allowlist behavior.
 
-## Otomatik kanıt
+## Automated evidence
 
 - `go test ./internal/config ./internal/security ./internal/server ./cmd/hydro`
 - `go test ./...`
 
-`internal/security/cors_test.go` aşağıdaki sınırları kapsar:
+`internal/security/cors_test.go` covers the following boundaries:
 
-- allowlisted origin, `/api/v1/news` gibi published read `GET` yanıtında exact `Access-Control-Allow-Origin` ve `Vary: Origin` alır;
-- `Access-Control-Allow-Credentials` hiçbir zaman üretilmez;
-- bilinmeyen origin, `POST` ve `OPTIONS` isteği allow header almaz;
-- wildcard, path, user-info ve HTTP(S) olmayan config origin'leri reddedilir.
+- allowlisted origin gets exact `Access-Control-Allow-Origin` and `Vary: Origin` in published read `GET` response such as `/api/v1/news`;
+- `Access-Control-Allow-Credentials` is never produced;
+- unknown origin, `POST` and `OPTIONS` requests do not receive an allow header;
+- wildcard, path, user-info, and non-HTTP(S) config origins are rejected.
 
-## Yerel seed smoke
+## Local seed smoke
 
-Güncel binary `HYDRO_PUBLIC_API_ORIGINS=http://localhost:3000` ile seed edilmiş SQLite demo verisi üzerinde çalıştırıldı.
+The current binary was run on the seeded SQLite demo data with `HYDRO_PUBLIC_API_ORIGINS=http://localhost:3000`.
 
-| İstek | Sonuç |
+| Request | Result |
 |---|---|
-| `GET /api/v1/news?locale=tr`, `Origin: http://localhost:3000` | `200`; iki yayınlanmış haber; `Access-Control-Allow-Origin: http://localhost:3000`, `Vary: Origin`; credential header yok |
-| `GET /api/v1/commerce/cart`, aynı origin | `401 unauthorized`; CORS allow/credential header yok |
+| `GET /api/v1/news?locale=tr`, `Origin: http://localhost:3000` | `200`; two published news; `Access-Control-Allow-Origin: http://localhost:3000`, `Vary: Origin`; no credential header |
+| `GET /api/v1/commerce/cart`, same origin | `401 unauthorized`; no CORS allow/credential header |
 
-Bu sınır Admin, auth, private media, webhooks, operations veya mutation endpoint'lerine CORS erişimi açmaz.
+This boundary does not open CORS access to Admin, auth, private media, webhooks, operations, or mutation endpoints.

@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net"
@@ -62,11 +64,11 @@ type HTTPHandler struct {
 	MFA                    *MFAService
 	MFADB                  database.Executor
 	Transactions           database.Transactor
-	LoginLimiter           *security.AttemptLimiter
-	MFALimiter             *security.AttemptLimiter
-	RecoveryLimiter        *security.AttemptLimiter
-	RecoveryConfirmLimiter *security.AttemptLimiter
-	InviteAcceptLimiter    *security.AttemptLimiter
+	LoginLimiter           security.RateLimiter
+	MFALimiter             security.RateLimiter
+	RecoveryLimiter        security.RateLimiter
+	RecoveryConfirmLimiter security.RateLimiter
+	InviteAcceptLimiter    security.RateLimiter
 	Recovery               *PasswordRecovery
 	RecoveryDB             database.Executor
 	Notifier               RecoveryNotifier
@@ -230,6 +232,7 @@ func (h HTTPHandler) RouterRoutes() []router.Route {
 }
 
 func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
+	noStoreAuthResponse(w)
 	if h.Service == nil {
 		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
 		return
@@ -246,6 +249,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	user, err := h.Service.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
+			h.recordAuthFailure(r, r.FormValue("email"))
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
@@ -277,6 +281,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 					writeAuthDependencyError(w, "authentication failed", err, http.StatusInternalServerError)
 					return
 				}
+				h.recordAuthEvent(r, "auth.mfa_failed", user.ID)
 				if recoveryErr := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
 					return h.MFA.ConsumeRecoveryCode(r.Context(), tx, user.ID, code)
 				}); recoveryErr != nil {
@@ -308,6 +313,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {
+	noStoreAuthResponse(w)
 	if h.Service == nil {
 		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
 		return
@@ -319,15 +325,31 @@ func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if h.Audit != nil {
-			if err := h.Audit.Record(r.Context(), "auth.logout", session.UserID); err != nil {
-				ClearSessionCookie(w, h.Secure)
-				http.Error(w, "logout failed", http.StatusInternalServerError)
-				return
-			}
+			// Logout remains successful even if the audit sink is temporarily
+			// unavailable: the session was already revoked and the browser must
+			// not be left believing it is still authenticated.
+			_ = h.Audit.Record(r.Context(), "auth.logout", session.UserID)
 		}
 	}
 	ClearSessionCookie(w, h.Secure)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func noStoreAuthResponse(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+}
+
+func (h HTTPHandler) recordAuthFailure(r *http.Request, email string) {
+	digest := sha256.Sum256([]byte(NormalizeEmail(email)))
+	h.recordAuthEvent(r, "auth.login_failed", hex.EncodeToString(digest[:]))
+}
+
+func (h HTTPHandler) recordAuthEvent(r *http.Request, action, target string) {
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), action, target)
+	}
 }
 
 func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {

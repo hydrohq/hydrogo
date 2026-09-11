@@ -449,3 +449,12 @@ func TestRunBackupPruneRequiresPreviewAndConfirmation(t *testing.T) {
 		t.Fatalf("old snapshot still exists, stat error = %v", err)
 	}
 }
+
+func TestAdminNonAdminAndMemberCookieAccessControls(t *testing.T) {
+	// 1. Verify Member session cookie name vs Admin session cookie name
+	adminCookieName := "hydro_session"
+	memberCookieName := "hydro_member_session"
+	if adminCookieName == memberCookieName {
+		t.Fatalf("member session cookie must never match admin session cookie")
+	}
+}

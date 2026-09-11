@@ -64,7 +64,14 @@ type supervisor struct {
 }
 
 func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
+	previousBinary := s.binary + ".previous"
 	if rebuild {
+		if _, err := os.Stat(s.binary); err == nil {
+			if err := copyFile(s.binary, previousBinary); err != nil {
+				s.state.set("error", 100, "Çalışan sürüm yedeklenemedi; mevcut sürüm korunuyor.", err.Error())
+				return
+			}
+		}
 		s.state.set("building", 20, "Değişiklik algılandı: derleniyor…", "")
 		command := exec.CommandContext(ctx, "go", "build", "-trimpath", "-buildvcs=false", "-o", s.binary, "./cmd/hydro")
 		command.Dir = s.root
@@ -84,54 +91,96 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 	var migrationOutput bytes.Buffer
 	migration.Stdout, migration.Stderr = &migrationOutput, &migrationOutput
 	if err := migration.Run(); err != nil {
-		s.state.set("error", 100, "Migration başarısız; çalışan sürüm korunuyor.", shorten(migrationOutput.String(), 12000))
-		return
+		// SQLite may be locked by the running child. Retry once after stopping
+		// it; if migration still fails, restore the previous binary so the
+		// working version remains available.
+		s.stopChild()
+		migrationOutput.Reset()
+		migration = exec.CommandContext(ctx, s.binary, "migrate", "--database-dsn", s.databaseDSN)
+		migration.Dir = s.root
+		migration.Stdout, migration.Stderr = &migrationOutput, &migrationOutput
+		if retryErr := migration.Run(); retryErr != nil {
+			if _, restoreErr := os.Stat(previousBinary); restoreErr == nil {
+				_ = copyFile(previousBinary, s.binary)
+				_ = s.startChild(s.binary)
+			}
+			s.state.set("error", 100, "Migration başarısız; çalışan sürüm korunuyor.", shorten(migrationOutput.String(), 12000))
+			return
+		}
 	}
 
 	s.state.set("restarting", 75, "Uygulama yeniden başlatılıyor…", "")
+	s.stopChild()
+	if err := s.startChild(s.binary); err != nil {
+		s.state.set("error", 100, "Uygulama başlatılamadı.", err.Error())
+		return
+	}
+
+	// Ping the internal app address before declaring the restart complete. A
+	// child can start successfully and exit immediately (for example after a
+	// startup validation error), so a successful Process.Start is not enough.
+	ready := s.waitForReady(4 * time.Second)
+	if !ready {
+		// Restore the last known-good binary when the newly built binary cannot
+		// serve. This keeps the dev environment usable while exposing the real
+		// failure in the overlay instead of falsely reporting "Hazır".
+		s.stopChild()
+		if _, restoreErr := os.Stat(previousBinary); restoreErr == nil {
+			if copyErr := copyFile(previousBinary, s.binary); copyErr == nil {
+				if startErr := s.startChild(s.binary); startErr == nil && s.waitForReady(4*time.Second) {
+					s.state.set("ready", 100, "Önceki çalışan sürüm geri yüklendi · "+reason, "Yeni sürüm başlatılamadı; önceki sürüm çalışıyor.")
+					return
+				}
+			}
+		}
+		s.state.set("error", 100, "Uygulama hazır değil; çalışan sürüm korunuyor.", "Yeni binary /healthz veya / yanıtı vermedi.")
+		return
+	}
+
+	s.state.set("ready", 100, "Hazır · "+reason, "")
+}
+
+func (s *supervisor) waitForReady(timeout time.Duration) bool {
+	pingClient := &http.Client{Timeout: 300 * time.Millisecond}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		for _, path := range []string{"/healthz", "/"} {
+			resp, err := pingClient.Get("http://" + s.appAddress + path)
+			if err == nil {
+				_ = resp.Body.Close()
+				if resp.StatusCode < http.StatusInternalServerError {
+					return true
+				}
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return false
+}
+
+func (s *supervisor) stopChild() {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.child != nil && s.child.Process != nil {
 		_ = s.child.Process.Kill()
 		_, _ = s.child.Process.Wait()
 	}
-	child := exec.Command(s.binary, "serve", "--address", s.appAddress, "--database-dsn", s.databaseDSN)
+	s.child = nil
+}
+
+func (s *supervisor) startChild(binary string) error {
+	child := exec.Command(binary, "serve", "--address", s.appAddress, "--database-dsn", s.databaseDSN)
 	child.Dir = s.root
 	child.Env = append(os.Environ(), "HYDRO_DEV_MODE=1")
 	child.Stdout, child.Stderr = os.Stdout, os.Stderr
 	if err := child.Start(); err != nil {
-		s.mu.Unlock()
-		s.state.set("error", 100, "Uygulama başlatılamadı.", err.Error())
-		return
+		return err
 	}
+	s.mu.Lock()
 	s.child = child
 	s.mu.Unlock()
-
-	go func(process *exec.Cmd) {
-		_ = process.Wait()
-	}(child)
-
-	// Ping internal app address until it responds or context times out
-	ready := false
-	pingClient := &http.Client{Timeout: 300 * time.Millisecond}
-	for i := 0; i < 40; i++ {
-		time.Sleep(100 * time.Millisecond)
-		resp, pingErr := pingClient.Get("http://" + s.appAddress + "/healthz")
-		if pingErr == nil {
-			_ = resp.Body.Close()
-			ready = true
-			break
-		}
-	}
-	if !ready {
-		// Even if /healthz isn't standard, try root
-		resp, pingErr := pingClient.Get("http://" + s.appAddress + "/")
-		if pingErr == nil {
-			_ = resp.Body.Close()
-			ready = true
-		}
-	}
-
-	s.state.set("ready", 100, "Hazır · "+reason, "")
+	go func(process *exec.Cmd) { _ = process.Wait() }(child)
+	return nil
 }
 
 func (s *supervisor) stop() {
@@ -360,6 +409,23 @@ func shorten(value string, limit int) string {
 		return value
 	}
 	return value[len(value)-limit:]
+}
+
+func copyFile(source, destination string) error {
+	in, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(destination)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Chmod(0o750)
 }
 
 func fatal(err error) {

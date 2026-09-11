@@ -1,20 +1,20 @@
-# R3 dış silme niyeti günlüğü doğrulaması
+# R3 external erasure intent log validation
 
-**Tarih:** 2026-09-08  
-**Durum:** Compact dosya adapter prototipi, hash-anchor'lı checkpoint replay ve SQLite Pages/media SQL adapter'ı başarılı; sağlayıcı/anahtar kurtarma tatbikatı açık.
+**Date:** 2026-09-08  
+**Status:** Compact file adapter prototype, hash-anchored checkpoint replay, and SQLite Pages/media SQL adapter succeeded; provider/key recovery drill remains open.
 
-`internal/erasure` append-only JSONL adapter'ı silme niyetlerini DB dışında saklar. Her kayıt edition, sabit hedef, işlem türü, sıra ve önceki hash bağlantısını taşır. Dosya yazımı `Sync` ile tamamlanır; aynı işlem kimliği idempotenttir ve farklı hedefle yeniden kullanılamaz. `Verify` sıra boşluğu, hash zinciri, bozuk JSON ve kayıt alanı hatalarını reddeder.
+The append-only JSONL adapter in `internal/erasure` stores erasure intents outside the DB. Each record carries the edition, fixed target, operation type, sequence, and previous hash link. File writes are completed with `Sync`; the same operation ID is idempotent and cannot be reused with a different target. `Verify` rejects sequence gaps, hash chain errors, corrupted JSON, and record field errors.
 
-`EntriesAfter` checkpoint sonrasındaki niyetleri doğrulanmış zincirden yeniden oynatılmak üzere döndürür; içerik ve medya temizleme işlemlerinin idempotent uygulaması üst katmanın sorumluluğundadır.
+`EntriesAfter` returns intents after the checkpoint to be replayed from the verified chain; the idempotent application of content and media purge operations is the responsibility of the upper layer.
 
-`Replay`, zinciri doğruladıktan sonra niyetleri sırayla handler'a verir. Handler hatasında checkpoint ilerletilmez; aynı başlangıç checkpoint'iyle yeniden çalıştırma contract testinde doğrulanır. `SQLAdapter`, `erase.page` için revision ve page kayıtlarını, `erase.media` için medya metadata'sını transaction içinde idempotent siler; aynı log checkpoint'i ikinci kez uygulandığında hata vermez.
+After verifying the chain, `Replay` sequentially feeds intents to the handler. In case of a handler error, the checkpoint is not advanced; re-running with the same initial checkpoint is validated in the contract test. `SQLAdapter` idempotently deletes revision and page records for `erase.page`, and media metadata for `erase.media` within a transaction; applying the same log checkpoint a second time does not yield an error.
 
-`ReplayFromCheckpoint` artık yalnız sıra numarasını kabul etmez; persisted checkpoint'in hash anchor'ını güncel zincirde doğrular. Log truncate/replacement veya yanlış eski checkpoint durumunda replay reddedilir ve dış trafik açılmadan operatör müdahalesi gerekir. Backup tarafında `PruneSnapshots`, geçerli manifest'li yerel snapshot'larda en yeni/pin'li retention davranışını ve bozuk manifest'te fail-closed kuralını doğrular; dış provider GC'si henüz sertifikalı değildir.
+`ReplayFromCheckpoint` no longer accepts only a sequence number; it validates the hash anchor of the persisted checkpoint against the current chain. In the event of log truncate/replacement or an invalid old checkpoint, the replay is rejected and operator intervention is required before opening external traffic. On the backup side, `PruneSnapshots` validates the newest/pinned retention behavior on local snapshots with a valid manifest, and the fail-closed rule on a corrupted manifest; the external provider GC is not yet certified.
 
-Çalıştırılan kontrol:
+Executed check:
 
 ```text
 go test ./internal/erasure
 ```
 
-Kalan S07 işleri dış yedek sağlayıcısı, anahtar kurtarma, retention, storage garbage-collection ve temiz ortam restore replay tatbikatıdır.
+Remaining S07 tasks are the external backup provider, key recovery, retention, storage garbage-collection, and clean environment restore replay drill.

@@ -1,17 +1,17 @@
-# R3 Site Edition veri sözleşmesi doğrulaması
+# R3 Site Edition data contract validation
 
-**Tarih:** 2026-09-08  
-**Durum:** Settings/navigation/redirect/form inbox store kapısı başarılı; public settings/navigation projection'ı, canonical/OG helper'ı, published-only sitemap HTTP route'u, admin-only mutation route'ları, allowlist/rate-limited contact submit, inbox status/purge ve transaction içi audit işlemleri hazır.
+**Date:** 2026-09-08  
+**Status:** Settings/navigation/redirect/form inbox store gate succeeded; public settings/navigation projection, canonical/OG helper, published-only sitemap HTTP route, admin-only mutation routes, allowlist/rate-limited contact submit, inbox status/purge, and in-transaction audit operations are ready.
 
-`202609080009_site_edition` migration'ı her iki dialect için site settings, sıralı navigation, 301/308 redirect ve sınırlı form inbox tablolarını ekler. `modules/site` doğrulama katmanı key/path/URL/e-posta/payload boyutlarını sınırlar; SQL store görünür settings ve navigation'ı yalnız explicit public/visible alanlardan okur. Form submission kayıtları source IP'nin ham değeri yerine hash bekler.
+Migration `202609080009_site_edition` adds site settings, ordered navigation, 301/308 redirect, and bounded form inbox tables for both dialects. The `modules/site` validation layer limits key/path/URL/email/payload sizes; the SQL store reads visible settings and navigation solely from explicit public/visible fields. Form submission records expect a hash of the source IP instead of the raw value.
 
-`202609080011_navigation_position_unique` ileri migration'ı locale içindeki navigation position değerini DB seviyesinde de unique yapar; servis doğrulamasını aşan eşzamanlı/direct writes contract testinde reddedilir.
+Forward migration `202609080011_navigation_position_unique` also makes the navigation position value within a locale unique at the DB level; concurrent/direct writes bypassing service validation are rejected in the contract test.
 
-Çalıştırılan kontrol:
+Executed check:
 
 ```text
 go test ./tests/contract ./modules/site/...
 go test ./...
 ```
 
-SQLite contract geçti; PostgreSQL testi `HYDRO_TEST_POSTGRES_URL` yoksa atlanır. Canonical/OG değerleri ve sitemap XML helper'ı unit testlidir; sitemap route'u yalnız `ListPublishedRoutes` projection'ından beslenir. Admin mutation route'ları yalnız aktif admin context'i kabul eder. Contact submit yalnız `contact` allowlist'ini, 64 KiB body sınırını ve bounded IP/form limiter'ını kullanır. Admin inbox status geçişleri allowlistlidir; retention purge ve site mutation audit event'leri contract'te doğrulanır.
+The SQLite contract passed; the PostgreSQL test is skipped if `HYDRO_TEST_POSTGRES_URL` is absent. Canonical/OG values and the sitemap XML helper are unit tested; the sitemap route is fed only by the `ListPublishedRoutes` projection. Admin mutation routes accept only an active admin context. Contact submit uses only the `contact` allowlist, a 64 KiB body limit, and bounded IP/form limiters. Admin inbox status transitions are allowlisted; retention purge and site mutation audit events are validated in the contract.

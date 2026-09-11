@@ -29,7 +29,7 @@ type Handler struct {
 	DB                database.Executor
 	Store             site.Store
 	Service           *site.Service
-	SubmissionLimiter *security.AttemptLimiter
+	SubmissionLimiter security.RateLimiter
 	AllowedForms      map[string]struct{}
 	SitemapOrigin     string
 	SitemapProvider   func(context.Context) ([]site.SitemapEntry, error)

@@ -1,54 +1,53 @@
-# ADR-0012: İçerik, medya ve veri taşınabilirliği sınırları
+# ADR-0012: Content, media and data portability boundaries
 
-- **Durum:** Değiştirildi (kısmen) — slug/301 etkinleşme zamanı için [ADR-0014](0014-publication-routes-and-erasure-recovery.md); diğer hükümler geçerlidir.
-- **Tarih:** 2026-09-05
-- **İlişkili kararlar:** [ADR-0006](0006-extensible-database-adapters.md), [ADR-0009](0009-site-edition-and-delivery-scope.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md)
-- **Uygulama durumu:** Model ilkeleri kabul edildi; tam tablo/Go API tasarımı prototiple doğrulanacak.
+- **Status:** Modified (partially) — [ADR-0014](0014-publication-routes-and-erasure-recovery.md) for slug/301 activation time; other provisions remain valid.
+- **Date:** 2026-09-05
+- **Related decisions:** [ADR-0006](0006-extensible-database-adapters.md), [ADR-0009](0009-site-edition-and-delivery-scope.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md)
+- **Implementation status:** Model principles accepted; exact table/Go API design will be validated via prototype.
 
-## Karar ve alternatifler
+## Decision and alternatives
 
-İlk modüller tipli model, ilişkisel tablo ve modül repository'leri kullanır. Her şeyi tek EAV/JSON tablosuna taşıyan evrensel içerik motoru kurulmaz. JSON yalnız sürümlü zengin metin/blocks gibi uygun alanlarda kullanılır; filtrelenecek/unique olacak iş alanları için açık kolon/indeks ve dialect migration gerekir. Gelecekteki şema üretici de bu modeli üretir.
+The initial modules use typed models, relational tables, and module repositories. A universal content engine moving everything to a single EAV/JSON table is not built. JSON is only used in appropriate fields like versioned rich text/blocks; business fields to be filtered/unique require explicit columns/indexes and dialect migrations. The future schema generator will also produce this model.
 
-Bu seçim bazı modüllerde daha fazla sorgu/migration yazmayı gerektirir; davranış ve indekslerin açık olmasını sağlar. DB'ye özgü JSON/full-text yetenekleri domain sözleşmesi haline gelmez.
+This choice requires writing more queries/migrations in some modules; it ensures behavior and indexes are explicit. DB-specific JSON/full-text capabilities do not become a domain contract.
 
-## İçerik kimliği ve yayın
+## Content identity and publication
 
-- Opaque kimlik uygulama tarafında üretilir; ilk ortak kimlik biçimi UUIDv4'tür. Public URL slug'dan ayrıdır. UUID nesnenin varlığına erişim yetkisi sağlamaz.
-- Zaman UTC, persistence/API karşılaştırmalarında mikrosaniye hassasiyetiyle normalize edilir; scheduler yerel saat ve DST yorumunu UI'da açık gösterir.
-- Mantıksal içerik kimliği, locale varyantı ve revision kimliği ayrıdır. Düzenleme sürümü optimistic-lock token'ıdır; yayınlanan revision ID'siyle karıştırılmaz.
-- Draft kaydı canlı revision'ı değiştirmez. Publish, revision işaretçisi/audit/outbox ile atomiktir. Scheduled job sabit revision'a ve schedule generation'ına bağlıdır; eski iptal edilmiş iş yeni taslağı yayımlayamaz. Çalıştırırken durum ve izin politikası tekrar denetlenir.
-- Çeviri varyantları ilişkilidir fakat birbirinden bağımsız yayımlanır. Varsayılan public davranış eksik çeviride 404'tür; fallback ancak açık edition politikası, doğru canonical ve cache anahtarıyla açılır. Taslağa fallback yoktur.
-- Route kimliği site + locale + normalize edilmiş path'tir. Yeni slug/301 kaydı publish transaction içinde, reserved path ve döngü kontrolleriyle etkinleşir; taslak kaydı canlı route veya SEO projection'ını değiştirmez. Ayrıntı ADR-0014'tedir. Route normalizasyonu Unicode, case, trailing slash ve yüzde kodlama fixture'larıyla iki DB'de aynı olmalıdır; algoritma prototip kapısında sabitlenir.
-- API/UI okuması yayımlanmış ve yetkili projection'dır; DB row'u doğrudan serialize edilmez. Alan bazlı okuma/yazma allowlist'i, public/özel settings ayrımı ve relation filtreleri bulunur.
+- The opaque identity is generated on the application side; the initial common identity format is UUIDv4. It is separate from the public URL slug. UUID does not provide access authorization to the existence of the object.
+- Time is UTC, normalized with microsecond precision in persistence/API comparisons; the scheduler explicitly shows local time and DST interpretation in the UI.
+- Logical content ID, locale variant, and revision ID are separate. The edit version is an optimistic-lock token; it is not confused with the published revision ID.
+- A draft save does not change the live revision. Publish is atomic with the revision pointer/audit/outbox. A scheduled job is tied to a static revision and schedule generation; an old canceled job cannot publish a new draft. During execution, state and permission policies are re-verified.
+- Translation variants are related but published independently from each other. The default public behavior for missing translation is a 404; fallback is only enabled by an explicit edition policy, correct canonical, and cache key. There is no fallback to draft.
+- Route identity is site + locale + normalized path. The new slug/301 record becomes active within the publish transaction, with reserved path and loop checks; draft saving does not alter the live route or its SEO projection. Details are in ADR-0014. Route normalization must be identical in both DBs using Unicode, case, trailing slash, and percent-encoding fixtures; the algorithm is fixed at the prototype gate.
+- API/UI reading is a published and authorized projection; the DB row is not directly serialized. There are field-based read/write allowlists, public/private settings separation, and relation filters.
 
-## Zengin metin
+## Rich text
 
-İlk editör adayı Quill'dir; Delta girdi doğrulama ve sanitizer kuralları korunur. Saklanan gövde `format`, `format_version`, `document` zarfı taşır; örneğin `quill-delta` v1. Bu, tek başına bütün editörler arasında kayıpsız dönüşüm garantisi değildir.
+- The initial editor candidate is Quill; Delta input validation and sanitizer rules are preserved. The stored body carries a `format`, `format_version`, `document` envelope; for example, `quill-delta` v1. This alone is not a guarantee of lossless conversion among all editors.
+- The renderer/sanitizer version is in the derived HTML metadata. If the editor changes, the old document renderer remains throughout the support window; the converter reports potentially lost elements, and the original document is preserved. Format change enters the release compatibility check. An unknown format is not silently converted to empty HTML causing data loss.
 
-Renderer/sanitizer sürümü türetilmiş HTML metadata'sındadır. Editör değişirse eski doküman renderer'ı destek penceresi boyunca kalır; dönüştürücü kayıp olabilecek öğeleri raporlar ve orijinal belge korunur. Format değişmesi release uyumluluk kontrolüne girer. Bilinmeyen format boş HTML'ye çevrilip sessiz veri kaybı yaratmaz.
+## Media
 
-## Medya
+- Media ID and storage key are separate. Revision references use a static Media ID; a permanent provider URL is not written into the content.
+- Local adapter in the first slice; S3-compatible adapter implemented in Standard/Distributed delivery. An endpoint resembling S3 is not automatic certification: multipart, range, metadata, signature, and error behaviors are tested.
+- A single transaction between DB and object store is not assumed. Upload first creates a `pending` record and a temporary/quarantine object. Once validation/transform is complete, the final immutable key is written; then `ready` and references are committed in the DB. Erroneous/orphaned objects are cleaned up with a wait time; a non-existent object is not declared ready for public.
+- There is a public/private class and reference authorization. Private objects cannot be leaked via public bucket/origin; signed URLs are time-limited and generated after access control. Hash name is not authorization.
+- Making media uploaded in a draft public is a separate explicit transition. When content is unpublished, all copies of a previously public file cannot be recalled; media visibility and other content sharing it are considered.
+- The variant key contains source digest + transform spec + encoder version. Referenced revision, pending jobs, and backup pins prevent GC deletion. Transform concurrency, byte/pixel, and disk limits are bounded.
+- The initial format scope remains JPEG/PNG/WebP; encoder selection and Windows/Linux build suitability will be validated with a technical spike. SVG, remote URL fetch, and executable files are not enabled initially.
 
-- Media kimliği ile storage key ayrıdır. Revision referansları sabit Media ID kullanır; içerik içine kalıcı sağlayıcı URL'si yazılmaz.
-- Local adapter ilk dilimde; S3 uyumlu adapter Standard/Distributed tesliminde uygulanır. S3'e benzeyen endpoint otomatik sertifikasyon değildir: multipart, range, metadata, imza ve hata davranışı test edilir.
-- DB ile object store arasında tek transaction varsayılmaz. Upload önce `pending` kayıt ve geçici/quarantine nesne oluşturur. Doğrulama/transform tamamlanınca final immutable key yazılır; ardından DB'de `ready` ve referanslar commit edilir. Hatalı/sahipsiz nesneler bekleme süresiyle temizlenir; olmayan nesne public'e hazır ilan edilmez.
-- Public/private sınıfı ve referans yetkisi vardır. Private nesneler public bucket/origin üzerinden kaçırılamaz; signed URL süreli ve erişim kontrolünden sonra üretilir. Hash adı yetkilendirme değildir.
-- Taslakta yüklenen medyanın public olması ayrı açık geçiştir. İçerik unpublish edilince daha önce public olmuş dosyanın bütün kopyaları geri alınamaz; medya visibility ve paylaşan diğer içerikler hesaba katılır.
-- Variant anahtarı kaynak digest + transform spec + encoder version içerir. Referanslı revision, bekleyen iş ve backup pin varlığında GC silemez. Transform concurrency, byte/piksel ve disk limitleri bounded olur.
-- İlk format kapsamı JPEG/PNG/WebP olarak kalır; encoder seçimi ve Windows/Linux build uygunluğu teknik spike ile doğrulanır. SVG, remote URL fetch ve executable dosyalar başlangıçta açılmaz.
+## Search and export
 
-## Arama ve export
+Search is not the Core content truth record; it is derived from the module's allowed public projection. The initial DB query offers limited filter/sort. External index can be rebuilt; hits are re-verified by the service for authorization and current publication state. The same relevance ranking is not promised across the two DBs; the guaranteed filter/pagination semantics are defined separately.
 
-Arama Core içerik doğruluk kaydı değildir; modülün izinli public projection'ından türetilir. Başlangıç DB sorgusu sınırlı filtre/sıralama sunar. Harici index yeniden kurulabilir; hit'ler yetki ve güncel yayın durumu açısından servis tarafından tekrar denetlenir. İki DB'de aynı relevance sırası vaat edilmez; garanti edilen filtre/pagination semantiği ayrı tanımlanır.
+The DB-independent Hydro Export consists of a versioned manifest + type-based NDJSON + referenced media checksums. Identities, locale relations, revisions, routes, and module schema versions are preserved. Password hashes, sessions, secrets, license keys, and job/outbox execution states do not enter the default export; identity migration is a separate secure transition.
 
-DB bağımsız Hydro Export, sürümlü manifest + tür bazlı NDJSON + referanslı medya checksum'larından oluşur. Kimlikler, locale ilişkileri, revisions, routes ve modül şema sürümleri korunur. Parola hash'leri, session, secret, lisans anahtarı ve job/outbox çalışma durumu varsayılan export'a girmez; kimlik taşıma ayrı güvenli geçiştir.
+Export is not confused with production restore. Import first validates in an empty staging target, establishes references in two passes, reports unknown modules/formats, and generates a measurement report. Automatic merge into a populated DB or seamless transition between DBs is not a v1 promise. The portable exit path is proven with a round-trip fixture before the first public v1; performant bulk migration can be a subsequent development.
 
-Export ile üretim restore karıştırılmaz. Import önce boş staging hedefte doğrular, referansları iki geçişte kurar, bilinmeyen modül/formatı raporlar ve ölçüm raporu üretir. Dolu DB'ye otomatik merge veya DB'ler arasında kesintisiz geçiş v1 sözü değildir. İlk public v1 öncesi taşınabilir çıkış yolu round-trip fixture ile kanıtlanır; performanslı toplu taşıma sonraki geliştirme olabilir.
+## Impact and evidence
 
-## Etki ve kanıtlar
+SQLite and PostgreSQL pass the identity/time/locale/slug/unique/revision/relation tests together. A new adapter must provide the same semantics. Local media is sufficient for Compact; Distributed requires common object storage. The cache observes the revision+locale+visibility boundary, bypassing admin/private media.
 
-SQLite ve PostgreSQL kimlik/zaman/locale/slug/unique/revision/ilişki testlerini birlikte geçer. Yeni adapter aynı semantiği sağlamalıdır. Yerel medya Compact için yeterlidir; Distributed ortak object storage gerektirir. Cache revision+locale+visibility sınırını izler, admin/private medya bypass edilir.
+Format and schema changes enter the migration metadata. In blue/green, if the old reader cannot read the newly written content/media format, an online release cannot be declared. Session, asset, job, and backup continuity are subject to ADR-0011.
 
-Format ve schema değişiklikleri migration metadata'sına girer. Blue/green'de eski reader yeni yazılan content/media formatını okuyamıyorsa online release yapılamaz. Session, asset, job ve backup sürekliliği ADR-0011'e tabidir.
-
-Fixture'lar: iki editör çatışması, yayındaki sayfaya taslak değişikliğinin sızmaması, çeviri eksikliği, schedule iptali, eski slug döngüsü, alan yetkisi, private medya URL tahmini, object yazımı ile DB commit arasında crash, referanslı nesnenin GC'den korunması, iki DB arasında export/import ve desteklenen eski content formatının render edilmesi.
+Fixtures: two editor conflict, draft changes not leaking to live page, missing translation, schedule cancellation, old slug loop, field authorization, private media URL guessing, crash between object write and DB commit, protecting referenced object from GC, export/import between two DBs, and rendering of supported old content format.

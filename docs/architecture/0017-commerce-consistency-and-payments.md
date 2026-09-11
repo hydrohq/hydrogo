@@ -1,34 +1,34 @@
-# ADR-0017: Commerce tutarlılığı ve ödeme sağlayıcıları
+# ADR-0017: Commerce consistency and payment providers
 
-- **Durum:** Kabul edildi
-- **Tarih:** 2026-09-10
-- **İlişkili kararlar:** [ADR-0006](0006-extensible-database-adapters.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0015](0015-versioned-http-api.md)
-- **Uygulama durumu:** Commerce domain/service, SQL store, HTTP checkout, provider-neutral payment contract, webhook replay migration'ı ve Stripe/iyzico/PayTR imza doğrulayıcıları uygulandı. Siparişler provider'a gönderilecek müşteri/adres verisini immutable checkout snapshot olarak taşır; migration 202609100007 ile eski siparişler geriye dönük okunabilir kalır. iyzico/PayTR ödeme oluşturma ve iade akışları sağlayıcı hesap/API konfigürasyonu ile ayrı sandbox kapısına tabidir.
+- **Status:** Accepted
+- **Date:** 2026-09-10
+- **Related decisions:** [ADR-0006](0006-extensible-database-adapters.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0015](0015-versioned-http-api.md)
+- **Implementation status:** Commerce domain/service, SQL store, HTTP checkout, provider-neutral payment contract, webhook replay migration, and Stripe/iyzico/PayTR signature verifiers have been implemented. Orders carry the customer/address data to be sent to the provider as an immutable checkout snapshot; with migration 202609100007, old orders remain readable backwards. iyzico/PayTR payment creation and refund flows are subject to a separate sandbox gate with provider account/API configuration.
 
-## Karar
+## Decision
 
-Commerce ayrı ve isteğe bağlı bir modüldür. Etkin değilken route, migration, worker, asset veya ödeme sağlayıcısı yüklemez.
+Commerce is a separate and optional module. When inactive, it does not load routes, migrations, workers, assets, or payment providers.
 
-Sipariş oluşturma şu işlemleri tek DB transaction'ında yapar:
+Order creation performs the following operations in a single DB transaction:
 
-1. Idempotency key ile daha önce oluşturulmuş siparişi bulur.
-2. Ürün stoklarını atomik olarak rezerve eder.
-3. Fiyat ve para birimini ürün snapshot'ı olarak sipariş satırına yazar.
-4. Siparişi oluşturur.
-5. `order.created` ve `email.send_invoice` outbox olaylarını ekler.
+1. Finds a previously created order using the idempotency key.
+2. Atomically reserves product stock.
+3. Writes the price and currency to the order line as a product snapshot.
+4. Creates the order.
+5. Appends `order.created` and `email.send_invoice` outbox events.
 
-İdempotency key aynı kullanıcıda farklı sipariş gövdesiyle tekrar kullanılırsa hata döner. Sipariş transaction'ı ödeme sağlayıcısına ağ çağrısı yapmaz.
+If the idempotency key is reused by the same user with a different order body, an error is returned. The order transaction does not make network calls to the payment provider.
 
-Para değerleri minor-unit integer ve ISO currency koduyla tutulur. Stok negatif olamaz. Domain ve application service SQL dialect bilmez; SQLite/PostgreSQL atomik update ve locking davranışını store adapter'ı sağlar.
+Money values are stored as minor-unit integers and ISO currency codes. Stock cannot be negative. The domain and application service do not know SQL dialects; the store adapter provides SQLite/PostgreSQL atomic update and locking behaviors.
 
-## Ödeme
+## Payment
 
-Ödeme sağlayıcısı adapter sözleşmesi `CreatePaymentIntent`, imza doğrulamalı webhook ve `Refund` işlemlerini kapsar. Stripe intent/refund, iyzico Refund V2 ve PayTR Refund API gerçek HTTP adapter'larıyla uygulanır. Hosted intent için gereken buyer/adres alanları sipariş oluşturulurken snapshot'lanır; merchant callback/return URL gibi sağlayıcı sırları ve deployment ayarları config/env'den gelir, siparişe yazılmaz. Zorunlu veri veya sağlayıcı ayarı yoksa adapter sahte başarı üretmeden yapılandırma hatası döndürür. Webhook event ID'si ve provider idempotency key'i kalıcı olarak kaydedilir. Bilinmeyen veya imzası geçersiz event reddedilir; ödeme durumu yalnız doğrulanmış provider event'iyle ilerler.
+The payment provider adapter contract covers `CreatePaymentIntent`, signature-verified webhook, and `Refund` operations. Stripe intent/refund, iyzico Refund V2, and PayTR Refund API are implemented with real HTTP adapters. Buyer/address fields required for hosted intent are snapshotted during order creation; provider secrets like merchant callback/return URL and deployment settings come from config/env, and are not written to the order. If required data or provider configuration is missing, the adapter returns a configuration error instead of faking success. The webhook event ID and provider idempotency key are durably recorded. An unknown or invalidly signed event is rejected; the payment status only advances via a verified provider event.
 
-İlk commerce teslimi ödeme sağlayıcısı olmadan test edilebilir. Stripe, iyzico ve PayTR ayrı adapter ve sandbox contract testleriyle eklenir; sağlayıcı SDK ayrıntıları domain'e sızmaz.
+The first commerce delivery can be tested without a payment provider. Stripe, iyzico, and PayTR are added with separate adapters and sandbox contract tests; provider SDK details do not leak into the domain.
 
-HTTP sözleşmesi [commerce-v1.yaml](../api/commerce-v1.yaml) içinde sürümlenir. `/api` uyumluluk alias'ı router tarafından sağlanır; yeni istemciler `/api/v1` kullanır.
+The HTTP contract is versioned in [commerce-v1.yaml](../api/commerce-v1.yaml). The `/api` compatibility alias is provided by the router; new clients use `/api/v1`.
 
-Sepet, kullanıcı başına tek aktif kayıt ve ürün başına tek satır kullanır. Sepete ekleme transaction içinde ürün fiyatını snapshot'lar; checkout sırasında güncel ürün/fiyat ve stok yeniden doğrulanır.
+The cart uses a single active record per user and a single line per product. Adding to the cart snapshots the product price within a transaction; current product/price and stock are re-verified during checkout.
 
-Checkout tercihen `cart_id` ile yapılır. Eski doğrudan `items` biçimi geçiş dönemi uyumluluğu için desteklenir; iki biçim aynı idempotency ve stok transaction'ını kullanır.
+Checkout is preferably done via `cart_id`. The old direct `items` format is supported for transition period compatibility; both formats use the same idempotency and stock transaction.

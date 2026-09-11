@@ -1,17 +1,17 @@
-# R3 yerel PostgreSQL 18.6 contract ve restore doğrulaması
+# R3 local PostgreSQL 18.6 contract and restore validation
 
-**Tarih:** 2026-09-09  
+**Date:** 2026-09-09  
 **Commit:** `7d557324d50e010146580c167d22f9b227845044`  
-**Durum:** Başarılı; yerel contract kanıtı, ticari üretim sertifikasyonu değil.
+**Status:** Succeeded; local contract evidence, not commercial production certification.
 
-## Ortam
+## Environment
 
 - PostgreSQL 18.6, Windows x86_64, `127.0.0.1:5432`
-- Go toolchain: repository CI ile aynı `go 1.27.0` hedefi
-- Test veritabanı: contract testleri için ayrılmış yerel veritabanı
-- PostgreSQL dump/restore araçları: PostgreSQL 18 istemci araçları
+- Go toolchain: same `go 1.27.0` target as repository CI
+- Test database: local database isolated for contract tests
+- PostgreSQL dump/restore tools: PostgreSQL 18 client tools
 
-## Çalıştırılan kapılar
+## Executed gates
 
 ```powershell
 $env:HYDRO_TEST_POSTGRES_URL = "postgres://...@127.0.0.1:5432/postgres?sslmode=disable"
@@ -19,14 +19,14 @@ go test ./internal/backup -run '^TestPostgresRestore' -count=1 -v
 go test ./tests/contract -run '^TestPostgres' -count=1 -v
 ```
 
-Başarılı kanıtlar:
+Successful evidence:
 
-- Restore sonrası session iptali, egress quarantine ve eski yazma fence'i.
-- Quarantine kaldırılmadan job claim yapılamaması; kontrollü açılıştan sonra claim yapılabilmesi.
+- Post-restore session revocation, egress quarantine, and old write fence.
+- Inability to claim jobs without removing the quarantine; ability to claim after controlled opening.
 - Pages/media erasure replay idempotency.
-- Auth, media, News, Pages, Site ve transaction contract'ları.
-- PostgreSQL concurrent migration runner ve long-snapshot `CREATE INDEX CONCURRENTLY` davranışı.
+- Auth, media, News, Pages, Site, and transaction contracts.
+- PostgreSQL concurrent migration runner and long-snapshot `CREATE INDEX CONCURRENTLY` behavior.
 
-## Sınırlar
+## Limits
 
-Bu çalışma gerçek bir müşteri veritabanında yapılmadı ve dış backup provider, key escrow, reverse proxy/process restart, production signing key ceremony veya müşteri RPO/RTO ölçümü kanıtlamaz. S07 satış sertifikasyonu ve temiz, harici hedefe restore tatbikatı açık kalır.
+This work was not performed on an actual customer database and does not prove external backup provider, key escrow, reverse proxy/process restart, production signing key ceremony, or customer RPO/RTO measurement. S07 sales certification and clean, external target restore drill remain open.

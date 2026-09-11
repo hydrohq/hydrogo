@@ -1,49 +1,49 @@
-# ADR-0001: Ürün ve müşteri deployment modeli
+# ADR-0001: Product and customer deployment model
 
-- **Durum:** Kabul edildi
-- **Tarih:** 2026-09-05
+- **Status:** Accepted
+- **Date:** 2026-09-05
 
-## Bağlam
+## Context
 
-PayloadCMS ve PocketBase tabanlı müşteri projelerinde çekirdeğin fork edilmesi veya doğrudan değiştirilmesi güncellemeleri zorlaştırdı. HydroGo hem pazarlanabilir bir ürün hem de ajansın tekrarlanan CMS geliştirmelerini hızlandıran bir platform olmalıdır.
+In customer projects based on PayloadCMS and PocketBase, forking or directly modifying the core made updates difficult. HydroGo should be both a marketable product and a platform that accelerates the agency's repeated CMS developments.
 
-## Karar
+## Decision
 
-HydroGo, self-hosted ve geliştirici odaklı bir **CMS ürün fabrikası** olarak konumlandırılır.
+HydroGo is positioned as a self-hosted and developer-focused **CMS product factory**.
 
-- `HydroGo`: Müşteriye sunulan ürün ailesi ve deneyim.
-- `HydroCore`: Sürümlü ve müşteri kodundan bağımsız motor.
-- `Hydro Modules`: Pages, News, Media, Forms, SEO ve benzeri sürümlü yetenekler.
-- `Hydro CLI`: Proje, şema, build, upgrade, backup ve deployment araçları.
-- `Client Edition`: Marka, tema, açık modüller, içerik şemaları ve özel iş kuralları.
+- `HydroGo`: The product family and experience presented to the customer.
+- `HydroCore`: Versioned engine independent of customer code.
+- `Hydro Modules`: Versioned capabilities such as Pages, News, Media, Forms, SEO, and similar.
+- `Hydro CLI`: Project, schema, build, upgrade, backup, and deployment tools.
+- `Client Edition`: Brand, theme, enabled modules, content schemas, and custom business rules.
 
-Her müşteri varsayılan olarak ayrı uygulama, veri tabanı, medya alanı, sırlar ve yedeklerle çalışır. Birden fazla düşük trafikli müşteri aynı makinede barınabilse de proses ve veri izolasyonu korunur.
+By default, each customer works with a separate application, database, media space, secrets, and backups. Even though multiple low-traffic customers can be hosted on the same machine, process and data isolation is maintained.
 
-Müşteri gereksinimleri HydroCore fork edilerek uygulanmaz. Yeni ihtiyaç:
+Customer requirements are not implemented by forking HydroCore. A new need:
 
-1. Var olan modül veya sözleşmeli extension point ile çözülür.
-2. Gerçekten genel bir yetenekse sürümlü Core/Module geliştirmesine dönüştürülür.
-3. Müşteriye özgüyse `Client Edition` içinde kalır.
+1. Is solved with an existing module or contracted extension point.
+2. If it is truly a general capability, it is converted into versioned Core/Module development.
+3. If it is specific to the customer, it stays within the `Client Edition`.
 
-Bu yaklaşımın adı **Zero Core Fork** kuralıdır.
+The name of this approach is the **Zero Core Fork** rule.
 
-## Dağıtım biçimleri
+## Deployment models
 
-- **Managed:** Ajans tarafından işletilen önerilen ticari model.
-- **Self-hosted:** İmzalı release paketi ve işletim belgeleri müşteriye teslim edilir.
-- **Container:** Kurumsal altyapılar için isteğe bağlı dağıtım biçimidir; ürünün zorunlu çalışma şekli değildir.
+- **Managed:** The recommended commercial model operated by the agency.
+- **Self-hosted:** The signed release package and operational documents are delivered to the customer.
+- **Container:** An optional deployment format for enterprise infrastructures; it is not the mandatory operational mode of the product.
 
-## Sonuçlar
+## Consequences
 
-- Core güncellemeleri merkezi olarak geliştirilebilir.
-- Müşteri kodu küçük ve anlaşılır kalır.
-- Her müşteri kendi Core ve modül sürümlerini sabitler.
-- Çok sayıda müşteri için build matrisi, contract testleri ve fleet envanteri gerekir.
-- Tam yapısal Templ override'ları müşteri başına yeniden build gerektirir; tema tokenları basit marka değişikliklerinde tercih edilir.
+- Core updates can be developed centrally.
+- Customer code remains small and understandable.
+- Each customer pins their own Core and module versions.
+- A build matrix, contract tests, and fleet inventory are required for a large number of customers.
+- Full structural Templ overrides require a rebuild per customer; theme tokens are preferred for simple brand changes.
 
-## Reddedilen seçenekler
+## Rejected alternatives
 
-- Müşteri başına HydroCore fork'u
-- İlk sürümde multi-tenant SaaS
-- Çalışma zamanında güvenilmeyen üçüncü taraf Go plugin yükleme
-- Kubernetes'i varsayılan deployment yapmak
+- HydroCore fork per customer
+- Multi-tenant SaaS in the first release
+- Loading untrusted third-party Go plugins at runtime
+- Making Kubernetes the default deployment

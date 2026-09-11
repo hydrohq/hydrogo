@@ -1,52 +1,50 @@
-# ADR-0013: Kimlik, yetki ve güvenlik sınırları
+# ADR-0013: Identity, authorization and security boundaries
 
-- **Durum:** Değiştirildi (kısmen) — restore silme geçmişinin kaynağı için [ADR-0014](0014-publication-routes-and-erasure-recovery.md); diğer güvenlik hükümleri geçerlidir.
-- **Tarih:** 2026-09-05
-- **İlişkili belgeler:** [Tehdit modeli](../security/THREAT_MODEL.md), [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md)
-- **Uygulama durumu:** Yerel kullanıcı/session, rol, CSRF, canonical-origin host binding, MFA, reset, invite, limiter ve audit kontrolleri uygulanıp contract testleriyle doğrulandı. OIDC/SAML ve production provider/alerting kapsam dışı veya R3/R6 açık kapısıdır; güncel durum [roadmap](../ROADMAP.md) içindedir.
+- **Status:** Modified (partially) — [ADR-0014](0014-publication-routes-and-erasure-recovery.md) for the source of deletion history during restore; other security provisions remain valid.
+- **Date:** 2026-09-05
+- **Related documents:** [Threat model](../security/THREAT_MODEL.md), [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md)
+- **Implementation status:** Local user/session, role, CSRF, canonical-origin host binding, MFA, reset, invite, limiter, and audit controls have been implemented and verified with contract tests. OIDC/SAML and production provider/alerting are out of scope or an R3/R6 open gate; current status is in [roadmap](../ROADMAP.md).
 
-## Karar
+## Decision
 
-İlk kimlik yöntemi yerel kullanıcı + parola + DB-backed opaque session olur. Kimlik sağlayıcısının çıktısı uygulama aktörüdür; authorization uygulama servisinde kalır. OIDC/SAML, mobil özel token ve API key dağıtımı kendi tehdit modeli/ADR'si olmadan eklenmez. Site Edition public JSON API'si kimlik isteyen mobil API desteği anlamına gelmez.
+The initial identity method is local user + password + DB-backed opaque session. The identity provider's output is an application actor; authorization remains in the application service. OIDC/SAML, mobile-specific tokens, and API key distribution are not added without their own threat model/ADR. Site Edition's public JSON API does not imply support for identity-requiring mobile APIs.
 
-Kriptografik primitive, CSRF, parola hash'i ve TOTP algoritması sıfırdan yazılmaz; bakımı/lisansı/build uyumu değerlendirilen bağımlılık seçilir. Kütüphane sürümleri teknik spike sonunda sabitlenir. Mülkiyet ilkesi güvenlik algoritmalarını yeniden icat etme gerekçesi değildir.
+Cryptographic primitives, CSRF, password hashing, and the TOTP algorithm are not written from scratch; a dependency with evaluated maintenance/license/build compatibility is chosen. Library versions are fixed at the end of the technical spike. The principle of ownership is not a justification to reinvent security algorithms.
 
-## Yaşam döngüsü
+## Lifecycle
 
-- İlk yönetici işletim erişimi olan kişinin açık bootstrap komutuyla oluşturulur; herkese açık ilk-kullanıcı kayıt endpoint'i yoktur. Son kullanılabilir yönetici hesabını yanlışlıkla kilitleyen silme/yetki değişikliği engellenir.
-- Session kimliği kriptografik rastgele, DB kaydı hash'li, cookie host-only/HttpOnly/Secure/SameSite=Lax olur. Login ve privilege değişiminde session yenilenir; idle/absolute süreler ayrı uygulanır. Üretimde HTTPS zorunludur; local geliştirme istisnası üretim modunda açılamaz.
-- Kullanıcı disable, parola sıfırlama ve kritik rol değişiminde session'lar iptal edilir. Kayıt/alan politikaları her uygulama servisi çağrısında değerlendirilir; uzun ömürlü role cache'i yeni yetkiyi gizlemez.
-- Davet ve reset token'ları ayrı purpose, kullanıcı bağı, kısa süre, hash saklama ve tek kullanım taşır. Tüketim ve parola değişikliği aynı transaction'dır. Yanıt hesap varlığını ifşa etmez; URL güvenilen config origin'inden üretilir.
-- Yönetici/publisher için MFA, internetten erişilebilir ticari pilot kapısıdır. İlk yöntem TOTP ve hash'li tek kullanımlık recovery code; seed şifreli saklanır. Kayıt etkinleşmeden challenge doğrulanır; aynı zaman aralığındaki kod tekrar kullanımı test edilir. Recovery/disable yeni kimlik doğrulama ve audit ister.
-- Kaybolan MFA için işletim yetkilisinin belgeli CLI kurtarma yolu vardır; genel web bypass yoktur. Recovery ve parola sıfırlama olayları kullanıcıya güvenli bildirim üretir.
-- Password hashing, login ve MFA denemeleri ayrı concurrency/rate limit bütçesi taşır. Tek isteğin güvenli hash maliyeti toplu saldırıda sınırsız bellek kullanımına dönüşmez.
+- The first admin is created by the person with operational access via an explicit bootstrap command; there is no public first-user registration endpoint. Deletions/permission changes that accidentally lock out the last available admin account are prevented.
+- The session identity is cryptographically random, the DB record is hashed, the cookie is host-only/HttpOnly/Secure/SameSite=Lax. Upon login and privilege change, the session is renewed; idle/absolute durations are applied separately. HTTPS is mandatory in production; the local development exception cannot be enabled in production mode.
+- Sessions are revoked upon user disable, password reset, and critical role change. Registration/domain policies are evaluated on every application service call; a long-lived role cache does not hide the new authorization.
+- Invite and reset tokens carry a separate purpose, user binding, short duration, hashed storage, and single-use limit. Consumption and password change are the same transaction. The response does not disclose account existence; the URL is generated from the trusted config origin.
+- MFA for admin/publisher is a commercial pilot gate accessible from the internet. The initial method is TOTP and a hashed single-use recovery code; the seed is stored encrypted. The challenge is verified before registration becomes active; reuse of the code within the same time window is tested. Recovery/disable requires new authentication and audit.
+- There is a documented CLI recovery path for lost MFA by the operations authority; there is no general web bypass. Recovery and password reset events generate a secure notification to the user.
+- Password hashing, login, and MFA attempts carry separate concurrency/rate limit budgets. The cost of a safe hash for a single request does not translate into unbounded memory usage during a mass attack.
 
-## Authorization ve ağ sınırı
+## Authorization and network boundary
 
-Route sınıflandırması default-deny olur. Admin, public API, özel JSON endpoint ve background job aynı servis politikalarını kullanır. Role ek olarak kayıt sahipliği, durum, locale ve alan allowlist'i değerlendirilir. Hook'ların politikayı gevşetmesi desteklenmez.
+- Route classification is default-deny. Admin, public API, private JSON endpoints, and background jobs use the same service policies. In addition to the role, record ownership, status, locale, and field allowlist are evaluated. Hooks relaxing the policy are not supported.
+- CSRF is mandatory for admin state-changing requests; `SameSite` is a defense in depth. CORS does not open cross-origin access by default. The application does not trust forwarded host headers; if `public_origin` is defined, the incoming `Host` must match the canonical origin host/port. Health/readiness public outputs do not expose version/secret/DB details; detailed diagnostics and metrics are protected.
+- Outbound webhooks/remote fetches are not opened to general use initially. When added, allowed targets, private/link-local/metadata network blocking, DNS/redirect re-checking, timeout, and response size limits are mandatory. A mere string check of the URL is not considered sufficient.
 
-Admin state-changing isteklerinde CSRF zorunludur; `SameSite` ek savunmadır. CORS varsayılan çapraz-origin erişimi açmaz. Uygulama forwarded host header'larına güvenmez; `public_origin` tanımlıysa gelen `Host` canonical origin host/port ile eşleşmek zorundadır. Health/readiness public çıktıları sürüm/sır/DB ayrıntısı taşımaz; ayrıntılı diagnostics ve metrics korunur.
+## Audit and the limit of trust boundary
 
-Outbound webhook/remote fetch başlangıçta genel kullanıma açılmaz. Ekleneceğinde izinli hedef, özel/link-local/metadata ağ engeli, DNS/redirect yeniden kontrolü, timeout ve yanıt boyutu şarttır. Yalnız URL'nin ilk string kontrolü yeterli kabul edilmez.
+Audit is append-only in the application API. The audit UPDATE/DELETE permission is removed for the PostgreSQL runtime role; the migration/maintenance identity is separate. For SQLite, this DB role guarantee does not exist against a person with full access to the file or server. A separate OS user/file permissions is the baseline boundary. A target with external append-only/retention control is separately certified for customers requiring tamper detection; the local log is not presented as "not even root can modify it."
 
-## Audit ve güven sınırının sınırı
+Session/reset/preview tokens, passwords, TOTP seeds, and form bodies are not written to the log/audit. Data deletion/retention rules holistically cover revisions, soft-delete, search, media, and backup retention; restore is reconciled with an independent external deletion log without making deleted data visible again. Durable intent, checkpoint, retention, and isolation rules on missing logs are in ADR-0014.
 
-Audit uygulama API'sinde append-only'dir. PostgreSQL runtime rolü için audit UPDATE/DELETE yetkisi kaldırılır; migration/bakım kimliği ayrıdır. SQLite dosyasına veya sunucuya tam erişimi olan kişiye karşı bu DB rol güvencesi yoktur. Ayrı OS kullanıcısı/dosya izinleri temel sınırdır. Kurcalama tespiti gereken müşteri için dış append-only/retention kontrollü hedef ayrıca sertifikalanır; yerel kayıt “root bile değiştiremez” diye sunulmaz.
+## Impacts, alternatives and validation
 
-Session/reset/preview token'ları, parola, TOTP seed ve form gövdeleri log/audit'e yazılmaz. Veri silme/saklama kuralları revisions, soft-delete, search, medya ve backup retention'ı birlikte kapsar; backup'tan restore silinmiş veriyi tekrar görünür yapmadan, restore edilen DB'den bağımsız dış silme günlüğüyle uzlaştırılır. Dayanıklı niyet, checkpoint, retention ve eksik günlükte izolasyon kuralları ADR-0014'tedir.
+Instead of stateless long-lived JWTs, DB session provides fast revocation and blue/green continuity; it has a DB-bound access cost. A small adapter boundary is chosen in the first phase instead of a general identity framework. MFA does not block the first development slice, but it blocks the commercial pilot.
 
-## Etkiler, alternatifler ve doğrulama
+Single-use token consumption, session revocation, and auth/audit transaction tests are the same in SQLite/PostgreSQL. Session does not enter the shared response cache. Compact auth concurrency is bounded; Distributed rate limit/session revocation passes multi-instance testing. In secret key rotation, the key IDs supported by the old/new slots overlap in a controlled manner; indefinitely old keys are not accepted. Restore security rules are in ADR-0011.
 
-Stateless uzun ömürlü JWT yerine DB session hızlı iptal ve blue/green sürekliliği sağlar; DB'ye bağlı erişim maliyeti vardır. İlk aşamada genel identity framework yerine küçük adapter sınırı seçilir. MFA ilk geliştirme dilimini değil, ticari pilotu engeller.
+Security test scenarios and residual risks are tracked in the [threat model](../security/THREAT_MODEL.md). The model is not a penetration test or a security certificate.
 
-SQLite/PostgreSQL'de tek kullanımlık token tüketimi, oturum iptali ve auth/audit transaction testleri aynıdır. Session shared response cache'e girmez. Compact auth concurrency bounded'dır; Distributed rate limit/oturum iptali çoklu instance testinden geçer. Secret key rotasyonunda eski/yeni slotun desteklediği key ID'leri kontrollü örtüşür; süresiz eski anahtar kabul edilmez. Restore güvenlik kuralları ADR-0011'dedir.
+## References
 
-Güvenlik test senaryoları ve artık riskler [tehdit modelinde](../security/THREAT_MODEL.md) izlenir. Model bir penetrasyon testi veya güvenlik sertifikası değildir.
+- [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html): Session lifecycle and cookie defenses.
+- [OWASP Forgot Password](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html): Single-use recovery token and limiting account enumeration.
+- [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html): External target and network validation boundaries.
 
-## Kaynaklar
-
-- [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html): Session yaşam döngüsü ve cookie savunmaları.
-- [OWASP Forgot Password](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html): Tek kullanımlık kurtarma token'ı ve hesap keşfini sınırlama.
-- [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html): Dış hedef ve ağ doğrulama sınırları.
-
-Bu kaynaklar kontrollerin gerekçesidir; pilotta MFA zorunluluğu gibi teslim tercihleri HydroGo tasarım kararıdır.
+These references are the rationale for the controls; delivery preferences like the MFA requirement in the pilot are HydroGo design decisions.

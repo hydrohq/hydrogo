@@ -1,23 +1,23 @@
-# R1 araç zinciri başlangıç kaydı
+# R1 toolchain initialization record
 
-**Tarih:** 2026-09-06  
-**Roadmap maddesi:** R1 — Go module/toolchain ve çalışan iskelet başlangıcı  
-**Durum:** Kısmi kanıt; S01–S04 tamamlanmadı.
+**Date:** 2026-09-06  
+**Roadmap item:** R1 — Go module/toolchain and working skeleton initialization  
+**Status:** Partial evidence; S01–S04 not completed.
 
-## Ortam
+## Environment
 
-- Geliştirme işletim sistemi: Windows.
-- Go: Go Programming Language 1.27.0, Winget paketi `GoLang.Go` ile kuruldu.
+- Development OS: Windows.
+- Go: Go Programming Language 1.27.0, installed via Winget package `GoLang.Go`.
 - Module path: `github.com/ardaozyildirim/hydrogo`.
-- İlk bağımlılık: yalnız Go standard kütüphanesi.
+- Initial dependencies: Go standard library only.
 
-## Beklenen davranış
+## Expected behavior
 
-`go test ./...`, `go vet ./...` ve `go build ./cmd/hydro` başarılı olmalı. Geliştirme CLI'si `version` ve minimal `serve` komutlarını sunmalı; `/healthz` ve `/readyz` açıkça kaydedilmeli, bilinmeyen rota 404 dönmeli.
+`go test ./...`, `go vet ./...` and `go build ./cmd/hydro` must succeed. The development CLI must offer `version` and minimal `serve` commands; `/healthz` and `/readyz` must be explicitly registered, an unknown route must return 404.
 
-## Kanıt
+## Evidence
 
-2026-09-06 tarihinde Windows üzerinde aşağıdaki kontroller başarılı oldu:
+On 2026-09-06, the following checks succeeded on Windows:
 
 ```text
 go version
@@ -27,8 +27,8 @@ go build -o bin/hydro.exe ./cmd/hydro
 hydro version
 ```
 
-`go test ./...` iki paketi doğruladı: CLI komut ayrıştırması ve yalnız açıkça kaydedilmiş operasyonel rotalar. CI workflow aynı format, vet, test ve build kontrollerini Linux üzerinde tekrarlar.
+`go test ./...` validated two packages: CLI command parsing and only explicitly registered operational routes. The CI workflow repeats the same format, vet, test, and build checks on Linux.
 
-## Sınırlar
+## Boundaries
 
-Bu iskelet, DB bağlantısı veya migration, config dosyası, session/bootstrap, CSRF/audit, Client Edition import sınırı ya da Templ/CSP kanıtı içermez. `/readyz` şu anda yalnız proses içi başlangıç hazır oluşunu temsil eder; DB uygunluğu R1'in DB deneyi tamamlanmadan ilan edilmez.
+This skeleton does not include DB connection or migration, config file, session/bootstrap, CSRF/audit, Client Edition import boundary, or Templ/CSP evidence. `/readyz` currently only represents in-process startup readiness; DB readiness will not be declared until R1's DB experiment is complete.

@@ -1,27 +1,27 @@
-# ADR-0006: İlk sürüm SQLite/PostgreSQL ve genişletilebilir DB adaptörleri
+# ADR-0006: Initial version SQLite/PostgreSQL and extensible DB adapters
 
-- **Durum:** Kabul edildi
-- **Tarih:** 2026-09-05
-- **Değiştirdiği ADR:** [ADR-0002](0002-database-portability.md)
+- **Status:** Accepted
+- **Date:** 2026-09-05
+- **Supersedes:** [ADR-0002](0002-database-portability.md)
 
-## Bağlam
+## Context
 
-Her veritabanını ilk sürümde eşit desteklemek geliştirme ve test maliyetini büyütür. Yalnız tek veritabanına göre tasarlamak ise ileride yeni motor eklemeyi zorlaştırır. HydroGo başlangıçta küçük kurulum ile çok instance'lı üretim kurulumunu kapsamalı, yeni veritabanlarını gerçek talep oluştuğunda ekleyebilmelidir.
+Equally supporting every database in the initial release increases development and testing costs. Designing for only a single database, however, makes it difficult to add new engines in the future. HydroGo must initially cover the small setup and the multi-instance production setup, and be able to add new databases when real demand arises.
 
-## Karar
+## Decision
 
-İlk kararlı sürümün sertifikalı veritabanları:
+The certified databases of the first stable version are:
 
-- **SQLite:** Compact, tek düğümlü ve kolay taşınabilir kurulum.
-- **PostgreSQL:** Standard ve Distributed üretim kurulumları.
+- **SQLite:** Compact, single-node, and easily portable setup.
+- **PostgreSQL:** Standard and Distributed production setups.
 
-MySQL ve diğer SQL motorları başlangıç kapsamı değildir. Mimari bunların sonradan **sertifikalı adaptör** olarak eklenmesini destekler. “Bütün veritabanlarını destekler” vaadi verilmez.
+MySQL and other SQL engines are not in the initial scope. The architecture supports adding these later as **certified adapters**. A "supports all databases" promise is not made.
 
-## Sınırlar
+## Boundaries
 
-### Platform adaptörü
+### Platform adapter
 
-Platform seviyesindeki adaptör yalnız altyapı davranışını sağlar:
+The platform-level adapter provides only infrastructure behavior:
 
 ```go
 type Adapter interface {
@@ -33,11 +33,11 @@ type Adapter interface {
 }
 ```
 
-Bu arayüz bütün SQL özelliklerini ortaklaştırmaya çalışmaz.
+This interface does not try to generalize all SQL features.
 
-### Modül store'u
+### Module store
 
-Her modül kullandığı repository/store sözleşmesini kendisi tanımlar. SQLite ve PostgreSQL sorguları ayrı uygulanır:
+Each module defines the repository/store contract it uses. SQLite and PostgreSQL queries are implemented separately:
 
 ```text
 modules/news/store/
@@ -46,18 +46,18 @@ modules/news/store/
 └── postgres/
 ```
 
-Yeni bir veritabanı adaptörü eklemek yalnız connection driver yazmak değildir. Desteklenen her Core bileşeni ve modül için şunlar gerekir:
+Adding a new database adapter is not just writing a connection driver. For each supported Core component and module, the following are required:
 
-- Dialect sorguları
-- Migration'lar
+- Dialect queries
+- Migrations
 - Error mapping
-- Transaction ve locking davranışı
-- Backup/restore entegrasyonu
-- Contract ve migration testleri
+- Transaction and locking behavior
+- Backup/restore integration
+- Contract and migration tests
 
-### Capability modeli
+### Capability model
 
-Adaptör özelliklerini açıkça bildirir:
+The adapter explicitly declares its capabilities:
 
 ```text
 returning
@@ -69,20 +69,20 @@ online_ddl
 listen_notify
 ```
 
-Modül gerekli capability'leri bildirir. Seçili veritabanı bunları sağlamıyorsa sistem başlangıçta açık hata verir veya modül kendi portable fallback'ini kullanır.
+The module declares its required capabilities. If the selected database does not provide them, the system throws an explicit error at startup or the module uses its own portable fallback.
 
-## Taşınabilir veri kuralları
+## Portable data rules
 
-- Kimlik uygulama tarafında üretilen UUID/ULID olur.
-- Tarihler UTC ve açık hassasiyet sözleşmesiyle saklanır.
-- Slug, e-posta ve benzersiz anahtarlar normalize edilmiş yardımcı alanlarla korunur; collation varsayımına bırakılmaz.
-- Para tamsayı minor-unit ve currency koduyla saklanır.
-- Pagination kararlı sıralama ve cursor sözleşmesi kullanır.
-- Domain davranışı DB'ye özel trigger veya stored procedure'e zorunlu olarak bağlanmaz.
+- Identity is a UUID/ULID generated on the application side.
+- Dates are stored in UTC and with an explicit precision contract.
+- Slugs, emails, and unique keys are protected by normalized helper fields; it is not left to collation assumptions.
+- Money is stored as integer minor-unit and currency code.
+- Pagination uses a stable sort and cursor contract.
+- Domain behavior is not strictly tied to a DB-specific trigger or stored procedure.
 
 ## Migration
 
-Her migration seçili ve sertifikalı dialect uygulamalarına sahiptir:
+Each migration has selected and certified dialect implementations:
 
 ```text
 migrations/<id>/
@@ -91,19 +91,19 @@ migrations/<id>/
 └── migration.yaml
 ```
 
-İleride MySQL adaptörü eklenirse aynı mantıksal migration dizilerine `mysql.sql` eklenir veya motorun başlangıç baseline şeması üretilir. Eski migration checksum'ları değiştirilmez.
+If a MySQL adapter is added in the future, `mysql.sql` is added to the same logical migration sequences, or the engine's initial baseline schema is generated. Old migration checksums are not changed.
 
-## Geliştirme ve test
+## Development and testing
 
-- Hızlı yerel geliştirme SQLite ile yapılabilir.
-- Müşterinin üretim hedefi PostgreSQL ise CI ve staging PostgreSQL kullanır.
-- Her modül SQLite ve PostgreSQL ortak contract testlerini geçmeden tamamlanmış sayılmaz.
-- Yeni adaptör aynı test kitini geçmeden “destekleniyor” olarak listelenmez.
+- Fast local development can be done with SQLite.
+- If the customer's production target is PostgreSQL, CI and staging use PostgreSQL.
+- No module is considered complete without passing the SQLite and PostgreSQL common contract tests.
+- A new adapter is not listed as "supported" without passing the same test kit.
 
-## Sonuçlar
+## Consequences
 
-- İlk sürümün test matrisi yönetilebilir kalır.
-- Küçük ve dağıtık iki gerçek topoloji doğrulanır.
-- Yeni DB ekleme yolu açıktır fakat sahte evrensellik iddiası oluşmaz.
-- DB'ye özel optimizasyon capability sınırları içinde kullanılabilir.
-- Yeni DB desteği yine önemli bir ürün yatırımıdır; adaptör arayüzü bunu sıfır maliyetli yapmaz.
+- The test matrix for the initial release remains manageable.
+- Two actual topologies, small and distributed, are verified.
+- The path to adding a new DB is open, but no claim of false universality is made.
+- DB-specific optimizations can be used within capability boundaries.
+- New DB support is still a significant product investment; the adapter interface does not make it zero-cost.

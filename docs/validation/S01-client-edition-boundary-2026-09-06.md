@@ -1,21 +1,21 @@
-# S01 Client Edition Sınırı ve Sıfır Yük Doğrulaması
+# S01 Client Edition Boundary and Zero Load Validation
 
-**Tarih:** 2026-09-06  
-**Roadmap maddesi:** R1 / S01  
-**Durum:** Başarılı.
+**Date:** 2026-09-06  
+**Roadmap item:** R1 / S01  
+**Status:** Succeeded.
 
-## Doğrulanan Davranış
+## Validated Behavior
 
-1. **Paket Sınırı ve İzolasyon:**
-   - `examples/client-edition` bağımsız bir Go module olarak Core kaynağını kopyalamadan `extension` paketini import edip derlendi.
-   - `tools/importguard`, Client Edition kaynaklarında HydroGo module yolundan yalnız ilan edilen `extension` prefix'ine izin verdi.
-   - Ayrı `tests/fixtures/internal-import-denied` module'ü `internal/server` import etmeye çalıştığında Go 1.27.0 derleyicisi `use of internal package ... not allowed` ile build'i reddetti.
+1. **Package Boundary and Isolation:**
+   - `examples/client-edition` was compiled as an independent Go module by importing the `extension` package without copying the Core source.
+   - `tools/importguard` allowed only the declared `extension` prefix from the HydroGo module path in Client Edition sources.
+   - When a separate `tests/fixtures/internal-import-denied` module attempted to import `internal/server`, the Go 1.27.0 compiler rejected the build with `use of internal package ... not allowed`.
 
-2. **Seçilmeyen Modülün Sıfır Yük Üretmesi:**
-   - `extension.Module` ve `internal/modules.Registry` mekanizması ile hiçbir modül kaydedilmediğinde HTTP router'ında sıfır ek rota ve sıfır ek bellek/işlem yükü oluştuğu test edildi (`internal/modules/registry_test.go`).
-   - Modüller seçilmedikçe ne route ne de middleware overhead'i üretir.
+2. **Unselected Module Producing Zero Load:**
+   - Through the `extension.Module` and `internal/modules.Registry` mechanism, it was tested that when no module is registered, zero additional routes and zero additional memory/processing load are created on the HTTP router (`internal/modules/registry_test.go`).
+   - Unless selected, modules generate neither route nor middleware overhead.
 
-## Çalıştırılan Komutlar
+## Executed Commands
 
 ```text
 go test ./...
@@ -23,4 +23,4 @@ go vet ./...
 go run ./tools/importguard -root examples/client-edition
 cd examples/client-edition && go build ./...
 ```
-Tüm kontroller başarıyla tamamlandı.
+All checks completed successfully.

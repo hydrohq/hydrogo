@@ -1,24 +1,24 @@
 # Production gate evidence checklist
 
-Bu liste contract testlerin yerine geçmez; gerçek ortamda açık kalan roadmap kapılarının kanıt formatını sabitler.
+This list does not replace contract tests; it pins the evidence format for roadmap gates remaining open in the real environment.
 
-## Otomatik preflight
+## Automated preflight
 
-Windows geliştirici/CI ortamında aşağıdaki komut tüm otomatik kapıları aynı sırayla çalıştırır:
+In the Windows developer/CI environment, the following command runs all automated gates in the same order:
 
 ```powershell
 $env:HYDRO_TEST_POSTGRES_URL = "postgres://user:password@127.0.0.1:5432/hydro_contract?sslmode=disable"
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-production-gates.ps1
 ```
 
-Linux/macOS veya Linux CI ortamında eşdeğer preflight:
+Equivalent preflight in Linux/macOS or Linux CI environment:
 
 ```bash
 export HYDRO_TEST_POSTGRES_URL='postgres://user:password@127.0.0.1:5432/hydro_contract?sslmode=disable'
 bash ./scripts/verify-production-gates.sh
 ```
 
-Runner'lar; format, vet, tam test, PostgreSQL contract ortamı zorunluluğu, race-sensitive paketler, reproducible `hydro` binary ve portable benchmark kontrollerini çalıştırır. PostgreSQL URL yoksa veya contract testleri skip edilebilecek durumdaysa başarısız olur. Bu preflight gerçek reverse proxy/process restart, temiz ortam restore, production key ceremony, harici yedek/key recovery veya müşteri RPO/RTO ölçümünü tamamlanmış saymaz.
+Runners execute format, vet, full suite, PostgreSQL contract environment requirement, race-sensitive packages, reproducible `hydro` binary, and portable benchmark checks. It fails if there is no PostgreSQL URL or if contract tests are in a skippable state. This preflight does not consider the actual reverse proxy/process restart, clean environment restore, production key ceremony, external backup/key recovery, or customer RPO/RTO measurement as completed.
 
 | Gate | Required environment | Evidence command | Pass condition |
 | --- | --- | --- | --- |
@@ -30,4 +30,4 @@ Runner'lar; format, vet, tam test, PostgreSQL contract ortamı zorunluluğu, rac
 | R5 release provenance | production signing key ceremony and provenance store | `go test ./internal/release -run TestManifestProvenanceAttestationBindsSubject` plus signed publication log | subject digest, builder and source revision independently verifiable |
 | R6 distributed cache | two web/worker instances, shared L2, partition injection | fan-out/reconnect/load drill | bounded fallback, generation reconciliation and no stale refill |
 
-Her gate için sonuç, tarih, commit SHA, profil, OS/DB sürümü ve başarısızlık logları validation raporuna eklenir. Production credentials veya private keys repoya yazılmaz.
+For each gate, the result, date, commit SHA, profile, OS/DB version, and failure logs are appended to the validation report. Production credentials or private keys are not written to the repository.

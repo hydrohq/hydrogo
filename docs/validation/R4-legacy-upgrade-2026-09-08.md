@@ -1,13 +1,13 @@
-# R4 legacy müşteri upgrade doğrulaması
+# R4 legacy customer upgrade validation
 
-**Tarih:** 2026-09-08  
-**Durum:** Başarılı
+**Date:** 2026-09-08  
+**Status:** Succeeded
 
-`tests/contract/testdata/legacy_customer.json`, migration `202609080008` seviyesinde oluşturulmuş gerçekçi bir müşteri snapshot'ını temsil eder. Contract test önce bu eski şemayı kurup sayfa, revision, hazır medya ve kullanıcı hash'ini yazar; ardından tüm migration setini uygular ve `CheckCompatibility` ile checksum sözleşmesini doğrular.
+`tests/contract/testdata/legacy_customer.json` represents a realistic customer snapshot created at migration level `202609080008`. The contract test first installs this legacy schema and writes the page, revision, ready media, and user hash; it then applies the full migration set and verifies the checksum contract via `CheckCompatibility`.
 
-Upgrade sırasında `202609080014_published_projection_backfill` migration'ı, projection kolonları eklenmeden önce yayınlanmış olan sayfaları yeni public projection'a taşır. Test, eski sayfanın public route üzerinden okunabildiğini, medya storage key/status değerlerinin ve parola hash'inin değişmediğini kanıtlar.
+During the upgrade, migration `202609080014_published_projection_backfill` moves pages that were published before projection columns were added to the new public projection. The test proves that the old page can be read via the public route, and that the media storage key/status values and password hash have not changed.
 
-Çalıştırılan kontroller:
+Executed checks:
 
 ```text
 go test ./tests/contract -run Legacy -count=1
@@ -15,4 +15,4 @@ go test ./...
 go vet ./...
 ```
 
-Bu fixture SQLite üzerinde çalışır; PostgreSQL migration ve portable round-trip sözleşmeleri ayrı contract testlerinde çalıştırılır.
+This fixture runs on SQLite; PostgreSQL migration and portable round-trip contracts are executed in separate contract tests.

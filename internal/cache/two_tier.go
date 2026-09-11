@@ -1,6 +1,10 @@
 package cache
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"sync/atomic"
+)
 
 import "github.com/ardaozyildirim/hydrogo/internal/guards"
 
@@ -14,8 +18,9 @@ type RemoteStore[T any] interface {
 // TwoTier combines bounded local L1 with an optional remote L2. L2 failures
 // fall back to the local loader and never make the request path unbounded.
 type TwoTier[T any] struct {
-	local  *Cache[T]
-	remote RemoteStore[T]
+	local      *Cache[T]
+	remote     RemoteStore[T]
+	generation atomic.Uint64
 }
 
 func NewTwoTier[T any](local *Cache[T], remote RemoteStore[T]) (*TwoTier[T], error) {
@@ -23,6 +28,10 @@ func NewTwoTier[T any](local *Cache[T], remote RemoteStore[T]) (*TwoTier[T], err
 		return nil, errors.New("local cache is required")
 	}
 	return &TwoTier[T]{local: local, remote: remote}, nil
+}
+
+func (c *TwoTier[T]) remoteKey(generation uint64, key string) string {
+	return fmt.Sprintf("g%d:%s", generation, key)
 }
 
 func (c *TwoTier[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
@@ -33,15 +42,52 @@ func (c *TwoTier[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) 
 	if value, ok := c.local.Get(key); ok {
 		return value, nil
 	}
+	generation := c.generation.Load()
 	if !guards.IsNil(c.remote) {
-		if value, ok, err := c.remote.Get(key); err == nil && ok {
+		if value, ok, err := c.remote.Get(c.remoteKey(generation, key)); err == nil && ok {
 			c.local.Set(key, value)
 			return value, nil
 		}
 	}
 	value, err := c.local.GetOrLoad(key, loader)
 	if err == nil && !guards.IsNil(c.remote) {
-		_ = c.remote.Set(key, value)
+		_ = c.remote.Set(c.remoteKey(generation, key), value)
 	}
 	return value, err
+}
+
+func (c *TwoTier[T]) GetOrLoadAtGeneration(key string, generation uint64, loader func() (T, error)) (T, error) {
+	if c == nil || c.local == nil {
+		var zero T
+		return zero, ErrTwoTierUnavailable
+	}
+	if value, ok := c.local.Get(key); ok {
+		return value, nil
+	}
+	if !guards.IsNil(c.remote) {
+		if value, ok, err := c.remote.Get(c.remoteKey(generation, key)); err == nil && ok {
+			c.local.SetIfGeneration(key, value, generation)
+			return value, nil
+		}
+	}
+	value, err := c.local.GetOrLoadAtGeneration(key, generation, loader)
+	if err == nil && !guards.IsNil(c.remote) {
+		_ = c.remote.Set(c.remoteKey(generation, key), value)
+	}
+	return value, err
+}
+
+func (c *TwoTier[T]) Clear() {
+	if c == nil || c.local == nil {
+		return
+	}
+	c.local.Clear()
+	c.generation.Store(c.local.Generation())
+}
+
+func (c *TwoTier[T]) Stats() Stats {
+	if c == nil || c.local == nil {
+		return Stats{}
+	}
+	return c.local.Stats()
 }

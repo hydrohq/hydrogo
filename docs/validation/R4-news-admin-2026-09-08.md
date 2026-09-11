@@ -1,16 +1,16 @@
-# R4 News admin akışı doğrulaması
+# R4 News admin flow validation
 
-**Tarih:** 2026-09-08  
-**Roadmap:** R4 News inceleme/zamanlama/yayın/geri çekme  
-**Durum:** Başarılı; domain, generation guarded worker, durable scheduler bootstrap, JSON/public ve protected admin HTML akışları hazır.
+**Date:** 2026-09-08  
+**Roadmap:** R4 News review/schedule/publish/retract  
+**Status:** Succeeded; domain, generation guarded worker, durable scheduler bootstrap, JSON/public and protected admin HTML flows are ready.
 
-News admin ekranı draft düzenleme, schedule, publish ve retract işlemlerini aynı `news.Service` üzerinden çalıştırır. Her mutation formunda CSRF token ve optimistic `version` alanı vardır; editor/admin yetkisi router'ın protected sınırıyla birlikte kontrol edilir. Schedule worker job generation'ı payload'da taşır ve repository atomik generation kontrolüyle eski job'ı etkisizleştirir. `cmd/hydro serve` artık due scheduled kayıtlarını beş saniyelik bounded polling ile kalıcı `jobs` store'a aktarır ve lease worker'ı çalıştırır; enqueue tekrarları job kimliğiyle idempotent kalır.
+The News admin screen executes draft edit, schedule, publish, and retract operations via the same `news.Service`. Every mutation form contains a CSRF token and an optimistic `version` field; editor/admin authorization is verified alongside the router's protected boundary. The schedule worker carries job generation in its payload, and the repository invalidates the old job via atomic generation check. `cmd/hydro serve` now queues due scheduled records into the durable `jobs` store using a five-second bounded polling and runs the lease worker; enqueue retries remain idempotent with the job ID.
 
-Çalıştırılan kontroller:
+Executed checks:
 
 ```text
 go test ./modules/news/transport ./...
 go vet ./...
 ```
 
-İkinci dış edition ayrıca Core'a import etmeden `EditorialDraft` kuralını uygular: başlık ve desk zorunludur; zamanlanmış haber için editoryal onay gerekir. `examples/news-edition/editorial_policy_test.go` bu davranışı doğrular. Bu kapının kalan işi, gerçek deployment'ta worker process ayrıştırması ve kapasite ölçümüdür.
+The second external edition also applies the `EditorialDraft` rule without importing it into Core: title and desk are mandatory; editorial approval is required for scheduled news. `examples/news-edition/editorial_policy_test.go` validates this behavior. The remaining work for this gate is worker process segregation and capacity measurement in an actual deployment.

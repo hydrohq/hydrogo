@@ -1,0 +1,25 @@
+id: "202609110006_members_metadata"
+module: "members"
+class:
+  sqlite: "maintenance"
+  postgres: "online"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies:
+  - "202609110005_members"
+checksum_sha256:
+  sqlite: "426dc0ada0976d9fea673a9cb7c822ee8c31c6ed97325e88a5a8a90752753220"
+  postgres: "194a86d8653373bb20cf8a9a417b878028884ca2383748470014b03580888ac8"
+schema:
+  readable_epoch: 1
+  writable_epoch: 2
+preconditions:
+  - "Members module is enabled"
+lock_timeout: "bounded by migration runner"
+disk_estimate: "members table metadata columns"
+compatibility: "additive nullable member metadata"
+smoke:
+  - "member verification and last login metadata are writable"
+restart: "Safe to rerun; migration ledger prevents duplicate application"
+rollback: "No production down migration; restore via supported backup flow"

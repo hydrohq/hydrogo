@@ -1,94 +1,94 @@
 # Hydro Manifesto
 
-> **Su gibi uyumlu. Kaya gibi güvenilir. Kontrol daima bizde.**
+> **Fluid as water. Resilient as rock. Control always remains with us.**
 
-Bir projenin teknik mimarisi onun iskeletiyse, felsefesi onun ruhudur. Kod zamanla refactor edilir, kütüphaneler ve altyapılar değişir; HydroGo'nun temel karar ilkeleri ise ürünün saflığını, gücünü ve müşteriye verdiği sözü korur.
+If a project's technical architecture is its skeleton, its philosophy is its soul. Code is refactored over time, libraries and infrastructures evolve; HydroGo's core decision-making principles safeguard the product's purity, robustness, and the commitments made to customers.
 
-HydroGo farklı ölçeklere ve sektörlere uyum sağlar. Bu uyum biçimsizlik değildir: güvenlik, veri mülkiyeti, açık sözleşmeler ve işletilebilirlik değişmeyen özellikleridir.
+HydroGo adapts to diverse scales and industries. This adaptability is not formlessness: security, data sovereignty, explicit contracts, and operability are immutable attributes.
 
-## 1. Su Gibi Ol — Akışkanlık ve Uyum
+## 1. Be Like Water — Fluidity and Adaptability
 
-> Sistem kaba direnmez; ihtiyaç kadar biçim alır.
+> The system does not resist the vessel; it takes form according to necessity.
 
-HydroGo kurumsal bir sitenin hafifliğine, haber platformunun okuma trafiğine, mobil uygulamanın API ihtiyacına ve işlem odaklı sistemlerin ciddiyetine ayrı profillerle uyum sağlar.
+HydroGo adapts with distinct profiles to the lightness of a corporate website, the high-throughput read traffic of a news platform, the API demands of a mobile application, and the rigor of transaction-heavy systems.
 
-Uyum, her özelliği her kuruluma taşımak değildir. Etkin olmayan modül route, migration, asset, worker veya altyapı yükü oluşturmaz.
+Adaptability does not mean carrying every feature into every deployment. An inactive module does not incur route, migration, asset, worker, or infrastructure overhead.
 
-**Tavizsiz kural:** Kullanılmayan hiçbir yetenek müşterinin kaynaklarına veya işletim yüküne eklenemez.
+**Non-negotiable rule:** Unused capabilities must never be imposed on a customer's resources or operational burden.
 
-## 2. Mülkiyet ve Bağımsızlık — Sovereignty
+## 2. Ownership and Independence — Sovereignty
 
-> Kontrol edemediğin altyapının yönünü de kontrol edemezsin.
+> If you cannot control your infrastructure, you cannot control your direction.
 
-HydroGo başka bir CMS'in forku değildir. Ürünün kaynak yönü, build zinciri, dağıtım biçimi ve veri taşınabilirliği bizim kontrolümüzdedir. Müşteri kendi verisini, yedeğini ve çalışma ortamını kontrol edebilir; platformdan çıkış yolu her zaman bulunur.
+HydroGo is not a fork of any third-party CMS. The product's source direction, build chain, distribution format, and data portability remain under our full control. Customers retain complete authority over their data, backups, and runtime environment; an exit strategy from the platform is always available.
 
-Bağımsızlık her şeyi yeniden yazmak değildir. Güvenilir bağımlılıklar bilinçli seçilir, sürümleri ve lisansları sabitlenir, değiştirilebilecekleri sınırların arkasında tutulur.
+Independence does not mean reinventing everything. Reliable dependencies are selected intentionally, their versions and licenses pinned, and isolated behind replaceable boundaries.
 
-**Tavizsiz kural:** Veri, build ve deployment kontrolünü tek bir dış sağlayıcının insafına bırakmayız.
+**Non-negotiable rule:** We never surrender data, build, or deployment control to the mercy of a single external provider.
 
-## 3. Önce Doğrula, Sonra Otomatikleştir — Pragmatizm
+## 3. Verify First, Automate Later — Pragmatism
 
-> Çalıştırmadığın şeyi soyutlama; görmediğin şeyi otomatikleştirme.
+> Do not abstract what you haven't run; do not automate what you haven't observed.
 
-Önce gerçek bir müşteri akışı elle ve uçtan uca geliştirilir. Servis sınırı, veri modeli, yetki, admin deneyimi ve işletim davranışı sahada doğrulanır. CLI ve şema üreticisi yalnız tekrarı kanıtlanmış kalıpları otomatikleştirir.
+First, a real customer flow is developed manually and end-to-end. Service boundaries, data models, authorization, admin UX, and operational behaviors are validated in the field. The CLI and schema generators automate only patterns with proven repetition.
 
-Bir generator iş mantığını tahmin etmez. Standart CRUD ve sunum iskeletini üretir; müşteriye özgü kurallar açık extension noktalarında insan tarafından yazılır.
+A generator never guesses business logic. It generates standard CRUD and presentation scaffolding; customer-specific rules are written explicitly by engineers at clear extension points.
 
-**Tavizsiz kural:** İki farklı gerçek kullanımda doğrulanmayan kalıp Core sözleşmesine dönüşmez.
+**Non-negotiable rule:** A pattern does not become a Core contract until verified across two distinct real-world use cases.
 
-## 4. Tasarımla Güvenlik — Secure by Design & Default Deny
+## 4. Secure by Design & Default Deny
 
-> Açık bırakılan kapı hata değil, önlenmesi gereken bir tasarım kusurudur.
+> An open door is not merely an error; it is a fundamental design flaw that must be prevented.
 
-Güvenlik geliştiricinin her seferinde doğru ayrıntıyı hatırlamasına bırakılmaz. Route sınıflandırması, kayıt bazlı yetki, güvenli tipler, otomatik escaping, sanitizer, CSRF ve güvenli session varsayılan olarak uygulanır.
+Security is not left to a developer remembering the right detail every time. Route classification, record-level authorization, type safety, automatic escaping, sanitizers, CSRF protection, and secure sessions are enforced by default.
 
-Templ güvenli çıktı üretmeyi kolaylaştırır; tek başına XSS garantisi değildir. `templ.Raw`, URL, zengin metin ve üçüncü taraf istemci kodu ayrıca güvenlik sözleşmelerine tabidir.
+Templ facilitates safe output generation; it is not, by itself, an absolute XSS guarantee. `templ.Raw`, URLs, rich text, and third-party client code remain subject to strict security contracts.
 
-**Tavizsiz kural:** Güvenli yol varsayılan, görünür ve en kolay geliştirme yolu olmalıdır.
+**Non-negotiable rule:** The secure path must always be the default, visible, and most ergonomic development path.
 
-## 5. Kaya Gibi Sade, Işık Gibi Hızlı — Minimalist Power
+## 5. Rock-Solid Simplicity, Lightning Speed — Minimalist Power
 
-> Mükemmellik az satırda değil, az sürpriz ve az gereksiz yükte aranır.
+> Perfection is achieved not through fewer lines of code, but through fewer surprises and zero unnecessary overhead.
 
-Her katman, paket ve bağımlılık varlığını gerçek bir sorumlulukla hak eder. Performans iddiaları tanımlı donanım, trafik, veri ve cache koşullarında ölçülür. Küçük ve dağıtık kurulumlar aynı Core sözleşmelerini kullanır; yalnız kapasite ve altyapı profili değişir.
+Every layer, package, and dependency earns its presence with clear, single-purpose responsibility. Performance claims are measured under defined hardware, traffic, data volume, and cache conditions. Small and distributed deployments share the same Core contracts; only the capacity and infrastructure profile varies.
 
-HTTP cache, yerel bellek, dağıtık cache, veritabanı ve CDN birbirinin rakibi değildir. İhtiyaç duyulan katman etkinleşir.
+HTTP cache, local memory, distributed cache, databases, and CDNs are not competitors; each layer is activated only when required.
 
-**Tavizsiz kural:** Karmaşıklık ancak ölçülmüş bir ihtiyacı çözüyor ve toplam sistemi sadeleştiriyorsa eklenebilir.
+**Non-negotiable rule:** Complexity is added only if it solves a measured necessity and simplifies the total system.
 
-## 6. Çekirdek Kararlı, Müşteri Özgür — Backwards Compatibility
+## 6. Stable Core, Free Customer — Backwards Compatibility
 
-> Gövde büyürken dallar hazırlıksız kırılmaz.
+> As the trunk expands, branches must not break unexpectedly.
 
-HydroCore ile Client Edition arasındaki sınır açık ve sürümlüdür. Müşteri geliştirmesi Core fork'u olarak yapılmaz. Tema tokenları, modül sözleşmeleri, view slotları ve application service extension noktaları üzerinden ilerler.
+The boundary between HydroCore and Client Editions is explicit and versioned. Customer customization is never performed as a HydroCore fork. It progresses via theme tokens, module contracts, view slots, and application service extension points.
 
-Aynı major sürüm içindeki yayımlanmış sözleşmeler korunur. Zorunlu kırılma yeni major sürüm, deprecation süresi, migration aracı ve açık yükseltme yolu gerektirir. Kesintisiz deployment, eski ve yeni sürümün geçici birlikte çalışmasını sağlayan expand–migrate–contract disipliniyle korunur.
+Published contracts within the same major version are preserved. Unavoidable breaking changes require a new major version, a deprecation grace period, migration tooling, and a documented upgrade path. Zero-downtime deployment is protected by the expand–migrate–contract discipline, enabling temporary coexistence of old and new versions.
 
-**Tavizsiz kural:** Core değişikliği, desteklenen müşteri edition'larında contract testleri geçmeden yayımlanamaz.
+**Non-negotiable rule:** A Core change cannot be published without passing contract tests across supported customer editions.
 
-## Mühendislik karar filtresi
+## Engineering Decision Filter
 
-Yeni bir teknoloji, katman veya özellik önerildiğinde şu sorular sorulur:
+When a new technology, layer, or feature is proposed, the following questions must be answered:
 
-1. Müşterinin veri ve deployment kontrolünü artırıyor mu?
-2. Compact profilde kullanılmadığında tamamen kapanabiliyor mu?
-3. Sertifikalı veritabanlarındaki davranışı ve yeni adaptörlere etkisi tanımlı mı?
-4. Cache invalidation ve arıza davranışı belli mi?
-5. Eski ve yeni sürümün birlikte çalışmasını etkiliyor mu?
-6. Müşteri Core fork etmeden ihtiyacını çözebiliyor mu?
-7. Gerçek kullanım veya benchmark ile doğrulandı mı?
+1. Does it enhance the customer's data and deployment sovereignty?
+2. Can it be completely deactivated with zero footprint in the Compact profile?
+3. Is its behavior across certified databases and future adapters clearly defined?
+4. Are cache invalidation and failure modes explicit?
+5. Does it affect the interoperability of old and new versions?
+6. Can the customer solve their problem without forking Core?
+7. Has it been validated through real-world usage or empirical benchmarks?
 
-Bu sorulardan biri mimari yönü değiştiriyorsa karar ADR olarak kaydedilir.
+If any of these questions shifts the architectural direction, the decision must be recorded as an ADR.
 
-## Kısa manifesto
+## The Manifesto in Brief
 
-Biz su gibi uyum sağlar, kullanılmayan yükü taşımayız.  
-Biz verimizi, build'imizi ve deployment yönümüzü kontrol ederiz.  
-Biz önce gerçek kullanımda doğrular, sonra otomatikleştiririz.  
-Biz güvenliği hatırlanacak görev değil, sistemin varsayılanı yaparız.  
-Biz performansı ölçer, karmaşıklığı gerekçelendiririz.  
-Biz Core'u kararlı tutar, müşteriyi özgür bırakırız.
+We adapt fluidly like water, carrying no unused burden.  
+We retain sovereignty over our data, builds, and deployment trajectory.  
+We verify in real-world scenarios before automating.  
+We make security the system default, not an afterthought.  
+We measure performance and rigorously justify complexity.  
+We maintain a stable Core and empower the customer.
 
 ---
 
-**HydroGo:** Her ölçeğe uyum sağlayan; güvenlik, veri mülkiyeti ve açık sözleşmeler karşısında biçim değiştirmeyen CMS platformu.
+**HydroGo:** A CMS platform that adapts to every scale without compromising on security, data ownership, or explicit contracts.

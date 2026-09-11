@@ -1,33 +1,22 @@
-# R3 medya upload kapasite doğrulaması
+# R3 media upload capacity validation
 
-## Kapsam
+## Scope
 
-`media.Uploader` artık upload başına geçici dosya yazımı, SHA-256 hesaplama ve
-görüntü boyutu doğrulamasını bounded bir semaphore üzerinden yürütür. Runtime
-bootstrap'ı bu sınırı seçilen capacity profilinin `WorkerConcurrency` bütçesine
-bağlar. Görüntü boyut başlığından sonra tam payload decode'u da yapılır; böylece
-truncated veya bozuk görüntü immutable storage'a alınmaz. Semaphore bekleyen bir
-request'in context'i iptal edilirse upload başlamadan durur. Uploader veya asset
-repository yanlış bağlanırsa medya service'i panic etmek yerine fail-closed hata
-döndürür; HTTP upload/serve sınırı da bu eksik bağımlılıkları 503 ile güvenli
-şekilde reddeder.
+`media.Uploader` now executes per-upload temporary file writing, SHA-256 calculation, and image size validation via a bounded semaphore. The runtime bootstrap binds this limit to the `WorkerConcurrency` budget of the selected capacity profile. Full payload decoding is also performed after the image size header; thus, truncated or corrupted images are not admitted to immutable storage. If the context of a request waiting on the semaphore is canceled, the upload stops before it begins. If the uploader or asset repository is wired incorrectly, the media service returns a fail-closed error instead of panicking; the HTTP upload/serve boundary also safely rejects these missing dependencies with a 503.
 
-## Kanıt
+## Evidence
 
 - Commit: `674df9b`
-- Ortam: Windows geliştirici ortamı, Go toolchain repository CI sürümüyle uyumlu
-- Komutlar:
+- Environment: Windows development environment, compatible with the Go toolchain repository CI version
+- Commands:
   - `go test ./internal/media ./cmd/hydro`
   - `go vet ./internal/media ./cmd/hydro`
   - `go test ./... -p 1`
   - `go vet ./...`
   - `git diff --check`
-- Sonuç: tüm testler ve statik kontroller başarılı.
-- Contract: `TestUploaderSaveContextHonorsCancellationWhileBusy`, tek slot doluyken
-  bekleyen ikinci upload'ın `context.Canceled` ile bounded biçimde çıkmasını doğrular.
+- Result: all tests and static checks succeeded.
+- Contract: `TestUploaderSaveContextHonorsCancellationWhileBusy` validates that a second pending upload exits boundedly with `context.Canceled` while the single slot is full.
 
-## Sınırlar
+## Limits
 
-Bu kanıt process-local upload backpressure davranışını gösterir. Gerçek müşteri
-donanımı üzerindeki throughput, disk I/O doygunluğu, çoklu instance toplam
-kapasitesi ve object-storage provider davranışı bu raporla sertifikalanmaz.
+This evidence demonstrates process-local upload backpressure behavior. Throughput on actual customer hardware, disk I/O saturation, multi-instance aggregate capacity, and object-storage provider behavior are not certified by this report.

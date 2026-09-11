@@ -1,0 +1,25 @@
+id: "202609110005_members"
+module: "members"
+class:
+  sqlite: "maintenance"
+  postgres: "online"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies: []
+checksum_sha256:
+  sqlite: "93de2de5ca1d0a61aba9cb50377a8113c78a27fabecea2d0336ad5979fa7c200"
+  postgres: "b627db98213b9f0b465640fda3c009f82e3dd91efb0cf2aa46f079dda2cdc8db"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Members module is enabled"
+lock_timeout: "bounded by migration runner"
+disk_estimate: "members and member_sessions tables"
+compatibility: "new additive member schema"
+smoke:
+  - "member email uniqueness is enforced"
+  - "member sessions reference members"
+restart: "Safe to rerun; migration ledger prevents duplicate application"
+rollback: "No production down migration; restore via supported backup flow"

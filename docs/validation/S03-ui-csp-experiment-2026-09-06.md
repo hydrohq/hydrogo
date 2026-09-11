@@ -1,37 +1,37 @@
-# S03 UI Stack, CSP ve Medya Yükleme Doğrulaması
+# S03 UI Stack, CSP and Media Upload Validation
 
-**Tarih:** 2026-09-06  
-**Roadmap maddesi:** R1 / S03  
-**Durum:** Başarılı; yerel Quill/HTMX asset'leri ve CSP uyumlu editör fixture'ı doğrulandı.
+**Date:** 2026-09-06  
+**Roadmap item:** R1 / S03  
+**Status:** Succeeded; local Quill/HTMX assets and CSP compliant editor fixture were verified.
 
-## Doğrulanan Davranışlar
+## Validated Behaviors
 
-1. **Templ ve View Slot Sözleşmesi:**
-   - `extension.Theme` sözleşmesi (`RenderPage`, `RenderHeader`, `RenderFooter`) tanımlandı.
-   - `examples/client-edition` içinde `DefaultTheme` ve `MinimalTheme` olmak üzere iki farklı tema uygulandı.
-   - Core paketlerine (`internal/`) hiçbir bağımlılık olmadan harici Go modülü olarak derlendi.
+1. **Templ and View Slot Contract:**
+   - The `extension.Theme` contract (`RenderPage`, `RenderHeader`, `RenderFooter`) was defined.
+   - Two different themes, `DefaultTheme` and `MinimalTheme`, were implemented in `examples/client-edition`.
+   - Compiled as an external Go module without any dependency on Core packages (`internal/`).
 
-2. **Zengin Metin & HTML Sanitizer:**
-   - `bluemonday` UGC politikası temel alınarak `HTMLSanitizer` oluşturuldu.
-   - `<script>`, `onload`, `onerror`, `javascript:` URI ve gömülü SVG/XSS saldırı vektörlerinin temizlendiği; güvenli HTML etiketlerinin korunduğu birim testleriyle (`internal/ui/sanitizer_test.go`) kanıtlandı.
+2. **Rich Text & HTML Sanitizer:**
+   - `HTMLSanitizer` was created based on the `bluemonday` UGC policy.
+   - It was proven with unit tests (`internal/ui/sanitizer_test.go`) that `<script>`, `onload`, `onerror`, `javascript:` URIs, and embedded SVG/XSS attack vectors are cleaned; safe HTML tags are preserved.
 
-3. **Sıkı CSP & Dinamik Nonce:**
-   - Her istek için dinamik rastgele base64 nonce üretildi ve şablonların inline `<style nonce="...">` ve `<script nonce="...">` bloklarına güvenle aktarılması sağlandı.
+3. **Strict CSP & Dynamic Nonce:**
+   - A dynamic random base64 nonce is generated per request and safely passed to the inline `<style nonce="...">` and `<script nonce="...">` blocks of templates.
 
-4. **Güvenli Medya Yükleme Deneyi:**
-   - `internal/media.Uploader` ile güvenli yükleme boru hattı kuruldu:
-      - İlk 512 byte üzerinden içerik koklama (`http.DetectContentType`) ile gerçek MIME tipi doğrulandı (JPEG, PNG, WebP).
-     - PHP/çalıştırılabilir dosyalar ve izin verilmeyen MIME türleri reddedildi.
-     - Standart Go `image.DecodeConfig` ile görsel bütünlüğü ve boyutları doğrulandı; bozuk görseller geçici dosya temizliğiyle reddedildi.
-     - Yol geçişi (`path traversal`) saldırıları engellendi; içerik tabanlı SHA-256 dosya adlandırması uygulandı.
-     - Maksimum dosya boyutu sınırları test edildi.
+4. **Secure Media Upload Experiment:**
+   - A secure upload pipeline was established with `internal/media.Uploader`:
+      - The actual MIME type was verified (JPEG, PNG, WebP) via content sniffing (`http.DetectContentType`) over the first 512 bytes.
+      - PHP/executable files and disallowed MIME types were rejected.
+      - Visual integrity and dimensions were validated with standard Go `image.DecodeConfig`; corrupt images were rejected with temporary file cleanup.
+      - Path traversal attacks were prevented; content-based SHA-256 file naming was implemented.
+      - Maximum file size limits were tested.
 
-5. **Quill/HTMX yerel asset ve CSP fixture'ı:**
-   - Quill 2.0.3 (`static/vendor/quill`) ve HTMX 2.0.10 (`static/vendor/htmx`) CDN'e ihtiyaç duymadan repoya sabitlendi.
-   - `internal/ui.RenderEditor` nonce'lu inline başlatma ile Quill Delta JSON alanı, CSRF alanı ve HTMX form hedefini üretir.
-   - `allowEval=false` ve `allowScriptTags=false` ayarları ile HTMX dinamik değerlendirmesi kapatıldı; testte CDN URL'leri ve inline event handler'lar reddedilir.
+5. **Quill/HTMX local asset and CSP fixture:**
+   - Quill 2.0.3 (`static/vendor/quill`) and HTMX 2.0.10 (`static/vendor/htmx`) were pinned to the repo without requiring a CDN.
+   - `internal/ui.RenderEditor` generates the Quill Delta JSON field, CSRF field, and HTMX form target with nonce-based inline initialization.
+   - HTMX dynamic evaluation was disabled with `allowEval=false` and `allowScriptTags=false` settings; CDN URLs and inline event handlers are rejected in the test.
 
-## Çalıştırılan Komutlar
+## Executed Commands
 
 ```text
 go test -v ./internal/ui/...
@@ -39,4 +39,4 @@ go test -v ./internal/media/...
 cd examples/client-edition && go build ./...
 go run ./tools/importguard -root examples/client-edition
 ```
-Tüm adımlar hatasız geçti. Sürümlenen üçüncü taraf lisansları `static/vendor/*/LICENSE` altındadır.
+All steps passed without error. Versioned third-party licenses are located under `static/vendor/*/LICENSE`.

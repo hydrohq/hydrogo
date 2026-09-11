@@ -2,8 +2,15 @@
 package observability
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
+	"sort"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -11,6 +18,7 @@ import (
 // Metrics is safe for concurrent HTTP handlers. It intentionally has no
 // unbounded label cardinality: status is the only exported dimension.
 type Metrics struct {
+	startedAt           time.Time
 	requests            atomic.Uint64
 	inFlight            atomic.Int64
 	responses           [6]atomic.Uint64
@@ -28,9 +36,24 @@ type Metrics struct {
 	workerConcurrency   atomic.Int64
 	readinessFailures   atomic.Uint64
 	readinessState      atomic.Int32
+	pathMu              sync.RWMutex
+	paths               map[string]PathStats
+	visitorMu           sync.Mutex
+	visitors            map[string]map[[32]byte]struct{}
+	visitorSalt         [32]byte
 	sessionCleanupRuns  atomic.Uint64
 	sessionCleanupRows  atomic.Uint64
 	sessionCleanupError atomic.Uint64
+}
+
+type PathStats struct {
+	Path                             string
+	Requests, Views, Errors, TotalMS uint64
+}
+
+type PathStatsSnapshot struct {
+	Path                           string
+	Requests, Views, Errors, AvgMS uint64
 }
 
 type DatabaseStats struct {
@@ -59,7 +82,126 @@ type JobStats struct {
 
 var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisecond, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 5 * time.Second}
 
-func NewMetrics() *Metrics { return &Metrics{} }
+const visitorCookieName = "hydro_visitor"
+
+func NewMetrics() *Metrics {
+	m := &Metrics{
+		startedAt: time.Now().UTC(),
+		paths:     make(map[string]PathStats),
+		visitors:  make(map[string]map[[32]byte]struct{}),
+	}
+	_, _ = rand.Read(m.visitorSalt[:])
+	return m
+}
+
+func (m *Metrics) PathStats() []PathStatsSnapshot {
+	if m == nil {
+		return nil
+	}
+	m.pathMu.RLock()
+	items := make([]PathStatsSnapshot, 0, len(m.paths))
+	for path, stats := range m.paths {
+		avg := uint64(0)
+		if stats.Requests > 0 {
+			avg = stats.TotalMS / stats.Requests
+		}
+		items = append(items, PathStatsSnapshot{Path: path, Requests: stats.Requests, Views: stats.Views, Errors: stats.Errors, AvgMS: avg})
+	}
+	m.pathMu.RUnlock()
+	sort.Slice(items, func(i, j int) bool { return items[i].Requests > items[j].Requests })
+	return items
+}
+
+func (m *Metrics) StartedAt() time.Time {
+	if m == nil {
+		return time.Time{}
+	}
+	return m.startedAt
+}
+
+func (m *Metrics) TotalRequests() uint64 {
+	if m == nil {
+		return 0
+	}
+	return m.requests.Load()
+}
+
+func (m *Metrics) InFlight() int64 {
+	if m == nil {
+		return 0
+	}
+	return m.inFlight.Load()
+}
+
+func (m *Metrics) TotalErrors() uint64 {
+	if m == nil {
+		return 0
+	}
+	return m.responses[4].Load() + m.responses[5].Load()
+}
+
+func (m *Metrics) TotalViews() uint64 {
+	if m == nil {
+		return 0
+	}
+	m.pathMu.RLock()
+	defer m.pathMu.RUnlock()
+	var total uint64
+	for _, s := range m.paths {
+		total += s.Views
+	}
+	return total
+}
+
+func (m *Metrics) UniqueVisitorsCount() int {
+	if m == nil {
+		return 0
+	}
+	m.visitorMu.Lock()
+	defer m.visitorMu.Unlock()
+	all := make(map[[32]byte]struct{})
+	for _, set := range m.visitors {
+		for k := range set {
+			all[k] = struct{}{}
+		}
+	}
+	return len(all)
+}
+
+func (m *Metrics) AvgLatencyMS() uint64 {
+	if m == nil {
+		return 0
+	}
+	cnt := m.latencyCount.Load()
+	if cnt == 0 {
+		return 0
+	}
+	return (m.latencyNanos.Load() / cnt) / 1_000_000
+}
+
+func (m *Metrics) TopPages(limit int) []PathStatsSnapshot {
+	stats := m.PathStats()
+	sort.Slice(stats, func(i, j int) bool { return stats[i].Views > stats[j].Views })
+	if limit > 0 && len(stats) > limit {
+		return stats[:limit]
+	}
+	return stats
+}
+
+func (m *Metrics) TopErrors(limit int) []PathStatsSnapshot {
+	stats := m.PathStats()
+	filtered := make([]PathStatsSnapshot, 0, len(stats))
+	for _, s := range stats {
+		if s.Errors > 0 {
+			filtered = append(filtered, s)
+		}
+	}
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Errors > filtered[j].Errors })
+	if limit > 0 && len(filtered) > limit {
+		return filtered[:limit]
+	}
+	return filtered
+}
 
 // SetDatabaseStatsProvider installs a process-local provider before the
 // server starts. The provider must not expose user-controlled labels.
@@ -160,6 +302,7 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
+		ensureVisitorCookie(w, r)
 		m.requests.Add(1)
 		m.inFlight.Add(1)
 		recorder := &responseRecorder{ResponseWriter: w, status: http.StatusOK}
@@ -177,9 +320,100 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 			if bucket >= 1 && bucket <= 5 {
 				m.responses[bucket].Add(1)
 			}
+			m.recordPath(r, recorder.status, elapsed)
 		}()
 		next.ServeHTTP(recorder, r)
 	})
+}
+
+func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration) {
+	if m == nil || r == nil || len(r.URL.Path) == 0 || len(r.URL.Path) > 128 || !trackablePath(r.URL.Path) {
+		return
+	}
+	path := r.URL.Path
+	m.pathMu.Lock()
+	if m.paths == nil {
+		m.paths = make(map[string]PathStats)
+	}
+	stats, ok := m.paths[path]
+	if !ok && len(m.paths) >= 64 {
+		m.pathMu.Unlock()
+		return
+	}
+	stats.Path = path
+	stats.Requests++
+	stats.TotalMS += uint64(elapsed.Milliseconds())
+	if status >= http.StatusBadRequest {
+		stats.Errors++
+	}
+	if r.Method == http.MethodGet && (strings.HasPrefix(path, "/public/") || strings.HasPrefix(path, "/shop")) && status < http.StatusBadRequest && m.recordUniqueVisitor(path, r) {
+		stats.Views++
+	}
+	m.paths[path] = stats
+	m.pathMu.Unlock()
+}
+
+func (m *Metrics) recordUniqueVisitor(path string, r *http.Request) bool {
+	address := ""
+	if cookie, err := r.Cookie(visitorCookieName); err == nil {
+		address = cookie.Value
+	} else {
+		address = r.RemoteAddr
+		if host, _, err := net.SplitHostPort(address); err == nil {
+			address = host
+		}
+	}
+	if address == "" {
+		return false
+	}
+	digestInput := make([]byte, 0, len(m.visitorSalt)+len(address))
+	digestInput = append(digestInput, m.visitorSalt[:]...)
+	digestInput = append(digestInput, address...)
+	digest := sha256.Sum256(digestInput)
+	m.visitorMu.Lock()
+	defer m.visitorMu.Unlock()
+	if m.visitors == nil {
+		m.visitors = make(map[string]map[[32]byte]struct{})
+	}
+	set := m.visitors[path]
+	if set == nil {
+		if len(m.visitors) >= 64 {
+			return false
+		}
+		set = make(map[[32]byte]struct{})
+		m.visitors[path] = set
+	}
+	if _, exists := set[digest]; exists {
+		return false
+	}
+	if len(set) >= 4096 {
+		return false
+	}
+	set[digest] = struct{}{}
+	return true
+}
+
+func ensureVisitorCookie(w http.ResponseWriter, r *http.Request) {
+	if r == nil || w == nil || r.Method != http.MethodGet || (!strings.HasPrefix(r.URL.Path, "/public/") && !strings.HasPrefix(r.URL.Path, "/shop")) {
+		return
+	}
+	if _, err := r.Cookie(visitorCookieName); err == nil {
+		return
+	}
+	var valueBytes [16]byte
+	if _, err := rand.Read(valueBytes[:]); err != nil {
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: visitorCookieName, Value: hex.EncodeToString(valueBytes[:]), MaxAge: 86400, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode})
+}
+
+func trackablePath(path string) bool {
+	for _, prefix := range []string{"/vendor/", "/theme/", "/media/", "/favicon"} {
+		if strings.HasPrefix(path, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 // Handler returns Prometheus-compatible text with no user-controlled labels.

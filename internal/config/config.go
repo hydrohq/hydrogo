@@ -26,6 +26,7 @@ type Config struct {
 	I18N     I18N             `yaml:"i18n"`
 	Security Security         `yaml:"security"`
 	Mail     Mail             `yaml:"mail"`
+	Redis    Redis            `yaml:"redis"`
 	Webhooks []Webhook        `yaml:"webhooks"`
 	Payments Payments         `yaml:"-"`
 }
@@ -73,6 +74,11 @@ type Mail struct {
 	StartTLS bool   `yaml:"starttls"`
 }
 
+type Redis struct {
+	URL       string `yaml:"url"`
+	KeyPrefix string `yaml:"key_prefix"`
+}
+
 type Payments struct {
 	StripeSecretKey     string
 	StripeWebhookSecret string
@@ -102,7 +108,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "pages", "media", "site", "news", "commerce"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "commerce"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}}
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -196,6 +202,12 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_PUBLIC_API_ORIGINS"); ok && value != "" {
 		result.Security.PublicAPIOrigins = strings.Split(value, ",")
+	}
+	if value, ok := lookup("HYDRO_REDIS_URL"); ok && value != "" {
+		result.Redis.URL = value
+	}
+	if value, ok := lookup("HYDRO_REDIS_KEY_PREFIX"); ok && value != "" {
+		result.Redis.KeyPrefix = value
 	}
 	if value, ok := lookup("HYDRO_SMTP_HOST"); ok && value != "" {
 		result.Mail.Host = value
