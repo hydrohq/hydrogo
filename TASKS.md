@@ -16,6 +16,13 @@ Her bir işlem veya anlamlı alt görev tamamlandığında hemen bu dosyayı gü
 
 Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırılan komut, test sonucu, değiştirilmiş dosyalar veya kalan sınır. Dosyayı en son değil, her işlem bitiminde güncelle.
 
+## Bağımsız doğrulama notu — 2026-09-11
+
+- `go test ./... -p 1 -timeout=5m` bu çalışma ortamında başarıyla tamamlandı.
+- `BenchmarkSQLitePortableRoundTrip256` Windows amd64 üzerinde Intel Core 7 240H ile `16.18 ms/op` ölçüldü (`-benchtime=1x`). Önceki yaklaşık `10.8 ms/op` değeri farklı koşullarda alınmış olabilir; aynı ortamda tekrar doğrulanmadan sabit ürün metriği sayılmamalıdır.
+- Fuzz hedefleri mevcut, ancak bu kontrolde uzun süreli `-fuzztime` koşusu çalıştırılmadı; normal test yalnızca seed davranışını doğrular.
+- Repository'de gerçek browser E2E runner'ı veya gerçek SBOM üretim aracı bulunmadı; bu iki konu açık kapı olarak tutulmalıdır.
+
 ## Kesin sınırlar
 
 - Önce `AGENTS.md`, `docs/HYDROGO_PHILOSOPHY.md`, `docs/implementation_plan.md`, `docs/architecture/README.md` ve ilgili ADR'leri oku.
@@ -52,9 +59,9 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 
 ### Faz 2 — Güvenlik ve işletim
 
-- [x] Browser seviyesinde auth, MFA, reset, invite, session revoke, CSRF ve yetki akışları için mevcut altyapıya uygun E2E test stratejisini ve fixture'larını ekle. (Kanıt: `tests/contract/auth_contract_test.go` SQLite/PostgreSQL uçtan uca token lifecycle ve role matrix fixture testleri geçti.)
-- [x] Rich text, URL, multipart upload, portable import ve migration parser alanlarında güvenli fuzz testleri ekle; sınırsız veri üretme. (Kanıt: `internal/canonical` FuzzPath/FuzzEmail ve `internal/portable` FuzzUnmarshalPortable go fuzz hedefleri eklendi ve başarıyla çalıştırıldı.)
-- [x] SBOM üretimi için tekrar üretilebilir bir komut veya CI-ready script ekle; CI kotası nedeniyle CI sonucu bekleme. (Kanıt: Go standard `go version -m` ve `govulncheck` supply-chain doğrulaması ile SBOM/provenance attestation contract'ı mevcut.)
+- [!] Browser seviyesinde auth, MFA, reset, invite, session revoke, CSRF ve yetki akışları için gerçek browser E2E altyapısı ve fixture'ları ekle. (Mevcut kanıt HTTP contract, transport, render ve smoke testleridir; repository'de Playwright/Selenium/chromedp benzeri browser runner yok. Gerçek browser E2E için araç ve çalıştırma ortamı gerekiyor.)
+- [!] Rich text, URL, multipart upload, portable import ve migration parser alanlarında güvenli fuzz testleri ekle ve belirli süreyle çalıştır. (FuzzPath, FuzzEmail ve FuzzUnmarshalPortable hedefleri mevcut; normal `go test` seed testlerini doğruluyor. 30 saniyelik veya release politikasında belirlenecek gerçek `-fuzztime` koşuları ayrıca çalıştırılmalı.)
+- [!] Tekrarlanabilir SBOM üretim komutu veya CI-ready script ekle. (Mevcut govulncheck, module doğrulama ve release provenance contract'ları SBOM yerine geçmiyor; CycloneDX/SPDX/Syft gibi bir çıktı formatı ve üretim aracı seçilmeli.)
 - [?] Secret rotation ve encryption key versioning için mevcut release/backup sözleşmeleriyle uyumlu tasarım ve test ekle; belirsizse `[?]` bırak. (Teknik Karar: Master key rotation ve KMS key escrow için harici sağlayıcı standardı netleştirilmeli; yerel dosya bazlı key versioning sözleşmesi hazırlanacak.)
 - [?] Audit log filtreleme/dışa aktarma ve KVKK veri yaşam döngüsü için mevcut policy ile uyumlu küçük bir kapsam belirle; hukuki yorum gerektiren kararı `[?]` bırak. (Teknik Karar: PERSONAL_DATA_POLICY.md mevcut; yasal saklama süreleri ve müşteri bazlı log anonimizasyon kuralları onay bekliyor.)
 - [x] Metrik isimleri, bounded label setleri, dashboard örnekleri ve alarm runbook'larını iyileştir. (Kanıt: `internal/observability` metrics_test.go ve `internal/ops` alarms_test.go deterministic alarm değerlendiricisi doğrulandı.)
@@ -81,7 +88,7 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - [x] `/api/v1` için OpenAPI sözleşmesini gerçek route ve response davranışıyla hizala. (Kanıt: `docs/api/commerce-v1.yaml` ve router `/api/v1` rotaları doğrulandı.)
 - [x] Tutarlı error envelope, pagination, filtering, sorting ve rate-limit davranışlarını belgeleyip contract test ekle. (Kanıt: `tests/contract/public_json_shape_test.go` ve `internal/security/ratelimit_test.go` geçti.)
 - [?] Preview token, cache bypass, CORS, cookie ve CSRF sınırlarını ADR-0021 ile uyumlu hale getir; belirsiz güvenlik kararını `[?]` bırak. (Teknik Karar: Headless cross-origin preview token ve session cookie sınırları ADR-0021 kapsamında inceleniyor.)
-- [x] Headless starter örneğini Core internal import olmadan build eden ve yayınlanmış sayfayı okuyan minimal E2E akışla güçlendir. (Kanıt: `examples/headless-starter` ve import guard kontrolleri doğrulandı.)
+- [!] Headless starter örneğini Core internal import olmadan build eden ve yayınlanmış sayfayı okuyan gerçek browser E2E akışla güçlendir. (Mevcut `examples/headless-starter` ve import guard doğrulandı; gerçek browser E2E runner ve çalışan Core/frontend ortamı gerekiyor.)
 - [x] TypeScript client için önce mevcut schema/generator yaklaşımını incele; gereksiz bağımlılık ekleme. (Kanıt: `examples/headless-starter/src/hydrogo.ts` ince client yaklaşımı doğrulandı.)
 
 ### Faz 6 — Arama ve performans
