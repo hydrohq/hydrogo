@@ -9,6 +9,20 @@ Generate deterministic Playwright tests with:
 go run ./tools/e2egen -manifest e2e/manifest.json -output e2e/generated/hydro.spec.ts
 ```
 
+After installing the test-only dependency, run them with:
+
+```powershell
+npm install
+npx playwright install chromium
+npm run generate
+$env:HYDRO_E2E_STORAGE_STATE = "auth-state.json"
+npm test
+```
+
+The storage state is optional for public frontend tests and required for the
+generated protected Admin Studio tests. Create it only in an isolated local or
+CI environment; never use a production session file.
+
 The generated file is disposable. Customer-specific journeys belong under
 `e2e/custom/` and are never overwritten by the generator. The application must
 provide the declared `data-testid` values; unknown routes or missing metadata
