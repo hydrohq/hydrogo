@@ -34,6 +34,8 @@ try {
     }
     Push-Location (Join-Path $repo "e2e")
     try {
+        Push-Location (Join-Path $repo "examples\headless-starter")
+        try { npm run build } finally { Pop-Location }
         npm run setup-auth
         npm run generate
         npm test

@@ -104,7 +104,7 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - [x] `/api/v1` için OpenAPI sözleşmesini gerçek route ve response davranışıyla hizala. (Kanıt: `docs/api/commerce-v1.yaml` ve router `/api/v1` rotaları doğrulandı.)
 - [x] Tutarlı error envelope, pagination, filtering, sorting ve rate-limit davranışlarını belgeleyip contract test ekle. (Kanıt: `tests/contract/public_json_shape_test.go` ve `internal/security/ratelimit_test.go` geçti.)
 - [?] Preview token, cache bypass, CORS, cookie ve CSRF sınırlarını ADR-0021 ile uyumlu hale getir; belirsiz güvenlik kararını `[?]` bırak. (Teknik Karar: Headless cross-origin preview token ve session cookie sınırları ADR-0021 kapsamında inceleniyor.)
-- [!] Headless starter örneğini Core internal import olmadan build eden ve yayınlanmış sayfayı okuyan gerçek browser E2E akışla güçlendir. (Mevcut `examples/headless-starter` ve import guard doğrulandı; gerçek browser E2E runner ve çalışan Core/frontend ortamı gerekiyor.)
+- [x] Headless starter örneğini Core internal import olmadan build eden ve yayınlanmış sayfayı okuyan E2E akışla güçlendir. (`scripts/run-e2e.ps1` starter build'ini çalıştırıyor; `e2e/custom/headless-starter.spec.ts` typed client ile `/api/v1` published page okuyor.)
 - [x] TypeScript client için önce mevcut schema/generator yaklaşımını incele; gereksiz bağımlılık ekleme. (Kanıt: `examples/headless-starter/src/hydrogo.ts` ince client yaklaşımı doğrulandı.)
 
 ### Faz 6 — Arama ve performans
