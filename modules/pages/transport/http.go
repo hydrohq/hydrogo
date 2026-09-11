@@ -237,7 +237,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if h.Theme != nil {
 		var content strings.Builder
-		fmt.Fprintf(&content, `<h1>%s</h1><div class="content-body">%s</div>`, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body))
+		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div></div>`, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body))
 		for _, block := range page.Blocks {
 			block, err = h.withPublicMedia(r.Context(), block)
 			if err != nil {

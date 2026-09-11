@@ -36,6 +36,7 @@ type field struct {
 	Required bool   `json:"required"`
 	ReadOnly bool   `json:"read_only"`
 	TestID   string `json:"test_id"`
+	Widget   string `json:"widget,omitempty"`
 }
 
 type frontendManifest struct {
@@ -131,7 +132,11 @@ func render(m manifest) string {
 		for _, f := range c.Fields {
 			// Field names are part of the Admin Studio form contract; unlike CSS
 			// classes they are stable metadata and are not scraped from HTML.
-			b.WriteString(fmt.Sprintf("    await expect(page.locator('[name=%q]')).%s;\n", f.ID, assertion(f.ReadOnly)))
+			selector := fmt.Sprintf("[name=%q]", f.ID)
+			if f.Widget == "richtext" {
+				selector = fmt.Sprintf("[data-field-name=%q] [data-richtext]", f.ID)
+			}
+			b.WriteString(fmt.Sprintf("    await expect(page.locator('%s')).%s;\n", selector, assertion(f.ReadOnly)))
 		}
 		b.WriteString("  });\n")
 	}

@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "generate": "go run ../tools/e2egen -manifest manifest.json -output generated/hydro.spec.ts",
+    "setup-auth": "node setup-auth.mjs",
     "test": "playwright test",
     "test:headed": "playwright test --headed"
   },

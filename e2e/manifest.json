@@ -4,13 +4,13 @@
   "admin": {
     "login_path": "/login",
     "collections": [
-      {"id": "news", "route": "/admin/news/new", "fields": [{"id": "title", "test_id": "admin-field-title"}, {"id": "body", "test_id": "admin-field-body"}]},
-      {"id": "pages", "route": "/admin/pages/new", "fields": [{"id": "title", "test_id": "admin-field-title"}, {"id": "body", "test_id": "admin-field-body"}]}
+      {"id": "news", "route": "/admin/news/new", "fields": [{"id": "title", "test_id": "admin-field-title"}, {"id": "body", "widget": "richtext", "test_id": "admin-field-body"}]},
+      {"id": "pages", "route": "/admin/pages/new", "fields": [{"id": "title", "test_id": "admin-field-title"}, {"id": "body", "widget": "richtext", "test_id": "admin-field-body"}]}
     ]
   },
   "frontend": {
     "routes": [
-      {"name": "home", "path": "/", "public": true, "test_id": "public-home"},
+      {"name": "home", "path": "/public/pages/tr/demo/html", "public": true, "test_id": "public-page"},
       {"name": "shop", "path": "/shop", "public": true, "test_id": "public-shop"}
     ]
   }

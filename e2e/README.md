@@ -16,6 +16,7 @@ npm install
 npx playwright install chromium
 npm run generate
 $env:HYDRO_E2E_STORAGE_STATE = "auth-state.json"
+npm run setup-auth
 npm test
 ```
 

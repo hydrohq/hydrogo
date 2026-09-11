@@ -24,6 +24,7 @@ config.env.*
 /bin/
 /dist/
 /node_modules/
+/e2e/node_modules/
 examples/admin-news-compare/react/node_modules/
 examples/admin-news-compare/htmx/node_modules/
 examples/admin-news-compare/react/dist/

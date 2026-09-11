@@ -26,6 +26,7 @@ type E2EField struct {
 	Required bool   `json:"required"`
 	ReadOnly bool   `json:"read_only,omitempty"`
 	TestID   string `json:"test_id"`
+	Widget   string `json:"widget,omitempty"`
 }
 
 func (r Registry) E2EManifest() E2EManifest {
@@ -44,7 +45,7 @@ func (r Registry) E2EManifest() E2EManifest {
 		}
 		item := E2ECollection{ID: collection.ID, Route: route, Fields: make([]E2EField, 0, len(collection.Fields))}
 		for _, field := range collection.Fields {
-			item.Fields = append(item.Fields, E2EField{ID: field.ID, Required: field.Required, ReadOnly: field.ReadOnly, TestID: "admin-field-" + collection.ID + "-" + field.ID})
+			item.Fields = append(item.Fields, E2EField{ID: field.ID, Required: field.Required, ReadOnly: field.ReadOnly, Widget: field.Widget, TestID: "admin-field-" + collection.ID + "-" + field.ID})
 		}
 		result.Admin.Collections = append(result.Admin.Collections, item)
 	}

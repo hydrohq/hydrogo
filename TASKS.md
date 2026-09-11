@@ -21,7 +21,7 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - `go test ./... -p 1 -timeout=5m` bu çalışma ortamında başarıyla tamamlandı.
 - `BenchmarkSQLitePortableRoundTrip256` Windows amd64 üzerinde Intel Core 7 240H ile `16.18 ms/op` ölçüldü (`-benchtime=1x`). Önceki yaklaşık `10.8 ms/op` değeri farklı koşullarda alınmış olabilir; aynı ortamda tekrar doğrulanmadan sabit ürün metriği sayılmamalıdır.
 - Fuzz hedefleri mevcut, ancak bu kontrolde uzun süreli `-fuzztime` koşusu çalıştırılmadı; normal test yalnızca seed davranışını doğrular.
-- Repository'de gerçek browser E2E runner'ı veya gerçek SBOM üretim aracı bulunmadı; bu iki konu açık kapı olarak tutulmalıdır.
+- Gerçek browser E2E runner'ı ve SBOM üretim aracı artık repository'de mevcut; Chromium tabanlı yerel koşu 2026-09-11 tarihinde 5/5 PASS verdi.
 
 ## Kesin sınırlar
 
@@ -59,7 +59,7 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 
 ### Faz 2 — Güvenlik ve işletim
 
-- [!] Browser seviyesinde auth, MFA, reset, invite, session revoke, CSRF ve yetki akışları için gerçek browser E2E altyapısı ve fixture'ları ekle. (Metadata-driven generator prototipi `tools/e2egen`, ortak `e2e/manifest.json` ve generated/custom ayrımı eklendi; gerçek Playwright runner/browser kurulumu ve çalışan panel ortamı gerekiyor.)
+- [!] Browser seviyesinde MFA, reset, invite, session revoke ve geniş CSRF/yetki akışları için gerçek browser E2E fixture'larını genişlet. (Temel auth + Admin Studio yüzeyleri Playwright ile 5/5 PASS; gerçek MFA sağlayıcısı ve dış servis fixture'ları production gate olarak açık.)
 - [x] Rich text, URL, multipart upload, portable import ve migration parser alanlarında güvenli fuzz testleri ekle ve belirli süreyle çalıştır. (FuzzPath, FuzzEmail ve FuzzUnmarshalPortable hedefleri mevcut; her biri bu ortamda `-fuzztime=10s` ile PASS oldu. Daha uzun release koşusu ayrıca kapasite kanıtıdır.)
 - [x] Tekrarlanabilir SBOM üretim komutu veya CI-ready script ekle. (`tools/sbom` standart Go ile SPDX 2.3 JSON üretir; `scripts/generate-sbom.ps1`, `scripts/generate-sbom.sh` ve local gate içindeki SBOM adımı giriş noktalarıdır. `run-fuzz.ps1` de sabit fuzz hedeflerini çalıştırır. Sabit epoch varsayılanı, sıralı module graph, determinism testi ve iki bağımsız üretimde eş SHA-256 doğrulandı; lisanslar `NOASSERTION` ise ayrıca lisans envanteri gereklidir.)
 - [?] Secret rotation ve encryption key versioning için mevcut release/backup sözleşmeleriyle uyumlu tasarım ve test ekle; belirsizse `[?]` bırak. (Teknik Karar: Master key rotation ve KMS key escrow için harici sağlayıcı standardı netleştirilmeli; yerel dosya bazlı key versioning sözleşmesi hazırlanacak.)
@@ -74,7 +74,7 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - [x] Field-level permission görünürlüğünü ve optimistic-lock conflict çözümünü UI'da görünür yap. (Kanıt: `internal/adminstudio/form_test.go` TestRenderCreateFormSupportsTextareaAndReadonlyFields testi geçti.)
 - [x] Revision diff, rollback ve preview bağlantısı akışlarını ekle. (Kanıt: `modules/pages/transport` ve `modules/news/transport` admin form/diff akışları doğrulandı.)
 - [x] Klavye erişilebilirliği, semantic HTML, focus yönetimi ve Türkçe/İngilizce metinleri iyileştir. (Kanıt: Sürümlü Templ UI bileşenleri ve sanitization contract'ları doğrulandı.)
-- [x] Browser E2E testleri için uygun araç repository'de yoksa önce küçük, dependency etkisi düşük bir öneri/fixture hazırla; yeni büyük frontend altyapısını onaysız ekleme. (Kanıt: `scripts/smoke-local.ps1` ve HTTP contract test fixture'ları kullanılıyor; Node/Playwright bağımlılığı eklenmedi.)
+- [x] Browser E2E testleri için uygun araç repository'de yoksa önce küçük, dependency etkisi düşük bir öneri/fixture hazırla; yeni büyük frontend altyapısını onaysız ekleme. (Kanıt: bağımsız `e2e/` workspace'i ve üretim binary'sine girmeyen Playwright bağımlılığı.)
 
 #### Metadata-driven E2E planı — ADR-0023
 
@@ -85,9 +85,12 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - [ ] Frontend build manifest'ini generator input'una bağla; frontend route ve selector sözleşmesini build çıktısından deterministik biçimde üret.
 - [ ] Pages/News public read, admin validation ve optimistic-lock conflict senaryolarını izole fixture'larla üret.
 - [x] Unknown route/action/permission/selector için fail-closed generator ve manifest diff testi ekle. (Bilinmeyen/duplicate route, collection, field veya test ID generator validation ile reddediliyor; permission/action kapsamı runtime export aşamasında tamamlanacak.)
-- [!] Browser binary/runner kurulumu ve gerçek browser E2E çalıştırması geliştirme/CI ortamı gerektirir; production binary'ye browser bağımlılığı ekleme.
-- [x] Bağımsız E2E runner workspace'i ve admin storage-state desteğini ekle. (`e2e/package.json`, `e2e/playwright.config.ts`, generated testlerde `HYDRO_E2E_STORAGE_STATE`; browser kurulumu ve gerçek çalıştırma ortamı hâlâ dış kapıdır.)
-- [x] E2E runner bağımlılığını vulnerability audit ile doğrula. (Playwright `1.52.0` yüksek önem dereceli advisory aralığındaydı; `1.63.0`a yükseltildi ve lockfile yenilendi. Browser binary kurulumu ayrıca izole ortamda yapılmalıdır.)
+- [x] Browser binary/runner kurulumu ve gerçek browser E2E çalıştırmasını geliştirme/CI ortamında doğrula; production binary'ye browser bağımlılığı ekleme. (Chromium kuruldu; `scripts/run-e2e.ps1` ile izole SQLite + gerçek browser koşusu 5/5 PASS.)
+- [x] Bağımsız E2E runner workspace'i ve admin storage-state desteğini ekle. (`e2e/package.json`, `e2e/playwright.config.ts`, generated testlerde `HYDRO_E2E_STORAGE_STATE`; Chromium ile 5/5 PASS.)
+- [x] İzole admin storage-state üretim script'i ekle. (`e2e/setup-auth.mjs`; yalnız `HYDRO_E2E_ADMIN_EMAIL`, `HYDRO_E2E_ADMIN_PASSWORD` ve geçici local/CI sunucusunda çalışır, auth state `.gitignore` ile korunur.)
+- [x] Local generated Admin + frontend browser E2E orchestration script'i ekle. (`scripts/run-e2e.ps1`; isolated SQLite, migration, demo seed, test admin, server lifecycle, storage state ve cleanup akışını kapsar.)
+- [x] Gerçek browser koşusunda bulunan route/widget/selector hatalarını düzelt. (Public home route seeded `/public/pages/tr/demo/html` olarak düzeltildi; themed public page marker'ı ve richtext container projection'ı düzeltildi; generated Admin + frontend 5/5 PASS.)
+- [x] E2E runner bağımlılığını vulnerability audit ile doğrula. (Playwright `1.52.0` yüksek önem dereceli advisory aralığındaydı; `1.63.0`a yükseltildi, lockfile yenilendi ve `npm audit --omit=optional --audit-level=high` 0 vulnerability verdi.)
 
 ### Faz 4 — İçerik ve editoryal workflow
 
