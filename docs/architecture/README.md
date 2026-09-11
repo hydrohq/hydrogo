@@ -51,6 +51,7 @@ Kabul edilmiş bir karar sessizce değiştirilmez. Yeni bilgi kararı geçersiz 
 | [0020](0020-headless-first-admin-studio-and-frontend-templates.md) | Headless-first Admin Studio ve frontend template sınırı | Önerildi |
 | [0021](0021-headless-browser-session-boundary.md) | Headless browser session ve cross-origin sınırı | Önerildi |
 | [0022](0022-consent-based-product-analytics-and-legal-content.md) | Rıza temelli ürün analitiği ve yönetilebilir hukuki içerik | Önerildi |
+| [0023](0023-metadata-driven-e2e.md) | Metadata-driven Admin ve Frontend E2E | Önerildi |
 
 Uygulama sırası ve çıkış kapıları [Roadmap](../ROADMAP.md) içinde izlenir.
 

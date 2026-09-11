@@ -76,6 +76,15 @@ Her güncellemede ilgili görevin yanına kısa bir kanıt yaz: çalıştırıla
 - [x] Klavye erişilebilirliği, semantic HTML, focus yönetimi ve Türkçe/İngilizce metinleri iyileştir. (Kanıt: Sürümlü Templ UI bileşenleri ve sanitization contract'ları doğrulandı.)
 - [x] Browser E2E testleri için uygun araç repository'de yoksa önce küçük, dependency etkisi düşük bir öneri/fixture hazırla; yeni büyük frontend altyapısını onaysız ekleme. (Kanıt: `scripts/smoke-local.ps1` ve HTTP contract test fixture'ları kullanılıyor; Node/Playwright bağımlılığı eklenmedi.)
 
+#### Metadata-driven E2E planı — ADR-0023
+
+- [ ] Admin Studio Registry ve frontend E2E manifest'i için sürümlü, allowlist tabanlı ortak test metadata sözleşmesi tasarla.
+- [ ] `data-testid`/erişilebilir rol sözleşmesini ve generated/custom test ayrımını belirle; CSS/metin taramasını kabul etme.
+- [ ] Metadata'dan deterministik Playwright test üreten `hydro e2e generate` veya eşdeğer aracı prototiple.
+- [ ] Pages/News public read, admin validation ve optimistic-lock conflict senaryolarını izole fixture'larla üret.
+- [ ] Unknown route/action/permission/selector için fail-closed generator ve manifest diff testi ekle.
+- [!] Browser binary/runner kurulumu ve gerçek browser E2E çalıştırması geliştirme/CI ortamı gerektirir; production binary'ye browser bağımlılığı ekleme.
+
 ### Faz 4 — İçerik ve editoryal workflow
 
 - [x] Draft → review → approved → scheduled → published akışındaki eksik domain/service/policy/testleri belirle ve mevcut News sözleşmesine uyumlu olanları uygula. (Kanıt: `tests/contract/news_contract_test.go` ve `modules/news` domain/service transition testleri geçti.)
