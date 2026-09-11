@@ -13,6 +13,11 @@ $state = Join-Path $root "auth-state.json"
 $stdout = Join-Path $root "serve.stdout.log"
 $stderr = Join-Path $root "serve.stderr.log"
 $process = $null
+$portProbe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+$portProbe.Start()
+$port = ([System.Net.IPEndPoint]$portProbe.LocalEndpoint).Port
+$portProbe.Stop()
+$baseURL = "http://127.0.0.1:$port"
 
 New-Item -ItemType Directory -Force $root, $media | Out-Null
 try {
@@ -22,22 +27,27 @@ try {
     & $bin seed-demo --database-dialect sqlite --database-dsn $db
     if (-not $env:HYDRO_E2E_ADMIN_EMAIL) { $env:HYDRO_E2E_ADMIN_EMAIL = "e2e-admin@example.test" }
     $env:HYDRO_E2E_ADMIN_PASSWORD | & $bin create-admin --email $env:HYDRO_E2E_ADMIN_EMAIL --password-stdin --database-dialect sqlite --database-dsn $db
-    $process = Start-Process -FilePath $bin -ArgumentList @("serve", "--database-dialect", "sqlite", "--database-dsn", $db, "--address", "127.0.0.1:8090") -WorkingDirectory $repo -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
-    $env:HYDRO_E2E_BASE_URL = "http://127.0.0.1:8090"
+    $process = Start-Process -FilePath $bin -ArgumentList @("serve", "--database-dialect", "sqlite", "--database-dsn", $db, "--address", "127.0.0.1:$port") -WorkingDirectory $repo -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
+    $env:HYDRO_E2E_BASE_URL = $baseURL
     $env:HYDRO_E2E_STORAGE_STATE = $state
     for ($attempt = 1; $attempt -le 40; $attempt++) {
         if ($process.HasExited) { throw "E2E server exited early with code $($process.ExitCode)" }
         try {
-            $health = Invoke-WebRequest -UseBasicParsing -Uri "$env:HYDRO_E2E_BASE_URL/healthz" -TimeoutSec 1
+            $health = Invoke-WebRequest -UseBasicParsing -Uri "$baseURL/healthz" -TimeoutSec 1
             if ($health.StatusCode -eq 200) { break }
         } catch { Start-Sleep -Milliseconds 250 }
     }
     Push-Location (Join-Path $repo "e2e")
     try {
         Push-Location (Join-Path $repo "examples\headless-starter")
-        try { npm run build } finally { Pop-Location }
+        try {
+            npm run build
+            if ($LASTEXITCODE -ne 0) { throw "Headless starter build failed with exit code $LASTEXITCODE" }
+        } finally { Pop-Location }
         npm run setup-auth
+        if ($LASTEXITCODE -ne 0) { throw "E2E auth setup failed with exit code $LASTEXITCODE" }
         npm run generate
+        if ($LASTEXITCODE -ne 0) { throw "E2E generation failed with exit code $LASTEXITCODE" }
         npm test
         if ($LASTEXITCODE -ne 0) { throw "Playwright E2E failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
