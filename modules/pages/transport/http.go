@@ -264,7 +264,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body), blocks)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body), blocks)
 }
 
 func (h Handler) withPublicMedia(ctx context.Context, block pages.Block) (pages.Block, error) {
