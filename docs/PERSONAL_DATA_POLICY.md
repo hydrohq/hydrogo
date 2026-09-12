@@ -16,6 +16,12 @@ This document defines the actionable data lifecycle for the R3 Site Edition form
 - For erasure requests, the inbox record and associated media targets are appended as an idempotent intent to the external erasure log; the record is not deemed erased until log replay completes.
 - Records in backups remain encrypted until backup retention expires; following a restore, the same purge and erasure replay steps must be re-executed.
 
+Commerce checkout follows data minimization: tax/identity information is
+optional in the browser form and is collected only when the selected payment or
+invoicing provider requires it. Provider-specific mandatory fields must be
+validated at the provider boundary and must not be presented as a generic
+platform requirement.
+
 ## Operational Evidence
 
 Every access, export, status transition, and purge action is bound to an audit event. The operator records the checkpoint, count of affected records, and any replay failures into the operational runbook.
