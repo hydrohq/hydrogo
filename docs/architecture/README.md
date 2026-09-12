@@ -58,6 +58,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 | [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |
 | [0030](0030-client-address-trust-boundary.md) | Client IP derivation and proxy trust boundary | Accepted |
+| [0031](0031-commerce-reservation-expiry.md) | Bounded pending-order stock reservation expiry | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

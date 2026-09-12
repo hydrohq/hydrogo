@@ -516,3 +516,89 @@ func (s Store) MarkPaymentRefunded(ctx context.Context, db database.Executor, or
 	}
 	return nil
 }
+
+// ExpirePendingOrders is intentionally transactional: it first claims an
+// expired order with a conditional state transition, then returns the exact
+// reserved quantities from its immutable order lines. A late webhook sees the
+// terminal expired state and cannot re-mark the order as paid.
+func (s Store) ExpirePendingOrders(ctx context.Context, db database.Executor, before time.Time) (int, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return 0, err
+	}
+	q := `SELECT id FROM commerce_orders WHERE payment_status = 'pending' AND created_at <= ` + s.placeholder(1) + ` ORDER BY created_at, id LIMIT 100`
+	rows, err := queryRows(ctx, db, q, before)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return 0, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, err
+	}
+	expired := 0
+	for _, orderID := range ids {
+		update := `UPDATE commerce_orders SET payment_status = ` + s.placeholder(1) + `, shipping_status = ` + s.placeholder(2) + ` WHERE id = ` + s.placeholder(3) + ` AND payment_status = 'pending'`
+		result, err := db.ExecContext(ctx, update, "expired", "cancelled", orderID)
+		if err != nil {
+			return expired, err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil {
+			return expired, err
+		}
+		if changed != 1 {
+			continue
+		}
+		linesQuery := `SELECT product_id, COALESCE(variant_id, ''), quantity FROM commerce_order_items WHERE order_id = ` + s.placeholder(1)
+		lines, err := queryRows(ctx, db, linesQuery, orderID)
+		if err != nil {
+			return expired, err
+		}
+		type reservationLine struct {
+			productID string
+			variantID string
+			quantity  int
+		}
+		reservations := make([]reservationLine, 0)
+		for lines.Next() {
+			var productID, variantID string
+			var quantity int
+			if err := lines.Scan(&productID, &variantID, &quantity); err != nil {
+				lines.Close()
+				return expired, err
+			}
+			reservations = append(reservations, reservationLine{productID: productID, variantID: variantID, quantity: quantity})
+		}
+		if err := lines.Err(); err != nil {
+			lines.Close()
+			return expired, err
+		}
+		if err := lines.Close(); err != nil {
+			return expired, err
+		}
+		for _, reservation := range reservations {
+			if reservation.variantID != "" {
+				q = `UPDATE commerce_product_variants SET stock = stock + ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2)
+				_, err = db.ExecContext(ctx, q, reservation.quantity, reservation.variantID)
+			} else {
+				q = `UPDATE commerce_products SET stock = stock + ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2)
+				_, err = db.ExecContext(ctx, q, reservation.quantity, reservation.productID)
+			}
+			if err != nil {
+				return expired, err
+			}
+		}
+		expired++
+	}
+	return expired, nil
+}

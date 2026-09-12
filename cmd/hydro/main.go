@@ -1006,6 +1006,7 @@ func serve(args []string, stderr io.Writer) error {
 	if moduleEnabled(cfg.Modules, "commerce") {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
+		go runCommerceReservationReleaser(ctx, commerceService, 15*time.Minute, stderr)
 		commerceCatalog := commerce.CatalogService{Transactions: database.NewTransactor(db), Store: commerceStore, Variants: commerceStore}
 		graphqlHTTP.Catalog = commerceCatalog
 		graphqlHTTP.Commerce = true
@@ -1149,6 +1150,25 @@ func runOutboxWorker(ctx context.Context, worker webhooks.Worker, stderr io.Writ
 				return
 			case <-ticker.C:
 			}
+		}
+	}
+}
+
+func runCommerceReservationReleaser(ctx context.Context, service commerce.Service, hold time.Duration, stderr io.Writer) {
+	if hold <= 0 {
+		return
+	}
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		_, err := service.ExpirePendingOrders(ctx, time.Now().UTC().Add(-hold))
+		if err != nil && ctx.Err() == nil && stderr != nil {
+			_, _ = fmt.Fprintf(stderr, "hydro commerce reservation releaser: %v\n", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 		}
 	}
 }

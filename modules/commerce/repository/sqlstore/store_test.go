@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
@@ -77,6 +78,30 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	orders, err = store.ListOrdersByUserID(context.Background(), db, "u1", 10)
 	if err != nil || len(orders) != 1 || orders[0].UserID != "u1" {
 		t.Fatalf("list customer orders = %#v, %v", orders, err)
+	}
+	_, err = db.Exec(`INSERT INTO commerce_products (id, sku, title, description, media_id, price_cents, currency, stock, status, created_at, updated_at) VALUES ('p2','P2','Reserved','','',1000,'TRY',0,'published','now','now')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,created_at) VALUES ('o2','u2','k2','TRY',2000,'pending','pending','2000-01-01T00:00:00Z')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO commerce_order_items (id,order_id,product_id,sku,title,quantity,unit_cents,total_cents) VALUES ('oi2','o2','p2','P2','Reserved',2,1000,2000)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expired, err := store.ExpirePendingOrders(context.Background(), db, time.Now().UTC())
+	if err != nil || expired != 1 {
+		t.Fatalf("expire pending = %d, %v", expired, err)
+	}
+	var paymentStatus string
+	var stock int
+	if err := db.QueryRow(`SELECT payment_status FROM commerce_orders WHERE id = 'o2'`).Scan(&paymentStatus); err != nil || paymentStatus != "expired" {
+		t.Fatalf("expired payment status = %q, %v", paymentStatus, err)
+	}
+	if err := db.QueryRow(`SELECT stock FROM commerce_products WHERE id = 'p2'`).Scan(&stock); err != nil || stock != 2 {
+		t.Fatalf("released stock = %d, %v", stock, err)
 	}
 
 	prod, err := store.GetProduct(context.Background(), db, "p1")

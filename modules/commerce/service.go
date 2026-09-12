@@ -3,6 +3,7 @@ package commerce
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
@@ -27,6 +28,12 @@ type VariantCheckoutStore interface {
 
 type Outbox interface {
 	Enqueue(context.Context, database.Executor, string, string, string, int) error
+}
+
+// PendingOrderExpiryStore releases reservations for orders that did not reach
+// a verified payment event before their checkout hold expires.
+type PendingOrderExpiryStore interface {
+	ExpirePendingOrders(context.Context, database.Executor, time.Time) (int, error)
 }
 
 type Service struct {
@@ -123,6 +130,20 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 		return Order{}, err
 	}
 	return order, nil
+}
+
+func (s Service) ExpirePendingOrders(ctx context.Context, before time.Time) (int, error) {
+	store, ok := s.Store.(PendingOrderExpiryStore)
+	if !ok || s.Transactions == (database.Transactor{}) {
+		return 0, errorsDependency
+	}
+	var expired int
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		expired, err = store.ExpirePendingOrders(ctx, tx, before.UTC())
+		return err
+	})
+	return expired, err
 }
 
 var errorsDependency = fmt.Errorf("commerce service dependency is required")
