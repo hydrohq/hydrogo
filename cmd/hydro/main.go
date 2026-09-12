@@ -800,7 +800,10 @@ func serve(args []string, stderr io.Writer) error {
 		}
 	}
 	newsHTTP := newstransport.Handler{Service: newsService, DB: db, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
-	routes := append(authHTTP.RouterRoutes(), pageRouterRoutes(pageHTTP.Routes())...)
+	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
+	if modules["pages"] {
+		routes = append(routes, pageRouterRoutes(pageHTTP.Routes())...)
+	}
 	if enabledModuleSet(cfg.Modules)["members"] {
 		routes = append(routes, memberHTTP.Routes()...)
 	}

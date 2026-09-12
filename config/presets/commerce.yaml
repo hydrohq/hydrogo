@@ -1,0 +1,15 @@
+profile: compact
+modules: [core, auth, members, pages, media, site, commerce]
+http:
+  address: "127.0.0.1:8080"
+  public_origin: ""
+database:
+  dialect: sqlite
+  dsn: ""
+media:
+  dir: data/media
+theme_dir: themes
+theme: corporate
+security:
+  secure_cookies: false
+  enable_hsts: false
