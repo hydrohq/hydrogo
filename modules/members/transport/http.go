@@ -13,6 +13,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
@@ -180,7 +181,7 @@ func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) register(w http.ResponseWriter, r *http.Request) {
-	if h.Limiter != nil && !h.Limiter.Allow("member-register:"+r.RemoteAddr) {
+	if h.Limiter != nil && !h.Limiter.Allow("member-register:"+requestmeta.ClientIP(r)) {
 		http.Error(w, "too many requests", 429)
 		return
 	}
@@ -206,7 +207,7 @@ func (h Handler) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) login(w http.ResponseWriter, r *http.Request) {
-	if h.Limiter != nil && !h.Limiter.Allow("member-login:"+r.RemoteAddr+":"+auth.NormalizeEmail(r.FormValue("email"))) {
+	if h.Limiter != nil && !h.Limiter.Allow("member-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(r.FormValue("email"))) {
 		http.Error(w, "too many requests", 429)
 		return
 	}
@@ -223,7 +224,7 @@ func (h Handler) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) issueSession(w http.ResponseWriter, r *http.Request, m *members.Member) {
-	token, s, err := h.Service.CreateSession(r.Context(), m.ID, r.UserAgent(), r.RemoteAddr, 7*24*time.Hour)
+	token, s, err := h.Service.CreateSession(r.Context(), m.ID, r.UserAgent(), requestmeta.ClientIP(r), 7*24*time.Hour)
 	if err != nil {
 		http.Error(w, "authentication unavailable", 503)
 		return

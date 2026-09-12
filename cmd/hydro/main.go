@@ -55,6 +55,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -1049,7 +1050,7 @@ func serve(args []string, stderr io.Writer) error {
 	if modules["pages"] || modules["commerce"] {
 		graphqlLimiter := newRateLimiter(60, time.Minute)
 		routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !graphqlLimiter.Allow("graphql:" + r.RemoteAddr) {
+			if !graphqlLimiter.Allow("graphql:" + requestmeta.ClientIP(r)) {
 				w.Header().Set("Retry-After", "60")
 				http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 				return

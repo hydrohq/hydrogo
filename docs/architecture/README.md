@@ -57,6 +57,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 | [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |
+| [0030](0030-client-address-trust-boundary.md) | Client IP derivation and proxy trust boundary | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
