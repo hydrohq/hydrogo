@@ -3477,3 +3477,43 @@ img {
     scroll-behavior: auto !important;
   }
 }
+
+/* Narrow viewport hardening: grid/flex children must be allowed to shrink,
+   while navigation and breadcrumbs wrap instead of creating page overflow. */
+.hero-inner-container > *,
+.product-detail-layout > *,
+.news-detail-layout > * {
+  min-width: 0;
+}
+
+.hero-lead,
+.content-body,
+.product-description-rich {
+  overflow-wrap: anywhere;
+}
+
+.news-breadcrumb {
+  flex-wrap: wrap;
+}
+
+.product-gallery-pane img,
+.product-image {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 640px) {
+  .hero-actions,
+  .hero-actions a,
+  .product-trust-grid {
+    min-width: 0;
+  }
+
+  .hero-actions a {
+    width: 100%;
+  }
+
+  .product-trust-grid {
+    grid-template-columns: 1fr;
+  }
+}
