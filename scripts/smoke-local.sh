@@ -9,6 +9,9 @@ database="${smoke_root}/hydro.sqlite"
 server_log="${smoke_root}/serve.log"
 server_pid=""
 
+# Compact smoke is intentionally independent of any developer Redis setup.
+unset HYDRO_REDIS_URL HYDRO_REDIS_KEY_PREFIX
+
 cleanup() {
   if [[ -n "${server_pid}" ]] && kill -0 "${server_pid}" 2>/dev/null; then
     kill "${server_pid}" 2>/dev/null || true

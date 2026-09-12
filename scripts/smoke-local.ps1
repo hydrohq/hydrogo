@@ -12,6 +12,14 @@ $process = $null
 New-Item -ItemType Directory -Force $smokeRoot, $media | Out-Null
 
 try {
+    # The compact smoke must be self-contained even when a developer has a
+    # global Redis environment variable configured. Redis is optional here;
+    # leaking it into the child process would make a local SQLite smoke depend
+    # on an unrelated service.
+    $savedRedisURL = $env:HYDRO_REDIS_URL
+    $savedRedisPrefix = $env:HYDRO_REDIS_KEY_PREFIX
+    Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:HYDRO_REDIS_KEY_PREFIX -ErrorAction SilentlyContinue
     Write-Host "==> build smoke binary"
     & go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=smoke -X main.buildTime=smoke" -o $binary (Join-Path $repositoryRoot "cmd/hydro")
     if ($LASTEXITCODE -ne 0) { throw "smoke binary build failed" }
@@ -54,6 +62,8 @@ try {
     Write-Host "PASS: healthz and readyz returned 200 from the built binary."
 }
 finally {
+    if ($null -ne $savedRedisURL) { $env:HYDRO_REDIS_URL = $savedRedisURL }
+    if ($null -ne $savedRedisPrefix) { $env:HYDRO_REDIS_KEY_PREFIX = $savedRedisPrefix }
     if ($null -ne $process -and -not $process.HasExited) {
         Stop-Process -Id $process.Id -Force
         $process.WaitForExit()
