@@ -808,13 +808,15 @@ func serve(args []string, stderr io.Writer) error {
 	if enabledModuleSet(cfg.Modules)["members"] {
 		routes = append(routes, memberHTTP.Routes()...)
 	}
-	routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			http.Redirect(w, r, "/public/pages/tr/demo/html", http.StatusFound)
-			return
-		}
-		http.NotFound(w, r)
-	})})
+	if modules["pages"] {
+		routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				http.Redirect(w, r, "/public/pages/tr/demo/html", http.StatusFound)
+				return
+			}
+			http.NotFound(w, r)
+		})})
+	}
 	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
@@ -1106,7 +1108,9 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
 	}
-	go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect}, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
+	if modules["pages"] || modules["news"] || modules["commerce"] {
+		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect}, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
+	}
 	logWriter := stderr
 	if logWriter == nil {
 		logWriter = io.Discard

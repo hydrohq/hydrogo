@@ -60,6 +60,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0030](0030-client-address-trust-boundary.md) | Client IP derivation and proxy trust boundary | Accepted |
 | [0031](0031-commerce-reservation-expiry.md) | Bounded pending-order stock reservation expiry | Accepted |
 | [0032](0032-payment-provider-transport-safety.md) | Bounded, redirect-safe payment provider transport | Accepted |
+| [0033](0033-runtime-module-resource-gating.md) | Runtime resources gated by active modules | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
