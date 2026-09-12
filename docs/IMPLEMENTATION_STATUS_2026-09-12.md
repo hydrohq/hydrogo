@@ -9,6 +9,8 @@ require an external deployment, provider account, or operator-controlled key.
 - Public/member/commerce/admin copy no longer claims a specific TLS/SSL bit
   length, PCI-DSS compliance, invented ratings, or guaranteed delivery time.
 - Theme toast messages are inserted as text nodes rather than `innerHTML`.
+- Public and admin image fallbacks use delegated, CSP-compatible handlers;
+  inline `onerror`/`onclick` handlers were removed from rendered surfaces.
 - Native forms disable submit controls after the first submit event to reduce
   duplicate mutations.
 - Reduced-motion support disables smooth scrolling and long transitions.
