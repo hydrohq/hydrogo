@@ -457,6 +457,8 @@
         container = document.createElement('div');
         container.id = 'hydro-toast-container';
         container.className = 'hydro-toast-container';
+        container.setAttribute('aria-live', 'polite');
+        container.setAttribute('aria-atomic', 'false');
         document.body.appendChild(container);
       }
 
