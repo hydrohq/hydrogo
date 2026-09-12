@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "name": "Quiet Instrument",
+  "direction": "Premium editorial technology interface",
+  "tokens": {
+    "color": {
+      "canvas": "#F4F1EA",
+      "surface": "#FAF8F3",
+      "ink": "#202321",
+      "inkSubtle": "#50534E",
+      "muted": "#777872",
+      "line": "#C9C5BB",
+      "accent": "#A66A45",
+      "accentSoft": "#EEE4DA",
+      "panel": "#DEDAD1"
+    },
+    "type": {
+      "display": "Georgia",
+      "body": "Trebuchet MS",
+      "displayTracking": "-0.055em",
+      "readingMeasure": "65ch"
+    },
+    "shape": {
+      "panelRadius": "12px",
+      "controlRadius": "5px",
+      "border": "1px"
+    }
+  },
+  "motion": {
+    "reducedMotion": "disable transitions and animations"
+  }
+}
