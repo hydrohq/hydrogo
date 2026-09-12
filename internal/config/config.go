@@ -352,8 +352,8 @@ func (c Config) Validate() error {
 		if strings.TrimSpace(webhook.ID) == "" || strings.TrimSpace(webhook.URL) == "" || strings.TrimSpace(webhook.Secret) == "" {
 			return errors.New("webhook id, url and environment secret are required")
 		}
-		parsed, err := url.Parse(webhook.URL)
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+		parsed, err := url.Parse(strings.TrimSpace(webhook.URL))
+		if err != nil || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil || parsed.Opaque != "" || parsed.Fragment != "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
 			return fmt.Errorf("invalid webhook URL %q", webhook.URL)
 		}
 		if len(webhook.Topics) > 64 {
