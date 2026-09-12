@@ -51,7 +51,12 @@ Admin tarafında medya yükleme journey’si de manifest’e eklendi. Test küç
 
 - `e2e/generated/hydro.spec.ts`
 
-Playwright discovery sonucu toplam 9 test listelenmiştir. Generator sözleşme testi ve ilgili Go testleri başarılıdır. Tam browser koşusu, `scripts/run-e2e.ps1` tarafından izole sunucu ve `HYDRO_E2E_ADMIN_PASSWORD` ile yapılmalıdır.
+`scripts/run-e2e.ps1`, izole SQLite sunucusu ve test-only yönetici parolasıyla çalıştırıldı:
+Chromium üzerinde 14/14 test geçti. Koşu; yayınlanmış içerik API istemcisini, yönetici girişini,
+beş yönetici alanını, medya yüklemeyi, Pages/News formlarını, public home/shop route'larını ve
+iki mobil yatay-taşma kontrolünü kapsar. Aynı koşu artık `.github/workflows/ci.yml` içindeki
+zorunlu `browser-e2e` işiyle Windows CI'da da çalışır. Runner, geliştirici makinesinden kalmış
+`HYDRO_REDIS_URL` değerini geçici olarak temizleyerek Compact SQLite fixture'ının izolasyonunu korur.
 
 ## Test kanıtı
 
@@ -61,7 +66,7 @@ Başarılı kontroller:
 - `go test ./migrations ./internal/media/... ./cmd/hydro/... -p 1 -timeout=5m`
 - `go vet ./...`
 - `git diff --check`
-- `npm test -- --list` — 9 Playwright testi bulundu
+- `scripts/run-e2e.ps1` — Chromium üzerinde 14/14 PASS
 
 ## Açık maddeler
 

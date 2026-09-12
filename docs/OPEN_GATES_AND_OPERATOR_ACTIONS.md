@@ -62,9 +62,9 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 
 ## 2. Çalıştırılması gereken ama bu çalışma kapsamında kanıtlanmamış testler
 
-- [ ] Tam Chromium Playwright E2E koşusu: izole SQLite sunucusu, migration, seed, admin storage state
-  ve `scripts/run-e2e.ps1`. Metadata discovery 9 journey gösteriyor; discovery sonucu browser PASS
-  sonucu değildir.
+- [x] Chromium Playwright E2E: izole SQLite sunucusu, migration, seed, admin storage state ve
+  `scripts/run-e2e.ps1` ile 14/14 PASS. Aynı çalışma Windows CI `browser-e2e` job'ında zorunludur;
+  discovery sonucu değil, gerçek browser sonucu kaydedilmiştir.
 - [ ] Her üretilen frontend için gerçek responsive E2E: masaüstü/tablet/mobil viewport, route root,
   yatay taşma, kırık görsel, boş/error state, haber detay, ürün kartı/varyant, sepet/checkout ve
   üyelik login/logout akışları.
