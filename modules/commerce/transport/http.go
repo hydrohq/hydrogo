@@ -561,9 +561,16 @@ func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	key, err := newID()
-	if err != nil {
-		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
+	key := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	if key == "" {
+		key, err = newID()
+		if err != nil {
+			http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
+			return
+		}
+	}
+	if len(key) > 128 {
+		http.Error(w, "invalid idempotency key", http.StatusBadRequest)
 		return
 	}
 	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: orderID, UserID: userID, CartID: cart.ID, IdempotencyKey: key, Customer: commerce.PaymentCustomer{Name: r.FormValue("customer_name"), IdentityNumber: r.FormValue("customer_identity_number"), Email: r.FormValue("customer_email"), Phone: r.FormValue("customer_phone"), Address: r.FormValue("customer_address"), City: r.FormValue("customer_city"), Country: r.FormValue("customer_country"), PostalCode: r.FormValue("customer_postal_code"), ClientIP: requestClientIP(r)}})
