@@ -3,6 +3,13 @@
   "base_url": "http://127.0.0.1:8090",
   "admin": {
     "login_path": "/login",
+    "surfaces": [
+      {"id": "developer", "route": "/admin/developer", "test_id": "developer-area", "style_selector": ".dev-console", "style_property": "display", "style_value": "grid"},
+      {"id": "operations", "route": "/admin/operations", "test_id": "operations-area", "navigate_from": "/admin/developer", "style_selector": ".ops-grid", "style_property": "display", "style_value": "grid"},
+      {"id": "security", "route": "/admin/security", "test_id": "security-area", "navigate_from": "/admin/developer", "style_selector": ".sec-grid", "style_property": "display", "style_value": "grid"},
+      {"id": "permissions", "route": "/admin/permissions", "test_id": "permissions-area", "navigate_from": "/admin/developer", "style_selector": ".perm-grid", "style_property": "display", "style_value": "grid"},
+      {"id": "developer resources", "route": "/admin/developer/resources", "test_id": "resource-page", "navigate_from": "/admin/developer", "style_selector": ".resource-page", "style_property": "display", "style_value": "grid"}
+    ],
     "collections": [
       {"id": "news", "route": "/admin/news/new", "fields": [{"id": "title", "test_id": "admin-field-title"}, {"id": "body", "widget": "richtext", "test_id": "admin-field-body"}]},
       {"id": "pages", "route": "/admin/pages/new", "fields": [{"id": "title", "test_id": "admin-field-title"}, {"id": "body", "widget": "richtext", "test_id": "admin-field-body"}]}
@@ -13,5 +20,9 @@
       {"name": "home", "path": "/public/pages/tr/demo/html", "public": true, "test_id": "public-page"},
       {"name": "shop", "path": "/shop", "public": true, "test_id": "public-shop"}
     ]
+  },
+  "media": {
+    "route": "/admin/media",
+    "upload_enabled": true
   }
 }

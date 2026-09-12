@@ -18,11 +18,28 @@ type manifest struct {
 	BaseURL  string           `json:"base_url"`
 	Admin    adminManifest    `json:"admin"`
 	Frontend frontendManifest `json:"frontend"`
+	Media    mediaManifest    `json:"media"`
+}
+
+type mediaManifest struct {
+	Route         string `json:"route"`
+	UploadEnabled bool   `json:"upload_enabled"`
 }
 
 type adminManifest struct {
-	LoginPath   string       `json:"login_path"`
-	Collections []collection `json:"collections"`
+	LoginPath   string         `json:"login_path"`
+	Collections []collection   `json:"collections"`
+	Surfaces    []adminSurface `json:"surfaces,omitempty"`
+}
+
+type adminSurface struct {
+	ID            string `json:"id"`
+	Route         string `json:"route"`
+	TestID        string `json:"test_id"`
+	NavigateFrom  string `json:"navigate_from,omitempty"`
+	StyleSelector string `json:"style_selector,omitempty"`
+	StyleProperty string `json:"style_property,omitempty"`
+	StyleValue    string `json:"style_value,omitempty"`
 }
 
 type collection struct {
@@ -96,6 +113,19 @@ func validate(m manifest) error {
 		}
 	}
 	seen = map[string]bool{}
+	for _, surface := range m.Admin.Surfaces {
+		if surface.ID == "" || surface.Route == "" || !strings.HasPrefix(surface.Route, "/") || surface.TestID == "" || seen[surface.ID] {
+			return fmt.Errorf("invalid or duplicate admin surface %q", surface.ID)
+		}
+		if surface.NavigateFrom != "" && !strings.HasPrefix(surface.NavigateFrom, "/") {
+			return fmt.Errorf("invalid admin surface navigate_from %q", surface.NavigateFrom)
+		}
+		if (surface.StyleSelector == "") != (surface.StyleProperty == "") || (surface.StyleProperty == "") != (surface.StyleValue == "") {
+			return fmt.Errorf("admin surface %q must declare style_selector, style_property and style_value together", surface.ID)
+		}
+		seen[surface.ID] = true
+	}
+	seen = map[string]bool{}
 	for _, r := range m.Frontend.Routes {
 		if r.Name == "" || r.Path == "" || !strings.HasPrefix(r.Path, "/") || seen[r.Name] {
 			return fmt.Errorf("invalid or duplicate frontend route %q", r.Name)
@@ -122,11 +152,29 @@ func render(m manifest) string {
 	b.WriteString("test.describe('HydroGo generated frontend', () => {\n")
 	for _, r := range routes {
 		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page.locator('[data-testid=%q]')).toBeAttached();\n  });\n", "frontend: "+r.Name, r.Path, r.TestID))
+		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.setViewportSize({ width: 390, height: 844 });\n    await page.goto(`${baseURL}%s`);\n    await expect(page.locator('[data-testid=%q]')).toBeAttached();\n    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);\n    expect(overflow).toBeLessThanOrEqual(1);\n  });\n", "frontend responsive: "+r.Name, r.Path, r.TestID))
 	}
+	b.WriteString("});\n\n")
+	b.WriteString("test.describe('HydroGo generated Admin login', () => {\n")
+	b.WriteString("  test.use({ storageState: undefined });\n")
+	b.WriteString(fmt.Sprintf("  test(%q, async ({ browser }) => {\n    const context = await browser.newContext({ storageState: undefined });\n    const page = await context.newPage();\n    await page.goto(`${baseURL}%s`);\n    await expect(page).toHaveURL(new RegExp(%q));\n    await context.close();\n  });\n", "admin: login surface", m.Admin.LoginPath, escapeRegex(m.Admin.LoginPath)))
 	b.WriteString("});\n\n")
 	b.WriteString("test.describe('HydroGo generated Admin Studio', () => {\n")
 	b.WriteString("  test.use({ storageState: process.env.HYDRO_E2E_STORAGE_STATE || undefined });\n")
-	b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page).toHaveURL(new RegExp(%q));\n  });\n", "admin: login surface", m.Admin.LoginPath, escapeRegex(m.Admin.LoginPath)))
+	if m.Media.UploadEnabled {
+		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    const file = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');\n    await page.locator('input[type=file][name=file]').setInputFiles({ name: 'e2e-media.png', mimeType: 'image/png', buffer: file });\n    await page.locator('form.media-upload-form button[type=submit]').click();\n    await expect(page).toHaveURL(new RegExp(%q));\n    await expect(page.locator('.media-card').filter({ hasText: 'e2e-media.png' })).toBeVisible();\n  });\n", "admin: media upload", m.Media.Route, escapeRegex(m.Media.Route)))
+	}
+	for _, surface := range m.Admin.Surfaces {
+		if surface.NavigateFrom != "" {
+			b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await page.locator('a.nav-item[href=%q]').click();\n    await expect(page).toHaveURL(new RegExp(%q));\n    await expect(page.locator('[data-testid=%q]')).toBeVisible();\n", "admin: "+surface.ID, surface.NavigateFrom, surface.Route, escapeRegex(surface.Route), surface.TestID))
+		} else {
+			b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page).toHaveURL(new RegExp(%q));\n    await expect(page.locator('[data-testid=%q]')).toBeVisible();\n", "admin: "+surface.ID, surface.Route, escapeRegex(surface.Route), surface.TestID))
+		}
+		if surface.StyleSelector != "" {
+			b.WriteString(fmt.Sprintf("    await expect(page.locator(%q)).toHaveCSS(%q, %q);\n", surface.StyleSelector, surface.StyleProperty, surface.StyleValue))
+		}
+		b.WriteString("  });\n")
+	}
 	for _, c := range collections {
 		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page).toHaveURL(new RegExp(%q));\n", "admin: "+c.ID, c.Route, escapeRegex(c.Route)))
 		for _, f := range c.Fields {
