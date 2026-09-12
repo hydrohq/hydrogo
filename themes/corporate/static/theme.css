@@ -3473,6 +3473,30 @@ img {
   }
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 10000;
+  top: 12px;
+  left: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--theme-ink, #202321);
+  color: #fff;
+  transform: translateY(-160%);
+  transition: transform .16s ease;
+}
+
+.skip-link:focus { transform: translateY(0); outline: 3px solid #fff; outline-offset: 2px; }
+
+@media (prefers-contrast: more) {
+  :root { --theme-muted: #334155; --theme-line: #475569; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+}
+
+@media (forced-colors: active) {
+  * { forced-color-adjust: auto; }
+}
+
 /* Narrow viewport hardening: grid/flex children must be allowed to shrink,
    while navigation and breadcrumbs wrap instead of creating page overflow. */
 .hero-inner-container > *,

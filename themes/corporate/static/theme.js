@@ -1,5 +1,4 @@
 (function () {
-  var AUTH_KEY = 'hydro_member_state';
   var channel = null;
   try {
     if (typeof BroadcastChannel !== 'undefined') {
@@ -7,23 +6,8 @@
     }
   } catch (e) {}
 
-  function getStoredMember() {
-    try {
-      var raw = localStorage.getItem(AUTH_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function setStoredMember(member) {
-    try {
-      if (member && member.email) {
-        localStorage.setItem(AUTH_KEY, JSON.stringify(member));
-      } else {
-        localStorage.removeItem(AUTH_KEY);
-      }
-    } catch (e) {}
+  function setCurrentMember(member) {
+    return member && member.email ? member : null;
   }
 
   function renderHeader(member) {
@@ -85,13 +69,13 @@
       .then(function (data) {
         if (data && data.email) {
           var member = { email: data.email, id: data.id };
-          setStoredMember(member);
+          setCurrentMember(member);
           renderHeader(member);
         }
       })
       .catch(function (err) {
         if (err && err.code === 'UNAUTHENTICATED') {
-          setStoredMember(null);
+          setCurrentMember(null);
           renderHeader(null);
         }
       });
@@ -109,24 +93,10 @@
     });
   }
 
-  // 1. Optimistic Render
-  var cached = getStoredMember();
-  if (cached) {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function () {
-        renderHeader(cached);
-        highlightActiveNav();
-      });
-    } else {
-      renderHeader(cached);
-      highlightActiveNav();
-    }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', highlightActiveNav);
   } else {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', highlightActiveNav);
-    } else {
-      highlightActiveNav();
-    }
+    highlightActiveNav();
   }
 
   if (document.readyState === 'loading') {
@@ -139,31 +109,24 @@
     channel.onmessage = function (event) {
       if (event && event.data) {
         if (event.data.type === 'LOGIN') {
-          setStoredMember(event.data.member);
+          setCurrentMember(event.data.member);
           renderHeader(event.data.member);
         } else if (event.data.type === 'LOGOUT') {
-          setStoredMember(null);
+          setCurrentMember(null);
           renderHeader(null);
         }
       }
     };
   }
 
-  window.addEventListener('storage', function (e) {
-    if (e.key === AUTH_KEY) {
-      var updated = getStoredMember();
-      renderHeader(updated);
-    }
-  });
-
   window.hydroAuth = {
     setMember: function (member) {
-      setStoredMember(member);
+      setCurrentMember(member);
       renderHeader(member);
       if (channel) channel.postMessage({ type: 'LOGIN', member: member });
     },
     clearMember: function () {
-      setStoredMember(null);
+      setCurrentMember(null);
       renderHeader(null);
       if (channel) channel.postMessage({ type: 'LOGOUT' });
     }
@@ -380,9 +343,11 @@
     // 7. Quick Search Palette (Cmd+K / Ctrl+K)
     var searchModal = document.getElementById('hydro-quick-search');
     var searchTrigger = document.querySelector('[data-open-search]');
+    var searchReturnFocus = null;
 
     function openSearch() {
       if (!searchModal) return;
+      searchReturnFocus = document.activeElement;
       searchModal.classList.add('is-open');
       searchModal.setAttribute('aria-hidden', 'false');
       var input = searchModal.querySelector('input[type="search"], input[type="text"]');
@@ -398,6 +363,7 @@
       searchModal.classList.remove('is-open');
       searchModal.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
+      if (searchReturnFocus && typeof searchReturnFocus.focus === 'function') searchReturnFocus.focus();
     }
 
     if (searchTrigger) {
@@ -413,6 +379,21 @@
 
       searchModal.addEventListener('click', function (e) {
         if (e.target === searchModal) closeSearch();
+      });
+
+      searchModal.addEventListener('keydown', function (e) {
+        if (e.key !== 'Tab') return;
+        var focusable = searchModal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled])');
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       });
 
       var searchInput = searchModal.querySelector('.quick-search-input');
