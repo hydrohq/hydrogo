@@ -16,6 +16,9 @@ require an external deployment, provider account, or operator-controlled key.
   the selected module set.
 - Admin Studio search renders stored/API-provided labels with safe DOM text
   nodes instead of interpolating them into `innerHTML`.
+- Impeccable detector is clean for the corporate theme; gradient text,
+  decorative gradient surfaces, and backdrop blur were removed in favor of
+  solid token-based surfaces with lower rendering cost.
 - Native forms disable submit controls after the first submit event to reduce
   duplicate mutations.
 - Reduced-motion support disables smooth scrolling and long transitions.
