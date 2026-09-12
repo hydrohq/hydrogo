@@ -16,6 +16,11 @@ environment, an external provider, legal review, or a release pipeline.
   and depth budgets, and redacted public error messages.
 - Stripe fallback requests use a timeout and reject redirects; provider error
   bodies are not copied into domain errors; oversized webhook bodies fail.
+- Public GraphQL, checkout and payment-intent operations use bounded rate
+  limits. Redis/Valkey is used when configured, with a bounded local fallback
+  and a short fail-closed Redis operation timeout.
+- Webhook URL structure is rejected at configuration load time when it contains
+  credentials, fragments, opaque URLs or a missing host.
 - Media, site, news routes and the news worker are registered only when their
   modules are enabled. GraphQL is not exposed without a headless content module.
 - CSP no longer trusts Google font origins.
