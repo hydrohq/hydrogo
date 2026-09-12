@@ -75,8 +75,8 @@ func TestMetricsSkipStaticAssetPaths(t *testing.T) {
 	}
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/public/news/tr/html", nil))
 	stats := m.PathStats()
-	if len(stats) != 1 || stats[0].Path != "/public/news/tr/html" || stats[0].Views != 1 || stats[0].Requests != 2 {
-		t.Fatalf("path stats = %#v, want only one public view", stats)
+	if len(stats) != 1 || stats[0].Path != "/public/news/tr/html" || stats[0].Views != 2 || stats[0].Requests != 2 {
+		t.Fatalf("path stats = %#v, want two public requests/views", stats)
 	}
 }
 
@@ -108,20 +108,17 @@ func TestMetricsEmptyState(t *testing.T) {
 	}
 }
 
-func TestMetricsVisitorRefreshAndDeduplication(t *testing.T) {
+func TestMetricsPublicTelemetryDoesNotTrackVisitors(t *testing.T) {
 	m := NewMetrics()
 	handler := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}))
 
-	// Test with pre-existing visitor A cookie
-	visitorACookie := &http.Cookie{Name: "hydro_visitor", Value: "visitor-token-12345"}
 	for i := 0; i < 5; i++ {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/public/news/tr/html", nil)
 		req.RemoteAddr = "192.168.1.50:1234"
-		req.AddCookie(visitorACookie)
 		handler.ServeHTTP(rec, req)
 	}
 
@@ -129,29 +126,25 @@ func TestMetricsVisitorRefreshAndDeduplication(t *testing.T) {
 	if len(stats) != 1 {
 		t.Fatalf("expected 1 path stats entry, got %d", len(stats))
 	}
-	if stats[0].Views != 1 {
-		t.Errorf("expected 1 view for visitor A, got %d", stats[0].Views)
+	if stats[0].Views != 5 {
+		t.Errorf("expected one operational view per successful public request, got %d", stats[0].Views)
 	}
 	if stats[0].Requests != 5 {
 		t.Errorf("expected 5 total requests, got %d", stats[0].Requests)
 	}
-	if m.UniqueVisitorsCount() != 1 {
-		t.Errorf("expected 1 unique visitor, got %d", m.UniqueVisitorsCount())
+	if m.UniqueVisitorsCount() != 0 {
+		t.Errorf("operational telemetry must not count unique visitors, got %d", m.UniqueVisitorsCount())
 	}
-
-	// Second distinct visitor B
-	visitorBCookie := &http.Cookie{Name: "hydro_visitor", Value: "visitor-token-67890"}
 	rec2 := httptest.NewRecorder()
 	req2 := httptest.NewRequest(http.MethodGet, "/public/news/tr/html", nil)
 	req2.RemoteAddr = "10.0.0.99:5678"
-	req2.AddCookie(visitorBCookie)
 	handler.ServeHTTP(rec2, req2)
 
-	if m.UniqueVisitorsCount() != 2 {
-		t.Errorf("expected 2 unique visitors, got %d", m.UniqueVisitorsCount())
+	if m.UniqueVisitorsCount() != 0 {
+		t.Errorf("operational telemetry must not count unique visitors, got %d", m.UniqueVisitorsCount())
 	}
-	if m.TotalViews() != 2 {
-		t.Errorf("expected 2 total views across unique visitors, got %d", m.TotalViews())
+	if m.TotalViews() != 6 {
+		t.Errorf("expected 6 public requests/views, got %d", m.TotalViews())
 	}
 }
 
@@ -164,7 +157,7 @@ func TestMetricsProcessRestartResetsInMemoryCounters(t *testing.T) {
 	h1.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/public/pages/tr/demo/html", nil))
 	h1.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/public/pages/tr/demo/html", nil))
 
-	if p1.TotalRequests() != 2 || p1.TotalViews() != 1 {
+	if p1.TotalRequests() != 2 || p1.TotalViews() != 2 {
 		t.Fatalf("process 1 state unexpected: req=%d, views=%d", p1.TotalRequests(), p1.TotalViews())
 	}
 

@@ -2,11 +2,7 @@
 package observability
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"net"
 	"net/http"
 	"runtime"
 	"sort"
@@ -39,9 +35,6 @@ type Metrics struct {
 	readinessState      atomic.Int32
 	pathMu              sync.RWMutex
 	paths               map[string]PathStats
-	visitorMu           sync.Mutex
-	visitors            map[string]map[[32]byte]struct{}
-	visitorSalt         [32]byte
 	sessionCleanupRuns  atomic.Uint64
 	sessionCleanupRows  atomic.Uint64
 	sessionCleanupError atomic.Uint64
@@ -118,15 +111,11 @@ type RuntimeSnapshot struct {
 
 var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisecond, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 5 * time.Second}
 
-const visitorCookieName = "hydro_visitor"
-
 func NewMetrics() *Metrics {
 	m := &Metrics{
 		startedAt: time.Now().UTC(),
 		paths:     make(map[string]PathStats),
-		visitors:  make(map[string]map[[32]byte]struct{}),
 	}
-	_, _ = rand.Read(m.visitorSalt[:])
 	return m
 }
 
@@ -190,18 +179,10 @@ func (m *Metrics) TotalViews() uint64 {
 }
 
 func (m *Metrics) UniqueVisitorsCount() int {
-	if m == nil {
-		return 0
-	}
-	m.visitorMu.Lock()
-	defer m.visitorMu.Unlock()
-	all := make(map[[32]byte]struct{})
-	for _, set := range m.visitors {
-		for k := range set {
-			all[k] = struct{}{}
-		}
-	}
-	return len(all)
+	// Unique visitor measurement is product analytics, not operational
+	// telemetry. It remains unavailable until the optional, consent-gated
+	// analytics module is enabled.
+	return 0
 }
 
 func (m *Metrics) AvgLatencyMS() uint64 {
@@ -387,7 +368,6 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
-		ensureVisitorCookie(w, r)
 		m.requests.Add(1)
 		m.inFlight.Add(1)
 		recorder := &responseRecorder{ResponseWriter: w, status: http.StatusOK}
@@ -431,65 +411,11 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration)
 	if status >= http.StatusBadRequest {
 		stats.Errors++
 	}
-	if r.Method == http.MethodGet && (strings.HasPrefix(path, "/public/") || strings.HasPrefix(path, "/shop")) && status < http.StatusBadRequest && m.recordUniqueVisitor(path, r) {
+	if r.Method == http.MethodGet && (strings.HasPrefix(path, "/public/") || strings.HasPrefix(path, "/shop")) && status < http.StatusBadRequest {
 		stats.Views++
 	}
 	m.paths[path] = stats
 	m.pathMu.Unlock()
-}
-
-func (m *Metrics) recordUniqueVisitor(path string, r *http.Request) bool {
-	address := ""
-	if cookie, err := r.Cookie(visitorCookieName); err == nil {
-		address = cookie.Value
-	} else {
-		address = r.RemoteAddr
-		if host, _, err := net.SplitHostPort(address); err == nil {
-			address = host
-		}
-	}
-	if address == "" {
-		return false
-	}
-	digestInput := make([]byte, 0, len(m.visitorSalt)+len(address))
-	digestInput = append(digestInput, m.visitorSalt[:]...)
-	digestInput = append(digestInput, address...)
-	digest := sha256.Sum256(digestInput)
-	m.visitorMu.Lock()
-	defer m.visitorMu.Unlock()
-	if m.visitors == nil {
-		m.visitors = make(map[string]map[[32]byte]struct{})
-	}
-	set := m.visitors[path]
-	if set == nil {
-		if len(m.visitors) >= 64 {
-			return false
-		}
-		set = make(map[[32]byte]struct{})
-		m.visitors[path] = set
-	}
-	if _, exists := set[digest]; exists {
-		return false
-	}
-	if len(set) >= 4096 {
-		return false
-	}
-	set[digest] = struct{}{}
-	return true
-}
-
-func ensureVisitorCookie(w http.ResponseWriter, r *http.Request) {
-	if r == nil || w == nil || r.Method != http.MethodGet || (!strings.HasPrefix(r.URL.Path, "/public/") && !strings.HasPrefix(r.URL.Path, "/shop")) {
-		return
-	}
-	if _, err := r.Cookie(visitorCookieName); err == nil {
-		return
-	}
-	var valueBytes [16]byte
-	if _, err := rand.Read(valueBytes[:]); err != nil {
-		return
-	}
-	http.SetCookie(w, &http.Cookie{Name: visitorCookieName, Value: hex.EncodeToString(valueBytes[:]), MaxAge: 86400, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode})
 }
 
 func trackablePath(path string) bool {
