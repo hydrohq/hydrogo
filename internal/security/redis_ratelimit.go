@@ -42,7 +42,9 @@ func (l RedisRateLimiter) Allow(key string) bool {
 	digest := sha256.Sum256([]byte(key))
 	redisKey := l.Prefix + hex.EncodeToString(digest[:])
 	const script = `local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end; return n <= tonumber(ARGV[2])`
-	result, err := l.Client.Eval(context.Background(), script, []string{redisKey}, l.Window.Milliseconds(), l.Limit).Bool()
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+	result, err := l.Client.Eval(ctx, script, []string{redisKey}, l.Window.Milliseconds(), l.Limit).Bool()
 	return err == nil && result
 }
 

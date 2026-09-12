@@ -1031,7 +1031,15 @@ func serve(args []string, stderr io.Writer) error {
 		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
 	}
 	if modules["pages"] || modules["commerce"] {
-		routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: graphqlHTTP})
+		graphqlLimiter := newRateLimiter(60, time.Minute)
+		routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !graphqlLimiter.Allow("graphql:" + r.RemoteAddr) {
+				w.Header().Set("Retry-After", "60")
+				http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+				return
+			}
+			graphqlHTTP.ServeHTTP(w, r)
+		})})
 	}
 
 	metrics := observability.NewMetrics()
