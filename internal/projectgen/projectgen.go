@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	ErrProjectExists     = errors.New("project directory already exists")
+	ErrProjectExists      = errors.New("project directory already exists")
 	ErrInvalidProjectName = errors.New("project name must be 1-64 alphanumeric characters with underscores or hyphens and contain no path separators")
-	ErrPathTraversal     = errors.New("path traversal rejected in project name or root")
-	ErrUnsupportedPreset = errors.New("unsupported project preset")
-	projectNamePattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+	ErrPathTraversal      = errors.New("path traversal rejected in project name or root")
+	ErrUnsupportedPreset  = errors.New("unsupported project preset")
+	projectNamePattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 )
 
 type Options struct {
@@ -371,7 +371,7 @@ body {
 `
 
 	return map[string]string{
-		filepath.ToSlash(filepath.Join("themes", themeName, "theme.json")):          string(manifestJSON) + "\n",
+		filepath.ToSlash(filepath.Join("themes", themeName, "theme.json")):           string(manifestJSON) + "\n",
 		filepath.ToSlash(filepath.Join("themes", themeName, "layouts", "base.html")): baseLayout,
 		filepath.ToSlash(filepath.Join("themes", themeName, "static", "theme.css")):  cssContent,
 	}

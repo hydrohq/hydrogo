@@ -35,3 +35,15 @@ func TestAdminShellSPARouterAdoptsFragmentAssetsWithDocumentNonce(t *testing.T) 
 		}
 	}
 }
+
+func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Test", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"fonts.googleapis.com", "fonts.gstatic.com"} {
+		if strings.Contains(out.String(), forbidden) {
+			t.Fatalf("admin shell must not request third-party font host %q", forbidden)
+		}
+	}
+}

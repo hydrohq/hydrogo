@@ -32,6 +32,22 @@ func TestRunVersion(t *testing.T) {
 	}
 }
 
+func TestLoginPageDoesNotExposeTransportOrServerErrors(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(source)
+	for _, forbidden := range []string{"var raw=await response.text()", "err.message", "Giriş başarısız: '+(raw"} {
+		if strings.Contains(page, forbidden) {
+			t.Fatalf("login page exposes implementation detail %q", forbidden)
+		}
+	}
+	if !strings.Contains(page, "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.") {
+		t.Fatal("login page is missing the safe fallback message")
+	}
+}
+
 func TestRunVersionJSONIncludesSchemaMetadata(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if err := run([]string{"version", "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
