@@ -20,7 +20,19 @@ func TestServeHTTPRejectsMutationSchema(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/graphql", strings.NewReader(`{"query":"mutation { deletePage(id: \"x\") }"}`))
 	res := httptest.NewRecorder()
 	(Handler{}).ServeHTTP(res, req)
-	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "Schema is not configured for mutations") {
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "graphql request failed") || strings.Contains(res.Body.String(), "Schema is not configured") {
 		t.Fatalf("response = %d %s", res.Code, res.Body.String())
+	}
+}
+
+func TestQueryBudgetRejectsAmplification(t *testing.T) {
+	fields, depth, err := queryBudget(`{ page(locale: "tr", slug: "x") { title } }`)
+	if err != nil || fields != 2 || depth != 2 {
+		t.Fatalf("queryBudget = fields %d depth %d err %v", fields, depth, err)
+	}
+	tooDeep := `{ page { a { b { c { d { e { f { g { h } } } } } } } } }`
+	_, depth, err = queryBudget(tooDeep)
+	if err == nil && depth <= maxQueryDepth {
+		t.Fatalf("expected deep query to exceed budget, depth=%d", depth)
 	}
 }

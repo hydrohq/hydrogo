@@ -2,12 +2,21 @@ package graphql
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	"github.com/graphql-go/graphql"
+	"github.com/graphql-go/graphql/language/ast"
+	"github.com/graphql-go/graphql/language/parser"
+)
+
+const (
+	maxQueryBytes  = 256 << 10
+	maxQueryFields = 100
+	maxQueryDepth  = 8
 )
 
 // Handler exposes the read-only headless surface. Mutations remain on the
@@ -33,8 +42,19 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input request
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil || input.Query == "" {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxQueryBytes))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.Query == "" {
 		http.Error(w, "invalid graphql request", http.StatusBadRequest)
+		return
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		http.Error(w, "invalid graphql request", http.StatusBadRequest)
+		return
+	}
+	if fields, depth, err := queryBudget(input.Query); err != nil || fields > maxQueryFields || depth > maxQueryDepth {
+		http.Error(w, "graphql query exceeds the permitted complexity", http.StatusBadRequest)
 		return
 	}
 	schema, err := h.schema()
@@ -45,9 +65,48 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	result := graphql.Do(graphql.Params{Schema: schema, RequestString: input.Query, VariableValues: input.Variables, OperationName: input.OperationName, Context: r.Context()})
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if len(result.Errors) > 0 {
+		for i := range result.Errors {
+			result.Errors[i].Message = "graphql request failed"
+		}
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+// queryBudget rejects deliberately amplified documents before schema execution.
+// The limits are intentionally conservative because this endpoint is public and
+// each root resolver may perform a database read.
+func queryBudget(source string) (fields, depth int, err error) {
+	doc, err := parser.Parse(parser.ParseParams{Source: source})
+	if err != nil {
+		return 0, 0, err
+	}
+	var walk func(*ast.SelectionSet, int)
+	walk = func(set *ast.SelectionSet, current int) {
+		if set == nil {
+			return
+		}
+		if current > depth {
+			depth = current
+		}
+		for _, selection := range set.Selections {
+			if field, ok := selection.(*ast.Field); ok {
+				fields++
+				walk(field.SelectionSet, current+1)
+			} else if inline, ok := selection.(*ast.InlineFragment); ok {
+				walk(inline.SelectionSet, current)
+			}
+		}
+	}
+	for _, definition := range doc.Definitions {
+		switch definition := definition.(type) {
+		case *ast.OperationDefinition:
+			walk(definition.SelectionSet, 1)
+		case *ast.FragmentDefinition:
+			walk(definition.SelectionSet, 1)
+		}
+	}
+	return fields, depth, nil
 }
 
 func (h Handler) schema() (graphql.Schema, error) {
