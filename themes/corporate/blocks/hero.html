@@ -16,19 +16,7 @@
   </div>
   {{with .Payload.media_url}}
   <div class="hero-media-wrapper">
-    <div class="hero-map-label">PLATFORM / ÇALIŞMA ALANI</div>
-    <div class="browser-mockup-frame">
-      <div class="mockup-header-bar">
-        <div class="mockup-dots"><span></span><span></span><span></span></div>
-        <div class="mockup-url-bar">Studio · içerik çalışma alanı</div>
-      </div>
-      <img src="{{.}}" alt="{{$.Payload.title}}">
-    </div>
-    <div class="hero-map-legend" aria-label="Platform modülleri">
-      <a href="/public/pages/tr/showcase/html"><i class="legend-dot legend-leaf"></i> İçerik</a>
-      <a href="/public/news/tr/html"><i class="legend-dot legend-sky"></i> Haber</a>
-      <a href="/shop"><i class="legend-dot legend-coral"></i> Mağaza</a>
-    </div>
+    <img src="{{.}}" alt="{{$.Payload.title}}">
   </div>
   {{end}}
 </section>

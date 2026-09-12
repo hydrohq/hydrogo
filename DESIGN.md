@@ -4,7 +4,7 @@
 
 ## Direction
 
-**Quiet Instrument** — a premium editorial technology interface with the restraint of a well-made technical publication. HydroGo’s modules share one calm field; hierarchy comes from typography, spacing, rules, and material contrast rather than a rainbow of badges.
+**Cinematic Systems** — a premium technology interface with the restraint of a high-end studio site. HydroGo opens with one full-bleed product image, a minimal transparent header, one precise message, and a clear path into the system.
 
 ## First surface
 
@@ -12,10 +12,10 @@ The public home page opens with one confident statement, a visible product works
 
 ## Visual grammar
 
-- **Material:** bone paper ground, charcoal ink, hairline rules, and quiet panel contrast; no gradients, glass, grain, or ambient glow.
-- **Palette:** bone `#F4F1EA`, charcoal `#202321`, stone `#D8D4CA`, muted bronze `#A66A45`, and fog `#EAE7E0`.
-- **Type:** a distinctive serif display voice paired with a restrained sans for interface copy. Hierarchy comes from scale, measure, and whitespace, not labels stacked above every heading.
-- **Composition:** asymmetric editorial grid; a confident first viewport, narrow reading measure, and deliberate negative space. Cards are used only where the content is actually a contained object.
+- **Material:** full-bleed photographic/product media, darkened for legibility, with restrained charcoal and warm-white controls; no decorative gradients, glass, grain, or ambient glow.
+- **Palette:** charcoal `#202321`, warm white `#FAF8F3`, stone `#DEDAD1`, and one muted bronze `#A66A45` accent.
+- **Type:** a clean, confident grotesk for the hero and interface copy, with large measured headlines and short reading lines. Hierarchy comes from scale and whitespace, not labels stacked above every heading.
+- **Composition:** one dominant cinematic hero followed by an editorial content route; cards are used only where the content is actually a contained object.
 - **Controls:** compact, high-contrast controls with clear verbs. Pills are reserved for filters/status, not every button or section.
 - **Responsive:** the composition collapses into a vertical reading route on narrow screens; no clipped navigation, horizontal overflow, or shrinking display type.
 

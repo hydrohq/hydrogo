@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "name": "Quiet Instrument",
-  "direction": "Premium editorial technology interface",
+  "name": "Cinematic Systems",
+  "direction": "Premium studio-inspired technology interface",
   "tokens": {
     "color": {
-      "canvas": "#F4F1EA",
+      "canvas": "#202321",
       "surface": "#FAF8F3",
       "ink": "#202321",
       "inkSubtle": "#50534E",
@@ -15,7 +15,7 @@
       "panel": "#DEDAD1"
     },
     "type": {
-      "display": "Georgia",
+      "display": "Trebuchet MS",
       "body": "Trebuchet MS",
       "displayTracking": "-0.055em",
       "readingMeasure": "65ch"
