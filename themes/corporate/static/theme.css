@@ -187,6 +187,16 @@ a:hover, .news-logo .logo-text span b { color: #a66a45; }
 [data-block="cta"] { background: #dedad1; border-color: #202321; }
 [data-block="cta"] a { background: #202321; color: #faf8f3; }
 .news-footer { background: #202321; }
+.theme-corporate-hero { background: #202321; }
+.product-detail-layout { align-items: start; gap: 34px; }
+.product-gallery-card, .product-tabs-card { background: #fff; border-color: #c9c5bb; border-radius: 0; box-shadow: none; }
+.product-gallery-pane { background: #202321; }
+.product-gallery-pane img { filter: grayscale(.55) saturate(.6); }
+.product-sticky-box { background: #202321; color: #faf8f3; border: 0; border-radius: 0; box-shadow: none; }
+.product-sticky-box h1, .product-sticky-box strong, .product-sticky-box label { color: #faf8f3 !important; }
+.product-price-panel, .product-support-box { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); }
+.product-price-value, .product-kicker-bar, .product-perks-checklist, .product-support-box { color: #faf8f3 !important; }
+.cart-shell { background: #fff; border: 1px solid #c9c5bb; border-radius: 0; box-shadow: none; }
 .footer-logo .logo-mark { background: #a66a45; }
 @media (max-width: 768px) {
   .theme-corporate-hero { padding-top: 34px; }
@@ -3217,3 +3227,46 @@ body:has(.theme-corporate-hero) .news-footer { margin-top: 0; }
   .stat-pill, .stat-pill + .stat-pill { border-left: 0; padding: 0; }
   .stat-pill + .stat-pill { border-top: 1px solid rgba(255,255,255,.3); padding-top: 10px; }
 }
+
+/* Generated news/commerce shells do not include the home toggle; keep their nav visible. */
+body:not(:has(.theme-corporate-hero)) .news-nav { display: flex; }
+body:not(:has(.theme-corporate-hero)) .nav-toggle { display: none; }
+@media (max-width: 768px) {
+  body:not(:has(.theme-corporate-hero)) .news-nav { flex-direction: row; flex-wrap: wrap; align-items: center; width: 100%; padding: 4px 0 0; gap: 2px; background: transparent; }
+  body:not(:has(.theme-corporate-hero)) .news-nav a { width: auto; padding: 7px 8px; }
+  body:not(:has(.theme-corporate-hero)) .news-nav .nav-admin-btn { width: auto; margin: 0 0 0 4px; }
+}
+
+/* Detail and checkout surfaces share the same quiet, dark product chrome. */
+.theme-corporate-hero { background: #202321; }
+.product-detail-layout { align-items: start; gap: 34px; }
+.product-gallery-card, .product-tabs-card { background: #fff; border-color: #c9c5bb; border-radius: 0; box-shadow: none; }
+.product-gallery-pane { background: #202321; }
+.product-gallery-pane img { filter: grayscale(.55) saturate(.6); }
+.product-sticky-box { background: #202321; color: #faf8f3; border: 0; border-radius: 0; box-shadow: none; }
+.product-sticky-box h1, .product-sticky-box strong, .product-sticky-box label { color: #faf8f3 !important; }
+.product-price-panel, .product-support-box { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); }
+.product-price-value, .product-kicker-bar, .product-perks-checklist, .product-support-box { color: #faf8f3 !important; }
+.cart-shell { background: #fff; border: 1px solid #c9c5bb; border-radius: 0; box-shadow: none; }
+
+/* Shared public surfaces: neutral canvas and a dark studio-grade chrome. */
+.site-announcement { display: none !important; }
+body:not(:has(.theme-corporate-hero)) { background: #f3f4f2; }
+body:not(:has(.theme-corporate-hero)) .news-header { background: #202321; border-bottom: 1px solid #202321; color: #faf8f3; }
+body:not(:has(.theme-corporate-hero)) .news-logo, body:not(:has(.theme-corporate-hero)) .news-logo .logo-text span, body:not(:has(.theme-corporate-hero)) .news-logo .logo-text small { color: #faf8f3; }
+body:not(:has(.theme-corporate-hero)) .news-logo .logo-text span b { color: #d8b49b; }
+body:not(:has(.theme-corporate-hero)) .news-logo .logo-mark { background: #faf8f3; color: #202321; }
+body:not(:has(.theme-corporate-hero)) .news-nav a { color: #faf8f3; }
+body:not(:has(.theme-corporate-hero)) .news-nav a:hover, body:not(:has(.theme-corporate-hero)) .news-nav a.is-active { background: rgba(255,255,255,.14); color: #fff; }
+body:not(:has(.theme-corporate-hero)) .news-nav .nav-admin-btn { background: #a66a45; border-color: #a66a45; }
+.news-hero-banner { background: #202321; color: #faf8f3; border: 0; border-radius: 0; box-shadow: none; }
+.news-hero-banner h1, .news-hero-banner h2, .news-hero-banner p, .news-hero-banner a { color: #faf8f3; }
+.news-hero-banner .section-badge, .news-hero-banner .news-tag-badge { color: #d8b49b; background: transparent; border: 0; }
+.featured-card { border-radius: 0; }
+.news-card, .product-card { background: #fff; border: 1px solid #c9c5bb; border-radius: 0; box-shadow: none; }
+.news-card:hover, .product-card:hover { box-shadow: 0 12px 24px rgba(32,35,33,.1); }
+.news-card .news-cover-image, .product-card .product-image { border-bottom: 1px solid #c9c5bb; }
+.news-article-card, .product-gallery-card, .product-tabs-card { background: #fff; border: 1px solid #c9c5bb; border-radius: 0; box-shadow: none; }
+.news-key-takeaways { background: #e9ece8; border: 1px solid #c9c5bb; }
+.section-header { border-color: #202321; }
+.news-footer { background: #202321; }
