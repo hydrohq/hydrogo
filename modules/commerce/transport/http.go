@@ -131,7 +131,7 @@ func (h Handler) paymentIntent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if h.Limiter != nil && !h.Limiter.Allow("payment-intent:"+user.ID) {
+	if h.Limiter != nil && !h.Limiter.Allow("payment-intent:"+user.ID+":"+requestClientIP(r)) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
@@ -890,7 +890,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if h.Limiter != nil && !h.Limiter.Allow("checkout:"+user.ID) {
+	if h.Limiter != nil && !h.Limiter.Allow("checkout:"+user.ID+":"+requestClientIP(r)) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
