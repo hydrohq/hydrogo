@@ -53,6 +53,7 @@ type PaymentProvider interface {
 
 var ErrInvalidPaymentEvent = errors.New("invalid payment event")
 var ErrPaymentMismatch = errors.New("payment does not match order")
+var ErrRefundPending = errors.New("refund reconciliation is pending")
 
 func ValidateWebhookEvent(event WebhookEvent) error {
 	if strings.TrimSpace(event.ID) == "" || strings.TrimSpace(event.Provider) == "" || strings.TrimSpace(event.ProviderEventID) == "" || strings.TrimSpace(event.OrderID) == "" || strings.TrimSpace(event.PaymentID) == "" || event.AmountCents < 0 || strings.TrimSpace(event.Currency) == "" || strings.TrimSpace(event.Status) == "" {
@@ -70,6 +71,7 @@ type PaymentWebhookStore interface {
 
 type PaymentRefundStore interface {
 	GetPaymentTransaction(context.Context, database.Executor, string) (PaymentTransaction, error)
+	ClaimPaymentRefund(context.Context, database.Executor, string, string) error
 	MarkPaymentRefunded(context.Context, database.Executor, string, string) error
 }
 
@@ -118,6 +120,14 @@ func (s PaymentService) Refund(ctx context.Context, db database.Executor, orderI
 	}
 	if transaction.Provider != providerName || transaction.ProviderPaymentID != paymentID || transaction.Status != "paid" || transaction.AmountCents != amountCents {
 		return ErrPaymentMismatch
+	}
+	// Claim before the external effect. If the provider outcome is ambiguous
+	// (timeout, disconnect, or a database failure after success), retries stay
+	// pending for reconciliation instead of issuing a duplicate refund.
+	if err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		return store.ClaimPaymentRefund(ctx, tx, orderID, paymentID)
+	}); err != nil {
+		return err
 	}
 	if err := provider.Refund(ctx, paymentID, amountCents); err != nil {
 		return err

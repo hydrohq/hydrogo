@@ -496,7 +496,7 @@ func (s Store) MarkPaymentRefunded(ctx context.Context, db database.Executor, or
 		return err
 	}
 	now := time.Now().UTC()
-	q := `UPDATE commerce_payment_transactions SET status = ` + s.placeholder(1) + `, updated_at = ` + s.placeholder(2) + ` WHERE order_id = ` + s.placeholder(3) + ` AND provider_payment_id = ` + s.placeholder(4) + ` AND status = 'paid'`
+	q := `UPDATE commerce_payment_transactions SET status = ` + s.placeholder(1) + `, updated_at = ` + s.placeholder(2) + ` WHERE order_id = ` + s.placeholder(3) + ` AND provider_payment_id = ` + s.placeholder(4) + ` AND status = 'refund_pending'`
 	result, err := db.ExecContext(ctx, q, "refunded", now, orderID, paymentID)
 	if err != nil {
 		return err
@@ -513,6 +513,25 @@ func (s Store) MarkPaymentRefunded(ctx context.Context, db database.Executor, or
 	changed, err = result.RowsAffected()
 	if err != nil || changed != 1 {
 		return commerce.ErrPaymentMismatch
+	}
+	return nil
+}
+
+func (s Store) ClaimPaymentRefund(ctx context.Context, db database.Executor, orderID, paymentID string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	q := `UPDATE commerce_payment_transactions SET status = ` + s.placeholder(1) + `, updated_at = ` + s.placeholder(2) + ` WHERE order_id = ` + s.placeholder(3) + ` AND provider_payment_id = ` + s.placeholder(4) + ` AND status = 'paid'`
+	result, err := db.ExecContext(ctx, q, "refund_pending", time.Now().UTC(), orderID, paymentID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return commerce.ErrRefundPending
 	}
 	return nil
 }

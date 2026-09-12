@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -64,6 +65,12 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	transaction, err := store.GetPaymentTransaction(context.Background(), db, "o1")
 	if err != nil || transaction.ProviderPaymentID != "pi-1" || transaction.Status != "paid" {
 		t.Fatalf("payment transaction = %+v, %v", transaction, err)
+	}
+	if err := store.ClaimPaymentRefund(context.Background(), db, "o1", "pi-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ClaimPaymentRefund(context.Background(), db, "o1", "pi-1"); !errors.Is(err, commerce.ErrRefundPending) {
+		t.Fatalf("second refund claim = %v", err)
 	}
 	if err := store.MarkPaymentRefunded(context.Background(), db, "o1", "pi-1"); err != nil {
 		t.Fatal(err)

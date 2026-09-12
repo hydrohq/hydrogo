@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -911,6 +912,10 @@ func (h Handler) adminRefund(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.PaymentService.Refund(r.Context(), h.DB, r.PathValue("orderID"), r.FormValue("provider"), r.FormValue("payment_id"), amount); err != nil {
+		if errors.Is(err, commerce.ErrRefundPending) {
+			http.Error(w, "refund is pending reconciliation", http.StatusConflict)
+			return
+		}
 		http.Error(w, "refund failed", http.StatusBadGateway)
 		return
 	}
