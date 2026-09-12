@@ -700,6 +700,7 @@ func serve(args []string, stderr io.Writer) error {
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	var selectedTheme *themev1.ThemeBundle
+	modules := enabledModuleSet(cfg.Modules)
 	themeName := cfg.Theme
 	if themeName == "" {
 		themeName = "corporate"
@@ -712,14 +713,17 @@ func serve(args []string, stderr io.Writer) error {
 			return fmt.Errorf("load theme %q: %w", cfg.Theme, err)
 		}
 	}
-	uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
-	if err != nil {
-		return err
-	}
 	mediaStore := mediastore.Store{Dialect: cfg.Database.Dialect}
-	mediaOptimizer := media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
-	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediaStore, Optimizer: mediaOptimizer}
-	go func() { <-ctx.Done(); mediaOptimizer.Close() }()
+	var mediaService media.Service
+	if modules["media"] {
+		uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
+		if err != nil {
+			return err
+		}
+		mediaOptimizer := media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
+		mediaService = media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediaStore, Optimizer: mediaOptimizer}
+		go func() { <-ctx.Done(); mediaOptimizer.Close() }()
+	}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
@@ -973,10 +977,16 @@ func serve(args []string, stderr io.Writer) error {
 	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions", "GET /admin/developer", "GET /admin/developer/resources"} {
 		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
 	}
-	routes = append(routes, mediaRouterRoutes(mediaHTTP.AdminRoutes())...)
-	routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
-	routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
-	routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
+	if modules["media"] {
+		routes = append(routes, mediaRouterRoutes(mediaHTTP.AdminRoutes())...)
+		routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
+	}
+	if modules["site"] {
+		routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
+	}
+	if modules["news"] {
+		routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
+	}
 	if selectedTheme != nil {
 		routes = append(routes, router.Route{Pattern: "GET /theme/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(selectedTheme.ServeAsset)})
 	}
@@ -1015,7 +1025,9 @@ func serve(args []string, stderr io.Writer) error {
 		routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
 		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
 	}
-	routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: graphqlHTTP})
+	if modules["pages"] || modules["commerce"] {
+		routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: graphqlHTTP})
+	}
 
 	metrics := observability.NewMetrics()
 	runtimeMetrics = metrics
@@ -1052,7 +1064,9 @@ func serve(args []string, stderr io.Writer) error {
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
 	})
 	go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
-	go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
+	if modules["news"] {
+		go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
+	}
 	webhookEndpoints := make([]webhooks.Endpoint, 0, len(cfg.Webhooks))
 	for _, configured := range cfg.Webhooks {
 		topics := make(map[string]struct{}, len(configured.Topics))
