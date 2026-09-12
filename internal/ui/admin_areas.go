@@ -157,7 +157,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
           <span class="dev-path">/api/v1/commerce/products</span>
         </div>
         <div class="dev-ep-actions">
-          <button class="dev-btn-sm" type="button" onclick="testEndpoint(this, '/api/v1/commerce/products')">▶ Canlı Test Et</button>
+          <button class="dev-btn-sm" type="button" data-test-endpoint="/api/v1/commerce/products">▶ Canlı Test Et</button>
           <a class="dev-btn-sm" href="/api/v1/commerce/products" target="_blank">JSON Aç ↗</a>
         </div>
       </div>
@@ -172,7 +172,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
           <span class="dev-path">/api/news?locale=tr</span>
         </div>
         <div class="dev-ep-actions">
-          <button class="dev-btn-sm" type="button" onclick="testEndpoint(this, '/api/news?locale=tr')">▶ Canlı Test Et</button>
+          <button class="dev-btn-sm" type="button" data-test-endpoint="/api/news?locale=tr">▶ Canlı Test Et</button>
           <a class="dev-btn-sm" href="/api/news?locale=tr" target="_blank">JSON Aç ↗</a>
         </div>
       </div>
@@ -187,7 +187,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
           <span class="dev-path">/api/graphql</span>
         </div>
         <div class="dev-ep-actions">
-          <button class="dev-btn-sm" type="button" onclick="testGraphQL(this)">▶ Canlı Query Test Et</button>
+          <button class="dev-btn-sm" type="button" data-test-graphql>▶ Canlı Query Test Et</button>
           <a class="dev-btn-sm" href="/api/graphql" target="_blank">Konsolu Aç ↗</a>
         </div>
       </div>
@@ -202,7 +202,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
           <span class="dev-path">/readyz &amp; /healthz</span>
         </div>
         <div class="dev-ep-actions">
-          <button class="dev-btn-sm" type="button" onclick="testEndpoint(this, '/readyz')">▶ Readiness Test Et</button>
+          <button class="dev-btn-sm" type="button" data-test-endpoint="/readyz">▶ Readiness Test Et</button>
           <a class="dev-btn-sm" href="/readyz" target="_blank">Status Aç ↗</a>
         </div>
       </div>
@@ -228,6 +228,12 @@ products, err := client.Commerce.ListProducts(ctx)</pre>
   </div>
 </div>
 <script nonce="%s">
+document.addEventListener('click', event => {
+  const endpointButton = event.target.closest('[data-test-endpoint]');
+  if (endpointButton) testEndpoint(endpointButton, endpointButton.dataset.testEndpoint);
+  const graphqlButton = event.target.closest('[data-test-graphql]');
+  if (graphqlButton) testGraphQL(graphqlButton);
+});
 function testEndpoint(btn, url){
   const box = btn.closest('.dev-endpoint-card').querySelector('.dev-preview-box');
   btn.disabled = true;
