@@ -30,6 +30,7 @@ type Handler struct {
 	Orders            commerce.OrderReader
 	Payments          map[string]commerce.PaymentProvider
 	PaymentService    commerce.PaymentService
+	Limiter           security.RateLimiter
 	AdminCollection   adminstudio.Collection
 	VariantCollection adminstudio.Collection
 }
@@ -128,6 +129,11 @@ func (h Handler) paymentIntent(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
 	if user == nil || !user.Active || h.Orders == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Limiter != nil && !h.Limiter.Allow("payment-intent:"+user.ID) {
+		w.Header().Set("Retry-After", "60")
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
 	}
 	var input paymentIntentInput
@@ -882,6 +888,11 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
 	if user == nil || !user.Active {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Limiter != nil && !h.Limiter.Allow("checkout:"+user.ID) {
+		w.Header().Set("Retry-After", "60")
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
 	}
 	key := r.Header.Get("Idempotency-Key")
