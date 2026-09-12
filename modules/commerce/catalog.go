@@ -105,6 +105,20 @@ func (s CatalogService) GetProduct(ctx context.Context, db database.Executor, pr
 	return s.Store.GetProduct(ctx, db, productID)
 }
 
+// GetPublishedProduct is the public catalog projection. Administrative callers
+// use GetProduct; public handlers must never expose a draft record merely
+// because its opaque ID is known.
+func (s CatalogService) GetPublishedProduct(ctx context.Context, db database.Executor, productID string) (Product, error) {
+	product, err := s.GetProduct(ctx, db, productID)
+	if err != nil {
+		return Product{}, err
+	}
+	if product.Status != ProductPublished && product.Status != ProductOutOfStock {
+		return Product{}, errors.New("published product not found")
+	}
+	return product, nil
+}
+
 func (s CatalogService) ListProducts(ctx context.Context, db database.Executor, publicOnly bool) ([]Product, error) {
 	if s.Store == nil {
 		return nil, errors.New("commerce catalog dependency is required")

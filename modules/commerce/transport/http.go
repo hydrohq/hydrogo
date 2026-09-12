@@ -23,15 +23,20 @@ import (
 )
 
 type Handler struct {
-	DB                database.Executor
-	Commerce          commerce.Service
-	Catalog           commerce.CatalogService
-	Cart              commerce.CartService
-	CatalogVariants   commerce.VariantStore
-	Orders            commerce.OrderReader
-	Payments          map[string]commerce.PaymentProvider
-	PaymentService    commerce.PaymentService
-	Limiter           security.RateLimiter
+	DB              database.Executor
+	Commerce        commerce.Service
+	Catalog         commerce.CatalogService
+	Cart            commerce.CartService
+	CatalogVariants commerce.VariantStore
+	Orders          commerce.OrderReader
+	Payments        map[string]commerce.PaymentProvider
+	PaymentService  commerce.PaymentService
+	Limiter         security.RateLimiter
+	// ResolveMemberID maps the opaque member-session cookie to the stable
+	// member ID at the composition boundary. Commerce never stores the raw
+	// browser session credential.
+	ResolveMemberID   func(*http.Request) (string, bool)
+	SecureCookies     bool
 	AdminCollection   adminstudio.Collection
 	VariantCollection adminstudio.Collection
 }
@@ -76,7 +81,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/commerce/cart/items", Handler: http.HandlerFunc(h.addCartItem), Protected: true},
 		{Pattern: "DELETE /api/commerce/cart/items/{productID}", Handler: http.HandlerFunc(h.removeCartItem), Protected: true},
 		{Pattern: "POST /api/commerce/cart/checkout", Handler: http.HandlerFunc(h.checkout), Protected: true},
-		{Pattern: "POST /api/commerce/orders/{orderID}/payment-intent", Handler: http.HandlerFunc(h.paymentIntent), Protected: true},
+		{Pattern: "POST /api/commerce/orders/{orderID}/payment-intent", Handler: http.HandlerFunc(h.paymentIntent), Protected: false},
 		{Pattern: "GET /shop", Handler: http.HandlerFunc(h.shop), Protected: false},
 		{Pattern: "GET /shop/products/{productID}", Handler: http.HandlerFunc(h.productDetailPage), Protected: false},
 		{Pattern: "GET /shop/products/{productID}/html", Handler: http.HandlerFunc(h.productDetailPage), Protected: false},
@@ -127,12 +132,12 @@ type paymentIntentInput struct {
 }
 
 func (h Handler) paymentIntent(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || h.Orders == nil {
+	ownerID, ok := h.commerceCustomerID(r)
+	if !ok || h.Orders == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if h.Limiter != nil && !h.Limiter.Allow("payment-intent:"+user.ID+":"+requestClientIP(r)) {
+	if h.Limiter != nil && !h.Limiter.Allow("payment-intent:"+ownerID+":"+requestClientIP(r)) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
@@ -162,7 +167,7 @@ func (h Handler) paymentIntent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "order unavailable", http.StatusNotFound)
 		return
 	}
-	if order.UserID != user.ID {
+	if order.UserID != ownerID {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -308,7 +313,7 @@ func (h Handler) createProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) getProduct(w http.ResponseWriter, r *http.Request) {
-	product, err := h.Catalog.GetProduct(r.Context(), h.DB, r.PathValue("productID"))
+	product, err := h.Catalog.GetPublishedProduct(r.Context(), h.DB, r.PathValue("productID"))
 	if err != nil {
 		http.Error(w, "product not found", http.StatusNotFound)
 		return
@@ -340,7 +345,7 @@ func (h Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 	productID := r.PathValue("productID")
-	product, err := h.Catalog.GetProduct(r.Context(), h.DB, productID)
+	product, err := h.Catalog.GetPublishedProduct(r.Context(), h.DB, productID)
 	if err != nil {
 		http.Error(w, "product not found", http.StatusNotFound)
 		return
@@ -461,25 +466,55 @@ func (h Handler) resolveCartUserID(w http.ResponseWriter, r *http.Request) strin
 	if user := auth.UserFromContext(r.Context()); user != nil && user.Active && strings.TrimSpace(user.ID) != "" {
 		return user.ID
 	}
+	if memberID, ok := h.memberID(r); ok {
+		return memberID
+	}
 	if cookie, err := r.Cookie(cartCookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
 		return cookie.Value
-	}
-	if cookie, err := r.Cookie("hydro_member_session"); err == nil && strings.TrimSpace(cookie.Value) != "" {
-		return "member_" + cookie.Value
 	}
 	id, err := newID()
 	if err != nil {
 		id = fmt.Sprintf("guest-%d", time.Now().UnixNano())
+	} else {
+		id = "guest_" + id
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     cartCookieName,
 		Value:    id,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   h.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   86400 * 30,
 	})
 	return id
+}
+
+// commerceCustomerID reads an existing identity only. It deliberately does
+// not mint a guest credential: payment authorization must prove ownership of
+// a previously created cart/order.
+func (h Handler) commerceCustomerID(r *http.Request) (string, bool) {
+	if user := auth.UserFromContext(r.Context()); user != nil && user.Active && strings.TrimSpace(user.ID) != "" {
+		return user.ID, true
+	}
+	if memberID, ok := h.memberID(r); ok {
+		return memberID, true
+	}
+	if cookie, err := r.Cookie(cartCookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
+		return cookie.Value, true
+	}
+	return "", false
+}
+
+func (h Handler) memberID(r *http.Request) (string, bool) {
+	if h.ResolveMemberID == nil {
+		return "", false
+	}
+	memberID, ok := h.ResolveMemberID(r)
+	if !ok || strings.TrimSpace(memberID) == "" {
+		return "", false
+	}
+	return memberID, true
 }
 
 func (h Handler) addCartItemForm(w http.ResponseWriter, r *http.Request) {

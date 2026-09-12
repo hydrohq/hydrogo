@@ -56,6 +56,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0025](0025-separate-frontend-members.md) | Separate frontend member identity | Accepted for MVP |
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
+| [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

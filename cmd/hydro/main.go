@@ -1024,7 +1024,19 @@ func serve(args []string, stderr io.Writer) error {
 			return errors.New("commerce admin studio metadata missing")
 		}
 		commerceCollection.Fields = append(commerceCollection.Fields, adminstudio.Field{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"})
-		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}, AdminCollection: commerceCollection}
+		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies,
+			ResolveMemberID: func(r *http.Request) (string, bool) {
+				cookie, err := r.Cookie(members.SessionCookieName)
+				if err != nil || strings.TrimSpace(cookie.Value) == "" {
+					return "", false
+				}
+				_, member, err := memberService.ValidateSession(r.Context(), cookie.Value)
+				if err != nil || member == nil || !member.Active {
+					return "", false
+				}
+				return member.ID, true
+			},
+		}
 		variantCollection, ok := studioRegistry.Collection("commerce_variants")
 		if !ok {
 			return errors.New("commerce variants admin studio metadata missing")
