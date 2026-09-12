@@ -102,6 +102,13 @@ R3 initial commit: disabled user/session revoke, admin-controlled user disable r
 - [ ] New DB adapter, advanced search, OIDC/SAML, or custom mobile API if there's demand; each with a separate decision and test gate.
 - [ ] Commerce, AI, and multi-tenant are evaluated with separate scope/ADRs.
 
+## Deferred product ergonomics
+
+- [ ] Provide production-oriented minimal module presets (`compact-site`, `editorial`, `commerce`,
+  and `headless`) instead of treating the all-modules example configuration as a deployment
+  default. Each preset must prove that excluded modules create no routes, migrations, assets, or
+  workers, and must pass the SQLite/PostgreSQL module-isolation contract before release.
+
 ## Evidence and progress tracking
 
 The necessary conditions and evidence format for gates left open in real environments are maintained in the [Production gate evidence checklist](validation/PRODUCTION-GATES.md). Latest automated reliability and security hardening evidence: [R7 validation report](validation/R7-reliability-security-hardening-2026-09-10.md).

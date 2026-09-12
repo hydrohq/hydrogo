@@ -13,6 +13,7 @@ $state = Join-Path $root "auth-state.json"
 $stdout = Join-Path $root "serve.stdout.log"
 $stderr = Join-Path $root "serve.stderr.log"
 $process = $null
+$previousRedisURL = $env:HYDRO_REDIS_URL
 $portProbe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
 $portProbe.Start()
 $port = ([System.Net.IPEndPoint]$portProbe.LocalEndpoint).Port
@@ -21,6 +22,9 @@ $baseURL = "http://127.0.0.1:$port"
 
 New-Item -ItemType Directory -Force $root, $media | Out-Null
 try {
+	# The browser suite proves the Compact SQLite path. Do not let a developer's
+	# optional Redis/Valkey setting alter this isolated fixture.
+	Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue
     go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=e2e -X main.buildTime=e2e" -o $bin (Join-Path $repo "cmd\hydro")
     $env:HYDRO_MEDIA_DIR = $media
     & $bin migrate --database-dialect sqlite --database-dsn $db
@@ -53,6 +57,7 @@ try {
     } finally { Pop-Location }
     Write-Host "PASS: generated Admin Studio and frontend E2E completed"
 } finally {
+	if ($null -eq $previousRedisURL) { Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue } else { $env:HYDRO_REDIS_URL = $previousRedisURL }
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
     if (Test-Path -LiteralPath $stderr) {
         $errors = Get-Content -LiteralPath $stderr -Raw
