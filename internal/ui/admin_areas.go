@@ -297,16 +297,16 @@ function testGraphQL(btn){
 </style>
 <div class="ops-grid" data-testid="operations-area">
   <div class="ops-kpis">
-    <div class="ops-kpi"><small>SERVİS DURUMU</small><strong style="color:#16a34a;">Hazır &amp; Canlı</strong><span>/readyz HTTP 200 OK</span></div>
-    <div class="ops-kpi"><small>VERİTABANI MOTORU</small><strong>SQLite / WAL</strong><span>Sözleşme doğrulamalı</span></div>
-    <div class="ops-kpi"><small>ARKA PLAN KUYRUKLARI</small><strong>0 Bekleyen</strong><span>İşlemci kapasitesi normal</span></div>
-    <div class="ops-kpi"><small>DEAD-LETTER JOBS</small><strong style="color:#16a34a;">0 Hatalı</strong><span>Takılı kalan görev yok</span></div>
+    <div class="ops-kpi"><small>SERVİS DURUMU</small><strong>Canlı doğrulama</strong><span>Durumu /readyz üzerinden kontrol edin</span></div>
+    <div class="ops-kpi"><small>VERİTABANI</small><strong>Yapılandırmaya bağlı</strong><span>Etkin adaptörü dağıtım ayarlarından doğrulayın</span></div>
+    <div class="ops-kpi"><small>ARKA PLAN KUYRUKLARI</small><strong>Gözlem gerekli</strong><span>Bekleyen işleri operasyon panelinden inceleyin</span></div>
+    <div class="ops-kpi"><small>DEAD-LETTER JOBS</small><strong>Gözlem gerekli</strong><span>Hata durumunu canlı veriden doğrulayın</span></div>
   </div>
 
   <div class="ops-two-col">
     <div class="ops-card">
       <h3>🛠️ Yedekleme &amp; Felaket Kurtarma (Backup &amp; Restore)</h3>
-      <p>HydroGo, veritabanı ve medya varlıklarını atomik SHA-256 imzalı paketler halinde yedekler. Dağıtım sırasında write-fence ile veri bütünlüğü korunur.</p>
+      <p>Yedekleme ve geri yükleme prosedürlerini bu ortamın çalıştırma kılavuzuna göre yürütün; işlemi üretim benzeri bir ortamda doğrulamadan başarılı kabul etmeyin.</p>
       <div style="font-size:.85rem;color:var(--ink);font-weight:600;margin-bottom:6px;">CLI Yedekleme Komutu:</div>
       <div class="ops-cli-box">hydro backup create --config hydro.yaml</div>
       <div style="font-size:.85rem;color:var(--ink);font-weight:600;margin:12px 0 6px;">Sağlık Kontrolü (Doctor):</div>
@@ -319,14 +319,14 @@ function testGraphQL(btn){
 
     <div class="ops-card">
       <h3>🛡️ Blue/Green Dağıtım &amp; Güvenlik Fensi</h3>
-      <p>Canlı sistem güncellemelerinde oturumlar kesintiye uğramaz. Geri alma (rollback) adımları otomatik durum makinesi tarafından denetlenir.</p>
+      <p>Blue/green geçişi ve geri alma, sürüm uyumluluğu ile işletim prosedürlerine bağlıdır. Canlı ortamda uygulanmadan önce geçiş planını test edin.</p>
       <ul style="margin:0 0 16px;padding-left:20px;color:var(--muted);font-size:.85rem;line-height:1.6;">
-        <li>Şema migrasyonları additive ve çift-yönlü uyumludur.</li>
-        <li>Medya varlıkları sürüm kilitli olarak saklanır.</li>
-        <li>Staging-first geri yükleme ile canlı veri kaybı önlenir.</li>
+        <li>Şema ve uygulama sürümlerinin uyumluluğunu yayın öncesi doğrulayın.</li>
+        <li>Medya, oturum ve arka plan işlerinin sürekliliği için geri dönüş planı hazırlayın.</li>
+        <li>Geri yüklemeyi önce izole bir ortamda deneyin.</li>
       </ul>
       <div style="font-size:.82rem;padding:10px 14px;background:var(--bg-subtle);border-radius:8px;border:1px solid var(--line);">
-        Sistem Kimliği: <strong style="font-family:var(--font-mono);color:var(--ink);">hydrogo-compact-v2</strong>
+        Sistem kimliği ve sürümü için çalışma zamanı durum uç noktasını kullanın.
       </div>
     </div>
   </div>

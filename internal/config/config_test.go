@@ -153,6 +153,32 @@ func TestValidateRejectsNonOriginPublicURLs(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsInsecureOrMalformedPaymentReturnURLs(t *testing.T) {
+	base := map[string]string{
+		"HYDRO_DATABASE_DSN":        "file:test.sqlite",
+		"HYDRO_IYZICO_API_KEY":      "key",
+		"HYDRO_IYZICO_SECRET_KEY":   "secret",
+		"HYDRO_IYZICO_CALLBACK_URL": "http://example.test/payment/return",
+	}
+	if _, err := Load("", lookup(base), Overrides{}); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Fatalf("insecure iyzico callback error = %v", err)
+	}
+	base["HYDRO_IYZICO_CALLBACK_URL"] = "https://user:pass@example.test/payment/return#fragment"
+	if _, err := Load("", lookup(base), Overrides{}); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Fatalf("malformed iyzico callback error = %v", err)
+	}
+	if _, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":        "file:test.sqlite",
+		"HYDRO_PAYTR_MERCHANT_ID":   "merchant",
+		"HYDRO_PAYTR_MERCHANT_KEY":  "key",
+		"HYDRO_PAYTR_MERCHANT_SALT": "salt",
+		"HYDRO_PAYTR_SUCCESS_URL":   "https://example.test/payment/success",
+		"HYDRO_PAYTR_FAIL_URL":      "http://example.test/payment/fail",
+	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Fatalf("insecure PayTR return URL error = %v", err)
+	}
+}
+
 func TestLoadValidatesPublicAPIOriginAllowlist(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{
 		"HYDRO_DATABASE_DSN":       "file:test.sqlite",

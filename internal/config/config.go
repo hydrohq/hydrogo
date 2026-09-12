@@ -342,11 +342,17 @@ func (c Config) Validate() error {
 	if c.Payments.IyzicoAPIKey != "" && c.Payments.IyzicoCallbackURL == "" {
 		return errors.New("iyzico callback URL is required when iyzico is configured")
 	}
+	if c.Payments.IyzicoAPIKey != "" && !isHTTPSCallbackURL(c.Payments.IyzicoCallbackURL) {
+		return errors.New("iyzico callback URL must be an absolute HTTPS URL without credentials or fragments")
+	}
 	if (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantKey == "") || (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantSalt == "") {
 		return errors.New("PayTR merchant ID, key and salt must be configured together")
 	}
 	if c.Payments.PayTRMerchantID != "" && (c.Payments.PayTRSuccessURL == "" || c.Payments.PayTRFailURL == "") {
 		return errors.New("PayTR success and fail URLs are required when PayTR is configured")
+	}
+	if c.Payments.PayTRMerchantID != "" && (!isHTTPSCallbackURL(c.Payments.PayTRSuccessURL) || !isHTTPSCallbackURL(c.Payments.PayTRFailURL)) {
+		return errors.New("PayTR success and fail URLs must be absolute HTTPS URLs without credentials or fragments")
 	}
 	for _, webhook := range c.Webhooks {
 		if strings.TrimSpace(webhook.ID) == "" || strings.TrimSpace(webhook.URL) == "" || strings.TrimSpace(webhook.Secret) == "" {
@@ -451,4 +457,9 @@ func isHTTPOrigin(parsed *url.URL) bool {
 		return false
 	}
 	return (parsed.Path == "" || parsed.Path == "/") && parsed.RawQuery == "" && parsed.Fragment == ""
+}
+
+func isHTTPSCallbackURL(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	return err == nil && parsed != nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.Hostname() != "" && parsed.User == nil && parsed.Opaque == "" && parsed.Fragment == ""
 }

@@ -62,6 +62,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0032](0032-payment-provider-transport-safety.md) | Bounded, redirect-safe payment provider transport | Accepted |
 | [0033](0033-runtime-module-resource-gating.md) | Runtime resources gated by active modules | Accepted |
 | [0034](0034-refund-reconciliation-state.md) | Idempotent refund reconciliation state | Accepted |
+| [0035](0035-secure-payment-return-url-validation.md) | Secure payment return URL validation | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
