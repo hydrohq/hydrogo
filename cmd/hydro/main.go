@@ -805,7 +805,7 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			http.Redirect(w, r, "/public/pages/tr/demo/html", http.StatusFound)
+			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 		http.NotFound(w, r)
