@@ -198,7 +198,8 @@ func (h Handler) register(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid credentials", 400)
 			return
 		}
-		http.Error(w, "registration failed: "+err.Error(), 400)
+		// Do not expose repository/provider details in a public response.
+		http.Error(w, "registration unavailable", http.StatusBadRequest)
 		return
 	}
 	h.issueSession(w, r, m)
