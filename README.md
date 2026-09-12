@@ -220,6 +220,7 @@ The repository does not claim a production profile or SLA until those forms of e
 - [Implementation plan](docs/implementation_plan.md): scope and target architecture
 - [ADR index](docs/architecture/README.md): binding architectural decisions
 - [Production gate checklist](docs/validation/PRODUCTION-GATES.md): evidence format for real environments
+- [Open gates and operator actions](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md): user actions, unverified tests, and production blockers
 - [Operations runbook](docs/OPERATIONS_RUNBOOK.md): deploy, backup, restore, and alarm flows
 - [Support matrix](docs/SUPPORT_MATRIX.md): supported and uncertified profiles
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md): old/new release boundaries

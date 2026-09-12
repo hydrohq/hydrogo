@@ -57,6 +57,7 @@ type Service struct {
 	Transactions database.Transactor
 	Uploader     *Uploader
 	Assets       AssetRepository
+	Optimizer    *Optimizer
 }
 
 func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) (*UploadResult, error) {
@@ -91,9 +92,15 @@ func (s Service) MarkReady(ctx context.Context, id, visibility string) error {
 	if guards.IsNil(s.Assets) {
 		return ErrAssetRepositoryRequired
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		return s.Assets.MarkReady(ctx, tx, id, visibility)
 	})
+	if err == nil && s.Optimizer != nil {
+		if asset, getErr := s.Get(ctx, s.Optimizer.db, id); getErr == nil {
+			s.Optimizer.Enqueue(asset)
+		}
+	}
+	return err
 }
 
 func (s Service) SetVisibility(ctx context.Context, id, visibility string) error {

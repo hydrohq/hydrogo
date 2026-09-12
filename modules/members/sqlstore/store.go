@@ -28,8 +28,30 @@ func (s Store) ph(n int) string {
 	}
 	return "?"
 }
+
 func (s Store) Create(ctx context.Context, m *members.Member) error {
-	_, err := s.DB.ExecContext(ctx, "INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES ("+s.ph(1)+","+s.ph(2)+","+s.ph(3)+","+s.ph(4)+","+s.ph(5)+","+s.ph(6)+","+s.ph(7)+","+s.ph(8)+")", m.ID, m.Email, m.PasswordHash, m.Active, m.EmailVerifiedAt, m.LastLoginAt, m.CreatedAt, m.UpdatedAt)
+	var verifiedAt, lastLoginAt any
+	var createdAtVal any = m.CreatedAt
+	var updatedAtVal any = m.UpdatedAt
+	if m.EmailVerifiedAt != nil {
+		if s.Dialect == database.SQLite {
+			verifiedAt = m.EmailVerifiedAt.Format(time.RFC3339Nano)
+		} else {
+			verifiedAt = m.EmailVerifiedAt
+		}
+	}
+	if m.LastLoginAt != nil {
+		if s.Dialect == database.SQLite {
+			lastLoginAt = m.LastLoginAt.Format(time.RFC3339Nano)
+		} else {
+			lastLoginAt = m.LastLoginAt
+		}
+	}
+	if s.Dialect == database.SQLite {
+		createdAtVal = m.CreatedAt.Format(time.RFC3339Nano)
+		updatedAtVal = m.UpdatedAt.Format(time.RFC3339Nano)
+	}
+	_, err := s.DB.ExecContext(ctx, "INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES ("+s.ph(1)+","+s.ph(2)+","+s.ph(3)+","+s.ph(4)+","+s.ph(5)+","+s.ph(6)+","+s.ph(7)+","+s.ph(8)+")", m.ID, m.Email, m.PasswordHash, m.Active, verifiedAt, lastLoginAt, createdAtVal, updatedAtVal)
 	return err
 }
 
@@ -194,17 +216,32 @@ func (s Store) Stats(ctx context.Context) (members.MemberStats, error) {
 }
 
 func (s SessionStore) Create(ctx context.Context, session *members.Session) error {
-	_, err := s.DB.ExecContext(ctx, "INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address) VALUES ("+s.ph(1)+","+s.ph(2)+","+s.ph(3)+","+s.ph(4)+","+s.ph(5)+","+s.ph(6)+","+s.ph(7)+","+s.ph(8)+")", session.ID, session.MemberID, session.TokenHash, session.ExpiresAt, session.CreatedAt, session.LastSeenAt, session.UserAgent, session.IPAddress)
+	var expiresAtVal any = session.ExpiresAt
+	var createdAtVal any = session.CreatedAt
+	var lastSeenAtVal any = session.LastSeenAt
+	if s.Dialect == database.SQLite {
+		expiresAtVal = session.ExpiresAt.Format(time.RFC3339Nano)
+		createdAtVal = session.CreatedAt.Format(time.RFC3339Nano)
+		lastSeenAtVal = session.LastSeenAt.Format(time.RFC3339Nano)
+	}
+	_, err := s.DB.ExecContext(ctx, "INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address) VALUES ("+s.ph(1)+","+s.ph(2)+","+s.ph(3)+","+s.ph(4)+","+s.ph(5)+","+s.ph(6)+","+s.ph(7)+","+s.ph(8)+")", session.ID, session.MemberID, session.TokenHash, expiresAtVal, createdAtVal, lastSeenAtVal, session.UserAgent, session.IPAddress)
 	return err
 }
 
 func (s SessionStore) GetByTokenHash(ctx context.Context, hash string) (*members.Session, error) {
 	var v members.Session
-	err := s.DB.QueryRowContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE token_hash = "+s.ph(1), hash).Scan(&v.ID, &v.MemberID, &v.TokenHash, &v.ExpiresAt, &v.CreatedAt, &v.LastSeenAt, &v.UserAgent, &v.IPAddress)
+	var expires, created, lastSeen any
+	err := s.DB.QueryRowContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE token_hash = "+s.ph(1), hash).Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, members.ErrMemberNotFound
 	}
-	return &v, err
+	if err != nil {
+		return nil, err
+	}
+	v.ExpiresAt = parseTime(expires)
+	v.CreatedAt = parseTime(created)
+	v.LastSeenAt = parseTime(lastSeen)
+	return &v, nil
 }
 
 func (s SessionStore) DeleteByTokenHash(ctx context.Context, hash string) error {
@@ -232,16 +269,24 @@ func (s SessionStore) ListByMemberID(ctx context.Context, memberID string) ([]me
 	var result []members.Session
 	for rows.Next() {
 		var v members.Session
-		if err := rows.Scan(&v.ID, &v.MemberID, &v.TokenHash, &v.ExpiresAt, &v.CreatedAt, &v.LastSeenAt, &v.UserAgent, &v.IPAddress); err != nil {
+		var expires, created, lastSeen any
+		if err := rows.Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress); err != nil {
 			return nil, err
 		}
+		v.ExpiresAt = parseTime(expires)
+		v.CreatedAt = parseTime(created)
+		v.LastSeenAt = parseTime(lastSeen)
 		result = append(result, v)
 	}
 	return result, rows.Err()
 }
 
 func (s SessionStore) Touch(ctx context.Context, hash string, t time.Time) error {
-	_, err := s.DB.ExecContext(ctx, "UPDATE member_sessions SET last_seen_at = "+s.ph(1)+" WHERE token_hash = "+s.ph(2), t, hash)
+	var touchVal any = t
+	if s.Dialect == database.SQLite {
+		touchVal = t.Format(time.RFC3339Nano)
+	}
+	_, err := s.DB.ExecContext(ctx, "UPDATE member_sessions SET last_seen_at = "+s.ph(1)+" WHERE token_hash = "+s.ph(2), touchVal, hash)
 	return err
 }
 
@@ -305,27 +350,30 @@ func parseTimePtr(v any) *time.Time {
 		t := x.UTC()
 		return &t
 	case string:
-		if strings.TrimSpace(x) == "" {
-			return nil
-		}
-		if t, err := time.Parse(time.RFC3339Nano, x); err == nil {
-			utc := t.UTC()
-			return &utc
-		}
-		if t, err := time.Parse(time.RFC3339, x); err == nil {
-			utc := t.UTC()
-			return &utc
-		}
+		return parseTimeString(x)
 	case []byte:
-		str := string(x)
-		if strings.TrimSpace(str) == "" {
-			return nil
-		}
-		if t, err := time.Parse(time.RFC3339Nano, str); err == nil {
-			utc := t.UTC()
-			return &utc
-		}
-		if t, err := time.Parse(time.RFC3339, str); err == nil {
+		return parseTimeString(string(x))
+	}
+	return nil
+}
+
+func parseTimeString(str string) *time.Time {
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return nil
+	}
+	formats := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05-07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, str); err == nil {
 			utc := t.UTC()
 			return &utc
 		}

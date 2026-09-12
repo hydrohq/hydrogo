@@ -3,5 +3,5 @@
   "version": "1.0.0",
   "tokens": {"primary": "#155eef", "surface": "#ffffff"},
   "slots": ["header", "content", "footer"],
-  "assets": ["static/theme.css"]
+  "assets": ["static/theme.css", "static/theme.js"]
 }

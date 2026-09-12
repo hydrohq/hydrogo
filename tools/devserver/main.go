@@ -171,7 +171,14 @@ func (s *supervisor) stopChild() {
 func (s *supervisor) startChild(binary string) error {
 	child := exec.Command(binary, "serve", "--address", s.appAddress, "--database-dsn", s.databaseDSN)
 	child.Dir = s.root
-	child.Env = append(os.Environ(), "HYDRO_DEV_MODE=1")
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "HYDRO_REDIS_URL=") || strings.HasPrefix(kv, "REDIS_URL=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	child.Env = append(env, "HYDRO_DEV_MODE=1")
 	child.Stdout, child.Stderr = os.Stdout, os.Stderr
 	if err := child.Start(); err != nil {
 		return err

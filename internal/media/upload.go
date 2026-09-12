@@ -51,9 +51,12 @@ type Asset struct {
 }
 
 var AllowedMimeTypes = map[string]string{
-	"image/jpeg": ".jpg",
-	"image/png":  ".png",
-	"image/webp": ".webp",
+	"image/jpeg":      ".jpg",
+	"image/png":       ".png",
+	"image/webp":      ".webp",
+	"video/mp4":       ".mp4",
+	"video/webm":      ".webm",
+	"video/quicktime": ".mov",
 }
 
 type UploadResult struct {

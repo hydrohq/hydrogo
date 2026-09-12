@@ -1,0 +1,28 @@
+{
+  "lock_version": 1,
+  "project_id": "hydro-demo-project",
+  "project_name": "HydroGo Demo Client Edition",
+  "edition": "growth",
+  "preset": "standard",
+  "core": {
+    "module": "github.com/ardaozyildirim/hydrogo",
+    "version": "v0.1.0",
+    "distribution": "private_module"
+  },
+  "generator": {
+    "version": "0.1.0",
+    "generated_at": "2026-09-12T01:00:00Z"
+  },
+  "features": [
+    "pages",
+    "news",
+    "commerce",
+    "members"
+  ],
+  "licensing": {
+    "required": true,
+    "license_file": "hydro.lic",
+    "public_key_fingerprint": "embedded",
+    "grace_period_allowed": true
+  }
+}

@@ -27,6 +27,7 @@ type Config struct {
 	Security Security         `yaml:"security"`
 	Mail     Mail             `yaml:"mail"`
 	Redis    Redis            `yaml:"redis"`
+	License  License          `yaml:"license"`
 	Webhooks []Webhook        `yaml:"webhooks"`
 	Payments Payments         `yaml:"-"`
 }
@@ -79,6 +80,14 @@ type Redis struct {
 	KeyPrefix string `yaml:"key_prefix"`
 }
 
+type License struct {
+	Required  bool     `yaml:"required"`
+	File      string   `yaml:"file"`
+	ProjectID string   `yaml:"project_id"`
+	Edition   string   `yaml:"edition"`
+	Features  []string `yaml:"features"`
+}
+
 type Payments struct {
 	StripeSecretKey     string
 	StripeWebhookSecret string
@@ -109,6 +118,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		lookup = func(string) (string, bool) { return "", false }
 	}
 	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "commerce"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}}
+	result.License.File = "hydro.lic"
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -208,6 +218,25 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_REDIS_KEY_PREFIX"); ok && value != "" {
 		result.Redis.KeyPrefix = value
+	}
+	if value, ok := lookup("HYDRO_LICENSE_REQUIRED"); ok && value != "" {
+		required, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_LICENSE_REQUIRED: %w", err)
+		}
+		result.License.Required = required
+	}
+	if value, ok := lookup("HYDRO_LICENSE_FILE"); ok && value != "" {
+		result.License.File = value
+	}
+	if value, ok := lookup("HYDRO_LICENSE_PROJECT_ID"); ok && value != "" {
+		result.License.ProjectID = value
+	}
+	if value, ok := lookup("HYDRO_LICENSE_EDITION"); ok && value != "" {
+		result.License.Edition = value
+	}
+	if value, ok := lookup("HYDRO_LICENSE_FEATURES"); ok && value != "" {
+		result.License.Features = strings.Split(value, ",")
 	}
 	if value, ok := lookup("HYDRO_SMTP_HOST"); ok && value != "" {
 		result.Mail.Host = value
@@ -384,6 +413,14 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.Media.Dir) == "" {
 		return errors.New("media directory is required")
+	}
+	if c.License.Required {
+		if strings.TrimSpace(c.License.File) == "" || strings.TrimSpace(c.License.ProjectID) == "" || strings.TrimSpace(c.License.Edition) == "" {
+			return errors.New("required license needs file, project_id and edition")
+		}
+		if len(c.License.Features) > 64 {
+			return errors.New("license feature list exceeds limit")
+		}
 	}
 	if c.Mail.Host == "" {
 		if c.Mail.From != "" || c.Mail.Username != "" || c.Mail.Password != "" {

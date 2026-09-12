@@ -42,6 +42,25 @@ func TestMetricsExposeDeadLetterDepth(t *testing.T) {
 	}
 }
 
+func TestMetricsSnapshotIncludesRuntimeAndProviders(t *testing.T) {
+	m := NewMetrics()
+	m.SetReadinessState(true)
+	m.SetWorkerConcurrency(3)
+	m.SetDatabaseStatsProvider(func() DatabaseStats { return DatabaseStats{OpenConnections: 2, MaxOpenConnections: 8} })
+	m.SetCacheStatsProvider(func() CacheStats { return CacheStats{Hits: 4, Misses: 1} })
+	m.SetJobStatsProvider(func() JobStats { return JobStats{Depth: 5, Leased: 2} })
+	s := m.Snapshot()
+	if !s.ReadinessState || !s.HasDatabase || !s.HasCache || !s.HasJobs {
+		t.Fatalf("snapshot provider/readiness state = %#v", s)
+	}
+	if s.CPUCount < 1 || s.GOMAXPROCS < 1 || s.Goroutines < 1 {
+		t.Fatalf("snapshot runtime values = %#v", s)
+	}
+	if s.Database.OpenConnections != 2 || s.Cache.Hits != 4 || s.Jobs.Depth != 5 || s.WorkerConcurrency != 3 {
+		t.Fatalf("snapshot provider values = %#v", s)
+	}
+}
+
 func TestMetricsSkipStaticAssetPaths(t *testing.T) {
 	m := NewMetrics()
 	handler := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

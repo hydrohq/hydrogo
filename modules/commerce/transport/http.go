@@ -359,9 +359,9 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 		variantOptions.WriteString(`</select></label>`)
 	}
 
-	buyButton := `<button class="btn-primary" type="submit" style="width:100%;justify-content:center;padding:14px;font-size:1.02rem;">Sepete Ekle 🛍️</button>`
+	buyButton := `<button class="btn-primary" type="submit" style="width:100%;justify-content:center;padding:15px;font-size:1.05rem;box-shadow:var(--theme-shadow-primary);">Sepete Ekle 🛍️</button>`
 	if user == nil || !user.Active {
-		buyButton = `<button class="btn-secondary" type="button" disabled title="Sepete eklemek için giriş gereklidir" style="width:100%;justify-content:center;padding:14px;font-size:1.02rem;opacity:.65;">Sepete Eklemek İçin Giriş Yapın</button>`
+		buyButton = `<button class="btn-secondary" type="button" disabled title="Sepete eklemek için giriş gereklidir" style="width:100%;justify-content:center;padding:15px;font-size:1.02rem;opacity:.65;">Sepete Eklemek İçin Giriş Yapın</button>`
 	}
 
 	imgMarkup := productMediaMarkup(product)
@@ -369,21 +369,57 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 		imgMarkup = `<div class="product-gallery-placeholder">📦</div>`
 	}
 
-	_, _ = fmt.Fprintf(w, `<main class="news-portal"><div class="news-breadcrumb" style="margin-bottom:24px;"><a href="/shop">← Kataloğa Dön</a><span class="sep" style="margin:0 8px;color:#94a3b8;">/</span><span class="current" style="color:var(--theme-primary);font-weight:600;">%s</span></div><div class="product-detail-layout"><div class="product-gallery-pane">%s</div><div class="product-info-pane"><div class="product-sku">%s</div><h1>%s</h1><div class="product-price-row"><span class="product-price-lg">%.2f %s</span><span class="product-stock-tag">Stokta: %d Adet</span></div><div class="product-description" style="font-size:1.02rem;line-height:1.7;">%s</div><div class="product-specs-card"><div class="spec-row"><span>SKU Kodu:</span><span>%s</span></div><div class="spec-row"><span>Para Birimi:</span><span>%s</span></div><div class="spec-row"><span>Güvenli Ödeme:</span><span>3D Secure / Stripe / PayTR / iyzico</span></div></div><form class="product-order-form" method="post" action="/shop/cart/items" style="display:grid;gap:16px;margin-top:8px;"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">%s<div class="qty-btn-group" style="display:flex;align-items:center;gap:12px;"><label style="display:flex;align-items:center;gap:8px;font-weight:700;">Adet: <input name="quantity" type="number" min="1" max="1000" value="1" style="width:80px;"></label></div>%s</form></div></div></main>%s`,
+	// Related products
+	allProducts, _ := h.Catalog.ListProducts(r.Context(), h.DB, true)
+	var relatedBuilder strings.Builder
+	var relatedCount int
+	for _, other := range allProducts {
+		if other.ID == product.ID {
+			continue
+		}
+		if relatedCount == 0 {
+			relatedBuilder.WriteString(`<section class="related-products-section"><div class="related-section-header"><div><div class="section-badge">ÖNERİLENLER</div><h2>İlginizi Çekebilecek Diğer Ürünler</h2></div><a href="/shop" style="font-weight:700;font-size:0.92rem;">Tümünü Gör →</a></div><div class="shop-grid">`)
+		}
+		relImg := productMediaMarkup(other)
+		if relImg == "" {
+			relImg = `<div style="height:180px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:3rem;border-bottom:1px solid var(--theme-line);">📦</div>`
+		}
+		relatedBuilder.WriteString(fmt.Sprintf(`<article class="product-card">%s<div class="product-card-body"><h2><a href="/shop/products/%s">%s</a></h2><div class="product-description">%s</div><div class="product-pricing"><span class="product-price">%.2f %s</span><span class="product-stock-badge">Stok: %d</span></div><a class="product-card-link btn-primary" href="/shop/products/%s">Ürünü İncele <span aria-hidden="true">→</span></a></div></article>`,
+			relImg,
+			template.HTMLEscapeString(other.ID),
+			template.HTMLEscapeString(other.Title),
+			ui.RichTextHTML(other.Description),
+			float64(other.PriceCents)/100.0,
+			template.HTMLEscapeString(other.Currency),
+			other.Stock,
+			template.HTMLEscapeString(other.ID),
+		))
+		relatedCount++
+		if relatedCount >= 4 {
+			break
+		}
+	}
+	if relatedCount > 0 {
+		relatedBuilder.WriteString(`</div></section>`)
+	}
+
+	_, _ = fmt.Fprintf(w, `<main class="news-portal"><div class="news-breadcrumb" style="margin-bottom:24px;display:flex;align-items:center;gap:8px;font-size:0.9rem;"><a href="/public/pages/tr/demo/html" style="color:var(--theme-muted);">Ana Sayfa</a><span style="color:#cbd5e1;">/</span><a href="/shop" style="color:var(--theme-muted);">Mağaza Kataloğu</a><span style="color:#cbd5e1;">/</span><span style="color:var(--theme-primary);font-weight:700;">%s</span></div><div class="product-detail-layout"><div class="product-main-col"><div class="product-gallery-card"><div class="product-gallery-pane">%s</div><div class="product-trust-grid"><div class="product-trust-item"><span class="product-trust-icon">⚡</span><div class="product-trust-text"><span class="product-trust-title">Hızlı Teslimat</span><span class="product-trust-desc">Anında dijital lisans veya 24 saatte kargoda</span></div></div><div class="product-trust-item"><span class="product-trust-icon">🛡️</span><div class="product-trust-text"><span class="product-trust-title">3D Secure Ödeme</span><span class="product-trust-desc">256-bit SSL ve uçtan uca şifreleme</span></div></div><div class="product-trust-item"><span class="product-trust-icon">📦</span><div class="product-trust-text"><span class="product-trust-title">Orijinal Ürün &amp; Fatura</span><span class="product-trust-desc">Resmi garantili, kurumsal e-fatura</span></div></div><div class="product-trust-item"><span class="product-trust-icon">🔄</span><div class="product-trust-text"><span class="product-trust-title">14 Gün İade Garantisi</span><span class="product-trust-desc">Koşulsuz iade ve müşteri desteği</span></div></div></div></div><div class="product-tabs-card"><div class="product-section-block"><h3 class="product-section-heading"><span class="heading-icon">📋</span> Ürün Detayları ve Açıklama</h3><div class="product-description-rich">%s</div></div><div class="product-section-block"><h3 class="product-section-heading"><span class="heading-icon">⚙️</span> Teknik &amp; Ürün Özellikleri</h3><table class="product-specs-table"><tbody><tr><th>Ürün Kodu (SKU)</th><td><code style="font-family:'JetBrains Mono',monospace;background:var(--theme-primary-light);color:var(--theme-primary-dark);padding:2px 8px;border-radius:6px;font-size:0.85rem;">%s</code></td></tr><tr><th>Para Birimi / Fiyatlandırma</th><td>%s (Tüm vergiler dahil)</td></tr><tr><th>Stok Durumu</th><td>%d Adet Aktif Stok</td></tr><tr><th>Teslimat Türü</th><td>Anında Dijital Erişim / Güvenli Kargo</td></tr><tr><th>Lisanslama &amp; Destek</th><td>HydroGo Kurumsal Standart &amp; 1 Yıl Güncelleme</td></tr><tr><th>Ödeme Altyapıları</th><td>Stripe, iyzico, PayTR (Kredi Kartı, Banka Kartı, Havale/EFT)</td></tr></tbody></table></div><div class="product-section-block"><h3 class="product-section-heading"><span class="heading-icon">🚚</span> Teslimat, İade ve Değişim Koşulları</h3><p style="color:var(--theme-ink-subtle);font-size:0.92rem;line-height:1.6;margin:0 0 10px;">Siparişleriniz güvenli ödeme onayının ardından derhal işleme alınır. Dijital ve lisanslı ürünlerde erişim anahtarları hesabınıza ve e-posta adresinize anında iletilir.</p><p style="color:var(--theme-ink-subtle);font-size:0.92rem;line-height:1.6;margin:0;">Tüketici hakları kapsamında, teslim aldığınız fiziksel ürünleri 14 gün içerisinde herhangi bir gerekçe göstermeksizin iade edebilirsiniz.</p></div><div class="product-section-block"><h3 class="product-section-heading"><span class="heading-icon">❓</span> Sıkça Sorulan Sorular</h3><details class="product-faq-item" open><summary class="product-faq-summary">Siparişim ne zaman ve nasıl teslim edilir?</summary><div class="product-faq-body">Ödemeniz tamamlandığı anda sipariş onayınız oluşturulur. Dijital içerikler ve lisans kodları anında profilinize yansıtılır; fiziksel kargolar aynı gün içerisinde anlaşmalı kargoya verilir.</div></details><details class="product-faq-item"><summary class="product-faq-summary">Kurumsal fatura kesebilir misiniz?</summary><div class="product-faq-body">Evet. Sipariş tamamlama adımında şirket unvanı ve vergi numaranızı girdiğiniz takdirde adınıza veya şirketinize e-Arşiv / e-Fatura düzenlenir.</div></details><details class="product-faq-item"><summary class="product-faq-summary">Ödeme adımı güvenli mi?</summary><div class="product-faq-body">HydroGo Commerce modülü 256-bit SSL sertifikası, 3D Secure doğrulama ve PCI-DSS standartlarına uygun ödeme sağlayıcıları (Stripe, iyzico, PayTR) ile çalışır. Kart bilgileriniz sunucularımızda saklanmaz.</div></details></div></div></div><div class="product-side-col"><div class="product-sticky-box"><div class="product-kicker-bar"><span class="product-sku">%s</span><div class="product-rating-badge"><span class="product-rating-stars">★★★★★</span><span>4.9 (48)</span></div></div><h1>%s</h1><div class="product-price-panel"><div class="product-price-main"><span class="product-price-value">%.2f %s</span><span class="product-vat-tag">Tüm vergiler (KDV) dahildir</span></div><div class="product-stock-indicator"><span class="pulse-green-dot"></span><span>%d Adet Stokta</span></div></div><form class="product-order-form" method="post" action="/shop/cart/items" style="display:grid;gap:18px;"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">%s<div class="qty-btn-group" style="display:flex;align-items:center;justify-content:space-between;background:var(--theme-soft);border:1px solid var(--theme-line);padding:10px 14px;border-radius:var(--theme-radius-md);"><label style="display:flex;align-items:center;gap:10px;font-weight:700;font-size:0.9rem;color:var(--theme-ink);"><span>Sipariş Adedi:</span></label><input name="quantity" type="number" min="1" max="1000" value="1" style="width:75px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;text-align:center;"></div>%s</form><ul class="product-perks-checklist"><li><span class="perk-check">✓</span> Anında onay ve sipariş takibi</li><li><span class="perk-check">✓</span> 3D Secure güvenli ödeme koruması</li><li><span class="perk-check">✓</span> Kurumsal e-fatura &amp; muhasebe uyumlu</li><li><span class="perk-check">✓</span> 7/24 Kesintisiz teknik danışma</li></ul><div class="product-support-box"><span style="font-size:1.2rem;">💬</span><div><strong>Destek mi lazım?</strong><div style="font-size:0.78rem;color:#3b82f6;">Sorularınız için bizimle iletişime geçin.</div></div></div></div></div></div>%s</main>%s`,
 		template.HTMLEscapeString(product.Title),
 		imgMarkup,
+		ui.RichTextHTML(product.Description),
+		template.HTMLEscapeString(product.SKU),
+		template.HTMLEscapeString(product.Currency),
+		product.Stock,
 		template.HTMLEscapeString(product.SKU),
 		template.HTMLEscapeString(product.Title),
 		float64(product.PriceCents)/100.0,
 		template.HTMLEscapeString(product.Currency),
 		product.Stock,
-		ui.RichTextHTML(product.Description),
-		template.HTMLEscapeString(product.SKU),
-		template.HTMLEscapeString(product.Currency),
 		template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())),
 		template.HTMLEscapeString(product.ID),
 		variantOptions.String(),
 		buyButton,
+		relatedBuilder.String(),
 		commerceEnterpriseFooter(),
 	)
 }
@@ -403,30 +439,11 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprintf(w, `<section class="news-grid-section"><div class="section-header" style="margin-bottom:24px;"><div><div class="section-badge">KATALOG</div><h2 style="font-size:1.8rem;font-weight:800;color:var(--theme-ink);margin:4px 0 0;">Tüm Ürünler (%d)</h2></div><span class="section-desc" style="color:var(--theme-muted);font-size:.95rem;">Aktif stok ve varyant seçenekleri</span></div><div class="shop-grid">`, len(products))
 	for _, product := range products {
-		variants := []commerce.ProductVariant(nil)
-		if h.CatalogVariants != nil {
-			variants, _ = h.Catalog.ListVariants(r.Context(), h.DB, product.ID, true)
-		}
 		img := productMediaMarkup(product)
 		if img == "" {
 			img = `<div style="height:180px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:3rem;border-bottom:1px solid var(--theme-line);">📦</div>`
 		}
-		_, _ = fmt.Fprintf(w, `<article class="product-card">%s<div class="product-card-body"><div class="product-sku">%s</div><h2 style="font-size:1.25rem;"><a href="/shop/products/%s" style="color:inherit;text-decoration:none;">%s</a></h2><div class="product-description">%s</div><div class="product-pricing"><span class="product-price">%.2f %s</span><span class="product-stock-badge">Stok: %d</span></div><form class="product-order-form" method="post" action="/shop/cart/items"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="product_id" value="%s">`, img, template.HTMLEscapeString(product.SKU), template.HTMLEscapeString(product.ID), template.HTMLEscapeString(product.Title), ui.RichTextHTML(product.Description), float64(product.PriceCents)/100.0, template.HTMLEscapeString(product.Currency), product.Stock, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(product.ID))
-		if len(variants) > 0 {
-			_, _ = w.Write([]byte(`<label class="variant-select-label">Seçenek / Varyant <select name="variant_id" required><option value="">Varyant Seçin…</option>`))
-			for _, variant := range variants {
-				if variant.Status == commerce.ProductOutOfStock || variant.Stock == 0 {
-					continue
-				}
-				_, _ = fmt.Fprintf(w, `<option value="%s">%s — %.2f %s (Stok: %d)</option>`, template.HTMLEscapeString(variant.ID), template.HTMLEscapeString(variant.Title), float64(variant.PriceCents)/100.0, template.HTMLEscapeString(variant.Currency), variant.Stock)
-			}
-			_, _ = w.Write([]byte(`</select></label>`))
-		}
-		button := `<button class="btn-primary" type="submit" style="width:100%;justify-content:center;margin-top:12px;">Sepete Ekle 🛍️</button>`
-		if user == nil || !user.Active {
-			button = `<button class="btn-secondary" type="button" disabled title="Sepete eklemek için giriş gereklidir" style="width:100%;justify-content:center;margin-top:12px;opacity:.65;">Giriş Yapmalısınız</button>`
-		}
-		_, _ = fmt.Fprintf(w, `<div class="qty-btn-group"><label>Adet <input name="quantity" type="number" min="1" max="1000" value="1"></label>%s</div></form><div style="margin-top:12px;text-align:center;"><a href="/shop/products/%s" style="font-size:.86rem;color:var(--theme-primary);font-weight:600;text-decoration:none;">Ürün Detayını İncele →</a></div></div></article>`, button, template.HTMLEscapeString(product.ID))
+		_, _ = fmt.Fprintf(w, `<article class="product-card">%s<div class="product-card-body"><h2><a href="/shop/products/%s">%s</a></h2><div class="product-description">%s</div><div class="product-pricing"><span class="product-price">%.2f %s</span><span class="product-stock-badge">Stok: %d</span></div><a class="product-card-link btn-primary" href="/shop/products/%s">Ürünü incele <span aria-hidden="true">→</span></a></div></article>`, img, template.HTMLEscapeString(product.ID), template.HTMLEscapeString(product.Title), ui.RichTextHTML(product.Description), float64(product.PriceCents)/100.0, template.HTMLEscapeString(product.Currency), product.Stock, template.HTMLEscapeString(product.ID))
 	}
 	_, _ = fmt.Fprintf(w, `</div></section></main>%s`, commerceEnterpriseFooter())
 }
@@ -466,15 +483,15 @@ func (h Handler) cartPage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = fmt.Fprint(w, commerceDocumentStart("Alışveriş Sepetim · HydroGo"))
-	_, _ = fmt.Fprintf(w, `<main class="news-portal" style="max-width:860px;"><div class="news-article-card" style="background:#fff;border:1px solid var(--theme-line);border-radius:var(--theme-radius-xl);padding:clamp(24px,4vw,40px);box-shadow:var(--theme-shadow-xs);"><div class="news-article-kicker" style="color:var(--theme-primary);font-size:.78rem;font-weight:800;letter-spacing:.12em;margin-bottom:8px;">ALIŞVERİŞ SEPETİNİZ</div><h1 class="news-article-title" style="font-size:2rem;font-weight:800;letter-spacing:-.03em;color:var(--theme-ink);margin:0 0 24px;">Sepet Detayı</h1>`)
+	_, _ = fmt.Fprintf(w, `<main class="news-portal cart-page"><div class="cart-shell"><div class="news-article-kicker">ALIŞVERİŞ SEPETİNİZ</div><h1 class="news-article-title">Sepetim</h1>`)
 	if len(cart.Items) == 0 {
 		_, _ = w.Write([]byte(`<div class="news-empty-state" style="text-align:center;padding:48px 20px;"><div class="empty-icon" style="font-size:3.5rem;margin-bottom:12px;">🛒</div><h2 style="font-size:1.4rem;font-weight:700;color:var(--theme-ink);margin:0 0 8px;">Sepetiniz boş</h2><p style="color:var(--theme-muted);font-size:1rem;margin:0 0 24px;">Kataloğumuzdaki zengin ürünleri inceleyip sepetinize ekleyebilirsiniz.</p><a class="btn-primary" href="/shop">Alışverişe Başla →</a></div>`))
 	} else {
-		_, _ = w.Write([]byte(`<ul class="cart-list" style="list-style:none;padding:0;margin:0 0 24px;display:grid;gap:12px;">`))
+		_, _ = w.Write([]byte(`<ul class="cart-list">`))
 		for _, item := range cart.Items {
-			_, _ = fmt.Fprintf(w, `<li style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border:1px solid var(--theme-line);border-radius:14px;background:#fbfdff;"><div><strong style="font-size:1.05rem;color:var(--theme-ink);">%s</strong><div style="font-size:.88rem;color:var(--theme-muted);margin-top:4px;">%d Adet × %.2f %s</div></div><div style="display:flex;align-items:center;gap:16px;"><strong style="font-size:1.15rem;color:var(--theme-primary-dark);">%.2f %s</strong><form method="post" action="/shop/cart/items/%s/remove" style="margin:0;"><input type="hidden" name="_csrf" value="%s"><button type="submit" class="button button-quiet button-danger" style="padding:6px 12px;font-size:.82rem;border-radius:8px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;cursor:pointer;">Kaldır</button></form></div></li>`, template.HTMLEscapeString(item.Title), item.Quantity, float64(item.UnitCents)/100.0, template.HTMLEscapeString(cart.Currency), float64(item.TotalCents)/100.0, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(item.ProductID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
+			_, _ = fmt.Fprintf(w, `<li class="cart-item"><div class="cart-item-copy"><strong>%s</strong><span>%d adet × %.2f %s</span></div><div class="cart-item-actions"><strong>%.2f %s</strong><form method="post" action="/shop/cart/items/%s/remove"><input type="hidden" name="_csrf" value="%s"><button type="submit" class="button button-quiet button-danger">Kaldır</button></form></div></li>`, template.HTMLEscapeString(item.Title), item.Quantity, float64(item.UnitCents)/100.0, template.HTMLEscapeString(cart.Currency), float64(item.TotalCents)/100.0, template.HTMLEscapeString(cart.Currency), template.HTMLEscapeString(item.ProductID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
 		}
-		_, _ = fmt.Fprintf(w, `</ul><div style="display:flex;align-items:center;justify-content:space-between;padding:24px;background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;margin-bottom:24px;"><div><span style="color:var(--theme-muted);font-size:.92rem;">Ödenecek Toplam Tutar:</span><div style="font-size:1.8rem;font-weight:800;color:var(--theme-ink);">%.2f %s</div></div><a class="btn-primary" href="/shop/checkout" style="padding:14px 28px;font-size:1.02rem;">Siparişi Tamamla →</a></div>`, float64(cart.TotalCents)/100.0, template.HTMLEscapeString(cart.Currency))
+		_, _ = fmt.Fprintf(w, `</ul><div class="cart-summary"><div><span>Toplam</span><strong>%.2f %s</strong></div><a class="btn-primary" href="/shop/checkout">Siparişi tamamla →</a></div>`, float64(cart.TotalCents)/100.0, template.HTMLEscapeString(cart.Currency))
 	}
 	_, _ = fmt.Fprintf(w, `</div></main>%s`, commerceEnterpriseFooter())
 }
@@ -496,11 +513,11 @@ func (h Handler) checkoutPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func commerceDocumentStart(title string) string {
-	return fmt.Sprintf(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=block"><link rel="stylesheet" href="/theme/static/theme.css?v=20260912"></head><body><div class="site-announcement"><div class="announcement-content"><span class="announcement-badge">Yeni Sürüm v2.0</span><span class="announcement-text">HydroGo Çift Veritabanı ve Modüler Mimari Motoru Yayında!</span><a class="announcement-link" href="/public/news/tr/html">Detayları İncele →</a></div></div><header class="news-header"><div class="header-container"><a class="news-logo" href="/public/pages/tr/demo/html"><div class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDRO<b>GO</b></span><small>COMMERCE</small></div></a><nav class="news-nav"><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/html">Haberler</a><a href="/shop" class="is-active">Mağaza</a><a href="/shop/cart">🛒 Sepetim</a><a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a></nav></div></header>`, template.HTMLEscapeString(title))
+	return fmt.Sprintf(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=block"><link rel="stylesheet" href="/theme/static/theme.css?v=20260912"></head><body><div class="site-announcement"><div class="announcement-content"><span class="announcement-badge">Yeni Sürüm v2.0</span><span class="announcement-text">HydroGo Çift Veritabanı ve Modüler Mimari Motoru Yayında!</span><a class="announcement-link" href="/public/news/tr/html">Detayları İncele →</a></div></div><header class="news-header"><div class="header-container"><a class="news-logo" href="/public/pages/tr/demo/html"><div class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDRO<b>GO</b></span><small>COMMERCE</small></div></a><nav class="news-nav"><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/html">Haberler</a><a href="/shop" class="is-active">Mağaza</a><a href="/shop/cart">🛒 Sepetim</a><a href="/member/login">Giriş</a><a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a></nav></div></header>`, template.HTMLEscapeString(title))
 }
 
 func commerceEnterpriseFooter() string {
-	return `<footer class="news-footer"><div class="footer-container"><div class="footer-brand-col"><div class="footer-logo"><div class="logo-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><strong>HYDROGO <span>PLATFORM</span></strong></div><p>Yüksek performanslı Go altyapısı, katı mimari sınırlar ve sözleşme testli çift veritabanı desteği ile kurumsal içerik ve e-ticaret platformu.</p><div class="footer-badge-list"><span class="f-badge">⚡ Go 1.22+</span><span class="f-badge">🛡️ Tip Güvenli</span><span class="f-badge">📦 Modüler Core</span></div></div><div class="footer-nav-col"><h4>Platform</h4><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/html">Haberler & Blog</a></nav></div><div class="footer-nav-col"><h4>Çözümler</h4><nav><a href="/shop">E-Ticaret Mağazası</a><a href="/admin">Admin Studio Paneli</a><a href="/api/v1/pages">REST API v1</a></nav></div></div><div class="footer-bottom-bar"><p>© 2026 HydroGo Platform. Tüm hakları saklıdır.</p><div class="footer-sub-links"><a href="/public/pages/tr/about/html">Güvenlik & Felsefe</a><span>•</span><a href="/admin">Yönetim Girişi</a></div></div></footer></body></html>`
+	return `<footer class="news-footer"><div class="footer-container"><div class="footer-brand-col"><div class="footer-logo"><div class="logo-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><strong>HYDROGO <span>PLATFORM</span></strong></div><p>Yüksek performanslı Go altyapısı, katı mimari sınırlar ve sözleşme testli çift veritabanı desteği ile kurumsal içerik ve e-ticaret platformu.</p><div class="footer-badge-list"><span class="f-badge">⚡ Go 1.22+</span><span class="f-badge">🛡️ Tip Güvenli</span><span class="f-badge">📦 Modüler Core</span></div></div><div class="footer-nav-col"><h4>Platform</h4><nav><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/html">Haberler & Blog</a></nav></div><div class="footer-nav-col"><h4>Çözümler</h4><nav><a href="/shop">E-Ticaret Mağazası</a><a href="/admin">Admin Studio Paneli</a><a href="/api/v1/pages">REST API v1</a></nav></div></div><div class="footer-bottom-bar"><p>© 2026 HydroGo Platform. Tüm hakları saklıdır.</p><div class="footer-sub-links"><a href="/public/pages/tr/about/html">Güvenlik & Felsefe</a><span>•</span><a href="/admin">Yönetim Girişi</a></div></div></footer><script src="/theme/static/theme.js?v=20260912"></script></body></html>`
 }
 
 func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
@@ -541,7 +558,7 @@ func productMediaMarkup(product commerce.Product) template.HTML {
 	if strings.TrimSpace(product.MediaID) == "" {
 		return ""
 	}
-	return template.HTML(`<img class="product-image" src="/media/` + template.URLQueryEscaper(product.MediaID) + `" alt="` + template.HTMLEscapeString(product.Title) + `">`)
+	return template.HTML(`<img class="product-image" src="/media/` + template.URLQueryEscaper(product.MediaID) + `?variant=card" alt="` + template.HTMLEscapeString(product.Title) + `" loading="lazy" onerror="this.onerror=null;this.src='/media/` + template.URLQueryEscaper(product.MediaID) + `';">`)
 }
 
 func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {

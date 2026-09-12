@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -78,6 +79,41 @@ type JobStats struct {
 	Depth        int64
 	Leased       int64
 	DeadLettered int64
+}
+
+// RuntimeSnapshot is a bounded, point-in-time view for the authenticated
+// Admin Studio resource page. It intentionally contains process/runtime and
+// already-registered provider statistics only; it does not invent host-level
+// CPU, disk, or historical values that the process cannot measure.
+type RuntimeSnapshot struct {
+	StartedAt         time.Time
+	Uptime            time.Duration
+	Requests          uint64
+	InFlight          int64
+	Views             uint64
+	Errors            uint64
+	AvgLatencyMS      uint64
+	UniqueVisitors    int
+	Goroutines        int
+	CPUCount          int
+	GOMAXPROCS        int
+	HeapAllocBytes    uint64
+	HeapInUseBytes    uint64
+	HeapSysBytes      uint64
+	HeapObjects       uint64
+	Database          DatabaseStats
+	Cache             CacheStats
+	Jobs              JobStats
+	HasDatabase       bool
+	HasCache          bool
+	HasJobs           bool
+	WorkerProcessed   uint64
+	WorkerFailures    uint64
+	WorkerRetries     uint64
+	DeadLetters       uint64
+	WorkerConcurrency int64
+	ReadinessState    bool
+	ReadinessFails    uint64
 }
 
 var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisecond, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 5 * time.Second}
@@ -177,6 +213,55 @@ func (m *Metrics) AvgLatencyMS() uint64 {
 		return 0
 	}
 	return (m.latencyNanos.Load() / cnt) / 1_000_000
+}
+
+// Snapshot returns only bounded, current process data suitable for an admin
+// view. Provider callbacks are expected to be short and already use their own
+// timeout/budget where a database query is involved.
+func (m *Metrics) Snapshot() RuntimeSnapshot {
+	if m == nil {
+		return RuntimeSnapshot{}
+	}
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	now := time.Now().UTC()
+	snapshot := RuntimeSnapshot{
+		StartedAt:         m.startedAt,
+		Uptime:            now.Sub(m.startedAt),
+		Requests:          m.TotalRequests(),
+		InFlight:          m.InFlight(),
+		Views:             m.TotalViews(),
+		Errors:            m.TotalErrors(),
+		AvgLatencyMS:      m.AvgLatencyMS(),
+		UniqueVisitors:    m.UniqueVisitorsCount(),
+		Goroutines:        runtime.NumGoroutine(),
+		CPUCount:          runtime.NumCPU(),
+		GOMAXPROCS:        runtime.GOMAXPROCS(0),
+		HeapAllocBytes:    mem.HeapAlloc,
+		HeapInUseBytes:    mem.HeapInuse,
+		HeapSysBytes:      mem.HeapSys,
+		HeapObjects:       mem.HeapObjects,
+		WorkerProcessed:   m.workerProcessed.Load(),
+		WorkerFailures:    m.workerFailures.Load(),
+		WorkerRetries:     m.workerRetries.Load(),
+		DeadLetters:       m.workerDeadLetters.Load(),
+		WorkerConcurrency: m.workerConcurrency.Load(),
+		ReadinessState:    m.readinessState.Load() == 1,
+		ReadinessFails:    m.readinessFailures.Load(),
+	}
+	if m.databaseStats != nil {
+		snapshot.Database = m.databaseStats()
+		snapshot.HasDatabase = true
+	}
+	if m.cacheStats != nil {
+		snapshot.Cache = m.cacheStats()
+		snapshot.HasCache = true
+	}
+	if m.jobStats != nil {
+		snapshot.Jobs = m.jobStats()
+		snapshot.HasJobs = true
+	}
+	return snapshot
 }
 
 func (m *Metrics) TopPages(limit int) []PathStatsSnapshot {

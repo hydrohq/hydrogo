@@ -45,6 +45,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
@@ -151,6 +152,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return portableCommand(args[1:], stdout, stderr)
 	case "release":
 		return releaseCommand(args[1:], stdout, stderr)
+	case "license":
+		return licenseCommand(args[1:], stdout, stderr)
+	case "new":
+		return newProjectCommand(args[1:], stdin, stdout, stderr)
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -389,6 +394,15 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if cfg.License.Required {
+		licenseResult, licenseErr := licensing.VerifyFile(context.Background(), cfg.License.File, cfg.License.ProjectID, cfg.License.Edition, cfg.License.Features)
+		if licenseErr != nil {
+			return fmt.Errorf("runtime license verification failed: %w", licenseErr)
+		}
+		if licenseResult.State == licensing.StateGracePeriod {
+			_, _ = fmt.Fprintf(stderr, "hydro: warning: %s\n", licenseResult.Message)
+		}
+	}
 	if *mediaDir != "" {
 		cfg.Media.Dir = *mediaDir
 	}
@@ -615,6 +629,9 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if _, err := validateRuntimeLicense(cfg, stderr); err != nil {
+		return err
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	budget, err := capacity.Defaults(cfg.Profile)
@@ -652,7 +669,7 @@ func serve(args []string, stderr io.Writer) error {
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberService := members.Service{Members: memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
-	memberHTTP := membertransport.Handler{Service: memberService, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute)}
+	memberHTTP := membertransport.Handler{Service: memberService, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Orders: commercestore.Store{Dialect: cfg.Database.Dialect}, DB: db}
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
 		if err != nil {
@@ -699,7 +716,10 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediastore.Store{Dialect: cfg.Database.Dialect}}
+	mediaStore := mediastore.Store{Dialect: cfg.Database.Dialect}
+	mediaOptimizer := media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
+	mediaService := media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, Assets: mediaStore, Optimizer: mediaOptimizer}
+	go func() { <-ctx.Done(); mediaOptimizer.Close() }()
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
@@ -799,8 +819,12 @@ func serve(args []string, stderr io.Writer) error {
 		if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
 			returnTo = "/admin"
 		}
+		if user := auth.UserFromContext(r.Context()); user != nil && user.Active && user.Role == auth.RoleAdmin {
+			http.Redirect(w, r, returnTo, http.StatusSeeOther)
+			return
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo giriş</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260910"></head><body><main class="theme-corporate-content login-page"><h1>Demo hesabıyla giriş</h1><p>Sepet, checkout ve admin ekranlarını deneyimlemek için giriş yapın.</p><form id="login-form"><input type="hidden" name="_csrf" value="%s"><label>E-posta <input name="email" type="email" required></label><label>Şifre <input name="password" type="password" required></label><button type="submit">Giriş yap</button><p id="login-status" role="status"></p></form><a href="%s">Mağazaya dön</a><script nonce="%s">document.getElementById('login-form').addEventListener('submit',async function(e){e.preventDefault();const form=e.currentTarget;const status=document.getElementById('login-status');status.textContent='Giriş yapılıyor…';const response=await fetch('/auth/login',{method:'POST',headers:{'X-CSRF-Token':form.elements._csrf.value},body:new URLSearchParams(new FormData(form))});if(response.ok){window.location.assign('%s');}else{status.textContent='Giriş başarısız. Demo bilgilerini kontrol edin.';}});</script></main></body></html>`, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(returnTo), template.HTMLEscapeString(security.NonceFromContext(r.Context())), template.HTMLEscapeString(returnTo))
+		_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo giriş</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260912"></head><body><main class="theme-corporate-content login-page"><h1>Demo hesabıyla giriş</h1><p>Sepet, checkout ve admin ekranlarını deneyimlemek için giriş yapın.</p><form id="login-form" method="post"><input type="hidden" name="_csrf" value="%s"><label>E-posta <input name="email" type="email" required placeholder="admin@hydrogo.local"></label><label>Şifre <input name="password" type="password" required placeholder="adminpass123"></label><button type="submit">Giriş yap</button><div id="login-status" class="member-auth-status" role="alert"></div></form><a href="%s">Mağazaya dön</a><script nonce="%s">(function(){var form=document.getElementById('login-form'),status=document.getElementById('login-status');function showMsg(type,text){status.className='member-auth-status status-'+type;status.textContent=text;status.style.display='block';}form.addEventListener('submit',async function(e){e.preventDefault();var btn=form.querySelector('button');var orig=btn.textContent;btn.disabled=true;btn.textContent='Giriş yapılıyor…';status.style.display='none';try{var response=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':form.elements._csrf.value,'Accept':'application/json'},body:new URLSearchParams(new FormData(form))});var raw=await response.text();if(!response.ok){var lower=raw.toLowerCase();if(lower.indexOf('invalid credentials')!==-1||response.status===401){showMsg('error','E-posta veya şifre hatalı. Demo yöneticisi için: admin@hydrogo.local / adminpass123');}else if(lower.indexOf('too many')!==-1||response.status===429){showMsg('error','Çok fazla deneme yapıldı. Lütfen biraz bekleyin.');}else if(lower.indexOf('csrf')!==-1||response.status===403){showMsg('error','Güvenlik doğrulaması başarısız. Sayfayı yenileyin.');}else{showMsg('error','Giriş başarısız: '+(raw||'Bilgilerinizi kontrol edin.'));}btn.disabled=false;btn.textContent=orig;return;}showMsg('success','Giriş başarılı! Yönetim paneline aktarılıyorsunuz…');setTimeout(function(){window.location.href='%s';},300);}catch(err){showMsg('error','Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').');btn.disabled=false;btn.textContent=orig;}});})();</script></main></body></html>`, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(returnTo), template.HTMLEscapeString(security.NonceFromContext(r.Context())), template.HTMLEscapeString(returnTo))
 	})})
 	var runtimeMetrics *observability.Metrics
 	adminDashboardHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -924,6 +948,12 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return
 		}
+		if r.URL.Path == "/admin/developer/resources" {
+			if err := ui.RenderAdminResourceUsage(w, ui.AdminResourceUsageData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), Snapshot: runtimeMetrics.Snapshot()}); err != nil {
+				http.Error(w, "resource usage unavailable", http.StatusInternalServerError)
+			}
+			return
+		}
 		if r.URL.Path == "/admin/account" {
 			active = "account"
 		}
@@ -940,7 +970,7 @@ func serve(args []string, stderr io.Writer) error {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
 	})
-	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions", "GET /admin/developer"} {
+	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions", "GET /admin/developer", "GET /admin/developer/resources"} {
 		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
 	}
 	routes = append(routes, mediaRouterRoutes(mediaHTTP.AdminRoutes())...)
@@ -1348,6 +1378,13 @@ func runSessionCleanupObserved(ctx context.Context, cleaner expiredSessionCleane
 	}
 }
 
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, metrics *observability.Metrics, stderr io.Writer, concurrency int) {
 	if concurrency < 1 {
 		concurrency = 1
@@ -1601,6 +1638,20 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	defer db.Close()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 
+	// Demo member data is deliberately isolated from admin users. It gives the
+	// public member portal a real, repeatable account flow without exposing any
+	// administrator capability.
+	demoMemberHash, err := auth.HashPassword("memberpass123", auth.DefaultArgon2Params)
+	if err != nil {
+		return fmt.Errorf("seed demo member password: %w", err)
+	}
+	if err := seedExec(ctx, db, cfg.Database.Dialect,
+		`INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES ($1,$2,$3,TRUE,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING`,
+		`INSERT OR IGNORE INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES (?,?,?,1,?,?,?,?)`,
+		"demo-member-portal", "member@hydrogo.local", demoMemberHash, now, now, now, now); err != nil {
+		return fmt.Errorf("seed demo member: %w", err)
+	}
+
 	if err := os.MkdirAll(cfg.Media.Dir, 0o750); err != nil {
 		return fmt.Errorf("seed media directory: %w", err)
 	}
@@ -1702,7 +1753,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		return seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,'tr',$3,$4,$5,$6,$7) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,'tr',?3,?4,?5,?6,?7)`, id+"-rev-1", id, slug, title, body, blocks, now)
 	}
 
-	homeBlocks := `[{"type":"hero","payload":{"title":"Geleceğin Dijital Deneyimi: HydroGo Platformu","subtitle":"Modüler mimari, tip güvenli Go backend'i, sözleşme testli çift veritabanı desteği ve zengin editoryal yayın merkezi.","media_asset_id":"demo-media-hero-home","button_text":"Tüm Yetenekleri Keşfet →","button_url":"/public/pages/tr/showcase/html"}},{"type":"testimonials","payload":{"items":[{"name":"Kıdemli Platform Mimarı","quote":"HydroGo'nun katı Core/Module ayrımı ve PostgreSQL/SQLite kontrat testleri sayesinde prodüksiyon yükseltmelerimiz sıfır kesintiyle tamamlanıyor."},{"name":"Editoryal İçerik Direktörü","quote":"Quill tabanlı zengin metin editörü, key takeaways alanı ve anlık taslak önizleme kabiliyeti editoryal üretkenliğimizi katladı."},{"name":"E-Ticaret Operasyon Lideri","quote":"Varyant ve stok yönetimi hem kompakt profilde hem de yüksek trafik altında tutarlı bir performans sunuyor."}]}},{"type":"faq","payload":{"items":[{"question":"HydroGo mimarisinin temel felsefesi nedir?","answer":"HydroCore genel sözleşmeleri tanımlar; Pages, News ve Commerce modülleri bağımsız olarak takılıp çalıştırılabilir. Müşteri davranışları asla Core'a sızmaz."},{"question":"PostgreSQL ve SQLite arasında geçiş nasıl yapılır?","answer":"Sürücüler ve SQL dialect mantığı repository katmanında soyutlanmıştır. Çift veritabanı davranışı kontrat testleri ile garanti altındadır."},{"question":"Medya ve varlık yönetimi nasıl işler?","answer":"Medya dosyaları diskte SHA-256 bütünlük kontrolü ile saklanır ve /media/{id} rotası üzerinden yetki kontrolüne tabi tutularak güvenle sunulur."},{"question":"E-Ticaret ve ödeme entegrasyonu hazır mı?","answer":"Ürünler, varyantlar, sepet, sipariş akışı ve Stripe, iyzico, PayTR ödeme sağlayıcı sözleşmeleri hazırdır."}]}},{"type":"cta","payload":{"title":"Kendi Projenizi HydroGo İle Başlatın","button_text":"Admin Studio'ya Git →","button_url":"/admin"}}]`
+	homeBlocks := `[{"type":"hero","payload":{"title":"İçeriğinizi ve mağazanızı tek yerde yönetin","subtitle":"Sayfalar, haberler, medya ve ürün kataloğu için sade bir yönetim deneyimi.","media_asset_id":"demo-media-hero-home","button_text":"Yetenekleri incele →","button_url":"/public/pages/tr/showcase/html"}},{"type":"testimonials","payload":{"items":[{"name":"İçerik ekibi","quote":"Taslak, yayın ve revizyon akışını aynı ekrandan takip etmek kolaylaştı."},{"name":"Mağaza yöneticisi","quote":"Ürün, varyant ve stok bilgilerini düzenli bir katalog akışında yönetebiliyoruz."},{"name":"Geliştirici","quote":"API, health ve readiness uçlarını kendi frontend akışımıza bağlamak net."}]}},{"type":"faq","payload":{"items":[{"question":"Hangi içerikleri yönetebilirim?","answer":"Sayfalar, haberler, medya varlıkları ve Commerce modülü açıksa ürünler, varyantlar ve siparişler yönetilebilir."},{"question":"SQLite ve PostgreSQL destekleniyor mu?","answer":"Her iki veritabanı için aynı davranış sözleşmeleri ve migration akışları bulunur; deployment öncesi ortamınıza uygun doğrulama yapılmalıdır."},{"question":"Üye hesabı nasıl çalışır?","answer":"Üyeler public frontend üzerinden kayıt olabilir, giriş yapabilir, sepet ve kendi sipariş geçmişlerini görebilir. Admin Studio erişimleri ayrıdır."},{"question":"Ödeme canlı mı?","answer":"Demo ortamında ödeme sağlayıcı akışı yalnızca yapılandırılmış sandbox veya test sağlayıcısı ile çalışır; canlı anahtarlar ayrıca kurulmalıdır."}]}},{"type":"cta","payload":{"title":"Kendi içerik akışınızı oluşturun","button_text":"Studio'ya git →","button_url":"/admin"}}]`
 	showcaseBlocks := `[{"type":"hero","payload":{"title":"HydroGo Blok & Bileşen Vitrini","subtitle":"Hero, CTA, Fiyatlandırma Tablosu, Testimonials ve SSS bileşenleri ile dinamik web deneyimi.","media_asset_id":"demo-media-hero-showcase","button_text":"E-Ticaret Kataloğunu İncele →","button_url":"/shop"}},{"type":"pricing_table","payload":{"items":[{"name":"Starter Edition","price_cents":0,"currency":"TRY","features":["SQLite gömülü veritabanı","Admin Studio & Zengin Editör","REST & GraphQL API","Kompakt profil (düşük bellek)"]},{"name":"Growth Edition","price_cents":49900,"currency":"TRY","features":["Tüm CMS özellikleri","Commerce katalog ve varyantlar","Stok & Sipariş takibi","Headless Starter desteği"]},{"name":"Enterprise Edition","price_cents":149900,"currency":"TRY","features":["PostgreSQL yüksek erişilebilirlik","Arka plan worker & Outbox","Kapsamlı Audit & Kurtarma","Özelleştirilmiş SLA & Destek"]}]}},{"type":"testimonials","payload":{"items":[{"name":"Başmühendis & Tech Lead","quote":"Veritabanı dialect testleri ve sıfır sızıntı politikası sayesinde deployment süreçlerimiz tamamen stressiz."},{"name":"Çözüm Mimarı","quote":"Gömülü mimarisi sayesinde harici servis bağımlılığı olmadan dakikalar içinde devreye alınabiliyor."}]}},{"type":"faq","payload":{"items":[{"question":"Hangi sayfa blokları desteklenmektedir?","answer":"Hero alanı, Eylem Çağrısı (CTA), Sıkça Sorulan Sorular (FAQ), Fiyatlandırma Tablosu ve Müşteri Yorumları (Testimonials) blokları desteklenir."},{"question":"Özel blok ve tema desteği nasıl sağlanır?","answer":"Tema motoru dosya sistemi tabanlı şablonları ve dinamik slotları destekler. İhtiyaca göre özel bloklar tanımlanabilir."}]}},{"type":"cta","payload":{"title":"Haber Merkezini ve Son Yayınları İnceleyin","button_text":"Haberlere Göz At →","button_url":"/public/news/tr/html"}}]`
 	aboutBlocks := `[{"type":"hero","payload":{"title":"HydroGo Vizyonu ve Mimari Felsefesi","subtitle":"Performanslı, güvenli, ölçülebilir ve sürdürülebilir kurumsal içerik ve ticaret platformu.","button_text":"Haber Merkezini Gör →","button_url":"/public/news/tr/html"}},{"type":"faq","payload":{"items":[{"question":"Modüler CMS + Commerce yaklaşımı nedir?","answer":"HydroCore temel sözleşmeleri tanımlar. Pages, News ve Commerce modülleri bağımsız olarak takılıp çalıştırılabilir."},{"question":"Güvenlik standartları nelerdir?","answer":"CSP, CSRF koruması, Argon2id parola şifreleme, TOTP MFA ve sıkı oturum izolasyonu mevcuttur."},{"question":"Headless ve API desteği var mı?","answer":"REST ve GraphQL API'leri ile harici React, Vue, Next.js gibi frontend'ler doğrudan bağlanabilir."}]}},{"type":"cta","payload":{"title":"Geliştirici veya İçerik Yöneticisi misiniz?","button_text":"Studio Çalışma Alanı →","button_url":"/admin"}}]`
 
@@ -1720,9 +1771,9 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		id, sku, title, desc, mediaID string
 		price, stock                  int
 	}{
-		{"demo-prod-starter", "HYDRO-ED-STARTER", "HydroGo Community Edition", "Tek ikili dosya, SQLite gömülü veritabanı, Admin Studio ve yerel medya deposu içeren başlangıç paketi.", "demo-media-prod-1", 0, 999},
-		{"demo-prod-growth", "HYDRO-ED-GROWTH", "HydroGo Growth Edition", "Commerce modülü, zengin editoryal iş akışları, varyant desteği ve Headless API entegrasyonu.", "demo-media-prod-2", 49900, 150},
-		{"demo-prod-enterprise", "HYDRO-ED-ENTERPRISE", "HydroGo Enterprise Edition", "PostgreSQL HA, arka plan iş kuyruğu, outbox pattern, gelişmiş denetim logları ve öncelikli destek.", "demo-media-prod-3", 149900, 50},
+		{"demo-prod-starter", "HYDRO-ED-STARTER", "HydroGo Starter", "SQLite ile başlayan, sayfa ve medya yönetimini denemek için örnek paket.", "demo-media-prod-1", 0, 999},
+		{"demo-prod-growth", "HYDRO-ED-GROWTH", "HydroGo Growth", "Ürün kataloğu, varyant, stok ve içerik akışlarını birlikte deneyimlemek için örnek paket.", "demo-media-prod-2", 49900, 150},
+		{"demo-prod-enterprise", "HYDRO-ED-ENTERPRISE", "HydroGo Enterprise Demo", "PostgreSQL, iş kuyruğu ve operasyon ekranlarını anlatan örnek paket; canlı SLA içermez.", "demo-media-prod-3", 149900, 50},
 		{"demo-bottle", "DEMO-BOTTLE", "HydroGo Akıllı Termos (750ml)", "Çift katmanlı paslanmaz çelik gövde, 24 saat sıcak/soğuk koruma ve dijital sıcaklık göstergesi.", "demo-media-prod-4", 34900, 45},
 		{"demo-shirt", "DEMO-SHIRT", "HydroGo Developer T-Shirt", "%100 organik pamuk, nefes alabilir kumaş ve modern geliştirici tasarım baskısı.", "demo-media-prod-5", 49900, 30},
 		{"demo-keyboard", "DEMO-KEYBOARD", "HydroGo Mekanik Klavye (Hot-Swap)", "Gateron switch seçenekleri, RGB aydınlatma, PBT tuş takımı ve alüminyum kasa.", "demo-media-prod-6", 189900, 15},
@@ -1765,6 +1816,18 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE commerce_product_variants SET title=$1,price_cents=$2,stock=$3,status='published',updated_at=$4 WHERE id=$5`, `UPDATE commerce_product_variants SET title=?1,price_cents=?2,stock=?3,status='published',updated_at=?4 WHERE id=?5`, variant.title, variant.price, variant.stock, now, variant.id); err != nil {
 			return fmt.Errorf("update seed variant %s: %w", variant.id, err)
 		}
+	}
+	if err := seedExec(ctx, db, cfg.Database.Dialect,
+		`INSERT INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,customer_name,customer_identity_number,customer_email,customer_phone,customer_address,customer_city,customer_country,customer_postal_code,customer_client_ip,created_at) VALUES ($1,$2,$3,'TRY',$4,'paid','processing',$5,'',$6,$7,$8,$9,'TR',$10,'127.0.0.1',$11) ON CONFLICT (id) DO NOTHING`,
+		`INSERT OR IGNORE INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,customer_name,customer_identity_number,customer_email,customer_phone,customer_address,customer_city,customer_country,customer_postal_code,customer_client_ip,created_at) VALUES (?,?,?,'TRY',?,'paid','processing',?,'',?,?,?,?, 'TR',?,'127.0.0.1',?)`,
+		"demo-order-001", "demo-member-portal", "demo-order-key-001", 49900, "Demo Üye", "member@hydrogo.local", "+90 555 000 0000", "Demo adres", "İstanbul", "34000", now); err != nil {
+		return fmt.Errorf("seed demo order: %w", err)
+	}
+	if err := seedExec(ctx, db, cfg.Database.Dialect,
+		`INSERT INTO commerce_order_items (id,order_id,product_id,sku,title,quantity,unit_cents,total_cents,variant_id) VALUES ($1,$2,$3,$4,$5,1,$6,$6,$7) ON CONFLICT (id) DO NOTHING`,
+		`INSERT OR IGNORE INTO commerce_order_items (id,order_id,product_id,sku,title,quantity,unit_cents,total_cents,variant_id) VALUES (?,?,?,?,?,1,?,?,?)`,
+		"demo-order-item-001", "demo-order-001", "demo-prod-growth", "HYDRO-GROWTH-MONTHLY", "HydroGo Growth Edition · Aylık Lisans", 49900, 49900, "demo-growth-monthly"); err != nil {
+		return fmt.Errorf("seed demo order item: %w", err)
 	}
 
 	newsList := []struct {
@@ -2098,6 +2161,11 @@ Usage:
   hydro portable import --path PATH --dry-run [--max-bytes BYTES] [runtime flags]
   hydro portable import --path PATH --confirm [--max-bytes BYTES] [runtime flags]
   hydro release verify --manifest PATH --public-key PATH
+  hydro license issue --customer NAME --project-id ID --private-key PATH [--edition ED] [--features F1,F2] [--expires-in DUR] [--grace-days N] [--out PATH]
+  hydro license verify --license PATH [--public-key PATH] [--project-id ID] [--edition ED] [--feature F1]
+  hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]
+	hydro license keygen [--public-out PATH] [--private-out PATH]
+  hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]

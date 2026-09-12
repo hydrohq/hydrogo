@@ -61,13 +61,21 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	path := filepath.Join(h.Service.Uploader.StorageDir, filepath.Base(asset.StorageKey))
+	storageKey, mimeType := asset.StorageKey, asset.MimeType
+	if kind := r.URL.Query().Get("variant"); kind != "" && h.Service.Assets != nil {
+		if repo, ok := h.Service.Assets.(DerivativeRepository); ok {
+			if variant, variantErr := repo.GetReady(r.Context(), h.DB, asset.ID, kind); variantErr == nil {
+				storageKey, mimeType = variant.StorageKey, variant.MimeType
+			}
+		}
+	}
+	path := filepath.Join(h.Service.Uploader.StorageDir, filepath.Base(storageKey))
 	info, err := os.Lstat(path)
 	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Content-Type", asset.MimeType)
+	w.Header().Set("Content-Type", mimeType)
 	http.ServeFile(w, r, path)
 }
 

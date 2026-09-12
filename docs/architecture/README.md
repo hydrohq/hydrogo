@@ -54,6 +54,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0023](0023-metadata-driven-e2e.md) | Metadata-driven Admin and Frontend E2E | Proposed |
 | [0024](0024-optional-redis-rate-limiting-and-queue-boundary.md) | Optional Redis rate limiting and SQL queue boundary | Accepted |
 | [0025](0025-separate-frontend-members.md) | Separate frontend member identity | Accepted for MVP |
+| [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
+| [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

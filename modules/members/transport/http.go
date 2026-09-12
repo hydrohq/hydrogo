@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
@@ -22,14 +24,20 @@ type Handler struct {
 	Service members.Service
 	Secure  bool
 	Limiter interface{ Allow(string) bool }
+	Orders  commerce.OrderReader
+	DB      database.Executor
 }
 
 func (h Handler) Routes() []router.Route {
 	return []router.Route{
+		{Pattern: "GET /member/login", Access: router.Public, Handler: http.HandlerFunc(h.loginPage)},
+		{Pattern: "GET /member/register", Access: router.Public, Handler: http.HandlerFunc(h.registerPage)},
+		{Pattern: "GET /member/account", Access: router.Public, Handler: http.HandlerFunc(h.accountPage)},
 		{Pattern: "POST /member/register", Access: router.Public, Handler: http.HandlerFunc(h.register)},
 		{Pattern: "POST /member/login", Access: router.Public, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /member/logout", Access: router.Public, Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /member/me", Access: router.Public, Handler: http.HandlerFunc(h.me)},
+		{Pattern: "GET /member/orders", Access: router.Public, Handler: http.HandlerFunc(h.memberOrders)},
 
 		// Admin routes (Protected, RoleAdmin checked)
 		{Pattern: "GET /admin/members", Access: router.Protected, Handler: http.HandlerFunc(h.adminList)},
@@ -40,6 +48,135 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "POST /admin/members/{id}/sessions/{session_id}/revoke", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeSession)},
 		{Pattern: "POST /admin/members/{id}/sessions/revoke-all", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeAllSessions)},
 	}
+}
+
+func (h Handler) memberOrders(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(members.SessionCookieName)
+	if err != nil || cookie.Value == "" || h.Orders == nil || h.DB == nil {
+		http.Error(w, "orders unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	_, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
+	if err != nil || member == nil || !member.Active {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	orders, err := h.Orders.ListOrders(r.Context(), h.DB, 100)
+	if err != nil {
+		http.Error(w, "orders unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	owned := make([]commerce.Order, 0, len(orders))
+	for _, order := range orders {
+		if order.UserID == member.ID {
+			owned = append(owned, order)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "private, no-store")
+	_ = json.NewEncoder(w).Encode(owned)
+}
+
+func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(members.SessionCookieName); err == nil && cookie.Value != "" {
+		if _, _, err := h.Service.ValidateSession(r.Context(), cookie.Value); err == nil {
+			returnTo := r.URL.Query().Get("return_to")
+			if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
+				returnTo = "/member/account"
+			}
+			http.Redirect(w, r, returnTo, http.StatusSeeOther)
+			return
+		}
+	}
+	h.writeMemberAuthPage(w, r, false)
+}
+
+func (h Handler) registerPage(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(members.SessionCookieName); err == nil && cookie.Value != "" {
+		if _, _, err := h.Service.ValidateSession(r.Context(), cookie.Value); err == nil {
+			returnTo := r.URL.Query().Get("return_to")
+			if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
+				returnTo = "/member/account"
+			}
+			http.Redirect(w, r, returnTo, http.StatusSeeOther)
+			return
+		}
+	}
+	h.writeMemberAuthPage(w, r, true)
+}
+
+func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, register bool) {
+	returnTo := r.URL.Query().Get("return_to")
+	if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
+		returnTo = "/member/account"
+	}
+	title, heading, endpoint, submit, prompt, linkText, linkHref := "Giriş yap", "Hesabınıza giriş yapın", "/member/login", "Giriş yap", "Hesabınız yok mu?", "Üye olun", "/member/register"
+	if register {
+		title, heading, endpoint, submit, prompt, linkText, linkHref = "Üye ol", "Yeni hesabınızı oluşturun", "/member/register", "Üye ol", "Zaten hesabınız var mı?", "Giriş yapın", "/member/login"
+	}
+	if returnTo != "/member/account" {
+		linkHref += "?return_to=" + url.QueryEscape(returnTo)
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
+	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260912"></head><body class="theme-corporate-body"><main class="member-auth-page"><a class="member-auth-brand" href="/public/pages/tr/demo/html">HYDRO<b>GO</b></a><section class="member-auth-card"><div class="section-badge">HESAP</div><h1>%s</h1><p class="member-auth-lead">Siparişlerinizi ve tercihlerinizi tek bir güvenli hesaptan yönetin.</p><form class="member-auth-form" method="post" data-member-form action="%s"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="return_to" value="%s"><label>E-posta<input name="email" type="email" autocomplete="email" required placeholder="ornek@site.com"></label><label>Şifre<input name="password" type="password" autocomplete="%s" minlength="8" required placeholder="En az 8 karakter"></label><button class="btn-primary" type="submit">%s</button><div class="member-auth-status" data-member-status role="alert"></div></form><p class="member-auth-switch">%s <a href="%s">%s →</a></p></section></main><script nonce="%s">(function(){var form=document.querySelector('[data-member-form]'),status=document.querySelector('[data-member-status]');function showMsg(type,text){status.className='member-auth-status status-'+type;status.textContent=text;status.style.display='block';}form.addEventListener('submit',async function(event){event.preventDefault();var button=form.querySelector('button');var originalText=button.textContent;button.disabled=true;button.textContent='İşleniyor…';status.style.display='none';status.textContent='';try{var csrfInput=form.querySelector('input[name="_csrf"]');var csrfVal=csrfInput?csrfInput.value:'';var formData=new FormData(form);var body=new URLSearchParams(formData);var response=await fetch(form.action,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':csrfVal,'Accept':'application/json'},body:body});var rawText=await response.text();var data=null;try{data=JSON.parse(rawText);}catch(e){}if(!response.ok){var errMsg=(data&&data.error)?data.error:rawText;var lower=(errMsg||'').toLowerCase();if(lower.indexOf('already registered')!==-1||response.status===409){showMsg('error','Bu e-posta adresi zaten kayıtlı. Giriş yapmayı deneyin.');}else if(lower.indexOf('invalid credentials')!==-1||response.status===401){showMsg('error','E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.');}else if(lower.indexOf('too many')!==-1||response.status===429){showMsg('error','Çok fazla deneme yapıldı. Lütfen biraz bekleyip tekrar deneyin.');}else if(lower.indexOf('csrf')!==-1||response.status===403){showMsg('error','Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyin.');}else{showMsg('error',errMsg||'İşlem tamamlanamadı. Bilgilerinizi kontrol edin.');}button.disabled=false;button.textContent=originalText;return;}if(data&&data.member){try{localStorage.setItem('hydro_member_state',JSON.stringify(data.member));if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGIN',member:data.member});}}catch(e){}}var target=(data&&data.redirect)?data.redirect:'%s';showMsg('success','İşlem başarılı! Yönlendiriliyorsunuz…');setTimeout(function(){window.location.href=target;},200);}catch(err){showMsg('error','Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').');button.disabled=false;button.textContent=originalText;}});})();</script></body></html>`, title, heading, endpoint, csrf, template.HTMLEscapeString(returnTo), map[bool]string{true: "new-password", false: "current-password"}[register], submit, prompt, linkHref, linkText, nonce, template.HTMLEscapeString(returnTo))
+}
+
+func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(members.SessionCookieName)
+	if err != nil || cookie.Value == "" {
+		http.Redirect(w, r, "/member/login", http.StatusSeeOther)
+		return
+	}
+	currentSession, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
+	if err != nil {
+		http.Redirect(w, r, "/member/login", http.StatusSeeOther)
+		return
+	}
+	sessions, _ := h.Service.Sessions.ListByMemberID(r.Context(), member.ID)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
+	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
+
+	initial := "U"
+	if len(member.Email) > 0 {
+		initial = strings.ToUpper(string([]rune(member.Email)[0]))
+	}
+
+	verifiedBadge := `<span class="member-badge member-badge-muted">Doğrulanmamış E-posta</span>`
+	if member.EmailVerifiedAt != nil {
+		verifiedBadge = `<span class="member-badge member-badge-success">✓ E-posta Doğrulandı</span>`
+	}
+
+	regDate := member.CreatedAt.Format("02.01.2006")
+	if member.CreatedAt.IsZero() {
+		regDate = time.Now().Format("02.01.2006")
+	}
+
+	var sessionRows strings.Builder
+	for _, s := range sessions {
+		isCurrent := ""
+		if currentSession != nil && s.ID == currentSession.ID {
+			isCurrent = `<span class="member-session-current">Mevcut Oturum</span>`
+		}
+		ua := s.UserAgent
+		if len(ua) > 42 {
+			ua = ua[:40] + "…"
+		}
+		if strings.TrimSpace(ua) == "" {
+			ua = "Standart Tarayıcı"
+		}
+		fmt.Fprintf(&sessionRows, `<tr><td><strong>%s</strong>%s<br><small style="color:var(--theme-muted);font-family:'JetBrains Mono',monospace;font-size:0.78rem;">IP: %s</small></td><td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">%s</td></tr>`,
+			template.HTMLEscapeString(ua),
+			isCurrent,
+			template.HTMLEscapeString(s.IPAddress),
+			s.LastSeenAt.Format("02.01 15:04"),
+		)
+	}
+
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Hesabım · HydroGo</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=block"><link rel="stylesheet" href="/theme/static/theme.css?v=20260912"></head><body class="theme-corporate-body"><div class="site-announcement"><div class="announcement-content"><span class="announcement-badge">Üye Portalı</span><span class="announcement-text">Hesap ve sipariş yönetimi panelinize hoş geldiniz.</span><a class="announcement-link" href="/shop">Mağazaya Git →</a></div></div><header class="news-header"><div class="header-container"><a class="news-logo" href="/public/pages/tr/demo/html"><div class="logo-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDRO<b>GO</b></span><small>PLATFORM</small></div></a><nav class="news-nav"><a href="/public/pages/tr/demo/html">Ana Sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/html">Haberler</a><a href="/shop">Mağaza</a><a href="/member/account" class="nav-member-badge is-active"><span class="nav-member-icon">👤</span> %s</a><button class="nav-admin-btn" style="background:none;border:none;cursor:pointer;" data-member-logout type="button">Çıkış ↗</button></nav></div></header><main class="member-portal"><div class="member-hero"><div class="member-hero-left"><div class="member-avatar">%s</div><div class="member-hero-info"><h1>Hoş Geldiniz</h1><div class="member-hero-email">%s</div><div class="member-badges-row"><span class="member-badge member-badge-success">✓ Aktif Üyelik</span>%s<span class="member-badge member-badge-info">🛡️ Güvenli Oturum</span></div></div></div><div style="display:flex;gap:10px;align-items:center;"><button class="btn-secondary" data-member-logout type="button" style="padding:10px 18px;font-size:0.9rem;">Güvenli Çıkış Yap</button></div></div><div class="member-kpi-grid"><div class="member-kpi-card"><span class="member-kpi-label">HESAP GÜVENLİĞİ</span><div class="member-kpi-value" style="color:#166534;">Aktif &amp; Korumalı</div><span class="member-kpi-sub">256-Bit şifreli hesap güvenliği</span></div><div class="member-kpi-card"><span class="member-kpi-label">AKTİF CİHAZLAR</span><div class="member-kpi-value">%d Cihaz</div><span class="member-kpi-sub">Yetkilendirilmiş güvenli oturum</span></div><div class="member-kpi-card"><span class="member-kpi-label">KAYIT TARİHİ</span><div class="member-kpi-value" style="font-size:1.15rem;font-family:'JetBrains Mono',monospace;">%s</div><span class="member-kpi-sub">Platform katılım tarihi</span></div></div><div class="member-dashboard-grid"><div class="member-left-col"><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">🛍️ Siparişlerim &amp; Dijital Lisanslarım</h2></div><p class="member-card-desc">HydroGo Commerce üzerinden verdiğiniz tüm siparişler, dijital yazılım lisansları ve e-faturalar bu hesapta toplanır.</p><div class="member-action-list"><a class="member-action-item" href="/shop"><span>📦 Mağaza Kataloğuna Göz At</span><span style="color:var(--theme-primary);">İncele →</span></a><a class="member-action-item" href="/shop/cart"><span>🛒 Alışveriş Sepetim</span><span style="color:var(--theme-primary);">Sepete Git →</span></a></div></div><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">📰 Platform &amp; Keşif</h2></div><p class="member-card-desc">HydroGo platform yenilikleri, kurumsal duyurular ve geliştirici blog yazılarını inceleyin.</p><div class="member-action-list"><a class="member-action-item" href="/public/news/tr/html"><span>📰 Haberler ve Duyurular</span><span style="color:var(--theme-primary);">Oku →</span></a><a class="member-action-item" href="/public/pages/tr/about/html"><span>📖 Mimari Felsefe ve Hakkında</span><span style="color:var(--theme-primary);">Detaylar →</span></a></div></div></div><div class="member-right-col"><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">🔒 Aktif Oturumlar &amp; Cihazlar</h2></div><p class="member-card-desc">Hesabınıza erişim sağlayan yetkilendirilmiş oturumlar:</p><table class="member-sessions-table"><thead><tr><th>Cihaz Bilgisi</th><th>Son Görülme</th></tr></thead><tbody>%s</tbody></table></div><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">💬 Müşteri Desteği</h2></div><p class="member-card-desc">Hesabınız veya siparişleriniz ile ilgili her türlü soru için teknik ekibimizle dilediğiniz an iletişime geçebilirsiniz.</p><div style="font-size:0.88rem;color:var(--theme-muted);">Kurumsal İletişim: <strong style="color:var(--theme-ink);">destek@hydrogo.local</strong></div></div></div></div></main><footer class="news-footer" style="margin-top:40px;"><div class="footer-container"><div class="footer-brand-col"><div class="footer-logo"><div class="logo-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><strong>HYDROGO <span>PLATFORM</span></strong></div><p>Yüksek performanslı Go altyapısı ile kurumsal içerik ve üyelik platformu.</p></div></div></footer><script nonce="%s">document.querySelectorAll('[data-member-logout]').forEach(function(el){el.addEventListener('click',function(){fetch('/member/logout',{method:'POST',headers:{'X-CSRF-Token':'%s'}}).then(function(){try{localStorage.removeItem('hydro_member_state');if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGOUT'});}}catch(e){}window.location.assign('/member/login');});});});</script></body></html>`, template.HTMLEscapeString(member.Email), initial, template.HTMLEscapeString(member.Email), verifiedBadge, len(sessions), regDate, sessionRows.String(), nonce, csrf)
 }
 
 func (h Handler) register(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +194,11 @@ func (h Handler) register(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "email already registered", 409)
 			return
 		}
-		http.Error(w, "registration failed", 400)
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			http.Error(w, "invalid credentials", 400)
+			return
+		}
+		http.Error(w, "registration failed: "+err.Error(), 400)
 		return
 	}
 	h.issueSession(w, r, m)
@@ -88,7 +229,21 @@ func (h Handler) issueSession(w http.ResponseWriter, r *http.Request, m *members
 	}
 	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: token, Path: "/", Expires: s.ExpiresAt, HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode})
 	w.Header().Set("Cache-Control", "no-store")
-	json.NewEncoder(w).Encode(map[string]any{"authenticated": true, "member": map[string]any{"id": m.ID, "email": m.Email}})
+
+	returnTo := r.FormValue("return_to")
+	if returnTo == "" {
+		returnTo = r.URL.Query().Get("return_to")
+	}
+	if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
+		returnTo = "/member/account"
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(map[string]any{
+		"authenticated": true,
+		"redirect":      returnTo,
+		"member":        map[string]any{"id": m.ID, "email": m.Email},
+	})
 }
 
 func (h Handler) logout(w http.ResponseWriter, r *http.Request) {

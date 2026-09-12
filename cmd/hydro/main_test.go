@@ -17,6 +17,8 @@ import (
 	"time"
 
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
+	"github.com/ardaozyildirim/hydrogo/internal/config"
+	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 )
 
@@ -456,5 +458,230 @@ func TestAdminNonAdminAndMemberCookieAccessControls(t *testing.T) {
 	memberCookieName := "hydro_member_session"
 	if adminCookieName == memberCookieName {
 		t.Fatalf("member session cookie must never match admin session cookie")
+	}
+}
+
+func TestRunLicenseCLI(t *testing.T) {
+	tempDir := t.TempDir()
+	pubKeyPath := filepath.Join(tempDir, "license_pub.key")
+	privKeyPath := filepath.Join(tempDir, "license_priv.key")
+	licensePath := filepath.Join(tempDir, "hydro.lic")
+
+	// 1. Keygen
+	var keygenOut, keygenErr bytes.Buffer
+	if err := run([]string{"license", "keygen", "--public-out", pubKeyPath, "--private-out", privKeyPath}, strings.NewReader(""), &keygenOut, &keygenErr); err != nil {
+		t.Fatalf("license keygen failed: %v, stderr: %s", err, keygenErr.String())
+	}
+	if !strings.Contains(keygenOut.String(), "keys-generated") {
+		t.Fatalf("expected keys-generated output, got: %s", keygenOut.String())
+	}
+
+	// 2. Issue valid license
+	var issueOut, issueErr bytes.Buffer
+	issueArgs := []string{
+		"license", "issue",
+		"--customer", "Customer Test Corp",
+		"--project-id", "project-cli-test",
+		"--edition", "growth",
+		"--features", "pages,news,commerce",
+		"--expires-in", "8760h",
+		"--grace-days", "14",
+		"--private-key", privKeyPath,
+		"--out", licensePath,
+	}
+	if err := run(issueArgs, strings.NewReader(""), &issueOut, &issueErr); err != nil {
+		t.Fatalf("license issue failed: %v, stderr: %s", err, issueErr.String())
+	}
+	if !strings.Contains(issueOut.String(), "license-issued") {
+		t.Fatalf("expected license-issued output, got: %s", issueOut.String())
+	}
+
+	// 3. Verify valid license
+	var verifyOut, verifyErr bytes.Buffer
+	verifyArgs := []string{
+		"license", "verify",
+		"--license", licensePath,
+		"--public-key", pubKeyPath,
+		"--project-id", "project-cli-test",
+		"--edition", "growth",
+		"--feature", "commerce",
+	}
+	if err := run(verifyArgs, strings.NewReader(""), &verifyOut, &verifyErr); err != nil {
+		t.Fatalf("license verify failed: %v, stderr: %s", err, verifyErr.String())
+	}
+	if !strings.Contains(verifyOut.String(), "license-verified state=active") {
+		t.Fatalf("expected verified state=active, got: %s", verifyOut.String())
+	}
+
+	// 4. Status table check
+	var statusOut, statusErr bytes.Buffer
+	statusArgs := []string{
+		"license", "status",
+		"--license", licensePath,
+		"--public-key", pubKeyPath,
+		"--project-id", "project-cli-test",
+	}
+	if err := run(statusArgs, strings.NewReader(""), &statusOut, &statusErr); err != nil {
+		t.Fatalf("license status failed: %v, stderr: %s", err, statusErr.String())
+	}
+	if !strings.Contains(statusOut.String(), "Customer Test Corp") || !strings.Contains(statusOut.String(), "[ACTIVE]") {
+		t.Fatalf("expected active status with customer name, got: %s", statusOut.String())
+	}
+
+	// 5. Status JSON check
+	var statusJSONOut, statusJSONErr bytes.Buffer
+	statusJSONArgs := []string{
+		"license", "status",
+		"--license", licensePath,
+		"--public-key", pubKeyPath,
+		"--json",
+	}
+	if err := run(statusJSONArgs, strings.NewReader(""), &statusJSONOut, &statusJSONErr); err != nil {
+		t.Fatalf("license status --json failed: %v, stderr: %s", err, statusJSONErr.String())
+	}
+	if !strings.Contains(statusJSONOut.String(), `"state": "active"`) {
+		t.Fatalf("expected json state active, got: %s", statusJSONOut.String())
+	}
+
+	// 6. Verify mismatch project ID
+	var failOut, failErr bytes.Buffer
+	failArgs := []string{
+		"license", "verify",
+		"--license", licensePath,
+		"--public-key", pubKeyPath,
+		"--project-id", "different-project",
+	}
+	if err := run(failArgs, strings.NewReader(""), &failOut, &failErr); err == nil {
+		t.Fatal("expected error on mismatched project-id, but succeeded")
+	}
+}
+
+func TestValidateRuntimeLicenseInServe(t *testing.T) {
+	tempDir := t.TempDir()
+	pubKey, privKey, err := licensing.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set trusted vendor key for test environment
+	licensing.TrustedPublicKeyBase64 = licensing.EncodePublicKey(pubKey)
+	defer func() { licensing.TrustedPublicKeyBase64 = "" }()
+
+	projectID := "proj-serve-test"
+	licensePath := filepath.Join(tempDir, "hydro.lic")
+	lockPath := filepath.Join(tempDir, "hydrogo.lock")
+
+	// 1. Missing license file
+	missingCfg := config.Config{
+		License: config.License{
+			Required:  true,
+			File:      filepath.Join(tempDir, "nonexistent.lic"),
+			ProjectID: projectID,
+			Edition:   "starter",
+		},
+	}
+	var stderr bytes.Buffer
+	if _, err := validateRuntimeLicense(missingCfg, &stderr); err == nil || !strings.Contains(err.Error(), "lisans dosyası bulunamadı") {
+		t.Fatalf("expected missing license error, got: %v", err)
+	}
+
+	// 2. Lockfile project ID mismatch
+	lockJSON := fmt.Sprintf(`{"project_id": "mismatched-lock-id", "edition": "starter"}`)
+	_ = os.WriteFile(lockPath, []byte(lockJSON), 0o644)
+
+	validClaims := licensing.Claims{
+		Customer:        "Serve Customer",
+		ProjectID:       projectID,
+		Edition:         "growth",
+		Features:        []string{"pages", "news", "commerce"},
+		IssuedAt:        time.Now().Add(-24 * time.Hour),
+		ExpiresAt:       time.Now().Add(30 * 24 * time.Hour),
+		GracePeriodDays: 14,
+	}
+	validLicBytes, err := licensing.Issue(validClaims, privKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(licensePath, validLicBytes, 0o644)
+
+	cfg := config.Config{
+		License: config.License{
+			Required:  true,
+			File:      licensePath,
+			ProjectID: projectID,
+			Edition:   "growth",
+			Features:  []string{"pages", "commerce"},
+		},
+	}
+	if _, err := validateRuntimeLicense(cfg, &stderr); err == nil || !strings.Contains(err.Error(), "hydrogo.lock proje kimliği") {
+		t.Fatalf("expected lockfile project ID mismatch error, got: %v", err)
+	}
+
+	// Fix lockfile project ID
+	correctLockJSON := fmt.Sprintf(`{"project_id": "%s", "edition": "growth", "features": ["pages", "commerce"], "licensing": {"required": true}}`, projectID)
+	_ = os.WriteFile(lockPath, []byte(correctLockJSON), 0o644)
+
+	// 3. Valid license -> succeeds
+	res, err := validateRuntimeLicense(cfg, &stderr)
+	if err != nil {
+		t.Fatalf("expected successful validation, got: %v", err)
+	}
+	if res.State != licensing.StateActive {
+		t.Errorf("expected StateActive, got: %s", res.State)
+	}
+
+	// 3b. Lock edition and feature drift are rejected even when the license
+	// itself is valid.
+	_ = os.WriteFile(lockPath, []byte(fmt.Sprintf(`{"project_id": "%s", "edition": "starter", "features": ["pages"], "licensing": {"required": true}}`, projectID)), 0o644)
+	if _, err := validateRuntimeLicense(cfg, &stderr); err == nil || !strings.Contains(err.Error(), "edition") {
+		t.Fatalf("expected lockfile edition mismatch error, got: %v", err)
+	}
+	_ = os.WriteFile(lockPath, []byte(fmt.Sprintf(`{"project_id": "%s", "edition": "growth", "features": ["pages"], "licensing": {"required": true}}`, projectID)), 0o644)
+	if _, err := validateRuntimeLicense(cfg, &stderr); err == nil || !strings.Contains(err.Error(), "feature") {
+		t.Fatalf("expected lockfile feature mismatch error, got: %v", err)
+	}
+	_ = os.WriteFile(lockPath, []byte(correctLockJSON), 0o644)
+
+	// 4. Grace period license -> emits warning and succeeds
+	graceClaims := licensing.Claims{
+		Customer:        "Grace Customer",
+		ProjectID:       projectID,
+		Edition:         "growth",
+		Features:        []string{"pages", "commerce"},
+		IssuedAt:        time.Now().Add(-60 * 24 * time.Hour),
+		ExpiresAt:       time.Now().Add(-2 * 24 * time.Hour), // expired 2 days ago
+		GracePeriodDays: 14,                                  // 12 days grace left
+	}
+	graceLicBytes, _ := licensing.Issue(graceClaims, privKey)
+	_ = os.WriteFile(licensePath, graceLicBytes, 0o644)
+
+	stderr.Reset()
+	resGrace, err := validateRuntimeLicense(cfg, &stderr)
+	if err != nil {
+		t.Fatalf("grace period license should not error, got: %v", err)
+	}
+	if resGrace.State != licensing.StateGracePeriod {
+		t.Errorf("expected StateGracePeriod, got: %s", resGrace.State)
+	}
+	if !strings.Contains(stderr.String(), "LİSANS UYARISI") {
+		t.Errorf("expected grace warning on stderr, got: %s", stderr.String())
+	}
+
+	// 5. Expired beyond grace -> hard error
+	expiredClaims := licensing.Claims{
+		Customer:        "Expired Customer",
+		ProjectID:       projectID,
+		Edition:         "growth",
+		Features:        []string{"pages", "commerce"},
+		IssuedAt:        time.Now().Add(-90 * 24 * time.Hour),
+		ExpiresAt:       time.Now().Add(-30 * 24 * time.Hour),
+		GracePeriodDays: 7,
+	}
+	expiredLicBytes, _ := licensing.Issue(expiredClaims, privKey)
+	_ = os.WriteFile(licensePath, expiredLicBytes, 0o644)
+
+	stderr.Reset()
+	if _, err := validateRuntimeLicense(cfg, &stderr); err == nil || !strings.Contains(err.Error(), "license verification failed") {
+		t.Fatalf("expected hard error on expired license beyond grace, got: %v", err)
 	}
 }

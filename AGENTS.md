@@ -3,12 +3,14 @@
 Before starting work that alters the architecture or product behavior in this repository, read the following documents:
 
 1. `docs/HYDROGO_PHILOSOPHY.md`
-2. `docs/implementation_plan.md`
-3. `docs/architecture/README.md`
-4. Affected ADR files
+2. `docs/INFORMATION_HIERARCHY.md`
+3. `docs/implementation_plan.md`
+4. `docs/architecture/README.md`
+5. Affected ADR files
 
-## Architectural Discipline
+## Architectural Discipline & Respect for the User
 
+- Never expose unnecessary technical noise, internal errors, cryptographic algorithms, or cognitive clutter to end users/members. Follow `docs/INFORMATION_HIERARCHY.md` strictly across all user, admin, sysadmin, developer, and auditor surfaces.
 - Do not silently apply changes that contradict an accepted ADR.
 - If new information supersedes an old decision, do not delete the old ADR; create a new ADR, mark the previous decision as "Superseded", and link the two documents.
 - Never fork HydroCore for a specific customer need. Place general capabilities in versioned Core/Module contracts and specific customer behaviors in Client Editions.

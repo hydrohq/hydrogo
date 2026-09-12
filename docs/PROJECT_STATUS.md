@@ -42,6 +42,11 @@ migrations, workers, assets, or mandatory infrastructure.
 - Release tooling verifies signed manifests against an operator-supplied
   trusted Ed25519 public key, verifies retained assets, records provenance,
   and supports deterministic generation and Client Edition boundaries.
+- Project generator (`hydro new`) produces decoupled Client Edition project scaffolds
+  for news, commerce, corporate, portal, and headless presets without copying HydroGo Core code.
+- Cryptographic licensing (`internal/licensing` and `hydro license`) provides offline
+  Ed25519 license verification, grace period management, lockfile consistency (`hydrogo.lock`),
+  and fail-closed runtime enforcement.
 - Commerce is available as an optional experimental/pilot module with contract-tested
   order/cart idempotency, atomic stock reservation, and Stripe/iyzico/PayTR sandbox adapters;
   commercial production certification remains open.

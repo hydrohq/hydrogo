@@ -20,3 +20,11 @@ func TestRenderIsDeterministicAndUsesExplicitTestIDs(t *testing.T) {
 		t.Fatal("generated output omitted explicit test IDs")
 	}
 }
+
+func TestRenderIncludesDeclaredMediaUploadJourney(t *testing.T) {
+	m := manifest{Version: 1, BaseURL: "http://127.0.0.1:8090", Admin: adminManifest{LoginPath: "/login"}, Media: mediaManifest{Route: "/admin/media", UploadEnabled: true}}
+	output := render(m)
+	if !strings.Contains(output, "admin: media upload") || !strings.Contains(output, "setInputFiles") {
+		t.Fatal("declared media upload journey was not generated")
+	}
+}

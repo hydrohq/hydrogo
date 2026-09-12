@@ -1,0 +1,25 @@
+id: "202609120001_media_variants"
+module: "media"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies:
+  - "202609080004_media_assets"
+checksum_sha256:
+  sqlite: "154d863b6c90484f9a2fe4c329c79ef0ba5d1dfb35a369c3549950b16b2abfba"
+  postgres: "690726592d05f0ffcd43bc0dc6fedf132ccea9a7bb4269a36028e7a89ddfdcbd"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "Media assets migration is applied"
+lock_timeout: "bounded by migration runner"
+disk_estimate: "One bounded derivative record per requested media variant"
+compatibility: "Additive derived-media metadata; original media remains authoritative"
+smoke:
+  - "A variant can be processing, ready, or failed without changing the original asset"
+restart: "Safe to rerun; migration ledger prevents duplicate application"
+rollback: "No production down migration; restore or forward migration only."
