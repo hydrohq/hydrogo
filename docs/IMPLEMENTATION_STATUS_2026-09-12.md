@@ -11,6 +11,11 @@ require an external deployment, provider account, or operator-controlled key.
 - Theme toast messages are inserted as text nodes rather than `innerHTML`.
 - Public and admin image fallbacks use delegated, CSP-compatible handlers;
   inline `onerror`/`onclick` handlers were removed from rendered surfaces.
+- Deployment presets (`compact-site`, `editorial`, `commerce`, `headless`) are
+  explicit and tested for config/module declarations; page routes now respect
+  the selected module set.
+- Admin Studio search renders stored/API-provided labels with safe DOM text
+  nodes instead of interpolating them into `innerHTML`.
 - Native forms disable submit controls after the first submit event to reduce
   duplicate mutations.
 - Reduced-motion support disables smooth scrolling and long transitions.
@@ -18,6 +23,7 @@ require an external deployment, provider account, or operator-controlled key.
 - `node --check themes/corporate/static/theme.js` passes.
 - `go test ./... -p 1 -timeout=5m` passes.
 - `go vet ./...` passes.
+- Playwright generated frontend/Admin E2E passes: 20/20 tests.
 
 ## Not certified by local execution
 
