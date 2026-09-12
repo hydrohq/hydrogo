@@ -591,7 +591,7 @@ func productMediaMarkup(product commerce.Product) template.HTML {
 	if strings.TrimSpace(product.MediaID) == "" {
 		return ""
 	}
-	return template.HTML(`<img class="product-image" src="/media/` + template.URLQueryEscaper(product.MediaID) + `?variant=card" alt="` + template.HTMLEscapeString(product.Title) + `" loading="lazy" onerror="this.onerror=null;this.src='/media/` + template.URLQueryEscaper(product.MediaID) + `';">`)
+	return template.HTML(`<img class="product-image" src="/media/` + template.URLQueryEscaper(product.MediaID) + `?variant=card" alt="` + template.HTMLEscapeString(product.Title) + `" loading="lazy" data-fallback-src="/media/` + template.URLQueryEscaper(product.MediaID) + `">`)
 }
 
 func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
