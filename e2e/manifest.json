@@ -18,7 +18,10 @@
   "frontend": {
     "routes": [
       {"name": "home", "path": "/public/pages/tr/demo/html", "public": true, "test_id": "public-page"},
-      {"name": "shop", "path": "/shop", "public": true, "test_id": "public-shop"}
+      {"name": "shop", "path": "/shop", "public": true, "test_id": "public-shop"},
+      {"name": "news", "path": "/public/news/tr/html", "public": true, "test_id": "public-news"},
+      {"name": "product", "path": "/shop/products/demo-bottle", "public": true, "test_id": "public-product"},
+      {"name": "member login", "path": "/member/login", "public": true, "test_id": "member-auth"}
     ]
   },
   "media": {

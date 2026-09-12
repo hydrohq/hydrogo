@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -829,7 +830,7 @@ func serve(args []string, stderr io.Writer) error {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo giriş</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260912"></head><body><main class="theme-corporate-content login-page"><h1>Giriş yap</h1><p>Yönetim paneline veya hesabınıza erişmek için bilgilerinizi girin.</p><form id="login-form" method="post"><input type="hidden" name="_csrf" value="%s"><label>E-posta <input name="email" type="email" required autocomplete="username"></label><label>Şifre <input name="password" type="password" required autocomplete="current-password"></label><button type="submit">Giriş yap</button><div id="login-status" class="member-auth-status" role="alert"></div></form><a href="%s">Mağazaya dön</a><script nonce="%s">(function(){var form=document.getElementById('login-form'),status=document.getElementById('login-status');function showMsg(type,text){status.className='member-auth-status status-'+type;status.textContent=text;status.style.display='block';}form.addEventListener('submit',async function(e){e.preventDefault();var btn=form.querySelector('button');var orig=btn.textContent;btn.disabled=true;btn.textContent='Giriş yapılıyor…';status.style.display='none';try{var response=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':form.elements._csrf.value,'Accept':'application/json'},body:new URLSearchParams(new FormData(form))});if(!response.ok){if(response.status===401){showMsg('error','E-posta veya şifre hatalı.');}else if(response.status===429){showMsg('error','Çok fazla deneme yapıldı. Lütfen biraz bekleyin.');}else if(response.status===403){showMsg('error','Güvenlik doğrulaması başarısız. Sayfayı yenileyin.');}else{showMsg('error','Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.');}btn.disabled=false;btn.textContent=orig;return;}showMsg('success','Giriş başarılı! Yönetim paneline aktarılıyorsunuz…');setTimeout(function(){window.location.href='%s';},300);}catch(_){showMsg('error','Bağlantı kurulamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');btn.disabled=false;btn.textContent=orig;}});})();</script></main></body></html>`, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(returnTo), template.HTMLEscapeString(security.NonceFromContext(r.Context())), template.HTMLEscapeString(returnTo))
+		_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Yönetici Girişi · HydroGo</title><link rel="stylesheet" href="/theme/static/theme.css?v=20260912"></head><body class="theme-corporate-body"><main class="member-auth-page"><a class="member-auth-brand" href="/"><span class="member-auth-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span>HYDRO<b>GO</b></a><section class="member-auth-card"><div class="section-badge"><span class="badge-dot"></span> STUDIO YÖNETİM</div><h1>Yönetici Girişi</h1><p class="member-auth-lead">HydroGo Studio yönetim paneline erişmek için yetkili bilgilerinizi girin.</p><form id="login-form" class="member-auth-form" method="post"><input type="hidden" name="_csrf" value="%s"><label class="auth-field"><span class="field-label">E-posta Adresi</span><div class="field-input-wrap"><svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg><input name="email" type="email" required autocomplete="username" placeholder="admin@site.com"></div></label><label class="auth-field"><span class="field-label">Şifre</span><div class="field-input-wrap"><svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><input name="password" type="password" required autocomplete="current-password" placeholder="••••••••"></div></label><button class="btn-primary auth-submit-btn" type="submit"><span>Panele Giriş Yap</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button><div id="login-status" class="member-auth-status" role="alert"></div></form><div class="auth-trust-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><span>Güvenli yetkili oturum</span></div><p class="member-auth-switch"><a href="/" class="auth-back-link">← Ana Sayfaya Geri Dön</a></p></section></main><script nonce="%s">(function(){var form=document.getElementById('login-form'),status=document.getElementById('login-status');function showMsg(type,text){status.className='member-auth-status status-'+type;status.textContent=text;status.style.display='block';}form.addEventListener('submit',async function(e){e.preventDefault();var btn=form.querySelector('button');var orig=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span>Giriş yapılıyor…</span>';status.style.display='none';try{var response=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':form.elements._csrf.value,'Accept':'application/json'},body:new URLSearchParams(new FormData(form))});if(!response.ok){if(response.status===401){showMsg('error','E-posta veya şifre hatalı.');}else if(response.status===429){showMsg('error','Çok fazla deneme yapıldı. Lütfen biraz bekleyin.');}else if(response.status===403){showMsg('error','Güvenlik doğrulaması başarısız. Sayfayı yenileyin.');}else{showMsg('error','Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.');}btn.disabled=false;btn.innerHTML=orig;return;}showMsg('success','Giriş başarılı! Yönetim paneline aktarılıyorsunuz…');setTimeout(function(){window.location.href='%s';},300);}catch(_){showMsg('error','Bağlantı kurulamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');btn.disabled=false;btn.innerHTML=orig;}});})();</script></body></html>`, template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), template.HTMLEscapeString(security.NonceFromContext(r.Context())), template.HTMLEscapeString(returnTo))
 	})})
 	var runtimeMetrics *observability.Metrics
 	adminDashboardHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1683,43 +1684,96 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("seed media directory: %w", err)
 	}
 
+	minUint8 := func(a, b uint8) uint8 {
+		if a < b {
+			return a
+		}
+		return b
+	}
+
 	seedMedia := func(id, filename string, width, height int, r, g, b uint8) error {
 		img := image.NewRGBA(image.Rect(0, 0, width, height))
-		// Gradient background
+		// Rich dark background with radial mesh gradient
+		cx, cy := width/2, height/2
+		maxDist := math.Hypot(float64(cx), float64(cy))
 		for y := 0; y < height; y++ {
-			factor := float64(y) / float64(height)
-			cr := uint8(float64(r) * (1.0 - 0.3*factor))
-			cg := uint8(float64(g) * (1.0 - 0.2*factor))
-			cb := uint8(float64(b) * (1.0 - 0.1*factor))
 			for x := 0; x < width; x++ {
-				img.Set(x, y, color.RGBA{R: cr, G: cg, B: cb, A: 255})
+				dist := math.Hypot(float64(x-cx), float64(y-cy))
+				glow := 1.0 - (dist / maxDist)
+				if glow < 0 {
+					glow = 0
+				}
+				// Dark background with subtle color tint
+				bgR := uint8(float64(10) + float64(r)*0.35*glow)
+				bgG := uint8(float64(12) + float64(g)*0.35*glow)
+				bgB := uint8(float64(18) + float64(b)*0.45*glow)
+				img.Set(x, y, color.RGBA{R: bgR, G: bgG, B: bgB, A: 255})
 			}
 		}
-		// Decorative inner frame
-		margin := 16
-		if width > 400 {
-			margin = 28
+
+		// Technical grid pattern
+		gridStep := 32
+		if width > 500 {
+			gridStep = 40
 		}
-		frameColor := color.RGBA{R: 255, G: 255, B: 255, A: 40}
-		_ = frameColor
-		for x := margin; x < width-margin; x++ {
-			img.Set(x, margin, color.RGBA{255, 255, 255, 60})
-			img.Set(x, height-margin, color.RGBA{255, 255, 255, 60})
+		for x := 0; x < width; x += gridStep {
+			for y := 0; y < height; y++ {
+				if y%4 == 0 {
+					orig := img.RGBAAt(x, y)
+					img.Set(x, y, color.RGBA{R: minUint8(orig.R+15, 255), G: minUint8(orig.G+20, 255), B: minUint8(orig.B+30, 255), A: 255})
+				}
+			}
 		}
-		for y := margin; y < height-margin; y++ {
-			img.Set(margin, y, color.RGBA{255, 255, 255, 60})
-			img.Set(width-margin, y, color.RGBA{255, 255, 255, 60})
+		for y := 0; y < height; y += gridStep {
+			for x := 0; x < width; x++ {
+				if x%4 == 0 {
+					orig := img.RGBAAt(x, y)
+					img.Set(x, y, color.RGBA{R: minUint8(orig.R+15, 255), G: minUint8(orig.G+20, 255), B: minUint8(orig.B+30, 255), A: 255})
+				}
+			}
 		}
-		// Center emblem/badge rect
-		cx, cy := width/2, height/2
-		ew, eh := width/4, height/4
-		if ew < 20 {
-			ew = 20
+
+		// Central architectural badge card
+		cardW, cardH := width*6/10, height*5/10
+		if cardW < 120 {
+			cardW = 120
 		}
-		if eh < 20 {
-			eh = 20
+		if cardH < 80 {
+			cardH = 80
 		}
-		draw.Draw(img, image.Rect(cx-ew, cy-eh, cx+ew, cy+eh), &image.Uniform{color.RGBA{255, 255, 255, 45}}, image.Point{}, draw.Over)
+		cardRect := image.Rect(cx-cardW/2, cy-cardH/2, cx+cardW/2, cy+cardH/2)
+		draw.Draw(img, cardRect, &image.Uniform{color.RGBA{R: 20, G: 26, B: 38, A: 220}}, image.Point{}, draw.Over)
+
+		// Border of card
+		for x := cardRect.Min.X; x <= cardRect.Max.X; x++ {
+			img.Set(x, cardRect.Min.Y, color.RGBA{r, g, b, 180})
+			img.Set(x, cardRect.Max.Y, color.RGBA{r, g, b, 100})
+		}
+		for y := cardRect.Min.Y; y <= cardRect.Max.Y; y++ {
+			img.Set(cardRect.Min.X, y, color.RGBA{r, g, b, 180})
+			img.Set(cardRect.Max.X, y, color.RGBA{r, g, b, 100})
+		}
+
+		// Decorative tech circles / nodes
+		nodeRadius := 8
+		if width < 500 {
+			nodeRadius = 5
+		}
+		for _, nodeX := range []int{cardRect.Min.X + 24, cx, cardRect.Max.X - 24} {
+			for dy := -nodeRadius; dy <= nodeRadius; dy++ {
+				for dx := -nodeRadius; dx <= nodeRadius; dx++ {
+					if dx*dx+dy*dy <= nodeRadius*nodeRadius {
+						img.Set(nodeX+dx, cy+dy, color.RGBA{R: minUint8(r+60, 255), G: minUint8(g+60, 255), B: minUint8(b+60, 255), A: 255})
+					}
+				}
+			}
+		}
+
+		// Connecting line between nodes
+		for x := cardRect.Min.X + 24; x <= cardRect.Max.X-24; x++ {
+			img.Set(x, cy, color.RGBA{R: minUint8(r+80, 255), G: minUint8(g+80, 255), B: minUint8(b+80, 255), A: 180})
+			img.Set(x, cy+1, color.RGBA{R: minUint8(r+80, 255), G: minUint8(g+80, 255), B: minUint8(b+80, 255), A: 100})
+		}
 
 		var buf bytes.Buffer
 		if err := png.Encode(&buf, img); err != nil {
@@ -1782,7 +1836,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 
 	homeBlocks := `[{"type":"hero","payload":{"title":"İçeriğinizi ve mağazanızı tek yerde yönetin","subtitle":"Sayfalar, haberler, medya ve ürün kataloğu için sade bir yönetim deneyimi.","media_asset_id":"demo-media-hero-home","button_text":"Yetenekleri incele →","button_url":"/public/pages/tr/showcase/html"}},{"type":"testimonials","payload":{"items":[{"name":"İçerik ekibi","quote":"Taslak, yayın ve revizyon akışını aynı ekrandan takip etmek kolaylaştı."},{"name":"Mağaza yöneticisi","quote":"Ürün, varyant ve stok bilgilerini düzenli bir katalog akışında yönetebiliyoruz."},{"name":"Geliştirici","quote":"API, health ve readiness uçlarını kendi frontend akışımıza bağlamak net."}]}},{"type":"faq","payload":{"items":[{"question":"Hangi içerikleri yönetebilirim?","answer":"Sayfalar, haberler, medya varlıkları ve Commerce modülü açıksa ürünler, varyantlar ve siparişler yönetilebilir."},{"question":"SQLite ve PostgreSQL destekleniyor mu?","answer":"Her iki veritabanı için aynı davranış sözleşmeleri ve migration akışları bulunur; deployment öncesi ortamınıza uygun doğrulama yapılmalıdır."},{"question":"Üye hesabı nasıl çalışır?","answer":"Üyeler public frontend üzerinden kayıt olabilir, giriş yapabilir, sepet ve kendi sipariş geçmişlerini görebilir. Admin Studio erişimleri ayrıdır."},{"question":"Ödeme canlı mı?","answer":"Demo ortamında ödeme sağlayıcı akışı yalnızca yapılandırılmış sandbox veya test sağlayıcısı ile çalışır; canlı anahtarlar ayrıca kurulmalıdır."}]}},{"type":"cta","payload":{"title":"Kendi içerik akışınızı oluşturun","button_text":"Studio'ya git →","button_url":"/admin"}}]`
 	showcaseBlocks := `[{"type":"hero","payload":{"title":"HydroGo Blok & Bileşen Vitrini","subtitle":"Hero, CTA, Fiyatlandırma Tablosu, Testimonials ve SSS bileşenleri ile dinamik web deneyimi.","media_asset_id":"demo-media-hero-showcase","button_text":"E-Ticaret Kataloğunu İncele →","button_url":"/shop"}},{"type":"pricing_table","payload":{"items":[{"name":"Starter Edition","price_cents":0,"currency":"TRY","features":["SQLite gömülü veritabanı","Admin Studio & Zengin Editör","REST & GraphQL API","Kompakt profil (düşük bellek)"]},{"name":"Growth Edition","price_cents":49900,"currency":"TRY","features":["Tüm CMS özellikleri","Commerce katalog ve varyantlar","Stok & Sipariş takibi","Headless Starter desteği"]},{"name":"Enterprise Edition","price_cents":149900,"currency":"TRY","features":["PostgreSQL yüksek erişilebilirlik","Arka plan worker & Outbox","Kapsamlı Audit & Kurtarma","Özelleştirilmiş SLA & Destek"]}]}},{"type":"testimonials","payload":{"items":[{"name":"Başmühendis & Tech Lead","quote":"Veritabanı dialect testleri ve sıfır sızıntı politikası sayesinde deployment süreçlerimiz tamamen stressiz."},{"name":"Çözüm Mimarı","quote":"Gömülü mimarisi sayesinde harici servis bağımlılığı olmadan dakikalar içinde devreye alınabiliyor."}]}},{"type":"faq","payload":{"items":[{"question":"Hangi sayfa blokları desteklenmektedir?","answer":"Hero alanı, Eylem Çağrısı (CTA), Sıkça Sorulan Sorular (FAQ), Fiyatlandırma Tablosu ve Müşteri Yorumları (Testimonials) blokları desteklenir."},{"question":"Özel blok ve tema desteği nasıl sağlanır?","answer":"Tema motoru dosya sistemi tabanlı şablonları ve dinamik slotları destekler. İhtiyaca göre özel bloklar tanımlanabilir."}]}},{"type":"cta","payload":{"title":"Haber Merkezini ve Son Yayınları İnceleyin","button_text":"Haberlere Göz At →","button_url":"/public/news/tr/html"}}]`
-	aboutBlocks := `[{"type":"hero","payload":{"title":"HydroGo Vizyonu ve Mimari Felsefesi","subtitle":"Performanslı, güvenli, ölçülebilir ve sürdürülebilir kurumsal içerik ve ticaret platformu.","button_text":"Haber Merkezini Gör →","button_url":"/public/news/tr/html"}},{"type":"faq","payload":{"items":[{"question":"Modüler CMS + Commerce yaklaşımı nedir?","answer":"HydroCore temel sözleşmeleri tanımlar. Pages, News ve Commerce modülleri bağımsız olarak takılıp çalıştırılabilir."},{"question":"Güvenlik standartları nelerdir?","answer":"CSP, CSRF koruması, Argon2id parola şifreleme, TOTP MFA ve sıkı oturum izolasyonu mevcuttur."},{"question":"Headless ve API desteği var mı?","answer":"REST ve GraphQL API'leri ile harici React, Vue, Next.js gibi frontend'ler doğrudan bağlanabilir."}]}},{"type":"cta","payload":{"title":"Geliştirici veya İçerik Yöneticisi misiniz?","button_text":"Studio Çalışma Alanı →","button_url":"/admin"}}]`
+	aboutBlocks := `[{"type":"hero","payload":{"title":"HydroGo Vizyonu ve Mimari Felsefesi","subtitle":"Performanslı, güvenli, ölçülebilir ve sürdürülebilir kurumsal içerik ve ticaret platformu.","media_asset_id":"demo-media-hero-about","button_text":"Haber Merkezini Gör →","button_url":"/public/news/tr/html"}},{"type":"faq","payload":{"items":[{"question":"Modüler CMS + Commerce yaklaşımı nedir?","answer":"HydroCore temel sözleşmeleri tanımlar. Pages, News ve Commerce modülleri bağımsız olarak takılıp çalıştırılabilir."},{"question":"Güvenlik standartları nelerdir?","answer":"CSP, CSRF koruması, Argon2id parola şifreleme, TOTP MFA ve sıkı oturum izolasyonu mevcuttur."},{"question":"Headless ve API desteği var mı?","answer":"REST ve GraphQL API'leri ile harici React, Vue, Next.js gibi frontend'ler doğrudan bağlanabilir."}]}},{"type":"cta","payload":{"title":"Geliştirici veya İçerik Yöneticisi misiniz?","button_text":"Studio Çalışma Alanı →","button_url":"/admin"}}]`
 
 	if err := seedPage("demo-home", "demo", "HydroGo Platformu", "HydroGo kurumsal içerik yönetim ve e-ticaret platformuna hoş geldiniz.", homeBlocks); err != nil {
 		return fmt.Errorf("seed demo home: %w", err)
