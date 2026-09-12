@@ -74,6 +74,10 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	if err != nil || len(orders) != 1 || len(orders[0].Items) != 1 || orders[0].Items[0].VariantID != "v1" {
 		t.Fatalf("list orders = %#v, %v", orders, err)
 	}
+	orders, err = store.ListOrdersByUserID(context.Background(), db, "u1", 10)
+	if err != nil || len(orders) != 1 || orders[0].UserID != "u1" {
+		t.Fatalf("list customer orders = %#v, %v", orders, err)
+	}
 
 	prod, err := store.GetProduct(context.Background(), db, "p1")
 	if err != nil || prod.Title != "Bottle" {

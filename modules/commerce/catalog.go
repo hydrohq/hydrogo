@@ -28,6 +28,13 @@ type OrderReader interface {
 	GetOrder(context.Context, database.Executor, string) (Order, error)
 }
 
+// OrderReaderByUserID narrows a private customer projection at the repository
+// boundary instead of loading unrelated customer records into application
+// memory.
+type OrderReaderByUserID interface {
+	ListOrdersByUserID(context.Context, database.Executor, string, int) ([]Order, error)
+}
+
 type CatalogService struct {
 	Transactions database.Transactor
 	Store        CatalogStore

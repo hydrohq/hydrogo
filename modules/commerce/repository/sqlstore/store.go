@@ -87,14 +87,32 @@ func (s Store) ListVariants(ctx context.Context, db database.Executor, productID
 }
 
 func (s Store) ListOrders(ctx context.Context, db database.Executor, limit int) ([]commerce.Order, error) {
+	return s.listOrders(ctx, db, "", limit)
+}
+
+func (s Store) ListOrdersByUserID(ctx context.Context, db database.Executor, userID string, limit int) ([]commerce.Order, error) {
+	if strings.TrimSpace(userID) == "" {
+		return []commerce.Order{}, nil
+	}
+	return s.listOrders(ctx, db, userID, limit)
+}
+
+func (s Store) listOrders(ctx context.Context, db database.Executor, userID string, limit int) ([]commerce.Order, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip FROM commerce_orders ORDER BY created_at DESC, id DESC LIMIT ` + s.placeholder(1)
-	rows, err := queryRows(ctx, db, q, limit)
+	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip FROM commerce_orders`
+	args := []any{}
+	if userID != "" {
+		q += ` WHERE user_id = ` + s.placeholder(1)
+		args = append(args, userID)
+	}
+	q += ` ORDER BY created_at DESC, id DESC LIMIT ` + s.placeholder(len(args)+1)
+	args = append(args, limit)
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return nil, err
 	}

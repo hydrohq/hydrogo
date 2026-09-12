@@ -62,20 +62,19 @@ func (h Handler) memberOrders(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	orders, err := h.Orders.ListOrders(r.Context(), h.DB, 100)
+	reader, ok := h.Orders.(commerce.OrderReaderByUserID)
+	if !ok {
+		http.Error(w, "orders unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	orders, err := reader.ListOrdersByUserID(r.Context(), h.DB, member.ID, 100)
 	if err != nil {
 		http.Error(w, "orders unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	owned := make([]commerce.Order, 0, len(orders))
-	for _, order := range orders {
-		if order.UserID == member.ID {
-			owned = append(owned, order)
-		}
-	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "private, no-store")
-	_ = json.NewEncoder(w).Encode(owned)
+	_ = json.NewEncoder(w).Encode(orders)
 }
 
 func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {

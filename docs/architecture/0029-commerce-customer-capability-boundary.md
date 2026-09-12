@@ -42,6 +42,11 @@ inactive-module overhead. Both database adapters remain behind the existing
 repository contract. Existing browser cookies remain valid during a blue/green
 deployment because the checkout capability format is unchanged.
 
+Member order history is queried by stable member ID at the repository boundary.
+It must not load a global recent-order list and filter it in the HTTP adapter;
+that would expose unrelated customer data to the application process and can
+silently omit an older member order when the global list reaches its limit.
+
 ## Validation
 
 - A member session resolves to its member ID without setting a guest cookie.
