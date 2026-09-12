@@ -453,11 +453,11 @@ export class HydroClient {
   }
 
   async getPage(locale: string, slug: string): Promise<Page> {
-    return this.request<Page>(` + "`/api/v1/pages/${locale}/${slug}`" + `);
+    return this.request<Page>(` + "`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`" + `);
   }
 
   async listNews(locale: string = 'tr'): Promise<NewsItem[]> {
-    return this.request<NewsItem[]>(` + "`/api/v1/news/${locale}`" + `);
+    return this.request<NewsItem[]>(` + "`/api/v1/news?locale=${encodeURIComponent(locale)}`" + `);
   }
 }
 `

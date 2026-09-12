@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
@@ -101,6 +102,26 @@ func TestGenerateAllPresets(t *testing.T) {
 				t.Errorf("Core internal/ source directory must never be copied into generated project")
 			}
 		})
+	}
+}
+
+func TestGeneratedHeadlessClientUsesPublishedEndpoints(t *testing.T) {
+	projectPath, err := Generate(Options{Root: t.TempDir(), Name: "headless-client", Preset: "headless"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := os.ReadFile(filepath.Join(projectPath, "client", "hydrogo.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(client)
+	for _, expected := range []string{"/api/v1/pages/by-slug?locale=", "/api/v1/news?locale="} {
+		if !strings.Contains(source, expected) {
+			t.Fatalf("generated client does not contain %q", expected)
+		}
+	}
+	if strings.Contains(source, "/api/v1/pages/${locale}/${slug}") || strings.Contains(source, "/api/v1/news/${locale}") {
+		t.Fatal("generated client contains obsolete endpoint patterns")
 	}
 }
 

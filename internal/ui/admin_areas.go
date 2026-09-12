@@ -188,7 +188,6 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
         </div>
         <div class="dev-ep-actions">
           <button class="dev-btn-sm" type="button" data-test-graphql>▶ Canlı Query Test Et</button>
-          <a class="dev-btn-sm" href="/api/graphql" target="_blank">Konsolu Aç ↗</a>
         </div>
       </div>
       <div style="color:var(--muted);font-size:.85rem;">Next.js, React veya mobil uygulamalar için tek istekte birleşik içerik ve katalog sorgulama uç noktası.</div>
@@ -261,7 +260,7 @@ function testGraphQL(btn){
   fetch('/api/graphql', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: '{ news(locale: "tr") { id title category } }' })
+     body: JSON.stringify({ query: '{ products { id title priceCents currency } }' })
   })
     .then(r => r.text())
     .then(txt => {
