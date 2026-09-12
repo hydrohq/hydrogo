@@ -175,6 +175,15 @@
 // ==========================================================================
 (function () {
   function initUX() {
+    // Keep image fallbacks CSP-compatible: inline onerror attributes are not
+    // allowed by the nonce-based policy used by rendered public pages.
+    document.addEventListener('error', function (event) {
+      var image = event.target;
+      if (!image || image.tagName !== 'IMG' || !image.dataset.fallbackSrc || image.dataset.fallbackUsed === 'true') return;
+      image.dataset.fallbackUsed = 'true';
+      image.src = image.dataset.fallbackSrc;
+    }, true);
+
     // 1. Mobile Navigation Toggle
     var toggle = document.querySelector('.nav-toggle');
     var nav = document.getElementById('primary-nav');

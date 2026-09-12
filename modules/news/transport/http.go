@@ -515,7 +515,7 @@ func newsCoverMarkup(item news.Item) template.HTML {
 	if strings.TrimSpace(item.CoverMediaID) == "" {
 		return ""
 	}
-	return template.HTML(`<img class="news-cover-image" src="/media/` + template.URLQueryEscaper(item.CoverMediaID) + `?variant=card" alt="` + template.HTMLEscapeString(item.Title) + `" loading="lazy" onerror="this.onerror=null;this.src='/media/` + template.URLQueryEscaper(item.CoverMediaID) + `';">`)
+	return template.HTML(`<img class="news-cover-image" src="/media/` + template.URLQueryEscaper(item.CoverMediaID) + `?variant=card" alt="` + template.HTMLEscapeString(item.Title) + `" loading="lazy" data-fallback-src="/media/` + template.URLQueryEscaper(item.CoverMediaID) + `">`)
 }
 
 func newsMetaBadgesMarkup(item news.Item) template.HTML {
