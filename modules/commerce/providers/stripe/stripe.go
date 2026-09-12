@@ -21,6 +21,8 @@ import (
 
 var ErrSignature = errors.New("invalid Stripe webhook signature")
 
+var errResponseTooLarge = errors.New("Stripe webhook payload too large")
+
 type Provider struct {
 	SecretKey     string
 	WebhookSecret string
@@ -64,9 +66,13 @@ func (p Provider) VerifyWebhookSignature(request *http.Request) (commerce.Webhoo
 	if request == nil || p.WebhookSecret == "" {
 		return commerce.WebhookEvent{}, ErrSignature
 	}
-	payload, err := io.ReadAll(io.LimitReader(request.Body, 1<<20))
+	const maxWebhookBytes = 1 << 20
+	payload, err := io.ReadAll(io.LimitReader(request.Body, maxWebhookBytes+1))
 	if err != nil {
 		return commerce.WebhookEvent{}, ErrSignature
+	}
+	if len(payload) > maxWebhookBytes {
+		return commerce.WebhookEvent{}, errResponseTooLarge
 	}
 	request.Body = io.NopCloser(bytes.NewReader(payload))
 	if !verifyHeader(request.Header.Get("Stripe-Signature"), payload, p.WebhookSecret, p.Tolerance, time.Now()) {
@@ -140,7 +146,12 @@ func (p Provider) request(ctx context.Context, method, path string, form url.Val
 	req.SetBasicAuth(p.SecretKey, "")
 	client := p.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{
+			Timeout: 10 * time.Second,
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -149,7 +160,9 @@ func (p Provider) request(ctx context.Context, method, path string, form url.Val
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("Stripe API returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+		// Provider bodies can contain request identifiers, account details, or
+		// HTML from an intermediary. Keep them out of domain errors and logs.
+		return fmt.Errorf("Stripe API returned status %d", resp.StatusCode)
 	}
 	if err := json.Unmarshal(body, target); err != nil {
 		return err
