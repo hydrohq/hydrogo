@@ -62,12 +62,7 @@ body {
   margin: 0;
   padding: 0;
   background-color: var(--void);
-  background-image:
-    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.35), transparent 50%),
-    radial-gradient(circle at 85% 20%, rgba(6, 182, 212, 0.22), transparent 45%),
-    radial-gradient(circle at 15% 45%, rgba(139, 92, 246, 0.2), transparent 45%),
-    radial-gradient(circle at 80% 75%, rgba(59, 130, 246, 0.18), transparent 50%),
-    radial-gradient(circle at 30% 95%, rgba(6, 182, 212, 0.15), transparent 40%);
+  background-image: none;
   background-attachment: fixed;
   color: var(--snow);
   min-height: 100vh;
@@ -135,8 +130,8 @@ img {
   top: 0;
   z-index: 1000;
   background: rgba(11, 15, 25, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-bottom: 1px solid var(--edge);
   transition: border-color 0.2s ease, background 0.2s ease;
   width: 100%;
@@ -632,7 +627,7 @@ img {
 
 .window-body {
   padding: 24px;
-  background: radial-gradient(circle at 50% 50%, #151e34 0%, #0d1322 100%);
+  background: var(--void-deep);
   min-height: 280px;
   display: flex;
   flex-direction: column;
@@ -657,7 +652,7 @@ img {
   gap: 12px;
   background: rgba(22, 31, 51, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(8px);
+  backdrop-filter: none;
   border-radius: var(--radius-sm);
   padding: 10px 16px;
   width: 100%;
@@ -674,13 +669,13 @@ img {
 
 .diag-node-core {
   border-color: rgba(59, 130, 246, 0.5);
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.4), rgba(17, 24, 39, 0.8));
+  background: var(--card-hover);
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
 }
 
 .diag-node-api {
   border-color: rgba(6, 182, 212, 0.4);
-  background: linear-gradient(135deg, rgba(14, 116, 144, 0.3), rgba(17, 24, 39, 0.8));
+  background: var(--card-hover);
 }
 
 .node-icon {
@@ -1191,7 +1186,7 @@ img {
 }
 
 .pricing-card {
-  background: linear-gradient(180deg, rgba(26, 38, 62, 0.7) 0%, rgba(19, 28, 46, 0.95) 100%);
+  background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
   padding: 34px 28px;
@@ -1287,7 +1282,7 @@ img {
 }
 
 .cta-inner-card {
-  background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.25), transparent 70%), linear-gradient(180deg, #162238 0%, #101726 100%);
+  background: var(--void-elevated);
   border: 1px solid rgba(96, 165, 250, 0.3);
   border-radius: var(--radius-xl);
   padding: clamp(40px, 6vw, 64px) 28px;
@@ -2311,7 +2306,7 @@ img {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.3) 100%);
+  background: var(--accent-subtle);
   border: 1px solid rgba(56, 189, 248, 0.4);
   display: flex;
   align-items: center;
@@ -2321,16 +2316,16 @@ img {
 }
 
 .member-auth-brand b {
-  background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+  background: none;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .member-auth-card {
   width: 100%;
-  background: linear-gradient(165deg, rgba(23, 34, 56, 0.88) 0%, rgba(13, 20, 36, 0.96) 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: var(--card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(96, 165, 250, 0.28);
   border-top: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 28px;
@@ -2347,7 +2342,7 @@ img {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(6, 182, 212, 0.8) 35%, rgba(59, 130, 246, 0.8) 65%, transparent 100%);
+  background: var(--accent-cyan);
 }
 
 .member-auth-card .section-badge {
@@ -2467,7 +2462,7 @@ img {
   font-size: 0.98rem;
   font-weight: 700;
   margin-top: 6px;
-  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
+  background: var(--accent);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 14px;
   color: #ffffff;
@@ -2575,7 +2570,7 @@ img {
 }
 
 .member-hero {
-  background: linear-gradient(180deg, rgba(26, 38, 62, 0.75) 0%, rgba(19, 28, 46, 0.95) 100%);
+  background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-xl);
   padding: 32px 36px;
@@ -2598,7 +2593,7 @@ img {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  background: var(--accent);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -3024,8 +3019,8 @@ img {
   inset: 0;
   z-index: 9998;
   background: rgba(5, 6, 8, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -3211,10 +3206,10 @@ img {
 .cart-empty-card {
   text-align: center;
   padding: 72px 28px;
-  background: linear-gradient(165deg, rgba(23, 34, 56, 0.75) 0%, rgba(13, 20, 36, 0.95) 100%);
+  background: var(--card);
   border: 1px solid rgba(96, 165, 250, 0.25);
   border-radius: 28px;
-  backdrop-filter: blur(20px);
+  backdrop-filter: none;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.6);
   max-width: 540px;
   margin: 20px auto;
@@ -3275,10 +3270,10 @@ img {
   align-items: center;
   gap: 20px;
   padding: 20px 24px;
-  background: linear-gradient(165deg, rgba(23, 34, 56, 0.75) 0%, rgba(13, 20, 36, 0.92) 100%);
+  background: var(--card);
   border: 1px solid rgba(96, 165, 250, 0.22);
   border-radius: 20px;
-  backdrop-filter: blur(16px);
+  backdrop-filter: none;
   box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
@@ -3373,12 +3368,12 @@ img {
 
 .cart-summary-card,
 .checkout-card {
-  background: linear-gradient(165deg, rgba(23, 34, 56, 0.88) 0%, rgba(13, 20, 36, 0.96) 100%);
+  background: var(--card);
   border: 1px solid rgba(96, 165, 250, 0.28);
   border-top: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 26px;
   padding: 32px 28px;
-  backdrop-filter: blur(20px);
+  backdrop-filter: none;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 35px rgba(6, 182, 212, 0.1);
 }
 
@@ -3516,4 +3511,66 @@ img {
   .product-trust-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Surface hardening: keep the premium system calm, legible, and cheap to render. */
+body {
+  background-image: none;
+}
+
+.news-header,
+.diag-node,
+.pricing-card,
+.cta-inner-card,
+.cta-content,
+.member-auth-card,
+.member-hero,
+.cart-empty-card,
+.cart-item-card,
+.cart-summary-card,
+.checkout-card {
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.diag-node,
+.pricing-card,
+.member-auth-card,
+.member-hero,
+.cart-empty-card,
+.cart-item-card,
+.cart-summary-card,
+.checkout-card {
+  background-color: var(--card);
+}
+
+.diag-node-core,
+.diag-node-api {
+  background-color: var(--card-hover);
+}
+
+.cta-inner-card,
+.cta-content {
+  background-color: var(--void-elevated);
+}
+
+.member-auth-brand b {
+  background: none;
+  color: var(--accent-cyan);
+  -webkit-text-fill-color: currentColor;
+}
+
+.member-auth-card::before {
+  background: var(--accent-cyan);
+}
+
+.auth-submit-btn {
+  background: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.member-avatar {
+  background: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
