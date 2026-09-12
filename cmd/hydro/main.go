@@ -80,6 +80,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
 	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
+	staticassets "github.com/ardaozyildirim/hydrogo/static"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -990,9 +991,13 @@ func serve(args []string, stderr io.Writer) error {
 	if selectedTheme != nil {
 		routes = append(routes, router.Route{Pattern: "GET /theme/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(selectedTheme.ServeAsset)})
 	}
-	// Local editor assets are served from the versioned static vendor bundle.
-	// The route is read-only and scoped below static/vendor by construction.
-	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.Dir("static/vendor")))})
+	// Local editor assets are embedded in the release binary. Uploaded media and
+	// themes remain external persistent resources by design.
+	vendorFS, err := fs.Sub(staticassets.FS, "vendor")
+	if err != nil {
+		return fmt.Errorf("prepare embedded vendor assets: %w", err)
+	}
+	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))})
 	if moduleEnabled(cfg.Modules, "commerce") {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
