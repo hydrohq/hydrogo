@@ -485,7 +485,7 @@ validation record, and be committed and pushed before the next stage starts.
    behavior, OpenAPI coverage, and compatibility tests across REST/GraphQL.
 3. **Commerce reconciliation (partially implemented):** expose pending payment/refund reconciliation,
    add provider replay/concurrency tests, and document operator runbooks.
-4. **Module isolation:** remove inactive-module navigation and construction,
+4. **Module isolation (partially implemented):** remove inactive-module navigation and construction,
    verify route/migration/worker/resource absence, and add compact-profile tests.
 5. **Identity and privacy:** finish session/device controls, MFA lifecycle,
    privacy export/erasure verification, and sensitive-log regression tests.

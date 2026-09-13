@@ -849,7 +849,10 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if r.URL.Path == "/admin/reports" {
-			stats, _ := memberService.Stats(r.Context())
+			var stats members.MemberStats
+			if modules["members"] {
+				stats, _ = memberService.Stats(r.Context())
+			}
 			dataTime := time.Now().Format("02.01.2006 15:04:05")
 			dateRange := r.URL.Query().Get("range")
 			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
@@ -891,7 +894,10 @@ func serve(args []string, stderr io.Writer) error {
 		if format == "json" {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"hydro-report-%s.json\"", time.Now().Format("20060102-150405")))
-			stats, _ := memberService.Stats(r.Context())
+			var stats members.MemberStats
+			if modules["members"] {
+				stats, _ = memberService.Stats(r.Context())
+			}
 			totalReq := uint64(0)
 			totalViews := uint64(0)
 			totalErrors := uint64(0)
