@@ -50,7 +50,7 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 	if len(assets) == 0 {
 		_, _ = fmt.Fprint(w, `<p class="empty">Henüz görsel yok. İlk görseli yukarıdaki formdan yükleyin.</p>`)
 	}
-	_, _ = fmt.Fprintf(w, `</div></section><script nonce="%s">document.addEventListener('click',event=>{const button=event.target.closest('.media-copy');if(!button)return;navigator.clipboard?.writeText(button.dataset.copy||'');button.textContent='Kopyalandı';setTimeout(()=>button.textContent='Kimliği kopyala',1500)})</script>`, nonce)
+	_, _ = fmt.Fprintf(w, `</div></section><script nonce="%s">if(!window.__hydroMediaCopyBound){window.__hydroMediaCopyBound=true;document.addEventListener('click',event=>{const button=event.target.closest('.media-copy');if(!button)return;navigator.clipboard?.writeText(button.dataset.copy||'');button.textContent='Kopyalandı';setTimeout(()=>button.textContent='Kimliği kopyala',1500)})}</script>`, nonce)
 	_ = ui.AdminEnd(w)
 }
 
