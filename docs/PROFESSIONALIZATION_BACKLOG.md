@@ -150,7 +150,9 @@ kapatılmalıdır.
 - [x] `hydro new` tüm preset'leri üretip temel scaffold bütünlüğünü temiz geçici
   dizinde test et. (Kanıt: `scripts/generator-smoke.ps1`; news/commerce/corporate/
   portal/headless PASS.)
-- [ ] Pre-commit/pre-push format, vet, guard ve hızlı test kancaları ekle.
+- [x] Pre-commit/pre-push format, vet, guard ve hızlı test kancaları ekle.
+  (Kanıt: `scripts/git-hooks/`, `scripts/install-git-hooks.ps1` ve `.sh`;
+  pre-commit whitespace/gofmt, pre-push local verification veya fallback test.)
 - [x] Fuzz testleri: parser, sanitizer, path, config, token, migration ve webhook.
   (Path/theme, config environment, webhook URL/signature, CSRF token, migration,
   richtext sanitizer ve portable parser fuzz smoke testleri mevcut; bounded

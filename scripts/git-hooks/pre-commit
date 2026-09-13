@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+git diff --cached --check
+
+go_files="$(git diff --cached --name-only --diff-filter=ACM | awk '/\.go$/')"
+if [ -n "$go_files" ]; then
+  unformatted="$(printf '%s\n' "$go_files" | xargs gofmt -l 2>/dev/null || true)"
+  if [ -n "$unformatted" ]; then
+    echo "pre-commit: gofmt required:"
+    printf '%s\n' "$unformatted"
+    exit 1
+  fi
+fi
