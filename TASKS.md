@@ -209,6 +209,7 @@ On each update, write short evidence next to the relevant task: the command exec
 - [x] Keep Commerce version aliases single-sourced in the core router. (Evidence: removed duplicate manual aliases that could panic route registration; `internal/router` performs `/api` → `/api/v1` mapping and `go test ./cmd/hydro ./internal/router` PASS.)
 - [x] Prevent caching of sensitive admin refund and report export responses. (Evidence: `Cache-Control: no-store` and `Pragma: no-cache` on pending refunds and CSV/JSON exports; targeted tests PASS.)
 - [x] Apply bounded variant projection to the public product detail page as well as the JSON endpoint. (Evidence: detail rendering uses `ListVariantsPage` with the public catalog bound; Commerce transport tests PASS.)
+- [x] Re-audit News and Pages public list bounds. (Evidence: both handlers validate `limit` in the 1–100 range and repositories issue bounded SQL `LIMIT`; no additional unbounded public list path found.)
 - [!] Race detector could not run on this Windows host because `CGO_ENABLED=1` requires an unavailable `gcc`; Linux CI race job remains the verification path. (Observed: `cgo: C compiler "gcc" not found`.)
 - [!] Full production gates remain external: real provider credentials, reverse proxy/process restart, backup/key escrow, customer capacity/RPO/RTO, and production signing ceremony. (Tracked in `docs/validation/PRODUCTION-GATES.md`; do not mark as local success.)
 
