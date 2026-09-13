@@ -54,7 +54,7 @@ func Validate(item Item) error {
 		return ErrInvalidItem
 	}
 	item.Title = strings.TrimSpace(item.Title)
-	if item.ID == "" || item.Locale == "" || item.Slug == "" || item.Title == "" || item.Status != StatusDraft {
+	if item.ID == "" || len(item.ID) > 128 || item.Locale == "" || len(item.Locale) > 16 || item.Slug == "" || len(item.Slug) > 256 || item.Title == "" || len(item.Title) > 256 || len(item.Excerpt) > 4000 || len(item.KeyTakeaways) > 12000 || len(item.Category) > 128 || len(item.AuthorName) > 256 || len(item.Tags) > 2000 || len(item.SEOTitle) > 256 || len(item.SEODescription) > 1000 || item.Status != StatusDraft {
 		return ErrInvalidItem
 	}
 	return nil
