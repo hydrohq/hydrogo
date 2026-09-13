@@ -102,7 +102,7 @@ func (conflictRepository) UpdateDraftContent(context.Context, database.Executor,
 
 func TestUpdateDraftPropagatesOptimisticLockConflict(t *testing.T) {
 	repo := conflictRepository{}
-	service := ContentService{Pages: repo, Transactions: testTransactions{}, Audit: testAudit{}, Outbox: testOutbox{}}
+	service := ContentService{Pages: &repo, Transactions: testTransactions{}, Audit: testAudit{}, Outbox: testOutbox{}}
 	err := service.UpdateDraft(context.Background(), pages.Page{ID: "page-1", Locale: "tr", Slug: "home", Title: "Home", Status: pages.StatusDraft}, 3)
 	if err != pages.ErrConflict {
 		t.Fatalf("error = %v, want optimistic-lock conflict", err)
