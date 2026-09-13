@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -29,6 +30,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -927,10 +929,12 @@ func serve(args []string, stderr io.Writer) error {
 		// CSV format
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"hydro-report-%s.csv\"", time.Now().Format("20060102-150405")))
-		_, _ = fmt.Fprintln(w, "Path,Views,Requests,Errors,AvgLatencyMS")
+		writer := csv.NewWriter(w)
+		_ = writer.Write([]string{"Path", "Views", "Requests", "Errors", "AvgLatencyMS"})
 		for _, p := range paths {
-			_, _ = fmt.Fprintf(w, "%s,%d,%d,%d,%d\n", p.Path, p.Views, p.Requests, p.Errors, p.AvgMS)
+			_ = writer.Write([]string{p.Path, strconv.FormatUint(p.Views, 10), strconv.FormatUint(p.Requests, 10), strconv.FormatUint(p.Errors, 10), strconv.FormatUint(p.AvgMS, 10)})
 		}
+		writer.Flush()
 	})
 	routes = append(routes, router.Route{Pattern: "GET /admin/reports/export", Access: router.Protected, Handler: adminReportsExportHandler})
 
