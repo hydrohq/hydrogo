@@ -60,4 +60,13 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 			t.Fatalf("admin shell missing shadcn theme contract %q", want)
 		}
 	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	for _, want := range []string{`data-ui-theme="shadcn"`, `hydro-ui-theme`, `shadcn-dark`} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("rendered admin shell missing shadcn contract %q", want)
+		}
+	}
 }
