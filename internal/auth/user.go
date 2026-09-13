@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/mail"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
@@ -34,6 +35,15 @@ type User struct {
 
 func NormalizeEmail(email string) string {
 	return canonical.Email(email)
+}
+
+func ValidateEmail(email string) bool {
+	email = NormalizeEmail(email)
+	if email == "" || len(email) > 320 {
+		return false
+	}
+	parsed, err := mail.ParseAddress(email)
+	return err == nil && parsed.Address == email
 }
 
 type UserRepository interface {

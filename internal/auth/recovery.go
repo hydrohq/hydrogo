@@ -43,6 +43,9 @@ func (r PasswordRecovery) Issue(ctx context.Context, tx database.Executor, email
 	if err := database.RequireExecutor(tx); err != nil {
 		return "", err
 	}
+	if !ValidateEmail(email) {
+		return "", ErrRecoveryTokenInvalid
+	}
 	user, err := r.Users.GetByEmail(ctx, NormalizeEmail(email))
 	if err != nil {
 		return "", err
