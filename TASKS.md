@@ -287,7 +287,7 @@ Run related tests after every change. If possible, use gofmt, go vet, and target
 - [x] Navigation yazma sözleşmesi de okuma limitiyle hizalandı; tek transaction’da en fazla 500 öğe kabul ediliyor. (Kanıt: `modules/site/service.go`.)
 - [x] Navigation alanları için ID/locale/label/href uzunluk sınırları eklendi; aşırı büyük metadata değerleri reddediliyor. (Kanıt: `modules/site/model.go`.)
 - [x] News kimlik, başlık, slug, özet, etiket ve SEO alanları için uzunluk sözleşmeleri eklendi; aşırı büyük içerik metadata’sı reddediliyor. (Kanıt: `modules/news/model.go`.)
-- [x] Media admin fragment kopyalama listener’ı global guard ile tekilleştirildi; uzun SPA oturumlarında listener çoğalması engellendi. (Kanıt: `internal/media/admin.go`.)
+- [x] Media admin ve Pages medya picker fragment listener’ları global guard ile tekilleştirildi; uzun SPA oturumlarında listener çoğalması engellendi. (Kanıt: `internal/media/admin.go`, `modules/pages/transport/http.go`.)
 - [x] Sitemap rota projeksiyonu sınırsız sorgudan çıkarıldı; maksimum 10.000 kayıtla bellek/yanıt büyümesi sınırlandı. (Kanıt: `modules/pages/repository/sqlstore/content.go`.)
 - [x] Yetkiler ekranının kalan fragment stilleri global Admin stylesheet'e taşındı: tablo, rozetler ve yetki kuralları kartı artık ilk SPA açılışında da stilli render edilir. (Kanıt: `AdminPermissionsCSS`, `e2e/manifest.json`; Chromium 14/14 PASS.)
 ### Phase 11 — Üye Portalı, Hesap Yönetimi & Dinamik Navigasyon
