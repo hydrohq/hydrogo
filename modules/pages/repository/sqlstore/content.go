@@ -13,11 +13,15 @@ import (
 )
 
 // ListPublishedRoutes returns only the public projection used by discovery surfaces.
+// The hard cap protects sitemap generation from unbounded memory/response work;
+// installations exceeding it should partition sitemap generation by locale.
+const maxSitemapRoutes = 10000
+
 func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Page, error) {
 	if db == nil {
 		return nil, database.ErrDatabaseRequired
 	}
-	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL ORDER BY published_locale, published_slug, id`
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL ORDER BY published_locale, published_slug, id LIMIT ` + fmt.Sprint(maxSitemapRoutes)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
