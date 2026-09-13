@@ -126,6 +126,31 @@ func TestGenerateMinimalProductionPresetAliases(t *testing.T) {
 	}
 }
 
+func TestGenerateNormalizesMixedCasePreset(t *testing.T) {
+	project, err := Generate(Options{Root: t.TempDir(), Name: "mixed-case", Preset: "NeWs", Profile: "compact", Database: "sqlite"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(filepath.Join(project, "config.yaml"), nil, config.Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(cfg.Modules, "news") || contains(cfg.Modules, "commerce") {
+		t.Fatalf("mixed-case news selected wrong modules: %#v", cfg.Modules)
+	}
+	lockBytes, err := os.ReadFile(filepath.Join(project, "hydrogo.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lock Lock
+	if err := json.Unmarshal(lockBytes, &lock); err != nil {
+		t.Fatal(err)
+	}
+	if lock.Preset != "news" {
+		t.Fatalf("normalized lock preset = %q, want news", lock.Preset)
+	}
+}
+
 func TestPresetFrontendRoutesAreDeterministicAndCovered(t *testing.T) {
 	tests := map[string][]string{
 		"news": {"home", "news_room", "member_login"}, "commerce": {"home", "shop", "cart"},

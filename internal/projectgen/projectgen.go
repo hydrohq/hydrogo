@@ -78,6 +78,9 @@ func Generate(opts Options) (string, error) {
 	if !projectNamePattern.MatchString(opts.Name) {
 		return "", ErrInvalidProjectName
 	}
+	// Normalize once so validation, feature selection, theme selection and the
+	// generated lockfile cannot disagree about mixed-case CLI input.
+	opts.Preset = strings.ToLower(strings.TrimSpace(opts.Preset))
 	if !isPreset(opts.Preset) {
 		return "", fmt.Errorf("%w: %q (supported: news, editorial, commerce, compact-site, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
 	}
