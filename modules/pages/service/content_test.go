@@ -77,3 +77,34 @@ func TestListPublishedRejectsInvalidPublicQuery(t *testing.T) {
 		}
 	}
 }
+
+type conflictRepository struct{ countingPublicRepository }
+
+type testTransactions struct{}
+
+func (testTransactions) Within(_ context.Context, fn func(database.Executor) error) error {
+	return fn(nil)
+}
+
+type testAudit struct{}
+
+func (testAudit) Record(context.Context, database.Executor, string, string, string) error { return nil }
+
+type testOutbox struct{}
+
+func (testOutbox) Enqueue(context.Context, database.Executor, string, string, string, int) error {
+	return nil
+}
+
+func (conflictRepository) UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error {
+	return pages.ErrConflict
+}
+
+func TestUpdateDraftPropagatesOptimisticLockConflict(t *testing.T) {
+	repo := conflictRepository{}
+	service := ContentService{Pages: repo, Transactions: testTransactions{}, Audit: testAudit{}, Outbox: testOutbox{}}
+	err := service.UpdateDraft(context.Background(), pages.Page{ID: "page-1", Locale: "tr", Slug: "home", Title: "Home", Status: pages.StatusDraft}, 3)
+	if err != pages.ErrConflict {
+		t.Fatalf("error = %v, want optimistic-lock conflict", err)
+	}
+}
