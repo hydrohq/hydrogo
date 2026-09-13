@@ -140,8 +140,9 @@ kapatılmalıdır.
 
 ## P2 — Geliştirici deneyimi ve kalite
 
-- [ ] `hydro doctor` çıktısını actionable hale getir; eksik DB/cache/media,
-  writable path ve config sorunlarını güvenli biçimde raporla.
+- [x] `hydro doctor` çıktısını actionable hale getir; eksik DB/cache/media,
+  writable path ve config sorunlarını güvenli biçimde raporla. (Kanıt:
+  `cmd/hydro/main.go`, text/JSON doctor testleri ve local verification.)
 - [x] WSL/Docker ile local dependency bootstrap ve temizleme akışı ekle.
   (Kanıt: `scripts/bootstrap-wsl.sh`, `compose.dev.yaml`, `docs/LOCAL_BOOTSTRAP.md`;
   WSL Go/Redis/PostgreSQL readiness PASS. Docker engine kurulumu kullanıcı
@@ -150,13 +151,14 @@ kapatılmalıdır.
   dizinde test et. (Kanıt: `scripts/generator-smoke.ps1`; news/commerce/corporate/
   portal/headless PASS.)
 - [ ] Pre-commit/pre-push format, vet, guard ve hızlı test kancaları ekle.
-- [ ] Fuzz testleri: parser, sanitizer, path, config, token, migration ve webhook.
+- [x] Fuzz testleri: parser, sanitizer, path, config, token, migration ve webhook.
   (Path/theme, config environment, webhook URL/signature, CSRF token, migration,
-  richtext sanitizer ve portable parser fuzz smoke testleri mevcut; 2 saniyelik
-  hedefler local verification ve CI'a bağlandı, uzun süreli fuzz/soak kapsamı
-  açık.)
-- [ ] Dependency update botu, license inventory ve düzenli vulnerability triage
-  süreci oluştur.
+  richtext sanitizer ve portable parser fuzz smoke testleri mevcut; bounded
+  hedefler local verification ve CI'a bağlandı. Uzun süreli fuzz/soak ayrı
+  kapasite kapısıdır.)
+- [x] Dependency update botu, license inventory ve düzenli vulnerability triage
+  süreci oluştur. (Kanıt: `.github/dependabot.yml`, SPDX SBOM üretimi ve
+  govulncheck local/CI kapısı.)
 - [x] Test fixture'larında `sync.Mutex`/`sync.WaitGroup` değer kopyalarını vet ile
   engelle; race testini Linux runner'da zorunlu tut. (Kanıt: `go vet ./...`,
   `go test -race ./...`; mutex fixture düzeltmesi `139c064`.)
@@ -182,7 +184,8 @@ kapatılmalıdır.
 
 - [ ] Kullanılmayan vendor asset, tema varyantı, demo endpoint ve örnek verileri
   release image'ından çıkar.
-- [ ] Elle yönetilen asset tarih/cache sürümlerini kaldır.
+- [x] Elle yönetilen asset tarih/cache sürümlerini kaldır. (Kanıt: içerik
+  fingerprint tabanlı `tools/assetmanifest` ve `tools/assetguard`.)
 - [ ] Kullanıcıya teknik hata, SQL/cache sürücüsü, stack trace veya iç kapasite
   ayrıntısı gösteren mesajları Information Hierarchy'ye göre sadeleştir.
 - [ ] Kullanılmayan feature flag, ölü route, duplicate helper ve erişilemeyen
