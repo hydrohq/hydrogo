@@ -92,6 +92,15 @@ jobs:
         run: go build ./...
       - name: Run Linux binary health/readiness smoke
         run: bash ./scripts/smoke-local.sh
+      - name: Run bounded fuzz smoke suite
+        run: |
+          go test ./extension/v1 -run '^$' -fuzz '^FuzzSafeThemePath$' -fuzztime=2s
+          go test ./internal/config -run '^$' -fuzz '^FuzzLoadEnvironmentValues$' -fuzztime=2s
+          go test ./internal/content -run '^$' -fuzz '^FuzzValidateRichText$' -fuzztime=2s
+          go test ./internal/database -run '^$' -fuzz '^FuzzDiscoverMigrations$' -fuzztime=2s
+          go test ./internal/security -run '^$' -fuzz '^FuzzCSRFMiddlewareTokens$' -fuzztime=2s
+          go test ./internal/webhooks -run '^$' -fuzz '^FuzzValidateWebhookURL$' -fuzztime=2s
+          go test ./internal/webhooks -run '^$' -fuzz '^FuzzWebhookSignature$' -fuzztime=2s
       - name: Prove Go internal boundary
         working-directory: tests/fixtures/internal-import-denied
         run: |
