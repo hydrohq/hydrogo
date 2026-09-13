@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
@@ -25,7 +25,7 @@ type Handler struct {
 	Service members.Service
 	Secure  bool
 	Limiter interface{ Allow(string) bool }
-	Orders  commerce.OrderReader
+	Orders  customerorders.Reader
 	DB      database.Executor
 }
 
@@ -62,12 +62,7 @@ func (h Handler) memberOrders(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	reader, ok := h.Orders.(commerce.OrderReaderByUserID)
-	if !ok {
-		http.Error(w, "orders unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	orders, err := reader.ListOrdersByUserID(r.Context(), h.DB, member.ID, 100)
+	orders, err := h.Orders.ListOrdersByUserID(r.Context(), h.DB, member.ID, 100)
 	if err != nil {
 		http.Error(w, "orders unavailable", http.StatusServiceUnavailable)
 		return
