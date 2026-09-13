@@ -262,7 +262,18 @@ func main() {
 		status.set("ready", 100, "Asset güncellendi: "+filepath.ToSlash(rel), "")
 	})
 
-	server := &http.Server{Addr: *address, Handler: noStore(mux), ReadHeaderTimeout: 5 * time.Second}
+	// Keep the development proxy bounded just like the application server. This
+	// prevents slow-client/header abuse from consuming a dev process indefinitely
+	// while still allowing normal hot-reload requests to complete.
+	server := &http.Server{
+		Addr:              *address,
+		Handler:           noStore(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 3*time.Second)
