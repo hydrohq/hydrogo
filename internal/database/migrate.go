@@ -305,6 +305,17 @@ func readMigrationMetadata(migrationFS fs.FS, migrationID string) (migrationMeta
 	}
 	for index := range metadata.RequiresModules {
 		metadata.RequiresModules[index] = strings.TrimSpace(metadata.RequiresModules[index])
+		if metadata.RequiresModules[index] == "" {
+			return migrationMetadata{}, fmt.Errorf("migration %s has an empty required module", migrationID)
+		}
+		if metadata.RequiresModules[index] == metadata.Module {
+			return migrationMetadata{}, fmt.Errorf("migration %s requires its owning module %q", migrationID, metadata.Module)
+		}
+		for previous := 0; previous < index; previous++ {
+			if metadata.RequiresModules[previous] == metadata.RequiresModules[index] {
+				return migrationMetadata{}, fmt.Errorf("migration %s requires module %q more than once", migrationID, metadata.RequiresModules[index])
+			}
+		}
 	}
 	return metadata, nil
 }

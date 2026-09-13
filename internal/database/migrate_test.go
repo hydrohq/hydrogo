@@ -151,6 +151,24 @@ func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
 	}
 }
 
+func TestFilteredMigrationsRejectInvalidRequiredModuleMetadata(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "invalid-metadata.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	migrationFS := fstest.MapFS{
+		"0001_base/sqlite.sql":     &fstest.MapFile{Data: []byte("CREATE TABLE base (id INTEGER PRIMARY KEY);\n")},
+		"0001_base/migration.yaml": &fstest.MapFile{Data: []byte("module: pages\ntransactional:\n  sqlite: true\n")},
+		"0002_bad/sqlite.sql":      &fstest.MapFile{Data: []byte("SELECT 1;\n")},
+		"0002_bad/migration.yaml":  &fstest.MapFile{Data: []byte("module: core\nrequires_modules: [pages, pages]\ntransactional:\n  sqlite: true\n")},
+	}
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrationFS, map[string]bool{"pages": true}); err == nil || !strings.Contains(err.Error(), "more than once") {
+		t.Fatalf("invalid required module metadata error = %v", err)
+	}
+}
+
 func TestNonTransactionalMigrationUsesMetadataExecutionMode(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "nontransactional.sqlite"))
