@@ -138,8 +138,10 @@ kapatılmalıdır.
 
 - [ ] `hydro doctor` çıktısını actionable hale getir; eksik DB/cache/media,
   writable path ve config sorunlarını güvenli biçimde raporla.
-- [ ] WSL/Docker ile tek komut local bootstrap, seed data ve temizleme akışı ekle.
-  (WSL doğrulaması mevcut; Docker/bootstrap ergonomisi açık.)
+- [x] WSL/Docker ile local dependency bootstrap ve temizleme akışı ekle.
+  (Kanıt: `scripts/bootstrap-wsl.sh`, `compose.dev.yaml`, `docs/LOCAL_BOOTSTRAP.md`;
+  WSL Go/Redis/PostgreSQL readiness PASS. Docker engine kurulumu kullanıcı
+  ortamına bağlıdır.)
 - [x] `hydro new` tüm preset'leri üretip temel scaffold bütünlüğünü temiz geçici
   dizinde test et. (Kanıt: `scripts/generator-smoke.ps1`; news/commerce/corporate/
   portal/headless PASS.)
