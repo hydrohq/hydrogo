@@ -82,6 +82,9 @@ func normalizeNavigation(locale string, items []NavigationItem) (string, []Navig
 	if locale == "" {
 		return "", nil, ErrInvalidNavigation
 	}
+	if len(items) > 500 {
+		return "", nil, ErrInvalidNavigation
+	}
 	seen := make(map[int]struct{}, len(items))
 	for i := range items {
 		items[i].Locale = locale

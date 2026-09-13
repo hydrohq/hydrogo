@@ -284,6 +284,7 @@ Run related tests after every change. If possible, use gofmt, go vet, and target
 - [x] Admin Commerce ürün listesi eski sınırsız repository yolundan bounded `ListProductsPage` sözleşmesine taşındı (1.000 kayıt). (Kanıt: `modules/commerce/transport/http.go`.)
 - [x] News zamanlanmış içerik taraması worker başına 100 kayıtla sınırlandı; backlog büyümesi tek turda sınırsız yük oluşturmuyor. (Kanıt: `modules/news/repository/sqlstore/store.go`.)
 - [x] Commerce legacy `ListProducts` yolu da bounded page sözleşmesine yönlendirildi; doğrudan repository tüketicileri sınırsız ürün çekemiyor. (Kanıt: `modules/commerce/repository/sqlstore/store.go`.)
+- [x] Navigation yazma sözleşmesi de okuma limitiyle hizalandı; tek transaction’da en fazla 500 öğe kabul ediliyor. (Kanıt: `modules/site/service.go`.)
 - [x] Sitemap rota projeksiyonu sınırsız sorgudan çıkarıldı; maksimum 10.000 kayıtla bellek/yanıt büyümesi sınırlandı. (Kanıt: `modules/pages/repository/sqlstore/content.go`.)
 - [x] Yetkiler ekranının kalan fragment stilleri global Admin stylesheet'e taşındı: tablo, rozetler ve yetki kuralları kartı artık ilk SPA açılışında da stilli render edilir. (Kanıt: `AdminPermissionsCSS`, `e2e/manifest.json`; Chromium 14/14 PASS.)
 ### Phase 11 — Üye Portalı, Hesap Yönetimi & Dinamik Navigasyon
