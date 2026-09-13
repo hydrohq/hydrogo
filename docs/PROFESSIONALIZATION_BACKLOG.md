@@ -95,13 +95,14 @@ kapatılmalıdır.
   loading ve error bileşenlerini ortaklaştır.
 - [ ] Admin, publisher ve public temalarını aynı erişilebilirlik sözleşmesine
   bağla.
-- [ ] Responsive desktop/tablet/mobile viewport E2E ve visual regression ekle.
+- [x] Responsive desktop/tablet/mobile viewport E2E ekle; visual regression baseline'i sonraki aşamadır. (Kanıt: `tools/e2egen/main.go`; Chromium 20/20 PASS.)
 - [ ] Keyboard navigation, focus management, reduced motion, contrast ve WCAG
   kontrollerini CI'a al.
 - [ ] HTMX fragment yaşam döngüsünde document-level listener'ları idempotent
   bind/cleanup yap; listener çoğalması için browser memory testi ekle.
-- [ ] Asset cache-buster sürümlerini build manifestinden tekil fingerprint ile
-  üret; elle tarih yazılan sürümleri kaldır.
+- [x] Asset cache-buster sürümlerini içerik fingerprint'i ile üret; elle tarih
+  yazılan sürümleri kaldır. (Kanıt: `tools/assetmanifest`, `tools/assetguard`,
+  tema URL'leri; CSS/JS hash guard PASS.)
 - [ ] Frontend build manifestini generator input'una bağla; route/selector
   sözleşmesini deterministik üret.
 - [ ] i18n, uzun metin, RTL ve tarih/sayı/para formatı testlerini ekle.
@@ -182,4 +183,3 @@ kapatılmalıdır.
   raporları ekli.
 - [ ] Desteklenen sürümler, SLA, lisans, veri yaşam döngüsü ve incident runbook'u
   müşteri teslim paketinde mevcut.
-
