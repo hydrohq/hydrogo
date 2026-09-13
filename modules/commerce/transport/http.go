@@ -412,7 +412,7 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 	variants := []commerce.ProductVariant(nil)
 	if h.CatalogVariants != nil {
-		variants, _ = h.Catalog.ListVariants(r.Context(), h.DB, product.ID, true)
+		variants, _ = h.Catalog.ListVariantsPage(r.Context(), h.DB, product.ID, true, commerce.PublicCatalogPageSize, 0)
 	}
 
 	user := auth.UserFromContext(r.Context())
