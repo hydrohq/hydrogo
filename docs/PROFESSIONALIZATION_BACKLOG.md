@@ -67,6 +67,9 @@ kapatılmalıdır.
 
 ### Performans ve kapasite
 
+- [x] Geliştirme proxy'sinde de bounded HTTP kaynak profili (read/write/idle
+  timeout ve 1 MiB header sınırı) uygula. (Kanıt: `tools/devserver/main.go`,
+  commit `0fc37f0`; `go test ./tools/devserver ./internal/server`.)
 - [ ] Compact, Standard ve Distributed profilleri gerçek müşteri benzeri veriyle
   benchmark et.
 - [ ] Load, stress, spike ve 24 saatlik soak testleri ekle.
