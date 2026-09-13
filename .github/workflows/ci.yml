@@ -83,6 +83,8 @@ jobs:
         run: go run ./tools/moduleguard -root modules -allow modules/api
       - name: Enforce frontend asset version consistency
         run: go run ./tools/assetguard -root .
+      - name: Enforce migration metadata consistency
+        run: go run ./tools/migrationguard -root migrations
       - name: Build external News Edition
         working-directory: examples/news-edition
         run: go build ./...

@@ -290,6 +290,7 @@ Run related tests after every change. If possible, use gofmt, go vet, and target
 - [x] Media admin ve Pages medya picker fragment listener’ları global guard ile tekilleştirildi; uzun SPA oturumlarında listener çoğalması engellendi. (Kanıt: `internal/media/admin.go`, `modules/pages/transport/http.go`.)
 - [x] Frontend asset cache-buster sürümleri tekil `20260913` sürümünde hizalandı; eski `clean`/tarih varyantları kaldırıldı. (Kanıt: server-rendered Go yüzeyleri ve `themes/corporate/layouts/base.html`.)
 - [x] Asset cache-buster drift’ini önleyen CI `assetguard` eklendi. (Kanıt: `tools/assetguard`, `.github/workflows/ci.yml`; guard PASS.)
+- [x] Migration metadata ID/module/dependency/checksum sözleşmesini doğrulayan CI `migrationguard` eklendi. (Kanıt: `tools/migrationguard`, `.github/workflows/ci.yml`.)
 - [x] News admin validation fixture’ları oversized metadata reddini izole şekilde doğruluyor. (Kanıt: `modules/news/model_test.go`.)
 - [x] Pages ID/slug/title/body uzunluk sınırları ve izole validation fixture’ları eklendi. (Kanıt: `modules/pages/service/content.go`, `validation_test.go`.)
 - [x] Pages hero/CTA block zorunlu metin alanları 512 karakterle sınırlandı; oversized payload validation kapsamına alındı. (Kanıt: `modules/pages/blocks.go`.)

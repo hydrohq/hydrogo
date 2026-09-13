@@ -1,0 +1,71 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+type metadata struct {
+	ID           string            `yaml:"id"`
+	Module       string            `yaml:"module"`
+	Dependencies []string          `yaml:"dependencies"`
+	Checksums    map[string]string `yaml:"checksum_sha256"`
+}
+
+func main() {
+	root := flag.String("root", "migrations", "migration root")
+	flag.Parse()
+	entries, err := os.ReadDir(*root)
+	if err != nil {
+		fail(err)
+	}
+	known := map[string]bool{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			known[entry.Name()] = true
+		}
+	}
+	var failures []string
+	for id := range known {
+		data, err := os.ReadFile(filepath.Join(*root, id, "migration.yaml"))
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("%s: metadata: %v", id, err))
+			continue
+		}
+		var m metadata
+		if err := yaml.Unmarshal(data, &m); err != nil {
+			failures = append(failures, fmt.Sprintf("%s: invalid yaml: %v", id, err))
+			continue
+		}
+		if m.ID != id {
+			failures = append(failures, fmt.Sprintf("%s: id=%q", id, m.ID))
+		}
+		if strings.TrimSpace(m.Module) == "" {
+			failures = append(failures, fmt.Sprintf("%s: module is required", id))
+		}
+		if m.Checksums["sqlite"] == "" || m.Checksums["postgres"] == "" {
+			failures = append(failures, fmt.Sprintf("%s: sqlite/postgres checksums are required", id))
+		}
+		for _, dep := range m.Dependencies {
+			if !known[dep] {
+				failures = append(failures, fmt.Sprintf("%s: unknown dependency %q", id, dep))
+			}
+		}
+	}
+	sort.Strings(failures)
+	if len(failures) > 0 {
+		for _, failure := range failures {
+			fmt.Fprintln(os.Stderr, "migrationguard:", failure)
+		}
+		os.Exit(1)
+	}
+	fmt.Printf("migrationguard: OK migrations=%d\n", len(known))
+}
+
+func fail(err error) { fmt.Fprintln(os.Stderr, "migrationguard:", err); os.Exit(1) }
