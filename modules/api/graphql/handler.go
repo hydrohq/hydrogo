@@ -81,8 +81,14 @@ func queryBudget(source string) (fields, depth int, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	var walk func(*ast.SelectionSet, int)
-	walk = func(set *ast.SelectionSet, current int) {
+	fragments := make(map[string]*ast.FragmentDefinition)
+	for _, definition := range doc.Definitions {
+		if fragment, ok := definition.(*ast.FragmentDefinition); ok && fragment.Name != nil {
+			fragments[fragment.Name.Value] = fragment
+		}
+	}
+	var walk func(*ast.SelectionSet, int, map[string]bool)
+	walk = func(set *ast.SelectionSet, current int, active map[string]bool) {
 		if set == nil {
 			return
 		}
@@ -92,18 +98,24 @@ func queryBudget(source string) (fields, depth int, err error) {
 		for _, selection := range set.Selections {
 			if field, ok := selection.(*ast.Field); ok {
 				fields++
-				walk(field.SelectionSet, current+1)
+				walk(field.SelectionSet, current+1, active)
 			} else if inline, ok := selection.(*ast.InlineFragment); ok {
-				walk(inline.SelectionSet, current)
+				walk(inline.SelectionSet, current, active)
+			} else if spread, ok := selection.(*ast.FragmentSpread); ok && spread.Name != nil {
+				name := spread.Name.Value
+				fragment := fragments[name]
+				if fragment == nil || active[name] {
+					continue
+				}
+				active[name] = true
+				walk(fragment.SelectionSet, current, active)
+				delete(active, name)
 			}
 		}
 	}
 	for _, definition := range doc.Definitions {
-		switch definition := definition.(type) {
-		case *ast.OperationDefinition:
-			walk(definition.SelectionSet, 1)
-		case *ast.FragmentDefinition:
-			walk(definition.SelectionSet, 1)
+		if operation, ok := definition.(*ast.OperationDefinition); ok {
+			walk(operation.SelectionSet, 1, make(map[string]bool))
 		}
 	}
 	return fields, depth, nil

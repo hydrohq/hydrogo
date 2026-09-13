@@ -36,3 +36,13 @@ func TestQueryBudgetRejectsAmplification(t *testing.T) {
 		t.Fatalf("expected deep query to exceed budget, depth=%d", depth)
 	}
 }
+
+func TestQueryBudgetCountsFragmentSpreadsAndStopsCycles(t *testing.T) {
+	fields, depth, err := queryBudget(`query { page(locale: "tr", slug: "x") { ...PageFields } } fragment PageFields on Page { title }`)
+	if err != nil || fields != 2 || depth != 2 {
+		t.Fatalf("fragment budget = fields %d depth %d err %v", fields, depth, err)
+	}
+	if fields, _, err := queryBudget(`query { page(locale: "tr", slug: "x") { ...Loop } } fragment Loop on Page { title ...Loop }`); err != nil || fields != 2 {
+		t.Fatalf("cyclic fragment budget = fields %d err %v", fields, err)
+	}
+}

@@ -49,6 +49,9 @@ kapatılmalıdır.
 - [x] Auth `return_to` yönlendirmelerini URI-aware in-origin doğrulamasıyla
   harden et; encoded slash/backslash open-redirect varyantlarını reddet.
   (Kanıt: `internal/security/redirect.go`, auth yüzeyleri ve regression testleri.)
+- [x] GraphQL complexity guard'ında fragment spread'lerini çöz ve cyclic
+  fragment'leri fail-safe kes. (Kanıt: `modules/api/graphql/handler.go` ve
+  fragment amplification/cycle testleri.)
 - [ ] Secret rotation, signing-key rotation ve emergency revoke prosedürü yaz.
 - [ ] Threat model ve dış penetrasyon testi tamamla.
 - [ ] Security headers, CSP report-only → enforce geçişi ve trusted-origin
