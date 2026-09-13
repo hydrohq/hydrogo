@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $root = Join-Path (Get-Location) (".tmp\generator-smoke-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force $root | Out-Null
 try {
-    foreach ($preset in @("news", "commerce", "corporate", "portal", "headless")) {
+    foreach ($preset in @("news", "editorial", "commerce", "compact-site", "corporate", "portal", "headless")) {
         $name = "smoke-$preset"
         Write-Host "==> generate $preset"
         go run ./cmd/hydro new $name --preset $preset --root $root --database sqlite --profile compact --no-demo
