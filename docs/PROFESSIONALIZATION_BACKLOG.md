@@ -97,8 +97,9 @@ kapatılmalıdır.
   bağla.
 - [x] Responsive desktop/tablet/mobile viewport E2E ekle; visual regression baseline'i sonraki aşamadır. (Kanıt: `tools/e2egen/main.go`; Chromium 20/20 PASS.)
 - [ ] Keyboard navigation, focus management, reduced motion, contrast ve WCAG
-  kontrollerini CI'a al. (Temel `html[lang]`, `main` landmark ve responsive
-  overflow kontrolleri generator'a eklendi; tam WCAG audit açık.)
+  kontrollerini CI'a al. (Temel `html[lang]`, `main` landmark, responsive
+  overflow, keyboard focus ve görünür kontrol accessible-name kontrolleri
+  generator'a eklendi; tam WCAG audit açık.)
 - [ ] HTMX fragment yaşam döngüsünde document-level listener'ları idempotent
   bind/cleanup yap; listener çoğalması için browser memory testi ekle.
 - [x] Asset cache-buster sürümlerini içerik fingerprint'i ile üret; elle tarih
