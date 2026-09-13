@@ -1579,21 +1579,13 @@ func newsRouterRoutes(routes []newstransport.Route) []router.Route {
 }
 
 func commerceRouterRoutes(routes []commercetransport.Route) []router.Route {
-	result := make([]router.Route, 0, len(routes)*2)
+	result := make([]router.Route, 0, len(routes))
 	for _, route := range routes {
 		access := router.Public
 		if route.Protected {
 			access = router.Protected
 		}
 		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
-		// Preserve legacy commerce paths while exposing the documented versioned
-		// contract. Admin and HTML routes are intentionally not aliased.
-		if strings.Contains(route.Pattern, " /api/commerce") {
-			result = append(result, router.Route{Pattern: strings.Replace(route.Pattern, " /api/commerce", " /api/v1/commerce", 1), Access: access, Handler: route.Handler})
-		}
-		if route.Pattern == "POST /api/webhooks/payment/{provider}" {
-			result = append(result, router.Route{Pattern: "POST /api/v1/webhooks/payment/{provider}", Access: access, Handler: route.Handler})
-		}
 	}
 	return result
 }

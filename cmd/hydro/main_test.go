@@ -23,7 +23,7 @@ import (
 	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 )
 
-func TestCommerceRouterRoutesExposeVersionedAliases(t *testing.T) {
+func TestCommerceRouterRoutesPreserveCommerceRouteSet(t *testing.T) {
 	routes := commerceRouterRoutes([]commercetransport.Route{
 		{Pattern: "GET /api/commerce/products"},
 		{Pattern: "POST /api/webhooks/payment/{provider}"},
@@ -33,13 +33,13 @@ func TestCommerceRouterRoutesExposeVersionedAliases(t *testing.T) {
 	for _, route := range routes {
 		patterns[route.Pattern] = true
 	}
-	for _, pattern := range []string{"GET /api/commerce/products", "GET /api/v1/commerce/products", "POST /api/webhooks/payment/{provider}", "POST /api/v1/webhooks/payment/{provider}", "GET /admin/commerce/products"} {
+	for _, pattern := range []string{"GET /api/commerce/products", "POST /api/webhooks/payment/{provider}", "GET /admin/commerce/products"} {
 		if !patterns[pattern] {
 			t.Fatalf("missing route %q in %#v", pattern, patterns)
 		}
 	}
-	if len(patterns) != 5 {
-		t.Fatalf("unexpected aliases: %#v", patterns)
+	if len(patterns) != 3 {
+		t.Fatalf("unexpected route set: %#v", patterns)
 	}
 }
 
