@@ -656,20 +656,7 @@ To run tests:
 }
 
 func e2eManifest(opts Options) string {
-	routes := []map[string]any{
-		{"name": "home", "path": "/", "public": true, "test_id": "public-home"},
-	}
-	if opts.Preset == "news" {
-		routes = append(routes,
-			map[string]any{"name": "news_room", "path": "/public/news/tr/html", "public": true, "test_id": "news-feed"},
-			map[string]any{"name": "member_login", "path": "/member/login", "public": true, "test_id": "member-login"},
-		)
-	} else if opts.Preset == "commerce" {
-		routes = append(routes,
-			map[string]any{"name": "shop", "path": "/shop", "public": true, "test_id": "product-catalog"},
-			map[string]any{"name": "cart", "path": "/cart", "public": true, "test_id": "shopping-cart"},
-		)
-	}
+	routes := presetFrontendRoutes(opts.Preset)
 
 	data := map[string]any{
 		"version":  1,
@@ -685,6 +672,26 @@ func e2eManifest(opts Options) string {
 	}
 	dataBytes, _ := json.MarshalIndent(data, "", "  ")
 	return string(dataBytes) + "\n"
+}
+
+// presetFrontendRoutes is the generator's frontend contract. Keeping the
+// route/test-id mapping in one deterministic table prevents generated E2E
+// manifests from drifting when a preset grows new public surfaces.
+func presetFrontendRoutes(preset string) []map[string]any {
+	routes := []map[string]any{{"name": "home", "path": "/", "public": true, "test_id": "public-home"}}
+	switch preset {
+	case "news":
+		routes = append(routes,
+			map[string]any{"name": "news_room", "path": "/public/news/tr/html", "public": true, "test_id": "news-feed"},
+			map[string]any{"name": "member_login", "path": "/member/login", "public": true, "test_id": "member-login"},
+		)
+	case "commerce":
+		routes = append(routes,
+			map[string]any{"name": "shop", "path": "/shop", "public": true, "test_id": "product-catalog"},
+			map[string]any{"name": "cart", "path": "/cart", "public": true, "test_id": "shopping-cart"},
+		)
+	}
+	return routes
 }
 
 func contains(list []string, item string) bool {

@@ -105,6 +105,24 @@ func TestGenerateAllPresets(t *testing.T) {
 	}
 }
 
+func TestPresetFrontendRoutesAreDeterministicAndCovered(t *testing.T) {
+	tests := map[string][]string{
+		"news": {"home", "news_room", "member_login"}, "commerce": {"home", "shop", "cart"},
+		"corporate": {"home"}, "portal": {"home"}, "headless": {"home"},
+	}
+	for preset, wantNames := range tests {
+		first, second := presetFrontendRoutes(preset), presetFrontendRoutes(preset)
+		if len(first) != len(wantNames) || len(second) != len(first) {
+			t.Fatalf("preset %q route count = %d/%d, want %d", preset, len(first), len(second), len(wantNames))
+		}
+		for i, want := range wantNames {
+			if first[i]["name"] != want || first[i]["name"] != second[i]["name"] || first[i]["path"] != second[i]["path"] || first[i]["test_id"] != second[i]["test_id"] {
+				t.Fatalf("preset %q route %d is not deterministic/expected: %#v", preset, i, first[i])
+			}
+		}
+	}
+}
+
 func TestGeneratedHeadlessClientUsesPublishedEndpoints(t *testing.T) {
 	projectPath, err := Generate(Options{Root: t.TempDir(), Name: "headless-client", Preset: "headless"})
 	if err != nil {
