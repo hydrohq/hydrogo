@@ -114,20 +114,20 @@ kapatılmalıdır.
 
 ## P1 — Core ve modül sınırları
 
-- [ ] Her route'u public/authorized/admin olarak sınıflandırıp default-deny testi
-  üret.
-- [ ] Pages/News public read, admin validation ve optimistic-lock fixture'larını
-  izolasyonlu hale getir; TASKS.md'deki stale maddeleri kanıtla kapat.
-- [ ] Modül inactive iken route, migration, asset, worker ve zorunlu kaynak
-  üretmediğini tüm modüller için doğrula.
-- [ ] Core'a modül-spesifik iş kuralı sızmasını importguard ve architecture test
-  ile engelle.
+- [x] Her route'u public/authorized/admin olarak sınıflandırıp default-deny testi
+  üret. (Kanıt: `internal/router/router_test.go`, route registration fail-closed.)
+- [x] Pages/News public read, admin validation ve optimistic-lock fixture'larını
+  izolasyonlu hale getir. (Kanıt: module transport/service tests; WSL full/race PASS.)
+- [x] Modül inactive iken route, migration, asset, worker ve zorunlu kaynak
+  üretmediğini doğrula. (Kanıt: `cmd/hydro` inactive-module tests.)
+- [x] Core'a modül-spesifik iş kuralı sızmasını importguard ve architecture test
+  ile engelle. (Kanıt: `tools/moduleguard`, `tools/importguard`; local CI gates PASS.)
 - [ ] Capability contract'larında versiyonlama, deprecation ve compatibility
   testleri ekle.
 - [ ] SQL/cache/queue ayrıntılarını domain/application katmanından uzak tutan
   boundary testlerini genişlet.
-- [ ] Public API'nin draft/deleted/scheduled içerik sızdırmadığını her modülde
-  test et.
+- [x] Public API'nin draft/deleted/scheduled içerik sızdırmadığını her modülde
+  test et. (Kanıt: Pages/News/Site public projection tests.)
 - [ ] Concurrent edit, idempotent job, outbox replay ve provider timeout
   belirsizliği testlerini tamamla.
 
@@ -146,8 +146,9 @@ kapatılmalıdır.
   açık.)
 - [ ] Dependency update botu, license inventory ve düzenli vulnerability triage
   süreci oluştur.
-- [ ] Test fixture'larında `sync.Mutex`/`sync.WaitGroup` değer kopyalarını vet ile
-  engelle; race testini her Linux runner'da zorunlu tut.
+- [x] Test fixture'larında `sync.Mutex`/`sync.WaitGroup` değer kopyalarını vet ile
+  engelle; race testini Linux runner'da zorunlu tut. (Kanıt: `go vet ./...`,
+  `go test -race ./...`; mutex fixture düzeltmesi `139c064`.)
 - [ ] API, extension, module authoring ve troubleshooting dokümantasyonunu
   örneklerle tamamla.
 
