@@ -78,6 +78,8 @@ kapatılmalıdır.
 
 ### Performans ve kapasite
 
+- [x] Commerce para aritmetiğinde çarpma/toplama overflow koruması ve regression
+  testi ekle. (Kanıt: `modules/commerce/model.go`, `service.go` ve testler.)
 - [x] Geliştirme proxy'sinde de bounded HTTP kaynak profili (read/write/idle
   timeout ve 1 MiB header sınırı) uygula. (Kanıt: `tools/devserver/main.go`,
   commit `0fc37f0`; `go test ./tools/devserver ./internal/server`.)

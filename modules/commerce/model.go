@@ -2,6 +2,7 @@ package commerce
 
 import (
 	"errors"
+	"math"
 	"strings"
 )
 
@@ -92,6 +93,23 @@ var (
 	ErrOutOfStock          = errors.New("product is out of stock")
 	ErrIdempotencyConflict = errors.New("idempotency key belongs to another checkout")
 )
+
+func checkedCentsTotal(unit int64, quantity int) (int64, bool) {
+	if unit < 0 || quantity <= 0 {
+		return 0, false
+	}
+	if unit > 0 && int64(quantity) > math.MaxInt64/unit {
+		return 0, false
+	}
+	return unit * int64(quantity), true
+}
+
+func checkedCentsAdd(total, line int64) (int64, bool) {
+	if total < 0 || line < 0 || total > math.MaxInt64-line {
+		return 0, false
+	}
+	return total + line, true
+}
 
 func (c Checkout) Validate() error {
 	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.UserID) == "" || strings.TrimSpace(c.IdempotencyKey) == "" || (len(c.Items) == 0 && strings.TrimSpace(c.CartID) == "") {

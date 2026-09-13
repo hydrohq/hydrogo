@@ -102,9 +102,17 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 			if order.Currency != product.Currency {
 				return ErrInvalidCheckout
 			}
-			line := OrderItem{ProductID: product.ID, VariantID: variantID, SKU: product.SKU, Title: product.Title, Quantity: item.Quantity, UnitCents: product.PriceCents, TotalCents: product.PriceCents * int64(item.Quantity)}
+			lineTotal, ok := checkedCentsTotal(product.PriceCents, item.Quantity)
+			if !ok {
+				return ErrInvalidCheckout
+			}
+			newTotal, ok := checkedCentsAdd(order.TotalCents, lineTotal)
+			if !ok {
+				return ErrInvalidCheckout
+			}
+			line := OrderItem{ProductID: product.ID, VariantID: variantID, SKU: product.SKU, Title: product.Title, Quantity: item.Quantity, UnitCents: product.PriceCents, TotalCents: lineTotal}
 			order.Items = append(order.Items, line)
-			order.TotalCents += line.TotalCents
+			order.TotalCents = newTotal
 		}
 		if err := s.Store.CreateOrder(ctx, tx, order, checkout.IdempotencyKey); err != nil {
 			return err

@@ -2,6 +2,7 @@ package commerce
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -33,6 +34,18 @@ func TestValidateProduct(t *testing.T) {
 	valid.Currency = "EURO"
 	if err := ValidateProduct(valid); err == nil {
 		t.Fatal("invalid currency accepted")
+	}
+}
+
+func TestCheckedCentsArithmeticRejectsOverflow(t *testing.T) {
+	if _, ok := checkedCentsTotal(math.MaxInt64, 2); ok {
+		t.Fatal("multiplication overflow accepted")
+	}
+	if _, ok := checkedCentsAdd(math.MaxInt64, 1); ok {
+		t.Fatal("addition overflow accepted")
+	}
+	if total, ok := checkedCentsTotal(1250, 2); !ok || total != 2500 {
+		t.Fatalf("valid cents multiplication = %d/%v", total, ok)
 	}
 }
 
