@@ -110,6 +110,14 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	if err := db.QueryRow(`SELECT stock FROM commerce_products WHERE id = 'p2'`).Scan(&stock); err != nil || stock != 2 {
 		t.Fatalf("released stock = %d, %v", stock, err)
 	}
+	page, err := store.ListProductsPage(context.Background(), db, true, 1, 0)
+	if err != nil || len(page) != 1 {
+		t.Fatalf("bounded product page = %#v, %v", page, err)
+	}
+	nextPage, err := store.ListProductsPage(context.Background(), db, true, 1, 1)
+	if err != nil || len(nextPage) != 1 || nextPage[0].ID == page[0].ID {
+		t.Fatalf("product page offset = %#v, %v", nextPage, err)
+	}
 
 	prod, err := store.GetProduct(context.Background(), db, "p1")
 	if err != nil || prod.Title != "Bottle" {
