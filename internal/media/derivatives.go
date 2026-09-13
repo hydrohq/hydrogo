@@ -52,6 +52,8 @@ type Optimizer struct {
 	db         database.Executor
 	storageDir string
 	wg         sync.WaitGroup
+	lifecycle  sync.RWMutex
+	closed     bool
 }
 
 func NewOptimizer(storageDir string, workers int, variants DerivativeRepository, db database.Executor, ffmpegPath string) *Optimizer {
@@ -77,11 +79,23 @@ func (o *Optimizer) Close() {
 	if o == nil {
 		return
 	}
+	o.lifecycle.Lock()
+	if o.closed {
+		o.lifecycle.Unlock()
+		return
+	}
+	o.closed = true
 	close(o.queue)
+	o.lifecycle.Unlock()
 	o.wg.Wait()
 }
 func (o *Optimizer) Enqueue(asset Asset) {
 	if o == nil || o.queue == nil {
+		return
+	}
+	o.lifecycle.RLock()
+	defer o.lifecycle.RUnlock()
+	if o.closed {
 		return
 	}
 	select {

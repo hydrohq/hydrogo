@@ -77,6 +77,16 @@ func TestOptimizerQueueIsBoundedAndNonBlocking(t *testing.T) {
 	}
 }
 
+func TestOptimizerCloseIsIdempotentAndRejectsLateEnqueue(t *testing.T) {
+	optimizer := &Optimizer{queue: make(chan Asset, 1)}
+	optimizer.Close()
+	optimizer.Close()
+	optimizer.Enqueue(Asset{ID: "late"})
+	if got := len(optimizer.queue); got != 0 {
+		t.Fatalf("closed optimizer accepted %d late assets", got)
+	}
+}
+
 func TestFFmpegTransformerFailsClosedWithoutEncoder(t *testing.T) {
 	_, err := (ffmpegTransformer{storageDir: t.TempDir()}).Transform(context.Background(), Asset{StorageKey: "input.png"}, VariantCard, "variant-1")
 	if err == nil || !strings.Contains(err.Error(), "ffmpeg is not configured") {
