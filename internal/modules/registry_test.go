@@ -21,6 +21,16 @@ func TestRegisterRejectsTypedNilModule(t *testing.T) {
 	}
 }
 
+func TestNilRegistryFailsClosedWithoutPanic(t *testing.T) {
+	var reg *Registry
+	if err := reg.Register(dummyModule{name: "sample"}); err == nil {
+		t.Fatal("nil registry accepted a module")
+	}
+	if routes := reg.Routes(); routes != nil {
+		t.Fatalf("nil registry returned routes: %#v", routes)
+	}
+}
+
 func (d dummyModule) Name() string                    { return d.name }
 func (d dummyModule) Routes() []extension.ModuleRoute { return d.routes }
 

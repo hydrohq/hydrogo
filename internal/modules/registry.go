@@ -21,6 +21,9 @@ func NewRegistry() *Registry {
 }
 
 func (r *Registry) Register(m extension.Module) error {
+	if r == nil {
+		return fmt.Errorf("cannot register module in nil registry")
+	}
 	if guards.IsNil(m) {
 		return fmt.Errorf("cannot register nil module")
 	}
@@ -36,6 +39,9 @@ func (r *Registry) Register(m extension.Module) error {
 }
 
 func (r *Registry) Routes() []router.Route {
+	if r == nil {
+		return nil
+	}
 	var routes []router.Route
 	names := make([]string, 0, len(r.modules))
 	for name := range r.modules {
