@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
+
+var localePattern = regexp.MustCompile(`^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?$`)
 
 type Config struct {
 	Profile  capacity.Profile `yaml:"profile"`
@@ -318,6 +321,25 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.I18N.DefaultLocale) == "" {
 		return errors.New("i18n default locale cannot be empty")
+	}
+	if len(c.I18N.Locales) == 0 || len(c.I18N.Locales) > 64 {
+		return errors.New("i18n locale list must contain 1-64 locales")
+	}
+	seenLocales := make(map[string]struct{}, len(c.I18N.Locales))
+	defaultLocale := strings.ToLower(strings.TrimSpace(c.I18N.DefaultLocale))
+	for _, locale := range c.I18N.Locales {
+		locale = strings.TrimSpace(locale)
+		key := strings.ToLower(locale)
+		if !localePattern.MatchString(locale) {
+			return fmt.Errorf("invalid i18n locale %q", locale)
+		}
+		if _, exists := seenLocales[key]; exists {
+			return fmt.Errorf("i18n locale %q is configured more than once", locale)
+		}
+		seenLocales[key] = struct{}{}
+	}
+	if _, ok := seenLocales[defaultLocale]; !ok {
+		return fmt.Errorf("i18n default locale %q is not enabled", c.I18N.DefaultLocale)
 	}
 	seenModules := make(map[string]struct{}, len(c.Modules))
 	for _, module := range c.Modules {

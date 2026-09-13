@@ -35,6 +35,22 @@ database:
 	}
 }
 
+func TestLoadRejectsInvalidOrDuplicateLocales(t *testing.T) {
+	for _, locales := range []string{`["tr", "TR"]`, `["tr", "xx_xx"]`} {
+		path := writeConfig(t, "i18n:\n  enabled: true\n  default_locale: tr\n  locales: "+locales+"\n")
+		if _, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{}); err == nil || !strings.Contains(err.Error(), "i18n") {
+			t.Fatalf("locales %s accepted/error=%v", locales, err)
+		}
+	}
+}
+
+func TestLoadRejectsDefaultLocaleOutsideEnabledList(t *testing.T) {
+	path := writeConfig(t, "i18n:\n  enabled: true\n  default_locale: en\n  locales: [tr]\n")
+	if _, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{}); err == nil || !strings.Contains(err.Error(), "not enabled") {
+		t.Fatalf("default locale mismatch error = %v", err)
+	}
+}
+
 func TestLoadRejectsUnknownKey(t *testing.T) {
 	path := writeConfig(t, "unknown: true\n")
 	_, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
