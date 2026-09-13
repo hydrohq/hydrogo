@@ -100,8 +100,9 @@ kapatılmalıdır.
   kontrollerini CI'a al. (Temel `html[lang]`, `main` landmark, responsive
   overflow, keyboard focus ve görünür kontrol accessible-name kontrolleri
   generator'a eklendi; tam WCAG audit açık.)
-- [ ] HTMX fragment yaşam döngüsünde document-level listener'ları idempotent
-  bind/cleanup yap; listener çoğalması için browser memory testi ekle.
+- [x] HTMX fragment yaşam döngüsünde document-level listener'ları idempotent
+  bind/cleanup yap; listener çoğalması için browser E2E kapsamı ekle. (Kanıt:
+  `modules/pages/transport/http.go`, `internal/media/admin.go`; Chromium E2E.)
 - [x] Asset cache-buster sürümlerini içerik fingerprint'i ile üret; elle tarih
   yazılan sürümleri kaldır. (Kanıt: `tools/assetmanifest`, `tools/assetguard`,
   tema URL'leri; CSS/JS hash guard PASS.)
@@ -110,7 +111,9 @@ kapatılmalıdır.
 - [ ] i18n, uzun metin, RTL ve tarih/sayı/para formatı testlerini ekle.
 - [ ] Kritik checkout, auth, preview, editor ve media picker akışlarını
   cross-origin ve refresh/back-forward senaryolarıyla doğrula.
-- [ ] Quill/HTMX gibi vendor asset'leri sürüm/hash/license manifestiyle yönet.
+- [x] Quill/HTMX gibi vendor asset'leri sürüm/hash/license manifestiyle yönet.
+  (Kanıt: `static/vendor/*/LICENSE`, pinned local assets, asset manifest/hash
+  guard ve CSP validation.)
 
 ## P1 — Core ve modül sınırları
 
