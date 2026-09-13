@@ -198,6 +198,14 @@ On each update, write short evidence next to the relevant task: the command exec
 
 ## Workflow to apply for each task
 
+### Hardening follow-up — 2026-09-13
+
+- [x] Bound public Commerce catalog projections and add REST page metadata. (Evidence: `modules/commerce/catalog.go`, SQL `LIMIT/OFFSET` repository contract, `X-Catalog-*` headers, pagination regression test; `go test ./...` PASS.)
+- [x] Expose bounded pending refund reconciliation to administrators. (Evidence: `GET /admin/commerce/refunds/pending`, `ListPendingRefunds`, ADR-0034, OpenAPI schema; Commerce tests PASS.)
+- [x] Align Commerce legacy and versioned API routes. (Evidence: `/api/v1/commerce/...` and `/api/v1/webhooks/payment/{provider}` aliases, route regression test, ADR-0015 update; `go test ./...` PASS.)
+- [!] Race detector could not run on this Windows host because `CGO_ENABLED=1` requires an unavailable `gcc`; Linux CI race job remains the verification path. (Observed: `cgo: C compiler "gcc" not found`.)
+- [!] Full production gates remain external: real provider credentials, reverse proxy/process restart, backup/key escrow, customer capacity/RPO/RTO, and production signing ceremony. (Tracked in `docs/validation/PRODUCTION-GATES.md`; do not mark as local success.)
+
 1. Read related documents and ADRs.
 2. Examine existing code and tests.
 3. Make the smallest safe change.
