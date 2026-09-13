@@ -14,11 +14,22 @@ import (
 )
 
 type manifest struct {
-	Version  int              `json:"version"`
-	BaseURL  string           `json:"base_url"`
-	Admin    adminManifest    `json:"admin"`
-	Frontend frontendManifest `json:"frontend"`
-	Media    mediaManifest    `json:"media"`
+	Version  int                    `json:"version"`
+	BaseURL  string                 `json:"base_url"`
+	Admin    adminManifest          `json:"admin"`
+	Frontend frontendManifest       `json:"frontend"`
+	Media    mediaManifest          `json:"media"`
+	Assets   map[string]themeAssets `json:"assets,omitempty"`
+}
+
+type themeAssets struct {
+	Version string                 `json:"version"`
+	Assets  map[string]assetDigest `json:"assets"`
+}
+
+type assetDigest struct {
+	Bytes  int    `json:"bytes"`
+	SHA256 string `json:"sha256"`
 }
 
 type mediaManifest struct {
@@ -97,6 +108,16 @@ func validate(m manifest) error {
 	}
 	if strings.TrimSpace(m.Admin.LoginPath) == "" {
 		return errors.New("admin.login_path is required")
+	}
+	for theme, assets := range m.Assets {
+		if strings.TrimSpace(theme) == "" || strings.TrimSpace(assets.Version) == "" || len(assets.Assets) == 0 {
+			return fmt.Errorf("invalid asset manifest for theme %q", theme)
+		}
+		for path, digest := range assets.Assets {
+			if path == "" || len(digest.SHA256) != 64 || digest.Bytes < 0 {
+				return fmt.Errorf("invalid asset digest %q in theme %s", path, theme)
+			}
+		}
 	}
 	seen := map[string]bool{}
 	seenTestIDs := map[string]string{}
