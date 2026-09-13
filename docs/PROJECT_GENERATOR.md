@@ -8,11 +8,21 @@
 hydro new haber-merkezi --preset=news
 hydro new magaza --preset=commerce --database=postgres --profile=standard
 hydro new portal --preset=portal --git
+hydro new haber-merkezi --preset=news --frontend-manifest .\dist\frontend-manifest.json
 ```
 
 The command creates configuration, `hydrogo.lock`, a runnable minimal theme, project migration and custom-extension placeholders, seed guidance, and a metadata-driven E2E manifest. `--git` runs `git init` only inside the newly created directory; it never adds a remote or pushes.
 
 Supported presets are `news`, `commerce`, `corporate`, `portal`, and `headless`. The preset selects enabled feature contracts and does not copy Core source code. The licensed HydroGo runtime is supplied separately and is referenced by the generated configuration and lock file.
+
+### Frontend build manifest
+
+When a frontend build produces a route contract, pass its JSON file with
+`--frontend-manifest`. The file must contain `routes`, where every route has a
+unique `name`, absolute safe `path`, and unique `test_id`; `public` is optional
+and defaults to `true`. The generator strips unknown fields, sorts routes by
+name, and writes the normalized contract to `e2e/manifest.json`. Invalid,
+duplicate, or unsafe routes fail generation before a project is created.
 
 ## Workflow
 

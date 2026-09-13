@@ -658,6 +658,10 @@ This project includes metadata-driven Playwright tests generated from ` + "`e2e/
 
 To run tests:
 ` + "```powershell\nnpm test\n```" + `
+
+If the frontend build emits a route contract, pass it during generation:
+` + "```powershell\nhydro new my-site --preset=news --frontend-manifest .\\dist\\frontend-manifest.json\n```" + `
+The manifest must contain a ` + "`routes`" + ` array with unique ` + "`name`" + `, ` + "`path`" + ` and ` + "`test_id`" + ` values. Routes are normalized and sorted before ` + "`e2e/manifest.json`" + ` is written.
 `
 }
 
