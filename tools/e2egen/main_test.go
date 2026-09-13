@@ -21,6 +21,16 @@ func TestRenderIsDeterministicAndUsesExplicitTestIDs(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsCrossSurfaceTestIDCollision(t *testing.T) {
+	m := manifest{Version: 1, BaseURL: "http://127.0.0.1:8090", Admin: adminManifest{
+		LoginPath: "/login",
+		Surfaces:  []adminSurface{{ID: "admin", Route: "/admin", TestID: "shared"}},
+	}, Frontend: frontendManifest{Routes: []frontendRoute{{Name: "home", Path: "/", Public: true, TestID: "shared"}}}}
+	if err := validate(m); err == nil || !strings.Contains(err.Error(), "duplicate test_id") {
+		t.Fatalf("expected cross-surface collision rejection, got %v", err)
+	}
+}
+
 func TestRenderIncludesDeclaredMediaUploadJourney(t *testing.T) {
 	m := manifest{Version: 1, BaseURL: "http://127.0.0.1:8090", Admin: adminManifest{LoginPath: "/login"}, Media: mediaManifest{Route: "/admin/media", UploadEnabled: true}}
 	output := render(m)

@@ -99,6 +99,7 @@ func validate(m manifest) error {
 		return errors.New("admin.login_path is required")
 	}
 	seen := map[string]bool{}
+	seenTestIDs := map[string]string{}
 	for _, c := range m.Admin.Collections {
 		if c.ID == "" || c.Route == "" || !strings.HasPrefix(c.Route, "/") || seen[c.ID] {
 			return fmt.Errorf("invalid or duplicate admin collection %q", c.ID)
@@ -109,6 +110,10 @@ func validate(m manifest) error {
 			if f.ID == "" || fieldIDs[f.ID] || f.TestID == "" {
 				return fmt.Errorf("invalid admin field %q in %s", f.ID, c.ID)
 			}
+			if previous, exists := seenTestIDs[f.TestID]; exists {
+				return fmt.Errorf("duplicate test_id %q in %s and %s", f.TestID, previous, c.ID)
+			}
+			seenTestIDs[f.TestID] = c.ID + "." + f.ID
 			fieldIDs[f.ID] = true
 		}
 	}
@@ -123,6 +128,10 @@ func validate(m manifest) error {
 		if (surface.StyleSelector == "") != (surface.StyleProperty == "") || (surface.StyleProperty == "") != (surface.StyleValue == "") {
 			return fmt.Errorf("admin surface %q must declare style_selector, style_property and style_value together", surface.ID)
 		}
+		if previous, exists := seenTestIDs[surface.TestID]; exists {
+			return fmt.Errorf("duplicate test_id %q in %s and surface %s", surface.TestID, previous, surface.ID)
+		}
+		seenTestIDs[surface.TestID] = "surface " + surface.ID
 		seen[surface.ID] = true
 	}
 	seen = map[string]bool{}
@@ -133,6 +142,10 @@ func validate(m manifest) error {
 		if r.TestID == "" {
 			return fmt.Errorf("frontend route %q requires test_id", r.Name)
 		}
+		if previous, exists := seenTestIDs[r.TestID]; exists {
+			return fmt.Errorf("duplicate test_id %q in %s and frontend route %s", r.TestID, previous, r.Name)
+		}
+		seenTestIDs[r.TestID] = "frontend " + r.Name
 		seen[r.Name] = true
 	}
 	return nil
