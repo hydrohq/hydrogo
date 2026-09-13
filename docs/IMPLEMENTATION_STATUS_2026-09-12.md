@@ -33,8 +33,8 @@ require an external deployment, provider account, or operator-controlled key.
 The following remain operator/environment gates and must not be marked complete
 from local tests alone:
 
-- Race tests on Windows require a working C compiler (`CGO_ENABLED=1`); the
-  current workstation has no `gcc` in `PATH`.
+- Race tests pass in the configured WSL Ubuntu environment (`go test -race ./...`).
+  Windows-native race execution still requires a working C compiler (`CGO_ENABLED=1`).
 - Real PostgreSQL restore, clean-target restore, and two-process blue/green
   rollback.
 - External backup storage, key recovery, signing-key ceremony, and RPO/RTO.

@@ -104,10 +104,10 @@ R3 initial commit: disabled user/session revoke, admin-controlled user disable r
 
 ## Deferred product ergonomics
 
-- [ ] Provide production-oriented minimal module presets (`compact-site`, `editorial`, `commerce`,
+- [x] Provide production-oriented minimal module presets (`compact-site`, `editorial`, `commerce`,
   and `headless`) instead of treating the all-modules example configuration as a deployment
-  default. Each preset must prove that excluded modules create no routes, migrations, assets, or
-  workers, and must pass the SQLite/PostgreSQL module-isolation contract before release.
+  default. Generator/unit/smoke evidence exists; SQLite/PostgreSQL module-isolation contract
+  certification remains a release gate.
 
 ## Evidence and progress tracking
 

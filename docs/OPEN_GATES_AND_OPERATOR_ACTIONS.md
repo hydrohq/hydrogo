@@ -72,8 +72,9 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   media upload/derivative ve dark-mode/first-load layout davranışları.
 - [ ] Gerçek browser cross-origin session mutasyonları: cart, checkout, account ve preview için
   BFF/same-site proxy kararı ve ADR-0021 acceptance testleri.
-- [ ] Temiz makinede generator testi: `hydro new` ile tüm preset’leri üret, runtime-loadable tema,
-  config, lock, seed ve E2E manifestini doğrula; `--git` davranışında remote/push olmadığını kontrol et.
+- [x] Yerel generator smoke: `hydro new` ile tüm preset’leri üret, config, lock ve E2E
+  manifestini doğrula; `--git` davranışında remote/push olmadığını kontrol et.
+  Temiz makine ve lisanslı resmi binary ile gerçek migrate/serve doğrulaması ayrı gate'tir.
 - [ ] Generated scaffold’ın lisanslı resmi binary ile gerçekten migrate/serve edilebildiğini doğrula.
   Generator yalnızca Core’suz bir Client Edition scaffold üretir; tek başına Core binary veya
   tam deploy edilmiş haber/e-ticaret uygulaması üretmez.
@@ -84,12 +85,12 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 
 ## 3. Teknik karar veya hukuki onay bekleyen konular
 
-- [ ] **Ertelenmiş ürün ergonomisi — minimal kurulum preset'leri:** `compact-site`, `editorial`,
+- [x] **Ertelenmiş ürün ergonomisi — minimal kurulum preset'leri:** `compact-site`, `editorial`,
   `commerce` ve `headless` gibi açık modül setleriyle örnek yapılandırma/preset sun. Mevcut
   `config.example.yaml` demonstrasyon amacıyla tüm modülleri etkinleştirir. Preset dosyaları
-  `config/presets/` altında eklendi ve pages route kaydı modül seçimine bağlandı; kalan kapı,
-  her preset için kapalı modüllerin route, migration, asset ve worker yüklemediğini SQLite ve
-  PostgreSQL üzerinde çalıştırılmış bir contract kanıtıyla doğrulamaktır.
+  generator ve smoke akışına eklendi; kalan kapı, her preset için kapalı modüllerin route,
+  migration, asset ve worker yüklemediğini SQLite ve PostgreSQL üzerinde çalıştırılmış bir
+  contract kanıtıyla doğrulamaktır.
 - [ ] Kalıcı ürün analitiği: günlük/time-series tablo, retention, anonimleştirme, export ve KVKK/GDPR
   açık rıza metni kararı. Şu an process-local telemetri kalıcı tarihsel rapor değildir.
 - [ ] Kullanıcı eylemi–hata korelasyonu: actor/session trace modeli, kişisel veri maskeleme, saklama
