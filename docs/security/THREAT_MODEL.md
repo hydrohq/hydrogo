@@ -1,6 +1,6 @@
 # HydroGo — Initial threat model
 
-**Date:** 2026-09-05 · **Status:** Design analysis; pending implementation validation.
+**Date:** 2026-09-05 · **Reviewed:** 2026-09-14 · **Status:** Design analysis; implementation evidence is tracked per validation gate.
 
 Scope: Site Edition, per-customer isolated deployment, SQLite/PostgreSQL, admin/public HTML/JSON, local media, and subsequent object storage profile. Commerce, multi-tenant SaaS, and untrusted runtime plugins are out of scope. Binding security decisions are in [ADR-0013](../architecture/0013-identity-and-security-boundaries.md), consistency/recovery in [ADR-0011](../architecture/0011-consistency-upgrade-and-recovery.md).
 
@@ -31,7 +31,12 @@ The proxy does not magically secure every request coming to the origin. DB and o
 
 ## Threat and validation matrix
 
-The evidence status of all rows is **pending**. Owners represent a responsibility role rather than a person assignment; when a development issue is opened, a concrete owner and outcome are added.
+Evidence is intentionally tracked in the dated validation reports and the
+[open-gates register](../OPEN_GATES_AND_OPERATOR_ACTIONS.md); a row without an
+explicit passing report remains **pending**. This model is not itself a release
+certificate or a penetration-test result. Owners represent a responsibility
+role rather than a person assignment; when a development issue is opened, a
+concrete owner and outcome are added.
 
 | ID | Concrete attack/failure | Decided control | Required evidence and gate | Owner |
 |---|---|---|---|---|
