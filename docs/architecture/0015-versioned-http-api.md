@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-09
 - **Supersedes:** none
-- **Implementation status:** `/api/v1` aliases are implemented in the router; the existing `/api` paths remain a compatibility surface and advertise their successor.
+- **Implementation status:** `/api/v1` aliases are implemented for Pages, News, and Commerce; existing `/api` paths remain compatibility surfaces and advertise their successor.
 
 ## Context
 
@@ -15,6 +15,7 @@ The implementation plan defines the JSON API as versioned under `/api/v1`, while
 - Existing `/api/...` routes remain available as compatibility aliases.
 - Legacy aliases send `Deprecation: true` and a `Link` successor-version header.
 - Both paths use the same handler, authorization, CSRF, validation, and service policy.
+- Commerce payment webhooks also expose a versioned `/api/v1/webhooks/payment/{provider}` alias alongside the legacy path.
 - A future removal of `/api/...` requires a separately announced migration window and release decision; this ADR does not set a sunset date.
 
 ## Consequences
