@@ -205,6 +205,7 @@ On each update, write short evidence next to the relevant task: the command exec
 - [x] Align Commerce legacy and versioned API routes. (Evidence: `/api/v1/commerce/...` and `/api/v1/webhooks/payment/{provider}` aliases, route regression test, ADR-0015 update; `go test ./...` PASS.)
 - [x] Make E2E metadata fail closed on cross-surface selector collisions. (Evidence: `tools/e2egen` rejects duplicate `test_id` values across admin fields, admin surfaces, and frontend routes; regression test `TestValidateRejectsCrossSurfaceTestIDCollision` PASS.)
 - [x] Bound public product-variant projections with the same pagination contract as products. (Evidence: `ListVariantsPage`, `LIMIT/OFFSET` SQL adapter, `X-Catalog-*` headers, repository regression test, ADR-0036 and OpenAPI update; Commerce tests PASS.)
+- [x] Reject malformed public catalog page parameters instead of silently falling back to page one. (Evidence: shared `catalogPage` validation for product/variant REST handlers and `TestCatalogPageRejectsMalformedValues`; Commerce transport tests PASS.)
 - [!] Race detector could not run on this Windows host because `CGO_ENABLED=1` requires an unavailable `gcc`; Linux CI race job remains the verification path. (Observed: `cgo: C compiler "gcc" not found`.)
 - [!] Full production gates remain external: real provider credentials, reverse proxy/process restart, backup/key escrow, customer capacity/RPO/RTO, and production signing ceremony. (Tracked in `docs/validation/PRODUCTION-GATES.md`; do not mark as local success.)
 
