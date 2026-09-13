@@ -56,6 +56,10 @@ kapatılmalıdır.
 
 ### Gözlemlenebilirlik
 
+- [x] Harici webhook ve SMTP retry döngülerini bounded attempts/backoff ile
+  güvenli hale getir. (Kanıt: `internal/webhooks/dispatcher.go` ve
+  `internal/mailer/retry.go`; overflow/limits testleri.)
+
 - [ ] Request/actor/session trace korelasyonu ekle; token, parola ve kişisel
   verileri maskele.
 - [ ] Latency/error/throughput, DB pool, cache, queue, worker, disk ve media
