@@ -120,6 +120,8 @@ func (h Handler) pendingRefunds(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "refund reconciliation unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(refunds)
 }

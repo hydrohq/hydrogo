@@ -892,6 +892,8 @@ func serve(args []string, stderr io.Writer) error {
 			paths = runtimeMetrics.PathStats()
 		}
 		if format == "json" {
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Pragma", "no-cache")
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"hydro-report-%s.json\"", time.Now().Format("20060102-150405")))
 			var stats members.MemberStats
@@ -933,6 +935,8 @@ func serve(args []string, stderr io.Writer) error {
 		}
 
 		// CSV format
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"hydro-report-%s.csv\"", time.Now().Format("20060102-150405")))
 		writer := csv.NewWriter(w)
