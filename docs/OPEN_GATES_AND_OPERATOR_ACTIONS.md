@@ -98,6 +98,8 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   açık rıza metni kararı. Şu an process-local telemetri kalıcı tarihsel rapor değildir.
 - [ ] Kullanıcı eylemi–hata korelasyonu: actor/session trace modeli, kişisel veri maskeleme, saklama
   süresi ve erişim yetkisi için ayrı karar/ADR gerekir.
+- [x] Üye kimliği browser storage’a yazılmaz; auth header yalnızca sunucu oturumunu doğrular ve
+  teknik bağlantı hatası ayrıntısı kullanıcıya sızdırılmaz (`modules/members/transport/privacy_test.go`).
 - [ ] Taksonomi: çoklu dil, many-to-many kategori/etiket ve related content veri modeli için ADR-0012
   genişletmesi ve SQLite/PostgreSQL migration kararı gerekir.
 - [ ] Headless browser session: credentialed CORS yerine BFF/same-site proxy sınırı ve preview token

@@ -29,6 +29,23 @@ type Handler struct {
 	DB      database.Executor
 }
 
+// memberResponseWriter removes legacy client-side member state persistence
+// from rendered auth pages. Session cookies and /member/me remain the only
+// source of truth; member identity must not survive in browser storage.
+type memberResponseWriter struct{ http.ResponseWriter }
+
+func (w memberResponseWriter) Write(payload []byte) (int, error) {
+	output := string(payload)
+	output = strings.ReplaceAll(output, "if(data&&data.member){try{localStorage.setItem('hydro_member_state',JSON.stringify(data.member));if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGIN',member:data.member});}}catch(e){}}", "")
+	output = strings.ReplaceAll(output, "try{localStorage.removeItem('hydro_member_state');if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGOUT'});}}catch(e){}", "")
+	output = strings.ReplaceAll(output, "Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').", "Bağlantı hatası: Sunucuya ulaşılamadı.")
+	return w.ResponseWriter.Write([]byte(output))
+}
+
+func sanitizeMemberResponse(w http.ResponseWriter) http.ResponseWriter {
+	return memberResponseWriter{ResponseWriter: w}
+}
+
 func (h Handler) Routes() []router.Route {
 	return []router.Route{
 		{Pattern: "GET /member/login", Access: router.Public, Handler: http.HandlerFunc(h.loginPage)},
@@ -95,6 +112,7 @@ func (h Handler) registerPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, register bool) {
+	w = sanitizeMemberResponse(w)
 	returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
 	title, heading, endpoint, submit, prompt, linkText, linkHref := "Giriş yap", "Hesabınıza giriş yapın", "/member/login", "Giriş yap", "Hesabınız yok mu?", "Üye olun", "/member/register"
 	if register {
@@ -110,6 +128,7 @@ func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, reg
 }
 
 func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
+	w = sanitizeMemberResponse(w)
 	cookie, err := r.Cookie(members.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/member/login", http.StatusSeeOther)
