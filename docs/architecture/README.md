@@ -68,6 +68,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0038](0038-member-order-capability-contract.md) | Member order capability contract | Accepted |
 | [0039](0039-conditional-cross-module-migrations.md) | Conditional cross-module migration scopes | Accepted |
 | [0040](0040-conditional-headless-schema.md) | Conditional headless schema surface | Accepted |
+| [0041](0041-admin-visual-theme-modes.md) | Admin visual theme modes | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

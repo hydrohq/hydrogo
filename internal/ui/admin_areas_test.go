@@ -47,3 +47,17 @@ func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
+	for _, want := range []string{
+		`data-ui-theme="shadcn"`,
+		`data-theme="dark"`,
+		`hydro-ui-theme`,
+		`shadcn-light`,
+		`shadcn-dark`,
+	} {
+		if !strings.Contains(AdminShadcnCSS+AdminSPARouterJS, want) {
+			t.Fatalf("admin shell missing shadcn theme contract %q", want)
+		}
+	}
+}
