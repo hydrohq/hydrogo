@@ -119,6 +119,9 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 - [x] Runtime’da lisans ve `hydrogo.lock` varlığı/JSON/project/edition/feature eşleşmesi
 - [x] `hydro new` preset/path traversal/existing directory ve Core `internal/` kopyalanmaması
 - [x] Üretilen minimal tema ve config parse doğrulaması
+- [x] Seçili modül migration filtresi: izole SQLite kanıtında Pages+Media etkin
+  profilde Commerce/News tabloları oluşturulmaz; çapraz-modül maintenance migration kapsamı
+  ADR-0039 ile tanımlıdır. PostgreSQL ve gerçek preset certification hâlâ açık kapıdır.
 
 Bu bölüm yalnızca mevcut yerel kanıtı ifade eder; production certification, gerçek müşteri verisi,
 dış servis veya canlı ödeme başarısı anlamına gelmez.

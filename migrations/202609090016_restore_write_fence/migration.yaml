@@ -1,5 +1,10 @@
 id: "202609090016_restore_write_fence"
 module: "core"
+requires_modules:
+  - "pages"
+  - "media"
+  - "news"
+  - "jobs"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"

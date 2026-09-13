@@ -94,6 +94,42 @@ func TestSQLiteMigrationRestartAndCompatibilityContract(t *testing.T) {
 	}
 }
 
+func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "modules.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	enabled := map[string]bool{"pages": true, "media": true}
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
+		t.Fatalf("filtered migrations failed: %v", err)
+	}
+	for _, table := range []struct {
+		name string
+		want bool
+	}{
+		{name: "schema_migrations", want: true},
+		{name: "media_assets", want: true},
+		{name: "media_variants", want: true},
+		{name: "commerce_products", want: false},
+		{name: "news_items", want: false},
+	} {
+		var count int
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table.name).Scan(&count); err != nil {
+			t.Fatalf("inspect table %q: %v", table.name, err)
+		}
+		if (count == 1) != table.want {
+			t.Fatalf("table %q present = %v, want %v", table.name, count == 1, table.want)
+		}
+	}
+
+	if err := database.CheckCompatibilityForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
+		t.Fatalf("filtered compatibility check failed: %v", err)
+	}
+}
+
 func TestNonTransactionalMigrationUsesMetadataExecutionMode(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "nontransactional.sqlite"))

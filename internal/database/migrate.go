@@ -52,11 +52,11 @@ func ApplyMigrationsForModules(ctx context.Context, db *sql.DB, dialect Dialect,
 	if enabled != nil {
 		migrations = migrations[:0]
 		for _, migrationID := range allMigrations {
-			module, err := migrationModule(migrationFS, migrationID)
+			selected, err := migrationSelected(migrationFS, migrationID, enabled)
 			if err != nil {
 				return err
 			}
-			if module == "core" || enabled[module] {
+			if selected {
 				migrations = append(migrations, migrationID)
 			}
 		}
@@ -247,11 +247,11 @@ func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Diale
 	for _, migrationID := range allMigrations {
 		known[migrationID] = struct{}{}
 		if enabled != nil {
-			module, err := migrationModule(migrationFS, migrationID)
+			selected, err := migrationSelected(migrationFS, migrationID, enabled)
 			if err != nil {
 				return err
 			}
-			if module != "core" && !enabled[module] {
+			if !selected {
 				continue
 			}
 		}
@@ -282,25 +282,55 @@ func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Diale
 	return nil
 }
 
-func migrationModule(migrationFS fs.FS, migrationID string) (string, error) {
+type migrationMetadata struct {
+	Module          string   `yaml:"module"`
+	RequiresModules []string `yaml:"requires_modules"`
+}
+
+func readMigrationMetadata(migrationFS fs.FS, migrationID string) (migrationMetadata, error) {
 	data, err := fs.ReadFile(migrationFS, migrationID+"/migration.yaml")
 	if errors.Is(err, fs.ErrNotExist) {
-		return "core", nil
+		return migrationMetadata{Module: "core"}, nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("read migration metadata %s: %w", migrationID, err)
+		return migrationMetadata{}, fmt.Errorf("read migration metadata %s: %w", migrationID, err)
 	}
-	var metadata struct {
-		Module string `yaml:"module"`
-	}
+	var metadata migrationMetadata
 	if err := yaml.Unmarshal(data, &metadata); err != nil {
-		return "", fmt.Errorf("parse migration metadata %s: %w", migrationID, err)
+		return migrationMetadata{}, fmt.Errorf("parse migration metadata %s: %w", migrationID, err)
 	}
-	module := strings.TrimSpace(metadata.Module)
-	if module == "" {
-		return "core", nil
+	metadata.Module = strings.TrimSpace(metadata.Module)
+	if metadata.Module == "" {
+		metadata.Module = "core"
 	}
-	return module, nil
+	for index := range metadata.RequiresModules {
+		metadata.RequiresModules[index] = strings.TrimSpace(metadata.RequiresModules[index])
+	}
+	return metadata, nil
+}
+
+func migrationModule(migrationFS fs.FS, migrationID string) (string, error) {
+	metadata, err := readMigrationMetadata(migrationFS, migrationID)
+	if err != nil {
+		return "", err
+	}
+	return metadata.Module, nil
+}
+
+func migrationSelected(migrationFS fs.FS, migrationID string, enabled map[string]bool) (bool, error) {
+	metadata, err := readMigrationMetadata(migrationFS, migrationID)
+	if err != nil {
+		return false, err
+	}
+	if metadata.Module != "core" && !enabled[metadata.Module] {
+		return false, nil
+	}
+	for _, required := range metadata.RequiresModules {
+		if required != "" && !enabled[required] {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func rejectUnknownMigrations(ctx context.Context, queryer migrationQueryer, known map[string]struct{}) error {
