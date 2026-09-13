@@ -20,8 +20,9 @@ kapatılmalıdır.
 - [ ] Graceful shutdown, connection draining ve worker kapanışını ölç.
 - [ ] Otomatik rollback, başarısız migration durdurma ve insan onayı akışlarını
   runbook'a ekle.
-- [ ] Desteklenen OS, Go, PostgreSQL, Redis/Valkey ve FFmpeg sürümlerini
-  SUPPORT_MATRIX.md ile sabitle.
+- [x] Desteklenen OS, Go, PostgreSQL, Redis/Valkey ve FFmpeg sürümlerini
+  SUPPORT_MATRIX.md ile sabitle. (Uyumluluk hedef aileleri ve gerçek servis
+  doğrulamasının açık olduğu durumlar açıkça ayrıştırıldı.)
 
 ### PostgreSQL ve veri güvenliği
 
