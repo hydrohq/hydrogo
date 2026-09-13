@@ -140,8 +140,9 @@ kapatılmalıdır.
   testine bağla.
 - [ ] Pre-commit/pre-push format, vet, guard ve hızlı test kancaları ekle.
 - [ ] Fuzz testleri: parser, sanitizer, path, config, token, migration ve webhook.
-  (Path/theme, config environment, webhook URL/signature ve portable parser
-  fuzz smoke testleri mevcut; token/migration/sanitizer kapsamı açık.)
+  (Path/theme, config environment, webhook URL/signature, CSRF token, migration,
+  richtext sanitizer ve portable parser fuzz smoke testleri mevcut; kapsamın
+  CI'da sürekli ve uzun süreli çalıştırılması açık.)
 - [ ] Dependency update botu, license inventory ve düzenli vulnerability triage
   süreci oluştur.
 - [ ] Test fixture'larında `sync.Mutex`/`sync.WaitGroup` değer kopyalarını vet ile
