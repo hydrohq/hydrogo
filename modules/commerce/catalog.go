@@ -24,6 +24,7 @@ const PublicCatalogPageSize = 100
 type VariantStore interface {
 	CreateVariant(context.Context, database.Executor, ProductVariant) error
 	ListVariants(context.Context, database.Executor, string, bool) ([]ProductVariant, error)
+	ListVariantsPage(context.Context, database.Executor, string, bool, int, int) ([]ProductVariant, error)
 }
 
 type OrderReader interface {
@@ -69,6 +70,16 @@ func (s CatalogService) ListVariants(ctx context.Context, db database.Executor, 
 		return nil, errors.New("commerce variant dependency is required")
 	}
 	return s.Variants.ListVariants(ctx, db, productID, publicOnly)
+}
+
+func (s CatalogService) ListVariantsPage(ctx context.Context, db database.Executor, productID string, publicOnly bool, limit, offset int) ([]ProductVariant, error) {
+	if s.Variants == nil {
+		return nil, errors.New("commerce variant dependency is required")
+	}
+	if limit <= 0 || limit > 1000 || offset < 0 {
+		return nil, errors.New("invalid variant page")
+	}
+	return s.Variants.ListVariantsPage(ctx, db, productID, publicOnly, limit, offset)
 }
 
 func ValidateProduct(product Product) error {

@@ -211,11 +211,26 @@ func (h Handler) variants(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "variant catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	variants, err := h.Catalog.ListVariants(r.Context(), h.DB, r.PathValue("productID"), true)
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	if page > 10000 {
+		http.Error(w, "invalid page", http.StatusBadRequest)
+		return
+	}
+	variants, err := h.Catalog.ListVariantsPage(r.Context(), h.DB, r.PathValue("productID"), true, commerce.PublicCatalogPageSize+1, (page-1)*commerce.PublicCatalogPageSize)
 	if err != nil {
 		http.Error(w, "variant catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	hasMore := len(variants) > commerce.PublicCatalogPageSize
+	if hasMore {
+		variants = variants[:commerce.PublicCatalogPageSize]
+	}
+	w.Header().Set("X-Catalog-Page", strconv.Itoa(page))
+	w.Header().Set("X-Catalog-Page-Size", strconv.Itoa(commerce.PublicCatalogPageSize))
+	w.Header().Set("X-Catalog-Has-More", strconv.FormatBool(hasMore))
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(variants)
 }

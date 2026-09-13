@@ -38,8 +38,17 @@ paths:
           name: productID
           required: true
           schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
       responses:
-        '200': { description: Published variants, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ProductVariant' } } } } }
+        '200':
+          description: Published variants (bounded page; inspect X-Catalog-Has-More for continuation).
+          headers:
+            X-Catalog-Page: { schema: { type: integer } }
+            X-Catalog-Page-Size: { schema: { type: integer } }
+            X-Catalog-Has-More: { schema: { type: boolean } }
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ProductVariant' } } } }
   /api/v1/commerce/cart:
     get:
       operationId: getCart

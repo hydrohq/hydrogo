@@ -86,6 +86,34 @@ func (s Store) ListVariants(ctx context.Context, db database.Executor, productID
 	return variants, rows.Err()
 }
 
+func (s Store) ListVariantsPage(ctx context.Context, db database.Executor, productID string, publicOnly bool, limit, offset int) ([]commerce.ProductVariant, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 1000 || offset < 0 {
+		return nil, errors.New("invalid variant page")
+	}
+	q := `SELECT v.id, v.product_id, v.sku, v.title, v.price_cents, p.currency, v.stock, v.status FROM commerce_product_variants v JOIN commerce_products p ON p.id = v.product_id WHERE v.product_id = ` + s.placeholder(1)
+	if publicOnly {
+		q += ` AND v.status IN ('published', 'out_of_stock')`
+	}
+	q += ` ORDER BY v.title, v.id LIMIT ` + s.placeholder(2) + ` OFFSET ` + s.placeholder(3)
+	rows, err := queryRows(ctx, db, q, productID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	variants := make([]commerce.ProductVariant, 0, limit)
+	for rows.Next() {
+		var variant commerce.ProductVariant
+		if err := rows.Scan(&variant.ID, &variant.ProductID, &variant.SKU, &variant.Title, &variant.PriceCents, &variant.Currency, &variant.Stock, &variant.Status); err != nil {
+			return nil, err
+		}
+		variants = append(variants, variant)
+	}
+	return variants, rows.Err()
+}
+
 func (s Store) ListOrders(ctx context.Context, db database.Executor, limit int) ([]commerce.Order, error) {
 	return s.listOrders(ctx, db, "", limit)
 }

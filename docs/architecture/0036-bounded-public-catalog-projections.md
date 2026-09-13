@@ -6,11 +6,11 @@
 
 ## Decision
 
-Public product projections use a bounded page size of 100 records and an
-explicit page offset. REST consumers may request subsequent pages with the
-`page` query parameter; GraphQL and HTML projections use the first bounded page
-until their own cursor contract is introduced. Administrative full-list reads
-remain a separate privileged projection.
+Public product and variant projections use a bounded page size of 100 records
+and an explicit page offset. REST consumers may request subsequent pages with
+the `page` query parameter; GraphQL and HTML projections use the first bounded
+page until their own cursor contract is introduced. Administrative full-list
+reads remain a separate privileged projection.
 
 ## Consequences
 

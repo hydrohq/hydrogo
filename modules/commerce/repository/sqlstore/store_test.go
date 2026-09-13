@@ -46,6 +46,10 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	if err != nil || len(variants) != 1 || variants[0].Currency != "TRY" {
 		t.Fatalf("list variants = %#v, %v", variants, err)
 	}
+	variantPage, err := store.ListVariantsPage(context.Background(), db, "p1", true, 1, 0)
+	if err != nil || len(variantPage) != 1 || variantPage[0].ID != "v1" {
+		t.Fatalf("bounded variant page = %#v, %v", variantPage, err)
+	}
 
 	_, err = db.Exec(`INSERT INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,created_at) VALUES ('o1','u1','k1','TRY',1200,'pending','pending','now')`)
 	if err != nil {
