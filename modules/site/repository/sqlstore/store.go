@@ -41,9 +41,9 @@ func (s Store) UpsertSetting(ctx context.Context, tx database.Executor, value si
 }
 
 func (s Store) ListPublicSettings(ctx context.Context, db database.Executor) ([]site.Setting, error) {
-	query := `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = TRUE ORDER BY key`
+	query := `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = TRUE ORDER BY key LIMIT 1000`
 	if s.Dialect == database.SQLite {
-		query = `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = 1 ORDER BY key`
+		query = `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = 1 ORDER BY key LIMIT 1000`
 	}
 	rows, err := queryContext(ctx, db, query)
 	if err != nil {
@@ -94,9 +94,9 @@ func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, loca
 }
 
 func (s Store) ListNavigation(ctx context.Context, db database.Executor, locale string) ([]site.NavigationItem, error) {
-	query := `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = $1 AND is_visible = TRUE ORDER BY position,id`
+	query := `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = $1 AND is_visible = TRUE ORDER BY position,id LIMIT 500`
 	if s.Dialect == database.SQLite {
-		query = `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = ? AND is_visible = 1 ORDER BY position,id`
+		query = `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = ? AND is_visible = 1 ORDER BY position,id LIMIT 500`
 	}
 	rows, err := queryContext(ctx, db, query, locale)
 	if err != nil {
