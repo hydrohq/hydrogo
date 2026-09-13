@@ -145,6 +145,7 @@ kapatılmalıdır.
   `internal/projectgen` testleri ingestion ve unsafe/duplicate rejection
   kapsamını doğrular.)
 - [ ] i18n, uzun metin, RTL ve tarih/sayı/para formatı testlerini ekle.
+  - [x] Checkout toplamı da tam-cent formatter kullanıyor; float64 dönüşümü kaldırıldı.
 - [x] I18N locale listesini BCP-47 benzeri allowlist, duplicate ve default-locale
   üyeliğiyle fail-closed doğrula. (Kanıt: `internal/config/config.go` ve
   `config_test.go`; görsel/RTL ve format kapsamı ayrı açık task'tır.)
