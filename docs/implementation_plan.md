@@ -471,3 +471,31 @@ The boundary of support and deferral for the following topics is clear. Relevant
 - Write/publish authorization for AI agents.
 
 The success of this plan is not measured by the creation of files and layers, but by the end-to-end proof of secure publishing flows, conflict-free editing, and verified restores.
+
+## 17. Hardening execution roadmap (2026-09)
+
+The remaining improvement work is executed in small, independently verifiable
+stages. Each stage must leave the repository green, update the affected ADR or
+validation record, and be committed and pushed before the next stage starts.
+
+1. **Resource and data bounds:** add pagination/maximum limits to public and
+   administrative list projections, query timeouts, and regression tests for
+   bounded memory use.
+2. **API contracts:** standardize JSON errors, pagination metadata, idempotency
+   behavior, OpenAPI coverage, and compatibility tests across REST/GraphQL.
+3. **Commerce reconciliation:** expose pending payment/refund reconciliation,
+   add provider replay/concurrency tests, and document operator runbooks.
+4. **Module isolation:** remove inactive-module navigation and construction,
+   verify route/migration/worker/resource absence, and add compact-profile tests.
+5. **Identity and privacy:** finish session/device controls, MFA lifecycle,
+   privacy export/erasure verification, and sensitive-log regression tests.
+6. **Observability and operations:** add durable metrics/export integration,
+   correlation IDs, alertable health signals, and tested backup/restore drills.
+7. **Frontend maintainability:** extract large inline templates, remove browser
+   persistence of member data, and complete accessible loading/error/empty states.
+8. **Release certification:** run SQLite/PostgreSQL contract, load/soak, fuzz,
+   E2E, migration compatibility, container hardening, and production gate checks.
+
+Items that require provider credentials, a customer deployment, or external
+infrastructure remain explicitly gated; they are not marked complete by local
+unit tests alone.
