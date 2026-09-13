@@ -199,6 +199,27 @@ func TestUploadSizeLimit(t *testing.T) {
 	}
 }
 
+func TestUploadRejectsImagePixelBomb(t *testing.T) {
+	tempDir := t.TempDir()
+	uploader, err := NewUploader(tempDir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep the fixture tiny while exercising the same decoded-dimension guard
+	// that protects production uploads from highly-compressed pixel bombs.
+	uploader.MaxPixels = 3
+	if _, err := uploader.Save(bytes.NewReader(createTestPNG(2, 2)), "pixel-bomb.png"); !errors.Is(err, ErrImageTooLarge) {
+		t.Fatalf("pixel bomb error = %v, want %v", err, ErrImageTooLarge)
+	}
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("pixel bomb left %d storage entries", len(entries))
+	}
+}
+
 func TestUploadCorruptedImageData(t *testing.T) {
 	tempDir := t.TempDir()
 	uploader, err := NewUploader(tempDir, 1<<20)

@@ -53,6 +53,7 @@ kapatılmalıdır.
   `internal/security/redis_ratelimit_test.go`; gerçek Redis failover/clock-skew
   tatbikatı dış gate olarak açık.)
 - [ ] Upload abuse, SSRF, path traversal, decompression bomb ve oversized body
+  - [x] Decoded image pixel budget has a direct regression test; SSRF/decompression and broader abuse corpus remain open.
   testleri ekle.
 - [x] Auth `return_to` yönlendirmelerini URI-aware in-origin doğrulamasıyla
   harden et; encoded slash/backslash open-redirect varyantlarını reddet.
