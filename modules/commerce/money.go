@@ -1,6 +1,17 @@
 package commerce
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
+
+// ExactCents adapts an integer cent amount to legacy fmt templates while
+// retaining exact decimal rendering for the floating-point verbs they use.
+type ExactCents int64
+
+func (value ExactCents) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte(FormatCents(int64(value))))
+}
 
 // FormatCents renders a cent amount without floating-point conversion.
 // Keeping this at the domain boundary prevents precision loss in provider

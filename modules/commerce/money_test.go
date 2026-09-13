@@ -1,6 +1,7 @@
 package commerce
 
 import (
+	"fmt"
 	"math"
 	"testing"
 )
@@ -14,5 +15,11 @@ func TestFormatCentsAvoidsFloatingPointLoss(t *testing.T) {
 		if got := FormatCents(cents); got != want {
 			t.Errorf("FormatCents(%d) = %q, want %q", cents, got, want)
 		}
+	}
+}
+
+func TestExactCentsFormatsLegacyFloatVerbExactly(t *testing.T) {
+	if got := fmt.Sprintf("%.2f", ExactCents(10000000000000001)); got != "100000000000000.01" {
+		t.Fatalf("legacy formatter = %q", got)
 	}
 }

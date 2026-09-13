@@ -484,7 +484,7 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 		product.Stock,
 		template.HTMLEscapeString(product.SKU),
 		template.HTMLEscapeString(product.Title),
-		float64(product.PriceCents)/100.0,
+		commerce.ExactCents(product.PriceCents),
 		template.HTMLEscapeString(product.Currency),
 		product.Stock,
 		template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())),
