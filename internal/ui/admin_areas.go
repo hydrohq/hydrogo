@@ -314,6 +314,7 @@ function testGraphQL(btn){
       <div class="ops-action-row">
         <a href="/admin/control#operations" class="button">Operasyon Kontrol Paneli ↗</a>
         <a href="/admin/developer/resources" class="btn-secondary" style="padding:9px 16px;font-size:.85rem;text-decoration:none;">Canlı Kaynak Metrikleri</a>
+        <a href="/admin/commerce/refunds/pending" class="btn-secondary" style="padding:9px 16px;font-size:.85rem;text-decoration:none;">Bekleyen İadeler</a>
       </div>
     </div>
 

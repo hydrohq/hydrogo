@@ -9,8 +9,27 @@ paths:
   /api/v1/commerce/products:
     get:
       operationId: listProducts
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
       responses:
-        '200': { description: Published products, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Product' } } } } }
+        '200':
+          description: Published products (bounded page; inspect X-Catalog-Has-More for continuation).
+          headers:
+            X-Catalog-Page: { schema: { type: integer } }
+            X-Catalog-Page-Size: { schema: { type: integer } }
+            X-Catalog-Has-More: { schema: { type: boolean } }
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Product' } } } }
+  /admin/commerce/refunds/pending:
+    get:
+      operationId: listPendingRefunds
+      security: [{ sessionCookie: [] }]
+      description: Requires an active administrator session; results must be reconciled against the provider before resolution.
+      responses:
+        '200': { description: Bounded pending refund projection, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PaymentTransaction' } } } } }
+        '403': { description: Administrator access required. }
+        '503': { description: Reconciliation projection unavailable. }
   /api/v1/commerce/products/{productID}/variants:
     get:
       operationId: listProductVariants
@@ -206,6 +225,16 @@ components:
         status: { type: string }
         client_token: { type: string }
         redirect_url: { type: string, format: uri }
+    PaymentTransaction:
+      type: object
+      required: [order_id, provider, provider_payment_id, amount_cents, currency, status]
+      properties:
+        order_id: { type: string }
+        provider: { type: string }
+        provider_payment_id: { type: string }
+        amount_cents: { type: integer, format: int64, minimum: 0 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        status: { type: string, enum: [refund_pending, refunded] }
     PaymentCustomer:
       type: object
       required: [name, email, phone, address, city, country]
