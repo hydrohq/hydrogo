@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: hydrogo
+      POSTGRES_PASSWORD: hydrogo-dev-only
+      POSTGRES_DB: hydrogo
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - hydrogo-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hydrogo -d hydrogo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:8
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - hydrogo-redis:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  hydrogo-postgres:
+  hydrogo-redis:
