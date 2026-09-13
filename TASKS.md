@@ -207,6 +207,7 @@ On each update, write short evidence next to the relevant task: the command exec
 - [x] Bound public product-variant projections with the same pagination contract as products. (Evidence: `ListVariantsPage`, `LIMIT/OFFSET` SQL adapter, `X-Catalog-*` headers, repository regression test, ADR-0036 and OpenAPI update; Commerce tests PASS.)
 - [x] Reject malformed public catalog page parameters instead of silently falling back to page one. (Evidence: shared `catalogPage` validation for product/variant REST handlers and `TestCatalogPageRejectsMalformedValues`; Commerce transport tests PASS.)
 - [x] Keep Commerce version aliases single-sourced in the core router. (Evidence: removed duplicate manual aliases that could panic route registration; `internal/router` performs `/api` → `/api/v1` mapping and `go test ./cmd/hydro ./internal/router` PASS.)
+- [x] Prevent caching of sensitive admin refund and report export responses. (Evidence: `Cache-Control: no-store` and `Pragma: no-cache` on pending refunds and CSV/JSON exports; targeted tests PASS.)
 - [!] Race detector could not run on this Windows host because `CGO_ENABLED=1` requires an unavailable `gcc`; Linux CI race job remains the verification path. (Observed: `cgo: C compiler "gcc" not found`.)
 - [!] Full production gates remain external: real provider credentials, reverse proxy/process restart, backup/key escrow, customer capacity/RPO/RTO, and production signing ceremony. (Tracked in `docs/validation/PRODUCTION-GATES.md`; do not mark as local success.)
 
