@@ -208,8 +208,9 @@ kapatılmalıdır.
 - [x] Test fixture'larında `sync.Mutex`/`sync.WaitGroup` değer kopyalarını vet ile
   engelle; race testini Linux runner'da zorunlu tut. (Kanıt: `go vet ./...`,
   `go test -race ./...`; mutex fixture düzeltmesi `139c064`.)
-- [ ] API, extension, module authoring ve troubleshooting dokümantasyonunu
-  örneklerle tamamla.
+- [x] API, extension, module authoring ve troubleshooting dokümantasyonunu
+  örneklerle tamamla. (Kanıt: `docs/API_AUTHORING.md`; versioned contract,
+  route erişim sınıfları, boundary, migration ve doğrulama akışları.)
 
 ## P2 — Ürün kabiliyetleri
 
