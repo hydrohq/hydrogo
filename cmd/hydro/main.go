@@ -772,18 +772,7 @@ func serve(args []string, stderr io.Writer) error {
 		return fmt.Errorf("admin studio registry: %w", err)
 	}
 	activeStudioCollections := func() []adminstudio.Collection {
-		collections := studioRegistry.Collections()
-		result := make([]adminstudio.Collection, 0, len(collections))
-		for _, collection := range collections {
-			module := collection.ID
-			if module == "commerce_variants" {
-				module = "commerce"
-			}
-			if moduleEnabled(cfg.Modules, module) {
-				result = append(result, collection)
-			}
-		}
-		return result
+		return adminstudio.FilterActiveCollections(studioRegistry.Collections(), enabledModuleSet(cfg.Modules))
 	}
 	var pageHTTP pagetransport.Handler
 	if moduleEnabled(cfg.Modules, "pages") {
