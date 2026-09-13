@@ -186,6 +186,7 @@ func render(m manifest) string {
 	b.WriteString("test.describe('HydroGo generated frontend', () => {\n")
 	for _, r := range routes {
 		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page.locator('[data-testid=%q]')).toBeAttached();\n    await expect(page).toHaveTitle(/\\S+/);\n    await expect(page.locator('main')).toBeAttached();\n  });\n", "frontend: "+r.Name, r.Path, r.TestID))
+		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await page.keyboard.press('Tab');\n    await expect(page.locator(':focus')).toBeAttached();\n  });\n", "frontend keyboard focus: "+r.Name, r.Path))
 		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1440, height: 900 }]) {\n      await page.setViewportSize(viewport);\n      await page.goto(`${baseURL}%s`);\n      await expect(page.locator('[data-testid=%q]')).toBeAttached();\n      await expect(page.locator('html')).toHaveAttribute('lang', /.+/);\n      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);\n      expect(overflow).toBeLessThanOrEqual(1);\n    }\n  });\n", "frontend responsive: "+r.Name, r.Path, r.TestID))
 	}
 	b.WriteString("});\n\n")
