@@ -87,9 +87,11 @@ func Generate(opts Options) (string, error) {
 	if opts.Profile == "" {
 		opts.Profile = "compact"
 	}
+	opts.Profile = strings.ToLower(strings.TrimSpace(opts.Profile))
 	if opts.Database == "" {
 		opts.Database = "sqlite"
 	}
+	opts.Database = strings.ToLower(strings.TrimSpace(opts.Database))
 	if opts.Presentation == "" {
 		if opts.Preset == "headless" {
 			opts.Presentation = "headless"
@@ -97,6 +99,7 @@ func Generate(opts Options) (string, error) {
 			opts.Presentation = "integrated"
 		}
 	}
+	opts.Presentation = strings.ToLower(strings.TrimSpace(opts.Presentation))
 	if opts.Edition == "" {
 		opts.Edition = "starter"
 	}

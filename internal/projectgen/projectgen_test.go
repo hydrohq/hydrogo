@@ -151,6 +151,20 @@ func TestGenerateNormalizesMixedCasePreset(t *testing.T) {
 	}
 }
 
+func TestGenerateNormalizesBuildOptions(t *testing.T) {
+	project, err := Generate(Options{Root: t.TempDir(), Name: "mixed-options", Preset: "news", Profile: "STANDARD", Database: "SQLITE", Presentation: "INTEGRATED"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(filepath.Join(project, "config.yaml"), nil, config.Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(cfg.Profile) != "standard" || cfg.Database.Dialect != "sqlite" {
+		t.Fatalf("normalized options produced profile=%q database=%q", cfg.Profile, cfg.Database.Dialect)
+	}
+}
+
 func TestPresetFrontendRoutesAreDeterministicAndCovered(t *testing.T) {
 	tests := map[string][]string{
 		"news": {"home", "news_room", "member_login"}, "commerce": {"home", "shop", "cart"},
