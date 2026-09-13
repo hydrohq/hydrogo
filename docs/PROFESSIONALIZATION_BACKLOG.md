@@ -46,6 +46,9 @@ kapatılmalıdır.
   senaryolarını test et.
 - [ ] Upload abuse, SSRF, path traversal, decompression bomb ve oversized body
   testleri ekle.
+- [x] Auth `return_to` yönlendirmelerini URI-aware in-origin doğrulamasıyla
+  harden et; encoded slash/backslash open-redirect varyantlarını reddet.
+  (Kanıt: `internal/security/redirect.go`, auth yüzeyleri ve regression testleri.)
 - [ ] Secret rotation, signing-key rotation ve emergency revoke prosedürü yaz.
 - [ ] Threat model ve dış penetrasyon testi tamamla.
 - [ ] Security headers, CSP report-only → enforce geçişi ve trusted-origin

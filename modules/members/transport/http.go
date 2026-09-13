@@ -75,10 +75,7 @@ func (h Handler) memberOrders(w http.ResponseWriter, r *http.Request) {
 func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(members.SessionCookieName); err == nil && cookie.Value != "" {
 		if _, _, err := h.Service.ValidateSession(r.Context(), cookie.Value); err == nil {
-			returnTo := r.URL.Query().Get("return_to")
-			if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
-				returnTo = "/member/account"
-			}
+			returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
 			http.Redirect(w, r, returnTo, http.StatusSeeOther)
 			return
 		}
@@ -89,10 +86,7 @@ func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {
 func (h Handler) registerPage(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(members.SessionCookieName); err == nil && cookie.Value != "" {
 		if _, _, err := h.Service.ValidateSession(r.Context(), cookie.Value); err == nil {
-			returnTo := r.URL.Query().Get("return_to")
-			if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
-				returnTo = "/member/account"
-			}
+			returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
 			http.Redirect(w, r, returnTo, http.StatusSeeOther)
 			return
 		}
@@ -101,10 +95,7 @@ func (h Handler) registerPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, register bool) {
-	returnTo := r.URL.Query().Get("return_to")
-	if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
-		returnTo = "/member/account"
-	}
+	returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
 	title, heading, endpoint, submit, prompt, linkText, linkHref := "Giriş yap", "Hesabınıza giriş yapın", "/member/login", "Giriş yap", "Hesabınız yok mu?", "Üye olun", "/member/register"
 	if register {
 		title, heading, endpoint, submit, prompt, linkText, linkHref = "Üye ol", "Yeni hesabınızı oluşturun", "/member/register", "Üye ol", "Zaten hesabınız var mı?", "Giriş yapın", "/member/login"
@@ -230,9 +221,7 @@ func (h Handler) issueSession(w http.ResponseWriter, r *http.Request, m *members
 	if returnTo == "" {
 		returnTo = r.URL.Query().Get("return_to")
 	}
-	if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
-		returnTo = "/member/account"
-	}
+	returnTo = security.SafeReturnPath(returnTo, "/member/account")
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(map[string]any{

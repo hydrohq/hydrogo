@@ -842,10 +842,7 @@ func serve(args []string, stderr io.Writer) error {
 		_ = json.NewEncoder(w).Encode(adminstudio.E2EManifestForCollections(activeStudioCollections()))
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		returnTo := r.URL.Query().Get("return_to")
-		if !strings.HasPrefix(returnTo, "/") || strings.HasPrefix(returnTo, "//") {
-			returnTo = "/admin"
-		}
+		returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/admin")
 		if user := auth.UserFromContext(r.Context()); user != nil && user.Active && user.Role == auth.RoleAdmin {
 			http.Redirect(w, r, returnTo, http.StatusSeeOther)
 			return
