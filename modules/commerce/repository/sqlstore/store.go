@@ -208,28 +208,8 @@ func (s Store) GetProduct(ctx context.Context, db database.Executor, id string) 
 }
 
 func (s Store) ListProducts(ctx context.Context, db database.Executor, publicOnly bool) ([]commerce.Product, error) {
-	if err := database.RequireExecutor(db); err != nil {
-		return nil, err
-	}
-	q := `SELECT id, sku, title, description, media_id, price_cents, currency, stock, status FROM commerce_products`
-	if publicOnly {
-		q += ` WHERE status IN ('published', 'out_of_stock')`
-	}
-	q += ` ORDER BY title, id`
-	rows, err := queryRows(ctx, db, q)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	products := make([]commerce.Product, 0)
-	for rows.Next() {
-		var product commerce.Product
-		if err := rows.Scan(&product.ID, &product.SKU, &product.Title, &product.Description, &product.MediaID, &product.PriceCents, &product.Currency, &product.Stock, &product.Status); err != nil {
-			return nil, err
-		}
-		products = append(products, product)
-	}
-	return products, rows.Err()
+	// Preserve the legacy API while ensuring every caller receives bounded data.
+	return s.ListProductsPage(ctx, db, publicOnly, 1000, 0)
 }
 
 func (s Store) ListProductsPage(ctx context.Context, db database.Executor, publicOnly bool, limit, offset int) ([]commerce.Product, error) {
