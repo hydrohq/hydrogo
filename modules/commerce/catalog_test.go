@@ -21,6 +21,9 @@ func (s catalogStoreStub) GetProduct(context.Context, database.Executor, string)
 func (s catalogStoreStub) ListProducts(context.Context, database.Executor, bool) ([]Product, error) {
 	return nil, nil
 }
+func (s catalogStoreStub) ListProductsPage(context.Context, database.Executor, bool, int, int) ([]Product, error) {
+	return nil, nil
+}
 
 func TestValidateProduct(t *testing.T) {
 	valid := Product{ID: "p-1", SKU: "sku-1", Title: "Book", PriceCents: 100, Currency: "TRY", Stock: 2, Status: ProductPublished}

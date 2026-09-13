@@ -16,7 +16,10 @@ type CatalogStore interface {
 	UpdateProduct(context.Context, database.Executor, Product) error
 	GetProduct(context.Context, database.Executor, string) (Product, error)
 	ListProducts(context.Context, database.Executor, bool) ([]Product, error)
+	ListProductsPage(context.Context, database.Executor, bool, int, int) ([]Product, error)
 }
+
+const PublicCatalogPageSize = 100
 
 type VariantStore interface {
 	CreateVariant(context.Context, database.Executor, ProductVariant) error
@@ -131,4 +134,17 @@ func (s CatalogService) ListProducts(ctx context.Context, db database.Executor, 
 		return nil, errors.New("commerce catalog dependency is required")
 	}
 	return s.Store.ListProducts(ctx, db, publicOnly)
+}
+
+func (s CatalogService) ListProductsPage(ctx context.Context, db database.Executor, publicOnly bool, limit, offset int) ([]Product, error) {
+	if s.Store == nil {
+		return nil, errors.New("commerce catalog dependency is required")
+	}
+	if limit <= 0 || limit > 1000 {
+		return nil, errors.New("invalid catalog page limit")
+	}
+	if offset < 0 {
+		return nil, errors.New("invalid catalog page offset")
+	}
+	return s.Store.ListProductsPage(ctx, db, publicOnly, limit, offset)
 }

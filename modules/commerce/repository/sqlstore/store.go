@@ -204,6 +204,34 @@ func (s Store) ListProducts(ctx context.Context, db database.Executor, publicOnl
 	return products, rows.Err()
 }
 
+func (s Store) ListProductsPage(ctx context.Context, db database.Executor, publicOnly bool, limit, offset int) ([]commerce.Product, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 1000 || offset < 0 {
+		return nil, errors.New("invalid catalog page")
+	}
+	q := `SELECT id, sku, title, description, media_id, price_cents, currency, stock, status FROM commerce_products`
+	if publicOnly {
+		q += ` WHERE status IN ('published', 'out_of_stock')`
+	}
+	q += ` ORDER BY title, id LIMIT ` + s.placeholder(1) + ` OFFSET ` + s.placeholder(2)
+	rows, err := queryRows(ctx, db, q, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	products := make([]commerce.Product, 0, limit)
+	for rows.Next() {
+		var product commerce.Product
+		if err := rows.Scan(&product.ID, &product.SKU, &product.Title, &product.Description, &product.MediaID, &product.PriceCents, &product.Currency, &product.Stock, &product.Status); err != nil {
+			return nil, err
+		}
+		products = append(products, product)
+	}
+	return products, rows.Err()
+}
+
 func (s Store) GetOrCreateCart(ctx context.Context, db database.Executor, userID, currency string) (commerce.Cart, error) {
 	cart, err := s.findCart(ctx, db, userID)
 	if err != nil {

@@ -158,7 +158,7 @@ func (h Handler) resolveProducts(p graphql.ResolveParams) (any, error) {
 	if !h.Commerce {
 		return nil, nil
 	}
-	products, err := h.Catalog.ListProducts(p.Context, h.DB, true)
+	products, err := h.Catalog.ListProductsPage(p.Context, h.DB, true, commerce.PublicCatalogPageSize, 0)
 	if err != nil {
 		return nil, err
 	}

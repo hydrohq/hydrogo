@@ -278,7 +278,15 @@ func (h Handler) removeCartItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) products(w http.ResponseWriter, r *http.Request) {
-	products, err := h.Catalog.ListProducts(r.Context(), h.DB, true)
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	if page > 10000 {
+		http.Error(w, "invalid page", http.StatusBadRequest)
+		return
+	}
+	products, err := h.Catalog.ListProductsPage(r.Context(), h.DB, true, commerce.PublicCatalogPageSize, (page-1)*commerce.PublicCatalogPageSize)
 	if err != nil {
 		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
 		return
@@ -383,7 +391,7 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Related products
-	allProducts, _ := h.Catalog.ListProducts(r.Context(), h.DB, true)
+	allProducts, _ := h.Catalog.ListProductsPage(r.Context(), h.DB, true, commerce.PublicCatalogPageSize, 0)
 	var relatedBuilder strings.Builder
 	var relatedCount int
 	for _, other := range allProducts {
@@ -438,7 +446,7 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
-	products, err := h.Catalog.ListProducts(r.Context(), h.DB, true)
+	products, err := h.Catalog.ListProductsPage(r.Context(), h.DB, true, commerce.PublicCatalogPageSize, 0)
 	if err != nil {
 		http.Error(w, "shop unavailable", http.StatusServiceUnavailable)
 		return
