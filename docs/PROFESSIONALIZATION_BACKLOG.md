@@ -63,6 +63,9 @@ kapatılmalıdır.
   nosniff, frame/referrer/cross-origin politikaları ve opsiyonel HSTS). (Kanıt:
   `internal/security/headers.go` ve `headers_test.go`; production proxy geçişi
   ayrı dış kapıdır.)
+- [x] Release manifestine secret-benzeri artifact sızıntısını fail-closed engelle;
+  `.env.*`, private-key ve PKCS#12 varyantlarını da kapsa. (Kanıt:
+  `internal/release/manifest.go` ve `manifest_test.go`.)
 - [ ] PII maskeleme, audit erişim yetkisi ve log retention politikasını uygula.
 
 ## P1 — Güvenilirlik ve işletilebilirlik

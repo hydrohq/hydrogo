@@ -211,7 +211,11 @@ func VerifyAttestationWithPublicKey(signed SignedAttestation, manifest Manifest,
 
 func secretLike(path string) bool {
 	name := strings.ToLower(filepath.Base(path))
-	return name == ".env" || strings.HasSuffix(name, ".key") || strings.HasSuffix(name, ".pem") || strings.Contains(name, "secret") || strings.Contains(name, "credential")
+	return name == ".env" || strings.HasPrefix(name, ".env.") ||
+		strings.HasSuffix(name, ".key") || strings.HasSuffix(name, ".pem") ||
+		strings.HasSuffix(name, ".p12") || strings.HasSuffix(name, ".pfx") ||
+		name == "id_rsa" || name == "id_ed25519" ||
+		strings.Contains(name, "secret") || strings.Contains(name, "credential") || strings.Contains(name, "private-key")
 }
 
 func cloneMap(source map[string]string) map[string]string {

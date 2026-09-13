@@ -72,6 +72,19 @@ func TestManifestRejectsSecretArtifact(t *testing.T) {
 	}
 }
 
+func TestSecretLikeCoversEnvironmentAndPrivateKeyVariants(t *testing.T) {
+	for _, path := range []string{".env.production", "signing.p12", "certificate.pfx", "id_rsa", "private-key.json"} {
+		if !secretLike(path) {
+			t.Errorf("secretLike(%q) = false", path)
+		}
+	}
+	for _, path := range []string{"theme.css", "tokenizer.js", "guide.md"} {
+		if secretLike(path) {
+			t.Errorf("secretLike(%q) = true for non-secret artifact", path)
+		}
+	}
+}
+
 func TestManifestRejectsSymlinkArtifact(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(t.TempDir(), "outside.bin")
