@@ -2,6 +2,7 @@ package commerce
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -16,7 +17,7 @@ type CustomerOrderReader struct {
 
 func (r CustomerOrderReader) ListOrdersByUserID(ctx context.Context, db database.Executor, userID string, limit int) ([]customerorders.Order, error) {
 	if r.Reader == nil {
-		return nil, nil
+		return nil, errors.New("commerce customer order reader is required")
 	}
 	orders, err := r.Reader.ListOrdersByUserID(ctx, db, userID, limit)
 	if err != nil {

@@ -274,6 +274,7 @@ Run related tests after every change. If possible, use gofmt, go vet, and target
 - [x] Geliştirici alt sayfalarının yalnızca doğrudan URL değil gerçek sidebar SPA geçişleri ile doğrulanması sağlandı; ortak Admin area CSS kuralları global stylesheet'e alındı. (Kanıt: `e2e/manifest.json`, `AdminAreaCSS`; Chromium 14/14 PASS.)
 - [x] Members–Commerce doğrudan modül bağımlılığı kaldırıldı; üyelik yüzeyi nötr müşteri-sipariş capability sözleşmesini kullanıyor ve Commerce composition root'ta adapter ile bağlanıyor. (Kanıt: `internal/contracts/customerorders`, `modules/commerce/customerorders.go`, `modules/members/transport/http.go`, ADR-0038; hedefli Go testleri PASS.)
 - [x] Modül sınırlarının tekrar bozulmasını önleyen CI import guard eklendi; yalnızca açıkça izinli aggregate API katmanı kardeş modülleri import edebilir. (Kanıt: `tools/moduleguard`, `.github/workflows/ci.yml`; `go run ./tools/moduleguard -root modules -allow modules/api` PASS.)
+- [x] Customer-order adapter boş repository ile sessiz başarı yerine fail-closed hata veriyor; projection ve gizli müşteri alanı izolasyonu regresyon testleriyle korundu. (Kanıt: `modules/commerce/customerorders.go`, `customerorders_test.go`.)
 - [x] Yetkiler ekranının kalan fragment stilleri global Admin stylesheet'e taşındı: tablo, rozetler ve yetki kuralları kartı artık ilk SPA açılışında da stilli render edilir. (Kanıt: `AdminPermissionsCSS`, `e2e/manifest.json`; Chromium 14/14 PASS.)
 ### Phase 11 — Üye Portalı, Hesap Yönetimi & Dinamik Navigasyon
 
