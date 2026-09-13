@@ -145,6 +145,9 @@ jobs:
           $a = (Get-FileHash .tmp/repro/hydro-a.exe -Algorithm SHA256).Hash
           $b = (Get-FileHash .tmp/repro/hydro-b.exe -Algorithm SHA256).Hash
           if ($a -ne $b) { Write-Error "reproducible build digests differ: $a / $b" }
+      - name: Run generator preset smoke
+        shell: pwsh
+        run: ./scripts/generator-smoke.ps1
 
   browser-e2e:
     runs-on: windows-latest
