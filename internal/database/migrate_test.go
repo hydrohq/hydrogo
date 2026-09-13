@@ -130,6 +130,27 @@ func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 	}
 }
 
+func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-only.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	enabled := map[string]bool{}
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
+		t.Fatalf("core-only migrations failed: %v", err)
+	}
+	var auditColumns int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM pragma_table_info('audit_events') WHERE name = 'request_id'").Scan(&auditColumns); err != nil {
+		t.Fatal(err)
+	}
+	if auditColumns != 0 {
+		t.Fatal("core-only migration set altered the optional audit_events table")
+	}
+}
+
 func TestNonTransactionalMigrationUsesMetadataExecutionMode(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "nontransactional.sqlite"))

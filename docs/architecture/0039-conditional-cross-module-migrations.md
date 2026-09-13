@@ -36,4 +36,6 @@ activation of the required modules.
 `internal/database/migrate_test.go` applies the real embedded migrations to an
 isolated SQLite database with only Pages and Media enabled, asserts that
 Commerce and News tables are absent, and runs the filtered compatibility check.
+The same suite verifies a core-only selection does not execute the
+Pages-dependent audit-column migration.
 PostgreSQL and production profile certification remain open gates.
