@@ -695,7 +695,9 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	products, err := h.Catalog.ListProducts(r.Context(), h.DB, false)
+	// Admin catalog rendering is intentionally bounded; use the page contract
+	// even though this view currently renders a single page.
+	products, err := h.Catalog.ListProductsPage(r.Context(), h.DB, false, 1000, 0)
 	if err != nil {
 		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
 		return
