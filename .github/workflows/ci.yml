@@ -97,6 +97,7 @@ jobs:
           go test ./extension/v1 -run '^$' -fuzz '^FuzzSafeThemePath$' -fuzztime=2s
           go test ./internal/config -run '^$' -fuzz '^FuzzLoadEnvironmentValues$' -fuzztime=2s
           go test ./internal/content -run '^$' -fuzz '^FuzzValidateRichText$' -fuzztime=2s
+          go test ./modules/api/graphql -run '^$' -fuzz '^FuzzQueryBudget$' -fuzztime=2s
           go test ./internal/database -run '^$' -fuzz '^FuzzDiscoverMigrations$' -fuzztime=2s
           go test ./internal/security -run '^$' -fuzz '^FuzzCSRFMiddlewareTokens$' -fuzztime=2s
           go test ./internal/webhooks -run '^$' -fuzz '^FuzzValidateWebhookURL$' -fuzztime=2s

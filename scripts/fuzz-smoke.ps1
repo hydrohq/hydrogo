@@ -4,6 +4,7 @@ $targets = @(
     @{ Package = "./extension/v1"; Pattern = "FuzzSafeThemePath" },
     @{ Package = "./internal/config"; Pattern = "FuzzLoadEnvironmentValues" },
     @{ Package = "./internal/content"; Pattern = "FuzzValidateRichText" },
+    @{ Package = "./modules/api/graphql"; Pattern = "FuzzQueryBudget" },
     @{ Package = "./internal/database"; Pattern = "FuzzDiscoverMigrations" },
     @{ Package = "./internal/security"; Pattern = "FuzzCSRFMiddlewareTokens" },
     @{ Package = "./internal/webhooks"; Pattern = "FuzzValidateWebhookURL" },

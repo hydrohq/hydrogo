@@ -46,3 +46,21 @@ func TestQueryBudgetCountsFragmentSpreadsAndStopsCycles(t *testing.T) {
 		t.Fatalf("cyclic fragment budget = fields %d err %v", fields, err)
 	}
 }
+
+func FuzzQueryBudget(f *testing.F) {
+	for _, seed := range []string{
+		`{ page(locale: "tr", slug: "x") { title } }`,
+		`query { page { ...Fields } } fragment Fields on Page { title }`,
+		`query { page { ...Loop } } fragment Loop on Page { title ...Loop }`,
+		`{`,
+		``,
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, source string) {
+		fields, depth, _ := queryBudget(source)
+		if fields < 0 || depth < 0 {
+			t.Fatalf("negative query budget for %q: fields=%d depth=%d", source, fields, depth)
+		}
+	})
+}
