@@ -142,7 +142,9 @@ kapatılmalıdır.
   `config_test.go`; görsel/RTL ve format kapsamı ayrı açık task'tır.)
 - [x] Commerce cent değerlerinin provider payload ve finansal gösteriminde
   floating-point dönüşümünü kaldır. (Kanıt: `modules/commerce/money.go`,
-  provider kullanımları ve `money_test.go`; MinInt64/sınır precision testi.)
+  provider kullanımları, Commerce katalog/sepet yüzeyleri ve `money_test.go`;
+  MinInt64/sınır precision testi. Ürün detay/checkout şablonlarındaki legacy
+  gösterimler sonraki frontend formatting adımında taşınacak.)
 - [ ] Kritik checkout, auth, preview, editor ve media picker akışlarını
   cross-origin ve refresh/back-forward senaryolarıyla doğrula.
 - [x] Quill/HTMX gibi vendor asset'leri sürüm/hash/license manifestiyle yönet.
