@@ -1,4 +1,4 @@
-// Command assetguard rejects mixed cache-buster versions for theme assets.
+// Command assetguard rejects mixed cache-buster versions per theme asset type.
 package main
 
 import (
@@ -12,12 +12,12 @@ import (
 	"strings"
 )
 
-var assetPattern = regexp.MustCompile(`theme\.(?:css|js)\?v=([A-Za-z0-9_-]+)`)
+var assetPattern = regexp.MustCompile(`theme\.(css|js)\?v=([A-Za-z0-9_-]+)`)
 
 func main() {
 	root := flag.String("root", ".", "repository root")
 	flag.Parse()
-	versions := map[string][]string{}
+	versions := map[string]map[string][]string{}
 	err := filepath.WalkDir(*root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -30,7 +30,10 @@ func main() {
 			return err
 		}
 		for _, match := range assetPattern.FindAllStringSubmatch(string(data), -1) {
-			versions[match[1]] = append(versions[match[1]], path)
+			if versions[match[1]] == nil {
+				versions[match[1]] = map[string][]string{}
+			}
+			versions[match[1]][match[2]] = append(versions[match[1]][match[2]], path)
 		}
 		return nil
 	})
@@ -38,21 +41,28 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	keys := make([]string, 0, len(versions))
-	for key := range versions {
-		keys = append(keys, key)
+	types := make([]string, 0, len(versions))
+	for typ := range versions {
+		types = append(types, typ)
 	}
-	sort.Strings(keys)
-	if len(keys) > 1 {
-		fmt.Fprintln(os.Stderr, "assetguard: mixed theme asset versions:")
-		for _, key := range keys {
-			fmt.Fprintf(os.Stderr, " - %s: %s\n", key, strings.Join(versions[key], ", "))
-		}
-		os.Exit(1)
-	}
-	if len(keys) == 0 {
+	sort.Strings(types)
+	if len(types) == 0 {
 		fmt.Fprintln(os.Stderr, "assetguard: no theme assets found")
 		os.Exit(1)
 	}
-	fmt.Printf("assetguard: OK version=%s references=%d\n", keys[0], len(versions[keys[0]]))
+	for _, typ := range types {
+		keys := make([]string, 0, len(versions[typ]))
+		for key := range versions[typ] {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		if len(keys) > 1 {
+			fmt.Fprintf(os.Stderr, "assetguard: mixed theme.%s versions:\n", typ)
+			for _, key := range keys {
+				fmt.Fprintf(os.Stderr, " - %s: %s\n", key, strings.Join(versions[typ][key], ", "))
+			}
+			os.Exit(1)
+		}
+		fmt.Printf("assetguard: OK theme.%s=%s references=%d\n", typ, keys[0], len(versions[typ][keys[0]]))
+	}
 }
