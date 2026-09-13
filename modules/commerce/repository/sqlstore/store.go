@@ -519,6 +519,30 @@ func (s Store) GetPaymentTransaction(ctx context.Context, db database.Executor, 
 	return transaction, err
 }
 
+func (s Store) ListPendingRefunds(ctx context.Context, db database.Executor, limit int) ([]commerce.PaymentTransaction, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 1000 {
+		return nil, errors.New("invalid pending refund limit")
+	}
+	q := `SELECT order_id, provider, provider_payment_id, amount_cents, currency, status FROM commerce_payment_transactions WHERE status = 'refund_pending' ORDER BY updated_at, order_id LIMIT ` + s.placeholder(1)
+	rows, err := queryRows(ctx, db, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]commerce.PaymentTransaction, 0, limit)
+	for rows.Next() {
+		var transaction commerce.PaymentTransaction
+		if err := rows.Scan(&transaction.OrderID, &transaction.Provider, &transaction.ProviderPaymentID, &transaction.AmountCents, &transaction.Currency, &transaction.Status); err != nil {
+			return nil, err
+		}
+		result = append(result, transaction)
+	}
+	return result, rows.Err()
+}
+
 func (s Store) MarkPaymentRefunded(ctx context.Context, db database.Executor, orderID, paymentID string) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err

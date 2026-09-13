@@ -100,7 +100,28 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminCreateVariant), Protected: true},
 		{Pattern: "GET /admin/commerce/orders", Handler: http.HandlerFunc(h.adminOrders), Protected: true},
 		{Pattern: "POST /admin/commerce/orders/{orderID}/refund", Handler: http.HandlerFunc(h.adminRefund), Protected: true},
+		{Pattern: "GET /admin/commerce/refunds/pending", Handler: http.HandlerFunc(h.pendingRefunds), Protected: true},
 	}
+}
+
+func (h Handler) pendingRefunds(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	store, ok := h.Orders.(commerce.PaymentRefundStore)
+	if !ok {
+		http.Error(w, "refund reconciliation unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	refunds, err := store.ListPendingRefunds(r.Context(), h.DB, 100)
+	if err != nil {
+		http.Error(w, "refund reconciliation unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(refunds)
 }
 
 type productInput struct {

@@ -71,6 +71,7 @@ type PaymentWebhookStore interface {
 
 type PaymentRefundStore interface {
 	GetPaymentTransaction(context.Context, database.Executor, string) (PaymentTransaction, error)
+	ListPendingRefunds(context.Context, database.Executor, int) ([]PaymentTransaction, error)
 	ClaimPaymentRefund(context.Context, database.Executor, string, string) error
 	MarkPaymentRefunded(context.Context, database.Executor, string, string) error
 }

@@ -16,6 +16,8 @@ provider refund. A confirmed provider success transitions this state to
 
 The safe automatic behavior is to avoid duplicate financial effects. An
 operator must verify a pending refund against the provider before resolving it;
-the system does not guess whether a timed-out provider call succeeded. This
-uses the existing status column, needs no migration, and preserves old paid and
-refunded rows during a blue/green deployment.
+the system does not guess whether a timed-out provider call succeeded. Admins
+can inspect a bounded pending-refund projection at
+`GET /admin/commerce/refunds/pending` before resolving records through the
+provider runbook. This uses the existing status column, needs no migration, and
+preserves old paid and refunded rows during a blue/green deployment.
