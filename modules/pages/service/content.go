@@ -178,7 +178,7 @@ func validatePage(page *pages.Page) error {
 	var err error
 	page.Slug, err = canonical.Path(page.Slug)
 	page.Title = strings.TrimSpace(page.Title)
-	if err != nil || page.ID == "" || page.Locale == "" || page.Slug == "" || page.Title == "" {
+	if err != nil || page.ID == "" || len(page.ID) > 128 || page.Locale == "" || len(page.Locale) > 16 || page.Slug == "" || len(page.Slug) > 256 || page.Title == "" || len(page.Title) > 256 || len(page.Body) > 1<<20 {
 		return ErrInvalidPage
 	}
 	if page.Status == "" {

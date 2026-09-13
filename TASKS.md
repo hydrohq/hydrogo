@@ -291,6 +291,7 @@ Run related tests after every change. If possible, use gofmt, go vet, and target
 - [x] Frontend asset cache-buster sürümleri tekil `20260913` sürümünde hizalandı; eski `clean`/tarih varyantları kaldırıldı. (Kanıt: server-rendered Go yüzeyleri ve `themes/corporate/layouts/base.html`.)
 - [x] Asset cache-buster drift’ini önleyen CI `assetguard` eklendi. (Kanıt: `tools/assetguard`, `.github/workflows/ci.yml`; guard PASS.)
 - [x] News admin validation fixture’ları oversized metadata reddini izole şekilde doğruluyor. (Kanıt: `modules/news/model_test.go`.)
+- [x] Pages ID/slug/title/body uzunluk sınırları ve izole validation fixture’ları eklendi. (Kanıt: `modules/pages/service/content.go`, `validation_test.go`.)
 - [x] Sitemap rota projeksiyonu sınırsız sorgudan çıkarıldı; maksimum 10.000 kayıtla bellek/yanıt büyümesi sınırlandı. (Kanıt: `modules/pages/repository/sqlstore/content.go`.)
 - [x] Yetkiler ekranının kalan fragment stilleri global Admin stylesheet'e taşındı: tablo, rozetler ve yetki kuralları kartı artık ilk SPA açılışında da stilli render edilir. (Kanıt: `AdminPermissionsCSS`, `e2e/manifest.json`; Chromium 14/14 PASS.)
 ### Phase 11 — Üye Portalı, Hesap Yönetimi & Dinamik Navigasyon
