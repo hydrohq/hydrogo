@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -49,6 +50,25 @@ func TestRetrySenderNormalizesNilContext(t *testing.T) {
 	if err := sender.Send(nil, Message{}); err == nil {
 		t.Fatal("nil-context retry sender unexpectedly succeeded")
 	}
+}
+
+func TestRetrySenderCapsAttempts(t *testing.T) {
+	var calls atomic.Int32
+	underlying := &alwaysFailSender{calls: &calls}
+	sender := RetrySender{Sender: underlying, Attempts: 1 << 30, BaseDelay: time.Nanosecond, ShouldRetry: func(error) bool { return true }}
+	if err := sender.Send(context.Background(), Message{}); err == nil {
+		t.Fatal("expected retry failure")
+	}
+	if got := calls.Load(); got != maxRetryAttempts {
+		t.Fatalf("attempts = %d, want %d", got, maxRetryAttempts)
+	}
+}
+
+type alwaysFailSender struct{ calls *atomic.Int32 }
+
+func (s *alwaysFailSender) Send(context.Context, Message) error {
+	s.calls.Add(1)
+	return errors.New("temporary")
 }
 
 func TestNotificationSenderFailsClosedWithoutTransport(t *testing.T) {

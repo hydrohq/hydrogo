@@ -7,6 +7,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
+const maxRetryAttempts = 10
+
 // RetrySender retries transport failures with bounded exponential backoff.
 // Provider-specific permanent/retryable classification can be supplied through
 // ShouldRetry; context cancellation is never retried.
@@ -30,6 +32,9 @@ func (r RetrySender) Send(ctx context.Context, message Message) error {
 	attempts := r.Attempts
 	if attempts < 1 {
 		attempts = 1
+	}
+	if attempts > maxRetryAttempts {
+		attempts = maxRetryAttempts
 	}
 	delay := r.BaseDelay
 	if delay <= 0 {
