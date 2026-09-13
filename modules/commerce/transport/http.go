@@ -307,11 +307,18 @@ func (h Handler) products(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid page", http.StatusBadRequest)
 		return
 	}
-	products, err := h.Catalog.ListProductsPage(r.Context(), h.DB, true, commerce.PublicCatalogPageSize, (page-1)*commerce.PublicCatalogPageSize)
+	products, err := h.Catalog.ListProductsPage(r.Context(), h.DB, true, commerce.PublicCatalogPageSize+1, (page-1)*commerce.PublicCatalogPageSize)
 	if err != nil {
 		http.Error(w, "catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	hasMore := len(products) > commerce.PublicCatalogPageSize
+	if hasMore {
+		products = products[:commerce.PublicCatalogPageSize]
+	}
+	w.Header().Set("X-Catalog-Page", strconv.Itoa(page))
+	w.Header().Set("X-Catalog-Page-Size", strconv.Itoa(commerce.PublicCatalogPageSize))
+	w.Header().Set("X-Catalog-Has-More", strconv.FormatBool(hasMore))
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(products)
 }
