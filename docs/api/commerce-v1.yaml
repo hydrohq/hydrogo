@@ -206,7 +206,7 @@ components:
         user_id: { type: string }
         currency: { type: string, minLength: 3, maxLength: 3 }
         total_cents: { type: integer, format: int64, minimum: 0 }
-        payment_status: { type: string, enum: [pending, paid, failed, refunded] }
+        payment_status: { type: string, enum: [pending, paid, failed, refund_pending, refunded] }
         shipping_status: { type: string, enum: [pending, processing, shipped, delivered, cancelled] }
         items:
           type: array
