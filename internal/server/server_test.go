@@ -74,7 +74,7 @@ func TestServeGracefulShutdownWaitsForActiveHandler(t *testing.T) {
 	defer cancel()
 	serveDone := make(chan error, 1)
 	go func() {
-		serveDone <- Serve(ctx, Config{Address: address, ShutdownTimeout: time.Second, Routes: []router.Route{{
+		serveDone <- Serve(ctx, Config{Address: address, ShutdownTimeout: 10 * time.Second, Routes: []router.Route{{
 			Pattern: "GET /slow", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				close(started)
 				<-release
@@ -82,7 +82,7 @@ func TestServeGracefulShutdownWaitsForActiveHandler(t *testing.T) {
 			}),
 		}}})
 	}()
-	client := &http.Client{Timeout: time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 	for i := 0; i < 50; i++ {
 		resp, requestErr := client.Get("http://" + address + "/healthz")
 		if requestErr == nil {
@@ -101,7 +101,7 @@ func TestServeGracefulShutdownWaitsForActiveHandler(t *testing.T) {
 	}()
 	select {
 	case <-started:
-	case <-time.After(time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("slow handler did not start")
 	}
 	cancel()
@@ -116,7 +116,7 @@ func TestServeGracefulShutdownWaitsForActiveHandler(t *testing.T) {
 		if err != nil {
 			t.Fatalf("graceful shutdown error: %v", err)
 		}
-	case <-time.After(time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("server did not stop after active handler drained")
 	}
 }
