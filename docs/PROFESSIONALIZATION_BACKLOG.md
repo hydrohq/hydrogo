@@ -53,6 +53,10 @@ kapatılmalıdır.
 - [ ] Threat model ve dış penetrasyon testi tamamla.
 - [ ] Security headers, CSP report-only → enforce geçişi ve trusted-origin
   modelini production proxy ile doğrula.
+- [x] Uygulama güvenlik başlıklarını regression testleriyle sabitle (CSP nonce,
+  nosniff, frame/referrer/cross-origin politikaları ve opsiyonel HSTS). (Kanıt:
+  `internal/security/headers.go` ve `headers_test.go`; production proxy geçişi
+  ayrı dış kapıdır.)
 - [ ] PII maskeleme, audit erişim yetkisi ve log retention politikasını uygula.
 
 ## P1 — Güvenilirlik ve işletilebilirlik
