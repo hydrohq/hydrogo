@@ -48,6 +48,10 @@ kapatılmalıdır.
   browser E2E ile kapsa.
 - [ ] Rate-limit Redis kaybı, failover, clock skew, key-space ve bypass
   senaryolarını test et.
+- [x] Redis rate limiter'ın geçersiz yapılandırma ve bağlantı yokluğunda
+  fail-closed davranışını regression testleriyle sabitle. (Kanıt:
+  `internal/security/redis_ratelimit_test.go`; gerçek Redis failover/clock-skew
+  tatbikatı dış gate olarak açık.)
 - [ ] Upload abuse, SSRF, path traversal, decompression bomb ve oversized body
   testleri ekle.
 - [x] Auth `return_to` yönlendirmelerini URI-aware in-origin doğrulamasıyla
