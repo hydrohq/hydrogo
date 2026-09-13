@@ -45,3 +45,14 @@ notuyla tamamlanır. Aşama yeşil olmadan sonraki aşamaya geçilmez. Gerçek
 müşteri kapasitesi, reverse proxy, external backup/key escrow, provider
 credentials ve production signing gerektiren doğrulamalar yerel başarı olarak
 işaretlenmez; production gate olarak kalır.
+
+## İlerleme kaydı (2026-09-13)
+
+- **Aşama 1 — tamamlandı:** ADR-0037 ile sınırlar tanımlandı; dış Client
+  Edition import guard ve iç modül import guard CI’a bağlandı.
+- **Aşama 4 — başlatıldı:** Members→Commerce doğrudan domain bağımlılığı,
+  `internal/contracts/customerorders` capability sözleşmesi ve Commerce
+  adapter’ı ile kaldırıldı (ADR-0038).
+- **Aşama 9 — kısmi tamamlandı:** modül sınırı guard’ı ve capability projection
+  regresyon testleri CI/Go test akışına dahil edildi. Kalan migration, lifecycle,
+  event ve blue/green kontrolleri sonraki küçük aşamalarda ele alınacak.
