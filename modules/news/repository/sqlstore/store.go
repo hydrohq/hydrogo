@@ -222,7 +222,7 @@ func (s Store) ListScheduled(ctx context.Context, db database.Executor, now time
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
-	query := `SELECT id,schedule_generation,scheduled_at FROM news_items WHERE status='scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= ` + s.p(1) + ` ORDER BY scheduled_at,id`
+	query := `SELECT id,schedule_generation,scheduled_at FROM news_items WHERE status='scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= ` + s.p(1) + ` ORDER BY scheduled_at,id LIMIT 100`
 	argument := any(now.UTC())
 	if s.Dialect == database.SQLite {
 		argument = now.UTC().Format(time.RFC3339Nano)
