@@ -133,14 +133,17 @@ kapatılmalıdır.
   üretmediğini doğrula. (Kanıt: `cmd/hydro` inactive-module tests.)
 - [x] Core'a modül-spesifik iş kuralı sızmasını importguard ve architecture test
   ile engelle. (Kanıt: `tools/moduleguard`, `tools/importguard`; local CI gates PASS.)
-- [ ] Capability contract'larında versiyonlama, deprecation ve compatibility
-  testleri ekle.
+- [x] Capability contract'larında versiyonlama, deprecation ve compatibility
+  testleri ekle. (Kanıt: `extension/v1/version.go`, aynı-major uyumluluk
+  testleri ve ADR-0015 versioned API/deprecation alias sözleşmesi.)
 - [ ] SQL/cache/queue ayrıntılarını domain/application katmanından uzak tutan
   boundary testlerini genişlet.
 - [x] Public API'nin draft/deleted/scheduled içerik sızdırmadığını her modülde
   test et. (Kanıt: Pages/News/Site public projection tests.)
-- [ ] Concurrent edit, idempotent job, outbox replay ve provider timeout
-  belirsizliği testlerini tamamla.
+- [x] Concurrent edit, idempotent job, outbox replay ve provider timeout
+  belirsizliği testlerini tamamla. (Kanıt: Pages optimistic-lock/concurrent
+  cache testleri, jobs queue/idempotency testleri, erasure/outbox replay
+  testleri ve SMTP/webhook timeout-retry testleri.)
 
 ## P2 — Geliştirici deneyimi ve kalite
 
