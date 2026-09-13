@@ -104,7 +104,7 @@ func ValidateBlocks(blocks []Block) error {
 func requireString(object map[string]json.RawMessage, key string) error {
 	raw, ok := object[key]
 	var value string
-	if !ok || json.Unmarshal(raw, &value) != nil || strings.TrimSpace(value) == "" {
+	if !ok || json.Unmarshal(raw, &value) != nil || strings.TrimSpace(value) == "" || len(strings.TrimSpace(value)) > 512 {
 		return ErrInvalidBlocks
 	}
 	return nil
