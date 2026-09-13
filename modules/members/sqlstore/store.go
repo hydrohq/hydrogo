@@ -260,7 +260,7 @@ func (s SessionStore) DeleteByMemberID(ctx context.Context, memberID string) err
 }
 
 func (s SessionStore) ListByMemberID(ctx context.Context, memberID string) ([]members.Session, error) {
-	rows, err := s.DB.QueryContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE member_id = "+s.ph(1)+" ORDER BY last_seen_at DESC", memberID)
+	rows, err := s.DB.QueryContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE member_id = "+s.ph(1)+" ORDER BY last_seen_at DESC LIMIT 100", memberID)
 	if err != nil {
 		return nil, err
 	}

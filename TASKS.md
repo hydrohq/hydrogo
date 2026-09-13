@@ -279,6 +279,7 @@ Run related tests after every change. If possible, use gofmt, go vet, and target
 - [x] Pages/News pasifken startup artık ilgili Admin Studio koleksiyonunu veya handler bağımlılığını zorunlu kılmıyor; pasif profil gerçekten fail-safe başlıyor. (Kanıt: `cmd/hydro/main.go`; `cmd/hydro` testleri PASS.)
 - [x] News pasifken repository/service/queue worker nesneleri oluşturulmuyor; worker callback ve başlatma yolları güvenli boş değerlerle no-op kalıyor. (Kanıt: `cmd/hydro/main.go`; `cmd/hydro` testleri PASS.)
 - [x] Aktif Admin Studio koleksiyon filtresi bağımsız sözleşme ve defensive-copy testiyle korundu; variant koleksiyonu Commerce lifecycle’ına bağlı. (Kanıt: `internal/adminstudio/active.go`, `active_test.go`.)
+- [x] Üye oturumları sorgusu sınırsız sonuçtan çıkarıldı; hesap görünümü en fazla 100 oturum döndürüyor. (Kanıt: `modules/members/sqlstore/store.go`.)
 - [x] Sitemap rota projeksiyonu sınırsız sorgudan çıkarıldı; maksimum 10.000 kayıtla bellek/yanıt büyümesi sınırlandı. (Kanıt: `modules/pages/repository/sqlstore/content.go`.)
 - [x] Yetkiler ekranının kalan fragment stilleri global Admin stylesheet'e taşındı: tablo, rozetler ve yetki kuralları kartı artık ilk SPA açılışında da stilli render edilir. (Kanıt: `AdminPermissionsCSS`, `e2e/manifest.json`; Chromium 14/14 PASS.)
 ### Phase 11 — Üye Portalı, Hesap Yönetimi & Dinamik Navigasyon
