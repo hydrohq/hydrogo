@@ -165,6 +165,10 @@ func Generate(opts Options) (string, error) {
 	}
 
 	themeName := presetTheme(opts.Preset)
+	e2eManifestJSON, err := e2eManifest(opts)
+	if err != nil {
+		return "", err
+	}
 
 	files := map[string]string{
 		"config.yaml":          configTemplate(opts, lock, themeName),
@@ -177,7 +181,7 @@ func Generate(opts Options) (string, error) {
 		"docs/ARCHITECTURE.md": architectureDocTemplate(opts, lock),
 		"docs/OPERATIONS.md":   operationsDocTemplate(opts),
 		"docs/E2E_GUIDE.md":    e2eDocTemplate(opts),
-		"e2e/manifest.json":    e2eManifest(opts),
+		"e2e/manifest.json":    e2eManifestJSON,
 		"custom/README.md":     "# Custom Business Logic\n\nPlace client-specific handlers, extension hooks, and integrations here.\nHydroGo Core remains external and is not modified in this project.\n",
 		"migrations/README.md": "# Project Migrations\n\nPlace project-specific SQL migrations here. HydroGo Core migrations are applied automatically by the licensed runtime.\n",
 	}
@@ -671,8 +675,11 @@ The manifest must contain a ` + "`routes`" + ` array with unique ` + "`name`" + 
 `
 }
 
-func e2eManifest(opts Options) string {
-	routes := frontendRoutes(opts)
+func e2eManifest(opts Options) (string, error) {
+	routes, err := frontendRoutes(opts)
+	if err != nil {
+		return "", err
+	}
 
 	data := map[string]any{
 		"version":  1,
@@ -687,18 +694,18 @@ func e2eManifest(opts Options) string {
 		},
 	}
 	dataBytes, _ := json.MarshalIndent(data, "", "  ")
-	return string(dataBytes) + "\n"
+	return string(dataBytes) + "\n", nil
 }
 
-func frontendRoutes(opts Options) []map[string]any {
+func frontendRoutes(opts Options) ([]map[string]any, error) {
 	if strings.TrimSpace(opts.FrontendManifest) == "" {
-		return presetFrontendRoutes(opts.Preset)
+		return presetFrontendRoutes(opts.Preset), nil
 	}
 	routes, err := loadFrontendRoutes(opts.FrontendManifest)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return routes
+	return routes, nil
 }
 
 func loadFrontendRoutes(path string) ([]map[string]any, error) {
