@@ -30,7 +30,12 @@ type E2EField struct {
 }
 
 func (r Registry) E2EManifest() E2EManifest {
-	collections := r.Collections()
+	return E2EManifestForCollections(r.Collections())
+}
+
+// E2EManifestForCollections builds the browser-test projection for an already
+// filtered active-module collection set.
+func E2EManifestForCollections(collections []Collection) E2EManifest {
 	result := E2EManifest{Version: 1, Admin: E2EAdminManifest{LoginPath: "/login", Collections: make([]E2ECollection, 0, len(collections))}}
 	for _, collection := range collections {
 		if collection.ID == "commerce_variants" {

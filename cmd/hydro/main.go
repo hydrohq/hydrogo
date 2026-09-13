@@ -767,6 +767,20 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("admin studio registry: %w", err)
 	}
+	activeStudioCollections := func() []adminstudio.Collection {
+		collections := studioRegistry.Collections()
+		result := make([]adminstudio.Collection, 0, len(collections))
+		for _, collection := range collections {
+			module := collection.ID
+			if module == "commerce_variants" {
+				module = "commerce"
+			}
+			if moduleEnabled(cfg.Modules, module) {
+				result = append(result, collection)
+			}
+		}
+		return result
+	}
 	pageCollection, ok := studioRegistry.Collection("pages")
 	if !ok {
 		return errors.New("admin studio pages collection missing")
@@ -826,7 +840,7 @@ func serve(args []string, stderr io.Writer) error {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(studioRegistry.E2EManifest())
+		_ = json.NewEncoder(w).Encode(adminstudio.E2EManifestForCollections(activeStudioCollections()))
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := r.URL.Query().Get("return_to")
@@ -857,7 +871,7 @@ func serve(args []string, stderr io.Writer) error {
 			dateRange := r.URL.Query().Get("range")
 			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
 				Email:       user.Email,
-				Collections: studioRegistry.Collections(),
+				Collections: activeStudioCollections(),
 				Nonce:       security.NonceFromContext(r.Context()),
 				Active:      "reports",
 				Metrics:     runtimeMetrics,
@@ -870,7 +884,7 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: studioRegistry.Collections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard"}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard"}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
