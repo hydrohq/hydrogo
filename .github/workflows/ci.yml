@@ -79,6 +79,8 @@ jobs:
         run: go build ./...
       - name: Enforce News Edition import boundary
         run: go run ./tools/importguard -root examples/news-edition
+      - name: Enforce internal module boundaries
+        run: go run ./tools/moduleguard -root modules -allow modules/api
       - name: Build external News Edition
         working-directory: examples/news-edition
         run: go build ./...
