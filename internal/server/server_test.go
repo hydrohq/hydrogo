@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -57,6 +58,66 @@ func TestServeContextNormalization(t *testing.T) {
 	ctx := context.Background()
 	if nonNilContext(ctx) != ctx {
 		t.Fatal("non-nil context was replaced")
+	}
+}
+
+func TestServeGracefulShutdownWaitsForActiveHandler(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := listener.Addr().String()
+	_ = listener.Close()
+	release := make(chan struct{})
+	started := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	serveDone := make(chan error, 1)
+	go func() {
+		serveDone <- Serve(ctx, Config{Address: address, ShutdownTimeout: time.Second, Routes: []router.Route{{
+			Pattern: "GET /slow", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				close(started)
+				<-release
+				w.WriteHeader(http.StatusNoContent)
+			}),
+		}}})
+	}()
+	client := &http.Client{Timeout: time.Second}
+	for i := 0; i < 50; i++ {
+		resp, requestErr := client.Get("http://" + address + "/healthz")
+		if requestErr == nil {
+			_ = resp.Body.Close()
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	requestDone := make(chan error, 1)
+	go func() {
+		resp, requestErr := client.Get("http://" + address + "/slow")
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		requestDone <- requestErr
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("slow handler did not start")
+	}
+	cancel()
+	select {
+	case err := <-serveDone:
+		t.Fatalf("server stopped before active handler drained: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case err := <-serveDone:
+		if err != nil {
+			t.Fatalf("graceful shutdown error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop after active handler drained")
 	}
 }
 

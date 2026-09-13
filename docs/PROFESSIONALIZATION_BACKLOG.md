@@ -18,6 +18,9 @@ kapatılmalıdır.
 - [ ] Yeni yazma sonrası rollback ve eski binary restart testini gerçek
   PostgreSQL ile çalıştır.
 - [ ] Graceful shutdown, connection draining ve worker kapanışını ölç.
+- [x] HTTP graceful shutdown'un aktif handler drain edilmeden dönmemesini
+  regression testiyle sabitle. (Kanıt: `internal/server/server_test.go`;
+  gerçek multi-process/worker süre ölçümü ayrı production tatbikatıdır.)
 - [ ] Otomatik rollback, başarısız migration durdurma ve insan onayı akışlarını
   runbook'a ekle.
 - [x] Desteklenen OS, Go, PostgreSQL, Redis/Valkey ve FFmpeg sürümlerini
