@@ -67,6 +67,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0037](0037-strict-modular-monolith-boundaries.md) | Strict modular monolith boundaries | Accepted |
 | [0038](0038-member-order-capability-contract.md) | Member order capability contract | Accepted |
 | [0039](0039-conditional-cross-module-migrations.md) | Conditional cross-module migration scopes | Accepted |
+| [0040](0040-conditional-headless-schema.md) | Conditional headless schema surface | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

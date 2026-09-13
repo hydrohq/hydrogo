@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
@@ -23,10 +24,11 @@ const (
 // versioned REST endpoints so their CSRF, idempotency and audit contracts are
 // not bypassed by a second transport.
 type Handler struct {
-	DB       database.Executor
-	Pages    service.ContentService
-	Catalog  commerce.CatalogService
-	Commerce bool
+	DB           database.Executor
+	Pages        service.ContentService
+	PagesEnabled bool
+	Catalog      commerce.CatalogService
+	Commerce     bool
 }
 
 type request struct {
@@ -144,17 +146,24 @@ func (h Handler) schema() (graphql.Schema, error) {
 		"stock":       &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
 		"status":      &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 	}})
-	root := graphql.NewObject(graphql.ObjectConfig{Name: "Query", Fields: graphql.Fields{
-		"page": &graphql.Field{Type: pageType, Args: graphql.FieldConfigArgument{
+	fields := graphql.Fields{}
+	if h.PagesEnabled {
+		fields["page"] = &graphql.Field{Type: pageType, Args: graphql.FieldConfigArgument{
 			"locale": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 			"slug":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
-		}, Resolve: h.resolvePage},
-		"products": &graphql.Field{Type: graphql.NewList(productType), Resolve: h.resolveProducts},
-	}})
+		}, Resolve: h.resolvePage}
+	}
+	if h.Commerce {
+		fields["products"] = &graphql.Field{Type: graphql.NewList(productType), Resolve: h.resolveProducts}
+	}
+	root := graphql.NewObject(graphql.ObjectConfig{Name: "Query", Fields: fields})
 	return graphql.NewSchema(graphql.SchemaConfig{Query: root})
 }
 
 func (h Handler) resolvePage(p graphql.ResolveParams) (any, error) {
+	if !h.PagesEnabled {
+		return nil, errors.New("pages module unavailable")
+	}
 	page, err := h.Pages.GetPublished(p.Context, h.DB, p.Args["locale"].(string), p.Args["slug"].(string))
 	if err != nil {
 		return nil, err
