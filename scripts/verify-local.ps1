@@ -31,6 +31,7 @@ Invoke-Required "client edition import boundary" { go run ./tools/importguard -r
 Invoke-Required "client edition build" { Push-Location examples/client-edition; try { go build ./... } finally { Pop-Location } }
 Invoke-Required "news edition import boundary" { go run ./tools/importguard -root examples/news-edition }
 Invoke-Required "news edition build" { Push-Location examples/news-edition; try { go build ./... } finally { Pop-Location } }
+Invoke-Required "generator preset smoke" { & (Join-Path $PSScriptRoot "generator-smoke.ps1") }
 Invoke-Required "binary health/readiness smoke" { & (Join-Path $PSScriptRoot "smoke-local.ps1") }
 
 Write-Host "PASS: local verification completed."
