@@ -211,11 +211,8 @@ func (h Handler) variants(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "variant catalog unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	if page > 10000 {
+	page, err := catalogPage(r)
+	if err != nil {
 		http.Error(w, "invalid page", http.StatusBadRequest)
 		return
 	}
@@ -233,6 +230,18 @@ func (h Handler) variants(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Catalog-Has-More", strconv.FormatBool(hasMore))
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(variants)
+}
+
+func catalogPage(r *http.Request) (int, error) {
+	raw := strings.TrimSpace(r.URL.Query().Get("page"))
+	if raw == "" {
+		return 1, nil
+	}
+	page, err := strconv.Atoi(raw)
+	if err != nil || page < 1 || page > 10000 {
+		return 0, errors.New("invalid catalog page")
+	}
+	return page, nil
 }
 
 func (h Handler) createVariant(w http.ResponseWriter, r *http.Request) {
@@ -314,11 +323,8 @@ func (h Handler) removeCartItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) products(w http.ResponseWriter, r *http.Request) {
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	if page > 10000 {
+	page, err := catalogPage(r)
+	if err != nil {
 		http.Error(w, "invalid page", http.StatusBadRequest)
 		return
 	}

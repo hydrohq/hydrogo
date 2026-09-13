@@ -39,6 +39,18 @@ func TestNewIDIsNonEmpty(t *testing.T) {
 	}
 }
 
+func TestCatalogPageRejectsMalformedValues(t *testing.T) {
+	for _, raw := range []string{"abc", "0", "10001"} {
+		req := httptest.NewRequest(http.MethodGet, "/api/commerce/products?page="+raw, nil)
+		if _, err := catalogPage(req); err == nil {
+			t.Fatalf("page %q was accepted", raw)
+		}
+	}
+	if page, err := catalogPage(httptest.NewRequest(http.MethodGet, "/api/commerce/products", nil)); err != nil || page != 1 {
+		t.Fatalf("default page = %d/%v", page, err)
+	}
+}
+
 func TestResolveCartUserIDUsesStableMemberID(t *testing.T) {
 	h := Handler{ResolveMemberID: func(*http.Request) (string, bool) { return "member-1", true }}
 	req := httptest.NewRequest(http.MethodGet, "/shop/cart", nil)
