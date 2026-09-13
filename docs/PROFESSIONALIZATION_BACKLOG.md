@@ -217,8 +217,9 @@ kapatılmalıdır.
 - [ ] Taksonomi için çoklu dil, kategori/etiket ve related-content ADR'si çıkar.
 - [ ] Gelişmiş arama yalnızca ölçülmüş ihtiyaca göre eklenmeli; indeks ve arama
   provider sözleşmesini önce tanımla.
-- [ ] Minimal production preset'leri (`compact-site`, `editorial`, `commerce`)
-  oluştur; gereksiz servisleri kapalı tut.
+- [x] Minimal production preset'leri (`compact-site`, `editorial`, `commerce`)
+  oluştur; gereksiz servisleri kapalı tut. (Kanıt: `internal/projectgen` preset
+  allowlist/feature testleri ve `docs/PROJECT_GENERATOR.md`.)
 - [ ] Commerce sağlayıcılarının sandbox callback/signature/idempotency testlerini
   gerçek hesaplarla doğrula.
 - [ ] S3/CDN ve durable queue ancak kapasite ve müşteri ihtiyacı kanıtlandıktan

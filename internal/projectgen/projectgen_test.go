@@ -105,6 +105,27 @@ func TestGenerateAllPresets(t *testing.T) {
 	}
 }
 
+func TestGenerateMinimalProductionPresetAliases(t *testing.T) {
+	for _, preset := range []string{"compact-site", "editorial"} {
+		t.Run(preset, func(t *testing.T) {
+			project, err := Generate(Options{Root: t.TempDir(), Name: "minimal-" + preset, Preset: preset, Profile: "compact", Database: "sqlite"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(filepath.Join(project, "config.yaml"), nil, config.Overrides{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if preset == "compact-site" && (contains(cfg.Modules, "commerce") || contains(cfg.Modules, "news")) {
+				t.Fatalf("compact-site enabled an unrelated module: %#v", cfg.Modules)
+			}
+			if preset == "editorial" && contains(cfg.Modules, "commerce") {
+				t.Fatalf("editorial enabled commerce: %#v", cfg.Modules)
+			}
+		})
+	}
+}
+
 func TestPresetFrontendRoutesAreDeterministicAndCovered(t *testing.T) {
 	tests := map[string][]string{
 		"news": {"home", "news_room", "member_login"}, "commerce": {"home", "shop", "cart"},

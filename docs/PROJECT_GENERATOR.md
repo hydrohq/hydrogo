@@ -13,7 +13,7 @@ hydro new haber-merkezi --preset=news --frontend-manifest .\dist\frontend-manife
 
 The command creates configuration, `hydrogo.lock`, a runnable minimal theme, project migration and custom-extension placeholders, seed guidance, and a metadata-driven E2E manifest. `--git` runs `git init` only inside the newly created directory; it never adds a remote or pushes.
 
-Supported presets are `news`, `commerce`, `corporate`, `portal`, and `headless`. The preset selects enabled feature contracts and does not copy Core source code. The licensed HydroGo runtime is supplied separately and is referenced by the generated configuration and lock file.
+Supported presets are `news`, `editorial`, `commerce`, `compact-site`, `corporate`, `portal`, and `headless`. `editorial` is the content-focused news profile; `compact-site` is the minimal pages/media/site profile. These presets keep unrelated modules disabled, select enabled feature contracts, and do not copy Core source code. The licensed HydroGo runtime is supplied separately and is referenced by the generated configuration and lock file.
 
 ### Frontend build manifest
 

@@ -15,7 +15,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	flags := flag.NewFlagSet("new", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 
-	preset := flags.String("preset", "", "Preset: news, commerce, corporate, portal or headless")
+	preset := flags.String("preset", "", "Preset: news, editorial, commerce, compact-site, corporate, portal or headless")
 	profile := flags.String("profile", "compact", "Capacity profile: compact, standard or distributed")
 	database := flags.String("database", "sqlite", "Database dialect: sqlite or postgres")
 	presentation := flags.String("presentation", "integrated", "Presentation: integrated or headless")
@@ -53,7 +53,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 			projectName = inputName
 		}
 
-		fmt.Fprint(stdout, "Preset [news/commerce/corporate/portal/headless] (varsayılan: news): ")
+		fmt.Fprint(stdout, "Preset [news/editorial/commerce/compact-site/corporate/portal/headless] (varsayılan: news): ")
 		inputPreset, _ := reader.ReadString('\n')
 		inputPreset = strings.TrimSpace(inputPreset)
 		if inputPreset == "" {

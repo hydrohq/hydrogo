@@ -79,7 +79,7 @@ func Generate(opts Options) (string, error) {
 		return "", ErrInvalidProjectName
 	}
 	if !isPreset(opts.Preset) {
-		return "", fmt.Errorf("%w: %q (supported: news, commerce, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
+		return "", fmt.Errorf("%w: %q (supported: news, editorial, commerce, compact-site, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
 	}
 	if opts.Profile == "" {
 		opts.Profile = "compact"
@@ -242,7 +242,7 @@ func Generate(opts Options) (string, error) {
 
 func isPreset(value string) bool {
 	switch strings.ToLower(value) {
-	case "news", "commerce", "corporate", "portal", "headless":
+	case "news", "editorial", "commerce", "compact-site", "corporate", "portal", "headless":
 		return true
 	default:
 		return false
@@ -251,7 +251,7 @@ func isPreset(value string) bool {
 
 func presetTheme(preset string) string {
 	switch strings.ToLower(preset) {
-	case "news":
+	case "news", "editorial":
 		return "newsroom"
 	case "commerce":
 		return "commerce"
@@ -266,7 +266,7 @@ func presetTheme(preset string) string {
 
 func presetFeatures(preset string) []string {
 	switch strings.ToLower(preset) {
-	case "news":
+	case "news", "editorial":
 		return []string{"pages", "news", "media", "members", "site"}
 	case "commerce":
 		return []string{"pages", "commerce", "media", "members", "site"}
@@ -740,7 +740,7 @@ func loadFrontendRoutes(path string) ([]map[string]any, error) {
 func presetFrontendRoutes(preset string) []map[string]any {
 	routes := []map[string]any{{"name": "home", "path": "/", "public": true, "test_id": "public-home"}}
 	switch preset {
-	case "news":
+	case "news", "editorial":
 		routes = append(routes,
 			map[string]any{"name": "news_room", "path": "/public/news/tr/html", "public": true, "test_id": "news-feed"},
 			map[string]any{"name": "member_login", "path": "/member/login", "public": true, "test_id": "member-login"},
