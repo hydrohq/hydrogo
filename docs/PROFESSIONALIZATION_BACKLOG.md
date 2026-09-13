@@ -127,9 +127,11 @@ kapatılmalıdır.
 - [x] Asset cache-buster sürümlerini içerik fingerprint'i ile üret; elle tarih
   yazılan sürümleri kaldır. (Kanıt: `tools/assetmanifest`, `tools/assetguard`,
   tema URL'leri; CSS/JS hash guard PASS.)
-- [ ] Frontend build manifestini generator input'una bağla; route/selector
-  sözleşmesini deterministik üret. (Route tablosu merkezi ve deterministik hale
-  getirildi; gerçek build çıktısı ingestion'ı açık.)
+- [x] Frontend build manifestini generator input'una bağla; route/selector
+  sözleşmesini deterministik üret. (`hydro new --frontend-manifest <json>`
+  allowlist doğrulaması ve sıralı `e2e/manifest.json` üretimi sağlar;
+  `internal/projectgen` testleri ingestion ve unsafe/duplicate rejection
+  kapsamını doğrular.)
 - [ ] i18n, uzun metin, RTL ve tarih/sayı/para formatı testlerini ekle.
 - [ ] Kritik checkout, auth, preview, editor ve media picker akışlarını
   cross-origin ve refresh/back-forward senaryolarıyla doğrula.

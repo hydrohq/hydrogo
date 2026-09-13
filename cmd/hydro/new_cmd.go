@@ -23,6 +23,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	noDemo := flags.Bool("no-demo", false, "Do not create the seed directory")
 	withGit := flags.Bool("git", false, "Run git init in the new project")
 	root := flags.String("root", ".", "Parent directory for the new project")
+	frontendManifest := flags.String("frontend-manifest", "", "JSON frontend build manifest containing routes and test_id selectors")
 
 	projectName := ""
 	parseArgs := args
@@ -104,16 +105,17 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	}
 
 	path, err := projectgen.Generate(projectgen.Options{
-		Root:         *root,
-		Name:         projectName,
-		Preset:       *preset,
-		Profile:      *profile,
-		Database:     *database,
-		Presentation: *presentation,
-		Edition:      *edition,
-		Demo:         !*noDemo,
-		E2E:          true,
-		Git:          *withGit,
+		Root:             *root,
+		Name:             projectName,
+		Preset:           *preset,
+		Profile:          *profile,
+		Database:         *database,
+		Presentation:     *presentation,
+		Edition:          *edition,
+		Demo:             !*noDemo,
+		E2E:              true,
+		Git:              *withGit,
+		FrontendManifest: *frontendManifest,
 	})
 	if err != nil {
 		return err

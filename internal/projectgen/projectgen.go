@@ -25,16 +25,17 @@ var (
 )
 
 type Options struct {
-	Root         string `json:"root"`
-	Name         string `json:"name"`
-	Preset       string `json:"preset"`
-	Profile      string `json:"profile"`
-	Database     string `json:"database"`
-	Presentation string `json:"presentation"`
-	Edition      string `json:"edition"`
-	Demo         bool   `json:"demo"`
-	E2E          bool   `json:"e2e"`
-	Git          bool   `json:"git"`
+	Root             string `json:"root"`
+	Name             string `json:"name"`
+	Preset           string `json:"preset"`
+	Profile          string `json:"profile"`
+	Database         string `json:"database"`
+	Presentation     string `json:"presentation"`
+	Edition          string `json:"edition"`
+	Demo             bool   `json:"demo"`
+	E2E              bool   `json:"e2e"`
+	Git              bool   `json:"git"`
+	FrontendManifest string `json:"frontend_manifest,omitempty"`
 }
 
 type Lock struct {
@@ -101,6 +102,11 @@ func Generate(opts Options) (string, error) {
 	}
 	if opts.Presentation != "integrated" && opts.Presentation != "headless" {
 		return "", fmt.Errorf("unsupported presentation %q (supported: integrated, headless)", opts.Presentation)
+	}
+	if strings.TrimSpace(opts.FrontendManifest) != "" {
+		if _, err := loadFrontendRoutes(opts.FrontendManifest); err != nil {
+			return "", err
+		}
 	}
 
 	rootAbs, err := filepath.Abs(opts.Root)
@@ -656,7 +662,7 @@ To run tests:
 }
 
 func e2eManifest(opts Options) string {
-	routes := presetFrontendRoutes(opts.Preset)
+	routes := frontendRoutes(opts)
 
 	data := map[string]any{
 		"version":  1,
@@ -672,6 +678,56 @@ func e2eManifest(opts Options) string {
 	}
 	dataBytes, _ := json.MarshalIndent(data, "", "  ")
 	return string(dataBytes) + "\n"
+}
+
+func frontendRoutes(opts Options) []map[string]any {
+	if strings.TrimSpace(opts.FrontendManifest) == "" {
+		return presetFrontendRoutes(opts.Preset)
+	}
+	routes, err := loadFrontendRoutes(opts.FrontendManifest)
+	if err != nil {
+		panic(err)
+	}
+	return routes
+}
+
+func loadFrontendRoutes(path string) ([]map[string]any, error) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("frontend manifest read failed: %w", err)
+	}
+	var input struct {
+		Routes []map[string]any `json:"routes"`
+	}
+	if err := json.Unmarshal(body, &input); err != nil {
+		return nil, fmt.Errorf("frontend manifest JSON invalid: %w", err)
+	}
+	if len(input.Routes) == 0 {
+		return nil, errors.New("frontend manifest must contain at least one route")
+	}
+	seenName, seenPath, seenID := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	normalized := make([]map[string]any, 0, len(input.Routes))
+	for _, route := range input.Routes {
+		name, _ := route["name"].(string)
+		path, _ := route["path"].(string)
+		testID, _ := route["test_id"].(string)
+		if name == "" || path == "" || testID == "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "\r\n") {
+			return nil, errors.New("frontend manifest route requires safe name, absolute path and test_id")
+		}
+		if seenName[name] || seenPath[path] || seenID[testID] {
+			return nil, errors.New("frontend manifest contains duplicate route name, path or test_id")
+		}
+		seenName[name], seenPath[path], seenID[testID] = true, true, true
+		public := true
+		if value, ok := route["public"].(bool); ok {
+			public = value
+		}
+		normalized = append(normalized, map[string]any{"name": name, "path": path, "public": public, "test_id": testID})
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		return normalized[i]["name"].(string) < normalized[j]["name"].(string)
+	})
+	return normalized, nil
 }
 
 // presetFrontendRoutes is the generator's frontend contract. Keeping the

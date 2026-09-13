@@ -123,6 +123,44 @@ func TestPresetFrontendRoutesAreDeterministicAndCovered(t *testing.T) {
 	}
 }
 
+func TestFrontendBuildManifestOverridesPresetDeterministically(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "frontend.json")
+	if err := os.WriteFile(manifest, []byte(`{"routes":[{"name":"zeta","path":"/zeta","test_id":"route-z"},{"name":"alpha","path":"/alpha","test_id":"route-a"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	project, err := Generate(Options{Root: root, Name: "manifest-project", Preset: "news", FrontendManifest: manifest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(project, "e2e", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output struct {
+		Frontend struct {
+			Routes []map[string]any `json:"routes"`
+		} `json:"frontend"`
+	}
+	if err := json.Unmarshal(data, &output); err != nil {
+		t.Fatal(err)
+	}
+	if len(output.Frontend.Routes) != 2 || output.Frontend.Routes[0]["name"] != "alpha" || output.Frontend.Routes[1]["name"] != "zeta" {
+		t.Fatalf("routes not sorted/ingested: %#v", output.Frontend.Routes)
+	}
+}
+
+func TestFrontendBuildManifestRejectsUnsafeRoutes(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "frontend.json")
+	if err := os.WriteFile(manifest, []byte(`{"routes":[{"name":"bad","path":"//evil","test_id":"bad"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Generate(Options{Root: root, Name: "unsafe-manifest", Preset: "news", FrontendManifest: manifest}); err == nil {
+		t.Fatal("expected unsafe frontend route to be rejected")
+	}
+}
+
 func TestGeneratedHeadlessClientUsesPublishedEndpoints(t *testing.T) {
 	projectPath, err := Generate(Options{Root: t.TempDir(), Name: "headless-client", Preset: "headless"})
 	if err != nil {
