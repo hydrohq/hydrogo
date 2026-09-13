@@ -203,6 +203,7 @@ On each update, write short evidence next to the relevant task: the command exec
 - [x] Bound public Commerce catalog projections and add REST page metadata. (Evidence: `modules/commerce/catalog.go`, SQL `LIMIT/OFFSET` repository contract, `X-Catalog-*` headers, pagination regression test; `go test ./...` PASS.)
 - [x] Expose bounded pending refund reconciliation to administrators. (Evidence: `GET /admin/commerce/refunds/pending`, `ListPendingRefunds`, ADR-0034, OpenAPI schema; Commerce tests PASS.)
 - [x] Align Commerce legacy and versioned API routes. (Evidence: `/api/v1/commerce/...` and `/api/v1/webhooks/payment/{provider}` aliases, route regression test, ADR-0015 update; `go test ./...` PASS.)
+- [x] Make E2E metadata fail closed on cross-surface selector collisions. (Evidence: `tools/e2egen` rejects duplicate `test_id` values across admin fields, admin surfaces, and frontend routes; regression test `TestValidateRejectsCrossSurfaceTestIDCollision` PASS.)
 - [!] Race detector could not run on this Windows host because `CGO_ENABLED=1` requires an unavailable `gcc`; Linux CI race job remains the verification path. (Observed: `cgo: C compiler "gcc" not found`.)
 - [!] Full production gates remain external: real provider credentials, reverse proxy/process restart, backup/key escrow, customer capacity/RPO/RTO, and production signing ceremony. (Tracked in `docs/validation/PRODUCTION-GATES.md`; do not mark as local success.)
 
