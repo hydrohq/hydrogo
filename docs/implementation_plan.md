@@ -478,12 +478,12 @@ The remaining improvement work is executed in small, independently verifiable
 stages. Each stage must leave the repository green, update the affected ADR or
 validation record, and be committed and pushed before the next stage starts.
 
-1. **Resource and data bounds:** add pagination/maximum limits to public and
+1. **Resource and data bounds (implemented):** add pagination/maximum limits to public and
    administrative list projections, query timeouts, and regression tests for
    bounded memory use.
-2. **API contracts:** standardize JSON errors, pagination metadata, idempotency
+2. **API contracts (partially implemented):** standardize JSON errors, pagination metadata, idempotency
    behavior, OpenAPI coverage, and compatibility tests across REST/GraphQL.
-3. **Commerce reconciliation:** expose pending payment/refund reconciliation,
+3. **Commerce reconciliation (partially implemented):** expose pending payment/refund reconciliation,
    add provider replay/concurrency tests, and document operator runbooks.
 4. **Module isolation:** remove inactive-module navigation and construction,
    verify route/migration/worker/resource absence, and add compact-profile tests.
