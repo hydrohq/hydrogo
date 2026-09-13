@@ -781,42 +781,48 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		return result
 	}
-	pageCollection, ok := studioRegistry.Collection("pages")
-	if !ok {
-		return errors.New("admin studio pages collection missing")
-	}
-	for i := range pageCollection.Fields {
-		if pageCollection.Fields[i].ID == "body" {
-			pageCollection.Fields[i].Widget = "richtext"
+	var pageHTTP pagetransport.Handler
+	if moduleEnabled(cfg.Modules, "pages") {
+		pageCollection, ok := studioRegistry.Collection("pages")
+		if !ok {
+			return errors.New("admin studio pages collection missing")
 		}
-		if pageCollection.Fields[i].ID == "locale" {
-			if !cfg.I18N.Enabled {
-				pageCollection.Fields[i].Widget = "hidden"
-				pageCollection.Fields[i].VisibleInList = false
-			} else if len(cfg.I18N.Locales) > 0 {
-				pageCollection.Fields[i].Options = cfg.I18N.Locales
+		for i := range pageCollection.Fields {
+			if pageCollection.Fields[i].ID == "body" {
+				pageCollection.Fields[i].Widget = "richtext"
+			}
+			if pageCollection.Fields[i].ID == "locale" {
+				if !cfg.I18N.Enabled {
+					pageCollection.Fields[i].Widget = "hidden"
+					pageCollection.Fields[i].VisibleInList = false
+				} else if len(cfg.I18N.Locales) > 0 {
+					pageCollection.Fields[i].Options = cfg.I18N.Locales
+				}
 			}
 		}
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
-	pageHTTP := pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale}
-	newsCollection, ok := studioRegistry.Collection("news")
-	if !ok {
-		return errors.New("admin studio news collection missing")
-	}
-	for i := range newsCollection.Fields {
-		if newsCollection.Fields[i].ID == "body" {
-			newsCollection.Fields[i].Widget = "richtext"
+	var newsHTTP newstransport.Handler
+	if moduleEnabled(cfg.Modules, "news") {
+		newsCollection, ok := studioRegistry.Collection("news")
+		if !ok {
+			return errors.New("admin studio news collection missing")
 		}
-		if newsCollection.Fields[i].ID == "locale" {
-			if !cfg.I18N.Enabled {
-				newsCollection.Fields[i].Widget = "hidden"
-				newsCollection.Fields[i].VisibleInList = false
-			} else if len(cfg.I18N.Locales) > 0 {
-				newsCollection.Fields[i].Options = cfg.I18N.Locales
+		for i := range newsCollection.Fields {
+			if newsCollection.Fields[i].ID == "body" {
+				newsCollection.Fields[i].Widget = "richtext"
+			}
+			if newsCollection.Fields[i].ID == "locale" {
+				if !cfg.I18N.Enabled {
+					newsCollection.Fields[i].Widget = "hidden"
+					newsCollection.Fields[i].VisibleInList = false
+				} else if len(cfg.I18N.Locales) > 0 {
+					newsCollection.Fields[i].Options = cfg.I18N.Locales
+				}
 			}
 		}
+		newsHTTP = newstransport.Handler{Service: newsService, DB: db, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
-	newsHTTP := newstransport.Handler{Service: newsService, DB: db, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
 	if modules["pages"] {
 		routes = append(routes, pageRouterRoutes(pageHTTP.Routes())...)
