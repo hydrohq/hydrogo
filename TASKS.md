@@ -293,6 +293,7 @@ Run related tests after every change. If possible, use gofmt, go vet, and target
 - [x] News admin validation fixture’ları oversized metadata reddini izole şekilde doğruluyor. (Kanıt: `modules/news/model_test.go`.)
 - [x] Pages ID/slug/title/body uzunluk sınırları ve izole validation fixture’ları eklendi. (Kanıt: `modules/pages/service/content.go`, `validation_test.go`.)
 - [x] Pages hero/CTA block zorunlu metin alanları 512 karakterle sınırlandı; oversized payload validation kapsamına alındı. (Kanıt: `modules/pages/blocks.go`.)
+- [x] Auth user creation e-posta uzunluk ve RFC adres doğrulamasıyla fail-closed hale getirildi. (Kanıt: `internal/auth/service.go`.)
 - [x] Sitemap rota projeksiyonu sınırsız sorgudan çıkarıldı; maksimum 10.000 kayıtla bellek/yanıt büyümesi sınırlandı. (Kanıt: `modules/pages/repository/sqlstore/content.go`.)
 - [x] Yetkiler ekranının kalan fragment stilleri global Admin stylesheet'e taşındı: tablo, rozetler ve yetki kuralları kartı artık ilk SPA açılışında da stilli render edilir. (Kanıt: `AdminPermissionsCSS`, `e2e/manifest.json`; Chromium 14/14 PASS.)
 ### Phase 11 — Üye Portalı, Hesap Yönetimi & Dinamik Navigasyon

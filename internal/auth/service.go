@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
@@ -64,6 +65,12 @@ func (s *AuthService) CreateUser(ctx context.Context, email, password string, ro
 		return nil, ErrUserRepositoryRequired
 	}
 	normEmail := NormalizeEmail(email)
+	if len(normEmail) > 320 || normEmail == "" {
+		return nil, errors.New("invalid email address")
+	}
+	if parsed, err := mail.ParseAddress(normEmail); err != nil || parsed.Address != normEmail {
+		return nil, errors.New("invalid email address")
+	}
 	if existing, _ := s.userRepo.GetByEmail(ctx, normEmail); existing != nil {
 		return nil, ErrUserAlreadyExists
 	}
