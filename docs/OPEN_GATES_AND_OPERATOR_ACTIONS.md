@@ -114,6 +114,8 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 ## 4. Bu tarihte yerel olarak doğrulananlar
 
 - [x] `go test ./... -p 1 -timeout=5m`
+- [x] Temiz WSL Ubuntu ortamında `go test -race ./... -p 1 -count=1` tüm paketlerde PASS;
+  uzun süreli yük/soak ve gerçek müşteri kapasite ölçümü ayrı production gate olarak açık.
 - [x] `go vet ./...`
 - [x] `git diff --check` (mevcut CRLF dönüşüm uyarısı dışında hata yok)
 - [x] Lisans imza, tamper, expiry/grace, project/edition/feature kontrolleri
