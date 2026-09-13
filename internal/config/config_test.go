@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -32,6 +33,18 @@ database:
 	_, err = Load(path, lookup(env), Overrides{DatabaseDSN: &dsn})
 	if err == nil || !strings.Contains(err.Error(), "multiple secret sources") {
 		t.Fatalf("secret conflict error = %v", err)
+	}
+}
+
+func TestLoadNormalizesModuleNamesBeforeRuntimeComposition(t *testing.T) {
+	path := writeConfig(t, "modules: [ Core, ' pages ', MEDIA ]\n")
+	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"core", "pages", "media"}
+	if !reflect.DeepEqual(cfg.Modules, want) {
+		t.Fatalf("normalized modules = %#v, want %#v", cfg.Modules, want)
 	}
 }
 

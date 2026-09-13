@@ -299,6 +299,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if dsnSources > 1 {
 		return Config{}, errors.New("database DSN is defined by multiple secret sources")
 	}
+	for index, module := range result.Modules {
+		result.Modules[index] = strings.ToLower(strings.TrimSpace(module))
+	}
 
 	if overrides.HTTPAddress != nil {
 		result.HTTP.Address = *overrides.HTTPAddress
