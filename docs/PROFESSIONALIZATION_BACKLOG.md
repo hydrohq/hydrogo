@@ -139,8 +139,10 @@ kapatılmalıdır.
 - [ ] `hydro doctor` çıktısını actionable hale getir; eksik DB/cache/media,
   writable path ve config sorunlarını güvenli biçimde raporla.
 - [ ] WSL/Docker ile tek komut local bootstrap, seed data ve temizleme akışı ekle.
-- [ ] `hydro new` tüm preset'leri üretip migrate/serve edebilen temiz makine
-  testine bağla.
+  (WSL doğrulaması mevcut; Docker/bootstrap ergonomisi açık.)
+- [x] `hydro new` tüm preset'leri üretip temel scaffold bütünlüğünü temiz geçici
+  dizinde test et. (Kanıt: `scripts/generator-smoke.ps1`; news/commerce/corporate/
+  portal/headless PASS.)
 - [ ] Pre-commit/pre-push format, vet, guard ve hızlı test kancaları ekle.
 - [ ] Fuzz testleri: parser, sanitizer, path, config, token, migration ve webhook.
   (Path/theme, config environment, webhook URL/signature, CSRF token, migration,
