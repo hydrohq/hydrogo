@@ -63,7 +63,8 @@ func ValidateSetting(value Setting) error {
 
 func ValidateNavigation(value NavigationItem) error {
 	href := strings.TrimSpace(value.Href)
-	if value.ID == "" || value.Locale == "" || strings.TrimSpace(value.Label) == "" || value.Position < 0 || href == "" {
+	label := strings.TrimSpace(value.Label)
+	if value.ID == "" || len(value.ID) > 128 || value.Locale == "" || len(value.Locale) > 16 || label == "" || len(label) > 256 || value.Position < 0 || href == "" || len(href) > 2048 {
 		return ErrInvalidNavigation
 	}
 	parsed, err := url.Parse(href)
