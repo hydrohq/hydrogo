@@ -474,6 +474,10 @@ The success of this plan is not measured by the creation of files and layers, bu
 
 ## 17. Hardening execution roadmap (2026-09)
 
+The strict modular monolith target and sequential work packages are detailed in
+[`STRICT_MODULAR_MONOLITH_PLAN.md`](STRICT_MODULAR_MONOLITH_PLAN.md) and governed
+by [ADR-0037](architecture/0037-strict-modular-monolith-boundaries.md).
+
 The remaining improvement work is executed in small, independently verifiable
 stages. Each stage must leave the repository green, update the affected ADR or
 validation record, and be committed and pushed before the next stage starts.

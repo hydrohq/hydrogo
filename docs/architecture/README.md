@@ -64,6 +64,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0034](0034-refund-reconciliation-state.md) | Idempotent refund reconciliation state | Accepted |
 | [0035](0035-secure-payment-return-url-validation.md) | Secure payment return URL validation | Accepted |
 | [0036](0036-bounded-public-catalog-projections.md) | Bounded public catalog projections | Accepted |
+| [0037](0037-strict-modular-monolith-boundaries.md) | Strict modular monolith boundaries | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
