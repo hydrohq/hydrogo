@@ -29,3 +29,7 @@ preventing accidental coupling and inactive-module overhead. It requires
 additional registry, import-guard, migration, and contract tests. Shared Core UI
 and infrastructure remain allowed; module-specific behavior must stay inside
 the module or its published contract.
+
+Registry names are canonicalized (trimmed and lowercased) before duplicate
+detection so module composition cannot diverge because of presentation-only
+spelling differences.

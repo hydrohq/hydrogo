@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/extension"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
@@ -23,7 +24,7 @@ func (r *Registry) Register(m extension.Module) error {
 	if guards.IsNil(m) {
 		return fmt.Errorf("cannot register nil module")
 	}
-	name := m.Name()
+	name := strings.ToLower(strings.TrimSpace(m.Name()))
 	if name == "" {
 		return fmt.Errorf("module name cannot be empty")
 	}

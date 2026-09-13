@@ -71,3 +71,19 @@ func TestModuleRouteRegistration(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d", rec.Code)
 	}
 }
+
+func TestRegisterCanonicalizesModuleNamesAndRejectsDuplicates(t *testing.T) {
+	reg := NewRegistry()
+	if err := reg.Register(dummyModule{name: "  News  "}); err != nil {
+		t.Fatalf("canonical registration failed: %v", err)
+	}
+	if err := reg.Register(dummyModule{name: "news"}); err == nil {
+		t.Fatal("canonical duplicate module name was accepted")
+	}
+}
+
+func TestRegisterRejectsWhitespaceOnlyModuleName(t *testing.T) {
+	if err := NewRegistry().Register(dummyModule{name: " \t "}); err == nil {
+		t.Fatal("whitespace-only module name was accepted")
+	}
+}
