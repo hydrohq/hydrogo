@@ -21,6 +21,8 @@ import (
 
 var ErrInvalidEndpoint = errors.New("invalid webhook endpoint")
 
+const maxWebhookBackoff = 30 * time.Second
+
 type Endpoint struct {
 	ID     string
 	URL    string
@@ -64,6 +66,9 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	backoff := d.Backoff
 	if backoff <= 0 {
 		backoff = 250 * time.Millisecond
+	}
+	if backoff > maxWebhookBackoff {
+		backoff = maxWebhookBackoff
 	}
 	sleep := d.Sleep
 	if sleep == nil {

@@ -52,6 +52,30 @@ func TestDispatcherRejectsInvalidEndpoint(t *testing.T) {
 	}
 }
 
+func TestDispatcherClampsBackoff(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "retry", http.StatusBadGateway)
+	}))
+	defer server.Close()
+	var delays []time.Duration
+	d := Dispatcher{
+		Client:      server.Client(),
+		Endpoints:   []Endpoint{{ID: "erp", URL: server.URL, Secret: "secret", Topics: map[string]struct{}{"order.paid": {}}}},
+		MaxAttempts: 2,
+		Backoff:     time.Duration(1<<63 - 1),
+		Sleep: func(_ context.Context, delay time.Duration) error {
+			delays = append(delays, delay)
+			return nil
+		},
+	}
+	if err := d.Dispatch(context.Background(), Event{ID: "evt", Topic: "order.paid", AggregateID: "order", PayloadVersion: 1}); err == nil {
+		t.Fatal("expected failed delivery")
+	}
+	if len(delays) != 1 || delays[0] != maxWebhookBackoff {
+		t.Fatalf("backoff delays = %v, want [%v]", delays, maxWebhookBackoff)
+	}
+}
+
 func TestDispatcherRejectsInvalidRedirectTarget(t *testing.T) {
 	targetCalled := atomic.Bool{}
 	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
