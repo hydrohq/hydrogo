@@ -152,7 +152,8 @@ credential, legal decision, or product decision and must remain an open gate.
 
 - [x] Document when to use server-rendered HTML, HTMX, or a separately built
   frontend in `docs/FRONTEND_ARCHITECTURE.md`.
-- [ ] Define a versioned frontend manifest/route/selector contract.
+- [x] Define a versioned frontend manifest/route/selector contract in
+  `internal/ui` and `docs/FRONTEND_MANIFEST.md`.
 - [ ] Define state, error, loading, and optimistic-update conventions.
 - [ ] Measure build and iteration time for a standard customer feature.
 
