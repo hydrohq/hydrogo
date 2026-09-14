@@ -46,6 +46,12 @@ func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 			t.Fatalf("admin shell missing blank-target hardening %q", want)
 		}
 	}
+	if strings.Contains(out.String(), "/public/news/tr/html") {
+		t.Fatal("admin preview link must not hard-code the legacy locale")
+	}
+	if !strings.Contains(out.String(), `href="/" target="_blank"`) {
+		t.Fatal("admin preview link must use locale-neutral root")
+	}
 }
 
 func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
