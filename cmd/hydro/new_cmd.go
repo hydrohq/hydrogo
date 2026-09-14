@@ -24,6 +24,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	withGit := flags.Bool("git", false, "Run git init in the new project")
 	root := flags.String("root", ".", "Parent directory for the new project")
 	frontendManifest := flags.String("frontend-manifest", "", "JSON frontend build manifest containing routes and test_id selectors")
+	designSystem := flags.String("design-system", "native", "Design system provider identifier (native, shadcn, material, carbon or custom)")
 
 	projectName := ""
 	parseArgs := args
@@ -116,6 +117,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		E2E:              true,
 		Git:              *withGit,
 		FrontendManifest: *frontendManifest,
+		DesignSystem:     *designSystem,
 	})
 	if err != nil {
 		return err

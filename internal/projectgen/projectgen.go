@@ -36,6 +36,7 @@ type Options struct {
 	E2E              bool   `json:"e2e"`
 	Git              bool   `json:"git"`
 	FrontendManifest string `json:"frontend_manifest,omitempty"`
+	DesignSystem     string `json:"design_system,omitempty"`
 }
 
 type Lock struct {
@@ -102,6 +103,12 @@ func Generate(opts Options) (string, error) {
 	opts.Presentation = strings.ToLower(strings.TrimSpace(opts.Presentation))
 	if opts.Edition == "" {
 		opts.Edition = "starter"
+	}
+	if opts.DesignSystem == "" {
+		opts.DesignSystem = "native"
+	}
+	if !projectNamePattern.MatchString(opts.DesignSystem) {
+		return "", fmt.Errorf("invalid design system %q", opts.DesignSystem)
 	}
 	if opts.Database != "sqlite" && opts.Database != "postgres" {
 		return "", fmt.Errorf("unsupported database %q (supported: sqlite, postgres)", opts.Database)
@@ -291,10 +298,11 @@ func presetFeatures(preset string) []string {
 
 func presetThemeFiles(themeName string, opts Options) map[string]string {
 	manifest := themev1.ThemeManifest{
-		Name:    themeName,
-		Version: "1.0.0",
-		Slots:   []string{"header", "content", "footer"},
-		Assets:  []string{"static/theme.css"},
+		Name:         themeName,
+		Version:      "1.0.0",
+		DesignSystem: opts.DesignSystem,
+		Slots:        []string{"header", "content", "footer"},
+		Assets:       []string{"static/theme.css"},
 	}
 	manifestJSON, _ := json.MarshalIndent(manifest, "", "  ")
 
