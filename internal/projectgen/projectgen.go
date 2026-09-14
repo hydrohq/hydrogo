@@ -552,17 +552,27 @@ HydroGo Client Edition project scaffolded with the **%s** preset.
 1. **Verify or obtain your license:**
    Place your vendor-signed `+"`hydro.lic`"+` in the project root. (Project ID: `+"`%s`"+`)
 
-2. **Run database migrations:**
+2. **Validate configuration (no database connection required):**
+   `+"```powershell"+`
+   hydro validate --config config.yaml
+   `+"```"+`
+
+3. **Run database migrations:**
    `+"```powershell"+`
    hydro migrate --config config.yaml
    `+"```"+`
 
-3. **Create the initial administrator:**
+4. **Create the initial administrator:**
    `+"```powershell"+`
    hydro create-admin --config config.yaml --email admin@example.test --password-stdin
    `+"```"+`
 
-4. **Start the server:**
+5. **Run tests with a bounded timeout:**
+   `+"```powershell"+`
+   hydro test --timeout 5m
+   `+"```"+`
+
+6. **Start the server:**
    `+"```powershell"+`
    hydro serve --config config.yaml
    `+"```"+`
