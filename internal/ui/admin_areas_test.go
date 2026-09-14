@@ -54,6 +54,19 @@ func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 	}
 }
 
+func TestAdminShellWriterPreservesInputLengthAfterRewrite(t *testing.T) {
+	var out bytes.Buffer
+	writer := adminShellWriter{Writer: &out}
+	payload := []byte(`/public/news/tr/html`)
+	n, err := writer.Write(payload)
+	if err != nil || n != len(payload) {
+		t.Fatalf("writer contract violated: n=%d len=%d err=%v", n, len(payload), err)
+	}
+	if out.String() != "/" {
+		t.Fatalf("unexpected rewritten output: %q", out.String())
+	}
+}
+
 func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Test", "", "nonce-test", ""); err != nil {
