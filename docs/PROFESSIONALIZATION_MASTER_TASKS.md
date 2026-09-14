@@ -95,7 +95,8 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### REL-01 Observability and operations (`LOCAL`)
 
-- [ ] Standardize metric names, labels, cardinality limits, and log fields.
+- [x] Standardize metric names, labels, cardinality limits, and log fields in
+  `docs/OBSERVABILITY_CONTRACT.md`.
 - [ ] Add request/actor/session/job correlation with mandatory secret/PII
   redaction.
 - [ ] Add Prometheus/OpenTelemetry exporters behind explicit configuration.
