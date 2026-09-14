@@ -7,6 +7,8 @@ import (
 
 type versionedModule struct{}
 
+var _ Module = versionedModule{}
+
 func (versionedModule) Name() string { return "example" }
 func (versionedModule) Routes() []ModuleRoute {
 	return []ModuleRoute{PublicRoute("GET /example", http.NotFoundHandler())}
