@@ -90,7 +90,9 @@ credential, legal decision, or product decision and must remain an open gate.
   `internal/media/http_test.go`; external penetration testing remains open.
 - [ ] Add secret/key rotation and emergency revoke runbook plus local contract
   tests.
-- [ ] Add PII masking and audit access-policy tests for logs and admin views.
+- [x] Add PII masking and audit access-policy tests for logs and admin views;
+  unauthorized member detail requests are denied and optional session storage
+  cannot panic the admin read path.
 - [ ] Add CSP report parsing and regression coverage for all generated pages.
 - [ ] Expand boundary tests so raw SQL/cache/queue details cannot leak into
   domain/application packages.

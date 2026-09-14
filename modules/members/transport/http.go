@@ -416,7 +416,10 @@ func (h Handler) adminDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions, _ := h.Service.Sessions.ListByMemberID(r.Context(), id)
+	var sessions []members.Session
+	if h.Service.Sessions != nil {
+		sessions, _ = h.Service.Sessions.ListByMemberID(r.Context(), id)
+	}
 	var auditEvents []members.AuditEvent
 	if h.Service.Audit != nil {
 		auditEvents, _ = h.Service.Audit.ListByTargetID(r.Context(), id, 20)

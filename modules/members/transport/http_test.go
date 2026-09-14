@@ -223,3 +223,29 @@ func TestAdminSetActiveRejectsExternalRefererRedirect(t *testing.T) {
 		t.Fatalf("Location = %q, want local fallback", got)
 	}
 }
+
+func TestAdminMemberDetailEnforcesAccessAndHandlesMissingSessionStore(t *testing.T) {
+	store := newMemoryMemberStore()
+	store.members["m1"] = &members.Member{ID: "m1", Email: "member@example.com", Active: true}
+	handler := transport.Handler{Service: members.Service{Members: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	unauthorized := httptest.NewRecorder()
+	mux.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/admin/members/m1", nil))
+	if unauthorized.Code != http.StatusForbidden {
+		t.Fatalf("unauthorized admin detail status = %d, want 403", unauthorized.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/admin/members/m1", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Active: true, Role: auth.RoleAdmin}))
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("admin detail with missing session store status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "member@example.com") {
+		t.Fatal("authorized admin detail did not render member identity")
+	}
+}
