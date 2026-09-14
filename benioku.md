@@ -6,6 +6,8 @@
 **Task özeti:** **62 tamamlandı / 18 açık / 80 toplam**
 **Son push:** güncel E2E navigation/auth doğrulaması ve status senkronizasyonu.
 
+Yerel kapanış denetimi: [local-closure-audit-2026-09-15.md](docs/validation/local-closure-audit-2026-09-15.md).
+
 Bu dosya, çalışma sırasında ekranda görünmeyen ilerleme mesajlarının kalıcı
 özetidir. Ana ayrıntılı liste `docs/PROFESSIONALIZATION_MASTER_TASKS.md` içinde,
 harici kapılar ise `docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md` içindedir.
