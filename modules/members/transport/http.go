@@ -523,10 +523,18 @@ func (h Handler) adminSetActive(w http.ResponseWriter, r *http.Request) {
 	}
 	ref := r.Header.Get("Referer")
 	if ref != "" {
-		http.Redirect(w, r, ref, http.StatusSeeOther)
+		// Referer is attacker-controlled. Restrict redirects to an in-origin
+		// path so a forged header cannot turn this mutation into an open redirect.
+		if safeRef := security.SafeReturnPath(ref, ""); safeRef != "" {
+			http.Redirect(w, r, safeRef, http.StatusSeeOther)
+			return
+		}
+	}
+	if id != "" {
+		http.Redirect(w, r, "/admin/members/"+url.PathEscape(id), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/admin/members/"+id, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/members", http.StatusSeeOther)
 }
 
 func (h Handler) adminSetEmailVerified(w http.ResponseWriter, r *http.Request) {

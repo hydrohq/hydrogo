@@ -202,3 +202,24 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 		t.Fatalf("GET /member/me unauthenticated status = %d, expected 401", unauthRR.Code)
 	}
 }
+
+func TestAdminSetActiveRejectsExternalRefererRedirect(t *testing.T) {
+	svc := members.Service{Members: newMemoryMemberStore(), Sessions: newMemorySessionStore()}
+	handler := transport.Handler{Service: svc}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	req := httptest.NewRequest("POST", "/admin/members/member-1/active", strings.NewReader("active=true"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", "https://evil.example/phish")
+	req = req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusSeeOther)
+	}
+	if got := rr.Header().Get("Location"); got != "/admin/members/member-1" {
+		t.Fatalf("Location = %q, want local fallback", got)
+	}
+}
