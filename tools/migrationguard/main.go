@@ -12,10 +12,15 @@ import (
 )
 
 type metadata struct {
-	ID           string            `yaml:"id"`
-	Module       string            `yaml:"module"`
-	Dependencies []string          `yaml:"dependencies"`
-	Checksums    map[string]string `yaml:"checksum_sha256"`
+	ID            string            `yaml:"id"`
+	Module        string            `yaml:"module"`
+	Dependencies  []string          `yaml:"dependencies"`
+	Checksums     map[string]string `yaml:"checksum_sha256"`
+	Transactional map[string]bool   `yaml:"transactional"`
+	LockTimeout   string            `yaml:"lock_timeout"`
+	DiskEstimate  string            `yaml:"disk_estimate"`
+	Compatibility string            `yaml:"compatibility"`
+	Rollback      string            `yaml:"rollback"`
 }
 
 func main() {
@@ -51,6 +56,17 @@ func main() {
 		}
 		if m.Checksums["sqlite"] == "" || m.Checksums["postgres"] == "" {
 			failures = append(failures, fmt.Sprintf("%s: sqlite/postgres checksums are required", id))
+		}
+		if _, ok := m.Transactional["sqlite"]; !ok {
+			failures = append(failures, fmt.Sprintf("%s: transactional.sqlite is required", id))
+		}
+		if _, ok := m.Transactional["postgres"]; !ok {
+			failures = append(failures, fmt.Sprintf("%s: transactional.postgres is required", id))
+		}
+		for field, value := range map[string]string{"lock_timeout": m.LockTimeout, "disk_estimate": m.DiskEstimate, "compatibility": m.Compatibility, "rollback": m.Rollback} {
+			if strings.TrimSpace(value) == "" {
+				failures = append(failures, fmt.Sprintf("%s: %s is required", id, field))
+			}
 		}
 		for _, dep := range m.Dependencies {
 			if !known[dep] {

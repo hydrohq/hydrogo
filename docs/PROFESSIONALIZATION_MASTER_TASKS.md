@@ -72,7 +72,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add profile-based pool, transaction, lock, and statement timeout tests.
 - [ ] Add portable export/import coverage for relations, locales, revisions, and
   secret/session exclusion.
-- [ ] Add migration metadata linting for compatibility, rollback, and lock cost.
+- [x] Add migration metadata linting for compatibility, rollback, and lock cost
+  via `tools/migrationguard`.
 
 ## P1 — Security, reliability, and frontend productization
 

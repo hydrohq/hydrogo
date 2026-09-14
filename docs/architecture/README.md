@@ -87,6 +87,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0057](0057-release-checklist-gates.md) | Evidence-based release checklist | Accepted |
 | [0058](0058-hydro-dev-entrypoint.md) | Local `hydro dev` entrypoint | Accepted |
 | [0059](0059-dependency-triage-cadence.md) | Evidence-based dependency triage cadence | Accepted |
+| [0060](0060-migration-metadata-lint.md) | Lint migration safety metadata before release | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
