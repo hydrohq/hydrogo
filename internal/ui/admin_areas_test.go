@@ -55,6 +55,8 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 		`hydro-ui-theme`,
 		`shadcn-light`,
 		`shadcn-dark`,
+		`updateVisualModeLabel`,
+		`değiştirmek için tıklayın`,
 	} {
 		if !strings.Contains(AdminShadcnCSS+AdminSPARouterJS, want) {
 			t.Fatalf("admin shell missing shadcn theme contract %q", want)
