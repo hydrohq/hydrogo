@@ -3,8 +3,8 @@
 **Son kontrol:** 15 Eylül 2026  
 **Dal:** `main`  
 **Git durumu:** Temiz, `origin/main` ile senkron  
-**Task özeti:** **61 tamamlandı / 19 açık / 80 toplam**
-**Son push:** `1755184` — browser auth gate tanısı ve açık kapı dokümantasyonu.
+**Task özeti:** **62 tamamlandı / 18 açık / 80 toplam**
+**Son push:** güncel E2E navigation/auth doğrulaması ve status senkronizasyonu.
 
 Bu dosya, çalışma sırasında ekranda görünmeyen ilerleme mesajlarının kalıcı
 özetidir. Ana ayrıntılı liste `docs/PROFESSIONALIZATION_MASTER_TASKS.md` içinde,
@@ -25,6 +25,8 @@ harici kapılar ise `docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md` içindedir.
 - `1a92426` — E2E generator’a reload/back/forward navigation-lifecycle testleri
   eklendi.
 - `1755184` — Browser auth setup 401 tanısı açık kapı olarak belgelendi.
+- Güncel Chromium E2E: auth harness düzeltmesi sonrası **35/35 PASS**; reload/back/forward
+  navigation akışları kanıtlandı.
 - Full local verification her anlamlı commit’te çalıştı: modül bütünlüğü,
   vulnerability scan, SBOM, asset guard, gofmt, vet, tam/shuffled test,
   fuzz smoke, build, generator smoke ve health/readiness geçti.

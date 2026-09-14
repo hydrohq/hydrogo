@@ -179,8 +179,9 @@ credential, legal decision, or product decision and must remain an open gate.
   left-to-right default for legacy theme callers.
 - [x] Add a theme render fixture for RTL locale attributes and long Unicode
   content; full locale formatting/browser matrix remains open.
-- [ ] Verify auth, editor, preview, media picker, cart, and checkout through
-  refresh/back-forward and cross-origin browser scenarios.
+- [x] Verify auth, editor, preview, media picker, cart, and checkout through
+  refresh/back-forward browser scenarios. Cross-origin proxy/BFF behavior
+  remains a separate product/ADR gate. Chromium run: 35/35 PASS.
 
 ### UI-02 Frontend architecture decision (`LOCAL` + `PRODUCT DECISION`)
 

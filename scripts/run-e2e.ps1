@@ -30,7 +30,12 @@ try {
     & $bin migrate --database-dialect sqlite --database-dsn $db
     & $bin seed-demo --confirm-demo --database-dialect sqlite --database-dsn $db
     if (-not $env:HYDRO_E2E_ADMIN_EMAIL) { $env:HYDRO_E2E_ADMIN_EMAIL = "e2e-admin@example.test" }
-    $env:HYDRO_E2E_ADMIN_PASSWORD | & $bin create-admin --email $env:HYDRO_E2E_ADMIN_EMAIL --password-stdin --database-dialect sqlite --database-dsn $db
+    # RedirectStandardInput avoids shell-specific native-pipe encoding and
+    # keeps the password bytes identical between create-admin and setup-auth.
+    $passwordFile = Join-Path $root "e2e-admin-password.txt"
+    [System.IO.File]::WriteAllText($passwordFile, $env:HYDRO_E2E_ADMIN_PASSWORD + "`n", [System.Text.UTF8Encoding]::new($false))
+    $createAdmin = Start-Process -FilePath $bin -ArgumentList @("create-admin", "--email", $env:HYDRO_E2E_ADMIN_EMAIL, "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", $db) -RedirectStandardInput $passwordFile -NoNewWindow -Wait -PassThru
+    if ($createAdmin.ExitCode -ne 0) { throw "create-admin failed with exit code $($createAdmin.ExitCode)" }
     $process = Start-Process -FilePath $bin -ArgumentList @("serve", "--database-dialect", "sqlite", "--database-dsn", $db, "--address", "127.0.0.1:$port") -WorkingDirectory $repo -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
     $env:HYDRO_E2E_BASE_URL = $baseURL
     $env:HYDRO_E2E_STORAGE_STATE = $state
