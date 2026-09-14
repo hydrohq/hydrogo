@@ -12,6 +12,8 @@
   contract.
 - Metadata-driven rich-text forms emit `role="textbox"`, `aria-multiline`, and
   a field label before Quill enhances the editor.
+- Empty metadata-driven lists emit a single, correctly spanning status cell
+  with a localized-safe message instead of a silent empty table body.
 
 ## Remaining browser gate
 

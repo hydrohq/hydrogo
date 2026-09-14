@@ -23,3 +23,27 @@ func TestRenderListShowsOnlyConfiguredColumnsAndEscapesRows(t *testing.T) {
 		t.Fatalf("list leaked hidden or unsafe data: %s", html)
 	}
 }
+
+func TestRenderListProvidesAccessibleEmptyState(t *testing.T) {
+	collection := Collection{ID: "products", Label: "Products", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Yeni", Href: "/admin/products/new"}}}
+	var out bytes.Buffer
+	if err := RenderList(&out, ListData{Collection: collection, EmptyMessage: "Henüz ürün eklenmedi."}); err != nil {
+		t.Fatal(err)
+	}
+	html := out.String()
+	for _, want := range []string{`colspan="2"`, `class="empty-state"`, `role="status"`, "Henüz ürün eklenmedi."} {
+		if !strings.Contains(html, want) {
+			t.Errorf("empty state missing %q: %s", want, html)
+		}
+	}
+}
+
+func TestRenderListUsesSafeDefaultEmptyMessage(t *testing.T) {
+	var out bytes.Buffer
+	if err := RenderList(&out, ListData{Collection: Collection{ID: "products", Label: "Products", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Yeni", Href: "/admin/products/new"}}}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Bu koleksiyonda henüz kayıt bulunmuyor.") {
+		t.Fatalf("default empty message missing: %s", out.String())
+	}
+}
