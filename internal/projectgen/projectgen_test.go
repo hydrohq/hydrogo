@@ -126,6 +126,22 @@ func TestGenerateMinimalProductionPresetAliases(t *testing.T) {
 	}
 }
 
+func TestGenerateProductPresetAliases(t *testing.T) {
+	for _, preset := range []string{"membership", "dashboard", "erp"} {
+		project, err := Generate(Options{Root: t.TempDir(), Name: "preset-" + preset, Preset: preset, Profile: "compact", Database: "sqlite"})
+		if err != nil {
+			t.Fatalf("%s: %v", preset, err)
+		}
+		cfg, err := config.Load(filepath.Join(project, "config.yaml"), nil, config.Overrides{})
+		if err != nil {
+			t.Fatalf("%s config: %v", preset, err)
+		}
+		if len(cfg.Modules) == 0 {
+			t.Fatalf("%s has no modules", preset)
+		}
+	}
+}
+
 func TestGenerateNormalizesMixedCasePreset(t *testing.T) {
 	project, err := Generate(Options{Root: t.TempDir(), Name: "mixed-case", Preset: "NeWs", Profile: "compact", Database: "sqlite"})
 	if err != nil {

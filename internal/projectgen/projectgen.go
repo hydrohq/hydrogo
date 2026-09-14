@@ -83,7 +83,7 @@ func Generate(opts Options) (string, error) {
 	// generated lockfile cannot disagree about mixed-case CLI input.
 	opts.Preset = strings.ToLower(strings.TrimSpace(opts.Preset))
 	if !isPreset(opts.Preset) {
-		return "", fmt.Errorf("%w: %q (supported: news, editorial, commerce, compact-site, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
+		return "", fmt.Errorf("%w: %q (supported: news, editorial, commerce, membership, dashboard, erp, compact-site, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
 	}
 	if opts.Profile == "" {
 		opts.Profile = "compact"
@@ -259,7 +259,7 @@ func Generate(opts Options) (string, error) {
 
 func isPreset(value string) bool {
 	switch strings.ToLower(value) {
-	case "news", "editorial", "commerce", "compact-site", "corporate", "portal", "headless":
+	case "news", "editorial", "commerce", "membership", "dashboard", "erp", "compact-site", "corporate", "portal", "headless":
 		return true
 	default:
 		return false
@@ -272,6 +272,10 @@ func presetTheme(preset string) string {
 		return "newsroom"
 	case "commerce":
 		return "commerce"
+	case "membership":
+		return "portal"
+	case "dashboard", "erp":
+		return "portal"
 	case "portal":
 		return "portal"
 	case "headless":
@@ -287,6 +291,12 @@ func presetFeatures(preset string) []string {
 		return []string{"pages", "news", "media", "members", "site"}
 	case "commerce":
 		return []string{"pages", "commerce", "media", "members", "site"}
+	case "membership":
+		return []string{"pages", "members", "media", "site"}
+	case "dashboard":
+		return []string{"pages", "members", "media"}
+	case "erp":
+		return []string{"pages", "commerce", "members", "media", "site", "jobs"}
 	case "portal":
 		return []string{"pages", "news", "media", "members", "site"}
 	case "headless":
@@ -776,11 +786,15 @@ func presetFrontendRoutes(preset string) []map[string]any {
 			map[string]any{"name": "news_room", "path": "/public/news/tr/html", "public": true, "test_id": "news-feed"},
 			map[string]any{"name": "member_login", "path": "/member/login", "public": true, "test_id": "member-login"},
 		)
-	case "commerce":
+	case "commerce", "erp":
 		routes = append(routes,
 			map[string]any{"name": "shop", "path": "/shop", "public": true, "test_id": "product-catalog"},
 			map[string]any{"name": "cart", "path": "/cart", "public": true, "test_id": "shopping-cart"},
 		)
+	case "membership":
+		routes = append(routes, map[string]any{"name": "member_login", "path": "/member/login", "public": true, "test_id": "member-login"})
+	case "dashboard":
+		routes = append(routes, map[string]any{"name": "dashboard", "path": "/admin", "public": false, "test_id": "admin-dashboard"})
 	}
 	return routes
 }
