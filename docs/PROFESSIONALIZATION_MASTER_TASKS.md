@@ -104,8 +104,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add request/actor/session/job correlation with mandatory secret/PII
   redaction.
 - [ ] Add Prometheus/OpenTelemetry exporters behind explicit configuration.
-- [ ] Add deterministic alarm rules and dashboard examples for DB, cache,
-  queue, media, backup, migration, SMTP, and dead-letter conditions.
+- [x] Add deterministic alarm rules and dashboard examples for DB, cache,
+  queue, media, backup, migration, SMTP, and dead-letter conditions in
+  `docs/ALARM_RULES.md`.
 - [x] Add incident, rollback, and degraded-mode runbook templates in
   `docs/runbooks/INCIDENT_RESPONSE_TEMPLATE.md`.
 - [x] Add target-neutral SLO/SLI configuration schema and validation in
