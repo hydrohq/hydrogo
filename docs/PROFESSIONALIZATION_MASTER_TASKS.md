@@ -57,8 +57,8 @@ credential, legal decision, or product decision and must remain an open gate.
   in the SDK v1 task.
 - [x] Add compile-time compatibility and deprecation coverage for the public
   extension contracts; legacy v0 types now point to `extension/v1`.
-- [ ] Add module lifecycle contracts: install, enable, disable, upgrade, and
-  migration preflight.
+- [x] Add optional module lifecycle contracts for install, enable, disable,
+  upgrade, and migration preflight in `extension/v1`.
 - [ ] Add dependency graph validation and cycle detection for modules.
 - [x] Add dependency graph validation and cycle detection for modules in the
   versioned SDK boundary; runtime resolution remains Core-owned.

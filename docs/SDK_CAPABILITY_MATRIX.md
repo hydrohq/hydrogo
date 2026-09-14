@@ -9,6 +9,7 @@ packages are not SDK surface.
 | API version negotiation | `extension/v1` | Candidate | Same major version; candidate status is explicit | `version_test.go` |
 | Module identity and routes | `extension/v1` | Candidate | `Module`/`ModuleRoute` aliases preserve existing source compatibility | `module_test.go` |
 | Module dependency validation | `extension/v1` | Candidate | Names normalized; unknown nodes and cycles rejected | `dependencies_test.go` |
+| Optional module lifecycle hooks | `extension/v1` | Candidate | Install/enable/disable/upgrade and migration preflight are separate opt-in contracts | `lifecycle_test.go` |
 | Theme rendering | `extension/v1` | Candidate | `Theme` is the minimum; `BlockTheme` is optional | `theme_manifest_test.go`, edition builds |
 | Theme manifests/assets | `extension/v1` | Candidate | Validated names, slots, assets, and safe paths | `theme_manifest_test.go`, fuzz smoke |
 | Generated module scaffold | `internal/generator` (tooling only) | Local tooling | Generated code requires business-rule review | generator tests and smoke |
