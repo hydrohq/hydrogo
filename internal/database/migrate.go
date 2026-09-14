@@ -44,6 +44,7 @@ func ApplyMigrationsForModules(ctx context.Context, db *sql.DB, dialect Dialect,
 	if err := validateMigrationDialect(dialect); err != nil {
 		return err
 	}
+	enabled = canonicalEnabledModules(enabled)
 	migrations, err := discoverMigrations(migrationFS)
 	if err != nil {
 		return fmt.Errorf("failed to discover migrations: %w", err)
@@ -117,6 +118,20 @@ func ApplyMigrationsForModules(ctx context.Context, db *sql.DB, dialect Dialect,
 		}
 	}
 	return nil
+}
+
+func canonicalEnabledModules(enabled map[string]bool) map[string]bool {
+	if enabled == nil {
+		return nil
+	}
+	canonical := make(map[string]bool, len(enabled))
+	for name, active := range enabled {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name != "" && active {
+			canonical[name] = true
+		}
+	}
+	return canonical
 }
 
 var ErrUnknownMigration = errors.New("database contains a migration unknown to this binary")

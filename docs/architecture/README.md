@@ -83,6 +83,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0053](0053-semantic-ui-token-contract.md) | Semantic UI token contract | Accepted |
 | [0054](0054-observability-cardinality-contract.md) | Bounded observability dimensions | Accepted |
 | [0055](0055-incident-runbook-template.md) | Structured incident and rollback runbook template | Accepted |
+| [0056](0056-canonical-module-filtering.md) | Canonical module names in migration filtering | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

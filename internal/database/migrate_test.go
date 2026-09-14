@@ -151,6 +151,28 @@ func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
 	}
 }
 
+func TestFilteredMigrationsCanonicalizeEnabledModuleNames(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "mixed-case.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	migrationFS := fstest.MapFS{
+		"0001_base/sqlite.sql":      &fstest.MapFile{Data: []byte("CREATE TABLE base (id TEXT PRIMARY KEY);\n")},
+		"0001_base/migration.yaml":  &fstest.MapFile{Data: []byte("module: core\ntransactional:\n  sqlite: true\n")},
+		"0002_pages/sqlite.sql":     &fstest.MapFile{Data: []byte("CREATE TABLE pages (id TEXT PRIMARY KEY);\n")},
+		"0002_pages/migration.yaml": &fstest.MapFile{Data: []byte("module: pages\ntransactional:\n  sqlite: true\n")},
+	}
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrationFS, map[string]bool{" Pages ": true}); err != nil {
+		t.Fatalf("mixed-case module migration failed: %v", err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM pages").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("pages table was not selected: count=%d err=%v", count, err)
+	}
+}
+
 func TestFilteredMigrationsRejectInvalidRequiredModuleMetadata(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "invalid-metadata.sqlite"))
