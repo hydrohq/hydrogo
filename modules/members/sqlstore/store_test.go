@@ -3,6 +3,7 @@ package sqlstore_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -136,5 +137,20 @@ func TestSQLiteMemberAndSessionStore(t *testing.T) {
 	}
 	if valSess.ID != createdSess.ID || valMem.ID != "m-1" {
 		t.Fatalf("svc.ValidateSession mismatch: sess=%+v mem=%+v", valSess, valMem)
+	}
+}
+
+func TestSQLiteMemberCreateMapsUniqueEmailViolation(t *testing.T) {
+	db := setupTestDB(t)
+	store := sqlstore.Store{DB: db, Dialect: database.SQLite}
+	now := time.Now().UTC()
+	member := &members.Member{ID: "m-1", Email: "duplicate@example.com", PasswordHash: "hash", Active: true, CreatedAt: now, UpdatedAt: now}
+	if err := store.Create(context.Background(), member); err != nil {
+		t.Fatal(err)
+	}
+	duplicate := *member
+	duplicate.ID = "m-2"
+	if err := store.Create(context.Background(), &duplicate); !errors.Is(err, members.ErrMemberExists) {
+		t.Fatalf("expected ErrMemberExists, got %v", err)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Store struct {
@@ -52,6 +53,25 @@ func (s Store) Create(ctx context.Context, m *members.Member) error {
 		updatedAtVal = m.UpdatedAt.Format(time.RFC3339Nano)
 	}
 	_, err := s.DB.ExecContext(ctx, "INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES ("+s.ph(1)+","+s.ph(2)+","+s.ph(3)+","+s.ph(4)+","+s.ph(5)+","+s.ph(6)+","+s.ph(7)+","+s.ph(8)+")", m.ID, m.Email, m.PasswordHash, m.Active, verifiedAt, lastLoginAt, createdAtVal, updatedAtVal)
+	return mapMemberCreateError(err)
+}
+
+// mapMemberCreateError keeps driver-specific uniqueness failures behind the
+// repository contract. The service can therefore return the same safe domain
+// error for SQLite and PostgreSQL, including races between pre-check and
+// insert.
+func mapMemberCreateError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return members.ErrMemberExists
+	}
+	message := strings.ToLower(err.Error())
+	if strings.Contains(message, "unique constraint") || strings.Contains(message, "unique failed") || strings.Contains(message, "duplicate key") {
+		return members.ErrMemberExists
+	}
 	return err
 }
 
