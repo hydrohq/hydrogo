@@ -116,8 +116,9 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### UI-01 Shared design system (`LOCAL`)
 
-- [ ] Define one token contract for type, spacing, color, radius, elevation, and
-  motion across Admin, public themes, and member surfaces.
+- [x] Define one token contract for type, spacing, color, radius, elevation, and
+  motion across Admin, public themes, and member surfaces in
+  `docs/UI_DESIGN_SYSTEM.md`.
 - [ ] Extract shared Button, Field, FormError, Table, Pagination, Modal, Toast,
   Tabs, Empty, Loading, and Error components.
 - [ ] Make HydroGo and shadcn visual modes consume the same semantic markup.

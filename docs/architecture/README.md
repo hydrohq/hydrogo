@@ -80,6 +80,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0050](0050-module-dependency-graph-validation.md) | Module dependency graph validation | Accepted |
 | [0051](0051-resource-create-cli-alias.md) | Resource-oriented CRUD scaffold command | Accepted |
 | [0052](0052-migration-create-scaffold.md) | Reviewable migration scaffold command | Accepted |
+| [0053](0053-semantic-ui-token-contract.md) | Semantic UI token contract | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
