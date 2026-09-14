@@ -1943,6 +1943,10 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	demoLocale := strings.TrimSpace(cfg.I18N.DefaultLocale)
+	if demoLocale == "" {
+		demoLocale = "tr"
+	}
 	budget, err := capacity.Defaults(cfg.Profile)
 	if err != nil {
 		return err
@@ -2114,13 +2118,15 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	}
 
 	seedPage := func(id, slug, title, body, blocks string) error {
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,'tr',$3,$4,'published',1,1,1,$5,$5,$6,$6) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,'tr',?3,?4,'published',1,1,1,?5,?5,?6,?6)`, id, title, slug, body, blocks, now); err != nil {
+		localePath := url.PathEscape(demoLocale)
+		blocks = strings.ReplaceAll(strings.ReplaceAll(blocks, "/public/pages/tr/", "/public/pages/"+localePath+"/"), "/public/news/tr/", "/public/news/"+localePath+"/")
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,$3,$4,$5,'published',1,1,1,$6,$6,$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,?3,?4,?5,'published',1,1,1,?6,?6,?7,?7)`, id, title, demoLocale, slug, body, blocks, now); err != nil {
 			return err
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE pages SET locale='tr',slug=$1,title=$2,body=$3,blocks=$4,published_locale='tr',published_slug=$1,published_title=$2,published_body=$3,published_blocks=$4 WHERE id=$5`, `UPDATE pages SET locale='tr',slug=?1,title=?2,body=?3,blocks=?4,published_locale='tr',published_slug=?1,published_title=?2,published_body=?3,published_blocks=?4 WHERE id=?5`, slug, title, body, blocks, id); err != nil {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE pages SET locale=$1,slug=$2,title=$3,body=$4,blocks=$5,published_locale=$1,published_slug=$2,published_title=$3,published_body=$4,published_blocks=$5 WHERE id=$6`, `UPDATE pages SET locale=?1,slug=?2,title=?3,body=?4,blocks=?5,published_locale=?1,published_slug=?2,published_title=?3,published_body=?4,published_blocks=?5 WHERE id=?6`, demoLocale, slug, title, body, blocks, id); err != nil {
 			return err
 		}
-		return seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,'tr',$3,$4,$5,$6,$7) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,'tr',?3,?4,?5,?6,?7)`, id+"-rev-1", id, slug, title, body, blocks, now)
+		return seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,?3,?4,?5,?6,?7,?8)`, id+"-rev-1", id, demoLocale, slug, title, body, blocks, now)
 	}
 
 	homeBlocks := `[{"type":"hero","payload":{"title":"İçeriğinizi ve mağazanızı tek yerde yönetin","subtitle":"Sayfalar, haberler, medya ve ürün kataloğu için sade bir yönetim deneyimi.","media_asset_id":"demo-media-hero-home","button_text":"Yetenekleri incele →","button_url":"/public/pages/tr/showcase/html"}},{"type":"faq","payload":{"items":[{"question":"Hangi içerikleri yönetebilirim?","answer":"Sayfalar, haberler, medya varlıkları ve Commerce modülü açıksa ürünler, varyantlar ve siparişler yönetilebilir."},{"question":"SQLite ve PostgreSQL destekleniyor mu?","answer":"Her iki veritabanı için aynı davranış sözleşmeleri ve migration akışları bulunur; deployment öncesi ortamınıza uygun doğrulama yapılmalıdır."},{"question":"Üye hesabı nasıl çalışır?","answer":"Üyeler public frontend üzerinden kayıt olabilir, giriş yapabilir, sepet ve kendi sipariş geçmişlerini görebilir. Admin Studio erişimleri ayrıdır."},{"question":"Ödeme canlı mı?","answer":"Demo ortamında ödeme sağlayıcı akışı yalnızca yapılandırılmış sandbox veya test sağlayıcısı ile çalışır; canlı anahtarlar ayrıca kurulmalıdır."}]}},{"type":"cta","payload":{"title":"Kendi içerik akışınızı oluşturun","button_text":"Studio'ya git →","button_url":"/admin"}}]`
@@ -2315,10 +2321,10 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		if item.featured {
 			featuredInt = 1
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,'tr',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'published',1,1,1,0,$12,$12) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,'tr',?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,'published',1,1,1,0,?12,?12)`, item.id, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredInt, item.tags, item.body, now); err != nil {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'published',1,1,1,0,$13,$13) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,'published',1,1,1,0,?13,?13)`, item.id, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredInt, item.tags, item.body, now); err != nil {
 			return fmt.Errorf("seed news %s: %w", item.id, err)
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale='tr',slug=$1,title=$2,excerpt=$3,key_takeaways=$4,category=$5,author_name=$6,cover_media_id=$7,featured=$8,tags=$9,body=$10,status='published',published_revision=revision WHERE id=$11`, `UPDATE news_items SET locale='tr',slug=?1,title=?2,excerpt=?3,key_takeaways=?4,category=?5,author_name=?6,cover_media_id=?7,featured=?8,tags=?9,body=?10,status='published',published_revision=revision WHERE id=?11`, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredInt, item.tags, item.body, item.id); err != nil {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale=$1,slug=$2,title=$3,excerpt=$4,key_takeaways=$5,category=$6,author_name=$7,cover_media_id=$8,featured=$9,tags=$10,body=$11,status='published',published_revision=revision WHERE id=$12`, `UPDATE news_items SET locale=?1,slug=?2,title=?3,excerpt=?4,key_takeaways=?5,category=?6,author_name=?7,cover_media_id=?8,featured=?9,tags=?10,body=?11,status='published',published_revision=revision WHERE id=?12`, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredInt, item.tags, item.body, item.id); err != nil {
 			return fmt.Errorf("publish news %s: %w", item.id, err)
 		}
 	}

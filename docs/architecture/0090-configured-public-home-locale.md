@@ -23,5 +23,7 @@ home-page contract.
 
 Configured multilingual installations now land on their default locale, and a
 site administrator can choose a safe internal home path without changing the
-composition root. Missing, private, or external values safely fall back to the
-configured locale/demo route.
+composition root. The local `seed-demo` command writes pages and news using the
+same configured locale, so its fallback route remains resolvable. Missing,
+private, or external values safely fall back to the configured locale/demo
+route.
