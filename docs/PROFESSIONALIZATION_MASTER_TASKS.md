@@ -36,9 +36,10 @@ credential, legal decision, or product decision and must remain an open gate.
   and module metadata scaffolds. Business rules remain explicit review work.
 - [ ] Add `hydro resource create` for a collection and generated CRUD contract.
 - [ ] Add `hydro migration create` with dialect files and metadata skeleton.
-- [ ] Add `hydro test` and `hydro validate` wrappers with stable exit codes.
 - [x] Add dependency-free `hydro validate [--json]` with deterministic module
   output; runtime checks remain under `hydro doctor`.
+- [x] Add bounded `hydro test` wrapper with direct process arguments, timeout,
+  package selection, race toggle, and stable errors.
 - [ ] Add actionable command help, examples, and failure remediation text.
 - [ ] Add a first-module tutorial fixture and verify it in a clean temp tree.
 

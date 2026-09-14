@@ -26,6 +26,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -153,6 +154,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return doctor(args[1:], stdout, stderr)
 	case "validate":
 		return validateCommand(args[1:], stdout, stderr)
+	case "test":
+		return testCommand(args[1:], stdout, stderr)
 	case "backup":
 		return backupCommand(args[1:], stdout, stderr)
 	case "restore":
@@ -1345,6 +1348,43 @@ func validateCommand(args []string, stdout, stderr io.Writer) error {
 	return err
 }
 
+// testCommand runs the repository's Go tests with a bounded context. Arguments
+// are passed directly to exec.CommandContext; no shell interpolation is used.
+func testCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("test", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	packagePattern := flags.String("package", "./...", "Go package pattern to test")
+	timeout := flags.Duration("timeout", 5*time.Minute, "Maximum test duration")
+	race := flags.Bool("race", false, "Run the race detector")
+	count := flags.Int("count", 1, "Number of test runs")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if strings.TrimSpace(*packagePattern) == "" || *timeout <= 0 || *count <= 0 {
+		return errors.New("test requires a non-empty package, positive timeout, and positive count")
+	}
+	commandArgs := []string{"test", "-count=" + strconv.Itoa(*count), "-timeout=" + timeout.String()}
+	if *race {
+		commandArgs = append(commandArgs, "-race")
+	}
+	commandArgs = append(commandArgs, *packagePattern)
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+	command := exec.CommandContext(ctx, "go", commandArgs...)
+	command.Stdout = stdout
+	command.Stderr = stderr
+	if err := command.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("go tests exceeded timeout %s", timeout.String())
+		}
+		return fmt.Errorf("go test failed: %w", err)
+	}
+	return nil
+}
+
 func sortedModuleNames(modules map[string]bool) []string {
 	result := make([]string, 0, len(modules))
 	for name, enabled := range modules {
@@ -2370,6 +2410,7 @@ Usage:
   hydro seed-demo [runtime flags]
   hydro doctor [--json] [runtime flags]
   hydro validate [--json] [runtime flags]
+  hydro test [--package ./...] [--timeout 5m] [--race] [--count N]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup prune --root PATH --keep N --dry-run|--confirm [--pinned NAME,...]

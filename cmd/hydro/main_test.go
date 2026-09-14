@@ -88,6 +88,14 @@ func TestRunValidateJSONDoesNotRequireDatabase(t *testing.T) {
 	}
 }
 
+func TestRunTestRejectsInvalidBoundsBeforeLaunchingGo(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"test", "--timeout=0s"}, strings.NewReader(""), &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "positive timeout") {
+		t.Fatalf("test invalid timeout error = %v", err)
+	}
+}
+
 func TestLoginPageDoesNotExposeTransportOrServerErrors(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {
