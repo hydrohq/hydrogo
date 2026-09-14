@@ -70,8 +70,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Expand SQLite/PostgreSQL repository contract fixtures and error mapping.
 - [ ] Add query-plan/N+1 detection fixtures for list/detail surfaces.
 - [ ] Add profile-based pool, transaction, lock, and statement timeout tests.
-- [ ] Add portable export/import coverage for relations, locales, revisions, and
-  secret/session exclusion.
+- [x] Add portable export/import coverage for relations, locales, revisions,
+  and secret/session exclusion; SQLite is certified locally and PostgreSQL
+  execution remains an external gate.
 - [x] Add migration metadata linting for compatibility, rollback, and lock cost
   via `tools/migrationguard`.
 
