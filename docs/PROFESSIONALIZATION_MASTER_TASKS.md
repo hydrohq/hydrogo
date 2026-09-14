@@ -73,7 +73,7 @@ credential, legal decision, or product decision and must remain an open gate.
   fixture; PostgreSQL planner and production sizing remain external gates.
 - [x] Enforce the same 1–100 list limit at page/news repository boundaries,
   protecting direct callers that bypass HTTP validation.
-- [ ] Add profile-based pool, transaction, lock, and statement timeout tests.
+- [x] Add local profile-based pool and transaction contract tests; PostgreSQL lock and statement timeout certification remains an external gate.
 - [x] Add portable export/import coverage for relations, locales, revisions,
   and secret/session exclusion; SQLite is certified locally and PostgreSQL
   execution remains an external gate.
