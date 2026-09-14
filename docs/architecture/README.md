@@ -77,6 +77,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0047](0047-module-authoring-scaffold.md) | Reviewable module authoring scaffold | Accepted |
 | [0048](0048-bounded-test-cli.md) | Bounded test command for the developer workflow | Accepted |
 | [0049](0049-versioned-module-route-contract.md) | Versioned module route contract | Accepted |
+| [0050](0050-module-dependency-graph-validation.md) | Module dependency graph validation | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
