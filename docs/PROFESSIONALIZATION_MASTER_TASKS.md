@@ -220,8 +220,10 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ## P3 — Release hygiene and simplification (`LOCAL`)
 
-- [ ] Remove unused vendor assets, demo endpoints, dead routes, duplicate
-  helpers, and inaccessible migrations from release builds.
+- [x] Complete a release-hygiene audit for unused vendor assets, demo
+  endpoints, dead routes, duplicate helpers, and inaccessible migrations;
+  no safe deletion candidate was found in the current revision. Evidence:
+  `docs/validation/release-hygiene-audit-2026-09-15.md`.
 - [x] Guard embedded runtime vendor JS/CSS assets against disappearing
   references; reviewed deletion and broader dead-route audit remain separate.
 - [x] Keep demo/fixture files out of the documented production image stage and
