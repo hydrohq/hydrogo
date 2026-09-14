@@ -102,7 +102,7 @@ credential, legal decision, or product decision and must remain an open gate.
 
 - [x] Standardize metric names, labels, cardinality limits, and log fields in
   `docs/OBSERVABILITY_CONTRACT.md`.
-- [ ] Add request/actor/session/job correlation with mandatory secret/PII
+- [x] Add request/actor/session/job correlation with mandatory secret/PII
   redaction.
 - [x] Add the dependency-free Prometheus-compatible exporter behind explicit
   `Metrics` configuration; OpenTelemetry remains a separate integration gate.

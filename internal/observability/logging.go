@@ -36,6 +36,9 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 			if session := auth.SessionFromContext(r.Context()); session != nil && session.ID != "" {
 				attrs = append(attrs, slog.String("session_id", session.ID))
 			}
+			if jobID := security.JobIDFromContext(r.Context()); jobID != "" {
+				attrs = append(attrs, slog.String("job_id", jobID))
+			}
 			logger.LogAttrs(r.Context(), slog.LevelInfo, "http_request", attrs...)
 		})
 	}

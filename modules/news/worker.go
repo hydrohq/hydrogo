@@ -10,6 +10,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/jobs"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 type scheduleJob struct {
@@ -104,6 +105,9 @@ func (w Worker) RunOnce(ctx context.Context, workerID string, now time.Time) (bo
 	if !ok {
 		return false, nil
 	}
+	// Propagate only the opaque job ID; payload and lease secrets never enter
+	// the correlation context.
+	ctx = security.WithJobID(ctx, job.ID)
 	var payload scheduleJob
 	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
 		if err := w.deadLetter(ctx, job.ID, workerID, token, err.Error()); err != nil {

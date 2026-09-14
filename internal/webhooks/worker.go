@@ -6,6 +6,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/outbox"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 type OutboxStore interface {
@@ -33,6 +34,7 @@ func (w Worker) RunOnce(ctx context.Context, now time.Time) (bool, error) {
 	if err != nil || !claimed {
 		return claimed, err
 	}
+	ctx = security.WithJobID(ctx, event.ID)
 	err = w.Dispatcher.Dispatch(ctx, Event{ID: event.ID, Topic: event.Topic, AggregateID: event.AggregateID, PayloadVersion: event.PayloadVersion})
 	if err == nil {
 		return true, w.Store.Ack(ctx, w.DB, event.ID, w.WorkerID, token)
