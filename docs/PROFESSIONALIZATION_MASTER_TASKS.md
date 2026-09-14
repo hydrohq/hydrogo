@@ -77,7 +77,8 @@ credential, legal decision, or product decision and must remain an open gate.
 ### SEC-01 Security hardening (`LOCAL`)
 
 - [ ] Build a reusable abuse corpus for upload, SSRF, traversal, decompression
-  bombs, oversized bodies, and malformed multipart input.
+  bombs, oversized bodies, and malformed multipart input. (Initial redirect and
+  host-confusion corpus landed in `internal/security/abuse_corpus_test.go`.)
 - [ ] Add secret/key rotation and emergency revoke runbook plus local contract
   tests.
 - [ ] Add PII masking and audit access-policy tests for logs and admin views.
