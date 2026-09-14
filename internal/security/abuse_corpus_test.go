@@ -1,8 +1,10 @@
 package security
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -39,5 +41,18 @@ func TestAbuseCorpusRejectsHostConfusion(t *testing.T) {
 		if res.Code == http.StatusNoContent {
 			t.Errorf("host %q bypassed canonical host boundary", host)
 		}
+	}
+}
+
+func TestAbuseCorpusRejectsOversizedBody(t *testing.T) {
+	handler := RequestBodyLimitMiddleware(8, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/upload", strings.NewReader("123456789"))
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	if res.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized abuse corpus body status = %d", res.Code)
 	}
 }
