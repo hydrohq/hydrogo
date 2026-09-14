@@ -14,6 +14,9 @@
   a field label before Quill enhances the editor.
 - Empty metadata-driven lists emit a single, correctly spanning status cell
   with a localized-safe message instead of a silent empty table body.
+- HydroGo and shadcn visual modes target the same semantic component selectors
+  (`.studio-card`, `.studio-form`, `.button`, alerts, and search), keeping mode
+  changes presentation-only.
 
 ## Remaining browser gate
 

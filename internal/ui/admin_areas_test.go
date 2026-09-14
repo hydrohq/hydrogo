@@ -85,6 +85,20 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 	}
 }
 
+func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
+	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
+		if !strings.Contains(AdminCSS, selector) {
+			t.Fatalf("Hydro mode missing semantic selector %q", selector)
+		}
+		if !strings.Contains(AdminShadcnCSS, selector) {
+			t.Fatalf("Shadcn mode missing shared semantic selector %q", selector)
+		}
+	}
+	if !strings.Contains(AdminShadcnCSS, `html[data-ui-theme="shadcn"]`) {
+		t.Fatal("Shadcn styles are not scoped to the visual mode")
+	}
+}
+
 func TestAdminControlDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf"}); err != nil {

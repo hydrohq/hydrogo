@@ -166,7 +166,8 @@ credential, legal decision, or product decision and must remain an open gate.
   and correct table-column span.
 - [x] Give the shared rich-text editor an explicit multiline textbox role and
   server-rendered accessible name.
-- [ ] Make HydroGo and shadcn visual modes consume the same semantic markup.
+- [x] Make HydroGo and shadcn visual modes consume the same semantic markup;
+  shared selector coverage is guarded by an internal UI contract test.
 - [x] Add local keyboard/focus, reduced-motion, and accessible-name regressions; browser contrast and device audits remain external UI gates.
 - [ ] Add visual regression baselines for desktop, tablet, and mobile.
 - [ ] Add RTL, long-text, locale, date, number, and currency fixtures.
