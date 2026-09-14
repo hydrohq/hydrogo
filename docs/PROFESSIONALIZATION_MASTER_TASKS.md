@@ -102,7 +102,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add Prometheus/OpenTelemetry exporters behind explicit configuration.
 - [ ] Add deterministic alarm rules and dashboard examples for DB, cache,
   queue, media, backup, migration, SMTP, and dead-letter conditions.
-- [ ] Add incident, rollback, and degraded-mode runbook templates.
+- [x] Add incident, rollback, and degraded-mode runbook templates in
+  `docs/runbooks/INCIDENT_RESPONSE_TEMPLATE.md`.
 - [ ] Add SLO/SLI configuration schema and validation (without inventing target
   values).
 

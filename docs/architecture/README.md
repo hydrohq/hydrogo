@@ -82,6 +82,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0052](0052-migration-create-scaffold.md) | Reviewable migration scaffold command | Accepted |
 | [0053](0053-semantic-ui-token-contract.md) | Semantic UI token contract | Accepted |
 | [0054](0054-observability-cardinality-contract.md) | Bounded observability dimensions | Accepted |
+| [0055](0055-incident-runbook-template.md) | Structured incident and rollback runbook template | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
