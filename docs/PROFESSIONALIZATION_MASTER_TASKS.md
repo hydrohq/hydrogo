@@ -41,7 +41,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add bounded `hydro test` wrapper with direct process arguments, timeout,
   package selection, race toggle, and stable errors.
 - [ ] Add actionable command help, examples, and failure remediation text.
-- [ ] Add a first-module tutorial fixture and verify it in a clean temp tree.
+- [x] Add and validate `examples/module-starter` as a first-module tutorial
+  fixture; clean-temp generated output remains covered by generator smoke.
 
 ### EXT-01 Extension SDK boundary (`LOCAL`)
 

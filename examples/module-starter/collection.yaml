@@ -1,0 +1,28 @@
+version: v0
+collection:
+  name: testimonial
+  table: testimonials
+  permissions:
+    - testimonial.read
+    - testimonial.write
+  dialects:
+    - sqlite
+    - postgres
+  fields:
+    - name: quote
+      type: string
+      admin:
+        label: Quote
+        widget: textarea
+        visible_in_list: true
+    - name: author
+      type: string
+      admin:
+        label: Author
+        visible_in_list: true
+  admin:
+    label: Testimonials
+    description: A small example collection for module authoring.
+    actions:
+      - label: Open testimonials
+        href: /admin/testimonials

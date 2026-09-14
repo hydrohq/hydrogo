@@ -277,3 +277,17 @@ collection:
 		t.Fatal("unknown YAML field was accepted")
 	}
 }
+
+func TestModuleStarterFixtureLoadsAndValidates(t *testing.T) {
+	path := filepath.Join("..", "..", "examples", "module-starter", "collection.yaml")
+	spec, err := LoadSpec(path)
+	if err != nil {
+		t.Fatalf("starter fixture: %v", err)
+	}
+	if err := Validate(spec); err != nil {
+		t.Fatalf("starter fixture validation: %v", err)
+	}
+	if spec.Name != "testimonial" || len(spec.Fields) != 2 {
+		t.Fatalf("starter fixture spec = %#v", spec)
+	}
+}
