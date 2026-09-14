@@ -17,4 +17,6 @@ an inactive module does not require the other module's tables.
 
 List endpoints avoid predictable full scans as content grows, at the cost of
 four maintained secondary indexes. Migration metadata requires operators to
-estimate disk and lock impact before production rollout.
+estimate disk and lock impact before production rollout. Repository methods
+also reject limits outside 1–100 so non-HTTP callers cannot bypass the bounded
+read contract.

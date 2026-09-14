@@ -13,6 +13,8 @@ import (
 
 type Store struct{ Dialect database.Dialect }
 
+var ErrInvalidListLimit = errors.New("news list limit must be between 1 and 100")
+
 func (s Store) p(n int) string {
 	if s.Dialect == database.SQLite {
 		return "?"
@@ -163,6 +165,9 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 // supply a bounded limit; drafts, scheduled and retracted items never cross
 // this repository boundary into a public response.
 func (s Store) ListPublished(ctx context.Context, db database.Executor, locale string, limit int) ([]news.Item, error) {
+	if limit < 1 || limit > 100 {
+		return nil, ErrInvalidListLimit
+	}
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
@@ -192,6 +197,9 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 // ListAdmin returns bounded editorial summaries for the protected Studio list.
 // Unlike ListPublished it may include drafts, but never returns body content.
 func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) ([]news.Item, error) {
+	if limit < 1 || limit > 100 {
+		return nil, ErrInvalidListLimit
+	}
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}

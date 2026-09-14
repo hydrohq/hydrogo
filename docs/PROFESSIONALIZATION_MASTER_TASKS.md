@@ -71,6 +71,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add query-plan/N+1 detection fixtures for list/detail surfaces.
 - [x] Add bounded public/admin list indexes with a local planner regression
   fixture; PostgreSQL planner and production sizing remain external gates.
+- [x] Enforce the same 1–100 list limit at page/news repository boundaries,
+  protecting direct callers that bypass HTTP validation.
 - [ ] Add profile-based pool, transaction, lock, and statement timeout tests.
 - [x] Add portable export/import coverage for relations, locales, revisions,
   and secret/session exclusion; SQLite is certified locally and PostgreSQL
