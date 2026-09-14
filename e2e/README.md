@@ -18,6 +18,11 @@ npm run generate
 $env:HYDRO_E2E_STORAGE_STATE = "auth-state.json"
 npm run setup-auth
 npm test
+
+# Approved desktop visual goldens (requires a seeded server)
+HYDRO_VISUAL=1 npx playwright test visual.spec.ts
+# Create/update goldens only during a reviewed baseline change:
+HYDRO_VISUAL=1 npx playwright test visual.spec.ts --update-snapshots
 ```
 
 The storage state is optional for public frontend tests and required for the

@@ -15,5 +15,10 @@ export default defineConfig({
     video: "retain-on-failure",
     ...process.env.HYDRO_E2E_STORAGE_STATE ? { storageState: process.env.HYDRO_E2E_STORAGE_STATE } : {},
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", testIgnore: /visual\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "visual-desktop", testMatch: /visual\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "visual-tablet", testMatch: /visual\.spec\.ts/, use: { ...devices["iPad (gen 7)"] } },
+    { name: "visual-mobile", testMatch: /visual\.spec\.ts/, use: { ...devices["iPhone 13"] } },
+  ],
 });
