@@ -24,6 +24,20 @@ func TestNewRejectsUnclassifiedRoute(t *testing.T) {
 	}
 }
 
+func TestNewRejectsDuplicateExpandedRoutePatterns(t *testing.T) {
+	handler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+	_, err := New([]Route{
+		{Pattern: "GET /api/pages", Access: Public, Handler: handler},
+		{Pattern: "GET /api/v1/pages", Access: Public, Handler: handler},
+	}, nil)
+	if err == nil {
+		t.Fatal("duplicate API alias route was accepted")
+	}
+	if got := err.Error(); got != `duplicate route pattern "GET /api/v1/pages"` {
+		t.Fatalf("duplicate route error = %q", got)
+	}
+}
+
 func TestProtectedRouteRequiresAuthorization(t *testing.T) {
 	handler, err := New([]Route{{
 		Pattern: "GET /admin",

@@ -61,6 +61,8 @@ credential, legal decision, or product decision and must remain an open gate.
   upgrade, and migration preflight in `extension/v1`.
 - [x] Enforce that optional admin site/media routes are registered only when
   their modules are enabled; inactive modules now add no corresponding routes.
+- [x] Reject duplicate route patterns (including generated API v1 aliases) with
+  a startup error instead of allowing `ServeMux` to panic.
 - [x] Add dependency graph validation and cycle detection for modules (see
   the versioned SDK boundary contract below).
 - [x] Add dependency graph validation and cycle detection for modules in the

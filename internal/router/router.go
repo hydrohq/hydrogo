@@ -28,11 +28,16 @@ type Authorizer func(*http.Request) bool
 
 func New(routes []Route, authorize Authorizer) (http.Handler, error) {
 	mux := http.NewServeMux()
+	seen := make(map[string]struct{}, len(routes)*2)
 	for _, route := range routes {
 		if route.Pattern == "" || guards.IsNil(route.Handler) {
 			return nil, errors.New("route pattern and handler are required")
 		}
 		for _, pattern := range apiVersionedPatterns(route.Pattern) {
+			if _, exists := seen[pattern]; exists {
+				return nil, fmt.Errorf("duplicate route pattern %q", pattern)
+			}
+			seen[pattern] = struct{}{}
 			handler := route.Handler
 			if isLegacyAPIPath(pattern) {
 				handler = legacyAPIHandler(handler)
