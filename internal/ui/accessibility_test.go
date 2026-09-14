@@ -51,6 +51,19 @@ func TestAdminShellAccessibilityCSSContract(t *testing.T) {
 	}
 }
 
+func TestAdminShellDoesNotRenderRuntimeErrorDetails(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Güvenli yönetim", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	body := out.String()
+	for _, forbidden := range []string{"err.message", "error.message"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("admin shell exposes runtime error detail %q", forbidden)
+		}
+	}
+}
+
 func accessibleHTMLName(node *html.Node) string {
 	for _, attr := range node.Attr {
 		if attr.Key == "aria-label" || attr.Key == "title" {

@@ -312,7 +312,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 			notify(successMsg, 'success', 'İşlem Başarılı');
 			form.reset();
 		} catch (err) {
-			notify(err.message || 'İşlem sırasında bir hata oluştu.', 'error', 'Hata');
+			notify('İşlem sırasında bir hata oluştu.', 'error', 'Hata');
 		} finally {
 			if (btn) btn.classList.remove('is-loading');
 		}
@@ -361,7 +361,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 			notify('Medya başarıyla yüklendi ve işleme alındı.', 'success', 'Yükleme Başarılı');
 			form.reset();
 		} catch (err) {
-			notify(err.message || 'Medya yüklenirken hata oluştu.', 'error', 'Yükleme Başarısız');
+			notify('Medya yüklenirken hata oluştu.', 'error', 'Yükleme Başarısız');
 		} finally {
 			if (btn) btn.classList.remove('is-loading');
 		}
@@ -386,7 +386,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 			notify('Davet e-postası başarıyla gönderildi.', 'success', 'Davet Gönderildi');
 			form.reset();
 		} catch (err) {
-			notify(err.message || 'Davet gönderilemedi.', 'error', 'İşlem Başarısız');
+			notify('Davet gönderilemedi.', 'error', 'İşlem Başarısız');
 		} finally {
 			if (btn) btn.classList.remove('is-loading');
 		}

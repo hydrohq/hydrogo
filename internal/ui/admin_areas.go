@@ -247,7 +247,7 @@ function testEndpoint(btn, url){
       btn.textContent = '✓ Yanıt Alındı';
     })
     .catch(err => {
-      box.textContent = 'Hata: ' + err.message;
+      box.textContent = 'Hata: İstek tamamlanamadı.';
       box.style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'Tekrar Dene';
@@ -271,7 +271,7 @@ function testGraphQL(btn){
       btn.textContent = '✓ Query Tamam';
     })
     .catch(err => {
-      box.textContent = 'GraphQL Hatası: ' + err.message;
+      box.textContent = 'GraphQL isteği tamamlanamadı.';
       box.style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'Tekrar Dene';

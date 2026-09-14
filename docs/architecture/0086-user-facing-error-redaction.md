@@ -1,4 +1,4 @@
-# ADR-0086: Keep member browser transport errors generic
+# ADR-0086: Keep browser transport errors generic
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Member authentication pages run in an untrusted browser. Network and API
+Member and admin pages run in an untrusted browser. Network and API
 exceptions can contain implementation details, proxy text, or service metadata.
 Displaying runtime error details directly makes them part of the user-facing
 contract and can expose information that is useful to an attacker but not to a
@@ -14,8 +14,8 @@ member.
 
 ## Decision
 
-Member response sanitization removes runtime error expressions from rendered
-authentication pages and leaves a stable generic transport message. Diagnostic
+Member response sanitization and admin interaction handlers remove runtime error
+expressions from rendered pages and leave stable generic messages. Diagnostic
 details remain server-side and request correlation is the operational source for
 investigation.
 
