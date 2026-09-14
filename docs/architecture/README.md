@@ -117,6 +117,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0087](0087-blank-target-link-hardening.md) | Harden admin blank-target links | Accepted |
 | [0088](0088-inactive-module-route-isolation.md) | Isolate routes for inactive modules | Accepted |
 | [0089](0089-route-conflict-validation.md) | Validate route conflicts before startup | Accepted |
+| [0090](0090-configured-public-home-locale.md) | Derive public home locale from runtime configuration | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

@@ -55,6 +55,18 @@ func TestModuleHelpersCanonicalizeNames(t *testing.T) {
 	}
 }
 
+func TestPublicHomePathUsesConfiguredLocale(t *testing.T) {
+	if got := publicHomePath("tr-TR"); got != "/public/pages/tr-TR/demo/html" {
+		t.Fatalf("publicHomePath configured locale = %q", got)
+	}
+	if got := publicHomePath(" "); got != "/public/pages/en/demo/html" {
+		t.Fatalf("publicHomePath fallback locale = %q", got)
+	}
+	if got := publicHomePath("../ar"); got != "/public/pages/..%2Far/demo/html" {
+		t.Fatalf("publicHomePath escaped locale = %q", got)
+	}
+}
+
 func TestAdminControlRoutesRespectOptionalModules(t *testing.T) {
 	withoutOptional := adminControlRoutePatterns(map[string]bool{})
 	for _, pattern := range withoutOptional {

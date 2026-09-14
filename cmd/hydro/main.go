@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -922,7 +923,7 @@ func serve(args []string, stderr io.Writer) error {
 	if modules["pages"] {
 		routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/" {
-				http.Redirect(w, r, "/public/pages/tr/demo/html", http.StatusFound)
+				http.Redirect(w, r, publicHomePath(cfg.I18N.DefaultLocale), http.StatusFound)
 				return
 			}
 			http.NotFound(w, r)
@@ -1788,6 +1789,14 @@ func commerceRouterRoutes(routes []commercetransport.Route) []router.Route {
 		result = append(result, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
 	}
 	return result
+}
+
+func publicHomePath(locale string) string {
+	locale = strings.TrimSpace(locale)
+	if locale == "" {
+		locale = "en"
+	}
+	return "/public/pages/" + url.PathEscape(locale) + "/demo/html"
 }
 
 func moduleEnabled(modules []string, wanted string) bool {
