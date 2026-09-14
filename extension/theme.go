@@ -28,6 +28,8 @@ type FooterData struct {
 }
 
 // Theme defines the contract for client-edition UI customization without Core modification.
+//
+// Deprecated: use extension/v1.Theme for new integrations.
 type Theme interface {
 	Name() string
 	RenderPage(ctx context.Context, data PageViewData) templ.Component

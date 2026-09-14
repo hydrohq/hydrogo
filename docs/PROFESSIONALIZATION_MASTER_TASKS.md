@@ -55,8 +55,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Separate stable SDK imports from internal implementation imports for the
   module route boundary via `extension/v1`; broader capability extraction stays
   in the SDK v1 task.
-- [ ] Add compile-time compatibility and deprecation tests for every public
-  extension contract.
+- [x] Add compile-time compatibility and deprecation coverage for the public
+  extension contracts; legacy v0 types now point to `extension/v1`.
 - [ ] Add module lifecycle contracts: install, enable, disable, upgrade, and
   migration preflight.
 - [ ] Add dependency graph validation and cycle detection for modules.
