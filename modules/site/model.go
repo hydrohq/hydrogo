@@ -81,6 +81,9 @@ func ValidateSetting(value Setting) error {
 	if value.Key == "" || len(value.Key) > 128 || strings.ContainsAny(value.Key, " \t\r\n") || len(value.Value) > 64<<10 {
 		return ErrInvalidSetting
 	}
+	if value.Key == "site.home_path" && value.Public && ResolvePublicHomePath([]Setting{value}, "") == "" {
+		return ErrInvalidSetting
+	}
 	return nil
 }
 

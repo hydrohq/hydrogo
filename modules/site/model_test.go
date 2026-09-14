@@ -26,3 +26,14 @@ func TestResolvePublicHomePath(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSettingRejectsUnsafePublicHomePath(t *testing.T) {
+	for _, value := range []string{"https://evil.example", "//evil.example", "/%2F%2Fevil.example", "/\\evil.example", "/home\nnext"} {
+		if err := ValidateSetting(Setting{Key: "site.home_path", Value: value, Public: true}); err != ErrInvalidSetting {
+			t.Fatalf("ValidateSetting(%q) = %v, want ErrInvalidSetting", value, err)
+		}
+	}
+	if err := ValidateSetting(Setting{Key: "site.home_path", Value: "/public/pages/en/home/html", Public: true}); err != nil {
+		t.Fatalf("ValidateSetting(valid home path) = %v", err)
+	}
+}
