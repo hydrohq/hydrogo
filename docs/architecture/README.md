@@ -84,6 +84,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0054](0054-observability-cardinality-contract.md) | Bounded observability dimensions | Accepted |
 | [0055](0055-incident-runbook-template.md) | Structured incident and rollback runbook template | Accepted |
 | [0056](0056-canonical-module-filtering.md) | Canonical module names in migration filtering | Accepted |
+| [0057](0057-release-checklist-gates.md) | Evidence-based release checklist | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
