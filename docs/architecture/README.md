@@ -108,6 +108,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0078](0078-versioned-frontend-manifest.md) | Publish a versioned frontend route and selector contract | Accepted |
 | [0079](0079-frontend-state-conventions.md) | Standardize frontend state and error semantics | Accepted |
 | [0080](0080-profile-pool-transaction-contract.md) | Verify capacity profile pools and transaction atomicity | Accepted |
+| [0081](0081-ui-accessibility-regression-contract.md) | Guard shared shell accessibility semantics | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

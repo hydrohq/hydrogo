@@ -142,7 +142,7 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Extract shared Button, Field, FormError, Table, Pagination, Modal, Toast,
   Tabs, Empty, Loading, and Error components.
 - [ ] Make HydroGo and shadcn visual modes consume the same semantic markup.
-- [ ] Add keyboard, focus, reduced-motion, contrast, and accessible-name tests.
+- [x] Add local keyboard/focus, reduced-motion, and accessible-name regressions; browser contrast and device audits remain external UI gates.
 - [ ] Add visual regression baselines for desktop, tablet, and mobile.
 - [ ] Add RTL, long-text, locale, date, number, and currency fixtures.
 - [ ] Verify auth, editor, preview, media picker, cart, and checkout through
