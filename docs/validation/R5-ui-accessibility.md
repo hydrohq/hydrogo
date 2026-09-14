@@ -7,6 +7,9 @@
   shell and checks every anchor and button.
 - `TestAdminShellAccessibilityCSSContract` checks focus-visible,
   reduced-motion, and keyboard interaction markers.
+- The metadata-driven admin table emits a visually-hidden caption and
+  `scope="col"` headers; `internal/adminstudio/list_test.go` guards this
+  contract.
 
 ## Remaining browser gate
 
