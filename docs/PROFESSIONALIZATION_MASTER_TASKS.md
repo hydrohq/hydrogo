@@ -173,7 +173,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Remove unused vendor assets, demo endpoints, dead routes, duplicate
   helpers, and inaccessible migrations from release builds.
 - [ ] Split demo/fixture data from production images.
-- [ ] Add reproducible build and release artifact provenance checks.
+- [x] Add reproducible build checks and evidence guidance; external signing,
+  registry provenance, and retention remain deployment gates in
+  `docs/REPRODUCIBLE_RELEASES.md`.
 - [x] Add dependency/license/vulnerability triage cadence documentation in
   `docs/DEPENDENCY_TRIAGE.md`.
 - [x] Add a release checklist that requires all P0 evidence and explicitly lists

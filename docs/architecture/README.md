@@ -93,6 +93,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0063](0063-request-actor-session-correlation.md) | Correlate request, actor, and session fields in logs | Accepted |
 | [0064](0064-deterministic-alarm-catalog.md) | Keep the operational alarm catalog deterministic | Accepted |
 | [0065](0065-prometheus-exporter-boundary.md) | Keep metrics export explicit and bounded | Accepted |
+| [0066](0066-reproducible-release-evidence.md) | Require reproducible release evidence without claiming provenance | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
