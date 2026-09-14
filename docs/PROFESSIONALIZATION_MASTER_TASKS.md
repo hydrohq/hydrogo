@@ -108,8 +108,8 @@ credential, legal decision, or product decision and must remain an open gate.
   queue, media, backup, migration, SMTP, and dead-letter conditions.
 - [x] Add incident, rollback, and degraded-mode runbook templates in
   `docs/runbooks/INCIDENT_RESPONSE_TEMPLATE.md`.
-- [ ] Add SLO/SLI configuration schema and validation (without inventing target
-  values).
+- [x] Add target-neutral SLO/SLI configuration schema and validation in
+  `internal/ops` (targets remain optional and operator-owned).
 
 ### REL-02 Capacity and deployment proof (`EXTERNAL`)
 
