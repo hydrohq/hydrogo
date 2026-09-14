@@ -474,8 +474,7 @@ func (s Store) ClaimWebhook(ctx context.Context, db database.Executor, provider,
 	q := `INSERT INTO commerce_payment_webhook_events (provider, provider_event_id, received_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `)`
 	_, err := db.ExecContext(ctx, q, provider, eventID, time.Now().UTC())
 	if err != nil {
-		message := strings.ToLower(err.Error())
-		if strings.Contains(message, "unique") || strings.Contains(message, "duplicate") || strings.Contains(message, "constraint") {
+		if database.IsUniqueViolation(err) {
 			return false, nil
 		}
 		return false, err

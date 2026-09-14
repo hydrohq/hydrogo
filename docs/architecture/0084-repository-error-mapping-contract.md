@@ -12,18 +12,21 @@ database, where SQLite and PostgreSQL report different errors.
 
 ## Decision
 
-The members SQL repository maps the database uniqueness condition to the
-stable `members.ErrMemberExists` contract. PostgreSQL SQLSTATE `23505` and
-the equivalent SQLite uniqueness messages are recognized only at the
-repository boundary; domain and transport packages remain dialect-agnostic.
-Unrelated driver failures are returned unchanged.
+The adapter-facing `internal/database.IsUniqueViolation` helper recognizes
+PostgreSQL SQLSTATE `23505` and equivalent SQLite uniqueness messages. The
+members SQL repository maps that condition to the stable
+`members.ErrMemberExists` contract, while pages, commerce, and the durable
+job store reuse the same helper for their own conflict semantics. Domain and
+transport packages remain dialect-agnostic; unrelated driver failures are
+returned unchanged.
 
 ## Consequences
 
 Concurrent duplicate registrations produce the same safe application error on
-both supported dialects. New adapters must preserve this contract and add
-their driver-specific recognition in the adapter layer. Real PostgreSQL
-execution remains covered by the external database gate.
+both supported dialects, and conflict handling no longer drifts between
+repositories. New adapters must preserve this contract and add their
+driver-specific recognition in the adapter layer. Real PostgreSQL execution
+remains covered by the external database gate.
 
 ## Verification
 

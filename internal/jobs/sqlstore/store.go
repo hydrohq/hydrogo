@@ -203,7 +203,7 @@ func (s Store) enqueue(ctx context.Context, db database.Executor, job jobs.Job) 
 	}
 	_, err := db.ExecContext(ctx, `INSERT INTO jobs (id, type, payload, available_at, created_at, attempts) VALUES (`+s.p(1)+`, `+s.p(2)+`, `+s.p(3)+`, `+s.p(4)+`, `+s.p(5)+`, 0)`, job.ID, job.Type, job.Payload, formatTime(job.AvailableAt), formatTime(job.CreatedAt))
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "unique") || strings.Contains(strings.ToLower(err.Error()), "constraint") {
+		if database.IsUniqueViolation(err) {
 			var existingType, existingPayload string
 			if lookupErr := db.QueryRowContext(ctx, "SELECT type, payload FROM jobs WHERE id = "+s.p(1), job.ID).Scan(&existingType, &existingPayload); lookupErr == nil && existingType == job.Type && existingPayload == job.Payload {
 				return nil

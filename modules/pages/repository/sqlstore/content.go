@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -254,7 +253,7 @@ func (s Store) Publish(ctx context.Context, tx database.Executor, pageID string,
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	result, err := tx.ExecContext(ctx, `UPDATE pages SET status = 'published', published_revision = revision, published_locale = locale, published_slug = slug, published_title = title, published_body = body, published_blocks = blocks, publication_generation = publication_generation + 1, version = version + 1, updated_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND version = `+s.placeholder(3)+` AND status IN ('draft', 'published')`, now, pageID, expectedVersion)
 	if err != nil {
-		if message := strings.ToLower(err.Error()); strings.Contains(message, "unique") || strings.Contains(message, "duplicate") {
+		if database.IsUniqueViolation(err) {
 			return pages.ErrRouteConflict
 		}
 		return err

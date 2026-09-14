@@ -11,7 +11,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Store struct {
@@ -64,12 +63,7 @@ func mapMemberCreateError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return members.ErrMemberExists
-	}
-	message := strings.ToLower(err.Error())
-	if strings.Contains(message, "unique constraint") || strings.Contains(message, "unique failed") || strings.Contains(message, "duplicate key") {
+	if database.IsUniqueViolation(err) {
 		return members.ErrMemberExists
 	}
 	return err

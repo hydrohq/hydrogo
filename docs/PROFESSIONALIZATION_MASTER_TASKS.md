@@ -70,6 +70,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Expand SQLite/PostgreSQL repository contract fixtures and error mapping.
 - [x] Normalize member uniqueness errors at the SQL repository boundary for
   SQLite and PostgreSQL, preserving unrelated driver errors.
+- [x] Centralize SQL uniqueness detection in the infrastructure adapter so
+  repository conflict semantics do not drift between modules.
 - [x] Add local query-count/N+1 regression fixtures for page and news list
   projections; PostgreSQL planner and customer-sized latency evidence remain
   external gates.
