@@ -15,6 +15,20 @@ The command creates configuration, `hydrogo.lock`, a runnable minimal theme, pro
 
 Supported presets are `news`, `editorial`, `commerce`, `compact-site`, `corporate`, `portal`, and `headless`. `editorial` is the content-focused news profile; `compact-site` is the minimal pages/media/site profile. These presets keep unrelated modules disabled, select enabled feature contracts, and do not copy Core source code. The licensed HydroGo runtime is supplied separately and is referenced by the generated configuration and lock file.
 
+## Module authoring
+
+For a deterministic collection/module review surface, use the task-oriented
+command:
+
+```powershell
+hydro module create --spec .\collection.yaml --out .\generated
+```
+
+The established spelling `hydro generate module --spec ... --out ...` remains
+supported and produces the same validated artifacts. Generated repository and
+transport code is a reviewable starting point; authorization, business rules,
+and migration rollout still require explicit developer review.
+
 ### Frontend build manifest
 
 When a frontend build produces a route contract, pass its JSON file with

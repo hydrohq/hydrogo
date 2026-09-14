@@ -147,6 +147,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return seedDemo(args[1:], stdout, stderr)
 	case "generate":
 		return generateCommand(args[1:], stdout, stderr)
+	case "module":
+		return moduleCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "backup":
@@ -176,11 +178,24 @@ func generateCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] != "module" {
 		return errors.New("generate requires the module subcommand")
 	}
+	return generateModuleCommand(args[1:], stdout, stderr)
+}
+
+// moduleCommand exposes the task-oriented spelling while retaining the
+// historical `generate module` command for backwards compatibility.
+func moduleCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "create" {
+		return errors.New("module requires the create subcommand")
+	}
+	return generateModuleCommand(args[1:], stdout, stderr)
+}
+
+func generateModuleCommand(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("generate module", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	specPath := flags.String("spec", "", "Versioned module spec (.yaml, .yml, or .json)")
 	outputRoot := flags.String("out", "", "Output root for generated review artifacts")
-	if err := flags.Parse(args[1:]); err != nil {
+	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 || strings.TrimSpace(*specPath) == "" || strings.TrimSpace(*outputRoot) == "" {
@@ -2315,6 +2330,8 @@ Usage:
   hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]
 	hydro license keygen [--public-out PATH] [--private-out PATH]
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
+  hydro module create --spec SPEC --out OUTPUT
+  hydro generate module --spec SPEC --out OUTPUT
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]
