@@ -2527,7 +2527,7 @@ Failure remediation:
     never edit an applied migration—create a new migration instead.
   test timeout or race failures: narrow "--package", increase "--timeout",
     and reproduce with "go test -run TestName -count=1 ./path".
-  dev port already in use: pass another `--address`/`--app-address`, or stop
+  dev port already in use: pass another "--address"/"--app-address", or stop
     the process that owns the port.
 
 Runtime flags:
