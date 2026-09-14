@@ -170,7 +170,8 @@ credential, legal decision, or product decision and must remain an open gate.
   helpers, and inaccessible migrations from release builds.
 - [ ] Split demo/fixture data from production images.
 - [ ] Add reproducible build and release artifact provenance checks.
-- [ ] Add dependency/license/vulnerability triage cadence documentation.
+- [x] Add dependency/license/vulnerability triage cadence documentation in
+  `docs/DEPENDENCY_TRIAGE.md`.
 - [x] Add a release checklist that requires all P0 evidence and explicitly lists
   unresolved external gates in `docs/RELEASE_CHECKLIST.md`.
 
