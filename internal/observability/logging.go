@@ -6,6 +6,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
@@ -22,13 +23,20 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 			started := time.Now()
 			recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(recorder, r)
-			logger.InfoContext(r.Context(), "http_request",
+			attrs := []slog.Attr{
 				slog.String("request_id", security.RequestIDFromContext(r.Context())),
 				slog.String("method", r.Method),
 				slog.String("path", boundedPath(r.URL.Path)),
 				slog.Int("status", recorder.status),
 				slog.Int64("duration_ms", time.Since(started).Milliseconds()),
-			)
+			}
+			if user := auth.UserFromContext(r.Context()); user != nil && user.ID != "" {
+				attrs = append(attrs, slog.String("actor_id", user.ID))
+			}
+			if session := auth.SessionFromContext(r.Context()); session != nil && session.ID != "" {
+				attrs = append(attrs, slog.String("session_id", session.ID))
+			}
+			logger.LogAttrs(r.Context(), slog.LevelInfo, "http_request", attrs...)
 		})
 	}
 }

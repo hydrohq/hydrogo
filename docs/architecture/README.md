@@ -90,6 +90,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0060](0060-migration-metadata-lint.md) | Lint migration safety metadata before release | Accepted |
 | [0061](0061-sdk-compatibility-assertions.md) | Compile-time assertions for extension contracts | Accepted |
 | [0062](0062-slo-config-contract.md) | Keep SLO configuration target-neutral | Accepted |
+| [0063](0063-request-actor-session-correlation.md) | Correlate request, actor, and session fields in logs | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
