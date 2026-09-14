@@ -110,6 +110,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0080](0080-profile-pool-transaction-contract.md) | Verify capacity profile pools and transaction atomicity | Accepted |
 | [0081](0081-ui-accessibility-regression-contract.md) | Guard shared shell accessibility semantics | Accepted |
 | [0082](0082-bounded-list-query-contract.md) | Keep page and news list projections query-bounded | Accepted |
+| [0083](0083-locale-direction-contract.md) | Derive safe RTL/LTR document direction from locale | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

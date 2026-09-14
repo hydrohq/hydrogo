@@ -149,6 +149,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add local keyboard/focus, reduced-motion, and accessible-name regressions; browser contrast and device audits remain external UI gates.
 - [ ] Add visual regression baselines for desktop, tablet, and mobile.
 - [ ] Add RTL, long-text, locale, date, number, and currency fixtures.
+- [x] Add safe locale-derived RTL/LTR document direction and Unicode locale
+  regressions; translated copy and formatting matrix remain product/browser
+  gates.
 - [ ] Verify auth, editor, preview, media picker, cart, and checkout through
   refresh/back-forward and cross-origin browser scenarios.
 

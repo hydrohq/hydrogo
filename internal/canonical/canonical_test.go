@@ -32,6 +32,19 @@ func TestPathCanonicalization(t *testing.T) {
 	}
 }
 
+func TestLocaleDirectionUsesSafePrimarySubtag(t *testing.T) {
+	for _, test := range []struct {
+		locale, want string
+	}{
+		{"ar", "rtl"}, {"fa-IR", "rtl"}, {"he_IL", "rtl"},
+		{"tr", "ltr"}, {"en-US", "ltr"}, {"unknown", "ltr"}, {"", "ltr"},
+	} {
+		if got := Direction(test.locale); got != test.want {
+			t.Errorf("Direction(%q) = %q, want %q", test.locale, got, test.want)
+		}
+	}
+}
+
 func TestPathRejectsMalformedOrUnsafeInput(t *testing.T) {
 	for _, input := range []string{"%zz", "a%00b", "a\\b"} {
 		if _, err := Path(input); !errors.Is(err, ErrInvalidPath) {
