@@ -92,6 +92,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0062](0062-slo-config-contract.md) | Keep SLO configuration target-neutral | Accepted |
 | [0063](0063-request-actor-session-correlation.md) | Correlate request, actor, and session fields in logs | Accepted |
 | [0064](0064-deterministic-alarm-catalog.md) | Keep the operational alarm catalog deterministic | Accepted |
+| [0065](0065-prometheus-exporter-boundary.md) | Keep metrics export explicit and bounded | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

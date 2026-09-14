@@ -103,7 +103,8 @@ credential, legal decision, or product decision and must remain an open gate.
   `docs/OBSERVABILITY_CONTRACT.md`.
 - [ ] Add request/actor/session/job correlation with mandatory secret/PII
   redaction.
-- [ ] Add Prometheus/OpenTelemetry exporters behind explicit configuration.
+- [x] Add the dependency-free Prometheus-compatible exporter behind explicit
+  `Metrics` configuration; OpenTelemetry remains a separate integration gate.
 - [x] Add deterministic alarm rules and dashboard examples for DB, cache,
   queue, media, backup, migration, SMTP, and dead-letter conditions in
   `docs/ALARM_RULES.md`.
