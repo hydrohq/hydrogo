@@ -2,7 +2,7 @@
 
 **Durum:** Kod deposundaki güvenli yerel doğrulamalar tamamlanabilir; bu belge production,
 dış servis, hukuk, ticari karar veya gerçek müşteri ortamı gerektiren işleri listeler.
-**Güncelleme:** 2026-09-12
+**Güncelleme:** 2026-09-14
 
 Bu liste “yapılmadı” ile “kullanıcı/operatör ortamı olmadan yapılamaz” ayrımını korur.
 Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmişse CI sonucu
@@ -100,6 +100,9 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   süresi ve erişim yetkisi için ayrı karar/ADR gerekir.
 - [x] Üye kimliği browser storage’a yazılmaz; auth header yalnızca sunucu oturumunu doğrular ve
   teknik bağlantı hatası ayrıntısı kullanıcıya sızdırılmaz (`modules/members/transport/privacy_test.go`).
+- [x] Üye, admin ve ödeme tarayıcı akışlarında runtime hata ayrıntıları generic mesajlarla
+  sınırlandı; `internal/ui`, `modules/members/transport` ve `modules/commerce/transport`
+  regression testleri bunu korur.
 - [ ] Taksonomi: çoklu dil, many-to-many kategori/etiket ve related content veri modeli için ADR-0012
   genişletmesi ve SQLite/PostgreSQL migration kararı gerekir.
 - [ ] Headless browser session: credentialed CORS yerine BFF/same-site proxy sınırı ve preview token
@@ -126,6 +129,9 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 - [x] Seçili modül migration filtresi: izole SQLite kanıtında Pages+Media etkin
   profilde Commerce/News tabloları oluşturulmaz; çapraz-modül maintenance migration kapsamı
   ADR-0039 ile tanımlıdır. PostgreSQL ve gerçek preset certification hâlâ açık kapıdır.
+- [x] Opsiyonel site/media admin rotaları yalnızca ilgili modüller etkinse kaydedilir; ortak
+  router duplicate pattern’leri startup panic’i yerine tanımlı hata olarak reddeder
+  (ADR-0088/0089, `cmd/hydro/main_test.go`, `internal/router/router_test.go`).
 
 Bu bölüm yalnızca mevcut yerel kanıtı ifade eder; production certification, gerçek müşteri verisi,
 dış servis veya canlı ödeme başarısı anlamına gelmez.
