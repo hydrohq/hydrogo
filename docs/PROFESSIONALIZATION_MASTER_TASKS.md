@@ -62,8 +62,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add dependency graph validation and cycle detection for modules.
 - [x] Add dependency graph validation and cycle detection for modules in the
   versioned SDK boundary; runtime resolution remains Core-owned.
-- [ ] Add signed/allowlisted package metadata design without introducing a
-  marketplace dependency.
+- [x] Add signed/allowlisted package metadata design without introducing a
+  marketplace dependency in `docs/MODULE_PACKAGE_METADATA.md`.
 
 ### DATA-01 Database and repository contracts (`LOCAL`)
 
