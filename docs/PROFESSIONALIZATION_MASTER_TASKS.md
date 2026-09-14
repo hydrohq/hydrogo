@@ -205,6 +205,8 @@ credential, legal decision, or product decision and must remain an open gate.
 
 - [ ] Remove unused vendor assets, demo endpoints, dead routes, duplicate
   helpers, and inaccessible migrations from release builds.
+- [x] Guard embedded runtime vendor JS/CSS assets against disappearing
+  references; reviewed deletion and broader dead-route audit remain separate.
 - [x] Keep demo/fixture files out of the documented production image stage and
   require explicit `seed-demo --confirm-demo` for local data injection.
 - [x] Add reproducible build checks and evidence guidance; external signing,
