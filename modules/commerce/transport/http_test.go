@@ -5,11 +5,25 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
+
+func TestCommerceDocumentUsesConfiguredLocale(t *testing.T) {
+	start := commerceDocumentStart("Mağaza", "en-US")
+	footer := commerceEnterpriseFooter("en-US")
+	for _, output := range []string{start, footer} {
+		if !strings.Contains(output, `lang="en-US"`) && output == start {
+			t.Fatalf("document language was not localized: %s", output)
+		}
+		if strings.Contains(output, "/public/pages/tr/") || strings.Contains(output, "/public/news/tr/") {
+			t.Fatalf("legacy locale link leaked: %s", output)
+		}
+	}
+}
 
 type orderReaderStub struct{ order commerce.Order }
 
