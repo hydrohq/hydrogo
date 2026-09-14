@@ -77,3 +77,10 @@ func TestPaymentIntentAcceptsOrderOwnerGuestCapability(t *testing.T) {
 		t.Fatalf("status=%d provider called=%t", res.Code, provider.called)
 	}
 }
+
+func TestSanitizePaymentScriptRedactsRuntimeError(t *testing.T) {
+	got := sanitizePaymentScript("status.textContent=error.message||'Ödeme başlatılamadı.';")
+	if got != "status.textContent='Ödeme başlatılamadı.';" {
+		t.Fatalf("payment runtime error leaked: %q", got)
+	}
+}
