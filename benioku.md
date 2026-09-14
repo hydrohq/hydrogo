@@ -3,8 +3,8 @@
 **Son kontrol:** 15 Eylül 2026  
 **Dal:** `main`  
 **Git durumu:** Temiz, `origin/main` ile senkron  
-**Task özeti:** **60 tamamlandı / 20 açık / 80 toplam**
-**Son push:** `685a729` — admin shell writer sözleşmesi ve locale-nötr önizleme bağlantısı.
+**Task özeti:** **61 tamamlandı / 19 açık / 80 toplam**
+**Son push:** `1755184` — browser auth gate tanısı ve açık kapı dokümantasyonu.
 
 Bu dosya, çalışma sırasında ekranda görünmeyen ilerleme mesajlarının kalıcı
 özetidir. Ana ayrıntılı liste `docs/PROFESSIONALIZATION_MASTER_TASKS.md` içinde,
@@ -22,6 +22,9 @@ harici kapılar ise `docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md` içindedir.
   locale ile eşleştirildi.
 - `685a729` — Admin shell preview bağlantısı kök rotaya taşındı; writer byte
   sözleşmesi korunarak testle sertleştirildi.
+- `1a92426` — E2E generator’a reload/back/forward navigation-lifecycle testleri
+  eklendi.
+- `1755184` — Browser auth setup 401 tanısı açık kapı olarak belgelendi.
 - Full local verification her anlamlı commit’te çalıştı: modül bütünlüğü,
   vulnerability scan, SBOM, asset guard, gofmt, vet, tam/shuffled test,
   fuzz smoke, build, generator smoke ve health/readiness geçti.
