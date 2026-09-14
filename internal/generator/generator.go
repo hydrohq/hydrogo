@@ -358,7 +358,19 @@ func New%sService(repository %sRepository) %sService {
 func (s %sService) Get(ctx context.Context, id string) (%s, error) {
 	return s.Repository.Get(ctx, id)
 }
-`, name, name, name, name, name, name, name, name, name)
+
+func (s %sService) Create(ctx context.Context, item %s) error {
+	return s.Repository.Create(ctx, item)
+}
+
+func (s %sService) Update(ctx context.Context, item %s) error {
+	return s.Repository.Update(ctx, item)
+}
+
+func (s %sService) Delete(ctx context.Context, id string) error {
+	return s.Repository.Delete(ctx, id)
+}
+`, name, name, name, name, name, name, name, name, name, name, name, name, name, name)
 }
 
 func renderPolicy(spec Spec) string {

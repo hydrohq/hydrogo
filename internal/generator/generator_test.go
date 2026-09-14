@@ -174,6 +174,11 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if err != nil || !bytes.Contains(service, []byte("type "+exportName(spec.Name)+"Service struct")) {
 			t.Fatalf("%s service scaffold missing: %v", spec.Name, err)
 		}
+		for _, method := range []string{"Create", "Update", "Delete"} {
+			if !bytes.Contains(service, []byte("func (s "+exportName(spec.Name)+"Service) "+method)) {
+				t.Fatalf("%s service scaffold missing %s", spec.Name, method)
+			}
+		}
 		policy, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "policy.go"))
 		if err != nil || !bytes.Contains(policy, []byte("CanCreate")) {
 			t.Fatalf("%s policy scaffold missing: %v", spec.Name, err)
