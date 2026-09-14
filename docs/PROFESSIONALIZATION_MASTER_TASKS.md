@@ -214,6 +214,21 @@ credential, legal decision, or product decision and must remain an open gate.
   profile implemented (ADR-0022); production provider/IAM/CDN validation,
   retention and failover remain deployment gates.
 
+## P1 — Prototype velocity and developer experience (`LOCAL`)
+
+The detailed execution plan is in
+[PROTOTYPE_VELOCITY_PLAN.md](PROTOTYPE_VELOCITY_PLAN.md). These tasks preserve
+the existing Core/module boundaries:
+
+- [ ] `hydro dev` one-command local stack with reload, seed and dependency lifecycle.
+- [ ] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract.
+- [ ] Complete shadcn-compatible component system and showcase with visual regression, RTL and accessibility fixtures.
+- [ ] News, ecommerce, corporate, membership, dashboard and ERP starter presets with upgrade/smoke tests.
+- [ ] Typed API client, OpenAPI, pagination/filter/sort and cache invalidation generation.
+- [ ] Bulk actions, import/export, upload, progress and optimistic interaction primitives with bounded resource use.
+- [ ] DX telemetry, docs/ADR drift checks, compatibility checks and upgrade assistant.
+- [ ] Benchmark acceptance: first route and first CRUD in under 15 minutes on a clean local project.
+
 ### PROD-03 Deliberately gated expansion (`EXTERNAL`)
 
 - [ ] Decide OIDC/SAML, mobile API, multi-tenant, AI, and Distributed scope from
