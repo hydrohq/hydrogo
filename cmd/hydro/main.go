@@ -194,6 +194,7 @@ func devCommand(args []string, stdout, stderr io.Writer) error {
 	_ = flags.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	_ = flags.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
 	_ = flags.Duration("poll", 600*time.Millisecond, "file watch polling interval")
+	_ = flags.Bool("seed-demo", true, "seed the disposable local demo data before starting")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}

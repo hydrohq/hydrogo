@@ -204,6 +204,7 @@ func main() {
 	appAddress := flag.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	databaseDSN := flag.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
 	poll := flag.Duration("poll", 600*time.Millisecond, "file watch polling interval")
+	seedDemo := flag.Bool("seed-demo", true, "seed disposable local demo data before starting")
 	flag.Parse()
 
 	root, err := os.Getwd()
@@ -227,6 +228,18 @@ func main() {
 	status := &state{Phase: "starting", Progress: 5, Message: "Geliştirme sunucusu hazırlanıyor…"}
 	supervisor := &supervisor{root: root, binary: binary, appAddress: *appAddress, databaseDSN: *databaseDSN, state: status}
 	supervisor.rebuild(ctx, "ilk build tamamlandı", true)
+	if *seedDemo {
+		status.set("seeding", 88, "Demo verileri hazırlanıyor…", "")
+		seed := exec.CommandContext(ctx, binary, "seed-demo", "--confirm-demo", "--database-dsn", *databaseDSN)
+		seed.Dir = root
+		var seedOutput bytes.Buffer
+		seed.Stdout, seed.Stderr = &seedOutput, &seedOutput
+		if err := seed.Run(); err != nil {
+			status.set("error", 100, "Demo verileri hazırlanamadı; servis yine de çalışıyor.", shorten(seedOutput.String(), 12000))
+		} else {
+			status.set("ready", 100, "Hazır · demo verileri yüklendi", "")
+		}
+	}
 	defer supervisor.stop()
 
 	target, err := url.Parse("http://" + *appAddress)
