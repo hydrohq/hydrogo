@@ -78,6 +78,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0048](0048-bounded-test-cli.md) | Bounded test command for the developer workflow | Accepted |
 | [0049](0049-versioned-module-route-contract.md) | Versioned module route contract | Accepted |
 | [0050](0050-module-dependency-graph-validation.md) | Module dependency graph validation | Accepted |
+| [0051](0051-resource-create-cli-alias.md) | Resource-oriented CRUD scaffold command | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

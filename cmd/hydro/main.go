@@ -150,6 +150,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return generateCommand(args[1:], stdout, stderr)
 	case "module":
 		return moduleCommand(args[1:], stdout, stderr)
+	case "resource":
+		return resourceCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "validate":
@@ -191,6 +193,15 @@ func generateCommand(args []string, stdout, stderr io.Writer) error {
 func moduleCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] != "create" {
 		return errors.New("module requires the create subcommand")
+	}
+	return generateModuleCommand(args[1:], stdout, stderr)
+}
+
+// resourceCommand is the collection-oriented spelling for CRUD scaffolding.
+// It intentionally shares the same reviewable generator as module create.
+func resourceCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "create" {
+		return errors.New("resource requires the create subcommand")
 	}
 	return generateModuleCommand(args[1:], stdout, stderr)
 }
@@ -2428,6 +2439,7 @@ Usage:
 	hydro license keygen [--public-out PATH] [--private-out PATH]
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro module create --spec SPEC --out OUTPUT
+  hydro resource create --spec SPEC --out OUTPUT
   hydro generate module --spec SPEC --out OUTPUT
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]

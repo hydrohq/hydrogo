@@ -194,6 +194,31 @@ collection:
 	}
 }
 
+func TestRunResourceCreateAliasGeneratesCollection(t *testing.T) {
+	root := t.TempDir()
+	specPath := filepath.Join(root, "article.yaml")
+	spec := `version: v0
+collection:
+  name: article
+  table: articles
+  permissions: [article.read]
+  dialects: [sqlite]
+  fields:
+    - name: title
+      type: string
+`
+	if err := os.WriteFile(specPath, []byte(spec), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"resource", "create", "--spec", specPath, "--out", filepath.Join(root, "out")}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("resource create: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "generated collection=article") {
+		t.Fatalf("resource create output = %q", stdout.String())
+	}
+}
+
 func TestDeadLetterRequeueRequiresExplicitConfirmation(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	err := run([]string{"jobs", "dead-letter", "requeue", "--id", "job-1"}, strings.NewReader(""), &stdout, &stderr)
