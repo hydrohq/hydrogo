@@ -68,7 +68,9 @@ credential, legal decision, or product decision and must remain an open gate.
 ### DATA-01 Database and repository contracts (`LOCAL`)
 
 - [ ] Expand SQLite/PostgreSQL repository contract fixtures and error mapping.
-- [ ] Add query-plan/N+1 detection fixtures for list/detail surfaces.
+- [x] Add local query-count/N+1 regression fixtures for page and news list
+  projections; PostgreSQL planner and customer-sized latency evidence remain
+  external gates.
 - [x] Add bounded public/admin list indexes with a local planner regression
   fixture; PostgreSQL planner and production sizing remain external gates.
 - [x] Enforce the same 1–100 list limit at page/news repository boundaries,
