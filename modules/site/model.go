@@ -26,6 +26,25 @@ type Setting struct {
 	UpdatedAt time.Time
 }
 
+// ResolvePublicHomePath returns a configured internal home path when the
+// setting is public and safe. Invalid or missing settings deliberately fall
+// back to the caller-provided path so a bad editorial value cannot create an
+// open redirect or break the root route.
+func ResolvePublicHomePath(settings []Setting, fallback string) string {
+	for _, setting := range settings {
+		if setting.Key != "site.home_path" || !setting.Public {
+			continue
+		}
+		path := strings.TrimSpace(setting.Value)
+		parsed, err := url.Parse(path)
+		if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "\r\n") {
+			continue
+		}
+		return path
+	}
+	return fallback
+}
+
 type NavigationItem struct {
 	ID        string
 	Locale    string

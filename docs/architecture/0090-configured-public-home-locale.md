@@ -14,11 +14,14 @@ different.
 
 The composition root derives the locale segment from `I18N.DefaultLocale`,
 falls back to `en` when it is empty, and escapes the segment before constructing
-the route. The seeded `demo` slug remains intentionally local-demo data and is
-not presented as a customer home-page contract.
+the route. When the Site module is active, a public `site.home_path` setting may
+override the fallback with a validated internal path. The seeded `demo` slug
+remains intentionally local-demo data and is not presented as a customer
+home-page contract.
 
 ## Consequences
 
-Configured multilingual installations now land on their default locale. The
-customer-facing home slug still requires a site-settings/content-selection
-decision before it can replace the demo seed safely.
+Configured multilingual installations now land on their default locale, and a
+site administrator can choose a safe internal home path without changing the
+composition root. Missing, private, or external values safely fall back to the
+configured locale/demo route.

@@ -923,7 +923,13 @@ func serve(args []string, stderr io.Writer) error {
 	if modules["pages"] {
 		routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/" {
-				http.Redirect(w, r, publicHomePath(cfg.I18N.DefaultLocale), http.StatusFound)
+				homePath := publicHomePath(cfg.I18N.DefaultLocale)
+				if modules["site"] {
+					if settings, err := siteStore.ListPublicSettings(r.Context(), db); err == nil {
+						homePath = site.ResolvePublicHomePath(settings, homePath)
+					}
+				}
+				http.Redirect(w, r, homePath, http.StatusFound)
 				return
 			}
 			http.NotFound(w, r)
