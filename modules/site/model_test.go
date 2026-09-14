@@ -14,6 +14,8 @@ func TestResolvePublicHomePath(t *testing.T) {
 		{name: "external ignored", settings: []Setting{{Key: "site.home_path", Value: "https://evil.example", Public: true}}, want: fallback},
 		{name: "network path ignored", settings: []Setting{{Key: "site.home_path", Value: "//evil.example", Public: true}}, want: fallback},
 		{name: "backslash path ignored", settings: []Setting{{Key: "site.home_path", Value: "/\\evil.example", Public: true}}, want: fallback},
+		{name: "encoded network path ignored", settings: []Setting{{Key: "site.home_path", Value: "/%2F%2Fevil.example", Public: true}}, want: fallback},
+		{name: "oversized path ignored", settings: []Setting{{Key: "site.home_path", Value: "/" + string(make([]byte, 2048)), Public: true}}, want: fallback},
 		{name: "newline ignored", settings: []Setting{{Key: "site.home_path", Value: "/home\nnext", Public: true}}, want: fallback},
 	}
 	for _, tc := range cases {
