@@ -154,7 +154,8 @@ credential, legal decision, or product decision and must remain an open gate.
   frontend in `docs/FRONTEND_ARCHITECTURE.md`.
 - [x] Define a versioned frontend manifest/route/selector contract in
   `internal/ui` and `docs/FRONTEND_MANIFEST.md`.
-- [ ] Define state, error, loading, and optimistic-update conventions.
+- [x] Define state, error, loading, and optimistic-update conventions in
+  `internal/ui` and `docs/FRONTEND_STATE_CONVENTIONS.md`.
 - [ ] Measure build and iteration time for a standard customer feature.
 
 ## P2 — General product capabilities

@@ -106,6 +106,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0076](0076-secret-rotation-revoke-contract.md) | Make secret rotation and emergency revoke explicit contracts | Accepted |
 | [0077](0077-bounded-csp-report-endpoint.md) | Accept bounded CSP reports without persistence or CSRF state | Accepted |
 | [0078](0078-versioned-frontend-manifest.md) | Publish a versioned frontend route and selector contract | Accepted |
+| [0079](0079-frontend-state-conventions.md) | Standardize frontend state and error semantics | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
