@@ -38,3 +38,11 @@ func TestRenderIncludesDeclaredMediaUploadJourney(t *testing.T) {
 		t.Fatal("declared media upload journey was not generated")
 	}
 }
+
+func TestRenderIncludesNavigationLifecycleJourney(t *testing.T) {
+	m := manifest{Version: 1, BaseURL: "http://127.0.0.1:8090", Admin: adminManifest{LoginPath: "/login"}, Frontend: frontendManifest{Routes: []frontendRoute{{Name: "home", Path: "/", Public: true, TestID: "page-home"}}}}
+	output := render(m)
+	if !strings.Contains(output, "frontend navigation lifecycle: home") || !strings.Contains(output, "page.reload()") || !strings.Contains(output, "page.goBack()") || !strings.Contains(output, "page.goForward()") {
+		t.Fatal("navigation lifecycle journey was not generated")
+	}
+}
