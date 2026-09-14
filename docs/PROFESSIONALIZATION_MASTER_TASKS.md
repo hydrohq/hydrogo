@@ -135,6 +135,8 @@ credential, legal decision, or product decision and must remain an open gate.
   `docs/runbooks/INCIDENT_RESPONSE_TEMPLATE.md`.
 - [x] Add target-neutral SLO/SLI configuration schema and validation in
   `internal/ops` (targets remain optional and operator-owned).
+- [x] Execute the full Go race suite in the supported WSL toolchain; Windows
+  hosts without a C compiler are directed to the WSL path in validation docs.
 
 ### REL-02 Capacity and deployment proof (`EXTERNAL`)
 
