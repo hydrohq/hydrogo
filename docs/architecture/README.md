@@ -113,7 +113,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0083](0083-locale-direction-contract.md) | Derive safe RTL/LTR document direction from locale | Accepted |
 | [0084](0084-repository-error-mapping-contract.md) | Keep repository uniqueness errors stable across SQL dialects | Accepted |
 | [0085](0085-release-asset-hygiene.md) | Verify embedded vendor asset reachability before release | Accepted |
-| [0086](0086-user-facing-error-redaction.md) | Keep member browser transport errors generic | Accepted |
+| [0086](0086-user-facing-error-redaction.md) | Keep browser transport errors generic | Accepted |
+| [0087](0087-blank-target-link-hardening.md) | Harden admin blank-target links | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

@@ -111,6 +111,8 @@ credential, legal decision, or product decision and must remain an open gate.
   queue adapters in module application packages.
 - [x] Redact browser transport error details on member and admin pages;
   diagnostics remain server-side and users receive stable generic messages.
+- [x] Harden admin blank-target links with `noopener noreferrer` to prevent
+  opener access across browsing contexts.
 
 ### SEC-02 Real security gates (`EXTERNAL`)
 

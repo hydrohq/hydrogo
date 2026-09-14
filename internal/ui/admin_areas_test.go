@@ -36,6 +36,18 @@ func TestAdminShellSPARouterAdoptsFragmentAssetsWithDocumentNonce(t *testing.T) 
 	}
 }
 
+func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Güvenli bağlantılar", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"target=\"_blank\"", "noopener noreferrer"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("admin shell missing blank-target hardening %q", want)
+		}
+	}
+}
+
 func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Test", "", "nonce-test", ""); err != nil {
