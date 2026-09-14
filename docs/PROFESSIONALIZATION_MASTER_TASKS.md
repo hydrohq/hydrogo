@@ -158,8 +158,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Define one token contract for type, spacing, color, radius, elevation, and
   motion across Admin, public themes, and member surfaces in
   `docs/UI_DESIGN_SYSTEM.md`.
-- [ ] Extract shared Button, Field, FormError, Table, Pagination, Modal, Toast,
-  Tabs, Empty, Loading, and Error components.
+- [x] Extract shared Button, Field, FormError, Table, Pagination, Empty,
+  Loading, and Error components in `internal/ui`; Modal, Toast, and Tabs remain
+  gated on a browser lifecycle/focus contract in `docs/UI_COMPONENTS.md`.
 - [x] Harden the shared metadata-driven Table primitive with an accessible
   caption and scoped column headers in `internal/adminstudio`.
 - [x] Give metadata-driven lists an accessible empty state with a status role
