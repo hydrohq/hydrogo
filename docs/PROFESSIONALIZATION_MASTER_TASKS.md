@@ -68,7 +68,9 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### DATA-01 Database and repository contracts (`LOCAL`)
 
-- [ ] Expand SQLite/PostgreSQL repository contract fixtures and error mapping.
+- [x] Expand SQLite repository contract fixtures and cross-dialect error mapping;
+  SQLite behavior is certified locally and real PostgreSQL execution remains an
+  external gate.
 - [x] Normalize member uniqueness errors at the SQL repository boundary for
   SQLite and PostgreSQL, preserving unrelated driver errors.
 - [x] Centralize SQL uniqueness detection in the infrastructure adapter so
