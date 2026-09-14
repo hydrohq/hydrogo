@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -818,7 +819,7 @@ func (h Handler) adminCreateVariant(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid variant", http.StatusBadRequest)
 		return
 	}
-	http.Redirect(w, r, "/admin/commerce/products/"+template.URLQueryEscaper(variant.ProductID)+"/variants", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/commerce/products/"+url.PathEscape(variant.ProductID)+"/variants", http.StatusSeeOther)
 }
 
 func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {

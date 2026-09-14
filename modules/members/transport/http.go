@@ -547,7 +547,7 @@ func (h Handler) adminSetEmailVerified(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "member verification update failed", 400)
 		return
 	}
-	http.Redirect(w, r, "/admin/members/"+id, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/members/"+url.PathEscape(id), http.StatusSeeOther)
 }
 
 func (h Handler) adminRevokeSession(w http.ResponseWriter, r *http.Request) {
@@ -560,7 +560,7 @@ func (h Handler) adminRevokeSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session revoke failed", 400)
 		return
 	}
-	http.Redirect(w, r, "/admin/members/"+memberID, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/members/"+url.PathEscape(memberID), http.StatusSeeOther)
 }
 
 func (h Handler) adminRevokeAllSessions(w http.ResponseWriter, r *http.Request) {
@@ -572,5 +572,5 @@ func (h Handler) adminRevokeAllSessions(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "all sessions revoke failed", 400)
 		return
 	}
-	http.Redirect(w, r, "/admin/members/"+memberID, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/members/"+url.PathEscape(memberID), http.StatusSeeOther)
 }

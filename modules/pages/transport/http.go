@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -185,7 +186,7 @@ func (h Handler) adminCreateForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
 	}
-	http.Redirect(w, r, "/admin/pages/"+template.URLQueryEscaper(id), http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/pages/"+url.PathEscape(id), http.StatusSeeOther)
 }
 
 func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
@@ -448,7 +449,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
 	}
-	http.Redirect(w, r, "/admin/pages/"+template.HTMLEscapeString(page.ID), http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/pages/"+url.PathEscape(page.ID), http.StatusSeeOther)
 }
 
 func renderBlockEditor(blocks []pages.Block, csrf string) string {
@@ -558,7 +559,7 @@ func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
 	}
-	http.Redirect(w, r, "/admin/pages/"+template.HTMLEscapeString(r.PathValue("id")), http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/pages/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {

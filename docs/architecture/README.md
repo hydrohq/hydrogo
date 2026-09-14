@@ -70,6 +70,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0040](0040-conditional-headless-schema.md) | Conditional headless schema surface | Accepted |
 | [0041](0041-admin-visual-theme-modes.md) | Admin visual theme modes | Accepted |
 | [0042](0042-referer-redirect-boundary.md) | Referer redirect boundary for admin mutations | Accepted |
+| [0043](0043-path-segment-redirect-escaping.md) | Escape dynamic redirect path segments | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

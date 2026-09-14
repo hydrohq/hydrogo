@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -181,7 +182,7 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/news/"+template.URLQueryEscaper(id), http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/news/"+url.PathEscape(id), http.StatusSeeOther)
 }
 
 func (h Handler) publicList(w http.ResponseWriter, r *http.Request) {
@@ -640,7 +641,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/news/"+template.HTMLEscapeString(item.ID), http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/news/"+url.PathEscape(item.ID), http.StatusSeeOther)
 }
 
 func (h Handler) adminSchedule(w http.ResponseWriter, r *http.Request) {
@@ -666,7 +667,7 @@ func (h Handler) adminSchedule(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/news/"+template.HTMLEscapeString(r.PathValue("id")), http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/news/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
 }
 
 func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
@@ -700,7 +701,7 @@ func (h Handler) adminTransition(w http.ResponseWriter, r *http.Request, action 
 		writeError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/news/"+template.HTMLEscapeString(r.PathValue("id")), http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/news/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
 }
 
 func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
