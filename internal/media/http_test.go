@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -142,5 +143,35 @@ func TestMediaHTTPFailsClosedWhenRepositoryIsMissing(t *testing.T) {
 	(HTTPHandler{Service: Service{Uploader: uploader}}).upload(response, request)
 	if response.Code != http.StatusServiceUnavailable {
 		t.Fatalf("missing repository upload status = %d, want %d", response.Code, http.StatusServiceUnavailable)
+	}
+}
+
+func TestMediaUploadRejectsMalformedMultipart(t *testing.T) {
+	uploader, err := NewUploader(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/media", bytes.NewBufferString("--broken\r\nnot-a-complete-part"))
+	request.Header.Set("Content-Type", "multipart/form-data; boundary=broken")
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
+	response := httptest.NewRecorder()
+	(HTTPHandler{Service: Service{Uploader: uploader, Assets: httpAssetRepo{}}}).upload(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("malformed multipart status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+}
+
+func TestMediaUploadRejectsMultipartBodyBeyondBound(t *testing.T) {
+	uploader, err := NewUploader(t.TempDir(), 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/media", bytes.NewBufferString(strings.Repeat("x", 2<<20)))
+	request.Header.Set("Content-Type", "multipart/form-data; boundary=broken")
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
+	response := httptest.NewRecorder()
+	(HTTPHandler{Service: Service{Uploader: uploader, Assets: httpAssetRepo{}}}).upload(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("oversized multipart status = %d, want %d", response.Code, http.StatusBadRequest)
 	}
 }
