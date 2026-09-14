@@ -31,7 +31,7 @@ func (EditorialTheme) RenderFooter(_ context.Context, data extension.FooterData)
 
 func (EditorialTheme) RenderPage(_ context.Context, data extension.PageViewData) templ.Component {
 	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
-		_, err := fmt.Fprintf(w, `<article lang="%s"><h1>%s</h1><div>%s</div></article>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.HTMLContent))
+		_, err := fmt.Fprintf(w, `<article lang="%s"><h1>%s</h1><div>%s</div></article>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTML(data.HTMLContent))
 		return err
 	})
 }

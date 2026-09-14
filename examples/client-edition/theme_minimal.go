@@ -18,14 +18,14 @@ func (t MinimalTheme) Name() string {
 
 func (t MinimalTheme) RenderHeader(ctx context.Context, data extension.HeaderData) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		_, err := fmt.Fprintf(w, `<header class="min-header"><span>%s</span></header>`, data.SiteName)
+		_, err := fmt.Fprintf(w, `<header class="min-header"><span>%s</span></header>`, template.HTMLEscapeString(data.SiteName))
 		return err
 	})
 }
 
 func (t MinimalTheme) RenderFooter(ctx context.Context, data extension.FooterData) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		_, err := fmt.Fprintf(w, `<footer class="min-footer"><small>%s</small></footer>`, data.Copyright)
+		_, err := fmt.Fprintf(w, `<footer class="min-footer"><small>%s</small></footer>`, template.HTMLEscapeString(data.Copyright))
 		return err
 	})
 }
@@ -47,7 +47,7 @@ func (t MinimalTheme) RenderPage(ctx context.Context, data extension.PageViewDat
         <div>%s</div>
     </article>
 </body>
-</html>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.Nonce), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.HTMLContent))
+</html>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.Nonce), template.HTMLEscapeString(data.Title), template.HTML(data.HTMLContent))
 		return err
 	})
 }

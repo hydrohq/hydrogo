@@ -48,7 +48,7 @@ func (t DefaultTheme) RenderPage(ctx context.Context, data extension.PageViewDat
         <div class="content-body">%s</div>
     </div>
 </body>
-</html>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.Nonce), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.HTMLContent))
+</html>`, template.HTMLEscapeString(data.Locale), template.HTMLEscapeString(data.Title), template.HTMLEscapeString(data.Nonce), template.HTMLEscapeString(data.Title), template.HTML(data.HTMLContent))
 		return err
 	})
 }
