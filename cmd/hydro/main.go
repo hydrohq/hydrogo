@@ -2523,7 +2523,7 @@ Examples:
 Failure remediation:
   config/database errors: run "hydro validate --config PATH", then check the
     dialect, DSN, and file permissions before retrying.
-  migration errors: run `hydro migrate` against a disposable database first;
+  migration errors: run "hydro migrate" against a disposable database first;
     never edit an applied migration—create a new migration instead.
   test timeout or race failures: narrow "--package", increase "--timeout",
     and reproduce with "go test -run TestName -count=1 ./path".
