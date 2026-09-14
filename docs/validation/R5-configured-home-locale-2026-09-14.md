@@ -13,6 +13,9 @@ Related decision: [ADR-0090](../architecture/0090-configured-public-home-locale.
   fixture links accordingly.
 - `modules/news/transport/locale_links_test.go` verifies that static Newsroom
   header/footer links are rewritten to the active locale and fall back safely.
+- `modules/members/transport/privacy_test.go` verifies that account-page public
+  links are rewritten to the configured locale through the privacy response
+  writer.
 - `go test ./cmd/hydro ./modules/site -p 1 -count=1` passed.
 
 The seeded demo path remains the fallback for installations without a public

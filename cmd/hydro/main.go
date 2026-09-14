@@ -771,7 +771,7 @@ func serve(args []string, stderr io.Writer) error {
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberService := members.Service{Members: memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
-	memberHTTP := membertransport.Handler{Service: memberService, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect}}, DB: db}
+	memberHTTP := membertransport.Handler{Service: memberService, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect}}, DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
 		if err != nil {

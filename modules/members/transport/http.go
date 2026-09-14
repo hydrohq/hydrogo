@@ -22,28 +22,49 @@ import (
 )
 
 type Handler struct {
-	Service members.Service
-	Secure  bool
-	Limiter interface{ Allow(string) bool }
-	Orders  customerorders.Reader
-	DB      database.Executor
+	Service       members.Service
+	Secure        bool
+	Limiter       interface{ Allow(string) bool }
+	Orders        customerorders.Reader
+	DB            database.Executor
+	DefaultLocale string
 }
 
 // memberResponseWriter removes legacy client-side member state persistence
 // from rendered auth pages. Session cookies and /member/me remain the only
 // source of truth; member identity must not survive in browser storage.
-type memberResponseWriter struct{ http.ResponseWriter }
+type memberResponseWriter struct {
+	http.ResponseWriter
+	locale string
+}
 
 func (w memberResponseWriter) Write(payload []byte) (int, error) {
 	output := string(payload)
 	output = strings.ReplaceAll(output, "if(data&&data.member){try{localStorage.setItem('hydro_member_state',JSON.stringify(data.member));if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGIN',member:data.member});}}catch(e){}}", "")
 	output = strings.ReplaceAll(output, "try{localStorage.removeItem('hydro_member_state');if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGOUT'});}}catch(e){}", "")
 	output = strings.ReplaceAll(output, "Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').", "Bağlantı hatası: Sunucuya ulaşılamadı.")
+	locale := strings.TrimSpace(w.locale)
+	if locale == "" {
+		locale = "tr"
+	}
+	output = strings.ReplaceAll(output, "/public/pages/tr/", "/public/pages/"+template.HTMLEscapeString(locale)+"/")
+	output = strings.ReplaceAll(output, "/public/news/tr/", "/public/news/"+template.HTMLEscapeString(locale)+"/")
 	return w.ResponseWriter.Write([]byte(output))
 }
 
 func sanitizeMemberResponse(w http.ResponseWriter) http.ResponseWriter {
-	return memberResponseWriter{ResponseWriter: w}
+	return memberResponseWriter{ResponseWriter: w, locale: "tr"}
+}
+
+func sanitizeMemberResponseWithLocale(w http.ResponseWriter, locale string) http.ResponseWriter {
+	return memberResponseWriter{ResponseWriter: w, locale: locale}
+}
+
+func (h Handler) defaultLocale() string {
+	if strings.TrimSpace(h.DefaultLocale) != "" {
+		return strings.TrimSpace(h.DefaultLocale)
+	}
+	return "tr"
 }
 
 func (h Handler) Routes() []router.Route {
@@ -128,7 +149,7 @@ func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, reg
 }
 
 func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
-	w = sanitizeMemberResponse(w)
+	w = sanitizeMemberResponseWithLocale(w, h.defaultLocale())
 	cookie, err := r.Cookie(members.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/member/login", http.StatusSeeOther)

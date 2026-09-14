@@ -41,3 +41,15 @@ func TestMemberResponseWriterRedactsRuntimeErrorDetails(t *testing.T) {
 		t.Fatalf("generic transport error was not preserved: %q", body)
 	}
 }
+
+func TestMemberResponseWriterLocalizesAccountLinks(t *testing.T) {
+	response := httptest.NewRecorder()
+	writer := sanitizeMemberResponseWithLocale(response, "en-US")
+	_, _ = writer.Write([]byte(`<a href="/public/pages/tr/about/html">About</a><a href="/public/news/tr/html">News</a>`))
+	body := response.Body.String()
+	for _, want := range []string{"/public/pages/en-US/about/html", "/public/news/en-US/html"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("localized member response missing %q: %s", want, body)
+		}
+	}
+}
