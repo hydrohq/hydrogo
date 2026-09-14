@@ -152,6 +152,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add safe locale-derived RTL/LTR document direction and Unicode locale
   regressions; translated copy and formatting matrix remain product/browser
   gates.
+- [x] Carry the bounded direction through the v1 theme page contract with a
+  left-to-right default for legacy theme callers.
 - [ ] Verify auth, editor, preview, media picker, cart, and checkout through
   refresh/back-forward and cross-origin browser scenarios.
 

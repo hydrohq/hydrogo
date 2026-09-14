@@ -38,7 +38,7 @@ func TestLoadThemeAndRenderNamedSlots(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(themeRoot, "static", "theme.css"), []byte("body{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(themeRoot, "layouts", "base.html"), []byte(`{{slot "header"}}<main>{{slot "content"}}</main>`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(themeRoot, "layouts", "base.html"), []byte(`<html lang="{{.Locale}}" dir="{{.Direction}}">{{slot "header"}}<main>{{slot "content"}}</main></html>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	bundle, err := LoadTheme(root, "corporate")
@@ -46,10 +46,13 @@ func TestLoadThemeAndRenderNamedSlots(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out strings.Builder
-	if err := bundle.RenderPage(&out, PageTemplateData{Slots: map[string]template.HTML{"header": "<header>H</header>", "content": "<p>C</p>"}}); err != nil {
+	if err := bundle.RenderPage(&out, PageTemplateData{Direction: "rtl", Slots: map[string]template.HTML{"header": "<header>H</header>", "content": "<p>C</p>"}}); err != nil {
 		t.Fatal(err)
 	}
-	if out.String() != "<header>H</header><main><p>C</p></main>" {
+	if !strings.Contains(out.String(), `dir="rtl"`) {
+		t.Fatalf("theme output missing direction: %s", out.String())
+	}
+	if out.String() != `<html lang="" dir="rtl"><header>H</header><main><p>C</p></main></html>` {
 		t.Fatalf("rendered theme = %q", out.String())
 	}
 }

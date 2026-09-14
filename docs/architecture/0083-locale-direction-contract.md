@@ -14,14 +14,16 @@ similar content harder to read and can break layout assumptions.
 
 - The canonical layer derives only the primary locale subtag and returns a
   bounded `ltr` or `rtl` value.
-- Public page and news document roots emit that value as `dir`.
+- Public page and news document roots emit that value as `dir`; the v1 theme
+  page contract carries the same bounded value to theme layouts.
 - Unknown locale tags default to `ltr`; user content never controls markup or
   CSS direction directly.
 
 ## Consequences
 
 RTL-aware themes can use the document direction without duplicating locale
-parsing. Full translation, bidirectional text review, and visual device QA
+parsing. Existing themes that omit the new field remain left-to-right by
+default. Full translation, bidirectional text review, and visual device QA
 remain product/theme responsibilities.
 
 ## Verification

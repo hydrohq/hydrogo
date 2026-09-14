@@ -22,6 +22,12 @@ func (b ThemeBundle) RenderPage(w io.Writer, data PageTemplateData) error {
 	if w == nil || data.Slots == nil {
 		return ErrInvalidThemeManifest
 	}
+	if data.Direction == "" {
+		data.Direction = "ltr"
+	}
+	if data.Direction != "ltr" && data.Direction != "rtl" {
+		return ErrInvalidThemeManifest
+	}
 	tpl, err := htmltemplate.New(b.Manifest.Name).Funcs(htmltemplate.FuncMap{
 		"slot": func(name string) htmltemplate.HTML { return data.Slots[name] },
 	}).Parse(b.Layout)

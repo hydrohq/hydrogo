@@ -261,7 +261,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String())}}); err != nil {
+		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String())}}); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
 		}
 		return
