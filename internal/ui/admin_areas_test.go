@@ -72,3 +72,16 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminControlDoesNotRenderRuntimeErrorDetails(t *testing.T) {
+	var out bytes.Buffer
+	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf"}); err != nil {
+		t.Fatal(err)
+	}
+	body := out.String()
+	for _, forbidden := range []string{"err.message", "error.message"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("admin control exposes runtime error detail %q", forbidden)
+		}
+	}
+}
