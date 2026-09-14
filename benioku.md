@@ -4,6 +4,7 @@
 **Dal:** `main`  
 **Git durumu:** Temiz, `origin/main` ile senkron  
 **Task özeti:** **60 tamamlandı / 20 açık / 80 toplam**
+**Son push:** `685a729` — admin shell writer sözleşmesi ve locale-nötr önizleme bağlantısı.
 
 Bu dosya, çalışma sırasında ekranda görünmeyen ilerleme mesajlarının kalıcı
 özetidir. Ana ayrıntılı liste `docs/PROFESSIONALIZATION_MASTER_TASKS.md` içinde,
@@ -19,6 +20,8 @@ harici kapılar ise `docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md` içindedir.
   kanıt `docs/validation/R6-browser-e2e-2026-09-14.md` dosyasına yazıldı.
 - `c3f6656` — Member account sayfasındaki `<html lang>` yapılandırılmış
   locale ile eşleştirildi.
+- `685a729` — Admin shell preview bağlantısı kök rotaya taşındı; writer byte
+  sözleşmesi korunarak testle sertleştirildi.
 - Full local verification her anlamlı commit’te çalıştı: modül bütünlüğü,
   vulnerability scan, SBOM, asset guard, gofmt, vet, tam/shuffled test,
   fuzz smoke, build, generator smoke ve health/readiness geçti.
