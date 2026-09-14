@@ -47,7 +47,9 @@ credential, legal decision, or product decision and must remain an open gate.
 ### EXT-01 Extension SDK boundary (`LOCAL`)
 
 - [ ] Publish a capability/version matrix for Core, modules, themes, and APIs.
-- [ ] Separate stable SDK imports from internal implementation imports.
+- [x] Separate stable SDK imports from internal implementation imports for the
+  module route boundary via `extension/v1`; broader capability extraction stays
+  in the SDK v1 task.
 - [ ] Add compile-time compatibility and deprecation tests for every public
   extension contract.
 - [ ] Add module lifecycle contracts: install, enable, disable, upgrade, and
