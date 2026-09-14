@@ -2,7 +2,7 @@
 
 **Durum:** Kod deposundaki güvenli yerel doğrulamalar tamamlanabilir; bu belge production,
 dış servis, hukuk, ticari karar veya gerçek müşteri ortamı gerektiren işleri listeler.
-**Güncelleme:** 2026-09-14
+**Güncelleme:** 2026-09-15
 
 Bu liste “yapılmadı” ile “kullanıcı/operatör ortamı olmadan yapılamaz” ayrımını korur.
 Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmişse CI sonucu
@@ -69,6 +69,10 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   `scripts/run-e2e.ps1` ile 30/30 PASS (kanıt: `docs/validation/R6-browser-e2e-2026-09-14.md`).
   Aynı çalışma Windows CI `browser-e2e` job'ında zorunludur; discovery sonucu değil, gerçek
   browser sonucu kaydedilmiştir.
+- [ ] 2026-09-15 yeniden çalıştırmada izole admin login kurulumu `/auth/login` için 401 verdi;
+  `create-admin` kaydı ve Argon2 doğrulaması ayrı SQLite kontrolünde geçti. Bu nedenle yeni
+  navigation-lifecycle senaryoları henüz browser kanıtı sayılmıyor; auth harness ortamı
+  düzeltilince tekrar çalıştırılmalıdır.
 - [ ] Her üretilen frontend için gerçek responsive E2E: masaüstü/tablet/mobil viewport, route root,
   yatay taşma, kırık görsel, boş/error state, haber detay, ürün kartı/varyant, sepet/checkout ve
   üyelik login/logout akışları.
