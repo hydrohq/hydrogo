@@ -1,6 +1,8 @@
 # Demo seed kapsamı
 
-`seed-demo` yalnızca yerel geliştirme ve tarayıcı doğrulaması içindir. Üretim verisi, gerçek müşteri hesabı veya canlı ödeme bilgisi olarak kullanılmamalıdır.
+`seed-demo --confirm-demo` yalnızca yerel geliştirme ve tarayıcı doğrulaması
+içindir. Açık onay olmadan komut fail-closed olur; üretim verisi, gerçek müşteri
+hesabı veya canlı ödeme bilgisi olarak kullanılmamalıdır.
 
 Seed şu akışları görünür ve test edilebilir hale getirir:
 

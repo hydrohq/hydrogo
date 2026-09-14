@@ -395,7 +395,7 @@ body {
 
 func presetSeedFiles(preset, projectName string) map[string]string {
 	now := time.Now().UTC().Format(time.RFC3339)
-	readme := "# Seed Data\n\nThis directory contains baseline demonstration and starter data.\nTo import, run `hydro seed-demo --config config.yaml` or use the Admin Studio.\n"
+	readme := "# Seed Data\n\nThis directory contains baseline demonstration and starter data.\nTo import into a disposable local database, run `hydro seed-demo --confirm-demo --config config.yaml` or use the Admin Studio.\n"
 
 	data := map[string]any{
 		"preset":       preset,

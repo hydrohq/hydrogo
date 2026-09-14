@@ -94,6 +94,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0064](0064-deterministic-alarm-catalog.md) | Keep the operational alarm catalog deterministic | Accepted |
 | [0065](0065-prometheus-exporter-boundary.md) | Keep metrics export explicit and bounded | Accepted |
 | [0066](0066-reproducible-release-evidence.md) | Require reproducible release evidence without claiming provenance | Accepted |
+| [0067](0067-explicit-demo-seeding.md) | Require explicit confirmation for demo seeding | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

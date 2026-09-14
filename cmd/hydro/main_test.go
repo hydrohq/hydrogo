@@ -114,6 +114,14 @@ func TestRunTestRejectsInvalidBoundsBeforeLaunchingGo(t *testing.T) {
 	}
 }
 
+func TestSeedDemoRequiresExplicitConfirmation(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	err := seedDemo([]string{"--database-dsn", "ignored"}, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "--confirm-demo") {
+		t.Fatalf("seed-demo without confirmation error = %v", err)
+	}
+}
+
 func TestLoginPageDoesNotExposeTransportOrServerErrors(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {

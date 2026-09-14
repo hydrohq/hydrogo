@@ -172,7 +172,8 @@ credential, legal decision, or product decision and must remain an open gate.
 
 - [ ] Remove unused vendor assets, demo endpoints, dead routes, duplicate
   helpers, and inaccessible migrations from release builds.
-- [ ] Split demo/fixture data from production images.
+- [x] Keep demo/fixture files out of the documented production image stage and
+  require explicit `seed-demo --confirm-demo` for local data injection.
 - [x] Add reproducible build checks and evidence guidance; external signing,
   registry provenance, and retention remain deployment gates in
   `docs/REPRODUCIBLE_RELEASES.md`.

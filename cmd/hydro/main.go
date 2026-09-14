@@ -1897,9 +1897,13 @@ func upgrade(args []string, stdout, stderr io.Writer) error {
 func seedDemo(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("seed-demo", flag.ContinueOnError)
 	flags.SetOutput(stderr)
+	confirmDemo := flags.Bool("confirm-demo", false, "Confirm that this database is a local demo target")
 	values := addRuntimeFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return err
+	}
+	if !*confirmDemo {
+		return errors.New("seed-demo requires --confirm-demo; use only on a disposable local database")
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
@@ -2484,7 +2488,7 @@ Usage:
   hydro dev [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--poll DUR]
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
-  hydro seed-demo [runtime flags]
+  hydro seed-demo --confirm-demo [runtime flags]
   hydro doctor [--json] [runtime flags]
   hydro validate [--json] [runtime flags]
   hydro test [--package ./...] [--timeout 5m] [--race] [--count N]

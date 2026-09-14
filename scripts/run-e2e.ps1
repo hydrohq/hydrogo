@@ -28,7 +28,7 @@ try {
     go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=e2e -X main.buildTime=e2e" -o $bin (Join-Path $repo "cmd\hydro")
     $env:HYDRO_MEDIA_DIR = $media
     & $bin migrate --database-dialect sqlite --database-dsn $db
-    & $bin seed-demo --database-dialect sqlite --database-dsn $db
+    & $bin seed-demo --confirm-demo --database-dialect sqlite --database-dsn $db
     if (-not $env:HYDRO_E2E_ADMIN_EMAIL) { $env:HYDRO_E2E_ADMIN_EMAIL = "e2e-admin@example.test" }
     $env:HYDRO_E2E_ADMIN_PASSWORD | & $bin create-admin --email $env:HYDRO_E2E_ADMIN_EMAIL --password-stdin --database-dialect sqlite --database-dsn $db
     $process = Start-Process -FilePath $bin -ArgumentList @("serve", "--database-dialect", "sqlite", "--database-dsn", $db, "--address", "127.0.0.1:$port") -WorkingDirectory $repo -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
