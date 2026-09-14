@@ -162,6 +162,8 @@ credential, legal decision, or product decision and must remain an open gate.
   gates.
 - [x] Carry the bounded direction through the v1 theme page contract with a
   left-to-right default for legacy theme callers.
+- [x] Add a theme render fixture for RTL locale attributes and long Unicode
+  content; full locale formatting/browser matrix remains open.
 - [ ] Verify auth, editor, preview, media picker, cart, and checkout through
   refresh/back-forward and cross-origin browser scenarios.
 

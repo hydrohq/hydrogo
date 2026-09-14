@@ -8,6 +8,8 @@
 - Public page and news document roots now emit `dir="ltr"` or `dir="rtl"`.
 - v1 theme layouts receive the same bounded direction and default to `ltr` for
   legacy callers.
+- Corporate theme rendering preserves an `ar-SA`/`rtl` document root and a
+  long Arabic/Unicode title without truncation at the template boundary.
 
 ## Remaining gate
 

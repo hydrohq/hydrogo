@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
@@ -77,5 +78,32 @@ func TestThemeRenderCorporateShowcaseAndBlocks(t *testing.T) {
 	}
 	if !bytes.Contains([]byte(body), []byte("pricing-card")) {
 		t.Fatalf("page output missing pricing-card: %s", body)
+	}
+}
+
+func TestThemeRenderPreservesRTLLocaleAndLongUnicodeTitle(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	repoRoot := filepath.Join(filepath.Dir(filename), "..", "..", "..")
+	bundle, err := themev1.LoadTheme(filepath.Join(repoRoot, "themes"), "corporate")
+	if err != nil {
+		t.Fatalf("load corporate theme: %v", err)
+	}
+	longTitle := strings.Repeat("مرحبا بالعالم — HydroGo ", 32)
+	rec := httptest.NewRecorder()
+	if err := bundle.RenderPage(rec, themev1.PageTemplateData{
+		Title:     longTitle,
+		Locale:    "ar-SA",
+		Direction: "rtl",
+		Content:   htmltemplate.HTML(`<p lang="ar">محتوى تجريبي</p>`),
+		Slots:     map[string]htmltemplate.HTML{"content": htmltemplate.HTML(`<p lang="ar">محتوى تجريبي</p>`)},
+	}); err != nil {
+		t.Fatalf("render RTL page: %v", err)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<html lang="ar-SA" dir="rtl">`) {
+		t.Fatalf("RTL document attributes missing: %s", body)
+	}
+	if !strings.Contains(body, longTitle) || !strings.Contains(body, `lang="ar"`) {
+		t.Fatalf("long Unicode content was not preserved")
 	}
 }
