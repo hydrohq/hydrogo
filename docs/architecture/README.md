@@ -115,6 +115,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0085](0085-release-asset-hygiene.md) | Verify embedded vendor asset reachability before release | Accepted |
 | [0086](0086-user-facing-error-redaction.md) | Keep browser transport errors generic | Accepted |
 | [0087](0087-blank-target-link-hardening.md) | Harden admin blank-target links | Accepted |
+| [0088](0088-inactive-module-route-isolation.md) | Isolate routes for inactive modules | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

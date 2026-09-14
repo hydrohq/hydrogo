@@ -59,6 +59,8 @@ credential, legal decision, or product decision and must remain an open gate.
   extension contracts; legacy v0 types now point to `extension/v1`.
 - [x] Add optional module lifecycle contracts for install, enable, disable,
   upgrade, and migration preflight in `extension/v1`.
+- [x] Enforce that optional admin site/media routes are registered only when
+  their modules are enabled; inactive modules now add no corresponding routes.
 - [x] Add dependency graph validation and cycle detection for modules (see
   the versioned SDK boundary contract below).
 - [x] Add dependency graph validation and cycle detection for modules in the

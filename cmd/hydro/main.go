@@ -1102,7 +1102,7 @@ func serve(args []string, stderr io.Writer) error {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
 		}
 	})
-	for _, pattern := range []string{"GET /admin/control", "GET /admin/site", "GET /admin/security", "GET /admin/operations", "GET /admin/account", "GET /admin/permissions", "GET /admin/developer", "GET /admin/developer/resources"} {
+	for _, pattern := range adminControlRoutePatterns(modules) {
 		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
 	}
 	if modules["media"] {
@@ -1809,6 +1809,22 @@ func enabledModuleSet(modules []string) map[string]bool {
 		}
 	}
 	return result
+}
+
+func adminControlRoutePatterns(enabled map[string]bool) []string {
+	patterns := []string{
+		"GET /admin/control",
+		"GET /admin/security",
+		"GET /admin/operations",
+		"GET /admin/account",
+		"GET /admin/permissions",
+		"GET /admin/developer",
+		"GET /admin/developer/resources",
+	}
+	if enabled["site"] {
+		patterns = append(patterns, "GET /admin/site")
+	}
+	return patterns
 }
 
 func newAuditRecorder(db *sql.DB, dialect database.Dialect) auth.AuditRecorder {

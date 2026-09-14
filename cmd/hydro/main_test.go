@@ -55,6 +55,25 @@ func TestModuleHelpersCanonicalizeNames(t *testing.T) {
 	}
 }
 
+func TestAdminControlRoutesRespectOptionalModules(t *testing.T) {
+	withoutOptional := adminControlRoutePatterns(map[string]bool{})
+	for _, pattern := range withoutOptional {
+		if pattern == "GET /admin/site" || pattern == "GET /admin/media" {
+			t.Fatalf("inactive module route registered: %s", pattern)
+		}
+	}
+	withOptional := adminControlRoutePatterns(map[string]bool{"site": true, "media": true})
+	seen := map[string]bool{}
+	for _, pattern := range withOptional {
+		seen[pattern] = true
+	}
+	for _, pattern := range []string{"GET /admin/site"} {
+		if !seen[pattern] {
+			t.Fatalf("enabled module route missing: %s", pattern)
+		}
+	}
+}
+
 func TestRunVersion(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if err := run([]string{"version"}, strings.NewReader(""), &stdout, &stderr); err != nil {
