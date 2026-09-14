@@ -103,3 +103,63 @@ func splitAllowed(value string) []string {
 	}
 	return result
 }
+
+// inspectModuleBoundaries protects application/domain packages from taking a
+// dependency on concrete SQL, cache, or queue adapters. Adapter details belong
+// behind repository/application interfaces and are intentionally excluded from
+// this scan (repository/sqlstore, transport, providers, and sqlstore trees).
+func inspectModuleBoundaries(root, module string) ([]string, error) {
+	if module == "" {
+		return nil, errors.New("module path is required")
+	}
+	forbidden := []string{
+		module + "/internal/database/sqlstore",
+		module + "/internal/cache/redis",
+		module + "/internal/jobs/sqlstore",
+		module + "/internal/outbox/sqlstore",
+		"database/sql",
+		"modernc.org/sqlite",
+		"github.com/jackc/pgx",
+	}
+	var violations []string
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" || entry.Name() == "vendor" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		normalized := filepath.ToSlash(rel)
+		if !strings.HasPrefix(normalized, "modules/") || strings.Contains(normalized, "/repository/") || strings.Contains(normalized, "/transport/") || strings.Contains(normalized, "/providers/") || strings.Contains(normalized, "/sqlstore/") {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			importPath, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				return err
+			}
+			for _, prefix := range forbidden {
+				if importPath == prefix || strings.HasPrefix(importPath, prefix+"/") {
+					violations = append(violations, fmt.Sprintf("%s imports adapter detail %s", normalized, importPath))
+					break
+				}
+			}
+		}
+		return nil
+	})
+	return violations, err
+}

@@ -100,6 +100,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0070](0070-signed-module-metadata-design.md) | Design signed module metadata without a marketplace | Accepted |
 | [0071](0071-frontend-delivery-choice.md) | Choose frontend delivery by demonstrated boundary needs | Accepted |
 | [0072](0072-public-list-indexes.md) | Index bounded public and admin list reads | Accepted |
+| [0073](0073-module-application-boundary-guard.md) | Guard module application packages from concrete adapters | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

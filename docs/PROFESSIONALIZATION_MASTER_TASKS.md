@@ -93,6 +93,8 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add CSP report parsing and regression coverage for all generated pages.
 - [ ] Expand boundary tests so raw SQL/cache/queue details cannot leak into
   domain/application packages.
+- [x] Add an import guard regression suite that rejects concrete SQL, Redis, and
+  queue adapters in module application packages.
 
 ### SEC-02 Real security gates (`EXTERNAL`)
 
