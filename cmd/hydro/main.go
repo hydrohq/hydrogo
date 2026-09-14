@@ -1412,6 +1412,9 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 // opening the database or exposing secret values. It is safe for CI and local
 // editor/pre-commit workflows where dependencies may not be running yet.
 func validateCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) > 0 && args[0] == "generator" {
+		return validateGeneratorCommand(args[1:], stdout, stderr)
+	}
 	flags := flag.NewFlagSet("validate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
@@ -1447,6 +1450,29 @@ func validateCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, "valid profile=%s database=%s modules=%s cache_entries=%d queue_entries=%d\n", cfg.Profile, cfg.Database.Dialect, strings.Join(sortedModuleNames(modules), ","), budget.CacheEntries, budget.QueueEntries)
+	return err
+}
+
+func validateGeneratorCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("validate generator", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	specPath := flags.String("spec", "", "Versioned module spec (.yaml, .yml, or .json)")
+	root := flags.String("root", "", "Generated project root")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*specPath) == "" || strings.TrimSpace(*root) == "" {
+		return errors.New("validate generator requires --spec and --root")
+	}
+	spec, err := generator.LoadSpec(*specPath)
+	if err != nil {
+		return err
+	}
+	report, err := generator.CheckCompatibility(*root, spec)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "compatible collection=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked)
 	return err
 }
 
@@ -2548,6 +2574,7 @@ Usage:
   hydro seed-demo --confirm-demo [runtime flags]
   hydro doctor [--json] [runtime flags]
   hydro validate [--json] [runtime flags]
+  hydro validate generator --spec SPEC --root OUTPUT
   hydro test [--package ./...] [--timeout 5m] [--race] [--count N]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]

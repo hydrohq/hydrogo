@@ -297,3 +297,22 @@ func TestModuleStarterFixtureLoadsAndValidates(t *testing.T) {
 		t.Fatalf("starter fixture spec = %#v", spec)
 	}
 }
+
+func TestCheckCompatibility(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "testimonial", Table: "testimonials", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"testimonial.read"}, Dialects: []string{"sqlite"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	report, err := CheckCompatibility(root, spec)
+	if err != nil {
+		t.Fatalf("check compatibility: %v", err)
+	}
+	if report.Collection != spec.Name || report.FilesChecked != len(requiredGeneratedFiles) {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+	spec.Fields[0].Name = "changed"
+	if _, err := CheckCompatibility(root, spec); err == nil {
+		t.Fatal("expected spec hash mismatch")
+	}
+}

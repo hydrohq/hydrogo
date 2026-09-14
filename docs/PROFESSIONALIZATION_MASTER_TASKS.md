@@ -221,12 +221,12 @@ The detailed execution plan is in
 the existing Core/module boundaries:
 
 - [ ] `hydro dev` one-command local stack with reload, seed and dependency lifecycle.
-- [ ] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract.
-- [ ] Complete shadcn-compatible component system and showcase with visual regression, RTL and accessibility fixtures.
-- [ ] News, ecommerce, corporate, membership, dashboard and ERP starter presets with upgrade/smoke tests.
-- [ ] Typed API client, OpenAPI, pagination/filter/sort and cache invalidation generation.
+- [~] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract; generated artifacts and aliases are available, runtime wiring remains an explicit review step.
+- [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase and opt-in responsive visual regression are available; RTL/baseline approval remains open.
+- [~] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; deeper seed/upgrade smoke coverage remains open.
+- [~] Typed API client, OpenAPI and form generation are available; pagination/filter/sort and cache invalidation templates remain open.
 - [ ] Bulk actions, import/export, upload, progress and optimistic interaction primitives with bounded resource use.
-- [ ] DX telemetry, docs/ADR drift checks, compatibility checks and upgrade assistant.
+- [~] Iteration measurement script and generator compatibility check (`hydro validate generator`) are available; full telemetry, ADR drift checks and upgrade assistant remain open.
 - [ ] Benchmark acceptance: first route and first CRUD in under 15 minutes on a clean local project.
 
 ### PROD-03 Deliberately gated expansion (`EXTERNAL`)
