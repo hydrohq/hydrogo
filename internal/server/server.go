@@ -114,6 +114,7 @@ func NewHandler(config Config) http.Handler {
 	routes := []router.Route{
 		{Pattern: "GET /healthz", Access: router.Public, Handler: health},
 		{Pattern: "GET /readyz", Access: router.Public, Handler: readiness},
+		{Pattern: "POST /csp-report", Access: router.Public, Handler: http.HandlerFunc(security.CSPReportHandler)},
 	}
 	routes = append(routes, config.Routes...)
 

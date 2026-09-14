@@ -39,6 +39,12 @@ func CSRFTokenFromContext(ctx context.Context) string {
 func CSRFMiddleware(secure bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// CSP violation reports are telemetry, not state-changing application
+			// mutations; their own bounded parser handles validation.
+			if r.URL.Path == "/csp-report" && r.Method == http.MethodPost {
+				next.ServeHTTP(w, r)
+				return
+			}
 			var token string
 			cookie, err := r.Cookie(CSRFCookieName)
 			if err == nil && cookie.Value != "" {

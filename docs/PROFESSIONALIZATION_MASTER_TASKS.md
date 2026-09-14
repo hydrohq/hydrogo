@@ -93,7 +93,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add PII masking and audit access-policy tests for logs and admin views;
   unauthorized member detail requests are denied and optional session storage
   cannot panic the admin read path.
-- [ ] Add CSP report parsing and regression coverage for all generated pages.
+- [x] Add bounded CSP report parsing at `POST /csp-report` with malformed,
+  oversized, and CSRF-bypass regression coverage; reports are not persisted or
+  logged.
 - [ ] Expand boundary tests so raw SQL/cache/queue details cannot leak into
   domain/application packages.
 - [x] Add an import guard regression suite that rejects concrete SQL, Redis, and
