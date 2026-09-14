@@ -65,6 +65,24 @@ func TestRunVersion(t *testing.T) {
 	}
 }
 
+func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
+	var output bytes.Buffer
+	printUsage(&output)
+	usage := output.String()
+	for _, want := range []string{
+		"Examples:",
+		"hydro validate --config config.yaml",
+		"hydro module create --spec ./module.yaml --out ./modules/catalog",
+		"Failure remediation:",
+		"never edit an applied migration",
+		"dev port already in use",
+	} {
+		if !strings.Contains(usage, want) {
+			t.Fatalf("usage missing %q", want)
+		}
+	}
+}
+
 func TestRunValidateJSONDoesNotRequireDatabase(t *testing.T) {
 	root := t.TempDir()
 	configPath := filepath.Join(root, "config.yaml")

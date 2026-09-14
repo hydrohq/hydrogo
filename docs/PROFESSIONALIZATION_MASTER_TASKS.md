@@ -43,7 +43,8 @@ credential, legal decision, or product decision and must remain an open gate.
   output; runtime checks remain under `hydro doctor`.
 - [x] Add bounded `hydro test` wrapper with direct process arguments, timeout,
   package selection, race toggle, and stable errors.
-- [ ] Add actionable command help, examples, and failure remediation text.
+- [x] Add actionable command help, examples, and failure remediation text;
+  workflow guidance lives in `docs/CLI_WORKFLOW.md`.
 - [x] Add and validate `examples/module-starter` as a first-module tutorial
   fixture; clean-temp generated output remains covered by generator smoke.
 
