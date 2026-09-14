@@ -11,6 +11,8 @@ Related decision: [ADR-0090](../architecture/0090-configured-public-home-locale.
   `tr` segment and consults the Site module setting when enabled. `seed-demo`
   now stores its page/news fixtures with the same configured locale and rewrites
   fixture links accordingly.
+- `modules/news/transport/locale_links_test.go` verifies that static Newsroom
+  header/footer links are rewritten to the active locale and fall back safely.
 - `go test ./cmd/hydro ./modules/site -p 1 -count=1` passed.
 
 The seeded demo path remains the fallback for installations without a public

@@ -27,3 +27,7 @@ composition root. The local `seed-demo` command writes pages and news using the
 same configured locale, so its fallback route remains resolvable. Missing,
 private, or external values safely fall back to the configured locale/demo
 route.
+
+Newsroom header/footer navigation rewrites its legacy seeded `tr` links to the
+resolved locale at render time, preventing locale-specific installations from
+showing dead navigation targets.

@@ -385,7 +385,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprint(w, newsDocumentStart(locale, item.Title))
+	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, item.Title), locale))
 
 	var trendingHTML strings.Builder
 	itemIndex := 1
@@ -428,7 +428,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		template.HTMLEscapeString(locale),
 		template.HTMLEscapeString(item.Slug),
 		trendingHTML.String(),
-		enterpriseFooterMarkup(),
+		localizePublicLinks(enterpriseFooterMarkup(), locale),
 	)
 }
 
@@ -453,7 +453,7 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprint(w, newsDocumentStart(locale, "Haberler & Duyurular"))
+	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, "Haberler & Duyurular"), locale))
 	_, _ = fmt.Fprintf(w, `<main data-testid="public-news" class="news-portal"><section class="news-hero-banner"><div class="news-hero-content"><div class="news-tag-badge">HYDROGO YAYIN MERKEZİ</div><h1>Haberler, Duyurular ve Güncellemeler</h1><p>Panelden yönetilen tüm editoryal içerikler, ürün notları ve sistem duyuruları anlık olarak burada listelenir.</p><div class="news-hero-actions"><a class="btn-primary" href="/shop">Mağazayı Keşfet →</a><a class="btn-secondary" href="/admin/news">Admin Panelinde Düzenle ↗</a></div></div></section>`)
 	if len(items) == 0 {
 		_, _ = fmt.Fprint(w, `<section class="news-empty-state"><div class="empty-icon">📰</div><h2>Henüz yayınlanmış bir haber bulunmuyor</h2><p>Admin panelinden yeni bir haber oluşturup yayınlayarak burada görüntüleyebilirsiniz.</p><a class="btn-primary" href="/admin/news">Yeni Haber Ekle</a></section>`)
@@ -483,7 +483,16 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = fmt.Fprint(w, `</div></section>`)
 	}
-	_, _ = fmt.Fprintf(w, `</main>%s`, enterpriseFooterMarkup())
+	_, _ = fmt.Fprintf(w, `</main>%s`, localizePublicLinks(enterpriseFooterMarkup(), locale))
+}
+
+func localizePublicLinks(markup, locale string) string {
+	locale = template.HTMLEscapeString(strings.TrimSpace(locale))
+	if locale == "" {
+		locale = "tr"
+	}
+	markup = strings.ReplaceAll(markup, "/public/pages/tr/", "/public/pages/"+locale+"/")
+	return strings.ReplaceAll(markup, "/public/news/tr/", "/public/news/"+locale+"/")
 }
 
 func newsDocumentStart(locale, title string) string {
