@@ -12,11 +12,12 @@ import (
 )
 
 type ThemeManifest struct {
-	Name    string            `json:"name" yaml:"name"`
-	Version string            `json:"version" yaml:"version"`
-	Tokens  map[string]string `json:"tokens" yaml:"tokens"`
-	Slots   []string          `json:"slots" yaml:"slots"`
-	Assets  []string          `json:"assets" yaml:"assets"`
+	Name         string            `json:"name" yaml:"name"`
+	Version      string            `json:"version" yaml:"version"`
+	DesignSystem string            `json:"design_system" yaml:"design_system"`
+	Tokens       map[string]string `json:"tokens" yaml:"tokens"`
+	Slots        []string          `json:"slots" yaml:"slots"`
+	Assets       []string          `json:"assets" yaml:"assets"`
 }
 
 var ErrInvalidThemeManifest = errors.New("invalid theme manifest")
@@ -25,6 +26,9 @@ var themeName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 func (m ThemeManifest) Validate() error {
 	if !themeName.MatchString(m.Name) || strings.TrimSpace(m.Version) == "" {
 		return ErrInvalidThemeManifest
+	}
+	if m.DesignSystem != "" && (!themeName.MatchString(m.DesignSystem) || len(m.DesignSystem) > 64) {
+		return fmt.Errorf("%w: invalid design system", ErrInvalidThemeManifest)
 	}
 	if len(m.Tokens) > 128 || len(m.Slots) > 64 || len(m.Assets) > 128 {
 		return ErrInvalidThemeManifest

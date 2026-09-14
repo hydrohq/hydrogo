@@ -13,13 +13,27 @@ import (
 )
 
 func TestThemeManifestValidation(t *testing.T) {
-	manifest := ThemeManifest{Name: "corporate", Version: "1.0.0", Tokens: map[string]string{"primary": "#123456"}, Slots: []string{"header", "content"}, Assets: []string{"theme.css"}}
+	manifest := ThemeManifest{Name: "corporate", Version: "1.0.0", DesignSystem: "shadcn", Tokens: map[string]string{"primary": "#123456"}, Slots: []string{"header", "content"}, Assets: []string{"theme.css"}}
 	if err := manifest.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	manifest.Name = "../unsafe"
 	if err := manifest.Validate(); err == nil {
 		t.Fatal("unsafe manifest accepted")
+	}
+}
+
+func TestThemeManifestAcceptsCustomDesignSystemIdentifier(t *testing.T) {
+	manifest := ThemeManifest{Name: "custom", Version: "1.0.0", DesignSystem: "acme-system", Assets: []string{"theme.css"}}
+	if err := manifest.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestThemeManifestRejectsInvalidDesignSystemIdentifier(t *testing.T) {
+	manifest := ThemeManifest{Name: "custom", Version: "1.0.0", DesignSystem: "../material", Assets: []string{"theme.css"}}
+	if err := manifest.Validate(); err == nil {
+		t.Fatal("invalid design system accepted")
 	}
 }
 
