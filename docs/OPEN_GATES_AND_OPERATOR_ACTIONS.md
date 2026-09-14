@@ -131,7 +131,8 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   ADR-0039 ile tanımlıdır. PostgreSQL ve gerçek preset certification hâlâ açık kapıdır.
 - [x] Opsiyonel site/media admin rotaları yalnızca ilgili modüller etkinse kaydedilir; ortak
   router duplicate pattern’leri startup panic’i yerine tanımlı hata olarak reddeder
-  (ADR-0088/0089, `cmd/hydro/main_test.go`, `internal/router/router_test.go`).
+  (ADR-0088/0089, `cmd/hydro/main_test.go`, `internal/router/router_test.go`,
+  [R5 route conflict validation](validation/R5-route-conflict-validation-2026-09-14.md)).
 
 Bu bölüm yalnızca mevcut yerel kanıtı ifade eder; production certification, gerçek müşteri verisi,
 dış servis veya canlı ödeme başarısı anlamına gelmez.
