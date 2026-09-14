@@ -46,7 +46,8 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### EXT-01 Extension SDK boundary (`LOCAL`)
 
-- [ ] Publish a capability/version matrix for Core, modules, themes, and APIs.
+- [x] Publish a capability/version matrix for Core, modules, themes, and APIs
+  in `docs/SDK_CAPABILITY_MATRIX.md`.
 - [x] Separate stable SDK imports from internal implementation imports for the
   module route boundary via `extension/v1`; broader capability extraction stays
   in the SDK v1 task.
