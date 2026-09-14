@@ -98,6 +98,22 @@ func TestLoadTreatsNilEnvironmentLookupAsEmpty(t *testing.T) {
 	}
 }
 
+func TestLoadMediaS3RequiresEndpointAndBucket(t *testing.T) {
+	path := writeConfig(t, "media:\n  storage_driver: s3\n")
+	_, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "s3 media storage requires") {
+		t.Fatalf("error = %v", err)
+	}
+	path = writeConfig(t, "media:\n  storage_driver: s3\n  s3_endpoint: http://127.0.0.1:9000\n  s3_bucket: hydro\n")
+	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Media.StorageDriver != "s3" || cfg.Media.S3Bucket != "hydro" {
+		t.Fatalf("media config = %+v", cfg.Media)
+	}
+}
+
 func TestLoadRejectsPartialSMTPConfiguration(t *testing.T) {
 	_, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_FROM": "from@example.test"}), Overrides{})
 	if err == nil || !strings.Contains(err.Error(), "mail host is required") {

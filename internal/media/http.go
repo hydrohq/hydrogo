@@ -3,6 +3,7 @@ package media
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -68,6 +69,17 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 				storageKey, mimeType = variant.StorageKey, variant.MimeType
 			}
 		}
+	}
+	if h.Service.BlobStore != nil {
+		object, getErr := h.Service.BlobStore.Get(r.Context(), storageKey)
+		if getErr != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer object.Close()
+		w.Header().Set("Content-Type", mimeType)
+		io.Copy(w, object)
+		return
 	}
 	path := filepath.Join(h.Service.Uploader.StorageDir, filepath.Base(storageKey))
 	info, err := os.Lstat(path)

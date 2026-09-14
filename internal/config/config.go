@@ -53,7 +53,15 @@ type Database struct {
 }
 
 type Media struct {
-	Dir string `yaml:"dir"`
+	Dir           string `yaml:"dir"`
+	StorageDriver string `yaml:"storage_driver"`
+	S3Endpoint    string `yaml:"s3_endpoint"`
+	S3Bucket      string `yaml:"s3_bucket"`
+	S3Region      string `yaml:"s3_region"`
+	S3AccessKey   string `yaml:"s3_access_key"`
+	S3SecretKey   string `yaml:"s3_secret_key"`
+	S3UseSSL      bool   `yaml:"s3_use_ssl"`
+	CDNBaseURL    string `yaml:"cdn_base_url"`
 }
 
 type Security struct {
@@ -149,6 +157,34 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_MEDIA_DIR"); ok && value != "" {
 		result.Media.Dir = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_STORAGE_DRIVER"); ok && value != "" {
+		result.Media.StorageDriver = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_S3_ENDPOINT"); ok && value != "" {
+		result.Media.S3Endpoint = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_S3_BUCKET"); ok && value != "" {
+		result.Media.S3Bucket = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_S3_REGION"); ok && value != "" {
+		result.Media.S3Region = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_S3_ACCESS_KEY"); ok && value != "" {
+		result.Media.S3AccessKey = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_S3_SECRET_KEY"); ok && value != "" {
+		result.Media.S3SecretKey = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_S3_USE_SSL"); ok && value != "" {
+		useSSL, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_MEDIA_S3_USE_SSL: %w", err)
+		}
+		result.Media.S3UseSSL = useSSL
+	}
+	if value, ok := lookup("HYDRO_MEDIA_CDN_BASE_URL"); ok && value != "" {
+		result.Media.CDNBaseURL = value
 	}
 	if value, ok := lookup("HYDRO_THEME_DIR"); ok && value != "" {
 		result.ThemeDir = value
@@ -444,6 +480,21 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.Media.Dir) == "" {
 		return errors.New("media directory is required")
+	}
+	if c.Media.StorageDriver == "" {
+		c.Media.StorageDriver = "local"
+	}
+	if c.Media.StorageDriver != "local" && c.Media.StorageDriver != "s3" {
+		return fmt.Errorf("unsupported media storage driver %q", c.Media.StorageDriver)
+	}
+	if c.Media.StorageDriver == "s3" && (strings.TrimSpace(c.Media.S3Endpoint) == "" || strings.TrimSpace(c.Media.S3Bucket) == "") {
+		return errors.New("s3 media storage requires endpoint and bucket")
+	}
+	if c.Media.CDNBaseURL != "" {
+		parsed, err := url.Parse(c.Media.CDNBaseURL)
+		if err != nil || !isHTTPOrigin(parsed) {
+			return fmt.Errorf("invalid media CDN base URL %q", c.Media.CDNBaseURL)
+		}
 	}
 	if c.License.Required {
 		if strings.TrimSpace(c.License.File) == "" || strings.TrimSpace(c.License.ProjectID) == "" || strings.TrimSpace(c.License.Edition) == "" {

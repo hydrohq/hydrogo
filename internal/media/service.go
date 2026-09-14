@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -56,8 +57,11 @@ func (s Service) List(ctx context.Context, db database.Executor, limit int) ([]A
 type Service struct {
 	Transactions database.Transactor
 	Uploader     *Uploader
-	Assets       AssetRepository
-	Optimizer    *Optimizer
+	// BlobStore is optional. When set, immutable objects are written to and
+	// served from the configured provider-neutral object store.
+	BlobStore BlobStore
+	Assets    AssetRepository
+	Optimizer *Optimizer
 }
 
 func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) (*UploadResult, error) {
@@ -84,6 +88,16 @@ func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) 
 		return s.Assets.CreatePending(ctx, tx, asset)
 	}); err != nil {
 		return nil, err
+	}
+	if s.BlobStore != nil {
+		file, openErr := os.Open(result.StoragePath)
+		if openErr != nil {
+			return nil, openErr
+		}
+		defer file.Close()
+		if err := s.BlobStore.Put(ctx, filepath.Base(result.StoragePath), file, result.SizeBytes, result.MimeType); err != nil {
+			return nil, err
+		}
 	}
 	return result, nil
 }
