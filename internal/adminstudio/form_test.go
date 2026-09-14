@@ -81,6 +81,9 @@ func TestRenderCreateFormSupportsRichTextWithNonce(t *testing.T) {
 	if !strings.Contains(out.String(), "data-richtext") || !strings.Contains(out.String(), "HydroInitQuill") {
 		t.Fatalf("rich text elements missing: %s", out.String())
 	}
+	if !strings.Contains(out.String(), `role="textbox" aria-label="Description" aria-multiline="true"`) {
+		t.Fatalf("rich text accessible name missing: %s", out.String())
+	}
 }
 
 func TestRenderCreateFormSupportsHiddenWidgetAndOptionsSelect(t *testing.T) {

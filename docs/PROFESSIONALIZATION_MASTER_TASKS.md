@@ -145,6 +145,8 @@ credential, legal decision, or product decision and must remain an open gate.
   Tabs, Empty, Loading, and Error components.
 - [x] Harden the shared metadata-driven Table primitive with an accessible
   caption and scoped column headers in `internal/adminstudio`.
+- [x] Give the shared rich-text editor an explicit multiline textbox role and
+  server-rendered accessible name.
 - [ ] Make HydroGo and shadcn visual modes consume the same semantic markup.
 - [x] Add local keyboard/focus, reduced-motion, and accessible-name regressions; browser contrast and device audits remain external UI gates.
 - [ ] Add visual regression baselines for desktop, tablet, and mobile.

@@ -1,9 +1,11 @@
 package adminstudio
 
 import (
+	"bytes"
 	"errors"
 	"html/template"
 	"io"
+	"strings"
 )
 
 var ErrInvalidForm = errors.New("invalid admin form")
@@ -30,5 +32,22 @@ func RenderCreateForm(w io.Writer, data FormData) error {
 	if data.Values == nil {
 		data.Values = map[string]string{}
 	}
-	return createFormTemplate.Execute(w, data)
+	var rendered bytes.Buffer
+	if err := createFormTemplate.Execute(&rendered, data); err != nil {
+		return err
+	}
+	richTextLabel := "Zengin metin alanı"
+	for _, field := range data.Collection.Fields {
+		if field.Widget == "richtext" || field.ID == "body" || field.ID == "description" {
+			richTextLabel = field.Label
+			break
+		}
+	}
+	// Quill turns this container into a contenteditable textbox at runtime;
+	// keep its accessible name on the server-rendered shell as well.
+	html := strings.ReplaceAll(rendered.String(),
+		`class="richtext-editor ql-container ql-snow"`,
+		`class="richtext-editor ql-container ql-snow" role="textbox" aria-label="`+template.HTMLEscapeString(richTextLabel)+`" aria-multiline="true"`)
+	_, err := io.WriteString(w, html)
+	return err
 }

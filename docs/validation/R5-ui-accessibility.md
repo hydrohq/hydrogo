@@ -10,6 +10,8 @@
 - The metadata-driven admin table emits a visually-hidden caption and
   `scope="col"` headers; `internal/adminstudio/list_test.go` guards this
   contract.
+- Metadata-driven rich-text forms emit `role="textbox"`, `aria-multiline`, and
+  a field label before Quill enhances the editor.
 
 ## Remaining browser gate
 
