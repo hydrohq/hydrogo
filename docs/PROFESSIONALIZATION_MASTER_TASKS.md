@@ -210,8 +210,9 @@ credential, legal decision, or product decision and must remain an open gate.
 
 - [ ] Validate Stripe/iyzico/PayTR sandbox callback, signature, idempotency,
   refund, and timeout behavior with real accounts.
-- [ ] Decide and validate S3/CDN, durable queue, and Redis/Valkey production
-  boundaries.
+- [~] Provider-neutral S3-compatible media boundary and optional local MinIO
+  profile implemented (ADR-0022); production provider/IAM/CDN validation,
+  retention and failover remain deployment gates.
 
 ### PROD-03 Deliberately gated expansion (`EXTERNAL`)
 

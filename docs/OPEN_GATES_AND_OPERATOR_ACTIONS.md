@@ -60,8 +60,10 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 - [ ] Stripe/iyzico/PayTR sandbox callback ve signature doğrulamasını gerçek sandbox hesaplarıyla çalıştır.
   Canlı ödeme anahtarları, webhook URL’leri, idempotency, refund ve timeout davranışı production öncesi
   ayrıca doğrulanmalıdır.
-- [ ] S3/CDN veya uzak medya sağlayıcısı kullanılacaksa provider sözleşmesi, erişim/yenileme, cache
-  invalidation, hata fallback’i ve GC/erasure davranışını gerçek ortamda ölç.
+- [~] Provider-neutral S3-compatible adapter, optional driver configuration,
+  MinIO compose fixture and local contract documentation are available
+  (ADR-0022). [ ] Gerçek provider IAM, KMS, retention, CDN cache/purge,
+  erişim kaybı ve failover staging doğrulaması.
 
 ## 2. Çalıştırılması gereken ama bu çalışma kapsamında kanıtlanmamış testler
 
