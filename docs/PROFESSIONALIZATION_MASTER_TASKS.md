@@ -139,8 +139,8 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### UI-02 Frontend architecture decision (`LOCAL` + `PRODUCT DECISION`)
 
-- [ ] Document when to use server-rendered HTML, HTMX, or a separately built
-  frontend.
+- [x] Document when to use server-rendered HTML, HTMX, or a separately built
+  frontend in `docs/FRONTEND_ARCHITECTURE.md`.
 - [ ] Define a versioned frontend manifest/route/selector contract.
 - [ ] Define state, error, loading, and optimistic-update conventions.
 - [ ] Measure build and iteration time for a standard customer feature.
