@@ -60,6 +60,11 @@ Amaç: Production sözleşmelerini koruyan ilk çalışan modülü Next.js benze
 - Yetkisiz erişim, CSRF, validation, migration rollback ve erişilebilirlik testleri otomatik gelmeli.
 - `hydro dev` tek komutla local bağımlılıkları başlatabilmeli.
 
+`scripts/measure-iteration.ps1` artık UI sözleşmesi, full compile, ilk resource
+üretimi ve generated compatibility preflight sürelerini tek JSON raporunda
+ölçer. Bu, DX kabul ölçütünü ölçülebilir kılar; gerçek temiz makine ölçümü CI
+veya ekip ortamında ayrıca kaydedilmelidir.
+
 İşletmeye özel muhasebe/ERP kuralları, ödeme seçimi, müşteri UX kararları ve
 production credentials generator tarafından uydurulmaz; Client Edition veya
 ayrı ADR/ürün kararlarıdır.
