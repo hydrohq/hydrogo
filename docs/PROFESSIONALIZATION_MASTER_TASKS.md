@@ -100,7 +100,7 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add bounded CSP report parsing at `POST /csp-report` with malformed,
   oversized, and CSRF-bypass regression coverage; reports are not persisted or
   logged.
-- [ ] Expand boundary tests so raw SQL/cache/queue details cannot leak into
+- [x] Expand boundary tests so raw SQL/cache/queue details cannot leak into
   domain/application packages.
 - [x] Add an import guard regression suite that rejects concrete SQL, Redis, and
   queue adapters in module application packages.

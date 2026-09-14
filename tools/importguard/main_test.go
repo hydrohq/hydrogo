@@ -82,3 +82,30 @@ var _ *sql.DB
 		t.Fatalf("unexpected violations = %v", violations)
 	}
 }
+
+func TestInspectModuleBoundariesRejectsAllConcreteStorageDetails(t *testing.T) {
+	root := t.TempDir()
+	serviceDir := filepath.Join(root, "modules", "demo", "service")
+	if err := os.MkdirAll(serviceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	imports := map[string]string{
+		"sql.go":    `package service; import "database/sql"; var _ *sql.DB`,
+		"sqlite.go": `package service; import "modernc.org/sqlite"; var _ sqlite.Driver`,
+		"pgx.go":    `package service; import "github.com/jackc/pgx/v5"; var _ pgx.Conn`,
+		"redis.go":  `package service; import "github.com/ardaozyildirim/hydrogo/internal/cache/redis"; var _ redis.Client`,
+		"outbox.go": `package service; import "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"; var _ sqlstore.Store`,
+	}
+	for name, source := range imports {
+		if err := os.WriteFile(filepath.Join(serviceDir, name), []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	violations, err := inspectModuleBoundaries(root, "github.com/ardaozyildirim/hydrogo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(violations) != len(imports) {
+		t.Fatalf("violations = %v, want %d concrete adapter violations", violations, len(imports))
+	}
+}
