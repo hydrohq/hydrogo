@@ -1101,6 +1101,12 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return
 		}
+		if r.URL.Path == "/admin/developer/components" {
+			if err := ui.RenderComponentShowcase(w, security.NonceFromContext(r.Context())); err != nil {
+				http.Error(w, "component showcase unavailable", http.StatusInternalServerError)
+			}
+			return
+		}
 		if r.URL.Path == "/admin/account" {
 			active = "account"
 		}
@@ -1843,6 +1849,7 @@ func adminControlRoutePatterns(enabled map[string]bool) []string {
 		"GET /admin/permissions",
 		"GET /admin/developer",
 		"GET /admin/developer/resources",
+		"GET /admin/developer/components",
 	}
 	if enabled["site"] {
 		patterns = append(patterns, "GET /admin/site")
