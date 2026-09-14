@@ -76,4 +76,7 @@ powershell -ExecutionPolicy Bypass -File scripts/run-e2e.ps1
 $done = (Select-String docs/PROFESSIONALIZATION_MASTER_TASKS.md '- \[x\]').Count
 $open = (Select-String docs/PROFESSIONALIZATION_MASTER_TASKS.md '- \[ \]').Count
 Write-Output "done=$done open=$open total=$($done+$open)"
+
+# Tek komutla durum özeti
+powershell -ExecutionPolicy Bypass -File scripts/status.ps1
 ```
