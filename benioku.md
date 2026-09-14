@@ -1,6 +1,6 @@
 # HydroGo — Güncel Durum
 
-**Son kontrol:** 14 Eylül 2026  
+**Son kontrol:** 15 Eylül 2026  
 **Dal:** `main`  
 **Git durumu:** Temiz, `origin/main` ile senkron  
 **Task özeti:** **60 tamamlandı / 20 açık / 80 toplam**
