@@ -88,8 +88,8 @@ credential, legal decision, or product decision and must remain an open gate.
   bombs, oversized bodies, and malformed multipart input. Coverage spans
   `internal/security`, `internal/media/upload_test.go`, and
   `internal/media/http_test.go`; external penetration testing remains open.
-- [ ] Add secret/key rotation and emergency revoke runbook plus local contract
-  tests.
+- [x] Add secret/key rotation and emergency revoke runbook plus local contract
+  tests; real key ceremony and secret-manager execution remain external gates.
 - [x] Add PII masking and audit access-policy tests for logs and admin views;
   unauthorized member detail requests are denied and optional session storage
   cannot panic the admin read path.

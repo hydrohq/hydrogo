@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestAuthServiceRejectsMissingRepositories(t *testing.T) {
@@ -27,5 +28,31 @@ func TestAuthServiceUsesSafeDummyHashForInvalidParameters(t *testing.T) {
 	}
 	if _, err := VerifyPassword("wrong", service.dummyHash); err != nil {
 		t.Fatalf("safe dummy hash is invalid: %v", err)
+	}
+}
+
+func TestEmergencyRevokeRemovesAllUserSessions(t *testing.T) {
+	sessions := &httpSessionRepo{session: &Session{ID: "s1", UserID: "u1", TokenHash: HashSessionToken("token"), ExpiresAt: time.Now().UTC().Add(time.Hour)}}
+	service := NewAuthService(nil, sessions, TestArgon2Params)
+	if err := service.RevokeAllUserSessions(context.Background(), "u1"); err != nil {
+		t.Fatalf("revoke all sessions: %v", err)
+	}
+	if sessions.session != nil {
+		t.Fatal("emergency revoke left a user session active")
+	}
+}
+
+func TestCreatedSessionStoresOnlyTokenHash(t *testing.T) {
+	sessions := &httpSessionRepo{}
+	service := NewAuthService(nil, sessions, TestArgon2Params)
+	rawToken, session, err := service.CreateSession(context.Background(), "u1", "browser", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if rawToken == "" || session.TokenHash == "" || rawToken == session.TokenHash {
+		t.Fatal("session persistence exposed or omitted the raw token")
+	}
+	if sessions.session.TokenHash != HashSessionToken(rawToken) {
+		t.Fatal("stored session hash does not match token digest")
 	}
 }
