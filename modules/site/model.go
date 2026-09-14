@@ -37,7 +37,7 @@ func ResolvePublicHomePath(settings []Setting, fallback string) string {
 		}
 		path := strings.TrimSpace(setting.Value)
 		parsed, err := url.Parse(path)
-		if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "\r\n") {
+		if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "\r\n\\") {
 			continue
 		}
 		return path
