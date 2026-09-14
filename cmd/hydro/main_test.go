@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -61,6 +62,29 @@ func TestRunVersion(t *testing.T) {
 	}
 	if got := stdout.String(); got != version+"\n" {
 		t.Fatalf("version output = %q, want %q", got, version+"\n")
+	}
+}
+
+func TestRunValidateJSONDoesNotRequireDatabase(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "config.yaml")
+	config := "profile: compact\nmodules: [core, pages]\ndatabase:\n  dialect: sqlite\n  dsn: " + filepath.Join(root, "missing.sqlite") + "\nmedia:\n  dir: " + filepath.Join(root, "media") + "\n"
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"validate", "--config", configPath, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("validate: %v stderr=%s", err, stderr.String())
+	}
+	var result struct {
+		Valid   bool     `json:"valid"`
+		Modules []string `json:"modules"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("validate JSON: %v output=%q", err, stdout.String())
+	}
+	if !result.Valid || !reflect.DeepEqual(result.Modules, []string{"core", "pages"}) {
+		t.Fatalf("validate result = %+v", result)
 	}
 }
 

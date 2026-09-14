@@ -151,6 +151,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return moduleCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
+	case "validate":
+		return validateCommand(args[1:], stdout, stderr)
 	case "backup":
 		return backupCommand(args[1:], stdout, stderr)
 	case "restore":
@@ -1301,6 +1303,59 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	return err
 }
 
+// validateCommand checks configuration and profile/module invariants without
+// opening the database or exposing secret values. It is safe for CI and local
+// editor/pre-commit workflows where dependencies may not be running yet.
+func validateCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("validate", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	jsonOutput := flags.Bool("json", false, "Print machine-readable validation result")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	modules := enabledModuleSet(cfg.Modules)
+	if *jsonOutput {
+		payload, err := json.Marshal(struct {
+			Valid        bool     `json:"valid"`
+			Profile      string   `json:"profile"`
+			Database     string   `json:"database"`
+			Modules      []string `json:"modules"`
+			CacheEntries int      `json:"cache_entries"`
+			QueueEntries int      `json:"queue_entries"`
+		}{true, string(cfg.Profile), string(cfg.Database.Dialect), sortedModuleNames(modules), budget.CacheEntries, budget.QueueEntries})
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(stdout, string(payload))
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "valid profile=%s database=%s modules=%s cache_entries=%d queue_entries=%d\n", cfg.Profile, cfg.Database.Dialect, strings.Join(sortedModuleNames(modules), ","), budget.CacheEntries, budget.QueueEntries)
+	return err
+}
+
+func sortedModuleNames(modules map[string]bool) []string {
+	result := make([]string, 0, len(modules))
+	for name, enabled := range modules {
+		if enabled {
+			result = append(result, name)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
 func jobsCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] != "dead-letter" {
 		return errors.New("jobs requires the dead-letter subcommand")
@@ -2314,6 +2369,7 @@ Usage:
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed-demo [runtime flags]
   hydro doctor [--json] [runtime flags]
+  hydro validate [--json] [runtime flags]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup prune --root PATH --keep N --dry-run|--confirm [--pinned NAME,...]

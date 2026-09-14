@@ -73,6 +73,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0043](0043-path-segment-redirect-escaping.md) | Escape dynamic redirect path segments | Accepted |
 | [0044](0044-sanitized-theme-content-contract.md) | Sanitized content contract for example themes | Accepted |
 | [0045](0045-task-oriented-module-cli.md) | Task-oriented module creation CLI | Accepted |
+| [0046](0046-offline-configuration-validation.md) | Offline configuration validation command | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
