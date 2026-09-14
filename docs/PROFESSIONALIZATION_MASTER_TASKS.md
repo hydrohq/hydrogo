@@ -31,8 +31,9 @@ credential, legal decision, or product decision and must remain an open gate.
 ### DX-01 CLI and project workflow (`LOCAL`)
 
 - [ ] Add a consistent `hydro dev` command with bounded reload/error output.
-- [ ] Add `hydro module create` with domain/service/repository/transport,
-  migration, policy, fixture, and test scaffolds.
+- [x] Add `hydro module create` with model/service/repository/transport,
+  migration, deny-by-default policy, fixture/contract tests, admin manifest,
+  and module metadata scaffolds. Business rules remain explicit review work.
 - [ ] Add `hydro resource create` for a collection and generated CRUD contract.
 - [ ] Add `hydro migration create` with dialect files and metadata skeleton.
 - [ ] Add `hydro test` and `hydro validate` wrappers with stable exit codes.

@@ -165,6 +165,19 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s repository missing %q", spec.Name, method)
 			}
 		}
+		for _, file := range []string{"service.go", "policy.go", "fixture_test.go", "module.yaml"} {
+			if _, err := os.Stat(filepath.Join(root, "generated", spec.Name, file)); err != nil {
+				t.Fatalf("%s scaffold %s missing: %v", spec.Name, file, err)
+			}
+		}
+		service, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "service.go"))
+		if err != nil || !bytes.Contains(service, []byte("type "+exportName(spec.Name)+"Service struct")) {
+			t.Fatalf("%s service scaffold missing: %v", spec.Name, err)
+		}
+		policy, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "policy.go"))
+		if err != nil || !bytes.Contains(policy, []byte("CanCreate")) {
+			t.Fatalf("%s policy scaffold missing: %v", spec.Name, err)
+		}
 		migration, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "migration.sql"))
 		if err != nil {
 			t.Fatal(err)

@@ -25,9 +25,12 @@ hydro module create --spec .\collection.yaml --out .\generated
 ```
 
 The established spelling `hydro generate module --spec ... --out ...` remains
-supported and produces the same validated artifacts. Generated repository and
-transport code is a reviewable starting point; authorization, business rules,
-and migration rollout still require explicit developer review.
+supported and produces the same validated artifacts. The collection directory
+contains model, repository, service, deny-by-default policy, transport,
+contract/fixture tests, a dialect migration draft, an admin manifest, and a
+machine-readable `module.yaml`. Generated code is a reviewable starting point;
+authorization, business rules, and migration rollout still require explicit
+developer review.
 
 ### Frontend build manifest
 
