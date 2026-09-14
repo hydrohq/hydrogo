@@ -43,6 +43,17 @@ func TestCommerceRouterRoutesPreserveCommerceRouteSet(t *testing.T) {
 	}
 }
 
+func TestModuleHelpersCanonicalizeNames(t *testing.T) {
+	configured := []string{" Pages ", "NEWS"}
+	if !moduleEnabled(configured, "pages") || !moduleEnabled(configured, " news ") {
+		t.Fatalf("moduleEnabled failed to canonicalize %#v", configured)
+	}
+	set := enabledModuleSet(configured)
+	if !set["pages"] || !set["news"] || len(set) != 2 {
+		t.Fatalf("enabledModuleSet = %#v", set)
+	}
+}
+
 func TestRunVersion(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if err := run([]string{"version"}, strings.NewReader(""), &stdout, &stderr); err != nil {

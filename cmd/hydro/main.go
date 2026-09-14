@@ -1605,8 +1605,9 @@ func commerceRouterRoutes(routes []commercetransport.Route) []router.Route {
 }
 
 func moduleEnabled(modules []string, wanted string) bool {
+	wanted = strings.ToLower(strings.TrimSpace(wanted))
 	for _, module := range modules {
-		if module == wanted {
+		if strings.ToLower(strings.TrimSpace(module)) == wanted {
 			return true
 		}
 	}
@@ -1616,7 +1617,10 @@ func moduleEnabled(modules []string, wanted string) bool {
 func enabledModuleSet(modules []string) map[string]bool {
 	result := make(map[string]bool, len(modules))
 	for _, module := range modules {
-		result[module] = true
+		name := strings.ToLower(strings.TrimSpace(module))
+		if name != "" {
+			result[name] = true
+		}
 	}
 	return result
 }
