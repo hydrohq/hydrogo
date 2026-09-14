@@ -47,6 +47,7 @@ func (w memberResponseWriter) Write(payload []byte) (int, error) {
 	if locale == "" {
 		locale = "tr"
 	}
+	output = strings.ReplaceAll(output, `<html lang="tr"`, `<html lang="`+template.HTMLEscapeString(locale)+`"`)
 	output = strings.ReplaceAll(output, "/public/pages/tr/", "/public/pages/"+template.HTMLEscapeString(locale)+"/")
 	output = strings.ReplaceAll(output, "/public/news/tr/", "/public/news/"+template.HTMLEscapeString(locale)+"/")
 	return w.ResponseWriter.Write([]byte(output))
