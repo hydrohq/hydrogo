@@ -107,6 +107,8 @@ credential, legal decision, or product decision and must remain an open gate.
   domain/application packages.
 - [x] Add an import guard regression suite that rejects concrete SQL, Redis, and
   queue adapters in module application packages.
+- [x] Redact browser transport error details on member authentication pages;
+  diagnostics remain server-side and the user receives a stable generic message.
 
 ### SEC-02 Real security gates (`EXTERNAL`)
 

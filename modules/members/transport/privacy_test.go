@@ -28,3 +28,16 @@ func TestMemberResponseWriterPreservesResponseStatusAndHeaders(t *testing.T) {
 		t.Fatalf("sanitized writer changed response metadata: status=%d headers=%v", response.Code, response.Header())
 	}
 }
+
+func TestMemberResponseWriterRedactsRuntimeErrorDetails(t *testing.T) {
+	response := httptest.NewRecorder()
+	writer := sanitizeMemberResponse(response)
+	_, _ = writer.Write([]byte("Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+')."))
+	body := response.Body.String()
+	if strings.Contains(body, "err.message") || strings.Contains(body, "('+") {
+		t.Fatalf("runtime error detail leaked into member response: %q", body)
+	}
+	if !strings.Contains(body, "Bağlantı hatası: Sunucuya ulaşılamadı.") {
+		t.Fatalf("generic transport error was not preserved: %q", body)
+	}
+}
