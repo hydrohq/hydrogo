@@ -30,7 +30,8 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### DX-01 CLI and project workflow (`LOCAL`)
 
-- [ ] Add a consistent `hydro dev` command with bounded reload/error output.
+- [x] Add a consistent `hydro dev` command with bounded reload/error output by
+  delegating to the existing local-only devserver supervisor.
 - [x] Add `hydro module create` with model/service/repository/transport,
   migration, deny-by-default policy, fixture/contract tests, admin manifest,
   and module metadata scaffolds. Business rules remain explicit review work.

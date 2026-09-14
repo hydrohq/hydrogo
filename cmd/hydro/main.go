@@ -139,6 +139,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return errors.New("version accepts only --json")
 	case "serve":
 		return serve(args[1:], stderr)
+	case "dev":
+		return devCommand(args[1:], stdout, stderr)
 	case "migrate":
 		return migrate(args[1:], stderr)
 	case "migration":
@@ -182,6 +184,26 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+func devCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("dev", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	_ = flags.String("address", "127.0.0.1:8090", "development proxy listen address")
+	_ = flags.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
+	_ = flags.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
+	_ = flags.Duration("poll", 600*time.Millisecond, "file watch polling interval")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	commandArgs := append([]string{"run", "./tools/devserver"}, args...)
+	command := exec.Command("go", commandArgs...)
+	command.Stdout, command.Stderr = stdout, stderr
+	command.Dir, _ = os.Getwd()
+	return command.Run()
 }
 
 func generateCommand(args []string, stdout, stderr io.Writer) error {
@@ -2459,6 +2481,7 @@ Usage:
   hydro version
   hydro version --json
   hydro migrate [runtime flags]
+  hydro dev [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--poll DUR]
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed-demo [runtime flags]

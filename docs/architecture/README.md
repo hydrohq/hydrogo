@@ -85,6 +85,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0055](0055-incident-runbook-template.md) | Structured incident and rollback runbook template | Accepted |
 | [0056](0056-canonical-module-filtering.md) | Canonical module names in migration filtering | Accepted |
 | [0057](0057-release-checklist-gates.md) | Evidence-based release checklist | Accepted |
+| [0058](0058-hydro-dev-entrypoint.md) | Local `hydro dev` entrypoint | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

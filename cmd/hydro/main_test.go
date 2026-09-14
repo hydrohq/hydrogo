@@ -236,6 +236,14 @@ func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
 	}
 }
 
+func TestDevCommandRejectsUnexpectedArgumentsBeforeProcessStart(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"dev", "unexpected"}, strings.NewReader(""), &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "unexpected arguments") {
+		t.Fatalf("dev unexpected args error = %v", err)
+	}
+}
+
 func TestDeadLetterRequeueRequiresExplicitConfirmation(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	err := run([]string{"jobs", "dead-letter", "requeue", "--id", "job-1"}, strings.NewReader(""), &stdout, &stderr)
