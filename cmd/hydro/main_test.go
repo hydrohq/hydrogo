@@ -219,6 +219,23 @@ collection:
 	}
 }
 
+func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"migration", "create", "--id", "209901010001_example", "--module", "pages", "--out", root}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("migration create: %v stderr=%s", err, stderr.String())
+	}
+	dir := filepath.Join(root, "209901010001_example")
+	for _, name := range []string{"migration.yaml", "sqlite.sql", "postgres.sql"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Fatalf("generated %s missing: %v", name, err)
+		}
+	}
+	if err := run([]string{"migration", "create", "--id", "209901010001_example", "--out", root}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("migration create overwrote an existing migration")
+	}
+}
+
 func TestDeadLetterRequeueRequiresExplicitConfirmation(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	err := run([]string{"jobs", "dead-letter", "requeue", "--id", "job-1"}, strings.NewReader(""), &stdout, &stderr)

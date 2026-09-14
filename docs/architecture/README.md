@@ -79,6 +79,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0049](0049-versioned-module-route-contract.md) | Versioned module route contract | Accepted |
 | [0050](0050-module-dependency-graph-validation.md) | Module dependency graph validation | Accepted |
 | [0051](0051-resource-create-cli-alias.md) | Resource-oriented CRUD scaffold command | Accepted |
+| [0052](0052-migration-create-scaffold.md) | Reviewable migration scaffold command | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -140,6 +141,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return serve(args[1:], stderr)
 	case "migrate":
 		return migrate(args[1:], stderr)
+	case "migration":
+		return migrationCommand(args[1:], stdout, stderr)
 	case "upgrade":
 		return upgrade(args[1:], stdout, stderr)
 	case "create-admin":
@@ -204,6 +207,46 @@ func resourceCommand(args []string, stdout, stderr io.Writer) error {
 		return errors.New("resource requires the create subcommand")
 	}
 	return generateModuleCommand(args[1:], stdout, stderr)
+}
+
+var migrationIDPattern = regexp.MustCompile(`^[0-9]{12}_[a-z][a-z0-9_]{1,62}$`)
+
+func migrationCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "create" {
+		return errors.New("migration requires the create subcommand")
+	}
+	flags := flag.NewFlagSet("migration create", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	id := flags.String("id", "", "Migration identifier (YYYYMMDDHHMM_name)")
+	module := flags.String("module", "core", "Owning module name")
+	root := flags.String("out", "migrations", "Migration root directory")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || !migrationIDPattern.MatchString(strings.TrimSpace(*id)) {
+		return errors.New("migration create requires a valid --id (YYYYMMDDHHMM_name)")
+	}
+	if strings.TrimSpace(*module) == "" || strings.ContainsAny(*module, `/\\`) {
+		return errors.New("--module must be a non-empty name")
+	}
+	dir := filepath.Join(*root, *id)
+	if _, err := os.Stat(dir); err == nil {
+		return fmt.Errorf("migration already exists: %s", dir)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	metadata := fmt.Sprintf("id: %q\nmodule: %q\nclass:\n  sqlite: \"expand\"\n  postgres: \"expand\"\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: []\nchecksum_sha256:\n  sqlite: \"REPLACE_AFTER_REVIEW\"\n  postgres: \"REPLACE_AFTER_REVIEW\"\nschema:\n  readable_epoch: 1\n  writable_epoch: 1\ncompatibility: \"Describe additive/compatibility behavior before merge.\"\nrollback: \"No production down migration; restore or forward migration only.\"\n", *id, strings.TrimSpace(*module))
+	files := map[string]string{"migration.yaml": metadata, "sqlite.sql": "-- Write the SQLite migration after review.\n", "postgres.sql": "-- Write the PostgreSQL migration after review.\n"}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(stdout, "migration-created id=%s path=%s\n", *id, dir)
+	return err
 }
 
 func generateModuleCommand(args []string, stdout, stderr io.Writer) error {
@@ -2440,6 +2483,7 @@ Usage:
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro module create --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
+  hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
   hydro generate module --spec SPEC --out OUTPUT
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]

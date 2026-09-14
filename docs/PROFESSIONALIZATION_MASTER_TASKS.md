@@ -36,7 +36,8 @@ credential, legal decision, or product decision and must remain an open gate.
   and module metadata scaffolds. Business rules remain explicit review work.
 - [x] Add `hydro resource create` for a collection and generated CRUD contract
   (shared, reviewable module generator).
-- [ ] Add `hydro migration create` with dialect files and metadata skeleton.
+- [x] Add `hydro migration create` with dialect files and metadata skeleton;
+  checksums and SQL remain explicit review steps.
 - [x] Add dependency-free `hydro validate [--json]` with deterministic module
   output; runtime checks remain under `hydro doctor`.
 - [x] Add bounded `hydro test` wrapper with direct process arguments, timeout,
