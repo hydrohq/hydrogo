@@ -1,0 +1,25 @@
+id: "202609140002_news_list_indexes"
+module: "news"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "055101ca0c2698e80844b26e538a344666f3fb1c4ea6544fb51b4b9bf1d7319e"
+  postgres: "055101ca0c2698e80844b26e538a344666f3fb1c4ea6544fb51b4b9bf1d7319e"
+dependencies:
+  - "202609080012_news_items"
+schema:
+  readable_epoch: 8
+  writable_epoch: 8
+preconditions:
+  - "News items migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Two secondary indexes; estimate against news row counts before production rollout"
+compatibility: "Adds read-only indexes; existing news readers and writers remain compatible"
+smoke:
+  - "Published and admin news lists can use locale/status and updated_at ordering indexes"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

@@ -1,0 +1,25 @@
+id: "202609140001_pages_list_indexes"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "1a06884beb96c935cdef2251c5d0d00b799b1dc4524dc13fadf9a3ed65e0041a"
+  postgres: "1a06884beb96c935cdef2251c5d0d00b799b1dc4524dc13fadf9a3ed65e0041a"
+dependencies:
+  - "202609080003_pages_content"
+schema:
+  readable_epoch: 8
+  writable_epoch: 8
+preconditions:
+  - "Pages content migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Two secondary indexes; estimate against page row counts before production rollout"
+compatibility: "Adds read-only indexes; existing page readers and writers remain compatible"
+smoke:
+  - "Published and admin page lists can use locale/status and updated_at ordering indexes"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

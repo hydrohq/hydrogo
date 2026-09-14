@@ -99,6 +99,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0069](0069-optional-module-lifecycle-contracts.md) | Keep module lifecycle hooks optional and Core-orchestrated | Accepted |
 | [0070](0070-signed-module-metadata-design.md) | Design signed module metadata without a marketplace | Accepted |
 | [0071](0071-frontend-delivery-choice.md) | Choose frontend delivery by demonstrated boundary needs | Accepted |
+| [0072](0072-public-list-indexes.md) | Index bounded public and admin list reads | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
