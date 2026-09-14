@@ -18,7 +18,7 @@ func TestInspectVendorReferencesFindsUnreferencedRuntimeAsset(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "internal.go"), []byte(`package fixture
-const asset = "/static/vendor/demo/used.js"
+const asset = "/vendor/demo/used.js"
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}

@@ -137,7 +137,8 @@ func inspectVendorReferences(root string) ([]string, error) {
 	}
 	var unused []string
 	for _, asset := range assets {
-		needle := "/" + asset
+		// static/vendor is embedded at the HTTP /vendor/ route.
+		needle := "/" + strings.TrimPrefix(asset, "static/")
 		found := false
 		for _, content := range contents {
 			if strings.Contains(content, needle) {

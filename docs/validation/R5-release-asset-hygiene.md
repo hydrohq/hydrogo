@@ -6,6 +6,8 @@
   vendor assets, plus a missing-vendor-root case.
 - `scripts/verify-local.ps1` invokes `assetguard` before build and release
   smoke checks.
+- The guard maps embedded `static/vendor/...` paths to their public `/vendor/`
+  route and passes against the current repository assets.
 - Current HydroGo vendor JS/CSS assets are referenced by the editor/admin
   runtime surfaces.
 
