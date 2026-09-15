@@ -113,6 +113,22 @@ func TestResourceCreateFromFlagsGeneratesCompleteScaffold(t *testing.T) {
 	}
 }
 
+func TestProjectNewAliasGeneratesProject(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"project", "new", "demo", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project new: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "project-created path=") {
+		t.Fatalf("unexpected output: %q", stdout.String())
+	}
+	for _, name := range []string{"config.yaml", "hydrogo.lock", "README.md"} {
+		if _, err := os.Stat(filepath.Join(root, "demo", name)); err != nil {
+			t.Fatalf("missing generated project file %s: %v", name, err)
+		}
+	}
+}
+
 func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
 	var output bytes.Buffer
 	printUsage(&output)

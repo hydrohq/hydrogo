@@ -176,6 +176,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return licenseCommand(args[1:], stdout, stderr)
 	case "new":
 		return newProjectCommand(args[1:], stdin, stdout, stderr)
+	case "project":
+		return projectCommand(args[1:], stdin, stdout, stderr)
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -2688,6 +2690,7 @@ Usage:
   hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]
 	hydro license keygen [--public-out PATH] [--private-out PATH]
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
+  hydro project new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro module create --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
   hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]
