@@ -535,6 +535,13 @@ func TestRunReleaseVerify(t *testing.T) {
 	if !strings.Contains(stdout.String(), "artifacts_verified=1") {
 		t.Fatalf("artifact verification count missing: %s", stdout.String())
 	}
+	stdout.Reset()
+	if err := run([]string{"runtime", "verify", "--manifest", manifestFile, "--public-key", publicKeyFile, "--root", root}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("runtime verify alias failed: %v, stderr: %s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "artifacts_verified=1") {
+		t.Fatalf("runtime verification count missing: %s", stdout.String())
+	}
 	if err := os.WriteFile(filepath.Join(root, "app.bin"), []byte("tampered"), 0o644); err != nil {
 		t.Fatal(err)
 	}
