@@ -70,6 +70,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0035](0035-admin-query-toolbar.md) | Shared admin query toolbar | Accepted |
 | [0036](0036-optional-capability-kit-registry.md) | Optional capability kit registry | Accepted |
 | [0037](0037-generator-kit-manifest.md) | Generator kit manifest | Accepted |
+| [0038](0038-kit-aware-runtime-wiring.md) | Kit-aware generated runtime wiring | Accepted |
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 | [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |

@@ -407,11 +407,18 @@ dependencies.
 - [ ] Extend contract/fixture tests with domain invariants and include this
   resource in the module health/readiness checks.
 
+## Optional capability kits
+
+Selected kits: %s
+
+For each selected kit, bind its module adapter and permission surface explicitly;
+an omitted kit must not add routes, migrations, workers or assets.
+
 ## Required evidence
 
 Record the owning ADR, migration/rollback result, policy test, deployment
 compatibility result and capacity impact in REVIEW.md before release.
-`, exportName(spec.Name), spec.Name, strings.Join(sortedStrings(spec.Dialects), ", "))
+`, exportName(spec.Name), spec.Name, strings.Join(sortedStrings(spec.Dialects), ", "), strings.Join(sortedStrings(spec.Kits), ", "))
 }
 
 func sortedStrings(values []string) []string {
