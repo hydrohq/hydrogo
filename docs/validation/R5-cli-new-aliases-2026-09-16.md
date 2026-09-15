@@ -5,6 +5,7 @@
 ```text
 hydro module new --spec SPEC --out OUTPUT
 hydro resource new --spec SPEC --out OUTPUT
+hydro resource check --spec SPEC --root OUTPUT
 ```
 
 Windows ve WSL Ubuntu'da `cmd/hydro` testleri geçti. `resource new --name

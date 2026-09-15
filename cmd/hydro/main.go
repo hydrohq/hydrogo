@@ -240,8 +240,14 @@ func moduleCommand(args []string, stdout, stderr io.Writer) error {
 // resourceCommand is the collection-oriented spelling for CRUD scaffolding.
 // It intentionally shares the same reviewable generator as module create.
 func resourceCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || (args[0] != "create" && args[0] != "new") {
-		return errors.New("resource requires the create or new subcommand")
+	if len(args) == 0 {
+		return errors.New("resource requires create, new or check subcommand")
+	}
+	if args[0] == "check" {
+		return validateGeneratorCommand(args[1:], stdout, stderr)
+	}
+	if args[0] != "create" && args[0] != "new" {
+		return errors.New("resource requires create, new or check subcommand")
 	}
 	if !containsString(args[1:], "--spec") {
 		return resourceCreateFromFlags(args[1:], stdout, stderr)
@@ -2781,6 +2787,7 @@ Usage:
   hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
   hydro resource new --spec SPEC --out OUTPUT
+  hydro resource check --spec SPEC --root OUTPUT
   hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
   hydro generate module|resource|crud|page|form|api|admin --spec SPEC --out OUTPUT
