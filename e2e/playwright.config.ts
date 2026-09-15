@@ -16,7 +16,8 @@ export default defineConfig({
     ...process.env.HYDRO_E2E_STORAGE_STATE ? { storageState: process.env.HYDRO_E2E_STORAGE_STATE } : {},
   },
   projects: [
-    { name: "chromium", testIgnore: /visual\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium", testIgnore: /visual\.spec\.ts|locale\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "locale", testMatch: /locale\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
     { name: "visual-desktop", testMatch: /visual\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
     { name: "visual-tablet", testMatch: /visual\.spec\.ts/, use: { ...devices["iPad (gen 7)"] } },
     { name: "visual-mobile", testMatch: /visual\.spec\.ts/, use: { ...devices["iPhone 13"] } },

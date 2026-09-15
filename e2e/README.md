@@ -23,6 +23,8 @@ npm test
 HYDRO_VISUAL=1 npx playwright test visual.spec.ts
 # Create/update goldens only during a reviewed baseline change:
 HYDRO_VISUAL=1 npx playwright test visual.spec.ts --update-snapshots
+# Locale/direction and long mixed-direction text fixtures
+HYDRO_VISUAL=1 npx playwright test locale.spec.ts
 ```
 
 The storage state is optional for public frontend tests and required for the
