@@ -14,6 +14,9 @@ Public SDK; CLI, generator, starter, contract, frontend adapter ve geliştirici 
 
 Projeler SDK/runtime/module sürümlerini ve hash’lerini `hydrogo.lock` ile kilitler. CLI checksum, imza, platform ve compatibility doğrulaması yapmadan runtime çalıştırmaz. Offline kullanım, imzalı lisans ve kontrollü artifact aktarımı ile ayrıca desteklenir.
 
+İmzalı manifest doğrulaması ayrıca her artifact yolunu tekilleştirir; mutlak,
+traversal içeren veya geçersiz size/checksum metadata'sı fail-closed reddedilir.
+
 Runtime cache yaşam döngüsü de dağıtım sözleşmesinin parçasıdır: artifact'lar
 `root/<version>/<canonical-target>` altında tutulur. Cache temizliği yalnızca
 explicit koruma listesiyle çalışır; önce dry-run planı üretilebilir, ardından

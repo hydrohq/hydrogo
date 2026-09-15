@@ -14,6 +14,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Permission contract preflight | Tamamlandı | Güvenli/tekrarsız permission adları ve `permissions check` | `R5-permissions-check` |
 | Üretilen SDK rehberi | Tamamlandı | Yeni projede `docs/SDK.md` | `R5-generated-sdk-guide` |
 | Runtime artifact doğrulama | Tamamlandı | `hydro runtime verify [--root PATH]` | `R5-runtime-artifact-verification` |
+| Signed manifest artifact hygiene | Tamamlandı | Duplicate/path/size/checksum fail-closed kontrolleri | `R5-release-manifest-artifact-hygiene` |
 | Platform hedefi ve artifact çözümleme | Tamamlandı | `linux-amd64`, `windows-arm64` vb. hedefler | `R5-sdk-platform-targets`, `R5-sdk-artifact-resolution` |
 | Güvenli runtime cache yolu | Tamamlandı | Ürün/sürüm/hedef bazlı deterministik cache | `R5-sdk-runtime-cache` |
 | Cache listeleme/temizleme | Tamamlandı | Sürüm koruma listesi + dry-run + symlink reddi | `R5-sdk-cache-gc` |

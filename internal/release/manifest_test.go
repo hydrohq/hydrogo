@@ -25,6 +25,26 @@ func TestVerifyArtifactRejectsInvalidDeclaredSize(t *testing.T) {
 	}
 }
 
+func TestVerifyRejectsDuplicateArtifactPaths(t *testing.T) {
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("bin"))
+	checksum := hex.EncodeToString(digest[:])
+	manifest := Manifest{FormatVersion: 1, Edition: "site", CoreVersion: "1.0.0", Artifacts: []Artifact{
+		{Path: "bin/hydro", Size: 3, SHA256: checksum},
+		{Path: "bin/hydro", Size: 3, SHA256: checksum},
+	}}
+	signed, err := Sign(manifest, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(signed); err == nil {
+		t.Fatal("duplicate artifact path was accepted")
+	}
+}
+
 func TestManifestIsDeterministicAndSigned(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.bin"), []byte("binary"), 0o644); err != nil {

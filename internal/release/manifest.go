@@ -148,6 +148,9 @@ func Verify(signed Signed) (Manifest, error) {
 	if err := json.Unmarshal(signed.Manifest, &manifest); err != nil {
 		return Manifest{}, err
 	}
+	if err := validateManifestArtifacts(manifest.Artifacts); err != nil {
+		return Manifest{}, err
+	}
 	if _, err := Marshal(manifest); err != nil {
 		return Manifest{}, fmt.Errorf("invalid signed manifest: %w", err)
 	}
@@ -368,6 +371,9 @@ func VerifyArtifacts(root string, manifest Manifest) error {
 	if err := validateAssetRoot(root, "artifact"); err != nil {
 		return err
 	}
+	if err := validateManifestArtifacts(manifest.Artifacts); err != nil {
+		return err
+	}
 	for _, artifact := range manifest.Artifacts {
 		path, err := safeArtifactPath(root, artifact.Path)
 		if err != nil {
@@ -378,6 +384,27 @@ func VerifyArtifacts(root string, manifest Manifest) error {
 		}
 		if err := verifyArtifact(path, artifact); err != nil {
 			return fmt.Errorf("artifact %s: %w", artifact.Path, err)
+		}
+	}
+	return nil
+}
+
+func validateManifestArtifacts(artifacts []Artifact) error {
+	seen := make(map[string]struct{}, len(artifacts))
+	for _, artifact := range artifacts {
+		normalized := filepath.ToSlash(artifact.Path)
+		if normalized == "" || filepath.IsAbs(artifact.Path) || strings.HasPrefix(normalized, "../") || strings.Contains(normalized, "/../") {
+			return fmt.Errorf("release artifact path is unsafe: %q", artifact.Path)
+		}
+		if _, ok := seen[normalized]; ok {
+			return fmt.Errorf("release manifest contains duplicate artifact path: %s", normalized)
+		}
+		seen[normalized] = struct{}{}
+		if artifact.Size < 0 || len(artifact.SHA256) != sha256.Size*2 {
+			return fmt.Errorf("release artifact metadata is invalid: %s", normalized)
+		}
+		if _, err := hex.DecodeString(artifact.SHA256); err != nil {
+			return fmt.Errorf("release artifact checksum is invalid: %s", normalized)
 		}
 	}
 	return nil
