@@ -17,6 +17,11 @@ Projeler SDK/runtime/module sürümlerini ve hash’lerini `hydrogo.lock` ile ki
 İmzalı manifest doğrulaması ayrıca her artifact yolunu tekilleştirir; mutlak,
 traversal içeren veya geçersiz size/checksum metadata'sı fail-closed reddedilir.
 
+Public SDK, broker'a yalnızca entitlement koordinatlarını JSON body'de ve kısa
+ömürlü access token'ı Authorization header'ında gönderir. Response bounded
+olarak parse edilir; redirect, oversized response ve non-200 cevaplar fail-closed
+sonuçlanır. Grant yine lock bağlamına göre ayrıca doğrulanır.
+
 Runtime cache yaşam döngüsü de dağıtım sözleşmesinin parçasıdır: artifact'lar
 `root/<version>/<canonical-target>` altında tutulur. Cache temizliği yalnızca
 explicit koruma listesiyle çalışır; önce dry-run planı üretilebilir, ardından

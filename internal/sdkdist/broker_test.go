@@ -1,0 +1,39 @@
+package sdkdist
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestRequestGrantParsesBoundedResponseWithoutPersistingToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.Header.Get("Authorization") != "Bearer secret-token" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.Header.Get("Authorization"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"artifact","project_id":"p","core_version":"c","sdk_version":"s","artifact_url":"http://127.0.0.1/artifact","issued_at":"2026-09-16T12:00:00Z","expires_at":"2026-09-16T12:05:00Z"}`))
+	}))
+	defer server.Close()
+	grant, err := RequestGrant(context.Background(), server.URL, "secret-token", GrantRequest{ProjectID: "p"}, nil, true)
+	if err != nil || grant.ProjectID != "p" || grant.AccessToken != "artifact" {
+		t.Fatalf("grant=%#v err=%v", grant, err)
+	}
+}
+
+func TestRequestGrantRejectsOversizedResponseAndErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", MaxGrantResponseBytes+1)))
+	}))
+	defer server.Close()
+	if _, err := RequestGrant(context.Background(), server.URL, "token", GrantRequest{}, nil, true); err == nil {
+		t.Fatal("oversized broker response accepted")
+	}
+	status := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "no", http.StatusForbidden) }))
+	defer status.Close()
+	if _, err := RequestGrant(context.Background(), status.URL, "token", GrantRequest{}, nil, true); err == nil || !strings.Contains(err.Error(), "HTTP 403") {
+		t.Fatalf("status error=%v", err)
+	}
+}
