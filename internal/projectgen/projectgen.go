@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +24,8 @@ var (
 	ErrUnsupportedPreset  = errors.New("unsupported project preset")
 	projectNamePattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 )
+
+const maxLockFileBytes = 1 << 20
 
 type Options struct {
 	Root             string `json:"root"`
@@ -66,6 +69,69 @@ type LicenseLock struct {
 	Required           bool   `json:"required"`
 	LicenseFile        string `json:"license_file"`
 	GracePeriodAllowed bool   `json:"grace_period_allowed"`
+}
+
+// LoadLock reads and validates a generated hydrogo.lock file without opening
+// a database or contacting the runtime distribution service.
+func LoadLock(path string) (Lock, error) {
+	if strings.TrimSpace(path) == "" {
+		return Lock{}, errors.New("lockfile path is required")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return Lock{}, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxLockFileBytes+1))
+	if err != nil {
+		return Lock{}, err
+	}
+	if len(data) > maxLockFileBytes {
+		return Lock{}, fmt.Errorf("lockfile exceeds %d bytes", maxLockFileBytes)
+	}
+	var lock Lock
+	if err := json.Unmarshal(data, &lock); err != nil {
+		return Lock{}, fmt.Errorf("invalid lockfile JSON: %w", err)
+	}
+	if err := ValidateLock(lock); err != nil {
+		return Lock{}, err
+	}
+	return lock, nil
+}
+
+// ValidateLock checks the stable identity fields required before a project can
+// resolve a licensed runtime. It deliberately does not contact a broker.
+func ValidateLock(lock Lock) error {
+	if lock.LockVersion != 1 {
+		return fmt.Errorf("unsupported lockfile version %d", lock.LockVersion)
+	}
+	if strings.TrimSpace(lock.ProjectID) == "" || strings.TrimSpace(lock.ProjectName) == "" {
+		return errors.New("lockfile project identity is required")
+	}
+	if strings.TrimSpace(lock.Edition) == "" || strings.TrimSpace(lock.Preset) == "" {
+		return errors.New("lockfile edition and preset are required")
+	}
+	if strings.TrimSpace(lock.Core.Version) == "" || strings.TrimSpace(lock.Core.Distribution) == "" {
+		return errors.New("lockfile Core version and distribution are required")
+	}
+	if strings.TrimSpace(lock.Generator.Version) == "" {
+		return errors.New("lockfile generator version is required")
+	}
+	if !lock.Licensing.Required {
+		return errors.New("lockfile must require runtime licensing")
+	}
+	seen := make(map[string]struct{}, len(lock.Features))
+	for _, feature := range lock.Features {
+		feature = strings.ToLower(strings.TrimSpace(feature))
+		if feature == "" {
+			return errors.New("lockfile contains an empty feature")
+		}
+		if _, ok := seen[feature]; ok {
+			return fmt.Errorf("lockfile contains duplicate feature %q", feature)
+		}
+		seen[feature] = struct{}{}
+	}
+	return nil
 }
 
 func Generate(opts Options) (string, error) {

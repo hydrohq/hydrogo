@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
@@ -22,10 +24,53 @@ func projectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	case "new":
 		return newProjectCommand(args[1:], stdin, stdout, stderr)
 	case "check":
-		return validateCommand(args[1:], stdout, stderr)
+		return projectCheckCommand(args[1:], stdout, stderr)
 	default:
 		return fmt.Errorf("unknown project subcommand %q (supported: new, check)", args[0])
 	}
+}
+
+func projectCheckCommand(args []string, stdout, stderr io.Writer) error {
+	lockPath := ""
+	configPath := ""
+	clean := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--lock":
+			if i+1 >= len(args) {
+				return errors.New("--lock requires a path")
+			}
+			lockPath = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "--lock="):
+			lockPath = strings.TrimPrefix(arg, "--lock=")
+		case arg == "--config":
+			if i+1 >= len(args) {
+				return errors.New("--config requires a path")
+			}
+			configPath = args[i+1]
+			clean = append(clean, arg, configPath)
+			i++
+		case strings.HasPrefix(arg, "--config="):
+			configPath = strings.TrimPrefix(arg, "--config=")
+			clean = append(clean, arg)
+		default:
+			clean = append(clean, arg)
+		}
+	}
+	if lockPath == "" {
+		lockPath = "hydrogo.lock"
+		if configPath != "" {
+			lockPath = filepath.Join(filepath.Dir(configPath), "hydrogo.lock")
+		}
+	}
+	if _, err := os.Stat(lockPath); err == nil {
+		if _, err := projectgen.LoadLock(lockPath); err != nil {
+			return fmt.Errorf("validate project lock: %w", err)
+		}
+	}
+	return validateCommand(clean, stdout, stderr)
 }
 
 func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
