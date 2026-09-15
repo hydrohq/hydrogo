@@ -83,3 +83,13 @@ HydroGo ancak şu üç koşul birlikte sağlandığında Payload hızına yakın
 3. Core, module, kit, SDK ve müşteri kodu upgrade sırasında compatibility check’ten geçer.
 
 Bu plan, HydroGo’nun Core izolasyonu, varsayılan deny, kullanılmayan modülün sıfır footprint’i ve “önce doğrula, sonra otomatikleştir” ilkeleriyle uyumludur.
+
+## 2026-09-16 uygulama notu
+
+Planın SDK/runtime dağıtımına temas eden ilk teslimatları uygulanmıştır:
+`hydro project new/check`, lock doğrulaması, `hydro runtime verify`, platforma
+göre artifact çözümleme, imza/checksum/URL/gövde sınırları, grant doğrulaması,
+atomik kurulum ve cache listeleme/temizleme komutları çalışır durumdadır.
+Bu teslimatlar Payload parity iddiasını tek başına kanıtlamaz; ölçüm yöntemi
+[`PAYLOAD_BENCHMARK_PROTOCOL.md`](PAYLOAD_BENCHMARK_PROTOCOL.md) içinde, gerçek
+faz durumu [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) içindedir.
