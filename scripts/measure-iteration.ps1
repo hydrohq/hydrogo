@@ -30,7 +30,11 @@ function Invoke-TimedStep {
 Invoke-TimedStep -Name 'targeted-ui-contract' -Action { go test ./internal/ui ./tests/contract }
 Invoke-TimedStep -Name 'full-compile' -Action { go test ./... -run '^$' }
 $benchmarkRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("hydrogo-dx-" + [guid]::NewGuid().ToString('N'))
+$projectParent = Join-Path ([System.IO.Path]::GetTempPath()) ("hydrogo-project-" + [guid]::NewGuid().ToString('N'))
 try {
+    Invoke-TimedStep -Name 'first-project-scaffold' -Action {
+        go run ./cmd/hydro new velocity-smoke --root $projectParent --preset=news --database=sqlite --profile=compact --no-demo
+    }
     Invoke-TimedStep -Name 'first-resource-generation' -Action {
         go run ./cmd/hydro generate module --spec $GeneratorSpec --out $benchmarkRoot
     }
@@ -42,6 +46,9 @@ finally {
     if (Test-Path -LiteralPath $benchmarkRoot) {
         Remove-Item -LiteralPath $benchmarkRoot -Recurse -Force
     }
+    if (Test-Path -LiteralPath $projectParent) {
+        Remove-Item -LiteralPath $projectParent -Recurse -Force
+    }
 }
 
 $report = [pscustomobject]@{
@@ -49,6 +56,7 @@ $report = [pscustomobject]@{
     commit = (git rev-parse HEAD).Trim()
     go_version = (go version).Trim()
     generator_spec = $GeneratorSpec
+    acceptance_threshold_minutes = 15
     steps = $results
 }
 $json = $report | ConvertTo-Json -Depth 4
