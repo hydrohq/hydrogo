@@ -443,6 +443,22 @@ func TestRunSchemaDiffAlias(t *testing.T) {
 	}
 }
 
+func TestRunPermissionsCheck(t *testing.T) {
+	root := t.TempDir()
+	specPath := filepath.Join(root, "article.yaml")
+	spec := "version: v0\ncollection:\n  name: article\n  table: articles\n  permissions: [article.read, article.write]\n  dialects: [sqlite]\n  fields:\n    - name: title\n      type: string\n"
+	if err := os.WriteFile(specPath, []byte(spec), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"permissions", "check", "--spec", specPath, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("permissions check: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"permissions":2`) {
+		t.Fatalf("permissions output = %q", stdout.String())
+	}
+}
+
 func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
 	root := t.TempDir()
 	var stdout, stderr bytes.Buffer

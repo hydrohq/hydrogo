@@ -163,6 +163,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return apiCommand(args[1:], stdout, stderr)
 	case "schema":
 		return schemaCommand(args[1:], stdout, stderr)
+	case "permissions":
+		return permissionsCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "validate":
@@ -266,6 +268,43 @@ func apiCommand(args []string, stdout, stderr io.Writer) error {
 		return errors.New("api requires the diff subcommand")
 	}
 	return validateAPICommand(args[1:], stdout, stderr)
+}
+
+func permissionsCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "check" {
+		return errors.New("permissions requires the check subcommand")
+	}
+	flags := flag.NewFlagSet("permissions check", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	specPath := flags.String("spec", "", "Versioned module spec (.yaml, .yml, or .json)")
+	jsonOutput := flags.Bool("json", false, "Print machine-readable result")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*specPath) == "" {
+		return errors.New("permissions check requires --spec")
+	}
+	spec, err := generator.LoadSpec(*specPath)
+	if err != nil {
+		return err
+	}
+	if err := generator.Validate(spec); err != nil {
+		return fmt.Errorf("permission contract: %w", err)
+	}
+	if *jsonOutput {
+		payload, err := json.Marshal(struct {
+			Valid       bool   `json:"valid"`
+			Collection  string `json:"collection"`
+			Permissions int    `json:"permissions"`
+		}{true, spec.Name, len(spec.Permissions)})
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(stdout, string(payload))
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "permissions-valid collection=%s permissions=%d\n", spec.Name, len(spec.Permissions))
+	return err
 }
 
 // schemaCommand compares signed release migration ledgers. It deliberately
@@ -2859,6 +2898,7 @@ Usage:
   hydro resource check --spec SPEC --root OUTPUT
   hydro api diff --baseline OPENAPI.json --current OPENAPI.json
   hydro schema diff --baseline RELEASE.json --current RELEASE.json --public-key KEY
+  hydro permissions check --spec SPEC [--json]
   hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
   hydro generate module|resource|crud|page|form|api|admin --spec SPEC --out OUTPUT

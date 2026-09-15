@@ -24,6 +24,7 @@ var (
 	ErrDestructiveSpec    = errors.New("destructive migration must be written by hand")
 	ErrPublishedMigration = errors.New("published generated migration cannot be changed")
 	identifierPattern     = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
+	permissionPattern     = regexp.MustCompile(`^[a-z][a-z0-9_.:-]{1,127}$`)
 	forbiddenFieldPattern = regexp.MustCompile(`(?i)(password|secret|token|private_key)`)
 )
 
@@ -73,6 +74,17 @@ func Validate(spec Spec) error {
 		return ErrDestructiveSpec
 	}
 	seen := map[string]struct{}{}
+	seenPermissions := map[string]struct{}{}
+	for _, permission := range spec.Permissions {
+		permission = strings.TrimSpace(permission)
+		if !permissionPattern.MatchString(permission) || strings.Contains(permission, "..") {
+			return ErrInvalidSpec
+		}
+		if _, ok := seenPermissions[permission]; ok {
+			return ErrInvalidSpec
+		}
+		seenPermissions[permission] = struct{}{}
+	}
 	for _, dialect := range spec.Dialects {
 		if dialect != "sqlite" && dialect != "postgres" {
 			return ErrInvalidSpec
