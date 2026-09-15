@@ -27,3 +27,14 @@ func TestEncodeListQueryRoundTrip(t *testing.T) {
 		t.Fatalf("encoded query = %q", encoded)
 	}
 }
+
+func TestConstrainListQueryUsesModuleAllowlists(t *testing.T) {
+	q := ConstrainListQuery(ListQuery{Sort: "-created_at", Filters: map[string]string{"status": "draft", "secret": "x"}}, []string{"created_at"}, []string{"status"})
+	if q.Sort != "-created_at" || q.Filters["status"] != "draft" || len(q.Filters) != 1 {
+		t.Fatalf("constrained query = %+v", q)
+	}
+	q = ConstrainListQuery(ListQuery{Sort: "password_hash", Filters: map[string]string{"secret": "x"}}, []string{"created_at"}, []string{"status"})
+	if q.Sort != "" || len(q.Filters) != 0 {
+		t.Fatalf("unsafe query survived: %+v", q)
+	}
+}

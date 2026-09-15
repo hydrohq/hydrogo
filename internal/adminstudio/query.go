@@ -78,6 +78,29 @@ func EncodeListQuery(q ListQuery) string {
 	return v.Encode()
 }
 
+// ConstrainListQuery applies module-owned allowlists before repository
+// translation. A leading '-' denotes descending sort.
+func ConstrainListQuery(q ListQuery, allowedSorts, allowedFilters []string) ListQuery {
+	sortSet := make(map[string]struct{}, len(allowedSorts))
+	for _, field := range allowedSorts {
+		sortSet[field] = struct{}{}
+	}
+	base := strings.TrimPrefix(q.Sort, "-")
+	if _, ok := sortSet[base]; !ok {
+		q.Sort = ""
+	}
+	filterSet := make(map[string]struct{}, len(allowedFilters))
+	for _, field := range allowedFilters {
+		filterSet[field] = struct{}{}
+	}
+	for field := range q.Filters {
+		if _, ok := filterSet[field]; !ok {
+			delete(q.Filters, field)
+		}
+	}
+	return q
+}
+
 func minInt(a, b int) int {
 	if a < b {
 		return a
