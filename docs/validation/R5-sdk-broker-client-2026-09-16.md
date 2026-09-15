@@ -6,6 +6,8 @@ redirect reddi ve non-200 hata eşlemesi. Access token response'a veya diske
 yazılmaz; çağıran `ValidateGrant` ile lock bağlamı eşleşmesini ayrıca kontrol eder.
 `RequestValidatedGrant` ise transport ve lock/grant doğrulamasını tek fail-closed
 çağrıda birleştirir; yanlış project/Core/SDK eşleşmesini reddeder.
+İstek koordinatları (project/Core/SDK/target/edition) network çağrısından önce
+zorunlu ve feature listesi duplicate/path içeriklerine karşı bounded doğrulanır.
 
 Windows:
 
