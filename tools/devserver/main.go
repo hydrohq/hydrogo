@@ -173,9 +173,6 @@ func (s *supervisor) startChild(binary string) error {
 	child.Dir = s.root
 	env := make([]string, 0, len(os.Environ())+1)
 	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "HYDRO_REDIS_URL=") || strings.HasPrefix(kv, "REDIS_URL=") {
-			continue
-		}
 		env = append(env, kv)
 	}
 	child.Env = append(env, "HYDRO_DEV_MODE=1")
