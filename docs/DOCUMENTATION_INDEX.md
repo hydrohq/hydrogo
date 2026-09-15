@@ -20,6 +20,7 @@ Bu belge, mevcut kararların ve doğrulama kanıtlarının nerede tutulduğunu g
 | HydroGo iterasyon baseline | [validation/R5-iteration-baseline-2026-09-16.md](validation/R5-iteration-baseline-2026-09-16.md) |
 | Public SDK/private runtime | [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md), [ADR-0091](architecture/0091-sdk-runtime-artifact-distribution.md) |
 | SDK artifact broker API | [HYDRO_SDK_BROKER_API.md](HYDRO_SDK_BROKER_API.md) |
+| SDK broker client kanıtı | [validation/R5-sdk-broker-client-2026-09-16.md](validation/R5-sdk-broker-client-2026-09-16.md) |
 | Deployment ve operasyon | [DEPLOYMENT.md](DEPLOYMENT.md), [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) |
 | Güvenlik modeli | [security/THREAT_MODEL.md](security/THREAT_MODEL.md), [COMMERCIAL_LICENSING.md](COMMERCIAL_LICENSING.md) |
 | Frontend ve Admin Studio | [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md), [HEADLESS_ADMIN_STUDIO_PLAN.md](HEADLESS_ADMIN_STUDIO_PLAN.md), [UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md) |
