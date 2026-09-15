@@ -1418,6 +1418,9 @@ func validateCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) > 0 && args[0] == "generator" {
 		return validateGeneratorCommand(args[1:], stdout, stderr)
 	}
+	if len(args) > 0 && args[0] == "api" {
+		return validateAPICommand(args[1:], stdout, stderr)
+	}
 	flags := flag.NewFlagSet("validate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
@@ -1453,6 +1456,25 @@ func validateCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, "valid profile=%s database=%s modules=%s cache_entries=%d queue_entries=%d\n", cfg.Profile, cfg.Database.Dialect, strings.Join(sortedModuleNames(modules), ","), budget.CacheEntries, budget.QueueEntries)
+	return err
+}
+
+func validateAPICommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("validate api", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	baseline := flags.String("baseline", "", "Baseline OpenAPI JSON document")
+	current := flags.String("current", "", "Current OpenAPI JSON document")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*baseline) == "" || strings.TrimSpace(*current) == "" {
+		return errors.New("validate api requires --baseline and --current")
+	}
+	report, err := generator.CheckAPICompatibility(*baseline, *current)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "api-compatible paths=%d methods=%d properties=%d\n", report.PathsChecked, report.MethodsChecked, report.PropertiesChecked)
 	return err
 }
 
@@ -2578,6 +2600,7 @@ Usage:
   hydro doctor [--json] [runtime flags]
   hydro validate [--json] [runtime flags]
   hydro validate generator --spec SPEC --root OUTPUT
+  hydro validate api --baseline OPENAPI.json --current OPENAPI.json
   hydro test [--package ./...] [--timeout 5m] [--race] [--count N]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]

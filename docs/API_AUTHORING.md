@@ -50,6 +50,15 @@ testine ekleyin.
 
 ## Doğrulama döngüsü
 
+Breaking değişiklikleri merge etmeden önce iki OpenAPI belgesini karşılaştırın:
+
+```powershell
+hydro validate api --baseline .\api-baseline.json --current .\generated\resource\openapi.json
+```
+
+Kontrol, yayımlanmış path/operation/response/property silinmesini fail-closed
+yakalar; iş kurallarının anlamsal uyumluluğu yine modül incelemesidir.
+
 ```powershell
 go test ./...
 go test -race ./...
