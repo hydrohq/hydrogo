@@ -54,6 +54,10 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0023](0023-metadata-driven-e2e.md) | Metadata-driven Admin and Frontend E2E | Proposed |
 | [0024](0024-optional-redis-rate-limiting-and-queue-boundary.md) | Optional Redis rate limiting and SQL queue boundary | Accepted |
 | [0025](0025-separate-frontend-members.md) | Separate frontend member identity | Accepted for MVP |
+| [0022-media](0022-provider-neutral-media-storage.md) | Provider-neutral media storage boundary | Accepted |
+| [0023-design](0023-provider-agnostic-design-systems.md) | Provider-agnostic design-system adapters | Accepted |
+| [0024-generated](0024-generated-compatibility-checks.md) | Generated artifact compatibility checks | Accepted |
+| [0025-locale](0025-locale-presentation-formatting.md) | Locale-aware presentation formatting | Accepted |
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 | [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |

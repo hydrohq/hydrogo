@@ -151,6 +151,9 @@ jobs:
       - name: Lint theme token references
         shell: pwsh
         run: ./scripts/theme-token-lint.ps1
+      - name: Check ADR index drift
+        shell: pwsh
+        run: ./scripts/adr-drift-check.ps1
       - name: Measure clean-machine prototype velocity
         shell: pwsh
         run: |

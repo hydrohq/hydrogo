@@ -57,7 +57,7 @@ Amaç: Production sözleşmelerini koruyan ilk çalışan modülü Next.js benze
 ### V5 — Ekip ve kalite ölçeği
 
 - Module contract test generator, API compatibility check ve seçili mutation testleri.
-- ADR/template/doc generator ve drift kontrolü.
+- ADR/template/doc generator ve CI ile çalışan drift kontrolü.
 - `time-to-first-route`, `time-to-first-crud`, build süresi ve defect escape ölçümü.
 - SDK v1, semver, deprecation, upgrade assistant ve backwards-compatibility testleri.
 

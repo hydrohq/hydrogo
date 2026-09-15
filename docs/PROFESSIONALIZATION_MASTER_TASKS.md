@@ -226,7 +226,7 @@ the existing Core/module boundaries:
 - [x] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; generator smoke verifies config, lock, route manifest, seed fixture and Core-source isolation for every preset.
 - [~] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; server-side policy and runtime cache wiring remain explicit module work.
 - [~] Generated bounded bulk-selection, progress and CSV import/export primitives are available; module-specific upload handlers and optimistic persistence remain explicit runtime work.
-- [~] Iteration measurement script and generator compatibility check (`hydro validate generator`) are available; full telemetry, ADR drift checks and upgrade assistant remain open.
+- [~] Iteration measurement script, ADR index drift check and generator compatibility check (`hydro validate generator`) are available; full telemetry and upgrade assistant remain open.
 - [x] Benchmark acceptance gate is automated in `scripts/measure-iteration.ps1` (first scaffold, route contract, CRUD artifact and compatibility) and runs on the clean Windows CI build.
 
 ### PROD-03 Deliberately gated expansion (`EXTERNAL`)

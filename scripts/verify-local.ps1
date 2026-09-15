@@ -34,6 +34,7 @@ Invoke-Required "news edition import boundary" { go run ./tools/importguard -roo
 Invoke-Required "news edition build" { Push-Location examples/news-edition; try { go build ./... } finally { Pop-Location } }
 Invoke-Required "generator preset smoke" { & (Join-Path $PSScriptRoot "generator-smoke.ps1") }
 Invoke-Required "theme token lint" { & (Join-Path $PSScriptRoot "theme-token-lint.ps1") }
+Invoke-Required "ADR index drift check" { & (Join-Path $PSScriptRoot "adr-drift-check.ps1") }
 Invoke-Required "binary health/readiness smoke" { & (Join-Path $PSScriptRoot "smoke-local.ps1") }
 
 Write-Host "PASS: local verification completed."
