@@ -193,6 +193,9 @@ func devCommand(args []string, stdout, stderr io.Writer) error {
 	_ = flags.String("address", "127.0.0.1:8090", "development proxy listen address")
 	_ = flags.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	_ = flags.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
+	_ = flags.String("redis-url", "", "Optional Redis URL passed to the child server")
+	_ = flags.String("dependencies", "auto", "Local dependencies: auto, none, or required")
+	_ = flags.String("compose-file", "deploy/local/docker-compose.storage.yml", "Docker Compose file for local dependencies")
 	_ = flags.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	_ = flags.Bool("seed-demo", true, "seed the disposable local demo data before starting")
 	if err := flags.Parse(args); err != nil {
@@ -2568,7 +2571,7 @@ Usage:
   hydro version
   hydro version --json
   hydro migrate [runtime flags]
-  hydro dev [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--poll DUR]
+  hydro dev [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--dependencies auto|none|required] [--compose-file PATH] [--poll DUR]
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed-demo --confirm-demo [runtime flags]

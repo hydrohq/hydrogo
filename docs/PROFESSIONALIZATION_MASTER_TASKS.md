@@ -170,7 +170,7 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Make HydroGo and shadcn visual modes consume the same semantic markup;
   shared selector coverage is guarded by an internal UI contract test.
 - [x] Add local keyboard/focus, reduced-motion, and accessible-name regressions; browser contrast and device audits remain external UI gates.
-- [ ] Add visual regression baselines for desktop, tablet, and mobile.
+- [x] Add visual regression baselines for desktop, tablet, and mobile (seeded local Playwright goldens; browser/device approval remains a release review).
 - [ ] Add RTL, long-text, locale, date, number, and currency fixtures.
 - [x] Add safe locale-derived RTL/LTR document direction and Unicode locale
   regressions; translated copy and formatting matrix remain product/browser
@@ -222,7 +222,7 @@ the existing Core/module boundaries:
 
 - [~] `hydro dev` one-command local stack with reload, seed and dependency lifecycle; Compose Redis/MinIO auto/required/none modes are implemented, while browser auto-open and mail preview remain optional local conveniences.
 - [~] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract; generated artifacts and aliases are available, runtime wiring remains an explicit review step.
-- [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase and opt-in responsive visual regression are available; RTL/baseline approval remains open.
+- [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase and responsive visual regression baselines are available; RTL/locale fixture approval remains open.
 - [~] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; deeper seed/upgrade smoke coverage remains open.
 - [~] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; server-side policy and runtime cache wiring remain explicit module work.
 - [~] Generated bounded bulk-selection and progress primitives are available; module-specific import/export/upload handlers and optimistic persistence remain explicit runtime work.

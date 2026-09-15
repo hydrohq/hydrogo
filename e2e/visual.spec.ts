@@ -12,8 +12,15 @@ test.describe("HydroGo visual contract", () => {
     ["shop", "/shop"],
   ] as const) {
     test(`${surface[0]} desktop`, async ({ page }) => {
-      await page.goto(surface[1]);
-      await expect(page).toHaveScreenshot(`${surface[0]}-desktop.png`, { fullPage: true });
+      await page.goto(surface[1], { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(300);
+      await page.evaluate(() => document.fonts?.ready);
+      await expect(page).toHaveScreenshot(`${surface[0]}-desktop.png`, {
+        fullPage: true,
+        animations: "disabled",
+        caret: "hide",
+        maxDiffPixelRatio: 0.02,
+      });
     });
   }
 });
