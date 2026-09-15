@@ -4,6 +4,11 @@ All first-party surfaces should consume semantic tokens rather than hard-coded
 palette values. The Admin Studio currently provides the reference vocabulary;
 public themes may map the same names to a different visual identity.
 
+Core exposes dependency-free semantic adapters for `native`, `shadcn`,
+`material`, and `carbon` through `NewDefaultDesignSystemRegistry`. These
+adapters only map intent to class names; provider CSS/runtime packages remain
+Client Edition choices and can be replaced by a custom registry provider.
+
 | Token group | Required semantic names | Purpose |
 |---|---|---|
 | Type | `--font-sans`, `--font-mono`, `--text-*` | readable hierarchy and code/data text |

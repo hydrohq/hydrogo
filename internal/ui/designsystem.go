@@ -61,3 +61,34 @@ func (SemanticDesignSystem) ButtonClass(variant string) string {
 }
 func (SemanticDesignSystem) FieldClass() string { return "form-field" }
 func (SemanticDesignSystem) TableClass() string { return "ui-table" }
+
+// ClassDesignSystem maps semantic intents to provider-owned class names. It
+// contains no provider dependency, so projects can replace the mapping with
+// their own package without changing Core or module code.
+type ClassDesignSystem struct {
+	ID     string
+	Button string
+	Field  string
+	Table  string
+}
+
+func (d ClassDesignSystem) Name() string { return d.ID }
+func (d ClassDesignSystem) ButtonClass(variant string) string {
+	if strings.TrimSpace(variant) == "" {
+		variant = "default"
+	}
+	return strings.TrimSpace(d.Button) + " " + strings.TrimSpace(variant)
+}
+func (d ClassDesignSystem) FieldClass() string { return d.Field }
+func (d ClassDesignSystem) TableClass() string { return d.Table }
+
+// NewDefaultDesignSystemRegistry returns dependency-free semantic adapters for
+// common visual providers. It does not bundle provider CSS or runtimes.
+func NewDefaultDesignSystemRegistry() (*DesignSystemRegistry, error) {
+	return NewDesignSystemRegistry(
+		SemanticDesignSystem{},
+		ClassDesignSystem{ID: "shadcn", Button: "inline-flex items-center rounded-md", Field: "rounded-md border", Table: "w-full text-sm"},
+		ClassDesignSystem{ID: "material", Button: "mdc-button", Field: "mdc-text-field", Table: "mdc-data-table"},
+		ClassDesignSystem{ID: "carbon", Button: "cds--btn", Field: "cds--text-input", Table: "cds--data-table"},
+	)
+}

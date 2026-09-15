@@ -31,3 +31,19 @@ func TestDesignSystemRegistryRejectsDuplicateAndMissingProviders(t *testing.T) {
 		t.Fatal("missing provider resolved")
 	}
 }
+
+func TestDefaultDesignSystemRegistry(t *testing.T) {
+	r, err := NewDefaultDesignSystemRegistry()
+	if err != nil {
+		t.Fatalf("default registry: %v", err)
+	}
+	for _, name := range []string{"native", "shadcn", "material", "carbon"} {
+		provider, err := r.Resolve(name)
+		if err != nil {
+			t.Fatalf("resolve %s: %v", name, err)
+		}
+		if provider.Name() != name || provider.FieldClass() == "" || provider.TableClass() == "" {
+			t.Fatalf("invalid provider %q", name)
+		}
+	}
+}
