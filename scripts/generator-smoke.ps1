@@ -9,7 +9,7 @@ try {
         go run ./cmd/hydro new $name --preset $preset --root $root --database sqlite --profile compact
         if ($LASTEXITCODE -ne 0) { throw "generator failed for $preset" }
         $project = Join-Path $root $name
-        foreach ($file in @("config.yaml", "hydrogo.lock", "README.md", "e2e/manifest.json", "seed/data.json")) {
+        foreach ($file in @("config.yaml", "hydrogo.lock", "README.md", "UPGRADE.md", "e2e/manifest.json", "seed/data.json")) {
             if (-not (Test-Path (Join-Path $project $file))) { throw "missing $file for $preset" }
         }
         if (Test-Path (Join-Path $project "internal")) { throw "core source copied for $preset" }

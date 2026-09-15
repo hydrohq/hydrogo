@@ -45,6 +45,7 @@ func TestGenerateAllPresets(t *testing.T) {
 				"docs/ARCHITECTURE.md",
 				"docs/OPERATIONS.md",
 				"docs/E2E_GUIDE.md",
+				"UPGRADE.md",
 				"e2e/manifest.json",
 				"custom/README.md",
 				"migrations/README.md",

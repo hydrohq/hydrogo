@@ -188,6 +188,7 @@ func Generate(opts Options) (string, error) {
 		"docs/ARCHITECTURE.md": architectureDocTemplate(opts, lock),
 		"docs/OPERATIONS.md":   operationsDocTemplate(opts),
 		"docs/E2E_GUIDE.md":    e2eDocTemplate(opts),
+		"UPGRADE.md":           upgradeGuideTemplate(opts, lock),
 		"e2e/manifest.json":    e2eManifestJSON,
 		"custom/README.md":     "# Custom Business Logic\n\nPlace client-specific handlers, extension hooks, and integrations here.\nHydroGo Core remains external and is not modified in this project.\n",
 		"migrations/README.md": "# Project Migrations\n\nPlace project-specific SQL migrations here. HydroGo Core migrations are applied automatically by the licensed runtime.\n",
@@ -701,6 +702,31 @@ If the frontend build emits a route contract, pass it during generation:
 ` + "```powershell\nhydro new my-site --preset=news --frontend-manifest .\\dist\\frontend-manifest.json\n```" + `
 The manifest must contain a ` + "`routes`" + ` array with unique ` + "`name`" + `, ` + "`path`" + ` and ` + "`test_id`" + ` values. Routes are normalized and sorted before ` + "`e2e/manifest.json`" + ` is written.
 `
+}
+
+func upgradeGuideTemplate(opts Options, lock Lock) string {
+	return fmt.Sprintf(`# %s Upgrade Guide
+
+The project lockfile pins the HydroGo Core and generator compatibility surface.
+Keep custom code in custom/, themes/, seed/ and project migrations; never edit
+generated Core internals in place.
+
+## Safe preflight
+
+1. Create and verify a backup using the deployment runbook.
+2. Review the release manifest and migration compatibility notes for Core %s.
+3. Run hydro upgrade check --config config.yaml against a clone or staging database.
+4. Apply migrations only after the compatibility check is green.
+5. Run the project E2E and module contract suites before switching traffic.
+
+## Rollback boundary
+
+An upgrade check is read-only and does not apply migrations. Do not roll back a
+binary across an incompatible schema/content/job format; restore or roll
+forward according to the release manifest and ADR-0011.
+
+Current preset: %s. Current generator: %s.
+`, opts.Name, lock.Core.Version, lock.Preset, lock.Generator.Version)
 }
 
 func e2eManifest(opts Options) (string, error) {
