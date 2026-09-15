@@ -61,6 +61,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0026-openapi](0026-openapi-compatibility-preflight.md) | OpenAPI compatibility preflight | Accepted |
 | [0027-fields](0027-provider-neutral-field-registry.md) | Provider-neutral field registry | Accepted |
 | [0028-adapters](0028-generated-frontend-adapters.md) | Optional generated frontend adapters | Accepted |
+| [0029](0029-relation-field-rendering.md) | Request-scoped relation field rendering | Accepted |
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 | [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |

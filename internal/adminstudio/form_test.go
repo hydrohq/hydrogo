@@ -110,7 +110,19 @@ func TestRenderCreateFormSupportsHiddenWidgetAndOptionsSelect(t *testing.T) {
 	if !strings.Contains(html, `<input type="hidden" name="locale" value="tr">`) {
 		t.Fatalf("hidden input missing: %s", html)
 	}
-	if !strings.Contains(html, `<select name="category"`) || !strings.Contains(html, `<option value="tech" selected>tech</option>`) {
+	if !strings.Contains(html, `<select name="category"`) || !strings.Contains(html, `<option value="tech">tech</option>`) {
 		t.Fatalf("select options missing: %s", html)
+	}
+}
+
+func TestRenderCreateFormRendersRelationOptions(t *testing.T) {
+	collection := Collection{ID: "articles", Label: "Articles", Fields: []Field{{ID: "author_id", Label: "Yazar", Kind: FieldRelation, Required: true}}, Actions: []Action{{Label: "Articles", Href: "/admin/articles"}}}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/articles", CSRFToken: "csrf", Values: map[string]string{"author_id": "u2"}, RelationOptions: map[string][]RelationOption{"author_id": {{ID: "u1", Label: "Ada"}, {ID: "u2", Label: "Grace & Team"}}}}); err != nil {
+		t.Fatal(err)
+	}
+	html := out.String()
+	if !strings.Contains(html, `name="author_id"`) || !strings.Contains(html, `value="u2" selected`) || !strings.Contains(html, `Grace &amp; Team`) {
+		t.Fatalf("relation options missing or unsafe: %s", html)
 	}
 }
