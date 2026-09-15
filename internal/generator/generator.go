@@ -176,6 +176,9 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"bulk.ts":             renderBulkClient(spec),
 		"import-export.ts":    renderImportExportClient(spec),
 		"upload.ts":           renderUploadClient(spec),
+		"react.ts":            renderReactAdapter(spec),
+		"htmx.ts":             renderHTMXAdapter(spec),
+		"vanilla.ts":          renderVanillaAdapter(spec),
 		"migration.sql":       renderMigration(spec),
 		"contract_test.go":    renderContractTest(spec),
 		"fixture_test.go":     renderFixtureTest(spec),
@@ -552,6 +555,42 @@ export function uploadProgress(completedBytes: number, totalBytes: number): Uplo
   return { completedBytes: Math.max(0, completedBytes), totalBytes: Math.max(0, totalBytes) };
 }
 `, exportName(spec.Name), exportName(spec.Name), exportName(spec.Name))
+}
+
+func renderReactAdapter(spec Spec) string {
+	return fmt.Sprintf(`// Optional React adapter for %s. Install React in the Client Edition.
+export type %sQueryState<T> = { data?: T; loading: boolean; error?: Error };
+export type %sFetcher = (signal?: AbortSignal) => Promise<unknown>;
+
+// Keeps React a peer dependency: the generated contract is usable with any
+// hook/query library without pulling a UI runtime into HydroGo Core.
+export function create%sQuery(fetcher: %sFetcher) { return { fetcher, staleTimeMs: 30_000 }; }
+`, exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), exportName(spec.Name))
+}
+
+func renderHTMXAdapter(spec Spec) string {
+	return fmt.Sprintf(`// Optional HTMX adapter for %s; no HTMX runtime is bundled.
+export const %sHtmx = {
+  listTarget: "#%s-list",
+  formTarget: "#%s-form",
+  headers: { "Accept": "text/html" } as Record<string, string>,
+};
+
+export function %sHtmxAttrs(url: string) {
+  return { "hx-get": url, "hx-target": %sHtmx.listTarget, "hx-swap": "outerHTML" } as const;
+}
+`, exportName(spec.Name), exportName(spec.Name), spec.Name, spec.Name, exportName(spec.Name), exportName(spec.Name))
+}
+
+func renderVanillaAdapter(spec Spec) string {
+	return fmt.Sprintf(`// Dependency-free browser adapter for %s.
+export type %sRequest = { baseUrl: string; fetcher?: typeof fetch };
+
+export function create%sClient(options: %sRequest) {
+  const fetcher = options.fetcher ?? fetch;
+  return { list: (query = "") => fetcher(options.baseUrl + "/api/v1/%s" + query, { headers: { Accept: "application/json" } }) };
+}
+`, exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), spec.Name)
 }
 
 func renderImportExportClient(spec Spec) string {

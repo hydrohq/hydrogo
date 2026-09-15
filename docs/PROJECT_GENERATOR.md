@@ -34,6 +34,10 @@ hydro resource create --name products --field title:text --field price:integer -
 Use the spec-driven `module create` form when relations, custom policies or
 destructive-change review need richer contract metadata.
 
+Each generated resource also includes optional `react.ts`, `htmx.ts` and
+`vanilla.ts` adapters. They are dependency-light contracts; install and pin a
+frontend runtime only in the Client Edition that uses it.
+
 The established spelling `hydro generate module --spec ... --out ...` remains
 supported and produces the same validated artifacts. The collection directory
 contains model, repository, service, deny-by-default policy, transport,

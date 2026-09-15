@@ -165,7 +165,7 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s repository missing %q", spec.Name, method)
 			}
 		}
-		for _, file := range []string{"service.go", "policy.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts"} {
+		for _, file := range []string{"service.go", "policy.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "htmx.ts", "vanilla.ts"} {
 			if _, err := os.Stat(filepath.Join(root, "generated", spec.Name, file)); err != nil {
 				t.Fatalf("%s scaffold %s missing: %v", spec.Name, file, err)
 			}
@@ -174,10 +174,16 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if err != nil || !bytes.Contains(wiring, []byte("/api/v1/"+spec.Name)) || !bytes.Contains(wiring, []byte("Compact profile")) {
 			t.Fatalf("%s runtime wiring checklist missing: %v", spec.Name, err)
 		}
-		for _, file := range []string{"form.html", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts"} {
+		for _, file := range []string{"form.html", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "htmx.ts", "vanilla.ts"} {
 			content, readErr := os.ReadFile(filepath.Join(root, "generated", spec.Name, file))
 			if readErr != nil || len(content) == 0 {
 				t.Fatalf("generated %s missing: %v", file, readErr)
+			}
+		}
+		for file, marker := range map[string]string{"react.ts": "create" + exportName(spec.Name) + "Query", "htmx.ts": "hx-get", "vanilla.ts": "create" + exportName(spec.Name) + "Client"} {
+			content, readErr := os.ReadFile(filepath.Join(root, "generated", spec.Name, file))
+			if readErr != nil || !bytes.Contains(content, []byte(marker)) {
+				t.Fatalf("%s adapter %s missing marker %q: %v", spec.Name, file, marker, readErr)
 			}
 		}
 		service, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "service.go"))
