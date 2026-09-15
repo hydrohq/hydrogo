@@ -25,6 +25,29 @@ type GrantRequest struct {
 	Features    []string `json:"features,omitempty"`
 }
 
+func validateGrantRequest(request GrantRequest) error {
+	for name, value := range map[string]string{
+		"project_id": request.ProjectID, "core_version": request.CoreVersion,
+		"sdk_version": request.SDKVersion, "target": request.Target, "edition": request.Edition,
+	} {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("broker grant request %s is required", name)
+		}
+	}
+	seen := make(map[string]struct{}, len(request.Features))
+	for _, feature := range request.Features {
+		feature = strings.TrimSpace(feature)
+		if feature == "" || strings.ContainsAny(feature, "\\/\r\n") {
+			return errors.New("broker grant request contains an invalid feature")
+		}
+		if _, ok := seen[feature]; ok {
+			return errors.New("broker grant request contains duplicate features")
+		}
+		seen[feature] = struct{}{}
+	}
+	return nil
+}
+
 // RequestGrant requests one short-lived artifact grant from a broker. The
 // caller must still run ValidateGrant against the project lock context.
 func RequestGrant(ctx context.Context, endpoint, accessToken string, request GrantRequest, client *http.Client, allowInsecureLocalhost bool) (ArtifactGrant, error) {
@@ -33,6 +56,9 @@ func RequestGrant(ctx context.Context, endpoint, accessToken string, request Gra
 	}
 	if strings.TrimSpace(accessToken) == "" || len(accessToken) > 4096 {
 		return ArtifactGrant{}, errors.New("broker access token is required")
+	}
+	if err := validateGrantRequest(request); err != nil {
+		return ArtifactGrant{}, err
 	}
 	parsed, err := ValidateDownloadURL(endpoint, allowInsecureLocalhost)
 	if err != nil {
