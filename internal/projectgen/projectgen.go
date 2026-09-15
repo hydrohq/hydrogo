@@ -686,13 +686,26 @@ edition and enabled feature contracts.
 
 `+"```powershell"+`
 hydro project new example --preset=%s
-hydro project check --config config.yaml
+hydro check --config config.yaml
+hydro resource new --spec ./collection.yaml --out ./generated
+hydro resource check --spec ./collection.yaml --root ./generated
+hydro permissions check --spec ./collection.yaml
+hydro api diff --baseline ./openapi-baseline.json --current ./generated/openapi.json
 hydro migrate --config config.yaml
 hydro dev
 `+"```"+`
 
 hydro project check is dependency-free and should run before migration
 or serving traffic.
+
+For a signed runtime release, compare migration ledgers before a deployment:
+
+`+"```bash"+`
+hydro schema diff --baseline RELEASE-OLD.json --current RELEASE-NEW.json --public-key VENDOR.pub
+`+"```"+`
+
+The runtime cache can be inspected or cleaned with an explicit dry-run/confirm
+step; never delete a version still referenced by a supported hydrogo.lock.
 
 ## Runtime distribution
 
