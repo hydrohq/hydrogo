@@ -187,6 +187,7 @@ func Generate(opts Options) (string, error) {
 		"NOTICE":               noticeTemplate(),
 		"docs/ARCHITECTURE.md": architectureDocTemplate(opts, lock),
 		"docs/OPERATIONS.md":   operationsDocTemplate(opts),
+		"docs/SDK.md":          sdkDocTemplate(opts, lock),
 		"docs/E2E_GUIDE.md":    e2eDocTemplate(opts),
 		"UPGRADE.md":           upgradeGuideTemplate(opts, lock),
 		"e2e/manifest.json":    e2eManifestJSON,
@@ -573,7 +574,7 @@ HydroGo Client Edition project scaffolded with the **%s** preset.
 
 2. **Validate configuration (no database connection required):**
    `+"```powershell"+`
-   hydro validate --config config.yaml
+   hydro project check --config config.yaml
    `+"```"+`
 
 3. **Run database migrations:**
@@ -606,6 +607,41 @@ git remote add origin <your-git-repository-url>
 git push -u origin main
 `+"```"+`
 `, opts.Name, opts.Preset, lock.ProjectID, opts.Name)
+}
+
+func sdkDocTemplate(opts Options, lock Lock) string {
+	return fmt.Sprintf(`# HydroGo SDK — %s
+
+This Client Edition is generated for the **%s** preset and is pinned by
+hydrogo.lock. The lockfile records Core %s, generator %s, the
+edition and enabled feature contracts.
+
+## Local workflow
+
+`+"```powershell"+`
+hydro project new example --preset=%s
+hydro project check --config config.yaml
+hydro migrate --config config.yaml
+hydro dev
+`+"```"+`
+
+hydro project check is dependency-free and should run before migration
+or serving traffic.
+
+## Runtime distribution
+
+HydroGo Core is not copied into this project. A licensed runtime binary or an
+authorized private Go module must be supplied separately according to the
+deployment agreement. The planned public SDK flow will use a short-lived
+artifact authorization, signature/checksum verification and the exact versions
+in hydrogo.lock; this scaffold does not embed private credentials.
+
+## Extension boundary
+
+Put customer behavior in custom/, themes in themes/, and project
+migrations in migrations/. Do not edit generated Core internals. Run
+hydro upgrade check and the project tests before changing the lockfile.
+`, opts.Name, opts.Preset, lock.Core.Version, lock.Generator.Version, opts.Preset)
 }
 
 func projectStatusTemplate(opts Options) string {

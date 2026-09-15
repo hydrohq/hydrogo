@@ -122,7 +122,7 @@ func TestProjectNewAliasGeneratesProject(t *testing.T) {
 	if !strings.Contains(stdout.String(), "project-created path=") {
 		t.Fatalf("unexpected output: %q", stdout.String())
 	}
-	for _, name := range []string{"config.yaml", "hydrogo.lock", "README.md"} {
+	for _, name := range []string{"config.yaml", "hydrogo.lock", "README.md", filepath.Join("docs", "SDK.md")} {
 		if _, err := os.Stat(filepath.Join(root, "demo", name)); err != nil {
 			t.Fatalf("missing generated project file %s: %v", name, err)
 		}
