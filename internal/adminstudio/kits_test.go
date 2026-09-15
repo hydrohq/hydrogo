@@ -18,3 +18,9 @@ func TestUnknownKitIsRejected(t *testing.T) {
 		t.Fatal("unknown kit accepted")
 	}
 }
+
+func TestValidateKitsRejectsDuplicates(t *testing.T) {
+	if err := ValidateKits([]Kit{KitSEO, KitSEO}); err != ErrInvalidKitSet {
+		t.Fatalf("duplicate kits error = %v", err)
+	}
+}

@@ -130,6 +130,9 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 	for _, kit := range spec.Kits {
 		kits = append(kits, adminstudio.Kit(strings.ToLower(strings.TrimSpace(kit))))
 	}
+	if err := adminstudio.ValidateKits(kits); err != nil {
+		return adminstudio.Collection{}, err
+	}
 	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, Kits: kits}})
 	if err != nil {
 		return adminstudio.Collection{}, err

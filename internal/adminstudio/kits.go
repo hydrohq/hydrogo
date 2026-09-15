@@ -1,6 +1,9 @@
 package adminstudio
 
-import "sort"
+import (
+	"errors"
+	"sort"
+)
 
 type Kit string
 
@@ -18,6 +21,8 @@ const (
 // implementations. Client Editions can enable only the kits they use.
 type KitRegistry struct{ kits map[Kit]struct{} }
 
+var ErrInvalidKitSet = errors.New("invalid capability kit set")
+
 var knownKits = map[Kit]struct{}{KitLocalization: {}, KitMedia: {}, KitSEO: {}, KitForms: {}, KitRedirects: {}, KitSearch: {}, KitCommerce: {}}
 
 func NewKitRegistry(kits ...Kit) KitRegistry {
@@ -26,6 +31,20 @@ func NewKitRegistry(kits ...Kit) KitRegistry {
 		set[kit] = struct{}{}
 	}
 	return KitRegistry{kits: set}
+}
+
+func ValidateKits(kits []Kit) error {
+	seen := make(map[Kit]struct{}, len(kits))
+	for _, kit := range kits {
+		if !IsKnownKit(kit) {
+			return ErrInvalidKitSet
+		}
+		if _, ok := seen[kit]; ok {
+			return ErrInvalidKitSet
+		}
+		seen[kit] = struct{}{}
+	}
+	return nil
 }
 
 func (r KitRegistry) Enabled(kit Kit) bool { _, ok := r.kits[kit]; return ok }

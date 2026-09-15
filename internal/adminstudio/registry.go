@@ -136,10 +136,8 @@ func validateCollection(collection Collection) error {
 			seenOptions[option] = struct{}{}
 		}
 	}
-	for _, kit := range collection.Kits {
-		if !IsKnownKit(kit) {
-			return ErrInvalidCollection
-		}
+	if err := ValidateKits(collection.Kits); err != nil {
+		return ErrInvalidCollection
 	}
 	for _, action := range collection.Actions {
 		if strings.TrimSpace(action.Label) == "" || !strings.HasPrefix(action.Href, "/") || strings.HasPrefix(action.Href, "//") {
