@@ -57,6 +57,7 @@ type Spec struct {
 	Dialects    []string `json:"dialects" yaml:"dialects"`
 	Destructive bool     `json:"destructive" yaml:"destructive"`
 	Admin       Admin    `json:"admin" yaml:"admin"`
+	Kits        []string `json:"kits,omitempty" yaml:"kits,omitempty"`
 }
 
 type Lock struct {
@@ -94,6 +95,12 @@ func Validate(spec Spec) error {
 			return ErrInvalidSpec
 		}
 	}
+	knownKits := map[string]struct{}{"localization": {}, "media": {}, "seo": {}, "forms": {}, "redirects": {}, "search": {}, "commerce": {}}
+	for _, kit := range spec.Kits {
+		if _, ok := knownKits[strings.ToLower(strings.TrimSpace(kit))]; !ok {
+			return ErrInvalidSpec
+		}
+	}
 	return nil
 }
 
@@ -119,7 +126,11 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 	if len(actions) == 0 {
 		actions = []adminstudio.Action{{Label: "Open " + label, Href: "/admin/" + spec.Name}}
 	}
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions}})
+	kits := make([]adminstudio.Kit, 0, len(spec.Kits))
+	for _, kit := range spec.Kits {
+		kits = append(kits, adminstudio.Kit(strings.ToLower(strings.TrimSpace(kit))))
+	}
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, Kits: kits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}
@@ -206,6 +217,7 @@ func canonicalSpec(spec Spec) ([]byte, error) {
 	copySpec := spec
 	sort.Strings(copySpec.Permissions)
 	sort.Strings(copySpec.Dialects)
+	sort.Strings(copySpec.Kits)
 	sort.Slice(copySpec.Fields, func(i, j int) bool { return copySpec.Fields[i].Name < copySpec.Fields[j].Name })
 	return json.Marshal(copySpec)
 }

@@ -68,6 +68,7 @@ type Collection struct {
 	Description string   `json:"description"`
 	Fields      []Field  `json:"fields"`
 	Actions     []Action `json:"actions"`
+	Kits        []Kit    `json:"kits,omitempty"`
 }
 
 type Registry struct {
@@ -151,5 +152,6 @@ func cloneCollection(collection Collection) Collection {
 		clone.Fields[i].Options = append([]string(nil), field.Options...)
 	}
 	clone.Actions = append([]Action(nil), collection.Actions...)
+	clone.Kits = append([]Kit(nil), collection.Kits...)
 	return clone
 }
