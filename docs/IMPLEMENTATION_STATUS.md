@@ -37,6 +37,9 @@ tamamlanmış sayılamaz:
 5. Offline lisans, revocation, mirror ve rollback tatbikatları.
 6. S3/CDN sağlayıcısı, backup/restore ve disaster-recovery kanıtı.
 
+Broker endpoint/grant/hata sözleşmesi [HYDRO_SDK_BROKER_API.md](HYDRO_SDK_BROKER_API.md)
+belgesinde uygulanabilir biçimde tanımlıdır; gerçek servis değildir.
+
 Private GitHub deposuna kullanıcı PAT'i koymak bu maddelerin yerine geçmez.
 İstemci yalnızca kısa ömürlü grant/URL almalı; kaynak kodu değil, imzalı artifact
 indirmelidir. Ayrıntılı kararlar için
