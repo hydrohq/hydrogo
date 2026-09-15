@@ -365,6 +365,27 @@ func TestRunResourceNewAliasGeneratesCollection(t *testing.T) {
 	}
 }
 
+func TestRunResourceCheckAlias(t *testing.T) {
+	root := t.TempDir()
+	specPath := filepath.Join(root, "article.yaml")
+	spec := "version: v0\ncollection:\n  name: article\n  table: articles\n  permissions: [article.read]\n  dialects: [sqlite]\n  fields:\n    - name: title\n      type: string\n"
+	if err := os.WriteFile(specPath, []byte(spec), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outRoot := filepath.Join(root, "out")
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"resource", "new", "--spec", specPath, "--out", outRoot}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	if err := run([]string{"resource", "check", "--spec", specPath, "--root", outRoot}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("resource check: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "compatible collection=article") {
+		t.Fatalf("resource check output = %q", stdout.String())
+	}
+}
+
 func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
 	root := t.TempDir()
 	var stdout, stderr bytes.Buffer
