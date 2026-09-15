@@ -12,4 +12,9 @@ go test ./internal/generator ./cmd/hydro
 PASS
 ```
 
-WSL Ubuntu (`arda`): aynı hedef paketler exit code 0 ile geçti.
+WSL Ubuntu (`arda`):
+
+```text
+go test ./internal/generator ./cmd/hydro ./internal/release ./internal/sdkdist
+exit code 0
+```
