@@ -62,6 +62,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/sdkdist"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
@@ -2634,10 +2635,72 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 // runtimeCommand exposes installer-facing runtime checks while keeping the
 // release namespace as the backwards-compatible implementation entrypoint.
 func runtimeCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "verify" {
-		return errors.New("runtime requires the verify subcommand")
+	if len(args) == 0 {
+		return errors.New("runtime requires a subcommand (verify or cache)")
+	}
+	if args[0] == "cache" {
+		return runtimeCacheCommand(args[1:], stdout, stderr)
+	}
+	if args[0] != "verify" {
+		return errors.New("runtime requires a subcommand (verify or cache)")
 	}
 	return releaseCommand(args, stdout, stderr)
+}
+
+func runtimeCacheCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || (args[0] != "list" && args[0] != "prune") {
+		return errors.New("runtime cache requires list or prune")
+	}
+	flags := flag.NewFlagSet("runtime cache "+args[0], flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	root := flags.String("root", "", "Runtime cache root")
+	keep := flags.String("keep", "", "Comma-separated runtime versions to retain")
+	dryRun := flags.Bool("dry-run", false, "Plan removals without changing the filesystem")
+	confirm := flags.Bool("confirm", false, "Confirm cache deletion")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if strings.TrimSpace(*root) == "" {
+		return errors.New("--root is required")
+	}
+	entries, err := sdkdist.ListCache(*root)
+	if err != nil {
+		return fmt.Errorf("list runtime cache: %w", err)
+	}
+	if args[0] == "list" {
+		for _, entry := range entries {
+			if _, err := fmt.Fprintf(stdout, "runtime-cache-entry version=%s bytes=%d path=%s\n", entry.Version, entry.Bytes, entry.Path); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if *dryRun == *confirm {
+		return errors.New("runtime cache prune requires exactly one of --dry-run or --confirm")
+	}
+	removed, err := sdkdist.PruneCache(*root, parseRuntimeVersions(*keep), !*confirm)
+	if err != nil {
+		return fmt.Errorf("prune runtime cache: %w", err)
+	}
+	if *dryRun {
+		_, err = fmt.Fprintf(stdout, "runtime-cache-prune-plan root=%s entries=%d\n", *root, len(removed))
+	} else {
+		_, err = fmt.Fprintf(stdout, "runtime-cache-pruned root=%s entries=%d\n", *root, len(removed))
+	}
+	return err
+}
+
+func parseRuntimeVersions(value string) map[string]bool {
+	result := make(map[string]bool)
+	for _, version := range strings.Split(value, ",") {
+		if version = strings.TrimSpace(version); version != "" {
+			result[version] = true
+		}
+	}
+	return result
 }
 
 type runtimeFlags struct {
@@ -2705,6 +2768,8 @@ Usage:
   hydro portable import --path PATH --confirm [--max-bytes BYTES] [runtime flags]
   hydro release verify --manifest PATH --public-key PATH [--root PATH]
   hydro runtime verify --manifest PATH --public-key PATH [--root PATH]
+  hydro runtime cache list --root PATH
+  hydro runtime cache prune --root PATH --keep VERSION,... --dry-run|--confirm
   hydro license issue --customer NAME --project-id ID --private-key PATH [--edition ED] [--features F1,F2] [--expires-in DUR] [--grace-days N] [--out PATH]
   hydro license verify --license PATH [--public-key PATH] [--project-id ID] [--edition ED] [--feature F1]
   hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]
