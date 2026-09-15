@@ -26,7 +26,7 @@ Amaç: Production sözleşmelerini koruyan ilk çalışan modülü Next.js benze
 
 - `hydro generate resource|crud|page|api|admin|form` komutları (aynı reviewed
   contract’tan deterministic review artifact’ları üretir).
-- Tek şemadan model, migration, repository, service, policy, form, table, API, OpenAPI, TypeScript client, fixture ve contract test üretimi.
+- Tek şemadan model, migration, repository, service, policy, form, erişilebilir table/empty-state, API, OpenAPI, TypeScript client, fixture ve contract test üretimi.
 - Üretilen kodda TODO sınırları, örnek authorization ve review checklist’i.
 - `hydro validate generator --spec SPEC --root OUTPUT` lock hash’ini ve beklenen
   generated artifact setini yazmadan doğrular; upgrade/pre-deploy CI adımı olarak
