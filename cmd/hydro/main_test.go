@@ -224,6 +224,13 @@ collection:
 	if _, err := os.Stat(filepath.Join(outputRoot, "generated", "testimonial", "admin_manifest.json")); err != nil {
 		t.Fatalf("admin manifest missing: %v", err)
 	}
+	pageOutput := filepath.Join(root, "page-output")
+	if err := run([]string{"generate", "page", "--spec", specPath, "--out", pageOutput}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("generate page alias: %v stderr=%s", err, stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(pageOutput, "generated", "testimonial", "form.html")); err != nil {
+		t.Fatalf("page alias artifact missing: %v", err)
+	}
 }
 
 func TestRunModuleCreateAliasGeneratesCollection(t *testing.T) {

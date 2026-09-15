@@ -216,7 +216,7 @@ func generateCommand(args []string, stdout, stderr io.Writer) error {
 		return errors.New("generate requires a subcommand")
 	}
 	switch args[0] {
-	case "module", "resource", "crud", "form", "api", "admin":
+	case "module", "resource", "crud", "page", "form", "api", "admin":
 		return generateModuleCommand(args[1:], stdout, stderr)
 	default:
 		return fmt.Errorf("unsupported generate target %q", args[0])
@@ -2598,7 +2598,7 @@ Usage:
   hydro module create --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
-  hydro generate module|resource|crud|form|api|admin --spec SPEC --out OUTPUT
+  hydro generate module|resource|crud|page|form|api|admin --spec SPEC --out OUTPUT
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]
