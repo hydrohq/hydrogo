@@ -190,6 +190,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"react.ts":            renderReactAdapter(spec),
 		"htmx.ts":             renderHTMXAdapter(spec),
 		"vanilla.ts":          renderVanillaAdapter(spec),
+		"kits.ts":             renderKitManifest(spec),
 		"migration.sql":       renderMigration(spec),
 		"contract_test.go":    renderContractTest(spec),
 		"fixture_test.go":     renderFixtureTest(spec),
@@ -609,7 +610,17 @@ export function create%sClient(options: %sRequest) {
   const fetcher = options.fetcher ?? fetch;
   return { list: (query = "") => fetcher(options.baseUrl + "/api/v1/%s" + query, { headers: { Accept: "application/json" } }) };
 }
+
 `, exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), spec.Name)
+}
+
+func renderKitManifest(spec Spec) string {
+	kits := sortedStrings(spec.Kits)
+	quoted := make([]string, len(kits))
+	for i, kit := range kits {
+		quoted[i] = fmt.Sprintf("%q", kit)
+	}
+	return fmt.Sprintf("// Generated capability metadata for %s. Implementations stay in the Client Edition.\nexport const %sKits = [%s] as const;\n", exportName(spec.Name), exportName(spec.Name), strings.Join(quoted, ", "))
 }
 
 func renderImportExportClient(spec Spec) string {

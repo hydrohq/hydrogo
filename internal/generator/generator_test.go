@@ -165,7 +165,7 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s repository missing %q", spec.Name, method)
 			}
 		}
-		for _, file := range []string{"service.go", "policy.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "htmx.ts", "vanilla.ts"} {
+		for _, file := range []string{"service.go", "policy.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "htmx.ts", "vanilla.ts", "kits.ts"} {
 			if _, err := os.Stat(filepath.Join(root, "generated", spec.Name, file)); err != nil {
 				t.Fatalf("%s scaffold %s missing: %v", spec.Name, file, err)
 			}
