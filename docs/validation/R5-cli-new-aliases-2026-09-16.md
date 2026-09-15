@@ -10,3 +10,10 @@ hydro resource new --spec SPEC --out OUTPUT
 Windows ve WSL Ubuntu'da `cmd/hydro` testleri geçti. `resource new --name
 article --field title:text` smoke testi deterministik scaffold üretti; mevcut
 `create` komutları için regresyon testleri de çalıştırıldı.
+
+WSL komutu:
+
+```text
+go test ./cmd/hydro ./internal/sdkdist
+PASS
+```
