@@ -100,6 +100,29 @@ func TestManifestRejectsSymlinkArtifact(t *testing.T) {
 	}
 }
 
+func TestVerifyArtifactsChecksFullReleaseRoot(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "hydro"), []byte("runtime"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := Build(root, Input{Edition: "client", CoreVersion: "1.0.0", SDKVersion: "1.0.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyArtifacts(root, manifest); err != nil {
+		t.Fatalf("verify artifacts: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "hydro"), []byte("tampered"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyArtifacts(root, manifest); err == nil {
+		t.Fatal("tampered runtime artifact was accepted")
+	}
+}
+
 func TestManifestProvenanceAttestationBindsSubject(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "hydro"), []byte("binary"), 0o600); err != nil {
