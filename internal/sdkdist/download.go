@@ -21,6 +21,15 @@ type DownloadOptions struct {
 	AllowInsecureLocalhost bool
 }
 
+// DownloadGrantAndInstall validates a broker grant before starting any
+// network request, then delegates to the bounded download/atomic install path.
+func DownloadGrantAndInstall(ctx context.Context, grant ArtifactGrant, expectedProject, expectedCore, expectedSDK string, now time.Time, expected release.Artifact, destination string, options DownloadOptions) error {
+	if err := ValidateGrant(grant, expectedProject, expectedCore, expectedSDK, now, options.AllowInsecureLocalhost); err != nil {
+		return err
+	}
+	return DownloadAndInstall(ctx, grant.ArtifactURL, expected, destination, options)
+}
+
 // DownloadAndInstall downloads one broker-authorized artifact into a temporary
 // file and installs it atomically after release metadata verification. The
 // function never follows redirects and never logs the URL/token.
