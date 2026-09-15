@@ -8,7 +8,7 @@
 
 ```bash
 cd /mnt/c/dev/cms
-go test ./internal/projectgen ./cmd/hydro
+go test ./internal/projectgen ./cmd/hydro ./internal/generator ./internal/release ./internal/sdkdist
 go run ./cmd/hydro project new sdk-doc --preset compact-site --no-demo --root /tmp/hydro-sdk-doc-check
 test -f /tmp/hydro-sdk-doc-check/sdk-doc/docs/SDK.md
 ```
