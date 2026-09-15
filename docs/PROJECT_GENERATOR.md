@@ -34,6 +34,17 @@ hydro resource create --name products --field title:text --field price:integer -
 Use the spec-driven `module create` form when relations, custom policies or
 destructive-change review need richer contract metadata.
 
+Specs may opt into capability kits without activating provider implementations:
+
+```yaml
+kits: [localization, media, seo, forms, redirects, search, commerce]
+```
+
+Selected kits are copied into `admin_manifest.json` and listed in
+`RUNTIME_WIRING.md`. Bind each selected kit explicitly in the Client Edition;
+omitted kits create no routes, workers, migrations, or assets. Unknown kit
+names fail generation early.
+
 Each generated resource also includes optional `react.ts`, `htmx.ts` and
 `vanilla.ts` adapters. They are dependency-light contracts; install and pin a
 frontend runtime only in the Client Edition that uses it.
