@@ -31,6 +31,20 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	if err := adminDashboardCleanTemplate.Execute(w, data); err != nil {
 		return err
 	}
+	for _, collection := range data.Collections {
+		if len(collection.Kits) == 0 || collection.ID == "commerce_variants" {
+			continue
+		}
+		if _, err := io.WriteString(w, `<section class="studio-card studio-kit-summary"><h2>Etkin yetenekler · `+template.HTMLEscapeString(collection.Label)+`</h2>`); err != nil {
+			return err
+		}
+		if err := adminstudio.RenderKitBadges(w, collection.Kits); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, `</section>`); err != nil {
+			return err
+		}
+	}
 	return AdminEnd(w)
 }
 

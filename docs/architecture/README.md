@@ -75,6 +75,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0040](0040-generated-kit-types.md) | Generated typed capability metadata | Accepted |
 | [0041](0041-e2e-kit-diagnostics.md) | Capability kits in E2E diagnostics | Accepted |
 | [0042](0042-admin-kit-badges.md) | Accessible admin capability badges | Accepted |
+| [0043](0043-dashboard-kit-summary.md) | Admin dashboard capability summary | Accepted |
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 | [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |
