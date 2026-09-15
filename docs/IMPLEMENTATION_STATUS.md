@@ -40,8 +40,8 @@ ve ADR-0091'e bakın.
 
 ## Faz bazlı ilerleme
 
-- **Faz 0 (benchmark):** Açık. Payload eşdeğer haber örneği ve iki müşteri
-  akışıyla süre/manuel adım ölçümü yapılmadı.
+- **Faz 0 (benchmark):** Protokol hazır, ölçüm açık. Payload eşdeğer haber
+  örneği ve iki müşteri akışıyla süre/manuel adım ölçümü henüz yapılmadı.
 - **Faz 1 (resource contract/CLI):** Kısmi. Proje namespace'i, lock yükleme ve
   check akışı var; tek kaynaklı resource'tan tüm migration/admin/API wiring'i
   henüz otomatik üretilmiyor.
