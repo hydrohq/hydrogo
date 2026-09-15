@@ -143,6 +143,13 @@ func TestProjectCheckUsesDependencyFreeValidation(t *testing.T) {
 	if !strings.Contains(stdout.String(), `"valid":true`) {
 		t.Fatalf("unexpected project check output: %q", stdout.String())
 	}
+	stdout.Reset()
+	if err := run([]string{"check", "--config", configPath, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("check alias: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"valid":true`) {
+		t.Fatalf("unexpected check alias output: %q", stdout.String())
+	}
 }
 
 func TestProjectCheckValidatesGeneratedLock(t *testing.T) {

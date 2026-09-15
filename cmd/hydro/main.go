@@ -187,6 +187,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return newProjectCommand(args[1:], stdin, stdout, stderr)
 	case "project":
 		return projectCommand(args[1:], stdin, stdout, stderr)
+	case "check":
+		return projectCheckCommand(args[1:], stdout, stderr)
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -2891,6 +2893,7 @@ Usage:
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project check [--config config.yaml] [--lock hydrogo.lock] [--json]
+  hydro check [--config config.yaml] [--lock hydrogo.lock] [--json]
   hydro module create --spec SPEC --out OUTPUT
   hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
