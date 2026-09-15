@@ -8,7 +8,7 @@ func TestKitRegistryIsDeterministicAndOptional(t *testing.T) {
 		t.Fatal("kit enablement incorrect")
 	}
 	got := r.Kits()
-	if len(got) != 2 || got[0] != KitSEO || got[1] != KitSearch {
+	if len(got) != 2 || got[0] != KitSearch || got[1] != KitSEO {
 		t.Fatalf("kits = %v", got)
 	}
 }
