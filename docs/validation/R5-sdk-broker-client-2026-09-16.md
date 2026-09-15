@@ -12,5 +12,12 @@ go test ./internal/sdkdist
 PASS
 ```
 
+WSL Ubuntu (`arda`):
+
+```text
+go test ./internal/sdkdist ./internal/release ./cmd/hydro
+exit code 0
+```
+
 Testler `httptest` ile başarılı grant, 403 ve oversized response senaryolarını
 çalıştırır. Gerçek OAuth client registration ve broker deployment kapsam dışıdır.
