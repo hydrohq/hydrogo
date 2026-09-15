@@ -18,3 +18,8 @@ Gerçek sonuç: generator ve CLI testleri başarılı; `sdk-doc/docs/SDK.md` ür
 ## Sınır
 
 Bu belge runtime artifact broker veya installer uygulamaz; bu bileşenlerin henüz uygulanmadığını generated project içinde açıkça belirtir.
+
+Güncel şablon ayrıca `hydro check`, `resource new/check`, `permissions check`,
+`api diff` ve imzalı `schema diff` adımlarını gösterir. Template değişikliğinden
+sonra Windows'ta `go test ./internal/projectgen` başarılıdır; WSL tam suite’i
+ayrı cross-platform kanıt olarak tutulur.
