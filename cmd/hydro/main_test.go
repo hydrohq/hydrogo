@@ -96,6 +96,23 @@ func TestRunVersion(t *testing.T) {
 	}
 }
 
+func TestResourceCreateFromFlagsGeneratesCompleteScaffold(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"resource", "create", "--name", "products", "--field", "title:text", "--field", "price:integer", "--out", root}, strings.NewReader(""), &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("resource create: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "resource-created collection=products") {
+		t.Fatalf("unexpected output: %q", stdout.String())
+	}
+	for _, name := range []string{"model.go", "policy.go", "form.html", "openapi.json", "client.ts", "upload.ts", "RUNTIME_WIRING.md"} {
+		if _, err := os.Stat(filepath.Join(root, "generated", "products", name)); err != nil {
+			t.Fatalf("missing generated %s: %v", name, err)
+		}
+	}
+}
+
 func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
 	var output bytes.Buffer
 	printUsage(&output)

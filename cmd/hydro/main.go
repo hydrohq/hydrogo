@@ -238,7 +238,77 @@ func resourceCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] != "create" {
 		return errors.New("resource requires the create subcommand")
 	}
+	if !containsString(args[1:], "--spec") {
+		return resourceCreateFromFlags(args[1:], stdout, stderr)
+	}
 	return generateModuleCommand(args[1:], stdout, stderr)
+}
+
+type repeatedFlag []string
+
+func (f *repeatedFlag) String() string { return strings.Join(*f, ",") }
+func (f *repeatedFlag) Set(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return errors.New("repeated value cannot be empty")
+	}
+	*f = append(*f, value)
+	return nil
+}
+
+func resourceCreateFromFlags(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("resource create", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	name := flags.String("name", "", "Resource name (snake_case)")
+	table := flags.String("table", "", "Database table (defaults to resource name)")
+	out := flags.String("out", "generated", "Output root for generated artifacts")
+	adminLabel := flags.String("admin-label", "", "Admin collection label")
+	var fieldArgs, permissionArgs, dialectArgs repeatedFlag
+	flags.Var(&fieldArgs, "field", "Field name:type[:nullable]")
+	flags.Var(&permissionArgs, "permission", "Permission name (repeatable)")
+	flags.Var(&dialectArgs, "dialect", "Database dialect sqlite|postgres (repeatable)")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*name) == "" || len(fieldArgs) == 0 {
+		return errors.New("resource create requires --name and at least one --field")
+	}
+	if strings.TrimSpace(*table) == "" {
+		*table = *name
+	}
+	fields := make([]generator.Field, 0, len(fieldArgs))
+	for _, raw := range fieldArgs {
+		parts := strings.Split(raw, ":")
+		if len(parts) < 2 || len(parts) > 3 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+			return fmt.Errorf("invalid --field %q; expected name:type[:nullable]", raw)
+		}
+		nullable := len(parts) == 3 && strings.EqualFold(strings.TrimSpace(parts[2]), "nullable")
+		fields = append(fields, generator.Field{Name: strings.TrimSpace(parts[0]), Type: strings.TrimSpace(parts[1]), Nullable: nullable, Admin: generator.FieldAdmin{Label: strings.TrimSpace(parts[0]), VisibleInList: true}})
+	}
+	permissions := append([]string(nil), permissionArgs...)
+	if len(permissions) == 0 {
+		permissions = []string{strings.TrimSpace(*name) + ".read", strings.TrimSpace(*name) + ".write"}
+	}
+	dialects := append([]string(nil), dialectArgs...)
+	if len(dialects) == 0 {
+		dialects = []string{"sqlite", "postgres"}
+	}
+	spec := generator.Spec{Name: strings.TrimSpace(*name), Table: strings.TrimSpace(*table), Fields: fields, Permissions: permissions, Dialects: dialects, Admin: generator.Admin{Label: strings.TrimSpace(*adminLabel)}}
+	lock, err := generator.Generate(*out, spec)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "resource-created collection=%s out=%s spec_sha256=%s generator=%s\n", spec.Name, *out, lock.SpecSHA256, lock.GeneratorVersion)
+	return err
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted || strings.HasPrefix(value, wanted+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 var migrationIDPattern = regexp.MustCompile(`^[0-9]{12}_[a-z][a-z0-9_]{1,62}$`)
@@ -2620,6 +2690,7 @@ Usage:
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro module create --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
+  hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
   hydro generate module|resource|crud|page|form|api|admin --spec SPEC --out OUTPUT
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
@@ -2632,6 +2703,7 @@ Examples:
   hydro validate --config config.yaml
   hydro test --package ./modules/news/... --timeout 2m
   hydro module create --spec ./module.yaml --out ./modules/catalog
+  hydro resource create --name products --field title:text --field price:integer
   hydro dev --address 127.0.0.1:8090
 
 Failure remediation:

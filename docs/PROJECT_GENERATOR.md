@@ -24,6 +24,16 @@ command:
 hydro module create --spec .\collection.yaml --out .\generated
 ```
 
+For a small CRUD resource, the shorthand avoids writing a spec file while
+still producing the same reviewable artifacts and compatibility lock:
+
+```powershell
+hydro resource create --name products --field title:text --field price:integer --out .\generated
+```
+
+Use the spec-driven `module create` form when relations, custom policies or
+destructive-change review need richer contract metadata.
+
 The established spelling `hydro generate module --spec ... --out ...` remains
 supported and produces the same validated artifacts. The collection directory
 contains model, repository, service, deny-by-default policy, transport,
