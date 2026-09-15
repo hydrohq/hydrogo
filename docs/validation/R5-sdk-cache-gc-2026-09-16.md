@@ -23,3 +23,11 @@ hydro runtime cache list --root PATH
 hydro runtime cache prune --root PATH --keep v2.0.0 --dry-run
 hydro runtime cache prune --root PATH --keep v2.0.0 --confirm
 ```
+
+WSL Ubuntu'da hedef ve tam suite de geçti:
+
+```text
+go test ./cmd/hydro ./internal/sdkdist
+go test ./... -p 1 -timeout=5m
+exit code 0
+```
