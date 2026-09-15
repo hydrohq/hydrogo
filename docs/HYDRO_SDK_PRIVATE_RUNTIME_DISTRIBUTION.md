@@ -1,6 +1,8 @@
 # Hydro SDK ve private HydroGo runtime dağıtım planı
 
-**Durum:** Öneri / uygulama planı  
+**Durum:** Sözleşme ve güvenli yerel artifact zinciri uygulanıyor; broker,
+login, imzalı release ve installer yayınları açık. Ayrıntılı durum:
+[`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).  
 **Amaç:** Linux, Windows ve macOS’ta Node.js benzeri kurulabilen public `hydro` CLI ile private HydroGo Core runtime’ını kaynak kodu dağıtmadan kullanmak.
 
 ## Temel karar
