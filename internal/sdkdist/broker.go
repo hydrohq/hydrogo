@@ -77,3 +77,17 @@ func RequestGrant(ctx context.Context, endpoint, accessToken string, request Gra
 	}
 	return grant, nil
 }
+
+// RequestValidatedGrant combines broker transport with entitlement-coordinate
+// validation. Callers that need a lower-level parser may use RequestGrant, but
+// runtime installation paths should prefer this fail-closed helper.
+func RequestValidatedGrant(ctx context.Context, endpoint, accessToken string, request GrantRequest, expectedProject, expectedCore, expectedSDK string, now time.Time, client *http.Client, allowInsecureLocalhost bool) (ArtifactGrant, error) {
+	grant, err := RequestGrant(ctx, endpoint, accessToken, request, client, allowInsecureLocalhost)
+	if err != nil {
+		return ArtifactGrant{}, err
+	}
+	if err := ValidateGrant(grant, expectedProject, expectedCore, expectedSDK, now, allowInsecureLocalhost); err != nil {
+		return ArtifactGrant{}, err
+	}
+	return grant, nil
+}

@@ -4,6 +4,8 @@
 bounded JSON request/response, HTTPS/localhost test policy, Authorization header,
 redirect reddi ve non-200 hata eşlemesi. Access token response'a veya diske
 yazılmaz; çağıran `ValidateGrant` ile lock bağlamı eşleşmesini ayrıca kontrol eder.
+`RequestValidatedGrant` ise transport ve lock/grant doğrulamasını tek fail-closed
+çağrıda birleştirir; yanlış project/Core/SDK eşleşmesini reddeder.
 
 Windows:
 
