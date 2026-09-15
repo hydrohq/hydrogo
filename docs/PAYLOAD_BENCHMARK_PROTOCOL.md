@@ -58,5 +58,7 @@ Eksik otomasyon veya manuel wiring adımı gizlenmez; komut çıktısı ve süre
 
 HydroGo'nun “Payload kadar hızlı” olduğu ancak iki bağımsız resource senaryosunda
 ilk çalışan admin/API akışı 30 dakika hedefi içinde ve manuel adım/hata sayıları
-ölçülerek doğrulanırsa söylenebilir. Bu protokol tek başına sonucu kanıtlamaz;
+ölçülerek doğrulanırsa söylenebilir. Yerel HydroGo iteration script'inin 15 dakikalık
+eşiği yalnızca hızlı geri bildirim kapısıdır; 30 dakika parity hedefinin yerine
+geçmez. Bu protokol tek başına sonucu kanıtlamaz;
 sonuç raporu olmadan parity durumu **açık** kalır.
