@@ -10,6 +10,7 @@ Bu belge, mevcut kararların ve doğrulama kanıtlarının nerede tutulduğunu g
 | Kullanıcıya gösterilecek bilgi | [INFORMATION_HIERARCHY.md](INFORMATION_HIERARCHY.md) |
 | Uygulama sırası | [implementation_plan.md](implementation_plan.md), [ROADMAP.md](ROADMAP.md) |
 | Mevcut durum | [PROJECT_STATUS.md](PROJECT_STATUS.md) |
+| Uygulama ve açık kapıların ayrıntılı durumu | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) |
 | Kalan gerçek-ortam işleri | [OPEN_GATES_AND_OPERATOR_ACTIONS.md](OPEN_GATES_AND_OPERATOR_ACTIONS.md), [IMPLEMENTATION_AUDIT_REMAINING.md](IMPLEMENTATION_AUDIT_REMAINING.md) |
 | Mimari karar | [architecture/README.md](architecture/README.md) ve ilgili ADR |
 | Yeni proje üretimi ve SDK CLI | [PROJECT_GENERATOR.md](PROJECT_GENERATOR.md), [CLI_WORKFLOW.md](CLI_WORKFLOW.md), [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md) |

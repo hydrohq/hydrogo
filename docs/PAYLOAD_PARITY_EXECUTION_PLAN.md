@@ -1,6 +1,7 @@
 # Payload hızına yaklaşma ve HydroGo geliştirici deneyimi planı
 
-**Durum:** Planlandı; uygulama başlamadı  
+**Durum:** Kısmen uygulanıyor; güncel gerçek durum için
+[`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) belgesine bakın.  
 **Amaç:** HydroGo’yu mimari güvenlik ve modülerlikten ödün vermeden Payload CMS’in “tek tanım → çalışan admin/API” hızına yaklaştırmak.
 
 ## Tarama özeti
