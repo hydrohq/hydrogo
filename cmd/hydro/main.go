@@ -159,6 +159,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return moduleCommand(args[1:], stdout, stderr)
 	case "resource":
 		return resourceCommand(args[1:], stdout, stderr)
+	case "api":
+		return apiCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "validate":
@@ -253,6 +255,15 @@ func resourceCommand(args []string, stdout, stderr io.Writer) error {
 		return resourceCreateFromFlags(args[1:], stdout, stderr)
 	}
 	return generateModuleCommand(args[1:], stdout, stderr)
+}
+
+// apiCommand exposes compatibility checks as a first-class SDK workflow while
+// retaining `validate api` as the lower-level spelling.
+func apiCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "diff" {
+		return errors.New("api requires the diff subcommand")
+	}
+	return validateAPICommand(args[1:], stdout, stderr)
 }
 
 type repeatedFlag []string
@@ -2788,6 +2799,7 @@ Usage:
   hydro resource create --spec SPEC --out OUTPUT
   hydro resource new --spec SPEC --out OUTPUT
   hydro resource check --spec SPEC --root OUTPUT
+  hydro api diff --baseline OPENAPI.json --current OPENAPI.json
   hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
   hydro generate module|resource|crud|page|form|api|admin --spec SPEC --out OUTPUT
