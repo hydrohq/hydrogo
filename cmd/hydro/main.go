@@ -172,6 +172,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return portableCommand(args[1:], stdout, stderr)
 	case "release":
 		return releaseCommand(args[1:], stdout, stderr)
+	case "runtime":
+		return runtimeCommand(args[1:], stdout, stderr)
 	case "license":
 		return licenseCommand(args[1:], stdout, stderr)
 	case "new":
@@ -2629,6 +2631,15 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 	}
 }
 
+// runtimeCommand exposes installer-facing runtime checks while keeping the
+// release namespace as the backwards-compatible implementation entrypoint.
+func runtimeCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "verify" {
+		return errors.New("runtime requires the verify subcommand")
+	}
+	return releaseCommand(args, stdout, stderr)
+}
+
 type runtimeFlags struct {
 	capacityProfile *string
 	configPath      *string
@@ -2693,6 +2704,7 @@ Usage:
   hydro portable import --path PATH --dry-run [--max-bytes BYTES] [runtime flags]
   hydro portable import --path PATH --confirm [--max-bytes BYTES] [runtime flags]
   hydro release verify --manifest PATH --public-key PATH [--root PATH]
+  hydro runtime verify --manifest PATH --public-key PATH [--root PATH]
   hydro license issue --customer NAME --project-id ID --private-key PATH [--edition ED] [--features F1,F2] [--expires-in DUR] [--grace-days N] [--out PATH]
   hydro license verify --license PATH [--public-key PATH] [--project-id ID] [--edition ED] [--feature F1]
   hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]
