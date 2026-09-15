@@ -27,3 +27,4 @@ Testler `httptest` ile başarılı grant, 403 ve oversized response senaryoları
 çalıştırır. Gerçek OAuth client registration ve broker deployment kapsam dışıdır.
 WSL çalıştırması ayrıca `RequestValidatedGrant` lock mismatch regresyon testini
 de kapsar.
+Koordinat/feature preflight testleri de WSL’de exit code 0 ile geçti.
