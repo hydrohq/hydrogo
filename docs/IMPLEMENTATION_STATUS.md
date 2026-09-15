@@ -44,8 +44,8 @@ ve ADR-0091'e bakın.
 
 ## Faz bazlı ilerleme
 
-- **Faz 0 (benchmark):** Protokol hazır, ölçüm açık. Payload eşdeğer haber
-  örneği ve iki müşteri akışıyla süre/manuel adım ölçümü henüz yapılmadı.
+- **Faz 0 (benchmark):** HydroGo baseline ölçüldü (23.454 s, yerel Windows);
+  Payload eşdeğer haber örneği ve iki müşteri akışıyla göreli ölçüm açık.
 - **Faz 1 (resource contract/CLI):** Kısmi. Proje namespace'i, lock yükleme ve
   check akışı var; tek kaynaklı resource'tan tüm migration/admin/API wiring'i
   henüz otomatik üretilmiyor.
