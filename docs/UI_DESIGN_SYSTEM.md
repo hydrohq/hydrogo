@@ -4,6 +4,10 @@ All first-party surfaces should consume semantic tokens rather than hard-coded
 palette values. The Admin Studio currently provides the reference vocabulary;
 public themes may map the same names to a different visual identity.
 
+CI runs `scripts/theme-token-lint.ps1` to fail closed on CSS variables that are
+referenced without a definition. References with an explicit local fallback
+(`var(--token, fallback)`) are intentionally allowed.
+
 Core exposes dependency-free semantic adapters for `native`, `shadcn`,
 `material`, and `carbon` through `NewDefaultDesignSystemRegistry`. These
 adapters only map intent to class names; provider CSS/runtime packages remain

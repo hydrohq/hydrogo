@@ -148,6 +148,9 @@ jobs:
       - name: Run generator preset smoke
         shell: pwsh
         run: ./scripts/generator-smoke.ps1
+      - name: Lint theme token references
+        shell: pwsh
+        run: ./scripts/theme-token-lint.ps1
       - name: Measure clean-machine prototype velocity
         shell: pwsh
         run: |
