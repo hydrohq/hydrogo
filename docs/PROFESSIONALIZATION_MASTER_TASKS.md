@@ -227,7 +227,7 @@ the existing Core/module boundaries:
 - [~] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; server-side policy and runtime cache wiring remain explicit module work.
 - [~] Generated bounded bulk-selection and progress primitives are available; module-specific import/export/upload handlers and optimistic persistence remain explicit runtime work.
 - [~] Iteration measurement script and generator compatibility check (`hydro validate generator`) are available; full telemetry, ADR drift checks and upgrade assistant remain open.
-- [ ] Benchmark acceptance: first route and first CRUD in under 15 minutes on a clean local project.
+- [~] Benchmark acceptance gate is automated in `scripts/measure-iteration.ps1` (first scaffold, route contract, CRUD artifact and compatibility); a clean-machine CI sample remains to be recorded.
 
 ### PROD-03 Deliberately gated expansion (`EXTERNAL`)
 

@@ -35,6 +35,12 @@ try {
     Invoke-TimedStep -Name 'first-project-scaffold' -Action {
         go run ./cmd/hydro new velocity-smoke --root $projectParent --preset=news --database=sqlite --profile=compact --no-demo
     }
+    Invoke-TimedStep -Name 'first-route-contract' -Action {
+        $manifest = Join-Path $projectParent "velocity-smoke\e2e\manifest.json"
+        if (-not (Test-Path -LiteralPath $manifest)) {
+            throw "generated frontend route manifest is missing: $manifest"
+        }
+    }
     Invoke-TimedStep -Name 'first-resource-generation' -Action {
         go run ./cmd/hydro generate module --spec $GeneratorSpec --out $benchmarkRoot
     }
@@ -57,6 +63,11 @@ $report = [pscustomobject]@{
     go_version = (go version).Trim()
     generator_spec = $GeneratorSpec
     acceptance_threshold_minutes = 15
+    acceptance = [pscustomobject]@{
+        measured_steps = @('first-project-scaffold', 'first-route-contract', 'first-resource-generation', 'generated-compatibility-check')
+        duration_ms = [math]::Round((($results | Where-Object { $_.name -in @('first-project-scaffold', 'first-route-contract', 'first-resource-generation', 'generated-compatibility-check') } | Measure-Object -Property duration_ms -Sum).Sum))
+        passed = ((($results | Where-Object { $_.name -in @('first-project-scaffold', 'first-route-contract', 'first-resource-generation', 'generated-compatibility-check') } | Measure-Object -Property duration_ms -Sum).Sum) -lt (15 * 60 * 1000))
+    }
     steps = $results
 }
 $json = $report | ConvertTo-Json -Depth 4
