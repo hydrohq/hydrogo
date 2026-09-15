@@ -11,6 +11,16 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
 )
 
+// projectCommand is the SDK-oriented namespace for project lifecycle
+// commands. Keep `hydro new` as a backwards-compatible alias while exposing
+// the discoverable `hydro project new` spelling used by the public SDK.
+func projectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "new" {
+		return errors.New("project requires the new subcommand")
+	}
+	return newProjectCommand(args[1:], stdin, stdout, stderr)
+}
+
 func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("new", flag.ContinueOnError)
 	flags.SetOutput(stderr)
