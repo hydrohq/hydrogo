@@ -220,7 +220,7 @@ The detailed execution plan is in
 [PROTOTYPE_VELOCITY_PLAN.md](PROTOTYPE_VELOCITY_PLAN.md). These tasks preserve
 the existing Core/module boundaries:
 
-- [ ] `hydro dev` one-command local stack with reload, seed and dependency lifecycle.
+- [~] `hydro dev` one-command local stack with reload, seed and dependency lifecycle; Compose Redis/MinIO auto/required/none modes are implemented, while browser auto-open and mail preview remain optional local conveniences.
 - [~] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract; generated artifacts and aliases are available, runtime wiring remains an explicit review step.
 - [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase and opt-in responsive visual regression are available; RTL/baseline approval remains open.
 - [~] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; deeper seed/upgrade smoke coverage remains open.

@@ -14,9 +14,11 @@ Amaç: Production sözleşmelerini koruyan ilk çalışan modülü Next.js benze
 
 ### V0 — Tek komutla geliştirme ortamı
 
-- `hydro dev`: SQLite, migration ve seed akışını orkestre eder; Redis isteğe
-  bağlı `--redis-url` ile çocuğa aktarılır, böylece Redis yokken Compact profil
-  çalışmaya devam eder.
+- `hydro dev`: SQLite, migration ve seed akışını orkestre eder. `--dependencies
+  auto` (varsayılan) mevcutsa Compose ile disposable Redis/MinIO başlatır ve
+  kapanışta kaldırır; Docker yoksa Compact profil çalışmaya devam eder.
+  `--dependencies required` CI/local gate için fail-fast, `none` ise tamamen
+  kapalıdır. `--redis-url` açıkça verilirse keşfedilen URL’nin önüne geçer.
 - Dosya izleme, template/CSS hızlı yenileme, temiz hata ve port çakışması yönetimi.
 - `.env.example`, `hydro doctor --fix`, disposable test verisi ve WSL/Windows eşdeğerliği.
 

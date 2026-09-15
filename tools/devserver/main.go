@@ -63,6 +63,43 @@ type supervisor struct {
 	child                                           *exec.Cmd
 }
 
+// startLocalDependencies starts only the disposable local services declared
+// by the repository. "auto" is best-effort so Compact development still works
+// without Docker; "required" makes missing Docker/compose an explicit error.
+func startLocalDependencies(root, mode, composeFile string) (func(), string, error) {
+	if mode == "none" {
+		return func() {}, "", nil
+	}
+	if mode != "auto" && mode != "required" {
+		return nil, "", fmt.Errorf("dependencies must be auto, none, or required")
+	}
+	if _, err := exec.LookPath("docker"); err != nil {
+		if mode == "required" {
+			return nil, "", fmt.Errorf("docker is required for local dependencies: %w", err)
+		}
+		return func() {}, "", nil
+	}
+	path := composeFile
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	command := exec.Command("docker", "compose", "-f", path, "up", "-d", "--wait", "redis", "minio")
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		if mode == "required" {
+			return nil, "", fmt.Errorf("start local dependencies: %w: %s", err, shorten(string(output), 4000))
+		}
+		return func() {}, "", nil
+	}
+	cleanup := func() {
+		down := exec.Command("docker", "compose", "-f", path, "down")
+		down.Dir = root
+		_ = down.Run()
+	}
+	return cleanup, "redis://127.0.0.1:6379/0", nil
+}
+
 func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 	previousBinary := s.binary + ".previous"
 	if rebuild {
@@ -207,6 +244,8 @@ func main() {
 	appAddress := flag.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	databaseDSN := flag.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
 	redisURL := flag.String("redis-url", "", "Optional Redis URL passed to the child server")
+	dependencies := flag.String("dependencies", "auto", "Local dependencies: auto, none, or required")
+	composeFile := flag.String("compose-file", "deploy/local/docker-compose.storage.yml", "Docker Compose file for local dependencies")
 	poll := flag.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	seedDemo := flag.Bool("seed-demo", true, "seed disposable local demo data before starting")
 	flag.Parse()
@@ -217,6 +256,14 @@ func main() {
 	}
 	if *databaseDSN == "" {
 		*databaseDSN = database.SQLiteDSN(filepath.Join(root, "data", "demo.sqlite"))
+	}
+	cleanupDependencies, discoveredRedisURL, err := startLocalDependencies(root, *dependencies, *composeFile)
+	if err != nil {
+		fatal(err)
+	}
+	defer cleanupDependencies()
+	if *redisURL == "" {
+		*redisURL = discoveredRedisURL
 	}
 	binaryName := "hydro-dev"
 	if runtime.GOOS == "windows" {
