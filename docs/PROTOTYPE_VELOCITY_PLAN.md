@@ -50,6 +50,9 @@ Amaç: Production sözleşmelerini koruyan ilk çalışan modülü Next.js benze
 - HTMX/HTML action sonuçları, optimistic UI ve uzun işlerde progress bileşenleri.
 - Typed API client, pagination/filter/sort standardı, cache ve invalidation üretim şablonları.
 - Arama, import/export ve bulk action için bounded ortak bileşenler.
+- Generator, bounded CSV export/import doğrulama yardımcılarını ve bulk/progress
+  primitive’lerini üretir; gerçek depolama/upload politikası modül sınırında
+  kalır.
 
 ### V5 — Ekip ve kalite ölçeği
 
