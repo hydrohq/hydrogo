@@ -19,6 +19,6 @@ uyumluluk takma adıdır; geriye dönük `validate api` komutu korunur.
 WSL komutu:
 
 ```text
-go test ./cmd/hydro ./internal/sdkdist
+go test ./cmd/hydro ./internal/generator ./internal/sdkdist
 PASS
 ```
