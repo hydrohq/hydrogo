@@ -34,3 +34,17 @@ func TestRedactTokenDoesNotExposeShortTokens(t *testing.T) {
 		t.Fatal("full token was exposed")
 	}
 }
+
+func TestParseGrantIsBoundedAndRejectsTrailingData(t *testing.T) {
+	data := `{"access_token":"token-123456","project_id":"proj-1","core_version":"1.2.3","sdk_version":"1.0.0","artifact_url":"https://artifacts.example.test/hydro","issued_at":"2026-09-16T11:59:00Z","expires_at":"2026-09-16T13:00:00Z"}`
+	grant, err := ParseGrant([]byte(data))
+	if err != nil || grant.ProjectID != "proj-1" {
+		t.Fatalf("parsed grant = %#v/%v", grant, err)
+	}
+	if _, err := ParseGrant(append([]byte(data), []byte("{}")...)); err == nil {
+		t.Fatal("trailing grant data was accepted")
+	}
+	if _, err := ParseGrant(make([]byte, MaxGrantResponseBytes+1)); err == nil {
+		t.Fatal("oversized grant response was accepted")
+	}
+}
