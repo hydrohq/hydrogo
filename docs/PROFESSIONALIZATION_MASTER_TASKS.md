@@ -171,7 +171,7 @@ credential, legal decision, or product decision and must remain an open gate.
   shared selector coverage is guarded by an internal UI contract test.
 - [x] Add local keyboard/focus, reduced-motion, and accessible-name regressions; browser contrast and device audits remain external UI gates.
 - [x] Add visual regression baselines for desktop, tablet, and mobile (seeded local Playwright goldens; browser/device approval remains a release review).
-- [ ] Add RTL, long-text, locale, date, number, and currency fixtures.
+- [~] Add RTL/long-text/locale browser fixtures and locale-aware date, number and currency helpers; translated copy and full product locale matrix remain product-owned.
 - [x] Add safe locale-derived RTL/LTR document direction and Unicode locale
   regressions; translated copy and formatting matrix remain product/browser
   gates.
