@@ -2691,6 +2691,7 @@ Usage:
 	hydro license keygen [--public-out PATH] [--private-out PATH]
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
+  hydro project check [--config config.yaml] [--json]
   hydro module create --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
   hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]

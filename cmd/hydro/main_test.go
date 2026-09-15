@@ -129,6 +129,22 @@ func TestProjectNewAliasGeneratesProject(t *testing.T) {
 	}
 }
 
+func TestProjectCheckUsesDependencyFreeValidation(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "config.yaml")
+	config := "profile: compact\nmodules: [core, pages]\ndatabase:\n  dialect: sqlite\n  dsn: " + filepath.Join(root, "missing.sqlite") + "\nmedia:\n  dir: " + filepath.Join(root, "media") + "\n"
+	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"project", "check", "--config", configPath, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project check: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"valid":true`) {
+		t.Fatalf("unexpected project check output: %q", stdout.String())
+	}
+}
+
 func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
 	var output bytes.Buffer
 	printUsage(&output)
