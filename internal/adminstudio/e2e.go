@@ -19,6 +19,7 @@ type E2ECollection struct {
 	ID     string     `json:"id"`
 	Route  string     `json:"route"`
 	Fields []E2EField `json:"fields"`
+	Kits   []Kit      `json:"kits,omitempty"`
 }
 
 type E2EField struct {
@@ -48,7 +49,7 @@ func E2EManifestForCollections(collections []Collection) E2EManifest {
 		if route != "" && !strings.HasSuffix(route, "/new") {
 			route += "/new"
 		}
-		item := E2ECollection{ID: collection.ID, Route: route, Fields: make([]E2EField, 0, len(collection.Fields))}
+		item := E2ECollection{ID: collection.ID, Route: route, Fields: make([]E2EField, 0, len(collection.Fields)), Kits: append([]Kit(nil), collection.Kits...)}
 		for _, field := range collection.Fields {
 			item.Fields = append(item.Fields, E2EField{ID: field.ID, Required: field.Required, ReadOnly: field.ReadOnly, Widget: field.Widget, TestID: "admin-field-" + collection.ID + "-" + field.ID})
 		}
