@@ -386,6 +386,26 @@ func TestRunResourceCheckAlias(t *testing.T) {
 	}
 }
 
+func TestRunAPIDiffAlias(t *testing.T) {
+	root := t.TempDir()
+	baseline := filepath.Join(root, "baseline.json")
+	current := filepath.Join(root, "current.json")
+	body := `{"openapi":"3.1.0","paths":{"/api/v1/pages":{"get":{"responses":{"200":{"description":"ok"}}}}}}`
+	if err := os.WriteFile(baseline, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(current, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"api", "diff", "--baseline", baseline, "--current", current}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("api diff: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "api-compatible paths=1") {
+		t.Fatalf("api diff output = %q", stdout.String())
+	}
+}
+
 func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
 	root := t.TempDir()
 	var stdout, stderr bytes.Buffer
