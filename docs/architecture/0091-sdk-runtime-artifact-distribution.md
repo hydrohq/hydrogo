@@ -14,6 +14,13 @@ Public SDK; CLI, generator, starter, contract, frontend adapter ve geliştirici 
 
 Projeler SDK/runtime/module sürümlerini ve hash’lerini `hydrogo.lock` ile kilitler. CLI checksum, imza, platform ve compatibility doğrulaması yapmadan runtime çalıştırmaz. Offline kullanım, imzalı lisans ve kontrollü artifact aktarımı ile ayrıca desteklenir.
 
+Runtime cache yaşam döngüsü de dağıtım sözleşmesinin parçasıdır: artifact'lar
+`root/<version>/<canonical-target>` altında tutulur. Cache temizliği yalnızca
+explicit koruma listesiyle çalışır; önce dry-run planı üretilebilir, ardından
+yalnızca normal dosyalar atomik olmayan ama sınırlı bir silme işleminde kaldırılır.
+Symlink, traversal ve normal dosya olmayan girdiler reddedilir. Böylece eski
+lock'ların ihtiyaç duyduğu runtime'lar yanlışlıkla temizlenmez.
+
 ## Consequences
 
 Olumlu sonuçlar: Core kaynak kodu private kalır, kullanıcı deneyimi Node.js araçlarına yaklaşır, lisans/repository erişimi ayrıştırılır, air-gapped müşteriler desteklenebilir ve release bütünlüğü doğrulanabilir.
