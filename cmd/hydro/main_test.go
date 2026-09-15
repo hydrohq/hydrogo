@@ -145,6 +145,28 @@ func TestProjectCheckUsesDependencyFreeValidation(t *testing.T) {
 	}
 }
 
+func TestProjectCheckValidatesGeneratedLock(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"project", "new", "locked", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project new: %v", err)
+	}
+	stdout.Reset()
+	if err := run([]string{"project", "check", "--config", filepath.Join(root, "locked", "config.yaml"), "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project check generated lock: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"valid":true`) {
+		t.Fatalf("unexpected project check output: %q", stdout.String())
+	}
+	lockPath := filepath.Join(root, "locked", "hydrogo.lock")
+	if err := os.WriteFile(lockPath, []byte(`{"lock_version":1,"project_id":"p","project_name":"locked","edition":"starter","preset":"compact-site","core":{"version":"","distribution":"licensed_binary"},"generator":{"version":"0.1.0"},"licensing":{"required":true}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"project", "check", "--config", filepath.Join(root, "locked", "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("invalid generated lock was accepted")
+	}
+}
+
 func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
 	var output bytes.Buffer
 	printUsage(&output)
