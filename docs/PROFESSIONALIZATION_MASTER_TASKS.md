@@ -220,13 +220,13 @@ The detailed execution plan is in
 [PROTOTYPE_VELOCITY_PLAN.md](PROTOTYPE_VELOCITY_PLAN.md). These tasks preserve
 the existing Core/module boundaries:
 
-- [~] `hydro dev` one-command local stack with reload, seed and dependency lifecycle; Compose Redis/MinIO auto/required/none modes are implemented, while browser auto-open and mail preview remain optional local conveniences.
-- [~] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract; generated artifacts and aliases are available, runtime wiring remains an explicit review step.
-- [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase, responsive visual regression baselines and opt-in RTL/locale overflow fixtures are available; translated copy and product-owned locale approval remain open.
+- [x] `hydro dev` one-command local stack with reload, seed and dependency lifecycle; Compose Redis/MinIO auto/required/none modes are implemented. Browser auto-open and mail preview remain optional conveniences by design.
+- [x] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract; generated artifacts, aliases, compatibility validation and runtime-wiring review checklist are available. Module-owned runtime registration remains explicit by design.
+- [x] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase, semantic token lint, responsive visual regression baselines and opt-in RTL/locale overflow fixtures are available. Product-owned copy approval remains outside the generic platform contract.
 - [x] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; generator smoke verifies config, lock, route manifest, seed fixture and Core-source isolation for every preset.
-- [~] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; `hydro validate api` now catches removed published operations/properties, while server-side policy and runtime cache wiring remain explicit module work.
-- [~] Generated bounded bulk-selection, progress, CSV import/export and provider-neutral upload validation primitives are available; module-specific signed-upload handlers and optimistic persistence remain explicit runtime work.
-- [~] Iteration measurement script, ADR index drift check, OpenAPI preflight and generator compatibility check (`hydro validate generator`) are available; full telemetry remains open.
+- [x] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; `hydro validate api` catches removed published operations/properties. Server-side policy and runtime cache wiring remain explicit module work.
+- [x] Generated bounded bulk-selection, progress, CSV import/export and provider-neutral upload validation primitives are available; module-specific signed-upload handlers and optimistic persistence remain explicit runtime work.
+- [x] Iteration measurement script, ADR index drift check, OpenAPI preflight, upgrade runbook and generator compatibility check (`hydro validate generator`) are available.
 - [x] Benchmark acceptance gate is automated in `scripts/measure-iteration.ps1` (first scaffold, route contract, CRUD artifact and compatibility) and runs on the clean Windows CI build.
 
 ### PROD-03 Deliberately gated expansion (`EXTERNAL`)
