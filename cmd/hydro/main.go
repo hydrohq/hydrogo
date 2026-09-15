@@ -231,8 +231,8 @@ func generateCommand(args []string, stdout, stderr io.Writer) error {
 // moduleCommand exposes the task-oriented spelling while retaining the
 // historical `generate module` command for backwards compatibility.
 func moduleCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "create" {
-		return errors.New("module requires the create subcommand")
+	if len(args) == 0 || (args[0] != "create" && args[0] != "new") {
+		return errors.New("module requires the create or new subcommand")
 	}
 	return generateModuleCommand(args[1:], stdout, stderr)
 }
@@ -240,8 +240,8 @@ func moduleCommand(args []string, stdout, stderr io.Writer) error {
 // resourceCommand is the collection-oriented spelling for CRUD scaffolding.
 // It intentionally shares the same reviewable generator as module create.
 func resourceCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "create" {
-		return errors.New("resource requires the create subcommand")
+	if len(args) == 0 || (args[0] != "create" && args[0] != "new") {
+		return errors.New("resource requires the create or new subcommand")
 	}
 	if !containsString(args[1:], "--spec") {
 		return resourceCreateFromFlags(args[1:], stdout, stderr)
@@ -2778,7 +2778,9 @@ Usage:
   hydro project new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project check [--config config.yaml] [--lock hydrogo.lock] [--json]
   hydro module create --spec SPEC --out OUTPUT
+  hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
+  hydro resource new --spec SPEC --out OUTPUT
   hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
   hydro generate module|resource|crud|page|form|api|admin --spec SPEC --out OUTPUT
