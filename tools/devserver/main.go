@@ -57,10 +57,10 @@ func (s *state) snapshot() state {
 }
 
 type supervisor struct {
-	root, binary, appAddress, databaseDSN string
-	state                                 *state
-	mu                                    sync.Mutex
-	child                                 *exec.Cmd
+	root, binary, appAddress, databaseDSN, redisURL string
+	state                                           *state
+	mu                                              sync.Mutex
+	child                                           *exec.Cmd
 }
 
 func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
@@ -173,9 +173,15 @@ func (s *supervisor) startChild(binary string) error {
 	child.Dir = s.root
 	env := make([]string, 0, len(os.Environ())+1)
 	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "HYDRO_REDIS_URL=") || strings.HasPrefix(kv, "REDIS_URL=") {
+			continue
+		}
 		env = append(env, kv)
 	}
 	child.Env = append(env, "HYDRO_DEV_MODE=1")
+	if s.redisURL != "" {
+		child.Env = append(child.Env, "HYDRO_REDIS_URL="+s.redisURL)
+	}
 	child.Stdout, child.Stderr = os.Stdout, os.Stderr
 	if err := child.Start(); err != nil {
 		return err
@@ -200,6 +206,7 @@ func main() {
 	address := flag.String("address", "127.0.0.1:8090", "development proxy listen address")
 	appAddress := flag.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	databaseDSN := flag.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
+	redisURL := flag.String("redis-url", "", "Optional Redis URL passed to the child server")
 	poll := flag.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	seedDemo := flag.Bool("seed-demo", true, "seed disposable local demo data before starting")
 	flag.Parse()
@@ -223,7 +230,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	status := &state{Phase: "starting", Progress: 5, Message: "Geliştirme sunucusu hazırlanıyor…"}
-	supervisor := &supervisor{root: root, binary: binary, appAddress: *appAddress, databaseDSN: *databaseDSN, state: status}
+	supervisor := &supervisor{root: root, binary: binary, appAddress: *appAddress, databaseDSN: *databaseDSN, redisURL: *redisURL, state: status}
 	supervisor.rebuild(ctx, "ilk build tamamlandı", true)
 	if *seedDemo {
 		status.set("seeding", 88, "Demo verileri hazırlanıyor…", "")
