@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRequestGrantParsesBoundedResponseWithoutPersistingToken(t *testing.T) {
@@ -19,6 +20,17 @@ func TestRequestGrantParsesBoundedResponseWithoutPersistingToken(t *testing.T) {
 	defer server.Close()
 	grant, err := RequestGrant(context.Background(), server.URL, "secret-token", GrantRequest{ProjectID: "p"}, nil, true)
 	if err != nil || grant.ProjectID != "p" || grant.AccessToken != "artifact" {
+		t.Fatalf("grant=%#v err=%v", grant, err)
+	}
+}
+
+func TestRequestValidatedGrantRejectsLockMismatch(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"access_token":"artifact","project_id":"p","core_version":"c","sdk_version":"s","artifact_url":"http://127.0.0.1/artifact","issued_at":"2026-09-16T12:00:00Z","expires_at":"2026-09-16T12:05:00Z"}`))
+	}))
+	defer server.Close()
+	grant, err := RequestValidatedGrant(context.Background(), server.URL, "token", GrantRequest{}, "wrong", "c", "s", time.Date(2026, 9, 16, 12, 1, 0, 0, time.UTC), nil, true)
+	if err == nil || grant.AccessToken != "" || !strings.Contains(err.Error(), "project") {
 		t.Fatalf("grant=%#v err=%v", grant, err)
 	}
 }
