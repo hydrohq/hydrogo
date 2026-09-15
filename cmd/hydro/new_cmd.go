@@ -15,10 +15,17 @@ import (
 // commands. Keep `hydro new` as a backwards-compatible alias while exposing
 // the discoverable `hydro project new` spelling used by the public SDK.
 func projectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "new" {
-		return errors.New("project requires the new subcommand")
+	if len(args) == 0 {
+		return errors.New("project requires a subcommand (new or check)")
 	}
-	return newProjectCommand(args[1:], stdin, stdout, stderr)
+	switch args[0] {
+	case "new":
+		return newProjectCommand(args[1:], stdin, stdout, stderr)
+	case "check":
+		return validateCommand(args[1:], stdout, stderr)
+	default:
+		return fmt.Errorf("unknown project subcommand %q (supported: new, check)", args[0])
+	}
 }
 
 func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
