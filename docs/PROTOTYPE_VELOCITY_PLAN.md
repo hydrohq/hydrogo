@@ -70,8 +70,8 @@ Amaç: Production sözleşmelerini koruyan ilk çalışan modülü Next.js benze
 
 `scripts/measure-iteration.ps1` artık UI sözleşmesi, full compile, ilk proje
 scaffold’u, ilk resource üretimi ve generated compatibility preflight sürelerini
-tek JSON raporunda ölçer. Rapor 15 dakikalık kabul eşiğini de taşır; gerçek
-temiz makine ölçümü CI veya ekip ortamında ayrıca kaydedilmelidir.
+tek JSON raporunda ölçer. Rapor 15 dakikalık kabul eşiğini de taşır ve Windows
+CI build’inde temiz makine adımı olarak çalıştırılır.
 
 İşletmeye özel muhasebe/ERP kuralları, ödeme seçimi, müşteri UX kararları ve
 production credentials generator tarafından uydurulmaz; Client Edition veya
