@@ -2,6 +2,18 @@ package adminstudio
 
 import "testing"
 
+func TestFieldRegistrySupportsProviderNeutralKinds(t *testing.T) {
+	registry := NewFieldRegistry()
+	for _, kind := range []FieldKind{FieldText, FieldNumber, FieldBoolean, FieldDate, FieldMedia, FieldRichText, FieldSelect, FieldRelation, FieldArray, FieldBlocks} {
+		if !registry.Supports(kind) {
+			t.Fatalf("field kind %q is not registered", kind)
+		}
+	}
+	if registry.Supports(FieldKind("unknown")) {
+		t.Fatal("unknown field kind accepted")
+	}
+}
+
 func TestRegistrySortsAndDefensivelyCopiesCollections(t *testing.T) {
 	registry, err := NewRegistry([]Collection{
 		{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}}, Actions: []Action{{Label: "Open", Href: "/admin/pages/demo"}}},

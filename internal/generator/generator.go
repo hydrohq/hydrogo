@@ -749,7 +749,21 @@ func adminFieldKind(value string) adminstudio.FieldKind {
 	case "int", "integer", "real", "float":
 		return adminstudio.FieldNumber
 	case "bool", "boolean":
-		return adminstudio.FieldStatus
+		return adminstudio.FieldBoolean
+	case "date", "datetime", "timestamp":
+		return adminstudio.FieldDate
+	case "media", "upload", "file":
+		return adminstudio.FieldMedia
+	case "richtext", "rich_text":
+		return adminstudio.FieldRichText
+	case "select", "enum":
+		return adminstudio.FieldSelect
+	case "relation", "reference":
+		return adminstudio.FieldRelation
+	case "array", "list":
+		return adminstudio.FieldArray
+	case "blocks", "block":
+		return adminstudio.FieldBlocks
 	default:
 		return adminstudio.FieldText
 	}

@@ -17,7 +17,32 @@ const (
 	FieldNumber   FieldKind = "number"
 	FieldStatus   FieldKind = "status"
 	FieldRelation FieldKind = "relation"
+	FieldBoolean  FieldKind = "boolean"
+	FieldDate     FieldKind = "date"
+	FieldMedia    FieldKind = "media"
+	FieldRichText FieldKind = "richtext"
+	FieldSelect   FieldKind = "select"
+	FieldArray    FieldKind = "array"
+	FieldBlocks   FieldKind = "blocks"
 )
+
+// FieldRegistry is the provider-neutral field vocabulary used by generated
+// admin metadata. A Client Edition can map these kinds to any widget system.
+type FieldRegistry struct{ kinds map[FieldKind]struct{} }
+
+func NewFieldRegistry() FieldRegistry {
+	kinds := []FieldKind{FieldText, FieldNumber, FieldStatus, FieldRelation, FieldBoolean, FieldDate, FieldMedia, FieldRichText, FieldSelect, FieldArray, FieldBlocks}
+	set := make(map[FieldKind]struct{}, len(kinds))
+	for _, kind := range kinds {
+		set[kind] = struct{}{}
+	}
+	return FieldRegistry{kinds: set}
+}
+
+func (r FieldRegistry) Supports(kind FieldKind) bool {
+	_, ok := r.kinds[kind]
+	return ok
+}
 
 type Field struct {
 	ID            string    `json:"id"`
@@ -87,8 +112,9 @@ func validateCollection(collection Collection) error {
 		return ErrInvalidCollection
 	}
 	seenFields := make(map[string]struct{}, len(collection.Fields))
+	fieldRegistry := NewFieldRegistry()
 	for _, field := range collection.Fields {
-		if strings.TrimSpace(field.ID) == "" || strings.TrimSpace(field.Label) == "" || field.Kind == "" {
+		if strings.TrimSpace(field.ID) == "" || strings.TrimSpace(field.Label) == "" || !fieldRegistry.Supports(field.Kind) {
 			return ErrInvalidCollection
 		}
 		if field.Widget != "" && field.Widget != "textarea" && field.Widget != "currency" && field.Widget != "richtext" && field.Widget != "media" && field.Widget != "checkbox" && field.Widget != "hidden" && field.Widget != "list" {
