@@ -18,3 +18,12 @@ func TestParseListQueryDefaults(t *testing.T) {
 		t.Fatalf("unexpected defaults: %+v", q)
 	}
 }
+
+func TestEncodeListQueryRoundTrip(t *testing.T) {
+	q := ListQuery{Search: " shoe ", Filters: map[string]string{"status": "draft", "locale": "tr"}, Sort: "-created_at", Page: 2, PerPage: 50}
+	encoded := EncodeListQuery(q)
+	parsed, err := url.ParseQuery(encoded)
+	if err != nil || parsed.Get("search") != "shoe" || parsed.Get("filter[locale]") != "tr" || parsed.Get("page") != "2" {
+		t.Fatalf("encoded query = %q", encoded)
+	}
+}

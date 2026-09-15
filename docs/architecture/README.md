@@ -65,6 +65,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0030](0030-admin-list-query-contract.md) | Bounded admin list query contract | Accepted |
 | [0031](0031-editorial-workflow-contract.md) | Provider-neutral editorial workflow | Accepted |
 | [0032](0032-admin-locale-selector.md) | Provider-neutral admin locale selector | Accepted |
+| [0033](0033-admin-query-url-encoding.md) | Stable admin query URL encoding | Accepted |
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
 | [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |

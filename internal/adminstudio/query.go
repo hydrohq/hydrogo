@@ -2,6 +2,7 @@ package adminstudio
 
 import (
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -46,4 +47,40 @@ func ParseListQuery(values url.Values) ListQuery {
 		}
 	}
 	return ListQuery{Search: strings.TrimSpace(values.Get("search")), Filters: filters, Sort: strings.TrimSpace(values.Get("sort")), Page: page, PerPage: perPage}
+}
+
+// EncodeListQuery produces a stable query string for links/forms. Filter
+// names and values are escaped by net/url and empty values are omitted.
+func EncodeListQuery(q ListQuery) string {
+	v := url.Values{}
+	if q.Search != "" {
+		v.Set("search", strings.TrimSpace(q.Search))
+	}
+	if q.Sort != "" {
+		v.Set("sort", strings.TrimSpace(q.Sort))
+	}
+	if q.Page > 1 {
+		v.Set("page", strconv.Itoa(q.Page))
+	}
+	if q.PerPage > 0 && q.PerPage != DefaultPageSize {
+		v.Set("per_page", strconv.Itoa(minInt(q.PerPage, MaxPageSize)))
+	}
+	keys := make([]string, 0, len(q.Filters))
+	for key := range q.Filters {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if strings.TrimSpace(key) != "" && strings.TrimSpace(q.Filters[key]) != "" {
+			v.Set("filter["+key+"]", strings.TrimSpace(q.Filters[key]))
+		}
+	}
+	return v.Encode()
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
