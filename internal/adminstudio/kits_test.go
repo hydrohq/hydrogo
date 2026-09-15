@@ -12,3 +12,9 @@ func TestKitRegistryIsDeterministicAndOptional(t *testing.T) {
 		t.Fatalf("kits = %v", got)
 	}
 }
+
+func TestUnknownKitIsRejected(t *testing.T) {
+	if IsKnownKit(Kit("payments-provider-internals")) {
+		t.Fatal("unknown kit accepted")
+	}
+}

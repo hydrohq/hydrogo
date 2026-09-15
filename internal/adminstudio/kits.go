@@ -18,6 +18,8 @@ const (
 // implementations. Client Editions can enable only the kits they use.
 type KitRegistry struct{ kits map[Kit]struct{} }
 
+var knownKits = map[Kit]struct{}{KitLocalization: {}, KitMedia: {}, KitSEO: {}, KitForms: {}, KitRedirects: {}, KitSearch: {}, KitCommerce: {}}
+
 func NewKitRegistry(kits ...Kit) KitRegistry {
 	set := make(map[Kit]struct{}, len(kits))
 	for _, kit := range kits {
@@ -27,6 +29,8 @@ func NewKitRegistry(kits ...Kit) KitRegistry {
 }
 
 func (r KitRegistry) Enabled(kit Kit) bool { _, ok := r.kits[kit]; return ok }
+
+func IsKnownKit(kit Kit) bool { _, ok := knownKits[kit]; return ok }
 
 func (r KitRegistry) Kits() []Kit {
 	result := make([]Kit, 0, len(r.kits))
