@@ -354,6 +354,17 @@ collection:
 	}
 }
 
+func TestRunResourceNewAliasGeneratesCollection(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"resource", "new", "--name", "article", "--field", "title:text", "--out", filepath.Join(root, "out")}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("resource new: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "resource-created collection=article") {
+		t.Fatalf("resource new output = %q", stdout.String())
+	}
+}
+
 func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
 	root := t.TempDir()
 	var stdout, stderr bytes.Buffer
