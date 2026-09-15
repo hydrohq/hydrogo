@@ -143,6 +143,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0089](0089-route-conflict-validation.md) | Validate route conflicts before startup | Accepted |
 | [0090](0090-configured-public-home-locale.md) | Derive public home locale from runtime configuration | Accepted |
 | [0091](0091-sdk-runtime-artifact-distribution.md) | Public SDK and private runtime artifact distribution | Proposed |
+| [0092](0092-signed-schema-compatibility-preflight.md) | Signed schema compatibility preflight | Proposed |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

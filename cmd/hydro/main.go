@@ -161,6 +161,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return resourceCommand(args[1:], stdout, stderr)
 	case "api":
 		return apiCommand(args[1:], stdout, stderr)
+	case "schema":
+		return schemaCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "validate":
@@ -264,6 +266,39 @@ func apiCommand(args []string, stdout, stderr io.Writer) error {
 		return errors.New("api requires the diff subcommand")
 	}
 	return validateAPICommand(args[1:], stdout, stderr)
+}
+
+// schemaCommand compares signed release migration ledgers. It deliberately
+// reports IDs/counts only; SQL dialect and migration bodies stay internal.
+func schemaCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "diff" {
+		return errors.New("schema requires the diff subcommand")
+	}
+	flags := flag.NewFlagSet("schema diff", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	baseline := flags.String("baseline", "", "Baseline signed release manifest")
+	current := flags.String("current", "", "Current signed release manifest")
+	publicKey := flags.String("public-key", "", "Trusted Ed25519 public key (base64)")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*baseline) == "" || strings.TrimSpace(*current) == "" || strings.TrimSpace(*publicKey) == "" {
+		return errors.New("schema diff requires --baseline, --current and --public-key")
+	}
+	base, err := readVerifiedReleaseManifest(*baseline, *publicKey)
+	if err != nil {
+		return fmt.Errorf("verify baseline manifest: %w", err)
+	}
+	next, err := readVerifiedReleaseManifest(*current, *publicKey)
+	if err != nil {
+		return fmt.Errorf("verify current manifest: %w", err)
+	}
+	diff, err := release.CompareMigrationChecksums(base.MigrationChecksums, next.MigrationChecksums)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "schema-compatible added=%d removed=%d changed=%d\n", len(diff.Added), len(diff.Removed), len(diff.Changed))
+	return err
 }
 
 type repeatedFlag []string
@@ -2592,6 +2627,29 @@ func readBoundedFile(path string, limit int64) ([]byte, error) {
 	return data, nil
 }
 
+func readVerifiedReleaseManifest(manifestPath, publicKeyPath string) (release.Manifest, error) {
+	data, err := readBoundedFile(manifestPath, maxReleaseManifestBytes)
+	if err != nil {
+		return release.Manifest{}, err
+	}
+	var signed release.Signed
+	if err := json.Unmarshal(data, &signed); err != nil {
+		return release.Manifest{}, fmt.Errorf("parse signed manifest: %w", err)
+	}
+	keyData, err := readBoundedFile(publicKeyPath, maxTrustedKeyFileBytes)
+	if err != nil {
+		return release.Manifest{}, err
+	}
+	publicKey, err := base64.RawStdEncoding.DecodeString(strings.TrimSpace(string(keyData)))
+	if err != nil || len(publicKey) != ed25519.PublicKeySize {
+		return release.Manifest{}, errors.New("invalid trusted Ed25519 public key")
+	}
+	if signed.PublicKey != base64.RawStdEncoding.EncodeToString(publicKey) {
+		return release.Manifest{}, errors.New("manifest public key does not match trusted public key")
+	}
+	return release.Verify(signed)
+}
+
 func releaseCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("release command requires a subcommand (verify)")
@@ -2800,6 +2858,7 @@ Usage:
   hydro resource new --spec SPEC --out OUTPUT
   hydro resource check --spec SPEC --root OUTPUT
   hydro api diff --baseline OPENAPI.json --current OPENAPI.json
+  hydro schema diff --baseline RELEASE.json --current RELEASE.json --public-key KEY
   hydro resource create --name NAME --field name:type[:nullable] [--field ...] [--out OUTPUT]
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
   hydro generate module|resource|crud|page|form|api|admin --spec SPEC --out OUTPUT
