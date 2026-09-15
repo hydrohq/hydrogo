@@ -20,7 +20,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Atomik artifact kurulumu | Tamamlandı | checksum/size doğrulaması + atomic rename | `R5-sdk-atomic-install` |
 | Download URL ve bounded download | Tamamlandı | HTTPS, redirect kapalı, boyut sınırı | `R5-sdk-download-url-policy`, `R5-sdk-bounded-download` |
 | Grant doğrulama ve indirme bağı | Tamamlandı | proje/core/sdk/expiry/url kontrolleri | `R5-sdk-artifact-grant`, `R5-sdk-grant-download-integration`, `R5-sdk-grant-parser` |
-| WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16` |
+| WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r4` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
 
 ## Henüz production servisi olmayan parçalar
@@ -79,8 +79,8 @@ eklenmelidir. Şifre veya token raporlara yazılmaz.
 
 ## Sonraki güvenli sıra
 
-1. WSL tam testini tamamla ve kanıt raporunu güncelle.
-2. Resource contract kapsamını ve benchmark senaryosunu netleştir.
+1. Payload benchmark protokolünü iki bağımsız resource senaryosunda çalıştır.
+2. Resource contract'ın otomatik wiring kapsamını ölçüm sonuçlarına göre genişlet.
 3. Login/broker için gerçek servis kararlarını ADR ile kabul et.
 4. İmzalı release pipeline ve installer'ları gerçek hesaplarla doğrula.
 5. Production kapasite/restore/upgrade tatbikatlarını çalıştır.
