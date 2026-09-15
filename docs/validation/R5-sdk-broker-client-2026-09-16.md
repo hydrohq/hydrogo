@@ -23,3 +23,5 @@ exit code 0
 
 Testler `httptest` ile başarılı grant, 403 ve oversized response senaryolarını
 çalıştırır. Gerçek OAuth client registration ve broker deployment kapsam dışıdır.
+WSL çalıştırması ayrıca `RequestValidatedGrant` lock mismatch regresyon testini
+de kapsar.
