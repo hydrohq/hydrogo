@@ -383,6 +383,12 @@ func VerifyArtifacts(root string, manifest Manifest) error {
 	return nil
 }
 
+// VerifyArtifactFile verifies one file against manifest metadata. Installers
+// use this after download and after copying to a cache path.
+func VerifyArtifactFile(path string, expected Artifact) error {
+	return verifyArtifact(path, expected)
+}
+
 func validateAssetRoot(root, label string) error {
 	info, err := os.Lstat(root)
 	if err != nil {
