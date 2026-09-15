@@ -12,7 +12,7 @@ Bu belge, mevcut kararların ve doğrulama kanıtlarının nerede tutulduğunu g
 | Mevcut durum | [PROJECT_STATUS.md](PROJECT_STATUS.md) |
 | Kalan gerçek-ortam işleri | [OPEN_GATES_AND_OPERATOR_ACTIONS.md](OPEN_GATES_AND_OPERATOR_ACTIONS.md), [IMPLEMENTATION_AUDIT_REMAINING.md](IMPLEMENTATION_AUDIT_REMAINING.md) |
 | Mimari karar | [architecture/README.md](architecture/README.md) ve ilgili ADR |
-| Yeni proje üretimi | [PROJECT_GENERATOR.md](PROJECT_GENERATOR.md), [CLI_WORKFLOW.md](CLI_WORKFLOW.md) |
+| Yeni proje üretimi ve SDK CLI | [PROJECT_GENERATOR.md](PROJECT_GENERATOR.md), [CLI_WORKFLOW.md](CLI_WORKFLOW.md), [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md) |
 | SDK ve extension | [SDK_CAPABILITY_MATRIX.md](SDK_CAPABILITY_MATRIX.md), [SDK_SUPPORT_POLICY.md](SDK_SUPPORT_POLICY.md) |
 | Payload hız/parite planı | [PAYLOAD_PARITY_EXECUTION_PLAN.md](PAYLOAD_PARITY_EXECUTION_PLAN.md) |
 | Public SDK/private runtime | [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md), [ADR-0091](architecture/0091-sdk-runtime-artifact-distribution.md) |

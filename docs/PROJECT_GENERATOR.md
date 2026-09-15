@@ -5,11 +5,16 @@
 ## Usage
 
 ```powershell
+hydro project new haber-merkezi --preset=news
 hydro new haber-merkezi --preset=news
 hydro new magaza --preset=commerce --database=postgres --profile=standard
 hydro new portal --preset=portal --git
 hydro new haber-merkezi --preset=news --frontend-manifest .\dist\frontend-manifest.json
 ```
+
+`hydro project new` is the SDK-facing spelling. `hydro new` remains a
+backwards-compatible alias and both commands use the same generator and
+security checks.
 
 The command creates configuration, `hydrogo.lock`, a runnable minimal theme, project migration and custom-extension placeholders, seed guidance, an `UPGRADE.md` compatibility runbook, and a metadata-driven E2E manifest. `--git` runs `git init` only inside the newly created directory; it never adds a remote or pushes.
 

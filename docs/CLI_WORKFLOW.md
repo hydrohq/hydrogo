@@ -3,6 +3,20 @@
 The CLI help is intentionally task-oriented. Start with `hydro help` and use
 the examples there as copyable, safe defaults.
 
+## Create and validate a project
+
+The SDK-oriented namespace keeps the legacy `hydro new` spelling available:
+
+```text
+hydro project new haber-merkezi --preset=news
+cd haber-merkezi
+hydro project check --config config.yaml
+```
+
+`project check` validates configuration, capacity profile and enabled-module
+invariants without opening the database. It is safe to run before dependencies
+are installed or started.
+
 ## Validate before runtime work
 
 ```text
