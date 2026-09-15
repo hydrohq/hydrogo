@@ -223,7 +223,7 @@ the existing Core/module boundaries:
 - [~] `hydro dev` one-command local stack with reload, seed and dependency lifecycle; Compose Redis/MinIO auto/required/none modes are implemented, while browser auto-open and mail preview remain optional local conveniences.
 - [~] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract; generated artifacts and aliases are available, runtime wiring remains an explicit review step.
 - [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase, responsive visual regression baselines and opt-in RTL/locale overflow fixtures are available; translated copy and product-owned locale approval remain open.
-- [~] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; deeper seed/upgrade smoke coverage remains open.
+- [x] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; generator smoke verifies config, lock, route manifest, seed fixture and Core-source isolation for every preset.
 - [~] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; server-side policy and runtime cache wiring remain explicit module work.
 - [~] Generated bounded bulk-selection, progress and CSV import/export primitives are available; module-specific upload handlers and optimistic persistence remain explicit runtime work.
 - [~] Iteration measurement script and generator compatibility check (`hydro validate generator`) are available; full telemetry, ADR drift checks and upgrade assistant remain open.
