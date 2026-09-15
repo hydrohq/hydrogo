@@ -110,7 +110,7 @@ func TestRenderCreateFormSupportsHiddenWidgetAndOptionsSelect(t *testing.T) {
 	if !strings.Contains(html, `<input type="hidden" name="locale" value="tr">`) {
 		t.Fatalf("hidden input missing: %s", html)
 	}
-	if !strings.Contains(html, `<select name="category"`) || !strings.Contains(html, `<option value="tech">tech</option>`) {
+	if !strings.Contains(html, `<select name="category"`) || !strings.Contains(html, `<option value="tech" selected>tech</option>`) {
 		t.Fatalf("select options missing: %s", html)
 	}
 }
