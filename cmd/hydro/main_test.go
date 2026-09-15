@@ -406,6 +406,43 @@ func TestRunAPIDiffAlias(t *testing.T) {
 	}
 }
 
+func TestRunSchemaDiffAlias(t *testing.T) {
+	root := t.TempDir()
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := release.Sign(release.Manifest{FormatVersion: 1, Edition: "site", CoreVersion: "1", MigrationChecksums: map[string]string{"001": "a"}}, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := release.Sign(release.Manifest{FormatVersion: 1, Edition: "site", CoreVersion: "1", MigrationChecksums: map[string]string{"001": "a", "002": "b"}}, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	basePath, currentPath := filepath.Join(root, "base.json"), filepath.Join(root, "current.json")
+	writeSigned := func(path string, signed release.Signed) {
+		t.Helper()
+		data := []byte(fmt.Sprintf(`{"manifest":%s,"public_key":%q,"signature":%q}`, string(signed.Manifest), signed.PublicKey, signed.Signature))
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeSigned(basePath, base)
+	writeSigned(currentPath, current)
+	keyPath := filepath.Join(root, "key.pub")
+	if err := os.WriteFile(keyPath, []byte(base.PublicKey), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"schema", "diff", "--baseline", basePath, "--current", currentPath, "--public-key", keyPath}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("schema diff: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "schema-compatible added=1") {
+		t.Fatalf("schema diff output = %q", stdout.String())
+	}
+}
+
 func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
 	root := t.TempDir()
 	var stdout, stderr bytes.Buffer
