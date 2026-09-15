@@ -28,3 +28,10 @@ Testler `httptest` ile başarılı grant, 403 ve oversized response senaryoları
 WSL çalıştırması ayrıca `RequestValidatedGrant` lock mismatch regresyon testini
 de kapsar.
 Koordinat/feature preflight testleri de WSL’de exit code 0 ile geçti.
+
+Güncel race doğrulaması:
+
+```text
+go test -race ./internal/sdkdist ./internal/release ./cmd/hydro
+exit code 0
+```
