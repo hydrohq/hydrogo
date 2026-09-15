@@ -16,6 +16,8 @@ type FormData struct {
 	CSRFToken       string
 	Values          map[string]string
 	RelationOptions map[string][]RelationOption
+	Locales         []string
+	CurrentLocale   string
 	SubmitLabel     string
 	HideSubmit      bool
 	Nonce           string
@@ -67,6 +69,23 @@ func RenderCreateForm(w io.Writer, data FormData) error {
 	}
 	if relations.Len() > 0 {
 		rendered.WriteString(relations.String())
+	}
+	if len(data.Locales) > 0 {
+		var locale strings.Builder
+		locale.WriteString(`<label>İçerik dili<select name="locale" aria-label="İçerik dili">`)
+		for _, item := range data.Locales {
+			item = strings.TrimSpace(item)
+			if item == "" || len(item) > 16 {
+				continue
+			}
+			locale.WriteString(`<option value="` + template.HTMLEscapeString(item) + `"`)
+			if item == data.CurrentLocale {
+				locale.WriteString(` selected`)
+			}
+			locale.WriteString(`>` + template.HTMLEscapeString(item) + `</option>`)
+		}
+		locale.WriteString(`</select></label>`)
+		rendered.WriteString(locale.String())
 	}
 	richTextLabel := "Zengin metin alanı"
 	for _, field := range data.Collection.Fields {
