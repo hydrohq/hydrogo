@@ -9,7 +9,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Alan | Durum | Nasıl kullanılır? | Kanıt |
 | --- | --- | --- | --- |
 | Public proje komut alanı | Tamamlandı | `hydro project new`, `hydro project check` | `R5-sdk-project-namespace`, `R5-sdk-project-check` |
-| Payload uyumlu CLI takma adları | Tamamlandı | `module new` ve `resource new`; `create` geriye dönük korunur | `R5-cli-new-aliases` |
+| Payload uyumlu CLI akışı | Tamamlandı | `module new`, `resource new` ve `resource check`; `create` geriye dönük korunur | `R5-cli-new-aliases` |
 | Üretilen SDK rehberi | Tamamlandı | Yeni projede `docs/SDK.md` | `R5-generated-sdk-guide` |
 | Runtime artifact doğrulama | Tamamlandı | `hydro runtime verify [--root PATH]` | `R5-runtime-artifact-verification` |
 | Platform hedefi ve artifact çözümleme | Tamamlandı | `linux-amd64`, `windows-arm64` vb. hedefler | `R5-sdk-platform-targets`, `R5-sdk-artifact-resolution` |
