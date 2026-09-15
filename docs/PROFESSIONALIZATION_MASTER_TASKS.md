@@ -224,7 +224,7 @@ the existing Core/module boundaries:
 - [~] Schema-driven resource/CRUD/page/API/admin/form generation from one reviewed contract; generated artifacts and aliases are available, runtime wiring remains an explicit review step.
 - [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase and opt-in responsive visual regression are available; RTL/baseline approval remains open.
 - [~] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; deeper seed/upgrade smoke coverage remains open.
-- [~] Typed API client, OpenAPI and form generation are available; pagination/filter/sort and cache invalidation templates remain open.
+- [~] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; server-side policy and runtime cache wiring remain explicit module work.
 - [ ] Bulk actions, import/export, upload, progress and optimistic interaction primitives with bounded resource use.
 - [~] Iteration measurement script and generator compatibility check (`hydro validate generator`) are available; full telemetry, ADR drift checks and upgrade assistant remain open.
 - [ ] Benchmark acceptance: first route and first CRUD in under 15 minutes on a clean local project.
