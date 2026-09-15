@@ -225,7 +225,7 @@ the existing Core/module boundaries:
 - [~] Provider-neutral design-system adapters (native/shadcn/material/carbon metadata), authenticated component showcase, responsive visual regression baselines and opt-in RTL/locale overflow fixtures are available; translated copy and product-owned locale approval remain open.
 - [x] News, ecommerce, corporate, membership, dashboard and ERP starter presets are available; generator smoke verifies config, lock, route manifest, seed fixture and Core-source isolation for every preset.
 - [~] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; server-side policy and runtime cache wiring remain explicit module work.
-- [~] Generated bounded bulk-selection, progress and CSV import/export primitives are available; module-specific upload handlers and optimistic persistence remain explicit runtime work.
+- [~] Generated bounded bulk-selection, progress, CSV import/export and provider-neutral upload validation primitives are available; module-specific signed-upload handlers and optimistic persistence remain explicit runtime work.
 - [~] Iteration measurement script, ADR index drift check and generator compatibility check (`hydro validate generator`) are available; full telemetry and upgrade assistant remain open.
 - [x] Benchmark acceptance gate is automated in `scripts/measure-iteration.ps1` (first scaffold, route contract, CRUD artifact and compatibility) and runs on the clean Windows CI build.
 
