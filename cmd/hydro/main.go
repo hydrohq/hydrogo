@@ -2582,6 +2582,7 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 		flags.SetOutput(stderr)
 		manifestPath := flags.String("manifest", "", "Path to signed release manifest file")
 		publicKeyPath := flags.String("public-key", "", "Path to trusted Ed25519 public key (base64)")
+		artifactRoot := flags.String("root", "", "Optional extracted artifact root to verify before execution")
 		if err := flags.Parse(args[1:]); err != nil {
 			return err
 		}
@@ -2614,7 +2615,14 @@ func releaseCommand(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("verify manifest: %w", err)
 		}
-		_, err = fmt.Fprintf(stdout, "verified edition=%s core=%s sdk=%s artifacts=%d\n", verified.Edition, verified.CoreVersion, verified.SDKVersion, len(verified.Artifacts))
+		verifiedArtifacts := 0
+		if strings.TrimSpace(*artifactRoot) != "" {
+			if err := release.VerifyArtifacts(*artifactRoot, verified); err != nil {
+				return fmt.Errorf("verify release artifacts: %w", err)
+			}
+			verifiedArtifacts = len(verified.Artifacts)
+		}
+		_, err = fmt.Fprintf(stdout, "verified edition=%s core=%s sdk=%s artifacts=%d artifacts_verified=%d\n", verified.Edition, verified.CoreVersion, verified.SDKVersion, len(verified.Artifacts), verifiedArtifacts)
 		return err
 	default:
 		return fmt.Errorf("unknown release subcommand %q", args[0])
@@ -2684,7 +2692,7 @@ Usage:
   hydro portable export --path PATH [runtime flags]
   hydro portable import --path PATH --dry-run [--max-bytes BYTES] [runtime flags]
   hydro portable import --path PATH --confirm [--max-bytes BYTES] [runtime flags]
-  hydro release verify --manifest PATH --public-key PATH
+  hydro release verify --manifest PATH --public-key PATH [--root PATH]
   hydro license issue --customer NAME --project-id ID --private-key PATH [--edition ED] [--features F1,F2] [--expires-in DUR] [--grace-days N] [--out PATH]
   hydro license verify --license PATH [--public-key PATH] [--project-id ID] [--edition ED] [--feature F1]
   hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]

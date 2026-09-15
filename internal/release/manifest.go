@@ -354,6 +354,35 @@ func VerifyRetainedAssets(root string, manifest Manifest) error {
 	return nil
 }
 
+// VerifyArtifacts checks every artifact declared by a release manifest. It is
+// intended for SDK/runtime installers after extraction and before execution.
+// Paths are constrained to the supplied root and symlink escapes are rejected.
+func VerifyArtifacts(root string, manifest Manifest) error {
+	if strings.TrimSpace(root) == "" {
+		return errors.New("artifact root is required")
+	}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	if err := validateAssetRoot(root, "artifact"); err != nil {
+		return err
+	}
+	for _, artifact := range manifest.Artifacts {
+		path, err := safeArtifactPath(root, artifact.Path)
+		if err != nil {
+			return err
+		}
+		if err := ensureContained(root, path, false); err != nil {
+			return fmt.Errorf("artifact %s: %w", artifact.Path, err)
+		}
+		if err := verifyArtifact(path, artifact); err != nil {
+			return fmt.Errorf("artifact %s: %w", artifact.Path, err)
+		}
+	}
+	return nil
+}
+
 func validateAssetRoot(root, label string) error {
 	info, err := os.Lstat(root)
 	if err != nil {
