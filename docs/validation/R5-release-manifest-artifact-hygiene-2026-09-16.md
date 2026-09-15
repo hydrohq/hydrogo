@@ -12,5 +12,12 @@ go test ./internal/release ./internal/sdkdist ./cmd/hydro
 PASS
 ```
 
+WSL Ubuntu (`arda`) doğrulaması:
+
+```text
+go test ./internal/release ./internal/sdkdist ./cmd/hydro
+exit code 0
+```
+
 Bu kontrol imzayı doğrular; trusted key yönetimi ve dış release pipeline'ı yine
 production kapısıdır.
