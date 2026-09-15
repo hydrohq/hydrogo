@@ -112,6 +112,17 @@ func TestValidateDeniesSecretsAndDestructiveMigrations(t *testing.T) {
 	}
 }
 
+func TestValidateDeniesUnsafeOrDuplicatePermissions(t *testing.T) {
+	base := Spec{Name: "profile", Table: "profiles", Fields: []Field{{Name: "email", Type: "string"}}, Permissions: []string{"profile.read"}, Dialects: []string{"sqlite"}}
+	for _, permissions := range [][]string{{"Profile.read"}, {"profile/../read"}, {"profile.read", "profile.read"}} {
+		spec := base
+		spec.Permissions = permissions
+		if !errors.Is(Validate(spec), ErrInvalidSpec) {
+			t.Fatalf("unsafe permissions accepted: %#v", permissions)
+		}
+	}
+}
+
 func TestGeneratePreservesPublishedMigration(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "pages", Table: "pages_generated", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"pages.read"}, Dialects: []string{"sqlite", "postgres"}}
