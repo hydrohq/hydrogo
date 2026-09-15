@@ -26,6 +26,9 @@ project-created path=/tmp/hydro-sdk-alias-check/sdk-demo preset=compact-site cor
 sdk-alias-ok
 ```
 
+Değişiklik sonrasında WSL’de ayrıca `go test ./...` çalıştırıldı; tüm Go
+paketleri başarılı oldu.
+
 ## Sınırlar
 
 Bu değişiklik yalnızca CLI namespace ergonomisini sağlar. Private runtime indirme, `hydro login`, artifact broker, cross-platform installer ve imzalı release henüz uygulanmış değildir; bunlar [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](../HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md) içindeki sonraki fazlardır.
