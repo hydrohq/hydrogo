@@ -65,7 +65,7 @@ func TestGenerateAllPresets(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read generated frontend contracts: %v", err)
 			}
-			for _, marker := range []string{"EditorialWorkflow", "FormDefinition", "SearchQuery", "CapabilityKit", "AnalyticsConsent"} {
+			for _, marker := range []string{"HYDRO_CONTRACT_VERSION = 'v1'", "EditorialWorkflow", "FormDefinition", "SearchQuery", "CapabilityKit", "AnalyticsConsent"} {
 				if !strings.Contains(string(contracts), marker) {
 					t.Fatalf("generated frontend contracts missing %q", marker)
 				}
