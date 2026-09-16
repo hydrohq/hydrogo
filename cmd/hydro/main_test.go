@@ -174,6 +174,28 @@ func TestProjectCheckValidatesGeneratedLock(t *testing.T) {
 	}
 }
 
+func TestProjectCheckValidatesGeneratedResourcesWhenPresent(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"project", "new", "with-resource", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project new: %v", err)
+	}
+	projectRoot := filepath.Join(root, "with-resource")
+	if err := run([]string{"resource", "new", "--name", "article", "--field", "title:text", "--out", projectRoot}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("resource new: %v", err)
+	}
+	stdout.Reset()
+	if err := run([]string{"project", "check", "--config", filepath.Join(projectRoot, "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project check with generated resource: %v stderr=%s", err, stderr.String())
+	}
+	if err := os.Remove(filepath.Join(projectRoot, "generated", "article", "client.ts")); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"project", "check", "--config", filepath.Join(projectRoot, "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("project check accepted incomplete generated resource")
+	}
+}
+
 func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
 	var output bytes.Buffer
 	printUsage(&output)
