@@ -197,6 +197,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		return Lock{}, err
 	}
 	files := map[string]string{
+		"spec.json":           renderSpec(spec),
 		"model.go":            renderModel(spec),
 		"repository.go":       renderRepository(spec),
 		"service.go":          renderService(spec),
@@ -238,6 +239,15 @@ func Generate(root string, spec Spec) (Lock, error) {
 		}
 	}
 	return lock, nil
+}
+
+func renderSpec(spec Spec) string {
+	document := SpecDocument{Version: "v0", Collection: spec}
+	data, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return "{}\n"
+	}
+	return string(data) + "\n"
 }
 
 func canonicalSpec(spec Spec) ([]byte, error) {

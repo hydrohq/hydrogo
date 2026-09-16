@@ -8,6 +8,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 )
 
 type CompatibilityReport struct {
@@ -17,7 +21,7 @@ type CompatibilityReport struct {
 	FilesChecked     int
 }
 
-var requiredGeneratedFiles = []string{"model.go", "repository.go", "service.go", "policy.go", "transport.go", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "migration.sql", "contract_test.go", "fixture_test.go", "admin_manifest.json", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md"}
+var requiredGeneratedFiles = []string{"spec.json", "model.go", "repository.go", "service.go", "policy.go", "transport.go", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "migration.sql", "contract_test.go", "fixture_test.go", "admin_manifest.json", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md"}
 
 // CheckCompatibility verifies generated artifacts without rewriting them.
 func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
@@ -55,4 +59,53 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 		}
 	}
 	return CompatibilityReport{Collection: spec.Name, GeneratorVersion: lock.GeneratorVersion, SpecSHA256: lock.SpecSHA256, FilesChecked: len(requiredGeneratedFiles)}, nil
+}
+
+// CheckGeneratedCompatibility discovers every generated collection beneath
+// root and validates it from its embedded spec.json. This keeps project checks
+// dependency-free and makes the generated spec the single source for a
+// reviewable resource set.
+func CheckGeneratedCompatibility(root string) ([]CompatibilityReport, error) {
+	if strings.TrimSpace(root) == "" {
+		return nil, errors.New("generated root is required")
+	}
+	generatedRoot := filepath.Join(root, "generated")
+	if err := pathguard.RejectSymlinkComponents(generatedRoot); err != nil {
+		return nil, fmt.Errorf("generated root: %w", err)
+	}
+	entries, err := os.ReadDir(generatedRoot)
+	if err != nil {
+		return nil, fmt.Errorf("read generated root: %w", err)
+	}
+	reports := make([]CompatibilityReport, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Name() == "generator.lock" {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return nil, fmt.Errorf("inspect generated entry %s: %w", entry.Name(), err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return nil, fmt.Errorf("generated collection %s is not a real directory", entry.Name())
+		}
+		collectionRoot := filepath.Join(generatedRoot, entry.Name())
+		if err := pathguard.RejectSymlinkComponents(collectionRoot); err != nil {
+			return nil, fmt.Errorf("generated collection %s: %w", entry.Name(), err)
+		}
+		spec, err := LoadSpec(filepath.Join(collectionRoot, "spec.json"))
+		if err != nil {
+			return nil, fmt.Errorf("load generated collection %s spec: %w", entry.Name(), err)
+		}
+		report, err := CheckCompatibility(root, spec)
+		if err != nil {
+			return nil, fmt.Errorf("check generated collection %s: %w", entry.Name(), err)
+		}
+		reports = append(reports, report)
+	}
+	if len(reports) == 0 {
+		return nil, errors.New("generated root contains no collections")
+	}
+	sort.Slice(reports, func(i, j int) bool { return reports[i].Collection < reports[j].Collection })
+	return reports, nil
 }

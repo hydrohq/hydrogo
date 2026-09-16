@@ -709,6 +709,8 @@ hydro project new example --preset=%s
 hydro check --config config.yaml
 hydro resource new --spec ./collection.yaml --out ./generated
 hydro resource check --spec ./collection.yaml --root ./generated
+# Or validate every generated collection from its embedded spec.json:
+hydro resource check --root .
 hydro permissions check --spec ./collection.yaml
 hydro api diff --baseline ./openapi-baseline.json --current ./generated/openapi.json
 hydro migrate --config config.yaml

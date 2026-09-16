@@ -112,6 +112,11 @@ geçersizleştirme Client Edition sınırında kalır. Ayrıntılı akış için
 [`docs/SDK.md`](docs/SDK.md), [`docs/PROJECT_GENERATOR.md`](docs/PROJECT_GENERATOR.md)
 ve [`docs/CLI_WORKFLOW.md`](docs/CLI_WORKFLOW.md) belgelerine bakın.
 
+Her generated collection kendi deterministic `spec.json` kaynağını taşır;
+`hydro resource check --root .` ile tüm kaynakları tek komutla, veritabanına
+bağlanmadan doğrulayabilirsiniz. İsterseniz `--spec` vererek tek bir kaynağı
+ayrıca kontrol edebilirsiniz.
+
 The default demo database `data/demo.sqlite` is used. Provide `--database-dsn` for a different database; proxy or internal application ports can be changed with `--address` and `--app-address` respectively.
 
 Endpoints:
