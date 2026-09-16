@@ -197,6 +197,10 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s adapter %s missing marker %q: %v", spec.Name, file, marker, readErr)
 			}
 		}
+		react, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "react.ts"))
+		if err != nil || !bytes.Contains(react, []byte("QueryOptions")) || !bytes.Contains(react, []byte("QueryKey")) {
+			t.Fatalf("%s React adapter must expose typed query options and keys: %v", spec.Name, err)
+		}
 		service, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "service.go"))
 		if err != nil || !bytes.Contains(service, []byte("type "+exportName(spec.Name)+"Service struct")) {
 			t.Fatalf("%s service scaffold missing: %v", spec.Name, err)

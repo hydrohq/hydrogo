@@ -593,14 +593,26 @@ export function uploadProgress(completedBytes: number, totalBytes: number): Uplo
 }
 
 func renderReactAdapter(spec Spec) string {
-	return fmt.Sprintf(`// Optional React adapter for %s. Install React in the Client Edition.
+	name := exportName(spec.Name)
+	return fmt.Sprintf(`// Optional React adapter for %s. Install React/your query library in the Client Edition.
 export type %sQueryState<T> = { data?: T; loading: boolean; error?: Error };
-export type %sFetcher = (signal?: AbortSignal) => Promise<unknown>;
+export type %sFetcher<T> = (signal?: AbortSignal) => Promise<T>;
+export type %sQueryOptions<T> = {
+  queryKey: readonly unknown[];
+  queryFn: (context?: { signal?: AbortSignal }) => Promise<T>;
+  staleTime: number;
+};
 
-// Keeps React a peer dependency: the generated contract is usable with any
-// hook/query library without pulling a UI runtime into HydroGo Core.
-export function create%sQuery(fetcher: %sFetcher) { return { fetcher, staleTimeMs: 30_000 }; }
-`, exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), exportName(spec.Name))
+// Framework-neutral options let React Query, SWR, or a custom hook consume the
+// same typed contract without pulling a UI runtime into HydroGo Core.
+export function create%sQuery<T>(fetcher: %sFetcher<T>, queryKey: readonly unknown[] = ['%s', 'list']): %sQueryOptions<T> {
+  return { queryKey, queryFn: (context) => fetcher(context?.signal), staleTime: 30_000 };
+}
+
+export function %sQueryKey(id?: string): readonly string[] {
+  return id ? ['%s', id] : ['%s', 'list'];
+}
+`, name, name, name, name, name, name, spec.Name, name, name, spec.Name, spec.Name)
 }
 
 func renderHTMXAdapter(spec Spec) string {
