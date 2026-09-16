@@ -124,6 +124,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0115](0115-kit-descriptor-metadata.md) | Generate deterministic kit descriptors | Accepted |
 | [0116](0116-generated-client-query-cancellation.md) | Make generated clients consume bounded queries | Accepted |
 | [0117](0117-headless-client-timeout-and-error-bound.md) | Bound headless client waits and error bodies | Accepted |
+| [0118](0118-frontend-manifest-check-command.md) | Expose standalone frontend manifest validation | Accepted |
 | [0067](0067-explicit-demo-seeding.md) | Require explicit confirmation for demo seeding | Accepted |
 | [0068](0068-portable-content-allowlist.md) | Keep portable export explicitly allowlisted | Accepted |
 | [0069](0069-optional-module-lifecycle-contracts.md) | Keep module lifecycle hooks optional and Core-orchestrated | Accepted |

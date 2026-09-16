@@ -934,6 +934,15 @@ func loadFrontendRoutes(path string) ([]map[string]any, error) {
 	return normalized, nil
 }
 
+// ValidateFrontendManifest validates and deterministically normalizes an
+// existing frontend build manifest without generating a project.
+func ValidateFrontendManifest(path string) ([]map[string]any, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, errors.New("frontend manifest path is required")
+	}
+	return loadFrontendRoutes(path)
+}
+
 // presetFrontendRoutes is the generator's frontend contract. Keeping the
 // route/test-id mapping in one deterministic table prevents generated E2E
 // manifests from drifting when a preset grows new public surfaces.
