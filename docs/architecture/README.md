@@ -127,6 +127,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0118](0118-frontend-manifest-check-command.md) | Expose standalone frontend manifest validation | Accepted |
 | [0119](0119-bounded-frontend-manifest-input.md) | Bound frontend manifest inputs | Accepted |
 | [0120](0120-versioned-taxonomy-contract.md) | Versioned taxonomy SDK contract | Accepted |
+| [0121](0121-versioned-forms-contract.md) | Versioned forms SDK contract | Accepted |
 | [0067](0067-explicit-demo-seeding.md) | Require explicit confirmation for demo seeding | Accepted |
 | [0068](0068-portable-content-allowlist.md) | Keep portable export explicitly allowlisted | Accepted |
 | [0069](0069-optional-module-lifecycle-contracts.md) | Keep module lifecycle hooks optional and Core-orchestrated | Accepted |
