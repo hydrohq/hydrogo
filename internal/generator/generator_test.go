@@ -222,7 +222,7 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 			}
 		}
 		client, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "client.ts"))
-		if err != nil || !bytes.Contains(client, []byte("class HydroAPIError")) || !bytes.Contains(client, []byte("parseHydroError")) {
+		if err != nil || !bytes.Contains(client, []byte("class HydroAPIError")) || !bytes.Contains(client, []byte("parseHydroError")) || !bytes.Contains(client, []byte("getReader")) || !bytes.Contains(client, []byte("MAX_RESPONSE_BYTES")) {
 			t.Fatalf("%s generated client missing bounded typed errors: %v", spec.Name, err)
 		}
 		openapi, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "openapi.json"))

@@ -250,7 +250,7 @@ func TestGeneratedHeadlessClientUsesPublishedEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := string(client)
-	for _, expected := range []string{"/api/v1/pages/by-slug?locale=", "/api/v1/news?locale=", "AbortController", "response_too_large", "timeoutMs"} {
+	for _, expected := range []string{"/api/v1/pages/by-slug?locale=", "/api/v1/news?locale=", "AbortController", "response_too_large", "timeoutMs", "getReader", "MAX_RESPONSE_BYTES"} {
 		if !strings.Contains(source, expected) {
 			t.Fatalf("generated client does not contain %q", expected)
 		}

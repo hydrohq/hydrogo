@@ -660,9 +660,37 @@ export class HydroAPIError extends Error {
   }
 }
 
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+
+async function readBoundedResponse(response: Response): Promise<string> {
+  const declared = Number(response.headers.get('content-length') ?? 0);
+  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+    throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+  }
+  if (!response.body) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > MAX_RESPONSE_BYTES) throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+    return text;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_RESPONSE_BYTES) {
+      await reader.cancel();
+      throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
 async function parseHydroError(response: Response): Promise<HydroAPIErrorBody | undefined> {
-  const text = await response.text();
-  if ([...text].length > 2 * 1024 * 1024) return undefined;
+  const text = await readBoundedResponse(response);
   try { return JSON.parse(text) as HydroAPIErrorBody; } catch { return undefined; }
 }
 
@@ -674,7 +702,7 @@ export class %sClient {
     if (encoded) endpoint.search = encoded;
     const response = await this.fetcher(endpoint, { signal });
     if (!response.ok) throw new HydroAPIError(response.status, await parseHydroError(response));
-    return response.json() as Promise<%s[]>;
+    return JSON.parse(await readBoundedResponse(response)) as %s[];
   }
 }
 `, name, name, name, shape.String(), name, name, name, spec.Name, name, name)
