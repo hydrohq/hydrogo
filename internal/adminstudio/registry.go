@@ -68,6 +68,7 @@ type Collection struct {
 	Description string   `json:"description"`
 	Fields      []Field  `json:"fields"`
 	Actions     []Action `json:"actions"`
+	BulkActions []Action `json:"bulk_actions,omitempty"`
 	Kits        []Kit    `json:"kits,omitempty"`
 }
 
@@ -144,6 +145,11 @@ func validateCollection(collection Collection) error {
 			return ErrInvalidCollection
 		}
 	}
+	for _, action := range collection.BulkActions {
+		if strings.TrimSpace(action.Label) == "" || !strings.HasPrefix(action.Href, "/") || strings.HasPrefix(action.Href, "//") {
+			return ErrInvalidCollection
+		}
+	}
 	return nil
 }
 
@@ -155,6 +161,7 @@ func cloneCollection(collection Collection) Collection {
 		clone.Fields[i].Options = append([]string(nil), field.Options...)
 	}
 	clone.Actions = append([]Action(nil), collection.Actions...)
+	clone.BulkActions = append([]Action(nil), collection.BulkActions...)
 	clone.Kits = append([]Kit(nil), collection.Kits...)
 	return clone
 }

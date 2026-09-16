@@ -32,6 +32,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Frontend starter manifest | Kısmi tamamlandı (yerel) | Preset/presentation/features/design-system seçeneklerini bildiren credential-free manifest | `R5-frontend-starter-manifest` |
 | Configurable workflow contract | Kısmi tamamlandı (yerel) | Admin Studio’da bounded custom state/transition doğrulaması; persistence ve moderation UI modüle ait | `R5-configurable-workflow` |
 | Bounded Admin bulk contract | Kısmi tamamlandı (yerel) | 500 kayıt sınırı, deterministik ID normalizasyonu ve fail-closed istek zarfı; generated `bulk.ts` aynı zarfı üretir; mutation/policy modüle ait | `R5-bounded-admin-bulk-contract`, `R5-generated-bulk-request-adapter` |
+| Opt-in Admin bulk list surface | Kısmi tamamlandı (yerel) | `BulkActions` tanımlı collection'larda erişilebilir seçim kutuları ve escaped action metadata; gerçek mutation/CSRF/policy modüle ait | `R5-opt-in-admin-bulk-list-surface` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
 | WSL race doğrulaması | Tamamlandı (yerel) | Broker/runtime/release hedef paketleri `go test -race` | `wsl-race-broker-runtime-2026-09-16` |
