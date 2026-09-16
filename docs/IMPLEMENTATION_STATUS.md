@@ -23,6 +23,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Grant doğrulama ve indirme bağı | Tamamlandı | proje/core/sdk/expiry/url kontrolleri | `R5-sdk-artifact-grant`, `R5-sdk-grant-download-integration`, `R5-sdk-grant-parser` |
 | Broker grant istemcisi | Tamamlandı (yerel) | Bounded POST, koordinat/feature preflight, token header, redirect/status/response ve tek çağrıda lock doğrulaması | `R5-sdk-broker-client` |
 | Typed frontend query adapter | Kısmi tamamlandı (yerel) | Üretilen `react.ts` içinde framework-neutral typed query options ve stabil query key yardımcıları | `R5-typed-frontend-query-adapter` |
+| Taxonomy contract | Kısmi tamamlandı (yerel) | Çok dilli kategori/etiket, parent cycle ve related-content referanslarını bounded doğrulayan provider-neutral sözleşme | `R5-taxonomy-contract` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
 | WSL race doğrulaması | Tamamlandı (yerel) | Broker/runtime/release hedef paketleri `go test -race` | `wsl-race-broker-runtime-2026-09-16` |
