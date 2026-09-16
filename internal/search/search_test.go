@@ -26,3 +26,14 @@ func TestStableResultsOrdersAndBounds(t *testing.T) {
 		t.Fatalf("unexpected response: %#v", response)
 	}
 }
+
+func TestStableResultsAlwaysEnforcesHardBound(t *testing.T) {
+	items := make([]Result, MaxLimit+25)
+	for i := range items {
+		items[i].ID = string(rune('a' + i%26))
+	}
+	response := StableResults(Response{Items: items}, 0)
+	if len(response.Items) != MaxLimit {
+		t.Fatalf("expected hard bound %d, got %d", MaxLimit, len(response.Items))
+	}
+}
