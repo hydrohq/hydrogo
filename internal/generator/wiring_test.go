@@ -18,3 +18,21 @@ func TestGeneratedRuntimeWiringListsSelectedKits(t *testing.T) {
 		t.Fatalf("runtime wiring kits missing: %v\n%s", err, b)
 	}
 }
+
+func TestGeneratedKitArtifactsIncludeDependencies(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "order", Table: "orders", Fields: []Field{{Name: "total", Type: "decimal"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite"}, Kits: []string{"commerce"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Join(root, "generated", "order")
+	for _, file := range []string{"RUNTIME_WIRING.md", "kits.ts"} {
+		b, err := os.ReadFile(filepath.Join(base, file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), "forms") || !strings.Contains(string(b), "commerce") {
+			t.Fatalf("%s does not include resolved kit dependencies:\n%s", file, b)
+		}
+	}
+}
