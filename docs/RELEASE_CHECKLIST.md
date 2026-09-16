@@ -2,12 +2,18 @@
 
 ## Automated local gate
 
-- [ ] `scripts/verify-local.ps1` tamamlandı (module integrity, vuln scan, SBOM,
+- [x] `scripts/verify-local.ps1` tamamlandı (module integrity, vuln scan, SBOM,
   vet, full/shuffled tests, fuzz, builds, generator smoke, health/readiness).
-- [ ] P0 task’larının ADR ve validation kanıtları mevcut.
-- [ ] Release manifest üretildi ve imzası ayrı anahtarla doğrulandı.
-- [ ] Migration SQL ve checksums gözden geçirildi; migrationguard temiz.
-- [ ] Demo/fixture verisi production image’ından ayrıldı.
+- [x] P0 task’larının ADR ve validation kanıtları mevcut.
+- [x] Release manifest üretildi ve imzası ayrı anahtarla doğrulandı.
+- [x] Migration SQL ve checksums gözden geçirildi; migrationguard temiz.
+- [x] Demo/fixture verisi production image’ından ayrıldı.
+
+Yerel kanıt: `scripts/verify-local.ps1` son olarak 2026-09-16 tarihinde
+Windows üzerinde; `go mod verify`, `govulncheck`, full/shuffled/fuzz testleri,
+SBOM, generator smoke ve health/readiness kontrolleri başarılıdır. Ubuntu/WSL2
+karşı kanıtı [`security-check-2026-09-16.md`](validation/security-check-2026-09-16.md)
+altındadır. Gerçek OCI build ise CI `container` job’ında çalışır.
 
 ## External gate (kanıt olmadan işaretlenmez)
 
