@@ -535,6 +535,7 @@ func headlessClientFiles(projectName string) map[string]string {
 export interface HydroConfig {
   baseUrl: string;
   apiKey?: string;
+  timeoutMs?: number;
 }
 
 export interface Page {
@@ -575,29 +576,40 @@ export class HydroClient {
 
   private async request<T>(path: string): Promise<T> {
     const url = new URL(path, this.config.baseUrl);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.max(100, Math.min(this.config.timeoutMs ?? 10000, 30000)));
     const headers: Record<string, string> = {
       'Accept': 'application/json',
     };
     if (this.config.apiKey) {
       headers['Authorization'] = ` + "`Bearer ${this.config.apiKey}`" + `;
     }
-    const res = await fetch(url.toString(), { headers });
-    if (!res.ok) {
-      const raw = await res.text();
-      let body: HydroAPIErrorBody | undefined;
-      if ([...raw].length <= 2 * 1024 * 1024) {
-        try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
+    try {
+      const res = await fetch(url.toString(), { headers, signal: controller.signal });
+      const declaredLength = Number(res.headers.get('content-length') || 0);
+      if (declaredLength > 2 * 1024 * 1024) {
+        throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
       }
-      throw new HydroAPIError(res.status, body);
+      const raw = await res.text();
+      if ([...raw].length > 2 * 1024 * 1024) {
+        throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+      }
+      let body: HydroAPIErrorBody | undefined;
+      try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
+      if (!res.ok) throw new HydroAPIError(res.status, body);
+      return JSON.parse(raw) as T;
+    } finally {
+      clearTimeout(timeout);
     }
-    return res.json();
   }
 
   async getPage(locale: string, slug: string): Promise<Page> {
+    if ([...locale].length > 256 || [...slug].length > 256) throw new RangeError('locale and slug must be at most 256 characters');
     return this.request<Page>(` + "`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`" + `);
   }
 
   async listNews(locale: string = 'tr'): Promise<NewsItem[]> {
+    if ([...locale].length > 256) throw new RangeError('locale must be at most 256 characters');
     return this.request<NewsItem[]>(` + "`/api/v1/news?locale=${encodeURIComponent(locale)}`" + `);
   }
 }
