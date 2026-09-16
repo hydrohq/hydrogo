@@ -13,6 +13,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate container hardening markers
+        run: bash scripts/container-lint.sh
+      - name: Build reproducible OCI image (no push)
+        run: docker build --pull --tag hydrogo:ci .
+
   go:
     runs-on: ubuntu-latest
     timeout-minutes: 15
