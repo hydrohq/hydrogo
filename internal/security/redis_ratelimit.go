@@ -36,13 +36,23 @@ func NewRedisClient(ctx context.Context, rawURL string) (*redis.Client, error) {
 }
 
 func (l RedisRateLimiter) Allow(key string) bool {
+	return l.AllowContext(context.Background(), key)
+}
+
+// AllowContext evaluates a limit using the caller's cancellation and deadline.
+// This prevents an abandoned request from keeping a Redis operation alive
+// until the fixed safety timeout.
+func (l RedisRateLimiter) AllowContext(parent context.Context, key string) bool {
 	if l.Client == nil || key == "" || l.Limit < 1 || l.Window <= 0 {
 		return false
+	}
+	if parent == nil {
+		parent = context.Background()
 	}
 	digest := sha256.Sum256([]byte(key))
 	redisKey := l.Prefix + hex.EncodeToString(digest[:])
 	const script = `local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end; return n <= tonumber(ARGV[2])`
-	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	ctx, cancel := context.WithTimeout(parent, 250*time.Millisecond)
 	defer cancel()
 	result, err := l.Client.Eval(ctx, script, []string{redisKey}, l.Window.Milliseconds(), l.Limit).Bool()
 	return err == nil && result

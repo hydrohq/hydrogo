@@ -29,4 +29,6 @@ throughput requirement and a certified delivery/recovery contract.
 - Local limiter and Redis limiter share the `RateLimiter` application boundary.
 - Atomic counter semantics are implemented by a single Redis Lua script.
 - Redis is connectivity-checked at startup when configured.
+- Request-scoped callers use `AllowContext`; cancellation and deadlines are
+  propagated while retaining the 250 ms fail-closed safety bound.
 - The SQL queue remains covered by the existing SQLite/PostgreSQL contract tests.

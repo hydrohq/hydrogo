@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func TestRedisRateLimiterFailsClosedForInvalidInputs(t *testing.T) {
@@ -34,6 +36,20 @@ func TestNewRedisClientRejectsMissingOrMalformedURL(t *testing.T) {
 	}
 	if _, err := NewRedisClient(context.Background(), "not-a-redis-url"); err == nil {
 		t.Fatal("malformed Redis URL accepted")
+	}
+}
+
+func TestRedisRateLimiterAllowContextHonorsCancellation(t *testing.T) {
+	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:0"})
+	defer client.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	limiter := RedisRateLimiter{Client: client, Prefix: "hydro:test:", Limit: 1, Window: time.Minute}
+	if limiter.AllowContext(ctx, "cancelled") {
+		t.Fatal("cancelled context must fail closed")
+	}
+	if limiter.AllowContext(nil, "cancelled") {
+		t.Fatal("nil context must not bypass the limiter")
 	}
 }
 

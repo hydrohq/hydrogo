@@ -26,3 +26,7 @@ Bu kanıt atomic `INCR` + TTL davranışını kapsar. Multi-instance failover,
 partition, clock-skew, persistence ve kapasite/soak testleri gerçek dağıtım
 kapısı olarak [açık kapılar](../OPEN_GATES_AND_OPERATOR_ACTIONS.md) belgesinde
 kalır.
+
+Limiter ayrıca request-scoped `AllowContext` çağrısında iptal/deadline
+propagasyonunu fail-closed olarak test eder; iptal edilmiş bir isteğin Redis
+operasyonunu safety timeout'a kadar tutması engellenir.
