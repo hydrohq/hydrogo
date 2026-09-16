@@ -204,8 +204,15 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add the module-owned relational taxonomy model and SQLite/PostgreSQL
   migrations, admin editing and related-content UX.
 - [ ] Add configurable editorial workflow and moderation transitions.
-- [ ] Add form-builder capabilities with validation and inbox retention policy.
-- [ ] Add search provider contract only after measuring real query needs.
+- [x] Add the provider-neutral editorial workflow contract (`extension/v1`; ADR-0122).
+- [ ] Integrate configurable editorial workflow and moderation transitions into
+  module persistence, authorization and admin UX.
+- [x] Add the provider-neutral forms contract with bounded validation
+  (`extension/v1`; ADR-0121).
+- [ ] Add form-builder admin UX and an inbox/retention implementation.
+- [x] Add the provider-neutral search provider contract (`extension/v1`; ADR-0123).
+- [ ] Add provider indexing/rebuild and freshness/capacity evidence after
+  measuring real query needs.
 - [ ] Add durable analytics/consent model only with a privacy ADR.
 
 ### PROD-02 Commerce and integrations (`EXTERNAL`)
