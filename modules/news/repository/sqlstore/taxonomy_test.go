@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -41,5 +42,44 @@ func TestReplaceAndListTaxonomySQLite(t *testing.T) {
 	got, err = store.ListTaxonomy(ctx, db, "article-1")
 	if err != nil || len(got) != 0 {
 		t.Fatalf("expected cleared taxonomy, got %#v err=%v", got, err)
+	}
+}
+
+func TestTaxonomyTermCRUDGuardsChildrenAndRelations(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "taxonomy-crud.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Dialect: database.SQLite}
+	root := v1.TaxonomyTerm{ID: "platform", Slug: "platform", Kind: "category", Labels: map[string]string{"en": "Platform"}}
+	child := v1.TaxonomyTerm{ID: "go", Slug: "go", Kind: "tag", Parent: "platform", Labels: map[string]string{"en": "Go"}}
+	if err := store.UpsertTaxonomyTerm(ctx, db, root); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertTaxonomyTerm(ctx, db, child); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteTaxonomyTerm(ctx, db, "platform"); !errors.Is(err, ErrTaxonomyTermHasChildren) {
+		t.Fatalf("delete parent error = %v, want ErrTaxonomyTermHasChildren", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO news_items (id,locale,slug,title,body,status,published_revision,created_at,updated_at) VALUES (?,?,?,?,?,'draft',NULL,?,?)`, "article-2", "tr", "article-2", "Article", "{}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceTaxonomy(ctx, db, "article-2", []v1.TaxonomyTerm{child}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteTaxonomyTerm(ctx, db, "go"); !errors.Is(err, ErrTaxonomyTermInUse) {
+		t.Fatalf("delete related term error = %v, want ErrTaxonomyTermInUse", err)
+	}
+	if err := store.ReplaceTaxonomy(ctx, db, "article-2", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteTaxonomyTerm(ctx, db, "go"); err != nil {
+		t.Fatalf("delete unused leaf: %v", err)
 	}
 }
