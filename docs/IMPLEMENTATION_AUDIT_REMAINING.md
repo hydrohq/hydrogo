@@ -76,6 +76,9 @@ environment, an external provider, legal review, or a release pipeline.
   WSL PostgreSQL contract evidence in `R6-news-taxonomy-contract-2026-09-16`;
   admin editing, authorization integration and a real admin localization catalog
   remain open.
+- Admin Studio now has a reusable, escaped taxonomy editor primitive
+  (`internal/adminstudio/taxonomy.go`; ADR-0127); News route integration and
+  module-level authorization remain open.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); module persistence, admin UX,
   inbox/retention and provider indexing remain open implementation work.
