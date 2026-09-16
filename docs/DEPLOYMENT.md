@@ -33,37 +33,14 @@ kalıplarını yalnızca Git tarafından izlenen dosyalarda arar. Test amaçlı 
 parolalar bu düşük false-positive’li kapının kapsamına girmez; gerçek secret’lar
 her zaman deployment secret store’dan sağlanmalıdır.
 
-### 1.1. Dockerfile (Minimal Alpine / Distroless)
+### 1.1. Canonical Dockerfile
 
-```dockerfile
-FROM golang:1.24-alpine AS builder
-WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/hydro ./cmd/hydro
-
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata ffmpeg
-WORKDIR /app
-
-# Non-root user
-RUN addgroup -S hydro && adduser -S hydro -G hydro
-USER hydro
-
-COPY --from=builder /bin/hydro /app/hydro
-COPY config.yaml /app/config.yaml
-COPY hydrogo.lock /app/hydrogo.lock
-COPY hydro.lic /app/hydro.lic
-COPY themes/ /app/themes/
-COPY migrations/ /app/migrations/
-
-VOLUME ["/app/data"]
-EXPOSE 8080
-
-ENTRYPOINT ["/app/hydro"]
-CMD ["serve", "--config", "/app/config.yaml"]
-```
+Üretim image tanımı yalnızca repository kökündeki [`Dockerfile`](../Dockerfile)
+dosyasıdır. Bu dosya linux/amd64 ve linux/arm64 için multi-stage, non-root ve
+bounded healthcheck içeren image üretir. Config, lisans anahtarı ve diğer
+secret'lar image'a kopyalanmaz; çalışma zamanında secret store veya salt-okunur
+`/app/config.yaml` mount'ı üzerinden sağlanır. Yukarıdaki `docker build` komutu
+ve CI'daki `container` işi kanonik doğrulama akışıdır.
 
 ### 1.2. Docker Compose (SQLite - Kompakt Profil)
 
