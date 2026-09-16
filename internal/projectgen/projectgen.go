@@ -15,6 +15,7 @@ import (
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
+	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 )
 
 var (
@@ -897,11 +898,14 @@ func frontendRoutes(opts Options) ([]map[string]any, error) {
 }
 
 func loadFrontendRoutes(path string) ([]map[string]any, error) {
-	info, err := os.Stat(path)
+	if err := pathguard.RejectSymlinkComponents(filepath.Dir(path)); err != nil {
+		return nil, fmt.Errorf("frontend manifest path: %w", err)
+	}
+	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, fmt.Errorf("frontend manifest read failed: %w", err)
 	}
-	if !info.Mode().IsRegular() || info.Size() > maxFrontendManifestBytes {
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() > maxFrontendManifestBytes {
 		return nil, errors.New("frontend manifest exceeds the 1 MiB limit")
 	}
 	body, err := os.ReadFile(path)
