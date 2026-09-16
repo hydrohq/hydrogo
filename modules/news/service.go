@@ -2,6 +2,7 @@ package news
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/content"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 )
 
 type Repository interface {
@@ -33,10 +35,42 @@ type OutboxWriter interface {
 }
 
 type Service struct {
-	Transactions database.Transactor
-	Repository   Repository
-	Audit        AuditWriter
-	Outbox       OutboxWriter
+	Transactions     database.Transactor
+	Repository       Repository
+	Audit            AuditWriter
+	Outbox           OutboxWriter
+	SupportedLocales []string
+	DefaultLocale    string
+}
+
+// GetPublishedByRoute applies the configured exact → primary → default
+// locale chain. It falls back only when a candidate has no published row.
+func (s Service) GetPublishedByRoute(ctx context.Context, db database.Executor, locale, slug string) (Item, error) {
+	if err := s.requireRepository(); err != nil {
+		return Item{}, err
+	}
+	requested := strings.TrimSpace(locale)
+	if requested == "" {
+		return Item{}, ErrInvalidItem
+	}
+	locales := []string{requested}
+	if len(s.SupportedLocales) > 0 {
+		chain, err := i18n.LocaleFallbackChain(requested, s.SupportedLocales, s.DefaultLocale)
+		if err != nil {
+			return Item{}, ErrInvalidItem
+		}
+		locales = chain
+	}
+	for _, candidate := range locales {
+		item, err := s.Repository.GetPublishedByRoute(ctx, db, candidate, slug)
+		if err == nil {
+			return item, nil
+		}
+		if len(locales) == 1 || !errors.Is(err, sql.ErrNoRows) {
+			return Item{}, err
+		}
+	}
+	return Item{}, sql.ErrNoRows
 }
 
 func (s Service) requireRepository() error {
