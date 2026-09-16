@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/minio/minio-go/v7"
@@ -24,6 +25,12 @@ type BlobStore interface {
 // public/CDN object URL. Core storage code continues to use opaque keys.
 type PublicURLProvider interface {
 	PublicURL(string) (string, error)
+}
+
+// SignedURLProvider is an optional private-object capability. Callers remain
+// responsible for authorization before asking for a URL.
+type SignedURLProvider interface {
+	PresignedURL(context.Context, string, time.Duration) (string, error)
 }
 
 // S3Config enables AWS S3 and S3-compatible services (MinIO, R2, B2).
@@ -91,20 +98,9 @@ func (s *S3BlobStore) PublicURL(key string) (string, error) {
 	if s == nil || s.publicBase == nil {
 		return "", errors.New("public object URL is not configured")
 	}
-	key = strings.TrimSpace(key)
-	if key == "" || len(key) > 1024 {
-		return "", errors.New("invalid object key")
-	}
-	for _, r := range key {
-		if unicode.IsControl(r) || r == '\\' {
-			return "", errors.New("invalid object key")
-		}
-	}
-	parts := strings.Split(key, "/")
-	for _, part := range parts {
-		if part == "" || part == "." || part == ".." {
-			return "", errors.New("invalid object key")
-		}
+	key, parts, err := validateObjectKey(key)
+	if err != nil {
+		return "", err
 	}
 	escaped := make([]string, len(parts))
 	for i, part := range parts {
@@ -114,6 +110,45 @@ func (s *S3BlobStore) PublicURL(key string) (string, error) {
 	copyBase.Path = strings.TrimRight(copyBase.Path, "/") + "/" + strings.Join(parts, "/")
 	copyBase.RawPath = strings.TrimRight(copyBase.EscapedPath(), "/") + "/" + strings.Join(escaped, "/")
 	return copyBase.String(), nil
+}
+
+// PresignedURL creates a bounded private-object URL. It never changes object
+// visibility and refuses unbounded or effectively permanent expirations.
+func (s *S3BlobStore) PresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	if s == nil || s.client == nil {
+		return "", errors.New("s3 blob store is unavailable")
+	}
+	if expiry < time.Second || expiry > 24*time.Hour {
+		return "", errors.New("presigned URL expiry must be between 1s and 24h")
+	}
+	key, _, err := validateObjectKey(key)
+	if err != nil {
+		return "", err
+	}
+	url, err := s.client.PresignedGetObject(ctx, s.bucket, key, expiry, nil)
+	if err != nil {
+		return "", err
+	}
+	return url.String(), nil
+}
+
+func validateObjectKey(raw string) (string, []string, error) {
+	key := strings.TrimSpace(raw)
+	if key == "" || len(key) > 1024 {
+		return "", nil, errors.New("invalid object key")
+	}
+	for _, r := range key {
+		if unicode.IsControl(r) || r == '\\' {
+			return "", nil, errors.New("invalid object key")
+		}
+	}
+	parts := strings.Split(key, "/")
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return "", nil, errors.New("invalid object key")
+		}
+	}
+	return key, parts, nil
 }
 
 func (s *S3BlobStore) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {

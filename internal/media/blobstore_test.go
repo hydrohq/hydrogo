@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewS3BlobStoreRequiresEndpointAndBucket(t *testing.T) {
@@ -46,5 +47,17 @@ func TestS3BlobStorePublicURLIsExplicitAndBounded(t *testing.T) {
 func TestS3BlobStoreRejectsNonLoopbackHTTPPublicURL(t *testing.T) {
 	if _, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:9000", Bucket: "hydro", PublicBaseURL: "http://cdn.example.test"}); err == nil {
 		t.Fatal("non-loopback HTTP public URL accepted")
+	}
+}
+
+func TestS3BlobStorePresignedURLIsBounded(t *testing.T) {
+	store, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:9000", Bucket: "hydro", AccessKey: "access", SecretKey: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expiry := range []time.Duration{0, 500 * time.Millisecond, 25 * time.Hour} {
+		if _, err := store.PresignedURL(context.Background(), "images/hero.png", expiry); err == nil {
+			t.Fatalf("expiry accepted: %s", expiry)
+		}
 	}
 }
