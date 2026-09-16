@@ -145,6 +145,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0091](0091-sdk-runtime-artifact-distribution.md) | Public SDK and private runtime artifact distribution | Proposed |
 | [0092](0092-signed-schema-compatibility-preflight.md) | Signed schema compatibility preflight | Proposed |
 | [0093](0093-permission-contract-preflight.md) | Permission contract preflight | Proposed |
+| [0094](0094-typed-frontend-query-adapters.md) | Typed framework-neutral frontend query adapters | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
