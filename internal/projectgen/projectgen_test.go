@@ -345,3 +345,25 @@ func TestGeneratePreservesCustomFiles(t *testing.T) {
 		t.Errorf("custom file not preserved correctly")
 	}
 }
+
+func TestValidateFrontendManifestRejectsOversizedFileAndRouteFields(t *testing.T) {
+	t.Run("oversized", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "frontend.json")
+		if err := os.WriteFile(path, []byte(strings.Repeat("x", maxFrontendManifestBytes+1)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ValidateFrontendManifest(path); err == nil {
+			t.Fatal("oversized frontend manifest accepted")
+		}
+	})
+	t.Run("long-route", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "frontend.json")
+		body := `{"routes":[{"name":"` + strings.Repeat("a", 129) + `","path":"/safe","test_id":"safe"}]}`
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ValidateFrontendManifest(path); err == nil {
+			t.Fatal("long route name accepted")
+		}
+	})
+}
