@@ -194,6 +194,49 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	return items, rows.Err()
 }
 
+// ListRelatedPublished returns a bounded published projection sharing at least
+// one taxonomy term with the source item. It never exposes drafts or relation
+// storage details to callers.
+func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, contentID, locale string, limit int) ([]news.Item, error) {
+	if limit < 1 || limit > 100 {
+		return nil, ErrInvalidListLimit
+	}
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("related news query requires a query-capable executor")
+	}
+	query := `SELECT DISTINCT n.id,n.locale,n.slug,n.title,n.category,n.updated_at FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=$1) AND n.id<>$1 AND n.locale=$2 AND n.status='published' AND n.published_revision IS NOT NULL ORDER BY n.updated_at DESC,n.id ASC LIMIT $3`
+	if s.Dialect == database.SQLite {
+		query = `SELECT DISTINCT n.id,n.locale,n.slug,n.title,n.category,n.updated_at FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=?) AND n.id<>? AND n.locale=? AND n.status='published' AND n.published_revision IS NOT NULL ORDER BY n.updated_at DESC,n.id ASC LIMIT ?`
+	}
+	args := []any{contentID, locale, limit}
+	if s.Dialect == database.SQLite {
+		args = []any{contentID, contentID, locale, limit}
+	}
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]news.Item, 0, limit)
+	for rows.Next() {
+		var item news.Item
+		var updated any
+		if err := rows.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Category, &updated); err != nil {
+			return nil, err
+		}
+		item.UpdatedAt = parseTime(updated)
+		item.Status = news.StatusPublished
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 // ListAdmin returns bounded editorial summaries for the protected Studio list.
 // Unlike ListPublished it may include drafts, but never returns body content.
 func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) ([]news.Item, error) {

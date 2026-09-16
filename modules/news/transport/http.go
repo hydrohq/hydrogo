@@ -52,6 +52,10 @@ type publishedListRepository interface {
 	ListPublished(context.Context, database.Executor, string, int) ([]news.Item, error)
 }
 
+type relatedListRepository interface {
+	ListRelatedPublished(context.Context, database.Executor, string, string, int) ([]news.Item, error)
+}
+
 type adminListRepository interface {
 	ListAdmin(context.Context, database.Executor, int) ([]news.Item, error)
 }
@@ -469,9 +473,16 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch popular/recent news items for the sticky sidebar
 	var sidebarItems []news.Item
-	if repository, ok := h.Service.Repository.(publishedListRepository); ok {
-		if list, err := repository.ListPublished(r.Context(), h.DB, locale, 6); err == nil {
+	if repository, ok := h.Service.Repository.(relatedListRepository); ok {
+		if list, err := repository.ListRelatedPublished(r.Context(), h.DB, item.ID, locale, 6); err == nil {
 			sidebarItems = list
+		}
+	}
+	if repository, ok := h.Service.Repository.(publishedListRepository); ok {
+		if len(sidebarItems) == 0 {
+			if list, err := repository.ListPublished(r.Context(), h.DB, locale, 6); err == nil {
+				sidebarItems = list
+			}
 		}
 	}
 
@@ -505,7 +516,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		trendingHTML.WriteString(`<p style="color:var(--theme-muted);font-size:.88rem;margin:0;">Başka yayınlanmış haber bulunmuyor.</p>`)
 	}
 
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s<div class="news-article-body rich-article-content">%s</div>%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔥</span> Öne Çıkan & Popüler</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go çekirdeği ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s`,
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s<div class="news-article-body rich-article-content">%s</div>%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go çekirdeği ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s`,
 		template.HTMLEscapeString(locale),
 		template.HTMLEscapeString(item.Title),
 		strings.ToUpper(template.HTMLEscapeString(locale)),

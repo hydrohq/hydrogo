@@ -21,4 +21,5 @@ uses the primitive. When the database supports transactions, the endpoint wraps
 replacement in a single commit/rollback boundary (with a regression probe in
 `modules/news/transport/http_test.go`). The protected `/admin/news/taxonomy`
 catalog provides bounded term CRUD and refuses unsafe parent/in-use deletion;
-public related-content UX remains product work.
+published News detail pages use a bounded taxonomy-aware related-content query
+with a recent-news fallback.
