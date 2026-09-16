@@ -1,0 +1,12 @@
+{
+  "scan_id": "hydrogo-2026-09-16-source-audit",
+  "started_at": "2026-09-16T18:30:00+03:00",
+  "status": "complete-source-only",
+  "profile": "standard",
+  "scope": "whole-repository",
+  "validation": "source-only-with-bounded-local-checks",
+  "detected_languages": ["go", "javascript", "yaml", "powershell", "shell", "html"],
+  "completed_phases": ["recon", "hunt", "verify", "report"],
+  "findings_count": 0,
+  "needs_validation_count": 8
+}
