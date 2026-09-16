@@ -17,6 +17,7 @@ packages are not SDK surface.
 | Editorial workflow contract | `extension/v1` | Candidate | Bounded custom states/transitions and same-origin preview path; scheduling/auth remain module-owned | `workflow_test.go`, ADR-0122 |
 | Search provider contract | `extension/v1` | Candidate | Bounded queries and deterministic hard-bounded result pages; authorization remains module-owned | `search_test.go`, ADR-0123 |
 | Capability kit contract | `extension/v1` | Candidate | Optional kit metadata, dependency resolution and deterministic descriptors; activation remains explicit | `kits_test.go`, ADR-0124 |
+| Analytics consent contract | `extension/v1` | Candidate | Purpose-versioned consent and aggregate-safe events; durable storage/legal text remain module-owned | `analytics_test.go`, ADR-0125 |
 | Generated module scaffold | `internal/generator` (tooling only) | Local tooling | Generated code requires business-rule review | generator tests and smoke |
 | Core module registry/lifecycle | `internal/modules` | Internal | Not importable by Client Editions | import-boundary checks |
 | SQL/cache/queue adapters | `internal/*` | Internal | Never exposed through domain/application contracts | import guard and architecture ADRs |
