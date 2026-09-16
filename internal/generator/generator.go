@@ -195,6 +195,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"policy.go":           renderPolicy(spec),
 		"transport.go":        renderTransport(spec),
 		"form.html":           renderForm(spec),
+		"form.schema.json":    renderFormSchema(spec),
 		"table.html":          renderTable(spec),
 		"openapi.json":        renderOpenAPI(spec),
 		"client.ts":           renderTypeScriptClient(spec),
@@ -472,6 +473,45 @@ func renderForm(spec Spec) string {
 	}
 	b.WriteString("  <button type=\"submit\">Kaydet</button>\n</form>\n")
 	return b.String()
+}
+
+func renderFormSchema(spec Spec) string {
+	type schemaField struct {
+		ID       string `json:"id"`
+		Type     string `json:"type"`
+		Label    string `json:"label"`
+		Required bool   `json:"required"`
+	}
+	fields := append([]Field(nil), spec.Fields...)
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	output := struct {
+		ID     string        `json:"id"`
+		Title  string        `json:"title"`
+		Fields []schemaField `json:"fields"`
+	}{ID: spec.Name, Title: strings.TrimSpace(spec.Admin.Label)}
+	if output.Title == "" {
+		output.Title = exportName(spec.Name)
+	}
+	for _, field := range fields {
+		fieldType := "text"
+		switch {
+		case field.Admin.Widget == "textarea":
+			fieldType = "textarea"
+		case strings.Contains(strings.ToLower(field.Name), "email"):
+			fieldType = "email"
+		case field.Type == "int" || field.Type == "integer" || field.Type == "number" || field.Type == "float":
+			fieldType = "number"
+		case field.Type == "bool" || field.Type == "boolean":
+			fieldType = "checkbox"
+		}
+		label := strings.TrimSpace(field.Admin.Label)
+		if label == "" {
+			label = exportName(field.Name)
+		}
+		output.Fields = append(output.Fields, schemaField{ID: field.Name, Type: fieldType, Label: label, Required: !field.Nullable})
+	}
+	data, _ := json.MarshalIndent(output, "", "  ")
+	return string(data) + "\n"
 }
 
 func renderTable(spec Spec) string {
