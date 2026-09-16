@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,93 @@ import (
 type taxonomyQueryExecutor interface {
 	database.Executor
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+var ErrTaxonomyTermInUse = errors.New("taxonomy term is in use")
+var ErrTaxonomyTermHasChildren = errors.New("taxonomy term has children")
+
+// UpsertTaxonomyTerm stores one validated module-owned taxonomy term.
+func (s Store) UpsertTaxonomyTerm(ctx context.Context, tx database.Executor, term v1.TaxonomyTerm) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	terms, err := s.ListTaxonomyTerms(ctx, tx)
+	if err != nil {
+		return err
+	}
+	found := false
+	for index := range terms {
+		if terms[index].ID == term.ID {
+			terms[index] = term
+			found = true
+			break
+		}
+	}
+	if !found {
+		terms = append(terms, term)
+	}
+	if err := v1.ValidateTaxonomy(terms, nil); err != nil {
+		return err
+	}
+	labels, err := json.Marshal(term.Labels)
+	if err != nil {
+		return fmt.Errorf("encode taxonomy labels: %w", err)
+	}
+	query := `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES ($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET slug=EXCLUDED.slug,kind=EXCLUDED.kind,parent_id=EXCLUDED.parent_id,labels_json=EXCLUDED.labels_json`
+	if s.Dialect == database.SQLite {
+		query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,kind=excluded.kind,parent_id=excluded.parent_id,labels_json=excluded.labels_json`
+	}
+	_, err = tx.ExecContext(ctx, query, term.ID, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels))
+	return err
+}
+
+// DeleteTaxonomyTerm removes an unused leaf term without silently changing content.
+func (s Store) DeleteTaxonomyTerm(ctx context.Context, tx database.Executor, id string) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errors.New("taxonomy term id is required")
+	}
+	queryer, ok := tx.(taxonomyQueryExecutor)
+	if !ok {
+		return fmt.Errorf("taxonomy executor does not support row queries")
+	}
+	var childCount int
+	childQuery := `SELECT COUNT(*) FROM news_taxonomy_terms WHERE parent_id=$1`
+	if s.Dialect == database.SQLite {
+		childQuery = `SELECT COUNT(*) FROM news_taxonomy_terms WHERE parent_id=?`
+	}
+	if err := queryer.QueryRowContext(ctx, childQuery, id).Scan(&childCount); err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return ErrTaxonomyTermHasChildren
+	}
+	var relationCount int
+	relationQuery := `SELECT COUNT(*) FROM news_taxonomy_relations WHERE term_id=$1`
+	if s.Dialect == database.SQLite {
+		relationQuery = `SELECT COUNT(*) FROM news_taxonomy_relations WHERE term_id=?`
+	}
+	if err := queryer.QueryRowContext(ctx, relationQuery, id).Scan(&relationCount); err != nil {
+		return err
+	}
+	if relationCount > 0 {
+		return ErrTaxonomyTermInUse
+	}
+	deleteQuery := `DELETE FROM news_taxonomy_terms WHERE id=$1`
+	if s.Dialect == database.SQLite {
+		deleteQuery = `DELETE FROM news_taxonomy_terms WHERE id=?`
+	}
+	result, err := tx.ExecContext(ctx, deleteQuery, id)
+	if err != nil {
+		return err
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // ReplaceTaxonomy atomically replaces the terms attached to one news item.
@@ -27,7 +115,24 @@ func (s Store) ReplaceTaxonomy(ctx context.Context, tx database.Executor, conten
 	for _, term := range terms {
 		relations[0].TermIDs = append(relations[0].TermIDs, term.ID)
 	}
-	if err := v1.ValidateTaxonomy(terms, relations); err != nil {
+	// Validate relations against the complete catalog, not only selected terms;
+	// a child can be attached while its parent is not selected for this article.
+	catalog, err := s.ListTaxonomyTerms(ctx, tx)
+	if err != nil {
+		return err
+	}
+	byID := make(map[string]v1.TaxonomyTerm, len(catalog)+len(terms))
+	for _, term := range catalog {
+		byID[term.ID] = term
+	}
+	for _, term := range terms {
+		byID[term.ID] = term
+	}
+	allTerms := make([]v1.TaxonomyTerm, 0, len(byID))
+	for _, term := range byID {
+		allTerms = append(allTerms, term)
+	}
+	if err := v1.ValidateTaxonomy(allTerms, relations); err != nil {
 		return err
 	}
 	for _, term := range v1.StableTaxonomyTerms(terms) {

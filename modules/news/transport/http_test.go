@@ -27,6 +27,14 @@ func (taxonomyTransactionProbe) ReplaceTaxonomy(ctx context.Context, executor da
 	return err
 }
 
+func (taxonomyTransactionProbe) UpsertTaxonomyTerm(context.Context, database.Executor, v1.TaxonomyTerm) error {
+	return nil
+}
+
+func (taxonomyTransactionProbe) DeleteTaxonomyTerm(context.Context, database.Executor, string) error {
+	return nil
+}
+
 func TestReplaceTaxonomyAtomicallyUsesDatabaseTransaction(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "taxonomy-transaction.sqlite"))
@@ -49,12 +57,15 @@ func TestReplaceTaxonomyAtomicallyUsesDatabaseTransaction(t *testing.T) {
 func TestRoutesIncludeCSRFProtectedAdminNewsForms(t *testing.T) {
 	routes := (Handler{}).Routes()
 	want := map[string]bool{
-		"GET /admin/news/{id}":           true,
-		"POST /admin/news/{id}":          true,
-		"POST /admin/news/{id}/taxonomy": true,
-		"POST /admin/news/{id}/schedule": true,
-		"POST /admin/news/{id}/publish":  true,
-		"POST /admin/news/{id}/retract":  true,
+		"GET /admin/news/{id}":                  true,
+		"POST /admin/news/{id}":                 true,
+		"GET /admin/news/taxonomy":              true,
+		"POST /admin/news/taxonomy":             true,
+		"POST /admin/news/taxonomy/{id}/delete": true,
+		"POST /admin/news/{id}/taxonomy":        true,
+		"POST /admin/news/{id}/schedule":        true,
+		"POST /admin/news/{id}/publish":         true,
+		"POST /admin/news/{id}/retract":         true,
 	}
 	for _, route := range routes {
 		if _, ok := want[route.Pattern]; ok {

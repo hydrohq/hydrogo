@@ -208,7 +208,9 @@ credential, legal decision, or product decision and must remain an open gate.
   SQLite/PostgreSQL migrations.
 - [x] Add News taxonomy admin selection/editing with protected route and
   module-owned persistence.
-- [ ] Add taxonomy term management and related-content UX.
+- [x] Add protected News taxonomy term catalog CRUD with bounded labels,
+  parent/usage deletion guards and SQLite/PostgreSQL-neutral persistence.
+- [ ] Add public related-content UX and discovery links.
 - [x] Add the provider-neutral editorial workflow contract (`extension/v1`; ADR-0122).
 - [ ] Integrate configurable editorial workflow and moderation transitions into
   module persistence, authorization and admin UX.

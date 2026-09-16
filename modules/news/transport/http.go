@@ -60,6 +60,8 @@ type taxonomyAdminRepository interface {
 	ListTaxonomy(context.Context, database.Executor, string) ([]v1.TaxonomyTerm, error)
 	ListTaxonomyTerms(context.Context, database.Executor) ([]v1.TaxonomyTerm, error)
 	ReplaceTaxonomy(context.Context, database.Executor, string, []v1.TaxonomyTerm) error
+	UpsertTaxonomyTerm(context.Context, database.Executor, v1.TaxonomyTerm) error
+	DeleteTaxonomyTerm(context.Context, database.Executor, string) error
 }
 
 type transactionStarter interface {
@@ -99,7 +101,10 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /api/news/by-slug", Handler: http.HandlerFunc(h.publicGetByQuery)},
 		{Pattern: "GET /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminList)},
 		{Pattern: "GET /admin/news/new", Protected: true, Handler: http.HandlerFunc(h.adminNewPage)},
+		{Pattern: "GET /admin/news/taxonomy", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomyCatalog)},
 		{Pattern: "POST /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminCreate)},
+		{Pattern: "POST /admin/news/taxonomy", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomyTerm)},
+		{Pattern: "POST /admin/news/taxonomy/{id}/delete", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomyTermDelete)},
 		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
 		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
 		{Pattern: "POST /admin/news/{id}/taxonomy", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomy)},
@@ -170,6 +175,79 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprint(w, `</form></section>`)
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminTaxonomyCatalog(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	repository, ok := h.Service.Repository.(taxonomyAdminRepository)
+	if !ok || database.RequireExecutor(h.DB) != nil {
+		http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	terms, err := repository.ListTaxonomyTerms(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Taxonomy", "Haber sınıflandırması", security.NonceFromContext(r.Context()), "news"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><h2>Yeni terim</h2><p class="muted">Etiket ve kategorilerde çoklu dil desteği için etiketleri JSON olarak girin.</p><form class="studio-form" method="post" action="/admin/news/taxonomy"><label>ID<input name="id" required maxlength="128"></label><label>Slug<input name="slug" required maxlength="128" pattern="[a-z0-9][a-z0-9-]*"></label><label>Tür<select name="kind"><option value="category">Kategori</option><option value="tag">Etiket</option></select></label><label>Üst terim ID<input name="parent" maxlength="128"></label><label>Etiketler JSON<textarea name="labels_json" required placeholder='{"tr":"Haber","en":"News"}'></textarea></label><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><button type="submit">Terimi kaydet</button></form></section>`)
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><h2>Terim kataloğu</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Slug</th><th>Tür</th><th>Üst terim</th><th>Etiketler</th><th>İşlem</th></tr></thead><tbody>`)
+	for _, term := range terms {
+		labels, _ := json.Marshal(term.Labels)
+		_, _ = fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td><code>%s</code></td><td><form method="post" action="/admin/news/taxonomy/%s/delete"><input type="hidden" name="_csrf" value="%s"><button type="submit" class="button button-quiet button-danger">Sil</button></form></td></tr>`, template.HTMLEscapeString(term.ID), template.HTMLEscapeString(term.Slug), template.HTMLEscapeString(term.Kind), template.HTMLEscapeString(term.Parent), template.HTMLEscapeString(string(labels)), template.URLQueryEscaper(term.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())))
+	}
+	_, _ = fmt.Fprint(w, `</tbody></table></div></section>`)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminTaxonomyTerm(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	repository, ok := h.Service.Repository.(taxonomyAdminRepository)
+	if !ok || database.RequireExecutor(h.DB) != nil {
+		http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var labels map[string]string
+	if err := json.Unmarshal([]byte(r.FormValue("labels_json")), &labels); err != nil {
+		http.Error(w, "invalid taxonomy labels", http.StatusBadRequest)
+		return
+	}
+	term := v1.TaxonomyTerm{ID: r.FormValue("id"), Slug: r.FormValue("slug"), Kind: r.FormValue("kind"), Parent: r.FormValue("parent"), Labels: labels}
+	if err := upsertTaxonomyTermAtomically(r.Context(), h.DB, repository, term); err != nil {
+		writeError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/news/taxonomy", http.StatusSeeOther)
+}
+
+func (h Handler) adminTaxonomyTermDelete(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	repository, ok := h.Service.Repository.(taxonomyAdminRepository)
+	if !ok || database.RequireExecutor(h.DB) != nil {
+		http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := deleteTaxonomyTermAtomically(r.Context(), h.DB, repository, r.PathValue("id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/news/taxonomy", http.StatusSeeOther)
 }
 
 func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
@@ -729,6 +807,38 @@ func replaceTaxonomyAtomically(ctx context.Context, executor database.Executor, 
 	}
 	defer tx.Rollback()
 	if err := repository.ReplaceTaxonomy(ctx, tx, contentID, terms); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func upsertTaxonomyTermAtomically(ctx context.Context, executor database.Executor, repository taxonomyAdminRepository, term v1.TaxonomyTerm) error {
+	starter, ok := executor.(transactionStarter)
+	if !ok {
+		return repository.UpsertTaxonomyTerm(ctx, executor, term)
+	}
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := repository.UpsertTaxonomyTerm(ctx, tx, term); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func deleteTaxonomyTermAtomically(ctx context.Context, executor database.Executor, repository taxonomyAdminRepository, id string) error {
+	starter, ok := executor.(transactionStarter)
+	if !ok {
+		return repository.DeleteTaxonomyTerm(ctx, executor, id)
+	}
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := repository.DeleteTaxonomyTerm(ctx, tx, id); err != nil {
 		return err
 	}
 	return tx.Commit()

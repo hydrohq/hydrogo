@@ -19,5 +19,6 @@ create routes.
 escaping. News exposes the protected `/admin/news/{id}/taxonomy` endpoint and
 uses the primitive. When the database supports transactions, the endpoint wraps
 replacement in a single commit/rollback boundary (with a regression probe in
-`modules/news/transport/http_test.go`); term management and related-content UX
-remain product work.
+`modules/news/transport/http_test.go`). The protected `/admin/news/taxonomy`
+catalog provides bounded term CRUD and refuses unsafe parent/in-use deletion;
+public related-content UX remains product work.
