@@ -115,6 +115,8 @@ func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 		{name: "media_variants", want: true},
 		{name: "commerce_products", want: false},
 		{name: "news_items", want: false},
+		{name: "news_taxonomy_terms", want: false},
+		{name: "news_taxonomy_relations", want: false},
 	} {
 		var count int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table.name).Scan(&count); err != nil {
@@ -127,6 +129,27 @@ func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 
 	if err := database.CheckCompatibilityForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
 		t.Fatalf("filtered compatibility check failed: %v", err)
+	}
+}
+
+func TestSQLiteNewsModuleFilteringIncludesTaxonomySchema(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "news-module.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"news": true}); err != nil {
+		t.Fatalf("news-filtered migrations failed: %v", err)
+	}
+	for _, table := range []string{"news_items", "news_taxonomy_terms", "news_taxonomy_relations"} {
+		var count int
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&count); err != nil {
+			t.Fatalf("inspect table %q: %v", table, err)
+		}
+		if count != 1 {
+			t.Fatalf("table %q absent from enabled news schema", table)
+		}
 	}
 }
 
