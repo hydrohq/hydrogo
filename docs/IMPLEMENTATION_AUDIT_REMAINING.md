@@ -24,6 +24,8 @@ environment, an external provider, legal review, or a release pipeline.
 - Media, site, news routes and the news worker are registered only when their
   modules are enabled. GraphQL is not exposed without a headless content module.
 - CSP no longer trusts Google font origins.
+- Browser E2E uses a pinned Playwright/npm lockfile; CI always uploads trace,
+  screenshot and video artifacts when a browser job fails.
 
 ## Still required before a production claim
 
@@ -53,8 +55,6 @@ environment, an external provider, legal review, or a release pipeline.
 - Configure external backup/S3-compatible media, KMS/key escrow, alert delivery,
   SMTP bounce handling and production secret/key ceremony.
 - Publish signed release provenance, SBOM and the release artifact from CI.
-- Pin the browser-test Node toolchain and upload Playwright traces/screenshots on
-  failure.
 
 ### Payments and membership
 
