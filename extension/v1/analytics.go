@@ -69,6 +69,9 @@ func (e AnalyticsEvent) Validate() error {
 	if len(e.Day) != 10 || e.Day[4] != '-' || e.Day[7] != '-' {
 		return fmt.Errorf("analytics event day must be YYYY-MM-DD")
 	}
+	if parsed, err := time.Parse("2006-01-02", e.Day); err != nil || parsed.Format("2006-01-02") != e.Day {
+		return fmt.Errorf("analytics event day must be a valid UTC date")
+	}
 	if e.Country != "" && (len(e.Country) != MaxAnalyticsCountryCode || strings.ToUpper(e.Country) != e.Country) {
 		return fmt.Errorf("analytics country must be ISO alpha-2")
 	}
