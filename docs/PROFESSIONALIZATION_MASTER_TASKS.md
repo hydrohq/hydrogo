@@ -146,7 +146,10 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### REL-02 Capacity and deployment proof (`EXTERNAL`)
 
-- [ ] Run real PostgreSQL contract and restore tests.
+- [x] Run real PostgreSQL contract and restore tests on the supported WSL
+    PostgreSQL 18.6 fixture (`docs/validation/R11-wsl-postgresql-contract-2026-09-17.md`);
+    customer-like clean-target restore and measured RPO/RTO remain production
+    drills.
 - [ ] Run two-process reverse-proxy blue/green, drain, rollback, and old-binary
   restart drills.
 - [ ] Measure Compact/Standard/Distributed CPU, RSS, FD, pool, queue, latency,
