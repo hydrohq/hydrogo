@@ -142,10 +142,11 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 	for _, kit := range spec.Kits {
 		kits = append(kits, adminstudio.Kit(strings.ToLower(strings.TrimSpace(kit))))
 	}
-	if err := adminstudio.ValidateKits(kits); err != nil {
+	resolvedKits, err := adminstudio.ResolveKits(kits)
+	if err != nil {
 		return adminstudio.Collection{}, err
 	}
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, Kits: kits}})
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, Kits: resolvedKits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}
@@ -403,6 +404,7 @@ Generated collection: %s
 }
 
 func renderRuntimeWiring(spec Spec) string {
+	kits := resolvedKitNames(spec.Kits)
 	return fmt.Sprintf(`# %s runtime wiring
 
 This generated contract deliberately separates deterministic scaffolding from
@@ -436,7 +438,25 @@ an omitted kit must not add routes, migrations, workers or assets.
 
 Record the owning ADR, migration/rollback result, policy test, deployment
 compatibility result and capacity impact in REVIEW.md before release.
-`, exportName(spec.Name), spec.Name, strings.Join(sortedStrings(spec.Dialects), ", "), strings.Join(sortedStrings(spec.Kits), ", "))
+`, exportName(spec.Name), spec.Name, strings.Join(sortedStrings(spec.Dialects), ", "), strings.Join(kits, ", "))
+}
+
+func resolvedKitNames(declared []string) []string {
+	kits := make([]adminstudio.Kit, 0, len(declared))
+	for _, kit := range declared {
+		kits = append(kits, adminstudio.Kit(strings.ToLower(strings.TrimSpace(kit))))
+	}
+	resolved, err := adminstudio.ResolveKits(kits)
+	if err != nil {
+		// Validate runs before rendering; retain deterministic output if this
+		// helper is ever called independently with an invalid spec.
+		return sortedStrings(declared)
+	}
+	names := make([]string, 0, len(resolved))
+	for _, kit := range resolved {
+		names = append(names, string(kit))
+	}
+	return names
 }
 
 func sortedStrings(values []string) []string {
@@ -697,7 +717,7 @@ export function create%sClient(options: %sRequest) {
 }
 
 func renderKitManifest(spec Spec) string {
-	kits := sortedStrings(spec.Kits)
+	kits := resolvedKitNames(spec.Kits)
 	quoted := make([]string, len(kits))
 	for i, kit := range kits {
 		quoted[i] = fmt.Sprintf("%q", kit)

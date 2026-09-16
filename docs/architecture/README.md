@@ -153,6 +153,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0099](0099-kit-dependency-resolution.md) | Deterministic capability-kit dependency resolution | Accepted |
 | [0100](0100-generated-form-schema.md) | Generated form schema artifact | Accepted |
 | [0101](0101-frontend-starter-manifest.md) | Frontend starter manifest | Accepted |
+| [0102](0102-generated-kit-dependency-artifacts.md) | Generated kit artifacts include resolved dependencies | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
