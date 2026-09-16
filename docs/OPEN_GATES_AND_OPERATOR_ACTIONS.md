@@ -2,7 +2,7 @@
 
 **Durum:** Kod deposundaki güvenli yerel doğrulamalar tamamlanabilir; bu belge production,
 dış servis, hukuk, ticari karar veya gerçek müşteri ortamı gerektiren işleri listeler.
-**Güncelleme:** 2026-09-15
+**Güncelleme:** 2026-09-17
 
 Bu liste “yapılmadı” ile “kullanıcı/operatör ortamı olmadan yapılamaz” ayrımını korur.
 Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmişse CI sonucu
@@ -39,7 +39,7 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 
 - [x] WSL PostgreSQL 18.6 üzerinde contract suite’i `HYDRO_TEST_POSTGRES_URL` ile
   çalıştırıldı; tam/shuffled/race ve backup/restore otomasyonu PASS
-  (`R6-postgres-production-gates-2026-09-16`).
+  (`R6-postgres-production-gates-2026-09-16`, güncel tekrar: `R11-wsl-postgresql-contract-2026-09-17`).
 - [ ] Gerçek müşteri benzeri PostgreSQL verisiyle temiz hedefe restore, RPO/RTO ve
   rollback tatbikatı yapılmalı; yerel contract kanıtı bunun yerine geçmez.
 - [ ] Gerçek müşteri benzeri veriyle SQLite/PostgreSQL backup, restore, migration ve rollback tatbikatı
@@ -94,7 +94,12 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   media derivative, rate limit/Redis, queue lease, cache invalidation ve metrics sayaçlarını ölç.
   Redis limiter'ın gerçek servis üzerindeki atomic limit + TTL davranışı WSL ve CI için
   `R6-redis-rate-limit-2026-09-16` kanıtında doğrulandı; failover, partition, clock-skew,
-  persistence ve uzun süreli kapasite ölçümü bu kapının açık kalan kısmıdır.
+  persistence ve uzun süreli kapasite ölçümü bu kapının açık kalan kısmıdır. WSL preflight’ın
+  otomatik bölümü (gofmt, bütün testler, race, reproducible build ve Redis atomic limiter) PASS
+  olarak `R12-wsl-production-gate-preflight-2026-09-17` kaydına işlendi; gerçek failover/partition,
+  clock-skew, persistence ve kapasite ölçümü hâlâ açık kapıdır. Redis’in servis kesintisi sırasında
+  fail-closed, yeniden başladıktan sonra atomic limit + TTL davranışı `R13-wsl-redis-outage-recovery-2026-09-17`
+  kaydında doğrulandı.
 - [ ] Gerçek müşteri kapasite ölçümü: Compact/Standard/Distributed profillerinde RSS, CPU, DB pool,
   queue depth, cache hit/miss, disk, latency ve hata oranı sınırlarını donanım bazında kaydet.
 
