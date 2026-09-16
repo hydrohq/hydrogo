@@ -12,6 +12,19 @@ func TestEditorialWorkflowContract(t *testing.T) {
 	}
 }
 
+func TestEditorialWorkflowRolePolicy(t *testing.T) {
+	w := EditorialWorkflow{States: []EditorialState{EditorialDraft, EditorialPublished}, Transitions: map[EditorialState][]EditorialState{EditorialDraft: {EditorialPublished}}, RoleTransitions: map[string]map[EditorialState][]EditorialState{"editor": {EditorialDraft: {}}}}
+	if w.CanTransitionForRole("editor", EditorialDraft, EditorialPublished) {
+		t.Fatal("role policy allowed forbidden publish")
+	}
+	if !w.CanTransitionForRole("publisher", EditorialDraft, EditorialPublished) {
+		t.Fatal("role without policy lost general transition")
+	}
+	if err := w.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPreviewPathRejectsExternalTargets(t *testing.T) {
 	if _, err := PreviewPath("//evil.example", "token"); err == nil {
 		t.Fatal("expected external target rejection")

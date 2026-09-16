@@ -8,6 +8,7 @@ import (
 )
 
 const MaxWorkflowStates = 32
+const MaxWorkflowRoles = 16
 
 type EditorialState string
 
@@ -23,8 +24,9 @@ var ErrInvalidEditorialTransition = errors.New("invalid editorial transition")
 // EditorialWorkflow is a bounded state machine. Persistence, scheduling and
 // authorization remain module-owned policies.
 type EditorialWorkflow struct {
-	States      []EditorialState                    `json:"states"`
-	Transitions map[EditorialState][]EditorialState `json:"transitions"`
+	States          []EditorialState                               `json:"states"`
+	Transitions     map[EditorialState][]EditorialState            `json:"transitions"`
+	RoleTransitions map[string]map[EditorialState][]EditorialState `json:"role_transitions,omitempty"`
 }
 
 func (w EditorialWorkflow) Validate() error {
@@ -59,15 +61,61 @@ func (w EditorialWorkflow) Validate() error {
 			seen[to] = struct{}{}
 		}
 	}
+	if len(w.RoleTransitions) > MaxWorkflowRoles {
+		return fmt.Errorf("workflow role policy set is too large")
+	}
+	for role, transitions := range w.RoleTransitions {
+		if !validWorkflowRole(role) {
+			return fmt.Errorf("invalid workflow role %q", role)
+		}
+		for from, targets := range transitions {
+			if _, ok := known[from]; !ok {
+				return fmt.Errorf("role transition source %q is not a workflow state", from)
+			}
+			if len(targets) > MaxWorkflowStates {
+				return fmt.Errorf("role transition set for %q is too large", from)
+			}
+			seen := map[EditorialState]struct{}{}
+			for _, to := range targets {
+				if _, ok := known[to]; !ok {
+					return fmt.Errorf("role transition target %q is not a workflow state", to)
+				}
+				if _, ok := seen[to]; ok {
+					return fmt.Errorf("duplicate role workflow transition %q -> %q", from, to)
+				}
+				seen[to] = struct{}{}
+			}
+		}
+	}
 	return nil
 }
 
 func (w EditorialWorkflow) CanTransition(from, to EditorialState) bool {
+	return w.canTransition(from, to, "")
+}
+
+// CanTransitionForRole applies an optional role-specific allowlist. Roles
+// without an explicit policy retain the workflow's general transition graph.
+func (w EditorialWorkflow) CanTransitionForRole(role string, from, to EditorialState) bool {
+	return w.canTransition(from, to, role)
+}
+
+func (w EditorialWorkflow) canTransition(from, to EditorialState, role string) bool {
 	if w.Validate() != nil {
 		return false
 	}
 	if from == to {
 		return true
+	}
+	if role != "" {
+		if policy, ok := w.RoleTransitions[role]; ok {
+			for _, target := range policy[from] {
+				if target == to {
+					return true
+				}
+			}
+			return false
+		}
 	}
 	for _, target := range w.Transitions[from] {
 		if target == to {
@@ -75,6 +123,21 @@ func (w EditorialWorkflow) CanTransition(from, to EditorialState) bool {
 		}
 	}
 	return false
+}
+
+func validWorkflowRole(role string) bool {
+	if len(role) == 0 || len(role) > 64 {
+		return false
+	}
+	for i, r := range role {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '_' && r != '-' {
+			return false
+		}
+		if i == 0 && (r < 'a' || r > 'z') {
+			return false
+		}
+	}
+	return true
 }
 
 func ValidateEditorialTransition(w EditorialWorkflow, from, to EditorialState) error {
