@@ -13,3 +13,7 @@ go test ./internal/generator
 ```
 
 The test validates that the generated file remains byte-for-byte identical on a second run, the custom file hash is preserved, Pages/News fixture hashes, CRUD repository/transport methods, compilability, and migration immutability.
+
+The generated `openapi.json` also describes the bounded `page`, `page_size`,
+`sort`, `order`, and `filter.*` query parameters plus the stable
+`HydroAPIError` responses (`400`, `401`, `403`, `404`, `429`, and `500`).
