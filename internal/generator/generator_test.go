@@ -351,3 +351,12 @@ func TestGeneratedQueryAdapterContainsBoundedInputGuards(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratedClientUsesBoundedQueryAndCancellation(t *testing.T) {
+	client := renderTypeScriptClient(Spec{Name: "products", Fields: []Field{{Name: "title", Type: "text"}}})
+	for _, marker := range []string{"./query", "AbortSignal", "ProductsListQuery", "ProductsQueryParams", "endpoint.search = encoded"} {
+		if !strings.Contains(client, marker) {
+			t.Fatalf("generated client missing %q: %s", marker, client)
+		}
+	}
+}
