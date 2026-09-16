@@ -225,6 +225,10 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if err != nil || !bytes.Contains(client, []byte("class HydroAPIError")) || !bytes.Contains(client, []byte("parseHydroError")) {
 			t.Fatalf("%s generated client missing bounded typed errors: %v", spec.Name, err)
 		}
+		openapi, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "openapi.json"))
+		if err != nil || !bytes.Contains(openapi, []byte("HydroAPIError")) || !bytes.Contains(openapi, []byte("page_size")) || !bytes.Contains(openapi, []byte("429")) {
+			t.Fatalf("%s OpenAPI missing query/error contract: %v", spec.Name, err)
+		}
 		react, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "react.ts"))
 		if err != nil || !bytes.Contains(react, []byte("QueryOptions")) || !bytes.Contains(react, []byte("QueryKey")) {
 			t.Fatalf("%s React adapter must expose typed query options and keys: %v", spec.Name, err)

@@ -595,7 +595,28 @@ func renderOpenAPI(spec Spec) string {
 	for _, field := range fields {
 		properties[field.Name] = map[string]any{"type": openAPIType(field.Type)}
 	}
-	doc := map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": exportName(spec.Name) + " API", "version": "1.0.0"}, "paths": map[string]any{"/api/v1/" + spec.Name: map[string]any{"get": map[string]any{"responses": map[string]any{"200": map[string]any{"description": "OK"}}}}}, "components": map[string]any{"schemas": map[string]any{exportName(spec.Name): map[string]any{"type": "object", "properties": properties}}}}
+	errorRef := map[string]any{"$ref": "#/components/schemas/HydroAPIError"}
+	responses := map[string]any{
+		"200": map[string]any{"description": "OK", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/" + exportName(spec.Name)}}}}},
+		"400": map[string]any{"description": "Invalid request", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+		"401": map[string]any{"description": "Authentication required", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+		"403": map[string]any{"description": "Forbidden", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+		"404": map[string]any{"description": "Not found", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+		"429": map[string]any{"description": "Rate limited", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+		"500": map[string]any{"description": "Server error", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+	}
+	parameters := []any{
+		map[string]any{"name": "page", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1}},
+		map[string]any{"name": "page_size", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}},
+		map[string]any{"name": "sort", "in": "query", "schema": map[string]any{"type": "string", "maxLength": 64}},
+		map[string]any{"name": "order", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"asc", "desc"}}},
+		map[string]any{"name": "filter.*", "in": "query", "description": "Bounded field filter; keys and values are validated by the resource contract.", "schema": map[string]any{"type": "string", "maxLength": 256}},
+	}
+	path := map[string]any{"get": map[string]any{"parameters": parameters, "responses": responses}}
+	errorSchema := map[string]any{"type": "object", "required": []string{"code", "message", "request_id"}, "properties": map[string]any{
+		"code": map[string]any{"type": "string"}, "message": map[string]any{"type": "string"}, "fields": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}}, "request_id": map[string]any{"type": "string"},
+	}}
+	doc := map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": exportName(spec.Name) + " API", "version": "1.0.0"}, "paths": map[string]any{"/api/v1/" + spec.Name: path}, "components": map[string]any{"schemas": map[string]any{exportName(spec.Name): map[string]any{"type": "object", "properties": properties}, "HydroAPIError": errorSchema}}}
 	data, _ := json.MarshalIndent(doc, "", "  ")
 	return string(data) + "\n"
 }
