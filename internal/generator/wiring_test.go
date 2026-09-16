@@ -36,3 +36,20 @@ func TestGeneratedKitArtifactsIncludeDependencies(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratedFrontendIndexUsesNamespaces(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(root, "generated", "article", "index.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{"export * as api from './client';", "export * as react from './react';", "export * as swr from './swr';"} {
+		if !strings.Contains(string(b), marker) {
+			t.Fatalf("frontend index missing %q: %s", marker, b)
+		}
+	}
+}
