@@ -102,6 +102,9 @@ cd haber-merkezi
 hydro project check
 ```
 
+`hydro project check`, varsa `generated/` altındaki tüm resource scaffold'larını
+da aynı dependency-free preflight içinde doğrular.
+
 Üretilen projede `frontend/starter.json` ve `frontend/README.md`, Hydro,
 shadcn, Material, Carbon, headless veya vanilla sunum katmanlarından birini
 seçerek ilerlemenizi sağlar. Collection spec'leri için `hydro resource new`

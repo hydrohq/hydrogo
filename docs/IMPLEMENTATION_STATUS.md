@@ -8,7 +8,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 
 | Alan | Durum | Nasıl kullanılır? | Kanıt |
 | --- | --- | --- | --- |
-| Public proje komut alanı | Tamamlandı | `hydro project new`, `hydro project check` | `R5-sdk-project-namespace`, `R5-sdk-project-check` |
+| Public proje komut alanı | Tamamlandı | `hydro project new`, `hydro project check` (varsa generated resource'ları da dependency-free doğrular) | `R5-sdk-project-namespace`, `R5-sdk-project-check`, `R6-project-resource-preflight` |
 | Payload uyumlu CLI akışı | Tamamlandı | `check`, `module new`, `resource new`, `resource check` ve `api diff`; eski komutlar korunur | `R5-cli-new-aliases` |
 | İmzalı schema/migration diff | Tamamlandı | Release ledger checksum karşılaştırması; silme/değişiklik fail-closed | `R5-schema-diff` |
 | Permission contract preflight | Tamamlandı | Güvenli/tekrarsız permission adları ve `permissions check` | `R5-permissions-check` |

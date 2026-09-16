@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
 )
 
@@ -69,6 +70,21 @@ func projectCheckCommand(args []string, stdout, stderr io.Writer) error {
 		if _, err := projectgen.LoadLock(lockPath); err != nil {
 			return fmt.Errorf("validate project lock: %w", err)
 		}
+	}
+	projectRoot := "."
+	if configPath != "" {
+		projectRoot = filepath.Dir(configPath)
+	}
+	generatedRoot := filepath.Join(projectRoot, "generated")
+	if info, err := os.Stat(generatedRoot); err == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("generated path is not a directory: %s", generatedRoot)
+		}
+		if _, err := generator.CheckGeneratedCompatibility(projectRoot); err != nil {
+			return fmt.Errorf("validate generated resources: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect generated resources: %w", err)
 	}
 	return validateCommand(clean, stdout, stderr)
 }
