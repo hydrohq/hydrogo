@@ -606,12 +606,22 @@ export interface %sListQuery {
 }
 
 export function %sQueryParams(query: %sListQuery = {}): string {
+  if (query.page !== undefined && (!Number.isInteger(query.page) || query.page < 1)) throw new Error('invalid page');
+  if (query.pageSize !== undefined && (!Number.isInteger(query.pageSize) || query.pageSize < 1 || query.pageSize > 100)) throw new Error('invalid page size');
+  if (query.sort !== undefined && [...query.sort].length > 64) throw new Error('invalid sort');
+  const filterEntries = Object.entries(query.filters ?? {});
+  if (filterEntries.length > 32) throw new Error('too many filters');
   const params = new URLSearchParams();
-  if (query.page) params.set('page', String(query.page));
-  if (query.pageSize) params.set('page_size', String(query.pageSize));
+  if (query.page !== undefined) params.set('page', String(query.page));
+  if (query.pageSize !== undefined) params.set('page_size', String(query.pageSize));
   if (query.sort) params.set('sort', query.sort);
   if (query.order) params.set('order', query.order);
-  for (const [key, value] of Object.entries(query.filters ?? {})) params.set('filter.' + key, String(value));
+  for (const [key, value] of filterEntries) {
+    if (!/^[a-z][a-z0-9_.:-]{0,63}$/.test(key)) throw new Error('invalid filter');
+    const encoded = String(value);
+    if ([...encoded].length > 256) throw new Error('invalid filter value');
+    params.set('filter.' + key, encoded);
+  }
   return params.toString();
 }
 
