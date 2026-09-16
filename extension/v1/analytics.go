@@ -56,6 +56,9 @@ func (c AnalyticsConsent) Validate() error {
 	if c.Decision == ConsentRevoked && (c.RevokedAt == nil || c.RevokedAt.IsZero()) {
 		return fmt.Errorf("revoked consent requires revoked_at")
 	}
+	if c.RevokedAt != nil && c.RevokedAt.Before(c.DecidedAt) {
+		return fmt.Errorf("revoked_at cannot precede decided_at")
+	}
 	if c.Decision != ConsentRevoked && c.RevokedAt != nil {
 		return fmt.Errorf("only revoked consent may have revoked_at")
 	}

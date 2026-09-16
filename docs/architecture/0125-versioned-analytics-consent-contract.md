@@ -16,5 +16,6 @@ create tables, routes or cookies.
 ## Evidence and consequences
 
 `extension/v1/analytics_test.go` covers consent metadata, revocation and
-aggregate-safe event validation. Durable persistence, legal text and legal
-review remain open production/product gates.
+aggregate-safe event validation, including decision/revocation time ordering.
+Durable persistence, legal text and legal review remain open production/product
+gates.

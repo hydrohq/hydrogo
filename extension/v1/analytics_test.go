@@ -29,3 +29,11 @@ func TestAnalyticsEventRejectsImpossibleDate(t *testing.T) {
 		t.Fatal("expected impossible date rejection")
 	}
 }
+
+func TestAnalyticsConsentRejectsRevokeBeforeDecision(t *testing.T) {
+	decided := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
+	revoked := decided.Add(-time.Minute)
+	if err := (AnalyticsConsent{Decision: ConsentRevoked, PurposeVersion: "v1", DecidedAt: decided, RevokedAt: &revoked}).Validate(); err == nil {
+		t.Fatal("expected invalid consent time ordering")
+	}
+}
