@@ -217,6 +217,16 @@ jobs:
         env:
           HYDRO_E2E_ADMIN_PASSWORD: ci-only-e2e-password
         run: powershell -ExecutionPolicy Bypass -File .\scripts\run-e2e.ps1
+      - name: Upload browser failure artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: hydrogo-browser-artifacts
+          path: |
+            e2e/artifacts
+            e2e/test-results
+            e2e/playwright-report
+          if-no-files-found: ignore
 
   race:
     runs-on: ubuntu-latest
