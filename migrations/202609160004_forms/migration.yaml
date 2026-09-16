@@ -1,0 +1,24 @@
+id: "202609160004_forms"
+module: "forms"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "8c1a42d77c193321738e3261dfb6578b0f470d72ba5ea71bbb8bd4e33c453c75"
+  postgres: "007956275daf90fe85453dd14e4d59dcabef32e858fdc5b7e20204170d3f7d56"
+dependencies: []
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Forms capability is enabled"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "At most 1000 bounded form schema rows"
+compatibility: "Adds an optional validated form registry table."
+smoke:
+  - "Form schemas can be validated, replaced and removed independently."
+restart: "Safe to rerun; committed checksum is verified before no-op."
+rollback: "No production down migration; restore or forward migration only."
