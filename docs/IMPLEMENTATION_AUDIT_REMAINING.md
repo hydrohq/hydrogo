@@ -84,8 +84,9 @@ environment, an external provider, legal review, or a release pipeline.
   deleting terms with children or content relations; published News detail
   pages now show bounded taxonomy-aware related content with a safe fallback.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
-  available under `extension/v1` (ADR-0120–0123); module persistence, admin UX,
-  inbox/retention and provider indexing remain open implementation work.
+  available under `extension/v1` (ADR-0120–0123); the Site Edition form inbox,
+  status transitions and retention purge are implemented and audited. A
+  schema-driven form-builder admin UX and provider indexing remain open.
 - Validate the stable SDK, support window, compatibility policy and customer
   portability benchmark on real hardware.
 
