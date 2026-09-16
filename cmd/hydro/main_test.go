@@ -188,11 +188,11 @@ func TestProjectCheckValidatesGeneratedResourcesWhenPresent(t *testing.T) {
 	if err := run([]string{"project", "check", "--config", filepath.Join(projectRoot, "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err != nil {
 		t.Fatalf("project check with generated resource: %v stderr=%s", err, stderr.String())
 	}
-	if err := os.Remove(filepath.Join(projectRoot, "generated", "article", "client.ts")); err != nil {
+	if err := os.WriteFile(filepath.Join(projectRoot, "generated", "article", "client.ts"), []byte("tampered"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := run([]string{"project", "check", "--config", filepath.Join(projectRoot, "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err == nil {
-		t.Fatal("project check accepted incomplete generated resource")
+		t.Fatal("project check accepted tampered generated resource")
 	}
 }
 

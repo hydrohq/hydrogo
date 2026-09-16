@@ -22,6 +22,8 @@ canonical spec hash. The existing explicit form remains supported:
 hydro resource check --spec .\article.yaml --root .
 ```
 
-The command rejects missing, malformed, symlinked, or incomplete generated
-collections. This is a tooling/wiring preflight; runtime route, policy,
-migration, and module composition remain explicit review steps.
+The command rejects missing, malformed, symlinked, incomplete, or tampered
+generated collections. The generator lock carries SHA-256 checksums for every
+generated artifact; older locks without this optional map remain readable for
+backward compatibility. This is a tooling/wiring preflight; runtime route,
+policy, migration, and module composition remain explicit review steps.

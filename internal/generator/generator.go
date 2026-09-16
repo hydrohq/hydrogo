@@ -63,8 +63,9 @@ type Spec struct {
 }
 
 type Lock struct {
-	GeneratorVersion string `json:"generator_version"`
-	SpecSHA256       string `json:"spec_sha256"`
+	GeneratorVersion string            `json:"generator_version"`
+	SpecSHA256       string            `json:"spec_sha256"`
+	ArtifactsSHA256  map[string]string `json:"artifacts_sha256,omitempty"`
 }
 
 func Validate(spec Spec) error {
@@ -188,14 +189,6 @@ func Generate(root string, spec Spec) (Lock, error) {
 	}
 	hash := sha256.Sum256(canonical)
 	lock := Lock{GeneratorVersion: "0.1.0", SpecSHA256: hex.EncodeToString(hash[:])}
-	lockBytes, err := json.MarshalIndent(lock, "", "  ")
-	if err != nil {
-		return Lock{}, err
-	}
-	lockBytes = append(lockBytes, '\n')
-	if err := writeGenerated(filepath.Join(generatedRoot, "generator.lock"), lockBytes); err != nil {
-		return Lock{}, err
-	}
 	files := map[string]string{
 		"spec.json":           renderSpec(spec),
 		"model.go":            renderModel(spec),
@@ -237,6 +230,19 @@ func Generate(root string, spec Spec) (Lock, error) {
 		if err != nil {
 			return Lock{}, err
 		}
+	}
+	lock.ArtifactsSHA256 = make(map[string]string, len(files))
+	for name, content := range files {
+		digest := sha256.Sum256([]byte(content))
+		lock.ArtifactsSHA256[name] = hex.EncodeToString(digest[:])
+	}
+	lockBytes, err := json.MarshalIndent(lock, "", "  ")
+	if err != nil {
+		return Lock{}, err
+	}
+	lockBytes = append(lockBytes, '\n')
+	if err := writeGenerated(filepath.Join(generatedRoot, "generator.lock"), lockBytes); err != nil {
+		return Lock{}, err
 	}
 	return lock, nil
 }
