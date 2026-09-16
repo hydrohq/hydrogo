@@ -733,8 +733,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Haber düzenle", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Yayın revizyonu</span></div><div class="meta-item"><strong>%s</strong><span>Dil</span></div></div><form class="studio-form" method="post" action="/admin/news/%s">%s<input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayın akışı</h2><p class="muted">Taslağı kaydedin, ileri tarihli yayın planlayın veya anında yayınlayın.</p><div class="studio-actions">`, template.HTMLEscapeString(string(item.Status)), item.Version, item.PublishedRevision, template.HTMLEscapeString(item.Locale), template.HTMLEscapeString(item.ID), template.HTML(form.String()), item.Version)
-	_, _ = fmt.Fprintf(w, `<form method="post" action="/admin/news/%s/schedule"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><input name="scheduled_at" type="datetime-local"><button type="submit" class="button">Zamanla</button></form><form method="post" action="/admin/news/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form><form method="post" action="/admin/news/%s/retract"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-quiet button-danger">Yayından Çek</button></form></div></section>`, template.HTMLEscapeString(item.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), item.Version, template.HTMLEscapeString(item.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), item.Version, template.HTMLEscapeString(item.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), item.Version)
+	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Yayın revizyonu</span></div><div class="meta-item"><strong>%s</strong><span>Dil</span></div></div><form class="studio-form" method="post" action="/admin/news/%s">%s<input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayın akışı</h2><p class="muted">Taslağı kaydedin, ileri tarihli yayın planlayın veya anında yayınlayın.</p><div class="studio-actions">%s</div></section>`, template.HTMLEscapeString(string(item.Status)), item.Version, item.PublishedRevision, template.HTMLEscapeString(item.Locale), template.HTMLEscapeString(item.ID), template.HTML(form.String()), item.Version, workflowActionMarkup(h.Service, item, security.CSRFTokenFromContext(r.Context())))
 	_ = ui.AdminEnd(w)
 }
 
@@ -743,6 +742,25 @@ func boolText(value bool) string {
 		return "on"
 	}
 	return ""
+}
+
+func workflowActionMarkup(service news.Service, item news.Item, csrf string) template.HTML {
+	var out strings.Builder
+	id := template.HTMLEscapeString(item.ID)
+	token := template.HTMLEscapeString(csrf)
+	if service.CanTransition(item.Status, v1.EditorialScheduled) {
+		fmt.Fprintf(&out, `<form method="post" action="/admin/news/%s/schedule"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><input name="scheduled_at" type="datetime-local"><button type="submit" class="button">Zamanla</button></form>`, id, token, item.Version)
+	}
+	if service.CanTransition(item.Status, v1.EditorialPublished) {
+		fmt.Fprintf(&out, `<form method="post" action="/admin/news/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form>`, id, token, item.Version)
+	}
+	if service.CanTransition(item.Status, v1.EditorialRetracted) {
+		fmt.Fprintf(&out, `<form method="post" action="/admin/news/%s/retract"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-quiet button-danger">Yayından Çek</button></form>`, id, token, item.Version)
+	}
+	if out.Len() == 0 {
+		out.WriteString(`<p class="muted">Bu durum için kullanılabilir yayın aksiyonu yok.</p>`)
+	}
+	return template.HTML(out.String())
 }
 
 func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
