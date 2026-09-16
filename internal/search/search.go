@@ -67,10 +67,13 @@ func StableResults(response Response, limit int) Response {
 		}
 		return items[i].ID < items[j].ID
 	})
-	if limit > MaxLimit {
+	// A non-positive limit means the caller did not request a page size; still
+	// enforce the contract's hard bound so an untrusted provider cannot return
+	// an unbounded response.
+	if limit <= 0 || limit > MaxLimit {
 		limit = MaxLimit
 	}
-	if limit > 0 && len(items) > limit {
+	if len(items) > limit {
 		items = items[:limit]
 	}
 	if response.Total < len(items) {
