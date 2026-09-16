@@ -83,6 +83,9 @@ environment, an external provider, legal review, or a release pipeline.
   protected term catalog CRUD now validates full parent trees and refuses
   deleting terms with children or content relations; published News detail
   pages now show bounded taxonomy-aware related content with a safe fallback.
+- The current revision also passed the complete WSL2 `go test -race ./... -p 1
+  -count=1` suite; multi-process load and long-duration soak remain production
+  gates (`docs/validation/R8-wsl-race-2026-09-16.md`).
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); the Site Edition form inbox,
   status transitions and retention purge are implemented and audited. A
