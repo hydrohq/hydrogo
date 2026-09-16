@@ -157,6 +157,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0103](0103-generated-frontend-index.md) | Generated frontend namespace entrypoint | Accepted |
 | [0104](0104-bounded-admin-bulk-contract.md) | Bounded provider-neutral Admin bulk contract | Accepted |
 | [0105](0105-generated-bulk-request-adapter.md) | Generated bulk request adapter | Accepted |
+| [0106](0106-opt-in-admin-bulk-list-surface.md) | Opt-in Admin bulk list surface | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

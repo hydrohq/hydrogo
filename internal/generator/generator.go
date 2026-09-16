@@ -48,6 +48,7 @@ type Admin struct {
 	Label       string               `json:"label" yaml:"label"`
 	Description string               `json:"description" yaml:"description"`
 	Actions     []adminstudio.Action `json:"actions" yaml:"actions"`
+	BulkActions []adminstudio.Action `json:"bulk_actions" yaml:"bulk_actions"`
 }
 
 type Spec struct {
@@ -107,6 +108,11 @@ func Validate(spec Spec) error {
 			return ErrInvalidSpec
 		}
 	}
+	for _, action := range spec.Admin.BulkActions {
+		if strings.TrimSpace(action.Label) == "" || !strings.HasPrefix(action.Href, "/") || strings.HasPrefix(action.Href, "//") {
+			return ErrInvalidSpec
+		}
+	}
 	knownKits := map[string]struct{}{"localization": {}, "media": {}, "seo": {}, "forms": {}, "redirects": {}, "search": {}, "commerce": {}}
 	for _, kit := range spec.Kits {
 		if _, ok := knownKits[strings.ToLower(strings.TrimSpace(kit))]; !ok {
@@ -146,7 +152,8 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, Kits: resolvedKits}})
+	bulkActions := append([]adminstudio.Action(nil), spec.Admin.BulkActions...)
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}

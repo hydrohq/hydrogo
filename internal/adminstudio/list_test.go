@@ -47,3 +47,23 @@ func TestRenderListUsesSafeDefaultEmptyMessage(t *testing.T) {
 		t.Fatalf("default empty message missing: %s", out.String())
 	}
 }
+
+func TestRenderListOptInBulkSelection(t *testing.T) {
+	collection := Collection{ID: "articles", Label: "Articles", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Yeni", Href: "/admin/articles/new"}}, BulkActions: []Action{{Label: "Yayınla", Href: "/admin/articles/bulk/publish"}}}
+	var out strings.Builder
+	if err := RenderList(&out, ListData{Collection: collection, Rows: []Row{{ID: "a1", Values: map[string]string{"title": "Hello"}}}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`data-bulk-select-all`, `value="a1"`, `data-bulk-action="Yayınla"`} {
+		if !strings.Contains(out.String(), marker) {
+			t.Fatalf("bulk list missing %q: %s", marker, out.String())
+		}
+	}
+}
+
+func TestRenderListBulkSelectionRequiresRowID(t *testing.T) {
+	collection := Collection{ID: "articles", Label: "Articles", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Yeni", Href: "/admin/articles/new"}}, BulkActions: []Action{{Label: "Yayınla", Href: "/admin/articles/bulk/publish"}}}
+	if err := RenderList(&strings.Builder{}, ListData{Collection: collection, Rows: []Row{{Values: map[string]string{"title": "Hello"}}}}); err != ErrInvalidForm {
+		t.Fatalf("missing row ID error = %v", err)
+	}
+}

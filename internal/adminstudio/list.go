@@ -6,6 +6,7 @@ import (
 )
 
 type Row struct {
+	ID      string
 	Values  map[string]string
 	Actions []Action
 }
@@ -20,6 +21,9 @@ type ListData struct {
 
 func (d ListData) ColumnCount() int {
 	count := 1 // actions column
+	if len(d.Collection.BulkActions) > 0 {
+		count++
+	}
 	for _, field := range d.Collection.Fields {
 		if field.VisibleInList {
 			count++
@@ -35,7 +39,7 @@ func (d ListData) ResolvedEmptyMessage() string {
 	return "Bu koleksiyonda henüz kayıt bulunmuyor."
 }
 
-var listTemplate = template.Must(template.New("admin-list").Parse(`<table><caption class="visually-hidden">{{.Collection.Label}} listesi</caption><thead><tr>{{range .Collection.Fields}}{{if .VisibleInList}}<th scope="col">{{.Label}}</th>{{end}}{{end}}<th scope="col" style="text-align:right">İşlemler</th></tr></thead><tbody>{{if .Rows}}{{range .Rows}}{{$row := .}}<tr>{{range $.Collection.Fields}}{{if .VisibleInList}}<td>{{index $row.Values .ID}}</td>{{end}}{{end}}<td style="text-align:right">{{range .Actions}}<a href="{{.Href}}">{{.Label}}</a> {{end}}</td></tr>{{end}}{{else}}<tr><td colspan="{{.ColumnCount}}" class="empty-state"><p role="status">{{.ResolvedEmptyMessage}}</p></td></tr>{{end}}</tbody></table>`))
+var listTemplate = template.Must(template.New("admin-list").Parse(`<table><caption class="visually-hidden">{{.Collection.Label}} listesi</caption><thead><tr>{{if .Collection.BulkActions}}<th scope="col"><span class="visually-hidden">Seç</span><input type="checkbox" aria-label="Tümünü seç" data-bulk-select-all></th>{{end}}{{range .Collection.Fields}}{{if .VisibleInList}}<th scope="col">{{.Label}}</th>{{end}}{{end}}<th scope="col" style="text-align:right">İşlemler</th></tr></thead><tbody>{{if .Rows}}{{range .Rows}}{{$row := .}}<tr>{{if $.Collection.BulkActions}}<td><input type="checkbox" value="{{$row.ID}}" aria-label="{{$.Collection.Label}} kaydını seç" data-bulk-select></td>{{end}}{{range $.Collection.Fields}}{{if .VisibleInList}}<td>{{index $row.Values .ID}}</td>{{end}}{{end}}<td style="text-align:right">{{range .Actions}}<a href="{{.Href}}">{{.Label}}</a> {{end}}</td></tr>{{end}}{{else}}<tr><td colspan="{{.ColumnCount}}" class="empty-state"><p role="status">{{.ResolvedEmptyMessage}}</p></td></tr>{{end}}</tbody></table>{{if .Collection.BulkActions}}<div class="studio-bulk-actions" role="group" aria-label="Toplu işlemler">{{range .Collection.BulkActions}}<a href="{{.Href}}" data-bulk-action="{{.Label}}">{{.Label}}</a>{{end}}</div>{{end}}`))
 
 // RenderList renders read-only collection rows. Action URLs are constrained by
 // the collection registry, while record mutations remain module-owned routes.
@@ -44,6 +48,9 @@ func RenderList(w io.Writer, data ListData) error {
 		return ErrInvalidForm
 	}
 	for _, row := range data.Rows {
+		if len(data.Collection.BulkActions) > 0 && row.ID == "" {
+			return ErrInvalidForm
+		}
 		for _, action := range row.Actions {
 			if action.Label == "" || action.Href == "" || action.Href[0] != '/' || (len(action.Href) > 1 && action.Href[1] == '/') {
 				return ErrInvalidForm
