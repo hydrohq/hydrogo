@@ -13,15 +13,23 @@ export class HydroGoError extends Error {
   constructor(readonly status: number, readonly body: string) { super(`HydroGo API returned ${status}`); }
 }
 
-export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch };
+export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number };
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+const MAX_TIMEOUT_MS = 120_000;
+const MAX_ERROR_BODY_CODEPOINTS = 8_192;
 
 export class HydroGoClient {
   private readonly origin: string;
   private readonly requestFetch: typeof fetch;
+  private readonly timeoutMs: number;
 
   constructor(options: HydroGoClientOptions) {
     this.origin = options.origin.replace(/\/$/, "");
     this.requestFetch = options.fetch ?? fetch;
+    const timeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    if (!Number.isInteger(timeout) || timeout < 1 || timeout > MAX_TIMEOUT_MS) throw new RangeError("timeoutMs must be between 1 and 120000");
+    this.timeoutMs = timeout;
   }
 
   async getPage(locale: string, slug: string): Promise<Page> {
@@ -67,10 +75,19 @@ export class HydroGoClient {
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await this.requestFetch(`${this.origin}${path}`, init);
-    if (response.status === 204) return undefined as T;
-    if (!response.ok) throw new HydroGoError(response.status, await response.text());
-    return response.json() as Promise<T>;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.requestFetch(`${this.origin}${path}`, { ...init, signal: init.signal ?? controller.signal });
+      if (response.status === 204) return undefined as T;
+      if (!response.ok) {
+        const body = [...(await response.text())].slice(0, MAX_ERROR_BODY_CODEPOINTS).join("");
+        throw new HydroGoError(response.status, body);
+      }
+      return response.json() as Promise<T>;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
