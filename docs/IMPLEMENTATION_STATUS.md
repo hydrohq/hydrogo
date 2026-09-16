@@ -34,6 +34,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Bounded Admin bulk contract | Kısmi tamamlandı (yerel) | 500 kayıt sınırı, deterministik ID normalizasyonu ve fail-closed istek zarfı; generated `bulk.ts` aynı zarfı üretir; mutation/policy modüle ait | `R5-bounded-admin-bulk-contract`, `R5-generated-bulk-request-adapter` |
 | Opt-in Admin bulk list surface | Kısmi tamamlandı (yerel) | `BulkActions` tanımlı collection'larda erişilebilir seçim kutuları ve escaped action metadata; gerçek mutation/CSRF/policy modüle ait | `R5-opt-in-admin-bulk-list-surface` |
 | Bounded async relation contract | Kısmi tamamlandı (yerel) | 50 varsayılan/100 hard limit, bounded query/cursor ve deterministic ID/label projection; provider lookup/auth modüle ait | `R5-bounded-async-relation-contract` |
+| Locale fallback chain | Kısmi tamamlandı (yerel) | Exact → primary language → supported default sırası, 128 locale sınırı ve fail-closed normalizasyon; modül sorgu/provider entegrasyonu açık | `R5-locale-fallback-chain` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
 | WSL race doğrulaması | Tamamlandı (yerel) | Broker/runtime/release hedef paketleri `go test -race` | `wsl-race-broker-runtime-2026-09-16` |
