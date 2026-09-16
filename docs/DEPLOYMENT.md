@@ -49,9 +49,17 @@ version: "3.8"
 
 services:
   hydrogo:
-    image: my-hydrogo-app:latest
+    image: my-hydrogo-app:1.0.0
     container_name: hydrogo_app
     restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     ports:
       - "8080:8080"
     environment:
@@ -83,22 +91,46 @@ services:
     image: postgres:16-alpine
     container_name: hydrogo_pg
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_DB: hydrogo
       POSTGRES_USER: hydro
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hydro -d hydrogo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: hydrogo_redis
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   hydrogo:
-    image: my-hydrogo-app:latest
+    image: my-hydrogo-app:1.0.0
     container_name: hydrogo_app
     restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     depends_on:
       - db
       - redis
@@ -108,16 +140,26 @@ services:
       - HYDRO_HTTP_ADDRESS=0.0.0.0:8080
       - HYDRO_CAPACITY_PROFILE=standard
       - HYDRO_DATABASE_DIALECT=postgres
-      - HYDRO_DATABASE_DSN=postgres://hydro:${DB_PASSWORD}@db:5432/hydrogo?sslmode=disable
+      - HYDRO_DATABASE_DSN=postgres://hydro:${DB_PASSWORD}@db:5432/hydrogo?sslmode=${DB_SSLMODE:-require}
       - HYDRO_REDIS_URL=redis://redis:6379/0
       - HYDRO_MEDIA_DIR=/app/data/media
     volumes:
       - media_data:/app/data/media
+      - ./config.yaml:/app/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
   pg_data:
   media_data:
 ```
+
+> `sslmode=disable` yalnızca izole, yerel geliştirme ağı içindir. Standard
+> profile production dağıtımında PostgreSQL TLS sertifikası ve `DB_SSLMODE`
+> değeri deployment secret/config katmanından sağlanmalıdır.
 
 ---
 
