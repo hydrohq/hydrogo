@@ -91,6 +91,26 @@ In local development, while the proxy address remains static (`127.0.0.1:8090`),
 go run ./tools/devserver
 ```
 
+### SDK ile hızlı proje başlatma
+
+Yeni bir Client Edition iskeleti ve frontend entegrasyon manifesti üretmek için:
+
+```powershell
+go run ./cmd/hydro project new haber-merkezi --preset=news
+cd haber-merkezi
+hydro project check
+```
+
+Üretilen projede `frontend/starter.json` ve `frontend/README.md`, Hydro,
+shadcn, Material, Carbon, headless veya vanilla sunum katmanlarından birini
+seçerek ilerlemenizi sağlar. Collection spec'leri için `hydro resource new`
+her kaynak altında tip güvenli `client.ts`, React/SWR/HTMX/vanilla adapter'ları,
+`form.schema.json`, OpenAPI ve CRUD yardımcılarını üretir. Bu dosyalar Core'a
+çalışma zamanı bağımlılığı eklemez; kimlik doğrulama, politika ve cache
+geçersizleştirme Client Edition sınırında kalır. Ayrıntılı akış için
+[`docs/SDK.md`](docs/SDK.md), [`docs/PROJECT_GENERATOR.md`](docs/PROJECT_GENERATOR.md)
+ve [`docs/CLI_WORKFLOW.md`](docs/CLI_WORKFLOW.md) belgelerine bakın.
+
 The default demo database `data/demo.sqlite` is used. Provide `--database-dsn` for a different database; proxy or internal application ports can be changed with `--address` and `--app-address` respectively.
 
 Endpoints:
