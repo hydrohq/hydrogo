@@ -18,6 +18,8 @@ security checks.
 
 The command creates configuration, `hydrogo.lock`, a runnable minimal theme, project migration and custom-extension placeholders, seed guidance, an `UPGRADE.md` compatibility runbook, and a metadata-driven E2E manifest. `--git` runs `git init` only inside the newly created directory; it never adds a remote or pushes.
 
+Generated projects also include `frontend/contracts.ts`, dependency-free TypeScript shapes for the versioned forms, workflow, search, kit and analytics-consent contracts. These types are framework/design-system agnostic and do not activate any runtime module.
+
 Supported presets are `news`, `editorial`, `commerce`, `compact-site`, `corporate`, `portal`, `headless`, `membership`, `dashboard`, and `erp`. `editorial` is the content-focused news profile; `compact-site` is the minimal pages/media/site profile. These presets keep unrelated modules disabled, select enabled feature contracts, and do not copy Core source code. The licensed HydroGo runtime is supplied separately and is referenced by the generated configuration and lock file.
 
 ## Module authoring

@@ -261,6 +261,7 @@ func Generate(opts Options) (string, error) {
 		"e2e/manifest.json":     e2eManifestJSON,
 		"frontend/starter.json": starterManifest(opts, lock),
 		"frontend/README.md":    frontendStarterReadme(opts),
+		"frontend/contracts.ts": frontendContractsTemplate(),
 		"custom/README.md":      "# Custom Business Logic\n\nPlace client-specific handlers, extension hooks, and integrations here.\nHydroGo Core remains external and is not modified in this project.\n",
 		"migrations/README.md":  "# Project Migrations\n\nPlace project-specific SQL migrations here. HydroGo Core migrations are applied automatically by the licensed runtime.\n",
 	}
@@ -342,7 +343,22 @@ func starterManifest(opts Options, lock Lock) string {
 }
 
 func frontendStarterReadme(opts Options) string {
-	return fmt.Sprintf("# Frontend starter\n\nThis Client Edition uses the **%s** preset and exposes `frontend/starter.json` as the stable integration manifest. Choose a design-system adapter (Hydro, shadcn, Material, Carbon, headless, or vanilla) in your frontend build. The manifest contains no credentials and does not add a runtime dependency to Core.\n\nGenerated API clients and form schemas can be consumed from each resource's `generated/` directory. Keep authentication, policy, and cache invalidation in the Client Edition.\n", opts.Preset)
+	return fmt.Sprintf("# Frontend starter\n\nThis Client Edition uses the **%s** preset and exposes `frontend/starter.json` as the stable integration manifest. Choose a design-system adapter (Hydro, shadcn, Material, Carbon, headless, or vanilla) in your frontend build. The manifest contains no credentials and does not add a runtime dependency to Core.\n\n`contracts.ts` contains dependency-free TypeScript shapes for forms, workflow, search, kits and consent. Generated API clients and form schemas can be consumed from each resource's `generated/` directory. Keep authentication, policy, and cache invalidation in the Client Edition.\n", opts.Preset)
+}
+
+func frontendContractsTemplate() string {
+	return `// Generated dependency-free contracts. Implementations stay in the Client Edition.
+export type EditorialState = string;
+export interface EditorialWorkflow { states: EditorialState[]; transitions: Record<EditorialState, EditorialState[]>; }
+export interface FormField { id: string; type: 'text' | 'email' | 'textarea' | 'number' | 'checkbox' | 'select'; label: string; required?: boolean; options?: string[]; }
+export interface FormDefinition { id: string; title: string; fields: FormField[]; }
+export interface SearchQuery { text: string; locale?: string; limit?: number; offset?: number; }
+export interface SearchResult { id: string; score: number; title: string; snippet?: string; }
+export interface SearchResponse { items: SearchResult[]; total: number; }
+export type CapabilityKit = 'localization' | 'media' | 'seo' | 'forms' | 'redirects' | 'search' | 'commerce';
+export interface AnalyticsConsent { decision: 'rejected' | 'granted' | 'revoked'; purpose_version: string; decided_at: string; revoked_at?: string; }
+export type AnalyticsEvent = { type: 'page_view' | 'session_duration' | 'country_visit'; day: string; country?: string; duration_seconds?: number; };
+`
 }
 
 func isPreset(value string) bool {
