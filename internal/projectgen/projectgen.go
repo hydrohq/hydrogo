@@ -348,6 +348,7 @@ func frontendStarterReadme(opts Options) string {
 
 func frontendContractsTemplate() string {
 	return `// Generated dependency-free contracts. Implementations stay in the Client Edition.
+export const HYDRO_CONTRACT_VERSION = 'v1' as const;
 export type EditorialState = string;
 export interface EditorialWorkflow { states: EditorialState[]; transitions: Record<EditorialState, EditorialState[]>; }
 export interface FormField { id: string; type: 'text' | 'email' | 'textarea' | 'number' | 'checkbox' | 'select'; label: string; required?: boolean; options?: string[]; }

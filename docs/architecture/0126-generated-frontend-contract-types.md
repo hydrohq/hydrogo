@@ -11,7 +11,9 @@ free TypeScript contract for forms, editorial workflows, search, capability
 kits and analytics consent. It is metadata/type scaffolding only: authentication,
 authorization, persistence, provider adapters and design-system implementation
 remain in the Client Edition. The generator must not add a runtime dependency to
-Core or assume a particular frontend framework.
+Core or assume a particular frontend framework. The file exposes an explicit
+`HYDRO_CONTRACT_VERSION = 'v1'` marker; breaking contract changes require a new
+versioned namespace and generator compatibility review.
 
 ## Evidence and consequences
 
