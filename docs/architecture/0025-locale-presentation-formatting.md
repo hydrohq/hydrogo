@@ -20,4 +20,8 @@ depend on locale formatting.
 
 Modules can present values consistently without duplicating formatting logic or
 leaking locale concerns into Core contracts. Translation catalogs and complete
-product locale review remain Client Edition/product responsibilities.
+product locale review remain Client Edition/product responsibilities. The
+rendering contract is regression-tested for Turkish, English, Japanese, and
+malformed-locale fallback in `internal/i18n`; RTL, mixed-direction, and
+long-text behavior is covered by the opt-in Playwright fixture documented in
+`docs/validation/LOCALE_FIXTURES.md`.
