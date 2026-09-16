@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"context"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -10,12 +11,24 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
 type httpAssetRepo struct{ asset Asset }
+
+type httpSignedBlobStore struct{ url string }
+
+func (s httpSignedBlobStore) Put(context.Context, string, io.Reader, int64, string) error { return nil }
+func (s httpSignedBlobStore) Get(context.Context, string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("")), nil
+}
+func (s httpSignedBlobStore) Delete(context.Context, string) error { return nil }
+func (s httpSignedBlobStore) PresignedURL(context.Context, string, time.Duration) (string, error) {
+	return s.url, nil
+}
 
 func (r httpAssetRepo) Get(context.Context, database.Executor, string) (Asset, error) {
 	return r.asset, nil
@@ -79,6 +92,44 @@ func TestPublicMediaIsServedWhenReady(t *testing.T) {
 	handler.serve(response, request)
 	if response.Code != http.StatusOK || response.Body.String() != "public" {
 		t.Fatalf("public media response = %d/%q", response.Code, response.Body.String())
+	}
+}
+
+func TestMediaSignedURLRequiresEditorAndReturnsBoundedURL(t *testing.T) {
+	asset := Asset{ID: "a-url", StorageKey: "images/a.png", MimeType: "image/png", Status: "ready", Visibility: VisibilityPrivate}
+	handler := HTTPHandler{Service: Service{BlobStore: httpSignedBlobStore{url: "https://cdn.example.test/images/a.png?sig=x"}, Assets: httpAssetRepo{asset: asset}}}
+	request := httptest.NewRequest(http.MethodGet, "/api/media/a-url/url?expires=60", nil)
+	response := httptest.NewRecorder()
+	handler.url(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("anonymous signed URL status = %d", response.Code)
+	}
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
+	response = httptest.NewRecorder()
+	handler.url(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "https://cdn.example.test") || !strings.Contains(response.Body.String(), `"expires_in":60`) {
+		t.Fatalf("signed URL response = %d/%s", response.Code, response.Body.String())
+	}
+}
+
+func TestMediaSignedURLRejectsInvalidExpiryOrMissingProvider(t *testing.T) {
+	asset := Asset{ID: "a-url", StorageKey: "images/a.png", Status: "ready", Visibility: VisibilityPublic}
+	user := &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}
+	for _, raw := range []string{"0", "86401", "invalid"} {
+		handler := HTTPHandler{Service: Service{BlobStore: httpSignedBlobStore{url: "https://cdn.example.test/a.png"}, Assets: httpAssetRepo{asset: asset}}}
+		request := httptest.NewRequest(http.MethodGet, "/api/media/a-url/url?expires="+raw, nil).WithContext(auth.WithUser(context.Background(), user))
+		response := httptest.NewRecorder()
+		handler.url(response, request)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("expiry %q status = %d", raw, response.Code)
+		}
+	}
+	handler := HTTPHandler{Service: Service{Assets: httpAssetRepo{asset: asset}}}
+	request := httptest.NewRequest(http.MethodGet, "/api/media/a-url/url", nil).WithContext(auth.WithUser(context.Background(), user))
+	response := httptest.NewRecorder()
+	handler.url(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("missing signer status = %d", response.Code)
 	}
 }
 
