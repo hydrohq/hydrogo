@@ -19,5 +19,7 @@ Relational persistence and admin editing stay module-owned.
 
 `extension/v1/taxonomy_test.go` proves localized terms, parent-cycle rejection,
 unknown relation rejection and deterministic copies. This closes the SDK
-contract portion; relational persistence, admin editing and multilingual UX
-remain product work and stay in the open-gates list.
+contract portion. News persistence is now implemented by
+`202609160001_news_taxonomy` and its dialect-neutral repository; admin editing,
+authorization integration and multilingual UX remain product work and stay in
+the open-gates list.
