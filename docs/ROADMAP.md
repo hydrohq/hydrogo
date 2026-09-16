@@ -1,6 +1,6 @@
 # HydroGo application roadmap
 
-**Date:** 2026-09-10 · **Status:** R0, R1 S03, and R2 completed; R3 security start gate completed, commercial pilot gates open.
+**Date:** 2026-09-17 · **Status:** R0, R1 S03, and R2 completed; R3 security start gate completed, local WSL PostgreSQL/Redis production preflight and outage recovery evidence recorded; commercial pilot gates open.
 
 This file tracks the order of work and delivery gates. Architectural rulings are in ADRs, detailed scope is in the [master plan](implementation_plan.md), and experiment definitions are in the [pre-implementation review](PRE_IMPLEMENTATION_REVIEW.md). Schedule estimation will be made after the initial technical experiments are completed. A gate only closes with a code revision and a validation report.
 
@@ -111,6 +111,6 @@ R3 initial commit: disabled user/session revoke, admin-controlled user disable r
 
 ## Evidence and progress tracking
 
-The necessary conditions and evidence format for gates left open in real environments are maintained in the [Production gate evidence checklist](validation/PRODUCTION-GATES.md). Latest automated reliability and security hardening evidence: [R7 validation report](validation/R7-reliability-security-hardening-2026-09-10.md).
+The necessary conditions and evidence format for gates left open in real environments are maintained in the [Production gate evidence checklist](validation/PRODUCTION-GATES.md). Latest automated reliability and security hardening evidence: [R7 validation report](validation/R7-reliability-security-hardening-2026-09-10.md). Latest WSL execution records: [PostgreSQL contract](validation/R11-wsl-postgresql-contract-2026-09-17.md), [production-gate preflight](validation/R12-wsl-production-gate-preflight-2026-09-17.md), and [Redis outage recovery](validation/R13-wsl-redis-outage-recovery-2026-09-17.md).
 
 Every piece of work is delivered as a small reviewable change. The report includes commit, environment/toolchain/DB versions, commands, expected/observed outcome, limitations, and the related roadmap item. `docs/validation/` only holds real results; planned tests are not shown as successful. In a failed experiment, an alternative is evaluated first; if an accepted decision changes, a new ADR is written.
