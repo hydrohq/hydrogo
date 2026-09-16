@@ -213,8 +213,10 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add bounded taxonomy-aware related-content discovery for published News
   detail pages with a safe recent-news fallback.
 - [x] Add the provider-neutral editorial workflow contract (`extension/v1`; ADR-0122).
-- [ ] Integrate configurable editorial workflow and moderation transitions into
-  module persistence, authorization and admin UX.
+- [x] Enforce an injectable, versioned editorial transition policy at the News
+  service boundary while preserving the default publication flow.
+- [ ] Add persisted custom moderation states, role-specific transitions and
+  corresponding Admin Studio UX.
 - [x] Add the provider-neutral forms contract with bounded validation
   (`extension/v1`; ADR-0121).
 - [x] Add bounded form inbox, status transitions and retention purge with

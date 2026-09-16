@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/content"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
@@ -41,6 +42,39 @@ type Service struct {
 	Outbox           OutboxWriter
 	SupportedLocales []string
 	DefaultLocale    string
+	Workflow         v1.EditorialWorkflow
+}
+
+var ErrInvalidWorkflowTransition = errors.New("invalid editorial workflow transition")
+
+func defaultEditorialWorkflow() v1.EditorialWorkflow {
+	return v1.EditorialWorkflow{
+		States: []v1.EditorialState{v1.EditorialDraft, v1.EditorialScheduled, v1.EditorialPublished, v1.EditorialRetracted},
+		Transitions: map[v1.EditorialState][]v1.EditorialState{
+			v1.EditorialDraft:     {v1.EditorialScheduled, v1.EditorialPublished},
+			v1.EditorialScheduled: {v1.EditorialPublished, v1.EditorialDraft, v1.EditorialRetracted},
+			v1.EditorialPublished: {v1.EditorialRetracted, v1.EditorialDraft},
+			v1.EditorialRetracted: {v1.EditorialScheduled, v1.EditorialPublished},
+		},
+	}
+}
+
+func (s Service) editorialWorkflow() v1.EditorialWorkflow {
+	if len(s.Workflow.States) == 0 {
+		return defaultEditorialWorkflow()
+	}
+	return s.Workflow
+}
+
+func (s Service) validateTransition(ctx context.Context, tx database.Executor, id string, target v1.EditorialState) error {
+	item, err := s.Repository.Get(ctx, tx, id)
+	if err != nil {
+		return err
+	}
+	if err := v1.ValidateEditorialTransition(s.editorialWorkflow(), v1.EditorialState(item.Status), target); err != nil {
+		return ErrInvalidWorkflowTransition
+	}
+	return nil
 }
 
 // GetPublishedByRoute applies the configured exact → primary → default
@@ -134,6 +168,9 @@ func (s Service) Schedule(ctx context.Context, id string, expectedVersion int, a
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.validateTransition(ctx, tx, id, v1.EditorialScheduled); err != nil {
+			return err
+		}
 		generation, err := s.Repository.Schedule(ctx, tx, id, expectedVersion, at.UTC())
 		if err != nil {
 			return err
@@ -150,6 +187,9 @@ func (s Service) RunScheduled(ctx context.Context, id string, generation int64, 
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.validateTransition(ctx, tx, id, v1.EditorialPublished); err != nil {
+			return err
+		}
 		if err := s.Repository.PublishScheduled(ctx, tx, id, generation, now.UTC()); err != nil {
 			return err
 		}
@@ -162,6 +202,9 @@ func (s Service) Publish(ctx context.Context, id string, expectedVersion int) er
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.validateTransition(ctx, tx, id, v1.EditorialPublished); err != nil {
+			return err
+		}
 		if err := s.Repository.PublishNow(ctx, tx, id, expectedVersion); err != nil {
 			return err
 		}
@@ -174,6 +217,9 @@ func (s Service) Retract(ctx context.Context, id string, expectedVersion int) er
 		return err
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.validateTransition(ctx, tx, id, v1.EditorialRetracted); err != nil {
+			return err
+		}
 		if err := s.Repository.Retract(ctx, tx, id, expectedVersion); err != nil {
 			return err
 		}
