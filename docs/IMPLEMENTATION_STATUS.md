@@ -79,7 +79,7 @@ ve ADR-0091'e bakın.
 - **Faz 4 (kit ekosistemi):** Kısmi. Kit/edition sözleşmeleri mevcut; registry,
   dependency çözümleme ve uyumluluk matrisi tamamlanmadı.
 - **Faz 5 (frontend SDK/starter):** Kısmi. Adapter sözleşmeleri, typed client/query akışı, disposable SQLite demo ve 47 testli yerel Chromium E2E kanıtı var; harici Client Edition ve production kimlik doğrulama kabulü tamamlanmadı.
-- **Headless client hardening:** Tamamlandı (yerel). Starter istemcisi bounded timeout ve hata gövdesi sınırı uygular; gerçek browser/kimlik doğrulama kabulü ayrı kapıdır.
+- **Headless client hardening:** Tamamlandı (yerel). Starter ve generated istemciler bounded timeout/hata gövdesi sınırı, typed `HydroAPIError` ve request-id taşıyan hata gövdesi kullanır; gerçek browser/kimlik doğrulama kabulü ayrı kapıdır.
 - **Faz 6 (production/upgrade):** Açık. PostgreSQL kapasitesi, blue/green,
   restore ve imzalı cross-OS release kanıtları bekliyor.
 
