@@ -160,6 +160,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0106](0106-opt-in-admin-bulk-list-surface.md) | Opt-in Admin bulk list surface | Accepted |
 | [0107](0107-bounded-async-relation-contract.md) | Bounded async relation contract | Accepted |
 | [0108](0108-locale-fallback-chain.md) | Deterministic bounded locale fallback chain | Accepted |
+| [0109](0109-s3-cdn-public-url-boundary.md) | Explicit bounded S3/CDN public URL boundary | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
