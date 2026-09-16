@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	stdsql "database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -59,6 +60,10 @@ type taxonomyAdminRepository interface {
 	ListTaxonomy(context.Context, database.Executor, string) ([]v1.TaxonomyTerm, error)
 	ListTaxonomyTerms(context.Context, database.Executor) ([]v1.TaxonomyTerm, error)
 	ReplaceTaxonomy(context.Context, database.Executor, string, []v1.TaxonomyTerm) error
+}
+
+type transactionStarter interface {
+	BeginTx(context.Context, *stdsql.TxOptions) (*stdsql.Tx, error)
 }
 
 type input struct {
@@ -706,11 +711,27 @@ func (h Handler) adminTaxonomy(w http.ResponseWriter, r *http.Request) {
 			selected = append(selected, term)
 		}
 	}
-	if err := repository.ReplaceTaxonomy(r.Context(), h.DB, r.PathValue("id"), selected); err != nil {
+	if err := replaceTaxonomyAtomically(r.Context(), h.DB, repository, r.PathValue("id"), selected); err != nil {
 		writeError(w, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
+}
+
+func replaceTaxonomyAtomically(ctx context.Context, executor database.Executor, repository taxonomyAdminRepository, contentID string, terms []v1.TaxonomyTerm) error {
+	starter, ok := executor.(transactionStarter)
+	if !ok {
+		return repository.ReplaceTaxonomy(ctx, executor, contentID, terms)
+	}
+	tx, err := starter.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := repository.ReplaceTaxonomy(ctx, tx, contentID, terms); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (h Handler) adminSchedule(w http.ResponseWriter, r *http.Request) {

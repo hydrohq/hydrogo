@@ -1,8 +1,50 @@
 package transport
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
+
+type taxonomyTransactionProbe struct{}
+
+func (taxonomyTransactionProbe) ListTaxonomy(context.Context, database.Executor, string) ([]v1.TaxonomyTerm, error) {
+	return nil, nil
+}
+
+func (taxonomyTransactionProbe) ListTaxonomyTerms(context.Context, database.Executor) ([]v1.TaxonomyTerm, error) {
+	return nil, nil
+}
+
+func (taxonomyTransactionProbe) ReplaceTaxonomy(ctx context.Context, executor database.Executor, _ string, _ []v1.TaxonomyTerm) error {
+	if _, err := executor.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS taxonomy_transaction_probe (id INTEGER PRIMARY KEY)`); err != nil {
+		return err
+	}
+	_, err := executor.ExecContext(ctx, `INSERT INTO taxonomy_transaction_probe (id) VALUES (1)`)
+	return err
+}
+
+func TestReplaceTaxonomyAtomicallyUsesDatabaseTransaction(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "taxonomy-transaction.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := replaceTaxonomyAtomically(ctx, db, taxonomyTransactionProbe{}, "article-1", nil); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM taxonomy_transaction_probe`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("transaction probe count = %d, want 1", count)
+	}
+}
 
 func TestRoutesIncludeCSRFProtectedAdminNewsForms(t *testing.T) {
 	routes := (Handler{}).Routes()
