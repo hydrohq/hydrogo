@@ -242,7 +242,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 }
 
 func renderSpec(spec Spec) string {
-	document := SpecDocument{Version: "v0", Collection: spec}
+	document := SpecDocument{Version: "v0", Collection: normalizedSpec(spec)}
 	data, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return "{}\n"
@@ -251,12 +251,20 @@ func renderSpec(spec Spec) string {
 }
 
 func canonicalSpec(spec Spec) ([]byte, error) {
+	return json.Marshal(normalizedSpec(spec))
+}
+
+func normalizedSpec(spec Spec) Spec {
 	copySpec := spec
+	copySpec.Permissions = append([]string(nil), spec.Permissions...)
+	copySpec.Dialects = append([]string(nil), spec.Dialects...)
+	copySpec.Kits = append([]string(nil), spec.Kits...)
+	copySpec.Fields = append([]Field(nil), spec.Fields...)
 	sort.Strings(copySpec.Permissions)
 	sort.Strings(copySpec.Dialects)
 	sort.Strings(copySpec.Kits)
 	sort.Slice(copySpec.Fields, func(i, j int) bool { return copySpec.Fields[i].Name < copySpec.Fields[j].Name })
-	return json.Marshal(copySpec)
+	return copySpec
 }
 
 func writeGenerated(path string, content []byte) error {

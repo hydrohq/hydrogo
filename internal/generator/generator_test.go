@@ -48,6 +48,29 @@ func TestGenerateIsDeterministicAndPreservesCustom(t *testing.T) {
 	}
 }
 
+func TestGeneratedSpecIsCanonicalAcrossInputOrder(t *testing.T) {
+	root := t.TempDir()
+	first := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}, {Name: "published", Type: "bool"}}, Permissions: []string{"article.write", "article.read"}, Dialects: []string{"postgres", "sqlite"}, Kits: []string{"seo", "localization"}}
+	if _, err := Generate(root, first); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(filepath.Join(root, "generated", "article", "spec.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := Spec{Name: first.Name, Table: first.Table, Fields: []Field{{Name: "published", Type: "bool"}, {Name: "title", Type: "string"}}, Permissions: []string{"article.read", "article.write"}, Dialects: []string{"sqlite", "postgres"}, Kits: []string{"localization", "seo"}}
+	if _, err := Generate(root, second); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(filepath.Join(root, "generated", "article", "spec.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("spec.json changed for semantically equivalent input order")
+	}
+}
+
 func TestGenerateRejectsSymlinkRoot(t *testing.T) {
 	parent := t.TempDir()
 	target := filepath.Join(parent, "target")
