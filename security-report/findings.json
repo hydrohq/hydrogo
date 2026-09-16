@@ -1,5 +1,6 @@
 {
-  "scan_id": "hydrogo-2026-09-16-source-audit",
+  "scan_id": "hydrogo-2026-09-17-source-audit-6a7f055",
+  "source_revision": "6a7f055",
   "confirmed": [],
   "needs_validation": [
     {"id":"NV-001","area":"production HTTPS/proxy","reason":"requires the real reverse proxy, trusted-origin and HSTS deployment"},
