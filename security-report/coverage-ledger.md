@@ -5,7 +5,7 @@
 | Recon / dependency / Go language | Complete | govulncheck, vet, full tests | clean |
 | SQLi, NoSQLi, GraphQL, XSS, SSTI, XXE, LDAP, CMDi, header injection | Complete source pass | parameterization, escaping, bounded decoder checks | no confirmed finding |
 | Auth, authz, privilege, session, CSRF, CORS, clickjacking, JWT | Complete source pass | auth/security test suites and default-deny guards | no confirmed finding |
-| Secrets, data exposure, crypto | Complete source pass | secret-pattern review and log redaction tests | no confirmed finding |
+| Secrets, data exposure, crypto | Complete source pass | tracked-file secret lint, pattern review and log redaction tests | no confirmed finding |
 | SSRF, traversal, upload, open redirect | Complete source pass | URL/path/upload validation tests | no confirmed finding |
 | Race, mass assignment, business logic | Complete source pass | contract/race evidence already in local verification | no confirmed finding |
 | Rate limiting, API security | Complete source pass | bounded limits and API contract tests | no confirmed finding |
