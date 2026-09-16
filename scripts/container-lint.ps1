@@ -8,6 +8,7 @@ if (-not (Test-Path -LiteralPath $dockerignore)) { throw '.dockerignore missing'
 $content = Get-Content -LiteralPath $dockerfile -Raw
 $required = @(
   'FROM golang:',
+  'ARG TARGETARCH=amd64',
   'CGO_ENABLED=0',
   'go build -trimpath',
   'adduser -S -G hydro',

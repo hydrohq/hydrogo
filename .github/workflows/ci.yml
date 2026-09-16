@@ -16,6 +16,10 @@ jobs:
   container:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
     permissions:
       contents: read
     steps:
@@ -25,7 +29,7 @@ jobs:
       - name: Scan tracked files for high-confidence credentials
         run: bash scripts/secret-lint.sh
       - name: Build reproducible OCI image (no push)
-        run: docker build --pull --tag hydrogo:ci .
+        run: docker build --pull --platform linux/${{ matrix.arch }} --build-arg TARGETARCH=${{ matrix.arch }} --tag hydrogo:ci-${{ matrix.arch }} .
 
   go:
     runs-on: ubuntu-latest
