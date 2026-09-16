@@ -6,16 +6,18 @@
 ## Context
 
 Generated and hand-authored clients need a deterministic check before a
-published API removes a path, operation, response, or response property.
+published API removes a path, operation, request contract, response, or response property.
 Database compatibility does not prove HTTP compatibility.
 
 ## Decision
 
 `hydro validate api --baseline BASELINE --current CURRENT` compares two
 OpenAPI JSON documents and fails closed when a previously published path,
-method, response code, response media type, or response property disappears.
-Additive changes remain allowed. The check is provider-neutral and does not
-infer business semantics, authorization, or migration safety.
+method, request parameter, request body, response code, response media type,
+or response property disappears. It also rejects making an existing optional
+request parameter required. Additive changes remain allowed. The check is
+provider-neutral and does not infer business semantics, authorization, or
+migration safety.
 
 ## Consequences
 

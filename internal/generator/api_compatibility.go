@@ -14,6 +14,7 @@ type APICompatibilityReport struct {
 	PathsChecked      int
 	MethodsChecked    int
 	PropertiesChecked int
+	ParametersChecked int
 }
 
 func CheckAPICompatibility(baselinePath, currentPath string) (APICompatibilityReport, error) {
@@ -53,9 +54,49 @@ func CheckAPICompatibility(baselinePath, currentPath string) (APICompatibilityRe
 			if err := compareSchemas(path, method, oldOp, newOp, &report); err != nil {
 				return report, err
 			}
+			if err := compareRequestContract(path, method, oldOp, newOp, &report); err != nil {
+				return report, err
+			}
 		}
 	}
 	return report, nil
+}
+
+func compareRequestContract(path, method string, oldOp, newOp map[string]any, report *APICompatibilityReport) error {
+	oldParameters, _ := oldOp["parameters"].([]any)
+	newParameters, _ := newOp["parameters"].([]any)
+	newByKey := make(map[string]map[string]any, len(newParameters))
+	for _, raw := range newParameters {
+		parameter, ok := raw.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid current parameter for %s %s", method, path)
+		}
+		key := fmt.Sprintf("%v:%v", parameter["in"], parameter["name"])
+		newByKey[key] = parameter
+	}
+	for _, raw := range oldParameters {
+		parameter, ok := raw.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid baseline parameter for %s %s", method, path)
+		}
+		key := fmt.Sprintf("%v:%v", parameter["in"], parameter["name"])
+		current, ok := newByKey[key]
+		if !ok {
+			return fmt.Errorf("removed request parameter %s for %s %s", key, method, path)
+		}
+		if oldRequired, _ := parameter["required"].(bool); !oldRequired {
+			if currentRequired, _ := current["required"].(bool); currentRequired {
+				return fmt.Errorf("request parameter %s became required for %s %s", key, method, path)
+			}
+		}
+		report.ParametersChecked++
+	}
+	if _, oldBody := oldOp["requestBody"]; oldBody {
+		if _, newBody := newOp["requestBody"]; !newBody {
+			return fmt.Errorf("removed request body for %s %s", method, path)
+		}
+	}
+	return nil
 }
 
 func loadOpenAPI(path string) (map[string]any, error) {
