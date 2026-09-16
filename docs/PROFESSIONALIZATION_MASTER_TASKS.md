@@ -229,7 +229,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add a bounded durable SQLite/PostgreSQL search projection with rebuild,
     deletion, locale filtering and deterministic pagination. External provider
     indexing plus freshness/capacity evidence remains an environment gate.
-- [ ] Add durable analytics/consent model only with a privacy ADR.
+- [x] Add an aggregate-only durable analytics/consent model with fail-closed
+    purpose-version checks, revocation and explicit retention purge; legal/DPO
+    review and deployment-specific retention remain external gates.
 
 ### PROD-02 Commerce and integrations (`EXTERNAL`)
 

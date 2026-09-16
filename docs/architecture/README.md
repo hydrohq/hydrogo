@@ -182,6 +182,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0128](0128-bounded-memory-search-provider.md) | Bounded local search provider for Compact/prototype profiles | Accepted |
 | [0129](0129-news-editorial-transition-policy.md) | Transactional injectable News editorial transition policy | Accepted |
 | [0130](0130-durable-local-search-index.md) | Bounded durable local search index | Accepted |
+| [0131](0131-durable-analytics-consent-store.md) | Durable aggregate analytics with explicit consent | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

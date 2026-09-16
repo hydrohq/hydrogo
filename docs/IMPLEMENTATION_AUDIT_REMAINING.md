@@ -95,6 +95,8 @@ environment, an external provider, legal review, or a release pipeline.
   available under `extension/v1` (ADR-0120–0123); the Site Edition form inbox,
   status transitions and retention purge are implemented and audited. A
   schema-driven form-builder admin UX and external provider indexing remain open;
+  the optional analytics capability now has an aggregate-only consent store;
+  legal retention and DPO review remain open;
   a bounded local search provider is available for Compact/prototype use
   (`internal/search.MemoryProvider`, ADR-0128).
 - Validate the stable SDK, support window, compatibility policy and customer
