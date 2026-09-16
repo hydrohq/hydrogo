@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
@@ -54,6 +55,12 @@ type adminListRepository interface {
 	ListAdmin(context.Context, database.Executor, int) ([]news.Item, error)
 }
 
+type taxonomyAdminRepository interface {
+	ListTaxonomy(context.Context, database.Executor, string) ([]v1.TaxonomyTerm, error)
+	ListTaxonomyTerms(context.Context, database.Executor) ([]v1.TaxonomyTerm, error)
+	ReplaceTaxonomy(context.Context, database.Executor, string, []v1.TaxonomyTerm) error
+}
+
 type input struct {
 	Locale         string `json:"locale"`
 	Slug           string `json:"slug"`
@@ -90,6 +97,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminCreate)},
 		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
 		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
+		{Pattern: "POST /admin/news/{id}/taxonomy", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomy)},
 		{Pattern: "POST /admin/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.adminSchedule)},
 		{Pattern: "POST /admin/news/{id}/publish", Protected: true, Handler: http.HandlerFunc(h.adminPublish)},
 		{Pattern: "POST /admin/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.adminRetract)},
@@ -611,6 +619,22 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	if taxonomy, ok := h.Service.Repository.(taxonomyAdminRepository); ok {
+		terms, termsErr := taxonomy.ListTaxonomyTerms(r.Context(), h.DB)
+		selected, selectedErr := taxonomy.ListTaxonomy(r.Context(), h.DB, item.ID)
+		if termsErr != nil || selectedErr != nil {
+			http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		selectedIDs := make([]string, 0, len(selected))
+		for _, term := range selected {
+			selectedIDs = append(selectedIDs, term.ID)
+		}
+		if err := adminstudio.RenderTaxonomyEditor(&form, adminstudio.TaxonomyEditorOptions{Terms: terms, Selected: selectedIDs}); err != nil {
+			http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+			return
+		}
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStart(w, "Haber düzenle", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
@@ -651,6 +675,42 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(item.ID), http.StatusSeeOther)
+}
+
+func (h Handler) adminTaxonomy(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	repository, ok := h.Service.Repository.(taxonomyAdminRepository)
+	if !ok {
+		http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	terms, err := repository.ListTaxonomyTerms(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	allowed := make(map[string]v1.TaxonomyTerm, len(terms))
+	for _, term := range terms {
+		allowed[term.ID] = term
+	}
+	selected := make([]v1.TaxonomyTerm, 0, len(r.Form["taxonomy_term"]))
+	for _, id := range r.Form["taxonomy_term"] {
+		if term, exists := allowed[id]; exists {
+			selected = append(selected, term)
+		}
+	}
+	if err := repository.ReplaceTaxonomy(r.Context(), h.DB, r.PathValue("id"), selected); err != nil {
+		writeError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/news/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
 }
 
 func (h Handler) adminSchedule(w http.ResponseWriter, r *http.Request) {
