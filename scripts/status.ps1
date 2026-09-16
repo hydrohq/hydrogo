@@ -9,6 +9,7 @@ if (-not (Test-Path -LiteralPath $taskFile)) {
 
 $done = (Select-String -LiteralPath $taskFile -Pattern '- \[x\]').Count
 $open = (Select-String -LiteralPath $taskFile -Pattern '- \[ \]').Count
+$partial = (Select-String -LiteralPath $taskFile -Pattern '- \[~\]').Count
 $head = (git rev-parse --short HEAD).Trim()
 $branch = (git branch --show-current).Trim()
 $status = @(git status --short)
@@ -26,7 +27,7 @@ try {
 
 Write-Output "HydroGo status"
 Write-Output "branch=$branch commit=$head sync=$sync"
-Write-Output "tasks done=$done open=$open total=$($done + $open)"
+Write-Output "tasks done=$done open=$open partial=$partial total=$($done + $open + $partial)"
 if ($status.Count -eq 0) {
     Write-Output "worktree=clean"
 } else {
