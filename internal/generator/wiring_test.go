@@ -53,3 +53,20 @@ func TestGeneratedFrontendIndexUsesNamespaces(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratedBulkAdapterBuildsNormalizedRequest(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(root, "generated", "article", "bulk.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{"ArticleBulkRequest", "export function ArticleBulkRequest", "new Set(normalized)", "normalized.sort()"} {
+		if !strings.Contains(string(b), marker) {
+			t.Fatalf("bulk adapter missing %q: %s", marker, b)
+		}
+	}
+}
