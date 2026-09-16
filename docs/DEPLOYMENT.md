@@ -20,6 +20,10 @@ docker build --pull -t hydrogo:1.0.0 .
 kapısıdır. Gerçek image build/push kanıtı, Docker/OCI registry erişimi olan
 CI veya deployment ortamında ayrıca alınmalıdır.
 
+GitHub Actions `container` işi aynı statik kapıyı Linux runner üzerinde çalıştırır
+ve image'ı registry'ye göndermeden gerçek `docker build` ile doğrular. Registry
+push işlemi bilinçli olarak ayrı bir release/onay adımıdır.
+
 ### 1.1. Dockerfile (Minimal Alpine / Distroless)
 
 ```dockerfile

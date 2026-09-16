@@ -17,5 +17,6 @@ reproducible`.
 
 The local host does not have a Docker/OCI daemon, so an actual image build,
 registry push, vulnerability scan, and runtime healthcheck remain deployment
-environment gates. The production checklist intentionally remains open until
-those external proofs exist.
+environment gates. CI now runs the same lint plus a real `docker build` on an
+Ubuntu runner; registry publication and runtime/provider evidence remain
+separate release gates.
