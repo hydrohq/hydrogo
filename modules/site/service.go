@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
@@ -30,10 +31,57 @@ type AuditWriter interface {
 	Record(context.Context, database.Executor, string, string, string) error
 }
 
+type FormRegistry interface {
+	Upsert(context.Context, forms.Form) error
+	UpsertWithExecutor(context.Context, database.Executor, forms.Form) error
+	Get(context.Context, string) (forms.Form, error)
+	List(context.Context) ([]forms.Form, error)
+	Delete(context.Context, string) error
+	DeleteWithExecutor(context.Context, database.Executor, string) error
+}
+
 type Service struct {
 	Transactions database.Transactor
 	Store        Store
 	Audit        AuditWriter
+	Forms        FormRegistry
+}
+
+func (s Service) SaveForm(ctx context.Context, form forms.Form) error {
+	if err := form.Validate(); err != nil {
+		return err
+	}
+	if err := s.requireStore(); err != nil || guards.IsNil(s.Forms) {
+		return ErrStoreRequired
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Forms.UpsertWithExecutor(ctx, tx, form); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.form.updated", form.ID)
+	})
+}
+
+func (s Service) DeleteForm(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return ErrStoreRequired
+	}
+	if err := s.requireStore(); err != nil || guards.IsNil(s.Forms) {
+		return ErrStoreRequired
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Forms.DeleteWithExecutor(ctx, tx, id); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.form.deleted", id)
+	})
+}
+
+func (s Service) ListForms(ctx context.Context) ([]forms.Form, error) {
+	if err := s.requireStore(); err != nil || guards.IsNil(s.Forms) {
+		return nil, ErrStoreRequired
+	}
+	return s.Forms.List(ctx)
 }
 
 var errAuditIDUnavailable = errors.New("audit id generation unavailable")

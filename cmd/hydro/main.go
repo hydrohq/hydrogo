@@ -49,6 +49,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
@@ -1082,6 +1083,9 @@ func serve(args []string, stderr io.Writer) error {
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
 	siteService := site.Service{Transactions: database.NewTransactor(db), Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}}
+	if modules["forms"] {
+		siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
+	}
 	siteHTTP := sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 		published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 		if err != nil {

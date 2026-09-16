@@ -7,15 +7,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"html/template"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
@@ -44,9 +50,78 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
 		{Pattern: "POST /admin/site/navigation/{locale}", Handler: http.HandlerFunc(h.saveNavigation)},
 		{Pattern: "GET /admin/site/inbox/{form}", Handler: http.HandlerFunc(h.inbox)},
+		{Pattern: "GET /admin/site/forms", Handler: http.HandlerFunc(h.forms)},
+		{Pattern: "POST /admin/site/forms", Handler: http.HandlerFunc(h.saveForm)},
+		{Pattern: "POST /admin/site/forms/{id}/delete", Handler: http.HandlerFunc(h.deleteForm)},
 		{Pattern: "POST /admin/site/inbox/{id}/status", Handler: http.HandlerFunc(h.inboxStatus)},
 		{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
 	}
+}
+
+func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Service.ListForms(r.Context())
+	if err != nil {
+		http.Error(w, "forms unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	selected := forms.Form{ID: "contact", Title: "İletişim", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "E-posta", Required: true}, {ID: "message", Type: forms.Textarea, Label: "Mesaj", Required: true}}}
+	for _, item := range items {
+		if item.ID == r.URL.Query().Get("id") || (r.URL.Query().Get("id") == "" && selected.ID == "contact") {
+			selected = item
+			if r.URL.Query().Get("id") != "" {
+				break
+			}
+		}
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Formlar", "Schema yönetimi", security.NonceFromContext(r.Context()), "site"); err != nil {
+		return
+	}
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><p class="muted">Kayıtlı formlar</p><div class="studio-actions">`)
+	for _, item := range items {
+		_, _ = fmt.Fprintf(w, `<a class="button button-quiet" href="/admin/site/forms?id=%s">%s</a>`, template.URLQueryEscaper(item.ID), template.HTMLEscapeString(item.Title))
+	}
+	_, _ = fmt.Fprint(w, `</div></section>`)
+	_ = adminstudio.RenderFormBuilder(w, adminstudio.FormBuilderData{Form: selected, Action: "/admin/site/forms", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context())})
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveForm(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	var form forms.Form
+	if err := json.Unmarshal([]byte(r.FormValue("schema")), &form); err != nil {
+		http.Error(w, "invalid form schema", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SaveForm(r.Context(), form); err != nil {
+		http.Error(w, "invalid form schema", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/forms?id="+url.QueryEscape(form.ID), http.StatusSeeOther)
+}
+
+func (h Handler) deleteForm(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := h.Service.DeleteForm(r.Context(), r.PathValue("id")); err != nil {
+		http.Error(w, "form deletion failed", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/forms", http.StatusSeeOther)
 }
 
 func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {

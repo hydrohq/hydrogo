@@ -221,9 +221,9 @@ credential, legal decision, or product decision and must remain an open gate.
   (`extension/v1`; ADR-0121).
 - [x] Add bounded form inbox, status transitions and retention purge with
   module-owned persistence and audit coverage.
-- [~] Add schema-driven form-builder admin UX primitive and bounded persistent
-    registry with validation. Admin route/authorization CRUD wiring and
-    advanced arbitrary form design remain open for Site Edition.
+- [x] Add schema-driven form-builder Admin Studio UX, bounded persistent
+    registry, validation and authorized CRUD routes. Advanced arbitrary visual
+    form design remains intentionally outside the initial Site Edition scope.
 - [x] Add the provider-neutral search provider contract (`extension/v1`; ADR-0123).
 - [x] Add a bounded local provider with deterministic search, rebuild, upsert and
   delete operations for Compact/prototype profiles (ADR-0128).
