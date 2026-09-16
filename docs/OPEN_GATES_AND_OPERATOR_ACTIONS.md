@@ -108,9 +108,10 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 - [x] **Ertelenmiş ürün ergonomisi — minimal kurulum preset'leri:** `compact-site`, `editorial`,
   `commerce` ve `headless` gibi açık modül setleriyle örnek yapılandırma/preset sun. Mevcut
   `config.example.yaml` demonstrasyon amacıyla tüm modülleri etkinleştirir. Preset dosyaları
-  generator ve smoke akışına eklendi; kalan kapı, her preset için kapalı modüllerin route,
-  migration, asset ve worker yüklemediğini SQLite ve PostgreSQL üzerinde çalıştırılmış bir
-  contract kanıtıyla doğrulamaktır.
+  generator ve smoke akışına eklendi; genel PostgreSQL inactive-module migration contract’ı
+  `R16-wsl-postgresql-module-isolation-2026-09-17` ile doğrulandı. Kalan kapı, her preset için
+  kapalı modüllerin route, migration, asset ve worker yüklemediğini SQLite ve PostgreSQL’de
+  ayrı ayrı sertifiye etmektir.
 - [ ] Kalıcı ürün analitiği: günlük/time-series tablo, retention, anonimleştirme, export ve KVKK/GDPR
   açık rıza metni kararı. Şu an process-local telemetri kalıcı tarihsel rapor değildir.
 - [ ] Kullanıcı eylemi–hata korelasyonu: actor/session trace modeli, kişisel veri maskeleme, saklama
