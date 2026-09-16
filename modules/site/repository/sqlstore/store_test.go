@@ -72,3 +72,52 @@ func runVisibilityContract(t *testing.T, db database.Executor, dialect database.
 		t.Fatalf("visible navigation = %#v/%v", navigation, err)
 	}
 }
+
+func TestIdempotencyDialectContractSQLite(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "idem.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	runIdempotencyContract(t, db, database.SQLite)
+}
+
+func TestIdempotencyDialectContractPostgres(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	db, err := database.Open(context.Background(), database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.Postgres, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(context.Background(), "DELETE FROM form_inbox"); err != nil {
+		t.Fatal(err)
+	}
+	runIdempotencyContract(t, db, database.Postgres)
+}
+
+func runIdempotencyContract(t *testing.T, db database.Executor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	store := Store{Dialect: dialect}
+	value := site.Submission{ID: "form-idem-1", FormKey: "contact", Email: "user@example.com", Payload: `{"message":"hello"}`, SourceIPHash: "hash", IdempotencyKey: "0123456789abcdef", RequestHash: "hash-1"}
+	if err := store.CreateSubmission(ctx, db, value); err != nil {
+		t.Fatal(err)
+	}
+	got, found, err := store.FindSubmissionByIdempotency(ctx, db, "contact", value.IdempotencyKey)
+	if err != nil || !found || got.RequestHash != value.RequestHash {
+		t.Fatalf("lookup = %#v found=%v err=%v", got, found, err)
+	}
+	missing, found, err := store.FindSubmissionByIdempotency(ctx, db, "contact", "fedcba9876543210")
+	if err != nil || found || missing.ID != "" {
+		t.Fatalf("missing lookup = %#v found=%v err=%v", missing, found, err)
+	}
+}

@@ -1,0 +1,27 @@
+id: "202609170001_form_idempotency"
+module: "site"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "38e0f49c3ff2aa76e3bbf78545c4db6f44683d299c5c8312c246c820aa92e522"
+  postgres: "38e0f49c3ff2aa76e3bbf78545c4db6f44683d299c5c8312c246c820aa92e522"
+dependencies:
+  - "202609080009_site_edition"
+schema:
+  readable_epoch: 3
+  writable_epoch: 4
+preconditions:
+  - "Site Edition migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Two bounded text columns and a partial unique index for form retry keys"
+compatibility: "Adds optional form idempotency metadata; old binaries remain readable before feature enablement"
+smoke:
+  - "Repeated migration application is a no-op"
+  - "Empty legacy keys do not collide"
+  - "Matching form keys are unique per form"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

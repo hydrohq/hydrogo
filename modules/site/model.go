@@ -11,12 +11,15 @@ import (
 )
 
 var (
-	ErrInvalidSetting    = errors.New("invalid site setting")
-	ErrInvalidNavigation = errors.New("invalid navigation item")
-	ErrInvalidRedirect   = errors.New("invalid redirect")
-	ErrInvalidSubmission = errors.New("invalid form submission")
-	ErrInvalidInboxState = errors.New("invalid inbox state")
-	ErrStoreRequired     = errors.New("site store is required")
+	ErrInvalidSetting           = errors.New("invalid site setting")
+	ErrInvalidNavigation        = errors.New("invalid navigation item")
+	ErrInvalidRedirect          = errors.New("invalid redirect")
+	ErrInvalidSubmission        = errors.New("invalid form submission")
+	ErrInvalidInboxState        = errors.New("invalid inbox state")
+	ErrStoreRequired            = errors.New("site store is required")
+	ErrInvalidIdempotencyKey    = errors.New("invalid idempotency key")
+	ErrIdempotencyConflict      = errors.New("idempotency key conflict")
+	ErrIdempotencyStoreRequired = errors.New("idempotency store is required")
 )
 
 type Setting struct {
@@ -67,13 +70,27 @@ type Redirect struct {
 }
 
 type Submission struct {
-	ID           string
-	FormKey      string
-	Email        string
-	Payload      string
-	SourceIPHash string
-	Status       string
-	CreatedAt    time.Time
+	ID             string
+	FormKey        string
+	Email          string
+	Payload        string
+	SourceIPHash   string
+	Status         string
+	CreatedAt      time.Time
+	IdempotencyKey string
+	RequestHash    string
+}
+
+func ValidateIdempotencyKey(key string) error {
+	if len(key) < 16 || len(key) > 128 || strings.TrimSpace(key) != key {
+		return ErrInvalidIdempotencyKey
+	}
+	for i := 0; i < len(key); i++ {
+		if key[i] < 0x21 || key[i] > 0x7e {
+			return ErrInvalidIdempotencyKey
+		}
+	}
+	return nil
 }
 
 func ValidateSetting(value Setting) error {

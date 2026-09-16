@@ -184,7 +184,8 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form submission", http.StatusBadRequest)
 		return
 	}
-	payload, err := json.Marshal(map[string]string{"message": message, "name": strings.TrimSpace(r.FormValue("name"))})
+	name := strings.TrimSpace(r.FormValue("name"))
+	payload, err := json.Marshal(map[string]string{"message": message, "name": name})
 	if err != nil {
 		http.Error(w, "invalid form submission", http.StatusBadRequest)
 		return
@@ -195,8 +196,11 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "form inbox unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	submission := site.Submission{ID: "form-" + hex.EncodeToString(idBytes), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:])}
-	if err := h.Service.Submit(r.Context(), submission); err != nil {
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+	requestBytes, _ := json.Marshal(map[string]string{"form": formKey, "email": email, "message": message, "name": name})
+	requestHash := sha256.Sum256(requestBytes)
+	submission := site.Submission{ID: "form-" + hex.EncodeToString(idBytes), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:]), IdempotencyKey: idempotencyKey, RequestHash: hex.EncodeToString(requestHash[:])}
+	if _, err := h.Service.SubmitIdempotent(r.Context(), submission); err != nil {
 		http.Error(w, "form submission failed", siteStatus(err))
 		return
 	}
@@ -272,6 +276,12 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 }
 
 func siteStatus(err error) int {
+	if errors.Is(err, site.ErrIdempotencyConflict) {
+		return http.StatusConflict
+	}
+	if errors.Is(err, site.ErrIdempotencyStoreRequired) {
+		return http.StatusServiceUnavailable
+	}
 	if errors.Is(err, site.ErrStoreRequired) || errors.Is(err, database.ErrDatabaseRequired) {
 		return http.StatusServiceUnavailable
 	}
