@@ -150,6 +150,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0096](0096-provider-neutral-search-contract.md) | Provider-neutral search contract | Accepted |
 | [0097](0097-generated-swr-adapter.md) | Generated SWR frontend adapter | Accepted |
 | [0098](0098-provider-neutral-form-contract.md) | Provider-neutral form contract | Accepted |
+| [0099](0099-kit-dependency-resolution.md) | Deterministic capability-kit dependency resolution | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

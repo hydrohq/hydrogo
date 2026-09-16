@@ -24,3 +24,10 @@ func TestValidateKitsRejectsDuplicates(t *testing.T) {
 		t.Fatalf("duplicate kits error = %v", err)
 	}
 }
+
+func TestResolveKitsAddsDependenciesDeterministically(t *testing.T) {
+	got, err := ResolveKits([]Kit{KitCommerce, KitSEO})
+	if err != nil || len(got) != 3 || got[0] != KitCommerce || got[1] != KitForms || got[2] != KitSEO {
+		t.Fatalf("resolved kits = %v, err=%v", got, err)
+	}
+}
