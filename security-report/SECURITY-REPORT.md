@@ -15,6 +15,7 @@ Eight environment-dependent validation items remain explicitly listed in
 
 - `go mod verify` — pass
 - `govulncheck ./...` — no reachable vulnerabilities
+- tracked-file secret lint — no high-confidence credentials
 - `go vet ./...` — pass
 - Full/shuffled/fuzz local verification hook — pass on the current revision
 - `scripts/container-lint.ps1` — pass; Docker daemon unavailable
