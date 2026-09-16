@@ -1,0 +1,49 @@
+﻿{
+    "generated_at":  "2026-09-16T22:37:08.9220358Z",
+    "commit":  "581a60c6080c9a51109222e60eeb1c2470a358f4",
+    "go_version":  "go version go1.27.0 windows/amd64",
+    "generator_spec":  "examples/module-starter/collection.yaml",
+    "acceptance_threshold_minutes":  15,
+    "acceptance":  {
+                       "measured_steps":  [
+                                              "first-project-scaffold",
+                                              "first-route-contract",
+                                              "first-resource-generation",
+                                              "generated-compatibility-check"
+                                          ],
+                       "duration_ms":  2691,
+                       "passed":  true
+                   },
+    "steps":  [
+                  {
+                      "name":  "targeted-ui-contract",
+                      "duration_ms":  3031,
+                      "exit_code":  0
+                  },
+                  {
+                      "name":  "full-compile",
+                      "duration_ms":  13454,
+                      "exit_code":  0
+                  },
+                  {
+                      "name":  "first-project-scaffold",
+                      "duration_ms":  1069,
+                      "exit_code":  0
+                  },
+                  {
+                      "name":  "first-route-contract",
+                      "duration_ms":  50,
+                      "exit_code":  0
+                  },
+                  {
+                      "name":  "first-resource-generation",
+                      "duration_ms":  807,
+                      "exit_code":  0
+                  },
+                  {
+                      "name":  "generated-compatibility-check",
+                      "duration_ms":  765,
+                      "exit_code":  0
+                  }
+              ]
+}

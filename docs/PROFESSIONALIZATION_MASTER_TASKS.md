@@ -259,7 +259,7 @@ the existing Core/module boundaries:
 - [x] Typed API client, OpenAPI, form, pagination/filter/sort query and cache-key invalidation templates are generated; `hydro validate api` catches removed published operations/properties. Server-side policy and runtime cache wiring remain explicit module work.
 - [x] Generated bounded bulk-selection, progress, CSV import/export and provider-neutral upload validation primitives are available; module-specific signed-upload handlers and optimistic persistence remain explicit runtime work.
 - [x] Iteration measurement script, ADR index drift check, OpenAPI preflight, upgrade runbook and generator compatibility check (`hydro validate generator`) are available.
-- [x] Benchmark acceptance gate is automated in `scripts/measure-iteration.ps1` (first scaffold, route contract, CRUD artifact and compatibility) and runs on the clean Windows CI build.
+- [x] Benchmark acceptance gate is automated in `scripts/measure-iteration.ps1` (first scaffold, route contract, CRUD artifact and compatibility) and runs on the clean Windows CI build. Latest repeatable local baseline: [R14 DX iteration baseline](validation/R14-dx-iteration-baseline-2026-09-17.md); two-developer/customer comparison remains a separate external evidence requirement.
 
 ### PROD-03 Deliberately gated expansion (`EXTERNAL`)
 
