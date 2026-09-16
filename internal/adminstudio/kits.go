@@ -7,6 +7,14 @@ import (
 
 type Kit string
 
+// KitDescriptor is provider-neutral capability metadata. Implementations and
+// runtime wiring remain owned by the module/Client Edition.
+type KitDescriptor struct {
+	Name         Kit   `json:"name"`
+	Dependencies []Kit `json:"dependencies,omitempty"`
+	Optional     bool  `json:"optional"`
+}
+
 const (
 	KitLocalization Kit = "localization"
 	KitMedia        Kit = "media"
@@ -90,6 +98,21 @@ func ResolveKits(kits []Kit) ([]Kit, error) {
 func (r KitRegistry) Enabled(kit Kit) bool { _, ok := r.kits[kit]; return ok }
 
 func IsKnownKit(kit Kit) bool { _, ok := knownKits[kit]; return ok }
+
+// DescribeKits returns deterministic metadata for the resolved kit set.
+func DescribeKits(kits []Kit) ([]KitDescriptor, error) {
+	resolved, err := ResolveKits(kits)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]KitDescriptor, 0, len(resolved))
+	for _, kit := range resolved {
+		deps := append([]Kit(nil), kitDependencies[kit]...)
+		sort.Slice(deps, func(i, j int) bool { return deps[i] < deps[j] })
+		result = append(result, KitDescriptor{Name: kit, Dependencies: deps, Optional: true})
+	}
+	return result, nil
+}
 
 func (r KitRegistry) Kits() []Kit {
 	result := make([]Kit, 0, len(r.kits))
