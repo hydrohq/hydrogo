@@ -119,6 +119,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0065](0065-prometheus-exporter-boundary.md) | Keep metrics export explicit and bounded | Accepted |
 | [0066](0066-reproducible-release-evidence.md) | Require reproducible release evidence without claiming provenance | Accepted |
 | [0112](0112-pages-locale-fallback-integration.md) | Integrate configured locale fallback into public page reads | Accepted |
+| [0113](0113-news-locale-fallback-integration.md) | Integrate configured locale fallback into public news reads | Accepted |
 | [0067](0067-explicit-demo-seeding.md) | Require explicit confirmation for demo seeding | Accepted |
 | [0068](0068-portable-content-allowlist.md) | Keep portable export explicitly allowlisted | Accepted |
 | [0069](0069-optional-module-lifecycle-contracts.md) | Keep module lifecycle hooks optional and Core-orchestrated | Accepted |

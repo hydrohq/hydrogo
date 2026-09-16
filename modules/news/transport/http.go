@@ -341,7 +341,7 @@ func (h Handler) publicGetWithRoute(w http.ResponseWriter, r *http.Request, rawL
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
-	item, err := h.Service.Repository.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
+	item, err := h.Service.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
 	if err != nil {
 		if errors.Is(err, database.ErrDatabaseRequired) {
 			http.Error(w, "news unavailable", http.StatusServiceUnavailable)
@@ -366,7 +366,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
-	item, err := h.Service.Repository.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
+	item, err := h.Service.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
 	if err != nil {
 		if errors.Is(err, database.ErrDatabaseRequired) {
 			http.Error(w, "news unavailable", http.StatusServiceUnavailable)
