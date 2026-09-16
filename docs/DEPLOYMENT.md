@@ -6,6 +6,20 @@ Bu rehber, HydroGo projelerinin Linux, Docker ve Windows ortamlarında productio
 
 ## 1. Docker Dağıtımı
 
+Repository kökündeki `Dockerfile` üretim için tekrarlanabilir bir amd64 OCI
+image üretir. Image içine lisans anahtarı, secret veya deployment config'i
+gömülmez; çalıştırırken `/app/config.yaml` ve gerekiyorsa lisans dosyası
+ayrı, erişimi kısıtlı bir volume/secret olarak bağlanmalıdır.
+
+```powershell
+pwsh -File scripts/container-lint.ps1
+docker build --pull -t hydrogo:1.0.0 .
+```
+
+`scripts/container-lint.ps1` Docker daemon gerektirmeyen statik güvenlik
+kapısıdır. Gerçek image build/push kanıtı, Docker/OCI registry erişimi olan
+CI veya deployment ortamında ayrıca alınmalıdır.
+
 ### 1.1. Dockerfile (Minimal Alpine / Distroless)
 
 ```dockerfile

@@ -44,6 +44,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
 | WSL race doğrulaması | Tamamlandı (yerel) | Broker/runtime/release hedef paketleri `go test -race` | `wsl-race-broker-runtime-2026-09-16` |
+| OCI container image definition | Tamamlandı (statik yerel) | Non-root, credential-free amd64 Dockerfile, bounded build context ve daemon'sız lint kapısı | `R6-container-image-definition-2026-09-16` |
 
 ## Henüz production servisi olmayan parçalar
 
