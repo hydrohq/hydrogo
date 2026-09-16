@@ -20,7 +20,7 @@ export HYDRO_TEST_REDIS_URL='redis://127.0.0.1:6379/15'
 bash ./scripts/verify-production-gates.sh
 ```
 
-Runners execute format, vet, full suite, PostgreSQL contract environment requirement, race-sensitive packages, reproducible `hydro` binary, portable benchmark, and (when configured) the Redis/Valkey atomic limiter contract. It fails if there is no PostgreSQL URL or if a configured contract fails. Redis is recorded as `PENDING` when `HYDRO_TEST_REDIS_URL` is absent; this preflight does not consider the actual reverse proxy/process restart, clean environment restore, production key ceremony, external backup/key recovery, Redis failover/partition/clock-skew behavior, or customer RPO/RTO measurement as completed.
+Runners execute format, vet, full suite, PostgreSQL contract environment requirement (including the generated-preset module-isolation contract), race-sensitive packages, reproducible `hydro` binary, portable benchmark, and (when configured) the Redis/Valkey atomic limiter contract. It fails if there is no PostgreSQL URL or if a configured contract fails. Redis is recorded as `PENDING` when `HYDRO_TEST_REDIS_URL` is absent; this preflight does not consider the actual reverse proxy/process restart, clean environment restore, production key ceremony, external backup/key recovery, Redis failover/partition/clock-skew behavior, or customer RPO/RTO measurement as completed.
 
 | Gate | Required environment | Evidence command | Pass condition |
 | --- | --- | --- | --- |
