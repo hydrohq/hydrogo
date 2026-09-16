@@ -50,12 +50,27 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 	}
 	collectionRoot := filepath.Join(root, "generated", spec.Name)
 	for _, name := range requiredGeneratedFiles {
-		info, err := os.Lstat(filepath.Join(collectionRoot, name))
+		artifactPath := filepath.Join(collectionRoot, name)
+		info, err := os.Lstat(artifactPath)
 		if err != nil {
 			return CompatibilityReport{}, fmt.Errorf("missing generated artifact %s: %w", name, err)
 		}
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 			return CompatibilityReport{}, fmt.Errorf("generated artifact %s is not a regular file", name)
+		}
+		if len(lock.ArtifactsSHA256) > 0 {
+			expectedArtifact, ok := lock.ArtifactsSHA256[name]
+			if !ok || expectedArtifact == "" {
+				return CompatibilityReport{}, fmt.Errorf("generator lock has no checksum for artifact %s", name)
+			}
+			data, err := os.ReadFile(artifactPath)
+			if err != nil {
+				return CompatibilityReport{}, fmt.Errorf("read generated artifact %s: %w", name, err)
+			}
+			digest := sha256.Sum256(data)
+			if actual := hex.EncodeToString(digest[:]); actual != expectedArtifact {
+				return CompatibilityReport{}, fmt.Errorf("generated artifact %s checksum mismatch", name)
+			}
 		}
 	}
 	return CompatibilityReport{Collection: spec.Name, GeneratorVersion: lock.GeneratorVersion, SpecSHA256: lock.SpecSHA256, FilesChecked: len(requiredGeneratedFiles)}, nil
