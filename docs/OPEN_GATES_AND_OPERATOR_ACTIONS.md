@@ -59,7 +59,9 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   tekrar deneme/backpressure davranışını test et. Kalıcı job/queue ihtiyacı varsa ayrı kapasite kararı ver.
   Lokal fail-closed, failed durum işaretleme ve bounded queue regresyonları artık otomatik testte
   kanıtlanıyor (`internal/media/derivatives_test.go`); gerçek encoder/RAM profili ve kalıcı kuyruk kararı
-  production ortamı kapısı olarak açık kalır.
+  production ortamı kapısı olarak açık kalır. WSL’de PATH üzerinden gerçek FFmpeg
+  WebP üretimi `R18-wsl-ffmpeg-webp-contract-2026-09-17` ile doğrulandı; büyük video,
+  codec kapsamı ve kapasite ölçümü hâlâ açık kapıdır.
 - [ ] Stripe/iyzico/PayTR sandbox callback ve signature doğrulamasını gerçek sandbox hesaplarıyla çalıştır.
   Canlı ödeme anahtarları, webhook URL’leri, idempotency, refund ve timeout davranışı production öncesi
   ayrıca doğrulanmalıdır.
