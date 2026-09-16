@@ -30,3 +30,8 @@ kalır.
 Limiter ayrıca request-scoped `AllowContext` çağrısında iptal/deadline
 propagasyonunu fail-closed olarak test eder; iptal edilmiş bir isteğin Redis
 operasyonunu safety timeout'a kadar tutması engellenir.
+
+Yerel bir servisi durdurmayı gerektirmeden, ayrılmış loopback portu üzerinden
+başlangıç bağlantısı ve `EVAL` erişilemezliği de fail-closed regression testleri
+ile doğrulanır. Gerçek failover, partition ve saat kayması tatbikatı yine
+çoklu-instance staging ortamı gerektirir.

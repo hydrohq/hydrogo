@@ -39,6 +39,23 @@ func TestNewRedisClientRejectsMissingOrMalformedURL(t *testing.T) {
 	}
 }
 
+func TestNewRedisClientFailsClosedWhenEndpointUnavailable(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	if _, err := NewRedisClient(ctx, "redis://127.0.0.1:1/15"); err == nil {
+		t.Fatal("unavailable Redis endpoint accepted")
+	}
+}
+
+func TestRedisRateLimiterFailsClosedWhenEvalUnavailable(t *testing.T) {
+	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
+	defer client.Close()
+	limiter := RedisRateLimiter{Client: client, Prefix: "hydro:test:", Limit: 1, Window: time.Minute}
+	if limiter.Allow("unavailable") {
+		t.Fatal("unavailable Redis endpoint must fail closed")
+	}
+}
+
 func TestRedisRateLimiterAllowContextHonorsCancellation(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:0"})
 	defer client.Close()
