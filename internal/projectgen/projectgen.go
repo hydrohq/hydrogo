@@ -244,21 +244,23 @@ func Generate(opts Options) (string, error) {
 	}
 
 	files := map[string]string{
-		"config.yaml":          configTemplate(opts, lock, themeName),
-		"hydrogo.lock":         mustJSON(lock),
-		"README.md":            readmeTemplate(opts, lock),
-		"PROJECT_STATUS.md":    projectStatusTemplate(opts),
-		"TASKS.md":             tasksTemplate(opts),
-		"LICENSE":              licenseDraftTemplate(opts),
-		"NOTICE":               noticeTemplate(),
-		"docs/ARCHITECTURE.md": architectureDocTemplate(opts, lock),
-		"docs/OPERATIONS.md":   operationsDocTemplate(opts),
-		"docs/SDK.md":          sdkDocTemplate(opts, lock),
-		"docs/E2E_GUIDE.md":    e2eDocTemplate(opts),
-		"UPGRADE.md":           upgradeGuideTemplate(opts, lock),
-		"e2e/manifest.json":    e2eManifestJSON,
-		"custom/README.md":     "# Custom Business Logic\n\nPlace client-specific handlers, extension hooks, and integrations here.\nHydroGo Core remains external and is not modified in this project.\n",
-		"migrations/README.md": "# Project Migrations\n\nPlace project-specific SQL migrations here. HydroGo Core migrations are applied automatically by the licensed runtime.\n",
+		"config.yaml":           configTemplate(opts, lock, themeName),
+		"hydrogo.lock":          mustJSON(lock),
+		"README.md":             readmeTemplate(opts, lock),
+		"PROJECT_STATUS.md":     projectStatusTemplate(opts),
+		"TASKS.md":              tasksTemplate(opts),
+		"LICENSE":               licenseDraftTemplate(opts),
+		"NOTICE":                noticeTemplate(),
+		"docs/ARCHITECTURE.md":  architectureDocTemplate(opts, lock),
+		"docs/OPERATIONS.md":    operationsDocTemplate(opts),
+		"docs/SDK.md":           sdkDocTemplate(opts, lock),
+		"docs/E2E_GUIDE.md":     e2eDocTemplate(opts),
+		"UPGRADE.md":            upgradeGuideTemplate(opts, lock),
+		"e2e/manifest.json":     e2eManifestJSON,
+		"frontend/starter.json": starterManifest(opts, lock),
+		"frontend/README.md":    frontendStarterReadme(opts),
+		"custom/README.md":      "# Custom Business Logic\n\nPlace client-specific handlers, extension hooks, and integrations here.\nHydroGo Core remains external and is not modified in this project.\n",
+		"migrations/README.md":  "# Project Migrations\n\nPlace project-specific SQL migrations here. HydroGo Core migrations are applied automatically by the licensed runtime.\n",
 	}
 
 	// Preset theme files
@@ -323,6 +325,22 @@ func Generate(opts Options) (string, error) {
 	}
 
 	return cleanProjectRoot, nil
+}
+
+func starterManifest(opts Options, lock Lock) string {
+	type manifest struct {
+		Version       int      `json:"version"`
+		Preset        string   `json:"preset"`
+		Presentation  string   `json:"presentation"`
+		DesignSystems []string `json:"design_systems"`
+		Features      []string `json:"features"`
+	}
+	data, _ := json.MarshalIndent(manifest{Version: 1, Preset: lock.Preset, Presentation: opts.Presentation, DesignSystems: []string{"hydro", "shadcn", "material", "carbon", "headless", "vanilla"}, Features: append([]string(nil), lock.Features...)}, "", "  ")
+	return string(data) + "\n"
+}
+
+func frontendStarterReadme(opts Options) string {
+	return fmt.Sprintf("# Frontend starter\n\nThis Client Edition uses the **%s** preset and exposes `frontend/starter.json` as the stable integration manifest. Choose a design-system adapter (Hydro, shadcn, Material, Carbon, headless, or vanilla) in your frontend build. The manifest contains no credentials and does not add a runtime dependency to Core.\n\nGenerated API clients and form schemas can be consumed from each resource's `generated/` directory. Keep authentication, policy, and cache invalidation in the Client Edition.\n", opts.Preset)
 }
 
 func isPreset(value string) bool {
