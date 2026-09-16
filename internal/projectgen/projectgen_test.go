@@ -61,6 +61,15 @@ func TestGenerateAllPresets(t *testing.T) {
 					t.Errorf("expected required file %q to exist: %v", file, err)
 				}
 			}
+			contracts, err := os.ReadFile(filepath.Join(projectPath, "frontend", "contracts.ts"))
+			if err != nil {
+				t.Fatalf("read generated frontend contracts: %v", err)
+			}
+			for _, marker := range []string{"EditorialWorkflow", "FormDefinition", "SearchQuery", "CapabilityKit", "AnalyticsConsent"} {
+				if !strings.Contains(string(contracts), marker) {
+					t.Fatalf("generated frontend contracts missing %q", marker)
+				}
+			}
 
 			// 2. Verify lockfile JSON parsing
 			lockBytes, err := os.ReadFile(filepath.Join(projectPath, "hydrogo.lock"))
