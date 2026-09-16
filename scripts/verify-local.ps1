@@ -17,6 +17,7 @@ New-Item -ItemType Directory -Force .tmp\local | Out-Null
 Invoke-Required "deterministic SPDX SBOM" { go run ./tools/sbom -output .tmp\local\hydro-sbom.spdx.json }
 Invoke-Required "deterministic theme asset manifest" { go run ./tools/assetmanifest -root themes -output .tmp\local\asset-manifest.json }
 Invoke-Required "embedded vendor asset references" { go run ./tools/assetguard -root . }
+Invoke-Required "container image hardening" { & (Join-Path $PSScriptRoot "container-lint.ps1") }
 Invoke-Required "gofmt" {
     $unformatted = gofmt -l . | Where-Object { $_ -notlike ".tmp*" -and $_ -notlike "*.tmp\*" }
     if ($unformatted) { throw "gofmt required: $($unformatted -join ', ')" }
