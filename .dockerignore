@@ -1,0 +1,13 @@
+.git
+.github
+.tmp
+.codex
+.agents
+bin
+data
+*.db
+*.sqlite
+*.exe
+test-all.log
+docs
+e2e
