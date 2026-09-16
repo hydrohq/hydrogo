@@ -1,6 +1,12 @@
 $ErrorActionPreference = "Stop"
 
-$gateDir = Join-Path (Get-Location) ".tmp\gates"
+$gateDir = if ([string]::IsNullOrWhiteSpace($env:HYDRO_GATE_DIR)) {
+    Join-Path (Get-Location) ".tmp\gates"
+} elseif ([System.IO.Path]::IsPathRooted($env:HYDRO_GATE_DIR)) {
+    $env:HYDRO_GATE_DIR
+} else {
+    Join-Path (Get-Location) $env:HYDRO_GATE_DIR
+}
 New-Item -ItemType Directory -Force $gateDir | Out-Null
 $reportPath = if ([string]::IsNullOrWhiteSpace($env:HYDRO_GATE_REPORT)) {
     Join-Path $gateDir ("production-gates-{0}.md" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
@@ -75,10 +81,12 @@ finally {
 
 $buildLDFLAGS = "-X main.buildCommit=production-gate -X main.buildTime=production-gate"
 Invoke-Required "reproducible hydro build" {
-    go build -trimpath -buildvcs=false -ldflags "$buildLDFLAGS -buildid=" -o .tmp\gates\hydro-a.exe ./cmd/hydro
-    go build -trimpath -buildvcs=false -ldflags "$buildLDFLAGS -buildid=" -o .tmp\gates\hydro-b.exe ./cmd/hydro
-    $a = (Get-FileHash .tmp\gates\hydro-a.exe -Algorithm SHA256).Hash
-    $b = (Get-FileHash .tmp\gates\hydro-b.exe -Algorithm SHA256).Hash
+    $buildA = Join-Path $gateDir "hydro-a.exe"
+    $buildB = Join-Path $gateDir "hydro-b.exe"
+    go build -trimpath -buildvcs=false -ldflags "$buildLDFLAGS -buildid=" -o $buildA ./cmd/hydro
+    go build -trimpath -buildvcs=false -ldflags "$buildLDFLAGS -buildid=" -o $buildB ./cmd/hydro
+    $a = (Get-FileHash $buildA -Algorithm SHA256).Hash
+    $b = (Get-FileHash $buildB -Algorithm SHA256).Hash
     if ($a -ne $b) { throw "reproducible build digests differ: $a / $b" }
 }
 
