@@ -393,6 +393,28 @@ func TestRunResourceCheckAlias(t *testing.T) {
 	}
 }
 
+func TestFrontendCheckValidatesAndNormalizesManifest(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "frontend.json")
+	if err := os.WriteFile(manifest, []byte(`{"routes":[{"name":"zeta","path":"/zeta","test_id":"route-z"},{"name":"alpha","path":"/alpha","test_id":"route-a"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"frontend", "check", "--manifest", manifest}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("frontend check: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "frontend-manifest-valid routes=2") {
+		t.Fatalf("frontend check output = %q", stdout.String())
+	}
+	stdout.Reset()
+	if err := run([]string{"frontend", "check", "--manifest", manifest, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("frontend check json: %v", err)
+	}
+	if strings.Index(stdout.String(), `"alpha"`) > strings.Index(stdout.String(), `"zeta"`) {
+		t.Fatalf("routes were not normalized: %s", stdout.String())
+	}
+}
+
 func TestRunAPIDiffAlias(t *testing.T) {
 	root := t.TempDir()
 	baseline := filepath.Join(root, "baseline.json")

@@ -59,6 +59,7 @@ import (
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
+	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
@@ -161,6 +162,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return resourceCommand(args[1:], stdout, stderr)
 	case "api":
 		return apiCommand(args[1:], stdout, stderr)
+	case "frontend":
+		return frontendCommand(args[1:], stdout, stderr)
 	case "schema":
 		return schemaCommand(args[1:], stdout, stderr)
 	case "permissions":
@@ -265,6 +268,36 @@ func resourceCommand(args []string, stdout, stderr io.Writer) error {
 
 // apiCommand exposes compatibility checks as a first-class SDK workflow while
 // retaining `validate api` as the lower-level spelling.
+func frontendCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "check" {
+		return errors.New("frontend requires the check subcommand")
+	}
+	flags := flag.NewFlagSet("frontend check", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	manifest := flags.String("manifest", "", "JSON frontend build manifest")
+	jsonOutput := flags.Bool("json", false, "emit normalized routes as JSON")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*manifest) == "" {
+		return errors.New("frontend check requires --manifest PATH")
+	}
+	routes, err := projectgen.ValidateFrontendManifest(*manifest)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		data, err := json.MarshalIndent(map[string]any{"version": 1, "routes": routes}, "", "  ")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(stdout, string(data))
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "frontend-manifest-valid routes=%d path=%s\n", len(routes), *manifest)
+	return err
+}
+
 func apiCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] != "diff" {
 		return errors.New("api requires the diff subcommand")
@@ -2871,6 +2904,7 @@ Usage:
   hydro validate [--json] [runtime flags]
   hydro validate generator --spec SPEC --root OUTPUT
   hydro validate api --baseline OPENAPI.json --current OPENAPI.json
+  hydro frontend check --manifest PATH [--json]
   hydro test [--package ./...] [--timeout 5m] [--race] [--count N]
   hydro backup sqlite --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
