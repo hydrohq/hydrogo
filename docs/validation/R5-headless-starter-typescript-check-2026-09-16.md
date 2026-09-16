@@ -6,9 +6,11 @@ From `examples/headless-starter`:
 
 - `npm run check` passes (`tsc --noEmit`).
 - `npm run build` passes and emits the starter distribution.
-- `npm run demo` reaches the configured HydroGo endpoint but cannot complete
-  while no local server is listening on `127.0.0.1:8090` (`ECONNREFUSED`).
+- With a disposable SQLite database seeded by `hydro seed-demo` and a temporary
+  `hydro serve --address 127.0.0.1:8090`, `npm run demo` completed and returned
+  one page, three page summaries, eight news items, and eight products.
+- The temporary server was stopped after the check; no local service was left
+  running.
 
-The last result is an environment precondition, not a starter compile error;
-run the demo with `hydro serve` available. Browser acceptance against a real
-Client Edition remains open.
+This proves the starter’s local API contract path. Browser acceptance against
+a real Client Edition and external authentication remains open.
