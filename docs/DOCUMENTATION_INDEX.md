@@ -24,6 +24,7 @@ Bu belge, mevcut kararların ve doğrulama kanıtlarının nerede tutulduğunu g
 | Deployment ve operasyon | [DEPLOYMENT.md](DEPLOYMENT.md), [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) |
 | Güvenlik modeli | [security/THREAT_MODEL.md](security/THREAT_MODEL.md), [COMMERCIAL_LICENSING.md](COMMERCIAL_LICENSING.md) |
 | Son güvenlik taraması | [validation/security-check-2026-09-16.md](validation/security-check-2026-09-16.md), [`security-report/`](../security-report/) |
+| Güvenlik skill entegrasyonu | [SECURITY_CHECK_INTEGRATION.md](SECURITY_CHECK_INTEGRATION.md) |
 | Frontend ve Admin Studio | [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md), [HEADLESS_ADMIN_STUDIO_PLAN.md](HEADLESS_ADMIN_STUDIO_PLAN.md), [UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md) |
 
 ## Belge türleri
