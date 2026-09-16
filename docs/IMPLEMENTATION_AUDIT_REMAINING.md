@@ -71,7 +71,9 @@ environment, an external provider, legal review, or a release pipeline.
 - Add accessibility checks for keyboard navigation, focus management, labels,
   contrast and reduced motion.
 - Replace hard-coded demo/home/locale links with site settings and empty states.
-- Add a relational taxonomy model and a real admin localization catalog.
+- News now has a module-owned relational taxonomy model/repository and
+  SQLite/PostgreSQL migration (`202609160001_news_taxonomy`); admin editing,
+  authorization integration and a real admin localization catalog remain open.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); module persistence, admin UX,
   inbox/retention and provider indexing remain open implementation work.
