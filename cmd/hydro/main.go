@@ -255,7 +255,7 @@ func resourceCommand(args []string, stdout, stderr io.Writer) error {
 		return errors.New("resource requires create, new or check subcommand")
 	}
 	if args[0] == "check" {
-		return validateGeneratorCommand(args[1:], stdout, stderr)
+		return validateResourceCommand(args[1:], stdout, stderr)
 	}
 	if args[0] != "create" && args[0] != "new" {
 		return errors.New("resource requires create, new or check subcommand")
@@ -264,6 +264,41 @@ func resourceCommand(args []string, stdout, stderr io.Writer) error {
 		return resourceCreateFromFlags(args[1:], stdout, stderr)
 	}
 	return generateModuleCommand(args[1:], stdout, stderr)
+}
+
+func validateResourceCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("resource check", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	specPath := flags.String("spec", "", "Versioned module spec (.yaml, .yml, or .json); omit to discover generated spec.json files")
+	root := flags.String("root", "", "Generated project root")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*root) == "" {
+		return errors.New("resource check requires --root and optionally --spec")
+	}
+	if strings.TrimSpace(*specPath) != "" {
+		spec, err := generator.LoadSpec(*specPath)
+		if err != nil {
+			return err
+		}
+		report, err := generator.CheckCompatibility(*root, spec)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(stdout, "resource-compatible collection=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked)
+		return err
+	}
+	reports, err := generator.CheckGeneratedCompatibility(*root)
+	if err != nil {
+		return err
+	}
+	for _, report := range reports {
+		if _, err := fmt.Fprintf(stdout, "resource-compatible collection=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // apiCommand exposes compatibility checks as a first-class SDK workflow while
@@ -2932,7 +2967,7 @@ Usage:
   hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
   hydro resource new --spec SPEC --out OUTPUT
-  hydro resource check --spec SPEC --root OUTPUT
+  hydro resource check --root OUTPUT [--spec SPEC]
   hydro api diff --baseline OPENAPI.json --current OPENAPI.json
   hydro schema diff --baseline RELEASE.json --current RELEASE.json --public-key KEY
   hydro permissions check --spec SPEC [--json]
