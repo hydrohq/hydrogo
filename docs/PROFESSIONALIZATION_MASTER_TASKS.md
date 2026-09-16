@@ -217,7 +217,10 @@ credential, legal decision, or product decision and must remain an open gate.
   module persistence, authorization and admin UX.
 - [x] Add the provider-neutral forms contract with bounded validation
   (`extension/v1`; ADR-0121).
-- [ ] Add form-builder admin UX and an inbox/retention implementation.
+- [x] Add bounded form inbox, status transitions and retention purge with
+  module-owned persistence and audit coverage.
+- [ ] Add schema-driven form-builder admin UX; advanced arbitrary form design
+  remains intentionally outside the initial Site Edition scope.
 - [x] Add the provider-neutral search provider contract (`extension/v1`; ADR-0123).
 - [ ] Add provider indexing/rebuild and freshness/capacity evidence after
   measuring real query needs.
