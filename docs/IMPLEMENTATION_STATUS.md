@@ -74,7 +74,7 @@ ve ADR-0091'e bakın.
   bridge, schedule ve locale fallback için ürün kabul testleri gerekiyor.
 - **Faz 4 (kit ekosistemi):** Kısmi. Kit/edition sözleşmeleri mevcut; registry,
   dependency çözümleme ve uyumluluk matrisi tamamlanmadı.
-- **Faz 5 (frontend SDK/starter):** Kısmi. Adapter sözleşmeleri, typed client/query akışı ve headless starter TypeScript check/build kanıtı var; browser/Client Edition kabulü tamamlanmadı.
+- **Faz 5 (frontend SDK/starter):** Kısmi. Adapter sözleşmeleri, typed client/query akışı ve disposable SQLite üzerinde headless starter TypeScript check/build/demo kanıtı var; browser/Client Edition kabulü tamamlanmadı.
 - **Faz 6 (production/upgrade):** Açık. PostgreSQL kapasitesi, blue/green,
   restore ve imzalı cross-OS release kanıtları bekliyor.
 
