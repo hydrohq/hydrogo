@@ -77,8 +77,14 @@ export class HydroGoClient {
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const externalSignal = init.signal;
+    const forwardAbort = () => controller.abort(externalSignal?.reason);
+    if (externalSignal) {
+      if (externalSignal.aborted) forwardAbort();
+      else externalSignal.addEventListener("abort", forwardAbort, { once: true });
+    }
     try {
-      const response = await this.requestFetch(`${this.origin}${path}`, { ...init, signal: init.signal ?? controller.signal });
+      const response = await this.requestFetch(`${this.origin}${path}`, { ...init, signal: controller.signal });
       if (response.status === 204) return undefined as T;
       if (!response.ok) {
         const body = [...(await response.text())].slice(0, MAX_ERROR_BODY_CODEPOINTS).join("");
@@ -87,6 +93,7 @@ export class HydroGoClient {
       return response.json() as Promise<T>;
     } finally {
       clearTimeout(timer);
+      externalSignal?.removeEventListener("abort", forwardAbort);
     }
   }
 }
