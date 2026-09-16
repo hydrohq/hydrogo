@@ -99,6 +99,38 @@ func (s Store) ListTaxonomy(ctx context.Context, tx database.Executor, contentID
 	return result, nil
 }
 
+// ListTaxonomyTerms returns the module-owned term catalog in stable order.
+func (s Store) ListTaxonomyTerms(ctx context.Context, tx database.Executor) ([]v1.TaxonomyTerm, error) {
+	if err := database.RequireExecutor(tx); err != nil {
+		return nil, err
+	}
+	queryer, ok := tx.(taxonomyQueryExecutor)
+	if !ok {
+		return nil, fmt.Errorf("taxonomy executor does not support row queries")
+	}
+	rows, err := queryer.QueryContext(ctx, `SELECT id,slug,kind,COALESCE(parent_id,''),labels_json FROM news_taxonomy_terms ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]v1.TaxonomyTerm, 0)
+	for rows.Next() {
+		var term v1.TaxonomyTerm
+		var labels string
+		if err := rows.Scan(&term.ID, &term.Slug, &term.Kind, &term.Parent, &labels); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(labels), &term.Labels); err != nil {
+			return nil, fmt.Errorf("decode taxonomy labels: %w", err)
+		}
+		result = append(result, term)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func nullableTaxonomyParent(parent string) any {
 	if strings.TrimSpace(parent) == "" {
 		return nil

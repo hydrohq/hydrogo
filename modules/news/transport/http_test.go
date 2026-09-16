@@ -9,6 +9,7 @@ func TestRoutesIncludeCSRFProtectedAdminNewsForms(t *testing.T) {
 	want := map[string]bool{
 		"GET /admin/news/{id}":           true,
 		"POST /admin/news/{id}":          true,
+		"POST /admin/news/{id}/taxonomy": true,
 		"POST /admin/news/{id}/schedule": true,
 		"POST /admin/news/{id}/publish":  true,
 		"POST /admin/news/{id}/retract":  true,

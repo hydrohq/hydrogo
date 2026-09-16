@@ -206,8 +206,9 @@ credential, legal decision, or product decision and must remain an open gate.
   multilingual labels and related-content relations (`extension/v1`; ADR-0120).
 - [x] Add the News-owned relational taxonomy model/repository and
   SQLite/PostgreSQL migrations.
-- [ ] Add taxonomy admin editing, authorization integration and related-content
-  UX.
+- [x] Add News taxonomy admin selection/editing with protected route and
+  module-owned persistence.
+- [ ] Add taxonomy term management and related-content UX.
 - [x] Add the provider-neutral editorial workflow contract (`extension/v1`; ADR-0122).
 - [ ] Integrate configurable editorial workflow and moderation transitions into
   module persistence, authorization and admin UX.

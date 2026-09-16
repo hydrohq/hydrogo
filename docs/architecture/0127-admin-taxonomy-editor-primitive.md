@@ -16,5 +16,5 @@ create routes.
 ## Evidence and consequences
 
 `internal/adminstudio/taxonomy_test.go` covers deterministic ordering and HTML
-escaping. News transport integration and module-level permission tests remain
-open product work.
+escaping. News exposes the protected `/admin/news/{id}/taxonomy` endpoint and
+uses the primitive; term management and related-content UX remain product work.
