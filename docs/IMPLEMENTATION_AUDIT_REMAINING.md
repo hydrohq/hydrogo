@@ -81,8 +81,8 @@ environment, an external provider, legal review, or a release pipeline.
   module-level authorization are now wired through the protected News taxonomy
   endpoint, with transaction-backed replacement when the executor supports it;
   protected term catalog CRUD now validates full parent trees and refuses
-  deleting terms with children or content relations; public related-content UX
-  remains open.
+  deleting terms with children or content relations; published News detail
+  pages now show bounded taxonomy-aware related content with a safe fallback.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); module persistence, admin UX,
   inbox/retention and provider indexing remain open implementation work.

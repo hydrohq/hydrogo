@@ -9,6 +9,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
 
 func TestReplaceAndListTaxonomySQLite(t *testing.T) {
@@ -81,5 +82,50 @@ func TestTaxonomyTermCRUDGuardsChildrenAndRelations(t *testing.T) {
 	}
 	if err := store.DeleteTaxonomyTerm(ctx, db, "go"); err != nil {
 		t.Fatalf("delete unused leaf: %v", err)
+	}
+}
+
+func TestListRelatedPublishedUsesSharedTermsAndExcludesDrafts(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "taxonomy-related.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Dialect: database.SQLite}
+	term := v1.TaxonomyTerm{ID: "go", Slug: "go", Kind: "tag", Labels: map[string]string{"en": "Go"}}
+	if err := store.UpsertTaxonomyTerm(ctx, db, term); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []struct {
+		id, status string
+		published  any
+	}{
+		{"source", "published", 1},
+		{"related", "published", 1},
+		{"draft", "draft", nil},
+	} {
+		if _, err := db.ExecContext(ctx, `INSERT INTO news_items (id,locale,slug,title,body,status,published_revision,created_at,updated_at) VALUES (?,?,?,?,?,?,?, ?,?)`, item.id, "en", item.id, item.id, "{}", item.status, item.published, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.ReplaceTaxonomy(ctx, db, "source", []v1.TaxonomyTerm{term}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceTaxonomy(ctx, db, "related", []v1.TaxonomyTerm{term}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceTaxonomy(ctx, db, "draft", []v1.TaxonomyTerm{term}); err != nil {
+		t.Fatal(err)
+	}
+	items, err := store.ListRelatedPublished(ctx, db, "source", "en", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].ID != "related" || items[0].Status != news.StatusPublished {
+		t.Fatalf("related items = %#v", items)
 	}
 }
