@@ -35,6 +35,11 @@ func (s Store) validate() error {
 }
 
 func (s Store) Upsert(ctx context.Context, form forms.Form) error {
+	return s.UpsertWithExecutor(ctx, s.Executor, form)
+}
+
+func (s Store) UpsertWithExecutor(ctx context.Context, executor database.Executor, form forms.Form) error {
+	s.Executor = executor
 	if err := s.validate(); err != nil {
 		return err
 	}
@@ -107,6 +112,11 @@ func (s Store) List(ctx context.Context) ([]forms.Form, error) {
 }
 
 func (s Store) Delete(ctx context.Context, id string) error {
+	return s.DeleteWithExecutor(ctx, s.Executor, id)
+}
+
+func (s Store) DeleteWithExecutor(ctx context.Context, executor database.Executor, id string) error {
+	s.Executor = executor
 	if err := s.validate(); err != nil {
 		return err
 	}
