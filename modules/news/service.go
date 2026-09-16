@@ -77,6 +77,12 @@ func (s Service) validateTransition(ctx context.Context, tx database.Executor, i
 	return nil
 }
 
+// CanTransition exposes the configured policy to module-owned presentation
+// layers so they can hide unavailable actions without duplicating rules.
+func (s Service) CanTransition(from Status, target v1.EditorialState) bool {
+	return s.editorialWorkflow().CanTransition(v1.EditorialState(from), target)
+}
+
 // GetPublishedByRoute applies the configured exact → primary → default
 // locale chain. It falls back only when a candidate has no published row.
 func (s Service) GetPublishedByRoute(ctx context.Context, db database.Executor, locale, slug string) (Item, error) {

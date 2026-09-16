@@ -19,5 +19,7 @@ in Admin Studio require a future migration and separate product decision.
 ## Evidence
 
 `modules/news/workflow_test.go` proves a configured policy can reject a publish
-transition without changing the stored status. The service still delegates
+transition without changing the stored status. News Admin Studio derives its
+schedule/publish/retract controls from the same policy and renders an explicit
+empty state when no transition is available. The service still delegates
 persistence, audit and outbox behavior to module-owned boundaries.

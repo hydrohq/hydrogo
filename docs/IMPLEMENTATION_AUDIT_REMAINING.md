@@ -88,8 +88,9 @@ environment, an external provider, legal review, or a release pipeline.
   gates (`docs/validation/R8-wsl-race-2026-09-16.md`).
 - News now accepts an optional `extension/v1.EditorialWorkflow` and enforces
   transitions inside its transaction boundary, with a rejection regression
-  test. Persisted custom moderation states, role-specific policies and Admin
-  Studio workflow editing remain open.
+  test. Admin Studio hides disallowed publication actions using the same policy.
+  Persisted custom moderation states, role-specific policies and workflow
+  editing remain open.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); the Site Edition form inbox,
   status transitions and retention purge are implemented and audited. A

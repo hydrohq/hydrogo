@@ -3,10 +3,12 @@ package transport
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
 
 type taxonomyTransactionProbe struct{}
@@ -77,6 +79,20 @@ func TestRoutesIncludeCSRFProtectedAdminNewsForms(t *testing.T) {
 	}
 	for pattern := range want {
 		t.Errorf("missing admin route %q", pattern)
+	}
+}
+
+func TestWorkflowActionMarkupFollowsConfiguredPolicy(t *testing.T) {
+	service := news.Service{Workflow: v1.EditorialWorkflow{
+		States:      []v1.EditorialState{v1.EditorialDraft, v1.EditorialPublished},
+		Transitions: map[v1.EditorialState][]v1.EditorialState{v1.EditorialDraft: {}},
+	}}
+	markup := string(workflowActionMarkup(service, news.Item{ID: "article-1", Status: news.StatusDraft}, "csrf"))
+	if strings.Contains(markup, "/publish") || strings.Contains(markup, "/schedule") || strings.Contains(markup, "/retract") {
+		t.Fatalf("disallowed workflow action rendered: %s", markup)
+	}
+	if !strings.Contains(markup, "kullanılabilir yayın aksiyonu yok") {
+		t.Fatalf("missing empty workflow action state: %s", markup)
 	}
 }
 
