@@ -29,6 +29,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Form contract | Kısmi tamamlandı (yerel) | Bounded metadata ve submission normalizasyonu; inbox/consent/delivery modüle ait | `R5-form-contract` |
 | Kit dependency resolution | Kısmi tamamlandı (yerel) | Allowlisted dependency expansion ve deterministic kit set; implementation loading modüle ait | `R5-kit-dependency-resolution` |
 | Generated form schema | Kısmi tamamlandı (yerel) | Collection spec’inden deterministic `form.schema.json`; business validation/inbox modüle ait | `R5-generated-form-schema` |
+| Frontend starter manifest | Kısmi tamamlandı (yerel) | Preset/presentation/features/design-system seçeneklerini bildiren credential-free manifest | `R5-frontend-starter-manifest` |
 | Configurable workflow contract | Kısmi tamamlandı (yerel) | Admin Studio’da bounded custom state/transition doğrulaması; persistence ve moderation UI modüle ait | `R5-configurable-workflow` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
