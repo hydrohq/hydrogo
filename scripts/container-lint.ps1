@@ -14,7 +14,8 @@ $required = @(
   'USER hydro',
   'COPY --from=build /src/hydrogo.lock',
   'ENTRYPOINT ["/app/hydro"]',
-  'CMD ["serve", "--config", "/app/config.yaml"]'
+  'CMD ["serve", "--config", "/app/config.yaml"]',
+  'HEALTHCHECK --interval=30s --timeout=3s'
 )
 foreach ($needle in $required) {
   if ($content.IndexOf($needle, [StringComparison]::Ordinal) -lt 0) {
