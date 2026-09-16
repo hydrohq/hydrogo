@@ -35,6 +35,13 @@ func TestStoreRequiresCurrentGrantedConsentAndAggregates(t *testing.T) {
 	if err := s.SaveConsent(ctx, "opaque", v1.AnalyticsConsent{Decision: v1.ConsentGranted, PurposeVersion: "v1", DecidedAt: when}); err != nil {
 		t.Fatal(err)
 	}
+	var storedID string
+	if err := s.Executor.QueryRowContext(ctx, `SELECT consent_id FROM analytics_consent`).Scan(&storedID); err != nil {
+		t.Fatal(err)
+	}
+	if storedID == "opaque" || len(storedID) != 64 {
+		t.Fatalf("consent handle was not anonymized: %q", storedID)
+	}
 	if err := s.RecordEvent(ctx, "opaque", "v1", event); err != nil {
 		t.Fatal(err)
 	}

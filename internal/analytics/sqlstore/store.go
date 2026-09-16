@@ -3,7 +3,9 @@ package sqlstore
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -21,8 +23,8 @@ var (
 const MaxConsentIDLength = 128
 
 // Store persists only purpose-versioned consent and daily aggregate events.
-// consentID is an opaque caller-generated value; no identity, IP or device
-// information is accepted or written by this package.
+// consentID is an opaque caller-generated value; only its fixed-length digest
+// is written. No identity, IP or device information is accepted or written.
 type Store struct {
 	Executor database.Executor
 	Dialect  database.Dialect
@@ -49,6 +51,7 @@ func (s Store) SaveConsent(ctx context.Context, consentID string, consent v1.Ana
 	if consentID == "" || len(consentID) > MaxConsentIDLength {
 		return ErrConsentIDRequired
 	}
+	consentID = digestConsentID(consentID)
 	if err := consent.Validate(); err != nil {
 		return err
 	}
@@ -76,6 +79,7 @@ func (s Store) RecordEvent(ctx context.Context, consentID, purposeVersion string
 	if consentID == "" || len(consentID) > MaxConsentIDLength {
 		return ErrConsentIDRequired
 	}
+	consentID = digestConsentID(consentID)
 	if strings.TrimSpace(purposeVersion) == "" || len(purposeVersion) > v1.MaxAnalyticsPurposeVersion {
 		return ErrConsentRequired
 	}
@@ -133,6 +137,11 @@ func placeholder(dialect database.Dialect, position int) string {
 		return fmt.Sprintf("$%d", position)
 	}
 	return "?"
+}
+
+func digestConsentID(value string) string {
+	digest := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(digest[:])
 }
 
 func contextErr(ctx context.Context) error {

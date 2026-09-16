@@ -6,7 +6,8 @@
 
 ## Decision
 
-The optional `analytics` capability stores an opaque consent handle and
+The optional `analytics` capability stores only a SHA-256 digest of an opaque
+consent handle and
 purpose-versioned decision, then aggregates validated events by UTC day,
 event type, country and purpose version. It never stores IP addresses,
 identities, URLs, fingerprints or per-visitor event rows. `RecordEvent` fails
