@@ -26,6 +26,7 @@ var (
 )
 
 const maxLockFileBytes = 1 << 20
+const maxFrontendManifestBytes = 1 << 20
 
 type Options struct {
 	Root             string `json:"root"`
@@ -896,6 +897,13 @@ func frontendRoutes(opts Options) ([]map[string]any, error) {
 }
 
 func loadFrontendRoutes(path string) ([]map[string]any, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("frontend manifest read failed: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Size() > maxFrontendManifestBytes {
+		return nil, errors.New("frontend manifest exceeds the 1 MiB limit")
+	}
 	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("frontend manifest read failed: %w", err)
@@ -915,7 +923,7 @@ func loadFrontendRoutes(path string) ([]map[string]any, error) {
 		name, _ := route["name"].(string)
 		path, _ := route["path"].(string)
 		testID, _ := route["test_id"].(string)
-		if name == "" || path == "" || testID == "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "\r\n") {
+		if name == "" || path == "" || testID == "" || len(name) > 128 || len(path) > 2048 || len(testID) > 128 || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "\r\n") {
 			return nil, errors.New("frontend manifest route requires safe name, absolute path and test_id")
 		}
 		if seenName[name] || seenPath[path] || seenID[testID] {
