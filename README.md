@@ -20,6 +20,7 @@ This repository is not yet declared a fully certified, commercially supported v1
 - Optimistic locking to prevent silent data loss between editors
 - Shared application services and authorization rules for HTML and JSON API paths
 - Public/private media lifecycle and safe upload metadata handling
+- Protected private-media delivery with bounded presigned URLs for authorized editors/admins
 - Common SQLite and PostgreSQL behavioral contracts
 - Bounded L1 cache, generation invalidation, and single-flight miss coalescing
 - MFA, session revocation, password reset, invitations, and CSRF foundations
