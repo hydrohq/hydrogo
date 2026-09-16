@@ -571,6 +571,35 @@ export class HydroAPIError extends Error {
   }
 }
 
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+
+async function readBoundedResponse(response: Response): Promise<string> {
+  const declared = Number(response.headers.get('content-length') ?? 0);
+  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+    throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+  }
+  if (!response.body) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > MAX_RESPONSE_BYTES) throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+    return text;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_RESPONSE_BYTES) {
+      await reader.cancel();
+      throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
 export class HydroClient {
   constructor(private config: HydroConfig) {}
 
@@ -590,10 +619,7 @@ export class HydroClient {
       if (declaredLength > 2 * 1024 * 1024) {
         throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
       }
-      const raw = await res.text();
-      if ([...raw].length > 2 * 1024 * 1024) {
-        throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
-      }
+      const raw = await readBoundedResponse(res);
       let body: HydroAPIErrorBody | undefined;
       try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
       if (!res.ok) throw new HydroAPIError(res.status, body);
