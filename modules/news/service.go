@@ -43,6 +43,7 @@ type Service struct {
 	SupportedLocales []string
 	DefaultLocale    string
 	Workflow         v1.EditorialWorkflow
+	WorkflowRole     func(context.Context) string
 }
 
 var ErrInvalidWorkflowTransition = errors.New("invalid editorial workflow transition")
@@ -74,6 +75,9 @@ func (s Service) validateTransition(ctx context.Context, tx database.Executor, i
 	if err := v1.ValidateEditorialTransition(s.editorialWorkflow(), v1.EditorialState(item.Status), target); err != nil {
 		return ErrInvalidWorkflowTransition
 	}
+	if s.WorkflowRole != nil && !s.editorialWorkflow().CanTransitionForRole(s.WorkflowRole(ctx), v1.EditorialState(item.Status), target) {
+		return ErrInvalidWorkflowTransition
+	}
 	return nil
 }
 
@@ -81,6 +85,10 @@ func (s Service) validateTransition(ctx context.Context, tx database.Executor, i
 // layers so they can hide unavailable actions without duplicating rules.
 func (s Service) CanTransition(from Status, target v1.EditorialState) bool {
 	return s.editorialWorkflow().CanTransition(v1.EditorialState(from), target)
+}
+
+func (s Service) CanTransitionForRole(role string, from Status, target v1.EditorialState) bool {
+	return s.editorialWorkflow().CanTransitionForRole(role, v1.EditorialState(from), target)
 }
 
 // GetPublishedByRoute applies the configured exact → primary → default

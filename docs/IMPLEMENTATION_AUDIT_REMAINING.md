@@ -98,7 +98,9 @@ environment, an external provider, legal review, or a release pipeline.
   are now available when the forms capability is enabled; external provider
   indexing remains open;
   the optional analytics capability now has an aggregate-only consent store;
-  legal retention and DPO review remain open; SDK v1 technical support and
+  role-specific editorial transition enforcement is now active; persisted
+  custom moderation states and workflow editor UX remain open. Legal retention
+  and DPO review remain open; SDK v1 technical support and
   deprecation policy is now documented, while commercial terms remain open;
   a bounded local search provider is available for Compact/prototype use
   (`internal/search.MemoryProvider`, ADR-0128).

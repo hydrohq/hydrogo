@@ -1105,7 +1105,12 @@ func serve(args []string, stderr io.Writer) error {
 	var newsWorker newsservice.Worker
 	if moduleEnabled(cfg.Modules, "news") {
 		newsStore := newsstore.Store{Dialect: cfg.Database.Dialect}
-		newsService = newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
+		newsService = newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}, WorkflowRole: func(ctx context.Context) string {
+			if user := auth.UserFromContext(ctx); user != nil {
+				return string(user.Role)
+			}
+			return ""
+		}}
 		newsWorker = newsservice.Worker{
 			Durable: jobstore.Queue{Store: jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}, DB: db},
 			Service: newsService,
