@@ -581,6 +581,18 @@ export interface HydroAPIErrorBody {
   request_id: string;
 }
 
+export interface HydroMutationOptions {
+  idempotencyKey?: string;
+  signal?: AbortSignal;
+}
+
+export function validateIdempotencyKey(key: string): string {
+  if (key.length < 16 || key.length > 128 || key.trim() !== key || /[^\x21-\x7e]/.test(key)) {
+    throw new RangeError('Idempotency-Key must be 16–128 visible ASCII characters');
+  }
+  return key;
+}
+
 export class HydroAPIError extends Error {
   constructor(readonly status: number, readonly body?: HydroAPIErrorBody) {
     super(body?.message || 'HydroGo API request failed');
@@ -620,18 +632,19 @@ async function readBoundedResponse(response: Response): Promise<string> {
 export class HydroClient {
   constructor(private config: HydroConfig) {}
 
-  private async request<T>(path: string): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const url = new URL(path, this.config.baseUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), Math.max(100, Math.min(this.config.timeoutMs ?? 10000, 30000)));
     const headers: Record<string, string> = {
       'Accept': 'application/json',
+      ...(init.headers as Record<string, string> | undefined),
     };
     if (this.config.apiKey) {
       headers['Authorization'] = ` + "`Bearer ${this.config.apiKey}`" + `;
     }
     try {
-      const res = await fetch(url.toString(), { headers, signal: controller.signal });
+      const res = await fetch(url.toString(), { ...init, headers, signal: init.signal ?? controller.signal });
       const declaredLength = Number(res.headers.get('content-length') || 0);
       if (declaredLength > 2 * 1024 * 1024) {
         throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
@@ -644,6 +657,12 @@ export class HydroClient {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  async mutation<T>(path: string, method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', body?: unknown, options: HydroMutationOptions = {}): Promise<T> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (options.idempotencyKey) headers['Idempotency-Key'] = validateIdempotencyKey(options.idempotencyKey);
+    return this.request<T>(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: options.signal });
   }
 
   async getPage(locale: string, slug: string): Promise<Page> {
@@ -660,7 +679,7 @@ export class HydroClient {
 	return map[string]string{
 		"client/package.json": pkgJSON,
 		"client/hydrogo.ts":   tsClient,
-		"client/README.md":    "# Headless Client\n\nImport `HydroClient` from `./hydrogo.ts` into your frontend application.\n",
+		"client/README.md":    "# Headless Client\n\nImport `HydroClient` from `./hydrogo.ts` into your frontend application. Read requests are available through typed helpers; use `client.mutation(path, method, body, { idempotencyKey })` for retryable writes. Keys must be 16–128 visible ASCII characters and must be reused only with the same logical request.\n",
 	}
 }
 
