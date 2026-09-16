@@ -94,7 +94,7 @@ environment, an external provider, legal review, or a release pipeline.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); the Site Edition form inbox,
   status transitions and retention purge are implemented and audited. A
-  schema-driven form-builder admin UX and durable provider indexing remain open;
+  schema-driven form-builder admin UX and external provider indexing remain open;
   a bounded local search provider is available for Compact/prototype use
   (`internal/search.MemoryProvider`, ADR-0128).
 - Validate the stable SDK, support window, compatibility policy and customer

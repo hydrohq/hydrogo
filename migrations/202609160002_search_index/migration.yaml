@@ -1,0 +1,24 @@
+id: "202609160002_search_index"
+module: "search"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "69fc5c805a40fd91b27c62ce9b271e3816267ad4b18210d7abf488d3219a01b3"
+  postgres: "69fc5c805a40fd91b27c62ce9b271e3816267ad4b18210d7abf488d3219a01b3"
+dependencies: []
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Search capability is enabled"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One bounded searchable projection row per indexed document"
+compatibility: "Adds optional search tables; inactive profiles omit this migration."
+smoke:
+  - "Search rows can be rebuilt and removed without affecting content tables."
+restart: "Safe to rerun; committed checksum is verified before no-op."
+rollback: "No production down migration; restore or forward migration only."

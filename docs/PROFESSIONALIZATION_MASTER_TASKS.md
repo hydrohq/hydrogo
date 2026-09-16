@@ -226,8 +226,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add the provider-neutral search provider contract (`extension/v1`; ADR-0123).
 - [x] Add a bounded local provider with deterministic search, rebuild, upsert and
   delete operations for Compact/prototype profiles (ADR-0128).
-- [ ] Add durable provider indexing/rebuild and freshness/capacity evidence
-  after measuring real query needs.
+- [x] Add a bounded durable SQLite/PostgreSQL search projection with rebuild,
+    deletion, locale filtering and deterministic pagination. External provider
+    indexing plus freshness/capacity evidence remains an environment gate.
 - [ ] Add durable analytics/consent model only with a privacy ADR.
 
 ### PROD-02 Commerce and integrations (`EXTERNAL`)
