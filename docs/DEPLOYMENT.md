@@ -6,8 +6,8 @@ Bu rehber, HydroGo projelerinin Linux, Docker ve Windows ortamlarında productio
 
 ## 1. Docker Dağıtımı
 
-Repository kökündeki `Dockerfile` üretim için tekrarlanabilir bir amd64 OCI
-image üretir. Image içine lisans anahtarı, secret veya deployment config'i
+Repository kökündeki `Dockerfile` üretim için tekrarlanabilir linux/amd64 ve
+linux/arm64 OCI image'ları üretir. Image içine lisans anahtarı, secret veya deployment config'i
 gömülmez; çalıştırırken `/app/config.yaml` ve gerekiyorsa lisans dosyası
 ayrı, erişimi kısıtlı bir volume/secret olarak bağlanmalıdır.
 
@@ -20,8 +20,8 @@ docker build --pull -t hydrogo:1.0.0 .
 kapısıdır. Gerçek image build/push kanıtı, Docker/OCI registry erişimi olan
 CI veya deployment ortamında ayrıca alınmalıdır.
 
-GitHub Actions `container` işi aynı statik kapıyı Linux runner üzerinde çalıştırır
-ve image'ı registry'ye göndermeden gerçek `docker build` ile doğrular. Registry
+GitHub Actions `container` işi iki platformu Linux runner üzerinde çalıştırır
+ve image'ları registry'ye göndermeden gerçek `docker build` ile doğrular. Registry
 push işlemi bilinçli olarak ayrı bir release/onay adımıdır.
 
 Image healthcheck’i yalnızca loopback üzerindeki `/healthz` endpoint’ini
