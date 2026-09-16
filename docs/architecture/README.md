@@ -181,6 +181,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0111](0111-protected-media-url-endpoint.md) | Protected private media URL endpoint | Accepted |
 | [0128](0128-bounded-memory-search-provider.md) | Bounded local search provider for Compact/prototype profiles | Accepted |
 | [0129](0129-news-editorial-transition-policy.md) | Transactional injectable News editorial transition policy | Accepted |
+| [0130](0130-durable-local-search-index.md) | Bounded durable local search index | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
