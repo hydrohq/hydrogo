@@ -1,4 +1,6 @@
-# HydroGo security report — 2026-09-16
+# HydroGo security report — 2026-09-17
+
+Source revision: `6a7f055`
 
 ## Executive result
 
