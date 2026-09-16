@@ -25,10 +25,10 @@ cat > "$report_path" <<EOF
 # HydroGo production gate report
 
 - Started: $(date -u --iso-8601=seconds)
-- Commit: `$commit`
-- Profile: `$profile`
-- Toolchain: `$go_version`
-- OS: `$os`
+- Commit: ${commit}
+- Profile: ${profile}
+- Toolchain: ${go_version}
+- OS: ${os}
 - PostgreSQL contract target: configured (credentials omitted)
 
 ## Automated gates
@@ -42,7 +42,7 @@ if [[ -z "${HYDRO_TEST_POSTGRES_URL:-}" ]]; then
   exit 1
 fi
 
-run_required 'gofmt' bash -c '[[ -z "$(gofmt -l .)" ]]'
+run_required 'gofmt' bash -c '[[ -z "$(git ls-files -z -- "*.go" | xargs -0 -r gofmt -l)" ]]'
 run_required 'module integrity' go mod verify
 run_required 'workflow action pins' go run ./tools/actionguard
 run_required 'dependency vulnerability scan' go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
@@ -65,7 +65,7 @@ run_required 'reproducible hydro build' bash -c '
     a=$(shasum -a 256 "$2/hydro-a" | cut -d" " -f1)
     b=$(shasum -a 256 "$2/hydro-b" | cut -d" " -f1)
   else
-    printf '%s\n' 'sha256sum or shasum is required' >&2
+    printf "%s\n" "sha256sum or shasum is required" >&2
     exit 1
   fi
   test "$a" = "$b"

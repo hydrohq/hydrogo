@@ -3,6 +3,7 @@ package contract_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,7 +46,8 @@ func runNewsContract(t *testing.T, dialect database.Dialect, dsn string) {
 	}
 	store := newsstore.Store{Dialect: dialect}
 	service := news.Service{Transactions: database.NewTransactor(db), Repository: store, Audit: auditstore.Store{Dialect: dialect}, Outbox: outboxstore.Store{Dialect: dialect}}
-	item := news.Item{ID: "news-1", Locale: "en", Slug: "launch", Title: "Launch", Body: "body", Status: news.StatusDraft}
+	marker := time.Now().UTC().UnixNano()
+	item := news.Item{ID: fmt.Sprintf("news-%d", marker), Locale: "en", Slug: fmt.Sprintf("launch-%d", marker), Title: "Launch", Body: "body", Status: news.StatusDraft}
 	if err := service.CreateDraft(ctx, item); err != nil {
 		t.Fatal(err)
 	}
@@ -68,14 +70,14 @@ func runNewsContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if err := service.RunScheduled(ctx, item.ID, 1, time.Now().UTC()); !errors.Is(err, news.ErrScheduleStale) {
 		t.Fatalf("replayed schedule = %v", err)
 	}
-	published, err := store.GetPublishedByRoute(ctx, db, "en", "launch")
+	published, err := store.GetPublishedByRoute(ctx, db, item.Locale, item.Slug)
 	if err != nil || published.Status != news.StatusPublished || published.PublishedRevision == nil {
 		t.Fatalf("published = %#v/%v", published, err)
 	}
 	if err := service.Retract(ctx, item.ID, published.Version); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.GetPublishedByRoute(ctx, db, "en", "launch"); err == nil {
+	if _, err := store.GetPublishedByRoute(ctx, db, item.Locale, item.Slug); err == nil {
 		t.Fatal("retracted news remained public")
 	}
 }
