@@ -72,6 +72,9 @@ environment, an external provider, legal review, or a release pipeline.
   contrast and reduced motion.
 - Replace hard-coded demo/home/locale links with site settings and empty states.
 - Add a relational taxonomy model and a real admin localization catalog.
+- SDK contracts for taxonomy, forms, editorial workflow and search are now
+  available under `extension/v1` (ADR-0120–0123); module persistence, admin UX,
+  inbox/retention and provider indexing remain open implementation work.
 - Validate the stable SDK, support window, compatibility policy and customer
   portability benchmark on real hardware.
 
