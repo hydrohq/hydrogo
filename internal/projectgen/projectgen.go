@@ -556,6 +556,20 @@ export interface NewsItem {
   published_at: string;
 }
 
+export interface HydroAPIErrorBody {
+  code: string;
+  message: string;
+  fields?: Record<string, string>;
+  request_id: string;
+}
+
+export class HydroAPIError extends Error {
+  constructor(readonly status: number, readonly body?: HydroAPIErrorBody) {
+    super(body?.message || 'HydroGo API request failed');
+    this.name = 'HydroAPIError';
+  }
+}
+
 export class HydroClient {
   constructor(private config: HydroConfig) {}
 
@@ -569,7 +583,12 @@ export class HydroClient {
     }
     const res = await fetch(url.toString(), { headers });
     if (!res.ok) {
-      throw new Error(` + "`HydroGo API error: ${res.status} ${res.statusText}`" + `);
+      const raw = await res.text();
+      let body: HydroAPIErrorBody | undefined;
+      if ([...raw].length <= 2 * 1024 * 1024) {
+        try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
+      }
+      throw new HydroAPIError(res.status, body);
     }
     return res.json();
   }

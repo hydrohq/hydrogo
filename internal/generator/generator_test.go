@@ -198,6 +198,10 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s adapter %s missing marker %q: %v", spec.Name, file, marker, readErr)
 			}
 		}
+		client, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "client.ts"))
+		if err != nil || !bytes.Contains(client, []byte("class HydroAPIError")) || !bytes.Contains(client, []byte("parseHydroError")) {
+			t.Fatalf("%s generated client missing bounded typed errors: %v", spec.Name, err)
+		}
 		react, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "react.ts"))
 		if err != nil || !bytes.Contains(react, []byte("QueryOptions")) || !bytes.Contains(react, []byte("QueryKey")) {
 			t.Fatalf("%s React adapter must expose typed query options and keys: %v", spec.Name, err)
