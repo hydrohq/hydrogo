@@ -47,6 +47,21 @@ type fakeExecutor struct{}
 func (fakeExecutor) ExecContext(context.Context, string, ...any) (sql.Result, error) { return nil, nil }
 func (fakeExecutor) QueryRowContext(context.Context, string, ...any) *sql.Row        { return nil }
 
+func TestFormBuilderRoutesArePresent(t *testing.T) {
+	handler := Handler{}
+	want := map[string]bool{"GET /admin/site/forms": false, "POST /admin/site/forms": false, "POST /admin/site/forms/{id}/delete": false}
+	for _, route := range handler.Routes() {
+		if _, ok := want[route.Pattern]; ok {
+			want[route.Pattern] = true
+		}
+	}
+	for pattern, found := range want {
+		if !found {
+			t.Fatalf("missing form route %q", pattern)
+		}
+	}
+}
+
 func TestPublicSiteRoutesExposeOnlyPublicProjection(t *testing.T) {
 	handler := Handler{DB: fakeExecutor{}, Store: fakeStore{}}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

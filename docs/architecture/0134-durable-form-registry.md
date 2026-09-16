@@ -13,11 +13,13 @@ constraints and parameterized statements. Stored JSON is validated again on
 read, so corruption fails closed rather than reaching a submission handler.
 
 The migration is module-scoped and does not add tables to profiles without
-forms. Authorization, publication, submission retention and Admin route
-composition remain Site/Client Edition responsibilities.
+forms. Authorization, publication and submission retention remain Site/Client
+Edition responsibilities. Site Admin Studio composes the registry through
+transactional, audited CRUD routes when the `forms` capability is enabled.
 
 ## Evidence
 
 `internal/forms/sqlstore/store_test.go` covers round-trip, listing, deletion,
 missing-record behavior and invalid schema rejection on SQLite. Admin Studio’s
-schema editor can now target this registry without inventing another contract.
+schema editor and `/admin/site/forms` CRUD routes target this registry without
+inventing another contract.

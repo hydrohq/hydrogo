@@ -94,8 +94,9 @@ environment, an external provider, legal review, or a release pipeline.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); the Site Edition form inbox,
   status transitions and retention purge are implemented and audited. A
-  the schema-driven form-builder admin primitive is now available; persistent
-  registry/CRUD wiring and external provider indexing remain open;
+  schema-driven form-builder Admin Studio UX and persistent audited CRUD wiring
+  are now available when the forms capability is enabled; external provider
+  indexing remains open;
   the optional analytics capability now has an aggregate-only consent store;
   legal retention and DPO review remain open; SDK v1 technical support and
   deprecation policy is now documented, while commercial terms remain open;
