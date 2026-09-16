@@ -21,3 +21,7 @@ registry push, vulnerability scan, and runtime healthcheck remain deployment
 environment gates. CI now runs the same lint plus a real `docker build` on an
 Ubuntu runner; registry publication and runtime/provider evidence remain
 separate release gates.
+
+The tracked-file secret lint also passes locally; it rejects high-confidence
+private-key and live-token patterns without treating documented test passwords
+as production credentials.

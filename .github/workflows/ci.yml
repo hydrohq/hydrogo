@@ -22,6 +22,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate container hardening markers
         run: bash scripts/container-lint.sh
+      - name: Scan tracked files for high-confidence credentials
+        run: bash scripts/secret-lint.sh
       - name: Build reproducible OCI image (no push)
         run: docker build --pull --tag hydrogo:ci .
 
