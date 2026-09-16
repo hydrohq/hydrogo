@@ -155,6 +155,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0101](0101-frontend-starter-manifest.md) | Frontend starter manifest | Accepted |
 | [0102](0102-generated-kit-dependency-artifacts.md) | Generated kit artifacts include resolved dependencies | Accepted |
 | [0103](0103-generated-frontend-index.md) | Generated frontend namespace entrypoint | Accepted |
+| [0104](0104-bounded-admin-bulk-contract.md) | Bounded provider-neutral Admin bulk contract | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
