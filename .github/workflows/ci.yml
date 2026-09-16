@@ -48,8 +48,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       HYDRO_TEST_POSTGRES_URL: postgres://hydro:hydro-test-password@127.0.0.1:5432/hydro_contract?sslmode=disable
+      HYDRO_TEST_REDIS_URL: redis://127.0.0.1:6379/15
       HYDRO_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
       HYDRO_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
     steps:
