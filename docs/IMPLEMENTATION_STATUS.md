@@ -26,6 +26,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Taxonomy contract | Kısmi tamamlandı (yerel) | Çok dilli kategori/etiket, parent cycle ve related-content referanslarını bounded doğrulayan provider-neutral sözleşme | `R5-taxonomy-contract` |
 | Search contract | Kısmi tamamlandı (yerel) | Bounded query/locale/pagination ve deterministik sonuç sözleşmesi; provider/index seçimi açık | `R5-search-contract` |
 | Generated SWR adapter | Kısmi tamamlandı (yerel) | Kaynaksız dependency-free typed key/fetcher çıktısı; browser entegrasyonu açık | `R5-generated-swr-adapter` |
+| Configurable workflow contract | Kısmi tamamlandı (yerel) | Admin Studio’da bounded custom state/transition doğrulaması; persistence ve moderation UI modüle ait | `R5-configurable-workflow` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
 | WSL race doğrulaması | Tamamlandı (yerel) | Broker/runtime/release hedef paketleri `go test -race` | `wsl-race-broker-runtime-2026-09-16` |
