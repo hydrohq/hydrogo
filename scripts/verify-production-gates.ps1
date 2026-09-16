@@ -48,6 +48,12 @@ function Invoke-Required {
     }
 }
 
+function Add-Pending {
+    param([string]$Name, [string]$Reason)
+    Write-Host "PENDING: $Name — $Reason"
+    Add-ReportLine "- PENDING: $Name — $Reason"
+}
+
 Write-Host "HydroGo production gate preflight"
 Write-Host "This runner executes reproducible local/CI gates; it does not replace a real restore, proxy, key-ceremony or customer-capacity drill."
 
@@ -91,6 +97,14 @@ Invoke-Required "reproducible hydro build" {
 }
 
 Invoke-Required "portable benchmark" { go test ./internal/portable -run '^$' -bench '^BenchmarkSQLitePortableRoundTrip256$' -benchtime=10x }
+
+if ([string]::IsNullOrWhiteSpace($env:HYDRO_TEST_REDIS_URL)) {
+    Add-Pending "Redis/Valkey atomic limiter" "HYDRO_TEST_REDIS_URL is not configured"
+} else {
+    Invoke-Required "Redis/Valkey atomic limiter" {
+        & go test ./internal/security -run '^TestRedisRateLimiterAtomicLimitAndTTL$' -count=1 -timeout=1m
+    }
+}
 
 Write-Host "PASS: automated gates completed."
 Add-ReportLine ""

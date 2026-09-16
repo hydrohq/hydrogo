@@ -14,6 +14,13 @@ run_required() {
   fi
 }
 
+add_pending() {
+  local name="$1"
+  local reason="$2"
+  printf 'PENDING: %s — %s\n' "$name" "$reason"
+  printf '%s\n' "- PENDING: ${name} — ${reason}" >> "$report_path"
+}
+
 gate_dir="${HYDRO_GATE_DIR:-.tmp/gates}"
 mkdir -p "$gate_dir"
 report_path="${HYDRO_GATE_REPORT:-${gate_dir}/production-gates-$(date -u +%Y%m%d-%H%M%S).md}"
@@ -72,6 +79,13 @@ run_required 'reproducible hydro build' bash -c '
 ' bash "$build_ldflags" "$gate_dir"
 
 run_required 'portable benchmark' go test ./internal/portable -run '^$' -bench '^BenchmarkSQLitePortableRoundTrip256$' -benchtime=10x
+
+if [[ -z "${HYDRO_TEST_REDIS_URL:-}" ]]; then
+  add_pending 'Redis/Valkey atomic limiter' 'HYDRO_TEST_REDIS_URL is not configured'
+else
+  run_required 'Redis/Valkey atomic limiter' \
+    go test ./internal/security -run '^TestRedisRateLimiterAtomicLimitAndTTL$' -count=1 -timeout=1m
+fi
 
 printf '%s\n' 'PASS: automated gates completed.'
 cat >> "$report_path" <<EOF
