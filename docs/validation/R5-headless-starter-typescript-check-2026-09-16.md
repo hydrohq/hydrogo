@@ -13,4 +13,9 @@ From `examples/headless-starter`:
   running.
 
 This proves the starter’s local API contract path. Browser acceptance against
-a real Client Edition and external authentication remains open.
+a real external Client Edition and external authentication remains open.
+
+Additionally, `scripts/run-e2e.ps1` completed locally with 47 Chromium tests
+covering the generated frontend routes, keyboard focus, responsive behavior,
+accessible names, Admin Studio journeys, media, and authenticated flows.
+The disposable server and database were torn down by the script afterward.
