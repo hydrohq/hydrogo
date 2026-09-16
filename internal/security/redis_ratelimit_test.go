@@ -2,6 +2,10 @@ package security
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -30,5 +34,42 @@ func TestNewRedisClientRejectsMissingOrMalformedURL(t *testing.T) {
 	}
 	if _, err := NewRedisClient(context.Background(), "not-a-redis-url"); err == nil {
 		t.Fatal("malformed Redis URL accepted")
+	}
+}
+
+func TestRedisRateLimiterAtomicLimitAndTTL(t *testing.T) {
+	rawURL := strings.TrimSpace(os.Getenv("HYDRO_TEST_REDIS_URL"))
+	if rawURL == "" {
+		t.Skip("HYDRO_TEST_REDIS_URL is not configured")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	client, err := NewRedisClient(ctx, rawURL)
+	if err != nil {
+		t.Fatalf("connect to Redis: %v", err)
+	}
+	defer client.Close()
+
+	key := "integration-" + time.Now().UTC().Format("20060102150405.000000000")
+	prefix := "hydro:test:" + key + ":"
+	limiter := RedisRateLimiter{Client: client, Prefix: prefix, Limit: 1, Window: 30 * time.Second}
+	if !limiter.Allow(key) {
+		t.Fatal("first request should be allowed")
+	}
+	if limiter.Allow(key) {
+		t.Fatal("second request exceeded the configured limit")
+	}
+
+	digest := sha256.Sum256([]byte(key))
+	redisKey := prefix + hex.EncodeToString(digest[:])
+	ttl, err := client.TTL(ctx, redisKey).Result()
+	if err != nil {
+		t.Fatalf("read limiter TTL: %v", err)
+	}
+	if ttl <= 0 || ttl > 30*time.Second {
+		t.Fatalf("unexpected limiter TTL %s", ttl)
+	}
+	if err := client.Del(ctx, redisKey).Err(); err != nil {
+		t.Fatalf("cleanup limiter key: %v", err)
 	}
 }
