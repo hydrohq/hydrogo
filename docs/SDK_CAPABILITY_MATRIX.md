@@ -15,6 +15,7 @@ packages are not SDK surface.
 | Taxonomy contract | `extension/v1` | Candidate | Bounded localized terms, parent graph and content relations; persistence stays module-owned | `taxonomy_test.go`, ADR-0120 |
 | Forms contract | `extension/v1` | Candidate | Bounded field definitions and submission normalization; inbox/retention stay module-owned | `forms_test.go`, ADR-0121 |
 | Editorial workflow contract | `extension/v1` | Candidate | Bounded custom states/transitions and same-origin preview path; scheduling/auth remain module-owned | `workflow_test.go`, ADR-0122 |
+| Search provider contract | `extension/v1` | Candidate | Bounded queries and deterministic hard-bounded result pages; authorization remains module-owned | `search_test.go`, ADR-0123 |
 | Generated module scaffold | `internal/generator` (tooling only) | Local tooling | Generated code requires business-rule review | generator tests and smoke |
 | Core module registry/lifecycle | `internal/modules` | Internal | Not importable by Client Editions | import-boundary checks |
 | SQL/cache/queue adapters | `internal/*` | Internal | Never exposed through domain/application contracts | import guard and architecture ADRs |
