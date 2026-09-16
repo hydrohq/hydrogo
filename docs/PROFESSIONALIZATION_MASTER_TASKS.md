@@ -222,8 +222,10 @@ credential, legal decision, or product decision and must remain an open gate.
 - [ ] Add schema-driven form-builder admin UX; advanced arbitrary form design
   remains intentionally outside the initial Site Edition scope.
 - [x] Add the provider-neutral search provider contract (`extension/v1`; ADR-0123).
-- [ ] Add provider indexing/rebuild and freshness/capacity evidence after
-  measuring real query needs.
+- [x] Add a bounded local provider with deterministic search, rebuild, upsert and
+  delete operations for Compact/prototype profiles (ADR-0128).
+- [ ] Add durable provider indexing/rebuild and freshness/capacity evidence
+  after measuring real query needs.
 - [ ] Add durable analytics/consent model only with a privacy ADR.
 
 ### PROD-02 Commerce and integrations (`EXTERNAL`)
