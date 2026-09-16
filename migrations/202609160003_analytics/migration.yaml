@@ -1,0 +1,24 @@
+id: "202609160003_analytics"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "684defef802ce29f68047bdcc784ba5c94b447b6c7ce59f3c6a7a10c77e2bd05"
+  postgres: "9a11d0ad1c8e3a73bb71030760566f15f637de0010634906db09d444d0dac63d"
+dependencies: []
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Analytics capability is enabled"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One consent row per opaque consent handle and bounded daily aggregates"
+compatibility: "Adds optional aggregate-only analytics tables; no identity fields are stored."
+smoke:
+  - "Consent is checked before a daily aggregate is updated."
+restart: "Safe to rerun; committed checksum is verified before no-op."
+rollback: "No production down migration; restore or forward migration only."
