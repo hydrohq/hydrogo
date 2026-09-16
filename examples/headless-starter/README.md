@@ -11,4 +11,9 @@ npm run demo
 
 `src/hydrogo.ts` exposes a typed client for published Pages and News (listing and detail), products, variants, cart and checkout. A real Next.js, Nuxt or Astro application can import this client and own all rendering, routing, SEO and component decisions.
 
+Client requests use a 15-second default timeout (configurable up to 120 seconds
+with `timeoutMs`) and cap error response text at 8,192 code points. Handle
+`AbortError`/`HydroGoError` in the host application and show audience-appropriate
+copy rather than exposing raw infrastructure details.
+
 For authenticated browser calls, pass the CSRF value together with the browser session cookie; `addCartItem`, `removeCartItem` and `checkout` intentionally require it. Cross-origin cookie, CORS and preview-token policy are not guessed by this starter: they are a separate Core security contract in the headless migration plan.
