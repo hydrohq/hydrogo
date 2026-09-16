@@ -24,6 +24,10 @@ GitHub Actions `container` işi aynı statik kapıyı Linux runner üzerinde ça
 ve image'ı registry'ye göndermeden gerçek `docker build` ile doğrular. Registry
 push işlemi bilinçli olarak ayrı bir release/onay adımıdır.
 
+Image healthcheck’i yalnızca loopback üzerindeki `/healthz` endpoint’ini
+bounded timeout/retry ile çağırır; dış servislere veya kimlik bilgilerine
+bağımlı değildir.
+
 ### 1.1. Dockerfile (Minimal Alpine / Distroless)
 
 ```dockerfile

@@ -7,7 +7,8 @@ for marker in \
   'FROM golang:' 'CGO_ENABLED=0' 'go build -trimpath' \
   'adduser -S -G hydro' 'USER hydro' \
   'COPY --from=build /src/hydrogo.lock' \
-  'ENTRYPOINT ["/app/hydro"]' 'CMD ["serve", "--config", "/app/config.yaml"]'; do
+  'ENTRYPOINT ["/app/hydro"]' 'CMD ["serve", "--config", "/app/config.yaml"]' \
+  'HEALTHCHECK --interval=30s --timeout=3s'; do
   grep -Fq "$marker" "$dockerfile"
 done
 if grep -Eiq 'COPY[[:space:]].*(\.lic|\.key|secret|password)' "$dockerfile"; then

@@ -4,7 +4,8 @@ The repository now includes a reproducible, credential-free OCI image
 definition in `Dockerfile` and a bounded build context in `.dockerignore`.
 The image compiles a static Linux amd64 binary, embeds only public runtime
 assets, runs as the non-root `hydro` user, and requires deployment-owned config
-and license material to be mounted at runtime.
+and license material to be mounted at runtime. It also exposes a local-only
+`/healthz` healthcheck with bounded timeout and retries.
 
 Local evidence:
 
