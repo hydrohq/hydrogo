@@ -89,6 +89,9 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   tam deploy edilmiş haber/e-ticaret uygulaması üretmez.
 - [ ] Race, fuzz ve uzun süreli yük testlerini temiz ortamda yeniden çalıştır; özellikle auth/session,
   media derivative, rate limit/Redis, queue lease, cache invalidation ve metrics sayaçlarını ölç.
+  Redis limiter'ın gerçek servis üzerindeki atomic limit + TTL davranışı WSL ve CI için
+  `R6-redis-rate-limit-2026-09-16` kanıtında doğrulandı; failover, partition, clock-skew,
+  persistence ve uzun süreli kapasite ölçümü bu kapının açık kalan kısmıdır.
 - [ ] Gerçek müşteri kapasite ölçümü: Compact/Standard/Distributed profillerinde RSS, CPU, DB pool,
   queue depth, cache hit/miss, disk, latency ve hata oranı sınırlarını donanım bazında kaydet.
 
