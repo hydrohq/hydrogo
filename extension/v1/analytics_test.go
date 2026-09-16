@@ -23,3 +23,9 @@ func TestAnalyticsConsentRejectsInvalidRevocation(t *testing.T) {
 		t.Fatal("expected revoked_at requirement")
 	}
 }
+
+func TestAnalyticsEventRejectsImpossibleDate(t *testing.T) {
+	if err := (AnalyticsEvent{Type: AnalyticsPageView, Day: "2026-02-30"}).Validate(); err == nil {
+		t.Fatal("expected impossible date rejection")
+	}
+}
