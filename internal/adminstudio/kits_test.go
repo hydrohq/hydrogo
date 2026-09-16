@@ -31,3 +31,13 @@ func TestResolveKitsAddsDependenciesDeterministically(t *testing.T) {
 		t.Fatalf("resolved kits = %v, err=%v", got, err)
 	}
 }
+
+func TestDescribeKitsIsDeterministicAndCarriesDependencies(t *testing.T) {
+	descriptors, err := DescribeKits([]Kit{KitSEO, KitCommerce})
+	if err != nil || len(descriptors) != 3 {
+		t.Fatalf("descriptors = %#v, err=%v", descriptors, err)
+	}
+	if descriptors[0].Name != KitCommerce || len(descriptors[0].Dependencies) != 1 || descriptors[0].Dependencies[0] != KitForms || !descriptors[0].Optional {
+		t.Fatalf("commerce descriptor = %#v", descriptors[0])
+	}
+}

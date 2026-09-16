@@ -754,7 +754,27 @@ func renderKitManifest(spec Spec) string {
 	for i, kit := range kits {
 		quoted[i] = fmt.Sprintf("%q", kit)
 	}
-	return fmt.Sprintf("// Generated capability metadata for %s. Implementations stay in the Client Edition.\nexport const %sKits = [%s] as const;\n", exportName(spec.Name), exportName(spec.Name), strings.Join(quoted, ", "))
+	descriptors, err := adminstudio.DescribeKits(specKits(spec))
+	if err != nil {
+		descriptors = nil
+	}
+	var metadata strings.Builder
+	for _, descriptor := range descriptors {
+		deps := make([]string, len(descriptor.Dependencies))
+		for i, dependency := range descriptor.Dependencies {
+			deps[i] = fmt.Sprintf("%q", dependency)
+		}
+		fmt.Fprintf(&metadata, "  { name: %q, dependencies: [%s], optional: %t },\n", descriptor.Name, strings.Join(deps, ", "), descriptor.Optional)
+	}
+	return fmt.Sprintf("// Generated capability metadata for %s. Implementations stay in the Client Edition.\nexport const %sKits = [%s] as const;\nexport const %sKitMetadata = [%s] as const;\nexport type %sKitMetadata = (typeof %sKitMetadata)[number];\n", exportName(spec.Name), exportName(spec.Name), strings.Join(quoted, ", "), exportName(spec.Name), strings.TrimSuffix(metadata.String(), "\n"), exportName(spec.Name), exportName(spec.Name))
+}
+
+func specKits(spec Spec) []adminstudio.Kit {
+	kits := make([]adminstudio.Kit, len(spec.Kits))
+	for i, kit := range spec.Kits {
+		kits[i] = adminstudio.Kit(strings.ToLower(strings.TrimSpace(kit)))
+	}
+	return kits
 }
 
 func renderFrontendIndex() string {
