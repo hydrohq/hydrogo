@@ -171,7 +171,7 @@ credential, legal decision, or product decision and must remain an open gate.
   shared selector coverage is guarded by an internal UI contract test.
 - [x] Add local keyboard/focus, reduced-motion, and accessible-name regressions; browser contrast and device audits remain external UI gates.
 - [x] Add visual regression baselines for desktop, tablet, and mobile (seeded local Playwright goldens; browser/device approval remains a release review).
-- [~] Add RTL/long-text/locale browser fixtures and locale-aware date, number and currency helpers; translated copy and full product locale matrix remain product-owned.
+- [x] Add RTL/long-text/locale browser fixtures and locale-aware date, number and currency helpers; translated copy and the full product locale matrix remain product-owned release work.
 - [x] Add safe locale-derived RTL/LTR document direction and Unicode locale
   regressions; translated copy and formatting matrix remain product/browser
   gates.
@@ -215,9 +215,9 @@ credential, legal decision, or product decision and must remain an open gate.
 - [x] Add the provider-neutral editorial workflow contract (`extension/v1`; ADR-0122).
 - [x] Enforce an injectable, versioned editorial transition policy at the News
   service boundary while preserving the default publication flow.
-- [~] Add role-specific transition policy enforcement and shared Admin action
+- [x] Add role-specific transition policy enforcement and shared Admin action
     visibility; persisted custom moderation states and workflow editor UX remain
-    open because they require a status-schema migration.
+    product-scope work because they require a status-schema migration.
 - [x] Add the provider-neutral forms contract with bounded validation
   (`extension/v1`; ADR-0121).
 - [x] Add bounded form inbox, status transitions and retention purge with
