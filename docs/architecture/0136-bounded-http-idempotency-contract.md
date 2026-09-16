@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-09-17
 - **Related decisions:** [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0015](0015-versioned-http-api.md), [ADR-0017](0017-commerce-consistency-and-payments.md)
-- **Implementation status:** Existing Commerce, payment-event, job, outbox, erasure and SDK idempotency remains active. A common HTTP mutation layer is designed here but not yet wired to every module.
+- **Implementation status:** Existing Commerce, payment-event, job, outbox, erasure and SDK idempotency remains active. The first bounded HTTP pilot is wired to Site form submissions; the universal mutation layer remains a staged rollout.
 
 ## Context
 
@@ -42,8 +42,9 @@ already has a stronger invariant.
 
 ## Rollout and compatibility
 
-The first implementation should target one non-payment write flow (forms or
-Pages) behind a feature/configuration flag, then expand after SQLite/PostgreSQL
+The first implementation targets the non-payment form write flow. It is
+backward-compatible when no key is supplied and uses the Site migration's
+durable partial unique index. Expansion should follow SQLite/PostgreSQL
 contract tests and response-replay observations. Existing commerce keys and
 database constraints remain source-of-truth and are not migrated to this table.
 Unknown or malformed keys fail closed before business logic executes. During
