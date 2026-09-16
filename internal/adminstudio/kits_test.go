@@ -32,6 +32,19 @@ func TestResolveKitsAddsDependenciesDeterministically(t *testing.T) {
 	}
 }
 
+func TestNewResolvedKitRegistryValidatesAndExpands(t *testing.T) {
+	registry, err := NewResolvedKitRegistry(KitCommerce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !registry.Enabled(KitCommerce) || !registry.Enabled(KitForms) {
+		t.Fatalf("resolved registry = %#v", registry.Kits())
+	}
+	if _, err := NewResolvedKitRegistry(Kit("unknown")); err != ErrInvalidKitSet {
+		t.Fatalf("unknown kit error = %v", err)
+	}
+}
+
 func TestDescribeKitsIsDeterministicAndCarriesDependencies(t *testing.T) {
 	descriptors, err := DescribeKits([]Kit{KitSEO, KitCommerce})
 	if err != nil || len(descriptors) != 3 {
