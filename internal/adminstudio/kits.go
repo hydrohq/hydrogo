@@ -45,6 +45,18 @@ func NewKitRegistry(kits ...Kit) KitRegistry {
 	return KitRegistry{kits: set}
 }
 
+// NewResolvedKitRegistry validates the declared set, expands its allowlisted
+// dependencies, and returns a deterministic registry for a composition root.
+// The legacy NewKitRegistry constructor remains available for callers that
+// intentionally build a raw registry during migration.
+func NewResolvedKitRegistry(kits ...Kit) (KitRegistry, error) {
+	resolved, err := ResolveKits(kits)
+	if err != nil {
+		return KitRegistry{}, err
+	}
+	return NewKitRegistry(resolved...), nil
+}
+
 func ValidateKits(kits []Kit) error {
 	seen := make(map[Kit]struct{}, len(kits))
 	for _, kit := range kits {
