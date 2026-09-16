@@ -148,6 +148,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0094](0094-typed-frontend-query-adapters.md) | Typed framework-neutral frontend query adapters | Accepted |
 | [0095](0095-provider-neutral-taxonomy-contract.md) | Provider-neutral taxonomy contract | Accepted |
 | [0096](0096-provider-neutral-search-contract.md) | Provider-neutral search contract | Accepted |
+| [0097](0097-generated-swr-adapter.md) | Generated SWR frontend adapter | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

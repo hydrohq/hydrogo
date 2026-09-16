@@ -203,6 +203,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"import-export.ts":    renderImportExportClient(spec),
 		"upload.ts":           renderUploadClient(spec),
 		"react.ts":            renderReactAdapter(spec),
+		"swr.ts":              renderSWRAdapter(spec),
 		"htmx.ts":             renderHTMXAdapter(spec),
 		"vanilla.ts":          renderVanillaAdapter(spec),
 		"kits.ts":             renderKitManifest(spec),
@@ -613,6 +614,20 @@ export function %sQueryKey(id?: string): readonly string[] {
   return id ? ['%s', id] : ['%s', 'list'];
 }
 `, name, name, name, name, name, name, spec.Name, name, name, spec.Name, spec.Name)
+}
+
+func renderSWRAdapter(spec Spec) string {
+	name := exportName(spec.Name)
+	return fmt.Sprintf(`// Optional SWR adapter for %s. Install SWR in the Client Edition.
+export type %sSWRFetcher<T> = (key: readonly unknown[], signal?: AbortSignal) => Promise<T>;
+
+// This adapter contains no SWR import. Pass the returned key/fetcher to useSWR
+// in the client application, keeping HydroGo Core and Compact builds dependency-free.
+export function create%sSWR<T>(fetcher: %sSWRFetcher<T>, id?: string) {
+  const key = id ? ['%s', id] as const : ['%s', 'list'] as const;
+  return { key, fetcher: (signal?: AbortSignal) => fetcher(key, signal), revalidateOnFocus: false };
+}
+`, name, name, name, name, spec.Name, spec.Name)
 }
 
 func renderHTMXAdapter(spec Spec) string {
