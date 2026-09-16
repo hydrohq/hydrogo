@@ -25,6 +25,10 @@ var ErrInvalidKitSet = errors.New("invalid capability kit set")
 
 var knownKits = map[Kit]struct{}{KitLocalization: {}, KitMedia: {}, KitSEO: {}, KitForms: {}, KitRedirects: {}, KitSearch: {}, KitCommerce: {}}
 
+var kitDependencies = map[Kit][]Kit{
+	KitCommerce: {KitForms},
+}
+
 func NewKitRegistry(kits ...Kit) KitRegistry {
 	set := make(map[Kit]struct{}, len(kits))
 	for _, kit := range kits {
@@ -45,6 +49,42 @@ func ValidateKits(kits []Kit) error {
 		seen[kit] = struct{}{}
 	}
 	return nil
+}
+
+// ResolveKits expands declared kit dependencies and returns a deterministic
+// set. Dependencies are metadata only; implementations remain module-owned.
+func ResolveKits(kits []Kit) ([]Kit, error) {
+	if err := ValidateKits(kits); err != nil {
+		return nil, err
+	}
+	resolved := make(map[Kit]struct{}, len(kits))
+	var add func(Kit) error
+	add = func(kit Kit) error {
+		if _, ok := resolved[kit]; ok {
+			return nil
+		}
+		if !IsKnownKit(kit) {
+			return ErrInvalidKitSet
+		}
+		resolved[kit] = struct{}{}
+		for _, dependency := range kitDependencies[kit] {
+			if err := add(dependency); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, kit := range kits {
+		if err := add(kit); err != nil {
+			return nil, err
+		}
+	}
+	result := make([]Kit, 0, len(resolved))
+	for kit := range resolved {
+		result = append(result, kit)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	return result, nil
 }
 
 func (r KitRegistry) Enabled(kit Kit) bool { _, ok := r.kits[kit]; return ok }
