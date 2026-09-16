@@ -187,6 +187,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0133](0133-schema-driven-form-builder-primitive.md) | Schema-driven Form Builder primitive | Accepted |
 | [0134](0134-durable-form-registry.md) | Durable bounded form registry | Accepted |
 | [0135](0135-role-specific-workflow-policy.md) | Role-specific editorial transition policy | Accepted |
+| [0136](0136-bounded-http-idempotency-contract.md) | Bounded HTTP idempotency contract | Proposed |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
