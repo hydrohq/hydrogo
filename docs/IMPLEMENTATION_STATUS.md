@@ -46,6 +46,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | WSL race doğrulaması | Tamamlandı (yerel) | Broker/runtime/release hedef paketleri `go test -race` | `wsl-race-broker-runtime-2026-09-16` |
 | OCI container image definition | Tamamlandı (statik yerel) | Non-root, credential-free amd64 Dockerfile, bounded build context ve daemon'sız lint kapısı | `R6-container-image-definition-2026-09-16` |
 | Gerçek Redis rate-limit atomic/TTL kanıtı | Tamamlandı (yerel servis) | `HYDRO_TEST_REDIS_URL` ile ilk istek/limit reddi/TTL doğrulaması; servis yoksa test skip | `R6-redis-rate-limit-2026-09-16` |
+| PostgreSQL production-gate otomasyonu | Tamamlandı (WSL servis) | PostgreSQL 18.6 üzerinde tam/shuffled/race suite, reproducible build ve portable benchmark | `R6-postgres-production-gates-2026-09-16` |
 
 ## Henüz production servisi olmayan parçalar
 

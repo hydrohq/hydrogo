@@ -49,7 +49,14 @@ if ([string]::IsNullOrWhiteSpace($env:HYDRO_TEST_POSTGRES_URL)) {
     throw "HYDRO_TEST_POSTGRES_URL is required; PostgreSQL contract tests must not be skipped."
 }
 
-Invoke-Required "gofmt" { gofmt -l . | ForEach-Object { throw "gofmt required: $_" } }
+Invoke-Required "gofmt" {
+    $trackedGo = @(git ls-files "*.go")
+    if ($LASTEXITCODE -ne 0) { throw "git ls-files failed" }
+    if ($trackedGo.Count -gt 0) {
+        $formatted = $trackedGo | ForEach-Object { gofmt -l $_ }
+        if ($formatted) { throw "gofmt required: $($formatted -join ', ')" }
+    }
+}
 Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "workflow action pins" { go run ./tools/actionguard }
 Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }

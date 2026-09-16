@@ -28,7 +28,7 @@ func (s Store) CreateDraft(ctx context.Context, tx database.Executor, item news.
 	}
 	now := time.Now().UTC()
 	query := `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'draft',1,1,0,$15,$16)`
-	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolInt(item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, now}
+	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, now}
 	if s.Dialect == database.SQLite {
 		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft',1,1,0,?,?)`
 		args[14], args[15] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
@@ -43,7 +43,7 @@ func (s Store) UpdateDraft(ctx context.Context, tx database.Executor, item news.
 	}
 	now := time.Now().UTC()
 	query := `UPDATE news_items SET locale=$1,slug=$2,title=$3,body=$4,cover_media_id=$5,excerpt=$6,key_takeaways=$7,category=$8,author_name=$9,featured=$10,tags=$11,seo_title=$12,seo_description=$13,status='draft',revision=revision+1,version=version+1,updated_at=$14 WHERE id=$15 AND version=$16 AND status IN ('draft','retracted')`
-	args := []any{item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolInt(item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, item.ID, expectedVersion}
+	args := []any{item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, item.ID, expectedVersion}
 	if s.Dialect == database.SQLite {
 		query = `UPDATE news_items SET locale=?,slug=?,title=?,body=?,cover_media_id=?,excerpt=?,key_takeaways=?,category=?,author_name=?,featured=?,tags=?,seo_title=?,seo_description=?,status='draft',revision=revision+1,version=version+1,updated_at=? WHERE id=? AND version=? AND status IN ('draft','retracted')`
 		args[13] = now.Format(time.RFC3339Nano)
@@ -303,6 +303,13 @@ func boolInt(value bool) int {
 		return 1
 	}
 	return 0
+}
+
+func boolArg(dialect database.Dialect, value bool) any {
+	if dialect == database.Postgres {
+		return value
+	}
+	return boolInt(value)
 }
 
 func boolValue(value any) bool {
