@@ -199,8 +199,10 @@ credential, legal decision, or product decision and must remain an open gate.
 
 ### PROD-01 Content and workflow (`LOCAL` after product acceptance)
 
-- [ ] Add taxonomy contract: categories, tags, multilingual labels, and related
-  content.
+- [x] Add the provider-neutral taxonomy contract for categories, tags,
+  multilingual labels and related-content relations (`extension/v1`; ADR-0120).
+- [ ] Add the module-owned relational taxonomy model and SQLite/PostgreSQL
+  migrations, admin editing and related-content UX.
 - [ ] Add configurable editorial workflow and moderation transitions.
 - [ ] Add form-builder capabilities with validation and inbox retention policy.
 - [ ] Add search provider contract only after measuring real query needs.
