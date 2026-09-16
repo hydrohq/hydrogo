@@ -1,7 +1,39 @@
-# SDK v1 Support Policy
+# HydroGo SDK v1 support policy
 
-HydroGo SDK compatibility follows the same-major version rule. A `1.x` client surface operates with a `1.x` runtime; a major change is not considered automatically compatible and requires a dedicated migration plan and ADR. Candidate versions (`-candidate`) do not carry a stable release guarantee.
+This document defines the technical compatibility promise for the public
+`extension/v1` contracts. It does not grant a commercial SLA or select a
+distribution license; those require an explicit commercial decision.
 
-Each minor release targets backward-compatible additions. Deprecated symbols are maintained with deprecation warnings for at least one subsequent minor release; removals are performed exclusively in new major releases. Critical security fixes are backported to the latest supported stable major release. APIs in candidate releases remain subject to change prior to a final v1 release.
+## Versioning and support
 
-This policy does not substitute for pre-sales support agreements or the production key-signing ceremony. When a stable v1 is released, the supported major versions, deprecation schedules, and security SLAs will be formally announced alongside the release manifest.
+- v1 follows semantic versioning. Additive fields and optional capabilities
+  are backward compatible; existing fields and behavior do not change within
+  v1 without a migration note.
+- Each v1 minor release receives security fixes and correctness fixes for 12
+  months after release. The latest minor is the supported feature line.
+- The first release of each calendar year is an LTS line supported for 24
+  months. LTS status is recorded in the release manifest and compatibility
+  matrix; it is not a performance or availability guarantee.
+- A v0 contract is experimental and receives a complete version pin,
+  changelog and migration guide. It must not be consumed as a stable API.
+
+## Deprecation
+
+Deprecation requires a changelog entry, replacement API, generated-client
+warning and migration guidance. A deprecated v1 symbol remains available for
+at least two minor releases and six months, whichever is longer. Security
+issues may require a shorter window with an explicit impact notice.
+
+## Compatibility evidence
+
+Every SDK release runs extension contract tests, generated frontend type
+checks, two external-consumer fixtures and SQLite/PostgreSQL compatibility
+checks. The release manifest records the SDK version, schema epoch and
+generator version. An unsupported Core/Edition combination fails closed at
+generation or startup rather than silently producing a partial project.
+
+## Still requiring an explicit decision
+
+Commercial license terms, paid support/SLA targets, response times, and
+redistribution rights are intentionally not inferred by this technical policy.
+They remain release gates in the professionalization task list.

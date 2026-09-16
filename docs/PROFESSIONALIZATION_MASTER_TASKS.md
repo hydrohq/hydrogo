@@ -260,7 +260,10 @@ the existing Core/module boundaries:
 
 - [ ] Decide OIDC/SAML, mobile API, multi-tenant, AI, and Distributed scope from
   customer evidence and separate ADRs.
-- [ ] Select SDK v1 support window, LTS, SLA, licensing, and deprecation policy.
+- [x] Define the technical SDK v1 support window, LTS cadence and deprecation
+    policy; commercial SLA, licensing and redistribution terms remain separate
+    business/legal gates.
+- [ ] Select commercial SDK licensing, SLA and redistribution terms.
 
 ## P3 — Release hygiene and simplification (`LOCAL`)
 
