@@ -26,8 +26,26 @@ func TestCheckAPICompatibilityAllowsAdditiveChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.PathsChecked != 1 || report.MethodsChecked != 1 || report.PropertiesChecked != 1 {
+	if report.PathsChecked != 1 || report.MethodsChecked != 1 || report.PropertiesChecked != 1 || report.ParametersChecked != 0 {
 		t.Fatalf("unexpected report: %#v", report)
+	}
+}
+
+func TestCheckAPICompatibilityRejectsRemovedRequestParameter(t *testing.T) {
+	root := t.TempDir()
+	base := `{"openapi":"3.1.0","paths":{"/api/v1/pages":{"get":{"parameters":[{"name":"page","in":"query","required":false}],"responses":{"200":{"description":"ok"}}}}}}`
+	current := `{"openapi":"3.1.0","paths":{"/api/v1/pages":{"get":{"responses":{"200":{"description":"ok"}}}}}}`
+	if _, err := CheckAPICompatibility(writeOpenAPI(t, root, base), writeOpenAPI(t, filepath.Join(root, "current"), current)); err == nil {
+		t.Fatal("expected removed request parameter error")
+	}
+}
+
+func TestCheckAPICompatibilityRejectsNewlyRequiredParameter(t *testing.T) {
+	root := t.TempDir()
+	base := `{"openapi":"3.1.0","paths":{"/api/v1/pages":{"get":{"parameters":[{"name":"locale","in":"query","required":false}],"responses":{"200":{"description":"ok"}}}}}}`
+	current := `{"openapi":"3.1.0","paths":{"/api/v1/pages":{"get":{"parameters":[{"name":"locale","in":"query","required":true}],"responses":{"200":{"description":"ok"}}}}}}`
+	if _, err := CheckAPICompatibility(writeOpenAPI(t, root, base), writeOpenAPI(t, filepath.Join(root, "current"), current)); err == nil {
+		t.Fatal("expected newly required parameter error")
 	}
 }
 
