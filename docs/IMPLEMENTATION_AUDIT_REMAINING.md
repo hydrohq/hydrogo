@@ -79,7 +79,8 @@ environment, an external provider, legal review, or a release pipeline.
 - Admin Studio now has a reusable, escaped taxonomy editor primitive
   (`internal/adminstudio/taxonomy.go`; ADR-0127); News route integration and
   module-level authorization are now wired through the protected News taxonomy
-  endpoint; term management and related-content UX remain open.
+  endpoint, with transaction-backed replacement when the executor supports it;
+  term management and related-content UX remain open.
 - SDK contracts for taxonomy, forms, editorial workflow and search are now
   available under `extension/v1` (ADR-0120–0123); module persistence, admin UX,
   inbox/retention and provider indexing remain open implementation work.

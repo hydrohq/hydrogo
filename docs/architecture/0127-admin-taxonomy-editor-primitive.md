@@ -17,4 +17,7 @@ create routes.
 
 `internal/adminstudio/taxonomy_test.go` covers deterministic ordering and HTML
 escaping. News exposes the protected `/admin/news/{id}/taxonomy` endpoint and
-uses the primitive; term management and related-content UX remain product work.
+uses the primitive. When the database supports transactions, the endpoint wraps
+replacement in a single commit/rollback boundary (with a regression probe in
+`modules/news/transport/http_test.go`); term management and related-content UX
+remain product work.
