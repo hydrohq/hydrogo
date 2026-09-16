@@ -26,6 +26,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Taxonomy contract | Kısmi tamamlandı (yerel) | Çok dilli kategori/etiket, parent cycle ve related-content referanslarını bounded doğrulayan provider-neutral sözleşme | `R5-taxonomy-contract` |
 | Search contract | Kısmi tamamlandı (yerel) | Bounded query/locale/pagination ve deterministik sonuç sözleşmesi; provider/index seçimi açık | `R5-search-contract` |
 | Generated SWR adapter | Kısmi tamamlandı (yerel) | Kaynaksız dependency-free typed key/fetcher çıktısı; browser entegrasyonu açık; tüm adapter'lar için namespaced `index.ts` giriş noktası üretildi | `R5-generated-swr-adapter`, `R5-generated-frontend-index` |
+| Generated frontend query bounds | Tamamlandı (yerel) | Üretilen query adapter page/page-size/sort/filter sınırlarını istek URL'si oluşmadan uygular; browser/provider kabulü açık | `R5-generated-query-input-bounds` |
 | Form contract | Kısmi tamamlandı (yerel) | Bounded metadata ve submission normalizasyonu; inbox/consent/delivery modüle ait | `R5-form-contract` |
 | Kit dependency resolution | Kısmi tamamlandı (yerel) | Allowlisted dependency expansion ve deterministic kit set; generated admin/SDK/runtime artifacts now include resolved dependencies; implementation loading modüle ait | `R5-kit-dependency-resolution`, `R5-generated-kit-dependency-artifacts` |
 | Generated form schema | Kısmi tamamlandı (yerel) | Collection spec’inden deterministic `form.schema.json`; business validation/inbox modüle ait | `R5-generated-form-schema` |

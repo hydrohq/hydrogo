@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -339,5 +340,14 @@ func TestCheckCompatibility(t *testing.T) {
 	spec.Fields[0].Name = "changed"
 	if _, err := CheckCompatibility(root, spec); err == nil {
 		t.Fatal("expected spec hash mismatch")
+	}
+}
+
+func TestGeneratedQueryAdapterContainsBoundedInputGuards(t *testing.T) {
+	query := renderQueryClient(Spec{Name: "products"})
+	for _, marker := range []string{"invalid page size", "too many filters", "invalid filter", "invalid filter value", "< 1", "> 100"} {
+		if !strings.Contains(query, marker) {
+			t.Fatalf("generated query adapter missing guard %q: %s", marker, query)
+		}
 	}
 }
