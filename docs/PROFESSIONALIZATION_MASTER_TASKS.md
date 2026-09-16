@@ -203,7 +203,6 @@ credential, legal decision, or product decision and must remain an open gate.
   multilingual labels and related-content relations (`extension/v1`; ADR-0120).
 - [ ] Add the module-owned relational taxonomy model and SQLite/PostgreSQL
   migrations, admin editing and related-content UX.
-- [ ] Add configurable editorial workflow and moderation transitions.
 - [x] Add the provider-neutral editorial workflow contract (`extension/v1`; ADR-0122).
 - [ ] Integrate configurable editorial workflow and moderation transitions into
   module persistence, authorization and admin UX.
