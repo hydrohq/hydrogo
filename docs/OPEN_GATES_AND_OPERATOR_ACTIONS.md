@@ -37,8 +37,11 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 
 ### P0 — Veritabanı, yedek ve geri dönüş
 
-- [ ] Desteklenen gerçek PostgreSQL sürümünde contract suite’i `HYDRO_TEST_POSTGRES_URL` ile çalıştır.
-  PostgreSQL yoksa testin atlandığı bir sonuç certification kanıtı değildir.
+- [x] WSL PostgreSQL 18.6 üzerinde contract suite’i `HYDRO_TEST_POSTGRES_URL` ile
+  çalıştırıldı; tam/shuffled/race ve backup/restore otomasyonu PASS
+  (`R6-postgres-production-gates-2026-09-16`).
+- [ ] Gerçek müşteri benzeri PostgreSQL verisiyle temiz hedefe restore, RPO/RTO ve
+  rollback tatbikatı yapılmalı; yerel contract kanıtı bunun yerine geçmez.
 - [ ] Gerçek müşteri benzeri veriyle SQLite/PostgreSQL backup, restore, migration ve rollback tatbikatı
   yap; süre, RPO, RTO, disk kullanımı ve veri kaybı sonuçlarını kayıt altına al.
 - [ ] Gerçek reverse proxy arkasında iki prosesli blue/green restart, trafik geçişi ve rollback deneyi
@@ -137,7 +140,8 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
 - [x] Üretilen minimal tema ve config parse doğrulaması
 - [x] Seçili modül migration filtresi: izole SQLite kanıtında Pages+Media etkin
   profilde Commerce/News tabloları oluşturulmaz; çapraz-modül maintenance migration kapsamı
-  ADR-0039 ile tanımlıdır. PostgreSQL ve gerçek preset certification hâlâ açık kapıdır.
+  ADR-0039 ile tanımlıdır. PostgreSQL yerel contract kanıtı mevcut; gerçek müşteri
+  preset certification hâlâ açık kapıdır.
 - [x] Opsiyonel site/media admin rotaları yalnızca ilgili modüller etkinse kaydedilir; ortak
   router duplicate pattern’leri startup panic’i yerine tanımlı hata olarak reddeder
   (ADR-0088/0089, `cmd/hydro/main_test.go`, `internal/router/router_test.go`,

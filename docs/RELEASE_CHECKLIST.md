@@ -17,7 +17,9 @@ altındadır. Gerçek OCI build ise CI `container` job’ında çalışır.
 
 ## External gate (kanıt olmadan işaretlenmez)
 
-- [ ] PostgreSQL contract/restore testi gerçek servisle tamamlandı.
+- [x] PostgreSQL contract suite’i gerçek WSL PostgreSQL 18.6 servisiyle tamamlandı
+  (`validation/R6-postgres-production-gates-2026-09-16.md`).
+- [ ] Gerçek müşteri verisiyle temiz hedef restore, RPO/RTO ve rollback tatbikatı tamamlandı.
 - [ ] Redis/Valkey failure/failover ve multi-instance rate limit testi yapıldı.
 - [ ] Reverse-proxy blue/green, drain ve rollback drill tamamlandı.
 - [ ] SMTP, object storage/CDN, ödeme sandbox ve queue credential’larıyla
