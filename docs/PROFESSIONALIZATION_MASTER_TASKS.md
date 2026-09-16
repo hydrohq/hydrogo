@@ -191,6 +191,9 @@ credential, legal decision, or product decision and must remain an open gate.
   `internal/ui` and `docs/FRONTEND_MANIFEST.md`.
 - [x] Define state, error, loading, and optimistic-update conventions in
   `internal/ui` and `docs/FRONTEND_STATE_CONVENTIONS.md`.
+- [x] Generate framework-agnostic `frontend/contracts.ts` types for the
+  versioned forms, workflow, search, kit and analytics-consent surfaces
+  (ADR-0126).
 - [x] Add a repeatable targeted/full-compile iteration baseline command in
   `scripts/measure-iteration.ps1`; pilot feature delivery and deployment time
   remain customer evidence gates.
