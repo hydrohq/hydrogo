@@ -156,9 +156,9 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	query := `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`
+	query := `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 	if s.Dialect == database.SQLite {
-		query = `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at) VALUES (?,?,?,?,?,?,?)`
+		query = `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES (?,?,?,?,?,?,?,?,?)`
 	}
 	created := value.CreatedAt.UTC().Format(time.RFC3339Nano)
 	if value.CreatedAt.IsZero() {
@@ -168,17 +168,35 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 	if status == "" {
 		status = "new"
 	}
-	_, err := tx.ExecContext(ctx, query, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created)
+	_, err := tx.ExecContext(ctx, query, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created, value.IdempotencyKey, value.RequestHash)
 	return err
+}
+
+func (s Store) FindSubmissionByIdempotency(ctx context.Context, db database.Executor, formKey, key string) (site.Submission, bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return site.Submission{}, false, err
+	}
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1 AND idempotency_key = $2 LIMIT 1`
+	if s.Dialect == database.SQLite {
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ? AND idempotency_key = ? LIMIT 1`
+	}
+	var value site.Submission
+	var created any
+	err := db.QueryRowContext(ctx, query, formKey, key).Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return site.Submission{}, false, nil
+	}
+	value.CreatedAt = parseTime(created)
+	return value, err == nil, err
 }
 
 func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKey string, limit int) ([]site.Submission, error) {
 	if limit < 1 || limit > 1000 {
 		limit = 100
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at FROM form_inbox WHERE form_key = $1 ORDER BY created_at DESC LIMIT $2`
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1 ORDER BY created_at DESC LIMIT $2`
 	if s.Dialect == database.SQLite {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at FROM form_inbox WHERE form_key = ? ORDER BY created_at DESC LIMIT ?`
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ? ORDER BY created_at DESC LIMIT ?`
 	}
 	rows, err := queryContext(ctx, db, query, formKey, limit)
 	if err != nil {
@@ -189,7 +207,7 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	for rows.Next() {
 		var value site.Submission
 		var created any
-		if err := rows.Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created); err != nil {
+		if err := rows.Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash); err != nil {
 			return nil, err
 		}
 		value.CreatedAt = parseTime(created)

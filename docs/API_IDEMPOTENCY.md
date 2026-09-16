@@ -14,6 +14,12 @@ dangerous:
 These are intentionally domain-specific. They are not a promise that every HTTP
 mutation is globally exactly-once.
 
+The first bounded HTTP pilot is enabled for `POST /forms/{form}/submit`.
+It accepts a visible-ASCII `Idempotency-Key` of 16–128 bytes. A matching retry
+returns `202 Accepted` without creating a second inbox row; reusing the key
+with a different payload returns `409 Conflict`. The key and request hash are
+durable in both SQLite and PostgreSQL. Calls without a key remain compatible.
+
 ## Proposed common layer
 
 For a route that opts in to ADR-0136, clients should send:

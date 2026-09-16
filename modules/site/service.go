@@ -27,6 +27,12 @@ type Store interface {
 	PurgeSubmissionsBefore(context.Context, database.Executor, time.Time) (int64, error)
 }
 
+// IdempotentSubmissionStore is an optional extension implemented by durable stores.
+// Keeping it separate preserves compatibility for lightweight module fakes.
+type IdempotentSubmissionStore interface {
+	FindSubmissionByIdempotency(context.Context, database.Executor, string, string) (Submission, bool, error)
+}
+
 type AuditWriter interface {
 	Record(context.Context, database.Executor, string, string, string) error
 }
@@ -165,18 +171,80 @@ func (s Service) SaveRedirect(ctx context.Context, value Redirect) error {
 }
 
 func (s Service) Submit(ctx context.Context, value Submission) error {
+	_, err := s.submit(ctx, value, false)
+	return err
+}
+
+// SubmitIdempotent deduplicates a form submission when IdempotencyKey is set.
+// Empty keys retain the legacy behavior for internal callers.
+func (s Service) SubmitIdempotent(ctx context.Context, value Submission) (bool, error) {
+	return s.submit(ctx, value, true)
+}
+
+func (s Service) submit(ctx context.Context, value Submission, idempotent bool) (bool, error) {
 	if err := ValidateSubmission(value); err != nil {
-		return err
+		return false, err
+	}
+	if value.IdempotencyKey != "" {
+		if err := ValidateIdempotencyKey(value.IdempotencyKey); err != nil {
+			return false, err
+		}
+		if strings.TrimSpace(value.RequestHash) == "" {
+			return false, ErrIdempotencyConflict
+		}
 	}
 	if err := s.requireStore(); err != nil {
-		return err
+		return false, err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	if !idempotent || value.IdempotencyKey == "" {
+		return false, s.Transactions.Within(ctx, func(tx database.Executor) error {
+			if err := s.Store.CreateSubmission(ctx, tx, value); err != nil {
+				return err
+			}
+			return s.audit(ctx, tx, "site.form.submitted", value.ID)
+		})
+	}
+	lookup, ok := s.Store.(IdempotentSubmissionStore)
+	if !ok {
+		return false, ErrIdempotencyStoreRequired
+	}
+	replayed := false
+	duplicate := false
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		existing, found, err := lookup.FindSubmissionByIdempotency(ctx, tx, value.FormKey, value.IdempotencyKey)
+		if err != nil {
+			return err
+		}
+		if found {
+			if existing.RequestHash != value.RequestHash {
+				return ErrIdempotencyConflict
+			}
+			replayed = true
+			return nil
+		}
 		if err := s.Store.CreateSubmission(ctx, tx, value); err != nil {
+			if database.IsUniqueViolation(err) {
+				duplicate = true
+				return err
+			}
 			return err
 		}
 		return s.audit(ctx, tx, "site.form.submitted", value.ID)
 	})
+	if duplicate {
+		err = s.Transactions.Within(ctx, func(tx database.Executor) error {
+			existing, found, lookupErr := lookup.FindSubmissionByIdempotency(ctx, tx, value.FormKey, value.IdempotencyKey)
+			if lookupErr != nil {
+				return lookupErr
+			}
+			if !found || existing.RequestHash != value.RequestHash {
+				return ErrIdempotencyConflict
+			}
+			replayed = true
+			return nil
+		})
+	}
+	return replayed, err
 }
 
 func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) error {

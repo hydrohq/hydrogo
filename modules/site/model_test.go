@@ -37,3 +37,14 @@ func TestValidateSettingRejectsUnsafePublicHomePath(t *testing.T) {
 		t.Fatalf("ValidateSetting(valid home path) = %v", err)
 	}
 }
+
+func TestValidateIdempotencyKey(t *testing.T) {
+	if err := ValidateIdempotencyKey("0123456789abcdef"); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"short", " leading0123456789", "0123456789abcdef\n"} {
+		if err := ValidateIdempotencyKey(key); err != ErrInvalidIdempotencyKey {
+			t.Fatalf("key %q error = %v", key, err)
+		}
+	}
+}
