@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -29,10 +31,43 @@ const multipartOverheadBytes int64 = 1 << 20
 func (h HTTPHandler) Routes() []HTTPRoute {
 	return []HTTPRoute{
 		{Pattern: "GET /api/media", Protected: true, Handler: http.HandlerFunc(h.list)},
+		{Pattern: "GET /api/media/{id}/url", Protected: true, Handler: http.HandlerFunc(h.url)},
 		{Pattern: "POST /api/media", Protected: true, Handler: http.HandlerFunc(h.upload)},
 		{Pattern: "POST /api/media/{id}/ready", Protected: true, Handler: http.HandlerFunc(h.ready)},
 		{Pattern: "GET /media/{id}", Handler: http.HandlerFunc(h.serve)},
 	}
+}
+
+func (h HTTPHandler) url(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	asset, err := h.Service.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil || asset.Status != "ready" {
+		http.NotFound(w, r)
+		return
+	}
+	provider, ok := h.Service.BlobStore.(SignedURLProvider)
+	if !ok {
+		http.Error(w, "media URL unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	expiry := 5 * time.Minute
+	if raw := r.URL.Query().Get("expires"); raw != "" {
+		seconds, parseErr := strconv.ParseInt(raw, 10, 64)
+		if parseErr != nil || seconds < 1 || seconds > int64((24*time.Hour)/time.Second) {
+			http.Error(w, "invalid URL expiry", http.StatusBadRequest)
+			return
+		}
+		expiry = time.Duration(seconds) * time.Second
+	}
+	signed, err := provider.PresignedURL(r.Context(), asset.StorageKey, expiry)
+	if err != nil {
+		http.Error(w, "media URL unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"asset_id": asset.ID, "url": signed, "expires_in": int64(expiry / time.Second)})
 }
 
 func (h HTTPHandler) list(w http.ResponseWriter, r *http.Request) {
