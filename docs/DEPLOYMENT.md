@@ -28,6 +28,11 @@ Image healthcheck’i yalnızca loopback üzerindeki `/healthz` endpoint’ini
 bounded timeout/retry ile çağırır; dış servislere veya kimlik bilgilerine
 bağımlı değildir.
 
+`scripts/secret-lint.ps1` ve `.sh`, private key ve canlı provider/token
+kalıplarını yalnızca Git tarafından izlenen dosyalarda arar. Test amaçlı dummy
+parolalar bu düşük false-positive’li kapının kapsamına girmez; gerçek secret’lar
+her zaman deployment secret store’dan sağlanmalıdır.
+
 ### 1.1. Dockerfile (Minimal Alpine / Distroless)
 
 ```dockerfile
