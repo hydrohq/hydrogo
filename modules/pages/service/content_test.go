@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"sync"
 	"testing"
 	"time"
@@ -75,6 +76,54 @@ func TestListPublishedRejectsInvalidPublicQuery(t *testing.T) {
 		if _, err := service.ListPublished(context.Background(), nil, test.locale, test.limit); err != ErrInvalidPage {
 			t.Errorf("ListPublished(%q, %d) error = %v", test.locale, test.limit, err)
 		}
+	}
+}
+
+type localePublicRepository struct {
+	pages map[string]pages.Page
+	seen  []string
+}
+
+func (r *localePublicRepository) GetContent(context.Context, database.Executor, string) (pages.Page, error) {
+	return pages.Page{}, nil
+}
+func (r *localePublicRepository) GetPublishedByRoute(_ context.Context, _ database.Executor, locale, _ string) (pages.Page, error) {
+	r.seen = append(r.seen, locale)
+	page, ok := r.pages[locale]
+	if !ok {
+		return pages.Page{}, sql.ErrNoRows
+	}
+	return page, nil
+}
+func (r *localePublicRepository) ListPublished(context.Context, database.Executor, string, int) ([]pages.Page, error) {
+	return nil, nil
+}
+func (r *localePublicRepository) CreateDraftContent(context.Context, database.Executor, pages.Page) error {
+	return nil
+}
+func (r *localePublicRepository) UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error {
+	return nil
+}
+func (r *localePublicRepository) Publish(context.Context, database.Executor, string, int) error {
+	return nil
+}
+
+func TestGetPublishedUsesConfiguredLocaleFallback(t *testing.T) {
+	repo := &localePublicRepository{pages: map[string]pages.Page{"en": {ID: "fallback", Locale: "en"}}}
+	service := ContentService{Pages: repo, SupportedLocales: []string{"tr", "en"}, DefaultLocale: "en"}
+	page, err := service.GetPublished(context.Background(), nil, "tr-TR", "home")
+	if err != nil || page.ID != "fallback" {
+		t.Fatalf("fallback lookup = %+v/%v", page, err)
+	}
+	if got, want := repo.seen, []string{"tr", "en"}; len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("lookup chain = %#v, want %#v", got, want)
+	}
+}
+
+func TestGetPublishedFallbackRequiresValidConfiguration(t *testing.T) {
+	service := ContentService{Pages: &localePublicRepository{}, SupportedLocales: []string{"tr", "tr"}, DefaultLocale: "tr"}
+	if _, err := service.GetPublished(context.Background(), nil, "tr", "home"); err != ErrInvalidPage {
+		t.Fatalf("invalid fallback config error = %v", err)
 	}
 }
 

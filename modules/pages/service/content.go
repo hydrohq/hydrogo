@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -63,6 +65,11 @@ type ContentService struct {
 		Stats() cache.Stats
 	}
 	Sanitize func(string) string
+	// SupportedLocales and DefaultLocale enable an opt-in, deterministic
+	// public lookup fallback. An empty SupportedLocales preserves exact-only
+	// behavior for deployments that do not configure i18n.
+	SupportedLocales []string
+	DefaultLocale    string
 }
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
@@ -74,17 +81,38 @@ func (s ContentService) GetPublished(ctx context.Context, db database.Executor, 
 	if err != nil || normalLocale == "" || normalSlug == "" {
 		return pages.Page{}, ErrInvalidPage
 	}
-	key := normalLocale + ":" + normalSlug
-	load := func() (pages.Page, error) {
-		return s.Pages.GetPublishedByRoute(ctx, db, normalLocale, normalSlug)
-	}
-	if s.PublicCache != nil {
-		if generation, ok := cache.GenerationFromContext(ctx); ok {
-			return s.PublicCache.GetOrLoadAtGeneration(key, generation, load)
+	locales := []string{normalLocale}
+	if len(s.SupportedLocales) > 0 {
+		chain, fallbackErr := i18n.LocaleFallbackChain(normalLocale, s.SupportedLocales, s.DefaultLocale)
+		if fallbackErr != nil {
+			return pages.Page{}, ErrInvalidPage
 		}
-		return s.PublicCache.GetOrLoad(key, load)
+		locales = chain
 	}
-	return load()
+	for _, locale := range locales {
+		key := locale + ":" + normalSlug
+		load := func() (pages.Page, error) {
+			return s.Pages.GetPublishedByRoute(ctx, db, locale, normalSlug)
+		}
+		var page pages.Page
+		var err error
+		if s.PublicCache != nil {
+			if generation, ok := cache.GenerationFromContext(ctx); ok {
+				page, err = s.PublicCache.GetOrLoadAtGeneration(key, generation, load)
+			} else {
+				page, err = s.PublicCache.GetOrLoad(key, load)
+			}
+		} else {
+			page, err = load()
+		}
+		if err == nil {
+			return page, nil
+		}
+		if len(locales) == 1 || !errors.Is(err, sql.ErrNoRows) {
+			return pages.Page{}, err
+		}
+	}
+	return pages.Page{}, sql.ErrNoRows
 }
 
 func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error {
