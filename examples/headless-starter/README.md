@@ -18,6 +18,10 @@ copy rather than exposing raw infrastructure details. `HydroGoError` exposes a
 bounded `code`, `message` and optional `requestId`; raw response text is not
 part of the public error contract.
 
+The configured `origin` must be an absolute HTTP(S) URL without embedded
+credentials; unsupported schemes and credential-bearing origins fail before a
+request is sent.
+
 For route/lifecycle cancellation, pass an `AbortSignal` in the client options;
 the signal is forwarded to every request and is combined with the bounded
 timeout controller.
