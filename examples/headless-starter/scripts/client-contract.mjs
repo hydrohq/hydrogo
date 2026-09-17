@@ -6,6 +6,15 @@ assert.equal(validateIdempotencyKey("checkout-key-0001"), "checkout-key-0001");
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 0 }), RangeError);
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 120001 }), RangeError);
 
+const timeoutClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  timeoutMs: 10,
+  fetch: async (_url, init) => await new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+  }),
+});
+await assert.rejects(() => timeoutClient.listNews(), (error) => error?.name === "AbortError" || error?.name === "TimeoutError");
+
 let calls = 0;
 const client = createHydroGoClient({
   origin: "https://hydrogo.example",
