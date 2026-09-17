@@ -680,7 +680,7 @@ func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if len(key) > 128 {
+	if commerce.ValidateIdempotencyKey(key) != nil {
 		http.Error(w, "invalid idempotency key", http.StatusBadRequest)
 		return
 	}
@@ -1036,8 +1036,8 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := r.Header.Get("Idempotency-Key")
-	if key == "" {
-		http.Error(w, "Idempotency-Key is required", http.StatusBadRequest)
+	if commerce.ValidateIdempotencyKey(key) != nil {
+		http.Error(w, "invalid idempotency key", http.StatusBadRequest)
 		return
 	}
 	var input checkoutInput
