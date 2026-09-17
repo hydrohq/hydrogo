@@ -22,9 +22,9 @@ The configured `origin` must be an absolute HTTP(S) URL without embedded
 credentials; unsupported schemes and credential-bearing origins fail before a
 request is sent.
 
-For route/lifecycle cancellation, pass an `AbortSignal` in the client options;
-the signal is forwarded to every request and is combined with the bounded
-timeout controller.
+For route/lifecycle cancellation, pass an `AbortSignal` in the client options
+for global cancellation, or as the final options argument on an individual
+client method. The signal is combined with the bounded timeout controller.
 
 `checkout` validates the caller-supplied idempotency key (16–128 visible ASCII
 characters) before sending it. Reuse the same key only when retrying the same

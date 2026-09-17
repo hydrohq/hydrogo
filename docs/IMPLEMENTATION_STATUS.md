@@ -58,6 +58,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Compose binding security lint | Tamamlandı (yerel/CI) | Loopback-only Compose binding'leri `verify-local.ps1` içinde fail-closed lint ile korunuyor | `R40-compose-security-lint` |
 | Headless starter external abort | Tamamlandı (yerel) | Contract smoke host `AbortSignal` iptalinin internal request controller'a aktarıldığını doğruluyor | `R41-headless-starter-external-abort` |
 | Headless starter origin validation | Tamamlandı (yerel) | Client absolute HTTP(S) origin ve credential/scheme sınırlarını request öncesi fail-closed doğruluyor | `R42-headless-starter-origin-validation` |
+| Headless starter per-request abort | Tamamlandı (yerel) | Public client metotları çağrı-başı `HydroGoRequestOptions.signal` ile seçici iptali destekliyor | `R43-headless-starter-per-request-abort` |
 | S3/CDN public URL boundary | Kısmi tamamlandı (yerel) | S3-compatible path-style seçeneği, explicit HTTPS public base ve bounded object URL üretimi; private media için 1s–24h presigned URL capability ve protected `/api/media/{id}/url` endpoint’i eklendi; gerçek provider/CDN ve invalidation kanıtı açık | `R6-s3-cdn-public-url-boundary`, `R6-bounded-private-media-urls`, `R6-protected-media-url-endpoint` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
