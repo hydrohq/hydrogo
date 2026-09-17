@@ -20,6 +20,26 @@ export HYDRO_TEST_REDIS_URL='redis://127.0.0.1:6379/15'
 bash ./scripts/verify-production-gates.sh
 ```
 
+### Ubuntu/WSL local services
+
+For the supported WSL developer path, keep the contract database isolated from
+the default `postgres` database. PostgreSQL 18.6 and Redis/Valkey can be
+prepared without storing a password in the repository:
+
+```bash
+sudo service postgresql start
+sudo service redis-server start
+createdb -O "$USER" hydro_gate_local 2>/dev/null || true
+export HYDRO_TEST_POSTGRES_URL="postgres://${USER}@/hydro_gate_local?host=/var/run/postgresql&sslmode=disable"
+export HYDRO_TEST_REDIS_URL='redis://127.0.0.1:6379/15'
+bash scripts/verify-production-gates.sh
+```
+
+Using a database owned by the test role avoids relying on permissions in the
+shared `postgres` database (whose `public` schema may intentionally reject
+`CREATE`). This is still a local contract preflight, not a production restore
+or failover certification.
+
 Runners execute format, vet, full suite, PostgreSQL contract environment requirement (including the generated-preset module-isolation contract), race-sensitive packages, reproducible `hydro` binary, portable benchmark, and (when configured) the Redis/Valkey atomic limiter contract. The local `scripts/measure-capacity.ps1` harness provides a separate process-level profile baseline (`R19-local-capacity-profile-baseline-2026-09-17`), but is not part of the production gate because it uses SQLite and synthetic traffic. It fails if there is no PostgreSQL URL or if a configured contract fails. Redis is recorded as `PENDING` when `HYDRO_TEST_REDIS_URL` is absent; this preflight does not consider the actual reverse proxy/process restart, clean environment restore, production key ceremony, external backup/key recovery, Redis failover/partition/clock-skew behavior, or customer RPO/RTO measurement as completed.
 
 | Gate | Required environment | Evidence command | Pass condition |
