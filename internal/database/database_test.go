@@ -5,8 +5,25 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestSQLiteDSNRelativePathIsValidURI(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	dsn := SQLiteDSN("hydro.sqlite")
+	if strings.Contains(dsn, "file://hydro.sqlite") {
+		t.Fatalf("relative SQLite DSN has an authority: %q", dsn)
+	}
+	db, err := Open(context.Background(), SQLite, "hydro.sqlite")
+	if err != nil {
+		t.Fatalf("open relative SQLite DSN: %v (dsn=%q)", err, dsn)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close SQLite database: %v", err)
+	}
+}
 
 func TestTransactorRejectsMissingDatabaseAndCallback(t *testing.T) {
 	if err := (Transactor{}).Within(context.Background(), func(Executor) error { return nil }); !errors.Is(err, ErrDatabaseRequired) {
