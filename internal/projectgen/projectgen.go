@@ -631,17 +631,21 @@ async function readBoundedResponse(response: Response): Promise<string> {
   const decoder = new TextDecoder();
   let total = 0;
   let text = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > MAX_RESPONSE_BYTES) {
-      await reader.cancel();
-      throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+      }
+      text += decoder.decode(value, { stream: true });
     }
-    text += decoder.decode(value, { stream: true });
+    return text + decoder.decode();
+  } finally {
+    reader.releaseLock();
   }
-  return text + decoder.decode();
 }
 
 export class HydroClient {
