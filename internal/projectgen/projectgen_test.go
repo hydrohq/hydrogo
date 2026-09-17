@@ -70,6 +70,23 @@ func TestGenerateAllPresets(t *testing.T) {
 					t.Fatalf("generated frontend contracts missing %q", marker)
 				}
 			}
+			var frontendManifest struct {
+				DesignSystem  string   `json:"design_system"`
+				DesignSystems []string `json:"design_systems"`
+			}
+			manifestBytes, err := os.ReadFile(filepath.Join(projectPath, "frontend", "starter.json"))
+			if err != nil {
+				t.Fatalf("read frontend starter manifest: %v", err)
+			}
+			if err := json.Unmarshal(manifestBytes, &frontendManifest); err != nil {
+				t.Fatalf("decode frontend starter manifest: %v", err)
+			}
+			if frontendManifest.DesignSystem != "native" {
+				t.Fatalf("default frontend design system = %q, want native", frontendManifest.DesignSystem)
+			}
+			if !contains(frontendManifest.DesignSystems, "shadcn") || !contains(frontendManifest.DesignSystems, "material") {
+				t.Fatalf("frontend design system adapters = %#v", frontendManifest.DesignSystems)
+			}
 
 			// 2. Verify lockfile JSON parsing
 			lockBytes, err := os.ReadFile(filepath.Join(projectPath, "hydrogo.lock"))
@@ -115,6 +132,26 @@ func TestGenerateAllPresets(t *testing.T) {
 				t.Errorf("Core internal/ source directory must never be copied into generated project")
 			}
 		})
+	}
+}
+
+func TestFrontendManifestCarriesSelectedDesignSystem(t *testing.T) {
+	project, err := Generate(Options{Root: t.TempDir(), Name: "shadcn-project", Preset: "dashboard", DesignSystem: "shadcn"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(project, "frontend", "starter.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		DesignSystem string `json:"design_system"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.DesignSystem != "shadcn" {
+		t.Fatalf("selected design system = %q, want shadcn", manifest.DesignSystem)
 	}
 }
 
