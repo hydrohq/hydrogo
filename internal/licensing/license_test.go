@@ -81,6 +81,27 @@ func TestLicenseKeyIDRotationSlot(t *testing.T) {
 	}
 }
 
+func TestLicenseVerificationSupportsRotationOverlap(t *testing.T) {
+	oldPub, oldPriv, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	newPub, _, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	licenseBytes, err := Issue(Claims{Customer: "Acme", KeyID: "vendor-old", ProjectID: "rotation", ExpiresAt: time.Now().UTC().Add(time.Hour)}, oldPriv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := TrustedPublicKeysBase64
+	defer func() { TrustedPublicKeysBase64 = previous }()
+	TrustedPublicKeysBase64 = EncodePublicKey(oldPub) + "," + EncodePublicKey(newPub)
+	if _, err := Verify(licenseBytes, VerificationOptions{}); err != nil {
+		t.Fatalf("rotation overlap rejected old key: %v", err)
+	}
+}
+
 func TestLicenseInvalidSignature(t *testing.T) {
 	pubKey1, privKey1, _ := GenerateKeyPair()
 	pubKey2, _, _ := GenerateKeyPair()

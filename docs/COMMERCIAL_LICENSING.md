@@ -104,7 +104,7 @@ HydroGo için **Hibrit Model (Private Go Module + Lisanslı Binary)** varsayıla
 
 HydroGo, harici bir sunucuya bağımlı olmadan güvenli çalışabilen **Ed25519 tabanlı asimetrik offline lisanslama** kullanır.
 
-Runtime enforcement is active when the generated configuration contains `license.required: true`. Official release builds must inject the vendor public key into `internal/licensing.TrustedPublicKeyBase64`, for example with a protected release `-ldflags` value. A development build with no injected key deliberately refuses to start a licensed project. The `public_key` field inside `hydro.lic` is not a trust source.
+Runtime enforcement is active when the generated configuration contains `license.required: true`. Official release builds must inject the vendor public key into `internal/licensing.TrustedPublicKeyBase64`, for example with a protected release `-ldflags` value. During a short key-rotation overlap, comma-separated keys may be injected via `internal/licensing.TrustedPublicKeysBase64`. A development build with no injected key deliberately refuses to start a licensed project. The `public_key` field inside `hydro.lic` is not a trust source.
 
 ```mermaid
 sequenceDiagram
