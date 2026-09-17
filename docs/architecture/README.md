@@ -194,6 +194,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0140](0140-tenant-isolation-scope.md) | Multi-tenant scope is opt-in and explicit | Accepted |
 | [0141](0141-ai-provider-and-data-boundary.md) | AI is opt-in and provider-neutral | Accepted |
 | [0142](0142-distributed-profile-certification-boundary.md) | Distributed profile certification boundary | Accepted |
+| [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
+| [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

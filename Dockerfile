@@ -28,7 +28,6 @@ WORKDIR /app
 COPY --from=build /out/hydro /app/hydro
 COPY --from=build /src/hydrogo.lock /app/hydrogo.lock
 COPY --from=build /src/themes /app/themes
-COPY --from=build /src/migrations /app/migrations
 COPY --from=build /src/config.example.yaml /app/config.example.yaml
 
 USER hydro
