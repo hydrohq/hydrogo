@@ -9,8 +9,22 @@ export type Cart = { id: string; currency: string; items: CartItem[]; total_cent
 export type CheckoutInput = { cart_id?: string; items?: Array<{ product_id: string; variant_id?: string; quantity: number }>; customer: { name: string; identity_number: string; email: string; phone: string; address: string; city: string; country: string; postal_code?: string } };
 export type Order = { id: string; currency: string; total_cents: number; payment_status: string; shipping_status: string };
 
+export type HydroAPIErrorBody = { code?: string; message?: string; error?: string; request_id?: string };
+
 export class HydroGoError extends Error {
-  constructor(readonly status: number, readonly body: string) { super(`HydroGo API returned ${status}`); }
+  readonly code: string;
+  readonly requestId: string;
+  constructor(readonly status: number, readonly body?: HydroAPIErrorBody, requestId = "") {
+    super(body?.message ?? body?.error ?? `HydroGo API returned ${status}`);
+    this.name = "HydroGoError";
+    this.code = body?.code ?? "api_error";
+    this.requestId = body?.request_id ?? requestId;
+  }
+}
+
+export function validateIdempotencyKey(key: string): string {
+  if (!/^[\x21-\x7e]{16,128}$/.test(key)) throw new RangeError("Idempotency-Key must be 16–128 visible ASCII characters");
+  return key;
 }
 
 export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number };
@@ -67,7 +81,7 @@ export class HydroGoClient {
   }
 
   async checkout(input: CheckoutInput, idempotencyKey: string, csrfToken: string): Promise<Order> {
-    return this.request<Order>("/api/v1/commerce/cart/checkout", this.mutation(input, csrfToken, { "Idempotency-Key": idempotencyKey }));
+    return this.request<Order>("/api/v1/commerce/cart/checkout", this.mutation(input, csrfToken, { "Idempotency-Key": validateIdempotencyKey(idempotencyKey) }));
   }
 
   private mutation(body: unknown, csrfToken: string, extraHeaders: Record<string, string> = {}): RequestInit {
@@ -85,10 +99,16 @@ export class HydroGoClient {
     }
     try {
       const response = await this.requestFetch(`${this.origin}${path}`, { ...init, signal: controller.signal });
+      const declaredLength = Number(response.headers.get("content-length") || 0);
+      if (declaredLength > 2 * 1024 * 1024) {
+        throw new HydroGoError(response.status, { code: "response_too_large", message: "HydroGo API response is too large" }, response.headers.get("x-request-id") ?? "");
+      }
       if (response.status === 204) return undefined as T;
       if (!response.ok) {
-        const body = [...(await response.text())].slice(0, MAX_ERROR_BODY_CODEPOINTS).join("");
-        throw new HydroGoError(response.status, body);
+        const raw = [...(await response.text())].slice(0, MAX_ERROR_BODY_CODEPOINTS).join("");
+        let body: HydroAPIErrorBody | undefined;
+        try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
+        throw new HydroGoError(response.status, body, response.headers.get("x-request-id") ?? "");
       }
       return response.json() as Promise<T>;
     } finally {

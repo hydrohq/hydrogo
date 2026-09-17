@@ -14,6 +14,12 @@ npm run demo
 Client requests use a 15-second default timeout (configurable up to 120 seconds
 with `timeoutMs`) and cap error response text at 8,192 code points. Handle
 `AbortError`/`HydroGoError` in the host application and show audience-appropriate
-copy rather than exposing raw infrastructure details.
+copy rather than exposing raw infrastructure details. `HydroGoError` exposes a
+bounded `code`, `message` and optional `requestId`; raw response text is not
+part of the public error contract.
+
+`checkout` validates the caller-supplied idempotency key (16–128 visible ASCII
+characters) before sending it. Reuse the same key only when retrying the same
+logical checkout.
 
 For authenticated browser calls, pass the CSRF value together with the browser session cookie; `addCartItem`, `removeCartItem` and `checkout` intentionally require it. Cross-origin cookie, CORS and preview-token policy are not guessed by this starter: they are a separate Core security contract in the headless migration plan.
