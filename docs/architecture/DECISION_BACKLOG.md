@@ -43,10 +43,10 @@ P0: first implementation detail; P1: pilot/v1 delivery; P2: expansion by demand.
 | P1 | Brand/domain | Separate suitability research for HydroGo/HydroCore | External marketing | Not verified |
 | P1 | Portable export/import | Two DB round-trips; format/module/secret rules | v1 S09 | Allowlist, SQLite/PostgreSQL round-trip and CLI implemented; real customer hardware benchmark pending |
 | P2 | Advanced search/object storage | Interface principles accepted; provider semantics and load test required | Relevant feature/Distributed | Pending implementation |
-| P2 | OIDC/SAML/custom mobile API | Separate flow, threat model, token/revoke and adapter ADR | Before feature opens | Postponed |
+| P2 | OIDC/SAML/custom mobile API | [ADR-0138](0138-provider-neutral-oidc-boundary.md) and [ADR-0139](0139-mobile-api-auth-boundary.md) define the boundary; provider certification remains open | Before feature opens | Contract accepted, implementation gate open |
 | P2 | Fleet | CI + version inventory in first customers; dashboard upon proven need | Operations demand | Postponed |
 | P2 | Commerce | Separate edition and money/stock/ledger/transaction decisions | New product | Postponed |
-| P2 | Multi-region/multi-tenant | Out of initial product scope; requires real demand and new decision | New topology | Postponed |
+| P2 | Multi-region/multi-tenant | [ADR-0140](0140-tenant-isolation-scope.md) defines explicit opt-in isolation; topology and certification remain open | New topology | Contract accepted, implementation gate open |
 
 ## Development velocity target
 
