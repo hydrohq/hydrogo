@@ -3,6 +3,8 @@ import { HydroGoError, createHydroGoClient, validateIdempotencyKey } from "../di
 
 assert.throws(() => validateIdempotencyKey("too-short"), RangeError);
 assert.equal(validateIdempotencyKey("checkout-key-0001"), "checkout-key-0001");
+assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 0 }), RangeError);
+assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 120001 }), RangeError);
 
 let calls = 0;
 const client = createHydroGoClient({
