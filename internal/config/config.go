@@ -53,15 +53,16 @@ type Database struct {
 }
 
 type Media struct {
-	Dir           string `yaml:"dir"`
-	StorageDriver string `yaml:"storage_driver"`
-	S3Endpoint    string `yaml:"s3_endpoint"`
-	S3Bucket      string `yaml:"s3_bucket"`
-	S3Region      string `yaml:"s3_region"`
-	S3AccessKey   string `yaml:"s3_access_key"`
-	S3SecretKey   string `yaml:"s3_secret_key"`
-	S3UseSSL      bool   `yaml:"s3_use_ssl"`
-	CDNBaseURL    string `yaml:"cdn_base_url"`
+	Dir              string `yaml:"dir"`
+	StorageDriver    string `yaml:"storage_driver"`
+	S3Endpoint       string `yaml:"s3_endpoint"`
+	S3Bucket         string `yaml:"s3_bucket"`
+	S3Region         string `yaml:"s3_region"`
+	S3AccessKey      string `yaml:"s3_access_key"`
+	S3SecretKey      string `yaml:"s3_secret_key"`
+	S3UseSSL         bool   `yaml:"s3_use_ssl"`
+	S3ForcePathStyle bool   `yaml:"s3_force_path_style"`
+	CDNBaseURL       string `yaml:"cdn_base_url"`
 }
 
 type Security struct {
@@ -182,6 +183,13 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 			return Config{}, fmt.Errorf("invalid HYDRO_MEDIA_S3_USE_SSL: %w", err)
 		}
 		result.Media.S3UseSSL = useSSL
+	}
+	if value, ok := lookup("HYDRO_MEDIA_S3_FORCE_PATH_STYLE"); ok && value != "" {
+		forcePathStyle, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_MEDIA_S3_FORCE_PATH_STYLE: %w", err)
+		}
+		result.Media.S3ForcePathStyle = forcePathStyle
 	}
 	if value, ok := lookup("HYDRO_MEDIA_CDN_BASE_URL"); ok && value != "" {
 		result.Media.CDNBaseURL = value
@@ -492,7 +500,7 @@ func (c Config) Validate() error {
 	}
 	if c.Media.CDNBaseURL != "" {
 		parsed, err := url.Parse(c.Media.CDNBaseURL)
-		if err != nil || !isHTTPOrigin(parsed) {
+		if err != nil || !isHTTPBaseURL(parsed) {
 			return fmt.Errorf("invalid media CDN base URL %q", c.Media.CDNBaseURL)
 		}
 	}
@@ -533,6 +541,16 @@ func isHTTPOrigin(parsed *url.URL) bool {
 		return false
 	}
 	return (parsed.Path == "" || parsed.Path == "/") && parsed.RawQuery == "" && parsed.Fragment == ""
+}
+
+func isHTTPBaseURL(parsed *url.URL) bool {
+	if parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
+		return false
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return false
+	}
+	return len(parsed.Path) <= 512 && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
 func isHTTPSCallbackURL(raw string) bool {
