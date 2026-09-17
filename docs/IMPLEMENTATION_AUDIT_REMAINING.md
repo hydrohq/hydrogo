@@ -66,8 +66,10 @@ environment, an external provider, legal review, or a release pipeline.
 
 ### Quality and product readiness
 
-- Add risk-weighted coverage thresholds for auth SQL stores, member transport,
-  payment providers and GraphQL error paths.
+- Add broader risk-weighted coverage thresholds for auth SQL stores, member
+  transport, payment providers and GraphQL error paths. CI now enforces
+  package-specific baseline floors through `scripts/risk-coverage.sh` (R59);
+  floors must be ratcheted upward as the remaining branch matrix lands.
 - Add accessibility checks for keyboard navigation, focus management, labels,
   contrast and reduced motion.
 - Replace hard-coded demo/home/locale links with site settings and empty states.
