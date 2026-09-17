@@ -6,6 +6,8 @@ JSON bodies, empty 202/204 success responses and the bounded `Idempotency-Key` h
 rejects keys outside 16–128 visible ASCII characters before a request is sent.
 Caller cancellation is combined with the configured timeout, so supplying an
 `AbortSignal` cannot accidentally disable the client's bounded wait.
+Request headers are normalized through the Fetch `Headers` contract, so
+`Headers`, tuple arrays and plain objects preserve custom headers consistently.
 
 This is an ergonomic client contract: the server route must opt into durable
 idempotency (the Site form pilot does). It does not claim exactly-once external

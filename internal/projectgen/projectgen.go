@@ -642,12 +642,10 @@ export class HydroClient {
       if (callerSignal.aborted) abortFromCaller();
       else callerSignal.addEventListener('abort', abortFromCaller, { once: true });
     }
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-      ...(init.headers as Record<string, string> | undefined),
-    };
+    const headers = new Headers(init.headers);
+    if (!headers.has('Accept')) headers.set('Accept', 'application/json');
     if (this.config.apiKey) {
-      headers['Authorization'] = ` + "`Bearer ${this.config.apiKey}`" + `;
+      headers.set('Authorization', ` + "`Bearer ${this.config.apiKey}`" + `);
     }
     try {
       const res = await fetch(url.toString(), { ...init, headers, signal: controller.signal });
