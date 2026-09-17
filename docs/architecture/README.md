@@ -189,6 +189,11 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0135](0135-role-specific-workflow-policy.md) | Role-specific editorial transition policy | Accepted |
 | [0136](0136-bounded-http-idempotency-contract.md) | Bounded HTTP idempotency contract | Proposed |
 | [0137](0137-commercial-license-issuer-boundary.md) | Separate vendor-only license issuer from customer runtime | Accepted |
+| [0138](0138-provider-neutral-oidc-boundary.md) | Provider-neutral OIDC boundary | Accepted |
+| [0139](0139-mobile-api-auth-boundary.md) | Versioned mobile API authentication boundary | Accepted |
+| [0140](0140-tenant-isolation-scope.md) | Multi-tenant scope is opt-in and explicit | Accepted |
+| [0141](0141-ai-provider-and-data-boundary.md) | AI is opt-in and provider-neutral | Accepted |
+| [0142](0142-distributed-profile-certification-boundary.md) | Distributed profile certification boundary | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
