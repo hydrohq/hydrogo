@@ -21,6 +21,10 @@ foreach ($relativePath in $checks.Keys) {
     if ($content -match '(?m)^\s*-\s*"\d+:\d+"\s*$') {
         throw "$relativePath contains a host-wide local service port"
     }
+    $mutableImages = [regex]::Matches($content, '(?m)^\s*image:\s*\S+:latest\s*$')
+    if ($mutableImages.Count -gt 0) {
+        throw "$relativePath contains mutable :latest image tags"
+    }
 }
 
 Write-Host "PASS: local Compose service ports are loopback-only"
