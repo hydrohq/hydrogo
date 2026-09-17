@@ -35,6 +35,14 @@ Invoke-Required "client edition build" { Push-Location examples/client-edition; 
 Invoke-Required "news edition import boundary" { go run ./tools/importguard -root examples/news-edition }
 Invoke-Required "news edition build" { Push-Location examples/news-edition; try { go build ./... } finally { Pop-Location } }
 Invoke-Required "generator preset smoke" { & (Join-Path $PSScriptRoot "generator-smoke.ps1") }
+if (Get-Command npm -ErrorAction SilentlyContinue) {
+    Invoke-Required "headless starter contract smoke" {
+        Push-Location (Join-Path $PSScriptRoot "..\examples\headless-starter")
+        try { npm test } finally { Pop-Location }
+    }
+} else {
+    Write-Warning "npm bulunamadı; headless starter contract smoke atlandı (CI/browser-e2e job'ında zorunludur)."
+}
 Invoke-Required "theme token lint" { & (Join-Path $PSScriptRoot "theme-token-lint.ps1") }
 Invoke-Required "ADR index drift check" { & (Join-Path $PSScriptRoot "adr-drift-check.ps1") }
 Invoke-Required "binary health/readiness smoke" { & (Join-Path $PSScriptRoot "smoke-local.ps1") }
