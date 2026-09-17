@@ -50,8 +50,8 @@ try {
     try {
         Push-Location (Join-Path $repo "examples\headless-starter")
         try {
-            npm run build
-            if ($LASTEXITCODE -ne 0) { throw "Headless starter build failed with exit code $LASTEXITCODE" }
+            npm test
+            if ($LASTEXITCODE -ne 0) { throw "Headless starter contract smoke failed with exit code $LASTEXITCODE" }
         } finally { Pop-Location }
         npm run setup-auth
         if ($LASTEXITCODE -ne 0) { throw "E2E auth setup failed with exit code $LASTEXITCODE" }
