@@ -12,8 +12,14 @@ foreach ($relativePath in $checks.Keys) {
     foreach ($binding in $checks[$relativePath]) {
         if ($content -notmatch [regex]::Escape($binding)) { throw "$relativePath is missing loopback binding $binding" }
     }
-    if ($content -match '"(?:5432|6379|9000|9001):(?:5432|6379|9000|9001)"') {
-        throw "$relativePath contains a publicly bound local service port"
+    $hostBindings = [regex]::Matches($content, '(?m)^\s*-\s*"(?<host>[^":]+):\d+:\d+"\s*$')
+    foreach ($match in $hostBindings) {
+        if ($match.Groups['host'].Value -ne '127.0.0.1') {
+            throw "$relativePath contains a non-loopback host binding: $($match.Value.Trim())"
+        }
+    }
+    if ($content -match '(?m)^\s*-\s*"\d+:\d+"\s*$') {
+        throw "$relativePath contains a host-wide local service port"
     }
 }
 
