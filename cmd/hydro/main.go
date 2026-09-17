@@ -94,6 +94,24 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+type pageCache interface {
+	GetOrLoad(string, func() (pages.Page, error)) (pages.Page, error)
+	GetOrLoadAtGeneration(string, uint64, func() (pages.Page, error)) (pages.Page, error)
+	Clear()
+	Stats() cache.Stats
+}
+
+func newPageCache(enabled bool, budget capacity.Budget, redisClient *redis.Client, prefix string) (pageCache, error) {
+	if !enabled {
+		return nil, nil
+	}
+	local := cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL)
+	if redisClient == nil {
+		return local, nil
+	}
+	return cache.NewTwoTier(local, cache.RedisJSONRemote[pages.Page]{Client: redisClient, Prefix: prefix + "hydro:cache:page:", TTL: budget.CacheTTL})
+}
+
 const version = "0.0.0-dev"
 
 var (
@@ -1034,20 +1052,9 @@ func serve(args []string, stderr io.Writer) error {
 		authHTTP.Notifier = notifier
 		authHTTP.InviteNotice = notifier
 	}
-	var publicPageCache interface {
-		GetOrLoad(string, func() (pages.Page, error)) (pages.Page, error)
-		GetOrLoadAtGeneration(string, uint64, func() (pages.Page, error)) (pages.Page, error)
-		Clear()
-		Stats() cache.Stats
-	}
-	if modules["pages"] {
-		publicPageCache = cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL)
-		if redisClient != nil {
-			publicPageCache, err = cache.NewTwoTier(cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL), cache.RedisJSONRemote[pages.Page]{Client: redisClient, Prefix: cfg.Redis.KeyPrefix + "hydro:cache:page:", TTL: budget.CacheTTL})
-			if err != nil {
-				return fmt.Errorf("configure redis page cache: %w", err)
-			}
-		}
+	publicPageCache, err := newPageCache(modules["pages"], budget, redisClient, cfg.Redis.KeyPrefix)
+	if err != nil {
+		return fmt.Errorf("configure redis page cache: %w", err)
 	}
 	contentService := pageservice.ContentService{
 		Transactions: database.NewTransactor(db),

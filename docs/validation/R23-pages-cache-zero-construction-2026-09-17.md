@@ -9,5 +9,6 @@ This prevents inactive/headless configurations that do not expose Pages from
 consuming page-cache memory or attempting page-cache Redis wiring. The existing
 module route and migration filters remain in force.
 
-Verification: `go test ./cmd/hydro ./internal/projectgen -count=1` and
-`git diff --check` — PASS.
+Verification: `TestPageCacheConstructionFollowsModuleActivation` proves the
+inactive path returns no cache and the active path creates one. The focused
+and full `go test ./cmd/hydro -count=1` runs plus `git diff --check` pass.
