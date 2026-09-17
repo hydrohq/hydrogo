@@ -22,7 +22,11 @@ required for local or Compact profiles.
 `media.storage_driver` is `local` unless explicitly set to `s3`. S3 requires an
 endpoint and bucket; credentials are supplied by environment/secret injection.
 The local staging directory remains required for bounded validation and image
-processing. A CDN URL is optional and must be an HTTPS/HTTP origin.
+processing. A CDN URL is optional and must be a credential-free HTTPS/HTTP base
+URL (an optional path prefix is allowed, but query strings and fragments are
+not). `s3_force_path_style` is available for MinIO and other S3-compatible
+endpoints; the configured CDN base is passed only to the optional public URL
+capability and never into domain/application contracts.
 
 ## Consequences
 

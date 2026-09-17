@@ -1087,7 +1087,7 @@ func serve(args []string, stderr io.Writer) error {
 		mediaOptimizer := media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
 		var blobStore media.BlobStore
 		if cfg.Media.StorageDriver == "s3" {
-			blobStore, err = media.NewS3BlobStore(media.S3Config{Endpoint: cfg.Media.S3Endpoint, AccessKey: cfg.Media.S3AccessKey, SecretKey: cfg.Media.S3SecretKey, Bucket: cfg.Media.S3Bucket, Region: cfg.Media.S3Region, UseSSL: cfg.Media.S3UseSSL})
+			blobStore, err = media.NewS3BlobStore(media.S3Config{Endpoint: cfg.Media.S3Endpoint, AccessKey: cfg.Media.S3AccessKey, SecretKey: cfg.Media.S3SecretKey, Bucket: cfg.Media.S3Bucket, Region: cfg.Media.S3Region, UseSSL: cfg.Media.S3UseSSL, ForcePathStyle: cfg.Media.S3ForcePathStyle, PublicBaseURL: cfg.Media.CDNBaseURL})
 			if err != nil {
 				return fmt.Errorf("configure media object storage: %w", err)
 			}
