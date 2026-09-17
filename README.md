@@ -1,45 +1,45 @@
 # HydroGo
 
-HydroGo, Core'u çatallamadan müşteri sunucularında çalıştırılabilen modüler bir Go CMS'i ve JSON API platformudur.
+HydroGo is a modular Go CMS and JSON API platform designed for customer-owned deployments without forking the Core.
 
-Amacı:
+Its purpose is:
 
-> Kullanılmayan altyapı bağımlılıkları eklemeden güvenli, taşınabilir ve işletilebilir bir CMS ile müşterinin verisi ve dağıtımı üzerinde tam kontrol sağlamaktır.
+> Give customers control of their data and deployment through a secure, portable, operable CMS that does not add infrastructure they do not use.
 
-HydroGo “her şeyi yapan bir CMS” değildir; takılıp çıkarılabilen modüllere sahip kararlı bir Core'dur. Devre dışı modüller rota, migration, worker veya zorunlu harici servis oluşturmamalıdır.
+HydroGo is not designed as an “everything CMS.” It is a stable Core with attachable modules. Disabled modules must not create routes, migrations, workers, or mandatory external services.
 
-## Mevcut durum
+## Current status
 
-Depo çalışan bir teknik temel ve geniş bir sözleşme testi paketi sunar. Pages ve News modülleri, Site Edition akışları, kimlik doğrulama/MFA, medya, cache, yedekleme/geri yükleme, taşınabilir dışa/içe aktarma, release manifestleri ve generator denemeleri uygulanmıştır.
+The repository provides a working technical foundation and a broad contract-test suite. Pages and News modules, Site Edition flows, authentication/MFA, media, cache, backup/restore, portable export/import, release manifests, and generator experiments are implemented.
 
-Depo henüz tüm production profilleri için tam sertifikalı ve ticari olarak desteklenen v1 ilan edilmemiştir. R3 pilot, R5 v1 ve R6 Distributed kanıt kapıları roadmap'te ayrı izlenir.
+This repository is not yet declared a fully certified, commercially supported v1 across all production profiles. The remaining R3 pilot, R5 v1, and R6 Distributed evidence gates are tracked separately in the roadmap.
 
-### Yalnızca binary müşteri dağıtımı
+### Binary-only customer distribution
 
-Müşteri kurulumları Core veya modül kaynak kodu gönderilmeden teslim edilebilir. Üretici allowlist ile seçilmiş, sembolleri temizlenmiş (isteğe bağlı obfuscation) `hydro` runtime'ı derler; yalnızca binary, `hydro.lic`, `hydrogo.lock`, yapılandırma, temalar ve Client Edition dosyalarını paketler. Paketleyici `internal/`, `modules/`, `cmd/`, `.git/`, `go.mod`, `go.sum`, Go kaynaklarını ve özel anahtarları reddeder. Ayrıntılar için [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md), [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md) ve [`docs/architecture/0143-binary-only-customer-distribution.md`](docs/architecture/0143-binary-only-customer-distribution.md) belgelerine bakın.
+Customer installations can be delivered without Core or module source code. The vendor builds an allowlisted, stripped (optionally obfuscated) `hydro` runtime and ships only the binary, `hydro.lic`, `hydrogo.lock`, configuration, themes, and Client Edition files. The package builder rejects `internal/`, `modules/`, `cmd/`, `.git/`, `go.mod`, `go.sum`, Go source files, and private keys. See [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md), [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md), and [`docs/architecture/0143-binary-only-customer-distribution.md`](docs/architecture/0143-binary-only-customer-distribution.md).
 
-Üretici imzası yalnızca `hydro-issuer` ile atılır; müşteri runtime'ı sadece lisans doğrulama/durum yüzeyi sunar. Müşteri paketini `scripts/build-customer-runtime.ps1` veya `.sh` ile oluşturun. `HYDRO_TRUSTED_PUBLIC_KEYS` korumalı üretici derlemesinde eklenir; özel imza anahtarları müşteri paketine girmez. Yetkili bir operatör çalışan binary'yi yine de reverse-engineer edebilir; bu sınır kaynak kodu teslimini ve basit yeniden kullanımı engeller, her türlü binary değişikliğini garanti etmez.
+Vendor-only signing is performed with `hydro-issuer`; the customer runtime exposes only license verification/status. Build a customer package with `scripts/build-customer-runtime.ps1` or `.sh`. `HYDRO_TRUSTED_PUBLIC_KEYS` is injected in the protected vendor build, while private signing keys never enter the customer artifact. A privileged operator can still reverse engineer a running binary; this boundary prevents source delivery and casual reuse, not every possible binary patch.
 
-### Halihazırda çözülen başlıklar
+### Problems currently addressed
 
-- Taslak, revizyon, önizleme, zamanlama ve yayınlama akışlarıyla sayfa ve haber yönetimi
-- Editörler arası sessiz veri kaybını önleyen iyimser kilitleme
-- HTML ve JSON API yollarında ortak uygulama servisleri ve yetkilendirme kuralları
-- Public/private medya yaşam döngüsü ve güvenli yükleme metadatası
-- Yetkili editör/admin için sınırlı süreli imzalı private medya URL'leri
-- SQLite ve PostgreSQL için ortak davranış sözleşmeleri
-- Sınırlı L1 cache, generation invalidation ve single-flight cache miss birleştirme
-- MFA, oturum iptali, parola sıfırlama, davet ve CSRF temelleri
-- Audit, transactional outbox, job leasing ve idempotency altyapısı
-- SQLite snapshot'ları, PostgreSQL dump/restore ve medya manifest doğrulaması
-- Hash zincirli harici silme günlüğü ve idempotent silme tekrarı
-- Secret ve oturum durumunu dışarıda bırakan allowlist tabanlı taşınabilir aktarım
-- Ed25519 imzalı release manifestleri ve güvenilir public-key doğrulaması
-- Deterministic generator, Client Edition sınırları ve SDK v1 adayı
+- Page and news authoring with draft, revision, preview, scheduling, and publishing flows
+- Optimistic locking to prevent silent data loss between editors
+- Shared application services and authorization rules for HTML and JSON API paths
+- Public/private media lifecycle and safe upload metadata handling
+- Protected private-media delivery with bounded presigned URLs for authorized editors/admins
+- Common SQLite and PostgreSQL behavioral contracts
+- Bounded L1 cache, generation invalidation, and single-flight miss coalescing
+- MFA, session revocation, password reset, invitations, and CSRF foundations
+- Audit, transactional outbox, job leasing, and idempotency infrastructure
+- SQLite snapshots, PostgreSQL dump/restore, and media manifest verification
+- Hash-chained external erasure log and idempotent erasure replay
+- Allowlist-based portable export/import excluding secrets and session state
+- Ed25519-signed release manifests and trusted public-key verification
+- Deterministic generation, Client Edition boundaries, and an SDK v1 candidate
 
-## Nasıl çalışır
+## How it works
 
-Web sunucusu ve operasyon komutları tek binary içindeki aynı Core'u kullanır:
+The web server and operational commands use the same Core inside one binary:
 
 ```text
 hydro serve / migrate / doctor / upgrade check
@@ -58,40 +58,40 @@ hydro serve / migrate / doctor / upgrade check
            SQLite              PostgreSQL
 ```
 
-HTML yönetim paneli ve JSON API aynı servis ve politika katmanlarını çağırır. Domain ve application-service kodu SQL lehçesini, cache sürücülerini veya dağıtım proxy ayrıntılarını bilmez.
+The HTML admin panel and JSON API call the same service and policy layers. Domain and application-service code does not know SQL dialect details, cache drivers, or deployment proxy details.
 
-### Kapasite profilleri ve isteğe bağlı servisler
+### Capacity profiles and optional services
 
-- `compact`: SQLite ve yerel medya ile ek servis gerektirmeyen geliştirme/küçük kurulum profili.
-- `standard`: PostgreSQL, Redis/Valkey ve daha yüksek bağlantı/worker bütçeleri için önerilen profil.
-- `distributed`: birden fazla uygulama/worker örneği, Redis/Valkey L2 cache ve S3 uyumlu medya/CDN topolojisi için sözleşme profili; gerçek production sertifikasyonu ayrıca gereklidir.
+- `compact`: a development/small-installation profile using SQLite and local media without extra services.
+- `standard`: the recommended profile for PostgreSQL, Redis/Valkey, and higher connection/worker budgets.
+- `distributed`: a contract profile for multiple application/worker instances, Redis/Valkey L2 cache, and S3-compatible media/CDN topology; separate production certification is required.
 
-Redis/Valkey (`HYDRO_REDIS_URL`), S3 uyumlu medya (`HYDRO_MEDIA_STORAGE_DRIVER=s3` ve
-`HYDRO_MEDIA_S3_*`), CDN (`HYDRO_MEDIA_CDN_BASE_URL`), SMTP (`HYDRO_SMTP_*`) ve
-FFmpeg (`HYDRO_MEDIA_FFMPEG`) yalnızca açıkça yapılandırıldığında kullanılır. Compact
-profilinde bu servisler otomatik olarak zorunlu hale gelmez. Sağlayıcı kimlik bilgilerini
-YAML veya kaynak koda yazmayın; secret manager ya da korumalı ortam değişkenleri kullanın.
+Redis/Valkey (`HYDRO_REDIS_URL`), S3-compatible media (`HYDRO_MEDIA_STORAGE_DRIVER=s3`
+and `HYDRO_MEDIA_S3_*`), CDN (`HYDRO_MEDIA_CDN_BASE_URL`), SMTP (`HYDRO_SMTP_*`), and
+FFmpeg (`HYDRO_MEDIA_FFMPEG`) are used only when explicitly configured. These services
+are not automatically required in Compact. Do not put provider credentials in YAML or
+source code; use a secret manager or protected environment variables.
 
-### Modül ve Core sınırları
+### Module and Core boundaries
 
-- `modules/pages`: sayfalar, revizyonlar, taslaklar, önizleme ve yayınlama
-- `modules/news`: editoryal inceleme, zamanlama, yayınlama, geri çekme ve worker'lar
-- `modules/site`: navigasyon, ayarlar, SEO, yönlendirmeler ve form gelen kutusu
-- `internal/auth`: kullanıcılar, oturumlar, MFA, sıfırlama ve davetler
-- `internal/media`: yüklemeler, görünürlük, pending/ready durumu ve depolama metadatası
-- `internal/cache`: sınırlı L1, TwoTier cache ve invalidation fanout
-- `internal/backup`: SQLite/PostgreSQL snapshot, manifest, geri yükleme ve aktivasyon
-- `internal/release`: manifest, imza, attestation, tutulan asset'ler ve Blue/Green durumu
-- `internal/portable`: allowlist tabanlı veri taşınabilirliği
-- `internal/generator`: collection spec'lerinden incelenebilir CRUD ve migration taslakları
+- `modules/pages`: pages, revisions, drafts, previews, and publishing
+- `modules/news`: review, scheduling, publishing, withdrawal, and workers
+- `modules/site`: navigation, settings, SEO, redirects, and form inbox
+- `internal/auth`: users, sessions, MFA, reset, and invitations
+- `internal/media`: uploads, visibility, pending/ready state, and storage metadata
+- `internal/cache`: bounded L1, TwoTier cache, and invalidation fanout
+- `internal/backup`: SQLite/PostgreSQL snapshots, manifests, restore, and activation
+- `internal/release`: manifests, signatures, attestations, retained assets, and Blue/Green state
+- `internal/portable`: allowlist-based data portability
+- `internal/generator`: reviewable CRUD and migration drafts from collection specs
 
-## Hızlı başlangıç
+## Quick start
 
-Gereksinimler:
+Requirements:
 
 - Go 1.27.0
-- SQLite için ek servis gerekmez
-- PostgreSQL sözleşme testleri için PostgreSQL 18 ve `HYDRO_TEST_POSTGRES_URL` gerekir
+- No extra service is required for SQLite
+- PostgreSQL 18 and `HYDRO_TEST_POSTGRES_URL` are required for PostgreSQL contract tests
 
 Windows PowerShell:
 
@@ -102,13 +102,12 @@ $env:HYDRO_DATABASE_DSN = "hydro.sqlite"
 ./bin/hydro.exe serve
 ```
 
-Binary'yi `hydro` adıyla kullanmak için `bin` klasörünü PATH'e ekleyin. PATH
-ayarlamadan tüm örneklerde `./bin/hydro.exe` (Linux/macOS'ta `./bin/hydro`)
-önekini kullanabilirsiniz. Yapılandırma dosyası vermediğinizde değerler ortam
-değişkenlerinden, ardından varsayılanlardan okunur; `--config` ile YAML dosyası
-seçilebilir.
+To use the binary as `hydro`, add the `bin` directory to PATH. Without changing
+PATH, prefix examples with `./bin/hydro.exe` (or `./bin/hydro` on Linux/macOS).
+When no configuration file is supplied, values are read from environment
+variables and then defaults; select a YAML file with `--config`.
 
-Geçerli PowerShell oturumunda PATH'e eklemek için:
+To add it to PATH for the current PowerShell session:
 
 ```powershell
 $env:Path = "$(Resolve-Path .\bin);$env:Path"
@@ -124,22 +123,38 @@ export HYDRO_DATABASE_DSN=hydro.sqlite
 ./bin/hydro serve
 ```
 
-### Canlı geliştirme
+### Live development
 
-Yerel geliştirmede proxy adresi (`127.0.0.1:8090`) sabit kalırken HydroGo uygulaması içeride yeniden başlatılır. Böylece tarayıcı oturumu korunur; Go, HTML ve Templ değişiklikleri yeniden derlenir, CSS/JS değişiklikleri ise sayfayı yeniler. Derleme hatasında önceki çalışan sürüm ayakta kalır ve tarayıcıda hata ayrıntılarını gösteren kırmızı geliştirme paneli görünür.
+During local development, the proxy address (`127.0.0.1:8090`) remains stable
+while the HydroGo application restarts internally. Browser sessions are preserved;
+Go, HTML, and Templ changes are recompiled, while CSS/JS changes refresh the page.
+If compilation fails, the previous working version stays up and a red development
+panel with diagnostic details appears in the browser.
 
 ```powershell
 ./bin/hydro.exe run
 ```
 
-`hydro run` dahili olarak `tools/devserver` proxy'sini başlatır; bu iç Go yolu
-doğrudan çalıştırılmamalıdır. `hydro dev` aynı seçenekleri kabul eden geriye
-dönük uyumluluk alias'ıdır. Varsayılan proxy `127.0.0.1:8090`, uygulama adresi
-`127.0.0.1:8091`'dir.
+`hydro run` starts the internal `tools/devserver` proxy; do not invoke that Go
+path directly. `hydro dev` is a backwards-compatible alias accepting the same
+options. The default proxy is `127.0.0.1:8090` and the application address is
+`127.0.0.1:8091`.
 
-### SDK ile hızlı proje başlatma
+If `hydro help` does not list `hydro run`, the shell is resolving an older
+binary. From the repository root, rebuild it and verify the resolved executable:
 
-Yeni bir Client Edition iskeleti ve frontend entegrasyon manifesti üretmek için:
+```powershell
+go build -trimpath -buildvcs=false -o hydro.exe ./cmd/hydro
+where.exe hydro
+hydro help
+hydro run
+```
+
+Alternatively, bypass PATH resolution with `./bin/hydro.exe run`.
+
+### Start a project quickly with the SDK
+
+To generate a Client Edition scaffold and frontend integration manifest:
 
 ```powershell
 ./bin/hydro.exe project new haber-merkezi --preset=news
@@ -147,74 +162,75 @@ Set-Location haber-merkezi
 ../bin/hydro.exe project check
 ```
 
-`hydro project check`, varsa `generated/` altındaki tüm resource scaffold'larını
-da aynı bağımlılıksız preflight içinde doğrular.
+`hydro project check` also validates all resource scaffolds under `generated/`
+in the same dependency-free preflight.
 
-Üretilen projede `frontend/starter.json` ve `frontend/README.md`, Hydro,
-shadcn, Material, Carbon, headless, vanilla veya custom sunum katmanlarından birini
-seçerek ilerlemenizi sağlar. Collection spec'leri için `hydro resource new`
-her kaynak altında tip güvenli `client.ts`, React/SWR/HTMX/vanilla adapter'ları,
-`form.schema.json`, OpenAPI ve CRUD yardımcılarını üretir. Bu dosyalar Core'a
-çalışma zamanı bağımlılığı eklemez; kimlik doğrulama, politika ve cache
-geçersizleştirme Client Edition sınırında kalır. Ayrıntılı akış için
-[`docs/SDK_CAPABILITY_MATRIX.md`](docs/SDK_CAPABILITY_MATRIX.md), [`docs/PROJECT_GENERATOR.md`](docs/PROJECT_GENERATOR.md)
-ve [`docs/CLI_WORKFLOW.md`](docs/CLI_WORKFLOW.md) belgelerine bakın.
+The generated project's `frontend/starter.json` and `frontend/README.md` let you
+choose Hydro, shadcn, Material, Carbon, headless, vanilla, or custom presentation
+layers. For collection specs, `hydro resource new` generates a type-safe `client.ts`,
+React/SWR/HTMX/vanilla adapters, `form.schema.json`, OpenAPI, and CRUD helpers for
+each resource. These files add no runtime dependency on Core; authentication,
+policy, and cache invalidation remain at the Client Edition boundary. See
+[`docs/SDK_CAPABILITY_MATRIX.md`](docs/SDK_CAPABILITY_MATRIX.md), [`docs/PROJECT_GENERATOR.md`](docs/PROJECT_GENERATOR.md),
+and [`docs/CLI_WORKFLOW.md`](docs/CLI_WORKFLOW.md) for the detailed workflow.
 
-Her üretilen collection kendi deterministic `spec.json` kaynağını taşır;
-`hydro resource check --root .` ile tüm kaynakları tek komutla, veritabanına
-bağlanmadan doğrulayabilirsiniz. İsterseniz `--spec` vererek tek bir kaynağı
-ayrıca kontrol edebilirsiniz.
+Each generated collection carries its deterministic `spec.json` source;
+`hydro resource check --root .` validates all resources in one command without a
+database connection. Pass `--spec` to check an individual resource as well.
 
-SDK ad alanında önerilen yazım `hydro project new` komutudur; eski `hydro new`
-yazımı geriye dönük uyumluluk için korunur. Generator Core kaynak kodunu
-üretilen projeye kopyalamaz; yalnızca Client Edition iskeleti ve incelenebilir
-üretim çıktıları oluşturur.
+The recommended SDK spelling is `hydro project new`; the legacy `hydro new`
+spelling remains for backwards compatibility. The generator does not copy Core
+source code into the generated project; it creates only a Client Edition scaffold
+and reviewable generated artifacts.
 
-Varsayılan demo veritabanı `data/demo.sqlite` kullanılır. Farklı bir veritabanı için `--database-dsn`; proxy veya dahili uygulama portları için sırasıyla `--address` ve `--app-address` kullanın.
+The default demo database is `data/demo.sqlite`. Use `--database-dsn` for another
+database; `--address` and `--app-address` select the proxy and internal application
+ports respectively.
 
-Uç noktalar:
+Endpoints:
 
-- `/healthz`: yalnızca process canlılık kontrolü; bağımlılıkları doğrulamaz
-- `/readyz`: veritabanı ve migration uyumluluğu hazır olma kontrolü
-- `/metrics`: kimlik doğrulamalı, durum etiketleri sınırlı operasyon sayaçları
-- Sürümlü JSON API yolları `/api/v1/...` altındadır; eski `/api/...` yolları uyumluluk alias'ı olarak korunur ve yeni yolu bildirir
-- Admin/API yolları: default-deny routing ve yetkilendirme politikaları
+- `/healthz`: process liveness only; it does not validate dependencies
+- `/readyz`: database and migration-compatibility readiness
+- `/metrics`: authenticated operational counters with bounded status labels
+- Versioned JSON API routes use `/api/v1/...`; existing `/api/...` paths remain compatibility aliases and advertise their successor
+- Admin/API routes: default-deny routing and authorization policies
 
-PostgreSQL için `HYDRO_DATABASE_DIALECT=postgres` ayarlayın ve izole bir `HYDRO_DATABASE_DSN` kullanın.
+For PostgreSQL, set `HYDRO_DATABASE_DIALECT=postgres` and use an isolated `HYDRO_DATABASE_DSN`.
 
-Dağıtım değişikliği açmadan önce Windows'ta yerel binary smoke kontrolünü çalıştırın:
+Before opening a deployment change, run the local binary smoke drill on Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\smoke-local.ps1
 ```
 
-Bu kontrol izole bir binary derler, geçici SQLite veritabanını migrate eder, sunucuyu
-geçici loopback portunda başlatır ve `/healthz` ile `/readyz` uç noktalarını doğrular.
-Linux CI eşdeğer `scripts/smoke-local.sh` kontrolünü çalıştırır ve ayrıca sunucunun
-`SIGTERM` sonrasında temiz kapandığını doğrular.
+The drill builds an isolated binary, migrates a temporary SQLite database, starts
+the server on an ephemeral loopback port, and verifies `/healthz` and `/readyz`.
+Linux CI runs the equivalent `scripts/smoke-local.sh` drill and additionally
+verifies clean exit after `SIGTERM`.
 
-Production HTTPS ayarları açıkça verilmelidir: HTTPS `HYDRO_PUBLIC_ORIGIN` ile birlikte
-`HYDRO_SECURE_COOKIES=true` ve `HYDRO_ENABLE_HSTS=true` (veya YAML'daki eşdeğer
-`security.secure_cookies` ve `security.enable_hsts`) değerlerini ayarlayın. HTTPS
-canonical origin veya secure cookie olmadan HSTS etkinleştirilmesi reddedilir. Bu
-ayarlar yerel HTTP geliştirmesinde varsayılan olarak kapalıdır.
+Production HTTPS settings are explicit: set `HYDRO_SECURE_COOKIES=true` and
+`HYDRO_ENABLE_HSTS=true` (or the equivalent `security.secure_cookies` and
+`security.enable_hsts` YAML fields) together with an HTTPS `HYDRO_PUBLIC_ORIGIN`.
+Configuration rejects HSTS without an HTTPS canonical origin or secure cookies;
+these settings remain disabled by default for local HTTP development.
 
-`HYDRO_PUBLIC_ORIGIN` ayarlandığında HydroGo HTTP isteklerini canonical host ve porta
-bağlar. Forwarded host header'larına güvenilmez; reverse proxy'nin public `Host`
-header'ını koruduğundan emin olun. Origin'i yalnızca yerel geliştirmede boş bırakın.
+When `HYDRO_PUBLIC_ORIGIN` is configured, HydroGo binds HTTP requests to that
+canonical host and port. Forwarded host headers are not trusted; configure the
+reverse proxy to preserve the public `Host` header. Leave the origin empty only
+for local development.
 
 Release derlemelerine `-ldflags "-X main.buildCommit=COMMIT -X main.buildTime=UTC_TIME"`
-ile kimlik metadatası gömülebilir; `hydro version --json` ile incelenebilir.
+with `-ldflags`; inspect it with `hydro version --json`.
 
-Runtime ve production binary'si için Node.js/npm zorunlu değildir. Frontend asset
-üretimi gerekiyorsa sabitlenmiş geliştirme/release araçları kullanılır ve oluşan
-çıktılar binary ile birlikte doğrulanır.
+Node.js/npm is not required for the runtime or production binary. When frontend
+assets must be generated, pinned development/release tools are used and the
+resulting outputs are verified with the binary.
 
-## Sık kullanılan CLI komutları
+## Common CLI commands
 
 ```text
 hydro run [--address ADDR]
-hydro new PROJECT [--preset PRESET]  (legacy alias; önerilen: hydro project new)
+hydro new PROJECT [--preset PRESET]  (legacy alias; recommended: hydro project new)
 hydro serve
 hydro migrate
 hydro version --json
@@ -246,25 +262,38 @@ hydro license verify --license hydro.lic --public-key vendor.pub --project-id PR
 hydro license status --license hydro.lic --public-key vendor.pub --json
 ```
 
-Yerel geliştirmede `hydro run` önerilir; eski otomasyonlar için `hydro dev` alias'ı
-aynı davranışı korur.
+`hydro run` is recommended for local development; `hydro dev` remains as a
+backwards-compatible alias for older automation.
 
-Taşınabilir içe/dışa aktarma varsayılan olarak 256 MiB ile sınırlıdır; onaylı daha büyük bir müşteri aktarımı gerektiğinde `--max-bytes` kullanın.
+Portable import/export is bounded to 256 MiB by default; use `--max-bytes` when an approved larger customer export is required.
 
-`hydro release verify`, manifest içine gömülen public key'e tek başına güvenmez.
-Operatör tarafından dağıtılan güvenilir bir Ed25519 public-key dosyası zorunludur.
+`hydro release verify` does not trust the public key embedded in the manifest by
+itself. It requires a trusted Ed25519 public-key file distributed by the operator.
 
-Tarayıcı kaynaklı durum değiştiren istekler `hydro_csrf` cookie'siyle eşleşen bir CSRF token içermelidir. URL-encoded ve küçük multipart formlar token'ı `_csrf` alanında taşıyabilir. Büyük veya parçalı multipart yüklemeler aynı token'ı `X-CSRF-Token` header'ında göndermelidir; böylece yalnızca CSRF doğrulamak için sınırsız yük gövdesi parse edilmez.
+Browser-originated state-changing requests must include a CSRF token matching the
+`hydro_csrf` cookie. URL-encoded and small multipart forms may carry the token in
+`_csrf`. Large or chunked multipart uploads must send it in `X-CSRF-Token`; this
+avoids parsing an unbounded upload body solely for CSRF validation.
 
-Yedekleme ve geri yükleme bilerek staging-first tasarlanmıştır. SQLite ve PostgreSQL yedekleri yeni, değişmez bir snapshot klasörü oluşturur; PostgreSQL `pg_dump`/`pg_restore` için geçici parola dosyası kullanır ve parolayı process argümanlarına koymaz. Geri yükleme doğrulaması yalnızca hash'leri kontrol eder, staging mevcut hedefin üzerine yazmaz; medya aktivasyonu quarantine işareti ve üç operatör kontrolünün tamamını gerektirir. Canlı snapshot almadan önce uygulama yazmalarını ve arka plan worker'larını duraklatın.
+Backup and restore are deliberately staging-first. SQLite and PostgreSQL backups
+create a new immutable snapshot directory; PostgreSQL uses `pg_dump`/`pg_restore`
+with a temporary password file and never places the password in process arguments.
+Restore verification checks hashes only, staging never overwrites an existing
+destination, and media activation requires the quarantine marker plus all three
+operator controls. Pause application writes and background workers before taking
+a live snapshot.
 
-Taşınabilir içe aktarma da açık onay gerektirir: `--dry-run` allowlist'teki, secretsız belgeyi veritabanına yazmadan doğrular; gerçek aktarım `--confirm` ister ve tek transaction içinde çalışır.
+Portable import is explicit: `--dry-run` validates the allowlisted, secret-free
+document without a database write, while a real import requires `--confirm` and
+runs in one transaction.
 
-Snapshot saklama politikası da açıktır: adayları görmek için `hydro backup prune --dry-run`, silmeyi uygulamak için aynı komutu `--confirm` ile çalıştırın. Pinned snapshot klasör adları hiçbir zaman silinmez.
+Snapshot retention is explicit: run `hydro backup prune --dry-run` to inspect
+candidates, then repeat with `--confirm`. Pinned snapshot directory names are
+never removed.
 
-## Testler ve production kapıları
+## Tests and production gates
 
-Günlük geliştirme kontrolleri:
+Daily development checks:
 
 ```powershell
 go test ./...
@@ -272,13 +301,16 @@ go vet ./...
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-local.ps1
 ```
 
-`verify-local.ps1` tek yerel geliştirici kapısıdır: formatı, vet'i, tam test paketini, trimpath derlemesini, Client Edition import sınırlarını ve iki harici edition derlemesini kontrol eder. PostgreSQL gerektirmez. Production kapısı daha katıdır ve gerçek bir PostgreSQL sözleşme veritabanı ister.
+`verify-local.ps1` is the single local developer gate: it checks formatting, vet,
+the full test suite, a trimpath build, Client Edition import boundaries, and both
+external edition builds. It does not require PostgreSQL. The production-gate
+script is stricter and requires a real PostgreSQL contract database.
 
-`hydro doctor --json`, seçilen profil, veritabanı, yedekleme araçları, medya yazılabilirliği,
-transport güvenlik ayarları, binary kimliği ve gömülü şema migration seviyesi için
-otomasyona uygun preflight çıktısı üretir.
+`hydro doctor --json` provides automation-friendly preflight output for the
+selected profile, database, backup tools, media writability, transport security
+settings, binary identity, and embedded schema migration level.
 
-Dead-letter durumundaki arka plan job'ları payload'ları açığa çıkarmadan incelenebilir:
+Dead-lettered background jobs can be reviewed without exposing their payloads:
 
 ```text
 hydro jobs dead-letter list --database-dialect sqlite --database-dsn PATH --json
@@ -286,77 +318,86 @@ hydro jobs dead-letter requeue --id JOB_ID --confirm --database-dialect sqlite -
 hydro jobs dead-letter purge --older-than 720h --limit 100 --confirm --database-dialect sqlite --database-dsn PATH
 ```
 
-Requeue ve purge açıkça operatör tarafından başlatılır. Requeue job deneme sayısını ve son hatayı korur; purge yaş ve batch boyutuyla sınırlıdır.
+Requeue and purge are explicit operator actions. Requeue preserves the job attempt
+count and last error; purge is bounded by age and batch size.
 
-PostgreSQL sözleşme veritabanını ayarladıktan sonra otomatik release kapılarını çalıştırın:
+After configuring a PostgreSQL contract database, run the automated release gates:
 
 ```powershell
 $env:HYDRO_TEST_POSTGRES_URL = "postgres://user:password@127.0.0.1:5432/hydro_contract?sslmode=disable"
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-production-gates.ps1
 ```
 
-Linux veya macOS'ta eşdeğer kapı çalıştırıcısı:
+On Linux or macOS, run the equivalent gate runner:
 
 ```bash
 export HYDRO_TEST_POSTGRES_URL='postgres://user:password@127.0.0.1:5432/hydro_contract?sslmode=disable'
 bash ./scripts/verify-production-gates.sh
 ```
 
-Her iki çalıştırıcı formatı, vet'i, tam test paketini, race hassas paketleri, tekrarlanabilir binary derlemelerini ve taşınabilir benchmark'ı kontrol eder. PostgreSQL yoksa sözleşme testlerini sessizce atlamak yerine başarısız olur.
+Both runners check formatting, vet, the full test suite, race-sensitive packages,
+reproducible binary builds, and the portable benchmark. They fail when PostgreSQL
+is unavailable instead of silently treating contract tests as skipped.
 
-Gerçek production kapıları ayrıca şunları gerektirir:
+Real production gates additionally require:
 
-- Gerçek reverse proxy arkasında iki process ile Blue/Green yeniden başlatma ve rollback
-- Temiz SQLite ve PostgreSQL hedeflerine geri yükleme
-- Harici yedekleme ve anahtar kurtarma tatbikatları
-- Production imza anahtarı oluşturma/teslim töreni
-- Temsili müşteri iş yükleriyle RPO/RTO ve kapasite ölçümleri
+- Blue/Green restart and rollback with two real processes and a reverse proxy
+- Restore into clean SQLite and PostgreSQL targets
+- External backup and key-recovery drills
+- A production signing-key ceremony
+- RPO/RTO and capacity measurements using representative customer workloads
 
-Bu kanıtlar oluşana kadar depo herhangi bir production profili veya SLA iddiasında bulunmaz.
+The repository does not claim a production profile or SLA until those forms of evidence exist.
 
-## Mimari ilkeler
+## Architectural principles
 
-- Müşteri çalışmaları HydroCore fork'u yerine Client Edition ve extension contract'ları üzerinden uygulanır.
-- SQLite ve PostgreSQL aynı domain ve application sözleşmelerini uygular.
-- Migration, cache, job, asset ve release değişiklikleri açık sözleşme testleriyle ilerler.
-- Kullanılmayan servisler Compact profillerinde kapalıdır; Distributed özellikler varsayılan değildir.
-- Güvenli varsayılan routing, default-deny yetkilendirme ve veri taşınabilirliği Core sözleşmeleridir.
+- Customer work is implemented through Client Editions and extension contracts, not HydroCore forks.
+- SQLite and PostgreSQL implement the same domain and application contracts.
+- Migration, cache, job, asset, and release changes move forward through explicit contract tests.
+- Unused services are disabled in Compact profiles; Distributed features are not defaults.
+- Secure-by-default routing, default-deny authorization, and data portability are Core contracts.
 
-## Dokümantasyon
+## Documentation
 
-- [Roadmap](docs/ROADMAP.md): fazlar, açık kapılar ve kabul ölçütleri
-- [Gerçek dünya production roadmap'i](docs/REAL_WORLD_PRODUCTION_ROADMAP.md): pilot'tan profile özel production çıkış kapısına kadar uygulanacak sıra
-- [HydroGo felsefesi](docs/HYDROGO_PHILOSOPHY.md): ürün ve mimari ilkeler
-- [Uygulama planı](docs/implementation_plan.md): kapsam ve hedef mimari
-- [ADR dizini](docs/architecture/README.md): bağlayıcı mimari kararlar
-- [Production kapı kontrol listesi](docs/validation/PRODUCTION-GATES.md): gerçek ortam kanıt biçimi
-- [Açık kapılar ve operatör aksiyonları](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md): kullanıcı aksiyonları ve production engelleri
-- [Operasyon runbook'u](docs/OPERATIONS_RUNBOOK.md): dağıtım, yedekleme, geri yükleme ve alarm akışları
-- [Destek matrisi](docs/SUPPORT_MATRIX.md): desteklenen ve sertifikası açık profiller
-- [Uyumluluk matrisi](docs/COMPATIBILITY_MATRIX.md): eski/yeni release sınırları
-- [Threat model](docs/security/THREAT_MODEL.md): güvenlik varsayımları ve açık riskler
-- [Proje durumu](docs/PROJECT_STATUS.md): mevcut özellikler ve gerekli kanıtlar
-- [Güvenlik politikası](SECURITY.md): özel zafiyet bildirimi ve açıklama süreci
-- [Katkı rehberi](CONTRIBUTING.md) ve [depo kuralları](AGENTS.md)
+- [Roadmap](docs/ROADMAP.md): phases, open gates, and acceptance criteria
+- [Real-world production roadmap](docs/REAL_WORLD_PRODUCTION_ROADMAP.md): the path from pilot to profile-specific production exit gates
+- [HydroGo philosophy](docs/HYDROGO_PHILOSOPHY.md): product and architectural principles
+- [Implementation plan](docs/implementation_plan.md): scope and target architecture
+- [ADR index](docs/architecture/README.md): binding architectural decisions
+- [Production gate checklist](docs/validation/PRODUCTION-GATES.md): evidence format for real environments
+- [Open gates and operator actions](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md): operator actions and production blockers
+- [Operations runbook](docs/OPERATIONS_RUNBOOK.md): deploy, backup, restore, and alarm flows
+- [Support matrix](docs/SUPPORT_MATRIX.md): supported and uncertified profiles
+- [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md): old/new release boundaries
+- [Threat model](docs/security/THREAT_MODEL.md): security assumptions and open risks
+- [Project status](docs/PROJECT_STATUS.md): current capabilities and required evidence
+- [Security policy](SECURITY.md): private vulnerability reporting and disclosure guidance
+- [Contribution guide](CONTRIBUTING.md) and [repository rules](AGENTS.md)
 
-Bağımlılık güvenlik taraması (`govulncheck`), sabitlenmiş GitHub Actions, haftalık
-Dependabot güncellemeleri ve CodeQL Go analizi depo CI'ı üzerinden çalışır. Bu
-kontroller tespit ve tedarik zinciri bütünlüğünü güçlendirir; yukarıdaki dağıtıma
-özel production tatbikatlarının yerini tutmaz.
+Dependency vulnerability scanning (`govulncheck`), pinned GitHub Actions, weekly
+Dependabot updates, and CodeQL Go analysis run through repository CI. These checks
+improve detection and supply-chain integrity; they do not replace the deployment-
+specific production drills listed above.
 
-## Depo yerleşimi
+## Repository layout
 
-| Dizin | Sorumluluk |
+| Directory | Responsibility |
 |---|---|
-| `cmd/hydro/` | Uygulama ve operasyon komutlarının giriş noktası |
-| `internal/` | Core uygulama ayrıntıları; harici SDK değildir |
-| `extension/` | Deneysel v0 müşteri/modül sözleşmeleri |
-| `modules/pages/`, `modules/news/` | Modül modelleri, servisleri, repository'leri ve transport katmanı |
-| `migrations/` | Lehçe SQL'i ve uyumluluk metadatası |
-| `tests/` | Ortak sözleşmeler, entegrasyon testleri ve tüketici fixture'ları |
-| `tools/`, `scripts/` | Geliştirme araçları ve production kapı otomasyonu |
-| `docs/validation/` | Deney raporları ve doğrulama kapıları |
+| `cmd/hydro/` | Application and operational command entry point |
+| `internal/` | Core implementation details; not the external SDK |
+| `extension/` | Experimental v0 customer/module contracts |
+| `modules/pages/`, `modules/news/` | Module models, services, repositories, and transport |
+| `migrations/` | Dialect SQL and compatibility metadata |
+| `tests/` | Shared contracts, integration tests, and consumer fixtures |
+| `tools/`, `scripts/` | Development tools and production-gate automation |
+| `docs/validation/` | Experiment reports and verification gates |
 
-Compact veya Standard için ticari SLA iddiaları R3/R5 kanıt kapıları kapanana kadar engellidir. Distributed, Redis/Valkey, S3/CDN, OIDC/SAML, gelişmiş arama, commerce, AI ve çok kiracılı özelliklerin provider-neutral ADR sınırları tanımlıdır; yine de gerçek müşteri/sağlayıcı kanıtı ve kendi doğrulama kapıları gerekir. Kalan production işlemleri [`docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md`](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md) içinde listelenir.
+Commercial SLA claims for Compact or Standard remain blocked until the R3/R5
+evidence gates are closed. Distributed, Redis/Valkey, S3/CDN, OIDC/SAML, advanced
+search, commerce, AI, and multi-tenant features have provider-neutral ADR boundaries
+but still require real customer/provider evidence and their own verification gates.
+Remaining production actions are listed in [`docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md`](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md).
 
-Bu depo özel/proprietary'dir ve açık kaynak lisansı altında yayımlanmamıştır. Kısa teknik dağıtım bildirimi [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md) içindedir; ticari şartlar ayrı bir ürün kararıdır.
+This repository is proprietary/private and is not published under an open-source
+license. The short technical distribution notice is in [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md);
+commercial terms remain a separate product decision.
