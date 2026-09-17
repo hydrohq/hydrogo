@@ -1,7 +1,7 @@
 # ADR-0028: Core isolation and commercial licensing
 
 ## Status
-Accepted (runtime integration and project scaffold implemented; binary packaging and legal terms remain deployment gates)
+Superseded by [ADR-0137](0137-commercial-license-issuer-boundary.md) for the issuer/runtime CLI boundary. The core isolation and offline verification decisions remain valid.
 
 ## Context
 
@@ -25,7 +25,7 @@ Ayrıca Core dağıtımı için 3 alternatif mimari model araştırılmıştır:
    - Doğrulama akışı `customer`, `project_id`, `edition`, `features`, `expires_at` ve `grace_period_days` kontrollerini içerir.
    - Lisans süresi dolduğunda kesintiyi önlemek amacıyla yapılandırılabilir **Grace Period (Tolerans Süresi)** devreye girer ve durum loglarına yansıtılır.
    - İhlal veya uyuşmazlık durumlarında operatöre net ve insan okunabilir Türkçe/İngilizce hata mesajları döndürülür.
-5. **CLI Lisans Yönetimi:** `cmd/hydro` içerisine `hydro license issue`, `hydro license verify`, `hydro license status` ve `hydro license keygen` komutları yerleştirilmiştir.
+5. **CLI Lisans Yönetimi:** Vendor-only `hydro-issuer` içerisine `issue` ve `keygen`; müşteri `cmd/hydro` içerisine yalnızca `verify` ve `status` komutları yerleştirilmiştir. Ayrıntı ve superseding karar için [ADR-0137](0137-commercial-license-issuer-boundary.md) geçerlidir.
 6. **Project Scaffold:** `hydro new PROJECT --preset=...` creates a client-owned scaffold with no Core source. The scaffold contains config, lock metadata, a minimal theme, project migration/custom placeholders and E2E manifest.
 7. **Runtime Enforcement:** When `license.required: true` is configured, `serve` requires `hydro.lic`, the configured project/edition/features, and the official binary's trusted public key. Development builds without an injected vendor key fail closed for licensed projects.
 

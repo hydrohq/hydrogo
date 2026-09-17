@@ -2987,10 +2987,10 @@ Usage:
   hydro runtime verify --manifest PATH --public-key PATH [--root PATH]
   hydro runtime cache list --root PATH
   hydro runtime cache prune --root PATH --keep VERSION,... --dry-run|--confirm
-  hydro license issue --customer NAME --project-id ID --private-key PATH [--edition ED] [--features F1,F2] [--expires-in DUR] [--grace-days N] [--out PATH]
+  hydro-issuer issue --customer NAME --project-id ID --private-key PATH [--edition ED] [--features F1,F2] [--expires-in DUR] [--grace-days N] [--out PATH]
   hydro license verify --license PATH [--public-key PATH] [--project-id ID] [--edition ED] [--feature F1]
   hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]
-	hydro license keygen [--public-out PATH] [--private-out PATH]
+  hydro-issuer keygen [--public-out PATH] [--private-out PATH]
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project check [--config config.yaml] [--lock hydrogo.lock] [--json]
