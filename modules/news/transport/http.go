@@ -37,8 +37,13 @@ type Route struct {
 type Handler struct {
 	Service         news.Service
 	DB              database.Executor
+	Media           publicMediaURLProvider
 	AdminCollection adminstudio.Collection
 	DefaultLocale   string
+}
+
+type publicMediaURLProvider interface {
+	PublicURL(string) (string, error)
 }
 
 func (h Handler) defaultLocale() string {
@@ -522,7 +527,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		strings.ToUpper(template.HTMLEscapeString(locale)),
 		template.HTMLEscapeString(item.Title),
 		newsMetaBadgesMarkup(item),
-		newsCoverMarkup(item),
+		h.newsCoverMarkup(item),
 		newsKeyTakeawaysMarkup(item),
 		renderParagraphs(item.Body),
 		newsTagsMarkup(item),
@@ -572,7 +577,7 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		if strings.TrimSpace(featured.Category) != "" {
 			featuredKicker = strings.ToUpper(featured.Category)
 		}
-		_, _ = fmt.Fprintf(w, `<section class="news-featured-section"><div class="section-badge" style="margin-bottom:12px;">SON YAYINLANAN MANŞET</div><article class="featured-card">%s<div class="featured-card-body"><div class="featured-kicker">%s</div><h2><a href="/public/news/%s/%s/html">%s</a></h2><p class="featured-lead">%s</p><div class="featured-footer"><div class="featured-meta"><span>%s</span>%s</div><a class="read-more-btn" href="/public/news/%s/%s/html">Haberi Oku →</a></div></div></article></section>`, newsCoverMarkup(featured), template.HTMLEscapeString(featuredKicker), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug), template.HTMLEscapeString(featured.Title), template.HTMLEscapeString(newsLeadItem(featured)), template.HTMLEscapeString(featured.AuthorName), newsCategoryMeta(featured), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug))
+		_, _ = fmt.Fprintf(w, `<section class="news-featured-section"><div class="section-badge" style="margin-bottom:12px;">SON YAYINLANAN MANŞET</div><article class="featured-card">%s<div class="featured-card-body"><div class="featured-kicker">%s</div><h2><a href="/public/news/%s/%s/html">%s</a></h2><p class="featured-lead">%s</p><div class="featured-footer"><div class="featured-meta"><span>%s</span>%s</div><a class="read-more-btn" href="/public/news/%s/%s/html">Haberi Oku →</a></div></div></article></section>`, h.newsCoverMarkup(featured), template.HTMLEscapeString(featuredKicker), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug), template.HTMLEscapeString(featured.Title), template.HTMLEscapeString(newsLeadItem(featured)), template.HTMLEscapeString(featured.AuthorName), newsCategoryMeta(featured), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug))
 
 		// Grid for all items
 		_, _ = fmt.Fprintf(w, `<section class="news-grid-section" style="margin-top:48px;"><div class="section-header" style="margin-bottom:24px;"><div><div class="section-badge">TÜM YAYINLAR</div><h2 style="font-size:1.8rem;font-weight:800;color:var(--theme-ink);margin:4px 0 0;">Haber Akışı (%d)</h2></div><span class="section-desc" style="color:var(--theme-muted);font-size:.95rem;">Panelde aktif olan tüm kayıtlar</span></div><div class="news-cards-grid">`, len(items))
@@ -581,7 +586,7 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 			if strings.TrimSpace(item.Category) != "" {
 				cardKicker = strings.ToUpper(item.Category)
 			}
-			_, _ = fmt.Fprintf(w, `<article class="news-card">%s<div class="news-card-body"><div class="card-header"><span class="card-kicker">%s</span><span class="card-author">%s</span></div><h3 class="card-title"><a href="/public/news/%s/%s/html">%s</a></h3><p class="card-lead">%s</p><div class="card-footer"><span class="card-category">%s</span><a class="card-link" href="/public/news/%s/%s/html">Detaylar →</a></div></div></article>`, newsCoverMarkup(item), template.HTMLEscapeString(cardKicker), template.HTMLEscapeString(item.AuthorName), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLeadItem(item)), template.HTMLEscapeString(item.Category), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
+			_, _ = fmt.Fprintf(w, `<article class="news-card">%s<div class="news-card-body"><div class="card-header"><span class="card-kicker">%s</span><span class="card-author">%s</span></div><h3 class="card-title"><a href="/public/news/%s/%s/html">%s</a></h3><p class="card-lead">%s</p><div class="card-footer"><span class="card-category">%s</span><a class="card-link" href="/public/news/%s/%s/html">Detaylar →</a></div></div></article>`, h.newsCoverMarkup(item), template.HTMLEscapeString(cardKicker), template.HTMLEscapeString(item.AuthorName), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLeadItem(item)), template.HTMLEscapeString(item.Category), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
 		}
 		_, _ = fmt.Fprint(w, `</div></section>`)
 	}
@@ -623,11 +628,20 @@ func newsLeadItem(item news.Item) string {
 	return newsLead(item.Body)
 }
 
-func newsCoverMarkup(item news.Item) template.HTML {
+func (h Handler) newsCoverMarkup(item news.Item) template.HTML {
 	if strings.TrimSpace(item.CoverMediaID) == "" {
 		return ""
 	}
-	return template.HTML(`<img class="news-cover-image" src="/media/` + template.URLQueryEscaper(item.CoverMediaID) + `?variant=card" alt="` + template.HTMLEscapeString(item.Title) + `" loading="lazy" data-fallback-src="/media/` + template.URLQueryEscaper(item.CoverMediaID) + `">`)
+	key := template.URLQueryEscaper(item.CoverMediaID)
+	src := "/media/" + key + "?variant=card"
+	fallback := "/media/" + key
+	if h.Media != nil {
+		if publicURL, err := h.Media.PublicURL(item.CoverMediaID); err == nil && strings.TrimSpace(publicURL) != "" {
+			src = publicURL
+			fallback = publicURL
+		}
+	}
+	return template.HTML(`<img class="news-cover-image" src="` + template.HTMLEscapeString(src) + `" alt="` + template.HTMLEscapeString(item.Title) + `" loading="lazy" data-fallback-src="` + template.HTMLEscapeString(fallback) + `">`)
 }
 
 func newsMetaBadgesMarkup(item news.Item) template.HTML {

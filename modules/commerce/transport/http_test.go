@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,32 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
+
+type publicMediaURLStub struct {
+	URL string
+	Err error
+}
+
+func (s publicMediaURLStub) PublicURL(string) (string, error) { return s.URL, s.Err }
+
+func TestProductMediaMarkupUsesConfiguredCDN(t *testing.T) {
+	h := Handler{Media: publicMediaURLStub{URL: "https://cdn.example.test/media/product.webp"}}
+	got := string(h.productMediaMarkup(commerce.Product{MediaID: "product", Title: "<product>"}))
+	if !strings.Contains(got, `src="https://cdn.example.test/media/product.webp"`) {
+		t.Fatalf("cdn URL missing: %s", got)
+	}
+	if strings.Contains(got, "<product>") || !strings.Contains(got, "&lt;product&gt;") {
+		t.Fatalf("title was not escaped: %s", got)
+	}
+}
+
+func TestProductMediaMarkupFallsBackWhenCDNUnavailable(t *testing.T) {
+	h := Handler{Media: publicMediaURLStub{Err: errors.New("unavailable")}}
+	got := string(h.productMediaMarkup(commerce.Product{MediaID: "product", Title: "Product"}))
+	if !strings.Contains(got, `src="/media/product?variant=card"`) {
+		t.Fatalf("local fallback missing: %s", got)
+	}
+}
 
 func TestCommerceDocumentUsesConfiguredLocale(t *testing.T) {
 	start := commerceDocumentStart("Mağaza", "en-US")

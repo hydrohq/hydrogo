@@ -1192,7 +1192,7 @@ func serve(args []string, stderr io.Writer) error {
 				}
 			}
 		}
-		newsHTTP = newstransport.Handler{Service: newsService, DB: db, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
+		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
 	if modules["pages"] {
@@ -1442,7 +1442,7 @@ func serve(args []string, stderr io.Writer) error {
 			return errors.New("commerce admin studio metadata missing")
 		}
 		commerceCollection.Fields = append(commerceCollection.Fields, adminstudio.Field{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"})
-		commerceHTTP := commercetransport.Handler{DB: db, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies, DefaultLocale: cfg.I18N.DefaultLocale,
+		commerceHTTP := commercetransport.Handler{DB: db, Media: mediaService, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies, DefaultLocale: cfg.I18N.DefaultLocale,
 			ResolveMemberID: func(r *http.Request) (string, bool) {
 				cookie, err := r.Cookie(members.SessionCookieName)
 				if err != nil || strings.TrimSpace(cookie.Value) == "" {

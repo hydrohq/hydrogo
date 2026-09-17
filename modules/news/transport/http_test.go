@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,6 +11,32 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
+
+type publicMediaURLStub struct {
+	URL string
+	Err error
+}
+
+func (s publicMediaURLStub) PublicURL(string) (string, error) { return s.URL, s.Err }
+
+func TestNewsCoverMarkupUsesConfiguredCDNAndEscapesMarkup(t *testing.T) {
+	h := Handler{Media: publicMediaURLStub{URL: "https://cdn.example.test/media/hero.webp"}}
+	got := string(h.newsCoverMarkup(news.Item{CoverMediaID: "hero", Title: "<headline>"}))
+	if !strings.Contains(got, `src="https://cdn.example.test/media/hero.webp"`) {
+		t.Fatalf("cdn URL missing: %s", got)
+	}
+	if strings.Contains(got, "<headline>") || !strings.Contains(got, "&lt;headline&gt;") {
+		t.Fatalf("title was not escaped: %s", got)
+	}
+}
+
+func TestNewsCoverMarkupFallsBackWhenCDNUnavailable(t *testing.T) {
+	h := Handler{Media: publicMediaURLStub{Err: errors.New("unavailable")}}
+	got := string(h.newsCoverMarkup(news.Item{CoverMediaID: "hero", Title: "Headline"}))
+	if !strings.Contains(got, `src="/media/hero?variant=card"`) {
+		t.Fatalf("local fallback missing: %s", got)
+	}
+}
 
 type taxonomyTransactionProbe struct{}
 
