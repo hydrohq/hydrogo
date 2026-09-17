@@ -19,6 +19,7 @@ Bu belge, mevcut kararların ve doğrulama kanıtlarının nerede tutulduğunu g
 | Payload ölçüm yöntemi | [PAYLOAD_BENCHMARK_PROTOCOL.md](PAYLOAD_BENCHMARK_PROTOCOL.md) |
 | HydroGo iterasyon baseline | [validation/R5-iteration-baseline-2026-09-16.md](validation/R5-iteration-baseline-2026-09-16.md) |
 | Public SDK/private runtime | [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md), [ADR-0091](architecture/0091-sdk-runtime-artifact-distribution.md) |
+| Binary-only customer package | [COMMERCIAL_LICENSING.md](COMMERCIAL_LICENSING.md), [R64 validation](validation/R64-binary-only-customer-package-2026-09-17.md), [ADR-0143](architecture/0143-binary-only-customer-distribution.md) |
 | SDK artifact broker API | [HYDRO_SDK_BROKER_API.md](HYDRO_SDK_BROKER_API.md) |
 | SDK broker client kanıtı | [validation/R5-sdk-broker-client-2026-09-16.md](validation/R5-sdk-broker-client-2026-09-16.md) |
 | Deployment ve operasyon | [DEPLOYMENT.md](DEPLOYMENT.md), [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) |
