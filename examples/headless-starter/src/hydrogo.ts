@@ -32,6 +32,34 @@ export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeo
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_TIMEOUT_MS = 120_000;
 const MAX_ERROR_BODY_CODEPOINTS = 8_192;
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+
+async function readBoundedResponse(response: Response, maxBytes = MAX_RESPONSE_BYTES): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > maxBytes) throw new HydroGoError(response.status, { code: "response_too_large", message: "HydroGo API response is too large" }, response.headers.get("x-request-id") ?? "");
+    return text;
+  }
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel();
+        throw new HydroGoError(response.status, { code: "response_too_large", message: "HydroGo API response is too large" }, response.headers.get("x-request-id") ?? "");
+      }
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 export class HydroGoClient {
   private readonly origin: string;
@@ -105,12 +133,13 @@ export class HydroGoClient {
       }
       if (response.status === 204) return undefined as T;
       if (!response.ok) {
-        const raw = [...(await response.text())].slice(0, MAX_ERROR_BODY_CODEPOINTS).join("");
+        const raw = [...(await readBoundedResponse(response))].slice(0, MAX_ERROR_BODY_CODEPOINTS).join("");
         let body: HydroAPIErrorBody | undefined;
         try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
         throw new HydroGoError(response.status, body, response.headers.get("x-request-id") ?? "");
       }
-      return response.json() as Promise<T>;
+      const raw = await readBoundedResponse(response);
+      return JSON.parse(raw) as T;
     } finally {
       clearTimeout(timer);
       externalSignal?.removeEventListener("abort", forwardAbort);
