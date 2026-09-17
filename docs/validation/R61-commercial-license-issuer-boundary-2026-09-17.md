@@ -18,6 +18,7 @@ Sonuç: başarılı.
 - `hydro license issue` ve `hydro license keygen` müşteri runtime'ında başarısız olur: sağlandı.
 - `hydro-issuer issue` ve `hydro-issuer keygen` vendor-only binary'de bulunur: sağlandı.
 - `hydro license verify/status` mevcut lisansları doğrulamaya devam eder: sağlandı.
+- Signed `key_id` eşleşmesi ve yanlış slot reddi test edildi: sağlandı.
 - Özel anahtar runtime kaynaklarında veya release dokümantasyonundaki müşteri komutlarında kullanılmaz: sağlandı.
 
 ## Açık operasyonel işler
