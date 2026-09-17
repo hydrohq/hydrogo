@@ -2,7 +2,7 @@
 
 The headless TypeScript starter now emits a provider-neutral mutation helper.
 `HydroClient.mutation` supports POST/PUT/PATCH/DELETE, optional abort signals,
-JSON bodies and the bounded `Idempotency-Key` header. The generated validator
+JSON bodies, empty 202/204 success responses and the bounded `Idempotency-Key` header. The generated validator
 rejects keys outside 16–128 visible ASCII characters before a request is sent.
 
 This is an ergonomic client contract: the server route must opt into durable

@@ -650,6 +650,7 @@ export class HydroClient {
         throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
       }
       const raw = await readBoundedResponse(res);
+      if (res.status === 204 || raw.trim() === '') return undefined as T;
       let body: HydroAPIErrorBody | undefined;
       try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
       if (!res.ok) throw new HydroAPIError(res.status, body);
