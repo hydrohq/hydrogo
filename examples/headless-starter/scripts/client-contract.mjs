@@ -21,12 +21,11 @@ const externalAbort = new AbortController();
 const externalClient = createHydroGoClient({
   origin: "https://hydrogo.example",
   timeoutMs: 120,
-  signal: externalAbort.signal,
   fetch: async (_url, init) => await new Promise((_resolve, reject) => {
     init?.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true });
   }),
 });
-const externalRequest = externalClient.listNews("tr", 1);
+const externalRequest = externalClient.listNews("tr", 1, { signal: externalAbort.signal });
 const cancelReason = new Error("caller-cancelled");
 externalAbort.abort(cancelReason);
 await assert.rejects(externalRequest, (error) => error === cancelReason);

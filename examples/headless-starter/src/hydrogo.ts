@@ -27,6 +27,7 @@ export function validateIdempotencyKey(key: string): string {
   return key;
 }
 
+export type HydroGoRequestOptions = { signal?: AbortSignal };
 export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -82,52 +83,52 @@ export class HydroGoClient {
     this.externalSignal = options.signal;
   }
 
-  async getPage(locale: string, slug: string): Promise<Page> {
-    return this.request<Page>(`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`);
+  async getPage(locale: string, slug: string, options?: HydroGoRequestOptions): Promise<Page> {
+    return this.request<Page>(`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`, {}, options);
   }
 
-  async listPages(locale: string, limit = 20): Promise<PageSummary[]> {
+  async listPages(locale: string, limit = 20, options?: HydroGoRequestOptions): Promise<PageSummary[]> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
-    return this.request<PageSummary[]>(`/api/v1/pages?locale=${encodeURIComponent(locale)}&limit=${limit}`);
+    return this.request<PageSummary[]>(`/api/v1/pages?locale=${encodeURIComponent(locale)}&limit=${limit}`, {}, options);
   }
 
-  async listNews(locale: string, limit = 20): Promise<NewsItem[]> {
+  async listNews(locale: string, limit = 20, options?: HydroGoRequestOptions): Promise<NewsItem[]> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
-    return this.request<NewsItem[]>(`/api/v1/news?locale=${encodeURIComponent(locale)}&limit=${limit}`);
+    return this.request<NewsItem[]>(`/api/v1/news?locale=${encodeURIComponent(locale)}&limit=${limit}`, {}, options);
   }
 
-  async getNews(locale: string, slug: string): Promise<NewsItem> {
-    return this.request<NewsItem>(`/api/v1/news/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`);
+  async getNews(locale: string, slug: string, options?: HydroGoRequestOptions): Promise<NewsItem> {
+    return this.request<NewsItem>(`/api/v1/news/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`, {}, options);
   }
 
-  async listProducts(): Promise<Product[]> { return this.request<Product[]>("/api/v1/commerce/products"); }
+  async listProducts(options?: HydroGoRequestOptions): Promise<Product[]> { return this.request<Product[]>("/api/v1/commerce/products", {}, options); }
 
-  async listVariants(productID: string): Promise<ProductVariant[]> {
-    return this.request<ProductVariant[]>(`/api/v1/commerce/products/${encodeURIComponent(productID)}/variants`);
+  async listVariants(productID: string, options?: HydroGoRequestOptions): Promise<ProductVariant[]> {
+    return this.request<ProductVariant[]>(`/api/v1/commerce/products/${encodeURIComponent(productID)}/variants`, {}, options);
   }
 
-  async getCart(): Promise<Cart> { return this.request<Cart>("/api/v1/commerce/cart", { credentials: "include" }); }
+  async getCart(options?: HydroGoRequestOptions): Promise<Cart> { return this.request<Cart>("/api/v1/commerce/cart", { credentials: "include" }, options); }
 
-  async addCartItem(input: { product_id: string; variant_id?: string; quantity: number }, csrfToken: string): Promise<Cart> {
-    return this.request<Cart>("/api/v1/commerce/cart/items", this.mutation(input, csrfToken));
+  async addCartItem(input: { product_id: string; variant_id?: string; quantity: number }, csrfToken: string, options?: HydroGoRequestOptions): Promise<Cart> {
+    return this.request<Cart>("/api/v1/commerce/cart/items", this.mutation(input, csrfToken), options);
   }
 
-  async removeCartItem(productID: string, csrfToken: string): Promise<void> {
-    await this.request<void>(`/api/v1/commerce/cart/items/${encodeURIComponent(productID)}`, { method: "DELETE", credentials: "include", headers: { "X-CSRF-Token": csrfToken } });
+  async removeCartItem(productID: string, csrfToken: string, options?: HydroGoRequestOptions): Promise<void> {
+    await this.request<void>(`/api/v1/commerce/cart/items/${encodeURIComponent(productID)}`, { method: "DELETE", credentials: "include", headers: { "X-CSRF-Token": csrfToken } }, options);
   }
 
-  async checkout(input: CheckoutInput, idempotencyKey: string, csrfToken: string): Promise<Order> {
-    return this.request<Order>("/api/v1/commerce/cart/checkout", this.mutation(input, csrfToken, { "Idempotency-Key": validateIdempotencyKey(idempotencyKey) }));
+  async checkout(input: CheckoutInput, idempotencyKey: string, csrfToken: string, options?: HydroGoRequestOptions): Promise<Order> {
+    return this.request<Order>("/api/v1/commerce/cart/checkout", this.mutation(input, csrfToken, { "Idempotency-Key": validateIdempotencyKey(idempotencyKey) }), options);
   }
 
   private mutation(body: unknown, csrfToken: string, extraHeaders: Record<string, string> = {}): RequestInit {
     return { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken, ...extraHeaders }, body: JSON.stringify(body) };
   }
 
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}, options?: HydroGoRequestOptions): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-    const externalSignal = init.signal ?? this.externalSignal;
+    const externalSignal = options?.signal ?? init.signal ?? this.externalSignal;
     const forwardAbort = () => controller.abort(externalSignal?.reason);
     if (externalSignal) {
       if (externalSignal.aborted) forwardAbort();
