@@ -1,8 +1,8 @@
-# HydroGo security reconnaissance — 2026-09-16
+# HydroGo security reconnaissance — 2026-09-17
 
 ## Scope and method
 
-Whole-repository, source-only review with bounded local checks. No live
+Whole-repository, source-only review with current-revision revalidation and bounded local checks. No live
 endpoint, credential, external provider, or shared infrastructure was probed.
 The repository is a Go modular monolith with embedded HTML assets, JSON/GraphQL
 transports, a CLI, SQLite/PostgreSQL adapters, optional Redis/Valkey, media,

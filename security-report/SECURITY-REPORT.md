@@ -1,10 +1,11 @@
 # HydroGo security report — 2026-09-17
 
-Source revision: `6a7f055`
+Source revision: `fdfe248`
 
 ## Executive result
 
-Standard whole-repository source audit completed. **Confirmed findings: 0.**
+Standard whole-repository source audit plus current-revision revalidation completed.
+**Confirmed findings: 0.**
 The review found strong defense-in-depth controls across authentication,
 authorization, input bounds, output encoding, media/path handling, webhooks,
 API contracts, dependencies and release artifacts.
@@ -20,6 +21,9 @@ Eight environment-dependent validation items remain explicitly listed in
 - tracked-file secret lint — no high-confidence credentials
 - `go vet ./...` — pass
 - Full/shuffled/fuzz local verification hook — pass on the current revision
+- Current-revision targeted revalidation for media/CDN, generated clients,
+  News/Commerce rendering and CLI composition — pass
+- Risk-weighted coverage floors — pass in WSL and Windows local verification
 - `scripts/container-lint.ps1` — pass; Docker daemon unavailable
 
 Detailed architecture, coverage and dependency evidence are in the companion

@@ -1,10 +1,10 @@
 {
-  "scan_id": "hydrogo-2026-09-16-source-audit",
-  "started_at": "2026-09-16T18:30:00+03:00",
+  "scan_id": "hydrogo-2026-09-17-source-audit-fdfe248",
+  "started_at": "2026-09-17T21:00:00+03:00",
   "status": "complete-source-only",
   "profile": "standard",
   "scope": "whole-repository",
-  "validation": "source-only-with-bounded-local-checks",
+  "validation": "source-only-current-revision-revalidation-with-bounded-local-checks",
   "detected_languages": ["go", "javascript", "yaml", "powershell", "shell", "html"],
   "completed_phases": ["recon", "hunt", "verify", "report"],
   "findings_count": 0,
