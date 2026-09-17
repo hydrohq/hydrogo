@@ -153,7 +153,10 @@ func SQLiteDSN(path string) string {
 	if filepath.IsAbs(path) && !strings.HasPrefix(uriPath, "/") {
 		uriPath = "/" + uriPath
 	}
-	u := &url.URL{Scheme: "file", Path: uriPath}
+	// Opaque keeps relative paths after the `file:` scheme. Using Path alone
+	// serializes `hydro.sqlite` as `file://hydro.sqlite`, which SQLite treats as
+	// an invalid URI authority instead of a relative filename.
+	u := &url.URL{Scheme: "file", Opaque: uriPath}
 	query := u.Query()
 	query.Set("_busy_timeout", "5000")
 	query.Set("_foreign_keys", "on")
