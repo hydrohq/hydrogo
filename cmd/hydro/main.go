@@ -1018,6 +1018,7 @@ func serve(args []string, stderr io.Writer) error {
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberService := members.Service{Members: memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
 	memberHTTP := membertransport.Handler{Service: memberService, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect}}, DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
+	modules := enabledModuleSet(cfg.Modules)
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
 		if err != nil {
@@ -1032,11 +1033,14 @@ func serve(args []string, stderr io.Writer) error {
 		GetOrLoadAtGeneration(string, uint64, func() (pages.Page, error)) (pages.Page, error)
 		Clear()
 		Stats() cache.Stats
-	} = cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL)
-	if redisClient != nil {
-		publicPageCache, err = cache.NewTwoTier(cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL), cache.RedisJSONRemote[pages.Page]{Client: redisClient, Prefix: cfg.Redis.KeyPrefix + "hydro:cache:page:", TTL: budget.CacheTTL})
-		if err != nil {
-			return fmt.Errorf("configure redis page cache: %w", err)
+	}
+	if modules["pages"] {
+		publicPageCache = cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL)
+		if redisClient != nil {
+			publicPageCache, err = cache.NewTwoTier(cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL), cache.RedisJSONRemote[pages.Page]{Client: redisClient, Prefix: cfg.Redis.KeyPrefix + "hydro:cache:page:", TTL: budget.CacheTTL})
+			if err != nil {
+				return fmt.Errorf("configure redis page cache: %w", err)
+			}
 		}
 	}
 	contentService := pageservice.ContentService{
@@ -1048,7 +1052,6 @@ func serve(args []string, stderr io.Writer) error {
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	var selectedTheme *themev1.ThemeBundle
-	modules := enabledModuleSet(cfg.Modules)
 	themeName := cfg.Theme
 	if themeName == "" {
 		themeName = "corporate"
@@ -1466,6 +1469,9 @@ func serve(args []string, stderr io.Writer) error {
 	newsWorker.OnRetry = metrics.RecordWorkerRetry
 	newsWorker.OnDeadLetter = metrics.RecordWorkerDeadLetter
 	metrics.SetCacheStatsProvider(func() observability.CacheStats {
+		if contentService.PublicCache == nil {
+			return observability.CacheStats{}
+		}
 		stats := contentService.PublicCache.Stats()
 		return observability.CacheStats{Hits: stats.Hits, Misses: stats.Misses, Loads: stats.Loads, LoadErrors: stats.LoadErrors, Evictions: stats.Evictions, Expirations: stats.Expirations}
 	})
