@@ -17,7 +17,7 @@ Bu yaklaşım mevcut Core izolasyonu, `hydrogo.lock`, edition manifest ve offlin
 hydro login
 hydro project new haber-sitesi --preset=news
 cd haber-sitesi
-hydro dev
+hydro run
 hydro resource new articles
 hydro generate
 hydro migrate

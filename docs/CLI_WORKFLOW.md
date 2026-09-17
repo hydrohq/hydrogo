@@ -29,9 +29,12 @@ configuration or module errors before running migrations or serving traffic.
 ## Develop and test a focused area
 
 ```text
-hydro dev --address 127.0.0.1:8090
+hydro run --address 127.0.0.1:8090
 hydro test --package ./modules/news/... --timeout 2m
 ```
+
+`hydro run` canlı geliştirme için önerilen komuttur. Eski betiklerle uyumluluk
+için `hydro dev` aynı seçenekleri kabul eden bir takma ad olarak tutulur.
 
 Use a different address when a local process owns the default port. Narrowing
 the package makes failures faster to reproduce; increase the timeout only when

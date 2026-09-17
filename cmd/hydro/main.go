@@ -161,7 +161,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return errors.New("version accepts only --json")
 	case "serve":
 		return serve(args[1:], stderr)
-	case "dev":
+	case "run", "dev":
 		return devCommand(args[1:], stdout, stderr)
 	case "migrate":
 		return migrate(args[1:], stderr)
@@ -2963,7 +2963,8 @@ Usage:
   hydro version
   hydro version --json
   hydro migrate [runtime flags]
-  hydro dev [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--dependencies auto|none|required] [--compose-file PATH] [--poll DUR]
+	  hydro run [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--dependencies auto|none|required] [--compose-file PATH] [--poll DUR]
+	  hydro dev [same options]  (backward-compatible alias for hydro run)
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed-demo --confirm-demo [runtime flags]
@@ -3017,7 +3018,7 @@ Examples:
   hydro test --package ./modules/news/... --timeout 2m
   hydro module create --spec ./module.yaml --out ./modules/catalog
   hydro resource create --name products --field title:text --field price:integer
-  hydro dev --address 127.0.0.1:8090
+	  hydro run --address 127.0.0.1:8090
 
 Failure remediation:
   config/database errors: run "hydro validate --config PATH", then check the

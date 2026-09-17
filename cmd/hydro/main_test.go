@@ -216,6 +216,8 @@ func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
 	usage := output.String()
 	for _, want := range []string{
 		"Examples:",
+		"hydro run [--address ADDR]",
+		"hydro dev [same options]",
 		"hydro validate --config config.yaml",
 		"hydro module create --spec ./module.yaml --out ./modules/catalog",
 		"Failure remediation:",

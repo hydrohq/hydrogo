@@ -37,7 +37,7 @@ Doğrulama sonuçları:
 Kod değişikliğinin çalışan dev sunucusuna alınması için devserver yeniden başlatılmalıdır:
 
 ```powershell
-go run ./tools/devserver
+hydro run
 ```
 
 Tarayıcı cache'ini temizlemek için ardından `Ctrl + F5` kullanılabilir.

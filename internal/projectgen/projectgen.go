@@ -847,7 +847,7 @@ hydro resource check --root .
 hydro permissions check --spec ./collection.yaml
 hydro api diff --baseline ./openapi-baseline.json --current ./generated/openapi.json
 hydro migrate --config config.yaml
-hydro dev
+hydro run
 `+"```"+`
 
 hydro project check is dependency-free and should run before migration
