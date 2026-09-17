@@ -48,14 +48,15 @@ type OrderItem struct {
 }
 
 type Order struct {
-	ID             string          `json:"id"`
-	UserID         string          `json:"user_id"`
-	Currency       string          `json:"currency"`
-	Items          []OrderItem     `json:"items"`
-	TotalCents     int64           `json:"total_cents"`
-	PaymentStatus  string          `json:"payment_status"`
-	ShippingStatus string          `json:"shipping_status"`
-	Customer       PaymentCustomer `json:"customer,omitempty"`
+	ID              string          `json:"id"`
+	UserID          string          `json:"user_id"`
+	IdempotencyHash string          `json:"-"`
+	Currency        string          `json:"currency"`
+	Items           []OrderItem     `json:"items"`
+	TotalCents      int64           `json:"total_cents"`
+	PaymentStatus   string          `json:"payment_status"`
+	ShippingStatus  string          `json:"shipping_status"`
+	Customer        PaymentCustomer `json:"customer,omitempty"`
 }
 
 // PaymentCustomer is the immutable checkout snapshot needed by hosted

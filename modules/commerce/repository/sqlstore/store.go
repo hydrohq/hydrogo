@@ -378,8 +378,8 @@ func (s Store) FindOrderByIdempotency(ctx context.Context, db database.Executor,
 	}
 	var order commerce.Order
 	var created string
-	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip, created_at FROM commerce_orders WHERE user_id = ` + s.placeholder(1) + ` AND idempotency_key = ` + s.placeholder(2)
-	err := db.QueryRowContext(ctx, q, userID, key).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode, &order.Customer.ClientIP, &created)
+	q := `SELECT id, user_id, idempotency_hash, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip, created_at FROM commerce_orders WHERE user_id = ` + s.placeholder(1) + ` AND idempotency_key = ` + s.placeholder(2)
+	err := db.QueryRowContext(ctx, q, userID, key).Scan(&order.ID, &order.UserID, &order.IdempotencyHash, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode, &order.Customer.ClientIP, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return commerce.Order{}, false, nil
 	}
@@ -450,8 +450,8 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 		return err
 	}
 	now := time.Now().UTC()
-	q := `INSERT INTO commerce_orders (id, user_id, idempotency_key, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip, created_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `, ` + s.placeholder(10) + `, ` + s.placeholder(11) + `, ` + s.placeholder(12) + `, ` + s.placeholder(13) + `, ` + s.placeholder(14) + `, ` + s.placeholder(15) + `, ` + s.placeholder(16) + `, ` + s.placeholder(17) + `)`
-	if _, err := db.ExecContext(ctx, q, order.ID, order.UserID, key, order.Currency, order.TotalCents, order.PaymentStatus, order.ShippingStatus, order.Customer.Name, order.Customer.IdentityNumber, order.Customer.Email, order.Customer.Phone, order.Customer.Address, order.Customer.City, order.Customer.Country, order.Customer.PostalCode, order.Customer.ClientIP, now); err != nil {
+	q := `INSERT INTO commerce_orders (id, user_id, idempotency_key, idempotency_hash, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip, created_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `, ` + s.placeholder(10) + `, ` + s.placeholder(11) + `, ` + s.placeholder(12) + `, ` + s.placeholder(13) + `, ` + s.placeholder(14) + `, ` + s.placeholder(15) + `, ` + s.placeholder(16) + `, ` + s.placeholder(17) + `, ` + s.placeholder(18) + `)`
+	if _, err := db.ExecContext(ctx, q, order.ID, order.UserID, key, order.IdempotencyHash, order.Currency, order.TotalCents, order.PaymentStatus, order.ShippingStatus, order.Customer.Name, order.Customer.IdentityNumber, order.Customer.Email, order.Customer.Phone, order.Customer.Address, order.Customer.City, order.Customer.Country, order.Customer.PostalCode, order.Customer.ClientIP, now); err != nil {
 		return err
 	}
 	for index, item := range order.Items {

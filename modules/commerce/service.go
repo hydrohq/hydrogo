@@ -2,6 +2,9 @@ package commerce
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -46,14 +49,21 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 	if err := checkout.Validate(); err != nil {
 		return Order{}, err
 	}
+	fingerprint, err := checkoutFingerprint(checkout)
+	if err != nil {
+		return Order{}, ErrInvalidCheckout
+	}
 	if s.Store == nil || s.Transactions == (database.Transactor{}) {
 		return Order{}, errorsDependency
 	}
 	var order Order
-	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err = s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if existing, found, err := s.Store.FindOrderByIdempotency(ctx, tx, checkout.UserID, checkout.IdempotencyKey); err != nil {
 			return err
 		} else if found {
+			if existing.IdempotencyHash != "" && existing.IdempotencyHash != fingerprint {
+				return ErrIdempotencyConflict
+			}
 			order = existing
 			return nil
 		}
@@ -74,7 +84,7 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 				return err
 			}
 		}
-		order = Order{ID: checkout.ID, UserID: checkout.UserID, PaymentStatus: "pending", ShippingStatus: "pending", Customer: checkout.Customer}
+		order = Order{ID: checkout.ID, UserID: checkout.UserID, IdempotencyHash: fingerprint, PaymentStatus: "pending", ShippingStatus: "pending", Customer: checkout.Customer}
 		for _, item := range checkout.Items {
 			var product Product
 			variantID := ""
@@ -138,6 +148,24 @@ func (s Service) PlaceOrder(ctx context.Context, checkout Checkout) (Order, erro
 		return Order{}, err
 	}
 	return order, nil
+}
+
+// checkoutFingerprint captures the caller's logical request before any cart
+// expansion or stock reservation. It makes retries deterministic without
+// storing customer secrets or exposing the digest in API responses.
+func checkoutFingerprint(checkout Checkout) (string, error) {
+	payload := struct {
+		UserID   string          `json:"user_id"`
+		CartID   string          `json:"cart_id"`
+		Items    []CheckoutItem  `json:"items"`
+		Customer PaymentCustomer `json:"customer"`
+	}{checkout.UserID, checkout.CartID, checkout.Items, checkout.Customer}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:]), nil
 }
 
 func (s Service) ExpirePendingOrders(ctx context.Context, before time.Time) (int, error) {

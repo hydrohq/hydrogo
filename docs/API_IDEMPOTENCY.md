@@ -6,8 +6,9 @@ Idempotency is already implemented where duplicate side effects are most
 dangerous:
 
 - Commerce checkout uses `Idempotency-Key` plus a unique `(user_id, key)` order
-  constraint. The key prevents duplicate order creation; request-fingerprint
-  conflict detection for legacy order rows remains a separate migration task.
+  constraint and persists a request fingerprint. Matching retries replay the
+  order; a changed request returns a conflict before side effects. Legacy rows
+  with an empty fingerprint retain key-only compatibility behavior.
 - Payment webhooks use durable provider event keys. Stripe payment-intent
   creation now forwards a bounded key to Stripe when the caller supplies one;
   iyzico and PayTR remain explicitly at-least-once until their provider
