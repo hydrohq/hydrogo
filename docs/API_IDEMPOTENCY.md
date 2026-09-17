@@ -6,8 +6,12 @@ Idempotency is already implemented where duplicate side effects are most
 dangerous:
 
 - Commerce checkout uses `Idempotency-Key` plus a unique `(user_id, key)` order
-  constraint and rejects a reused key with a different order body.
-- Payment webhooks and provider requests use durable event/provider keys.
+  constraint. The key prevents duplicate order creation; request-fingerprint
+  conflict detection for legacy order rows remains a separate migration task.
+- Payment webhooks use durable provider event keys. Stripe payment-intent
+  creation now forwards a bounded key to Stripe when the caller supplies one;
+  iyzico and PayTR remain explicitly at-least-once until their provider
+  contracts are certified.
 - Outbox/webhook dispatch, jobs, news scheduling, erasure replay and SDK install
   have their own bounded replay or lease contracts.
 
