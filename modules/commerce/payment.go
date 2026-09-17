@@ -51,6 +51,14 @@ type PaymentProvider interface {
 	Refund(context.Context, string, int64) error
 }
 
+// IdempotentPaymentProvider is an optional stronger contract for providers
+// that persist and replay a payment intent for the supplied retry key.
+// Providers that do not implement it remain at-least-once by design.
+type IdempotentPaymentProvider interface {
+	PaymentProvider
+	CreatePaymentIntentWithKey(context.Context, Order, string) (PaymentIntent, error)
+}
+
 var ErrInvalidPaymentEvent = errors.New("invalid payment event")
 var ErrPaymentMismatch = errors.New("payment does not match order")
 var ErrRefundPending = errors.New("refund reconciliation is pending")

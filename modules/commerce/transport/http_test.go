@@ -46,6 +46,16 @@ func (*paymentProviderStub) VerifyWebhookSignature(*http.Request) (commerce.Webh
 }
 func (*paymentProviderStub) Refund(context.Context, string, int64) error { return nil }
 
+type keyedPaymentProviderStub struct {
+	paymentProviderStub
+	key string
+}
+
+func (p *keyedPaymentProviderStub) CreatePaymentIntentWithKey(_ context.Context, order commerce.Order, key string) (commerce.PaymentIntent, error) {
+	p.key = key
+	return commerce.PaymentIntent{ID: "intent-keyed", OrderID: order.ID, Provider: "test"}, nil
+}
+
 func TestNewIDIsNonEmpty(t *testing.T) {
 	id, err := newID()
 	if err != nil || id == "" {
@@ -89,6 +99,36 @@ func TestPaymentIntentAcceptsOrderOwnerGuestCapability(t *testing.T) {
 	h.paymentIntent(res, req)
 	if res.Code != http.StatusOK || !provider.called {
 		t.Fatalf("status=%d provider called=%t", res.Code, provider.called)
+	}
+}
+
+func TestPaymentIntentPassesBoundedKeyToSupportingProvider(t *testing.T) {
+	provider := &keyedPaymentProviderStub{}
+	h := Handler{Orders: orderReaderStub{order: commerce.Order{ID: "order-1", UserID: "guest-1", PaymentStatus: "pending"}}, Payments: map[string]commerce.PaymentProvider{"test": provider}}
+	req := httptest.NewRequest(http.MethodPost, "/api/commerce/orders/order-1/payment-intent", bytes.NewBufferString(`{"provider":"test"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "payment-intent-key-01")
+	req.SetPathValue("orderID", "order-1")
+	req.AddCookie(&http.Cookie{Name: cartCookieName, Value: "guest-1"})
+	res := httptest.NewRecorder()
+	h.paymentIntent(res, req)
+	if res.Code != http.StatusOK || provider.key != "payment-intent-key-01" {
+		t.Fatalf("status=%d provider key=%q", res.Code, provider.key)
+	}
+}
+
+func TestPaymentIntentRejectsMalformedKeyBeforeProvider(t *testing.T) {
+	provider := &keyedPaymentProviderStub{}
+	h := Handler{Orders: orderReaderStub{order: commerce.Order{ID: "order-1", UserID: "guest-1", PaymentStatus: "pending"}}, Payments: map[string]commerce.PaymentProvider{"test": provider}}
+	req := httptest.NewRequest(http.MethodPost, "/api/commerce/orders/order-1/payment-intent", bytes.NewBufferString(`{"provider":"test"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "bad\nkey")
+	req.SetPathValue("orderID", "order-1")
+	req.AddCookie(&http.Cookie{Name: cartCookieName, Value: "guest-1"})
+	res := httptest.NewRecorder()
+	h.paymentIntent(res, req)
+	if res.Code != http.StatusBadRequest || provider.key != "" {
+		t.Fatalf("status=%d provider key=%q", res.Code, provider.key)
 	}
 }
 

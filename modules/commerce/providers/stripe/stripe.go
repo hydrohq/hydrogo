@@ -34,6 +34,17 @@ type Provider struct {
 func (p Provider) Name() string { return "stripe" }
 
 func (p Provider) CreatePaymentIntent(ctx context.Context, order commerce.Order) (commerce.PaymentIntent, error) {
+	return p.createPaymentIntent(ctx, order, "")
+}
+
+func (p Provider) CreatePaymentIntentWithKey(ctx context.Context, order commerce.Order, key string) (commerce.PaymentIntent, error) {
+	if err := commerce.ValidateIdempotencyKey(key); err != nil {
+		return commerce.PaymentIntent{}, err
+	}
+	return p.createPaymentIntent(ctx, order, key)
+}
+
+func (p Provider) createPaymentIntent(ctx context.Context, order commerce.Order, idempotencyKey string) (commerce.PaymentIntent, error) {
 	if p.SecretKey == "" {
 		return commerce.PaymentIntent{}, errors.New("Stripe secret key is required")
 	}
@@ -48,7 +59,7 @@ func (p Provider) CreatePaymentIntent(ctx context.Context, order commerce.Order)
 		Status       string `json:"status"`
 		ClientSecret string `json:"client_secret"`
 	}
-	if err := p.request(ctx, http.MethodPost, "/v1/payment_intents", form, &response); err != nil {
+	if err := p.requestWithIdempotencyKey(ctx, http.MethodPost, "/v1/payment_intents", form, &response, idempotencyKey); err != nil {
 		return commerce.PaymentIntent{}, err
 	}
 	return commerce.PaymentIntent{ID: response.ID, Provider: p.Name(), OrderID: order.ID, AmountCents: response.Amount, Currency: response.Currency, Status: response.Status, ClientToken: response.ClientSecret}, nil
@@ -134,6 +145,10 @@ func verifyHeader(header string, payload []byte, secret string, tolerance time.D
 }
 
 func (p Provider) request(ctx context.Context, method, path string, form url.Values, target any) error {
+	return p.requestWithIdempotencyKey(ctx, method, path, form, target, "")
+}
+
+func (p Provider) requestWithIdempotencyKey(ctx context.Context, method, path string, form url.Values, target any, idempotencyKey string) error {
 	base := p.BaseURL
 	if base == "" {
 		base = "https://api.stripe.com"
@@ -143,6 +158,9 @@ func (p Provider) request(ctx context.Context, method, path string, form url.Val
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if idempotencyKey != "" {
+		req.Header.Set("Idempotency-Key", idempotencyKey)
+	}
 	req.SetBasicAuth(p.SecretKey, "")
 	client := p.Client
 	if client == nil {
