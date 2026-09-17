@@ -30,6 +30,11 @@ var (
 // -ldflags. It is intentionally empty in the development source build.
 var TrustedPublicKeyBase64 string
 
+// TrustedPublicKeysBase64 optionally contains a comma-separated list of
+// vendor public keys for a short key-rotation overlap window. The legacy
+// TrustedPublicKeyBase64 value remains supported for single-key builds.
+var TrustedPublicKeysBase64 string
+
 // LicenseState represents the runtime operational status of a license.
 type LicenseState string
 
@@ -179,24 +184,42 @@ func Verify(rawLicense []byte, opts VerificationOptions) (*VerificationResult, e
 		return nil, fmt.Errorf("%w: decode signature: %v", ErrMalformedLicense, err)
 	}
 
-	var pubKey ed25519.PublicKey
+	var trustedKeys []ed25519.PublicKey
 	if len(opts.TrustedPublicKey) == ed25519.PublicKeySize {
-		pubKey = opts.TrustedPublicKey
-	} else if TrustedPublicKeyBase64 != "" {
+		trustedKeys = append(trustedKeys, opts.TrustedPublicKey)
+	}
+	if len(trustedKeys) == 0 && TrustedPublicKeysBase64 != "" {
+		for _, encoded := range strings.Split(TrustedPublicKeysBase64, ",") {
+			decoded, decodeErr := DecodePublicKey(encoded)
+			if decodeErr != nil {
+				return nil, fmt.Errorf("trusted vendor public key error: %w", decodeErr)
+			}
+			trustedKeys = append(trustedKeys, decoded)
+		}
+	}
+	if len(trustedKeys) == 0 && TrustedPublicKeyBase64 != "" {
 		decoded, err := DecodePublicKey(TrustedPublicKeyBase64)
 		if err != nil {
 			return nil, fmt.Errorf("trusted vendor public key error: %w", err)
 		}
-		pubKey = decoded
-	} else {
+		trustedKeys = append(trustedKeys, decoded)
+	}
+	if len(trustedKeys) == 0 {
 		return nil, errors.New("trusted vendor public key is required; self-signed public keys in license file are rejected (güvenilir satıcı açık anahtarı gereklidir)")
 	}
 
 	// Reject self-signed licenses where advertised public key does not match trusted key
+	var pubKey ed25519.PublicKey
 	if signed.PublicKey != "" {
 		advertisedKey, err := base64.RawStdEncoding.DecodeString(signed.PublicKey)
 		if err == nil && len(advertisedKey) == ed25519.PublicKeySize {
-			if !pubKey.Equal(ed25519.PublicKey(advertisedKey)) {
+			for _, trusted := range trustedKeys {
+				if trusted.Equal(ed25519.PublicKey(advertisedKey)) {
+					pubKey = trusted
+					break
+				}
+			}
+			if len(pubKey) == 0 {
 				return &VerificationResult{
 					State:   StateInvalid,
 					Message: "Yetkisiz veya sahte lisans anahtarı: lisanstaki açık anahtar resmi satıcı anahtarıyla eşleşmiyor (unauthorized vendor key).",
@@ -215,7 +238,18 @@ func Verify(rawLicense []byte, opts VerificationOptions) (*VerificationResult, e
 		return nil, fmt.Errorf("%w: canonicalize claims: %v", ErrMalformedLicense, err)
 	}
 
-	if !ed25519.Verify(pubKey, canonicalClaims, sigBytes) {
+	if len(pubKey) > 0 && !ed25519.Verify(pubKey, canonicalClaims, sigBytes) {
+		pubKey = nil
+	}
+	if len(pubKey) == 0 {
+		for _, trusted := range trustedKeys {
+			if ed25519.Verify(trusted, canonicalClaims, sigBytes) {
+				pubKey = trusted
+				break
+			}
+		}
+	}
+	if len(pubKey) == 0 {
 		return &VerificationResult{
 			State:   StateInvalid,
 			Message: "Geçersiz lisans imzası: dosya içeriği değiştirilmiş veya imza anahtarı uyuşmuyor.",
