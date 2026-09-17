@@ -335,10 +335,21 @@ func starterManifest(opts Options, lock Lock) string {
 		Version       int      `json:"version"`
 		Preset        string   `json:"preset"`
 		Presentation  string   `json:"presentation"`
+		DesignSystem  string   `json:"design_system"`
 		DesignSystems []string `json:"design_systems"`
 		Features      []string `json:"features"`
 	}
-	data, _ := json.MarshalIndent(manifest{Version: 1, Preset: lock.Preset, Presentation: opts.Presentation, DesignSystems: []string{"hydro", "shadcn", "material", "carbon", "headless", "vanilla"}, Features: append([]string(nil), lock.Features...)}, "", "  ")
+	// Keep the selected provider separate from the capability list. Consumers
+	// need a deterministic default while still being free to swap adapters in
+	// the Client Edition without pulling a provider into Core.
+	data, _ := json.MarshalIndent(manifest{
+		Version:       1,
+		Preset:        lock.Preset,
+		Presentation:  opts.Presentation,
+		DesignSystem:  opts.DesignSystem,
+		DesignSystems: []string{"native", "shadcn", "material", "carbon", "headless", "vanilla"},
+		Features:      append([]string(nil), lock.Features...),
+	}, "", "  ")
 	return string(data) + "\n"
 }
 
