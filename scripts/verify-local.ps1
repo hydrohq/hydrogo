@@ -18,6 +18,7 @@ Invoke-Required "deterministic SPDX SBOM" { go run ./tools/sbom -output .tmp\loc
 Invoke-Required "deterministic theme asset manifest" { go run ./tools/assetmanifest -root themes -output .tmp\local\asset-manifest.json }
 Invoke-Required "embedded vendor asset references" { go run ./tools/assetguard -root . }
 Invoke-Required "container image hardening" { & (Join-Path $PSScriptRoot "container-lint.ps1") }
+Invoke-Required "Compose service binding security" { & (Join-Path $PSScriptRoot "compose-security-lint.ps1") }
 Invoke-Required "tracked secret lint" { & (Join-Path $PSScriptRoot "secret-lint.ps1") }
 Invoke-Required "gofmt" {
     $unformatted = gofmt -l . | Where-Object { $_ -notlike ".tmp*" -and $_ -notlike "*.tmp\*" }

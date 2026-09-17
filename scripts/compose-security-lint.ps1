@@ -1,0 +1,20 @@
+$ErrorActionPreference = "Stop"
+
+$checks = @{
+    "compose.dev.yaml" = @("127.0.0.1:5432:5432", "127.0.0.1:6379:6379")
+    "deploy/local/docker-compose.storage.yml" = @("127.0.0.1:9000:9000", "127.0.0.1:9001:9001", "127.0.0.1:6379:6379")
+}
+
+foreach ($relativePath in $checks.Keys) {
+    $path = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")) $relativePath
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Compose file missing: $relativePath" }
+    $content = Get-Content -LiteralPath $path -Raw
+    foreach ($binding in $checks[$relativePath]) {
+        if ($content -notmatch [regex]::Escape($binding)) { throw "$relativePath is missing loopback binding $binding" }
+    }
+    if ($content -match '"(?:5432|6379|9000|9001):(?:5432|6379|9000|9001)"') {
+        throw "$relativePath contains a publicly bound local service port"
+    }
+}
+
+Write-Host "PASS: local Compose service ports are loopback-only"
