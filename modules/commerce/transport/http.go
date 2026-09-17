@@ -27,6 +27,7 @@ import (
 
 type Handler struct {
 	DB              database.Executor
+	Media           publicMediaURLProvider
 	Commerce        commerce.Service
 	Catalog         commerce.CatalogService
 	Cart            commerce.CartService
@@ -43,6 +44,10 @@ type Handler struct {
 	DefaultLocale     string
 	AdminCollection   adminstudio.Collection
 	VariantCollection adminstudio.Collection
+}
+
+type publicMediaURLProvider interface {
+	PublicURL(string) (string, error)
 }
 
 func sanitizePaymentScript(script string) string {
@@ -460,7 +465,7 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 		buyButton = `<button class="btn-secondary" type="button" disabled title="Sepete eklemek için giriş gereklidir" style="width:100%;justify-content:center;padding:15px;font-size:1.02rem;opacity:.65;">Sepete Eklemek İçin Giriş Yapın</button>`
 	}
 
-	imgMarkup := productMediaMarkup(product)
+	imgMarkup := h.productMediaMarkup(product)
 	if imgMarkup == "" {
 		imgMarkup = `<div class="product-gallery-placeholder">📦</div>`
 	}
@@ -476,7 +481,7 @@ func (h Handler) productDetailPage(w http.ResponseWriter, r *http.Request) {
 		if relatedCount == 0 {
 			relatedBuilder.WriteString(`<section class="related-products-section"><div class="related-section-header"><div><div class="section-badge">ÖNERİLENLER</div><h2>İlginizi Çekebilecek Diğer Ürünler</h2></div><a href="/shop" style="font-weight:700;font-size:0.92rem;">Tümünü Gör →</a></div><div class="shop-grid">`)
 		}
-		relImg := productMediaMarkup(other)
+		relImg := h.productMediaMarkup(other)
 		if relImg == "" {
 			relImg = `<div style="height:180px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:3rem;border-bottom:1px solid var(--theme-line);">📦</div>`
 		}
@@ -535,7 +540,7 @@ func (h Handler) shop(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprintf(w, `<section class="news-grid-section"><div class="section-header" style="margin-bottom:24px;"><div><div class="section-badge">KATALOG</div><h2 style="font-size:1.8rem;font-weight:800;color:var(--theme-ink);margin:4px 0 0;">Tüm Ürünler (%d)</h2></div><span class="section-desc" style="color:var(--theme-muted);font-size:.95rem;">Aktif stok ve varyant seçenekleri</span></div><div class="shop-grid">`, len(products))
 	for _, product := range products {
-		img := productMediaMarkup(product)
+		img := h.productMediaMarkup(product)
 		if img == "" {
 			img = `<div style="height:180px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:3rem;border-bottom:1px solid var(--theme-line);">📦</div>`
 		}
@@ -709,11 +714,20 @@ func (h Handler) checkoutForm(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprint(w, commerceEnterpriseFooter(h.defaultLocale()))
 }
 
-func productMediaMarkup(product commerce.Product) template.HTML {
+func (h Handler) productMediaMarkup(product commerce.Product) template.HTML {
 	if strings.TrimSpace(product.MediaID) == "" {
 		return ""
 	}
-	return template.HTML(`<img class="product-image" src="/media/` + template.URLQueryEscaper(product.MediaID) + `?variant=card" alt="` + template.HTMLEscapeString(product.Title) + `" loading="lazy" data-fallback-src="/media/` + template.URLQueryEscaper(product.MediaID) + `">`)
+	key := template.URLQueryEscaper(product.MediaID)
+	src := "/media/" + key + "?variant=card"
+	fallback := "/media/" + key
+	if h.Media != nil {
+		if publicURL, err := h.Media.PublicURL(product.MediaID); err == nil && strings.TrimSpace(publicURL) != "" {
+			src = publicURL
+			fallback = publicURL
+		}
+	}
+	return template.HTML(`<img class="product-image" src="` + template.HTMLEscapeString(src) + `" alt="` + template.HTMLEscapeString(product.Title) + `" loading="lazy" data-fallback-src="` + template.HTMLEscapeString(fallback) + `">`)
 }
 
 func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
