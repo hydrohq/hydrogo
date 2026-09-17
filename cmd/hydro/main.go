@@ -1082,25 +1082,29 @@ func serve(args []string, stderr io.Writer) error {
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
-	siteService := site.Service{Transactions: database.NewTransactor(db), Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}}
-	if modules["forms"] {
-		siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
-	}
-	siteHTTP := sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
-		published, err := pageStore.ListPublishedRoutes(providerCtx, db)
-		if err != nil {
-			return nil, err
+	var siteService site.Service
+	var siteHTTP sitetransport.Handler
+	if modules["site"] {
+		siteService = site.Service{Transactions: database.NewTransactor(db), Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}}
+		if modules["forms"] {
+			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
 		}
-		entries := make([]site.SitemapEntry, 0, len(published))
-		for _, page := range published {
-			seo, err := site.BuildSEO(site.SEOInput{Origin: cfg.HTTP.PublicOrigin, Locale: page.Locale, Path: page.Slug, Title: page.Title})
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err
 			}
-			entries = append(entries, site.SitemapEntry{URL: seo.CanonicalURL, LastModified: page.UpdatedAt})
-		}
-		return entries, nil
-	}}
+			entries := make([]site.SitemapEntry, 0, len(published))
+			for _, page := range published {
+				seo, err := site.BuildSEO(site.SEOInput{Origin: cfg.HTTP.PublicOrigin, Locale: page.Locale, Path: page.Slug, Title: page.Title})
+				if err != nil {
+					return nil, err
+				}
+				entries = append(entries, site.SitemapEntry{URL: seo.CanonicalURL, LastModified: page.UpdatedAt})
+			}
+			return entries, nil
+		}}
+	}
 	var newsService newsservice.Service
 	var newsWorker newsservice.Worker
 	if moduleEnabled(cfg.Modules, "news") {
