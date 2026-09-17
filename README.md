@@ -14,6 +14,12 @@ The repository provides a working technical foundation and a broad contract-test
 
 This repository is not yet declared a fully certified, commercially supported v1 across all production profiles. The remaining R3 pilot, R5 v1, and R6 Distributed evidence gates are tracked separately in the roadmap.
 
+### Binary-only customer distribution
+
+Customer installations can be delivered without Core or module source code. The vendor builds an allowlisted, stripped (optionally obfuscated) `hydro` runtime and ships only the binary, `hydro.lic`, `hydrogo.lock`, configuration, themes, and Client Edition files. The package builder rejects `internal/`, `modules/`, `cmd/`, `.git/`, `go.mod`, `go.sum`, Go source files, and private keys. See [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md), [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md), and [`docs/architecture/0143-binary-only-customer-distribution.md`](docs/architecture/0143-binary-only-customer-distribution.md).
+
+Vendor-only signing is performed with `hydro-issuer`; the customer runtime exposes only license verification/status. Build a customer package with `scripts/build-customer-runtime.ps1` or `.sh`. `HYDRO_TRUSTED_PUBLIC_KEYS` is injected in the protected vendor build, while private signing keys never enter the customer artifact. A privileged operator can still reverse engineer a running binary; this boundary prevents source delivery and casual reuse, not every possible binary patch.
+
 ### Problems currently addressed
 
 - Page and news authoring with draft, revision, preview, scheduling, and publishing flows
@@ -170,6 +176,8 @@ hydro portable export --path PATH
 hydro portable import --path PATH --dry-run
 hydro portable import --path PATH --confirm
 hydro release verify --manifest release.json --public-key release.pub
+hydro license verify --license hydro.lic --public-key vendor.pub --project-id PROJECT_ID
+hydro license status --license hydro.lic --public-key vendor.pub --json
 ```
 
 Portable import/export is bounded to 256 MiB by default; use `--max-bytes` when an approved larger customer export is required.
@@ -276,6 +284,6 @@ deployment-specific production drills listed above.
 | `tools/`, `scripts/` | Development tools and production-gate automation |
 | `docs/validation/` | Experiment reports and verification gates |
 
-Commercial SLA claims for Compact or Standard remain blocked until the R3/R5 evidence gates are closed. Distributed, Redis/Valkey, S3/CDN, OIDC/SAML, advanced search, commerce, AI, and multi-tenant features require a real customer need, a separate ADR, and their own verification gate.
+Commercial SLA claims for Compact or Standard remain blocked until the R3/R5 evidence gates are closed. Distributed, Redis/Valkey, S3/CDN, OIDC/SAML, advanced search, commerce, AI, and multi-tenant features have explicit provider-neutral ADR boundaries but still require real customer/provider evidence and their own verification gates. Remaining production actions are listed in [`docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md`](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md).
 
-The customer delivery and redistribution license has not yet been selected; this repository should not be treated as published under an open-source license.
+This repository is proprietary/private and is not published under an open-source license. The short technical distribution notice is in [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md); commercial terms remain a separate product decision.
