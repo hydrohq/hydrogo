@@ -52,6 +52,30 @@ func TestCheckoutReservesStockAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestCheckoutRejectsChangedRequestForExistingKey(t *testing.T) {
+	checkout := Checkout{ID: "o-1", UserID: "u-1", IdempotencyKey: "checkout-key-0001", Items: []CheckoutItem{{ProductID: "p-1", Quantity: 1}}}
+	fingerprint, err := checkoutFingerprint(checkout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &fakeStore{found: true, order: Order{ID: "existing", UserID: "u-1", IdempotencyHash: fingerprint}}
+	changed := checkout
+	changed.Items[0].Quantity = 2
+	changedFingerprint, err := checkoutFingerprint(changed)
+	if err != nil || changedFingerprint == fingerprint {
+		t.Fatal("changed checkout did not produce a different fingerprint")
+	}
+	db, err := database.Open(context.Background(), database.SQLite, "file:commerce-idempotency?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	service := Service{Store: store, Transactions: database.NewTransactor(db)}
+	if _, err := service.PlaceOrder(context.Background(), changed); err != ErrIdempotencyConflict {
+		t.Fatalf("changed retry error = %v", err)
+	}
+}
+
 func TestValidateIdempotencyKeyRejectsUnsafeAndUnboundedValues(t *testing.T) {
 	for _, key := range []string{"", "short", "checkout-key-\n-0001", strings.Repeat("x", 129)} {
 		if err := ValidateIdempotencyKey(key); err != ErrInvalidIdempotencyKey {

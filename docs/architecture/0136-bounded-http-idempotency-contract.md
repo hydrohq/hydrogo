@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-09-17
 - **Related decisions:** [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0015](0015-versioned-http-api.md), [ADR-0017](0017-commerce-consistency-and-payments.md)
-- **Implementation status:** Existing Commerce, payment-event, job, outbox, erasure and SDK idempotency remains active. The first bounded HTTP pilot is wired to Site form submissions; the universal mutation layer remains a staged rollout.
+- **Implementation status:** Existing Commerce order, payment-event, job, outbox, erasure and SDK idempotency remains active. Commerce orders now persist request fingerprints for conflict detection, the first bounded HTTP pilot is wired to Site form submissions, and the universal mutation layer remains a staged rollout.
 
 ## Context
 

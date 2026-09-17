@@ -1,0 +1,27 @@
+id: "202609170002_commerce_order_idempotency_hash"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "6d0480ca884352d17b798c3ca66041acfa3c93e4f0718a99f380f7fafac46888"
+  postgres: "6d0480ca884352d17b798c3ca66041acfa3c93e4f0718a99f380f7fafac46888"
+dependencies:
+  - "202609100008_commerce_order_client_ip"
+schema:
+  readable_epoch: 3
+  writable_epoch: 4
+disk_estimate: "One fixed-length fingerprint per order"
+preconditions:
+  - "Commerce order client IP migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+compatibility: "Old orders remain readable with an empty fingerprint; new retries detect changed request bodies"
+smoke:
+  - "Repeated migration application is a no-op"
+  - "Legacy rows retain an empty fingerprint"
+  - "Matching keys with different fingerprints return a conflict"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
