@@ -58,6 +58,9 @@ func NewS3BlobStore(cfg S3Config) (*S3BlobStore, error) {
 	}
 	endpoint := strings.TrimSpace(cfg.Endpoint)
 	if parsed, err := url.Parse(endpoint); err == nil && parsed.Host != "" {
+		if parsed.Scheme != "http" && parsed.Scheme != "https" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return nil, errors.New("s3 endpoint must be an HTTP(S) URL without credentials, query, or fragment")
+		}
 		if parsed.Scheme == "https" {
 			cfg.UseSSL = true
 		}

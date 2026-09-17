@@ -70,6 +70,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Local production drill refresh | Tamamlandı (yerel) | İzole SQLite readiness, backup/release/portable kontratları ve 20 tekrarlı blue-green cache rollback stability geçti | `R52-local-production-drills` |
 | Generated client origin-bypass hardening | Tamamlandı (yerel) | URL parser backslash-normalizasyonuyla başka origin'e kaçan request path'leri resolved-origin karşılaştırmasıyla reddediliyor | `R53-generated-client-origin-bypass` |
 | S3 object-key/public-base boundary hardening | Tamamlandı (yerel) | Tüm blob işlemleri ortak bounded key doğrulaması kullanıyor; public base credential/query/fragment taşıyamıyor | `R54-s3-object-key-boundary` |
+| S3 endpoint URL boundary hardening | Tamamlandı (yerel) | URL biçimli endpoint'lerde HTTP(S), credentialsız ve query/fragmentsız yapılandırma zorunlu | `R55-s3-endpoint-boundary` |
 | S3/CDN public URL boundary | Kısmi tamamlandı (yerel) | S3-compatible path-style seçeneği, explicit HTTPS public base ve bounded object URL üretimi; private media için 1s–24h presigned URL capability ve protected `/api/media/{id}/url` endpoint’i eklendi; gerçek provider/CDN ve invalidation kanıtı açık | `R6-s3-cdn-public-url-boundary`, `R6-bounded-private-media-urls`, `R6-protected-media-url-endpoint` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |

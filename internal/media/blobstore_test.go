@@ -15,6 +15,19 @@ func TestNewS3BlobStoreRequiresEndpointAndBucket(t *testing.T) {
 	}
 }
 
+func TestNewS3BlobStoreRejectsUnsafeURLEndpoints(t *testing.T) {
+	for _, endpoint := range []string{
+		"ftp://storage.example.test:9000",
+		"https://access:secret@storage.example.test:9000",
+		"https://storage.example.test:9000/?region=eu",
+		"https://storage.example.test:9000/#fragment",
+	} {
+		if _, err := NewS3BlobStore(S3Config{Endpoint: endpoint, Bucket: "hydro"}); err == nil {
+			t.Fatalf("unsafe S3 endpoint accepted: %q", endpoint)
+		}
+	}
+}
+
 func TestS3BlobStoreUnavailableFailsClosed(t *testing.T) {
 	var store *S3BlobStore
 	if err := store.Put(context.Background(), "key", strings.NewReader("x"), 1, "text/plain"); err == nil {
