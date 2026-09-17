@@ -43,6 +43,15 @@ func TestLocaleFormatting(t *testing.T) {
 	if _, err := Currency("en-US", "NOT-A-CURRENCY", 1); err == nil {
 		t.Fatal("invalid currency accepted")
 	}
+	if got := NumberCents("tr-TR", 123456789); !strings.Contains(got, "1.234.567,89") {
+		t.Fatalf("Turkish cents=%q", got)
+	}
+	if got := NumberCents("en-US", 9223372036854775807); !strings.Contains(got, "92,233,720,368,547,758.07") {
+		t.Fatalf("max cents lost precision: %q", got)
+	}
+	if got := NumberCents("en-US", -1); got != "-0.01" {
+		t.Fatalf("negative fractional cents=%q", got)
+	}
 }
 
 func TestLocaleFormattingFallsBackSafely(t *testing.T) {

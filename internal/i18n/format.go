@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"golang.org/x/text/currency"
 	"golang.org/x/text/language"
@@ -25,6 +26,38 @@ func tag(locale string) language.Tag {
 // Number formats grouping and decimals according to locale.
 func Number(locale string, value float64) string {
 	return message.NewPrinter(tag(locale)).Sprintf("%v", number.Decimal(value))
+}
+
+// NumberCents formats an integer-cent amount without converting through
+// float64, preserving exact financial values while applying locale grouping
+// and decimal separators.
+func NumberCents(locale string, cents int64) string {
+	negative := cents < 0
+	var absolute uint64
+	if negative {
+		absolute = uint64(-(cents + 1)) + 1
+	} else {
+		absolute = uint64(cents)
+	}
+	whole := absolute / 100
+	minor := absolute % 100
+	return formatCentsNumber(locale, int64(whole), minor, negative)
+}
+
+func formatCentsNumber(locale string, whole int64, minor uint64, negative bool) string {
+	// Number accepts int64 exactly; only the two-digit fraction is appended.
+	wholeText := message.NewPrinter(tag(locale)).Sprintf("%v", number.Decimal(whole))
+	separator := "."
+	for _, r := range message.NewPrinter(tag(locale)).Sprintf("%v", number.Decimal(1.1)) {
+		if !unicode.IsDigit(r) {
+			separator = string(r)
+			break
+		}
+	}
+	if negative {
+		wholeText = "-" + wholeText
+	}
+	return wholeText + separator + fmt.Sprintf("%02d", minor)
 }
 
 // Currency formats an ISO-4217 amount. Unknown codes are rejected instead of
