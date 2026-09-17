@@ -48,6 +48,29 @@ func TestS3BlobStoreRejectsNonLoopbackHTTPPublicURL(t *testing.T) {
 	if _, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:9000", Bucket: "hydro", PublicBaseURL: "http://cdn.example.test"}); err == nil {
 		t.Fatal("non-loopback HTTP public URL accepted")
 	}
+	for _, base := range []string{"https://user:secret@cdn.example.test/media", "https://cdn.example.test/media?cache=1", "https://cdn.example.test/media#fragment"} {
+		if _, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:9000", Bucket: "hydro", PublicBaseURL: base}); err == nil {
+			t.Fatalf("unsafe public base accepted: %q", base)
+		}
+	}
+}
+
+func TestS3BlobStoreValidatesKeysForAllObjectOperations(t *testing.T) {
+	store, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:1", Bucket: "hydro"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"../secret", "images//x", "images\\x", ""} {
+		if err := store.Put(context.Background(), key, strings.NewReader("x"), 1, "text/plain"); err == nil || err.Error() != "invalid object key" {
+			t.Fatalf("Put key %q error = %v", key, err)
+		}
+		if _, err := store.Get(context.Background(), key); err == nil || err.Error() != "invalid object key" {
+			t.Fatalf("Get key %q error = %v", key, err)
+		}
+		if err := store.Delete(context.Background(), key); err == nil || err.Error() != "invalid object key" {
+			t.Fatalf("Delete key %q error = %v", key, err)
+		}
+	}
 }
 
 func TestS3BlobStorePresignedURLIsBounded(t *testing.T) {

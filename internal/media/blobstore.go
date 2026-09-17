@@ -66,7 +66,7 @@ func NewS3BlobStore(cfg S3Config) (*S3BlobStore, error) {
 	var publicBase *url.URL
 	if strings.TrimSpace(cfg.PublicBaseURL) != "" {
 		parsed, err := url.Parse(strings.TrimSpace(cfg.PublicBaseURL))
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && !isLoopbackHost(parsed.Hostname())) {
+		if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Scheme != "https" && !isLoopbackHost(parsed.Hostname())) {
 			return nil, errors.New("public base URL must use HTTPS unless it targets loopback")
 		}
 		parsed.Path = strings.TrimRight(parsed.Path, "/")
@@ -155,13 +155,21 @@ func (s *S3BlobStore) Put(ctx context.Context, key string, r io.Reader, size int
 	if s == nil || s.client == nil {
 		return errors.New("s3 blob store is unavailable")
 	}
-	_, err := s.client.PutObject(ctx, s.bucket, key, r, size, minio.PutObjectOptions{ContentType: contentType})
+	key, _, err := validateObjectKey(key)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.PutObject(ctx, s.bucket, key, r, size, minio.PutObjectOptions{ContentType: contentType})
 	return err
 }
 
 func (s *S3BlobStore) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	if s == nil || s.client == nil {
 		return nil, errors.New("s3 blob store is unavailable")
+	}
+	key, _, err := validateObjectKey(key)
+	if err != nil {
+		return nil, err
 	}
 	obj, err := s.client.GetObject(ctx, s.bucket, key, minio.GetObjectOptions{})
 	if err != nil {
@@ -173,6 +181,10 @@ func (s *S3BlobStore) Get(ctx context.Context, key string) (io.ReadCloser, error
 func (s *S3BlobStore) Delete(ctx context.Context, key string) error {
 	if s == nil || s.client == nil {
 		return errors.New("s3 blob store is unavailable")
+	}
+	key, _, err := validateObjectKey(key)
+	if err != nil {
+		return err
 	}
 	return s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
 }
