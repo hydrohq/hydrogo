@@ -636,6 +636,12 @@ export class HydroClient {
     const url = new URL(path, this.config.baseUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), Math.max(100, Math.min(this.config.timeoutMs ?? 10000, 30000)));
+    const callerSignal = init.signal;
+    const abortFromCaller = () => controller.abort(callerSignal?.reason);
+    if (callerSignal) {
+      if (callerSignal.aborted) abortFromCaller();
+      else callerSignal.addEventListener('abort', abortFromCaller, { once: true });
+    }
     const headers: Record<string, string> = {
       'Accept': 'application/json',
       ...(init.headers as Record<string, string> | undefined),
@@ -644,7 +650,7 @@ export class HydroClient {
       headers['Authorization'] = ` + "`Bearer ${this.config.apiKey}`" + `;
     }
     try {
-      const res = await fetch(url.toString(), { ...init, headers, signal: init.signal ?? controller.signal });
+      const res = await fetch(url.toString(), { ...init, headers, signal: controller.signal });
       const declaredLength = Number(res.headers.get('content-length') || 0);
       if (declaredLength > 2 * 1024 * 1024) {
         throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
@@ -657,6 +663,7 @@ export class HydroClient {
       return JSON.parse(raw) as T;
     } finally {
       clearTimeout(timeout);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
     }
   }
 
