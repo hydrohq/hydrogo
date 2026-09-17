@@ -21,9 +21,13 @@ foreach ($relativePath in $checks.Keys) {
     if ($content -match '(?m)^\s*-\s*"\d+:\d+"\s*$') {
         throw "$relativePath contains a host-wide local service port"
     }
-    $mutableImages = [regex]::Matches($content, '(?m)^\s*image:\s*\S+:latest\s*$')
-    if ($mutableImages.Count -gt 0) {
-        throw "$relativePath contains mutable :latest image tags"
+    $imageLines = [regex]::Matches($content, '(?m)^\s*image:\s*(?<name>[^\s:]+):(?<tag>\S+)\s*$')
+    foreach ($image in $imageLines) {
+        $name = $image.Groups['name'].Value
+        $tag = $image.Groups['tag'].Value
+        if ($tag -eq 'latest' -or ($name -match '/redis$' -and $tag -match '^\d+(?:\.\d+)?(?:-alpine)?$') -or ($name -match '/postgres$' -and $tag -match '^\d+$')) {
+            throw "$relativePath contains a mutable image tag: $($image.Value.Trim())"
+        }
     }
 }
 
