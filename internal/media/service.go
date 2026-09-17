@@ -41,6 +41,17 @@ func (s Service) Get(ctx context.Context, db database.Executor, id string) (Asse
 	return s.Assets.Get(ctx, db, id)
 }
 
+// PublicURL returns a provider-backed public URL when the configured blob
+// store exposes that optional capability. Callers must keep their local route
+// fallback when no public provider is configured.
+func (s Service) PublicURL(key string) (string, error) {
+	provider, ok := s.BlobStore.(PublicURLProvider)
+	if !ok {
+		return "", errors.New("public object URL is not configured")
+	}
+	return provider.PublicURL(key)
+}
+
 func (s Service) List(ctx context.Context, db database.Executor, limit int) ([]Asset, error) {
 	if guards.IsNil(s.Assets) {
 		return nil, ErrAssetRepositoryRequired
