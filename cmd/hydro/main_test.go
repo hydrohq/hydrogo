@@ -18,6 +18,7 @@ import (
 	"time"
 
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
+	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
@@ -83,6 +84,19 @@ func TestAdminControlRoutesRespectOptionalModules(t *testing.T) {
 		if !seen[pattern] {
 			t.Fatalf("enabled module route missing: %s", pattern)
 		}
+	}
+}
+
+func TestPageCacheConstructionFollowsModuleActivation(t *testing.T) {
+	budget, err := capacity.Defaults(capacity.Compact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pageCache, err := newPageCache(false, budget, nil, ""); err != nil || pageCache != nil {
+		t.Fatalf("inactive page cache = %#v err=%v, want nil", pageCache, err)
+	}
+	if pageCache, err := newPageCache(true, budget, nil, ""); err != nil || pageCache == nil {
+		t.Fatalf("active page cache = %#v err=%v, want non-nil", pageCache, err)
 	}
 }
 
