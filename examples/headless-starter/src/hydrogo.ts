@@ -68,7 +68,13 @@ export class HydroGoClient {
   private readonly externalSignal?: AbortSignal;
 
   constructor(options: HydroGoClientOptions) {
-    this.origin = options.origin.replace(/\/$/, "");
+    const rawOrigin = options.origin.trim();
+    let parsedOrigin: URL;
+    try { parsedOrigin = new URL(rawOrigin); } catch { throw new RangeError("origin must be an absolute HTTP(S) URL"); }
+    if ((parsedOrigin.protocol !== "http:" && parsedOrigin.protocol !== "https:") || parsedOrigin.username || parsedOrigin.password) {
+      throw new RangeError("origin must be an absolute HTTP(S) URL without credentials");
+    }
+    this.origin = rawOrigin.replace(/\/$/, "");
     this.requestFetch = options.fetch ?? fetch;
     const timeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     if (!Number.isInteger(timeout) || timeout < 1 || timeout > MAX_TIMEOUT_MS) throw new RangeError("timeoutMs must be between 1 and 120000");

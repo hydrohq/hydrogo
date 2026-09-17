@@ -5,6 +5,8 @@ assert.throws(() => validateIdempotencyKey("too-short"), RangeError);
 assert.equal(validateIdempotencyKey("checkout-key-0001"), "checkout-key-0001");
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 0 }), RangeError);
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 120001 }), RangeError);
+assert.throws(() => createHydroGoClient({ origin: "javascript:alert(1)" }), RangeError);
+assert.throws(() => createHydroGoClient({ origin: "https://user:pass@hydrogo.example" }), RangeError);
 
 const timeoutClient = createHydroGoClient({
   origin: "https://hydrogo.example",
