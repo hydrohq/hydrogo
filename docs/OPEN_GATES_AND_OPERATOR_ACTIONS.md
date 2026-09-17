@@ -128,8 +128,8 @@ Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmi
   genişletmesi ve SQLite/PostgreSQL migration kararı gerekir.
 - [ ] Headless browser session: credentialed CORS yerine BFF/same-site proxy sınırı ve preview token
   politikası ADR-0021 kapsamında kesinleştirilmelidir.
-- [ ] OIDC/SAML, mobile API, multi-tenant, AI ve geniş Commerce kapsamı ancak gerçek müşteri ihtiyacı,
-  threat model, kapasite ve ayrı ADR ile açılmalıdır.
+- [ ] OIDC/SAML, mobile API, multi-tenant, AI ve geniş Commerce kapsamı artık provider-neutral ADR sınırlarına
+  sahip; gerçek müşteri ihtiyacı, threat model, kapasite ve provider certification kapıları kapanmadan açılmamalıdır.
 - [ ] Redis/Valkey, durable queue, S3/CDN, Distributed profil ve canlı ödeme “her zaman açık” bağımlılık
   yapılmamalı; Compact profilde yalnızca açıkça seçilen servisler kaynak tüketmelidir.
 - [ ] SDK v1, deprecation/support window, LTS ve SLA süreleri ticari olarak seçilmeden stable v1 iddiası
@@ -164,6 +164,7 @@ dış servis veya canlı ödeme başarısı anlamına gelmez.
 - [Production Gates](validation/PRODUCTION-GATES.md)
 - [Operations Runbook](OPERATIONS_RUNBOOK.md)
 - [Threat Model](security/THREAT_MODEL.md)
+- [Authorized pentest execution plan](validation/PENTEST_EXECUTION_PLAN.md)
 - [Personal Data Policy](PERSONAL_DATA_POLICY.md)
 - [Commercial Licensing](COMMERCIAL_LICENSING.md)
 - [Media Derivatives and E2E](validation/media-derivatives-and-e2e.md)
