@@ -143,6 +143,14 @@ services:
       - HYDRO_DATABASE_DSN=postgres://hydro:${DB_PASSWORD}@db:5432/hydrogo?sslmode=${DB_SSLMODE:-require}
       - HYDRO_REDIS_URL=redis://redis:6379/0
       - HYDRO_MEDIA_DIR=/app/data/media
+      # Optional S3-compatible media profile (inject credentials via secrets):
+      # - HYDRO_MEDIA_STORAGE_DRIVER=s3
+      # - HYDRO_MEDIA_S3_ENDPOINT=https://objects.example.test
+      # - HYDRO_MEDIA_S3_BUCKET=hydrogo-media
+      # - HYDRO_MEDIA_S3_REGION=auto
+      # - HYDRO_MEDIA_S3_USE_SSL=true
+      # - HYDRO_MEDIA_S3_FORCE_PATH_STYLE=false
+      # - HYDRO_MEDIA_CDN_BASE_URL=https://cdn.example.test/media
     volumes:
       - media_data:/app/data/media
       - ./config.yaml:/app/config.yaml:ro
