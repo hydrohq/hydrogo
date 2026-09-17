@@ -115,7 +115,7 @@ sequenceDiagram
     participant Core as HydroGo Core (Müşteri Runtime)
     participant PubKey as Public Key (Gömülü / Güvenilir)
 
-    Admin->>PrivKey: hydro license issue --customer "Acme" --project-id "proj-01" --edition "growth"
+    Admin->>PrivKey: hydro-issuer issue --customer "Acme" --project-id "proj-01" --edition "growth"
     PrivKey->>File: Ed25519 İmzalı Claims JSON üretir
     File->>Core: Müşteri çalışma dizinine yerleştirilir
     Core->>PubKey: hydro license verify / serve başlangıcı
@@ -163,16 +163,16 @@ HydroGo lisanslama ve izolasyon mimarisinin sınırları şeffaf ve gerçekçi b
 
 ## 6. CLI Kullanım Rehberi
 
-HydroGo CLI yerleşik lisans yönetim komutları sunar:
+Lisans üretimi müşteriye dağıtılan runtime'dan ayrılmış vendor-only `hydro-issuer` binary'si ile yapılır. Müşteri runtime'ı yalnızca doğrulama ve durum sorgulama komutlarını içerir:
 
 ### Yeni Anahtar Çifti Üretme
 ```bash
-hydro license keygen --public-out license_pub.key --private-out license_priv.key
+hydro-issuer keygen --public-out license_pub.key --private-out license_priv.key
 ```
 
 ### Müşteriye Lisans Üretme (`issue`)
 ```bash
-hydro license issue \
+hydro-issuer issue \
   --customer "Acme Teknoloji A.Ş." \
   --project-id "proj-acme-prod" \
   --edition "growth" \
@@ -201,3 +201,5 @@ hydro license status --license hydro.lic --public-key license_pub.key
 # Otomasyon ve CI/CD için JSON çıktısı
 hydro license status --license hydro.lic --public-key license_pub.key --json
 ```
+
+`hydro` binary'si `issue` veya `keygen` çağrılarını bilinçli olarak reddeder. Özel anahtar müşteri makinesine, müşteri CI/CD'sine veya runtime artifact'ına konulmamalıdır. Key rotation sırasında yeni public key resmi release'e güvenilir anahtar olarak gömülür; eski lisansların geçiş penceresi ayrıca release notlarında belirtilir.

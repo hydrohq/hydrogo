@@ -995,36 +995,31 @@ func TestAdminNonAdminAndMemberCookieAccessControls(t *testing.T) {
 func TestRunLicenseCLI(t *testing.T) {
 	tempDir := t.TempDir()
 	pubKeyPath := filepath.Join(tempDir, "license_pub.key")
-	privKeyPath := filepath.Join(tempDir, "license_priv.key")
 	licensePath := filepath.Join(tempDir, "hydro.lic")
 
-	// 1. Keygen
-	var keygenOut, keygenErr bytes.Buffer
-	if err := run([]string{"license", "keygen", "--public-out", pubKeyPath, "--private-out", privKeyPath}, strings.NewReader(""), &keygenOut, &keygenErr); err != nil {
-		t.Fatalf("license keygen failed: %v, stderr: %s", err, keygenErr.String())
+	// Issuing is deliberately kept out of the customer runtime. The vendor-only
+	// hydro-issuer binary owns key generation and signing.
+	if err := run([]string{"license", "keygen"}, strings.NewReader(""), io.Discard, io.Discard); err == nil {
+		t.Fatal("customer runtime must reject vendor-only key generation")
 	}
-	if !strings.Contains(keygenOut.String(), "keys-generated") {
-		t.Fatalf("expected keys-generated output, got: %s", keygenOut.String())
+	if err := run([]string{"license", "issue"}, strings.NewReader(""), io.Discard, io.Discard); err == nil {
+		t.Fatal("customer runtime must reject vendor-only license issuing")
 	}
 
-	// 2. Issue valid license
-	var issueOut, issueErr bytes.Buffer
-	issueArgs := []string{
-		"license", "issue",
-		"--customer", "Customer Test Corp",
-		"--project-id", "project-cli-test",
-		"--edition", "growth",
-		"--features", "pages,news,commerce",
-		"--expires-in", "8760h",
-		"--grace-days", "14",
-		"--private-key", privKeyPath,
-		"--out", licensePath,
+	pubKey, privKey, err := licensing.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err := run(issueArgs, strings.NewReader(""), &issueOut, &issueErr); err != nil {
-		t.Fatalf("license issue failed: %v, stderr: %s", err, issueErr.String())
+	if err := os.WriteFile(pubKeyPath, []byte(licensing.EncodePublicKey(pubKey)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(issueOut.String(), "license-issued") {
-		t.Fatalf("expected license-issued output, got: %s", issueOut.String())
+	claims := licensing.Claims{Customer: "Customer Test Corp", ProjectID: "project-cli-test", Edition: "growth", Features: []string{"pages", "news", "commerce"}, IssuedAt: time.Now().UTC(), ExpiresAt: time.Now().UTC().Add(8760 * time.Hour), GracePeriodDays: 14}
+	licenseData, err := licensing.Issue(claims, privKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(licensePath, licenseData, 0o644); err != nil {
+		t.Fatal(err)
 	}
 
 	// 3. Verify valid license

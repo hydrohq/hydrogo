@@ -18,20 +18,20 @@ import (
 
 func licenseCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("license command requires a subcommand (issue, verify, status, keygen)")
+		return errors.New("license command requires a subcommand (verify, status)")
 	}
 
 	switch args[0] {
 	case "issue":
-		return licenseIssueCommand(args[1:], stdout, stderr)
+		return errors.New("license issuing is vendor-only; use the hydro-issuer binary")
 	case "verify":
 		return licenseVerifyCommand(args[1:], stdout, stderr)
 	case "status":
 		return licenseStatusCommand(args[1:], stdout, stderr)
 	case "keygen":
-		return licenseKeygenCommand(args[1:], stdout, stderr)
+		return errors.New("license key generation is vendor-only; use the hydro-issuer binary")
 	default:
-		return fmt.Errorf("unknown license subcommand %q (supported: issue, verify, status, keygen)", args[0])
+		return fmt.Errorf("unknown license subcommand %q (supported: verify, status)", args[0])
 	}
 }
 
