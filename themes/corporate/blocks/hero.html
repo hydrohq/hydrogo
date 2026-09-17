@@ -1,6 +1,7 @@
 <section class="theme-corporate-hero" data-block="hero">
   <div class="hero-inner-container">
     <div class="hero-content">
+      <p class="hero-eyebrow"><span class="hero-eyebrow-mark" aria-hidden="true"></span> MODÜLER UYGULAMA PLATFORMU</p>
       <h1 class="hero-headline">{{.Payload.title}}</h1>
       {{with .Payload.subtitle}}<p class="hero-lead">{{.}}</p>{{end}}
       {{with .Payload.button_url}}
@@ -13,9 +14,9 @@
           <span>Teknik Mimari</span>
         </a>
       </div>
-      <div class="hero-cli-install" data-copy="go run ./cmd/hydro serve" title="Komutu Kopyala">
+      <div class="hero-cli-install" data-copy="hydro run" title="Komutu Kopyala">
         <span class="cli-prompt">$</span>
-        <code class="cli-cmd">go run ./cmd/hydro serve</code>
+        <code class="cli-cmd">hydro run</code>
         <button class="cli-copy-btn" type="button" aria-label="Komutu Kopyala">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
         </button>
@@ -47,7 +48,7 @@
             <span class="light green"></span>
           </div>
           <div class="window-tabs">
-            <span class="window-tab-pill">🧩 Dinamik Blok Ekosistemi</span>
+            <span class="window-tab-pill">Dinamik Blok Ekosistemi</span>
           </div>
           <span class="window-badge">Örnek bloklar</span>
         </div>
@@ -94,35 +95,35 @@
             <span class="light green"></span>
           </div>
           <div class="window-tabs">
-            <span class="window-tab-pill">🛡️ Güvenlik &amp; Uyumluluk Matrisi</span>
+            <span class="window-tab-pill">Güvenlik &amp; Uyumluluk Matrisi</span>
           </div>
           <span class="window-badge">Yapılandırma örneği</span>
         </div>
         <div class="window-body about-visual-body">
           <div class="security-matrix-grid">
             <div class="sec-item">
-              <div class="sec-icon">🔐</div>
+              <div class="sec-icon" aria-hidden="true">01</div>
               <div class="sec-text">
                 <strong>Kimlik güvenliği</strong>
                 <span>Etkinleştirilen kontroller kurulumda doğrulanır</span>
               </div>
             </div>
             <div class="sec-item">
-              <div class="sec-icon">🛡️</div>
+              <div class="sec-icon" aria-hidden="true">02</div>
               <div class="sec-text">
                 <strong>CSP ve CSRF kontrolleri</strong>
                 <span>Uygulanabilirlik tema ve dağıtım ayarlarına bağlıdır</span>
               </div>
             </div>
             <div class="sec-item">
-              <div class="sec-icon">🔄</div>
+              <div class="sec-icon" aria-hidden="true">03</div>
               <div class="sec-text">
                 <strong>Sürüm geçişi planı</strong>
                 <span>Dağıtım prosedürü işletmeci tarafından doğrulanır</span>
               </div>
             </div>
             <div class="sec-item">
-              <div class="sec-icon">📜</div>
+              <div class="sec-icon" aria-hidden="true">04</div>
               <div class="sec-text">
                 <strong>Sözleşme Testli Çift DB</strong>
                 <span>SQLite (Gömülü) &amp; PostgreSQL</span>
@@ -164,7 +165,7 @@
             <div class="arch-diagram-wrap">
               <div class="diagram-flow">
                 <div class="diag-node diag-node-core">
-                  <div class="node-icon">⚡</div>
+                  <div class="node-icon" aria-hidden="true">01</div>
                   <div class="node-info">
                     <strong>HydroCore Engine</strong>
                     <span>Tip Güvenli Sözleşmeler</span>
@@ -176,14 +177,14 @@
                 </div>
                 <div class="diag-split-wrap">
                   <div class="diag-node diag-node-sqlite">
-                    <div class="node-icon">💾</div>
+                    <div class="node-icon" aria-hidden="true">02</div>
                     <div class="node-info">
                       <strong>SQLite (Gömülü)</strong>
                       <span>Kompakt Tek İkili Dosya</span>
                     </div>
                   </div>
                   <div class="diag-node diag-node-pg">
-                    <div class="node-icon">🐘</div>
+                    <div class="node-icon" aria-hidden="true">03</div>
                     <div class="node-info">
                       <strong>PostgreSQL (Ölçek)</strong>
                       <span>Yüksek Erişilebilirlik</span>
@@ -195,7 +196,7 @@
                   <span class="conn-line"></span>
                 </div>
                 <div class="diag-node diag-node-api">
-                  <div class="node-icon">🌐</div>
+                  <div class="node-icon" aria-hidden="true">04</div>
                   <div class="node-info">
                     <strong>Sıfır Sızıntı API Ağ Geçidi</strong>
                     <span>REST / GraphQL / Outbox Event Bus</span>
