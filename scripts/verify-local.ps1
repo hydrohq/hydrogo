@@ -27,6 +27,7 @@ Invoke-Required "gofmt" {
 Invoke-Required "workflow action pins" { go run ./tools/actionguard }
 Invoke-Required "go vet" { go vet ./... }
 Invoke-Required "full test suite" { go test ./... -p 1 -count=1 -timeout=5m }
+Invoke-Required "risk-weighted coverage floors" { & (Join-Path $PSScriptRoot "risk-coverage.ps1") }
 Invoke-Required "shuffled test suite" { go test ./... -p 1 -shuffle=on -count=1 -timeout=5m }
 Invoke-Required "fuzz smoke suite" { & (Join-Path $PSScriptRoot "fuzz-smoke.ps1") }
 $buildLDFLAGS = "-X main.buildCommit=local -X main.buildTime=local-verification"
