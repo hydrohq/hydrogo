@@ -658,13 +658,15 @@ export class HydroClient {
     if ((parsedBaseUrl.protocol !== 'http:' && parsedBaseUrl.protocol !== 'https:') || parsedBaseUrl.username || parsedBaseUrl.password) {
       throw new RangeError('baseUrl must be an absolute HTTP(S) URL without credentials');
     }
-    this.config = { ...config, baseUrl: rawBaseUrl.replace(/\/$/, '') };
+    const timeoutMs = config.timeoutMs ?? 10000;
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000) throw new RangeError('timeoutMs must be between 1 and 120000');
+    this.config = { ...config, baseUrl: rawBaseUrl.replace(/\/$/, ''), timeoutMs };
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const url = new URL(path, this.config.baseUrl);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), Math.max(100, Math.min(this.config.timeoutMs ?? 10000, 30000)));
+    const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs ?? 10000);
     const callerSignal = init.signal;
     const abortFromCaller = () => controller.abort(callerSignal?.reason);
     if (callerSignal) {
