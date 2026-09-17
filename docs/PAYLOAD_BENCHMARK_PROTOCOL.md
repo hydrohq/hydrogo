@@ -54,6 +54,12 @@ hydro test --package ./...
 Eksik otomasyon veya manuel wiring adımı gizlenmez; komut çıktısı ve süreleri
 `docs/validation/` altında tarihli rapora eklenir.
 
+Tekrarlanabilir yerel DX baseline için `scripts/measure-iteration.ps1` üç koşu
+yapar ve `-Runs N` ile 1–10 arasında sınırlandırılmış tekrar sayısını kabul
+eder. Çıktı her koşunun süresini, median/min/max değerlerini ve başarısını ayrı
+alanlarda taşır. Bu yardımcı ölçüm, karşı sistemin aynı senaryoda çalıştırıldığı
+Payload karşılaştırmasının yerine geçmez.
+
 ## Kabul kriteri
 
 HydroGo'nun “Payload kadar hızlı” olduğu ancak iki bağımsız resource senaryosunda
