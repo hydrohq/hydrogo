@@ -609,9 +609,11 @@ export function validateIdempotencyKey(key: string): string {
 }
 
 export class HydroAPIError extends Error {
-  constructor(readonly status: number, readonly body?: HydroAPIErrorBody) {
+  readonly requestId: string;
+  constructor(readonly status: number, readonly body?: HydroAPIErrorBody, requestId = '') {
     super(body?.message || 'HydroGo API request failed');
     this.name = 'HydroAPIError';
+    this.requestId = body?.request_id || requestId;
   }
 }
 
@@ -620,11 +622,11 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 async function readBoundedResponse(response: Response): Promise<string> {
   const declared = Number(response.headers.get('content-length') ?? 0);
   if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
-    throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+    throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' }, response.headers.get('x-request-id') ?? '');
   }
   if (!response.body) {
     const text = await response.text();
-    if (new TextEncoder().encode(text).byteLength > MAX_RESPONSE_BYTES) throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+    if (new TextEncoder().encode(text).byteLength > MAX_RESPONSE_BYTES) throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' }, response.headers.get('x-request-id') ?? '');
     return text;
   }
   const reader = response.body.getReader();
@@ -638,7 +640,7 @@ async function readBoundedResponse(response: Response): Promise<string> {
       total += value.byteLength;
       if (total > MAX_RESPONSE_BYTES) {
         await reader.cancel();
-        throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+        throw new HydroAPIError(response.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' }, response.headers.get('x-request-id') ?? '');
       }
       text += decoder.decode(value, { stream: true });
     }
@@ -678,13 +680,13 @@ export class HydroClient {
       const res = await fetch(url.toString(), { ...init, headers, signal: controller.signal });
       const declaredLength = Number(res.headers.get('content-length') || 0);
       if (declaredLength > 2 * 1024 * 1024) {
-        throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' });
+        throw new HydroAPIError(res.status, { code: 'response_too_large', message: 'HydroGo API response is too large', request_id: '' }, res.headers.get('x-request-id') ?? '');
       }
       const raw = await readBoundedResponse(res);
       if (res.status === 204 || raw.trim() === '') return undefined as T;
       let body: HydroAPIErrorBody | undefined;
       try { body = JSON.parse(raw) as HydroAPIErrorBody; } catch { /* keep body absent */ }
-      if (!res.ok) throw new HydroAPIError(res.status, body);
+      if (!res.ok) throw new HydroAPIError(res.status, body, res.headers.get('x-request-id') ?? '');
       return JSON.parse(raw) as T;
     } finally {
       clearTimeout(timeout);
