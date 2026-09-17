@@ -13,6 +13,8 @@ güvenlik ve retry sözleşmesine getirildi:
 - API hataları artık ham metin yerine typed `HydroAPIErrorBody` ile taşınıyor;
 - `code`, kullanıcıya uygun `message` ve `x-request-id` alanları korunuyor;
 - bilinen `Content-Length` değeri 2 MiB üzerindeyse gövde okunmadan reddediliyor;
+- chunked/stream yanıtlar da 2 MiB byte sınırında okunuyor ve sınır aşımında
+  reader iptal ediliyor;
 - timeout, abort ve mevcut hata gövdesi sınırı korunuyor.
 
 ## Doğrulama
