@@ -60,6 +60,27 @@ func TestLicenseIssueAndVerify(t *testing.T) {
 	}
 }
 
+func TestLicenseKeyIDRotationSlot(t *testing.T) {
+	pubKey, privKey, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	licenseBytes, err := Issue(Claims{
+		Customer: "Acme", KeyID: "vendor-2026-01", ProjectID: "proj-key-rotation",
+		Edition: "growth", IssuedAt: time.Now().UTC(), ExpiresAt: time.Now().UTC().Add(time.Hour),
+	}, privKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(licenseBytes, VerificationOptions{TrustedPublicKey: pubKey, ExpectedKeyID: "vendor-2026-01"}); err != nil {
+		t.Fatalf("matching key ID rejected: %v", err)
+	}
+	_, err = Verify(licenseBytes, VerificationOptions{TrustedPublicKey: pubKey, ExpectedKeyID: "vendor-2027-01"})
+	if !errors.Is(err, ErrKeyIDMismatch) {
+		t.Fatalf("expected ErrKeyIDMismatch, got %v", err)
+	}
+}
+
 func TestLicenseInvalidSignature(t *testing.T) {
 	pubKey1, privKey1, _ := GenerateKeyPair()
 	pubKey2, _, _ := GenerateKeyPair()

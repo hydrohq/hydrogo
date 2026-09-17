@@ -130,6 +130,7 @@ sequenceDiagram
 ### 4.2. Lisans Formatı ve Alanları
 Bir `hydro.lic` dosyası aşağıdaki doğrulanabilir alanları içerir:
 - `id`: Benzersiz lisans kimliği (UUID/Hex).
+- `key_id`: İmzalama anahtar yuvası; key rotation sırasında eski/yeni slot geçişini izlemek için signed alandır.
 - `customer`: Lisans sahibi müşteri veya organizasyon adı.
 - `project_id`: Lisansın geçerli olduğu proje kimliği (lockfile ile eşleşmelidir).
 - `edition`: Lisanslanan sürüm (`starter`, `growth`, `enterprise`, `custom`).
@@ -175,6 +176,7 @@ hydro-issuer keygen --public-out license_pub.key --private-out license_priv.key
 hydro-issuer issue \
   --customer "Acme Teknoloji A.Ş." \
   --project-id "proj-acme-prod" \
+  --key-id "vendor-2026-01" \
   --edition "growth" \
   --features "pages,news,commerce,members" \
   --expires-in "8760h" \
@@ -189,6 +191,7 @@ hydro license verify \
   --license hydro.lic \
   --public-key license_pub.key \
   --project-id "proj-acme-prod" \
+  --key-id "vendor-2026-01" \
   --edition "growth" \
   --feature "commerce"
 ```

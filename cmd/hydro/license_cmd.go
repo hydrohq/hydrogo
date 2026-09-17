@@ -42,6 +42,7 @@ func licenseIssueCommand(args []string, stdout, stderr io.Writer) error {
 	customer := flags.String("customer", "", "Customer / organization name (required)")
 	projectID := flags.String("project-id", "", "Project ID (required)")
 	edition := flags.String("edition", "starter", "License edition (starter, growth, enterprise, custom)")
+	keyID := flags.String("key-id", "", "Vendor signing key slot identifier")
 	features := flags.String("features", "", "Comma-separated list of enabled features (e.g. pages,news,commerce,members)")
 	expiresIn := flags.String("expires-in", "8760h", "License duration from now (e.g. 720h, 8760h)")
 	expiresAtStr := flags.String("expires-at", "", "Explicit expiry date in RFC3339 format (e.g. 2027-01-01T00:00:00Z)")
@@ -93,6 +94,7 @@ func licenseIssueCommand(args []string, stdout, stderr io.Writer) error {
 
 	claims := licensing.Claims{
 		Customer:        *customer,
+		KeyID:           strings.TrimSpace(*keyID),
 		ProjectID:       *projectID,
 		Edition:         *edition,
 		Features:        featureList,
@@ -131,6 +133,7 @@ func licenseVerifyCommand(args []string, stdout, stderr io.Writer) error {
 	projectID := flags.String("project-id", "", "Expected project ID to verify against")
 	edition := flags.String("edition", "", "Required edition level (e.g. starter, growth, enterprise)")
 	features := flags.String("feature", "", "Required feature(s), comma-separated")
+	keyID := flags.String("key-id", "", "Expected vendor signing key slot identifier")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -150,6 +153,7 @@ func licenseVerifyCommand(args []string, stdout, stderr io.Writer) error {
 	opts := licensing.VerificationOptions{
 		ExpectedProject: *projectID,
 		RequiredEdition: *edition,
+		ExpectedKeyID:   strings.TrimSpace(*keyID),
 	}
 
 	if *publicKeyPath != "" {
@@ -189,6 +193,7 @@ func licenseStatusCommand(args []string, stdout, stderr io.Writer) error {
 	licensePath := flags.String("license", "", "Path to signed license file (required)")
 	publicKeyPath := flags.String("public-key", "", "Path to trusted Ed25519 public key file or base64 string")
 	projectID := flags.String("project-id", "", "Expected project ID to verify against")
+	keyID := flags.String("key-id", "", "Expected vendor signing key slot identifier")
 	asJSON := flags.Bool("json", false, "Output verification result in JSON format")
 
 	if err := flags.Parse(args); err != nil {
@@ -208,6 +213,7 @@ func licenseStatusCommand(args []string, stdout, stderr io.Writer) error {
 
 	opts := licensing.VerificationOptions{
 		ExpectedProject: *projectID,
+		ExpectedKeyID:   strings.TrimSpace(*keyID),
 	}
 	if *publicKeyPath != "" {
 		pubKey, err := loadPublicKey(*publicKeyPath)

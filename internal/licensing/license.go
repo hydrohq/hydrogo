@@ -21,6 +21,7 @@ var (
 	ErrProjectMismatch  = errors.New("license project ID does not match")
 	ErrEditionMismatch  = errors.New("license edition does not meet requirement")
 	ErrFeatureMissing   = errors.New("required feature is not permitted by license")
+	ErrKeyIDMismatch    = errors.New("license key ID does not match trusted key slot")
 	ErrMalformedLicense = errors.New("malformed license document")
 	ErrInvalidKey       = errors.New("invalid Ed25519 cryptographic key")
 )
@@ -42,6 +43,7 @@ const (
 // Claims contains the payload data of an offline license.
 type Claims struct {
 	ID              string            `json:"id"`
+	KeyID           string            `json:"key_id,omitempty"`
 	Customer        string            `json:"customer"`
 	ProjectID       string            `json:"project_id"`
 	Edition         string            `json:"edition"`
@@ -66,6 +68,7 @@ type VerificationOptions struct {
 	RequiredEdition  string
 	RequiredFeatures []string
 	TrustedPublicKey ed25519.PublicKey
+	ExpectedKeyID    string
 }
 
 // VerificationResult holds the status, claims, and human-readable summary.
@@ -233,6 +236,11 @@ func Verify(rawLicense []byte, opts VerificationOptions) (*VerificationResult, e
 		result.State = StateInvalid
 		result.Message = fmt.Sprintf("Proje kimliği uyuşmazlığı: beklenen %q, lisanstaki %q.", opts.ExpectedProject, claims.ProjectID)
 		return result, fmt.Errorf("%w (expected: %s, license: %s)", ErrProjectMismatch, opts.ExpectedProject, claims.ProjectID)
+	}
+	if opts.ExpectedKeyID != "" && !strings.EqualFold(strings.TrimSpace(claims.KeyID), strings.TrimSpace(opts.ExpectedKeyID)) {
+		result.State = StateInvalid
+		result.Message = fmt.Sprintf("Lisans anahtar yuvası uyuşmazlığı: beklenen %q, lisanstaki %q.", opts.ExpectedKeyID, claims.KeyID)
+		return result, fmt.Errorf("%w (expected: %s, license: %s)", ErrKeyIDMismatch, opts.ExpectedKeyID, claims.KeyID)
 	}
 
 	// Edition check

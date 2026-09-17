@@ -44,6 +44,7 @@ func issueCommand(args []string, stdout, stderr io.Writer) error {
 	customer := flags.String("customer", "", "Customer / organization name (required)")
 	projectID := flags.String("project-id", "", "Project ID (required)")
 	edition := flags.String("edition", "starter", "License edition (starter, growth, enterprise, custom)")
+	keyID := flags.String("key-id", "", "Vendor signing key slot identifier")
 	features := flags.String("features", "", "Comma-separated list of enabled features")
 	expiresIn := flags.String("expires-in", "8760h", "License duration from now")
 	expiresAtStr := flags.String("expires-at", "", "Explicit expiry date in RFC3339 format")
@@ -84,7 +85,7 @@ func issueCommand(args []string, stdout, stderr io.Writer) error {
 			featureList = append(featureList, feature)
 		}
 	}
-	claims := licensing.Claims{Customer: *customer, ProjectID: *projectID, Edition: *edition, Features: featureList, IssuedAt: now, ExpiresAt: expiresAt, GracePeriodDays: *graceDays}
+	claims := licensing.Claims{Customer: *customer, KeyID: strings.TrimSpace(*keyID), ProjectID: *projectID, Edition: *edition, Features: featureList, IssuedAt: now, ExpiresAt: expiresAt, GracePeriodDays: *graceDays}
 	signedBytes, err := licensing.Issue(claims, privKey)
 	if err != nil {
 		return fmt.Errorf("issue license: %w", err)
