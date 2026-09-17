@@ -1,8 +1,8 @@
-# Dependency and supply-chain audit — 2026-09-16
+# Dependency and supply-chain audit — 2026-09-17
 
 ## Evidence
 
-Commands run from the repository root:
+Commands run from the repository root at revision `fdfe248`:
 
 ```text
 go mod verify

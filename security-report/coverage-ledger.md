@@ -1,8 +1,8 @@
-# Security coverage ledger — 2026-09-16
+# Security coverage ledger — 2026-09-17
 
 | Surface / skill family | Source review | Local evidence | Verdict |
 | --- | --- | --- | --- |
-| Recon / dependency / Go language | Complete | govulncheck, vet, full tests | clean |
+| Recon / dependency / Go language | Complete | current-revision govulncheck, vet, full tests | clean |
 | SQLi, NoSQLi, GraphQL, XSS, SSTI, XXE, LDAP, CMDi, header injection | Complete source pass | parameterization, escaping, bounded decoder checks | no confirmed finding |
 | Auth, authz, privilege, session, CSRF, CORS, clickjacking, JWT | Complete source pass | auth/security test suites and default-deny guards | no confirmed finding |
 | Secrets, data exposure, crypto | Complete source pass | tracked-file secret lint, pattern review and log redaction tests | no confirmed finding |
