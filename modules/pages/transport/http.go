@@ -288,7 +288,17 @@ func (h Handler) withPublicMedia(ctx context.Context, block pages.Block) (pages.
 	if asset.Status != "ready" || asset.Visibility != media.VisibilityPublic {
 		return block, nil
 	}
-	payload["media_url"] = json.RawMessage(`"/media/` + asset.ID + `"`)
+	mediaURL := "/media/" + asset.ID
+	if provider, ok := h.Media.(interface{ PublicURL(string) (string, error) }); ok {
+		if publicURL, urlErr := provider.PublicURL(asset.StorageKey); urlErr == nil && publicURL != "" {
+			mediaURL = publicURL
+		}
+	}
+	encodedURL, err := json.Marshal(mediaURL)
+	if err != nil {
+		return block, err
+	}
+	payload["media_url"] = encodedURL
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return block, err

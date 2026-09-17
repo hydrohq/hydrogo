@@ -16,6 +16,12 @@ func (s mediaReaderStub) Get(context.Context, database.Executor, string) (media.
 	return s.asset, nil
 }
 
+type mediaPublicURLStub struct{ mediaReaderStub }
+
+func (s mediaPublicURLStub) PublicURL(string) (string, error) {
+	return "https://cdn.example.test/media/asset-1.png", nil
+}
+
 func TestWithPublicMediaAddsOnlyControlledMediaURL(t *testing.T) {
 	h := Handler{Media: mediaReaderStub{asset: media.Asset{ID: "asset-1", Status: "ready", Visibility: media.VisibilityPublic}}}
 	block := pages.Block{Type: "hero", Payload: json.RawMessage(`{"title":"Hero","media_asset_id":"asset-1"}`)}
@@ -38,5 +44,18 @@ func TestWithPublicMediaDoesNotExposePrivateAsset(t *testing.T) {
 	}
 	if string(got.Payload) != string(block.Payload) {
 		t.Fatalf("private asset was exposed: %s", got.Payload)
+	}
+}
+
+func TestWithPublicMediaUsesConfiguredCDNURL(t *testing.T) {
+	h := Handler{Media: mediaPublicURLStub{mediaReaderStub{asset: media.Asset{ID: "asset-1", StorageKey: "asset-1.png", Status: "ready", Visibility: media.VisibilityPublic}}}}
+	block := pages.Block{Type: "hero", Payload: json.RawMessage(`{"title":"Hero","media_asset_id":"asset-1"}`)}
+	got, err := h.withPublicMedia(context.Background(), block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(got.Payload, &payload); err != nil || payload["media_url"] != "https://cdn.example.test/media/asset-1.png" {
+		t.Fatalf("payload = %s, err = %v", got.Payload, err)
 	}
 }
