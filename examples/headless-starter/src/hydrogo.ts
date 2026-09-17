@@ -27,7 +27,7 @@ export function validateIdempotencyKey(key: string): string {
   return key;
 }
 
-export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number };
+export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_TIMEOUT_MS = 120_000;
@@ -65,6 +65,7 @@ export class HydroGoClient {
   private readonly origin: string;
   private readonly requestFetch: typeof fetch;
   private readonly timeoutMs: number;
+  private readonly externalSignal?: AbortSignal;
 
   constructor(options: HydroGoClientOptions) {
     this.origin = options.origin.replace(/\/$/, "");
@@ -72,6 +73,7 @@ export class HydroGoClient {
     const timeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     if (!Number.isInteger(timeout) || timeout < 1 || timeout > MAX_TIMEOUT_MS) throw new RangeError("timeoutMs must be between 1 and 120000");
     this.timeoutMs = timeout;
+    this.externalSignal = options.signal;
   }
 
   async getPage(locale: string, slug: string): Promise<Page> {
@@ -119,7 +121,7 @@ export class HydroGoClient {
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-    const externalSignal = init.signal;
+    const externalSignal = init.signal ?? this.externalSignal;
     const forwardAbort = () => controller.abort(externalSignal?.reason);
     if (externalSignal) {
       if (externalSignal.aborted) forwardAbort();

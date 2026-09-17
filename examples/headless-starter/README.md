@@ -18,6 +18,10 @@ copy rather than exposing raw infrastructure details. `HydroGoError` exposes a
 bounded `code`, `message` and optional `requestId`; raw response text is not
 part of the public error contract.
 
+For route/lifecycle cancellation, pass an `AbortSignal` in the client options;
+the signal is forwarded to every request and is combined with the bounded
+timeout controller.
+
 `checkout` validates the caller-supplied idempotency key (16–128 visible ASCII
 characters) before sending it. Reuse the same key only when retrying the same
 logical checkout.
