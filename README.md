@@ -325,6 +325,7 @@ Bu kanıtlar oluşana kadar depo herhangi bir production profili veya SLA iddias
 ## Dokümantasyon
 
 - [Roadmap](docs/ROADMAP.md): fazlar, açık kapılar ve kabul ölçütleri
+- [Gerçek dünya production roadmap'i](docs/REAL_WORLD_PRODUCTION_ROADMAP.md): pilot'tan profile özel production çıkış kapısına kadar uygulanacak sıra
 - [HydroGo felsefesi](docs/HYDROGO_PHILOSOPHY.md): ürün ve mimari ilkeler
 - [Uygulama planı](docs/implementation_plan.md): kapsam ve hedef mimari
 - [ADR dizini](docs/architecture/README.md): bağlayıcı mimari kararlar
