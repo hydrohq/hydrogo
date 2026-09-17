@@ -597,6 +597,10 @@ export interface HydroMutationOptions {
   signal?: AbortSignal;
 }
 
+export interface HydroRequestOptions {
+  signal?: AbortSignal;
+}
+
 export function validateIdempotencyKey(key: string): string {
   if (key.length < 16 || key.length > 128 || key.trim() !== key || /[^\x21-\x7e]/.test(key)) {
     throw new RangeError('Idempotency-Key must be 16–128 visible ASCII characters');
@@ -641,7 +645,15 @@ async function readBoundedResponse(response: Response): Promise<string> {
 }
 
 export class HydroClient {
-  constructor(private config: HydroConfig) {}
+  constructor(private config: HydroConfig) {
+    const rawBaseUrl = config.baseUrl.trim();
+    let parsedBaseUrl: URL;
+    try { parsedBaseUrl = new URL(rawBaseUrl); } catch { throw new RangeError('baseUrl must be an absolute HTTP(S) URL'); }
+    if ((parsedBaseUrl.protocol !== 'http:' && parsedBaseUrl.protocol !== 'https:') || parsedBaseUrl.username || parsedBaseUrl.password) {
+      throw new RangeError('baseUrl must be an absolute HTTP(S) URL without credentials');
+    }
+    this.config = { ...config, baseUrl: rawBaseUrl.replace(/\/$/, '') };
+  }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const url = new URL(path, this.config.baseUrl);
@@ -682,21 +694,21 @@ export class HydroClient {
     return this.request<T>(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: options.signal });
   }
 
-  async getPage(locale: string, slug: string): Promise<Page> {
+  async getPage(locale: string, slug: string, options: HydroRequestOptions = {}): Promise<Page> {
     if ([...locale].length > 256 || [...slug].length > 256) throw new RangeError('locale and slug must be at most 256 characters');
-    return this.request<Page>(` + "`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`" + `);
+    return this.request<Page>(` + "`/api/v1/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`" + `, { signal: options.signal });
   }
 
-  async listNews(locale: string = 'tr'): Promise<NewsItem[]> {
+  async listNews(locale: string = 'tr', options: HydroRequestOptions = {}): Promise<NewsItem[]> {
     if ([...locale].length > 256) throw new RangeError('locale must be at most 256 characters');
-    return this.request<NewsItem[]>(` + "`/api/v1/news?locale=${encodeURIComponent(locale)}`" + `);
+    return this.request<NewsItem[]>(` + "`/api/v1/news?locale=${encodeURIComponent(locale)}`" + `, { signal: options.signal });
   }
 }
 `
 	return map[string]string{
 		"client/package.json": pkgJSON,
 		"client/hydrogo.ts":   tsClient,
-		"client/README.md":    "# Headless Client\n\nImport `HydroClient` from `./hydrogo.ts` into your frontend application. Read requests are available through typed helpers; use `client.mutation(path, method, body, { idempotencyKey })` for retryable writes. Keys must be 16–128 visible ASCII characters and must be reused only with the same logical request.\n",
+		"client/README.md":    "# Headless Client\n\nImport `HydroClient` from `./hydrogo.ts` into your frontend application. The client requires an absolute HTTP(S) `baseUrl` without credentials, and read helpers accept `{ signal }` for route/lifecycle cancellation. Use `client.mutation(path, method, body, { idempotencyKey, signal })` for retryable writes. Keys must be 16–128 visible ASCII characters and must be reused only with the same logical request.\n",
 	}
 }
 
