@@ -63,6 +63,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Local Compose image pinning | Tamamlandı (yerel) | MinIO/Redis fixture image'ları release tag'lerine sabitlendi; `:latest` kullanımı Compose lint ile reddediliyor | `R45-compose-image-pinning` |
 | Generated client stream cleanup | Tamamlandı (yerel) | Generated bounded response reader `finally` içinde `releaseLock()` ile stream lock sızıntısını önlüyor | `R46-generated-client-stream-lock` |
 | Development Compose exact image pins | Tamamlandı (yerel) | PostgreSQL/Redis geliştirme fixture’ları exact patch/release tag’lerine sabitlendi; mutable major tag’ler lint ile reddediliyor | `R47-compose-development-image-pinning` |
+| Generated client request ID parity | Tamamlandı (yerel) | Generated `HydroAPIError.requestId` body/header request ID’sini taşıyor; oversize hata yolu da korelasyonu koruyor | `R48-generated-client-request-id` |
 | S3/CDN public URL boundary | Kısmi tamamlandı (yerel) | S3-compatible path-style seçeneği, explicit HTTPS public base ve bounded object URL üretimi; private media için 1s–24h presigned URL capability ve protected `/api/media/{id}/url` endpoint’i eklendi; gerçek provider/CDN ve invalidation kanıtı açık | `R6-s3-cdn-public-url-boundary`, `R6-bounded-private-media-urls`, `R6-protected-media-url-endpoint` |
 | WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
 | WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
