@@ -3,6 +3,7 @@ package commerce
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -43,10 +44,21 @@ func TestCheckoutReservesStockAndIsIdempotent(t *testing.T) {
 	// The service contract is tested with a real transaction boundary in the
 	// integration suite; this unit test focuses on line calculation and reuse.
 	_ = store
-	if err := (Checkout{ID: "o-1", UserID: "u-1", IdempotencyKey: "k-1", Items: []CheckoutItem{{ProductID: "p-1", Quantity: 1}}}).Validate(); err != nil {
+	if err := (Checkout{ID: "o-1", UserID: "u-1", IdempotencyKey: "checkout-key-0001", Items: []CheckoutItem{{ProductID: "p-1", Quantity: 1}}}).Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if err := (Checkout{ID: "", UserID: "u-1", IdempotencyKey: "k-1", Items: []CheckoutItem{{ProductID: "p-1", Quantity: 1}}}).Validate(); err != ErrInvalidCheckout {
+	if err := (Checkout{ID: "", UserID: "u-1", IdempotencyKey: "checkout-key-0001", Items: []CheckoutItem{{ProductID: "p-1", Quantity: 1}}}).Validate(); err != ErrInvalidCheckout {
 		t.Fatalf("invalid checkout = %v", err)
+	}
+}
+
+func TestValidateIdempotencyKeyRejectsUnsafeAndUnboundedValues(t *testing.T) {
+	for _, key := range []string{"", "short", "checkout-key-\n-0001", strings.Repeat("x", 129)} {
+		if err := ValidateIdempotencyKey(key); err != ErrInvalidIdempotencyKey {
+			t.Fatalf("key %q error = %v", key, err)
+		}
+	}
+	if err := ValidateIdempotencyKey("checkout-key-0001"); err != nil {
+		t.Fatalf("valid key rejected: %v", err)
 	}
 }

@@ -89,10 +89,27 @@ type CheckoutItem struct {
 }
 
 var (
-	ErrInvalidCheckout     = errors.New("invalid checkout")
-	ErrOutOfStock          = errors.New("product is out of stock")
-	ErrIdempotencyConflict = errors.New("idempotency key belongs to another checkout")
+	ErrInvalidCheckout       = errors.New("invalid checkout")
+	ErrOutOfStock            = errors.New("product is out of stock")
+	ErrIdempotencyConflict   = errors.New("idempotency key belongs to another checkout")
+	ErrInvalidIdempotencyKey = errors.New("invalid idempotency key")
 )
+
+// ValidateIdempotencyKey keeps retry keys bounded and safe to transport across
+// HTTP, logs, and provider adapters. The visible-ASCII contract matches the
+// form submission boundary while avoiding control characters and unbounded
+// allocation in checkout paths.
+func ValidateIdempotencyKey(key string) error {
+	if len(key) < 16 || len(key) > 128 {
+		return ErrInvalidIdempotencyKey
+	}
+	for i := 0; i < len(key); i++ {
+		if key[i] < 0x21 || key[i] > 0x7e {
+			return ErrInvalidIdempotencyKey
+		}
+	}
+	return nil
+}
 
 func checkedCentsTotal(unit int64, quantity int) (int64, bool) {
 	if unit < 0 || quantity <= 0 {
@@ -112,7 +129,7 @@ func checkedCentsAdd(total, line int64) (int64, bool) {
 }
 
 func (c Checkout) Validate() error {
-	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.UserID) == "" || strings.TrimSpace(c.IdempotencyKey) == "" || (len(c.Items) == 0 && strings.TrimSpace(c.CartID) == "") {
+	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.UserID) == "" || ValidateIdempotencyKey(c.IdempotencyKey) != nil || (len(c.Items) == 0 && strings.TrimSpace(c.CartID) == "") {
 		return ErrInvalidCheckout
 	}
 	seen := make(map[string]struct{}, len(c.Items))
