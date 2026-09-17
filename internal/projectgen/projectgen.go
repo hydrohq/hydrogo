@@ -666,6 +666,8 @@ export class HydroClient {
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!path.startsWith('/') || path.startsWith('//')) throw new RangeError('path must be a relative API path');
     const url = new URL(path, this.config.baseUrl);
+    const base = new URL(this.config.baseUrl);
+    if (url.origin !== base.origin) throw new RangeError('path must stay on the configured API origin');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs ?? 10000);
     const callerSignal = init.signal;
