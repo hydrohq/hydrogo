@@ -664,6 +664,7 @@ export class HydroClient {
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    if (!path.startsWith('/') || path.startsWith('//')) throw new RangeError('path must be a relative API path');
     const url = new URL(path, this.config.baseUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs ?? 10000);
@@ -716,7 +717,7 @@ export class HydroClient {
 	return map[string]string{
 		"client/package.json": pkgJSON,
 		"client/hydrogo.ts":   tsClient,
-		"client/README.md":    "# Headless Client\n\nImport `HydroClient` from `./hydrogo.ts` into your frontend application. The client requires an absolute HTTP(S) `baseUrl` without credentials, and read helpers accept `{ signal }` for route/lifecycle cancellation. Use `client.mutation(path, method, body, { idempotencyKey, signal })` for retryable writes. Keys must be 16–128 visible ASCII characters and must be reused only with the same logical request.\n",
+		"client/README.md":    "# Headless Client\n\nImport `HydroClient` from `./hydrogo.ts` into your frontend application. The client requires an absolute HTTP(S) `baseUrl` without credentials, and read helpers accept `{ signal }` for route/lifecycle cancellation. Use `client.mutation(path, method, body, { idempotencyKey, signal })` for retryable writes; paths must be relative API paths so configured credentials never leave the configured origin. Keys must be 16–128 visible ASCII characters and must be reused only with the same logical request.\n",
 	}
 }
 
