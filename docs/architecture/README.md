@@ -196,6 +196,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0142](0142-distributed-profile-certification-boundary.md) | Distributed profile certification boundary | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
+| [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
