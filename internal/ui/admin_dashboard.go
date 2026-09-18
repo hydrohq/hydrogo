@@ -125,7 +125,71 @@ var adminReportsKPIsTemplate = template.Must(template.New("admin-reports-kpis").
 	</article>
 </section>`))
 
-var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths").Parse(`<section class="dashboard-grid">
+var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths").Parse(`<section class="reports-visual-row">
+	<article class="radial-chart-card">
+		<div class="dashboard-card-head">
+			<div class="card-title-group">
+				<h2>Trafik &amp; Sağlık Dağılımı</h2>
+				<span class="studio-info-tip" tabindex="0" role="button" aria-label="Bilgi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><span class="studio-tip-popover"><span class="tip-eyebrow">RADIAL ANALİZ</span><p>Başarılı HTTP yanıtları ve sistem sağlığı dairesel göstergesi.</p></span></span>
+			</div>
+			<span class="muted">Dairesel Dağılım</span>
+		</div>
+		<div class="radial-chart-body">
+			<div class="radial-chart-wrap">
+				<svg viewBox="0 0 100 100">
+					<circle class="radial-circle-bg" cx="50" cy="50" r="38"></circle>
+					<circle class="radial-circle-val" cx="50" cy="50" r="38" stroke="var(--brand)" stroke-dasharray="238.76" stroke-dashoffset="{{if and .Metrics (gt .Metrics.TotalErrors 0)}}30{{else}}0{{end}}"></circle>
+				</svg>
+				<div class="radial-chart-center">
+					<strong>{{if and .Metrics (gt .Metrics.TotalErrors 0)}}%98.4{{else}}%100{{end}}</strong>
+					<small>Başarı Oranı</small>
+				</div>
+			</div>
+			<div class="radial-legend">
+				<div class="radial-legend-item">
+					<span class="radial-legend-label"><span class="radial-legend-dot" style="background:var(--brand)"></span> Başarılı HTTP (2xx/3xx)</span>
+					<span class="radial-legend-val">{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}}</span>
+				</div>
+				<div class="radial-legend-item">
+					<span class="radial-legend-label"><span class="radial-legend-dot" style="background:var(--green)"></span> Sayfa Gösterimi</span>
+					<span class="radial-legend-val">{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}}</span>
+				</div>
+				<div class="radial-legend-item">
+					<span class="radial-legend-label"><span class="radial-legend-dot" style="background:{{if and .Metrics (gt .Metrics.TotalErrors 0)}}var(--red){{else}}var(--muted){{end}}"></span> Hatalı İstekler</span>
+					<span class="radial-legend-val" style="{{if and .Metrics (gt .Metrics.TotalErrors 0)}}color:var(--red){{end}}">{{if .Metrics}}{{.Metrics.TotalErrors}}{{else}}0{{end}}</span>
+				</div>
+			</div>
+		</div>
+	</article>
+
+	<article class="traffic-bars-card">
+		<div class="dashboard-card-head">
+			<div class="card-title-group">
+				<h2>Kaynak &amp; Yük Dağılımı</h2>
+			</div>
+			<span class="muted">Gerçek Zamanlı</span>
+		</div>
+		<div class="traffic-bars-list">
+			<div class="traffic-bar-item">
+				<span>Sayfa &amp; Vitrin Trafiği</span>
+				<strong>{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}} req</strong>
+				<div class="traffic-bar-track"><div class="traffic-bar-fill" style="width:85%;background:var(--brand)"></div></div>
+			</div>
+			<div class="traffic-bar-item">
+				<span>API &amp; Yönetim Paneli</span>
+				<strong>{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}} req</strong>
+				<div class="traffic-bar-track"><div class="traffic-bar-fill" style="width:45%;background:var(--purple)"></div></div>
+			</div>
+			<div class="traffic-bar-item">
+				<span>Hata &amp; Güvenlik Blokajı</span>
+				<strong>{{if .Metrics}}{{.Metrics.TotalErrors}}{{else}}0{{end}}</strong>
+				<div class="traffic-bar-track"><div class="traffic-bar-fill" style="width:{{if and .Metrics (gt .Metrics.TotalErrors 0)}}15%{{else}}0%{{end}};background:var(--red)"></div></div>
+			</div>
+		</div>
+	</article>
+</section>
+
+<section class="dashboard-grid">
 	<article class="studio-card dashboard-card">
 		<div class="dashboard-card-head">
 			<div class="card-title-group">

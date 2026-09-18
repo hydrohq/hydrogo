@@ -9,42 +9,43 @@ import (
 // AdminLoginCSS contains the flat, low-radius, dense Linear + Carbon styling for the admin login screen.
 const AdminLoginCSS = `
 :root {
-	--login-bg: #090d13;
-	--login-surface: #0d131c;
-	--login-surface-hover: #141c28;
+	--login-bg: #070b12;
+	--login-surface: #111927;
+	--login-surface-hover: #182235;
 	--login-line: #1e293b;
-	--login-line-focus: #5e6ad2;
+	--login-line-focus: #0ea5e9;
 	--login-ink: #f8fafc;
 	--login-ink-secondary: #94a3b8;
 	--login-muted: #64748b;
-	--login-brand: #5e6ad2;
-	--login-brand-hover: #6d78e3;
-	--login-brand-subtle: rgba(94,106,210,0.12);
+	--login-brand: #0ea5e9;
+	--login-brand-hover: #38bdf8;
+	--login-brand-subtle: rgba(14,165,233,0.12);
 	--login-green: #10b981;
 	--login-green-subtle: rgba(16,185,129,0.1);
 	--login-danger: #ef4444;
 	--login-danger-subtle: rgba(239,68,68,0.1);
-	--login-radius-xs: 2px;
-	--login-radius-sm: 3px;
-	--login-radius-md: 4px;
-	--login-radius-lg: 6px;
+	--login-radius-xs: 6px;
+	--login-radius-sm: 8px;
+	--login-radius-md: 12px;
+	--login-radius-lg: 16px;
+	--login-radius-xl: 24px;
 	--login-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
 	--login-font-mono: "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 }
 
 @media (prefers-color-scheme: light) {
-	:root:not([data-theme="dark"]) {
+	:root {
 		--login-bg: #f8fafc;
 		--login-surface: #ffffff;
-		--login-surface-hover: #f1f5f9;
+		--login-surface-hover: #f4f7fa;
 		--login-line: #e2e8f0;
-		--login-line-focus: #5e6ad2;
+		--login-line-focus: #0284c7;
 		--login-ink: #0f172a;
-		--login-ink-secondary: #475569;
+		--login-ink-secondary: #334155;
 		--login-muted: #64748b;
-		--login-brand: #5e6ad2;
-		--login-brand-hover: #4f59b8;
-		--login-brand-subtle: rgba(94,106,210,0.08);
+		--login-brand: #0284c7;
+		--login-brand-hover: #0369a1;
+		--login-brand-subtle: rgba(2,132,199,0.08);
 		--login-green: #059669;
 		--login-green-subtle: rgba(5,150,105,0.08);
 		--login-danger: #dc2626;
@@ -53,17 +54,17 @@ const AdminLoginCSS = `
 }
 
 html[data-theme="dark"] {
-	--login-bg: #090d13;
-	--login-surface: #0d131c;
-	--login-surface-hover: #141c28;
+	--login-bg: #070b12;
+	--login-surface: #111927;
+	--login-surface-hover: #182235;
 	--login-line: #1e293b;
-	--login-line-focus: #5e6ad2;
+	--login-line-focus: #0ea5e9;
 	--login-ink: #f8fafc;
 	--login-ink-secondary: #94a3b8;
 	--login-muted: #64748b;
-	--login-brand: #5e6ad2;
-	--login-brand-hover: #6d78e3;
-	--login-brand-subtle: rgba(94,106,210,0.12);
+	--login-brand: #0ea5e9;
+	--login-brand-hover: #38bdf8;
+	--login-brand-subtle: rgba(14,165,233,0.12);
 	--login-green: #10b981;
 	--login-green-subtle: rgba(16,185,129,0.1);
 	--login-danger: #ef4444;
@@ -73,15 +74,15 @@ html[data-theme="dark"] {
 html[data-theme="light"] {
 	--login-bg: #f8fafc;
 	--login-surface: #ffffff;
-	--login-surface-hover: #f1f5f9;
+	--login-surface-hover: #f4f7fa;
 	--login-line: #e2e8f0;
-	--login-line-focus: #5e6ad2;
+	--login-line-focus: #0284c7;
 	--login-ink: #0f172a;
-	--login-ink-secondary: #475569;
+	--login-ink-secondary: #334155;
 	--login-muted: #64748b;
-	--login-brand: #5e6ad2;
-	--login-brand-hover: #4f59b8;
-	--login-brand-subtle: rgba(94,106,210,0.08);
+	--login-brand: #0284c7;
+	--login-brand-hover: #0369a1;
+	--login-brand-subtle: rgba(2,132,199,0.08);
 	--login-green: #059669;
 	--login-green-subtle: rgba(5,150,105,0.08);
 	--login-danger: #dc2626;

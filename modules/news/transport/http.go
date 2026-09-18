@@ -178,11 +178,40 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Yeni haber", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/news">`)
-	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Values: map[string]string{"locale": h.defaultLocale()}, SubmitLabel: "Taslak oluştur"}); err != nil {
+	var leftFields, rightMetaFields, rightSEOFields []adminstudio.Field
+	for _, f := range h.AdminCollection.Fields {
+		switch f.ID {
+		case "title", "slug", "cover_media_id", "excerpt", "key_takeaways", "body":
+			leftFields = append(leftFields, f)
+		case "featured", "category", "author_name", "tags":
+			rightMetaFields = append(rightMetaFields, f)
+		case "seo_title", "seo_description":
+			rightSEOFields = append(rightSEOFields, f)
+		}
+	}
+	values := map[string]string{"locale": h.defaultLocale()}
+	csrf := security.CSRFTokenFromContext(r.Context())
+	nonce := security.NonceFromContext(r.Context())
+
+	var leftBuf bytes.Buffer
+	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields}
+	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news", CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `</form></section>`)
+
+	var rightMetaBuf bytes.Buffer
+	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields}
+	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news", CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
+		return
+	}
+
+	var rightSEOBuf bytes.Buffer
+	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields}
+	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news", CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
+		return
+	}
+
+	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">[Başlıksız]</strong><span class="editor-live-sub">Yeni bir Haber oluşturuluyor</span></div><div class="editor-top-actions"><button type="submit" form="news-form" class="button">Taslağı kaydet</button></div></div><form id="news-form" class="studio-form" method="post" action="/admin/news"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın Bilgileri</span><span class="card-tag">YENİ</span></div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>Taslak</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><p class="muted" style="margin:8px 0 0;font-size:.78rem">Kaydedildikten sonra zamanlama ve yayına alma butonları aktifleşir.</p></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="_csrf" value="%s"></form><script nonce="%s">(()=>{const titleInp=document.querySelector('#news-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`, template.HTML(leftBuf.String()), template.HTMLEscapeString(h.defaultLocale()), template.HTML(rightMetaBuf.String()), template.HTML(rightSEOBuf.String()), template.HTMLEscapeString(h.defaultLocale()), template.HTMLEscapeString(csrf), template.HTMLEscapeString(nonce))
 	_ = ui.AdminEnd(w)
 }
 
@@ -722,11 +751,57 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
-	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/news/" + item.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), SubmitLabel: "Taslağı kaydet", Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "body": item.Body, "cover_media_id": item.CoverMediaID, "excerpt": item.Excerpt, "key_takeaways": item.KeyTakeaways, "category": item.Category, "author_name": item.AuthorName, "featured": boolText(item.Featured), "tags": item.Tags, "seo_title": item.SEOTitle, "seo_description": item.SEODescription}}); err != nil {
+	var leftFields, rightMetaFields, rightSEOFields []adminstudio.Field
+	for _, f := range h.AdminCollection.Fields {
+		switch f.ID {
+		case "title", "slug", "cover_media_id", "excerpt", "key_takeaways", "body":
+			leftFields = append(leftFields, f)
+		case "featured", "category", "author_name", "tags":
+			rightMetaFields = append(rightMetaFields, f)
+		case "seo_title", "seo_description":
+			rightSEOFields = append(rightSEOFields, f)
+		}
+	}
+	values := map[string]string{
+		"locale":          item.Locale,
+		"slug":            item.Slug,
+		"title":           item.Title,
+		"body":            item.Body,
+		"cover_media_id":  item.CoverMediaID,
+		"excerpt":         item.Excerpt,
+		"key_takeaways":   item.KeyTakeaways,
+		"category":        item.Category,
+		"author_name":     item.AuthorName,
+		"featured":        boolText(item.Featured),
+		"tags":            item.Tags,
+		"seo_title":       item.SEOTitle,
+		"seo_description": item.SEODescription,
+	}
+	csrf := security.CSRFTokenFromContext(r.Context())
+	nonce := security.NonceFromContext(r.Context())
+
+	var leftBuf bytes.Buffer
+	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields}
+	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
+
+	var rightMetaBuf bytes.Buffer
+	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields}
+	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
+		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	var rightSEOBuf bytes.Buffer
+	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields}
+	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
+		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	var taxonomyBuf bytes.Buffer
 	if taxonomy, ok := h.Service.Repository.(taxonomyAdminRepository); ok {
 		terms, termsErr := taxonomy.ListTaxonomyTerms(r.Context(), h.DB)
 		selected, selectedErr := taxonomy.ListTaxonomy(r.Context(), h.DB, item.ID)
@@ -738,7 +813,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		for _, term := range selected {
 			selectedIDs = append(selectedIDs, term.ID)
 		}
-		if err := adminstudio.RenderTaxonomyEditor(&form, adminstudio.TaxonomyEditorOptions{Terms: terms, Selected: selectedIDs}); err != nil {
+		if err := adminstudio.RenderTaxonomyEditor(&taxonomyBuf, adminstudio.TaxonomyEditorOptions{Terms: terms, Selected: selectedIDs}); err != nil {
 			http.Error(w, "news taxonomy unavailable", http.StatusServiceUnavailable)
 			return
 		}
@@ -747,7 +822,12 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Haber düzenle", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<section class="studio-card"><div class="studio-meta"><div class="meta-item"><strong>%s</strong><span>Durum</span></div><div class="meta-item"><strong>%d</strong><span>Versiyon</span></div><div class="meta-item"><strong>%d</strong><span>Yayın revizyonu</span></div><div class="meta-item"><strong>%s</strong><span>Dil</span></div></div><form class="studio-form" method="post" action="/admin/news/%s">%s<input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayın akışı</h2><p class="muted">Taslağı kaydedin, ileri tarihli yayın planlayın veya anında yayınlayın.</p><div class="studio-actions">%s</div></section>`, template.HTMLEscapeString(string(item.Status)), item.Version, item.PublishedRevision, template.HTMLEscapeString(item.Locale), template.HTMLEscapeString(item.ID), template.HTML(form.String()), item.Version, workflowActionMarkup(h.Service, item, security.CSRFTokenFromContext(r.Context())))
+	statusBadge := fmt.Sprintf(`<span class="status">%s</span>`, template.HTMLEscapeString(string(item.Status)))
+	titleDisplay := item.Title
+	if strings.TrimSpace(titleDisplay) == "" {
+		titleDisplay = "[Başlıksız]"
+	}
+	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">%s</strong><span class="editor-live-sub">Haber düzenleniyor · %s</span></div><div class="editor-top-actions"><button type="submit" form="news-edit-form" class="button">Taslağı kaydet</button></div></div><form id="news-edit-form" class="studio-form" method="post" action="/admin/news/%s"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın &amp; İşlem</span>%s</div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>%s</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><div class="editor-workflow-actions">%s</div></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>İçerik Sınıflandırması</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="_csrf" value="%s"></form><script nonce="%s">(()=>{const titleInp=document.querySelector('#news-edit-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`, template.HTMLEscapeString(titleDisplay), statusBadge, template.HTMLEscapeString(item.ID), template.HTML(leftBuf.String()), statusBadge, template.HTMLEscapeString(string(item.Status)), template.HTMLEscapeString(item.Locale), workflowActionMarkup(h.Service, item, csrf), template.HTML(rightMetaBuf.String()), template.HTML(taxonomyBuf.String()), template.HTML(rightSEOBuf.String()), template.HTMLEscapeString(item.Locale), item.Version, template.HTMLEscapeString(csrf), template.HTMLEscapeString(nonce))
 	_ = ui.AdminEnd(w)
 }
 
@@ -799,6 +879,22 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if err := h.Service.UpdateDraft(r.Context(), item, version); err != nil {
 		writeError(w, err)
 		return
+	}
+	if repository, ok := h.Service.Repository.(taxonomyAdminRepository); ok {
+		terms, err := repository.ListTaxonomyTerms(r.Context(), h.DB)
+		if err == nil {
+			allowed := make(map[string]v1.TaxonomyTerm, len(terms))
+			for _, term := range terms {
+				allowed[term.ID] = term
+			}
+			selected := make([]v1.TaxonomyTerm, 0, len(r.Form["taxonomy_term"]))
+			for _, id := range r.Form["taxonomy_term"] {
+				if term, exists := allowed[id]; exists {
+					selected = append(selected, term)
+				}
+			}
+			_ = replaceTaxonomyAtomically(r.Context(), h.DB, repository, item.ID, selected)
+		}
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(item.ID), http.StatusSeeOther)
 }
