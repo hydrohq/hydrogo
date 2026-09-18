@@ -14,7 +14,7 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	if err != nil || !strings.Contains(out.String(), "Etkin yetenekler") || !strings.Contains(out.String(), "seo") {
 		t.Fatalf("dashboard kit summary missing: %v", err)
 	}
-	for _, want := range []string{"dashboard-welcome-panel", "dashboard-overview", "dashboard-stat", "quick-action-list", "dashboard-health"} {
+	for _, want := range []string{"wb-dashboard", "wb-hero", "wb-metric-strip", "wb-collection-grid", "wb-action-list", "wb-health-list"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("workbench dashboard widget %q missing", want)
 		}
