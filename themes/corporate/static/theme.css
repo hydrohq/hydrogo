@@ -3629,6 +3629,75 @@ body.theme-corporate-body {
   .window-tab-btn { padding: 6px 8px; }
 }
 
+/* Page-specific banners: the home page keeps the full product hero; inner
+   pages use a quieter editorial banner so every route has its own rhythm. */
+.theme-corporate-hero:has(.showcase-window-theme),
+.theme-corporate-hero:has(.about-window-theme) {
+  margin-bottom: 76px;
+  padding-top: 48px;
+  padding-bottom: 48px;
+  border: 1px solid var(--edge);
+  background: #101313;
+}
+
+.theme-corporate-hero:has(.showcase-window-theme) .hero-inner-container,
+.theme-corporate-hero:has(.about-window-theme) .hero-inner-container {
+  display: block;
+  max-width: 920px;
+}
+
+.theme-corporate-hero:has(.showcase-window-theme) .hero-content,
+.theme-corporate-hero:has(.about-window-theme) .hero-content { padding: 0; }
+
+.theme-corporate-hero:has(.showcase-window-theme) .hero-media-wrapper,
+.theme-corporate-hero:has(.about-window-theme) .hero-media-wrapper { display: none; }
+
+.theme-corporate-hero:has(.showcase-window-theme) .hero-headline,
+.theme-corporate-hero:has(.about-window-theme) .hero-headline {
+  max-width: 760px;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+}
+
+.theme-corporate-hero:has(.showcase-window-theme) .hero-stats-row,
+.theme-corporate-hero:has(.about-window-theme) .hero-stats-row { max-width: 720px; }
+
+/* News and shop share a component contract but deliberately have different
+   tones: newsroom is editorial, commerce is direct and transactional. */
+.news-hero-banner {
+  border-radius: 7px;
+  box-shadow: none;
+  background: #111516;
+  border-color: var(--edge-strong);
+  padding: clamp(34px, 5vw, 62px) clamp(24px, 6vw, 72px);
+}
+
+[data-testid="public-news"] .news-hero-banner {
+  border-left: 3px solid var(--accent);
+  background: #111516;
+}
+
+[data-testid="public-news"] .news-hero-banner h1 { max-width: 720px; font-size: clamp(2.2rem, 5vw, 4.6rem); letter-spacing: -.05em; }
+[data-testid="public-news"] .news-tag-badge { color: var(--accent-hover); background: transparent; padding: 0; }
+
+main.news-portal:not([data-testid="public-news"]) .news-hero-banner {
+  background: #171818;
+  border-top: 3px solid var(--accent);
+}
+
+main.news-portal:not([data-testid="public-news"]) .news-hero-banner h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.04em; }
+main.news-portal:not([data-testid="public-news"]) .news-tag-badge { color: var(--accent-hover); background: transparent; padding: 0; }
+
+/* Interaction contract: every interactive surface gets one calm, visible
+   hover state and one keyboard state; no transforms that cause layout jump. */
+a, button, summary, .featured-card, .news-card, .product-card, .faq-item { transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+.btn-primary:hover, .btn-secondary:hover, .news-nav a:hover, .news-nav a:focus-visible { transform: none; }
+.featured-card:hover, .product-card:hover { transform: none; box-shadow: 0 18px 44px rgba(0,0,0,.34); }
+.news-tag-badge, .featured-kicker, .product-category { color: var(--accent-hover); }
+
 /* Narrow viewport hardening: grid/flex children must be allowed to shrink,
    while navigation and breadcrumbs wrap instead of creating page overflow. */
 .hero-inner-container > *,
