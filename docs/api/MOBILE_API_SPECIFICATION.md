@@ -1,8 +1,13 @@
-# Mobile API Specification & Integration Guide
+# Staff Mobile API Specification & Integration Guide
 
 > **Base Path:** `/api/v1/mobile`  
 > **Protocol:** HTTPS / JSON REST  
 > **Auth Scheme:** `Authorization: Bearer <access_token>`
+
+> **Audience:** This is the HydroGo admin/staff mobile surface. Login accepts a
+> core `auth.User` (admin, editor, or viewer), not a public `members.Member`.
+> A customer/member mobile application must use a separately approved,
+> member-native API contract; it must not reuse this endpoint or token table.
 
 ---
 

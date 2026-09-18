@@ -45,12 +45,14 @@ and a clean issue list categorized as code, environment, legal, or product decis
 
 ## Phase 2 — Mobile API completion
 
-- [ ] Decide and document the mobile principal: staff/admin account, public member
-  account, or both as distinct APIs. The current mobile API authenticates core
-  `auth.User` actors only; it must not be presented as member login until a
-  member-native contract exists.
+- [x] Scope and document the current mobile principal as a staff/admin account.
+  The current mobile API authenticates core `auth.User` actors only; it must not
+  be presented as member login until a separately approved member-native
+  contract exists.
 - [ ] Add PostgreSQL mobile-token contract tests, concurrent-refresh tests, device
-  revoke/disable-user tests, rate-limit tests and audit-event assertions.
+  revoke/disable-user tests, rate-limit tests and audit-event assertions. SQLite
+  and PostgreSQL lifecycle coverage plus PostgreSQL concurrent-refresh coverage
+  are present; the remaining assertions are still required.
 - [ ] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
   deprecation behavior for every mobile resource.
 - [ ] Add a minimal iOS/Android-neutral client contract fixture covering login,
