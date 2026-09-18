@@ -43,7 +43,7 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	if err := AdminStart(w, "Dashboard", "", data.Nonce, data.Active); err != nil {
 		return err
 	}
-	if err := adminDashboardWorkbenchTemplate.Execute(w, data); err != nil {
+	if err := adminWorkbenchDashboardTemplate.Execute(w, data); err != nil {
 		return err
 	}
 	for _, collection := range data.Collections {
