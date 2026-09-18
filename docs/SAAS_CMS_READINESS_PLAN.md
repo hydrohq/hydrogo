@@ -54,8 +54,8 @@ and a clean issue list categorized as code, environment, legal, or product decis
 - [ ] Add PostgreSQL mobile-token contract tests, concurrent-refresh tests, device
   revoke/disable-user tests, rate-limit tests and audit-event assertions. SQLite
   and PostgreSQL lifecycle coverage plus PostgreSQL concurrent-refresh coverage
-  and disabled-user revocation coverage are present. Login rate-limit and audit
-  assertions are present; MFA-specific throttling coverage is still required.
+  and disabled-user revocation coverage are present. Login and MFA rate-limit
+  plus audit assertions are present.
 - [ ] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
   deprecation behavior for every mobile resource. The staff authentication
   surface is published and baseline-checked; future business resources remain open.
