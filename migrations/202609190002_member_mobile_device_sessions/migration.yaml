@@ -1,0 +1,25 @@
+id: "202609190002_member_mobile_device_sessions"
+module: "members"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "1a0ae8fb00f3597e70389488a19726de364c910744d573976e6b0d5b81a6d275"
+  postgres: "c0cf18401c3b72213fcead137db140a3e81cbcc4a2ed759d3227f43f71834991"
+dependencies:
+  - "202609110005_members"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Members capability is enabled"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Bounded member mobile device session rows"
+compatibility: "Adds member-only mobile device storage; staff mobile credentials remain separate."
+smoke:
+  - "Member device sessions can be created, rotated, and revoked independently."
+restart: "Safe to rerun; committed checksum is verified before no-op."
+rollback: "No production down migration; restore or forward migration only."
