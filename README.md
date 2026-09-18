@@ -184,6 +184,10 @@ Each generated collection carries its deterministic `spec.json` source;
 `hydro resource check --root .` validates all resources in one command without a
 database connection. Pass `--spec` to check an individual resource as well.
 
+Studio supports HydroGo, shadcn, and Workbench visual modes without adding a
+frontend runtime. See [`docs/ADMIN_UI_THEMES.md`](docs/ADMIN_UI_THEMES.md) for
+the design-system rationale.
+
 The recommended SDK spelling is `hydro project new`; the legacy `hydro new`
 spelling remains for backwards compatibility. The generator does not copy Core
 source code into the generated project; it creates only a Client Edition scaffold

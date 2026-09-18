@@ -104,6 +104,21 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesWorkbenchThemeMode(t *testing.T) {
+	for _, want := range []string{"data-ui-theme=\"workbench\"", "workbench-light", "workbench-dark", "Workbench"} {
+		if !strings.Contains(AdminWorkbenchCSS+AdminSPARouterJS, want) {
+			t.Fatalf("admin shell missing workbench theme contract %q", want)
+		}
+	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	if !strings.Contains(out.String(), `data-ui-theme="workbench"`) {
+		t.Fatal("rendered admin shell missing workbench contract")
+	}
+}
+
 func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
 	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
 		if !strings.Contains(AdminCSS, selector) {
