@@ -1171,7 +1171,7 @@ func serve(args []string, stderr io.Writer) error {
 				}
 			}
 		}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale}
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled()}
 	}
 	var newsHTTP newstransport.Handler
 	if moduleEnabled(cfg.Modules, "news") {
@@ -1214,7 +1214,7 @@ func serve(args []string, stderr io.Writer) error {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = io.WriteString(w, technicalHomeHTML(cfg.I18N.DefaultLocale, publicHomePath(cfg.I18N.DefaultLocale)))
+			_, _ = io.WriteString(w, technicalHomeHTML(cfg.I18N.DefaultLocale, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled()))
 			return
 		}
 		http.NotFound(w, r)
@@ -2149,12 +2149,16 @@ func publicHomePath(locale string) string {
 // technicalHomeHTML is intentionally small: the default root is a runtime
 // status surface, not a marketing page. Product-specific frontends can still
 // be configured through site.home_path or opened from the optional demo seed.
-func technicalHomeHTML(locale, demoPath string) string {
+func technicalHomeHTML(locale, demoPath string, demoEnabled bool) string {
 	locale = strings.TrimSpace(locale)
 	if locale == "" {
 		locale = "en"
 	}
 	demoPath = template.HTMLEscapeString(demoPath)
+	demoAction := `<span>Demo frontend disabled</span>`
+	if demoEnabled {
+		demoAction = fmt.Sprintf(`<a href="%s">Optional demo</a>`, demoPath)
+	}
 	return fmt.Sprintf(`<!doctype html>
 <html lang="%s">
 <head>
@@ -2175,9 +2179,9 @@ func technicalHomeHTML(locale, demoPath string) string {
   <h1>Backend runtime is ready.</h1>
   <p>HydroGo is running as a modular backend. Use the operational endpoints or connect your client application to the API.</p>
   <dl><div><dt>Health</dt><dd>GET /healthz</dd></div><div><dt>Readiness</dt><dd>GET /readyz</dd></div><div><dt>API</dt><dd>/api/v1</dd></div><div><dt>Admin</dt><dd>/admin</dd></div></dl>
-  <nav><a href="/healthz">Health check</a><a href="/readyz">Readiness</a><a href="/admin">Admin Studio</a><a href="%s">Optional demo</a></nav>
+  <nav><a href="/healthz">Health check</a><a href="/readyz">Readiness</a><a href="/admin">Admin Studio</a>%s</nav>
   <small>Configure site.home_path to attach a product frontend.</small>
-</main></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(locale), demoPath)
+</main></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(locale), demoAction)
 }
 
 func moduleEnabled(modules []string, wanted string) bool {
@@ -2188,6 +2192,15 @@ func moduleEnabled(modules []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+func demoFrontendEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("HYDRO_ENABLE_DEMO_FRONTEND"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func enabledModuleSet(modules []string) map[string]bool {

@@ -272,6 +272,11 @@ content. For local frontend/browser validation, run `hydro seed-demo
 validated `site.home_path` can explicitly attach a product frontend in a real
 deployment.
 
+Seeded demo pages are hidden from public page routes by default even after
+seeding. Set `HYDRO_ENABLE_DEMO_FRONTEND=true` only for local browser/demo
+validation when you want `/public/pages/{locale}/demo/html` and the other
+seeded demo pages to be reachable.
+
 Portable import/export is bounded to 256 MiB by default; use `--max-bytes` when an approved larger customer export is required.
 
 `hydro release verify` does not trust the public key embedded in the manifest by
