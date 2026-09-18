@@ -6,9 +6,15 @@
 
 ## Decision
 
-The customer mobile application authenticates `members.Member` identities, not
-Admin Studio `auth.User` identities. It uses a member-specific versioned API
-under `/api/v1/mobile/member/*` and a separate device-session table whose
+The customer mobile application is a consumer surface: for example a news
+reader, storefront, cart, order, and member-account application. Admin Studio
+users continue to manage content and operations in the web Admin Studio; the
+consumer app never authenticates an Admin Studio `auth.User`.
+
+Published news and catalog projections remain public and do not require a
+mobile token. Account, order, cart, checkout and other member-private actions
+authenticate `members.Member` identities through a member-specific versioned
+API under `/api/v1/mobile/member/*` and a separate device-session table whose
 foreign key targets `members(id)`. Staff mobile credentials and member mobile
 credentials are never interchangeable.
 
