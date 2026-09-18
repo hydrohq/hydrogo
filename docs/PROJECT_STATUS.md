@@ -28,6 +28,11 @@ migrations, workers, assets, or mandatory infrastructure.
   reset, invitations, CSRF protection, default-deny authorization, audit
   events, transactional outbox, job leasing, idempotency, and dead-letter
   operations.
+- The versioned staff mobile API has opaque short-lived bearer tokens,
+  transactional refresh rotation, device-family revocation, disabled-user
+  invalidation, login/MFA throttling, audit coverage, an OpenAPI compatibility
+  baseline, and a platform-neutral client fixture. It is not a public member
+  mobile API and is not production-certified until its external drills pass.
 - Media has explicit pending/ready and public/private lifecycles, bounded
   upload handling, safe metadata, and manifest verification.
 - SQLite is the compact default. PostgreSQL has shared database contracts,
@@ -122,6 +127,12 @@ These are intentionally kept visible in
 the [roadmap](ROADMAP.md). HydroGo should be called production-ready for a
 profile only after that profile has evidence for its own deployment and data
 recovery assumptions.
+
+The current staff mobile API evidence is recorded in
+[`docs/api/MOBILE_API_SPECIFICATION.md`](api/MOBILE_API_SPECIFICATION.md), its
+machine-readable contract, and the SaaS/CMS readiness plan. It still requires
+the ADR-0139 real-environment abuse and device-loss drills before public
+enablement.
 
 ## Where to continue
 
