@@ -1201,21 +1201,24 @@ func serve(args []string, stderr io.Writer) error {
 	if enabledModuleSet(cfg.Modules)["members"] {
 		routes = append(routes, memberHTTP.Routes()...)
 	}
-	if modules["pages"] {
-		routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/" {
-				homePath := publicHomePath(cfg.I18N.DefaultLocale)
-				if modules["site"] {
-					if settings, err := siteStore.ListPublicSettings(r.Context(), db); err == nil {
-						homePath = site.ResolvePublicHomePath(settings, homePath)
-					}
+	routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			homePath := ""
+			if modules["site"] {
+				if settings, err := siteStore.ListPublicSettings(r.Context(), db); err == nil {
+					homePath = site.ResolvePublicHomePath(settings, "")
 				}
+			}
+			if homePath != "" && homePath != "/" {
 				http.Redirect(w, r, homePath, http.StatusFound)
 				return
 			}
-			http.NotFound(w, r)
-		})})
-	}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = io.WriteString(w, technicalHomeHTML(cfg.I18N.DefaultLocale, publicHomePath(cfg.I18N.DefaultLocale)))
+			return
+		}
+		http.NotFound(w, r)
+	})})
 	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
@@ -2141,6 +2144,40 @@ func publicHomePath(locale string) string {
 		locale = "en"
 	}
 	return "/public/pages/" + url.PathEscape(locale) + "/demo/html"
+}
+
+// technicalHomeHTML is intentionally small: the default root is a runtime
+// status surface, not a marketing page. Product-specific frontends can still
+// be configured through site.home_path or opened from the optional demo seed.
+func technicalHomeHTML(locale, demoPath string) string {
+	locale = strings.TrimSpace(locale)
+	if locale == "" {
+		locale = "en"
+	}
+	demoPath = template.HTMLEscapeString(demoPath)
+	return fmt.Sprintf(`<!doctype html>
+<html lang="%s">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HydroGo Runtime</title>
+  <style>
+    :root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b0d0e;color:#e4e8e3}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
+    main{width:min(680px,100%%);border:1px solid #2a3230;border-radius:10px;padding:clamp(28px,6vw,56px);background:#111615;box-shadow:0 24px 80px #0006}
+    .eyebrow{color:#c88761;font-size:.72rem;letter-spacing:.14em;margin:0 0 24px}
+    h1{font-family:ui-sans-serif,system-ui,sans-serif;font-size:clamp(2rem,5vw,3.6rem);line-height:1;letter-spacing:-.05em;margin:0 0 18px}
+    p{color:#aeb8b1;line-height:1.7;margin:0 0 28px}dl{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#2a3230;border:1px solid #2a3230;margin:0 0 28px}div{background:#151b19;padding:16px}dt{color:#78857d;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em}dd{margin:8px 0 0;color:#eff3ed;font-size:.9rem}nav{display:flex;flex-wrap:wrap;gap:10px}a{color:#e4e8e3;text-decoration:none;border:1px solid #3b4742;border-radius:4px;padding:10px 14px;font:inherit}a:hover,a:focus-visible{border-color:#c88761;color:#f1ad85;outline:none}small{display:block;margin-top:24px;color:#68736c;font-family:ui-sans-serif,system-ui,sans-serif}@media(max-width:520px){dl{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><main>
+  <p class="eyebrow">HYDROGO RUNTIME · %s</p>
+  <h1>Backend runtime is ready.</h1>
+  <p>HydroGo is running as a modular backend. Use the operational endpoints or connect your client application to the API.</p>
+  <dl><div><dt>Health</dt><dd>GET /healthz</dd></div><div><dt>Readiness</dt><dd>GET /readyz</dd></div><div><dt>API</dt><dd>/api/v1</dd></div><div><dt>Admin</dt><dd>/admin</dd></div></dl>
+  <nav><a href="/healthz">Health check</a><a href="/readyz">Readiness</a><a href="/admin">Admin Studio</a><a href="%s">Optional demo</a></nav>
+  <small>Configure site.home_path to attach a product frontend.</small>
+</main></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(locale), demoPath)
 }
 
 func moduleEnabled(modules []string, wanted string) bool {

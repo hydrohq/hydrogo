@@ -265,6 +265,13 @@ hydro license status --license hydro.lic --public-key vendor.pub --json
 `hydro run` is recommended for local development; `hydro dev` remains as a
 backwards-compatible alias for older automation.
 
+The default `/` route is a backend runtime status page. It links to health,
+readiness, API, and Admin Studio endpoints rather than redirecting to demo
+content. For local frontend/browser validation, run `hydro seed-demo
+--confirm-demo` and open `/public/pages/{locale}/demo/html`. A configured,
+validated `site.home_path` can explicitly attach a product frontend in a real
+deployment.
+
 Portable import/export is bounded to 256 MiB by default; use `--max-bytes` when an approved larger customer export is required.
 
 `hydro release verify` does not trust the public key embedded in the manifest by

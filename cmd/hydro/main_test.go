@@ -68,6 +68,18 @@ func TestPublicHomePathUsesConfiguredLocale(t *testing.T) {
 	}
 }
 
+func TestTechnicalHomeHTMLIsBackendFirstAndKeepsDemoOptIn(t *testing.T) {
+	markup := technicalHomeHTML("tr-TR", publicHomePath("tr-TR"))
+	for _, want := range []string{"Backend runtime is ready.", "/healthz", "/readyz", "/api/v1", "/admin", "/public/pages/tr-TR/demo/html", "Optional demo"} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("technical home missing %q", want)
+		}
+	}
+	if strings.Contains(markup, "İçeriğinizi ve mağazanızı") {
+		t.Fatal("technical home unexpectedly contains marketing seed copy")
+	}
+}
+
 func TestAdminControlRoutesRespectOptionalModules(t *testing.T) {
 	withoutOptional := adminControlRoutePatterns(map[string]bool{})
 	for _, pattern := range withoutOptional {
