@@ -12,6 +12,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
@@ -171,5 +172,48 @@ func TestMobileHTTPDeviceRevocationIsAudited(t *testing.T) {
 	}
 	if len(audit.actions) != 1 || audit.actions[0] != "mobile_auth.device_revoked" || audit.targets[0] != user.ID {
 		t.Fatalf("revocation audit = actions=%v targets=%v", audit.actions, audit.targets)
+	}
+}
+
+func TestMobileHTTPMFAAttemptsAreRateLimitedAndAudited(t *testing.T) {
+	db, dialect := setupTestDB(t)
+	users := authstore.NewUserStore(db, dialect)
+	sessions := authstore.NewSessionStore(db, dialect)
+	mobile := auth.NewMobileAuthService(db, dialect)
+	service := auth.NewAuthService(users, sessions, mobile, auth.DefaultArgon2Params)
+	user, err := service.CreateUser(context.Background(), "mfa-rate@example.test", "correct horse battery staple", auth.RoleEditor)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	mfa := &auth.MFAService{Store: users, MasterKey: []byte("0123456789abcdef0123456789abcdef")}
+	if err := database.NewTransactor(db).Within(context.Background(), func(tx database.Executor) error {
+		_, err := mfa.Enroll(context.Background(), tx, user.ID, user.Email)
+		return err
+	}); err != nil {
+		t.Fatalf("enroll MFA: %v", err)
+	}
+	if err := database.NewTransactor(db).Within(context.Background(), func(tx database.Executor) error {
+		return mfa.Enable(context.Background(), tx, user.ID)
+	}); err != nil {
+		t.Fatalf("enable MFA: %v", err)
+	}
+	audit := &mobileAuditRecorder{}
+	handler := auth.MobileHTTPHandler{Auth: service, Mobile: mobile, MFA: mfa, MFADB: db, MFALimiter: security.NewAttemptLimiter(16, 1, time.Minute), Audit: audit}
+	request := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/auth/login", strings.NewReader(`{"email":"mfa-rate@example.test","password":"correct horse battery staple","mfa_code":"000000","device_id":"mfa-device","device_name":"iPhone","platform":"iOS"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = "198.51.100.30:12345"
+		res := httptest.NewRecorder()
+		handler.RouterRoutes()[0].Handler.ServeHTTP(res, req)
+		return res
+	}
+	if res := request(); res.Code != http.StatusUnauthorized {
+		t.Fatalf("first invalid MFA status = %d, want %d", res.Code, http.StatusUnauthorized)
+	}
+	if res := request(); res.Code != http.StatusTooManyRequests {
+		t.Fatalf("second MFA attempt status = %d, want %d", res.Code, http.StatusTooManyRequests)
+	}
+	if len(audit.actions) != 1 || audit.actions[0] != "mobile_auth.mfa_failed" || audit.targets[0] != user.ID {
+		t.Fatalf("MFA audit = actions=%v targets=%v", audit.actions, audit.targets)
 	}
 }
