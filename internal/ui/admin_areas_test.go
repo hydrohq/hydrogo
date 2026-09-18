@@ -117,6 +117,9 @@ func TestAdminShellIncludesWorkbenchThemeMode(t *testing.T) {
 	if !strings.Contains(out.String(), `data-ui-theme="workbench"`) {
 		t.Fatal("rendered admin shell missing workbench contract")
 	}
+	if !strings.Contains(out.String(), "hydro-ui-theme-v2") || !strings.Contains(out.String(), "startsWith('workbench-')") {
+		t.Fatal("rendered admin shell missing pre-paint Workbench migration")
+	}
 }
 
 func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
