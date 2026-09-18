@@ -68,8 +68,10 @@ fixture, and dated mobile threat-model report.
 
 ## Phase 3 — Headless web frontend and BFF boundary
 
-- [ ] Select one official frontend reference implementation and separate it from
-  HydroCore runtime code.
+- [x] Select one official frontend reference implementation and separate it from
+  HydroCore runtime code: `examples/headless-starter` is an independent
+  TypeScript client restricted to the versioned API and covered by its client
+  contract smoke in the browser-E2E workflow.
 - [ ] Implement same-site proxy and BFF reference topologies; forbid browser
   credential forwarding across an untrusted origin.
 - [ ] Prove public CORS allowlists, cross-origin mutation rejection, preview
