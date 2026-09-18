@@ -23,6 +23,7 @@ import (
 
 type Handler struct {
 	Service       members.Service
+	Mobile        *members.MobileAuthService
 	Secure        bool
 	Limiter       interface{ Allow(string) bool }
 	Orders        customerorders.Reader
@@ -545,6 +546,12 @@ func (h Handler) adminSetActive(w http.ResponseWriter, r *http.Request) {
 	if err := h.Service.Members.SetActive(r.Context(), id, active); err != nil {
 		http.Error(w, "member update failed", 400)
 		return
+	}
+	if !active && h.Mobile != nil {
+		if err := h.Mobile.RevokeAll(r.Context(), id); err != nil {
+			http.Error(w, "member session update failed", http.StatusServiceUnavailable)
+			return
+		}
 	}
 	ref := r.Header.Get("Referer")
 	if ref != "" {
