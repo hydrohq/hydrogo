@@ -1,22 +1,15 @@
 {
     admin off
-    auto_https off
     servers {
         trusted_proxies static private_ranges
     }
 }
 
-:80 {
-    # Redirection to HTTPS in edge production
-    @http {
-        header_regexp Host ^(?P<host>.+)$
-    }
-    redir @http https://{re.host}{uri} permanent
+http://{$HYDRO_PUBLIC_HOST} {
+    redir https://{$HYDRO_PUBLIC_HOST}{uri} permanent
 }
 
-:443 {
-    tls internal # In true production replace with production cert or Let's Encrypt automated ACME
-
+{$HYDRO_PUBLIC_HOST} {
     # Security Headers
     header {
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"

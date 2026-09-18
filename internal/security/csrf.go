@@ -39,6 +39,13 @@ func CSRFTokenFromContext(ctx context.Context) string {
 func CSRFMiddleware(secure bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Mobile credentials are bearer tokens carried outside browser cookies.
+			// This dedicated surface authenticates every mutation in its handlers;
+			// applying double-submit CSRF here would make native clients unusable.
+			if strings.HasPrefix(r.URL.Path, "/api/v1/mobile/") {
+				next.ServeHTTP(w, r)
+				return
+			}
 			// CSP violation reports are telemetry, not state-changing application
 			// mutations; their own bounded parser handles validation.
 			if r.URL.Path == "/csp-report" && r.Method == http.MethodPost {

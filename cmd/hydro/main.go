@@ -1031,6 +1031,7 @@ func serve(args []string, stderr io.Writer) error {
 		return security.NewAttemptLimiter(10000, limit, window)
 	}
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: database.NewTransactor(db), LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
+	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: auth.NewMobileAuthService(db, cfg.Database.Dialect), MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect}
@@ -1195,6 +1196,7 @@ func serve(args []string, stderr io.Writer) error {
 		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
+	routes = append(routes, mobileAuthHTTP.RouterRoutes()...)
 	if modules["pages"] {
 		routes = append(routes, pageRouterRoutes(pageHTTP.Routes())...)
 	}
