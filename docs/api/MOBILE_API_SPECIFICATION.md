@@ -9,6 +9,10 @@
 > A customer/member mobile application must use a separately approved,
 > member-native API contract; it must not reuse this endpoint or token table.
 
+> **Machine-readable contract:**
+> [`mobile-v1.openapi.json`](mobile-v1.openapi.json) is checked in CI against
+> [`baselines/mobile-v1.openapi.json`](baselines/mobile-v1.openapi.json).
+
 ---
 
 ## 1. Endpoints & Operations
@@ -117,5 +121,7 @@ All mobile errors return a standard JSON structure with HTTP 4xx/5xx status code
 
 ## 3. Idempotency & Offline Sync
 
-- Mutations (e.g., checkout, form submissions) require the `Idempotency-Key: <UUID>` header.
+- This authentication surface has no retryable business mutation. Future mobile
+  resources such as checkout or form submissions require an
+  `Idempotency-Key: <UUID>` header before they can be published.
 - Cached content payloads include `ETag` and support conditional `If-None-Match` requests to minimize mobile battery and data usage.

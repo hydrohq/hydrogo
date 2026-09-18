@@ -37,7 +37,9 @@ is enabled only after the dedicated multi-tenant gates below pass.
   implementation; remove unsupported production/SaaS claims.
 - [ ] Create a release gate manifest that fails when a claimed profile lacks
   database, restore, proxy, capacity, or security evidence.
-- [ ] Establish a versioned OpenAPI baseline and CI-compatible breaking-change check.
+- [x] Establish a versioned OpenAPI baseline and CI-compatible breaking-change
+  check for the staff mobile API. Other published API surfaces still need their
+  own baselines before a general API compatibility claim is made.
 - [ ] Add a dependency/SBOM/vulnerability review cadence with recorded owners.
 
 **Exit evidence:** source-to-document traceability table, release gate command,
@@ -55,7 +57,8 @@ and a clean issue list categorized as code, environment, legal, or product decis
   and disabled-user revocation coverage are present. Login rate-limit and audit
   assertions are present; MFA-specific throttling coverage is still required.
 - [ ] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
-  deprecation behavior for every mobile resource.
+  deprecation behavior for every mobile resource. The staff authentication
+  surface is published and baseline-checked; future business resources remain open.
 - [ ] Add a minimal iOS/Android-neutral client contract fixture covering login,
   refresh, logout, offline retry and token loss.
 - [ ] Run threat-model, abuse and device-loss drills with real deployment settings.

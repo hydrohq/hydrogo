@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // APICompatibilityReport describes a non-breaking subset check between two
@@ -51,7 +52,7 @@ func CheckAPICompatibility(baselinePath, currentPath string) (APICompatibilityRe
 			report.MethodsChecked++
 			oldOp, _ := oldOperation.(map[string]any)
 			newOp, _ := newOperation.(map[string]any)
-			if err := compareSchemas(path, method, oldOp, newOp, &report); err != nil {
+			if err := compareSchemas(path, method, oldOp, newOp, baseline, current, &report); err != nil {
 				return report, err
 			}
 			if err := compareRequestContract(path, method, oldOp, newOp, &report); err != nil {
@@ -114,7 +115,7 @@ func loadOpenAPI(path string) (map[string]any, error) {
 	return document, nil
 }
 
-func compareSchemas(path, method string, oldOp, newOp map[string]any, report *APICompatibilityReport) error {
+func compareSchemas(path, method string, oldOp, newOp, baseline, current map[string]any, report *APICompatibilityReport) error {
 	oldResponses, _ := oldOp["responses"].(map[string]any)
 	newResponses, _ := newOp["responses"].(map[string]any)
 	for code, oldResponse := range oldResponses {
@@ -147,6 +148,8 @@ func compareSchemas(path, method string, oldOp, newOp map[string]any, report *AP
 			}
 			oldSchema, _ := oldMediaMap["schema"].(map[string]any)
 			newSchema, _ := newMediaMap["schema"].(map[string]any)
+			oldSchema = resolveLocalSchema(baseline, oldSchema)
+			newSchema = resolveLocalSchema(current, newSchema)
 			oldProperties, _ := oldSchema["properties"].(map[string]any)
 			newProperties, _ := newSchema["properties"].(map[string]any)
 			for property := range oldProperties {
@@ -158,4 +161,22 @@ func compareSchemas(path, method string, oldOp, newOp map[string]any, report *AP
 		}
 	}
 	return nil
+}
+
+func resolveLocalSchema(document map[string]any, schema map[string]any) map[string]any {
+	if schema == nil {
+		return nil
+	}
+	ref, _ := schema["$ref"].(string)
+	const schemaPrefix = "#/components/schemas/"
+	if !strings.HasPrefix(ref, schemaPrefix) {
+		return schema
+	}
+	components, _ := document["components"].(map[string]any)
+	schemas, _ := components["schemas"].(map[string]any)
+	resolved, _ := schemas[strings.TrimPrefix(ref, schemaPrefix)].(map[string]any)
+	if resolved == nil {
+		return schema
+	}
+	return resolveLocalSchema(document, resolved)
 }

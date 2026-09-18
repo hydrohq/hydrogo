@@ -71,6 +71,8 @@ jobs:
           check-latest: false
       - name: Verify workflow action pins
         run: go run ./tools/actionguard
+      - name: Enforce staff mobile API compatibility baseline
+        run: go run ./tools/openapidiff --baseline docs/api/baselines/mobile-v1.openapi.json --current docs/api/mobile-v1.openapi.json
       - name: Install PostgreSQL client tools
         timeout-minutes: 4
         run: |
