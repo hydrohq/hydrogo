@@ -19,10 +19,11 @@ const (
 )
 
 var (
-	ErrInvalidCredentials        = errors.New("invalid email or password")
-	ErrUserInactive              = errors.New("user account is inactive")
-	ErrUserRepositoryRequired    = errors.New("user repository is required")
-	ErrSessionRepositoryRequired = errors.New("session repository is required")
+	ErrInvalidCredentials           = errors.New("invalid email or password")
+	ErrUserInactive                 = errors.New("user account is inactive")
+	ErrUserRepositoryRequired       = errors.New("user repository is required")
+	ErrSessionRepositoryRequired    = errors.New("session repository is required")
+	ErrMobileSessionRevokerRequired = errors.New("mobile session revoker is required")
 )
 
 type contextKey string
@@ -33,14 +34,21 @@ const (
 )
 
 type AuthService struct {
-	userRepo    UserRepository
-	sessionRepo SessionRepository
-	argonParams Argon2Params
-	dummyHash   string
-	idleTTL     time.Duration
+	userRepo       UserRepository
+	sessionRepo    SessionRepository
+	mobileSessions MobileSessionRevoker
+	argonParams    Argon2Params
+	dummyHash      string
+	idleTTL        time.Duration
 }
 
-func NewAuthService(users UserRepository, sessions SessionRepository, params Argon2Params) *AuthService {
+// MobileSessionRevoker keeps bearer credentials on the same disable lifecycle
+// as browser sessions. The implementation deliberately exposes no token data.
+type MobileSessionRevoker interface {
+	RevokeAllDevices(ctx context.Context, userID string) error
+}
+
+func NewAuthService(users UserRepository, sessions SessionRepository, mobileSessions MobileSessionRevoker, params Argon2Params) *AuthService {
 	dummyParams := params
 	if err := validateArgon2Params(params); err != nil {
 		// Keep authentication's timing defense usable even if an embedding
@@ -51,11 +59,12 @@ func NewAuthService(users UserRepository, sessions SessionRepository, params Arg
 	// Keep the unknown-user verification at the same Argon2 cost as real users.
 	dummyHash, _ := HashPassword("hydrogo-dummy-password", dummyParams)
 	return &AuthService{
-		userRepo:    users,
-		sessionRepo: sessions,
-		argonParams: params,
-		dummyHash:   dummyHash,
-		idleTTL:     DefaultIdleTTL,
+		userRepo:       users,
+		sessionRepo:    sessions,
+		mobileSessions: mobileSessions,
+		argonParams:    params,
+		dummyHash:      dummyHash,
+		idleTTL:        DefaultIdleTTL,
 	}
 }
 
@@ -228,7 +237,13 @@ func (s *AuthService) SetUserActive(ctx context.Context, userID string, active b
 		return err
 	}
 	if !active {
-		return s.RevokeAllUserSessions(ctx, userID)
+		if err := s.RevokeAllUserSessions(ctx, userID); err != nil {
+			return err
+		}
+		if s.mobileSessions == nil {
+			return ErrMobileSessionRevokerRequired
+		}
+		return s.mobileSessions.RevokeAllDevices(ctx, userID)
 	}
 	return nil
 }

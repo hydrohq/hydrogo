@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -142,6 +143,26 @@ func TestMobileAuthService_RejectsExpiredAccessToken(t *testing.T) {
 	}
 	if _, _, err := svc.ValidateAccessToken(ctx, tokens.AccessToken); err != auth.ErrInvalidToken {
 		t.Fatalf("ValidateAccessToken error = %v, want ErrInvalidToken", err)
+	}
+}
+
+func TestMobileAuthService_DisabledUserCannotRefresh(t *testing.T) {
+	db, dialect := setupTestDB(t)
+	svc := auth.NewMobileAuthService(db, dialect)
+	ctx := context.Background()
+
+	pair, err := svc.IssueTokenPair(ctx, "usr-123", "disabled-user-device", "Test device", "iOS")
+	if err != nil {
+		t.Fatalf("issue token pair: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE users SET active = ? WHERE id = ?`, 0, "usr-123"); err != nil {
+		t.Fatalf("disable user: %v", err)
+	}
+	if _, err := svc.RefreshTokenPair(ctx, pair.RefreshToken); !errors.Is(err, auth.ErrUserInactive) {
+		t.Fatalf("RefreshTokenPair error = %v, want ErrUserInactive", err)
+	}
+	if _, _, err := svc.ValidateAccessToken(ctx, pair.AccessToken); !errors.Is(err, auth.ErrDeviceRevoked) {
+		t.Fatalf("disabled user token validation = %v, want ErrDeviceRevoked", err)
 	}
 }
 

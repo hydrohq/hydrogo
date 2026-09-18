@@ -9,7 +9,7 @@ import (
 
 func TestAuthServiceRejectsMissingRepositories(t *testing.T) {
 	ctx := context.Background()
-	service := NewAuthService(nil, nil, TestArgon2Params)
+	service := NewAuthService(nil, nil, nil, TestArgon2Params)
 	if _, err := service.Authenticate(ctx, "user@example.test", "password"); !errors.Is(err, ErrUserRepositoryRequired) {
 		t.Fatalf("authenticate error = %v", err)
 	}
@@ -22,7 +22,7 @@ func TestAuthServiceRejectsMissingRepositories(t *testing.T) {
 }
 
 func TestAuthServiceUsesSafeDummyHashForInvalidParameters(t *testing.T) {
-	service := NewAuthService(nil, nil, Argon2Params{})
+	service := NewAuthService(nil, nil, nil, Argon2Params{})
 	if service.dummyHash == "" {
 		t.Fatal("invalid Argon2 parameters left dummy hash empty")
 	}
@@ -33,7 +33,7 @@ func TestAuthServiceUsesSafeDummyHashForInvalidParameters(t *testing.T) {
 
 func TestEmergencyRevokeRemovesAllUserSessions(t *testing.T) {
 	sessions := &httpSessionRepo{session: &Session{ID: "s1", UserID: "u1", TokenHash: HashSessionToken("token"), ExpiresAt: time.Now().UTC().Add(time.Hour)}}
-	service := NewAuthService(nil, sessions, TestArgon2Params)
+	service := NewAuthService(nil, sessions, nil, TestArgon2Params)
 	if err := service.RevokeAllUserSessions(context.Background(), "u1"); err != nil {
 		t.Fatalf("revoke all sessions: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestEmergencyRevokeRemovesAllUserSessions(t *testing.T) {
 
 func TestCreatedSessionStoresOnlyTokenHash(t *testing.T) {
 	sessions := &httpSessionRepo{}
-	service := NewAuthService(nil, sessions, TestArgon2Params)
+	service := NewAuthService(nil, sessions, nil, TestArgon2Params)
 	rawToken, session, err := service.CreateSession(context.Background(), "u1", "browser", "127.0.0.1", time.Hour)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
@@ -54,5 +54,12 @@ func TestCreatedSessionStoresOnlyTokenHash(t *testing.T) {
 	}
 	if sessions.session.TokenHash != HashSessionToken(rawToken) {
 		t.Fatal("stored session hash does not match token digest")
+	}
+}
+
+func TestDisableUserFailsClosedWithoutMobileSessionRevoker(t *testing.T) {
+	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Active: true}}, &httpSessionRepo{}, nil, TestArgon2Params)
+	if err := service.SetUserActive(context.Background(), "u1", false); !errors.Is(err, ErrMobileSessionRevokerRequired) {
+		t.Fatalf("disable without mobile session revoker error = %v, want ErrMobileSessionRevokerRequired", err)
 	}
 }
