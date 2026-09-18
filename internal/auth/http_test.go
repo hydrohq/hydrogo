@@ -91,7 +91,7 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 	sessions := &httpSessionRepo{}
 	audit := &httpAudit{}
-	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Role: RoleAdmin, Active: true}}, sessions, TestArgon2Params)
+	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Role: RoleAdmin, Active: true}}, sessions, nil, TestArgon2Params)
 	handler := HTTPHandler{Service: service, Audit: audit, Secure: true}.login
 
 	form := url.Values{"email": {"admin@example.com"}, "password": {"secret"}}
@@ -116,7 +116,7 @@ func TestHTTPLoginRejectsOversizedForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Active: true}}, &httpSessionRepo{}, TestArgon2Params)
+	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Active: true}}, &httpSessionRepo{}, nil, TestArgon2Params)
 	handler := HTTPHandler{Service: service}.login
 
 	form := url.Values{"email": {"admin@example.com"}, "password": {strings.Repeat("x", maxAuthFormBytes)}}
@@ -131,7 +131,7 @@ func TestHTTPLoginRejectsOversizedForm(t *testing.T) {
 }
 
 func TestHTTPLoginMapsMissingUserRepositoryToUnavailable(t *testing.T) {
-	service := NewAuthService(nil, &httpSessionRepo{}, TestArgon2Params)
+	service := NewAuthService(nil, &httpSessionRepo{}, nil, TestArgon2Params)
 	handler := HTTPHandler{Service: service}.login
 	form := url.Values{"email": {"user@example.com"}, "password": {"secret"}}
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
@@ -152,7 +152,7 @@ func TestHTTPLoginRejectsTypedNilMFAExecutorAsUnavailable(t *testing.T) {
 	var db *httpExecutor
 	service := NewAuthService(httpUserRepo{user: &User{
 		ID: "u1", Email: "user@example.com", PasswordHash: hash, Active: true,
-	}}, &httpSessionRepo{}, TestArgon2Params)
+	}}, &httpSessionRepo{}, nil, TestArgon2Params)
 	handler := HTTPHandler{
 		Service: service,
 		MFA:     &MFAService{},
@@ -177,7 +177,7 @@ func TestValidateSessionRejectsAbsoluteExpiryBeforeAdapter(t *testing.T) {
 		ExpiresAt:  time.Now().UTC().Add(-time.Minute),
 		LastSeenAt: time.Now().UTC(),
 	}}
-	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Active: true}}, sessions, TestArgon2Params)
+	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Active: true}}, sessions, nil, TestArgon2Params)
 
 	if _, _, err := service.ValidateSession(context.Background(), "expired-token"); !errors.Is(err, ErrSessionExpired) {
 		t.Fatalf("ValidateSession error = %v, want %v", err, ErrSessionExpired)

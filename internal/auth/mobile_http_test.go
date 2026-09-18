@@ -16,11 +16,12 @@ func TestMobileHTTPLoginAndAuthenticatedDeviceList(t *testing.T) {
 	db, dialect := setupTestDB(t)
 	users := authstore.NewUserStore(db, dialect)
 	sessions := authstore.NewSessionStore(db, dialect)
-	authService := auth.NewAuthService(users, sessions, auth.DefaultArgon2Params)
+	mobile := auth.NewMobileAuthService(db, dialect)
+	authService := auth.NewAuthService(users, sessions, mobile, auth.DefaultArgon2Params)
 	if _, err := authService.CreateUser(context.Background(), "app@example.test", "correct horse battery staple", auth.RoleEditor); err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	handler := auth.MobileHTTPHandler{Auth: authService, Mobile: auth.NewMobileAuthService(db, dialect)}
+	handler := auth.MobileHTTPHandler{Auth: authService, Mobile: mobile}
 
 	login := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/auth/login", bytes.NewBufferString(`{"email":"app@example.test","password":"correct horse battery staple","device_id":"ios-1","device_name":"iPhone","platform":"iOS"}`))
 	login.Header.Set("Content-Type", "application/json")
@@ -47,12 +48,12 @@ func TestMobileHTTPRejectsCookieOnlyMutation(t *testing.T) {
 	db, dialect := setupTestDB(t)
 	users := authstore.NewUserStore(db, dialect)
 	sessions := authstore.NewSessionStore(db, dialect)
-	authService := auth.NewAuthService(users, sessions, auth.DefaultArgon2Params)
+	mobile := auth.NewMobileAuthService(db, dialect)
+	authService := auth.NewAuthService(users, sessions, mobile, auth.DefaultArgon2Params)
 	user, err := authService.CreateUser(context.Background(), "cookie@example.test", "correct horse battery staple", auth.RoleEditor)
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	mobile := auth.NewMobileAuthService(db, dialect)
 	pair, err := mobile.IssueTokenPair(context.Background(), user.ID, "ios-cookie", "iPhone", "iOS")
 	if err != nil {
 		t.Fatalf("issue token pair: %v", err)
@@ -67,5 +68,27 @@ func TestMobileHTTPRejectsCookieOnlyMutation(t *testing.T) {
 	}
 	if _, _, err := mobile.ValidateAccessToken(context.Background(), pair.AccessToken); err != nil {
 		t.Fatalf("cookie-only request revoked the bearer session: %v", err)
+	}
+}
+
+func TestAuthServiceDisablingUserRevokesMobileTokens(t *testing.T) {
+	db, dialect := setupTestDB(t)
+	users := authstore.NewUserStore(db, dialect)
+	sessions := authstore.NewSessionStore(db, dialect)
+	mobile := auth.NewMobileAuthService(db, dialect)
+	service := auth.NewAuthService(users, sessions, mobile, auth.DefaultArgon2Params)
+	user, err := service.CreateUser(context.Background(), "disable-mobile@example.test", "correct horse battery staple", auth.RoleEditor)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	pair, err := mobile.IssueTokenPair(context.Background(), user.ID, "disable-mobile", "iPhone", "iOS")
+	if err != nil {
+		t.Fatalf("issue token pair: %v", err)
+	}
+	if err := service.SetUserActive(context.Background(), user.ID, false); err != nil {
+		t.Fatalf("disable user: %v", err)
+	}
+	if _, _, err := mobile.ValidateAccessToken(context.Background(), pair.AccessToken); err != auth.ErrDeviceRevoked {
+		t.Fatalf("disabled user's token validation error = %v, want ErrDeviceRevoked", err)
 	}
 }

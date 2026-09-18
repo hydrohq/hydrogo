@@ -1012,7 +1012,8 @@ func serve(args []string, stderr io.Writer) error {
 
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
-	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
+	mobileAuth := auth.NewMobileAuthService(db, cfg.Database.Dialect)
+	authSvc := auth.NewAuthService(userStore, sessionStore, mobileAuth, auth.DefaultArgon2Params)
 	mfaService := &auth.MFAService{Store: userStore, MasterKey: []byte(cfg.Security.MFAMasterKey)}
 	recoveryService := &auth.PasswordRecovery{Users: userStore, Tokens: userStore, Sessions: sessionStore, ArgonParams: auth.DefaultArgon2Params}
 	invitationService := &auth.InvitationService{Users: userStore, Invites: userStore, ArgonParams: auth.DefaultArgon2Params}
@@ -1031,7 +1032,7 @@ func serve(args []string, stderr io.Writer) error {
 		return security.NewAttemptLimiter(10000, limit, window)
 	}
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: database.NewTransactor(db), LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
-	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: auth.NewMobileAuthService(db, cfg.Database.Dialect), MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect)}
+	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect}
@@ -2782,7 +2783,7 @@ func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error
 
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
-	authSvc := auth.NewAuthService(userStore, sessionStore, auth.DefaultArgon2Params)
+	authSvc := auth.NewAuthService(userStore, sessionStore, auth.NewMobileAuthService(db, cfg.Database.Dialect), auth.DefaultArgon2Params)
 
 	u, err := authSvc.CreateUser(ctx, *email, password, auth.RoleAdmin)
 	if err != nil {

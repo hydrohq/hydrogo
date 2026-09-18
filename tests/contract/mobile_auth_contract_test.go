@@ -74,6 +74,25 @@ func runMobileAuthContract(t *testing.T, db *sql.DB, dialect database.Dialect) {
 	if dialect == database.Postgres {
 		testConcurrentPostgresRefresh(t, mobile, userID)
 	}
+
+	pair, err = mobile.IssueTokenPair(ctx, userID, "disabled-user-device", "Contract phone", "iOS")
+	if err != nil {
+		t.Fatalf("issue disabled-user session: %v", err)
+	}
+	if dialect == database.Postgres {
+		_, err = db.ExecContext(ctx, `UPDATE users SET active = $1 WHERE id = $2`, false, userID)
+	} else {
+		_, err = db.ExecContext(ctx, `UPDATE users SET active = ? WHERE id = ?`, 0, userID)
+	}
+	if err != nil {
+		t.Fatalf("disable mobile user: %v", err)
+	}
+	if _, err := mobile.RefreshTokenPair(ctx, pair.RefreshToken); !errors.Is(err, auth.ErrUserInactive) {
+		t.Fatalf("disabled user's refresh error = %v, want ErrUserInactive", err)
+	}
+	if _, _, err := mobile.ValidateAccessToken(ctx, pair.AccessToken); !errors.Is(err, auth.ErrDeviceRevoked) {
+		t.Fatalf("disabled user's access token error = %v, want ErrDeviceRevoked", err)
+	}
 }
 
 func insertMobileContractUser(t *testing.T, db *sql.DB, dialect database.Dialect) string {

@@ -48,7 +48,7 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 
 	userStore := authstore.NewUserStore(db, dialect)
 	sessionStore := authstore.NewSessionStore(db, dialect)
-	authSvc := auth.NewAuthService(userStore, sessionStore, auth.TestArgon2Params)
+	authSvc := auth.NewAuthService(userStore, sessionStore, auth.NewMobileAuthService(db, dialect), auth.TestArgon2Params)
 
 	// 1. Create User
 	u, err := authSvc.CreateUser(ctx, "Admin@HydroGo.io", "StrongSecretPassword123!", auth.RoleAdmin)

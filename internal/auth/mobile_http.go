@@ -133,7 +133,7 @@ func (h MobileHTTPHandler) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 	pair, err := h.Mobile.RefreshTokenPair(r.Context(), input.RefreshToken)
 	if err != nil {
-		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrTokenReused) || errors.Is(err, ErrDeviceRevoked) {
+		if errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrTokenReused) || errors.Is(err, ErrDeviceRevoked) || errors.Is(err, ErrUserInactive) {
 			writeMobileError(w, http.StatusUnauthorized, "INVALID_REFRESH_TOKEN", "Invalid or expired refresh token.")
 			return
 		}

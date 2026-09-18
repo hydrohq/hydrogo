@@ -176,6 +176,23 @@ func parseMobileTime(v any) time.Time {
 	}
 }
 
+func parseMobileBool(v any) bool {
+	switch value := v.(type) {
+	case bool:
+		return value
+	case int64:
+		return value != 0
+	case int:
+		return value != 0
+	case string:
+		return value == "1" || strings.EqualFold(value, "true")
+	case []byte:
+		return parseMobileBool(string(value))
+	default:
+		return false
+	}
+}
+
 // RefreshTokenPair implements single-use Refresh Token Rotation with Token Family reuse detection.
 func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToken string) (*TokenPair, error) {
 	refreshHash := hashToken(rawRefreshToken)
@@ -194,19 +211,20 @@ func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToke
 		familyID            string
 		revokedAtVal        any
 		refreshExpiresAtVal any
+		userActiveVal       any
 	)
 
 	var query string
 	if s.dialect == database.Postgres {
-		query = `SELECT id, user_id, device_id, device_name, platform, family_id, revoked_at, refresh_expires_at
-			FROM mobile_device_sessions WHERE refresh_token_hash = $1 FOR UPDATE`
+		query = `SELECT m.id, m.user_id, m.device_id, m.device_name, m.platform, m.family_id, m.revoked_at, m.refresh_expires_at, u.active
+			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.refresh_token_hash = $1 FOR UPDATE`
 	} else {
-		query = `SELECT id, user_id, device_id, device_name, platform, family_id, revoked_at, refresh_expires_at
-			FROM mobile_device_sessions WHERE refresh_token_hash = ?`
+		query = `SELECT m.id, m.user_id, m.device_id, m.device_name, m.platform, m.family_id, m.revoked_at, m.refresh_expires_at, u.active
+			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.refresh_token_hash = ?`
 	}
 
 	row := tx.QueryRowContext(ctx, query, refreshHash)
-	if err := row.Scan(&sessionID, &userID, &deviceID, &deviceName, &platform, &familyID, &revokedAtVal, &refreshExpiresAtVal); err != nil {
+	if err := row.Scan(&sessionID, &userID, &deviceID, &deviceName, &platform, &familyID, &revokedAtVal, &refreshExpiresAtVal, &userActiveVal); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrInvalidToken
 		}
@@ -232,6 +250,15 @@ func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToke
 
 	if !now.Before(refreshExpiresAt) {
 		return nil, ErrInvalidToken
+	}
+	if !parseMobileBool(userActiveVal) {
+		if err := revokeMobileFamily(ctx, tx, s.dialect, familyID, now); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return nil, ErrUserInactive
 	}
 
 	// Invalidate the current session token (single-use rotation)
