@@ -3659,7 +3659,12 @@ body.theme-corporate-body {
 }
 
 .theme-corporate-hero:has(.showcase-window-theme) .hero-stats-row,
-.theme-corporate-hero:has(.about-window-theme) .hero-stats-row { max-width: 720px; }
+.theme-corporate-hero:has(.about-window-theme) .hero-stats-row,
+.theme-corporate-hero:has(.showcase-window-theme) .hero-cli-install,
+.theme-corporate-hero:has(.about-window-theme) .hero-cli-install { display: none; }
+
+.theme-corporate-hero:has(.showcase-window-theme) { border-left: 3px solid #829ca1; }
+.theme-corporate-hero:has(.about-window-theme) { border-left: 3px solid #8e9b85; }
 
 /* News and shop share a component contract but deliberately have different
    tones: newsroom is editorial, commerce is direct and transactional. */
@@ -3697,6 +3702,104 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
 .btn-primary:hover, .btn-secondary:hover, .news-nav a:hover, .news-nav a:focus-visible { transform: none; }
 .featured-card:hover, .product-card:hover { transform: none; box-shadow: 0 18px 44px rgba(0,0,0,.34); }
 .news-tag-badge, .featured-kicker, .product-category { color: var(--accent-hover); }
+
+/* Shared component pass: consistent rhythm, quieter surfaces, and deliberate
+   states across content, commerce, account, and editor-facing components. */
+.section-head-wrap { margin-bottom: 30px; }
+.section-title { margin: 0 0 9px; font-weight: 600; }
+.section-desc { max-width: 58ch; margin: 0; color: var(--smoke); line-height: 1.65; }
+
+.news-cards-grid, .pricing-card-grid, .testimonials-grid { gap: 18px; }
+.news-card, .featured-card, .pricing-card, .testimonial-card, .member-card,
+.member-kpi-card, .product-gallery-card, .product-price-panel, .product-tabs-card,
+.product-support-box, .cart-item-card, .cart-summary-card, .checkout-card {
+  background: #121616;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.news-card:hover, .featured-card:hover, .pricing-card:hover, .testimonial-card:hover,
+.member-card:hover, .member-kpi-card:hover, .product-gallery-card:hover,
+.product-price-panel:hover, .product-tabs-card:hover {
+  border-color: rgba(185,120,82,.58);
+  background: #151a19;
+}
+.news-card, .pricing-card, .testimonial-card, .member-card { transition: background-color .18s ease, border-color .18s ease; }
+.card-kicker, .news-article-kicker, .featured-kicker, .product-kicker-bar { color: var(--accent-hover); letter-spacing: .1em; }
+.card-title, .news-article-title, .featured-card-body h2, .product-section-heading { letter-spacing: -.025em; }
+.card-lead, .featured-lead, .member-card-desc { color: var(--smoke); line-height: 1.65; }
+.card-link, .read-more-btn, .featured-card-body h2 a { color: var(--snow-pure); }
+.card-link:hover, .read-more-btn:hover, .featured-card-body h2 a:hover { color: var(--accent-hover); }
+
+.product-card { border-radius: 8px; border-color: var(--edge); background: #121616; box-shadow: none; }
+.product-card:hover { border-color: rgba(185,120,82,.58); background: #151a19; }
+.product-card-body { padding: 20px; }
+.product-price, .product-price-value { color: var(--snow-pure); }
+.product-stock-badge, .product-rating-badge, .product-vat-tag { border-radius: 4px; }
+
+.news-meta-bar, .product-kicker-bar, .news-tags-wrapper { color: var(--iron); }
+.news-tag-pill, .meta-pill-category, .meta-pill-text, .f-badge, .member-badge {
+  border-radius: 4px;
+  background: rgba(236,238,234,.055);
+  border-color: var(--edge);
+}
+.news-cover-image { filter: saturate(.78); }
+.news-article-card, .news-empty-state { border-radius: 8px; border-color: var(--edge); background: #121616; }
+.news-article-card:hover { border-color: rgba(185,120,82,.58); }
+
+.pricing-card { padding: 30px 24px; }
+.pricing-card:nth-child(2) { border-color: rgba(185,120,82,.6); box-shadow: inset 0 2px 0 var(--accent); }
+.pricing-feature-item { color: var(--smoke); }
+.feature-check-icon, .perk-check { color: var(--accent-hover); }
+
+.testimonial-quote { color: var(--snow); line-height: 1.72; }
+.testimonial-stars { color: var(--accent-hover); letter-spacing: .12em; }
+.author-role { color: var(--iron); }
+.author-avatar-badge { background: #202625; color: var(--accent-hover); }
+
+.member-portal, .cart-page { max-width: 1224px; }
+.member-hero { border-radius: 8px; border-color: var(--edge-strong); background: #111515; box-shadow: none; }
+.member-kpi-card { padding: 22px; }
+.member-kpi-value { color: var(--snow-pure) !important; }
+.member-kpi-label { color: var(--accent-hover); letter-spacing: .1em; }
+.member-action-item { border-color: var(--edge); color: var(--snow); }
+.member-action-item:hover { border-color: var(--accent); background: rgba(185,120,82,.08); }
+.member-sessions-table th { color: var(--accent-hover); }
+
+.product-detail-layout { gap: 30px; }
+.product-price-panel, .product-tabs-card, .product-support-box { padding: 26px; }
+.product-trust-item { border-color: var(--edge); background: rgba(236,238,234,.025); }
+.product-trust-item:hover { border-color: var(--accent); background: rgba(185,120,82,.08); }
+.product-specs-table th { color: var(--accent-hover); }
+
+.auth-submit-btn { background: var(--snow-pure); color: #101211 !important; box-shadow: none; border-radius: 4px; }
+.auth-submit-btn:hover { background: var(--accent-hover); }
+.member-auth-card { background: #111515; border-color: var(--edge-strong); border-radius: 8px; box-shadow: 0 24px 60px rgba(0,0,0,.36); }
+.field-input-wrap input, .cart-provider-select, .cart-textarea, .quick-search-input {
+  border-color: var(--edge);
+  background: #0e1212;
+}
+.field-input-wrap input:focus, .cart-provider-select:focus, .cart-textarea:focus, .quick-search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,120,82,.16); }
+
+.hydro-quick-search-modal { background: rgba(4,6,6,.84); }
+.quick-search-dialog { border-radius: 8px; border-color: var(--edge-strong); box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+.quick-search-item:hover, .quick-search-item:focus { background: rgba(185,120,82,.1); color: var(--snow-pure); }
+.quick-search-icon { color: var(--accent-hover); }
+.back-to-top-btn { border-radius: 4px; border-color: var(--edge-strong); background: #151a19; }
+.back-to-top-btn:hover { color: var(--accent-hover); border-color: var(--accent); background: #1b211f; }
+
+.news-footer { padding-top: 58px; }
+.footer-nav-col a:hover, .footer-sub-links a:hover { color: var(--accent-hover); }
+.footer-bottom-bar { color: var(--iron); }
+
+@media (max-width: 640px) {
+  .news-portal { padding: 10px 20px 44px; }
+  .news-hero-banner { padding: 30px 22px; }
+  .news-hero-actions { flex-direction: column; align-items: stretch; }
+  .news-hero-actions a { width: 100%; }
+  .section-head-wrap { margin-bottom: 22px; }
+  .pricing-card, .member-card, .product-price-panel, .product-tabs-card { padding: 22px 18px; }
+}
 
 /* Narrow viewport hardening: grid/flex children must be allowed to shrink,
    while navigation and breadcrumbs wrap instead of creating page overflow. */
