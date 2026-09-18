@@ -44,12 +44,28 @@ func TestMobileHTTPLoginAndAuthenticatedDeviceList(t *testing.T) {
 }
 
 func TestMobileHTTPRejectsCookieOnlyMutation(t *testing.T) {
-	handler := auth.MobileHTTPHandler{}
+	db, dialect := setupTestDB(t)
+	users := authstore.NewUserStore(db, dialect)
+	sessions := authstore.NewSessionStore(db, dialect)
+	authService := auth.NewAuthService(users, sessions, auth.DefaultArgon2Params)
+	user, err := authService.CreateUser(context.Background(), "cookie@example.test", "correct horse battery staple", auth.RoleEditor)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	mobile := auth.NewMobileAuthService(db, dialect)
+	pair, err := mobile.IssueTokenPair(context.Background(), user.ID, "ios-cookie", "iPhone", "iOS")
+	if err != nil {
+		t.Fatalf("issue token pair: %v", err)
+	}
+	handler := auth.MobileHTTPHandler{Auth: authService, Mobile: mobile}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/auth/revoke-all", nil)
 	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "browser-session"})
 	result := httptest.NewRecorder()
 	handler.RouterRoutes()[4].Handler.ServeHTTP(result, req)
-	if result.Code != http.StatusServiceUnavailable {
-		t.Fatalf("cookie-only mobile request status = %d, want %d", result.Code, http.StatusServiceUnavailable)
+	if result.Code != http.StatusUnauthorized {
+		t.Fatalf("cookie-only mobile request status = %d, want %d", result.Code, http.StatusUnauthorized)
+	}
+	if _, _, err := mobile.ValidateAccessToken(context.Background(), pair.AccessToken); err != nil {
+		t.Fatalf("cookie-only request revoked the bearer session: %v", err)
 	}
 }
