@@ -13,6 +13,7 @@ config.env.*
 /backups/
 /uploads/
 /logs/
+/deploy/secrets/
 *.db
 *.db-shm
 *.db-wal

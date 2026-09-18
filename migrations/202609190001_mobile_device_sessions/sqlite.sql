@@ -8,7 +8,8 @@ CREATE TABLE mobile_device_sessions (
     refresh_token_hash TEXT NOT NULL UNIQUE,
     access_token_hash TEXT NOT NULL,
     revoked_at TEXT,
-    expires_at TEXT NOT NULL,
+    access_expires_at TEXT NOT NULL,
+    refresh_expires_at TEXT NOT NULL,
     created_at TEXT NOT NULL,
     last_used_at TEXT NOT NULL
 );

@@ -1,5 +1,5 @@
 # Multi-stage reproducible Docker build for HydroGo
-FROM golang:1.24-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates tzdata
@@ -24,11 +24,13 @@ RUN apk add --no-cache ca-certificates tzdata curl && \
     chown -R hydrogo:hydrogo /var/lib/hydrogo /srv/static
 
 COPY --from=builder /bin/hydro /usr/local/bin/hydro
+COPY deploy/entrypoint.sh /usr/local/bin/hydro-entrypoint
+RUN chmod 0555 /usr/local/bin/hydro-entrypoint
 
 USER 10001:10001
 WORKDIR /var/lib/hydrogo
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/local/bin/hydro"]
+ENTRYPOINT ["/usr/local/bin/hydro-entrypoint"]
 CMD ["serve"]

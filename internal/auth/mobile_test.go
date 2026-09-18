@@ -2,7 +2,9 @@ package auth_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -123,4 +125,27 @@ func TestMobileAuthService_DeviceRevocation(t *testing.T) {
 	if err != auth.ErrDeviceRevoked {
 		t.Fatalf("expected ErrDeviceRevoked after all-devices revocation, got: %v", err)
 	}
+}
+
+func TestMobileAuthService_RejectsExpiredAccessToken(t *testing.T) {
+	db, dialect := setupTestDB(t)
+	svc := auth.NewMobileAuthService(db, dialect)
+	ctx := context.Background()
+
+	tokens, err := svc.IssueTokenPair(ctx, "usr-123", "device-expiring", "Test device", "iOS")
+	if err != nil {
+		t.Fatalf("issue token pair: %v", err)
+	}
+	_, err = db.ExecContext(ctx, `UPDATE mobile_device_sessions SET access_expires_at = ? WHERE access_token_hash = ?`, time.Now().UTC().Add(-time.Minute).Format(time.RFC3339), tokenHashForTest(tokens.AccessToken))
+	if err != nil {
+		t.Fatalf("expire access token: %v", err)
+	}
+	if _, _, err := svc.ValidateAccessToken(ctx, tokens.AccessToken); err != auth.ErrInvalidToken {
+		t.Fatalf("ValidateAccessToken error = %v, want ErrInvalidToken", err)
+	}
+}
+
+func tokenHashForTest(raw string) string {
+	// The service deliberately stores only SHA-256 token digests.
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(raw)))
 }
