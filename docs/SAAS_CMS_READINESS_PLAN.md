@@ -51,6 +51,9 @@ and a clean issue list categorized as code, environment, legal, or product decis
   The current mobile API authenticates core `auth.User` actors only; it must not
   be presented as member login until a separately approved member-native
   contract exists.
+- [x] Decide the customer mobile audience: the client application uses the
+  separate `members.Member` identity and member-only mobile credentials
+  (ADR-0150); staff mobile remains a distinct surface.
 - [ ] Add PostgreSQL mobile-token contract tests, concurrent-refresh tests, device
   revoke/disable-user tests, rate-limit tests and audit-event assertions. SQLite
   and PostgreSQL lifecycle coverage plus PostgreSQL concurrent-refresh coverage
