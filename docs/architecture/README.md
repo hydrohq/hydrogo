@@ -157,7 +157,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0087](0087-blank-target-link-hardening.md) | Harden admin blank-target links | Accepted |
 | [0088](0088-inactive-module-route-isolation.md) | Isolate routes for inactive modules | Accepted |
 | [0089](0089-route-conflict-validation.md) | Validate route conflicts before startup | Accepted |
-| [0090](0090-configured-public-home-locale.md) | Derive public home locale from runtime configuration | Accepted |
+| [0090](0090-configured-public-home-locale.md) | Derive public home locale from runtime configuration | Superseded |
 | [0091](0091-sdk-runtime-artifact-distribution.md) | Public SDK and private runtime artifact distribution | Proposed |
 | [0092](0092-signed-schema-compatibility-preflight.md) | Signed schema compatibility preflight | Proposed |
 | [0093](0093-permission-contract-preflight.md) | Permission contract preflight | Proposed |
@@ -197,6 +197,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
+| [0146](0146-backend-first-runtime-root.md) | Backend-first runtime root with optional demo frontend | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

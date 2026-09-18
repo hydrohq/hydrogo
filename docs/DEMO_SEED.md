@@ -4,6 +4,11 @@
 içindir. Açık onay olmadan komut fail-closed olur; üretim verisi, gerçek müşteri
 hesabı veya canlı ödeme bilgisi olarak kullanılmamalıdır.
 
+Demo seed varsayılan runtime yüzeyi değildir. HydroGo'nun `/` adresi backend
+runtime durumunu gösterir; demo frontend'i seed işleminden sonra
+`/public/pages/{locale}/demo/html` adresinden açılır. Üretim kurulumlarında demo
+seed çalıştırılmamalı ve ürün frontend'i `site.home_path` ile açıkça bağlanmalıdır.
+
 Seed şu akışları görünür ve test edilebilir hale getirir:
 
 - Sayfalar, haberler, kapak medya varlıkları ve Commerce ürün/varyant/stok kayıtları.

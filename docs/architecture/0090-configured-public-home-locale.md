@@ -2,15 +2,19 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0146](0146-backend-first-runtime-root.md)
 
 ## Context
 
-The public root route redirects to the seeded home page. Hard-coding `tr` made
+The public root route previously redirected to the seeded home page. Hard-coding `tr` made
 the root route incorrect for installations whose configured default locale is
 different.
 
 ## Decision
+
+This decision remains valid for an explicitly configured `site.home_path`, but
+its seeded-demo fallback is superseded. The default root no longer redirects to
+demo content; see ADR-0146.
 
 The composition root derives the locale segment from `I18N.DefaultLocale`,
 falls back to `en` when it is empty, and escapes the segment before constructing
