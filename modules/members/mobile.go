@@ -70,6 +70,100 @@ func (s MobileAuthService) ValidateAccess(ctx context.Context, raw string) (stri
 	return "", "", ErrMobileTokenInvalid
 }
 
+// Refresh rotates a single-use member refresh token. A reused token revokes its
+// whole family so a stolen older token cannot keep a member signed in.
+func (s MobileAuthService) Refresh(ctx context.Context, raw string) (*auth.TokenPair, error) {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	q := `SELECT s.id,s.member_id,s.device_id,s.device_name,s.platform,s.family_id,s.revoked_at,s.refresh_expires_at,m.active FROM member_mobile_device_sessions s JOIN members m ON m.id=s.member_id WHERE s.refresh_token_hash=?`
+	if s.Dialect == database.Postgres {
+		q += ` FOR UPDATE`
+		q = strings.Replace(q, "?", "$1", 1)
+	}
+	var id, memberID, deviceID, deviceName, platform, family string
+	var revoked, expires, active any
+	if err := tx.QueryRowContext(ctx, q, auth.HashSessionToken(raw)).Scan(&id, &memberID, &deviceID, &deviceName, &platform, &family, &revoked, &expires, &active); err != nil {
+		return nil, ErrMobileTokenInvalid
+	}
+	now := time.Now().UTC()
+	if !mobileTime(revoked).IsZero() || !now.Before(mobileTime(expires)) || !mobileActive(active) {
+		_, _ = tx.ExecContext(ctx, s.revokeFamilyQuery(), s.revokeFamilyArgs(now, family)...)
+		_ = tx.Commit()
+		return nil, ErrMobileTokenInvalid
+	}
+	update := `UPDATE member_mobile_device_sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL`
+	args := []any{now.Format(time.RFC3339Nano), id}
+	if s.Dialect == database.Postgres {
+		update = `UPDATE member_mobile_device_sessions SET revoked_at=$1 WHERE id=$2 AND revoked_at IS NULL`
+		args = []any{now, id}
+	}
+	result, err := tx.ExecContext(ctx, update, args...)
+	if err != nil {
+		return nil, err
+	}
+	n, _ := result.RowsAffected()
+	if n != 1 {
+		return nil, ErrMobileTokenInvalid
+	}
+	access, accessHash, err := auth.GenerateSessionToken()
+	if err != nil {
+		return nil, err
+	}
+	refresh, refreshHash, err := auth.GenerateSessionToken()
+	if err != nil {
+		return nil, err
+	}
+	newID, _, err := auth.GenerateSessionToken()
+	if err != nil {
+		return nil, err
+	}
+	accessUntil := now.Add(auth.AccessTokenTTL)
+	refreshUntil := now.Add(auth.RefreshTokenTTL)
+	insert := `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+	values := []any{newID, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil.Format(time.RFC3339Nano), refreshUntil.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)}
+	if s.Dialect == database.Postgres {
+		insert = `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+		values = []any{newID, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil, refreshUntil, now, now}
+	}
+	if _, err = tx.ExecContext(ctx, insert, values...); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &auth.TokenPair{AccessToken: access, RefreshToken: refresh, TokenType: "Bearer", ExpiresInSeconds: int64(auth.AccessTokenTTL.Seconds()), ExpiresAt: accessUntil}, nil
+}
+func (s MobileAuthService) revokeFamilyQuery() string {
+	if s.Dialect == database.Postgres {
+		return `UPDATE member_mobile_device_sessions SET revoked_at=$1 WHERE family_id=$2 AND revoked_at IS NULL`
+	}
+	return `UPDATE member_mobile_device_sessions SET revoked_at=? WHERE family_id=? AND revoked_at IS NULL`
+}
+func (s MobileAuthService) revokeFamilyArgs(now time.Time, family string) []any {
+	if s.Dialect == database.Postgres {
+		return []any{now, family}
+	}
+	return []any{now.Format(time.RFC3339Nano), family}
+}
+func mobileActive(v any) bool {
+	switch x := v.(type) {
+	case bool:
+		return x
+	case int64:
+		return x != 0
+	case int:
+		return x != 0
+	case []byte:
+		return mobileActive(string(x))
+	case string:
+		return x == "1" || strings.EqualFold(x, "true")
+	}
+	return false
+}
+
 func (s MobileAuthService) RevokeAll(ctx context.Context, memberID string) error {
 	return s.revoke(ctx, "member_id", memberID)
 }
