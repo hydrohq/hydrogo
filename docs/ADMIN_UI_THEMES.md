@@ -13,7 +13,9 @@ content, commerce, and operations work.
   stronger data hierarchy, quieter surfaces, and accessible focus states.
 
 The theme button cycles through light and dark variants of each mode and stores
-the choice in `localStorage` under `hydro-ui-theme`. The mode changes tokens and
+the choice in `localStorage` under the versioned `hydro-ui-theme-v2` key. Existing
+profiles that have an older HydroGo preference are migrated to Workbench once;
+after that, an explicit user choice is preserved. The mode changes tokens and
 shared semantic selectors only; it does not change routes, permissions, or
 module behavior.
 
