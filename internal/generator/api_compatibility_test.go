@@ -3,6 +3,7 @@ package generator
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -55,5 +56,14 @@ func TestCheckAPICompatibilityRejectsRemovedOperation(t *testing.T) {
 	current := `{"openapi":"3.1.0","paths":{"/api/v1/pages":{}}}`
 	if _, err := CheckAPICompatibility(writeOpenAPI(t, root, base), writeOpenAPI(t, filepath.Join(root, "current"), current)); err == nil {
 		t.Fatal("expected removed operation error")
+	}
+}
+
+func TestCheckAPICompatibilityResolvesLocalResponseSchemaReferences(t *testing.T) {
+	root := t.TempDir()
+	baseline := writeOpenAPI(t, filepath.Join(root, "baseline"), `{"openapi":"3.1.0","paths":{"/api/v1/devices":{"get":{"responses":{"200":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DeviceList"}}}}}}}},"components":{"schemas":{"DeviceList":{"type":"object","properties":{"devices":{"type":"array"}}}}}}`)
+	current := writeOpenAPI(t, filepath.Join(root, "current"), `{"openapi":"3.1.0","paths":{"/api/v1/devices":{"get":{"responses":{"200":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DeviceList"}}}}}}}},"components":{"schemas":{"DeviceList":{"type":"object","properties":{}}}}}`)
+	if _, err := CheckAPICompatibility(baseline, current); err == nil || !strings.Contains(err.Error(), "devices") {
+		t.Fatalf("CheckAPICompatibility error = %v, want removed referenced response property", err)
 	}
 }

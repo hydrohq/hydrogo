@@ -1,0 +1,17 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "HydroGo Staff Mobile API", "version": "1.0.0" },
+  "paths": {
+    "/api/v1/mobile/auth/login": { "post": { "requestBody": {}, "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenPair" } } } }, "400": {}, "401": {}, "429": {}, "503": {} } } },
+    "/api/v1/mobile/auth/refresh": { "post": { "requestBody": {}, "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenPair" } } } }, "400": {}, "401": {}, "503": {} } } },
+    "/api/v1/mobile/auth/devices": { "get": { "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceList" } } } }, "401": {}, "503": {} } } },
+    "/api/v1/mobile/auth/revoke": { "post": { "requestBody": {}, "responses": { "204": {}, "400": {}, "401": {}, "503": {} } } },
+    "/api/v1/mobile/auth/revoke-all": { "post": { "responses": { "204": {}, "401": {}, "503": {} } } }
+  },
+  "components": {
+    "schemas": {
+      "TokenPair": { "type": "object", "properties": { "access_token": {}, "refresh_token": {}, "token_type": {}, "expires_in": {}, "expires_at": {} } },
+      "DeviceList": { "type": "object", "properties": { "devices": {} } }
+    }
+  }
+}

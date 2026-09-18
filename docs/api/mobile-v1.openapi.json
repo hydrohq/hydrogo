@@ -1,0 +1,91 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HydroGo Staff Mobile API",
+    "version": "1.0.0",
+    "description": "Bearer-token authentication surface for HydroGo staff accounts. This is not a public member API."
+  },
+  "servers": [{ "url": "/" }],
+  "paths": {
+    "/api/v1/mobile/auth/login": {
+      "post": {
+        "operationId": "staffMobileLogin",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": {
+          "200": { "description": "New bearer token pair.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenPair" } } } },
+          "400": { "$ref": "#/components/responses/InvalidRequest" },
+          "401": { "$ref": "#/components/responses/InvalidCredentials" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/refresh": {
+      "post": {
+        "operationId": "staffMobileRefresh",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } } } },
+        "responses": {
+          "200": { "description": "Rotated bearer token pair.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenPair" } } } },
+          "400": { "$ref": "#/components/responses/InvalidRequest" },
+          "401": { "$ref": "#/components/responses/InvalidRefreshToken" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/devices": {
+      "get": {
+        "operationId": "listStaffMobileDevices",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Active device sessions for the authenticated staff user.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceList" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/revoke": {
+      "post": {
+        "operationId": "revokeStaffMobileDevice",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RevokeDeviceRequest" } } } },
+        "responses": {
+          "204": { "description": "All active sessions for the selected device were revoked." },
+          "400": { "$ref": "#/components/responses/InvalidRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/revoke-all": {
+      "post": {
+        "operationId": "revokeAllStaffMobileDevices",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "All active mobile sessions for the authenticated staff user were revoked." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } },
+    "responses": {
+      "InvalidRequest": { "description": "Invalid request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "InvalidCredentials": { "description": "Invalid credentials.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "InvalidRefreshToken": { "description": "Invalid or expired refresh token.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "RateLimited": { "description": "Too many authentication attempts.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "Unauthorized": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "Unavailable": { "description": "Authentication is temporarily unavailable.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } }
+    },
+    "schemas": {
+      "LoginRequest": { "type": "object", "additionalProperties": false, "required": ["email", "password", "device_id", "platform"], "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "format": "password" }, "mfa_code": { "type": "string" }, "device_id": { "type": "string", "maxLength": 256 }, "device_name": { "type": "string", "maxLength": 256 }, "platform": { "type": "string", "maxLength": 64 } } },
+      "RefreshRequest": { "type": "object", "additionalProperties": false, "required": ["refresh_token"], "properties": { "refresh_token": { "type": "string" } } },
+      "RevokeDeviceRequest": { "type": "object", "additionalProperties": false, "required": ["device_id"], "properties": { "device_id": { "type": "string", "maxLength": 256 } } },
+      "TokenPair": { "type": "object", "required": ["access_token", "refresh_token", "token_type", "expires_in", "expires_at"], "properties": { "access_token": { "type": "string" }, "refresh_token": { "type": "string" }, "token_type": { "type": "string", "enum": ["Bearer"] }, "expires_in": { "type": "integer", "minimum": 1 }, "expires_at": { "type": "string", "format": "date-time" } } },
+      "Device": { "type": "object", "required": ["device_id", "device_name", "platform", "created_at", "last_used_at", "is_current"], "properties": { "device_id": { "type": "string" }, "device_name": { "type": "string" }, "platform": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" }, "last_used_at": { "type": "string", "format": "date-time" }, "is_current": { "type": "boolean" } } },
+      "DeviceList": { "type": "object", "required": ["devices"], "properties": { "devices": { "type": "array", "items": { "$ref": "#/components/schemas/Device" } } } },
+      "ErrorEnvelope": { "type": "object", "required": ["error"], "properties": { "error": { "type": "object", "required": ["code", "message", "request_id"], "properties": { "code": { "type": "string" }, "message": { "type": "string" }, "request_id": { "type": "string" } } } } }
+    }
+  }
+}
