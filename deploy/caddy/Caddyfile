@@ -1,0 +1,60 @@
+{
+    admin off
+    auto_https off
+    servers {
+        trusted_proxies static private_ranges
+    }
+}
+
+:80 {
+    # Redirection to HTTPS in edge production
+    @http {
+        header_regexp Host ^(?P<host>.+)$
+    }
+    redir @http https://{re.host}{uri} permanent
+}
+
+:443 {
+    tls internal # In true production replace with production cert or Let's Encrypt automated ACME
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+        -Server
+    }
+
+    # Compression
+    encode zstd gzip
+
+    # Static assets cache retention
+    @static {
+        path /assets/* /favicon.ico /robots.txt
+    }
+    handle @static {
+        root * /srv/static
+        file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    # Health probes (bypasses auth/logging overhead)
+    handle /healthz {
+        reverse_proxy hydrogo:8080
+    }
+    handle /readyz {
+        reverse_proxy hydrogo:8080
+    }
+
+    # Main Application and API reverse proxy
+    handle {
+        reverse_proxy hydrogo:8080 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto https
+        }
+    }
+}

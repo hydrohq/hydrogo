@@ -105,24 +105,24 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 	if rebuild {
 		if _, err := os.Stat(s.binary); err == nil {
 			if err := copyFile(s.binary, previousBinary); err != nil {
-				s.state.set("error", 100, "Çalışan sürüm yedeklenemedi; mevcut sürüm korunuyor.", err.Error())
+				s.state.set("error", 100, "Could not back up running binary; preserving active version.", err.Error())
 				return
 			}
 		}
-		s.state.set("building", 20, "Değişiklik algılandı: derleniyor…", "")
+		s.state.set("building", 20, "Compiling changes…", "")
 		command := exec.CommandContext(ctx, "go", "build", "-trimpath", "-buildvcs=false", "-o", s.binary, "./cmd/hydro")
 		command.Dir = s.root
 		var output bytes.Buffer
 		command.Stdout, command.Stderr = &output, &output
 		if err := command.Run(); err != nil {
-			s.state.set("error", 100, "Derleme başarısız; çalışan sürüm korunuyor.", shorten(output.String(), 12000))
+			s.state.set("error", 100, "Build failed; preserving active version.", shorten(output.String(), 12000))
 			return
 		}
 	}
 
 	// Keep the local database schema aligned with the binary before restarting.
 	// A failed migration must not take down the currently running child.
-	s.state.set("migrating", 48, "Veritabanı migration'ları uygulanıyor…", "")
+	s.state.set("migrating", 48, "Running database migrations…", "")
 	migration := exec.CommandContext(ctx, s.binary, "migrate", "--database-dsn", s.databaseDSN)
 	migration.Dir = s.root
 	var migrationOutput bytes.Buffer
@@ -141,15 +141,15 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 				_ = copyFile(previousBinary, s.binary)
 				_ = s.startChild(s.binary)
 			}
-			s.state.set("error", 100, "Migration başarısız; çalışan sürüm korunuyor.", shorten(migrationOutput.String(), 12000))
+			s.state.set("error", 100, "Migration failed; preserving active version.", shorten(migrationOutput.String(), 12000))
 			return
 		}
 	}
 
-	s.state.set("restarting", 75, "Uygulama yeniden başlatılıyor…", "")
+	s.state.set("restarting", 75, "Restarting application server…", "")
 	s.stopChild()
 	if err := s.startChild(s.binary); err != nil {
-		s.state.set("error", 100, "Uygulama başlatılamadı.", err.Error())
+		s.state.set("error", 100, "Application failed to start.", err.Error())
 		return
 	}
 
@@ -160,21 +160,21 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 	if !ready {
 		// Restore the last known-good binary when the newly built binary cannot
 		// serve. This keeps the dev environment usable while exposing the real
-		// failure in the overlay instead of falsely reporting "Hazır".
+		// failure in the overlay instead of falsely reporting "Ready".
 		s.stopChild()
 		if _, restoreErr := os.Stat(previousBinary); restoreErr == nil {
 			if copyErr := copyFile(previousBinary, s.binary); copyErr == nil {
 				if startErr := s.startChild(s.binary); startErr == nil && s.waitForReady(4*time.Second) {
-					s.state.set("ready", 100, "Önceki çalışan sürüm geri yüklendi · "+reason, "Yeni sürüm başlatılamadı; önceki sürüm çalışıyor.")
+					s.state.set("ready", 100, "Previous binary restored · "+reason, "New build failed to start; running previous build.")
 					return
 				}
 			}
 		}
-		s.state.set("error", 100, "Uygulama hazır değil; çalışan sürüm korunuyor.", "Yeni binary /healthz veya / yanıtı vermedi.")
+		s.state.set("error", 100, "App not ready; active version preserved.", "New binary did not respond to /healthz or /.")
 		return
 	}
 
-	s.state.set("ready", 100, "Hazır · "+reason, "")
+	s.state.set("ready", 100, "Ready · "+reason, "")
 }
 
 func (s *supervisor) waitForReady(timeout time.Duration) bool {
@@ -277,19 +277,19 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	status := &state{Phase: "starting", Progress: 5, Message: "Geliştirme sunucusu hazırlanıyor…"}
+	status := &state{Phase: "starting", Progress: 5, Message: "Preparing development server…"}
 	supervisor := &supervisor{root: root, binary: binary, appAddress: *appAddress, databaseDSN: *databaseDSN, redisURL: *redisURL, state: status}
-	supervisor.rebuild(ctx, "ilk build tamamlandı", true)
+	supervisor.rebuild(ctx, "initial build complete", true)
 	if *seedDemo {
-		status.set("seeding", 88, "Demo verileri hazırlanıyor…", "")
+		status.set("seeding", 88, "Preparing demo data…", "")
 		seed := exec.CommandContext(ctx, binary, "seed-demo", "--confirm-demo", "--database-dsn", *databaseDSN)
 		seed.Dir = root
 		var seedOutput bytes.Buffer
 		seed.Stdout, seed.Stderr = &seedOutput, &seedOutput
 		if err := seed.Run(); err != nil {
-			status.set("error", 100, "Demo verileri hazırlanamadı; servis yine de çalışıyor.", shorten(seedOutput.String(), 12000))
+			status.set("error", 100, "Demo data setup failed; service is running.", shorten(seedOutput.String(), 12000))
 		} else {
-			status.set("ready", 100, "Hazır · demo verileri yüklendi", "")
+			status.set("ready", 100, "Ready · demo data loaded", "")
 		}
 	}
 	defer supervisor.stop()
@@ -302,7 +302,7 @@ func main() {
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, proxyErr error) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		_, _ = io.WriteString(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo · Yeniden Başlatılıyor</title><link rel="stylesheet" href="`+stylePath+`"><script src="`+clientPath+`"></script></head><body class="hydrogo-dev-body"><main class="hydrogo-dev-card"><div class="hdev-brand"><span class="hdev-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span>HYDRO<b>GO</b></div><div class="hdev-spinner"></div><div class="hdev-badge"><span class="hdev-pulse-dot"></span> GELİŞTİRME DERLEMESİ</div><h2>Sunucu Güncelleniyor</h2><p>Kaynak kod veya şablon değişiklikleri derleniyor, servis hazırlanıyor…</p><div class="hdev-bar-wrap"><div class="hdev-bar-indeterminate"></div></div></main></body></html>`)
+		_, _ = io.WriteString(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo · Rebuilding</title><link rel="stylesheet" href="`+stylePath+`"><script src="`+clientPath+`"></script></head><body class="hydrogo-dev-body"><main class="hydrogo-dev-card"><div class="hdev-brand"><span class="hdev-brand-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></span><span>Hydro<b>Go</b></span></div><div class="hdev-badge"><span class="hdev-pulse-dot"></span> DEV COMPILER</div><h2>Updating Server</h2><p>Compiling code changes and preparing runtime services…</p><div class="hdev-bar-wrap"><div class="hdev-bar-indeterminate"></div></div></main></body></html>`)
 	}
 	indicatorEnabled := *devIndicator && !envBoolDisabled("HYDRO_DEV_INDICATOR")
 	if indicatorEnabled {
@@ -322,14 +322,14 @@ func main() {
 
 	go watch(ctx, root, *poll, func(change fileChange) {
 		if change.rebuild {
-			supervisor.rebuild(ctx, "güncellendi", true)
+			supervisor.rebuild(ctx, "updated", true)
 			return
 		}
 		rel, err := filepath.Rel(root, change.path)
 		if err != nil {
 			rel = filepath.Base(change.path)
 		}
-		status.set("ready", 100, "Asset güncellendi: "+filepath.ToSlash(rel), "")
+		status.set("ready", 100, "Asset updated: "+filepath.ToSlash(rel), "")
 	})
 
 	// Keep the development proxy bounded just like the application server. This
@@ -530,28 +530,45 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-const devClient = `(()=>{if(window.__hydrogoDev)return;window.__hydrogoDev=true;const link=document.createElement('link');link.rel='stylesheet';link.href='` + stylePath + `';document.head.append(link);const box=document.createElement('aside');box.id='hydrogo-dev-status';box.innerHTML='<button class="hdev-pill" type="button" aria-expanded="false" aria-label="HydroGo geliştirme durumunu aç"><span class="hdev-dot"></span><span class="hdev-title">HYDROGO DEV</span><span class="hdev-phase-tag">LIVE</span><span class="hdev-value">Hazırlanıyor…</span><span class="hdev-chevron" aria-hidden="true">⌄</span></button><section class="hdev-panel" hidden><div class="hdev-panel-head"><strong>Geliştirme durumu</strong><button class="hdev-close" type="button" aria-label="Paneli kapat">×</button></div><p class="hdev-message">Hazırlanıyor…</p><div class="hdev-track"><i></i></div><pre hidden></pre><div class="hdev-panel-actions"><button class="hdev-hide" type="button">Göstergeyi gizle</button></div></section>';document.documentElement.append(box);const pill=box.querySelector('.hdev-pill'),panel=box.querySelector('.hdev-panel'),close=box.querySelector('.hdev-close'),hideButton=box.querySelector('.hdev-hide'),value=box.querySelector('.hdev-value'),message=box.querySelector('.hdev-message'),bar=box.querySelector('i'),details=box.querySelector('pre'),phaseTag=box.querySelector('.hdev-phase-tag');let revision=-1,initialized=false,reloadOnReady=false;const hiddenKey='hydrogo-dev-indicator-hidden';let userHidden=localStorage.getItem(hiddenKey)==='1';const show=()=>{if(!userHidden)box.classList.remove('hdev-hidden')};const togglePanel=(open)=>{panel.hidden=!open;pill.setAttribute('aria-expanded',String(open));box.classList.toggle('hdev-open',open)};pill.addEventListener('click',()=>togglePanel(panel.hidden));close.addEventListener('click',()=>togglePanel(false));hideButton.addEventListener('click',()=>{userHidden=true;localStorage.setItem(hiddenKey,'1');togglePanel(false);box.classList.add('hdev-hidden')});if(userHidden)box.classList.add('hdev-hidden');async function poll(){try{const response=await fetch('` + statusPath + `',{cache:'no-store'});if(!response.ok){show();value.textContent='Sunucu hazırlanıyor…';message.textContent='Sunucu hazırlanıyor…';phaseTag.textContent='STARTING';if(initialized)reloadOnReady=true;return;}const status=await response.json();const phase=(status.phase||'ready').toLowerCase();const error=phase==='error'||Boolean(status.error);value.textContent=error?'Hata':status.message+' · '+status.progress+'%';message.textContent=status.error||status.message;bar.style.width=status.progress+'%';phaseTag.textContent=error?'ERROR':phase.toUpperCase();box.classList.toggle('hdev-error',error);box.classList.toggle('hdev-busy',!error&&phase!=='ready');details.hidden=!status.error;details.textContent=status.error||'';show();if(initialized&&status.revision!==revision){if(phase==='ready'){setTimeout(()=>location.reload(),180);return}reloadOnReady=true}if(initialized&&reloadOnReady&&phase==='ready'){setTimeout(()=>location.reload(),180);return}initialized=true;revision=status.revision}catch(_){show();value.textContent='Bağlantı yok';message.textContent='Geliştirme sunucusuna yeniden bağlanılıyor…';phaseTag.textContent='OFFLINE';box.classList.add('hdev-error');if(initialized)reloadOnReady=true;}}poll();setInterval(poll,600)})();`
+const devClient = `(()=>{if(window.__hydrogoDev)return;window.__hydrogoDev=true;const link=document.createElement('link');link.rel='stylesheet';link.href='` + stylePath + `';document.head.append(link);const box=document.createElement('aside');box.id='hydrogo-dev-status';box.innerHTML='<button class="hdev-pill" type="button" aria-expanded="false" aria-label="Toggle dev status"><span class="hdev-dot"></span><span class="hdev-title">HYDROGO</span><span class="hdev-phase-tag">READY</span><span class="hdev-value">Ready</span><span class="hdev-chevron" aria-hidden="true">⌄</span></button><section class="hdev-panel" hidden><div class="hdev-panel-head"><strong>Dev Server</strong><button class="hdev-close" type="button" aria-label="Close">×</button></div><p class="hdev-message">Ready</p><div class="hdev-track"><i></i></div><pre hidden></pre><div class="hdev-panel-actions"><button class="hdev-hide" type="button">Hide badge</button></div></section>';document.documentElement.append(box);const pill=box.querySelector('.hdev-pill'),panel=box.querySelector('.hdev-panel'),close=box.querySelector('.hdev-close'),hideButton=box.querySelector('.hdev-hide'),value=box.querySelector('.hdev-value'),message=box.querySelector('.hdev-message'),bar=box.querySelector('i'),details=box.querySelector('pre'),phaseTag=box.querySelector('.hdev-phase-tag');let revision=-1,initialized=false,reloadOnReady=false;const hiddenKey='hydrogo-dev-indicator-hidden';let userHidden=localStorage.getItem(hiddenKey)==='1';const show=()=>{if(!userHidden)box.classList.remove('hdev-hidden')};const togglePanel=(open)=>{panel.hidden=!open;pill.setAttribute('aria-expanded',String(open));box.classList.toggle('hdev-open',open)};pill.addEventListener('click',()=>togglePanel(panel.hidden));close.addEventListener('click',()=>togglePanel(false));hideButton.addEventListener('click',()=>{userHidden=true;localStorage.setItem(hiddenKey,'1');togglePanel(false);box.classList.add('hdev-hidden')});if(userHidden)box.classList.add('hdev-hidden');async function poll(){try{const response=await fetch('` + statusPath + `',{cache:'no-store'});if(!response.ok){show();value.textContent='Compiling…';message.textContent='Preparing runtime server…';phaseTag.textContent='STARTING';if(initialized)reloadOnReady=true;return;}const status=await response.json();const phase=(status.phase||'ready').toLowerCase();const error=phase==='error'||Boolean(status.error);value.textContent=error?'Error':status.message+' · '+status.progress+'%';message.textContent=status.error||status.message;bar.style.width=status.progress+'%';phaseTag.textContent=error?'ERROR':phase.toUpperCase();box.classList.toggle('hdev-error',error);box.classList.toggle('hdev-busy',!error&&phase!=='ready');details.hidden=!status.error;details.textContent=status.error||'';show();if(initialized&&status.revision!==revision){if(phase==='ready'){setTimeout(()=>location.reload(),180);return}reloadOnReady=true}if(initialized&&reloadOnReady&&phase==='ready'){setTimeout(()=>location.reload(),180);return}initialized=true;revision=status.revision}catch(_){show();value.textContent='Offline';message.textContent='Reconnecting to dev server…';phaseTag.textContent='OFFLINE';box.classList.add('hdev-error');if(initialized)reloadOnReady=true;}}poll();setInterval(poll,600)})();`
 
-const devStyles = `body.hydrogo-dev-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0f19;background-image:radial-gradient(circle at 50% 0%,rgba(59,130,246,0.32),transparent 50%),radial-gradient(circle at 85% 20%,rgba(6,182,212,0.22),transparent 45%),radial-gradient(circle at 15% 55%,rgba(139,92,246,0.2),transparent 45%),radial-gradient(circle at 75% 85%,rgba(59,130,246,0.18),transparent 50%);background-attachment:fixed;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;padding:24px;box-sizing:border-box}
-.hydrogo-dev-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:44px 36px 38px;max-width:420px;width:100%;background:linear-gradient(165deg,rgba(23,34,56,0.88) 0%,rgba(13,20,36,0.96) 100%);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(96,165,250,0.28);border-top:1px solid rgba(255,255,255,0.25);border-radius:28px;box-shadow:0 25px 60px -12px rgba(0,0,0,0.75),0 0 45px rgba(6,182,212,0.12);position:relative;overflow:hidden}
-.hydrogo-dev-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(6,182,212,0.8) 35%,rgba(59,130,246,0.8) 65%,transparent 100%)}
-.hdev-brand{display:inline-flex;align-items:center;gap:10px;font-size:1.35rem;font-weight:800;letter-spacing:-.03em;color:#fff;margin-bottom:20px}
-.hdev-brand-icon{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,rgba(6,182,212,0.2) 0%,rgba(59,130,246,0.3) 100%);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;color:#38bdf8;box-shadow:0 4px 14px rgba(6,182,212,0.25)}
-.hdev-brand b{color:#fff}
-.hdev-spinner{width:42px;height:42px;border:3px solid rgba(6,182,212,0.18);border-top-color:#38bdf8;border-right-color:#818cf8;border-radius:50%;animation:hdev-spin .85s cubic-bezier(.5,.1,.4,.9) infinite;margin-bottom:18px;box-shadow:0 0 20px rgba(56,189,248,0.25)}
-@keyframes hdev-spin{to{transform:rotate(360deg)}}
-.hdev-badge{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#38bdf8;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);padding:4px 10px;border-radius:9999px;margin-bottom:14px;letter-spacing:.04em}
+const devStyles = `body.hydrogo-dev-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#090d16;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;padding:20px;box-sizing:border-box}
+.hydrogo-dev-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 28px 28px;max-width:360px;width:100%;background:#111927;border:1px solid rgba(255,255,255,0.08);border-radius:18px;box-shadow:0 20px 40px -10px rgba(0,0,0,0.5);position:relative;overflow:hidden}
+.hdev-brand{display:inline-flex;align-items:center;gap:8px;font-size:1.15rem;font-weight:700;letter-spacing:-.02em;color:#f8fafc;margin-bottom:16px}
+.hdev-brand-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:rgba(14,165,233,0.14);color:#38bdf8;border:1px solid rgba(14,165,233,0.25)}
+.hdev-brand b{color:#38bdf8}
+.hdev-badge{display:inline-flex;align-items:center;gap:6px;font-size:.68rem;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#38bdf8;background:rgba(14,165,233,0.1);border:1px solid rgba(14,165,233,0.25);padding:3px 10px;border-radius:9999px;margin-bottom:12px;letter-spacing:.03em}
 .hdev-pulse-dot{width:6px;height:6px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #38bdf8;animation:hdev-pulse 1.8s infinite ease-in-out}
 @keyframes hdev-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.85)}}
-.hydrogo-dev-card h2{margin:0 0 8px;font-size:1.45rem;font-weight:800;letter-spacing:-.025em;color:#fff}
-.hydrogo-dev-card p{margin:0 0 24px;font-size:.92rem;color:#cbd5e1;line-height:1.55}
-.hdev-bar-wrap{width:100%;height:5px;border-radius:99px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.08);overflow:hidden;position:relative}
-.hdev-bar-indeterminate{position:absolute;height:100%;background:linear-gradient(90deg,#06b6d4,#3b82f6,#8b5cf6);border-radius:99px;animation:hdev-progress 1.4s infinite ease-in-out;box-shadow:0 0 12px rgba(56,189,248,0.5)}
+.hydrogo-dev-card h2{margin:0 0 6px;font-size:1.2rem;font-weight:700;letter-spacing:-.02em;color:#f8fafc}
+.hydrogo-dev-card p{margin:0 0 20px;font-size:.84rem;color:#94a3b8;line-height:1.45}
+.hdev-bar-wrap{width:100%;height:4px;border-radius:9999px;background:rgba(255,255,255,0.06);overflow:hidden;position:relative}
+.hdev-bar-indeterminate{position:absolute;height:100%;background:#0ea5e9;border-radius:9999px;animation:hdev-progress 1.4s infinite ease-in-out}
 @keyframes hdev-progress{0%{left:-40%;width:40%}50%{left:20%;width:60%}100%{left:100%;width:40%}}
 
-#hydrogo-dev-status{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(330px,calc(100vw - 40px));color:#f8fafc;font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:opacity .2s ease,transform .2s ease}
+#hydrogo-dev-status{position:fixed;right:16px;bottom:16px;z-index:2147483647;width:auto;max-width:min(340px,calc(100vw - 32px));color:#f8fafc;font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:all .18s ease}
 #hydrogo-dev-status.hdev-hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
-.hdev-pill{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:1px solid #30343b;border-radius:7px;background:#111318;color:#f5f5f5;box-shadow:0 5px 18px rgba(0,0,0,.22);cursor:pointer;text-align:left}
-.hdev-pill:hover{background:#191c21;border-color:#4b5059}.hdev-pill:focus-visible,.hdev-close:focus-visible,.hdev-hide:focus-visible{outline:2px solid #fff;outline-offset:2px}
-.hdev-dot{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#a7f3d0}.hdev-busy .hdev-dot{background:#d4d4d8;animation:hdev-pulse 1.4s infinite ease-in-out}.hdev-error .hdev-dot{background:#ef4444}
-.hdev-title{font-weight:700;font-size:11px;letter-spacing:.04em}.hdev-phase-tag{color:#a1a1aa;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.hdev-error .hdev-phase-tag{color:#f87171}.hdev-value{min-width:0;flex:1;color:#a1a1aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}.hdev-chevron{color:#a1a1aa;font-size:16px;line-height:10px}.hdev-panel{margin-top:6px;padding:12px;border:1px solid #30343b;border-radius:7px;background:#111318;box-shadow:0 10px 28px rgba(0,0,0,.28)}.hdev-panel[hidden]{display:none}.hdev-panel-head{display:flex;align-items:center;justify-content:space-between;color:#f5f5f5}.hdev-close{border:0;background:transparent;color:#a1a1aa;font-size:20px;line-height:1;cursor:pointer}.hdev-message{margin:10px 0;color:#d4d4d8}.hdev-track{height:3px;overflow:hidden;border-radius:3px;background:#272a30}.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:#d4d4d8;transition:width .25s ease}.hdev-error .hdev-track i{background:#ef4444}.hdev-panel pre{max-height:220px;margin:10px 0 0;padding:10px;overflow:auto;border-radius:5px;background:#090a0c;color:#fca5a5;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}.hdev-panel-actions{margin-top:10px}.hdev-hide{padding:0;border:0;background:transparent;color:#a1a1aa;font-size:11px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.hdev-hide:hover{color:#fff}`
+.hdev-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border:1px solid rgba(255,255,255,0.12);border-radius:9999px;background:#111927;color:#f8fafc;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;text-align:left;font-family:inherit}
+.hdev-pill:hover{background:#182235;border-color:rgba(255,255,255,0.2)}
+.hdev-pill:focus-visible,.hdev-close:focus-visible,.hdev-hide:focus-visible{outline:2px solid #0ea5e9;outline-offset:2px}
+.hdev-dot{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#10b981}
+.hdev-busy .hdev-dot{background:#f59e0b;animation:hdev-pulse 1.4s infinite ease-in-out}
+.hdev-error .hdev-dot{background:#ef4444}
+.hdev-title{font-weight:700;font-size:11px;letter-spacing:.02em}
+.hdev-phase-tag{color:#94a3b8;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.hdev-error .hdev-phase-tag{color:#f87171}
+.hdev-value{min-width:0;flex:1;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+.hdev-chevron{color:#64748b;font-size:14px;line-height:10px}
+.hdev-panel{margin-top:6px;padding:12px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:12px;background:#111927;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+.hdev-panel[hidden]{display:none}
+.hdev-panel-head{display:flex;align-items:center;justify-content:space-between;color:#f8fafc;font-weight:700;font-size:12px}
+.hdev-close{border:0;background:transparent;color:#94a3b8;font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
+.hdev-close:hover{color:#fff}
+.hdev-message{margin:8px 0;color:#cbd5e1;font-size:11.5px}
+.hdev-track{height:3px;overflow:hidden;border-radius:9999px;background:rgba(255,255,255,0.08)}
+.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:#0ea5e9;transition:width .25s ease}
+.hdev-error .hdev-track i{background:#ef4444}
+.hdev-panel pre{max-height:200px;margin:8px 0 0;padding:8px 10px;overflow:auto;border-radius:8px;background:#070b12;border:1px solid rgba(255,255,255,0.06);color:#fca5a5;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
+.hdev-panel-actions{margin-top:8px;display:flex;justify-content:flex-end}
+.hdev-hide{padding:0;border:0;background:transparent;color:#64748b;font-size:11px;text-decoration:none;cursor:pointer}
+.hdev-hide:hover{color:#cbd5e1}`

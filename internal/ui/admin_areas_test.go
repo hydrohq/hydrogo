@@ -148,3 +148,22 @@ func TestAdminControlDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 		}
 	}
 }
+
+func TestDeveloperTabsRendered(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminArea(&out, AdminAreaData{
+		Email: "admin@example.test",
+		Nonce: "nonce-dev",
+		CSRF:  "csrf-dev",
+		Area:  "developer",
+	})
+	if err != nil {
+		t.Fatalf("RenderAdminArea(developer) error = %v", err)
+	}
+	rendered := out.String()
+	for _, want := range []string{"studio-tabs-nav", "/admin/developer", "/admin/developer/resources", "/admin/developer/components", "is-active"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("developer page missing tab navigation element %q", want)
+		}
+	}
+}
