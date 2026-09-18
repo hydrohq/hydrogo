@@ -36,8 +36,9 @@ type Handler struct {
 	Media   interface {
 		Get(context.Context, database.Executor, string) (media.Asset, error)
 	}
-	AdminCollection adminstudio.Collection
-	DefaultLocale   string
+	AdminCollection   adminstudio.Collection
+	DefaultLocale     string
+	AllowDemoFrontend bool
 }
 
 func (h Handler) defaultLocale() string {
@@ -45,6 +46,10 @@ func (h Handler) defaultLocale() string {
 		return h.DefaultLocale
 	}
 	return "tr"
+}
+
+func (h Handler) publicPageAllowed(page pages.Page) bool {
+	return h.AllowDemoFrontend || !strings.HasPrefix(page.ID, "demo-")
 }
 
 type pageInput struct {
@@ -205,7 +210,13 @@ func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
-	writeJSON(w, http.StatusOK, summarizePages(items))
+	visible := items[:0]
+	for _, item := range items {
+		if h.publicPageAllowed(item) {
+			visible = append(visible, item)
+		}
+	}
+	writeJSON(w, http.StatusOK, summarizePages(visible))
 }
 
 func summarizePages(items []pages.Page) []pageSummary {
@@ -222,6 +233,10 @@ func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
+	if !h.publicPageAllowed(page) {
+		http.NotFound(w, r)
+		return
+	}
 	writeJSON(w, http.StatusOK, page)
 }
 
@@ -229,6 +244,10 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
 	if err != nil {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
+		return
+	}
+	if !h.publicPageAllowed(page) {
+		http.NotFound(w, r)
 		return
 	}
 	blocks, err := blockrender.Blocks(page.Blocks)
@@ -315,6 +334,10 @@ func (h Handler) getPublishedWithRoute(w http.ResponseWriter, r *http.Request, l
 	page, err := h.Content.GetPublished(r.Context(), h.DB, locale, slug)
 	if err != nil {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
+		return
+	}
+	if !h.publicPageAllowed(page) {
+		http.NotFound(w, r)
 		return
 	}
 	writeJSON(w, http.StatusOK, page)

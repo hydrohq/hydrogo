@@ -8,6 +8,9 @@ Demo seed varsayılan runtime yüzeyi değildir. HydroGo'nun `/` adresi backend
 runtime durumunu gösterir; demo frontend'i seed işleminden sonra
 `/public/pages/{locale}/demo/html` adresinden açılır. Üretim kurulumlarında demo
 seed çalıştırılmamalı ve ürün frontend'i `site.home_path` ile açıkça bağlanmalıdır.
+Seed edilmiş demo sayfaları public page route'larından varsayılan olarak gizlidir.
+Yerel tarayıcı doğrulaması gerektiğinde `HYDRO_ENABLE_DEMO_FRONTEND=true` ile
+sunucuyu başlatmak gerekir.
 
 Seed şu akışları görünür ve test edilebilir hale getirir:
 

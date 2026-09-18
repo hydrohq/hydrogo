@@ -69,14 +69,20 @@ func TestPublicHomePathUsesConfiguredLocale(t *testing.T) {
 }
 
 func TestTechnicalHomeHTMLIsBackendFirstAndKeepsDemoOptIn(t *testing.T) {
-	markup := technicalHomeHTML("tr-TR", publicHomePath("tr-TR"))
-	for _, want := range []string{"Backend runtime is ready.", "/healthz", "/readyz", "/api/v1", "/admin", "/public/pages/tr-TR/demo/html", "Optional demo"} {
+	markup := technicalHomeHTML("tr-TR", publicHomePath("tr-TR"), false)
+	for _, want := range []string{"Backend runtime is ready.", "/healthz", "/readyz", "/api/v1", "/admin", "Demo frontend disabled"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("technical home missing %q", want)
 		}
 	}
 	if strings.Contains(markup, "İçeriğinizi ve mağazanızı") {
 		t.Fatal("technical home unexpectedly contains marketing seed copy")
+	}
+	if strings.Contains(markup, "Optional demo") {
+		t.Fatal("disabled technical home unexpectedly links to demo frontend")
+	}
+	if enabled := technicalHomeHTML("tr-TR", publicHomePath("tr-TR"), true); !strings.Contains(enabled, "Optional demo") {
+		t.Fatal("enabled technical home should expose the optional demo link")
 	}
 }
 

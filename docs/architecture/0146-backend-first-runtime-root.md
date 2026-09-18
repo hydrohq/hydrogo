@@ -20,8 +20,10 @@ links to health, readiness, API, and Admin Studio endpoints. A validated public
 `site.home_path` continues to override this behavior when an installation has
 explicitly configured a product frontend. The seeded demo remains available at
 the locale-aware `/public/pages/{locale}/demo/html` path after an explicit
-`seed-demo --confirm-demo` invocation, but it is linked as optional demo content
-and is never the default fallback.
+`seed-demo --confirm-demo` invocation, but public access to seeded demo pages is
+disabled by default. Set `HYDRO_ENABLE_DEMO_FRONTEND=true` for local browser
+validation; the demo is linked as optional content and is never the default
+fallback.
 
 The Pages module is not required for the technical root route. No demo assets,
 pages, news records, products, or member accounts are created during normal
