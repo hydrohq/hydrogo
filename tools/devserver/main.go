@@ -248,6 +248,7 @@ func main() {
 	composeFile := flag.String("compose-file", "deploy/local/docker-compose.storage.yml", "Docker Compose file for local dependencies")
 	poll := flag.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	seedDemo := flag.Bool("seed-demo", true, "seed disposable local demo data before starting")
+	devIndicator := flag.Bool("dev-indicator", true, "show the browser development status indicator")
 	flag.Parse()
 
 	root, err := os.Getwd()
@@ -303,15 +304,20 @@ func main() {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = io.WriteString(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo · Yeniden Başlatılıyor</title><link rel="stylesheet" href="`+stylePath+`"><script src="`+clientPath+`"></script></head><body class="hydrogo-dev-body"><main class="hydrogo-dev-card"><div class="hdev-brand"><span class="hdev-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span>HYDRO<b>GO</b></div><div class="hdev-spinner"></div><div class="hdev-badge"><span class="hdev-pulse-dot"></span> GELİŞTİRME DERLEMESİ</div><h2>Sunucu Güncelleniyor</h2><p>Kaynak kod veya şablon değişiklikleri derleniyor, servis hazırlanıyor…</p><div class="hdev-bar-wrap"><div class="hdev-bar-indeterminate"></div></div></main></body></html>`)
 	}
-	proxy.ModifyResponse = injectClient
+	indicatorEnabled := *devIndicator && !envBoolDisabled("HYDRO_DEV_INDICATOR")
+	if indicatorEnabled {
+		proxy.ModifyResponse = injectClient
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc(statusPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(status.snapshot())
 	})
-	mux.HandleFunc(clientPath, serveClient)
-	mux.HandleFunc(stylePath, serveStyles)
+	if indicatorEnabled {
+		mux.HandleFunc(clientPath, serveClient)
+		mux.HandleFunc(stylePath, serveStyles)
+	}
 	mux.Handle("/", proxy)
 
 	go watch(ctx, root, *poll, func(change fileChange) {
@@ -355,6 +361,15 @@ func noStore(next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func envBoolDisabled(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(name))) {
+	case "0", "false", "no", "off":
+		return true
+	default:
+		return false
+	}
 }
 
 func injectClient(response *http.Response) error {
@@ -515,14 +530,14 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-const devClient = `(()=>{if(window.__hydrogoDev)return;window.__hydrogoDev=true;const link=document.createElement('link');link.rel='stylesheet';link.href='` + stylePath + `';document.head.append(link);const box=document.createElement('aside');box.id='hydrogo-dev-status';box.innerHTML='<div class="hdev-pill"><div class="hdev-pill-head"><div class="hdev-dot"></div><div class="hdev-meta"><div class="hdev-title-row"><strong>HYDROGO DEV</strong><span class="hdev-phase-tag">LIVE</span></div><span class="hdev-value">Hazırlanıyor…</span></div></div><div class="hdev-track"><i></i></div></div><pre hidden></pre>';document.documentElement.append(box);const value=box.querySelector('.hdev-value'),bar=box.querySelector('i'),details=box.querySelector('pre'),phaseTag=box.querySelector('.hdev-phase-tag');let revision=-1,initialized=false,reloadOnReady=false,hideTimer;const show=()=>{clearTimeout(hideTimer);box.classList.remove('hdev-hidden')},hide=()=>{clearTimeout(hideTimer);hideTimer=setTimeout(()=>box.classList.add('hdev-hidden'),1200)};async function poll(){try{const response=await fetch('` + statusPath + `',{cache:'no-store'});if(!response.ok){show();value.textContent='Sunucu hazırlanıyor…';phaseTag.textContent='STARTING';if(initialized)reloadOnReady=true;return;}const status=await response.json();value.textContent=status.message+' · '+status.progress+'%';bar.style.width=status.progress+'%';phaseTag.textContent=(status.phase||'LIVE').toUpperCase();box.classList.toggle('hdev-error',status.phase==='error');box.classList.toggle('hdev-busy',status.phase==='building'||status.phase==='migrating'||status.phase==='restarting'||status.phase==='starting');details.hidden=!status.error;details.textContent=status.error||'';if(status.phase==='ready'&&!status.error)hide();else show();if(initialized&&status.revision!==revision){if(status.phase==='ready'){setTimeout(()=>location.reload(),180);return}reloadOnReady=true}if(initialized&&reloadOnReady&&status.phase==='ready'){setTimeout(()=>location.reload(),180);return}initialized=true;revision=status.revision}catch(_){show();value.textContent='Yeniden bağlanılıyor…';phaseTag.textContent='RECONNECTING';if(initialized)reloadOnReady=true;}}poll();setInterval(poll,600)})();`
+const devClient = `(()=>{if(window.__hydrogoDev)return;window.__hydrogoDev=true;const link=document.createElement('link');link.rel='stylesheet';link.href='` + stylePath + `';document.head.append(link);const box=document.createElement('aside');box.id='hydrogo-dev-status';box.innerHTML='<button class="hdev-pill" type="button" aria-expanded="false" aria-label="HydroGo geliştirme durumunu aç"><span class="hdev-dot"></span><span class="hdev-title">HYDROGO DEV</span><span class="hdev-phase-tag">LIVE</span><span class="hdev-value">Hazırlanıyor…</span><span class="hdev-chevron" aria-hidden="true">⌄</span></button><section class="hdev-panel" hidden><div class="hdev-panel-head"><strong>Geliştirme durumu</strong><button class="hdev-close" type="button" aria-label="Paneli kapat">×</button></div><p class="hdev-message">Hazırlanıyor…</p><div class="hdev-track"><i></i></div><pre hidden></pre><div class="hdev-panel-actions"><button class="hdev-hide" type="button">Göstergeyi gizle</button></div></section>';document.documentElement.append(box);const pill=box.querySelector('.hdev-pill'),panel=box.querySelector('.hdev-panel'),close=box.querySelector('.hdev-close'),hideButton=box.querySelector('.hdev-hide'),value=box.querySelector('.hdev-value'),message=box.querySelector('.hdev-message'),bar=box.querySelector('i'),details=box.querySelector('pre'),phaseTag=box.querySelector('.hdev-phase-tag');let revision=-1,initialized=false,reloadOnReady=false;const hiddenKey='hydrogo-dev-indicator-hidden';let userHidden=localStorage.getItem(hiddenKey)==='1';const show=()=>{if(!userHidden)box.classList.remove('hdev-hidden')};const togglePanel=(open)=>{panel.hidden=!open;pill.setAttribute('aria-expanded',String(open));box.classList.toggle('hdev-open',open)};pill.addEventListener('click',()=>togglePanel(panel.hidden));close.addEventListener('click',()=>togglePanel(false));hideButton.addEventListener('click',()=>{userHidden=true;localStorage.setItem(hiddenKey,'1');togglePanel(false);box.classList.add('hdev-hidden')});if(userHidden)box.classList.add('hdev-hidden');async function poll(){try{const response=await fetch('` + statusPath + `',{cache:'no-store'});if(!response.ok){show();value.textContent='Sunucu hazırlanıyor…';message.textContent='Sunucu hazırlanıyor…';phaseTag.textContent='STARTING';if(initialized)reloadOnReady=true;return;}const status=await response.json();const phase=(status.phase||'ready').toLowerCase();const error=phase==='error'||Boolean(status.error);value.textContent=error?'Hata':status.message+' · '+status.progress+'%';message.textContent=status.error||status.message;bar.style.width=status.progress+'%';phaseTag.textContent=error?'ERROR':phase.toUpperCase();box.classList.toggle('hdev-error',error);box.classList.toggle('hdev-busy',!error&&phase!=='ready');details.hidden=!status.error;details.textContent=status.error||'';show();if(initialized&&status.revision!==revision){if(phase==='ready'){setTimeout(()=>location.reload(),180);return}reloadOnReady=true}if(initialized&&reloadOnReady&&phase==='ready'){setTimeout(()=>location.reload(),180);return}initialized=true;revision=status.revision}catch(_){show();value.textContent='Bağlantı yok';message.textContent='Geliştirme sunucusuna yeniden bağlanılıyor…';phaseTag.textContent='OFFLINE';box.classList.add('hdev-error');if(initialized)reloadOnReady=true;}}poll();setInterval(poll,600)})();`
 
 const devStyles = `body.hydrogo-dev-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0f19;background-image:radial-gradient(circle at 50% 0%,rgba(59,130,246,0.32),transparent 50%),radial-gradient(circle at 85% 20%,rgba(6,182,212,0.22),transparent 45%),radial-gradient(circle at 15% 55%,rgba(139,92,246,0.2),transparent 45%),radial-gradient(circle at 75% 85%,rgba(59,130,246,0.18),transparent 50%);background-attachment:fixed;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;padding:24px;box-sizing:border-box}
 .hydrogo-dev-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:44px 36px 38px;max-width:420px;width:100%;background:linear-gradient(165deg,rgba(23,34,56,0.88) 0%,rgba(13,20,36,0.96) 100%);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(96,165,250,0.28);border-top:1px solid rgba(255,255,255,0.25);border-radius:28px;box-shadow:0 25px 60px -12px rgba(0,0,0,0.75),0 0 45px rgba(6,182,212,0.12);position:relative;overflow:hidden}
 .hydrogo-dev-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(6,182,212,0.8) 35%,rgba(59,130,246,0.8) 65%,transparent 100%)}
 .hdev-brand{display:inline-flex;align-items:center;gap:10px;font-size:1.35rem;font-weight:800;letter-spacing:-.03em;color:#fff;margin-bottom:20px}
 .hdev-brand-icon{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,rgba(6,182,212,0.2) 0%,rgba(59,130,246,0.3) 100%);border:1px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;color:#38bdf8;box-shadow:0 4px 14px rgba(6,182,212,0.25)}
-.hdev-brand b{background:linear-gradient(135deg,#38bdf8 0%,#818cf8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdev-brand b{color:#fff}
 .hdev-spinner{width:42px;height:42px;border:3px solid rgba(6,182,212,0.18);border-top-color:#38bdf8;border-right-color:#818cf8;border-radius:50%;animation:hdev-spin .85s cubic-bezier(.5,.1,.4,.9) infinite;margin-bottom:18px;box-shadow:0 0 20px rgba(56,189,248,0.25)}
 @keyframes hdev-spin{to{transform:rotate(360deg)}}
 .hdev-badge{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#38bdf8;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);padding:4px 10px;border-radius:9999px;margin-bottom:14px;letter-spacing:.04em}
@@ -534,21 +549,9 @@ const devStyles = `body.hydrogo-dev-body{margin:0;min-height:100vh;display:flex;
 .hdev-bar-indeterminate{position:absolute;height:100%;background:linear-gradient(90deg,#06b6d4,#3b82f6,#8b5cf6);border-radius:99px;animation:hdev-progress 1.4s infinite ease-in-out;box-shadow:0 0 12px rgba(56,189,248,0.5)}
 @keyframes hdev-progress{0%{left:-40%;width:40%}50%{left:20%;width:60%}100%{left:100%;width:40%}}
 
-#hydrogo-dev-status{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(360px,calc(100vw - 40px));padding:12px 16px;border:1px solid rgba(96,165,250,0.28);border-top:1px solid rgba(255,255,255,0.25);border-radius:20px;background:linear-gradient(165deg,rgba(23,34,56,0.92) 0%,rgba(13,20,36,0.97) 100%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#f8fafc;box-shadow:0 18px 45px -8px rgba(0,0,0,0.7),0 0 30px rgba(6,182,212,0.15);font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:all .25s cubic-bezier(0.16,1,0.3,1)}
-#hydrogo-dev-status.hdev-hidden{opacity:0;pointer-events:none;transform:translateY(12px) scale(0.96)}
-.hdev-pill-head{display:flex;align-items:center;gap:12px}
-.hdev-indicator{display:flex;align-items:center;justify-content:center}
-.hdev-dot{width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 10px rgba(16,185,129,0.8);animation:hdev-pulse 2s infinite ease-in-out}
-#hydrogo-dev-status.hdev-busy .hdev-dot{background:#38bdf8;box-shadow:0 0 10px rgba(56,189,248,0.9)}
-#hydrogo-dev-status.hdev-error .hdev-dot{background:#ef4444;box-shadow:0 0 10px rgba(239,68,68,0.9)}
-.hdev-meta{flex:1;min-width:0}
-.hdev-title-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
-.hdev-title-row strong{color:#fff;font-weight:800;font-size:.78rem;letter-spacing:.02em}
-.hdev-phase-tag{font-size:.65rem;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#38bdf8;background:rgba(6,182,212,0.14);border:1px solid rgba(6,182,212,0.3);padding:1px 6px;border-radius:9999px;letter-spacing:.04em}
-.hdev-value{color:#cbd5e1;font-size:.78rem;font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hdev-track{height:4px;margin-top:10px;overflow:hidden;border-radius:99px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.06)}
-.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#06b6d4,#3b82f6,#8b5cf6);box-shadow:0 0 10px rgba(56,189,248,0.5);transition:width .25s ease}
-#hydrogo-dev-status.hdev-error{border-color:rgba(239,68,68,0.45);background:linear-gradient(165deg,rgba(38,18,22,0.95) 0%,rgba(20,10,12,0.98) 100%);box-shadow:0 18px 45px -8px rgba(0,0,0,0.7),0 0 30px rgba(239,68,68,0.2)}
-#hydrogo-dev-status.hdev-error .hdev-phase-tag{color:#f87171;background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.35)}
-#hydrogo-dev-status.hdev-error .hdev-value{color:#fca5a5}
-#hydrogo-dev-status pre{max-height:220px;margin:10px 0 0;padding:12px;overflow:auto;border-radius:12px;background:rgba(10,14,24,0.95);color:#fca5a5;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;border:1px solid rgba(239,68,68,0.3);box-shadow:inset 0 2px 6px rgba(0,0,0,0.5)}`
+#hydrogo-dev-status{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(330px,calc(100vw - 40px));color:#f8fafc;font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;transition:opacity .2s ease,transform .2s ease}
+#hydrogo-dev-status.hdev-hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
+.hdev-pill{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:1px solid #30343b;border-radius:7px;background:#111318;color:#f5f5f5;box-shadow:0 5px 18px rgba(0,0,0,.22);cursor:pointer;text-align:left}
+.hdev-pill:hover{background:#191c21;border-color:#4b5059}.hdev-pill:focus-visible,.hdev-close:focus-visible,.hdev-hide:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.hdev-dot{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#a7f3d0}.hdev-busy .hdev-dot{background:#d4d4d8;animation:hdev-pulse 1.4s infinite ease-in-out}.hdev-error .hdev-dot{background:#ef4444}
+.hdev-title{font-weight:700;font-size:11px;letter-spacing:.04em}.hdev-phase-tag{color:#a1a1aa;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.hdev-error .hdev-phase-tag{color:#f87171}.hdev-value{min-width:0;flex:1;color:#a1a1aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}.hdev-chevron{color:#a1a1aa;font-size:16px;line-height:10px}.hdev-panel{margin-top:6px;padding:12px;border:1px solid #30343b;border-radius:7px;background:#111318;box-shadow:0 10px 28px rgba(0,0,0,.28)}.hdev-panel[hidden]{display:none}.hdev-panel-head{display:flex;align-items:center;justify-content:space-between;color:#f5f5f5}.hdev-close{border:0;background:transparent;color:#a1a1aa;font-size:20px;line-height:1;cursor:pointer}.hdev-message{margin:10px 0;color:#d4d4d8}.hdev-track{height:3px;overflow:hidden;border-radius:3px;background:#272a30}.hdev-track i{display:block;width:5%;height:100%;border-radius:inherit;background:#d4d4d8;transition:width .25s ease}.hdev-error .hdev-track i{background:#ef4444}.hdev-panel pre{max-height:220px;margin:10px 0 0;padding:10px;overflow:auto;border-radius:5px;background:#090a0c;color:#fca5a5;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}.hdev-panel-actions{margin-top:10px}.hdev-hide{padding:0;border:0;background:transparent;color:#a1a1aa;font-size:11px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.hdev-hide:hover{color:#fff}`

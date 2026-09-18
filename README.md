@@ -131,6 +131,12 @@ Go, HTML, and Templ changes are recompiled, while CSS/JS changes refresh the pag
 If compilation fails, the previous working version stays up and a red development
 panel with diagnostic details appears in the browser.
 
+The lower-right `HYDROGO DEV` indicator is intentionally compact and monochrome:
+click it to inspect the current build state, progress, or compiler error. Use
+`Göstergeyi gizle` in the panel to persistently hide it for the current browser,
+or disable injection entirely with `hydro run --dev-indicator=false` (the
+`HYDRO_DEV_INDICATOR=0` environment variable is also supported).
+
 ```powershell
 ./bin/hydro.exe run
 ```
