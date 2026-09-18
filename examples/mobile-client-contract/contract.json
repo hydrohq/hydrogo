@@ -1,0 +1,37 @@
+{
+  "contract_version": 1,
+  "audience": "staff",
+  "base_path": "/api/v1/mobile",
+  "credential_storage": {
+    "access_token": "platform_secure_storage",
+    "refresh_token": "platform_secure_storage",
+    "forbidden": ["logs", "analytics", "plain_preferences", "url_query"]
+  },
+  "flows": [
+    {
+      "name": "login",
+      "request": {"method": "POST", "path": "/auth/login", "body": {"email": "staff@example.test", "password": "example", "device_id": "stable-per-install-id", "device_name": "device-label", "platform": "iOS|Android"}},
+      "expect": {"status": 200, "store": ["access_token", "refresh_token", "expires_at"]}
+    },
+    {
+      "name": "refresh",
+      "request": {"method": "POST", "path": "/auth/refresh", "body": {"refresh_token": "$stored.refresh_token"}},
+      "expect": {"status": 200, "replace_atomically": ["access_token", "refresh_token", "expires_at"]},
+      "on_status": {"401": "clear_tokens_and_show_sign_in"}
+    },
+    {
+      "name": "offline_retry",
+      "rule": "Do not retry login or refresh automatically after an uncertain response. Keep stored credentials unchanged and wait for an explicit foreground retry."
+    },
+    {
+      "name": "logout",
+      "request": {"method": "POST", "path": "/auth/revoke-all", "authorization": "Bearer $stored.access_token"},
+      "expect": {"status": 204, "clear": ["access_token", "refresh_token", "expires_at"]},
+      "on_status": {"401": "clear_tokens_anyway"}
+    },
+    {
+      "name": "token_loss",
+      "rule": "If secure storage is unavailable, incomplete, or returns malformed tokens, clear all token fields and require a new login. Never attempt to reconstruct a token."
+    }
+  ]
+}
