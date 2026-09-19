@@ -68,7 +68,10 @@ categorized as code, environment, legal, or product decision.
   lifecycle coverage is executable locally; member/staff PostgreSQL lifecycle
   and concurrent-refresh coverage is now present as conditional contract tests
   (`tests/contract/*mobile*_contract_test.go`) and requires a configured DSN to
-  produce environment evidence. Login and MFA rate-limit plus audit assertions
+  produce environment evidence. The ownership-scoped member order-detail query
+  is additionally certified in
+  `tests/contract/member_order_detail_contract_test.go` on SQLite and
+  PostgreSQL. Login and MFA rate-limit plus audit assertions
   are present, including member login/refresh/revoke audit assertions; real
   production sink delivery and retention certification remain open.
 - [x] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
