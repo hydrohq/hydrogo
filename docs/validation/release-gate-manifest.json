@@ -174,6 +174,10 @@
         {
           "path": "R112-tenant-scoped-commerce-checkout-2026-09-19.md",
           "command": "go test ./modules/commerce/repository/sqlstore ./cmd/hydro -count=1"
+        },
+        {
+          "path": "R113-tenant-scoped-form-registry-2026-09-19.md",
+          "command": "go test ./internal/forms/sqlstore ./modules/site/... ./cmd/hydro -count=1"
         }
       ]
     },

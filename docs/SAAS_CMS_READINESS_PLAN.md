@@ -219,6 +219,9 @@ reports and a published support matrix.
   Commerce orders, carts, payment transactions, refunds and webhook receipts
   now require tenant scope in shared mode (ADR-0175/R112); provisioning,
   backfill, webhook routing and PostgreSQL RLS remain open.
+  The validated form schema registry now requires tenant scope in shared mode
+  (ADR-0176/R113); existing-form backfill and end-to-end submission routing
+  remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

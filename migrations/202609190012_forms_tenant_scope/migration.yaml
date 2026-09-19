@@ -1,0 +1,25 @@
+id: "202609190012_forms_tenant_scope"
+module: "forms"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "aab5b874ae9ce79423267278b80dc93fb283106214d8a172152c7d2f3cbe00c5"
+  postgres: "aab5b874ae9ce79423267278b80dc93fb283106214d8a172152c7d2f3cbe00c5"
+dependencies:
+  - "202609170001_form_idempotency"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "Forms registry migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One tenant discriminator and lookup index per form"
+compatibility: "Adds an empty-namespace tenant discriminator; shared mode scopes form registry operations."
+smoke:
+  - "Existing forms remain readable in the empty namespace until controlled backfill."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

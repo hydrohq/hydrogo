@@ -11,6 +11,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 const MaxStoredForms = 1000
@@ -20,8 +21,20 @@ var ErrFormNotFound = sql.ErrNoRows
 // Store is the durable registry for validated form schemas. Authorization,
 // publication and submission policy remain owned by the Site module.
 type Store struct {
-	Executor database.Executor
-	Dialect  database.Dialect
+	Executor           database.Executor
+	Dialect            database.Dialect
+	RequireTenantScope bool
+}
+
+func (s Store) tenant(ctx context.Context) (string, error) {
+	if !s.RequireTenantScope {
+		return "", nil
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return "", err
+	}
+	return scope.TenantID, nil
 }
 
 func (s Store) validate() error {
@@ -46,15 +59,27 @@ func (s Store) UpsertWithExecutor(ctx context.Context, executor database.Executo
 	if err := form.Validate(); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	payload, err := json.Marshal(form)
 	if err != nil {
 		return err
 	}
 	if s.Dialect == database.Postgres {
-		_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at) VALUES ($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,schema_json=EXCLUDED.schema_json,updated_at=EXCLUDED.updated_at`, form.ID, form.Title, string(payload), time.Now().UTC())
+		if s.RequireTenantScope {
+			_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at,tenant_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,schema_json=EXCLUDED.schema_json,updated_at=EXCLUDED.updated_at,tenant_id=EXCLUDED.tenant_id`, form.ID, form.Title, string(payload), time.Now().UTC(), tenantID)
+		} else {
+			_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at) VALUES ($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,schema_json=EXCLUDED.schema_json,updated_at=EXCLUDED.updated_at`, form.ID, form.Title, string(payload), time.Now().UTC())
+		}
 		return err
 	}
-	_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,schema_json=excluded.schema_json,updated_at=excluded.updated_at`, form.ID, form.Title, string(payload), time.Now().UTC().Format(time.RFC3339Nano))
+	if s.RequireTenantScope {
+		_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at,tenant_id) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,schema_json=excluded.schema_json,updated_at=excluded.updated_at,tenant_id=excluded.tenant_id`, form.ID, form.Title, string(payload), time.Now().UTC().Format(time.RFC3339Nano), tenantID)
+	} else {
+		_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,schema_json=excluded.schema_json,updated_at=excluded.updated_at`, form.ID, form.Title, string(payload), time.Now().UTC().Format(time.RFC3339Nano))
+	}
 	return err
 }
 
@@ -66,9 +91,18 @@ func (s Store) Get(ctx context.Context, id string) (forms.Form, error) {
 	if id == "" {
 		return forms.Form{}, ErrFormNotFound
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return forms.Form{}, err
+	}
 	query := "SELECT schema_json FROM hydro_forms WHERE id = " + placeholder(s.Dialect, 1)
+	args := []any{id}
+	if s.RequireTenantScope {
+		query += " AND tenant_id = " + placeholder(s.Dialect, 2)
+		args = append(args, tenantID)
+	}
 	var payload string
-	if err := s.Executor.QueryRowContext(ctx, query, id).Scan(&payload); err != nil {
+	if err := s.Executor.QueryRowContext(ctx, query, args...).Scan(&payload); err != nil {
 		return forms.Form{}, err
 	}
 	var form forms.Form
@@ -85,13 +119,29 @@ func (s Store) List(ctx context.Context) ([]forms.Form, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
+	}
 	queryer, ok := s.Executor.(interface {
 		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	})
 	if !ok {
 		return nil, errors.New("forms executor does not support queries")
 	}
-	rows, err := queryer.QueryContext(ctx, "SELECT schema_json FROM hydro_forms ORDER BY id LIMIT "+placeholder(s.Dialect, 1), MaxStoredForms)
+	query := "SELECT schema_json FROM hydro_forms"
+	args := []any{}
+	if s.RequireTenantScope {
+		query += " WHERE tenant_id = " + placeholder(s.Dialect, 1)
+		args = append(args, tenantID)
+	}
+	limitPos := 1
+	if s.RequireTenantScope {
+		limitPos = 2
+	}
+	query += " ORDER BY id LIMIT " + placeholder(s.Dialect, limitPos)
+	args = append(args, MaxStoredForms)
+	rows, err := queryer.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +174,17 @@ func (s Store) DeleteWithExecutor(ctx context.Context, executor database.Executo
 	if id == "" {
 		return ErrFormNotFound
 	}
-	result, err := s.Executor.ExecContext(ctx, "DELETE FROM hydro_forms WHERE id = "+placeholder(s.Dialect, 1), id)
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	query := "DELETE FROM hydro_forms WHERE id = " + placeholder(s.Dialect, 1)
+	args := []any{id}
+	if s.RequireTenantScope {
+		query += " AND tenant_id = " + placeholder(s.Dialect, 2)
+		args = append(args, tenantID)
+	}
+	result, err := s.Executor.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
