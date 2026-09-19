@@ -102,6 +102,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/mobile/member/commerce/cart/items", Handler: http.HandlerFunc(h.addCartItem), Protected: false},
 		{Pattern: "DELETE /api/v1/mobile/member/commerce/cart/items/{productID}", Handler: http.HandlerFunc(h.removeCartItem), Protected: false},
 		{Pattern: "POST /api/v1/mobile/member/commerce/cart/checkout", Handler: http.HandlerFunc(h.checkout), Protected: false},
+		{Pattern: "POST /api/v1/mobile/member/commerce/orders/{orderID}/payment-intent", Handler: http.HandlerFunc(h.paymentIntent), Protected: false},
 		{Pattern: "POST /api/commerce/orders/{orderID}/payment-intent", Handler: http.HandlerFunc(h.paymentIntent), Protected: false},
 		{Pattern: "GET /shop", Handler: http.HandlerFunc(h.shop), Protected: false},
 		{Pattern: "GET /shop/products/{productID}", Handler: http.HandlerFunc(h.productDetailPage), Protected: false},
