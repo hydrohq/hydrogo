@@ -5,8 +5,8 @@
     "/api/v1/commerce/products": { "get": { "responses": { "200": {}, "400": {}, "503": {} } } },
     "/api/v1/commerce/products/{productID}": { "get": { "parameters": [{ "name": "productID", "in": "path", "required": true }], "responses": { "200": {}, "404": {} } } },
     "/api/v1/mobile/member/commerce/cart": { "get": { "responses": { "200": {}, "401": {}, "503": {} } } },
-    "/api/v1/mobile/member/commerce/cart/items": { "post": { "responses": { "200": {}, "400": {}, "401": {}, "409": {} } } },
-    "/api/v1/mobile/member/commerce/cart/items/{productID}": { "delete": { "parameters": [{ "name": "productID", "in": "path", "required": true }], "responses": { "204": {}, "401": {}, "409": {} } } },
+    "/api/v1/mobile/member/commerce/cart/items": { "post": { "responses": { "200": {}, "400": {}, "401": {}, "409": {}, "429": {} } } },
+    "/api/v1/mobile/member/commerce/cart/items/{productID}": { "delete": { "parameters": [{ "name": "productID", "in": "path", "required": true }], "responses": { "204": {}, "401": {}, "409": {}, "429": {} } } },
     "/api/v1/mobile/member/commerce/cart/checkout": { "post": { "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true }], "responses": { "200": {}, "400": {}, "401": {}, "409": {}, "429": {} } } },
     "/api/v1/mobile/member/orders": { "get": { "parameters": [{ "name": "limit", "in": "query", "required": false }], "responses": { "200": {}, "400": {}, "401": {}, "503": {} } } },
     "/api/v1/mobile/member/commerce/orders/{orderID}/payment-intent": { "post": { "parameters": [{ "name": "orderID", "in": "path", "required": true }, { "name": "Idempotency-Key", "in": "header", "required": false }], "responses": { "200": {}, "403": {}, "404": {}, "409": {}, "429": {}, "502": {}, "503": {} } } }

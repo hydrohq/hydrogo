@@ -33,7 +33,7 @@
         "operationId": "addMemberCartItem",
         "security": [{ "bearerAuth": [] }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CartItemRequest" } } } },
-        "responses": { "200": { "description": "Updated member cart." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Cart item could not be added." } }
+        "responses": { "200": { "description": "Updated member cart." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Cart item could not be added." }, "429": { "$ref": "#/components/responses/RateLimited" } }
       }
     },
     "/api/v1/mobile/member/commerce/cart/items/{productID}": {
@@ -41,7 +41,7 @@
         "operationId": "removeMemberCartItem",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "productID", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "204": { "description": "Cart item removed." }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Cart item could not be removed." } }
+        "responses": { "204": { "description": "Cart item removed." }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Cart item could not be removed." }, "429": { "$ref": "#/components/responses/RateLimited" } }
       }
     },
     "/api/v1/mobile/member/commerce/cart/checkout": {
