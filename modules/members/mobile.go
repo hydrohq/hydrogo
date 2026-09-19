@@ -32,6 +32,20 @@ func (s MobileAuthService) tenant(ctx context.Context) (string, error) {
 	return scope.TenantID, nil
 }
 
+func (s MobileAuthService) within(ctx context.Context, fn func(database.Executor) error) error {
+	if s.DB == nil {
+		return database.ErrDatabaseRequired
+	}
+	return database.NewTenantTransactor(s.DB, s.Dialect, s.RequireTenantScope).Within(ctx, fn)
+}
+
+func (s MobileAuthService) withinQuery(ctx context.Context, fn func(database.QueryExecutor) error) error {
+	if s.DB == nil {
+		return database.ErrDatabaseRequired
+	}
+	return database.NewTenantTransactor(s.DB, s.Dialect, s.RequireTenantScope).WithinQuery(ctx, fn)
+}
+
 type MobileDeviceSummary struct {
 	DeviceID   string    `json:"device_id"`
 	DeviceName string    `json:"device_name"`
@@ -91,8 +105,13 @@ func (s MobileAuthService) Issue(ctx context.Context, memberID, deviceID, device
 			q = `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 		}
 	}
-	if _, err = s.DB.ExecContext(ctx, q, args...); err != nil {
-		return nil, fmt.Errorf("create member mobile session: %w", err)
+	if err := s.within(ctx, func(exec database.Executor) error {
+		if _, err := exec.ExecContext(ctx, q, args...); err != nil {
+			return fmt.Errorf("create member mobile session: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return &auth.TokenPair{AccessToken: access, RefreshToken: refresh, TokenType: "Bearer", ExpiresInSeconds: int64(auth.AccessTokenTTL.Seconds()), ExpiresAt: accessUntil}, nil
 }
@@ -119,7 +138,9 @@ func (s MobileAuthService) ValidateAccess(ctx context.Context, raw string) (stri
 	}
 	var memberID, deviceID string
 	var revoked, expires, active any
-	if err := s.DB.QueryRowContext(ctx, q, args...).Scan(&memberID, &deviceID, &revoked, &expires, &active); err != nil {
+	if err := s.withinQuery(ctx, func(qExec database.QueryExecutor) error {
+		return qExec.QueryRowContext(ctx, q, args...).Scan(&memberID, &deviceID, &revoked, &expires, &active)
+	}); err != nil {
 		return "", "", ErrMobileTokenInvalid
 	}
 	if mobileTime(revoked).IsZero() && time.Now().UTC().Before(mobileTime(expires)) && mobileActive(active) {
@@ -138,11 +159,6 @@ func (s MobileAuthService) Refresh(ctx context.Context, raw string) (*auth.Token
 	if err != nil {
 		return nil, ErrMobileTokenInvalid
 	}
-	tx, err := s.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
 	q := `SELECT s.id,s.member_id,s.device_id,s.device_name,s.platform,s.family_id,s.revoked_at,s.refresh_expires_at,m.active FROM member_mobile_device_sessions s JOIN members m ON m.id=s.member_id WHERE s.refresh_token_hash=?`
 	args := []any{auth.HashSessionToken(raw)}
 	if s.RequireTenantScope {
@@ -156,83 +172,97 @@ func (s MobileAuthService) Refresh(ctx context.Context, raw string) (*auth.Token
 		}
 		q += ` FOR UPDATE`
 	}
-	var id, memberID, deviceID, deviceName, platform, family string
-	var revoked, expires, active any
-	if err := tx.QueryRowContext(ctx, q, args...).Scan(&id, &memberID, &deviceID, &deviceName, &platform, &family, &revoked, &expires, &active); err != nil {
-		return nil, ErrMobileTokenInvalid
-	}
-	now := time.Now().UTC()
-	if !mobileTime(revoked).IsZero() || !now.Before(mobileTime(expires)) || !mobileActive(active) {
-		_, _ = tx.ExecContext(ctx, s.revokeFamilyQuery(), s.revokeFamilyArgs(now, family, tenantID)...)
-		_ = tx.Commit()
-		return nil, ErrMobileTokenInvalid
-	}
-	update := `UPDATE member_mobile_device_sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL`
-	updateArgs := []any{now.Format(time.RFC3339Nano), id}
-	if s.RequireTenantScope {
-		update += ` AND tenant_id = ?`
-		updateArgs = append(updateArgs, tenantID)
-	}
-	if s.Dialect == database.Postgres {
-		update = `UPDATE member_mobile_device_sessions SET revoked_at=$1 WHERE id=$2 AND revoked_at IS NULL`
-		updateArgs = []any{now, id}
+	var (
+		pair        *auth.TokenPair
+		securityErr error
+	)
+	err = s.within(ctx, func(tx database.Executor) error {
+		var id, memberID, deviceID, deviceName, platform, family string
+		var revoked, expires, active any
+		if err := tx.QueryRowContext(ctx, q, args...).Scan(&id, &memberID, &deviceID, &deviceName, &platform, &family, &revoked, &expires, &active); err != nil {
+			return ErrMobileTokenInvalid
+		}
+		now := time.Now().UTC()
+		if !mobileTime(revoked).IsZero() || !now.Before(mobileTime(expires)) || !mobileActive(active) {
+			_, err := tx.ExecContext(ctx, s.revokeFamilyQuery(), s.revokeFamilyArgs(now, family, tenantID)...)
+			if err != nil {
+				return err
+			}
+			securityErr = ErrMobileTokenInvalid
+			return nil
+		}
+		update := `UPDATE member_mobile_device_sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL`
+		updateArgs := []any{now.Format(time.RFC3339Nano), id}
 		if s.RequireTenantScope {
-			update += ` AND tenant_id = $3`
+			update += ` AND tenant_id = ?`
 			updateArgs = append(updateArgs, tenantID)
 		}
-	}
-	result, err := tx.ExecContext(ctx, update, updateArgs...)
-	if err != nil {
-		return nil, err
-	}
-	n, _ := result.RowsAffected()
-	if n != 1 {
-		return nil, ErrMobileTokenInvalid
-	}
-	access, accessHash, err := auth.GenerateSessionToken()
-	if err != nil {
-		return nil, err
-	}
-	refresh, refreshHash, err := auth.GenerateSessionToken()
-	if err != nil {
-		return nil, err
-	}
-	newID, _, err := auth.GenerateSessionToken()
-	if err != nil {
-		return nil, err
-	}
-	accessUntil := now.Add(auth.AccessTokenTTL)
-	refreshUntil := now.Add(auth.RefreshTokenTTL)
-	insert := `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at`
-	values := []any{newID, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil.Format(time.RFC3339Nano), refreshUntil.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)}
-	if s.RequireTenantScope {
-		insert += `,tenant_id`
-		values = append(values, tenantID)
-	}
-	insert += `) VALUES (`
-	for i := range values {
-		if i > 0 {
-			insert += `,`
+		if s.Dialect == database.Postgres {
+			update = `UPDATE member_mobile_device_sessions SET revoked_at=$1 WHERE id=$2 AND revoked_at IS NULL`
+			updateArgs = []any{now, id}
+			if s.RequireTenantScope {
+				update += ` AND tenant_id = $3`
+				updateArgs = append(updateArgs, tenantID)
+			}
 		}
-		insert += s.ph(i + 1)
-	}
-	insert += `)`
-	if s.Dialect == database.Postgres {
-		values = []any{newID, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil, refreshUntil, now, now}
+		result, err := tx.ExecContext(ctx, update, updateArgs...)
+		if err != nil {
+			return err
+		}
+		n, _ := result.RowsAffected()
+		if n != 1 {
+			return ErrMobileTokenInvalid
+		}
+		access, accessHash, err := auth.GenerateSessionToken()
+		if err != nil {
+			return err
+		}
+		refresh, refreshHash, err := auth.GenerateSessionToken()
+		if err != nil {
+			return err
+		}
+		newID, _, err := auth.GenerateSessionToken()
+		if err != nil {
+			return err
+		}
+		accessUntil := now.Add(auth.AccessTokenTTL)
+		refreshUntil := now.Add(auth.RefreshTokenTTL)
+		insert := `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at`
+		values := []any{newID, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil.Format(time.RFC3339Nano), refreshUntil.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)}
 		if s.RequireTenantScope {
-			insert = `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at,tenant_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+			insert += `,tenant_id`
 			values = append(values, tenantID)
-		} else {
-			insert = `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 		}
-	}
-	if _, err = tx.ExecContext(ctx, insert, values...); err != nil {
+		insert += `) VALUES (`
+		for i := range values {
+			if i > 0 {
+				insert += `,`
+			}
+			insert += s.ph(i + 1)
+		}
+		insert += `)`
+		if s.Dialect == database.Postgres {
+			values = []any{newID, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil, refreshUntil, now, now}
+			if s.RequireTenantScope {
+				insert = `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at,tenant_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+				values = append(values, tenantID)
+			} else {
+				insert = `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,device_name,platform,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+			}
+		}
+		if _, err = tx.ExecContext(ctx, insert, values...); err != nil {
+			return err
+		}
+		pair = &auth.TokenPair{AccessToken: access, RefreshToken: refresh, TokenType: "Bearer", ExpiresInSeconds: int64(auth.AccessTokenTTL.Seconds()), ExpiresAt: accessUntil}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
+	if securityErr != nil {
+		return nil, securityErr
 	}
-	return &auth.TokenPair{AccessToken: access, RefreshToken: refresh, TokenType: "Bearer", ExpiresInSeconds: int64(auth.AccessTokenTTL.Seconds()), ExpiresAt: accessUntil}, nil
+	return pair, nil
 }
 func (s MobileAuthService) revokeFamilyQuery() string {
 	if s.Dialect == database.Postgres {
@@ -313,26 +343,29 @@ func (s MobileAuthService) ListDevices(ctx context.Context, memberID, currentDev
 		}
 		q += ` ORDER BY last_used_at DESC`
 	}
-	rows, err := s.DB.QueryContext(ctx, q, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	devices := make([]MobileDeviceSummary, 0, 4)
-	seen := make(map[string]struct{})
-	for rows.Next() {
-		var deviceID, deviceName, platform string
-		var created, lastUsed any
-		if err := rows.Scan(&deviceID, &deviceName, &platform, &created, &lastUsed); err != nil {
-			return nil, err
+	err = s.withinQuery(ctx, func(qExec database.QueryExecutor) error {
+		rows, err := qExec.QueryContext(ctx, q, args...)
+		if err != nil {
+			return err
 		}
-		if _, exists := seen[deviceID]; exists {
-			continue
+		defer rows.Close()
+		seen := make(map[string]struct{})
+		for rows.Next() {
+			var deviceID, deviceName, platform string
+			var created, lastUsed any
+			if err := rows.Scan(&deviceID, &deviceName, &platform, &created, &lastUsed); err != nil {
+				return err
+			}
+			if _, exists := seen[deviceID]; exists {
+				continue
+			}
+			seen[deviceID] = struct{}{}
+			devices = append(devices, MobileDeviceSummary{DeviceID: deviceID, DeviceName: deviceName, Platform: platform, CreatedAt: mobileTime(created), LastUsedAt: mobileTime(lastUsed), IsCurrent: deviceID == currentDeviceID})
 		}
-		seen[deviceID] = struct{}{}
-		devices = append(devices, MobileDeviceSummary{DeviceID: deviceID, DeviceName: deviceName, Platform: platform, CreatedAt: mobileTime(created), LastUsedAt: mobileTime(lastUsed), IsCurrent: deviceID == currentDeviceID})
-	}
-	if err := rows.Err(); err != nil {
+		return rows.Err()
+	})
+	if err != nil {
 		return nil, err
 	}
 	return devices, nil
@@ -361,8 +394,10 @@ func (s MobileAuthService) revoke(ctx context.Context, field string, values ...s
 		q += ` AND tenant_id = ` + s.ph(len(args)+1)
 		args = append(args, tenantID)
 	}
-	_, err = s.DB.ExecContext(ctx, q, args...)
-	return err
+	return s.within(ctx, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, q, args...)
+		return err
+	})
 }
 func mobileTime(v any) time.Time {
 	switch x := v.(type) {
