@@ -20,9 +20,9 @@ Use two explicit extension planes:
 1. **Declarative Admin surface:** a customer-owned, signed JSON manifest is
    loaded at startup/deployment time and validated by
    `extension/v1.AdminExtensionManifest`. It contributes navigation/surface
-   metadata and HTTPS entrypoint paths only. The host renders each surface in
+  metadata and HTTPS entrypoint paths only. The host renders each surface in
    an isolated external origin (normally a sandboxed iframe) and passes only
-   versioned, permission-scoped postMessage data. `internal/adminstudio` keeps
+   versioned, permission-scoped `extension/v1.AdminMessage` data. `internal/adminstudio` keeps
    only validated manifests; it never loads a Go plugin or executes customer
    code.
 2. **Backend integration:** business rules run outside Core through the existing
