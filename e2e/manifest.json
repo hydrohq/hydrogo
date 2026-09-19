@@ -5,10 +5,10 @@
     "login_path": "/login",
     "surfaces": [
       {"id": "developer", "route": "/admin/developer", "test_id": "developer-area", "style_selector": ".dev-console", "style_property": "display", "style_value": "grid"},
-      {"id": "operations", "route": "/admin/operations", "test_id": "operations-area", "navigate_from": "/admin/developer", "style_selector": ".ops-grid", "style_property": "display", "style_value": "grid"},
-      {"id": "security", "route": "/admin/security", "test_id": "security-area", "navigate_from": "/admin/developer", "style_selector": ".sec-grid", "style_property": "display", "style_value": "grid"},
-      {"id": "permissions", "route": "/admin/permissions", "test_id": "permissions-area", "navigate_from": "/admin/developer", "style_selector": ".perm-grid", "style_property": "display", "style_value": "grid"},
-      {"id": "developer resources", "route": "/admin/developer/resources", "test_id": "resource-page", "navigate_from": "/admin/developer", "style_selector": ".resource-page", "style_property": "display", "style_value": "grid"}
+      {"id": "operations", "route": "/admin/operations", "test_id": "operations-area", "style_selector": ".ops-grid", "style_property": "display", "style_value": "grid"},
+      {"id": "security", "route": "/admin/security", "test_id": "security-area", "style_selector": ".sec-grid", "style_property": "display", "style_value": "grid"},
+      {"id": "permissions", "route": "/admin/permissions", "test_id": "permissions-area", "style_selector": ".perm-grid", "style_property": "display", "style_value": "grid"},
+      {"id": "developer resources", "route": "/admin/developer/resources", "test_id": "resource-page", "style_selector": ".resource-page", "style_property": "display", "style_value": "grid"}
     ],
     "collections": [
       {"id": "news", "route": "/admin/news/new", "fields": [{"id": "title", "test_id": "admin-field-news-title"}, {"id": "body", "widget": "richtext", "test_id": "admin-field-news-body"}]},
