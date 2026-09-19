@@ -27,6 +27,9 @@ try {
 	Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue
     go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=e2e -X main.buildTime=e2e" -o $bin (Join-Path $repo "cmd\hydro")
     $env:HYDRO_MEDIA_DIR = $media
+    # Demo pages/products are an explicit local E2E fixture, never a production
+    # default. Keep the setting scoped to this isolated child process.
+    $env:HYDRO_ENABLE_DEMO_FRONTEND = "true"
     & $bin migrate --database-dialect sqlite --database-dsn $db
     & $bin seed-demo --confirm-demo --database-dialect sqlite --database-dsn $db
     if (-not $env:HYDRO_E2E_ADMIN_EMAIL) { $env:HYDRO_E2E_ADMIN_EMAIL = "e2e-admin@example.test" }

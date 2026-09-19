@@ -30,6 +30,10 @@
         {
           "path": "R76-documentation-traceability-2026-09-19.md",
           "command": "git diff --check"
+        },
+        {
+          "path": "R77-browser-e2e-2026-09-19.md",
+          "command": "powershell -File scripts/run-e2e.ps1"
         }
       ]
     },
