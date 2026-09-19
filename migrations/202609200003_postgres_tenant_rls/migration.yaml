@@ -1,0 +1,27 @@
+id: "202609200003_postgres_tenant_rls"
+module: "core"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "5bbb274f16cb10cc910e67ce0deeb060f87b0f5e6801ea5e29693c70cd07baa5"
+  postgres: "024a7eb545c7331a991321a1cc4051756373cddd19e56c04ee1a6276d9e77c9b"
+dependencies:
+  - "202609200002_auth_security_tenant_scope"
+schema:
+  readable_epoch: 6
+  writable_epoch: 6
+preconditions:
+  - "All tenant discriminator migrations are applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One RLS policy and policy metadata per tenant-scoped table"
+compatibility: "Adds PostgreSQL defense-in-depth. Shared transactions must bind app.current_tenant_id; single-tenant transactions explicitly disable enforcement."
+smoke:
+  - "A shared transaction sees only its tenant rows and rejects cross-tenant INSERT/UPDATE."
+  - "A missing shared tenant binding returns no tenant-scoped rows."
+  - "A single-tenant transaction remains compatible with existing empty-namespace data."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

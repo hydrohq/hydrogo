@@ -21,6 +21,21 @@ func BindPostgresTransaction(ctx context.Context, exec ExecContext, scope Scope)
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	_, err := exec.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", scope.TenantID)
+	_, err := exec.ExecContext(ctx, "SELECT set_config('app.tenant_rls_enforced', 'true', true), set_config('app.current_tenant_id', $1, true)", scope.TenantID)
+	return err
+}
+
+// BindPostgresSingleTenantTransaction explicitly disables the optional RLS
+// tenant predicate for a single-tenant deployment. The setting is
+// transaction-local, so it cannot leak to another pooled connection or
+// request. Shared deployments must use BindPostgresTransaction instead.
+func BindPostgresSingleTenantTransaction(ctx context.Context, exec ExecContext) error {
+	if exec == nil {
+		return ErrMissingScope
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_, err := exec.ExecContext(ctx, "SELECT set_config('app.tenant_rls_enforced', 'false', true)")
 	return err
 }
