@@ -56,6 +56,18 @@ const memberOrders = await memberClient.memberOrders("member-access", 1);
 assert.equal(memberOrders[0].id, "order-1");
 await assert.rejects(() => memberClient.memberGetCart(""), RangeError);
 
+const registrationClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url, init) => {
+    assert.equal(url, "https://hydrogo.example/api/v1/mobile/member/auth/register");
+    assert.equal(init?.credentials, "omit");
+    assert.equal(new Headers(init?.headers).get("content-type"), "application/json");
+    return new Response(JSON.stringify({ access_token: "access", refresh_token: "refresh", token_type: "Bearer", expires_in: 900, expires_at: "2026-01-01T00:00:00Z" }), { status: 200 });
+  },
+});
+const registered = await registrationClient.memberRegister({ email: "reader@example.test", password: "secret1234", device_id: "ios-1", platform: "ios" });
+assert.equal(registered.token_type, "Bearer");
+
 const errorClient = createHydroGoClient({
   origin: "https://hydrogo.example",
   fetch: async () => new Response(JSON.stringify({ code: "denied", message: "Erişim reddedildi", request_id: "req-contract-1" }), { status: 403, headers: { "x-request-id": "req-contract-1" } }),
