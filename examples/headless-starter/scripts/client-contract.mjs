@@ -43,6 +43,19 @@ const news = await client.listNews("tr");
 assert.equal(news[0].id, "n1");
 assert.equal(calls, 1);
 
+const memberClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url, init) => {
+    assert.equal(url, "https://hydrogo.example/api/v1/mobile/member/orders?limit=1");
+    assert.equal(init?.credentials, "omit");
+    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer member-access");
+    return new Response(JSON.stringify({ orders: [{ id: "order-1", currency: "TRY", total_cents: 1000, payment_status: "pending", shipping_status: "new" }], limit: 1 }), { status: 200, headers: { "content-type": "application/json" } });
+  },
+});
+const memberOrders = await memberClient.memberOrders("member-access", 1);
+assert.equal(memberOrders[0].id, "order-1");
+await assert.rejects(() => memberClient.memberGetCart(""), RangeError);
+
 const errorClient = createHydroGoClient({
   origin: "https://hydrogo.example",
   fetch: async () => new Response(JSON.stringify({ code: "denied", message: "Erişim reddedildi", request_id: "req-contract-1" }), { status: 403, headers: { "x-request-id": "req-contract-1" } }),
