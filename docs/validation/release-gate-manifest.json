@@ -14,6 +14,10 @@
         {
           "path": "R33-wsl-production-gates-current-2026-09-17.md",
           "command": "bash scripts/verify-production-gates.sh"
+        },
+        {
+          "path": "R71-member-order-detail-dialects-2026-09-19.md",
+          "command": "go test ./tests/contract -run Test.*MemberOrderDetailOwnershipContract"
         }
       ]
     },
