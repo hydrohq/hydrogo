@@ -1,12 +1,14 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync/atomic"
-)
 
-import "github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+)
 
 var ErrTwoTierUnavailable = errors.New("two-tier cache is unavailable")
 
@@ -54,6 +56,17 @@ func (c *TwoTier[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) 
 		_ = c.remote.Set(c.remoteKey(generation, key), value)
 	}
 	return value, err
+}
+
+// GetOrLoadScoped requires an explicit tenant scope and applies it to both L1
+// and L2 keys, preventing cross-tenant cache hits in shared deployments.
+func (c *TwoTier[T]) GetOrLoadScoped(ctx context.Context, module, key string, loader func() (T, error)) (T, error) {
+	scopedKey, err := tenant.CacheKey(ctx, module, key)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return c.GetOrLoad(scopedKey, loader)
 }
 
 func (c *TwoTier[T]) GetOrLoadAtGeneration(key string, generation uint64, loader func() (T, error)) (T, error) {

@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 var (
@@ -92,6 +94,17 @@ func (c *Cache[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) {
 	generation := c.generation
 	c.mu.Unlock()
 	return c.GetOrLoadAtGeneration(key, generation, loader)
+}
+
+// GetOrLoadScoped requires an explicit tenant scope before touching the local
+// cache. The encoded key keeps per-tenant values separate even in one process.
+func (c *Cache[T]) GetOrLoadScoped(ctx context.Context, module, key string, loader func() (T, error)) (T, error) {
+	scopedKey, err := tenant.CacheKey(ctx, module, key)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return c.GetOrLoad(scopedKey, loader)
 }
 
 // GetOrLoadAtGeneration coalesces a load for a request that entered during a

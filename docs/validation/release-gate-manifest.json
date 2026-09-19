@@ -82,6 +82,10 @@
         {
           "path": "R89-ci-openapi-step-indentation-2026-09-19.md",
           "command": "python -c \"import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))\" && go run ./tools/actionguard"
+        },
+        {
+          "path": "R90-tenant-scoped-cache-api-2026-09-19.md",
+          "command": "go test ./internal/cache ./internal/tenant -count=1"
         }
       ]
     },
