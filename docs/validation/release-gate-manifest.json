@@ -38,6 +38,10 @@
         {
           "path": "R78-visual-locale-e2e-2026-09-19.md",
           "command": "HYDRO_VISUAL=1 powershell -File scripts/run-e2e.ps1"
+        },
+        {
+          "path": "R79-bff-session-adapter-2026-09-19.md",
+          "command": "go test ./internal/security/bffsession"
         }
       ]
     },
