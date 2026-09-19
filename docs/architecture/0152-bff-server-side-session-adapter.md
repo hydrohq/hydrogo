@@ -7,11 +7,14 @@
 ## Decision
 
 HydroGo provides `internal/security/bffsession.Store` as a bounded reference
-adapter for a single BFF instance. It creates a random opaque browser cookie,
-keeps the Core session cookie only on the server, stores only a hash of the
-CSRF token, applies expiry and a maximum entry count, and supports explicit
-revoke. Unsafe BFF methods use the same store as a constant-time CSRF
-validator.
+adapter for a single BFF instance and `internal/security/bffproxy.AuthHandler`
+as its login/logout exchange. The store creates a random opaque browser
+cookie, keeps the Core session cookie only on the server, stores only a hash
+of the CSRF token, applies expiry and a maximum entry count, and supports
+explicit revoke. Unsafe BFF methods use the same store as a constant-time
+CSRF validator. The auth handler accepts a bounded form, calls only Core's
+login/logout endpoints server-to-server, and never forwards Core `Set-Cookie`
+to the browser.
 
 The adapter is intentionally not a shared production session service. A
 multi-instance BFF must replace it with a shared, encrypted-at-rest/session-
@@ -23,5 +26,5 @@ for production browser cookies; local HTTP fixtures may opt into `Secure=false`.
 
 - Browser cookies and bearer credentials cannot become Core credentials.
 - Session memory and request abuse are bounded in the Compact/local profile.
-- Login/token exchange, distributed persistence and staging browser E2E remain
-  deployment responsibilities and release gates.
+- Distributed persistence, provider-specific login policy and staging browser
+  E2E remain deployment responsibilities and release gates.
