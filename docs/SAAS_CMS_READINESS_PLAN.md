@@ -222,6 +222,9 @@ reports and a published support matrix.
   The validated form schema registry now requires tenant scope in shared mode
   (ADR-0176/R113); existing-form backfill and end-to-end submission routing
   remain open.
+  Member mobile access/refresh tokens and device operations now enforce the
+  resolved tenant (ADR-0177/R114); admin/browser auth identity stores, invites,
+  recovery and MFA still require tenant contracts.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

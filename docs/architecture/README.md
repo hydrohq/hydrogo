@@ -221,6 +221,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0174](0174-tenant-scoped-commerce-catalog.md) | Tenant-scoped commerce catalog | Accepted (product/variant repository boundary; checkout and payment scope open) |
 | [0175](0175-tenant-scoped-commerce-checkout.md) | Tenant-scoped commerce checkout and payments | Accepted (checkout repository boundary; provisioning/backfill and RLS open) |
 | [0176](0176-tenant-scoped-form-registry.md) | Tenant-scoped form registry | Accepted (form schema repository boundary; submission/backfill open) |
+| [0177](0177-tenant-scoped-member-mobile-sessions.md) | Tenant-scoped member mobile sessions | Accepted (member mobile token boundary; admin auth identity open) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
