@@ -223,6 +223,9 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
 | [0146](0146-backend-first-runtime-root.md) | Backend-first runtime root with optional demo frontend | Accepted |
+| [0147](0147-single-tenant-production-deployment-and-bff-model.md) | Single-tenant production deployment and web BFF model | Accepted |
+| [0148](0148-web-frontend-bff-and-cors-policy.md) | Web frontend decoupling, BFF architecture and CORS policy | Accepted |
+| [0149](0149-shared-multi-tenant-saas-evolution.md) | Shared multi-tenant SaaS evolution and isolation architecture | Proposed |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
