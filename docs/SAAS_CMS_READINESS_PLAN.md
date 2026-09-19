@@ -63,8 +63,8 @@ and a clean issue list categorized as code, environment, legal, or product decis
 - [x] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
   deprecation behavior for every mobile resource. Staff and consumer/member
   authentication surfaces are now published and baseline-checked; business
-  catalog and cart projections are now published and baseline-checked; order
-  history/payment resources remain open.
+  catalog, cart and member order-history projections are now published and
+  baseline-checked; payment intent/confirmation resources remain open.
 - [x] Add a minimal iOS/Android-neutral client contract fixture covering login,
   refresh, logout, offline retry and token loss.
 - [ ] Run threat-model, abuse and device-loss drills with real deployment settings.
