@@ -57,8 +57,12 @@ func (s Store) MarkResult(ctx context.Context, db database.Executor, id, status 
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if status == "ready" {
+		storageKey, keyErr := media.StorageKeyForContext(ctx, detail)
+		if keyErr != nil {
+			return keyErr
+		}
 		query := "UPDATE media_variants SET status='ready', storage_key=" + s.p(1) + ", size_bytes=" + s.p(2) + ", error_message='', updated_at=" + s.p(3) + " WHERE id=" + s.p(4)
-		args := []any{detail, size, now, id}
+		args := []any{storageKey, size, now, id}
 		if scoped {
 			query += " AND tenant_id=" + s.p(5)
 			args = append(args, scope.TenantID)

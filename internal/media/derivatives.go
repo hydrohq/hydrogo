@@ -118,6 +118,10 @@ func (o *Optimizer) process(asset Asset) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
+	ctx, err := ContextForStorageKey(ctx, asset.StorageKey)
+	if err != nil {
+		return
+	}
 	idBytes := sha256.Sum256([]byte(asset.ID + ":" + kind))
 	id := hex.EncodeToString(idBytes[:])
 	if o.variants != nil {
