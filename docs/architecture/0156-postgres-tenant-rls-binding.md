@@ -1,8 +1,11 @@
 # ADR-0156: Transaction-local PostgreSQL tenant binding
 
-- Status: Accepted (foundation only; RLS policies and shared mode remain open)
+- Status: Superseded by [ADR-0180](0180-postgres-tenant-rls-enforcement.md)
 - Date: 2026-09-19
-- Related decisions: [ADR-0140](0140-tenant-isolation-scope.md), [ADR-0149](0149-shared-multi-tenant-saas-evolution.md), [ADR-0154](0154-tenant-scope-primitive.md)
+- Related decisions: [ADR-0140](0140-tenant-isolation-scope.md), [ADR-0149](0149-shared-multi-tenant-saas-evolution.md), [ADR-0154](0154-tenant-scope-primitive.md), [ADR-0180](0180-postgres-tenant-rls-enforcement.md)
+
+The binding primitive remains valid, but its foundation-only status is
+replaced by the transaction wiring and migration policy in ADR-0180.
 
 ## Decision
 
