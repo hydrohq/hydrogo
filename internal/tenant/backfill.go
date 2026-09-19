@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // BackfillReport tracks unassigned rows migrated per table.
@@ -47,6 +48,19 @@ var BackfillTables = []string{
 	"hydro_forms",
 }
 
+// isMissingTableError identifies when a table does not exist across PostgreSQL and SQLite
+// without leaking driver types to caller domains.
+func isMissingTableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "no such table") || // SQLite
+		strings.Contains(msg, "does not exist") || // PostgreSQL ("relation ... does not exist")
+		strings.Contains(msg, "undefined_table") || // PostgreSQL pgconn code 42P01
+		strings.Contains(msg, "42p01")
+}
+
 // PlanBackfill counts rows with empty or null tenant_id in each tenant-scoped table.
 func PlanBackfill(ctx context.Context, db *sql.DB, dialect string, targetTenantID string) (*BackfillReport, error) {
 	if _, err := NewScope(targetTenantID, targetTenantID); err != nil {
@@ -61,8 +75,12 @@ func PlanBackfill(ctx context.Context, db *sql.DB, dialect string, targetTenantI
 		var count int64
 		query := fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id = '' OR tenant_id IS NULL", table)
 		if err := db.QueryRowContext(ctx, query).Scan(&count); err != nil {
-			// Table may not exist if optional module is not active
-			continue
+			if isMissingTableError(err) {
+				// Table does not exist in this database profile (optional module inactive)
+				continue
+			}
+			// Fail closed on permission, connection, or other SQL errors during planning
+			return nil, fmt.Errorf("plan backfill error querying table %s: %w", table, err)
 		}
 		if count > 0 {
 			report.RowsAffected[table] = count
@@ -103,7 +121,11 @@ func ExecuteBackfill(ctx context.Context, db *sql.DB, dialect string, targetTena
 		}
 		res, err := tx.ExecContext(ctx, query, targetTenantID)
 		if err != nil {
-			// Fail closed and abort transaction on error
+			if isMissingTableError(err) {
+				// Table does not exist in this deployment profile (optional module inactive)
+				continue
+			}
+			// Fail closed and abort transaction on real constraint, permission, or SQL error
 			return nil, fmt.Errorf("backfill failed for table %s: %w", table, err)
 		}
 		affected, err := res.RowsAffected()
