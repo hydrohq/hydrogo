@@ -1157,7 +1157,7 @@ func serve(args []string, stderr io.Writer) error {
 	if modules["site"] {
 		siteService = site.Service{Transactions: database.NewTransactor(db), Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
 		if modules["forms"] {
-			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
+			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		}
 		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
