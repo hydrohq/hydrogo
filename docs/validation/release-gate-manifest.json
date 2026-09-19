@@ -86,6 +86,10 @@
         {
           "path": "R90-tenant-scoped-cache-api-2026-09-19.md",
           "command": "go test ./internal/cache ./internal/tenant -count=1"
+        },
+        {
+          "path": "R91-postgres-tenant-rls-binding-2026-09-19.md",
+          "command": "go test ./internal/tenant -run TestBindPostgresTransaction -count=1"
         }
       ]
     },
