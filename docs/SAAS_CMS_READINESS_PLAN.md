@@ -140,7 +140,8 @@ not templates, synthetic assertions or `main` as a commit identifier.
   inactive-module route/migration/worker/asset isolation for both SQL dialects.
   Admin customization now has a versioned declarative external-surface contract
   (`extension/v1.AdminExtensionManifest`, ADR-0157/R92); signed rollout, iframe
-  policy and marketplace lifecycle remain open.
+  policy and marketplace lifecycle remain open. Ed25519 manifest verification
+  against operator-configured key IDs is now covered by R93.
 - [ ] Finish editorial taxonomy, lifecycle, moderation, search, accessibility,
   locale and data-portability acceptance criteria for each sold bundle.
 - [ ] Treat payments, analytics, OIDC/SAML and provider integrations as separately
