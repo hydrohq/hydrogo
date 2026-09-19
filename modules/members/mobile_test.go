@@ -43,4 +43,14 @@ func TestMemberMobileTokenRotationRevokesReusedFamily(t *testing.T) {
 	if _, _, err := service.ValidateAccess(ctx, rotated.AccessToken); err == nil {
 		t.Fatal("family reuse left rotated access token valid")
 	}
+	activePair, err := service.Issue(ctx, "member-mobile", "reader-android", "Reader tablet", "android")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE members SET active = 0 WHERE id = ?`, "member-mobile"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := service.ValidateAccess(ctx, activePair.AccessToken); err == nil {
+		t.Fatal("disabled member retained a valid access token")
+	}
 }

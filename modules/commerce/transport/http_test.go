@@ -115,6 +115,23 @@ func TestResolveCartUserIDUsesStableMemberID(t *testing.T) {
 	}
 }
 
+func TestCommerceActorIDAcceptsConsumerMobileMemberBoundary(t *testing.T) {
+	h := Handler{ResolveMobileMemberID: func(r *http.Request) (string, bool) {
+		if r.Header.Get("Authorization") == "Bearer member-token" {
+			return "member-mobile-1", true
+		}
+		return "", false
+	}}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/mobile/member/commerce/cart", nil)
+	req.Header.Set("Authorization", "Bearer member-token")
+	if got, ok := h.commerceActorID(req); !ok || got != "member-mobile-1" {
+		t.Fatalf("mobile actor = %q/%t", got, ok)
+	}
+	if got, ok := h.commerceCustomerID(req); !ok || got != "member-mobile-1" {
+		t.Fatalf("mobile customer = %q/%t", got, ok)
+	}
+}
+
 func TestPaymentIntentAcceptsOrderOwnerGuestCapability(t *testing.T) {
 	provider := &paymentProviderStub{}
 	h := Handler{Orders: orderReaderStub{order: commerce.Order{ID: "order-1", UserID: "guest-1", PaymentStatus: "pending"}}, Payments: map[string]commerce.PaymentProvider{"test": provider}}

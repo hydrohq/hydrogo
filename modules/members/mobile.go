@@ -55,16 +55,19 @@ func (s MobileAuthService) Issue(ctx context.Context, memberID, deviceID, device
 }
 
 func (s MobileAuthService) ValidateAccess(ctx context.Context, raw string) (string, string, error) {
-	q := `SELECT member_id,device_id,revoked_at,access_expires_at FROM member_mobile_device_sessions WHERE access_token_hash = ?`
-	if s.Dialect == database.Postgres {
-		q = `SELECT member_id,device_id,revoked_at,access_expires_at FROM member_mobile_device_sessions WHERE access_token_hash = $1`
-	}
-	var memberID, deviceID string
-	var revoked, expires any
-	if err := s.DB.QueryRowContext(ctx, q, auth.HashSessionToken(raw)).Scan(&memberID, &deviceID, &revoked, &expires); err != nil {
+	if s.DB == nil || strings.TrimSpace(raw) == "" {
 		return "", "", ErrMobileTokenInvalid
 	}
-	if mobileTime(revoked).IsZero() && time.Now().UTC().Before(mobileTime(expires)) {
+	q := `SELECT s.member_id,s.device_id,s.revoked_at,s.access_expires_at,m.active FROM member_mobile_device_sessions s JOIN members m ON m.id=s.member_id WHERE s.access_token_hash = ?`
+	if s.Dialect == database.Postgres {
+		q = `SELECT s.member_id,s.device_id,s.revoked_at,s.access_expires_at,m.active FROM member_mobile_device_sessions s JOIN members m ON m.id=s.member_id WHERE s.access_token_hash = $1`
+	}
+	var memberID, deviceID string
+	var revoked, expires, active any
+	if err := s.DB.QueryRowContext(ctx, q, auth.HashSessionToken(raw)).Scan(&memberID, &deviceID, &revoked, &expires, &active); err != nil {
+		return "", "", ErrMobileTokenInvalid
+	}
+	if mobileTime(revoked).IsZero() && time.Now().UTC().Before(mobileTime(expires)) && mobileActive(active) {
 		return memberID, deviceID, nil
 	}
 	return "", "", ErrMobileTokenInvalid

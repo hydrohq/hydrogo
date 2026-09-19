@@ -1465,6 +1465,20 @@ func serve(args []string, stderr io.Writer) error {
 				}
 				return member.ID, true
 			},
+			ResolveMobileMemberID: func(r *http.Request) (string, bool) {
+				if memberHTTP.Mobile == nil {
+					return "", false
+				}
+				parts := strings.Fields(r.Header.Get("Authorization"))
+				if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
+					return "", false
+				}
+				memberID, _, err := memberHTTP.Mobile.ValidateAccess(r.Context(), parts[1])
+				if err != nil || strings.TrimSpace(memberID) == "" {
+					return "", false
+				}
+				return memberID, true
+			},
 		}
 		variantCollection, ok := studioRegistry.Collection("commerce_variants")
 		if !ok {
