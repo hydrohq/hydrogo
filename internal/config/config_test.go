@@ -196,6 +196,22 @@ func TestLoadSecurityTransportOptions(t *testing.T) {
 	}
 }
 
+func TestLoadSQLiteExternalWriteWatch(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_SQLITE_EXTERNAL_WRITE_WATCH": "true",
+	}), Overrides{})
+	if err != nil || !cfg.Database.SQLiteExternalWriteWatch {
+		t.Fatalf("sqlite external-write watch = %v, err=%v", cfg.Database.SQLiteExternalWriteWatch, err)
+	}
+	if _, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_SQLITE_EXTERNAL_WRITE_WATCH": "maybe",
+	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "HYDRO_SQLITE_EXTERNAL_WRITE_WATCH") {
+		t.Fatalf("invalid sqlite external-write watch error = %v", err)
+	}
+}
+
 func TestValidateRejectsNonOriginPublicURLs(t *testing.T) {
 	for _, value := range []string{
 		"https://user:pass@example.test",

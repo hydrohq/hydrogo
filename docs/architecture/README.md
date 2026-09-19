@@ -205,6 +205,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0158](0158-bounded-outbox-polling.md) | Bounded outbox polling lifecycle | Accepted (worker-loop foundation; production soak open) |
 | [0159](0159-sqlite-external-write-cache-monitor.md) | SQLite external-write cache monitor | Accepted (bounded safety net; integration and soak open) |
 | [0160](0160-admin-extension-runtime-host.md) | Signed Admin Extension runtime host | Accepted (single-process host foundation; rollout and staging E2E open) |
+| [0161](0161-sqlite-cache-watch-runtime-integration.md) | Opt-in SQLite cache watch runtime integration | Accepted (single-process integration; external-write soak open) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
