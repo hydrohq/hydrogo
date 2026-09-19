@@ -33,9 +33,18 @@ func (s Store) GetOrder(ctx context.Context, db database.Executor, orderID strin
 	if err := database.RequireExecutor(db); err != nil {
 		return commerce.Order{}, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Order{}, err
+	}
 	var order commerce.Order
 	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip FROM commerce_orders WHERE id = ` + s.placeholder(1)
-	if err := db.QueryRowContext(ctx, q, orderID).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode, &order.Customer.ClientIP); err != nil {
+	args := []any{orderID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	if err := db.QueryRowContext(ctx, q, args...).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode, &order.Customer.ClientIP); err != nil {
 		return commerce.Order{}, err
 	}
 	if err := s.loadItems(ctx, db, &order); err != nil {
@@ -203,9 +212,18 @@ func (s Store) GetOrderByUserID(ctx context.Context, db database.Executor, userI
 	}
 	// Keep the member projection data-minimal: do not load immutable checkout
 	// contact/identity fields merely to discard them in CustomerOrderReader.
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Order{}, err
+	}
 	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status FROM commerce_orders WHERE id = ` + s.placeholder(1) + ` AND user_id = ` + s.placeholder(2)
+	args := []any{orderID, userID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID)
+	}
 	var order commerce.Order
-	if err := db.QueryRowContext(ctx, q, orderID, userID).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
+	if err := db.QueryRowContext(ctx, q, args...).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return commerce.Order{}, sql.ErrNoRows
 		}
@@ -224,11 +242,24 @@ func (s Store) listOrders(ctx context.Context, db database.Executor, userID stri
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
+	}
 	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip FROM commerce_orders`
 	args := []any{}
 	if userID != "" {
 		q += ` WHERE user_id = ` + s.placeholder(1)
 		args = append(args, userID)
+	}
+	if s.RequireTenantScope {
+		if len(args) == 0 {
+			q += ` WHERE`
+		} else {
+			q += ` AND`
+		}
+		q += ` tenant_id = ` + s.placeholder(len(args)+1)
+		args = append(args, tenantID)
 	}
 	q += ` ORDER BY created_at DESC, id DESC LIMIT ` + s.placeholder(len(args)+1)
 	args = append(args, limit)
@@ -388,6 +419,9 @@ func (s Store) ListProductsPage(ctx context.Context, db database.Executor, publi
 }
 
 func (s Store) GetOrCreateCart(ctx context.Context, db database.Executor, userID, currency string) (commerce.Cart, error) {
+	if _, err := s.tenant(ctx); err != nil {
+		return commerce.Cart{}, err
+	}
 	cart, err := s.findCart(ctx, db, userID)
 	if err != nil {
 		return commerce.Cart{}, err
@@ -397,8 +431,25 @@ func (s Store) GetOrCreateCart(ctx context.Context, db database.Executor, userID
 	}
 	id := fmt.Sprintf("cart-%d", time.Now().UnixNano())
 	now := time.Now().UTC()
-	q := `INSERT INTO commerce_carts (id, user_id, currency, created_at, updated_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `)`
-	if _, err := db.ExecContext(ctx, q, id, userID, currency, now, now); err != nil {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Cart{}, err
+	}
+	q := `INSERT INTO commerce_carts (id, user_id, currency, created_at, updated_at`
+	args := []any{id, userID, currency, now, now}
+	if s.RequireTenantScope {
+		q += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	q += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			q += `, `
+		}
+		q += s.placeholder(i + 1)
+	}
+	q += `)`
+	if _, err := db.ExecContext(ctx, q, args...); err != nil {
 		return commerce.Cart{}, err
 	}
 	return s.findCart(ctx, db, userID)
@@ -413,17 +464,32 @@ func (s Store) GetCart(ctx context.Context, db database.Executor, userID, cartID
 }
 
 func (s Store) findCart(ctx context.Context, db database.Executor, userID string) (commerce.Cart, error) {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Cart{}, err
+	}
 	var cart commerce.Cart
 	q := `SELECT id, user_id, currency FROM commerce_carts WHERE user_id = ` + s.placeholder(1)
-	err := db.QueryRowContext(ctx, q, userID).Scan(&cart.ID, &cart.UserID, &cart.Currency)
+	args := []any{userID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	err = db.QueryRowContext(ctx, q, args...).Scan(&cart.ID, &cart.UserID, &cart.Currency)
 	if errors.Is(err, sql.ErrNoRows) {
 		return cart, nil
 	}
 	if err != nil {
 		return cart, err
 	}
-	q = `SELECT i.id, i.cart_id, i.product_id, COALESCE(i.variant_id, ''), COALESCE(v.sku, p.sku), COALESCE(v.title, p.title), i.quantity, i.unit_cents FROM commerce_cart_items i JOIN commerce_products p ON p.id = i.product_id LEFT JOIN commerce_product_variants v ON v.id = i.variant_id WHERE i.cart_id = ` + s.placeholder(1) + ` ORDER BY i.id`
-	rows, err := queryRows(ctx, db, q, cart.ID)
+	q = `SELECT i.id, i.cart_id, i.product_id, COALESCE(i.variant_id, ''), COALESCE(v.sku, p.sku), COALESCE(v.title, p.title), i.quantity, i.unit_cents FROM commerce_cart_items i JOIN commerce_products p ON p.id = i.product_id LEFT JOIN commerce_product_variants v ON v.id = i.variant_id WHERE i.cart_id = ` + s.placeholder(1)
+	args = []any{cart.ID}
+	if s.RequireTenantScope {
+		q += ` AND i.tenant_id = ` + s.placeholder(2) + ` AND p.tenant_id = ` + s.placeholder(3) + ` AND (v.id IS NULL OR v.tenant_id = ` + s.placeholder(4) + `)`
+		args = append(args, tenantID, tenantID, tenantID)
+	}
+	q += ` ORDER BY i.id`
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return commerce.Cart{}, err
 	}
@@ -441,6 +507,10 @@ func (s Store) findCart(ctx context.Context, db database.Executor, userID string
 }
 
 func (s Store) AddCartItem(ctx context.Context, db database.Executor, userID, productID, variantID string, quantity int) (commerce.Cart, error) {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Cart{}, err
+	}
 	cart, err := s.GetOrCreateCart(ctx, db, userID, "TRY")
 	if err != nil {
 		return commerce.Cart{}, err
@@ -451,12 +521,22 @@ func (s Store) AddCartItem(ctx context.Context, db database.Executor, userID, pr
 	var q string
 	if variantID != "" {
 		q := `SELECT price_cents, status, stock, product_id FROM commerce_product_variants WHERE id = ` + s.placeholder(1)
-		if err := db.QueryRowContext(ctx, q, variantID).Scan(&price, &status, &stock, &productID); err != nil {
+		args := []any{variantID}
+		if s.RequireTenantScope {
+			q += ` AND tenant_id = ` + s.placeholder(2)
+			args = append(args, tenantID)
+		}
+		if err := db.QueryRowContext(ctx, q, args...).Scan(&price, &status, &stock, &productID); err != nil {
 			return commerce.Cart{}, err
 		}
 	} else {
 		q := `SELECT price_cents, status, stock FROM commerce_products WHERE id = ` + s.placeholder(1)
-		if err := db.QueryRowContext(ctx, q, productID).Scan(&price, &status, &stock); err != nil {
+		args := []any{productID}
+		if s.RequireTenantScope {
+			q += ` AND tenant_id = ` + s.placeholder(2)
+			args = append(args, tenantID)
+		}
+		if err := db.QueryRowContext(ctx, q, args...).Scan(&price, &status, &stock); err != nil {
 			return commerce.Cart{}, err
 		}
 	}
@@ -465,20 +545,43 @@ func (s Store) AddCartItem(ctx context.Context, db database.Executor, userID, pr
 	}
 	var existing int
 	q = `SELECT quantity FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1) + ` AND product_id = ` + s.placeholder(2) + ` AND COALESCE(variant_id, '') = ` + s.placeholder(3)
-	err = db.QueryRowContext(ctx, q, cart.ID, productID, variantID).Scan(&existing)
+	args := []any{cart.ID, productID, variantID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(4)
+		args = append(args, tenantID)
+	}
+	err = db.QueryRowContext(ctx, q, args...).Scan(&existing)
 	if errors.Is(err, sql.ErrNoRows) {
-		q = `INSERT INTO commerce_cart_items (id, cart_id, product_id, variant_id, quantity, unit_cents) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `)`
+		q = `INSERT INTO commerce_cart_items (id, cart_id, product_id, variant_id, quantity, unit_cents`
 		var variantArg any
 		if variantID != "" {
 			variantArg = variantID
 		}
-		_, err = db.ExecContext(ctx, q, fmt.Sprintf("cart-item-%d", time.Now().UnixNano()), cart.ID, productID, variantArg, quantity, price)
+		args = []any{fmt.Sprintf("cart-item-%d", time.Now().UnixNano()), cart.ID, productID, variantArg, quantity, price}
+		if s.RequireTenantScope {
+			q += `, tenant_id`
+			args = append(args, tenantID)
+		}
+		q += `) VALUES (`
+		for i := range args {
+			if i > 0 {
+				q += `, `
+			}
+			q += s.placeholder(i + 1)
+		}
+		q += `)`
+		_, err = db.ExecContext(ctx, q, args...)
 	} else if err == nil {
 		if existing+quantity > stock {
 			return commerce.Cart{}, commerce.ErrOutOfStock
 		}
 		q = `UPDATE commerce_cart_items SET quantity = quantity + ` + s.placeholder(1) + `, unit_cents = ` + s.placeholder(2) + ` WHERE cart_id = ` + s.placeholder(3) + ` AND product_id = ` + s.placeholder(4) + ` AND COALESCE(variant_id, '') = ` + s.placeholder(5)
-		_, err = db.ExecContext(ctx, q, quantity, price, cart.ID, productID, variantID)
+		args = []any{quantity, price, cart.ID, productID, variantID}
+		if s.RequireTenantScope {
+			q += ` AND tenant_id = ` + s.placeholder(6)
+			args = append(args, tenantID)
+		}
+		_, err = db.ExecContext(ctx, q, args...)
 	}
 	if err != nil {
 		return commerce.Cart{}, err
@@ -495,7 +598,16 @@ func (s Store) RemoveCartItem(ctx context.Context, db database.Executor, userID,
 		return nil
 	}
 	q := `DELETE FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1) + ` AND product_id = ` + s.placeholder(2)
-	_, err = db.ExecContext(ctx, q, cart.ID, productID)
+	args := []any{cart.ID, productID}
+	if s.RequireTenantScope {
+		tenantID, err := s.tenant(ctx)
+		if err != nil {
+			return err
+		}
+		q += ` AND tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID)
+	}
+	_, err = db.ExecContext(ctx, q, args...)
 	return err
 }
 
@@ -508,7 +620,16 @@ func (s Store) ClearCart(ctx context.Context, db database.Executor, userID, cart
 		return sql.ErrNoRows
 	}
 	q := `DELETE FROM commerce_cart_items WHERE cart_id = ` + s.placeholder(1)
-	_, err = db.ExecContext(ctx, q, cartID)
+	args := []any{cartID}
+	if s.RequireTenantScope {
+		tenantID, err := s.tenant(ctx)
+		if err != nil {
+			return err
+		}
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	_, err = db.ExecContext(ctx, q, args...)
 	return err
 }
 
@@ -523,10 +644,19 @@ func (s Store) FindOrderByIdempotency(ctx context.Context, db database.Executor,
 	if err := database.RequireExecutor(db); err != nil {
 		return commerce.Order{}, false, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Order{}, false, err
+	}
 	var order commerce.Order
 	var created string
 	q := `SELECT id, user_id, idempotency_hash, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip, created_at FROM commerce_orders WHERE user_id = ` + s.placeholder(1) + ` AND idempotency_key = ` + s.placeholder(2)
-	err := db.QueryRowContext(ctx, q, userID, key).Scan(&order.ID, &order.UserID, &order.IdempotencyHash, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode, &order.Customer.ClientIP, &created)
+	args := []any{userID, key}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID)
+	}
+	err = db.QueryRowContext(ctx, q, args...).Scan(&order.ID, &order.UserID, &order.IdempotencyHash, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus, &order.Customer.Name, &order.Customer.IdentityNumber, &order.Customer.Email, &order.Customer.Phone, &order.Customer.Address, &order.Customer.City, &order.Customer.Country, &order.Customer.PostalCode, &order.Customer.ClientIP, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return commerce.Order{}, false, nil
 	}
@@ -540,8 +670,17 @@ func (s Store) FindOrderByIdempotency(ctx context.Context, db database.Executor,
 }
 
 func (s Store) loadItems(ctx context.Context, db database.Executor, order *commerce.Order) error {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	q := `SELECT product_id, COALESCE(variant_id, ''), sku, title, quantity, unit_cents, total_cents FROM commerce_order_items WHERE order_id = ` + s.placeholder(1) + ` ORDER BY id`
-	rows, err := queryRows(ctx, db, q, order.ID)
+	args := []any{order.ID}
+	if s.RequireTenantScope {
+		q = `SELECT product_id, COALESCE(variant_id, ''), sku, title, quantity, unit_cents, total_cents FROM commerce_order_items WHERE order_id = ` + s.placeholder(1) + ` AND tenant_id = ` + s.placeholder(2) + ` ORDER BY id`
+		args = append(args, tenantID)
+	}
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return err
 	}
@@ -610,18 +749,48 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	now := time.Now().UTC()
-	q := `INSERT INTO commerce_orders (id, user_id, idempotency_key, idempotency_hash, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip, created_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `, ` + s.placeholder(10) + `, ` + s.placeholder(11) + `, ` + s.placeholder(12) + `, ` + s.placeholder(13) + `, ` + s.placeholder(14) + `, ` + s.placeholder(15) + `, ` + s.placeholder(16) + `, ` + s.placeholder(17) + `, ` + s.placeholder(18) + `)`
-	if _, err := db.ExecContext(ctx, q, order.ID, order.UserID, key, order.IdempotencyHash, order.Currency, order.TotalCents, order.PaymentStatus, order.ShippingStatus, order.Customer.Name, order.Customer.IdentityNumber, order.Customer.Email, order.Customer.Phone, order.Customer.Address, order.Customer.City, order.Customer.Country, order.Customer.PostalCode, order.Customer.ClientIP, now); err != nil {
+	q := `INSERT INTO commerce_orders (id, user_id, idempotency_key, idempotency_hash, currency, total_cents, payment_status, shipping_status, customer_name, customer_identity_number, customer_email, customer_phone, customer_address, customer_city, customer_country, customer_postal_code, customer_client_ip, created_at`
+	args := []any{order.ID, order.UserID, key, order.IdempotencyHash, order.Currency, order.TotalCents, order.PaymentStatus, order.ShippingStatus, order.Customer.Name, order.Customer.IdentityNumber, order.Customer.Email, order.Customer.Phone, order.Customer.Address, order.Customer.City, order.Customer.Country, order.Customer.PostalCode, order.Customer.ClientIP, now}
+	if s.RequireTenantScope {
+		q += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	q += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			q += `, `
+		}
+		q += s.placeholder(i + 1)
+	}
+	q += `)`
+	if _, err := db.ExecContext(ctx, q, args...); err != nil {
 		return err
 	}
 	for index, item := range order.Items {
-		q = `INSERT INTO commerce_order_items (id, order_id, product_id, variant_id, sku, title, quantity, unit_cents, total_cents) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `)`
+		q = `INSERT INTO commerce_order_items (id, order_id, product_id, variant_id, sku, title, quantity, unit_cents, total_cents`
 		var variantArg any
 		if item.VariantID != "" {
 			variantArg = item.VariantID
 		}
-		if _, err := db.ExecContext(ctx, q, fmt.Sprintf("%s-item-%d", order.ID, index), order.ID, item.ProductID, variantArg, item.SKU, item.Title, item.Quantity, item.UnitCents, item.TotalCents); err != nil {
+		args := []any{fmt.Sprintf("%s-item-%d", order.ID, index), order.ID, item.ProductID, variantArg, item.SKU, item.Title, item.Quantity, item.UnitCents, item.TotalCents}
+		if s.RequireTenantScope {
+			q += `, tenant_id`
+			args = append(args, tenantID)
+		}
+		q += `) VALUES (`
+		for i := range args {
+			if i > 0 {
+				q += `, `
+			}
+			q += s.placeholder(i + 1)
+		}
+		q += `)`
+		if _, err := db.ExecContext(ctx, q, args...); err != nil {
 			return err
 		}
 	}
@@ -632,8 +801,25 @@ func (s Store) ClaimWebhook(ctx context.Context, db database.Executor, provider,
 	if err := database.RequireExecutor(db); err != nil {
 		return false, err
 	}
-	q := `INSERT INTO commerce_payment_webhook_events (provider, provider_event_id, received_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `)`
-	_, err := db.ExecContext(ctx, q, provider, eventID, time.Now().UTC())
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return false, err
+	}
+	q := `INSERT INTO commerce_payment_webhook_events (provider, provider_event_id, received_at`
+	args := []any{provider, eventID, time.Now().UTC()}
+	if s.RequireTenantScope {
+		q += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	q += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			q += `, `
+		}
+		q += s.placeholder(i + 1)
+	}
+	q += `)`
+	_, err = db.ExecContext(ctx, q, args...)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			return false, nil
@@ -647,23 +833,50 @@ func (s Store) ApplyPaymentEvent(ctx context.Context, db database.Executor, even
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	var total int64
 	var currency string
 	q := `SELECT total_cents, currency FROM commerce_orders WHERE id = ` + s.placeholder(1)
-	if err := db.QueryRowContext(ctx, q, event.OrderID).Scan(&total, &currency); err != nil {
+	args := []any{event.OrderID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	if err := db.QueryRowContext(ctx, q, args...).Scan(&total, &currency); err != nil {
 		return err
 	}
 	if total != event.AmountCents || currency != event.Currency {
 		return commerce.ErrPaymentMismatch
 	}
 	transactionID := event.Provider + "-" + event.ProviderEventID
-	q = `INSERT INTO commerce_payment_transactions (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at) VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `)`
+	q = `INSERT INTO commerce_payment_transactions (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at`
 	now := time.Now().UTC()
-	if _, err := db.ExecContext(ctx, q, transactionID, event.OrderID, event.Provider, event.PaymentID, event.AmountCents, event.Currency, event.Status, now, now); err != nil {
+	args = []any{transactionID, event.OrderID, event.Provider, event.PaymentID, event.AmountCents, event.Currency, event.Status, now, now}
+	if s.RequireTenantScope {
+		q += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	q += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			q += `, `
+		}
+		q += s.placeholder(i + 1)
+	}
+	q += `)`
+	if _, err := db.ExecContext(ctx, q, args...); err != nil {
 		return err
 	}
 	q = `UPDATE commerce_orders SET payment_status = ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2) + ` AND payment_status IN ('pending', 'failed')`
-	result, err := db.ExecContext(ctx, q, event.Status, event.OrderID)
+	args = []any{event.Status, event.OrderID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID)
+	}
+	result, err := db.ExecContext(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -681,9 +894,19 @@ func (s Store) GetPaymentTransaction(ctx context.Context, db database.Executor, 
 	if err := database.RequireExecutor(db); err != nil {
 		return commerce.PaymentTransaction{}, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.PaymentTransaction{}, err
+	}
 	var transaction commerce.PaymentTransaction
-	q := `SELECT order_id, provider, provider_payment_id, amount_cents, currency, status FROM commerce_payment_transactions WHERE order_id = ` + s.placeholder(1) + ` ORDER BY created_at DESC LIMIT 1`
-	err := db.QueryRowContext(ctx, q, orderID).Scan(&transaction.OrderID, &transaction.Provider, &transaction.ProviderPaymentID, &transaction.AmountCents, &transaction.Currency, &transaction.Status)
+	q := `SELECT order_id, provider, provider_payment_id, amount_cents, currency, status FROM commerce_payment_transactions WHERE order_id = ` + s.placeholder(1)
+	args := []any{orderID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	q += ` ORDER BY created_at DESC LIMIT 1`
+	err = db.QueryRowContext(ctx, q, args...).Scan(&transaction.OrderID, &transaction.Provider, &transaction.ProviderPaymentID, &transaction.AmountCents, &transaction.Currency, &transaction.Status)
 	return transaction, err
 }
 
@@ -694,8 +917,23 @@ func (s Store) ListPendingRefunds(ctx context.Context, db database.Executor, lim
 	if limit <= 0 || limit > 1000 {
 		return nil, errors.New("invalid pending refund limit")
 	}
-	q := `SELECT order_id, provider, provider_payment_id, amount_cents, currency, status FROM commerce_payment_transactions WHERE status = 'refund_pending' ORDER BY updated_at, order_id LIMIT ` + s.placeholder(1)
-	rows, err := queryRows(ctx, db, q, limit)
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	q := `SELECT order_id, provider, provider_payment_id, amount_cents, currency, status FROM commerce_payment_transactions WHERE status = 'refund_pending'`
+	args := []any{}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(1)
+		args = append(args, tenantID)
+	}
+	limitPos := 1
+	if s.RequireTenantScope {
+		limitPos = 2
+	}
+	q += ` ORDER BY updated_at, order_id LIMIT ` + s.placeholder(limitPos)
+	args = append(args, limit)
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -715,9 +953,18 @@ func (s Store) MarkPaymentRefunded(ctx context.Context, db database.Executor, or
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	q := `UPDATE commerce_payment_transactions SET status = ` + s.placeholder(1) + `, updated_at = ` + s.placeholder(2) + ` WHERE order_id = ` + s.placeholder(3) + ` AND provider_payment_id = ` + s.placeholder(4) + ` AND status = 'refund_pending'`
-	result, err := db.ExecContext(ctx, q, "refunded", now, orderID, paymentID)
+	args := []any{"refunded", now, orderID, paymentID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(5)
+		args = append(args, tenantID)
+	}
+	result, err := db.ExecContext(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -726,7 +973,12 @@ func (s Store) MarkPaymentRefunded(ctx context.Context, db database.Executor, or
 		return commerce.ErrPaymentMismatch
 	}
 	q = `UPDATE commerce_orders SET payment_status = ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2) + ` AND payment_status = 'paid'`
-	result, err = db.ExecContext(ctx, q, "refunded", orderID)
+	args = []any{"refunded", orderID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID)
+	}
+	result, err = db.ExecContext(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -741,8 +993,17 @@ func (s Store) ClaimPaymentRefund(ctx context.Context, db database.Executor, ord
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	q := `UPDATE commerce_payment_transactions SET status = ` + s.placeholder(1) + `, updated_at = ` + s.placeholder(2) + ` WHERE order_id = ` + s.placeholder(3) + ` AND provider_payment_id = ` + s.placeholder(4) + ` AND status = 'paid'`
-	result, err := db.ExecContext(ctx, q, "refund_pending", time.Now().UTC(), orderID, paymentID)
+	args := []any{"refund_pending", time.Now().UTC(), orderID, paymentID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(5)
+		args = append(args, tenantID)
+	}
+	result, err := db.ExecContext(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -764,8 +1025,18 @@ func (s Store) ExpirePendingOrders(ctx context.Context, db database.Executor, be
 	if err := database.RequireExecutor(db); err != nil {
 		return 0, err
 	}
-	q := `SELECT id FROM commerce_orders WHERE payment_status = 'pending' AND created_at <= ` + s.placeholder(1) + ` ORDER BY created_at, id LIMIT 100`
-	rows, err := queryRows(ctx, db, q, before)
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return 0, err
+	}
+	q := `SELECT id FROM commerce_orders WHERE payment_status = 'pending' AND created_at <= ` + s.placeholder(1)
+	args := []any{before}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	q += ` ORDER BY created_at, id LIMIT 100`
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return 0, err
 	}
@@ -787,7 +1058,12 @@ func (s Store) ExpirePendingOrders(ctx context.Context, db database.Executor, be
 	expired := 0
 	for _, orderID := range ids {
 		update := `UPDATE commerce_orders SET payment_status = ` + s.placeholder(1) + `, shipping_status = ` + s.placeholder(2) + ` WHERE id = ` + s.placeholder(3) + ` AND payment_status = 'pending'`
-		result, err := db.ExecContext(ctx, update, "expired", "cancelled", orderID)
+		args := []any{"expired", "cancelled", orderID}
+		if s.RequireTenantScope {
+			update += ` AND tenant_id = ` + s.placeholder(4)
+			args = append(args, tenantID)
+		}
+		result, err := db.ExecContext(ctx, update, args...)
 		if err != nil {
 			return expired, err
 		}
@@ -799,7 +1075,12 @@ func (s Store) ExpirePendingOrders(ctx context.Context, db database.Executor, be
 			continue
 		}
 		linesQuery := `SELECT product_id, COALESCE(variant_id, ''), quantity FROM commerce_order_items WHERE order_id = ` + s.placeholder(1)
-		lines, err := queryRows(ctx, db, linesQuery, orderID)
+		lineArgs := []any{orderID}
+		if s.RequireTenantScope {
+			linesQuery += ` AND tenant_id = ` + s.placeholder(2)
+			lineArgs = append(lineArgs, tenantID)
+		}
+		lines, err := queryRows(ctx, db, linesQuery, lineArgs...)
 		if err != nil {
 			return expired, err
 		}
@@ -828,10 +1109,20 @@ func (s Store) ExpirePendingOrders(ctx context.Context, db database.Executor, be
 		for _, reservation := range reservations {
 			if reservation.variantID != "" {
 				q = `UPDATE commerce_product_variants SET stock = stock + ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2)
-				_, err = db.ExecContext(ctx, q, reservation.quantity, reservation.variantID)
+				args := []any{reservation.quantity, reservation.variantID}
+				if s.RequireTenantScope {
+					q += ` AND tenant_id = ` + s.placeholder(3)
+					args = append(args, tenantID)
+				}
+				_, err = db.ExecContext(ctx, q, args...)
 			} else {
 				q = `UPDATE commerce_products SET stock = stock + ` + s.placeholder(1) + ` WHERE id = ` + s.placeholder(2)
-				_, err = db.ExecContext(ctx, q, reservation.quantity, reservation.productID)
+				args := []any{reservation.quantity, reservation.productID}
+				if s.RequireTenantScope {
+					q += ` AND tenant_id = ` + s.placeholder(3)
+					args = append(args, tenantID)
+				}
+				_, err = db.ExecContext(ctx, q, args...)
 			}
 			if err != nil {
 				return expired, err
