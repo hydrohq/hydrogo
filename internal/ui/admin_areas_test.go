@@ -161,9 +161,30 @@ func TestDeveloperTabsRendered(t *testing.T) {
 		t.Fatalf("RenderAdminArea(developer) error = %v", err)
 	}
 	rendered := out.String()
-	for _, want := range []string{"studio-tabs-nav", "/admin/developer", "/admin/developer/resources", "/admin/developer/components", "is-active"} {
+	for _, want := range []string{"studio-tabs-nav", "/admin/developer", "/admin/developer/resources", "/admin/control", "/admin/security", "is-active"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("developer page missing tab navigation element %q", want)
 		}
+	}
+	if strings.Contains(rendered, "/admin/developer/components") {
+		t.Fatal("developer tabs still contain component showcase")
+	}
+
+	// Verify security page also renders developer tabs
+	var secOut bytes.Buffer
+	if err := RenderAdminArea(&secOut, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "security"}); err != nil {
+		t.Fatalf("RenderAdminArea(security) error = %v", err)
+	}
+	if !strings.Contains(secOut.String(), "studio-tabs-nav") || !strings.Contains(secOut.String(), `href="/admin/security" class="studio-tab-item is-active"`) {
+		t.Fatal("security page missing active developer tabs navigation")
+	}
+
+	// Verify control page also renders developer tabs
+	var ctrlOut bytes.Buffer
+	if err := RenderAdminControl(&ctrlOut, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Active: "control"}); err != nil {
+		t.Fatalf("RenderAdminControl error = %v", err)
+	}
+	if !strings.Contains(ctrlOut.String(), "studio-tabs-nav") || !strings.Contains(ctrlOut.String(), `href="/admin/control" class="studio-tab-item is-active"`) {
+		t.Fatal("control page missing active developer tabs navigation")
 	}
 }

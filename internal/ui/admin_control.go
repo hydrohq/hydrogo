@@ -395,7 +395,10 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 </script>`))
 
 func RenderAdminControl(w io.Writer, data AdminControlData) error {
-	if err := AdminStart(w, "Yönetim araçları", "Platform yönetimi", data.Nonce, data.Active); err != nil {
+	if err := AdminStart(w, "Yönetim araçları", "Platform yönetimi", data.Nonce, "developer"); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, renderDeveloperTabs("control")); err != nil {
 		return err
 	}
 	if err := adminControlTemplate.Execute(w, data); err != nil {
