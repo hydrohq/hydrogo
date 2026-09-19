@@ -1,0 +1,71 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HydroGo Consumer Commerce API",
+    "version": "1.0.0",
+    "description": "Public catalog projections and member-bearer cart/checkout endpoints for consumer applications. Staff administration uses separate web routes."
+  },
+  "servers": [{ "url": "/" }],
+  "paths": {
+    "/api/v1/commerce/products": {
+      "get": {
+        "operationId": "listPublishedProducts",
+        "parameters": [{ "name": "page", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1 } }],
+        "responses": { "200": { "description": "Published catalog page." }, "400": { "description": "Invalid page." }, "503": { "$ref": "#/components/responses/Unavailable" } }
+      }
+    },
+    "/api/v1/commerce/products/{productID}": {
+      "get": {
+        "operationId": "getPublishedProduct",
+        "parameters": [{ "name": "productID", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Published product." }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/v1/mobile/member/commerce/cart": {
+      "get": {
+        "operationId": "getMemberCart",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Current member cart." }, "401": { "$ref": "#/components/responses/Unauthorized" }, "503": { "$ref": "#/components/responses/Unavailable" } }
+      }
+    },
+    "/api/v1/mobile/member/commerce/cart/items": {
+      "post": {
+        "operationId": "addMemberCartItem",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CartItemRequest" } } } },
+        "responses": { "200": { "description": "Updated member cart." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Cart item could not be added." } }
+      }
+    },
+    "/api/v1/mobile/member/commerce/cart/items/{productID}": {
+      "delete": {
+        "operationId": "removeMemberCartItem",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "productID", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Cart item removed." }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Cart item could not be removed." } }
+      }
+    },
+    "/api/v1/mobile/member/commerce/cart/checkout": {
+      "post": {
+        "operationId": "checkoutMemberCart",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string", "maxLength": 128 } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckoutRequest" } } } },
+        "responses": { "200": { "description": "Created order." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Checkout conflict." }, "429": { "$ref": "#/components/responses/RateLimited" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } },
+    "responses": {
+      "InvalidRequest": { "description": "Invalid request." },
+      "Unauthorized": { "description": "Authentication is required." },
+      "NotFound": { "description": "Resource not found." },
+      "Unavailable": { "description": "Commerce is temporarily unavailable." },
+      "RateLimited": { "description": "Too many requests." }
+    },
+    "schemas": {
+      "CartItemRequest": { "type": "object", "additionalProperties": false, "required": ["product_id", "quantity"], "properties": { "product_id": { "type": "string" }, "variant_id": { "type": "string" }, "quantity": { "type": "integer", "minimum": 1 } } },
+      "CheckoutRequest": { "type": "object", "additionalProperties": false, "required": ["cart_id", "items", "customer"], "properties": { "cart_id": { "type": "string" }, "items": { "type": "array", "items": { "type": "object" } }, "customer": { "type": "object" } } }
+    }
+  }
+}
