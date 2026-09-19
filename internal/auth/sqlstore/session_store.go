@@ -33,6 +33,15 @@ func NewSessionStore(db *sql.DB, dialect database.Dialect) *SessionStore {
 	return &SessionStore{db: db, dialect: dialect}
 }
 
+// within ensures the tenant GUC and the session query share one PostgreSQL
+// transaction/physical connection.
+func (s *SessionStore) within(ctx context.Context, fn func(database.Executor) error) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
+	return database.NewTenantTransactor(s.db, s.dialect, s.RequireTenantScope).Within(ctx, fn)
+}
+
 func (s *SessionStore) Create(ctx context.Context, sess *auth.Session) error {
 	if err := requireSessionStore(s); err != nil {
 		return err
@@ -83,11 +92,13 @@ func (s *SessionStore) Create(ctx context.Context, sess *auth.Session) error {
 		query += `)`
 	}
 
-	_, err = s.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to insert session: %w", err)
-	}
-	return nil
+	return s.within(ctx, func(exec database.Executor) error {
+		_, execErr := exec.ExecContext(ctx, query, args...)
+		if execErr != nil {
+			return fmt.Errorf("failed to insert session: %w", execErr)
+		}
+		return nil
+	})
 }
 
 func (s *SessionStore) GetByTokenHash(ctx context.Context, tokenHash string) (*auth.Session, error) {
@@ -116,11 +127,13 @@ func (s *SessionStore) GetByTokenHash(ctx context.Context, tokenHash string) (*a
 	var sess auth.Session
 	var expiresAtVal, createdAtVal, lastSeenAtVal any
 
-	err = s.db.QueryRowContext(ctx, query, args...).Scan(
-		&sess.ID, &sess.UserID, &sess.TokenHash,
-		&expiresAtVal, &createdAtVal, &lastSeenAtVal,
-		&sess.UserAgent, &sess.IPAddress,
-	)
+	err = s.within(ctx, func(exec database.Executor) error {
+		return exec.QueryRowContext(ctx, query, args...).Scan(
+			&sess.ID, &sess.UserID, &sess.TokenHash,
+			&expiresAtVal, &createdAtVal, &lastSeenAtVal,
+			&sess.UserAgent, &sess.IPAddress,
+		)
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, auth.ErrSessionNotFound
@@ -159,11 +172,13 @@ func (s *SessionStore) DeleteByTokenHash(ctx context.Context, tokenHash string) 
 			query += ` AND tenant_id = ?`
 		}
 	}
-	_, err = s.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to delete session: %w", err)
-	}
-	return nil
+	return s.within(ctx, func(exec database.Executor) error {
+		_, execErr := exec.ExecContext(ctx, query, args...)
+		if execErr != nil {
+			return fmt.Errorf("failed to delete session: %w", execErr)
+		}
+		return nil
+	})
 }
 
 func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error {
@@ -186,11 +201,13 @@ func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error 
 			query += ` AND tenant_id = ?`
 		}
 	}
-	_, err = s.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to delete user sessions: %w", err)
-	}
-	return nil
+	return s.within(ctx, func(exec database.Executor) error {
+		_, execErr := exec.ExecContext(ctx, query, args...)
+		if execErr != nil {
+			return fmt.Errorf("failed to delete user sessions: %w", execErr)
+		}
+		return nil
+	})
 }
 
 func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executor, userID string) error {
@@ -244,7 +261,12 @@ func (s *SessionStore) DeleteExpired(ctx context.Context, now time.Time) (int64,
 			args = append(args, tenantID)
 		}
 	}
-	res, err := s.db.ExecContext(ctx, query, args...)
+	var res sql.Result
+	err = s.within(ctx, func(exec database.Executor) error {
+		var execErr error
+		res, execErr = exec.ExecContext(ctx, query, args...)
+		return execErr
+	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete expired sessions: %w", err)
 	}
@@ -275,9 +297,11 @@ func (s *SessionStore) Touch(ctx context.Context, tokenHash string, lastSeen tim
 			args = append(args, tenantID)
 		}
 	}
-	_, err = s.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to touch session: %w", err)
-	}
-	return nil
+	return s.within(ctx, func(exec database.Executor) error {
+		_, execErr := exec.ExecContext(ctx, query, args...)
+		if execErr != nil {
+			return fmt.Errorf("failed to touch session: %w", execErr)
+		}
+		return nil
+	})
 }

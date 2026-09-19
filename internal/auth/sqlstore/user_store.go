@@ -33,6 +33,16 @@ func NewUserStore(db *sql.DB, dialect database.Dialect) *UserStore {
 	return &UserStore{db: db, dialect: dialect}
 }
 
+// within keeps direct user lookups on the same transaction boundary as the
+// rest of the shared-mode application. This is required for PostgreSQL RLS:
+// the tenant GUC and the query must use the same physical transaction.
+func (s *UserStore) within(ctx context.Context, fn func(database.Executor) error) error {
+	if err := requireUserDB(s); err != nil {
+		return err
+	}
+	return database.NewTenantTransactor(s.db, s.dialect, s.RequireTenantScope).Within(ctx, fn)
+}
+
 func (s *UserStore) Create(ctx context.Context, u *auth.User) error {
 	if err := requireUserDB(s); err != nil {
 		return err
@@ -83,11 +93,13 @@ func (s *UserStore) Create(ctx context.Context, u *auth.User) error {
 		query += `)`
 	}
 
-	_, err = s.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to insert user: %w", err)
-	}
-	return nil
+	return s.within(ctx, func(exec database.Executor) error {
+		_, execErr := exec.ExecContext(ctx, query, args...)
+		if execErr != nil {
+			return fmt.Errorf("failed to insert user: %w", execErr)
+		}
+		return nil
+	})
 }
 
 func (s *UserStore) CreateUserTx(ctx context.Context, tx database.Executor, u *auth.User) error {
@@ -175,7 +187,9 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) 
 	var activeVal any
 	var createdAtVal, updatedAtVal any
 
-	err = s.db.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal)
+	err = s.within(ctx, func(exec database.Executor) error {
+		return exec.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal)
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, auth.ErrUserNotFound
@@ -217,7 +231,9 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 	var activeVal any
 	var createdAtVal, updatedAtVal any
 
-	err = s.db.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal)
+	err = s.within(ctx, func(exec database.Executor) error {
+		return exec.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal)
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, auth.ErrUserNotFound
@@ -251,7 +267,9 @@ func (s *UserStore) Count(ctx context.Context) (int64, error) {
 		}
 	}
 	var count int64
-	err = s.db.QueryRowContext(ctx, query, args...).Scan(&count)
+	err = s.within(ctx, func(exec database.Executor) error {
+		return exec.QueryRowContext(ctx, query, args...).Scan(&count)
+	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to count users: %w", err)
 	}
@@ -280,7 +298,12 @@ func (s *UserStore) SetActive(ctx context.Context, id string, active bool) error
 			args = append(args, tenantID)
 		}
 	}
-	result, err := s.db.ExecContext(ctx, query, args...)
+	var result sql.Result
+	err = s.within(ctx, func(exec database.Executor) error {
+		var execErr error
+		result, execErr = exec.ExecContext(ctx, query, args...)
+		return execErr
+	})
 	if err != nil {
 		return fmt.Errorf("failed to update user active state: %w", err)
 	}
