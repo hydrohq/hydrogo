@@ -182,6 +182,10 @@
         {
           "path": "R114-tenant-scoped-member-mobile-sessions-2026-09-19.md",
           "command": "go test ./modules/members/... ./cmd/hydro -count=1"
+        },
+        {
+          "path": "R115-tenant-scoped-admin-identity-sessions-2026-09-20.md",
+          "command": "go test ./internal/auth/sqlstore ./internal/auth ./cmd/hydro -count=1"
         }
       ]
     },

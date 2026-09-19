@@ -9,11 +9,24 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 type SessionStore struct {
-	db      *sql.DB
-	dialect database.Dialect
+	db                 *sql.DB
+	dialect            database.Dialect
+	RequireTenantScope bool
+}
+
+func (s *SessionStore) tenant(ctx context.Context) (string, error) {
+	if !s.RequireTenantScope {
+		return "", nil
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return "", err
+	}
+	return scope.TenantID, nil
 }
 
 func NewSessionStore(db *sql.DB, dialect database.Dialect) *SessionStore {
@@ -27,6 +40,10 @@ func (s *SessionStore) Create(ctx context.Context, sess *auth.Session) error {
 	if sess == nil {
 		return errors.New("session is required")
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	if sess.CreatedAt.IsZero() {
 		sess.CreatedAt = now
@@ -35,23 +52,38 @@ func (s *SessionStore) Create(ctx context.Context, sess *auth.Session) error {
 		sess.LastSeenAt = now
 	}
 
-	query := `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	query := `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address`
+	args := []any{sess.ID, sess.UserID, sess.TokenHash, sess.ExpiresAt, sess.CreatedAt, sess.LastSeenAt, sess.UserAgent, sess.IPAddress}
+	if s.RequireTenantScope {
+		query += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	query += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			query += `, `
+		}
+		query += fmt.Sprintf("$%d", i+1)
+	}
+	query += `)`
 	if s.dialect == database.SQLite {
-		query = `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+		query = `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address`
+		args = []any{sess.ID, sess.UserID, sess.TokenHash, sess.ExpiresAt.Format(time.RFC3339Nano), sess.CreatedAt.Format(time.RFC3339Nano), sess.LastSeenAt.Format(time.RFC3339Nano), sess.UserAgent, sess.IPAddress}
+		if s.RequireTenantScope {
+			query += `, tenant_id`
+			args = append(args, tenantID)
+		}
+		query += `) VALUES (`
+		for i := range args {
+			if i > 0 {
+				query += `, `
+			}
+			query += `?`
+		}
+		query += `)`
 	}
 
-	var expiresAtVal any = sess.ExpiresAt
-	var createdAtVal any = sess.CreatedAt
-	var lastSeenAtVal any = sess.LastSeenAt
-	if s.dialect == database.SQLite {
-		expiresAtVal = sess.ExpiresAt.Format(time.RFC3339Nano)
-		createdAtVal = sess.CreatedAt.Format(time.RFC3339Nano)
-		lastSeenAtVal = sess.LastSeenAt.Format(time.RFC3339Nano)
-	}
-
-	_, err := s.db.ExecContext(ctx, query, sess.ID, sess.UserID, sess.TokenHash, expiresAtVal, createdAtVal, lastSeenAtVal, sess.UserAgent, sess.IPAddress)
+	_, err = s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to insert session: %w", err)
 	}
@@ -62,17 +94,29 @@ func (s *SessionStore) GetByTokenHash(ctx context.Context, tokenHash string) (*a
 	if err := requireSessionStore(s); err != nil {
 		return nil, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
+	}
 	query := `SELECT id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address
               FROM sessions WHERE token_hash = $1`
+	args := []any{tokenHash}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $2`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `SELECT id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address
                  FROM sessions WHERE token_hash = ?`
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
 	}
 
 	var sess auth.Session
 	var expiresAtVal, createdAtVal, lastSeenAtVal any
 
-	err := s.db.QueryRowContext(ctx, query, tokenHash).Scan(
+	err = s.db.QueryRowContext(ctx, query, args...).Scan(
 		&sess.ID, &sess.UserID, &sess.TokenHash,
 		&expiresAtVal, &createdAtVal, &lastSeenAtVal,
 		&sess.UserAgent, &sess.IPAddress,
@@ -99,11 +143,23 @@ func (s *SessionStore) DeleteByTokenHash(ctx context.Context, tokenHash string) 
 	if err := requireSessionStore(s); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	query := `DELETE FROM sessions WHERE token_hash = $1`
+	args := []any{tokenHash}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $2`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `DELETE FROM sessions WHERE token_hash = ?`
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
 	}
-	_, err := s.db.ExecContext(ctx, query, tokenHash)
+	_, err = s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
 	}
@@ -114,11 +170,23 @@ func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error 
 	if err := requireSessionStore(s); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	query := `DELETE FROM sessions WHERE user_id = $1`
+	args := []any{userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $2`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `DELETE FROM sessions WHERE user_id = ?`
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
 	}
-	_, err := s.db.ExecContext(ctx, query, userID)
+	_, err = s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to delete user sessions: %w", err)
 	}
@@ -132,11 +200,23 @@ func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executo
 	if err := requireAuthExecutor(tx); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	query := `DELETE FROM sessions WHERE user_id = $1`
+	args := []any{userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $2`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `DELETE FROM sessions WHERE user_id = ?`
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
 	}
-	_, err := tx.ExecContext(ctx, query, userID)
+	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -144,13 +224,27 @@ func (s *SessionStore) DeleteExpired(ctx context.Context, now time.Time) (int64,
 	if err := requireSessionStore(s); err != nil {
 		return 0, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return 0, err
+	}
 	query := `DELETE FROM sessions WHERE expires_at <= $1`
 	var arg any = now.UTC()
+	args := []any{arg}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $2`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `DELETE FROM sessions WHERE expires_at <= ?`
 		arg = now.UTC().Format(time.RFC3339Nano)
+		args = []any{arg}
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+			args = append(args, tenantID)
+		}
 	}
-	res, err := s.db.ExecContext(ctx, query, arg)
+	res, err := s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete expired sessions: %w", err)
 	}
@@ -161,13 +255,27 @@ func (s *SessionStore) Touch(ctx context.Context, tokenHash string, lastSeen tim
 	if err := requireSessionStore(s); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	query := `UPDATE sessions SET last_seen_at = $1 WHERE token_hash = $2`
 	var arg any = lastSeen.UTC()
+	args := []any{arg, tokenHash}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $3`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?`
 		arg = lastSeen.UTC().Format(time.RFC3339Nano)
+		args = []any{arg, tokenHash}
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+			args = append(args, tenantID)
+		}
 	}
-	_, err := s.db.ExecContext(ctx, query, arg, tokenHash)
+	_, err = s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to touch session: %w", err)
 	}
