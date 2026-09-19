@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 )
 
 var ErrInvalidAdminExtension = errors.New("invalid admin extension manifest")
+var ErrInvalidAdminExtensionSignature = errors.New("invalid admin extension signature")
 
 // AdminExtensionManifest is the runtime-loadable, declarative contract for a
 // customer-owned Admin Studio surface. It contains no Go handlers and cannot
@@ -37,6 +40,60 @@ type AdminSurface struct {
 // configured webhook/event gateway. It does not execute customer code in Core.
 type AdminSubscription struct {
 	Event string `json:"event"`
+}
+
+// SignedAdminExtensionManifest is the deployment artifact accepted by a
+// production host. The trusted key is configured by the operator; a key
+// advertised in this envelope is never trusted by itself.
+type SignedAdminExtensionManifest struct {
+	Manifest  AdminExtensionManifest `json:"manifest"`
+	KeyID     string                 `json:"key_id"`
+	Signature string                 `json:"signature"`
+}
+
+// SignAdminExtensionManifest creates a signed artifact for a release/build
+// environment. Private keys must remain outside customer projects and servers.
+func SignAdminExtensionManifest(manifest AdminExtensionManifest, keyID string, privateKey ed25519.PrivateKey) (SignedAdminExtensionManifest, error) {
+	if err := manifest.Validate(); err != nil || !validIdentifier(keyID) || len(privateKey) != ed25519.PrivateKeySize {
+		return SignedAdminExtensionManifest{}, ErrInvalidAdminExtensionSignature
+	}
+	payload, err := json.Marshal(manifest)
+	if err != nil {
+		return SignedAdminExtensionManifest{}, ErrInvalidAdminExtensionSignature
+	}
+	return SignedAdminExtensionManifest{Manifest: manifest, KeyID: keyID, Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(privateKey, payload))}, nil
+}
+
+// Verify checks a signed manifest against operator-configured trusted keys.
+// Multiple key IDs allow an explicit rotation window without trusting an
+// arbitrary public key supplied by the extension.
+func (s SignedAdminExtensionManifest) Verify(trustedKeys map[string]ed25519.PublicKey) (AdminExtensionManifest, error) {
+	if s.Manifest.Validate() != nil || !validIdentifier(s.KeyID) || strings.TrimSpace(s.Signature) == "" {
+		return AdminExtensionManifest{}, ErrInvalidAdminExtensionSignature
+	}
+	publicKey, ok := trustedKeys[s.KeyID]
+	if !ok || len(publicKey) != ed25519.PublicKeySize {
+		return AdminExtensionManifest{}, ErrInvalidAdminExtensionSignature
+	}
+	signature, err := base64.StdEncoding.DecodeString(s.Signature)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return AdminExtensionManifest{}, ErrInvalidAdminExtensionSignature
+	}
+	payload, err := json.Marshal(s.Manifest)
+	if err != nil || !ed25519.Verify(publicKey, payload, signature) {
+		return AdminExtensionManifest{}, ErrInvalidAdminExtensionSignature
+	}
+	return s.Manifest, nil
+}
+
+// ParseSignedAdminExtensionManifest decodes and verifies an artifact before
+// registration.
+func ParseSignedAdminExtensionManifest(data []byte, trustedKeys map[string]ed25519.PublicKey) (AdminExtensionManifest, error) {
+	var signed SignedAdminExtensionManifest
+	if err := json.Unmarshal(data, &signed); err != nil {
+		return AdminExtensionManifest{}, ErrInvalidAdminExtensionSignature
+	}
+	return signed.Verify(trustedKeys)
 }
 
 // Validate checks the untrusted manifest before it reaches the admin shell.

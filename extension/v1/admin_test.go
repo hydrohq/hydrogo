@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"crypto/ed25519"
 	"errors"
 	"testing"
 )
@@ -69,5 +70,27 @@ func TestParseAdminExtensionManifestValidatesBeforeRegistration(t *testing.T) {
 	}
 	if _, err := ParseAdminExtensionManifest([]byte(`{"id":"bad","name":"Bad","version":"1","entrypoint_url":"http://evil.example","surfaces":[{"id":"x","label":"X","path":"/","placement":"x"}]}`)); !errors.Is(err, ErrInvalidAdminExtension) {
 		t.Fatalf("invalid parsed manifest error = %v", err)
+	}
+}
+
+func TestSignedAdminExtensionManifestVerifiesAgainstConfiguredKey(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signed, err := SignAdminExtensionManifest(validAdminManifest(), "vendor-2026", privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verified, err := signed.Verify(map[string]ed25519.PublicKey{"vendor-2026": publicKey})
+	if err != nil || verified.ID != "acme-reports" {
+		t.Fatalf("verified manifest = %#v, err = %v", verified, err)
+	}
+	signed.Manifest.Name = "tampered"
+	if _, err := signed.Verify(map[string]ed25519.PublicKey{"vendor-2026": publicKey}); !errors.Is(err, ErrInvalidAdminExtensionSignature) {
+		t.Fatalf("tampered manifest error = %v", err)
+	}
+	if _, err := signed.Verify(map[string]ed25519.PublicKey{"vendor-2027": publicKey}); !errors.Is(err, ErrInvalidAdminExtensionSignature) {
+		t.Fatalf("unknown key error = %v", err)
 	}
 }

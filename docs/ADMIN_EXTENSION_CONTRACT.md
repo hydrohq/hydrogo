@@ -6,7 +6,8 @@ surface plus an external event consumer.
 
 An extension package contains:
 
-1. A signed JSON manifest validated by `extension/v1.ParseAdminExtensionManifest`.
+1. A signed JSON manifest verified against operator-configured Ed25519 public
+   keys by `extension/v1.ParseSignedAdminExtensionManifest`.
 2. An HTTPS entrypoint and relative surface paths rendered by the host in an
    isolated origin/iframe.
 3. Explicit permission labels used for host-side authorization checks; the
@@ -35,6 +36,7 @@ base and break the binary portability goal.
 }
 ```
 
-The host must add signature verification, CSP/frame policy, lifecycle/rollback
-and a versioned postMessage protocol before enabling customer-provided manifests
-in a production tenant.
+The host must still add CSP/frame policy, lifecycle/rollback and a versioned
+postMessage protocol before enabling customer-provided manifests in a production
+tenant. Private signing keys remain in the release environment; a key embedded
+in a customer manifest is never trusted by itself.

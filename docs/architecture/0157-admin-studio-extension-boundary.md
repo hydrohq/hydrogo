@@ -32,8 +32,9 @@ Use two explicit extension planes:
 
 The manifest validator requires an absolute HTTPS entrypoint without
 credentials, same-origin relative surface paths, bounded identifiers, explicit
-permissions and deduplicated event subscriptions. The host still enforces
-authorization; manifest permissions are not grants.
+permissions and deduplicated event subscriptions. Production registration also
+requires an Ed25519 signature verified against an operator-configured key ID;
+the host still enforces authorization and manifest permissions are not grants.
 
 ## Consequences
 
