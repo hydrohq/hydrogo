@@ -44,7 +44,10 @@ is enabled only after the dedicated multi-tenant gates below pass.
   check for staff mobile, consumer/member mobile-commerce and public content
   API surfaces. Admin mutation APIs still need their own published contract
   before a general API compatibility claim is made.
-- [ ] Add a dependency/SBOM/vulnerability review cadence with recorded owners.
+- [x] Add a dependency/SBOM/vulnerability review cadence with recorded owners.
+  Dependabot, the scheduled `dependency-review` workflow, 90-day evidence
+  retention, and the role-based evidence matrix are documented in
+  `docs/DEPENDENCY_TRIAGE.md`.
 
 **Exit evidence:** source-to-document traceability table, release gate command,
 `docs/validation/R66-release-gate-manifest-2026-09-19.md`, and a clean issue list
