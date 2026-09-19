@@ -33,6 +33,15 @@ type Executor interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+// QueryExecutor is the row-producing extension used by repositories that
+// need to scan a bounded result set. It intentionally stays separate from
+// Executor so existing narrow fakes and adapter contracts remain source
+// compatible.
+type QueryExecutor interface {
+	Executor
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
 type Transactor struct {
 	db                 *sql.DB
 	dialect            Dialect
@@ -107,6 +116,40 @@ func (t Transactor) Within(ctx context.Context, fn func(Executor) error) error {
 		}
 	}
 
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// WithinQuery is the query-producing counterpart of Within. The callback and
+// its rows always use the same transaction as the tenant RLS binding.
+func (t Transactor) WithinQuery(ctx context.Context, fn func(QueryExecutor) error) error {
+	if t.db == nil {
+		return ErrDatabaseRequired
+	}
+	if fn == nil {
+		return errors.New("transaction callback is required")
+	}
+	ctx = nonNilContext(ctx)
+	tx, err := t.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if t.dialect == Postgres {
+		if t.requireTenantScope {
+			scope, scopeErr := tenant.Require(ctx)
+			if scopeErr != nil {
+				return scopeErr
+			}
+			if err := tenant.BindPostgresTransaction(ctx, tx, scope); err != nil {
+				return err
+			}
+		} else if err := tenant.BindPostgresSingleTenantTransaction(ctx, tx); err != nil {
+			return err
+		}
+	}
 	if err := fn(tx); err != nil {
 		return err
 	}

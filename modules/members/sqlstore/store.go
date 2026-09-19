@@ -22,6 +22,36 @@ type Store struct {
 
 type SessionStore Store
 
+func (s Store) within(ctx context.Context, fn func(database.Executor) error) error {
+	if s.DB == nil {
+		return database.ErrDatabaseRequired
+	}
+	return database.NewTenantTransactor(s.DB, s.Dialect, s.RequireTenantScope).Within(ctx, fn)
+}
+
+func (s Store) withinQuery(ctx context.Context, fn func(database.QueryExecutor) error) error {
+	if s.DB == nil {
+		return database.ErrDatabaseRequired
+	}
+	return database.NewTenantTransactor(s.DB, s.Dialect, s.RequireTenantScope).WithinQuery(ctx, fn)
+}
+
+func (s Store) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	var result sql.Result
+	err := s.within(ctx, func(exec database.Executor) error {
+		var err error
+		result, err = exec.ExecContext(ctx, query, args...)
+		return err
+	})
+	return result, err
+}
+
+func (s Store) scanRow(ctx context.Context, query string, args []any, scan func(*sql.Row) error) error {
+	return s.within(ctx, func(exec database.Executor) error {
+		return scan(exec.QueryRowContext(ctx, query, args...))
+	})
+}
+
 func (s SessionStore) ph(n int) string { return Store(s).ph(n) }
 
 func (s SessionStore) tenantClause(ctx context.Context, position int) (string, any, error) {
@@ -78,7 +108,7 @@ func (s Store) Create(ctx context.Context, m *members.Member) error {
 		query = "INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at,tenant_id) VALUES (" + s.ph(1) + "," + s.ph(2) + "," + s.ph(3) + "," + s.ph(4) + "," + s.ph(5) + "," + s.ph(6) + "," + s.ph(7) + "," + s.ph(8) + "," + s.ph(9) + ")"
 		args = append(args, scope.TenantID)
 	}
-	_, err := s.DB.ExecContext(ctx, query, args...)
+	_, err := s.exec(ctx, query, args...)
 	return mapMemberCreateError(err)
 }
 
@@ -117,7 +147,9 @@ func (s Store) get(ctx context.Context, field, value string) (*members.Member, e
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	err = s.DB.QueryRowContext(ctx, q, args...).Scan(&m.ID, &m.Email, &m.PasswordHash, &active, &verified, &lastLogin, &created, &updated)
+	err = s.scanRow(ctx, q, args, func(row *sql.Row) error {
+		return row.Scan(&m.ID, &m.Email, &m.PasswordHash, &active, &verified, &lastLogin, &created, &updated)
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, members.ErrMemberNotFound
 	}
@@ -186,7 +218,7 @@ func (s Store) Search(ctx context.Context, filter members.MemberFilter) (members
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM members WHERE " + whereSQL
-	if err := s.DB.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := s.scanRow(ctx, countQuery, args, func(row *sql.Row) error { return row.Scan(&total) }); err != nil {
 		return members.MemberListResult{}, err
 	}
 
@@ -195,29 +227,30 @@ func (s Store) Search(ctx context.Context, filter members.MemberFilter) (members
 	query := fmt.Sprintf("SELECT id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at FROM members WHERE %s ORDER BY created_at DESC LIMIT %s OFFSET %s",
 		whereSQL, s.ph(argIdx), s.ph(argIdx+1))
 
-	rows, err := s.DB.QueryContext(ctx, query, listArgs...)
-	if err != nil {
-		return members.MemberListResult{}, err
-	}
-	defer rows.Close()
-
 	result := []members.Member{}
-	for rows.Next() {
-		var m members.Member
-		var active any
-		var verified, lastLogin, created, updated any
-		if err := rows.Scan(&m.ID, &m.Email, &m.PasswordHash, &active, &verified, &lastLogin, &created, &updated); err != nil {
-			return members.MemberListResult{}, err
+	if err := s.withinQuery(ctx, func(exec database.QueryExecutor) error {
+		rows, err := exec.QueryContext(ctx, query, listArgs...)
+		if err != nil {
+			return err
 		}
-		m.PasswordHash = ""
-		m.Active = parseBool(active)
-		m.EmailVerifiedAt = parseTimePtr(verified)
-		m.LastLoginAt = parseTimePtr(lastLogin)
-		m.CreatedAt = parseTime(created)
-		m.UpdatedAt = parseTime(updated)
-		result = append(result, m)
-	}
-	if err := rows.Err(); err != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var m members.Member
+			var active any
+			var verified, lastLogin, created, updated any
+			if err := rows.Scan(&m.ID, &m.Email, &m.PasswordHash, &active, &verified, &lastLogin, &created, &updated); err != nil {
+				return err
+			}
+			m.PasswordHash = ""
+			m.Active = parseBool(active)
+			m.EmailVerifiedAt = parseTimePtr(verified)
+			m.LastLoginAt = parseTimePtr(lastLogin)
+			m.CreatedAt = parseTime(created)
+			m.UpdatedAt = parseTime(updated)
+			result = append(result, m)
+		}
+		return rows.Err()
+	}); err != nil {
 		return members.MemberListResult{}, err
 	}
 
@@ -238,7 +271,7 @@ func (s Store) SetActive(ctx context.Context, id string, active bool) error {
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	result, err := s.DB.ExecContext(ctx, "UPDATE members SET active = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
+	result, err := s.exec(ctx, "UPDATE members SET active = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
 	if err != nil {
 		return err
 	}
@@ -262,7 +295,7 @@ func (s Store) SetEmailVerified(ctx context.Context, id string, verified bool) e
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	result, err := s.DB.ExecContext(ctx, "UPDATE members SET email_verified_at = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
+	result, err := s.exec(ctx, "UPDATE members SET email_verified_at = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
 	if err != nil {
 		return err
 	}
@@ -282,7 +315,7 @@ func (s Store) UpdateLastLogin(ctx context.Context, id string, t time.Time) erro
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	_, err = s.DB.ExecContext(ctx, "UPDATE members SET last_login_at = "+s.ph(1)+" WHERE id = "+s.ph(2)+clause, args...)
+	_, err = s.exec(ctx, "UPDATE members SET last_login_at = "+s.ph(1)+" WHERE id = "+s.ph(2)+clause, args...)
 	return err
 }
 
@@ -300,8 +333,9 @@ func (s Store) Stats(ctx context.Context) (members.MemberStats, error) {
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	row := s.DB.QueryRowContext(ctx, "SELECT COUNT(*), COALESCE(SUM(CASE WHEN "+activeCondition+" THEN 1 ELSE 0 END), 0), COALESCE(SUM(CASE WHEN email_verified_at IS NOT NULL THEN 1 ELSE 0 END), 0) FROM members WHERE 1=1"+clause, args...)
-	scanErr := row.Scan(&st.TotalMembers, &st.ActiveMembers, &st.VerifiedMembers)
+	scanErr := s.scanRow(ctx, "SELECT COUNT(*), COALESCE(SUM(CASE WHEN "+activeCondition+" THEN 1 ELSE 0 END), 0), COALESCE(SUM(CASE WHEN email_verified_at IS NOT NULL THEN 1 ELSE 0 END), 0) FROM members WHERE 1=1"+clause, args, func(row *sql.Row) error {
+		return row.Scan(&st.TotalMembers, &st.ActiveMembers, &st.VerifiedMembers)
+	})
 	return st, scanErr
 }
 
@@ -324,7 +358,7 @@ func (s SessionStore) Create(ctx context.Context, session *members.Session) erro
 		query = "INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address,tenant_id) VALUES (" + s.ph(1) + "," + s.ph(2) + "," + s.ph(3) + "," + s.ph(4) + "," + s.ph(5) + "," + s.ph(6) + "," + s.ph(7) + "," + s.ph(8) + "," + s.ph(9) + ")"
 		args = append(args, scope.TenantID)
 	}
-	_, err := s.DB.ExecContext(ctx, query, args...)
+	_, err := Store(s).exec(ctx, query, args...)
 	return err
 }
 
@@ -339,7 +373,9 @@ func (s SessionStore) GetByTokenHash(ctx context.Context, hash string) (*members
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	err = s.DB.QueryRowContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE token_hash = "+s.ph(1)+clause, args...).Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress)
+	err = Store(s).scanRow(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE token_hash = "+s.ph(1)+clause, args, func(row *sql.Row) error {
+		return row.Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress)
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, members.ErrMemberNotFound
 	}
@@ -361,7 +397,7 @@ func (s SessionStore) DeleteByTokenHash(ctx context.Context, hash string) error 
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	_, err = s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE token_hash = "+s.ph(1)+clause, args...)
+	_, err = Store(s).exec(ctx, "DELETE FROM member_sessions WHERE token_hash = "+s.ph(1)+clause, args...)
 	return err
 }
 
@@ -374,7 +410,7 @@ func (s SessionStore) DeleteByID(ctx context.Context, sessionID string) error {
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	_, err = s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE id = "+s.ph(1)+clause, args...)
+	_, err = Store(s).exec(ctx, "DELETE FROM member_sessions WHERE id = "+s.ph(1)+clause, args...)
 	return err
 }
 
@@ -387,7 +423,7 @@ func (s SessionStore) DeleteByMemberID(ctx context.Context, memberID string) err
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	_, err = s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE member_id = "+s.ph(1)+clause, args...)
+	_, err = Store(s).exec(ctx, "DELETE FROM member_sessions WHERE member_id = "+s.ph(1)+clause, args...)
 	return err
 }
 
@@ -400,25 +436,27 @@ func (s SessionStore) ListByMemberID(ctx context.Context, memberID string) ([]me
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	rows, err := s.DB.QueryContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE member_id = "+s.ph(1)+clause+" ORDER BY last_seen_at DESC LIMIT 100", args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var result []members.Session
-	for rows.Next() {
-		var v members.Session
-		var expires, created, lastSeen any
-		if err := rows.Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress); err != nil {
-			return nil, err
+	err = Store(s).withinQuery(ctx, func(exec database.QueryExecutor) error {
+		rows, err := exec.QueryContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE member_id = "+s.ph(1)+clause+" ORDER BY last_seen_at DESC LIMIT 100", args...)
+		if err != nil {
+			return err
 		}
-		v.ExpiresAt = parseTime(expires)
-		v.CreatedAt = parseTime(created)
-		v.LastSeenAt = parseTime(lastSeen)
-		result = append(result, v)
-	}
-	return result, rows.Err()
+		defer rows.Close()
+		for rows.Next() {
+			var v members.Session
+			var expires, created, lastSeen any
+			if err := rows.Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress); err != nil {
+				return err
+			}
+			v.ExpiresAt = parseTime(expires)
+			v.CreatedAt = parseTime(created)
+			v.LastSeenAt = parseTime(lastSeen)
+			result = append(result, v)
+		}
+		return rows.Err()
+	})
+	return result, err
 }
 
 func (s SessionStore) Touch(ctx context.Context, hash string, t time.Time) error {
@@ -434,13 +472,14 @@ func (s SessionStore) Touch(ctx context.Context, hash string, t time.Time) error
 	if clause != "" {
 		args = append(args, scopeID)
 	}
-	_, err = s.DB.ExecContext(ctx, "UPDATE member_sessions SET last_seen_at = "+s.ph(1)+" WHERE token_hash = "+s.ph(2)+clause, args...)
+	_, err = Store(s).exec(ctx, "UPDATE member_sessions SET last_seen_at = "+s.ph(1)+" WHERE token_hash = "+s.ph(2)+clause, args...)
 	return err
 }
 
 type AuditStore struct {
-	DB      *sql.DB
-	Dialect database.Dialect
+	DB                 *sql.DB
+	Dialect            database.Dialect
+	RequireTenantScope bool
 }
 
 func (s AuditStore) ListByTargetID(ctx context.Context, targetID string, limit int) ([]members.AuditEvent, error) {
@@ -451,21 +490,39 @@ func (s AuditStore) ListByTargetID(ctx context.Context, targetID string, limit i
 	if s.Dialect == database.Postgres {
 		ph = "$1"
 	}
-	rows, err := s.DB.QueryContext(ctx, "SELECT id, action, target_id, COALESCE(request_id, '') FROM audit_events WHERE target_id = "+ph+" ORDER BY id DESC LIMIT "+fmt.Sprint(limit), targetID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var result []members.AuditEvent
-	for rows.Next() {
-		var ev members.AuditEvent
-		if err := rows.Scan(&ev.ID, &ev.Action, &ev.TargetID, &ev.RequestID); err != nil {
+	args := []any{targetID}
+	query := "SELECT id, action, target_id, COALESCE(request_id, '') FROM audit_events WHERE target_id = " + ph
+	if s.RequireTenantScope {
+		scope, err := tenant.Require(ctx)
+		if err != nil {
 			return nil, err
 		}
-		result = append(result, ev)
+		if s.Dialect != database.Postgres {
+			query += " AND tenant_id = ?"
+		} else {
+			query += " AND tenant_id = $2"
+		}
+		args = append(args, scope.TenantID)
 	}
-	return result, rows.Err()
+	query += " ORDER BY id DESC LIMIT " + fmt.Sprint(limit)
+	var result []members.AuditEvent
+	store := Store{DB: s.DB, Dialect: s.Dialect, RequireTenantScope: s.RequireTenantScope}
+	err := store.withinQuery(ctx, func(exec database.QueryExecutor) error {
+		rows, err := exec.QueryContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var ev members.AuditEvent
+			if err := rows.Scan(&ev.ID, &ev.Action, &ev.TargetID, &ev.RequestID); err != nil {
+				return err
+			}
+			result = append(result, ev)
+		}
+		return rows.Err()
+	})
+	return result, err
 }
 
 func parseBool(v any) bool {
