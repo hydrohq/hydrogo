@@ -335,6 +335,11 @@ func (h Handler) addCartItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	if h.Limiter != nil && !h.Limiter.Allow("cart-add:"+userID+":"+requestClientIP(r)) {
+		w.Header().Set("Retry-After", "60")
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+		return
+	}
 	var input cartItemInput
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil {
 		http.Error(w, "invalid cart item", http.StatusBadRequest)
@@ -353,6 +358,11 @@ func (h Handler) removeCartItem(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.commerceActorID(r)
 	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Limiter != nil && !h.Limiter.Allow("cart-remove:"+userID+":"+requestClientIP(r)) {
+		w.Header().Set("Retry-After", "60")
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
 	}
 	if err := h.Cart.Remove(r.Context(), userID, r.PathValue("productID")); err != nil {
