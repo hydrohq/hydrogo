@@ -1,0 +1,52 @@
+package adminstudio
+
+import (
+	"errors"
+	"sort"
+
+	extensionv1 "github.com/ardaozyildirim/hydrogo/extension/v1"
+)
+
+var ErrInvalidAdminExtensionRegistry = errors.New("invalid admin extension registry")
+
+// ExtensionRegistry contains only validated declarative manifests. It never
+// loads Go plugins or executes customer code inside the HydroGo process.
+type ExtensionRegistry struct {
+	manifests []extensionv1.AdminExtensionManifest
+}
+
+func NewExtensionRegistry(manifests []extensionv1.AdminExtensionManifest) (ExtensionRegistry, error) {
+	copyManifests := extensionv1.SortAdminExtensions(manifests)
+	seen := make(map[string]struct{}, len(copyManifests))
+	for _, manifest := range copyManifests {
+		if err := manifest.Validate(); err != nil {
+			return ExtensionRegistry{}, ErrInvalidAdminExtensionRegistry
+		}
+		if _, ok := seen[manifest.ID]; ok {
+			return ExtensionRegistry{}, ErrInvalidAdminExtensionRegistry
+		}
+		seen[manifest.ID] = struct{}{}
+	}
+	return ExtensionRegistry{manifests: copyManifests}, nil
+}
+
+func (r ExtensionRegistry) Manifests() []extensionv1.AdminExtensionManifest {
+	return append([]extensionv1.AdminExtensionManifest(nil), r.manifests...)
+}
+
+func (r ExtensionRegistry) Manifest(id string) (extensionv1.AdminExtensionManifest, bool) {
+	for _, manifest := range r.manifests {
+		if manifest.ID == id {
+			return manifest, true
+		}
+	}
+	return extensionv1.AdminExtensionManifest{}, false
+}
+
+// SortExtensionRegistry is useful when a host merges manifests discovered from
+// multiple deployment directories before constructing its final registry.
+func SortExtensionRegistry(manifests []extensionv1.AdminExtensionManifest) []extensionv1.AdminExtensionManifest {
+	result := extensionv1.SortAdminExtensions(manifests)
+	sort.SliceStable(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	return result
+}

@@ -201,6 +201,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0154](0154-tenant-scope-primitive.md) | Explicit tenant scope primitive | Accepted (foundation only; shared mode disabled) |
 | [0155](0155-tenant-scoped-cache-api.md) | Tenant-scoped cache API | Accepted (opt-in foundation; shared mode disabled) |
 | [0156](0156-postgres-tenant-rls-binding.md) | Transaction-local PostgreSQL tenant binding | Accepted (foundation only; RLS policies open) |
+| [0157](0157-admin-studio-extension-boundary.md) | Runtime Admin Studio extension boundary | Accepted (declarative external-surface foundation) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
