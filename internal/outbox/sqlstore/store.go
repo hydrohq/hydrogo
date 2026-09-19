@@ -13,10 +13,16 @@ import (
 )
 
 type Store struct {
-	Dialect database.Dialect
+	Dialect            database.Dialect
+	RequireTenantScope bool
 }
 
 func (s Store) Enqueue(ctx context.Context, tx database.Executor, id, topic, aggregateID string, payloadVersion int) error {
+	if _, scopeErr := tenant.FromContext(ctx); scopeErr == nil {
+		return s.EnqueueScoped(ctx, tx, id, topic, aggregateID, payloadVersion)
+	} else if s.RequireTenantScope {
+		return scopeErr
+	}
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
@@ -39,6 +45,11 @@ func (s Store) EnqueueScoped(ctx context.Context, tx database.Executor, id, topi
 }
 
 func (s Store) Claim(ctx context.Context, db database.Executor, worker string, now time.Time, lease time.Duration) (outbox.Event, string, bool, error) {
+	if _, scopeErr := tenant.FromContext(ctx); scopeErr == nil {
+		return s.ClaimScoped(ctx, db, worker, now, lease)
+	} else if s.RequireTenantScope {
+		return outbox.Event{}, "", false, scopeErr
+	}
 	if err := database.RequireExecutor(db); err != nil {
 		return outbox.Event{}, "", false, err
 	}
@@ -157,6 +168,11 @@ func (s Store) RetryScoped(ctx context.Context, db database.Executor, id, worker
 }
 
 func (s Store) Ack(ctx context.Context, db database.Executor, id, worker, token string) error {
+	if _, scopeErr := tenant.FromContext(ctx); scopeErr == nil {
+		return s.AckScoped(ctx, db, id, worker, token)
+	} else if s.RequireTenantScope {
+		return scopeErr
+	}
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -175,6 +191,11 @@ func (s Store) Ack(ctx context.Context, db database.Executor, id, worker, token 
 }
 
 func (s Store) Retry(ctx context.Context, db database.Executor, id, worker, token string, availableAt time.Time, reason string) error {
+	if _, scopeErr := tenant.FromContext(ctx); scopeErr == nil {
+		return s.RetryScoped(ctx, db, id, worker, token, availableAt, reason)
+	} else if s.RequireTenantScope {
+		return scopeErr
+	}
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}

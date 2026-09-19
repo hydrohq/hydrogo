@@ -179,6 +179,9 @@ reports and a published support matrix.
   claim, acknowledge and retry operations (ADR-0162/R99); existing module
   call-sites still use the single-customer path until shared-tenancy migration
   and worker/RLS certification are complete.
+  The outbox store now automatically selects scoped operations when a validated
+  tenant context is present and offers `RequireTenantScope` fail-closed mode
+  (ADR-0163/R100); shared-mode composition and full call-site audit remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
