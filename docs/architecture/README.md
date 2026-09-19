@@ -195,6 +195,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0141](0141-ai-provider-and-data-boundary.md) | AI is opt-in and provider-neutral | Accepted |
 | [0142](0142-distributed-profile-certification-boundary.md) | Distributed profile certification boundary | Accepted |
 | [0150](0150-member-mobile-auth-boundary.md) | Member mobile authentication boundary | Accepted |
+| [0151](0151-bff-server-side-request-policy.md) | BFF server-side request policy | Accepted (scoped) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
