@@ -337,8 +337,14 @@ func main() {
 		_, _ = io.WriteString(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo · Rebuilding</title><link rel="stylesheet" href="`+stylePath+`"><script src="`+clientPath+`"></script></head><body class="hydrogo-dev-body"><main class="hydrogo-dev-card"><div class="hdev-brand"><span class="hdev-brand-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></span><span>Hydro<b>Go</b></span></div><div class="hdev-badge"><span class="hdev-pulse-dot"></span> DEV COMPILER</div><h2>Updating Server</h2><p>Compiling code changes and preparing runtime services…</p><div class="hdev-bar-wrap"><div class="hdev-bar-indeterminate"></div></div></main></body></html>`)
 	}
 	indicatorEnabled := *devIndicator && !envBoolDisabled("HYDRO_DEV_INDICATOR")
-	if indicatorEnabled {
-		proxy.ModifyResponse = injectClient
+	proxy.ModifyResponse = func(res *http.Response) error {
+		res.Header.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		res.Header.Set("Pragma", "no-cache")
+		res.Header.Set("Expires", "0")
+		if indicatorEnabled {
+			return injectClient(res)
+		}
+		return nil
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc(statusPath, func(w http.ResponseWriter, _ *http.Request) {
