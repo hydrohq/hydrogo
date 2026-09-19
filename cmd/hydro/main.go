@@ -214,6 +214,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return projectCheckCommand(args[1:], stdout, stderr)
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
+	case "tenant":
+		return tenantCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -3372,6 +3374,9 @@ Usage:
   hydro project new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project check [--config config.yaml] [--lock hydrogo.lock] [--json]
   hydro check [--config config.yaml] [--lock hydrogo.lock] [--json]
+  hydro tenant validate [runtime flags]
+  hydro tenant backfill --tenant-id ID [--dry-run|--confirm] [runtime flags]
+  hydro tenant list [runtime flags]
   hydro module create --spec SPEC --out OUTPUT
   hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
