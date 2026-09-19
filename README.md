@@ -35,6 +35,8 @@ Vendor-only signing is performed with `hydro-issuer`; the customer runtime expos
 - Hash-chained external erasure log and idempotent erasure replay
 - Allowlist-based portable export/import excluding secrets and session state
 - Ed25519-signed release manifests and trusted public-key verification
+- Separate staff and consumer/member mobile API boundaries with bearer rotation,
+  device revocation, member commerce/order projections, and versioned contracts
 - Deterministic generation, Client Edition boundaries, and an SDK v1 candidate
 
 ## How it works

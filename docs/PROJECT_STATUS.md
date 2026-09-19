@@ -28,11 +28,13 @@ migrations, workers, assets, or mandatory infrastructure.
   reset, invitations, CSRF protection, default-deny authorization, audit
   events, transactional outbox, job leasing, idempotency, and dead-letter
   operations.
-- The versioned staff mobile API has opaque short-lived bearer tokens,
-  transactional refresh rotation, device-family revocation, disabled-user
-  invalidation, login/MFA throttling, audit coverage, an OpenAPI compatibility
-  baseline, and a platform-neutral client fixture. It is not a public member
-  mobile API and is not production-certified until its external drills pass.
+- The versioned staff mobile API and the separate consumer/member mobile API
+  have opaque short-lived bearer tokens, transactional refresh rotation,
+  device-family revocation, disabled-identity invalidation, throttling, audit
+  coverage, OpenAPI compatibility baselines, and platform-neutral client
+  fixtures. Member-private cart, checkout, order history and ownership-scoped
+  payment status are available under the member boundary; neither audience is
+  production-certified until its external threat/device/provider drills pass.
 - Media has explicit pending/ready and public/private lifecycles, bounded
   upload handling, safe metadata, and manifest verification.
 - SQLite is the compact default. PostgreSQL has shared database contracts,
