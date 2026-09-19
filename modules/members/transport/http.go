@@ -78,6 +78,7 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "POST /api/v1/mobile/member/auth/refresh", Access: router.Public, Handler: http.HandlerFunc(h.mobileRefresh)},
 		{Pattern: "POST /api/v1/mobile/member/auth/revoke", Access: router.Public, Handler: http.HandlerFunc(h.mobileRevoke)},
 		{Pattern: "POST /api/v1/mobile/member/auth/revoke-all", Access: router.Public, Handler: http.HandlerFunc(h.mobileRevokeAll)},
+		{Pattern: "GET /api/v1/mobile/member/orders", Access: router.Public, Handler: http.HandlerFunc(h.mobileOrders)},
 		{Pattern: "GET /member/login", Access: router.Public, Handler: http.HandlerFunc(h.loginPage)},
 		{Pattern: "GET /member/register", Access: router.Public, Handler: http.HandlerFunc(h.registerPage)},
 		{Pattern: "GET /member/account", Access: router.Public, Handler: http.HandlerFunc(h.accountPage)},
@@ -117,6 +118,32 @@ func (h Handler) memberOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "private, no-store")
 	_ = json.NewEncoder(w).Encode(orders)
+}
+
+func (h Handler) mobileOrders(w http.ResponseWriter, r *http.Request) {
+	memberID, _, ok := h.memberMobilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.Orders == nil || h.DB == nil {
+		writeMemberMobileError(w, http.StatusServiceUnavailable, "ORDERS_UNAVAILABLE", "Orders are temporarily unavailable.")
+		return
+	}
+	limit := 100
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 100 {
+			writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid order limit.")
+			return
+		}
+		limit = parsed
+	}
+	orders, err := h.Orders.ListOrdersByUserID(r.Context(), h.DB, memberID, limit)
+	if err != nil {
+		writeMemberMobileError(w, http.StatusServiceUnavailable, "ORDERS_UNAVAILABLE", "Orders are temporarily unavailable.")
+		return
+	}
+	writeMemberMobileJSON(w, http.StatusOK, map[string]any{"orders": orders, "limit": limit})
 }
 
 func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {

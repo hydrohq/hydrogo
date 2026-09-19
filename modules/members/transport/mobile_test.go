@@ -12,11 +12,18 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	"github.com/ardaozyildirim/hydrogo/modules/members/transport"
 )
+
+type mobileOrderReaderStub struct{}
+
+func (mobileOrderReaderStub) ListOrdersByUserID(context.Context, database.Executor, string, int) ([]customerorders.Order, error) {
+	return []customerorders.Order{{ID: "order-1"}}, nil
+}
 
 func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	ctx := context.Background()
@@ -43,6 +50,8 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	handler := transport.Handler{
 		Service: members.Service{Members: store, Sessions: newMemorySessionStore(), ArgonParams: auth.DefaultArgon2Params},
 		Mobile:  &members.MobileAuthService{DB: db, Dialect: database.SQLite},
+		Orders:  mobileOrderReaderStub{},
+		DB:      db,
 	}
 	mux := http.NewServeMux()
 	for _, route := range handler.Routes() {
@@ -82,6 +91,13 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	}
 	if rotated.RefreshToken == pair.RefreshToken {
 		t.Fatal("refresh token was not rotated")
+	}
+	orders := httptest.NewRequest(http.MethodGet, "/api/v1/mobile/member/orders?limit=1", nil)
+	orders.Header.Set("Authorization", "Bearer "+rotated.AccessToken)
+	ordersResponse := httptest.NewRecorder()
+	mux.ServeHTTP(ordersResponse, orders)
+	if ordersResponse.Code != http.StatusOK || !strings.Contains(ordersResponse.Body.String(), `"order-1"`) {
+		t.Fatalf("orders status = %d, body = %s", ordersResponse.Code, ordersResponse.Body.String())
 	}
 
 	revoke := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/revoke", nil)
