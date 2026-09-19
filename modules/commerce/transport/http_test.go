@@ -18,6 +18,10 @@ type publicMediaURLStub struct {
 	Err error
 }
 
+type denyRateLimiter struct{}
+
+func (denyRateLimiter) Allow(string) bool { return false }
+
 func (s publicMediaURLStub) PublicURL(string) (string, error) { return s.URL, s.Err }
 
 func TestProductMediaMarkupUsesConfiguredCDN(t *testing.T) {
@@ -129,6 +133,20 @@ func TestCommerceActorIDAcceptsConsumerMobileMemberBoundary(t *testing.T) {
 	}
 	if got, ok := h.commerceCustomerID(req); !ok || got != "member-mobile-1" {
 		t.Fatalf("mobile customer = %q/%t", got, ok)
+	}
+}
+
+func TestMemberMobileCartMutationIsRateLimited(t *testing.T) {
+	h := Handler{
+		Limiter:               denyRateLimiter{},
+		ResolveMobileMemberID: func(*http.Request) (string, bool) { return "member-mobile-1", true },
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/commerce/cart/items", strings.NewReader(`{"product_id":"p1","quantity":1}`))
+	req.Header.Set("Authorization", "Bearer member-token")
+	res := httptest.NewRecorder()
+	h.addCartItem(res, req)
+	if res.Code != http.StatusTooManyRequests || res.Header().Get("Retry-After") != "60" {
+		t.Fatalf("status=%d retry-after=%q", res.Code, res.Header().Get("Retry-After"))
 	}
 }
 
