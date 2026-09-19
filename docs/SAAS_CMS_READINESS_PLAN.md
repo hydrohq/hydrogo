@@ -33,8 +33,9 @@ is enabled only after the dedicated multi-tenant gates below pass.
 
 ## Phase 1 — Truthful scope, release and evidence inventory
 
-- [ ] Reconcile README, roadmap, ADR status and validation reports with actual
-  implementation; remove unsupported production/SaaS claims.
+- [x] Reconcile README, roadmap, ADR status and validation reports with actual
+  implementation; remove unsupported production/SaaS claims. The current
+  source-to-document matrix is recorded in `R76-documentation-traceability-2026-09-19.md`.
 - [x] Create a release gate manifest that fails when a claimed profile lacks
   database, restore, proxy, capacity, or security evidence. The machine-readable
   manifest and validator are `docs/validation/release-gate-manifest.json` and
@@ -51,7 +52,8 @@ is enabled only after the dedicated multi-tenant gates below pass.
 
 **Exit evidence:** source-to-document traceability table, release gate command,
 `docs/validation/R66-release-gate-manifest-2026-09-19.md`, and a clean issue list
-categorized as code, environment, legal, or product decision.
+categorized as code, environment, legal, or product decision. See
+`R76-documentation-traceability-2026-09-19.md` for the current matrix.
 
 ## Phase 2 — Mobile API completion
 
