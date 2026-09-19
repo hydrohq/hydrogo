@@ -14,7 +14,9 @@ and must not expose the Core session cookie to the browser or datastore.
 ## Decision
 
 Provide `internal/security/bffsession.RedisStore` as an optional adapter over an
-injected `redis.UniversalClient`, suitable for Redis or Valkey. The browser keeps
+injected `redis.UniversalClient`, suitable for Redis or Valkey. It implements
+the common `bffsession.SessionStore` boundary consumed by the BFF auth exchange,
+so deployments can select it without changing browser-facing handlers. The browser keeps
 only an opaque session cookie. The Core cookie and CSRF hash are encrypted with
 AES-GCM before being written, bound to the opaque session ID, and expired with a
 configured TTL. Reads, writes, and revocation use bounded operation contexts and

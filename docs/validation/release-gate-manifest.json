@@ -66,6 +66,10 @@
         {
           "path": "R85-tenant-scope-primitive-2026-09-19.md",
           "command": "go test ./internal/tenant ./tests/contract -run 'Tenant|Scope'"
+        },
+        {
+          "path": "R86-bff-shared-session-selection-2026-09-19.md",
+          "command": "go test ./internal/security/bffsession ./internal/security/bffproxy"
         }
       ]
     },

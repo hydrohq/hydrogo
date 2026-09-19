@@ -1,6 +1,7 @@
 package bffsession
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,7 +28,7 @@ func requestWithCookie(t *testing.T, header string) *http.Request {
 func TestStoreKeepsCoreCookieServerSideAndValidatesCSRF(t *testing.T) {
 	store := testStore(t)
 	response := httptest.NewRecorder()
-	csrf, err := store.Create(response, "hydro_session=core-secret")
+	csrf, err := store.Create(context.Background(), response, "hydro_session=core-secret")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,18 +54,18 @@ func TestStoreRevokeAndExpiryFailClosed(t *testing.T) {
 	store := testStore(t)
 	store.now = func() time.Time { return time.Unix(100, 0) }
 	response := httptest.NewRecorder()
-	_, err := store.Create(response, "core=session")
+	_, err := store.Create(context.Background(), response, "core=session")
 	if err != nil {
 		t.Fatal(err)
 	}
 	cookie := response.Header().Get("Set-Cookie")
 	request := requestWithCookie(t, cookie[strings.Index(cookie, "bff_sid="):strings.Index(cookie, ";")])
-	store.Revoke(nil, request)
+	store.Revoke(context.Background(), nil, request)
 	if _, err := store.CoreCookie(request.Context(), request); err == nil {
 		t.Fatal("revoked session accepted")
 	}
 	response = httptest.NewRecorder()
-	_, err = store.Create(response, "core=session")
+	_, err = store.Create(context.Background(), response, "core=session")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,11 +79,11 @@ func TestStoreRevokeAndExpiryFailClosed(t *testing.T) {
 func TestStoreBoundsCapacity(t *testing.T) {
 	store := testStore(t)
 	for i := 0; i < 2; i++ {
-		if _, err := store.Create(nil, "core=session"); err != nil {
+		if _, err := store.Create(context.Background(), nil, "core=session"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := store.Create(nil, "core=session"); err != ErrCapacity {
+	if _, err := store.Create(context.Background(), nil, "core=session"); err != ErrCapacity {
 		t.Fatalf("capacity error = %v", err)
 	}
 }
