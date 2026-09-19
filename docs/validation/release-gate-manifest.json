@@ -26,6 +26,10 @@
         {
           "path": "R75-bff-reference-adapter-2026-09-19.md",
           "command": "go test ./internal/security/bffproxy ./internal/security/bffpolicy"
+        },
+        {
+          "path": "R76-documentation-traceability-2026-09-19.md",
+          "command": "git diff --check"
         }
       ]
     },
