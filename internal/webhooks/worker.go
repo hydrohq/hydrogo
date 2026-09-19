@@ -8,6 +8,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/outbox"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 var ErrInvalidWorkerLoop = errors.New("invalid webhook worker loop configuration")
@@ -27,8 +28,12 @@ type Worker struct {
 	RetryAfter      time.Duration
 	PollInterval    time.Duration
 	MaxPollInterval time.Duration
-	OnError         func(error)
-	sleep           func(context.Context, time.Duration) error
+	// TenantScopes makes shared-tenancy workers explicit. Each polling pass is
+	// executed with one validated scope; an empty slice preserves single-tenant
+	// behavior for deployments where tenancy is disabled.
+	TenantScopes []tenant.Scope
+	OnError      func(error)
+	sleep        func(context.Context, time.Duration) error
 }
 
 // Run owns the bounded outbox polling lifecycle. Empty queues and transient
@@ -47,7 +52,7 @@ func (w Worker) Run(ctx context.Context) error {
 	}
 	interval := base
 	for {
-		processed, runErr := w.RunOnce(ctx, time.Now().UTC())
+		processed, runErr := w.runScopedOnce(ctx, time.Now().UTC())
 		if runErr != nil && w.OnError != nil {
 			w.OnError(runErr)
 		}
@@ -60,6 +65,23 @@ func (w Worker) Run(ctx context.Context) error {
 			interval = nextPollInterval(interval, max)
 		}
 	}
+}
+
+func (w Worker) runScopedOnce(ctx context.Context, now time.Time) (bool, error) {
+	if len(w.TenantScopes) == 0 {
+		return w.RunOnce(ctx, now)
+	}
+	var processed bool
+	var firstErr error
+	for _, scope := range w.TenantScopes {
+		scopedCtx := tenant.WithScope(ctx, scope)
+		claimed, err := w.RunOnce(scopedCtx, now)
+		processed = processed || claimed
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return processed, firstErr
 }
 
 func (w Worker) pollBounds() (time.Duration, time.Duration, error) {

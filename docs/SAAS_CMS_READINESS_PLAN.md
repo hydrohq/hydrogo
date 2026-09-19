@@ -197,6 +197,10 @@ reports and a published support matrix.
   An operator-owned host map now establishes tenant scope before route handling
   and fails closed on unknown hosts when tenancy is enabled (ADR-0168/R105);
   DNS/TLS, custom domains and provisioning drills remain open.
+  Shared-tenancy composition now enables fail-closed audit, outbox and media
+  stores, and the webhook worker iterates validated host-map scopes
+  (ADR-0169/R106); dynamic provisioning and multi-instance worker distribution
+  remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

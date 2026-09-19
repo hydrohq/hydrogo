@@ -213,6 +213,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0166](0166-tenant-object-storage-namespace.md) | Tenant object-storage namespace | Accepted (upload/key foundation; public routing and derivative propagation open) |
 | [0167](0167-tenant-scoped-media-derivative-jobs.md) | Tenant-scoped media derivative jobs | Accepted (queued-job bridge; object provider propagation open) |
 | [0168](0168-host-based-tenant-resolution.md) | Host-based tenant resolution | Accepted (single-process resolver; provisioning and public-domain operations open) |
+| [0169](0169-tenant-scoped-worker-composition.md) | Tenant-scoped worker composition | Accepted (static host-map scope source; dynamic provisioning open) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |

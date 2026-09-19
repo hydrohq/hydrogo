@@ -143,10 +143,14 @@
             "path": "R104-tenant-scoped-media-derivative-jobs-2026-09-19.md",
             "command": "go test ./internal/media/... ./internal/database ./internal/tenant -count=1"
           },
-          {
-            "path": "R105-host-based-tenant-resolution-2026-09-19.md",
-            "command": "go test ./internal/tenant ./internal/config ./internal/server ./cmd/hydro -count=1"
-          }
+        {
+          "path": "R105-host-based-tenant-resolution-2026-09-19.md",
+          "command": "go test ./internal/tenant ./internal/config ./internal/server ./cmd/hydro -count=1"
+        },
+        {
+          "path": "R106-tenant-scoped-worker-composition-2026-09-19.md",
+          "command": "go test ./internal/webhooks ./cmd/hydro -count=1"
+        }
       ]
     },
     {
