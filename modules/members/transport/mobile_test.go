@@ -88,6 +88,13 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	if len(audit.actions) != 1 || audit.actions[0] != "member_mobile_auth.login" {
 		t.Fatalf("login audit actions = %#v", audit.actions)
 	}
+	devices := httptest.NewRequest(http.MethodGet, "/api/v1/mobile/member/auth/devices", nil)
+	devices.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	devicesResponse := httptest.NewRecorder()
+	mux.ServeHTTP(devicesResponse, devices)
+	if devicesResponse.Code != http.StatusOK || !strings.Contains(devicesResponse.Body.String(), `"device_id":"ios-1"`) || !strings.Contains(devicesResponse.Body.String(), `"is_current":true`) {
+		t.Fatalf("devices status = %d, body = %s", devicesResponse.Code, devicesResponse.Body.String())
+	}
 
 	refreshBody, _ := json.Marshal(map[string]string{"refresh_token": pair.RefreshToken})
 	refresh := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/refresh", bytes.NewReader(refreshBody))
