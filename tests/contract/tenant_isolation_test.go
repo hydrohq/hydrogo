@@ -5,38 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
-
-type TenantContextKey struct{}
-
-type TenantContext struct {
-	TenantID string
-	Slug     string
-}
-
-var (
-	ErrMissingTenantContext = errors.New("security violation: missing tenant context in query execution")
-	ErrCrossTenantAccess    = errors.New("access denied: cross-tenant access violation")
-)
-
-func WithTenantContext(ctx context.Context, tenantID, slug string) context.Context {
-	return context.WithValue(ctx, TenantContextKey{}, TenantContext{TenantID: tenantID, Slug: slug})
-}
-
-func GetTenantContext(ctx context.Context) (TenantContext, error) {
-	tc, ok := ctx.Value(TenantContextKey{}).(TenantContext)
-	if !ok || tc.TenantID == "" {
-		return TenantContext{}, ErrMissingTenantContext
-	}
-	return tc, nil
-}
 
 type ScopedRepositoryMock struct {
 	data map[string]map[string]string // tenantID -> id -> content
 }
 
 func (r *ScopedRepositoryMock) Get(ctx context.Context, id string) (string, error) {
-	tc, err := GetTenantContext(ctx)
+	tc, err := tenant.Require(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -52,7 +30,7 @@ func (r *ScopedRepositoryMock) Get(ctx context.Context, id string) (string, erro
 }
 
 func (r *ScopedRepositoryMock) Put(ctx context.Context, id, val string) error {
-	tc, err := GetTenantContext(ctx)
+	tc, err := tenant.Require(ctx)
 	if err != nil {
 		return err
 	}
@@ -73,18 +51,26 @@ func (r *ScopedRepositoryMock) Put(ctx context.Context, id, val string) error {
 func TestTenantIsolationContract(t *testing.T) {
 	repo := &ScopedRepositoryMock{}
 
-	ctxTenantA := WithTenantContext(context.Background(), "tenant-aaa", "client-alpha")
-	ctxTenantB := WithTenantContext(context.Background(), "tenant-bbb", "client-beta")
+	scopeA, err := tenant.NewScope("tenant-aaa", "client-alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scopeB, err := tenant.NewScope("tenant-bbb", "client-beta")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctxTenantA := tenant.WithScope(context.Background(), scopeA)
+	ctxTenantB := tenant.WithScope(context.Background(), scopeB)
 	ctxEmpty := context.Background()
 
 	// 1. Fail-closed test on missing tenant context
-	err := repo.Put(ctxEmpty, "doc-1", "secret-data")
-	if !errors.Is(err, ErrMissingTenantContext) {
+	err = repo.Put(ctxEmpty, "doc-1", "secret-data")
+	if !errors.Is(err, tenant.ErrMissingScope) {
 		t.Fatalf("expected ErrMissingTenantContext on empty context, got: %v", err)
 	}
 
 	_, err = repo.Get(ctxEmpty, "doc-1")
-	if !errors.Is(err, ErrMissingTenantContext) {
+	if !errors.Is(err, tenant.ErrMissingScope) {
 		t.Fatalf("expected ErrMissingTenantContext on get with empty context, got: %v", err)
 	}
 
@@ -106,8 +92,14 @@ func TestTenantIsolationContract(t *testing.T) {
 	}
 
 	// 5. Cache Key Isolation Contract
-	cacheKeyA := fmt.Sprintf("t:%s:pages:%s", "tenant-aaa", "home-slug")
-	cacheKeyB := fmt.Sprintf("t:%s:pages:%s", "tenant-bbb", "home-slug")
+	cacheKeyA, err := tenant.CacheKey(ctxTenantA, "pages", "home-slug")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cacheKeyB, err := tenant.CacheKey(ctxTenantB, "pages", "home-slug")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cacheKeyA == cacheKeyB {
 		t.Fatalf("cache keys must not collide between tenants")
 	}

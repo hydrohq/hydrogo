@@ -146,6 +146,9 @@ reports and a published support matrix.
   pricing, residency and tenant lifecycle decisions are approved.
 - [ ] Implement tenant context at the router, application service, repository,
   cache, jobs/outbox, media, audit, export/restore and authorization boundaries.
+  The validated fail-closed `internal/tenant` scope primitive and tenant-prefixed
+  cache-key helper are now available (ADR-0154/R85); end-to-end propagation is
+  still open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
