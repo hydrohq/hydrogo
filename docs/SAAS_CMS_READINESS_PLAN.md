@@ -57,9 +57,11 @@ and a clean issue list categorized as code, environment, legal, or product decis
   unauthenticated (ADR-0150). Staff/admin work remains web-only.
 - [ ] Add PostgreSQL mobile-token contract tests, concurrent-refresh tests, device
   revoke/disable-user tests, rate-limit tests and audit-event assertions. SQLite
-  and PostgreSQL lifecycle coverage plus PostgreSQL concurrent-refresh coverage
-  and disabled-user revocation coverage are present. Login and MFA rate-limit
-  plus audit assertions are present.
+  lifecycle coverage is executable locally; member/staff PostgreSQL lifecycle
+  and concurrent-refresh coverage is now present as conditional contract tests
+  (`tests/contract/*mobile*_contract_test.go`) and requires a configured DSN to
+  produce environment evidence. Login and MFA rate-limit plus audit assertions
+  are present; member audit-event certification remains open.
 - [x] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
   deprecation behavior for every mobile resource. Staff and consumer/member
   authentication surfaces are now published and baseline-checked; business
