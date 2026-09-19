@@ -1,0 +1,25 @@
+id: "202609200001_auth_identity_tenant_scope"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "7ecb96bc381a5d74f882731613e246389f5c771f2360fe699d2c3c0b9d34d424"
+  postgres: "7ecb96bc381a5d74f882731613e246389f5c771f2360fe699d2c3c0b9d34d424"
+dependencies:
+  - "202609060002_auth_security"
+schema:
+  readable_epoch: 5
+  writable_epoch: 5
+preconditions:
+  - "Auth users and sessions migrations are applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Two tenant discriminators and identity/session lookup indexes"
+compatibility: "Adds empty-namespace tenant discriminators; shared-mode users and browser sessions require resolved tenant scope."
+smoke:
+  - "Existing users and sessions remain readable in the empty namespace until controlled backfill."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

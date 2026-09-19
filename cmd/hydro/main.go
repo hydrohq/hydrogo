@@ -1039,6 +1039,8 @@ func serve(args []string, stderr io.Writer) error {
 
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
+	userStore.RequireTenantScope = requireTenantScope
+	sessionStore.RequireTenantScope = requireTenantScope
 	mobileAuth := auth.NewMobileAuthService(db, cfg.Database.Dialect)
 	authSvc := auth.NewAuthService(userStore, sessionStore, mobileAuth, auth.DefaultArgon2Params)
 	mfaService := &auth.MFAService{Store: userStore, MasterKey: []byte(cfg.Security.MFAMasterKey)}
