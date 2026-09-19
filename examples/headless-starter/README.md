@@ -9,7 +9,7 @@ npm run build
 npm run demo
 ```
 
-`src/hydrogo.ts` exposes a typed client for published Pages and News (listing and detail), products, variants, cart and checkout. A real Next.js, Nuxt or Astro application can import this client and own all rendering, routing, SEO and component decisions.
+`src/hydrogo.ts` exposes a typed client for published Pages and News (listing and detail), products, variants, browser-session cart/checkout, and an isolated member-bearer client surface for consumer login, cart and order history. A real Next.js, Nuxt or Astro application can import this client and own all rendering, routing, SEO and component decisions.
 
 Client requests use a 15-second default timeout (configurable up to 120 seconds
 with `timeoutMs`) and cap error response text at 8,192 code points. Handle
