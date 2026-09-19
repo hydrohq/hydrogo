@@ -1,0 +1,98 @@
+{
+  "format_version": 1,
+  "generated_date": "2026-09-19",
+  "gates": [
+    {
+      "id": "local-contracts",
+      "category": "automated",
+      "status": "verified",
+      "evidence": [
+        {
+          "path": "PRODUCTION-GATES.md",
+          "command": "go test ./..."
+        },
+        {
+          "path": "R33-wsl-production-gates-current-2026-09-17.md",
+          "command": "bash scripts/verify-production-gates.sh"
+        }
+      ]
+    },
+    {
+      "id": "database-postgresql",
+      "category": "database",
+      "status": "verified",
+      "evidence": [
+        {
+          "path": "R6-postgres-production-gates-2026-09-16.md",
+          "command": "HYDRO_TEST_POSTGRES_URL=... bash scripts/verify-production-gates.sh"
+        }
+      ]
+    },
+    {
+      "id": "capacity-baseline",
+      "category": "capacity",
+      "status": "verified",
+      "evidence": [
+        {
+          "path": "R19-local-capacity-profile-baseline-2026-09-17.md",
+          "command": "scripts/measure-capacity.ps1"
+        }
+      ],
+      "note": "SQLite synthetic baseline; production capacity remains a separate gate."
+    },
+    {
+      "id": "restore-rpo-rto",
+      "category": "recovery",
+      "status": "pending",
+      "evidence": [
+        {
+          "path": "PRODUCTION-GATES.md",
+          "command": "clean-target restore drill with production backup and key escrow"
+        }
+      ],
+      "note": "No repository report is treated as proof of a real customer restore drill."
+    },
+    {
+      "id": "reverse-proxy-bluegreen",
+      "category": "deployment",
+      "status": "pending",
+      "evidence": [
+        {
+          "path": "PRODUCTION-GATES.md",
+          "command": "proxy smoke, drain, rollback and retained-asset drill"
+        }
+      ]
+    },
+    {
+      "id": "security-external",
+      "category": "security",
+      "status": "pending",
+      "evidence": [
+        {
+          "path": "PENTEST_EXECUTION_PLAN.md",
+          "command": "independent penetration test and remediation closure"
+        }
+      ],
+      "note": "Local security scans do not substitute for an independent production test."
+    }
+  ],
+  "profiles": [
+    {
+      "name": "local-development",
+      "claim": "ready",
+      "required_gates": ["local-contracts"]
+    },
+    {
+      "name": "managed-single-customer-standard",
+      "claim": "candidate",
+      "required_gates": [
+        "local-contracts",
+        "database-postgresql",
+        "capacity-baseline",
+        "restore-rpo-rto",
+        "reverse-proxy-bluegreen",
+        "security-external"
+      ]
+    }
+  ]
+}
