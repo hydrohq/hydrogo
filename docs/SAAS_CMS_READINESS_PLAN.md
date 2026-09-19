@@ -175,6 +175,10 @@ reports and a published support matrix.
   fail-closed prefixing boundary (ADR-0155/R90). PostgreSQL transactions now
   have a parameterized transaction-local RLS binding primitive
   (ADR-0156/R91); table policies and call-site propagation remain open.
+  The outbox now has a tenant discriminator and fail-closed scoped enqueue,
+  claim, acknowledge and retry operations (ADR-0162/R99); existing module
+  call-sites still use the single-customer path until shared-tenancy migration
+  and worker/RLS certification are complete.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

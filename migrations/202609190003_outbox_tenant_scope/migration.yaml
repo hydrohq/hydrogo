@@ -1,0 +1,26 @@
+id: "202609190003_outbox_tenant_scope"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "67e95668464db3771829ec2dffe5eed7b37cf450f0eb2f159d725d7f282f8c81"
+  postgres: "67e95668464db3771829ec2dffe5eed7b37cf450f0eb2f159d725d7f282f8c81"
+dependencies:
+  - "202609100006_outbox_delivery"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "The outbox delivery migration is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Tenant discriminator and claim index"
+compatibility: "Adds a default-empty tenant discriminator; scoped writers and workers require an explicit tenant scope"
+smoke:
+  - "Scoped claims cannot lease another tenant's event"
+  - "Legacy single-customer events remain readable during migration"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

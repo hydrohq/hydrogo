@@ -118,6 +118,10 @@
           {
             "path": "R98-sqlite-cache-watch-runtime-integration-2026-09-19.md",
             "command": "go test ./internal/config ./cmd/hydro ./internal/cache -count=1"
+          },
+          {
+            "path": "R99-tenant-scoped-outbox-contract-2026-09-19.md",
+            "command": "go test ./internal/outbox/... ./internal/database ./internal/tenant -count=1"
           }
       ]
     },
