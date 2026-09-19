@@ -188,6 +188,9 @@ reports and a published support matrix.
   Media asset and derivative metadata now carry tenant discriminators and
   fail-closed scoped reads/transitions (ADR-0165/R102); object-store namespace,
   signed URL authorization and tenant backfill remain open.
+  Scoped uploads now prefix BlobStore keys with `tenants/{tenant_id}/`
+  (ADR-0166/R103); public tenant routing, derivative propagation and object
+  migration/backfill remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
