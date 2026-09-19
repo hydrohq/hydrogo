@@ -71,7 +71,9 @@ categorized as code, environment, legal, or product decision.
   produce environment evidence. The ownership-scoped member order-detail query
   is additionally certified in
   `tests/contract/member_order_detail_contract_test.go` on SQLite and
-  PostgreSQL. Login and MFA rate-limit plus audit assertions
+  PostgreSQL; the scoped WSL race suite also passes for member/commerce and
+  contract packages (`R72-member-commerce-race-2026-09-19`). Login and MFA
+  rate-limit plus audit assertions
   are present, including member login/refresh/revoke audit assertions; real
   production sink delivery and retention certification remain open.
 - [x] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
