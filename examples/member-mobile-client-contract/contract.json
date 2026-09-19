@@ -10,6 +10,12 @@
   },
   "flows": [
     {
+      "name": "register",
+      "request": {"method": "POST", "path": "/auth/register", "body": {"email": "reader@example.test", "password": "example", "device_id": "stable-per-install-id", "device_name": "device-label", "platform": "iOS|Android"}},
+      "expect": {"status": 200, "store": ["access_token", "refresh_token", "expires_at"]},
+      "on_status": {"409": "offer_sign_in"}
+    },
+    {
       "name": "login",
       "request": {"method": "POST", "path": "/auth/login", "body": {"email": "reader@example.test", "password": "example", "device_id": "stable-per-install-id", "device_name": "device-label", "platform": "iOS|Android"}},
       "expect": {"status": 200, "store": ["access_token", "refresh_token", "expires_at"]}

@@ -22,6 +22,14 @@ type memberMobileLoginRequest struct {
 	Platform   string `json:"platform"`
 }
 
+type memberMobileRegisterRequest struct {
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	DeviceID   string `json:"device_id"`
+	DeviceName string `json:"device_name"`
+	Platform   string `json:"platform"`
+}
+
 type memberMobileRefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
@@ -63,6 +71,47 @@ func (h Handler) mobileLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.recordMobileAudit(r, "member_mobile_auth.login", member.ID)
+	writeMemberMobileJSON(w, http.StatusOK, pair)
+}
+
+func (h Handler) mobileRegister(w http.ResponseWriter, r *http.Request) {
+	noStoreMemberMobileResponse(w)
+	if h.Mobile == nil {
+		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		return
+	}
+	var input memberMobileRegisterRequest
+	if !decodeMemberMobileJSON(w, r, &input) {
+		return
+	}
+	deviceID := strings.TrimSpace(input.DeviceID)
+	platform := strings.TrimSpace(input.Platform)
+	if len(deviceID) == 0 || len(deviceID) > 256 || len(platform) == 0 || len(platform) > 64 || len(strings.TrimSpace(input.DeviceName)) > 256 {
+		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid device metadata.")
+		return
+	}
+	if h.Limiter != nil && !h.Limiter.Allow("member-mobile-register:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
+		writeMemberMobileError(w, http.StatusTooManyRequests, "RATE_LIMITED", "Too many registration attempts.")
+		return
+	}
+	member, err := h.Service.Register(r.Context(), input.Email, input.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, members.ErrMemberExists):
+			writeMemberMobileError(w, http.StatusConflict, "MEMBER_EXISTS", "An account with this email already exists.")
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid registration details.")
+		default:
+			writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		}
+		return
+	}
+	pair, err := h.Mobile.Issue(r.Context(), member.ID, deviceID, strings.TrimSpace(input.DeviceName), platform)
+	if err != nil {
+		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		return
+	}
+	h.recordMobileAudit(r, "member_mobile_auth.register", member.ID)
 	writeMemberMobileJSON(w, http.StatusOK, pair)
 }
 

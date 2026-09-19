@@ -8,6 +8,7 @@
   "servers": [{ "url": "/" }],
   "paths": {
     "/api/v1/mobile/member/auth/login": { "post": { "operationId": "memberMobileLogin", "responses": { "200": {}, "400": {}, "401": {}, "429": {}, "503": {} } } },
+    "/api/v1/mobile/member/auth/register": { "post": { "operationId": "memberMobileRegister", "responses": { "200": {}, "400": {}, "409": {}, "429": {}, "503": {} } } },
     "/api/v1/mobile/member/auth/refresh": { "post": { "operationId": "memberMobileRefresh", "responses": { "200": {}, "400": {}, "401": {}, "503": {} } } },
     "/api/v1/mobile/member/auth/revoke": { "post": { "operationId": "revokeMemberMobileDevice", "responses": { "204": {}, "401": {}, "503": {} } } },
     "/api/v1/mobile/member/auth/revoke-all": { "post": { "operationId": "revokeAllMemberMobileDevices", "responses": { "204": {}, "401": {}, "503": {} } } },

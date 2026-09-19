@@ -76,6 +76,7 @@ func (h Handler) Routes() []router.Route {
 		// browser-session and staff mobile surfaces. These routes authenticate
 		// with member bearer tokens and never read or write browser cookies.
 		{Pattern: "POST /api/v1/mobile/member/auth/login", Access: router.Public, Handler: http.HandlerFunc(h.mobileLogin)},
+		{Pattern: "POST /api/v1/mobile/member/auth/register", Access: router.Public, Handler: http.HandlerFunc(h.mobileRegister)},
 		{Pattern: "POST /api/v1/mobile/member/auth/refresh", Access: router.Public, Handler: http.HandlerFunc(h.mobileRefresh)},
 		{Pattern: "POST /api/v1/mobile/member/auth/revoke", Access: router.Public, Handler: http.HandlerFunc(h.mobileRevoke)},
 		{Pattern: "POST /api/v1/mobile/member/auth/revoke-all", Access: router.Public, Handler: http.HandlerFunc(h.mobileRevokeAll)},

@@ -133,6 +133,10 @@ export class HydroGoClient {
     return this.request<MemberTokenPair>("/api/v1/mobile/member/auth/login", { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, options);
   }
 
+  async memberRegister(input: MemberLoginInput, options?: HydroGoRequestOptions): Promise<MemberTokenPair> {
+    return this.request<MemberTokenPair>("/api/v1/mobile/member/auth/register", { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, options);
+  }
+
   async memberRefresh(refreshToken: string, options?: HydroGoRequestOptions): Promise<MemberTokenPair> {
     if (!refreshToken.trim()) throw new RangeError("refreshToken is required");
     return this.request<MemberTokenPair>("/api/v1/mobile/member/auth/refresh", { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: refreshToken }) }, options);
