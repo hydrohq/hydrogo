@@ -20,6 +20,19 @@
         }
       }
     },
+    "/api/v1/mobile/member/auth/register": {
+      "post": {
+        "operationId": "memberMobileRegister",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": {
+          "200": { "description": "New member account and bearer token pair.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenPair" } } } },
+          "400": { "$ref": "#/components/responses/InvalidRequest" },
+          "409": { "description": "An account with this email already exists." },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
     "/api/v1/mobile/member/auth/refresh": {
       "post": {
         "operationId": "memberMobileRefresh",

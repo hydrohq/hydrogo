@@ -144,3 +144,18 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 		t.Fatalf("revoked access status = %d, want %d", unauthorizedResponse.Code, http.StatusUnauthorized)
 	}
 }
+
+func TestMemberMobileRegisterRejectsInvalidMetadataBeforePersistence(t *testing.T) {
+	handler := transport.Handler{Service: members.Service{Members: newMemoryMemberStore()}, Mobile: &members.MobileAuthService{}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/register", strings.NewReader(`{"email":"new@example.test","password":"secret1234","device_id":"","platform":"ios"}`))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	mux.ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("register status = %d, body = %s", res.Code, res.Body.String())
+	}
+}
