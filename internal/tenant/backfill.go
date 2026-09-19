@@ -103,11 +103,12 @@ func ExecuteBackfill(ctx context.Context, db *sql.DB, dialect string, targetTena
 		}
 		res, err := tx.ExecContext(ctx, query, targetTenantID)
 		if err != nil {
-			continue
+			// Fail closed and abort transaction on error
+			return nil, fmt.Errorf("backfill failed for table %s: %w", table, err)
 		}
 		affected, err := res.RowsAffected()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to retrieve rows affected for table %s: %w", table, err)
 		}
 		if affected > 0 {
 			report.RowsAffected[table] = affected
