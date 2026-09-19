@@ -104,8 +104,8 @@ fixture, and dated mobile threat-model report.
   policy, bounded proxy, login/logout exchange and single-instance
   session/CSRF adapter are in `internal/security/bffpolicy`,
   `internal/security/bffproxy` and `internal/security/bffsession`
-  (R68/R75/R79/R82); a shared production session store and staging E2E are
-  still required.
+  (R68/R75/R79/R82); the Redis/Valkey shared adapter is covered by R84, while
+  provider key/TLS/failover certification and staging E2E are still required.
 - [ ] Prove public CORS allowlists, cross-origin mutation rejection, preview
   confidentiality, SEO metadata, sitemap, locale and media behavior end to end.
 - [ ] Run frontend-to-API contract compatibility checks in both old/new API order.
