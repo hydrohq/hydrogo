@@ -208,6 +208,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0161](0161-sqlite-cache-watch-runtime-integration.md) | Opt-in SQLite cache watch runtime integration | Accepted (single-process integration; external-write soak open) |
 | [0162](0162-tenant-scoped-outbox-contract.md) | Tenant-scoped outbox contract | Accepted (storage primitive; end-to-end propagation open) |
 | [0163](0163-tenant-context-outbox-propagation.md) | Tenant-context outbox propagation | Accepted (context bridge; shared-mode call-site audit open) |
+| [0164](0164-tenant-scoped-audit-contract.md) | Tenant-scoped audit contract | Accepted (storage primitive; query and operator workflow propagation open) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |

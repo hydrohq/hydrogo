@@ -126,6 +126,10 @@
           {
             "path": "R100-tenant-context-outbox-propagation-2026-09-19.md",
             "command": "go test ./internal/outbox/sqlstore ./internal/outbox ./internal/tenant -count=1"
+          },
+          {
+            "path": "R101-tenant-scoped-audit-contract-2026-09-19.md",
+            "command": "go test ./internal/audit/sqlstore ./internal/database ./internal/tenant -count=1"
           }
       ]
     },
