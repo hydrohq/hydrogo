@@ -52,6 +52,14 @@
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckoutRequest" } } } },
         "responses": { "200": { "description": "Created order." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "409": { "description": "Checkout conflict." }, "429": { "$ref": "#/components/responses/RateLimited" } }
       }
+    },
+    "/api/v1/mobile/member/orders": {
+      "get": {
+        "operationId": "listMemberOrders",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 100 } }],
+        "responses": { "200": { "description": "Orders belonging to the authenticated member." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "503": { "$ref": "#/components/responses/Unavailable" } }
+      }
     }
   },
   "components": {
