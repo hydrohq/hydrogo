@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
@@ -82,6 +83,59 @@ func runMemberMobileAuthContract(t *testing.T, db *sql.DB, dialect database.Dial
 	}
 	if _, _, err := mobile.ValidateAccess(ctx, activePair.AccessToken); !errors.Is(err, members.ErrMobileTokenInvalid) {
 		t.Fatalf("disabled member access error = %v, want ErrMobileTokenInvalid", err)
+	}
+
+	testMultiTenantMemberMobileAuthIsolation(t, db, dialect)
+}
+
+func testMultiTenantMemberMobileAuthIsolation(t *testing.T, db *sql.DB, dialect database.Dialect) {
+	ctx := context.Background()
+	scopeAlpha, _ := tenant.NewScope("tenant-alpha", "org-alpha")
+	scopeBeta, _ := tenant.NewScope("tenant-beta", "org-beta")
+	ctxAlpha := tenant.WithScope(ctx, scopeAlpha)
+	ctxBeta := tenant.WithScope(ctx, scopeBeta)
+
+	mobile := members.MobileAuthService{DB: db, Dialect: dialect, RequireTenantScope: true}
+
+	memberAlphaID := "member-alpha-mobile-contract"
+	now := time.Now().UTC()
+	if dialect == database.Postgres {
+		_, err := db.ExecContext(ctx, `INSERT INTO members (id, email, password_hash, active, tenant_id, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`, memberAlphaID, "member-alpha@example.test", "hash", true, "tenant-alpha", now, now)
+		if err != nil {
+			t.Fatalf("insert alpha member: %v", err)
+		}
+	} else {
+		_, err := db.ExecContext(ctx, `INSERT INTO members (id, email, password_hash, active, tenant_id, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, memberAlphaID, "member-alpha@example.test", "hash", 1, "tenant-alpha", now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
+		if err != nil {
+			t.Fatalf("insert alpha member sqlite: %v", err)
+		}
+	}
+
+	pair, err := mobile.Issue(ctxAlpha, memberAlphaID, "alpha-phone", "iPhone 16", "iOS")
+	if err != nil {
+		t.Fatalf("issue alpha member token: %v", err)
+	}
+
+	mid, devID, err := mobile.ValidateAccess(ctxAlpha, pair.AccessToken)
+	if err != nil || mid != memberAlphaID || devID != "alpha-phone" {
+		t.Fatalf("validate member token under tenant alpha: got mid=%s, devID=%s, err=%v", mid, devID, err)
+	}
+
+	_, _, err = mobile.ValidateAccess(ctxBeta, pair.AccessToken)
+	if err == nil {
+		t.Fatalf("expected cross-tenant validate member token under tenant beta to fail, but succeeded")
+	}
+
+	_, err = mobile.Refresh(ctxBeta, pair.RefreshToken)
+	if err == nil {
+		t.Fatalf("expected cross-tenant member refresh under tenant beta to fail, but succeeded")
+	}
+
+	devices, err := mobile.ListDevices(ctxBeta, memberAlphaID, "alpha-phone")
+	if err != nil || len(devices) != 0 {
+		t.Fatalf("expected 0 devices for alpha member under tenant beta, got %d, err=%v", len(devices), err)
 	}
 }
 

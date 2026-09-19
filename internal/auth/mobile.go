@@ -116,6 +116,10 @@ func (s *MobileAuthService) IssueTokenPair(ctx context.Context, userID, deviceID
 	if strings.TrimSpace(platform) == "" {
 		return nil, ErrPlatformRequired
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
 
 	rawAccessToken, err := generateSecureToken("mat", 32)
 	if err != nil {
@@ -169,10 +173,23 @@ func (s *MobileAuthService) IssueTokenPair(ctx context.Context, userID, deviceID
 	}
 
 	err = s.within(ctx, func(exec database.Executor) error {
+		if s.RequireTenantScope {
+			var exists int
+			userCheck := `SELECT 1 FROM users WHERE id = ? AND tenant_id = ?`
+			if s.dialect == database.Postgres {
+				userCheck = `SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2`
+			}
+			if err := exec.QueryRowContext(ctx, userCheck, userID, tenantID).Scan(&exists); err != nil {
+				return ErrInvalidToken
+			}
+		}
 		_, execErr := exec.ExecContext(ctx, query, sessionID, userID, deviceID, deviceName, platform, familyID, refreshHash, accessHash, dbAccessExpires, dbRefreshExpires, dbCreated, dbLastUsed)
 		return execErr
 	})
 	if err != nil {
+		if errors.Is(err, ErrInvalidToken) {
+			return nil, ErrInvalidToken
+		}
 		return nil, fmt.Errorf("failed to create mobile session: %w", err)
 	}
 
@@ -225,6 +242,10 @@ func parseMobileBool(v any) bool {
 
 // RefreshTokenPair implements single-use Refresh Token Rotation with Token Family reuse detection.
 func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToken string) (*TokenPair, error) {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
 	refreshHash := hashToken(rawRefreshToken)
 
 	var (
@@ -240,20 +261,31 @@ func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToke
 	)
 
 	var query string
+	args := []any{refreshHash}
+	if s.RequireTenantScope {
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.Postgres {
 		query = `SELECT m.id, m.user_id, m.device_id, m.device_name, m.platform, m.family_id, m.revoked_at, m.refresh_expires_at, u.active
-			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.refresh_token_hash = $1 FOR UPDATE`
+			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.refresh_token_hash = $1`
+		if s.RequireTenantScope {
+			query += ` AND u.tenant_id = $2`
+		}
+		query += ` FOR UPDATE`
 	} else {
 		query = `SELECT m.id, m.user_id, m.device_id, m.device_name, m.platform, m.family_id, m.revoked_at, m.refresh_expires_at, u.active
 			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.refresh_token_hash = ?`
+		if s.RequireTenantScope {
+			query += ` AND u.tenant_id = ?`
+		}
 	}
 
 	var (
 		resultPair  *TokenPair
 		securityErr error
 	)
-	err := s.within(ctx, func(tx database.Executor) error {
-		row := tx.QueryRowContext(ctx, query, refreshHash)
+	err = s.within(ctx, func(tx database.Executor) error {
+		row := tx.QueryRowContext(ctx, query, args...)
 		if err := row.Scan(&sessionID, &userID, &deviceID, &deviceName, &platform, &familyID, &revokedAtVal, &refreshExpiresAtVal, &userActiveVal); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrInvalidToken
@@ -389,6 +421,10 @@ func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToke
 
 // ValidateAccessToken checks the validity of a bearer access token.
 func (s *MobileAuthService) ValidateAccessToken(ctx context.Context, rawAccessToken string) (userID, deviceID string, err error) {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return "", "", ErrInvalidToken
+	}
 	accessHash := hashToken(rawAccessToken)
 
 	var (
@@ -397,14 +433,24 @@ func (s *MobileAuthService) ValidateAccessToken(ctx context.Context, rawAccessTo
 	)
 
 	var query string
+	args := []any{accessHash}
+	if s.RequireTenantScope {
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.Postgres {
 		query = `SELECT m.user_id, m.device_id, m.revoked_at, m.access_expires_at FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.access_token_hash = $1`
+		if s.RequireTenantScope {
+			query += ` AND u.tenant_id = $2`
+		}
 	} else {
 		query = `SELECT m.user_id, m.device_id, m.revoked_at, m.access_expires_at FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.access_token_hash = ?`
+		if s.RequireTenantScope {
+			query += ` AND u.tenant_id = ?`
+		}
 	}
 
 	err = s.within(ctx, func(exec database.Executor) error {
-		row := exec.QueryRowContext(ctx, query, accessHash)
+		row := exec.QueryRowContext(ctx, query, args...)
 		if scanErr := row.Scan(&userID, &deviceID, &revokedAtVal, &accessExpiresAtVal); scanErr != nil {
 			if errors.Is(scanErr, sql.ErrNoRows) {
 				return ErrInvalidToken
@@ -462,15 +508,27 @@ func (s *MobileAuthService) RevokeFamily(ctx context.Context, familyID string) e
 
 // RevokeDevice invalidates all active sessions for a specific user device.
 func (s *MobileAuthService) RevokeDevice(ctx context.Context, userID, deviceID string) error {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return ErrInvalidToken
+	}
 	now := time.Now().UTC()
 	var query string
 	var args []any
 	if s.dialect == database.Postgres {
 		query = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE user_id = $2 AND device_id = $3 AND revoked_at IS NULL`
 		args = []any{now, userID, deviceID}
+		if s.RequireTenantScope {
+			query = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE user_id IN (SELECT id FROM users WHERE id = $2 AND tenant_id = $3) AND device_id = $4 AND revoked_at IS NULL`
+			args = []any{now, userID, tenantID, deviceID}
+		}
 	} else {
 		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND device_id = ? AND revoked_at IS NULL`
 		args = []any{now.Format(time.RFC3339), userID, deviceID}
+		if s.RequireTenantScope {
+			query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id IN (SELECT id FROM users WHERE id = ? AND tenant_id = ?) AND device_id = ? AND revoked_at IS NULL`
+			args = []any{now.Format(time.RFC3339), userID, tenantID, deviceID}
+		}
 	}
 	return s.within(ctx, func(exec database.Executor) error {
 		_, err := exec.ExecContext(ctx, query, args...)
@@ -480,15 +538,27 @@ func (s *MobileAuthService) RevokeDevice(ctx context.Context, userID, deviceID s
 
 // RevokeAllDevices logs out the user from all mobile devices.
 func (s *MobileAuthService) RevokeAllDevices(ctx context.Context, userID string) error {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return ErrInvalidToken
+	}
 	now := time.Now().UTC()
 	var query string
 	var args []any
 	if s.dialect == database.Postgres {
 		query = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE user_id = $2 AND revoked_at IS NULL`
 		args = []any{now, userID}
+		if s.RequireTenantScope {
+			query = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE user_id IN (SELECT id FROM users WHERE id = $2 AND tenant_id = $3) AND revoked_at IS NULL`
+			args = []any{now, userID, tenantID}
+		}
 	} else {
 		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`
 		args = []any{now.Format(time.RFC3339), userID}
+		if s.RequireTenantScope {
+			query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id IN (SELECT id FROM users WHERE id = ? AND tenant_id = ?) AND revoked_at IS NULL`
+			args = []any{now.Format(time.RFC3339), userID, tenantID}
+		}
 	}
 	return s.within(ctx, func(exec database.Executor) error {
 		_, err := exec.ExecContext(ctx, query, args...)
@@ -498,20 +568,34 @@ func (s *MobileAuthService) RevokeAllDevices(ctx context.Context, userID string)
 
 // ListDeviceSessions returns non-revoked device sessions for a user.
 func (s *MobileAuthService) ListDeviceSessions(ctx context.Context, userID, currentDeviceID string) ([]DeviceSessionSummary, error) {
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
 	var query string
+	args := []any{userID}
+	if s.RequireTenantScope {
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.Postgres {
-		query = `SELECT device_id, device_name, platform, created_at, last_used_at
-			FROM mobile_device_sessions WHERE user_id = $1 AND revoked_at IS NULL
-			ORDER BY last_used_at DESC`
+		query = `SELECT m.device_id, m.device_name, m.platform, m.created_at, m.last_used_at
+			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.user_id = $1 AND m.revoked_at IS NULL`
+		if s.RequireTenantScope {
+			query += ` AND u.tenant_id = $2`
+		}
+		query += ` ORDER BY m.last_used_at DESC`
 	} else {
-		query = `SELECT device_id, device_name, platform, created_at, last_used_at
-			FROM mobile_device_sessions WHERE user_id = ? AND revoked_at IS NULL
-			ORDER BY last_used_at DESC`
+		query = `SELECT m.device_id, m.device_name, m.platform, m.created_at, m.last_used_at
+			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.user_id = ? AND m.revoked_at IS NULL`
+		if s.RequireTenantScope {
+			query += ` AND u.tenant_id = ?`
+		}
+		query += ` ORDER BY m.last_used_at DESC`
 	}
 
 	var summaries []DeviceSessionSummary
-	err := s.withinQuery(ctx, func(exec database.QueryExecutor) error {
-		rows, queryErr := exec.QueryContext(ctx, query, userID)
+	err = s.withinQuery(ctx, func(exec database.QueryExecutor) error {
+		rows, queryErr := exec.QueryContext(ctx, query, args...)
 		if queryErr != nil {
 			return queryErr
 		}
