@@ -2,12 +2,15 @@ package webhooks
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/outbox"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
+
+var ErrInvalidWorkerLoop = errors.New("invalid webhook worker loop configuration")
 
 type OutboxStore interface {
 	Claim(context.Context, database.Executor, string, time.Time, time.Duration) (outbox.Event, string, bool, error)
@@ -16,12 +19,80 @@ type OutboxStore interface {
 }
 
 type Worker struct {
-	DB         database.Executor
-	Store      OutboxStore
-	Dispatcher Dispatcher
-	WorkerID   string
-	Lease      time.Duration
-	RetryAfter time.Duration
+	DB              database.Executor
+	Store           OutboxStore
+	Dispatcher      Dispatcher
+	WorkerID        string
+	Lease           time.Duration
+	RetryAfter      time.Duration
+	PollInterval    time.Duration
+	MaxPollInterval time.Duration
+	OnError         func(error)
+	sleep           func(context.Context, time.Duration) error
+}
+
+// Run owns the bounded outbox polling lifecycle. Empty queues and transient
+// SQLite/PostgreSQL errors back off exponentially up to MaxPollInterval; a
+// successful claim immediately returns to the base interval. The loop exits
+// only when ctx is cancelled, so a single lock/error cannot spin or kill the
+// worker process.
+func (w Worker) Run(ctx context.Context) error {
+	base, max, err := w.pollBounds()
+	if err != nil {
+		return err
+	}
+	sleep := w.sleep
+	if sleep == nil {
+		sleep = sleepContext
+	}
+	interval := base
+	for {
+		processed, runErr := w.RunOnce(ctx, time.Now().UTC())
+		if runErr != nil && w.OnError != nil {
+			w.OnError(runErr)
+		}
+		if err := sleep(ctx, interval); err != nil {
+			return err
+		}
+		if runErr == nil && processed {
+			interval = base
+		} else {
+			interval = nextPollInterval(interval, max)
+		}
+	}
+}
+
+func (w Worker) pollBounds() (time.Duration, time.Duration, error) {
+	base := w.PollInterval
+	if base <= 0 {
+		base = 250 * time.Millisecond
+	}
+	max := w.MaxPollInterval
+	if max <= 0 {
+		max = 5 * time.Second
+	}
+	if base > max || base < 10*time.Millisecond || max > 5*time.Minute {
+		return 0, 0, ErrInvalidWorkerLoop
+	}
+	return base, max, nil
+}
+
+func nextPollInterval(current, max time.Duration) time.Duration {
+	if current >= max || current > max/2 {
+		return max
+	}
+	return current * 2
+}
+
+func sleepContext(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // RunOnce claims at most one event. Delivery is acknowledged only after every
