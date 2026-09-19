@@ -27,6 +27,7 @@ type Config struct {
 	ThemeDir        string           `yaml:"theme_dir"`
 	Theme           string           `yaml:"theme"`
 	AdminExtensions AdminExtensions  `yaml:"admin_extensions"`
+	Tenancy         Tenancy          `yaml:"tenancy"`
 	I18N            I18N             `yaml:"i18n"`
 	Security        Security         `yaml:"security"`
 	Mail            Mail             `yaml:"mail"`
@@ -41,6 +42,14 @@ type Config struct {
 type AdminExtensions struct {
 	ManifestDir     string `yaml:"manifest_dir"`
 	TrustedKeysFile string `yaml:"trusted_keys_file"`
+}
+
+// Tenancy maps trusted request hosts to tenant IDs. IDs come only from
+// operator configuration; request headers and query parameters are ignored.
+type Tenancy struct {
+	Enabled     bool              `yaml:"enabled"`
+	RequireHost bool              `yaml:"require_host"`
+	Hosts       map[string]string `yaml:"hosts"`
 }
 
 type Webhook struct {
@@ -378,6 +387,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if overrides.DatabaseDialect != nil {
 		result.Database.Dialect = database.Dialect(*overrides.DatabaseDialect)
 	}
+	if result.Tenancy.Enabled {
+		result.Tenancy.RequireHost = true
+	}
 	if err := result.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -420,6 +432,18 @@ func (c Config) Validate() error {
 			return fmt.Errorf("module %q is configured more than once", module)
 		}
 		seenModules[module] = struct{}{}
+	}
+	if c.Tenancy.Enabled {
+		if len(c.Tenancy.Hosts) == 0 || len(c.Tenancy.Hosts) > 4096 {
+			return errors.New("enabled tenancy requires 1-4096 host mappings")
+		}
+		for host, tenantID := range c.Tenancy.Hosts {
+			host = strings.ToLower(strings.TrimSpace(host))
+			if host == "" || strings.ContainsAny(host, " /\\:") || !validConfigComponent(tenantID) {
+				return fmt.Errorf("invalid tenancy host mapping %q", host)
+			}
+		}
+		c.Tenancy.RequireHost = true
 	}
 	if (c.Payments.StripeSecretKey == "") != (c.Payments.StripeWebhookSecret == "") {
 		return errors.New("Stripe secret and webhook secret must be configured together")
@@ -578,4 +602,18 @@ func isHTTPBaseURL(parsed *url.URL) bool {
 func isHTTPSCallbackURL(raw string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	return err == nil && parsed != nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.Hostname() != "" && parsed.User == nil && parsed.Opaque == "" && parsed.Fragment == ""
+}
+
+func validConfigComponent(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > 128 {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }

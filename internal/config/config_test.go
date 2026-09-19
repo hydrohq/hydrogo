@@ -212,6 +212,34 @@ func TestLoadSQLiteExternalWriteWatch(t *testing.T) {
 	}
 }
 
+func TestLoadTenancyHostMap(t *testing.T) {
+	path := writeConfig(t, `tenancy:
+  enabled: true
+  hosts:
+    alpha.example.test: tenant-a
+`)
+	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
+	if err != nil || !cfg.Tenancy.Enabled || !cfg.Tenancy.RequireHost || cfg.Tenancy.Hosts["alpha.example.test"] != "tenant-a" {
+		t.Fatalf("tenancy config = %#v err=%v", cfg.Tenancy, err)
+	}
+	path = writeConfig(t, `tenancy:
+  enabled: true
+  hosts:
+    "bad host": tenant-a
+`)
+	if _, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{}); err == nil || !strings.Contains(err.Error(), "tenancy") {
+		t.Fatalf("invalid tenancy host accepted: %v", err)
+	}
+	path = writeConfig(t, `tenancy:
+  enabled: true
+  hosts:
+    "alpha.example.test:8443": tenant-a
+`)
+	if _, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{}); err == nil || !strings.Contains(err.Error(), "tenancy") {
+		t.Fatalf("tenancy host with port accepted: %v", err)
+	}
+}
+
 func TestValidateRejectsNonOriginPublicURLs(t *testing.T) {
 	for _, value := range []string{
 		"https://user:pass@example.test",
