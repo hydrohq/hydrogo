@@ -36,9 +36,10 @@ func TestPublicReadCORSDeniesUnknownOriginAndWrites(t *testing.T) {
 	}
 	next := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
 	for name, request := range map[string]*http.Request{
-		"unknown": httptest.NewRequest(http.MethodGet, "/api/v1/news?locale=tr", nil),
-		"write":   httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", nil),
-		"options": httptest.NewRequest(http.MethodOptions, "/api/v1/news", nil),
+		"unknown":             httptest.NewRequest(http.MethodGet, "/api/v1/news?locale=tr", nil),
+		"write":               httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", nil),
+		"member-mobile-write": httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/commerce/cart/items", nil),
+		"options":             httptest.NewRequest(http.MethodOptions, "/api/v1/news", nil),
 	} {
 		request.Header.Set("Origin", "https://evil.example.test")
 		recorder := httptest.NewRecorder()
