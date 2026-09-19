@@ -59,3 +59,35 @@ func TestMediaStoreFailClosedWithoutTenantScope(t *testing.T) {
 		t.Fatalf("missing media scope = %v", err)
 	}
 }
+
+func TestScopedMediaVariantCannotCrossTenant(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, "file:media-variant-tenant-scope?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	alpha, _ := tenant.NewScope("tenant-a", "alpha")
+	beta, _ := tenant.NewScope("tenant-b", "beta")
+	alphaCtx := tenant.WithScope(ctx, alpha)
+	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
+	asset := media.Asset{ID: "asset-v", StorageKey: "asset-v.bin", OriginalFilename: "v.bin", MimeType: "image/png", SizeBytes: 4}
+	if err := database.NewTransactor(db).Within(alphaCtx, func(tx database.Executor) error { return store.CreatePending(alphaCtx, tx, asset) }); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateProcessing(alphaCtx, db, media.Variant{ID: "variant-a", MediaID: asset.ID, Kind: "thumb", MimeType: "image/png"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkResult(alphaCtx, db, "variant-a", "ready", 4, "thumb.png"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetReady(tenant.WithScope(ctx, beta), db, asset.ID, "thumb"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("cross-tenant variant read = %v", err)
+	}
+	if got, err := store.GetReady(alphaCtx, db, asset.ID, "thumb"); err != nil || got.ID != "variant-a" {
+		t.Fatalf("scoped variant read = %#v err=%v", got, err)
+	}
+}
