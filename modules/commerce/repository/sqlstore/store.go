@@ -125,6 +125,17 @@ func (s Store) ListOrdersByUserID(ctx context.Context, db database.Executor, use
 	return s.listOrders(ctx, db, userID, limit)
 }
 
+func (s Store) GetOrderByUserID(ctx context.Context, db database.Executor, userID, orderID string) (commerce.Order, error) {
+	order, err := s.GetOrder(ctx, db, orderID)
+	if err != nil {
+		return commerce.Order{}, err
+	}
+	if strings.TrimSpace(userID) == "" || order.UserID != userID {
+		return commerce.Order{}, sql.ErrNoRows
+	}
+	return order, nil
+}
+
 func (s Store) listOrders(ctx context.Context, db database.Executor, userID string, limit int) ([]commerce.Order, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err

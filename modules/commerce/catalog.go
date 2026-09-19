@@ -37,6 +37,7 @@ type OrderReader interface {
 // memory.
 type OrderReaderByUserID interface {
 	ListOrdersByUserID(context.Context, database.Executor, string, int) ([]Order, error)
+	GetOrderByUserID(context.Context, database.Executor, string, string) (Order, error)
 }
 
 type CatalogService struct {

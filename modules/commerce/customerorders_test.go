@@ -14,6 +14,11 @@ func (customerOrderReaderStub) ListOrdersByUserID(context.Context, database.Exec
 	return []Order{{ID: "order-1", UserID: "member-1", Currency: "TRY", TotalCents: 1250, PaymentStatus: "paid", ShippingStatus: "pending", Customer: PaymentCustomer{IdentityNumber: "must-not-leak"}, Items: []OrderItem{{ProductID: "p-1", SKU: "sku-1", Title: "Bottle", Quantity: 1, UnitCents: 1250, TotalCents: 1250}}}}, nil
 }
 
+func (customerOrderReaderStub) GetOrderByUserID(context.Context, database.Executor, string, string) (Order, error) {
+	orders, _ := customerOrderReaderStub{}.ListOrdersByUserID(context.Background(), nil, "member-1", 1)
+	return orders[0], nil
+}
+
 func TestCustomerOrderReaderProjectsWithoutCustomerSecrets(t *testing.T) {
 	got, err := (CustomerOrderReader{Reader: customerOrderReaderStub{}}).ListOrdersByUserID(context.Background(), nil, "member-1", 100)
 	if err != nil {
@@ -34,3 +39,4 @@ func TestCustomerOrderReaderRequiresRepository(t *testing.T) {
 }
 
 var _ customerorders.Reader = CustomerOrderReader{}
+var _ customerorders.DetailReader = CustomerOrderReader{}

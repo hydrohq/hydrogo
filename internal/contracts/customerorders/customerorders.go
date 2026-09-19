@@ -33,3 +33,11 @@ type Order struct {
 type Reader interface {
 	ListOrdersByUserID(context.Context, database.Executor, string, int) ([]Order, error)
 }
+
+// DetailReader is an optional extension for a bounded, ownership-scoped order
+// detail. Keeping it separate preserves lightweight member implementations
+// that only need the list capability.
+type DetailReader interface {
+	Reader
+	GetOrderByUserID(context.Context, database.Executor, string, string) (Order, error)
+}
