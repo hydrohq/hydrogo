@@ -201,6 +201,9 @@ reports and a published support matrix.
   stores, and the webhook worker iterates validated host-map scopes
   (ADR-0169/R106); dynamic provisioning and multi-instance worker distribution
   remain open.
+  Pages and page revisions now carry tenant discriminators with scoped route,
+  admin, draft and publish operations (ADR-0170/R107); existing-row backfill
+  and news/site/commerce/member repository scopes remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

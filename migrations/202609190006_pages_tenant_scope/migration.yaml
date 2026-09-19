@@ -1,0 +1,25 @@
+id: "202609190006_pages_tenant_scope"
+module: "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "83a55d8c6394b883d7d5f44fd4b44251d88cc1206cf9b6aa09e5c8e4ed7513e6"
+  postgres: "83a55d8c6394b883d7d5f44fd4b44251d88cc1206cf9b6aa09e5c8e4ed7513e6"
+dependencies:
+  - "202609100001_page_blocks"
+schema:
+  readable_epoch: 5
+  writable_epoch: 5
+preconditions:
+  - "Pages and page revisions tables are present"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Tenant discriminator columns and scoped route index"
+compatibility: "Adds default-empty tenant discriminators while preserving single-customer rows"
+smoke:
+  - "Scoped page reads and writes cannot cross tenant identity"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

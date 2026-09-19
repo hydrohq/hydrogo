@@ -1087,7 +1087,7 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	contentService := pageservice.ContentService{
 		Transactions: database.NewTransactor(db),
-		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},
+		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		PublicCache:  publicPageCache,
@@ -1150,7 +1150,7 @@ func serve(args []string, stderr io.Writer) error {
 		go func() { <-ctx.Done(); mediaOptimizer.Close() }()
 	}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
-	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect}
+	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler

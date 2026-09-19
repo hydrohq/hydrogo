@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -22,8 +23,16 @@ func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Pag
 	if db == nil {
 		return nil, database.ErrDatabaseRequired
 	}
-	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL ORDER BY published_locale, published_slug, id LIMIT ` + fmt.Sprint(maxSitemapRoutes)
-	rows, err := db.QueryContext(ctx, query)
+	filter, scopeID, err := s.tenantFilter(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL` + filter + ` ORDER BY published_locale, published_slug, id LIMIT ` + fmt.Sprint(maxSitemapRoutes)
+	args := []any{}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +67,20 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	if !ok {
 		return nil, errors.New("published page list requires a query-capable executor")
 	}
-	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(2)
-	rows, err := queryer.QueryContext(ctx, query, locale, limit)
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(2)
+	args := []any{locale, limit}
+	if filter != "" {
+		if s.Dialect == database.Postgres {
+			args = append(args, scopeID)
+		} else {
+			args = []any{locale, scopeID, limit}
+		}
+	}
+	rows, err := queryer.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +115,20 @@ func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) (
 	if !ok {
 		return nil, errors.New("page admin list requires a query-capable executor")
 	}
-	query := `SELECT id, locale, slug, title, status, version, revision, updated_at FROM pages ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(1)
-	rows, err := queryer.QueryContext(ctx, query, limit)
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT id, locale, slug, title, status, version, revision, updated_at FROM pages WHERE 1=1` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(1)
+	args := []any{limit}
+	if filter != "" {
+		if s.Dialect == database.Postgres {
+			args = append(args, scopeID)
+		} else {
+			args = []any{scopeID, limit}
+		}
+	}
+	rows, err := queryer.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +156,16 @@ func (s Store) GetContent(ctx context.Context, db database.Executor, pageID stri
 	var status string
 	var published any
 	var createdAt, updatedAt, blocks any
-	query := `SELECT id, locale, slug, title, body, blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE id = ` + s.placeholder(1)
-	err := db.QueryRowContext(ctx, query, pageID).Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &page.Body, &blocks, &status, &page.Version, &page.Revision, &published, &page.PublicationGeneration, &createdAt, &updatedAt)
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return pages.Page{}, err
+	}
+	query := `SELECT id, locale, slug, title, body, blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE id = ` + s.placeholder(1) + filter
+	args := []any{pageID}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	err = db.QueryRowContext(ctx, query, args...).Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &page.Body, &blocks, &status, &page.Version, &page.Revision, &published, &page.PublicationGeneration, &createdAt, &updatedAt)
 	if err != nil {
 		return pages.Page{}, err
 	}
@@ -156,8 +197,16 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 	var status string
 	var published any
 	var createdAt, updatedAt, blocks any
-	query := `SELECT id, published_locale, published_slug, published_title, published_body, published_blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_slug = ` + s.placeholder(2) + ` AND published_revision IS NOT NULL`
-	err := db.QueryRowContext(ctx, query, locale, slug).Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &page.Body, &blocks, &status, &page.Version, &page.Revision, &published, &page.PublicationGeneration, &createdAt, &updatedAt)
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return pages.Page{}, err
+	}
+	query := `SELECT id, published_locale, published_slug, published_title, published_body, published_blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_slug = ` + s.placeholder(2) + ` AND published_revision IS NOT NULL` + filter
+	args := []any{locale, slug}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	err = db.QueryRowContext(ctx, query, args...).Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &page.Body, &blocks, &status, &page.Version, &page.Revision, &published, &page.PublicationGeneration, &createdAt, &updatedAt)
 	if err != nil {
 		return pages.Page{}, err
 	}
@@ -201,21 +250,43 @@ func (s Store) CreateDraftContent(ctx context.Context, tx database.Executor, pag
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	scopeID := ""
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return scopeErr
+		}
+		scopeID = scope.TenantID
+	}
 	blocks, err := pages.EncodeBlocksForStore(page.Blocks)
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO pages
-		(id, title, version, locale, slug, body, blocks, status, revision, publication_generation, created_at, updated_at)
-		VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, 1, `+s.placeholder(3)+`, `+s.placeholder(4)+`, `+s.placeholder(5)+`, `+s.placeholder(6)+`, 'draft', 1, 0, `+s.placeholder(7)+`, `+s.placeholder(8)+`)`,
-		page.ID, page.Title, page.Locale, page.Slug, page.Body, blocks, now, now)
+	pageQuery := `INSERT INTO pages
+		(id, title, version, locale, slug, body, blocks, status, revision, publication_generation, created_at, updated_at`
+	pageValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, 1, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, 'draft', 1, 0, ` + s.placeholder(7) + `, ` + s.placeholder(8)
+	pageArgs := []any{page.ID, page.Title, page.Locale, page.Slug, page.Body, blocks, now, now}
+	if s.RequireTenantScope {
+		pageQuery += `, tenant_id`
+		pageValues += `, ` + s.placeholder(9)
+		pageArgs = append(pageArgs, scopeID)
+	}
+	pageQuery += `) ` + pageValues + `)`
+	_, err = tx.ExecContext(ctx, pageQuery, pageArgs...)
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO page_revisions
-		(id, page_id, revision, locale, slug, title, body, blocks, created_at)
-		VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, 1, `+s.placeholder(3)+`, `+s.placeholder(4)+`, `+s.placeholder(5)+`, `+s.placeholder(6)+`, `+s.placeholder(7)+`, `+s.placeholder(8)+`)`,
-		page.ID+"-revision-1", page.ID, page.Locale, page.Slug, page.Title, page.Body, blocks, now)
+	revisionQuery := `INSERT INTO page_revisions
+		(id, page_id, revision, locale, slug, title, body, blocks, created_at`
+	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, 1, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8)
+	revisionArgs := []any{page.ID + "-revision-1", page.ID, page.Locale, page.Slug, page.Title, page.Body, blocks, now}
+	if s.RequireTenantScope {
+		revisionQuery += `, tenant_id`
+		revisionValues += `, ` + s.placeholder(9)
+		revisionArgs = append(revisionArgs, scopeID)
+	}
+	revisionQuery += `) ` + revisionValues + `)`
+	_, err = tx.ExecContext(ctx, revisionQuery, revisionArgs...)
 	return err
 }
 
@@ -224,11 +295,25 @@ func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, pag
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	scopeID := ""
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return scopeErr
+		}
+		scopeID = scope.TenantID
+	}
 	blocks, err := pages.EncodeBlocksForStore(page.Blocks)
 	if err != nil {
 		return err
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE pages SET title = `+s.placeholder(1)+`, slug = `+s.placeholder(2)+`, body = `+s.placeholder(3)+`, blocks = `+s.placeholder(4)+`, locale = `+s.placeholder(5)+`, revision = revision + 1, version = version + 1, status = 'draft', updated_at = `+s.placeholder(6)+` WHERE id = `+s.placeholder(7)+` AND version = `+s.placeholder(8), page.Title, page.Slug, page.Body, blocks, page.Locale, now, page.ID, expectedVersion)
+	filter := ""
+	args := []any{page.Title, page.Slug, page.Body, blocks, page.Locale, now, page.ID, expectedVersion}
+	if s.RequireTenantScope {
+		filter = ` AND tenant_id = ` + s.placeholder(9)
+		args = append(args, scopeID)
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE pages SET title = `+s.placeholder(1)+`, slug = `+s.placeholder(2)+`, body = `+s.placeholder(3)+`, blocks = `+s.placeholder(4)+`, locale = `+s.placeholder(5)+`, revision = revision + 1, version = version + 1, status = 'draft', updated_at = `+s.placeholder(6)+` WHERE id = `+s.placeholder(7)+` AND version = `+s.placeholder(8)+filter, args...)
 	if err != nil {
 		return err
 	}
@@ -239,10 +324,17 @@ func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, pag
 	if changed != 1 {
 		return pages.ErrConflict
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO page_revisions
-		(id, page_id, revision, locale, slug, title, body, blocks, created_at)
-		VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, `+s.placeholder(3)+`, `+s.placeholder(4)+`, `+s.placeholder(5)+`, `+s.placeholder(6)+`, `+s.placeholder(7)+`, `+s.placeholder(8)+`, `+s.placeholder(9)+`)`,
-		fmt.Sprintf("%s-revision-%d", page.ID, expectedVersion+1), page.ID, expectedVersion+1, page.Locale, page.Slug, page.Title, page.Body, blocks, now)
+	revisionQuery := `INSERT INTO page_revisions
+		(id, page_id, revision, locale, slug, title, body, blocks, created_at`
+	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9)
+	revisionArgs := []any{fmt.Sprintf("%s-revision-%d", page.ID, expectedVersion+1), page.ID, expectedVersion + 1, page.Locale, page.Slug, page.Title, page.Body, blocks, now}
+	if s.RequireTenantScope {
+		revisionQuery += `, tenant_id`
+		revisionValues += `, ` + s.placeholder(10)
+		revisionArgs = append(revisionArgs, scopeID)
+	}
+	revisionQuery += `) ` + revisionValues + `)`
+	_, err = tx.ExecContext(ctx, revisionQuery, revisionArgs...)
 	return err
 }
 
@@ -251,7 +343,15 @@ func (s Store) Publish(ctx context.Context, tx database.Executor, pageID string,
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	result, err := tx.ExecContext(ctx, `UPDATE pages SET status = 'published', published_revision = revision, published_locale = locale, published_slug = slug, published_title = title, published_body = body, published_blocks = blocks, publication_generation = publication_generation + 1, version = version + 1, updated_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND version = `+s.placeholder(3)+` AND status IN ('draft', 'published')`, now, pageID, expectedVersion)
+	filter, scopeID, err := s.tenantFilter(ctx, 4)
+	if err != nil {
+		return err
+	}
+	args := []any{now, pageID, expectedVersion}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE pages SET status = 'published', published_revision = revision, published_locale = locale, published_slug = slug, published_title = title, published_body = body, published_blocks = blocks, publication_generation = publication_generation + 1, version = version + 1, updated_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND version = `+s.placeholder(3)+` AND status IN ('draft', 'published')`+filter, args...)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			return pages.ErrRouteConflict
