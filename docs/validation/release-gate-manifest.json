@@ -90,6 +90,10 @@
         {
           "path": "R91-postgres-tenant-rls-binding-2026-09-19.md",
           "command": "go test ./internal/tenant -run TestBindPostgresTransaction -count=1"
+        },
+        {
+          "path": "R92-admin-extension-contract-2026-09-19.md",
+          "command": "go test ./extension/v1 ./internal/adminstudio -count=1"
         }
       ]
     },
