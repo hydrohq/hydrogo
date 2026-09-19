@@ -48,13 +48,30 @@ type Store struct {
 // New validates the explicit cookie/security policy. Secure=false is allowed
 // only for local HTTP fixtures; production callers should require Secure=true.
 func New(config Config) (*Store, error) {
-	if strings.TrimSpace(config.CookieName) == "" || strings.ContainsAny(config.CookieName, "=;\r\n") || config.TTL <= 0 || config.TTL > 30*24*time.Hour || config.MaxEntries <= 0 || config.MaxEntries > 1_000_000 {
+	if !validCookieName(config.CookieName) || config.TTL <= 0 || config.TTL > 30*24*time.Hour || config.MaxEntries <= 0 || config.MaxEntries > 1_000_000 {
 		return nil, ErrInvalidConfig
 	}
 	if config.SameSite == http.SameSiteDefaultMode {
 		config.SameSite = http.SameSiteLaxMode
 	}
 	return &Store{config: config, sessions: make(map[string]record, config.MaxEntries), now: time.Now}, nil
+}
+
+func validCookieName(name string) bool {
+	if name == "" || strings.TrimSpace(name) != name {
+		return false
+	}
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			continue
+		}
+		switch r {
+		case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~', ':':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // Create stores a server-side Core cookie and sends a BFF-only cookie to the

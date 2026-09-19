@@ -86,3 +86,11 @@ func TestStoreBoundsCapacity(t *testing.T) {
 		t.Fatalf("capacity error = %v", err)
 	}
 }
+
+func TestNewRejectsInvalidCookieNames(t *testing.T) {
+	for _, name := range []string{"", "bff sid", "bff;sid", "bff\n sid"} {
+		if _, err := New(Config{CookieName: name, TTL: time.Minute, MaxEntries: 1}); err != ErrInvalidConfig {
+			t.Fatalf("cookie name %q error = %v", name, err)
+		}
+	}
+}
