@@ -42,6 +42,10 @@
         {
           "path": "R79-bff-session-adapter-2026-09-19.md",
           "command": "go test ./internal/security/bffsession"
+        },
+        {
+          "path": "R80-bff-session-proxy-contract-2026-09-19.md",
+          "command": "go test ./internal/security/bffproxy ./internal/security/bffsession"
         }
       ]
     },
