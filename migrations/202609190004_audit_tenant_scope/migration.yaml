@@ -1,0 +1,27 @@
+id: "202609190004_audit_tenant_scope"
+module: "core"
+requires_modules:
+  - "pages"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "bf1d9da6ad10e0849667fbeb2b03cb85442b306c2fb0b2191b19acd01eff2b1d"
+  postgres: "bf1d9da6ad10e0849667fbeb2b03cb85442b306c2fb0b2191b19acd01eff2b1d"
+dependencies:
+  - "202609090017_audit_request_id"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "The audit request ID migration is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Tenant discriminator and audit lookup index"
+compatibility: "Adds a default-empty tenant discriminator while preserving legacy audit rows"
+smoke:
+  - "Scoped audit writes retain request correlation and tenant identity"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

@@ -182,6 +182,9 @@ reports and a published support matrix.
   The outbox store now automatically selects scoped operations when a validated
   tenant context is present and offers `RequireTenantScope` fail-closed mode
   (ADR-0163/R100); shared-mode composition and full call-site audit remain open.
+  Audit writes now carry the same tenant discriminator and fail-closed context
+  boundary (ADR-0164/R101); tenant-aware audit queries, export/erasure and
+  operator authorization remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
