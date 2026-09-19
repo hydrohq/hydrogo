@@ -110,6 +110,10 @@
           {
             "path": "R96-sqlite-external-write-cache-monitor-2026-09-19.md",
             "command": "go test ./internal/cache -run TestSQLiteDataVersionMonitor -count=1"
+          },
+          {
+            "path": "R97-admin-extension-runtime-host-2026-09-19.md",
+            "command": "go test ./internal/adminstudio ./extension/v1 -count=1"
           }
       ]
     },
