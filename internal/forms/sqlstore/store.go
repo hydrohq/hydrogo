@@ -52,6 +52,13 @@ func (s Store) Upsert(ctx context.Context, form forms.Form) error {
 }
 
 func (s Store) UpsertWithExecutor(ctx context.Context, executor database.Executor, form forms.Form) error {
+	if db, ok := executor.(*sql.DB); ok {
+		return database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			copy := s
+			copy.Executor = tx
+			return copy.UpsertWithExecutor(ctx, tx, form)
+		})
+	}
 	s.Executor = executor
 	if err := s.validate(); err != nil {
 		return err
@@ -84,6 +91,17 @@ func (s Store) UpsertWithExecutor(ctx context.Context, executor database.Executo
 }
 
 func (s Store) Get(ctx context.Context, id string) (forms.Form, error) {
+	if db, ok := s.Executor.(*sql.DB); ok {
+		var form forms.Form
+		err := database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			copy := s
+			copy.Executor = tx
+			var err error
+			form, err = copy.Get(ctx, id)
+			return err
+		})
+		return form, err
+	}
 	if err := s.validate(); err != nil {
 		return forms.Form{}, err
 	}
@@ -116,6 +134,17 @@ func (s Store) Get(ctx context.Context, id string) (forms.Form, error) {
 }
 
 func (s Store) List(ctx context.Context) ([]forms.Form, error) {
+	if db, ok := s.Executor.(*sql.DB); ok {
+		var result []forms.Form
+		err := database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).WithinQuery(ctx, func(tx database.QueryExecutor) error {
+			copy := s
+			copy.Executor = tx
+			var err error
+			result, err = copy.List(ctx)
+			return err
+		})
+		return result, err
+	}
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
@@ -166,6 +195,13 @@ func (s Store) Delete(ctx context.Context, id string) error {
 }
 
 func (s Store) DeleteWithExecutor(ctx context.Context, executor database.Executor, id string) error {
+	if db, ok := executor.(*sql.DB); ok {
+		return database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			copy := s
+			copy.Executor = tx
+			return copy.DeleteWithExecutor(ctx, tx, id)
+		})
+	}
 	s.Executor = executor
 	if err := s.validate(); err != nil {
 		return err
