@@ -3,8 +3,11 @@ package tenant
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // BackfillReport tracks unassigned rows migrated per table.
@@ -54,11 +57,21 @@ func isMissingTableError(err error) bool {
 	if err == nil {
 		return false
 	}
+
+	// PostgreSQL exposes a stable SQLSTATE for an undefined relation. Use the
+	// typed error instead of matching the human-readable message: messages such
+	// as "does not exist" can also describe a missing column, schema, function,
+	// or role and must never be silently skipped by a data migration.
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "42P01"
+	}
+
+	// modernc SQLite reports missing relations with this specific prefix. Keep
+	// the match narrow; generic SQLite errors (permissions, constraints, locks,
+	// and syntax errors) must remain fatal.
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "no such table") || // SQLite
-		strings.Contains(msg, "does not exist") || // PostgreSQL ("relation ... does not exist")
-		strings.Contains(msg, "undefined_table") || // PostgreSQL pgconn code 42P01
-		strings.Contains(msg, "42p01")
+	return strings.Contains(msg, "no such table:")
 }
 
 // PlanBackfill counts rows with empty or null tenant_id in each tenant-scoped table.
