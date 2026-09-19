@@ -11,11 +11,13 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/jobs"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 type scheduleJob struct {
 	ItemID     string `json:"item_id"`
 	Generation int64  `json:"generation"`
+	TenantID   string `json:"tenant_id,omitempty"`
 }
 
 // DurableQueue is the persistent lease contract implemented by the SQL job
@@ -35,6 +37,7 @@ type Worker struct {
 	Lease        time.Duration
 	Retry        time.Duration
 	MaxAttempts  int
+	TenantScopes []tenant.Scope
 	OnRetry      func()
 	OnDeadLetter func()
 }
@@ -45,13 +48,23 @@ func (w Worker) EnqueueDue(ctx context.Context, db database.Executor, now time.T
 	if guards.IsNil(w.Service.Repository) || database.RequireExecutor(db) != nil {
 		return errors.New("news scheduler repository is unavailable")
 	}
-	items, err := w.Service.Repository.ListScheduled(ctx, db, now)
-	if err != nil {
-		return err
+	scopes := w.TenantScopes
+	if len(scopes) == 0 {
+		scopes = []tenant.Scope{{}}
 	}
-	for _, item := range items {
-		if err := w.EnqueueScheduleContext(ctx, item.ID, item.ScheduleGeneration, now); err != nil {
+	for _, scope := range scopes {
+		scopedCtx := ctx
+		if scope.TenantID != "" {
+			scopedCtx = tenant.WithScope(ctx, scope)
+		}
+		items, err := w.Service.Repository.ListScheduled(scopedCtx, db, now)
+		if err != nil {
 			return err
+		}
+		for _, item := range items {
+			if err := w.EnqueueScheduleContext(scopedCtx, item.ID, item.ScheduleGeneration, now); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -65,7 +78,13 @@ func (w Worker) EnqueueScheduleContext(ctx context.Context, itemID string, gener
 	if (w.Queue == nil && guards.IsNil(w.Durable)) || itemID == "" || generation <= 0 {
 		return ErrScheduleStale
 	}
-	payload, err := json.Marshal(scheduleJob{ItemID: itemID, Generation: generation})
+	jobPayload := scheduleJob{ItemID: itemID, Generation: generation}
+	if scope, scopeErr := tenant.Require(ctx); scopeErr == nil {
+		jobPayload.TenantID = scope.TenantID
+	} else if len(w.TenantScopes) > 0 {
+		return tenant.ErrMissingScope
+	}
+	payload, err := json.Marshal(jobPayload)
 	if err != nil {
 		return err
 	}
@@ -115,6 +134,24 @@ func (w Worker) RunOnce(ctx context.Context, workerID string, now time.Time) (bo
 		}
 		w.recordDeadLetter()
 		return true, nil
+	}
+	if len(w.TenantScopes) > 0 {
+		if payload.TenantID == "" {
+			if err := w.deadLetter(ctx, job.ID, workerID, token, tenant.ErrMissingScope.Error()); err != nil {
+				return true, err
+			}
+			w.recordDeadLetter()
+			return true, nil
+		}
+		scope, scopeErr := tenant.NewScope(payload.TenantID, payload.TenantID)
+		if scopeErr != nil {
+			if err := w.deadLetter(ctx, job.ID, workerID, token, scopeErr.Error()); err != nil {
+				return true, err
+			}
+			w.recordDeadLetter()
+			return true, nil
+		}
+		ctx = tenant.WithScope(ctx, scope)
 	}
 	err = w.Service.RunScheduled(ctx, payload.ItemID, payload.Generation, now)
 	if errors.Is(err, ErrScheduleStale) {

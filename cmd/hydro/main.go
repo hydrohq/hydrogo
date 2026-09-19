@@ -1178,7 +1178,7 @@ func serve(args []string, stderr io.Writer) error {
 	var newsService newsservice.Service
 	var newsWorker newsservice.Worker
 	if moduleEnabled(cfg.Modules, "news") {
-		newsStore := newsstore.Store{Dialect: cfg.Database.Dialect}
+		newsStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		newsService = newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
 			if user := auth.UserFromContext(ctx); user != nil {
 				return string(user.Role)
@@ -1186,10 +1186,11 @@ func serve(args []string, stderr io.Writer) error {
 			return ""
 		}}
 		newsWorker = newsservice.Worker{
-			Durable: jobstore.Queue{Store: jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}, DB: db},
-			Service: newsService,
-			Lease:   time.Minute,
-			Retry:   time.Minute,
+			Durable:      jobstore.Queue{Store: jobstore.Store{Dialect: cfg.Database.Dialect, MaxEntries: budget.QueueEntries}, DB: db},
+			Service:      newsService,
+			Lease:        time.Minute,
+			Retry:        time.Minute,
+			TenantScopes: tenantScopes,
 		}
 	}
 
