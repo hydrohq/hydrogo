@@ -1,0 +1,25 @@
+id: "202609190008_site_tenant_scope"
+module: "site"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "e811277442981ce7a499265207821589fa40e8bf136a20400a0e1c26513b081d"
+  postgres: "e1e26e4274e0a755f90ba75a9bbab370e9ecd1af36441cccf549d5dc9de78fda"
+dependencies:
+  - "202609080009_site_edition"
+schema:
+  readable_epoch: 4
+  writable_epoch: 4
+preconditions:
+  - "Site settings, navigation, redirects and form inbox tables are present"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Tenant discriminators and scoped site indexes"
+compatibility: "Preserves existing single-customer rows under the empty tenant namespace"
+smoke:
+  - "Scoped site reads, writes and form inbox operations cannot cross tenant identity"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

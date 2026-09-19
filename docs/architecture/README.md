@@ -216,6 +216,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0169](0169-tenant-scoped-worker-composition.md) | Tenant-scoped worker composition | Accepted (static host-map scope source; dynamic provisioning open) |
 | [0170](0170-tenant-scoped-pages.md) | Tenant-scoped page content | Accepted (page repository boundary; backfill and other content modules open) |
 | [0171](0171-tenant-scoped-news-content-and-jobs.md) | Tenant-scoped news content and scheduled jobs | Accepted (repository and payload bridge; job-store isolation open) |
+| [0172](0172-tenant-scoped-site-data.md) | Tenant-scoped site data | Accepted (site repository boundary; forms/auth/commerce workflows open) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |

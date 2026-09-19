@@ -2,12 +2,14 @@ package sqlstore
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
@@ -22,6 +24,34 @@ func TestSQLiteVisibilityDialectContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	runVisibilityContract(t, db, database.SQLite)
+}
+
+func TestScopedSiteSettingsAndNavigationCannotCrossTenant(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "scoped-site.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	alpha, _ := tenant.NewScope("tenant-a", "alpha")
+	beta, _ := tenant.NewScope("tenant-b", "beta")
+	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
+	if err := store.UpsertSetting(tenant.WithScope(ctx, alpha), db, site.Setting{Key: "title", Value: "Alpha", Public: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertSetting(tenant.WithScope(ctx, beta), db, site.Setting{Key: "title", Value: "Beta", Public: true}); err != nil {
+		t.Fatal(err)
+	}
+	items, err := store.ListPublicSettings(tenant.WithScope(ctx, alpha), db)
+	if err != nil || len(items) != 1 || items[0].Value != "Alpha" {
+		t.Fatalf("scoped settings = %#v/%v", items, err)
+	}
+	if _, err := store.ListPublicSettings(ctx, db); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing site scope error = %v", err)
+	}
 }
 
 func TestPostgresVisibilityDialectContract(t *testing.T) {
