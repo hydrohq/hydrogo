@@ -16,17 +16,17 @@
 3. **Production Gate Verification (`tools/releasegates`):**
    - Tested enforcement of production certification gates, ensuring zero uncertified external gates for production profiles.
 
-4. **10-Phase Architectural Completion Sign-off:**
-   - **Phase 1 (ADR-0184, R24):** Mobile Store Tenant RLS & Transaction Bindings - Certified.
-   - **Phase 2 (ADR-0185, R25):** PostgreSQL RLS Contract Isolation Certification - Certified.
-   - **Phase 3 (ADR-0186, R26):** Tenant Provisioning & Backfill CLI - Certified.
-   - **Phase 4 (ADR-0187, R27):** Mobile API Contract & Transport Certification - Certified.
-   - **Phase 5 (ADR-0188, R28):** Blue/Green Zero-Downtime Migration Safety - Certified.
-   - **Phase 6 (ADR-0189, R29):** Backup, Restore & PITR Failover Isolation - Certified.
-   - **Phase 7 (ADR-0190, R30):** Capacity Profiles & Concurrency Budgets - Certified.
-   - **Phase 8 (ADR-0191, R31):** Distributed Cache & Session Failover - Certified.
-   - **Phase 9 (ADR-0192, R32):** Extension SDK Boundary & Admin Studio Security - Certified.
-   - **Phase 10 (ADR-0193, R33):** Release Provenance, SPDX SBOM & Production Readiness - Certified.
+4. **Architectural Code & Contract State vs Real-World Production Gates:**
+   - **Phase 1 (ADR-0184, R24):** Mobile Store Tenant RLS & Transaction Bindings - Code & unit tests delivered.
+   - **Phase 2 (ADR-0185, R25):** PostgreSQL RLS Contract Suite - Code delivered; requires live PostgreSQL test execution via `HYDRO_TEST_POSTGRES_URL`.
+   - **Phase 3 (ADR-0186, R26):** Tenant Backfill & Discovery CLI - Code delivered; backfill transaction atomicity guaranteed.
+   - **Phase 4 (ADR-0187, R27):** Mobile API Contract & Transport Suite - Code & unit/contract tests delivered.
+   - **Phase 5 (ADR-0188, R28):** Migration Linting & Coexistence Contracts - Code delivered; real proxy rollback drill remains an open ops gate.
+   - **Phase 6 (ADR-0189, R29):** Restoration Controls & Manifest Verification - Code delivered; clean target provider restore drill remains an open ops gate.
+   - **Phase 7 (ADR-0190, R30):** Capacity Profile Defaults & Budget Validation - Code delivered; physical customer hardware benchmark remains an open ops gate.
+   - **Phase 8 (ADR-0191, R31):** Distributed Cache Contract & Encrypted Session Store - Code delivered; multi-instance live partition drill remains an open ops gate.
+   - **Phase 9 (ADR-0192, R32):** Extension SDK & Admin Manifest Verification - Code delivered.
+   - **Phase 10 (ADR-0193, R33):** SPDX SBOM & Release Manifests - Code delivered; production key ceremony remains an open ops gate.
 
 ## Test Results
 
@@ -40,8 +40,8 @@ PASS
 ok      github.com/ardaozyildirim/hydrogo/tools/sbom            0.647s
 
 $ go test ./...
-PASS (all packages pass)
+PASS (local unit & SQLite contract tests pass; live PostgreSQL / Redis tests skip when environment variables are unset)
 ```
 
 ## Sign-off
-Phase 10 Release Provenance, SPDX SBOM & Production Readiness Certification is verified and complete. All 10 architectural phases are signed off for production deployment.
+Architectural definitions and local contract tests are delivered. Real-world ops preflight (PostgreSQL RLS execution, Redis failover drill, clean environment restore, real benchmark) remains pinned to the live production gate protocol.

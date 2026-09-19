@@ -111,15 +111,15 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		}
 
 		// Insert Site Settings
-		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO site_settings (edition_id, title, tagline, default_locale, tenant_id, updated_at)
-			VALUES ('site', 'Alpha Site', 'Alpha Tag', 'en', 'tenant-alpha', NOW())`)
+		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO site_settings (key, value, is_public, tenant_id, updated_at)
+			VALUES ('site_name', 'Alpha Site', true, 'tenant-alpha', NOW())`)
 		if err != nil {
 			return fmt.Errorf("insert alpha site_settings: %w", err)
 		}
 
 		// Insert Member
-		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO members (id, email, password_hash, full_name, active, tenant_id, created_at, updated_at)
-			VALUES ('member-alpha', 'member@alpha.com', 'hash', 'Alpha Member', true, 'tenant-alpha', NOW(), NOW())`)
+		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO members (id, email, password_hash, active, tenant_id, created_at, updated_at)
+			VALUES ('member-alpha', 'member@alpha.com', 'hash', true, 'tenant-alpha', NOW(), NOW())`)
 		if err != nil {
 			return fmt.Errorf("insert alpha member: %w", err)
 		}
@@ -136,7 +136,7 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM pages WHERE id = 'page-alpha'`).Scan(&pageCount); err != nil {
 			return err
 		}
-		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM site_settings WHERE edition_id = 'site'`).Scan(&settingsCount); err != nil {
+		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM site_settings WHERE key = 'site_name'`).Scan(&settingsCount); err != nil {
 			return err
 		}
 		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM members WHERE id = 'member-alpha'`).Scan(&memberCount); err != nil {
@@ -158,7 +158,7 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM pages WHERE id = 'page-alpha'`).Scan(&pageCount); err != nil {
 			return err
 		}
-		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM site_settings WHERE edition_id = 'site'`).Scan(&settingsCount); err != nil {
+		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM site_settings WHERE key = 'site_name'`).Scan(&settingsCount); err != nil {
 			return err
 		}
 		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM members WHERE id = 'member-alpha'`).Scan(&memberCount); err != nil {
