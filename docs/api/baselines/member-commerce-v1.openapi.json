@@ -1,0 +1,12 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "HydroGo Consumer Commerce API", "version": "1.0.0" },
+  "paths": {
+    "/api/v1/commerce/products": { "get": { "responses": { "200": {}, "400": {}, "503": {} } } },
+    "/api/v1/commerce/products/{productID}": { "get": { "responses": { "200": {}, "404": {} } } },
+    "/api/v1/mobile/member/commerce/cart": { "get": { "responses": { "200": {}, "401": {}, "503": {} } } },
+    "/api/v1/mobile/member/commerce/cart/items": { "post": { "responses": { "200": {}, "400": {}, "401": {}, "409": {} } } },
+    "/api/v1/mobile/member/commerce/cart/items/{productID}": { "delete": { "responses": { "204": {}, "401": {}, "409": {} } } },
+    "/api/v1/mobile/member/commerce/cart/checkout": { "post": { "responses": { "200": {}, "400": {}, "401": {}, "409": {}, "429": {} } } }
+  }
+}

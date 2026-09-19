@@ -75,6 +75,8 @@ jobs:
           run: go run ./tools/openapidiff --baseline docs/api/baselines/mobile-v1.openapi.json --current docs/api/mobile-v1.openapi.json
         - name: Enforce consumer member mobile API compatibility baseline
           run: go run ./tools/openapidiff --baseline docs/api/baselines/member-mobile-v1.openapi.json --current docs/api/member-mobile-v1.openapi.json
+        - name: Enforce consumer commerce API compatibility baseline
+          run: go run ./tools/openapidiff --baseline docs/api/baselines/member-commerce-v1.openapi.json --current docs/api/member-commerce-v1.openapi.json
       - name: Install PostgreSQL client tools
         timeout-minutes: 4
         run: |
