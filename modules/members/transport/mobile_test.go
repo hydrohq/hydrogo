@@ -16,6 +16,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
+	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/modules/members/transport"
 )
 
@@ -157,5 +158,45 @@ func TestMemberMobileRegisterRejectsInvalidMetadataBeforePersistence(t *testing.
 	mux.ServeHTTP(res, req)
 	if res.Code != http.StatusBadRequest {
 		t.Fatalf("register status = %d, body = %s", res.Code, res.Body.String())
+	}
+}
+
+func TestMemberMobileRegisterCreatesMemberAndTokenWithoutCookie(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "member-register-http.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := memberstore.Store{DB: db, Dialect: database.SQLite}
+	handler := transport.Handler{
+		Service: members.Service{Members: store, ArgonParams: auth.DefaultArgon2Params},
+		Mobile:  &members.MobileAuthService{DB: db, Dialect: database.SQLite},
+	}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	body := `{"email":"mobile-register@example.test","password":"secret1234","device_id":"ios-register","device_name":"Reader phone","platform":"ios"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/register", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	mux.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || res.Header().Get("Set-Cookie") != "" {
+		t.Fatalf("register status=%d cookie=%q body=%s", res.Code, res.Header().Get("Set-Cookie"), res.Body.String())
+	}
+	var pair auth.TokenPair
+	if err := json.NewDecoder(res.Body).Decode(&pair); err != nil || pair.AccessToken == "" || pair.RefreshToken == "" {
+		t.Fatalf("register token pair = %#v/%v", pair, err)
+	}
+	duplicate := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/register", strings.NewReader(body))
+	duplicate.Header.Set("Content-Type", "application/json")
+	duplicateResponse := httptest.NewRecorder()
+	mux.ServeHTTP(duplicateResponse, duplicate)
+	if duplicateResponse.Code != http.StatusConflict {
+		t.Fatalf("duplicate register status = %d, body = %s", duplicateResponse.Code, duplicateResponse.Body.String())
 	}
 }
