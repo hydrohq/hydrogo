@@ -128,11 +128,11 @@ the [roadmap](ROADMAP.md). HydroGo should be called production-ready for a
 profile only after that profile has evidence for its own deployment and data
 recovery assumptions.
 
-The current staff mobile API evidence is recorded in
-[`docs/api/MOBILE_API_SPECIFICATION.md`](api/MOBILE_API_SPECIFICATION.md), its
-machine-readable contract, and the SaaS/CMS readiness plan. It still requires
-the ADR-0139 real-environment abuse and device-loss drills before public
-enablement.
+The staff and consumer/member mobile API evidence is recorded in
+[`docs/api/MOBILE_API_SPECIFICATION.md`](api/MOBILE_API_SPECIFICATION.md), the
+machine-readable staff/member auth and commerce contracts, and the SaaS/CMS
+readiness plan. It still requires ADR-0139/0150 real-environment abuse,
+device-loss and payment/provider drills before public enablement.
 
 ## Where to continue
 
