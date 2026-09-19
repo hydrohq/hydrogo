@@ -197,6 +197,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0150](0150-member-mobile-auth-boundary.md) | Member mobile authentication boundary | Accepted |
 | [0151](0151-bff-server-side-request-policy.md) | BFF server-side request policy | Accepted (scoped) |
 | [0152](0152-bff-server-side-session-adapter.md) | BFF server-side session adapter | Accepted (bounded single-instance reference) |
+| [0153](0153-bff-shared-session-backend.md) | BFF shared Redis/Valkey session backend | Accepted (provider certification open) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
