@@ -39,11 +39,15 @@ type Handler struct {
 	// ResolveMemberID maps the opaque member-session cookie to the stable
 	// member ID at the composition boundary. Commerce never stores the raw
 	// browser session credential.
-	ResolveMemberID   func(*http.Request) (string, bool)
-	SecureCookies     bool
-	DefaultLocale     string
-	AdminCollection   adminstudio.Collection
-	VariantCollection adminstudio.Collection
+	ResolveMemberID func(*http.Request) (string, bool)
+	// ResolveMobileMemberID authenticates the consumer mobile bearer at the
+	// composition boundary. Commerce receives only the stable member ID and
+	// never parses or persists the mobile token.
+	ResolveMobileMemberID func(*http.Request) (string, bool)
+	SecureCookies         bool
+	DefaultLocale         string
+	AdminCollection       adminstudio.Collection
+	VariantCollection     adminstudio.Collection
 }
 
 type publicMediaURLProvider interface {
@@ -94,6 +98,10 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/commerce/cart/items", Handler: http.HandlerFunc(h.addCartItem), Protected: true},
 		{Pattern: "DELETE /api/commerce/cart/items/{productID}", Handler: http.HandlerFunc(h.removeCartItem), Protected: true},
 		{Pattern: "POST /api/commerce/cart/checkout", Handler: http.HandlerFunc(h.checkout), Protected: true},
+		{Pattern: "GET /api/v1/mobile/member/commerce/cart", Handler: http.HandlerFunc(h.cart), Protected: false},
+		{Pattern: "POST /api/v1/mobile/member/commerce/cart/items", Handler: http.HandlerFunc(h.addCartItem), Protected: false},
+		{Pattern: "DELETE /api/v1/mobile/member/commerce/cart/items/{productID}", Handler: http.HandlerFunc(h.removeCartItem), Protected: false},
+		{Pattern: "POST /api/v1/mobile/member/commerce/cart/checkout", Handler: http.HandlerFunc(h.checkout), Protected: false},
 		{Pattern: "POST /api/commerce/orders/{orderID}/payment-intent", Handler: http.HandlerFunc(h.paymentIntent), Protected: false},
 		{Pattern: "GET /shop", Handler: http.HandlerFunc(h.shop), Protected: false},
 		{Pattern: "GET /shop/products/{productID}", Handler: http.HandlerFunc(h.productDetailPage), Protected: false},
@@ -306,12 +314,12 @@ func (h Handler) createVariant(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) cart(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
+	userID, ok := h.commerceActorID(r)
+	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	cart, err := h.Cart.Get(r.Context(), h.DB, user.ID)
+	cart, err := h.Cart.Get(r.Context(), h.DB, userID)
 	if err != nil {
 		http.Error(w, "cart unavailable", http.StatusServiceUnavailable)
 		return
@@ -321,8 +329,8 @@ func (h Handler) cart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) addCartItem(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
+	userID, ok := h.commerceActorID(r)
+	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -331,7 +339,7 @@ func (h Handler) addCartItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid cart item", http.StatusBadRequest)
 		return
 	}
-	cart, err := h.Cart.Add(r.Context(), user.ID, input.ProductID, input.VariantID, input.Quantity)
+	cart, err := h.Cart.Add(r.Context(), userID, input.ProductID, input.VariantID, input.Quantity)
 	if err != nil {
 		http.Error(w, "cannot add cart item", http.StatusConflict)
 		return
@@ -341,12 +349,12 @@ func (h Handler) addCartItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) removeCartItem(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
+	userID, ok := h.commerceActorID(r)
+	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if err := h.Cart.Remove(r.Context(), user.ID, r.PathValue("productID")); err != nil {
+	if err := h.Cart.Remove(r.Context(), userID, r.PathValue("productID")); err != nil {
 		http.Error(w, "cannot remove cart item", http.StatusConflict)
 		return
 	}
@@ -583,16 +591,25 @@ func (h Handler) resolveCartUserID(w http.ResponseWriter, r *http.Request) strin
 // not mint a guest credential: payment authorization must prove ownership of
 // a previously created cart/order.
 func (h Handler) commerceCustomerID(r *http.Request) (string, bool) {
-	if user := auth.UserFromContext(r.Context()); user != nil && user.Active && strings.TrimSpace(user.ID) != "" {
-		return user.ID, true
-	}
-	if memberID, ok := h.memberID(r); ok {
-		return memberID, true
+	if actorID, ok := h.commerceActorID(r); ok {
+		return actorID, true
 	}
 	if cookie, err := r.Cookie(cartCookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
 		return cookie.Value, true
 	}
 	return "", false
+}
+
+func (h Handler) commerceActorID(r *http.Request) (string, bool) {
+	if user := auth.UserFromContext(r.Context()); user != nil && user.Active && strings.TrimSpace(user.ID) != "" {
+		return user.ID, true
+	}
+	if h.ResolveMobileMemberID != nil {
+		if memberID, ok := h.ResolveMobileMemberID(r); ok && strings.TrimSpace(memberID) != "" {
+			return memberID, true
+		}
+	}
+	return h.memberID(r)
 }
 
 func (h Handler) memberID(r *http.Request) (string, bool) {
@@ -1050,12 +1067,12 @@ func (h PaymentWebhookHandler) webhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
+	userID, ok := h.commerceActorID(r)
+	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if h.Limiter != nil && !h.Limiter.Allow("checkout:"+user.ID+":"+requestClientIP(r)) {
+	if h.Limiter != nil && !h.Limiter.Allow("checkout:"+userID+":"+requestClientIP(r)) {
 		w.Header().Set("Retry-After", "60")
 		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
@@ -1076,7 +1093,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "checkout unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: user.ID, IdempotencyKey: key, CartID: input.CartID, Items: input.Items, Customer: customer})
+	order, err := h.Commerce.PlaceOrder(r.Context(), commerce.Checkout{ID: id, UserID: userID, IdempotencyKey: key, CartID: input.CartID, Items: input.Items, Customer: customer})
 	if err != nil {
 		http.Error(w, "checkout failed", http.StatusConflict)
 		return
