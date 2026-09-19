@@ -46,6 +46,10 @@
         {
           "path": "R80-bff-session-proxy-contract-2026-09-19.md",
           "command": "go test ./internal/security/bffproxy ./internal/security/bffsession"
+        },
+        {
+          "path": "R81-full-suite-2026-09-19.md",
+          "command": "go test ./... -p 1 -count=1 -timeout=5m"
         }
       ]
     },
