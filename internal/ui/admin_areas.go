@@ -549,7 +549,7 @@ function testGraphQL(btn){
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;">
       <a href="/admin/security" class="button">Güvenlik &amp; Yetki Ayarları</a>
-      <a href="/login?return_to=%%2Fadmin" class="button button-quiet">Oturumu Kapat</a>
+      <button type="button" data-admin-logout class="button button-quiet" style="cursor:pointer;">Oturumu Kapat</button>
     </div>
   </div>
 

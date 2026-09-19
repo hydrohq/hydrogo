@@ -194,19 +194,19 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	nonce := security.NonceFromContext(r.Context())
 
 	var leftBuf bytes.Buffer
-	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields}
+	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
 	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news", CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		return
 	}
 
 	var rightMetaBuf bytes.Buffer
-	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields}
+	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
 	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news", CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		return
 	}
 
 	var rightSEOBuf bytes.Buffer
-	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields}
+	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
 	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news", CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		return
 	}
@@ -781,21 +781,21 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	nonce := security.NonceFromContext(r.Context())
 
 	var leftBuf bytes.Buffer
-	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields}
+	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
 	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	var rightMetaBuf bytes.Buffer
-	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields}
+	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
 	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	var rightSEOBuf bytes.Buffer
-	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields}
+	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
 	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Nonce: nonce, Values: values, HideSubmit: true}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return

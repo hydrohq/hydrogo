@@ -6,487 +6,617 @@ import (
 	"io"
 )
 
-// AdminLoginCSS contains the flat, low-radius, dense Linear + Carbon styling for the admin login screen.
+// AdminLoginCSS contains refined dark and light mode styling for the HydroGo login screen.
 const AdminLoginCSS = `
 :root {
-	--login-bg: #070b12;
-	--login-surface: #111927;
-	--login-surface-hover: #182235;
-	--login-line: #1e293b;
-	--login-line-focus: #0ea5e9;
-	--login-ink: #f8fafc;
-	--login-ink-secondary: #94a3b8;
-	--login-muted: #64748b;
-	--login-brand: #0ea5e9;
-	--login-brand-hover: #38bdf8;
-	--login-brand-subtle: rgba(14,165,233,0.12);
-	--login-green: #10b981;
-	--login-green-subtle: rgba(16,185,129,0.1);
-	--login-danger: #ef4444;
-	--login-danger-subtle: rgba(239,68,68,0.1);
-	--login-radius-xs: 6px;
-	--login-radius-sm: 8px;
-	--login-radius-md: 12px;
-	--login-radius-lg: 16px;
-	--login-radius-xl: 24px;
-	--login-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
-	--login-font-mono: "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-}
+	--bg-canvas: #090a0f;
+	--bg-panel: #0d1017;
+	--bg-card: #121620;
+	--bg-input: #121620;
+	--bg-input-focus: #171d2b;
 
-@media (prefers-color-scheme: light) {
-	:root {
-		--login-bg: #f8fafc;
-		--login-surface: #ffffff;
-		--login-surface-hover: #f4f7fa;
-		--login-line: #e2e8f0;
-		--login-line-focus: #0284c7;
-		--login-ink: #0f172a;
-		--login-ink-secondary: #334155;
-		--login-muted: #64748b;
-		--login-brand: #0284c7;
-		--login-brand-hover: #0369a1;
-		--login-brand-subtle: rgba(2,132,199,0.08);
-		--login-green: #059669;
-		--login-green-subtle: rgba(5,150,105,0.08);
-		--login-danger: #dc2626;
-		--login-danger-subtle: rgba(220,38,38,0.08);
-	}
-}
+	--border-subtle: #1b2230;
+	--border-light: #263044;
+	--border-focus: #0ea5e9;
 
-html[data-theme="dark"] {
-	--login-bg: #070b12;
-	--login-surface: #111927;
-	--login-surface-hover: #182235;
-	--login-line: #1e293b;
-	--login-line-focus: #0ea5e9;
-	--login-ink: #f8fafc;
-	--login-ink-secondary: #94a3b8;
-	--login-muted: #64748b;
-	--login-brand: #0ea5e9;
-	--login-brand-hover: #38bdf8;
-	--login-brand-subtle: rgba(14,165,233,0.12);
-	--login-green: #10b981;
-	--login-green-subtle: rgba(16,185,129,0.1);
-	--login-danger: #ef4444;
-	--login-danger-subtle: rgba(239,68,68,0.1);
+	--text-primary: #f8fafc;
+	--text-secondary: #cbd5e1;
+	--text-muted: #94a3b8;
+
+	--brand-primary: #0ea5e9;
+	--brand-accent: #38bdf8;
+	--brand-glow: rgba(14, 165, 233, 0.22);
+
+	--btn-primary-bg: #0ea5e9;
+	--btn-primary-hover: #38bdf8;
+	--btn-primary-text: #ffffff;
+
+	--btn-secondary-bg: #121620;
+	--btn-secondary-hover: #171d2b;
+	--btn-secondary-border: #1b2230;
+	--btn-secondary-text: #cbd5e1;
+
+	--color-success: #10b981;
+	--color-error: #ef4444;
+
+	--radius-sm: 8px;
+	--radius-md: 12px;
+	--radius-lg: 16px;
+	--radius-xl: 24px;
+
+	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 html[data-theme="light"] {
-	--login-bg: #f8fafc;
-	--login-surface: #ffffff;
-	--login-surface-hover: #f4f7fa;
-	--login-line: #e2e8f0;
-	--login-line-focus: #0284c7;
-	--login-ink: #0f172a;
-	--login-ink-secondary: #334155;
-	--login-muted: #64748b;
-	--login-brand: #0284c7;
-	--login-brand-hover: #0369a1;
-	--login-brand-subtle: rgba(2,132,199,0.08);
-	--login-green: #059669;
-	--login-green-subtle: rgba(5,150,105,0.08);
-	--login-danger: #dc2626;
-	--login-danger-subtle: rgba(220,38,38,0.08);
+	--bg-canvas: #f8fafc;
+	--bg-panel: #ffffff;
+	--bg-card: #ffffff;
+	--bg-input: #f1f5f9;
+	--bg-input-focus: #ffffff;
+
+	--border-subtle: #e2e8f0;
+	--border-light: #cbd5e1;
+	--border-focus: #0284c7;
+
+	--text-primary: #0f172a;
+	--text-secondary: #334155;
+	--text-muted: #64748b;
+
+	--brand-primary: #0284c7;
+	--brand-accent: #0284c7;
+	--brand-glow: rgba(2, 132, 199, 0.16);
+
+	--btn-primary-bg: #0284c7;
+	--btn-primary-hover: #0369a1;
+	--btn-primary-text: #ffffff;
+
+	--btn-secondary-bg: #ffffff;
+	--btn-secondary-hover: #f1f5f9;
+	--btn-secondary-border: #cbd5e1;
+	--btn-secondary-text: #0f172a;
+}
+
+html[data-theme="dark"] {
+	--bg-canvas: #090a0f;
+	--bg-panel: #0d1017;
+	--bg-card: #121620;
+	--bg-input: #121620;
+	--bg-input-focus: #171d2b;
+
+	--border-subtle: #1b2230;
+	--border-light: #263044;
+	--border-focus: #0ea5e9;
+
+	--text-primary: #f8fafc;
+	--text-secondary: #cbd5e1;
+	--text-muted: #94a3b8;
+
+	--brand-primary: #0ea5e9;
+	--brand-accent: #38bdf8;
+	--brand-glow: rgba(14, 165, 233, 0.22);
+
+	--btn-primary-bg: #0ea5e9;
+	--btn-primary-hover: #38bdf8;
+	--btn-primary-text: #ffffff;
+
+	--btn-secondary-bg: #121620;
+	--btn-secondary-hover: #171d2b;
+	--btn-secondary-border: #1b2230;
+	--btn-secondary-text: #cbd5e1;
 }
 
 *, *::before, *::after {
 	box-sizing: border-box;
-}
-
-body.admin-login-body {
 	margin: 0;
 	padding: 0;
+}
+
+body.login-body {
 	min-height: 100vh;
+	display: flex;
+	background: var(--bg-canvas);
+	color: var(--text-primary);
+	font-family: var(--font-sans);
+	font-size: 14px;
+	line-height: 1.5;
+	overflow-x: hidden;
+	-webkit-font-smoothing: antialiased;
+}
+
+.login-layout {
+	display: flex;
+	width: 100vw;
+	min-height: 100vh;
+}
+
+/* LEFT BRAND SHOWCASE PANEL */
+.login-hero-pane {
+	position: relative;
+	flex: 1.1;
+	background: radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.12) 0%, transparent 50%),
+	            #0b111c;
+	padding: 56px 64px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	border-right: 1px solid var(--border-subtle);
+	overflow: hidden;
+}
+
+html[data-theme="light"] .login-hero-pane {
+	background: radial-gradient(circle at 20% 20%, rgba(2, 132, 199, 0.08) 0%, transparent 50%),
+	            #f1f5f9;
+	border-right-color: var(--border-subtle);
+}
+
+.hero-glow-sphere {
+	position: absolute;
+	top: 15%;
+	left: 10%;
+	width: 420px;
+	height: 420px;
+	background: radial-gradient(circle, rgba(14, 165, 233, 0.08) 0%, transparent 70%);
+	border-radius: 50%;
+	filter: blur(54px);
+	pointer-events: none;
+}
+
+.hero-header {
+	position: relative;
+	z-index: 2;
+}
+
+.brand-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	text-decoration: none;
+	color: var(--text-primary);
+}
+
+.brand-icon-box {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: var(--login-bg);
-	color: var(--login-ink);
-	font-family: var(--login-font-sans);
-	font-size: 14px;
-	line-height: 1.5;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
+	width: 38px;
+	height: 38px;
+	border-radius: var(--radius-md);
+	background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+	color: #ffffff;
+	box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
 }
 
-.admin-login-shell {
-	width: 100%;
-	max-width: 380px;
-	padding: 24px 16px;
+.brand-text-wrap {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
 }
 
-.admin-login-header {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	text-align: center;
-	gap: 8px;
-}
-
-.admin-login-brand {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	color: var(--login-ink);
-	text-decoration: none;
+.brand-name {
 	font-size: 1.15rem;
 	font-weight: 800;
 	letter-spacing: -0.02em;
-	transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+	color: var(--text-primary);
 }
 
-.admin-login-brand:hover {
-	opacity: 0.85;
-}
-
-.admin-login-brand-icon {
-	display: grid;
-	place-items: center;
-	width: 28px;
-	height: 28px;
-	border-radius: var(--login-radius-sm);
-	background: var(--login-brand-subtle);
-	color: var(--login-brand);
-	border: 1px solid var(--login-line);
-}
-
-.admin-login-badge {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	font-family: var(--login-font-mono);
-	font-size: 0.68rem;
+.brand-tag {
+	font-family: var(--font-mono);
+	font-size: 0.65rem;
 	font-weight: 700;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var(--login-brand);
-	background: var(--login-brand-subtle);
-	border: 1px solid rgba(94, 106, 210, 0.25);
-	padding: 2px 8px;
-	border-radius: var(--login-radius-xs);
+	color: var(--brand-accent);
 }
 
-.admin-login-badge-dot {
-	width: 5px;
-	height: 5px;
-	border-radius: 1px;
-	background: var(--login-brand);
+.hero-content {
+	position: relative;
+	z-index: 2;
+	max-width: 500px;
+	margin-top: auto;
+	margin-bottom: auto;
+	padding: 40px 0;
 }
 
-.admin-login-card {
-	background: var(--login-surface);
-	border: 1px solid var(--login-line);
-	border-radius: var(--login-radius-lg);
-	padding: 22px 20px 20px;
-	box-shadow: none;
-}
-
-.admin-login-title-row {
+.hero-headline {
+	font-size: 2.3rem;
+	font-weight: 600;
+	letter-spacing: -0.015em;
+	line-height: 1.25;
+	color: var(--text-primary);
 	margin-bottom: 16px;
-	padding-bottom: 10px;
-	border-bottom: 1px solid var(--login-line);
 }
 
-.admin-login-card h1 {
-	margin: 0 0 3px;
-	font-size: 1.05rem;
-	font-weight: 700;
-	letter-spacing: -0.02em;
-	color: var(--login-ink);
+.hero-headline span.gradient-text {
+	background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
 }
 
-.admin-login-lead {
-	margin: 0;
-	font-size: 0.78rem;
-	color: var(--login-muted);
-	line-height: 1.4;
+html[data-theme="light"] .hero-headline span.gradient-text {
+	background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
 }
 
-.admin-login-form {
+.hero-description {
+	font-size: 1rem;
+	line-height: 1.6;
+	color: var(--text-secondary);
+}
+
+/* RIGHT AUTH FORM PANE */
+.login-form-pane {
+	flex: 0.9;
 	display: flex;
 	flex-direction: column;
+	justify-content: space-between;
+	padding: 48px 64px;
+	background: var(--bg-canvas);
+	position: relative;
+}
+
+.pane-top-actions {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
 	gap: 12px;
 }
 
-.admin-login-field {
+.theme-switch-btn {
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	color: var(--text-secondary);
+	padding: 6px 14px;
+	border-radius: var(--radius-sm);
+	font-size: 0.76rem;
+	font-family: var(--font-sans);
+	font-weight: 600;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	transition: all 0.15s ease;
+}
+
+.theme-switch-btn:hover {
+	background: var(--bg-input-focus);
+	color: var(--text-primary);
+	border-color: var(--border-light);
+}
+
+.form-container {
+	max-width: 360px;
+	width: 100%;
+	margin: auto;
+}
+
+.form-header {
+	margin-bottom: 28px;
+}
+
+.form-title {
+	font-size: 1.75rem;
+	font-weight: 700;
+	letter-spacing: -0.025em;
+	color: var(--text-primary);
+	margin-bottom: 6px;
+}
+
+.form-subtitle {
+	font-size: 0.88rem;
+	color: var(--text-muted);
+}
+
+.auth-form {
 	display: flex;
 	flex-direction: column;
-	gap: 5px;
+	gap: 18px;
 }
 
-.admin-login-label {
-	font-size: 0.76rem;
+.input-group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.input-label-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.input-label {
+	font-size: 0.82rem;
 	font-weight: 600;
-	color: var(--login-ink-secondary);
+	color: var(--text-secondary);
 }
 
-.admin-login-input-wrap {
+.input-wrapper {
 	position: relative;
 	display: flex;
 	align-items: center;
 }
 
-.admin-login-input-icon {
+.input-icon {
 	position: absolute;
-	left: 10px;
-	color: var(--login-muted);
+	left: 14px;
+	color: var(--text-muted);
 	pointer-events: none;
-	width: 14px;
-	height: 14px;
+	display: grid;
+	place-items: center;
+}
+
+.auth-input {
+	width: 100%;
+	height: 44px;
+	padding: 0 14px 0 42px;
+	background: var(--bg-input);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	font-family: inherit;
+	font-size: 0.9rem;
+	outline: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.auth-input::placeholder {
+	color: var(--text-muted);
+	opacity: 0.6;
+}
+
+.auth-input:hover {
+	border-color: var(--border-light);
+}
+
+.auth-input:focus {
+	background: var(--bg-input-focus);
+	border-color: var(--border-focus);
+	box-shadow: 0 0 0 3px var(--brand-glow);
+}
+
+.form-row-utility {
 	display: flex;
 	align-items: center;
-	justify-content: center;
+	justify-content: space-between;
+	font-size: 0.82rem;
 }
 
-.admin-login-input {
-	width: 100%;
-	height: 32px;
-	min-height: 32px;
-	padding: 0 10px 0 32px;
-	background: var(--login-surface);
-	border: 1px solid var(--login-line);
-	border-radius: var(--login-radius-md);
-	color: var(--login-ink);
-	font-family: inherit;
-	font-size: 0.84rem;
-	outline: none;
-	transition: border-color 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+.checkbox-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-secondary);
+	cursor: pointer;
+	user-select: none;
 }
 
-.admin-login-input::placeholder {
-	color: var(--login-muted);
-	opacity: 0.7;
+.checkbox-custom {
+	width: 16px;
+	height: 16px;
+	border: 1px solid var(--border-light);
+	border-radius: 4px;
+	background: var(--bg-input);
+	display: grid;
+	place-items: center;
+	transition: all 0.15s ease;
 }
 
-.admin-login-input:hover {
-	border-color: var(--login-ink-secondary);
+.checkbox-custom svg {
+	display: none;
 }
 
-.admin-login-input:focus,
-.admin-login-input:focus-visible {
-	border-color: var(--login-brand);
-	outline: 2px solid var(--login-brand);
-	outline-offset: 1px;
+input[type="checkbox"]:checked + .checkbox-custom {
+	background: var(--brand-primary);
+	border-color: var(--brand-primary);
+	color: #ffffff;
 }
 
-.admin-login-submit {
-	height: 32px;
-	min-height: 32px;
-	margin-top: 4px;
-	padding: 0 14px;
+input[type="checkbox"]:checked + .checkbox-custom svg {
+	display: block;
+}
+
+.link-subtle {
+	color: var(--brand-accent);
+	text-decoration: none;
+	font-size: 0.82rem;
+	transition: color 0.15s ease;
+}
+
+.link-subtle:hover {
+	text-decoration: underline;
+}
+
+.btn-submit {
+	height: 44px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 6px;
-	background: var(--login-brand);
-	color: #ffffff;
-	border: 1px solid transparent;
-	border-radius: var(--login-radius-md);
+	gap: 8px;
+	background: var(--btn-primary-bg);
+	color: var(--btn-primary-text);
+	border: none;
+	border-radius: var(--radius-md);
 	font-family: inherit;
-	font-size: 0.82rem;
+	font-size: 0.9rem;
 	font-weight: 600;
 	cursor: pointer;
-	text-decoration: none;
-	transition: background-color 0.12s cubic-bezier(0.16, 1, 0.3, 1), transform 0.08s cubic-bezier(0.16, 1, 0.3, 1);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
 
-.admin-login-submit:hover {
-	background: var(--login-brand-hover);
+.btn-submit:hover {
+	background: var(--btn-primary-hover);
+	box-shadow: 0 4px 14px var(--brand-glow);
 }
 
-.admin-login-submit:active {
-	transform: scale(0.985);
+.btn-submit:active {
+	transform: scale(0.99);
 }
 
-.admin-login-submit:focus-visible {
-	outline: 2px solid var(--login-brand);
-	outline-offset: 2px;
-}
-
-.admin-login-submit:disabled {
-	opacity: 0.6;
+.btn-submit:disabled {
+	opacity: 0.65;
 	cursor: not-allowed;
 	transform: none;
 }
 
-.admin-login-status {
+.form-alert {
 	display: none;
-	padding: 8px 10px;
-	border-radius: var(--login-radius-sm);
-	font-size: 0.76rem;
+	padding: 10px 14px;
+	border-radius: var(--radius-sm);
+	font-size: 0.82rem;
 	line-height: 1.4;
 	font-weight: 500;
 }
 
-.admin-login-status.status-error {
+.form-alert.alert-error {
 	display: block;
-	background: var(--login-danger-subtle);
+	background: rgba(239, 68, 68, 0.12);
 	border: 1px solid rgba(239, 68, 68, 0.3);
-	color: var(--login-danger);
+	color: var(--color-error);
 }
 
-.admin-login-status.status-success {
+.form-alert.alert-success {
 	display: block;
-	background: var(--login-green-subtle);
+	background: rgba(16, 185, 129, 0.12);
 	border: 1px solid rgba(16, 185, 129, 0.3);
-	color: var(--login-green);
+	color: var(--color-success);
 }
 
-.admin-login-footer {
-	margin-top: 14px;
-	padding-top: 12px;
-	border-top: 1px solid var(--login-line);
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	font-size: 0.72rem;
-	color: var(--login-muted);
+.form-pane-footer {
+	text-align: center;
+	font-size: 0.78rem;
+	color: var(--text-muted);
 }
 
-.admin-login-trust {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	font-family: var(--login-font-mono);
-}
-
-.admin-login-trust svg {
-	width: 12px;
-	height: 12px;
-	color: var(--login-green);
-}
-
-.admin-login-back {
-	color: var(--login-muted);
-	text-decoration: none;
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	transition: color 0.12s ease;
-}
-
-.admin-login-back:hover {
-	color: var(--login-ink);
-}
-
-.admin-login-theme-toggle {
-	align-self: center;
-	background: transparent;
-	border: 1px solid var(--login-line);
-	color: var(--login-muted);
-	font-size: 0.72rem;
-	font-family: var(--login-font-mono);
-	padding: 4px 8px;
-	border-radius: var(--login-radius-sm);
-	cursor: pointer;
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	transition: background 0.12s ease, color 0.12s ease;
-}
-
-.admin-login-theme-toggle:hover {
-	background: var(--login-surface-hover);
-	color: var(--login-ink);
-}
-
-.admin-login-theme-toggle:focus-visible {
-	outline: 2px solid var(--login-brand);
-	outline-offset: 1px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.admin-login-submit,
-	.admin-login-input,
-	.admin-login-back,
-	.admin-login-brand {
-		transition: none !important;
-		transform: none !important;
+/* RESPONSIVE ADAPTATIONS */
+@media (max-width: 900px) {
+	.login-layout {
+		flex-direction: column;
+	}
+	.login-hero-pane {
+		flex: none;
+		padding: 36px 24px;
+	}
+	.hero-headline {
+		font-size: 1.85rem;
+	}
+	.hero-content {
+		padding: 16px 0;
+	}
+	.login-form-pane {
+		flex: 1;
+		padding: 36px 24px;
 	}
 }
 `
 
-// RenderAdminLogin renders the admin login screen with Linear + Carbon density + Radix interaction styling.
+// RenderAdminLogin renders the clean high-performance login screen for HydroGo.
 func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 	_, err := fmt.Fprintf(w, `<!doctype html>
-<html lang="tr" data-ui-theme="workbench">
+<html lang="tr" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Yönetici Girişi · HydroGo Studio</title>
 <script nonce="%s">
-(()=>{try{const saved=localStorage.getItem('hydro-ui-theme-v2');const variant=localStorage.getItem('hydro-theme')==='dark'?'dark':'light';if(saved&&saved.endsWith('-dark')){document.documentElement.setAttribute('data-theme','dark');}else if(saved&&saved.endsWith('-light')){document.documentElement.setAttribute('data-theme','light');}else{document.documentElement.setAttribute('data-theme',variant);}}catch(_){}})();
+(()=>{try{const saved=localStorage.getItem('hydro-ui-theme-v2');const variant=localStorage.getItem('hydro-theme')==='light'?'light':'dark';if(saved&&saved.endsWith('-light')){document.documentElement.setAttribute('data-theme','light');}else if(saved&&saved.endsWith('-dark')){document.documentElement.setAttribute('data-theme','dark');}else{document.documentElement.setAttribute('data-theme',variant);}}catch(_){}})();
 </script>
 <style nonce="%s">
 %s
 </style>
 </head>
-<body class="admin-login-body">
-<main class="admin-login-shell">
-	<header class="admin-login-header">
-		<a class="admin-login-brand" href="/" aria-label="HydroGo Ana Sayfa">
-			<span class="admin-login-brand-icon">
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-			</span>
-			<span>HYDRO<strong>GO</strong></span>
-		</a>
-		<div class="admin-login-badge"><span class="admin-login-badge-dot"></span> STUDIO YÖNETİM</div>
-	</header>
+<body class="login-body">
+<div class="login-layout">
 
-	<section class="admin-login-card">
-		<div class="admin-login-title-row">
-			<h1>Yönetici Girişi</h1>
-			<p class="admin-login-lead">HydroGo Studio yönetim paneline erişmek için yetkili bilgilerinizi girin.</p>
+	<!-- Sol Bölüm: Platform Kimlik Paneli -->
+	<aside class="login-hero-pane">
+		<div class="hero-glow-sphere"></div>
+
+		<header class="hero-header">
+			<a class="brand-badge" href="/" aria-label="HydroGo Ana Sayfa">
+				<div class="brand-icon-box">
+					<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+				</div>
+				<div class="brand-text-wrap">
+					<span class="brand-name">HYDRO<strong>GO</strong></span>
+					<span class="brand-tag">Studio</span>
+				</div>
+			</a>
+		</header>
+
+		<div class="hero-content">
+			<h1 class="hero-headline">Güçlü Yönetim, <br><span class="gradient-text">Yüksek Performans</span></h1>
+			<p class="hero-description">İçerik, üyelik ve e-ticaret operasyonlarınızı tek bir merkezden hızlı ve güvenli şekilde yönetin.</p>
+		</div>
+	</aside>
+
+	<!-- Sağ Bölüm: Giriş Formu -->
+	<main class="login-form-pane">
+		<div class="pane-top-actions">
+			<button id="theme-toggle-btn" class="theme-switch-btn" type="button" aria-label="Temayı Değiştir">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+				<span id="theme-toggle-label">Tema</span>
+			</button>
 		</div>
 
-		<form id="login-form" class="admin-login-form" method="post">
-			<input type="hidden" name="_csrf" value="%s">
+		<div class="form-container">
+			<div class="form-header">
+				<h2 class="form-title">Hoş Geldiniz</h2>
+				<p class="form-subtitle">Yönetim merkezine erişmek için giriş yapın.</p>
+			</div>
 
-			<div class="admin-login-field">
-				<label class="admin-login-label" for="login-email">E-posta Adresi</label>
-				<div class="admin-login-input-wrap">
-					<span class="admin-login-input-icon">
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-					</span>
-					<input id="login-email" class="admin-login-input" name="email" type="email" required autocomplete="username" placeholder="admin@site.com">
+			<form id="login-form" class="auth-form" method="post">
+				<input type="hidden" name="_csrf" value="%s">
+
+				<div class="input-group">
+					<label class="input-label" for="login-email">E-posta Adresi</label>
+					<div class="input-wrapper">
+						<span class="input-icon">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+						</span>
+						<input id="login-email" class="auth-input" name="email" type="email" required autocomplete="username" placeholder="admin@hydrogo.local" autofocus>
+					</div>
 				</div>
-			</div>
 
-			<div class="admin-login-field">
-				<label class="admin-login-label" for="login-password">Şifre</label>
-				<div class="admin-login-input-wrap">
-					<span class="admin-login-input-icon">
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-					</span>
-					<input id="login-password" class="admin-login-input" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+				<div class="input-group">
+					<div class="input-label-row">
+						<label class="input-label" for="login-password">Şifre</label>
+						<a href="mailto:destek@hydrogo.local?subject=Sifre%%20Sifirlama" class="link-subtle">Şifremi unuttum?</a>
+					</div>
+					<div class="input-wrapper">
+						<span class="input-icon">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+						</span>
+						<input id="login-password" class="auth-input" name="password" type="password" required autocomplete="current-password" placeholder="••••••••••••">
+					</div>
 				</div>
-			</div>
 
-			<button class="admin-login-submit" type="submit">
-				<span>Panele Giriş Yap</span>
-				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-			</button>
+				<div class="form-row-utility">
+					<label class="checkbox-label">
+						<input type="checkbox" name="remember" style="display:none;" id="remember-me">
+						<span class="checkbox-custom">
+							<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+						</span>
+						<span>Beni hatırla</span>
+					</label>
+				</div>
 
-			<div id="login-status" class="admin-login-status" role="alert"></div>
-		</form>
+				<button class="btn-submit" type="submit">
+					<span>Giriş Yap</span>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+				</button>
 
-		<footer class="admin-login-footer">
-			<div class="admin-login-trust">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-				<span>Güvenli yetkili oturum</span>
-			</div>
-			<a href="/" class="admin-login-back">← Ana Sayfa</a>
+				<div id="login-status" class="form-alert" role="alert"></div>
+			</form>
+		</div>
+
+		<footer class="form-pane-footer">
+			<span>HydroGo Studio</span>
 		</footer>
-	</section>
+	</main>
 
-	<button id="theme-toggle-btn" class="admin-login-theme-toggle" type="button">
-		<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-		<span id="theme-toggle-label">Tema Değiştir</span>
-	</button>
-</main>
+</div>
 
 <script nonce="%s">
 (function(){
@@ -494,10 +624,28 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 	var status = document.getElementById('login-status');
 	var themeBtn = document.getElementById('theme-toggle-btn');
 	var themeLabel = document.getElementById('theme-toggle-label');
+	var rememberCheckbox = document.getElementById('remember-me');
+
+	if (rememberCheckbox) {
+		rememberCheckbox.addEventListener('change', function() {
+			var checkCustom = rememberCheckbox.nextElementSibling;
+			if (rememberCheckbox.checked) {
+				checkCustom.style.background = 'var(--brand-primary)';
+				checkCustom.style.borderColor = 'var(--brand-primary)';
+				var svg = checkCustom.querySelector('svg');
+				if (svg) svg.style.display = 'block';
+			} else {
+				checkCustom.style.background = 'var(--bg-input)';
+				checkCustom.style.borderColor = 'var(--border-light)';
+				var svg = checkCustom.querySelector('svg');
+				if (svg) svg.style.display = 'none';
+			}
+		});
+	}
 
 	function updateThemeLabel() {
-		var cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'Koyu' : 'Açık';
-		if (themeLabel) themeLabel.textContent = cur + ' Mod';
+		var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+		if (themeLabel) themeLabel.textContent = isDark ? 'Koyu Mod' : 'Açık Mod';
 	}
 	updateThemeLabel();
 
@@ -514,7 +662,7 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 	}
 
 	function showMsg(type, text) {
-		status.className = 'admin-login-status status-' + type;
+		status.className = 'form-alert alert-' + type;
 		status.textContent = text;
 		status.style.display = 'block';
 	}
@@ -540,11 +688,11 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 
 			if (!response.ok) {
 				if (response.status === 401) {
-					showMsg('error', 'E-posta veya şifre hatalı.');
+					showMsg('error', 'E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.');
 				} else if (response.status === 429) {
-					showMsg('error', 'Çok fazla deneme yapıldı. Lütfen biraz bekleyin.');
+					showMsg('error', 'Çok fazla başarısız deneme yapıldı. Lütfen biraz bekleyin.');
 				} else if (response.status === 403) {
-					showMsg('error', 'Güvenlik doğrulaması başarısız. Sayfayı yenileyin.');
+					showMsg('error', 'Güvenlik doğrulaması (CSRF) başarısız. Lütfen sayfayı yenileyin.');
 				} else {
 					showMsg('error', 'Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.');
 				}
@@ -558,7 +706,7 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 				window.location.href = '%s';
 			}, 250);
 		} catch (_) {
-			showMsg('error', 'Bağlantı kurulamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+			showMsg('error', 'Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin.');
 			btn.disabled = false;
 			btn.innerHTML = orig;
 		}
