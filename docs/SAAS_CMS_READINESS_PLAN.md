@@ -207,6 +207,9 @@ reports and a published support matrix.
   News content and scheduled publication now carry tenant scope through
   repository operations and job payload restoration (ADR-0171/R108); existing
   news backfill and generic queue-level tenant predicates remain open.
+  Site settings, navigation, redirects and form inbox records now use tenant
+  identity with composite keys where needed (ADR-0172/R109); auth/members,
+  commerce and standalone forms workflows remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

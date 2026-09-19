@@ -1151,7 +1151,7 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect}
+	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
 	if modules["site"] {

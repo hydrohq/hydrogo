@@ -1,0 +1,16 @@
+ALTER TABLE site_settings ADD COLUMN tenant_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE site_settings DROP CONSTRAINT site_settings_pkey;
+ALTER TABLE site_settings ADD PRIMARY KEY (tenant_id, key);
+ALTER TABLE navigation_items ADD COLUMN tenant_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE navigation_items DROP CONSTRAINT navigation_items_pkey;
+ALTER TABLE navigation_items DROP CONSTRAINT navigation_items_locale_position_id_key;
+DROP INDEX IF EXISTS idx_navigation_items_locale_position;
+ALTER TABLE navigation_items ADD PRIMARY KEY (tenant_id, id);
+ALTER TABLE navigation_items ADD CONSTRAINT navigation_items_tenant_locale_position_key UNIQUE (tenant_id, locale, position);
+DROP INDEX IF EXISTS idx_navigation_items_locale;
+CREATE UNIQUE INDEX idx_navigation_items_tenant_locale_position ON navigation_items(tenant_id, locale, position);
+ALTER TABLE page_redirects ADD COLUMN tenant_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE page_redirects DROP CONSTRAINT page_redirects_pkey;
+ALTER TABLE page_redirects ADD PRIMARY KEY (tenant_id, source_path);
+ALTER TABLE form_inbox ADD COLUMN tenant_id TEXT NOT NULL DEFAULT '';
+CREATE INDEX idx_form_inbox_tenant_key_created ON form_inbox(tenant_id, form_key, created_at);

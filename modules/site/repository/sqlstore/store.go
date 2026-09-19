@@ -10,16 +10,31 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
-type Store struct{ Dialect database.Dialect }
+type Store struct {
+	Dialect            database.Dialect
+	RequireTenantScope bool
+}
 
 func (s Store) p(n int) string {
 	if s.Dialect == database.SQLite {
 		return "?"
 	}
 	return "$" + strconv.Itoa(n)
+}
+
+func (s Store) tenantFilter(ctx context.Context, position int) (string, any, error) {
+	if !s.RequireTenantScope {
+		return " AND tenant_id = " + s.p(position), "", nil
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	return " AND tenant_id = " + s.p(position), scope.TenantID, nil
 }
 
 func (s Store) UpsertSetting(ctx context.Context, tx database.Executor, value site.Setting) error {
@@ -30,22 +45,38 @@ func (s Store) UpsertSetting(ctx context.Context, tx database.Executor, value si
 	if value.UpdatedAt.IsZero() {
 		now = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	query := `INSERT INTO site_settings (key, value, is_public, updated_at) VALUES ($1,$2,$3,$4) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value,is_public=EXCLUDED.is_public,updated_at=EXCLUDED.updated_at`
-	args := []any{value.Key, value.Value, value.Public, now}
+	scopeID := ""
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return scopeErr
+		}
+		scopeID = scope.TenantID
+	}
+	query := `INSERT INTO site_settings (tenant_id,key,value,is_public,updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `) ON CONFLICT (tenant_id,key) DO UPDATE SET value=EXCLUDED.value,is_public=EXCLUDED.is_public,updated_at=EXCLUDED.updated_at`
+	args := []any{scopeID, value.Key, value.Value, value.Public, now}
 	if s.Dialect == database.SQLite {
-		query = `INSERT INTO site_settings (key, value, is_public, updated_at) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,is_public=excluded.is_public,updated_at=excluded.updated_at`
-		args[2] = boolInt(value.Public)
+		query = `INSERT INTO site_settings (tenant_id,key,value,is_public,updated_at) VALUES (?,?,?,?,?) ON CONFLICT(tenant_id,key) DO UPDATE SET value=excluded.value,is_public=excluded.is_public,updated_at=excluded.updated_at`
+		args[3] = boolInt(value.Public)
 	}
 	_, err := tx.ExecContext(ctx, query, args...)
 	return err
 }
 
 func (s Store) ListPublicSettings(ctx context.Context, db database.Executor) ([]site.Setting, error) {
-	query := `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = TRUE ORDER BY key LIMIT 1000`
-	if s.Dialect == database.SQLite {
-		query = `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = 1 ORDER BY key LIMIT 1000`
+	filter, scopeID, err := s.tenantFilter(ctx, 1)
+	if err != nil {
+		return nil, err
 	}
-	rows, err := queryContext(ctx, db, query)
+	query := `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = TRUE` + filter + ` ORDER BY key LIMIT 1000`
+	if s.Dialect == database.SQLite {
+		query = `SELECT key,value,is_public,updated_at FROM site_settings WHERE is_public = 1` + filter + ` ORDER BY key LIMIT 1000`
+	}
+	args := []any{}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	rows, err := queryContext(ctx, db, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -69,22 +100,30 @@ func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, loca
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	deleteQuery := `DELETE FROM navigation_items WHERE locale = $1`
-	if s.Dialect == database.SQLite {
-		deleteQuery = `DELETE FROM navigation_items WHERE locale = ?`
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return err
 	}
-	if _, err := tx.ExecContext(ctx, deleteQuery, locale); err != nil {
+	deleteQuery := `DELETE FROM navigation_items WHERE locale = $1` + filter
+	if s.Dialect == database.SQLite {
+		deleteQuery = `DELETE FROM navigation_items WHERE locale = ?` + filter
+	}
+	deleteArgs := []any{locale}
+	if filter != "" {
+		deleteArgs = append(deleteArgs, scopeID)
+	}
+	if _, err := tx.ExecContext(ctx, deleteQuery, deleteArgs...); err != nil {
 		return err
 	}
 	for _, item := range items {
-		query := `INSERT INTO navigation_items (id,locale,label,href,position,is_visible,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`
-		args := []any{item.ID, locale, item.Label, item.Href, item.Position, item.Visible, item.UpdatedAt.UTC().Format(time.RFC3339Nano)}
+		query := `INSERT INTO navigation_items (tenant_id,id,locale,label,href,position,is_visible,updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `)`
+		args := []any{scopeID, item.ID, locale, item.Label, item.Href, item.Position, item.Visible, item.UpdatedAt.UTC().Format(time.RFC3339Nano)}
 		if item.UpdatedAt.IsZero() {
 			args[6] = time.Now().UTC().Format(time.RFC3339Nano)
 		}
 		if s.Dialect == database.SQLite {
-			query = `INSERT INTO navigation_items (id,locale,label,href,position,is_visible,updated_at) VALUES (?,?,?,?,?,?,?)`
-			args[5] = boolInt(item.Visible)
+			query = `INSERT INTO navigation_items (tenant_id,id,locale,label,href,position,is_visible,updated_at) VALUES (?,?,?,?,?,?,?,?)`
+			args[6] = boolInt(item.Visible)
 		}
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 			return err
@@ -94,11 +133,19 @@ func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, loca
 }
 
 func (s Store) ListNavigation(ctx context.Context, db database.Executor, locale string) ([]site.NavigationItem, error) {
-	query := `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = $1 AND is_visible = TRUE ORDER BY position,id LIMIT 500`
-	if s.Dialect == database.SQLite {
-		query = `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = ? AND is_visible = 1 ORDER BY position,id LIMIT 500`
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return nil, err
 	}
-	rows, err := queryContext(ctx, db, query, locale)
+	query := `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = $1 AND is_visible = TRUE` + filter + ` ORDER BY position,id LIMIT 500`
+	if s.Dialect == database.SQLite {
+		query = `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = ? AND is_visible = 1` + filter + ` ORDER BY position,id LIMIT 500`
+	}
+	args := []any{locale}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	rows, err := queryContext(ctx, db, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -126,11 +173,20 @@ func (s Store) PutRedirect(ctx context.Context, tx database.Executor, value site
 	if value.CreatedAt.IsZero() {
 		now = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	query := `INSERT INTO page_redirects (source_path,target_path,status,created_at) VALUES ($1,$2,$3,$4) ON CONFLICT (source_path) DO UPDATE SET target_path=EXCLUDED.target_path,status=EXCLUDED.status`
-	if s.Dialect == database.SQLite {
-		query = `INSERT INTO page_redirects (source_path,target_path,status,created_at) VALUES (?,?,?,?) ON CONFLICT(source_path) DO UPDATE SET target_path=excluded.target_path,status=excluded.status`
+	scopeID := ""
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return scopeErr
+		}
+		scopeID = scope.TenantID
 	}
-	_, err := tx.ExecContext(ctx, query, value.SourcePath, value.TargetPath, value.Status, now)
+	query := `INSERT INTO page_redirects (tenant_id,source_path,target_path,status,created_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `) ON CONFLICT (tenant_id,source_path) DO UPDATE SET target_path=EXCLUDED.target_path,status=EXCLUDED.status`
+	args := []any{scopeID, value.SourcePath, value.TargetPath, value.Status, now}
+	if s.Dialect == database.SQLite {
+		query = `INSERT INTO page_redirects (tenant_id,source_path,target_path,status,created_at) VALUES (?,?,?,?,?) ON CONFLICT(tenant_id,source_path) DO UPDATE SET target_path=excluded.target_path,status=excluded.status`
+	}
+	_, err := tx.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -138,13 +194,21 @@ func (s Store) GetRedirect(ctx context.Context, db database.Executor, source str
 	if err := database.RequireExecutor(db); err != nil {
 		return site.Redirect{}, err
 	}
-	query := `SELECT source_path,target_path,status,created_at FROM page_redirects WHERE source_path = $1`
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return site.Redirect{}, err
+	}
+	query := `SELECT source_path,target_path,status,created_at FROM page_redirects WHERE source_path = $1` + filter
 	if s.Dialect == database.SQLite {
-		query = `SELECT source_path,target_path,status,created_at FROM page_redirects WHERE source_path = ?`
+		query = `SELECT source_path,target_path,status,created_at FROM page_redirects WHERE source_path = ?` + filter
 	}
 	var value site.Redirect
 	var created any
-	err := db.QueryRowContext(ctx, query, source).Scan(&value.SourcePath, &value.TargetPath, &value.Status, &created)
+	args := []any{source}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	err = db.QueryRowContext(ctx, query, args...).Scan(&value.SourcePath, &value.TargetPath, &value.Status, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return site.Redirect{}, sql.ErrNoRows
 	}
@@ -168,7 +232,20 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 	if status == "" {
 		status = "new"
 	}
-	_, err := tx.ExecContext(ctx, query, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created, value.IdempotencyKey, value.RequestHash)
+	scopeID := ""
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return scopeErr
+		}
+		scopeID = scope.TenantID
+	}
+	query = `INSERT INTO form_inbox (tenant_id,id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
+	args := []any{scopeID, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created, value.IdempotencyKey, value.RequestHash}
+	if s.Dialect == database.SQLite {
+		query = `INSERT INTO form_inbox (tenant_id,id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES (?,?,?,?,?,?,?,?,?,?)`
+	}
+	_, err := tx.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -176,13 +253,21 @@ func (s Store) FindSubmissionByIdempotency(ctx context.Context, db database.Exec
 	if err := database.RequireExecutor(db); err != nil {
 		return site.Submission{}, false, err
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1 AND idempotency_key = $2 LIMIT 1`
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return site.Submission{}, false, err
+	}
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1 AND idempotency_key = $2` + filter + ` LIMIT 1`
 	if s.Dialect == database.SQLite {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ? AND idempotency_key = ? LIMIT 1`
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ? AND idempotency_key = ?` + filter + ` LIMIT 1`
 	}
 	var value site.Submission
 	var created any
-	err := db.QueryRowContext(ctx, query, formKey, key).Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash)
+	args := []any{formKey, key}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	err = db.QueryRowContext(ctx, query, args...).Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return site.Submission{}, false, nil
 	}
@@ -194,11 +279,23 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	if limit < 1 || limit > 1000 {
 		limit = 100
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1 ORDER BY created_at DESC LIMIT $2`
-	if s.Dialect == database.SQLite {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ? ORDER BY created_at DESC LIMIT ?`
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return nil, err
 	}
-	rows, err := queryContext(ctx, db, query, formKey, limit)
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1` + filter + ` ORDER BY created_at DESC LIMIT $2`
+	if s.Dialect == database.SQLite {
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ?` + filter + ` ORDER BY created_at DESC LIMIT ?`
+	}
+	args := []any{formKey, limit}
+	if filter != "" {
+		if s.Dialect == database.Postgres {
+			args = append(args, scopeID)
+		} else {
+			args = []any{formKey, scopeID, limit}
+		}
+	}
+	rows, err := queryContext(ctx, db, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +317,19 @@ func (s Store) UpdateSubmissionStatus(ctx context.Context, tx database.Executor,
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	query := `UPDATE form_inbox SET status = $1 WHERE id = $2`
-	if s.Dialect == database.SQLite {
-		query = `UPDATE form_inbox SET status = ? WHERE id = ?`
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return err
 	}
-	result, err := tx.ExecContext(ctx, query, status, id)
+	query := `UPDATE form_inbox SET status = $1 WHERE id = $2` + filter
+	if s.Dialect == database.SQLite {
+		query = `UPDATE form_inbox SET status = ? WHERE id = ?` + filter
+	}
+	args := []any{status, id}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -242,13 +347,21 @@ func (s Store) PurgeSubmissionsBefore(ctx context.Context, tx database.Executor,
 	if err := database.RequireExecutor(tx); err != nil {
 		return 0, err
 	}
-	query := `DELETE FROM form_inbox WHERE created_at < $1`
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return 0, err
+	}
+	query := `DELETE FROM form_inbox WHERE created_at < $1` + filter
 	arg := any(before)
 	if s.Dialect == database.SQLite {
-		query = `DELETE FROM form_inbox WHERE created_at < ?`
+		query = `DELETE FROM form_inbox WHERE created_at < ?` + filter
 		arg = before.Format(time.RFC3339Nano)
 	}
-	result, err := tx.ExecContext(ctx, query, arg)
+	args := []any{arg}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, err
 	}
