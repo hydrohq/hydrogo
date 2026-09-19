@@ -106,4 +106,38 @@ func TestScopedOutboxRequiresTenantScope(t *testing.T) {
 	}
 }
 
+func TestOutboxStoreAutomaticallyScopesWhenContextHasTenant(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, "file:auto-scoped-outbox?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE outbox_events (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, topic TEXT NOT NULL, aggregate_id TEXT NOT NULL, payload_version INTEGER NOT NULL, available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z', attempts INTEGER NOT NULL DEFAULT 0, lease_owner TEXT, lease_token TEXT, lease_until TEXT, last_error TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	scope, err := tenant.NewScope("tenant-a", "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := tenant.WithScope(context.Background(), scope)
+	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
+	if err := store.Enqueue(ctx, db, "event-a", "order.created", "order-a", 1); err != nil {
+		t.Fatal(err)
+	}
+	event, token, claimed, err := store.Claim(ctx, db, "worker-a", time.Now().UTC(), time.Minute)
+	if err != nil || !claimed || event.TenantID != "tenant-a" || token == "" {
+		t.Fatalf("auto-scoped claim = %#v %q %v %v", event, token, claimed, err)
+	}
+	if err := store.Ack(ctx, db, event.ID, "worker-a", token); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutboxStoreFailClosedModeRejectsMissingScope(t *testing.T) {
+	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
+	if err := store.Enqueue(context.Background(), nil, "id", "topic", "aggregate", 1); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("required scope enqueue = %v", err)
+	}
+}
+
 var _ database.Executor = (*sql.DB)(nil)
