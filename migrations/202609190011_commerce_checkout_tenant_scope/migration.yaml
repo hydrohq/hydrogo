@@ -1,0 +1,25 @@
+id: "202609190011_commerce_checkout_tenant_scope"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "93606a4a1db6c5ce7194e9f60e5ee362107a140bf1a1369ff5bb3ba71d3b2e92"
+  postgres: "93606a4a1db6c5ce7194e9f60e5ee362107a140bf1a1369ff5bb3ba71d3b2e92"
+dependencies:
+  - "202609190010_commerce_catalog_tenant_scope"
+schema:
+  readable_epoch: 8
+  writable_epoch: 8
+preconditions:
+  - "Commerce catalog tenant scope migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Six tenant discriminators and checkout lookup indexes"
+compatibility: "Adds empty-namespace tenant discriminators; shared-mode checkout, payment and cart operations are scope-bound."
+smoke:
+  - "Existing checkout rows remain readable in the empty namespace until controlled backfill."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

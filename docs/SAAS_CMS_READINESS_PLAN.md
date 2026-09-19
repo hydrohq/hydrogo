@@ -216,6 +216,9 @@ reports and a published support matrix.
   Commerce products and variants now require tenant scope for catalog reads,
   writes and stock reservation (ADR-0174/R111); orders, carts, payments and
   customer-order readers remain open.
+  Commerce orders, carts, payment transactions, refunds and webhook receipts
+  now require tenant scope in shared mode (ADR-0175/R112); provisioning,
+  backfill, webhook routing and PostgreSQL RLS remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

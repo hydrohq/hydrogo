@@ -186,5 +186,49 @@ func TestSQLiteCatalogTenantScope(t *testing.T) {
 	}
 }
 
+func TestSQLiteCheckoutTenantScope(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, "file:commerce-tenant-checkout?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, statement := range []string{
+		`CREATE TABLE commerce_products (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sku TEXT NOT NULL, title TEXT NOT NULL)`,
+		`CREATE TABLE commerce_product_variants (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sku TEXT NOT NULL, title TEXT NOT NULL)`,
+		`CREATE TABLE commerce_orders (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, idempotency_hash TEXT NOT NULL DEFAULT '', currency TEXT NOT NULL, total_cents INTEGER NOT NULL, payment_status TEXT NOT NULL, shipping_status TEXT NOT NULL, customer_name TEXT NOT NULL DEFAULT '', customer_identity_number TEXT NOT NULL DEFAULT '', customer_email TEXT NOT NULL DEFAULT '', customer_phone TEXT NOT NULL DEFAULT '', customer_address TEXT NOT NULL DEFAULT '', customer_city TEXT NOT NULL DEFAULT '', customer_country TEXT NOT NULL DEFAULT '', customer_postal_code TEXT NOT NULL DEFAULT '', customer_client_ip TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)`,
+		`CREATE TABLE commerce_order_items (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, order_id TEXT NOT NULL, product_id TEXT NOT NULL, variant_id TEXT, sku TEXT NOT NULL, title TEXT NOT NULL, quantity INTEGER NOT NULL, unit_cents INTEGER NOT NULL, total_cents INTEGER NOT NULL)`,
+		`CREATE TABLE commerce_carts (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, currency TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE commerce_cart_items (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, cart_id TEXT NOT NULL, product_id TEXT NOT NULL, variant_id TEXT, quantity INTEGER NOT NULL, unit_cents INTEGER NOT NULL)`,
+		`CREATE TABLE commerce_payment_transactions (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, order_id TEXT NOT NULL, provider TEXT NOT NULL, provider_payment_id TEXT NOT NULL, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE commerce_payment_webhook_events (tenant_id TEXT NOT NULL, provider TEXT NOT NULL, provider_event_id TEXT NOT NULL, received_at TEXT NOT NULL)`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
+	ctxA := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "tenant-a", Slug: "a"})
+	ctxB := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "tenant-b", Slug: "b"})
+	order := commerce.Order{ID: "order-a", UserID: "user-1", Currency: "TRY", TotalCents: 100, PaymentStatus: "pending", ShippingStatus: "pending"}
+	if err := store.CreateOrder(ctxA, db, order, "idem-a"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetOrder(ctxB, db, order.ID); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("cross-tenant order read = %v", err)
+	}
+	if _, err := store.GetOrder(context.Background(), db, order.ID); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing order scope = %v", err)
+	}
+	if _, err := store.GetOrCreateCart(ctxA, db, "user-1", "TRY"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetCart(ctxB, db, "user-1", "cart-0"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("cross-tenant cart read = %v", err)
+	}
+	if err := store.ApplyPaymentEvent(ctxB, db, commerce.WebhookEvent{OrderID: order.ID, AmountCents: 100, Currency: "TRY", Provider: "stripe", ProviderEventID: "evt-b", PaymentID: "pi-b", Status: "paid"}); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("cross-tenant payment = %v", err)
+	}
+}
+
 var _ database.Executor = (*sql.DB)(nil)
 var _ commerce.OrderReader = Store{}
