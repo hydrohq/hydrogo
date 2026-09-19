@@ -162,6 +162,10 @@
         {
           "path": "R109-tenant-scoped-site-data-2026-09-19.md",
           "command": "go test ./modules/site/... ./cmd/hydro ./migrations -count=1"
+        },
+        {
+          "path": "R110-tenant-scoped-members-and-sessions-2026-09-19.md",
+          "command": "go test ./modules/members/... ./cmd/hydro ./migrations -count=1"
         }
       ]
     },

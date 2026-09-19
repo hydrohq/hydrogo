@@ -11,6 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	"github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 )
@@ -137,6 +138,26 @@ func TestSQLiteMemberAndSessionStore(t *testing.T) {
 	}
 	if valSess.ID != createdSess.ID || valMem.ID != "m-1" {
 		t.Fatalf("svc.ValidateSession mismatch: sess=%+v mem=%+v", valSess, valMem)
+	}
+}
+
+func TestTenantScopedMemberStoreFailsClosed(t *testing.T) {
+	db := setupTestDB(t)
+	if _, err := db.Exec(`ALTER TABLE members ADD COLUMN tenant_id TEXT NOT NULL DEFAULT ''; ALTER TABLE member_sessions ADD COLUMN tenant_id TEXT NOT NULL DEFAULT '';`); err != nil {
+		t.Fatal(err)
+	}
+	store := sqlstore.Store{DB: db, Dialect: database.SQLite, RequireTenantScope: true}
+	alpha, _ := tenant.NewScope("tenant-a", "alpha")
+	now := time.Now().UTC()
+	member := &members.Member{ID: "scoped-a", Email: "a@example.com", PasswordHash: "hash", Active: true, CreatedAt: now, UpdatedAt: now}
+	if err := store.Create(tenant.WithScope(context.Background(), alpha), member); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetByID(context.Background(), member.ID); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing member scope error = %v", err)
+	}
+	if _, err := store.GetByID(tenant.WithScope(context.Background(), alpha), member.ID); err != nil {
+		t.Fatalf("scoped member lookup = %v", err)
 	}
 }
 

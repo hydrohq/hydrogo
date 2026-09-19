@@ -10,23 +10,40 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
 type Store struct {
-	DB      *sql.DB
-	Dialect database.Dialect
+	DB                 *sql.DB
+	Dialect            database.Dialect
+	RequireTenantScope bool
 }
 
 type SessionStore Store
 
 func (s SessionStore) ph(n int) string { return Store(s).ph(n) }
 
+func (s SessionStore) tenantClause(ctx context.Context, position int) (string, any, error) {
+	return Store(s).tenantClause(ctx, position)
+}
+
 func (s Store) ph(n int) string {
 	if s.Dialect == database.Postgres {
 		return fmt.Sprintf("$%d", n)
 	}
 	return "?"
+}
+
+func (s Store) tenantClause(ctx context.Context, position int) (string, any, error) {
+	if !s.RequireTenantScope {
+		return "", nil, nil
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	return " AND tenant_id = " + s.ph(position), scope.TenantID, nil
 }
 
 func (s Store) Create(ctx context.Context, m *members.Member) error {
@@ -51,7 +68,17 @@ func (s Store) Create(ctx context.Context, m *members.Member) error {
 		createdAtVal = m.CreatedAt.Format(time.RFC3339Nano)
 		updatedAtVal = m.UpdatedAt.Format(time.RFC3339Nano)
 	}
-	_, err := s.DB.ExecContext(ctx, "INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES ("+s.ph(1)+","+s.ph(2)+","+s.ph(3)+","+s.ph(4)+","+s.ph(5)+","+s.ph(6)+","+s.ph(7)+","+s.ph(8)+")", m.ID, m.Email, m.PasswordHash, m.Active, verifiedAt, lastLoginAt, createdAtVal, updatedAtVal)
+	args := []any{m.ID, m.Email, m.PasswordHash, m.Active, verifiedAt, lastLoginAt, createdAtVal, updatedAtVal}
+	query := "INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES (" + s.ph(1) + "," + s.ph(2) + "," + s.ph(3) + "," + s.ph(4) + "," + s.ph(5) + "," + s.ph(6) + "," + s.ph(7) + "," + s.ph(8) + ")"
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return scopeErr
+		}
+		query = "INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at,tenant_id) VALUES (" + s.ph(1) + "," + s.ph(2) + "," + s.ph(3) + "," + s.ph(4) + "," + s.ph(5) + "," + s.ph(6) + "," + s.ph(7) + "," + s.ph(8) + "," + s.ph(9) + ")"
+		args = append(args, scope.TenantID)
+	}
+	_, err := s.DB.ExecContext(ctx, query, args...)
 	return mapMemberCreateError(err)
 }
 
@@ -81,8 +108,16 @@ func (s Store) get(ctx context.Context, field, value string) (*members.Member, e
 	var m members.Member
 	var active any
 	var verified, lastLogin, created, updated any
-	q := "SELECT id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at FROM members WHERE " + field + " = " + s.ph(1)
-	err := s.DB.QueryRowContext(ctx, q, value).Scan(&m.ID, &m.Email, &m.PasswordHash, &active, &verified, &lastLogin, &created, &updated)
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	q := "SELECT id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at FROM members WHERE " + field + " = " + s.ph(1) + clause
+	args := []any{value}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	err = s.DB.QueryRowContext(ctx, q, args...).Scan(&m.ID, &m.Email, &m.PasswordHash, &active, &verified, &lastLogin, &created, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, members.ErrMemberNotFound
 	}
@@ -116,6 +151,15 @@ func (s Store) Search(ctx context.Context, filter members.MemberFilter) (members
 	whereClauses := []string{"1=1"}
 	args := []any{}
 	argIdx := 1
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return members.MemberListResult{}, scopeErr
+		}
+		whereClauses = append(whereClauses, "tenant_id = "+s.ph(argIdx))
+		args = append(args, scope.TenantID)
+		argIdx++
+	}
 
 	if q := strings.TrimSpace(filter.Query); q != "" {
 		whereClauses = append(whereClauses, "(email LIKE "+s.ph(argIdx)+")")
@@ -186,7 +230,15 @@ func (s Store) Search(ctx context.Context, filter members.MemberFilter) (members
 }
 
 func (s Store) SetActive(ctx context.Context, id string, active bool) error {
-	result, err := s.DB.ExecContext(ctx, "UPDATE members SET active = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3), active, time.Now().UTC(), id)
+	clause, scopeID, err := s.tenantClause(ctx, 4)
+	if err != nil {
+		return err
+	}
+	args := []any{active, time.Now().UTC(), id}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	result, err := s.DB.ExecContext(ctx, "UPDATE members SET active = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
 	if err != nil {
 		return err
 	}
@@ -202,7 +254,15 @@ func (s Store) SetEmailVerified(ctx context.Context, id string, verified bool) e
 	if verified {
 		verifiedAt = time.Now().UTC()
 	}
-	result, err := s.DB.ExecContext(ctx, "UPDATE members SET email_verified_at = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3), verifiedAt, time.Now().UTC(), id)
+	clause, scopeID, err := s.tenantClause(ctx, 4)
+	if err != nil {
+		return err
+	}
+	args := []any{verifiedAt, time.Now().UTC(), id}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	result, err := s.DB.ExecContext(ctx, "UPDATE members SET email_verified_at = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
 	if err != nil {
 		return err
 	}
@@ -214,7 +274,15 @@ func (s Store) SetEmailVerified(ctx context.Context, id string, verified bool) e
 }
 
 func (s Store) UpdateLastLogin(ctx context.Context, id string, t time.Time) error {
-	_, err := s.DB.ExecContext(ctx, "UPDATE members SET last_login_at = "+s.ph(1)+" WHERE id = "+s.ph(2), t, id)
+	clause, scopeID, err := s.tenantClause(ctx, 3)
+	if err != nil {
+		return err
+	}
+	args := []any{t, id}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	_, err = s.DB.ExecContext(ctx, "UPDATE members SET last_login_at = "+s.ph(1)+" WHERE id = "+s.ph(2)+clause, args...)
 	return err
 }
 
@@ -224,9 +292,17 @@ func (s Store) Stats(ctx context.Context) (members.MemberStats, error) {
 	if s.Dialect == database.Postgres {
 		activeCondition = "active = TRUE"
 	}
-	row := s.DB.QueryRowContext(ctx, "SELECT COUNT(*), COALESCE(SUM(CASE WHEN "+activeCondition+" THEN 1 ELSE 0 END), 0), COALESCE(SUM(CASE WHEN email_verified_at IS NOT NULL THEN 1 ELSE 0 END), 0) FROM members")
-	err := row.Scan(&st.TotalMembers, &st.ActiveMembers, &st.VerifiedMembers)
-	return st, err
+	clause, scopeID, err := s.tenantClause(ctx, 1)
+	if err != nil {
+		return st, err
+	}
+	args := []any{}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	row := s.DB.QueryRowContext(ctx, "SELECT COUNT(*), COALESCE(SUM(CASE WHEN "+activeCondition+" THEN 1 ELSE 0 END), 0), COALESCE(SUM(CASE WHEN email_verified_at IS NOT NULL THEN 1 ELSE 0 END), 0) FROM members WHERE 1=1"+clause, args...)
+	scanErr := row.Scan(&st.TotalMembers, &st.ActiveMembers, &st.VerifiedMembers)
+	return st, scanErr
 }
 
 func (s SessionStore) Create(ctx context.Context, session *members.Session) error {
@@ -238,14 +314,32 @@ func (s SessionStore) Create(ctx context.Context, session *members.Session) erro
 		createdAtVal = session.CreatedAt.Format(time.RFC3339Nano)
 		lastSeenAtVal = session.LastSeenAt.Format(time.RFC3339Nano)
 	}
-	_, err := s.DB.ExecContext(ctx, "INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address) VALUES ("+s.ph(1)+","+s.ph(2)+","+s.ph(3)+","+s.ph(4)+","+s.ph(5)+","+s.ph(6)+","+s.ph(7)+","+s.ph(8)+")", session.ID, session.MemberID, session.TokenHash, expiresAtVal, createdAtVal, lastSeenAtVal, session.UserAgent, session.IPAddress)
+	args := []any{session.ID, session.MemberID, session.TokenHash, expiresAtVal, createdAtVal, lastSeenAtVal, session.UserAgent, session.IPAddress}
+	query := "INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address) VALUES (" + s.ph(1) + "," + s.ph(2) + "," + s.ph(3) + "," + s.ph(4) + "," + s.ph(5) + "," + s.ph(6) + "," + s.ph(7) + "," + s.ph(8) + ")"
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return scopeErr
+		}
+		query = "INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address,tenant_id) VALUES (" + s.ph(1) + "," + s.ph(2) + "," + s.ph(3) + "," + s.ph(4) + "," + s.ph(5) + "," + s.ph(6) + "," + s.ph(7) + "," + s.ph(8) + "," + s.ph(9) + ")"
+		args = append(args, scope.TenantID)
+	}
+	_, err := s.DB.ExecContext(ctx, query, args...)
 	return err
 }
 
 func (s SessionStore) GetByTokenHash(ctx context.Context, hash string) (*members.Session, error) {
 	var v members.Session
 	var expires, created, lastSeen any
-	err := s.DB.QueryRowContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE token_hash = "+s.ph(1), hash).Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress)
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	args := []any{hash}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	err = s.DB.QueryRowContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE token_hash = "+s.ph(1)+clause, args...).Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, members.ErrMemberNotFound
 	}
@@ -259,22 +353,54 @@ func (s SessionStore) GetByTokenHash(ctx context.Context, hash string) (*members
 }
 
 func (s SessionStore) DeleteByTokenHash(ctx context.Context, hash string) error {
-	_, err := s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE token_hash = "+s.ph(1), hash)
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return err
+	}
+	args := []any{hash}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	_, err = s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE token_hash = "+s.ph(1)+clause, args...)
 	return err
 }
 
 func (s SessionStore) DeleteByID(ctx context.Context, sessionID string) error {
-	_, err := s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE id = "+s.ph(1), sessionID)
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return err
+	}
+	args := []any{sessionID}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	_, err = s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE id = "+s.ph(1)+clause, args...)
 	return err
 }
 
 func (s SessionStore) DeleteByMemberID(ctx context.Context, memberID string) error {
-	_, err := s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE member_id = "+s.ph(1), memberID)
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return err
+	}
+	args := []any{memberID}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	_, err = s.DB.ExecContext(ctx, "DELETE FROM member_sessions WHERE member_id = "+s.ph(1)+clause, args...)
 	return err
 }
 
 func (s SessionStore) ListByMemberID(ctx context.Context, memberID string) ([]members.Session, error) {
-	rows, err := s.DB.QueryContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE member_id = "+s.ph(1)+" ORDER BY last_seen_at DESC LIMIT 100", memberID)
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	args := []any{memberID}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	rows, err := s.DB.QueryContext(ctx, "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE member_id = "+s.ph(1)+clause+" ORDER BY last_seen_at DESC LIMIT 100", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +426,15 @@ func (s SessionStore) Touch(ctx context.Context, hash string, t time.Time) error
 	if s.Dialect == database.SQLite {
 		touchVal = t.Format(time.RFC3339Nano)
 	}
-	_, err := s.DB.ExecContext(ctx, "UPDATE member_sessions SET last_seen_at = "+s.ph(1)+" WHERE token_hash = "+s.ph(2), touchVal, hash)
+	clause, scopeID, err := s.tenantClause(ctx, 3)
+	if err != nil {
+		return err
+	}
+	args := []any{touchVal, hash}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	_, err = s.DB.ExecContext(ctx, "UPDATE member_sessions SET last_seen_at = "+s.ph(1)+" WHERE token_hash = "+s.ph(2)+clause, args...)
 	return err
 }
 
