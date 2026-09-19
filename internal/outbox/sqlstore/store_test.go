@@ -9,6 +9,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/outbox"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 func TestSQLiteOutboxLeaseContract(t *testing.T) {
@@ -57,6 +58,51 @@ func TestSQLiteOutboxLeaseContract(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("acknowledged events = %d", count)
+	}
+}
+
+func TestSQLiteScopedOutboxLeaseCannotCrossTenant(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, "file:scoped-outbox-contract?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE outbox_events (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, topic TEXT NOT NULL, aggregate_id TEXT NOT NULL, payload_version INTEGER NOT NULL, available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z', attempts INTEGER NOT NULL DEFAULT 0, lease_owner TEXT, lease_token TEXT, lease_until TEXT, last_error TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Dialect: database.SQLite}
+	alpha, err := tenant.NewScope("tenant-a", "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := tenant.NewScope("tenant-b", "beta")
+	if err != nil {
+		t.Fatal(err)
+	}
+	alphaCtx := tenant.WithScope(context.Background(), alpha)
+	if err := store.EnqueueScoped(alphaCtx, db, "event-a", "order.created", "order-a", 1); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	if _, _, claimed, err := store.ClaimScoped(tenant.WithScope(context.Background(), beta), db, "worker-b", now, time.Minute); err != nil || claimed {
+		t.Fatalf("cross-tenant claim = claimed:%v err:%v", claimed, err)
+	}
+	event, token, claimed, err := store.ClaimScoped(alphaCtx, db, "worker-a", now, time.Minute)
+	if err != nil || !claimed || event.TenantID != "tenant-a" || token == "" {
+		t.Fatalf("tenant claim = %#v %q %v %v", event, token, claimed, err)
+	}
+	if err := store.AckScoped(tenant.WithScope(context.Background(), beta), db, event.ID, "worker-a", token); !errors.Is(err, outbox.ErrLeaseInvalid) {
+		t.Fatalf("cross-tenant ack = %v", err)
+	}
+	if err := store.AckScoped(alphaCtx, db, event.ID, "worker-a", token); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestScopedOutboxRequiresTenantScope(t *testing.T) {
+	store := Store{Dialect: database.SQLite}
+	if err := store.EnqueueScoped(context.Background(), nil, "id", "topic", "aggregate", 1); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing scope enqueue = %v", err)
 	}
 }
 

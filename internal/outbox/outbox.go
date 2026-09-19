@@ -9,6 +9,7 @@ var ErrLeaseInvalid = errors.New("outbox lease is invalid")
 
 type Event struct {
 	ID             string
+	TenantID       string
 	Topic          string
 	AggregateID    string
 	PayloadVersion int
