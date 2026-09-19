@@ -1,0 +1,25 @@
+id: "202609190007_news_tenant_scope"
+module: "news"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "41ed11f4baefff9dee208c9be6de655a8d9a2827125c549c3f5e0d544d29affd"
+  postgres: "41ed11f4baefff9dee208c9be6de655a8d9a2827125c549c3f5e0d544d29affd"
+dependencies:
+  - "202609160001_news_taxonomy"
+schema:
+  readable_epoch: 9
+  writable_epoch: 9
+preconditions:
+  - "News items and taxonomy migrations are applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "News tenant discriminator and scoped indexes"
+compatibility: "Adds default-empty tenant discriminator while preserving single-customer rows"
+smoke:
+  - "Scoped news reads and lifecycle transitions cannot cross tenant identity"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

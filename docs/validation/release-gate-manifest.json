@@ -154,6 +154,10 @@
         {
           "path": "R107-tenant-scoped-pages-2026-09-19.md",
           "command": "go test ./modules/pages/repository/sqlstore ./modules/pages/... ./cmd/hydro -count=1"
+        },
+        {
+          "path": "R108-tenant-scoped-news-content-2026-09-19.md",
+          "command": "go test ./modules/news/... ./cmd/hydro -count=1"
         }
       ]
     },

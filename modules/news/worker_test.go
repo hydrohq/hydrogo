@@ -9,6 +9,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/jobs"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 func TestRetryDelayIsBoundedExponential(t *testing.T) {
@@ -35,6 +36,20 @@ func TestMalformedJobRecordsDeadLetterCallback(t *testing.T) {
 	processed, err := worker.RunOnce(context.Background(), "worker-1", created)
 	if err != nil || !processed || deadLetters != 1 {
 		t.Fatalf("malformed job result = processed:%v err:%v dead_letters:%d", processed, err, deadLetters)
+	}
+}
+
+func TestTenantWorkerRequiresScopeWhenScheduling(t *testing.T) {
+	scope, err := tenant.NewScope("tenant-a", "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker := Worker{Queue: jobs.NewQueue(2), TenantScopes: []tenant.Scope{scope}}
+	if err := worker.EnqueueScheduleContext(context.Background(), "item-1", 1, time.Now()); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing tenant scope error = %v", err)
+	}
+	if err := worker.EnqueueScheduleContext(tenant.WithScope(context.Background(), scope), "item-1", 1, time.Now()); err != nil {
+		t.Fatalf("scoped schedule enqueue = %v", err)
 	}
 }
 

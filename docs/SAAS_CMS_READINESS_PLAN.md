@@ -204,6 +204,9 @@ reports and a published support matrix.
   Pages and page revisions now carry tenant discriminators with scoped route,
   admin, draft and publish operations (ADR-0170/R107); existing-row backfill
   and news/site/commerce/member repository scopes remain open.
+  News content and scheduled publication now carry tenant scope through
+  repository operations and job payload restoration (ADR-0171/R108); existing
+  news backfill and generic queue-level tenant predicates remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
