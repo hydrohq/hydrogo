@@ -191,6 +191,9 @@ reports and a published support matrix.
   Scoped uploads now prefix BlobStore keys with `tenants/{tenant_id}/`
   (ADR-0166/R103); public tenant routing, derivative propagation and object
   migration/backfill remain open.
+  The optimizer now restores tenant scope from namespaced keys before derivative
+  metadata writes (ADR-0167/R104); provider-backed derivatives and worker
+  isolation tests remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

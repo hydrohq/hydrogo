@@ -87,7 +87,7 @@ func TestScopedMediaVariantCannotCrossTenant(t *testing.T) {
 	if _, err := store.GetReady(tenant.WithScope(ctx, beta), db, asset.ID, "thumb"); !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("cross-tenant variant read = %v", err)
 	}
-	if got, err := store.GetReady(alphaCtx, db, asset.ID, "thumb"); err != nil || got.ID != "variant-a" {
+	if got, err := store.GetReady(alphaCtx, db, asset.ID, "thumb"); err != nil || got.ID != "variant-a" || got.StorageKey != "tenants/tenant-a/thumb.png" {
 		t.Fatalf("scoped variant read = %#v err=%v", got, err)
 	}
 }

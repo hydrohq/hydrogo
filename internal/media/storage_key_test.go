@@ -48,6 +48,14 @@ func TestStorageKeyForContextNamespacesTenantObjects(t *testing.T) {
 	if got, err := StorageKeyForContext(tenant.WithScope(context.Background(), scope), "asset.png"); err != nil || got != "tenants/tenant-a/asset.png" {
 		t.Fatalf("scoped key = %q err=%v", got, err)
 	}
+	queuedCtx, err := ContextForStorageKey(context.Background(), "tenants/tenant-a/asset.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	queuedScope, err := tenant.Require(queuedCtx)
+	if err != nil || queuedScope.TenantID != "tenant-a" {
+		t.Fatalf("queued scope = %#v err=%v", queuedScope, err)
+	}
 }
 
 func TestServiceUploadUsesTenantObjectNamespace(t *testing.T) {
