@@ -91,7 +91,9 @@ fixture, and dated mobile threat-model report.
   TypeScript client restricted to the versioned API and covered by its client
   contract smoke in the browser-E2E workflow.
 - [ ] Implement same-site proxy and BFF reference topologies; forbid browser
-  credential forwarding across an untrusted origin.
+  credential forwarding across an untrusted origin. The scoped BFF request
+  policy primitive and tests are in `internal/security/bffpolicy` (R68); a
+  deployable session adapter and staging E2E are still required.
 - [ ] Prove public CORS allowlists, cross-origin mutation rejection, preview
   confidentiality, SEO metadata, sitemap, locale and media behavior end to end.
 - [ ] Run frontend-to-API contract compatibility checks in both old/new API order.
