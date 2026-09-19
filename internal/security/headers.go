@@ -6,7 +6,15 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 )
+
+func isDevEnvironment() bool {
+	dev := strings.TrimSpace(os.Getenv("HYDRO_DEV_MODE"))
+	env := strings.ToLower(strings.TrimSpace(os.Getenv("HYDRO_ENV")))
+	return dev == "1" || dev == "true" || env == "development" || env == "dev" || env == "local"
+}
 
 type cspNonceContextKey struct{}
 
@@ -58,6 +66,14 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 
 			if cfg.EnableHSTS {
 				w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+			}
+
+			// In development mode or local runs, enforce no-store/no-cache on HTML and studio pages
+			// to avoid stale UI renders and ensure instant updates.
+			if isDevEnvironment() {
+				w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))

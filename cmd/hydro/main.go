@@ -1217,10 +1217,14 @@ func serve(args []string, stderr io.Writer) error {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = io.WriteString(w, technicalHomeHTML(cfg.I18N.DefaultLocale, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled()))
+			_, _ = io.WriteString(w, technicalHomeHTML(cfg.I18N.DefaultLocale, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled(), security.NonceFromContext(r.Context())))
 			return
 		}
 		http.NotFound(w, r)
+	})})
+	routes = append(routes, router.Route{Pattern: "GET /docs", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, docsComingSoonHTML(security.NonceFromContext(r.Context())))
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
@@ -2153,39 +2157,269 @@ func publicHomePath(locale string) string {
 // technicalHomeHTML is intentionally small: the default root is a runtime
 // status surface, not a marketing page. Product-specific frontends can still
 // be configured through site.home_path or opened from the optional demo seed.
-func technicalHomeHTML(locale, demoPath string, demoEnabled bool) string {
+func technicalHomeHTML(locale, demoPath string, demoEnabled bool, nonce ...string) string {
 	locale = strings.TrimSpace(locale)
 	if locale == "" {
 		locale = "en"
 	}
-	demoPath = template.HTMLEscapeString(demoPath)
-	demoAction := `<span>Demo frontend disabled</span>`
-	if demoEnabled {
-		demoAction = fmt.Sprintf(`<a href="%s">Optional demo</a>`, demoPath)
+	styleNonceAttr := ""
+	if len(nonce) > 0 && strings.TrimSpace(nonce[0]) != "" {
+		styleNonceAttr = fmt.Sprintf(` nonce="%s"`, template.HTMLEscapeString(nonce[0]))
 	}
 	return fmt.Sprintf(`<!doctype html>
 <html lang="%s">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HydroGo Runtime</title>
-  <style>
-    :root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b0d0e;color:#e4e8e3}
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
-    main{width:min(680px,100%%);border:1px solid #2a3230;border-radius:10px;padding:clamp(28px,6vw,56px);background:#111615;box-shadow:0 24px 80px #0006}
-    .eyebrow{color:#c88761;font-size:.72rem;letter-spacing:.14em;margin:0 0 24px}
-    h1{font-family:ui-sans-serif,system-ui,sans-serif;font-size:clamp(2rem,5vw,3.6rem);line-height:1;letter-spacing:-.05em;margin:0 0 18px}
-    p{color:#aeb8b1;line-height:1.7;margin:0 0 28px}dl{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#2a3230;border:1px solid #2a3230;margin:0 0 28px}div{background:#151b19;padding:16px}dt{color:#78857d;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em}dd{margin:8px 0 0;color:#eff3ed;font-size:.9rem}nav{display:flex;flex-wrap:wrap;gap:10px}a{color:#e4e8e3;text-decoration:none;border:1px solid #3b4742;border-radius:4px;padding:10px 14px;font:inherit}a:hover,a:focus-visible{border-color:#c88761;color:#f1ad85;outline:none}small{display:block;margin-top:24px;color:#68736c;font-family:ui-sans-serif,system-ui,sans-serif}@media(max-width:520px){dl{grid-template-columns:1fr}}
+  <title>Welcome to HydroGo</title>
+  <style%s>
+    :root {
+      --bg: #090a0f;
+      --card: #0d1017;
+      --card-raised: #121620;
+      --border: #1e2533;
+      --border-focus: #0ea5e9;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #0ea5e9;
+      --primary-hover: #38bdf8;
+      --btn-secondary: #121620;
+      --btn-secondary-hover: #181f2c;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-glow-sphere {
+      position: absolute;
+      top: 20%%;
+      left: 50%%;
+      transform: translate(-50%%, -50%%);
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%%, transparent 65%%);
+      border-radius: 50%%;
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .landing-wrapper {
+      max-width: 640px;
+      width: 100%%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .brand-icon-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #0284c7 0%%, #0ea5e9 100%%);
+      color: #ffffff;
+      box-shadow: 0 8px 32px rgba(14, 165, 233, 0.35);
+      margin-bottom: 28px;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 4.5vw, 2.75rem);
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: #ffffff;
+      margin-bottom: 14px;
+      line-height: 1.2;
+    }
+    .hero-subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.1rem);
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      font-weight: 400;
+      max-width: 500px;
+      line-height: 1.6;
+    }
+    .actions-group {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .btn-hero {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    .btn-start {
+      background: var(--primary);
+      color: #ffffff;
+      border: 1px solid var(--primary);
+      box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35);
+    }
+    .btn-start:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+      box-shadow: 0 6px 24px rgba(56, 189, 248, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-docs {
+      background: var(--btn-secondary);
+      color: #ffffff;
+      border: 1px solid var(--border);
+    }
+    .btn-docs:hover {
+      background: var(--btn-secondary-hover);
+      border-color: var(--border-focus);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
   </style>
 </head>
-<body><main>
-  <p class="eyebrow">HYDROGO RUNTIME · %s</p>
-  <h1>Backend runtime is ready.</h1>
-  <p>HydroGo is running as a modular backend. Use the operational endpoints or connect your client application to the API.</p>
-  <dl><div><dt>Health</dt><dd>GET /healthz</dd></div><div><dt>Readiness</dt><dd>GET /readyz</dd></div><div><dt>API</dt><dd>/api/v1</dd></div><div><dt>Admin</dt><dd>/admin</dd></div></dl>
-  <nav><a href="/healthz">Health check</a><a href="/readyz">Readiness</a><a href="/admin">Admin Studio</a>%s</nav>
-  <small>Configure site.home_path to attach a product frontend.</small>
-</main></body></html>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(locale), demoAction)
+<body>
+<div class="hero-glow-sphere"></div>
+<main class="landing-wrapper">
+  <div class="brand-icon-box">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+  </div>
+
+  <h1 class="hero-title">Welcome to HydroGo</h1>
+  <p class="hero-subtitle">İçerik, üyelik ve e-ticaret operasyonlarınızı tek bir merkezden hızlı ve güvenli şekilde yönetin.</p>
+
+  <div class="actions-group">
+    <a href="/admin" class="btn-hero btn-start">Get Started</a>
+    <a href="/docs" class="btn-hero btn-docs">Documentation</a>
+  </div>
+</main>
+</body>
+</html>`, template.HTMLEscapeString(locale), styleNonceAttr)
+}
+
+func docsComingSoonHTML(nonce ...string) string {
+	styleNonceAttr := ""
+	if len(nonce) > 0 && strings.TrimSpace(nonce[0]) != "" {
+		styleNonceAttr = fmt.Sprintf(` nonce="%s"`, template.HTMLEscapeString(nonce[0]))
+	}
+	return fmt.Sprintf(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation · Coming Soon</title>
+  <style%s>
+    :root {
+      --bg: #090a0f;
+      --card: #0e1118;
+      --border: #1e2533;
+      --text: #ffffff;
+      --text-muted: #94a3b8;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      text-align: center;
+    }
+    .docs-wrapper {
+      max-width: 520px;
+      width: 100%%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a855f7;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: clamp(1.85rem, 3.5vw, 2.3rem);
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+    p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 22px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #ffffff;
+      background: #1e2533;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .btn-back:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+<main class="docs-wrapper">
+  <span class="badge">Documentation</span>
+  <h1>Coming Soon</h1>
+  <p>HydroGo developer documentation and guides are currently being crafted.</p>
+  <a href="/" class="btn-back">&larr; Back to Home</a>
+</main>
+</body>
+</html>`, styleNonceAttr)
 }
 
 func moduleEnabled(modules []string, wanted string) bool {
