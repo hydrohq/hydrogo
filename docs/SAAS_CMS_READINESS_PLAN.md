@@ -55,10 +55,10 @@ categorized as code, environment, legal, or product decision.
 
 ## Phase 2 — Mobile API completion
 
-- [x] Scope and document the current mobile principal as a staff/admin account.
-  The current mobile API authenticates core `auth.User` actors only; it must not
-  be presented as member login until a separately approved member-native
-  contract exists.
+- [x] Scope and document the staff mobile principal as a staff/admin account.
+  Staff routes authenticate core `auth.User` actors; consumer/member routes are
+  a separate approved `members.Member` contract and must never be presented as
+  staff login.
 - [x] Decide the customer mobile audience: the client application uses the
   separate `members.Member` identity and member-only mobile credentials for
   private account/commerce flows; published reader/catalog projections remain
