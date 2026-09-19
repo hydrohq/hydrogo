@@ -29,6 +29,11 @@ func (s Store) scope(ctx context.Context) (tenant.Scope, bool, error) {
 }
 
 func (s Store) CreateProcessing(ctx context.Context, db database.Executor, variant media.Variant) error {
+	if rawDB, ok := db.(*sql.DB); ok {
+		return database.NewTenantTransactor(rawDB, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			return s.CreateProcessing(ctx, tx, variant)
+		})
+	}
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return err
@@ -48,6 +53,11 @@ func (s Store) CreateProcessing(ctx context.Context, db database.Executor, varia
 }
 
 func (s Store) MarkResult(ctx context.Context, db database.Executor, id, status string, size int64, detail string) error {
+	if rawDB, ok := db.(*sql.DB); ok {
+		return database.NewTenantTransactor(rawDB, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			return s.MarkResult(ctx, tx, id, status, size, detail)
+		})
+	}
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return err
@@ -81,6 +91,15 @@ func (s Store) MarkResult(ctx context.Context, db database.Executor, id, status 
 }
 
 func (s Store) GetReady(ctx context.Context, db database.Executor, mediaID, kind string) (media.Variant, error) {
+	if rawDB, ok := db.(*sql.DB); ok {
+		var result media.Variant
+		err := database.NewTenantTransactor(rawDB, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			var err error
+			result, err = s.GetReady(ctx, tx, mediaID, kind)
+			return err
+		})
+		return result, err
+	}
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return media.Variant{}, err
@@ -100,6 +119,15 @@ func (s Store) GetReady(ctx context.Context, db database.Executor, mediaID, kind
 }
 
 func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.Asset, error) {
+	if rawDB, ok := db.(*sql.DB); ok {
+		var result media.Asset
+		err := database.NewTenantTransactor(rawDB, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			var err error
+			result, err = s.Get(ctx, tx, id)
+			return err
+		})
+		return result, err
+	}
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return media.Asset{}, err
@@ -125,6 +153,15 @@ func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.
 }
 
 func (s Store) List(ctx context.Context, db database.Executor, limit int) ([]media.Asset, error) {
+	if rawDB, ok := db.(*sql.DB); ok {
+		var result []media.Asset
+		err := database.NewTenantTransactor(rawDB, s.Dialect, s.RequireTenantScope).WithinQuery(ctx, func(tx database.QueryExecutor) error {
+			var err error
+			result, err = s.List(ctx, tx, limit)
+			return err
+		})
+		return result, err
+	}
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return nil, err
