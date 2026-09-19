@@ -9,10 +9,25 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
 
-type Store struct{ Dialect database.Dialect }
+type Store struct {
+	Dialect            database.Dialect
+	RequireTenantScope bool
+}
+
+func (s Store) tenant(ctx context.Context) (string, error) {
+	if !s.RequireTenantScope {
+		return "", nil
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return "", err
+	}
+	return scope.TenantID, nil
+}
 
 func (s Store) GetOrder(ctx context.Context, db database.Executor, orderID string) (commerce.Order, error) {
 	if err := database.RequireExecutor(db); err != nil {
@@ -34,8 +49,25 @@ func (s Store) CreateVariant(ctx context.Context, db database.Executor, variant 
 		return err
 	}
 	now := time.Now().UTC()
-	q := `INSERT INTO commerce_product_variants (id, product_id, sku, title, price_cents, stock, status, created_at, updated_at) VALUES (` + s.placeholder(1) + `,` + s.placeholder(2) + `,` + s.placeholder(3) + `,` + s.placeholder(4) + `,` + s.placeholder(5) + `,` + s.placeholder(6) + `,` + s.placeholder(7) + `,` + s.placeholder(8) + `,` + s.placeholder(9) + `)`
-	_, err := db.ExecContext(ctx, q, variant.ID, variant.ProductID, variant.SKU, variant.Title, variant.PriceCents, variant.Stock, variant.Status, now, now)
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	q := `INSERT INTO commerce_product_variants (id, product_id, sku, title, price_cents, stock, status, created_at, updated_at`
+	args := []any{variant.ID, variant.ProductID, variant.SKU, variant.Title, variant.PriceCents, variant.Stock, variant.Status, now, now}
+	if s.RequireTenantScope {
+		q += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	q += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			q += `,`
+		}
+		q += s.placeholder(i + 1)
+	}
+	q += `)`
+	_, err = db.ExecContext(ctx, q, args...)
 	return err
 }
 
@@ -43,8 +75,17 @@ func (s Store) ReserveVariant(ctx context.Context, db database.Executor, id stri
 	if err := database.RequireExecutor(db); err != nil {
 		return commerce.ProductVariant{}, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.ProductVariant{}, err
+	}
 	q := `UPDATE commerce_product_variants SET stock = stock - ` + s.placeholder(1) + `, status = CASE WHEN stock - ` + s.placeholder(1) + ` = 0 THEN 'out_of_stock' ELSE status END, updated_at = ` + s.placeholder(2) + ` WHERE id = ` + s.placeholder(3) + ` AND status IN ('published', 'out_of_stock') AND stock >= ` + s.placeholder(4)
-	result, err := db.ExecContext(ctx, q, quantity, quantity, time.Now().UTC(), id, quantity)
+	args := []any{quantity, quantity, time.Now().UTC(), id, quantity}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(6)
+		args = append(args, tenantID)
+	}
+	result, err := db.ExecContext(ctx, q, args...)
 	if err != nil {
 		return commerce.ProductVariant{}, err
 	}
@@ -57,7 +98,12 @@ func (s Store) ReserveVariant(ctx context.Context, db database.Executor, id stri
 	}
 	var variant commerce.ProductVariant
 	q = `SELECT v.id, v.product_id, v.sku, v.title, v.price_cents, p.currency, v.stock, v.status FROM commerce_product_variants v JOIN commerce_products p ON p.id = v.product_id WHERE v.id = ` + s.placeholder(1)
-	err = db.QueryRowContext(ctx, q, id).Scan(&variant.ID, &variant.ProductID, &variant.SKU, &variant.Title, &variant.PriceCents, &variant.Currency, &variant.Stock, &variant.Status)
+	args = []any{id}
+	if s.RequireTenantScope {
+		q += ` AND v.tenant_id = ` + s.placeholder(2) + ` AND p.tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID, tenantID)
+	}
+	err = db.QueryRowContext(ctx, q, args...).Scan(&variant.ID, &variant.ProductID, &variant.SKU, &variant.Title, &variant.PriceCents, &variant.Currency, &variant.Stock, &variant.Status)
 	return variant, err
 }
 
@@ -65,12 +111,21 @@ func (s Store) ListVariants(ctx context.Context, db database.Executor, productID
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
+	}
 	q := `SELECT v.id, v.product_id, v.sku, v.title, v.price_cents, p.currency, v.stock, v.status FROM commerce_product_variants v JOIN commerce_products p ON p.id = v.product_id WHERE v.product_id = ` + s.placeholder(1)
+	args := []any{productID}
+	if s.RequireTenantScope {
+		q += ` AND v.tenant_id = ` + s.placeholder(2) + ` AND p.tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID, tenantID)
+	}
 	if publicOnly {
 		q += ` AND v.status IN ('published', 'out_of_stock')`
 	}
 	q += ` ORDER BY v.title, v.id`
-	rows, err := queryRows(ctx, db, q, productID)
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -93,12 +148,26 @@ func (s Store) ListVariantsPage(ctx context.Context, db database.Executor, produ
 	if limit <= 0 || limit > 1000 || offset < 0 {
 		return nil, errors.New("invalid variant page")
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
+	}
 	q := `SELECT v.id, v.product_id, v.sku, v.title, v.price_cents, p.currency, v.stock, v.status FROM commerce_product_variants v JOIN commerce_products p ON p.id = v.product_id WHERE v.product_id = ` + s.placeholder(1)
+	args := []any{productID}
+	if s.RequireTenantScope {
+		q += ` AND v.tenant_id = ` + s.placeholder(2) + ` AND p.tenant_id = ` + s.placeholder(3)
+		args = append(args, tenantID, tenantID)
+	}
 	if publicOnly {
 		q += ` AND v.status IN ('published', 'out_of_stock')`
 	}
-	q += ` ORDER BY v.title, v.id LIMIT ` + s.placeholder(2) + ` OFFSET ` + s.placeholder(3)
-	rows, err := queryRows(ctx, db, q, productID, limit, offset)
+	limitPos, offsetPos := 2, 3
+	if s.RequireTenantScope {
+		limitPos, offsetPos = 4, 5
+	}
+	q += ` ORDER BY v.title, v.id LIMIT ` + s.placeholder(limitPos) + ` OFFSET ` + s.placeholder(offsetPos)
+	args = append(args, limit, offset)
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,9 +263,27 @@ func (s Store) CreateProduct(ctx context.Context, db database.Executor, product 
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	q := `INSERT INTO commerce_products (id, sku, title, description, media_id, price_cents, currency, stock, status, created_at, updated_at) VALUES (` + s.placeholder(1) + `,` + s.placeholder(2) + `,` + s.placeholder(3) + `,` + s.placeholder(4) + `,` + s.placeholder(5) + `,` + s.placeholder(6) + `,` + s.placeholder(7) + `,` + s.placeholder(8) + `,` + s.placeholder(9) + `,` + s.placeholder(10) + `,` + s.placeholder(11) + `)`
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	q := `INSERT INTO commerce_products (id, sku, title, description, media_id, price_cents, currency, stock, status, created_at, updated_at`
+	args := []any{product.ID, product.SKU, product.Title, product.Description, product.MediaID, product.PriceCents, product.Currency, product.Stock, product.Status}
 	now := time.Now().UTC()
-	_, err := db.ExecContext(ctx, q, product.ID, product.SKU, product.Title, product.Description, product.MediaID, product.PriceCents, product.Currency, product.Stock, product.Status, now, now)
+	args = append(args, now, now)
+	if s.RequireTenantScope {
+		q += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	q += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			q += `,`
+		}
+		q += s.placeholder(i + 1)
+	}
+	q += `)`
+	_, err = db.ExecContext(ctx, q, args...)
 	return err
 }
 
@@ -205,8 +292,17 @@ func (s Store) UpdateProduct(ctx context.Context, db database.Executor, product 
 		return err
 	}
 	now := time.Now().UTC()
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	q := `UPDATE commerce_products SET sku = ` + s.placeholder(1) + `, title = ` + s.placeholder(2) + `, description = ` + s.placeholder(3) + `, media_id = ` + s.placeholder(4) + `, price_cents = ` + s.placeholder(5) + `, currency = ` + s.placeholder(6) + `, stock = ` + s.placeholder(7) + `, status = ` + s.placeholder(8) + `, updated_at = ` + s.placeholder(9) + ` WHERE id = ` + s.placeholder(10)
-	result, err := db.ExecContext(ctx, q, product.SKU, product.Title, product.Description, product.MediaID, product.PriceCents, product.Currency, product.Stock, product.Status, now, product.ID)
+	args := []any{product.SKU, product.Title, product.Description, product.MediaID, product.PriceCents, product.Currency, product.Stock, product.Status, now, product.ID}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(11)
+		args = append(args, tenantID)
+	}
+	result, err := db.ExecContext(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -225,8 +321,17 @@ func (s Store) GetProduct(ctx context.Context, db database.Executor, id string) 
 		return commerce.Product{}, err
 	}
 	var product commerce.Product
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Product{}, err
+	}
 	q := `SELECT id, sku, title, description, media_id, price_cents, currency, stock, status FROM commerce_products WHERE id = ` + s.placeholder(1)
-	err := db.QueryRowContext(ctx, q, id).Scan(&product.ID, &product.SKU, &product.Title, &product.Description, &product.MediaID, &product.PriceCents, &product.Currency, &product.Stock, &product.Status)
+	args := []any{id}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	err = db.QueryRowContext(ctx, q, args...).Scan(&product.ID, &product.SKU, &product.Title, &product.Description, &product.MediaID, &product.PriceCents, &product.Currency, &product.Stock, &product.Status)
 	return product, err
 }
 
@@ -242,12 +347,31 @@ func (s Store) ListProductsPage(ctx context.Context, db database.Executor, publi
 	if limit <= 0 || limit > 1000 || offset < 0 {
 		return nil, errors.New("invalid catalog page")
 	}
-	q := `SELECT id, sku, title, description, media_id, price_cents, currency, stock, status FROM commerce_products`
-	if publicOnly {
-		q += ` WHERE status IN ('published', 'out_of_stock')`
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
 	}
-	q += ` ORDER BY title, id LIMIT ` + s.placeholder(1) + ` OFFSET ` + s.placeholder(2)
-	rows, err := queryRows(ctx, db, q, limit, offset)
+	q := `SELECT id, sku, title, description, media_id, price_cents, currency, stock, status FROM commerce_products`
+	args := []any{}
+	if s.RequireTenantScope {
+		q += ` WHERE tenant_id = ` + s.placeholder(1)
+		args = append(args, tenantID)
+	}
+	if publicOnly {
+		if s.RequireTenantScope {
+			q += ` AND`
+		} else {
+			q += ` WHERE`
+		}
+		q += ` status IN ('published', 'out_of_stock')`
+	}
+	limitPos, offsetPos := 1, 2
+	if s.RequireTenantScope {
+		limitPos, offsetPos = 2, 3
+	}
+	q += ` ORDER BY title, id LIMIT ` + s.placeholder(limitPos) + ` OFFSET ` + s.placeholder(offsetPos)
+	args = append(args, limit, offset)
+	rows, err := queryRows(ctx, db, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -450,8 +574,17 @@ func (s Store) ReserveProduct(ctx context.Context, db database.Executor, id stri
 	if err := database.RequireExecutor(db); err != nil {
 		return commerce.Product{}, err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return commerce.Product{}, err
+	}
 	q := `UPDATE commerce_products SET stock = stock - ` + s.placeholder(1) + `, status = CASE WHEN stock - ` + s.placeholder(1) + ` = 0 THEN 'out_of_stock' ELSE status END, updated_at = ` + s.placeholder(2) + ` WHERE id = ` + s.placeholder(3) + ` AND status IN ('published', 'out_of_stock') AND stock >= ` + s.placeholder(4)
-	result, err := db.ExecContext(ctx, q, quantity, quantity, time.Now().UTC(), id, quantity)
+	args := []any{quantity, quantity, time.Now().UTC(), id, quantity}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(6)
+		args = append(args, tenantID)
+	}
+	result, err := db.ExecContext(ctx, q, args...)
 	if err != nil {
 		return commerce.Product{}, err
 	}
@@ -464,7 +597,12 @@ func (s Store) ReserveProduct(ctx context.Context, db database.Executor, id stri
 	}
 	var product commerce.Product
 	q = `SELECT id, sku, title, price_cents, currency, stock, status FROM commerce_products WHERE id = ` + s.placeholder(1)
-	err = db.QueryRowContext(ctx, q, id).Scan(&product.ID, &product.SKU, &product.Title, &product.PriceCents, &product.Currency, &product.Stock, &product.Status)
+	args = []any{id}
+	if s.RequireTenantScope {
+		q += ` AND tenant_id = ` + s.placeholder(2)
+		args = append(args, tenantID)
+	}
+	err = db.QueryRowContext(ctx, q, args...).Scan(&product.ID, &product.SKU, &product.Title, &product.PriceCents, &product.Currency, &product.Stock, &product.Status)
 	return product, err
 }
 
