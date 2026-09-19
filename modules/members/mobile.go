@@ -76,6 +76,9 @@ func (s MobileAuthService) ValidateAccess(ctx context.Context, raw string) (stri
 // Refresh rotates a single-use member refresh token. A reused token revokes its
 // whole family so a stolen older token cannot keep a member signed in.
 func (s MobileAuthService) Refresh(ctx context.Context, raw string) (*auth.TokenPair, error) {
+	if s.DB == nil || strings.TrimSpace(raw) == "" {
+		return nil, ErrMobileTokenInvalid
+	}
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -168,9 +171,15 @@ func mobileActive(v any) bool {
 }
 
 func (s MobileAuthService) RevokeAll(ctx context.Context, memberID string) error {
+	if s.DB == nil || strings.TrimSpace(memberID) == "" {
+		return ErrMobileTokenInvalid
+	}
 	return s.revoke(ctx, "member_id", memberID)
 }
 func (s MobileAuthService) RevokeDevice(ctx context.Context, memberID, deviceID string) error {
+	if s.DB == nil || strings.TrimSpace(memberID) == "" || strings.TrimSpace(deviceID) == "" {
+		return ErrMobileTokenInvalid
+	}
 	return s.revoke(ctx, "member_id = "+s.ph(1)+" AND device_id", memberID, deviceID)
 }
 func (s MobileAuthService) ph(n int) string {
