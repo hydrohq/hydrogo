@@ -91,36 +91,60 @@ var adminReportsKPIsTemplate = template.Must(template.New("admin-reports-kpis").
 		<div class="kpi-top"><span class="kpi-icon kpi-blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span><span class="kpi-tag">HTTP</span></div>
 		<span class="kpi-label">Toplam İstek</span>
 		<strong>{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--brand)" d="M0 20 L0 15 Q25 6 50 14 T100 4 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--brand)" d="M0 15 Q25 6 50 14 T100 4"></path>
+		</svg>
 		<small>{{if .Metrics}}Anlık aktif: {{.Metrics.InFlight}}{{else}}İstek yok{{end}}</small>
 	</article>
 	<article class="dashboard-kpi">
 		<div class="kpi-top"><span class="kpi-icon kpi-green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span><span class="kpi-tag kpi-tag-success">Görüntülenme</span></div>
 		<span class="kpi-label">Sayfa Görüntülenme</span>
 		<strong>{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--green)" d="M0 20 L0 16 Q30 18 60 8 T100 2 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--green)" d="M0 16 Q30 18 60 8 T100 2"></path>
+		</svg>
 		<small>Public &amp; mağaza sayfaları</small>
 	</article>
 	<article class="dashboard-kpi">
 		<div class="kpi-top"><span class="kpi-icon kpi-purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span><span class="kpi-tag">Tekil</span></div>
 		<span class="kpi-label">Benzersiz Ziyaretçi (kapalı)</span>
 		<strong>{{if .Metrics}}{{.Metrics.UniqueVisitorsCount}}{{else}}0{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--muted)" d="M0 20 L0 18 Q50 18 100 18 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--muted)" d="M0 18 Q50 18 100 18"></path>
+		</svg>
 		<small>Açık rıza gerektiren analitik modülü etkin değil</small>
 	</article>
 	<article class="dashboard-kpi">
 		<div class="kpi-top"><span class="kpi-icon kpi-purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span><span class="kpi-tag">Gecikme</span></div>
 		<span class="kpi-label">Ortalama Yanıt Süresi</span>
 		<strong>{{if .Metrics}}{{.Metrics.AvgLatencyMS}} ms{{else}}0 ms{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--brand)" d="M0 20 L0 12 Q30 6 60 14 T100 8 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--brand)" d="M0 12 Q30 6 60 14 T100 8"></path>
+		</svg>
 		<small>Süreç içi ortalama latency</small>
 	</article>
 	<article class="dashboard-kpi">
 		<div class="kpi-top"><span class="kpi-icon {{if and .Metrics (gt .Metrics.TotalErrors 0)}}kpi-blue{{else}}kpi-green{{end}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></span><span class="kpi-tag {{if and .Metrics (gt .Metrics.TotalErrors 0)}}kpi-tag-danger{{else}}kpi-tag-success{{end}}">{{if and .Metrics (gt .Metrics.TotalErrors 0)}}Uyarı{{else}}Sağlıklı{{end}}</span></div>
 		<span class="kpi-label">Hatalı İstekler</span>
 		<strong>{{if .Metrics}}{{.Metrics.TotalErrors}}{{else}}0{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="{{if and .Metrics (gt .Metrics.TotalErrors 0)}}var(--red){{else}}var(--green){{end}}" d="M0 20 L0 18 Q40 18 70 {{if and .Metrics (gt .Metrics.TotalErrors 0)}}6{{else}}18{{end}} T100 {{if and .Metrics (gt .Metrics.TotalErrors 0)}}4{{else}}18{{end}} L100 20 Z"></path>
+			<path class="spark-line" stroke="{{if and .Metrics (gt .Metrics.TotalErrors 0)}}var(--red){{else}}var(--green){{end}}" d="M0 18 Q40 18 70 {{if and .Metrics (gt .Metrics.TotalErrors 0)}}6{{else}}18{{end}} T100 {{if and .Metrics (gt .Metrics.TotalErrors 0)}}4{{else}}18{{end}}"></path>
+		</svg>
 		<small>4xx ve 5xx hata yanıtları</small>
 	</article>
 	<article class="dashboard-kpi">
 		<div class="kpi-top"><span class="kpi-icon kpi-blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg></span><span class="kpi-tag">Üyelik</span></div>
 		<span class="kpi-label">Kayıtlı Üyeler</span>
 		<strong>{{.MemberStats.TotalMembers}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--brand)" d="M0 20 L0 18 Q35 14 65 8 T100 4 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--brand)" d="M0 18 Q35 14 65 8 T100 4"></path>
+		</svg>
 		<small>{{.MemberStats.ActiveMembers}} aktif, {{.MemberStats.VerifiedMembers}} e-posta onaylı</small>
 	</article>
 </section>`))
