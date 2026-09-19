@@ -62,6 +62,10 @@
         {
           "path": "R84-bff-redis-session-adapter-2026-09-19.md",
           "command": "go test ./internal/security/bffsession"
+        },
+        {
+          "path": "R85-tenant-scope-primitive-2026-09-19.md",
+          "command": "go test ./internal/tenant ./tests/contract -run 'Tenant|Scope'"
         }
       ]
     },
