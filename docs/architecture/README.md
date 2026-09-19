@@ -229,6 +229,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0182](0182-member-store-rls-call-sites.md) | Bind member stores to tenant transactions | Accepted (member/session/audit covered; remaining direct pool paths open) |
 | [0183](0183-forms-media-rls-call-sites.md) | Bind forms and media pool operations to tenant transactions | Accepted (forms/media covered; remaining direct pool paths open) |
 | [0184](0184-mobile-store-tenant-rls-bindings.md) | Bind mobile device session stores to tenant transactions | Accepted (mobile device session stores bound; database pool audit completed) |
+| [0185](0185-postgres-rls-contract-certification.md) | PostgreSQL tenant RLS contract isolation certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |

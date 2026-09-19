@@ -398,9 +398,9 @@ func (s *MobileAuthService) ValidateAccessToken(ctx context.Context, rawAccessTo
 
 	var query string
 	if s.dialect == database.Postgres {
-		query = `SELECT user_id, device_id, revoked_at, access_expires_at FROM mobile_device_sessions WHERE access_token_hash = $1`
+		query = `SELECT m.user_id, m.device_id, m.revoked_at, m.access_expires_at FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.access_token_hash = $1`
 	} else {
-		query = `SELECT user_id, device_id, revoked_at, access_expires_at FROM mobile_device_sessions WHERE access_token_hash = ?`
+		query = `SELECT m.user_id, m.device_id, m.revoked_at, m.access_expires_at FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.access_token_hash = ?`
 	}
 
 	err = s.within(ctx, func(exec database.Executor) error {
