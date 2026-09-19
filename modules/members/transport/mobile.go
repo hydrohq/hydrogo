@@ -119,6 +119,19 @@ func (h Handler) mobileRevokeAll(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h Handler) mobileDevices(w http.ResponseWriter, r *http.Request) {
+	memberID, deviceID, ok := h.memberMobilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	devices, err := h.Mobile.ListDevices(r.Context(), memberID, deviceID)
+	if err != nil {
+		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		return
+	}
+	writeMemberMobileJSON(w, http.StatusOK, map[string]any{"devices": devices})
+}
+
 func (h Handler) recordMobileAudit(r *http.Request, action, targetID string) {
 	if h.Audit != nil {
 		_ = h.Audit.Record(r.Context(), action, targetID)

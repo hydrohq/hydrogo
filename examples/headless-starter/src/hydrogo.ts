@@ -10,6 +10,7 @@ export type CheckoutInput = { cart_id?: string; items?: Array<{ product_id: stri
 export type Order = { id: string; currency: string; total_cents: number; payment_status: string; shipping_status: string };
 export type MemberTokenPair = { access_token: string; refresh_token: string; token_type: "Bearer"; expires_in: number; expires_at: string };
 export type MemberOrder = Order & { user_id?: string; items?: Array<{ product_id: string; variant_id?: string; sku: string; title: string; quantity: number; unit_cents: number; total_cents: number }> };
+export type MemberDevice = { device_id: string; device_name: string; platform: string; created_at: string; last_used_at: string; is_current: boolean };
 export type MemberLoginInput = { email: string; password: string; device_id: string; device_name?: string; platform: string };
 
 export type HydroAPIErrorBody = { code?: string; message?: string; error?: string; request_id?: string };
@@ -139,6 +140,11 @@ export class HydroGoClient {
   async memberLogout(accessToken: string, allDevices = false, options?: HydroGoRequestOptions): Promise<void> {
     const path = allDevices ? "/api/v1/mobile/member/auth/revoke-all" : "/api/v1/mobile/member/auth/revoke";
     await this.request<void>(path, { method: "POST", credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
+  }
+
+  async memberDevices(accessToken: string, options?: HydroGoRequestOptions): Promise<MemberDevice[]> {
+    const response = await this.request<{ devices: MemberDevice[] }>("/api/v1/mobile/member/auth/devices", { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
+    return response.devices;
   }
 
   async memberOrders(accessToken: string, limit = 100, options?: HydroGoRequestOptions): Promise<MemberOrder[]> {

@@ -26,6 +26,11 @@
       "expect": {"status": 200, "scope": "current_member_only"}
     },
     {
+      "name": "devices",
+      "request": {"method": "GET", "path": "/auth/devices", "authorization": "Bearer $stored.access_token"},
+      "expect": {"status": 200, "scope": "current_member_only"}
+    },
+    {
       "name": "cart",
       "request": {"method": "GET", "path": "/commerce/cart", "authorization": "Bearer $stored.access_token"},
       "expect": {"status": 200, "scope": "current_member_only"}

@@ -19,6 +19,15 @@ type MobileAuthService struct {
 	Dialect database.Dialect
 }
 
+type MobileDeviceSummary struct {
+	DeviceID   string    `json:"device_id"`
+	DeviceName string    `json:"device_name"`
+	Platform   string    `json:"platform"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUsedAt time.Time `json:"last_used_at"`
+	IsCurrent  bool      `json:"is_current"`
+}
+
 func (s MobileAuthService) Issue(ctx context.Context, memberID, deviceID, deviceName, platform string) (*auth.TokenPair, error) {
 	if s.DB == nil || strings.TrimSpace(deviceID) == "" || strings.TrimSpace(platform) == "" {
 		return nil, ErrMobileTokenInvalid
@@ -181,6 +190,39 @@ func (s MobileAuthService) RevokeDevice(ctx context.Context, memberID, deviceID 
 		return ErrMobileTokenInvalid
 	}
 	return s.revoke(ctx, "member_id = "+s.ph(1)+" AND device_id", memberID, deviceID)
+}
+
+func (s MobileAuthService) ListDevices(ctx context.Context, memberID, currentDeviceID string) ([]MobileDeviceSummary, error) {
+	if s.DB == nil || strings.TrimSpace(memberID) == "" {
+		return nil, ErrMobileTokenInvalid
+	}
+	q := `SELECT device_id,device_name,platform,created_at,last_used_at FROM member_mobile_device_sessions WHERE member_id = ? AND revoked_at IS NULL ORDER BY last_used_at DESC`
+	if s.Dialect == database.Postgres {
+		q = `SELECT device_id,device_name,platform,created_at,last_used_at FROM member_mobile_device_sessions WHERE member_id = $1 AND revoked_at IS NULL ORDER BY last_used_at DESC`
+	}
+	rows, err := s.DB.QueryContext(ctx, q, memberID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	devices := make([]MobileDeviceSummary, 0, 4)
+	seen := make(map[string]struct{})
+	for rows.Next() {
+		var deviceID, deviceName, platform string
+		var created, lastUsed any
+		if err := rows.Scan(&deviceID, &deviceName, &platform, &created, &lastUsed); err != nil {
+			return nil, err
+		}
+		if _, exists := seen[deviceID]; exists {
+			continue
+		}
+		seen[deviceID] = struct{}{}
+		devices = append(devices, MobileDeviceSummary{DeviceID: deviceID, DeviceName: deviceName, Platform: platform, CreatedAt: mobileTime(created), LastUsedAt: mobileTime(lastUsed), IsCurrent: deviceID == currentDeviceID})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return devices, nil
 }
 func (s MobileAuthService) ph(n int) string {
 	if s.Dialect == database.Postgres {
