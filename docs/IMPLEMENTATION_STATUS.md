@@ -8,6 +8,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 
 | Alan | Durum | Nasıl kullanılır? | Kanıt |
 | --- | --- | --- | --- |
+| Consumer/member mobile API | Tamamlandı (yerel) | Ayrı `members.Member` bearer oturumu ile kayıt/giriş/refresh, cihaz iptali, profil, sepet, checkout, sipariş listesi ve sahiplik-kapsamlı ödeme durumu | ADR-0150, `R66-release-gate-manifest-2026-09-19`, `R69-member-order-detail-payment-status-2026-09-19`, `docs/api/member-mobile-v1.openapi.json`, `docs/api/member-commerce-v1.openapi.json` |
 | Public proje komut alanı | Tamamlandı | `hydro project new`, `hydro project check` (varsa generated resource'ları da dependency-free doğrular) | `R5-sdk-project-namespace`, `R5-sdk-project-check`, `R6-project-resource-preflight` |
 | Payload uyumlu CLI akışı | Tamamlandı | `check`, `module new`, `resource new`, `resource check` ve `api diff`; eski komutlar korunur | `R5-cli-new-aliases` |
 | İmzalı schema/migration diff | Tamamlandı | Release ledger checksum karşılaştırması; silme/değişiklik fail-closed | `R5-schema-diff` |

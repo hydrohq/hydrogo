@@ -104,7 +104,9 @@ R3 initial commit: disabled user/session revoke, admin-controlled user disable r
 
 - [ ] S05-D: multi web/worker, L2 loss, fan-out/reconnect, generation reconciliation, and bounded fallback. (Bounded process-local invalidation fan-out, slow subscriber resync/generation reconciliation, and TwoTier contract falling back to local loader on L2 failure are ready; real multi-instance/L2 provider and partition drill are open.)
 - [ ] S3-compatible media/CDN, online large backup, and GC pin races; Distributed load/failure certification.
-- [ ] New DB adapter, advanced search, OIDC/SAML, or custom mobile API if there's demand; each with a separate decision and test gate.
+- [ ] New DB adapter, advanced search, OIDC/SAML, or additional mobile
+  capabilities beyond the current staff/member contracts; each requires a
+  separate decision and test gate.
 - [ ] Commerce, AI, and multi-tenant are evaluated with separate scope/ADRs.
 
 ## Deferred product ergonomics
