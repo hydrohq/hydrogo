@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 var (
@@ -60,8 +61,34 @@ type DeviceSessionSummary struct {
 }
 
 type MobileAuthService struct {
-	db      *sql.DB
-	dialect database.Dialect
+	db                 *sql.DB
+	dialect            database.Dialect
+	RequireTenantScope bool
+}
+
+func (s *MobileAuthService) tenant(ctx context.Context) (string, error) {
+	if !s.RequireTenantScope {
+		return "", nil
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return "", err
+	}
+	return scope.TenantID, nil
+}
+
+func (s *MobileAuthService) within(ctx context.Context, fn func(database.Executor) error) error {
+	if s.db == nil {
+		return database.ErrDatabaseRequired
+	}
+	return database.NewTenantTransactor(s.db, s.dialect, s.RequireTenantScope).Within(ctx, fn)
+}
+
+func (s *MobileAuthService) withinQuery(ctx context.Context, fn func(database.QueryExecutor) error) error {
+	if s.db == nil {
+		return database.ErrDatabaseRequired
+	}
+	return database.NewTenantTransactor(s.db, s.dialect, s.RequireTenantScope).WithinQuery(ctx, fn)
 }
 
 func NewMobileAuthService(db *sql.DB, dialect database.Dialect) *MobileAuthService {
@@ -141,7 +168,10 @@ func (s *MobileAuthService) IssueTokenPair(ctx context.Context, userID, deviceID
 		dbLastUsed = now
 	}
 
-	_, err = s.db.ExecContext(ctx, query, sessionID, userID, deviceID, deviceName, platform, familyID, refreshHash, accessHash, dbAccessExpires, dbRefreshExpires, dbCreated, dbLastUsed)
+	err = s.within(ctx, func(exec database.Executor) error {
+		_, execErr := exec.ExecContext(ctx, query, sessionID, userID, deviceID, deviceName, platform, familyID, refreshHash, accessHash, dbAccessExpires, dbRefreshExpires, dbCreated, dbLastUsed)
+		return execErr
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mobile session: %w", err)
 	}
@@ -196,11 +226,6 @@ func parseMobileBool(v any) bool {
 // RefreshTokenPair implements single-use Refresh Token Rotation with Token Family reuse detection.
 func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToken string) (*TokenPair, error) {
 	refreshHash := hashToken(rawRefreshToken)
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
 
 	var (
 		sessionID           string
@@ -223,136 +248,143 @@ func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToke
 			FROM mobile_device_sessions m JOIN users u ON u.id = m.user_id WHERE m.refresh_token_hash = ?`
 	}
 
-	row := tx.QueryRowContext(ctx, query, refreshHash)
-	if err := row.Scan(&sessionID, &userID, &deviceID, &deviceName, &platform, &familyID, &revokedAtVal, &refreshExpiresAtVal, &userActiveVal); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrInvalidToken
-		}
-		return nil, err
-	}
-
-	now := time.Now().UTC()
-	revokedAt := parseMobileTime(revokedAtVal)
-	refreshExpiresAt := parseMobileTime(refreshExpiresAtVal)
-
-	// Token Family Reuse Detection:
-	// If a revoked/already-used refresh token is presented again, someone might have intercepted it!
-	// Invalidate the ENTIRE token family immediately.
-	if !revokedAt.IsZero() {
-		if err := revokeMobileFamily(ctx, tx, s.dialect, familyID, now); err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
-		return nil, ErrTokenReused
-	}
-
-	if !now.Before(refreshExpiresAt) {
-		return nil, ErrInvalidToken
-	}
-	if !parseMobileBool(userActiveVal) {
-		if err := revokeMobileFamily(ctx, tx, s.dialect, familyID, now); err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
-		return nil, ErrUserInactive
-	}
-
-	// Invalidate the current session token (single-use rotation)
-	var revokeQuery string
-	if s.dialect == database.Postgres {
-		revokeQuery = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE id = $2`
-		result, updateErr := tx.ExecContext(ctx, revokeQuery+` AND revoked_at IS NULL`, now, sessionID)
-		if updateErr != nil {
-			return nil, updateErr
-		}
-		changed, updateErr := result.RowsAffected()
-		if updateErr != nil || changed != 1 {
-			if updateErr != nil {
-				return nil, updateErr
+	var (
+		resultPair  *TokenPair
+		securityErr error
+	)
+	err := s.within(ctx, func(tx database.Executor) error {
+		row := tx.QueryRowContext(ctx, query, refreshHash)
+		if err := row.Scan(&sessionID, &userID, &deviceID, &deviceName, &platform, &familyID, &revokedAtVal, &refreshExpiresAtVal, &userActiveVal); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrInvalidToken
 			}
-			return nil, ErrTokenReused
+			return err
 		}
-	} else {
-		revokeQuery = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE id = ?`
-		result, updateErr := tx.ExecContext(ctx, revokeQuery+` AND revoked_at IS NULL`, now.Format(time.RFC3339), sessionID)
-		if updateErr != nil {
-			return nil, updateErr
-		}
-		changed, updateErr := result.RowsAffected()
-		if updateErr != nil || changed != 1 {
-			if updateErr != nil {
-				return nil, updateErr
+
+		now := time.Now().UTC()
+		revokedAt := parseMobileTime(revokedAtVal)
+		refreshExpiresAt := parseMobileTime(refreshExpiresAtVal)
+
+		// Token Family Reuse Detection:
+		// If a revoked/already-used refresh token is presented again, someone might have intercepted it!
+		// Invalidate the ENTIRE token family immediately.
+		if !revokedAt.IsZero() {
+			if err := revokeMobileFamily(ctx, tx, s.dialect, familyID, now); err != nil {
+				return err
 			}
-			return nil, ErrTokenReused
+			securityErr = ErrTokenReused
+			return nil
 		}
-	}
 
-	// Issue replacement token pair within the same Family
-	rawAccessToken, err := generateSecureToken("mat", 32)
+		if !now.Before(refreshExpiresAt) {
+			return ErrInvalidToken
+		}
+		if !parseMobileBool(userActiveVal) {
+			if err := revokeMobileFamily(ctx, tx, s.dialect, familyID, now); err != nil {
+				return err
+			}
+			securityErr = ErrUserInactive
+			return nil
+		}
+
+		// Invalidate the current session token (single-use rotation)
+		var revokeQuery string
+		if s.dialect == database.Postgres {
+			revokeQuery = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE id = $2`
+			result, updateErr := tx.ExecContext(ctx, revokeQuery+` AND revoked_at IS NULL`, now, sessionID)
+			if updateErr != nil {
+				return updateErr
+			}
+			changed, updateErr := result.RowsAffected()
+			if updateErr != nil || changed != 1 {
+				if updateErr != nil {
+					return updateErr
+				}
+				return ErrTokenReused
+			}
+		} else {
+			revokeQuery = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE id = ?`
+			result, updateErr := tx.ExecContext(ctx, revokeQuery+` AND revoked_at IS NULL`, now.Format(time.RFC3339), sessionID)
+			if updateErr != nil {
+				return updateErr
+			}
+			changed, updateErr := result.RowsAffected()
+			if updateErr != nil || changed != 1 {
+				if updateErr != nil {
+					return updateErr
+				}
+				return ErrTokenReused
+			}
+		}
+
+		// Issue replacement token pair within the same Family
+		rawAccessToken, err := generateSecureToken("mat", 32)
+		if err != nil {
+			return err
+		}
+		rawRefreshToken, err := generateSecureToken("mrt", 48)
+		if err != nil {
+			return err
+		}
+
+		newSessionID, err := generateSecureToken("mds", 16)
+		if err != nil {
+			return err
+		}
+
+		accessExpiry := now.Add(AccessTokenTTL)
+		refreshExpiry := now.Add(RefreshTokenTTL)
+
+		newAccessHash := hashToken(rawAccessToken)
+		newRefreshHash := hashToken(rawRefreshToken)
+
+		var insertQuery string
+		if s.dialect == database.Postgres {
+			insertQuery = `INSERT INTO mobile_device_sessions
+				(id, user_id, device_id, device_name, platform, family_id, refresh_token_hash, access_token_hash, access_expires_at, refresh_expires_at, created_at, last_used_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+		} else {
+			insertQuery = `INSERT INTO mobile_device_sessions
+				(id, user_id, device_id, device_name, platform, family_id, refresh_token_hash, access_token_hash, access_expires_at, refresh_expires_at, created_at, last_used_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		}
+
+		nowStr := now.Format(time.RFC3339)
+		accessExpiryStr := accessExpiry.Format(time.RFC3339)
+		refreshExpiryStr := refreshExpiry.Format(time.RFC3339)
+
+		var dbAccessExpires any = accessExpiryStr
+		var dbRefreshExpires any = refreshExpiryStr
+		var dbCreated any = nowStr
+		var dbLastUsed any = nowStr
+		if s.dialect == database.Postgres {
+			dbAccessExpires = accessExpiry
+			dbRefreshExpires = refreshExpiry
+			dbCreated = now
+			dbLastUsed = now
+		}
+
+		_, err = tx.ExecContext(ctx, insertQuery, newSessionID, userID, deviceID, deviceName, platform, familyID, newRefreshHash, newAccessHash, dbAccessExpires, dbRefreshExpires, dbCreated, dbLastUsed)
+		if err != nil {
+			return fmt.Errorf("failed to rotate mobile session: %w", err)
+		}
+
+		resultPair = &TokenPair{
+			AccessToken:      rawAccessToken,
+			RefreshToken:     rawRefreshToken,
+			TokenType:        "Bearer",
+			ExpiresInSeconds: int64(AccessTokenTTL.Seconds()),
+			ExpiresAt:        accessExpiry,
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	rawRefreshToken, err = generateSecureToken("mrt", 48)
-	if err != nil {
-		return nil, err
+	if securityErr != nil {
+		return nil, securityErr
 	}
-
-	newSessionID, err := generateSecureToken("mds", 16)
-	if err != nil {
-		return nil, err
-	}
-
-	accessExpiry := now.Add(AccessTokenTTL)
-	refreshExpiry := now.Add(RefreshTokenTTL)
-
-	newAccessHash := hashToken(rawAccessToken)
-	newRefreshHash := hashToken(rawRefreshToken)
-
-	var insertQuery string
-	if s.dialect == database.Postgres {
-		insertQuery = `INSERT INTO mobile_device_sessions
-			(id, user_id, device_id, device_name, platform, family_id, refresh_token_hash, access_token_hash, access_expires_at, refresh_expires_at, created_at, last_used_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-	} else {
-		insertQuery = `INSERT INTO mobile_device_sessions
-			(id, user_id, device_id, device_name, platform, family_id, refresh_token_hash, access_token_hash, access_expires_at, refresh_expires_at, created_at, last_used_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	}
-
-	nowStr := now.Format(time.RFC3339)
-	accessExpiryStr := accessExpiry.Format(time.RFC3339)
-	refreshExpiryStr := refreshExpiry.Format(time.RFC3339)
-
-	var dbAccessExpires any = accessExpiryStr
-	var dbRefreshExpires any = refreshExpiryStr
-	var dbCreated any = nowStr
-	var dbLastUsed any = nowStr
-	if s.dialect == database.Postgres {
-		dbAccessExpires = accessExpiry
-		dbRefreshExpires = refreshExpiry
-		dbCreated = now
-		dbLastUsed = now
-	}
-
-	_, err = tx.ExecContext(ctx, insertQuery, newSessionID, userID, deviceID, deviceName, platform, familyID, newRefreshHash, newAccessHash, dbAccessExpires, dbRefreshExpires, dbCreated, dbLastUsed)
-	if err != nil {
-		return nil, fmt.Errorf("failed to rotate mobile session: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return &TokenPair{
-		AccessToken:      rawAccessToken,
-		RefreshToken:     rawRefreshToken,
-		TokenType:        "Bearer",
-		ExpiresInSeconds: int64(AccessTokenTTL.Seconds()),
-		ExpiresAt:        accessExpiry,
-	}, nil
+	return resultPair, nil
 }
 
 // ValidateAccessToken checks the validity of a bearer access token.
@@ -371,11 +403,17 @@ func (s *MobileAuthService) ValidateAccessToken(ctx context.Context, rawAccessTo
 		query = `SELECT user_id, device_id, revoked_at, access_expires_at FROM mobile_device_sessions WHERE access_token_hash = ?`
 	}
 
-	row := s.db.QueryRowContext(ctx, query, accessHash)
-	if err := row.Scan(&userID, &deviceID, &revokedAtVal, &accessExpiresAtVal); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", ErrInvalidToken
+	err = s.within(ctx, func(exec database.Executor) error {
+		row := exec.QueryRowContext(ctx, query, accessHash)
+		if scanErr := row.Scan(&userID, &deviceID, &revokedAtVal, &accessExpiresAtVal); scanErr != nil {
+			if errors.Is(scanErr, sql.ErrNoRows) {
+				return ErrInvalidToken
+			}
+			return scanErr
 		}
+		return nil
+	})
+	if err != nil {
 		return "", "", err
 	}
 
@@ -393,7 +431,7 @@ func (s *MobileAuthService) ValidateAccessToken(ctx context.Context, rawAccessTo
 	return userID, deviceID, nil
 }
 
-func revokeMobileFamily(ctx context.Context, tx *sql.Tx, dialect database.Dialect, familyID string, now time.Time) error {
+func revokeMobileFamily(ctx context.Context, tx database.Executor, dialect database.Dialect, familyID string, now time.Time) error {
 	query := `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE family_id = $2 AND revoked_at IS NULL`
 	args := []any{now, familyID}
 	if dialect == database.SQLite {
@@ -408,42 +446,54 @@ func revokeMobileFamily(ctx context.Context, tx *sql.Tx, dialect database.Dialec
 func (s *MobileAuthService) RevokeFamily(ctx context.Context, familyID string) error {
 	now := time.Now().UTC()
 	var query string
+	var args []any
 	if s.dialect == database.Postgres {
 		query = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE family_id = $2 AND revoked_at IS NULL`
-		_, err := s.db.ExecContext(ctx, query, now, familyID)
-		return err
+		args = []any{now, familyID}
+	} else {
+		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL`
+		args = []any{now.Format(time.RFC3339), familyID}
 	}
-	query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL`
-	_, err := s.db.ExecContext(ctx, query, now.Format(time.RFC3339), familyID)
-	return err
+	return s.within(ctx, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, query, args...)
+		return err
+	})
 }
 
 // RevokeDevice invalidates all active sessions for a specific user device.
 func (s *MobileAuthService) RevokeDevice(ctx context.Context, userID, deviceID string) error {
 	now := time.Now().UTC()
 	var query string
+	var args []any
 	if s.dialect == database.Postgres {
 		query = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE user_id = $2 AND device_id = $3 AND revoked_at IS NULL`
-		_, err := s.db.ExecContext(ctx, query, now, userID, deviceID)
-		return err
+		args = []any{now, userID, deviceID}
+	} else {
+		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND device_id = ? AND revoked_at IS NULL`
+		args = []any{now.Format(time.RFC3339), userID, deviceID}
 	}
-	query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND device_id = ? AND revoked_at IS NULL`
-	_, err := s.db.ExecContext(ctx, query, now.Format(time.RFC3339), userID, deviceID)
-	return err
+	return s.within(ctx, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, query, args...)
+		return err
+	})
 }
 
 // RevokeAllDevices logs out the user from all mobile devices.
 func (s *MobileAuthService) RevokeAllDevices(ctx context.Context, userID string) error {
 	now := time.Now().UTC()
 	var query string
+	var args []any
 	if s.dialect == database.Postgres {
 		query = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE user_id = $2 AND revoked_at IS NULL`
-		_, err := s.db.ExecContext(ctx, query, now, userID)
-		return err
+		args = []any{now, userID}
+	} else {
+		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`
+		args = []any{now.Format(time.RFC3339), userID}
 	}
-	query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`
-	_, err := s.db.ExecContext(ctx, query, now.Format(time.RFC3339), userID)
-	return err
+	return s.within(ctx, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, query, args...)
+		return err
+	})
 }
 
 // ListDeviceSessions returns non-revoked device sessions for a user.
@@ -459,38 +509,43 @@ func (s *MobileAuthService) ListDeviceSessions(ctx context.Context, userID, curr
 			ORDER BY last_used_at DESC`
 	}
 
-	rows, err := s.db.QueryContext(ctx, query, userID)
+	var summaries []DeviceSessionSummary
+	err := s.withinQuery(ctx, func(exec database.QueryExecutor) error {
+		rows, queryErr := exec.QueryContext(ctx, query, userID)
+		if queryErr != nil {
+			return queryErr
+		}
+		defer rows.Close()
+
+		seenDevices := make(map[string]bool)
+		for rows.Next() {
+			var (
+				dID           string
+				dName         string
+				platform      string
+				createdAtVal  any
+				lastUsedAtVal any
+			)
+			if err := rows.Scan(&dID, &dName, &platform, &createdAtVal, &lastUsedAtVal); err != nil {
+				return err
+			}
+			if seenDevices[dID] {
+				continue
+			}
+			seenDevices[dID] = true
+			summaries = append(summaries, DeviceSessionSummary{
+				DeviceID:   dID,
+				DeviceName: dName,
+				Platform:   platform,
+				CreatedAt:  parseMobileTime(createdAtVal),
+				LastUsedAt: parseMobileTime(lastUsedAtVal),
+				IsCurrent:  dID == currentDeviceID,
+			})
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var summaries []DeviceSessionSummary
-	seenDevices := make(map[string]bool)
-
-	for rows.Next() {
-		var (
-			dID           string
-			dName         string
-			platform      string
-			createdAtVal  any
-			lastUsedAtVal any
-		)
-		if err := rows.Scan(&dID, &dName, &platform, &createdAtVal, &lastUsedAtVal); err != nil {
-			return nil, err
-		}
-		if seenDevices[dID] {
-			continue
-		}
-		seenDevices[dID] = true
-		summaries = append(summaries, DeviceSessionSummary{
-			DeviceID:   dID,
-			DeviceName: dName,
-			Platform:   platform,
-			CreatedAt:  parseMobileTime(createdAtVal),
-			LastUsedAt: parseMobileTime(lastUsedAtVal),
-			IsCurrent:  dID == currentDeviceID,
-		})
 	}
 
 	return summaries, nil
