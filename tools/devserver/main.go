@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -203,31 +204,62 @@ func (s *supervisor) stopChild() {
 		_, _ = s.child.Process.Wait()
 	}
 	s.child = nil
+	// On Windows, TCP sockets can linger in TIME_WAIT / CLOSE_WAIT for a moment after process exit.
+	// Wait up to 1.5s for the port to be fully unbound before proceeding.
+	deadline := time.Now().Add(1500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		ln, err := net.Listen("tcp", s.appAddress)
+		if err == nil {
+			_ = ln.Close()
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }
 
 func (s *supervisor) startChild(binary string) error {
-	child := exec.Command(binary, "serve", "--address", s.appAddress, "--database-dsn", s.databaseDSN)
-	child.Dir = s.root
-	env := make([]string, 0, len(os.Environ())+1)
-	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "HYDRO_REDIS_URL=") || strings.HasPrefix(kv, "REDIS_URL=") {
-			continue
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		child := exec.Command(binary, "serve", "--address", s.appAddress, "--database-dsn", s.databaseDSN)
+		child.Dir = s.root
+		env := make([]string, 0, len(os.Environ())+1)
+		for _, kv := range os.Environ() {
+			if strings.HasPrefix(kv, "HYDRO_REDIS_URL=") || strings.HasPrefix(kv, "REDIS_URL=") {
+				continue
+			}
+			env = append(env, kv)
 		}
-		env = append(env, kv)
+		child.Env = append(env, "HYDRO_DEV_MODE=1")
+		if s.redisURL != "" {
+			child.Env = append(child.Env, "HYDRO_REDIS_URL="+s.redisURL)
+		}
+		child.Stdout, child.Stderr = os.Stdout, os.Stderr
+		if err := child.Start(); err != nil {
+			return err
+		}
+
+		s.mu.Lock()
+		s.child = child
+		s.mu.Unlock()
+
+		// Run wait in background, tracking exit
+		done := make(chan error, 1)
+		go func(process *exec.Cmd) {
+			done <- process.Wait()
+		}(child)
+
+		// Give it 150ms to ensure it didn't fail immediately on socket bind
+		select {
+		case err := <-done:
+			lastErr = fmt.Errorf("child exited prematurely: %v", err)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		case <-time.After(150 * time.Millisecond):
+			// Child is running and didn't crash on startup
+			return nil
+		}
 	}
-	child.Env = append(env, "HYDRO_DEV_MODE=1")
-	if s.redisURL != "" {
-		child.Env = append(child.Env, "HYDRO_REDIS_URL="+s.redisURL)
-	}
-	child.Stdout, child.Stderr = os.Stdout, os.Stderr
-	if err := child.Start(); err != nil {
-		return err
-	}
-	s.mu.Lock()
-	s.child = child
-	s.mu.Unlock()
-	go func(process *exec.Cmd) { _ = process.Wait() }(child)
-	return nil
+	return lastErr
 }
 
 func (s *supervisor) stop() {
