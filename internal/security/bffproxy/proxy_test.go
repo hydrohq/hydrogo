@@ -8,7 +8,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/security/bffsession"
 )
 
 type sessionStub struct {
@@ -95,5 +99,39 @@ func TestHandlerBoundsRequest(t *testing.T) {
 	Handler{CoreOrigin: origin, Sessions: sessionStub{cookie: "server"}, CSRF: csrfStub{}, MaxRequestBytes: 4}.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusRequestEntityTooLarge)
+	}
+}
+
+func TestHandlerAndSessionStoreMutationFlow(t *testing.T) {
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Cookie") != "hydro_session=server" {
+			t.Fatalf("core cookie = %q", r.Header.Get("Cookie"))
+		}
+		if r.Header.Get("Origin") != "" || r.Header.Get("Authorization") != "" {
+			t.Fatal("browser boundary header crossed into Core")
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer core.Close()
+	origin, _ := url.Parse(core.URL)
+	store, err := bffsession.New(bffsession.Config{CookieName: "bff_sid", TTL: time.Minute, MaxEntries: 4, Secure: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookieRecorder := httptest.NewRecorder()
+	csrf, err := store.Create(cookieRecorder, "hydro_session=server")
+	if err != nil {
+		t.Fatal(err)
+	}
+	setCookie := cookieRecorder.Header().Get("Set-Cookie")
+	cookiePair := setCookie[:strings.Index(setCookie, ";")]
+	request := httptest.NewRequest(http.MethodPost, "https://frontend.example/api/v1/member/commerce/cart/items", bytes.NewBufferString(`{"product_id":"p1"}`))
+	request.Header.Set("Cookie", cookiePair)
+	request.Header.Set("Origin", "https://frontend.example")
+	request.Header.Set("X-CSRF-Token", csrf)
+	recorder := httptest.NewRecorder()
+	Handler{CoreOrigin: origin, Sessions: store, CSRF: store}.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
 }
