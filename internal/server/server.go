@@ -12,6 +12,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -37,6 +38,7 @@ type Config struct {
 	HTTPBodyLimit    int64
 	PublicOrigin     string
 	PublicAPIOrigins []string
+	TenantResolver   *tenant.HostResolver
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -137,6 +139,9 @@ func NewHandler(config Config) http.Handler {
 		panic(err)
 	}
 	handler = hostMiddleware(handler)
+	if config.TenantResolver != nil && config.TenantResolver.Enabled() {
+		handler = config.TenantResolver.Middleware(handler)
+	}
 	publicCORS, err := security.NewPublicReadCORSMiddleware(config.PublicAPIOrigins)
 	if err != nil {
 		panic(err)

@@ -194,6 +194,9 @@ reports and a published support matrix.
   The optimizer now restores tenant scope from namespaced keys before derivative
   metadata writes (ADR-0167/R104); provider-backed derivatives and worker
   isolation tests remain open.
+  An operator-owned host map now establishes tenant scope before route handling
+  and fails closed on unknown hosts when tenancy is enabled (ADR-0168/R105);
+  DNS/TLS, custom domains and provisioning drills remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

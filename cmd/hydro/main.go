@@ -67,6 +67,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/sdkdist"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -999,6 +1000,19 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("admin extensions: %w", err)
 	}
+	var tenantResolver *tenant.HostResolver
+	if cfg.Tenancy.Enabled {
+		hostScopes := make(map[string]tenant.Scope, len(cfg.Tenancy.Hosts))
+		for host, tenantID := range cfg.Tenancy.Hosts {
+			scope, scopeErr := tenant.NewScope(tenantID, tenantID)
+			if scopeErr != nil {
+				return fmt.Errorf("tenancy host %q: %w", host, scopeErr)
+			}
+			hostScopes[host] = scope
+		}
+		resolver := tenant.NewHostResolver(hostScopes, cfg.Tenancy.RequireHost)
+		tenantResolver = &resolver
+	}
 	if _, err := validateRuntimeLicense(cfg, stderr); err != nil {
 		return err
 	}
@@ -1616,6 +1630,7 @@ func serve(args []string, stderr io.Writer) error {
 		HTTPBodyLimit:    budget.HTTPBodyBytes,
 		PublicOrigin:     cfg.HTTP.PublicOrigin,
 		PublicAPIOrigins: cfg.Security.PublicAPIOrigins,
+		TenantResolver:   tenantResolver,
 		Routes:           routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
