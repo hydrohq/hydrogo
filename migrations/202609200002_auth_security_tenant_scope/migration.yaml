@@ -1,0 +1,25 @@
+id: "202609200002_auth_security_tenant_scope"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "3b8adac27a7ef252020a1d8b1c11cb74669cc3144cd582b258bebaa2f07fa3fa"
+  postgres: "3b8adac27a7ef252020a1d8b1c11cb74669cc3144cd582b258bebaa2f07fa3fa"
+dependencies:
+  - "202609200001_auth_identity_tenant_scope"
+schema:
+  readable_epoch: 6
+  writable_epoch: 6
+preconditions:
+  - "Auth identity tenant scope migration is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Four tenant discriminators and auth-security lookup indexes"
+compatibility: "Adds empty-namespace tenant discriminators; shared-mode invite, recovery and MFA stores require tenant scope."
+smoke:
+  - "Existing auth security records remain readable in the empty namespace until controlled backfill."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

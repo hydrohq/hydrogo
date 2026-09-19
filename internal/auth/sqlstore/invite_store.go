@@ -16,14 +16,41 @@ func (s *UserStore) CreateInvite(ctx context.Context, tx database.Executor, id, 
 	if err := requireAuthExecutor(tx); err != nil {
 		return err
 	}
-	query := `INSERT INTO auth_invites (id,email,role,token_hash,expires_at,created_at) VALUES ($1,$2,$3,$4,$5,$6)`
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	query := `INSERT INTO auth_invites (id,email,role,token_hash,expires_at,created_at`
 	args := []any{id, email, string(role), tokenHash, expiresAt, createdAt}
+	if s.RequireTenantScope {
+		query += `,tenant_id`
+		args = append(args, tenantID)
+	}
+	query += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			query += `,`
+		}
+		query += fmt.Sprintf("$%d", i+1)
+	}
+	query += `)`
 	if s.dialect == database.SQLite {
-		query = `INSERT INTO auth_invites (id,email,role,token_hash,expires_at,created_at) VALUES (?,?,?,?,?,?)`
+		query = `INSERT INTO auth_invites (id,email,role,token_hash,expires_at,created_at`
 		args[4] = expiresAt.Format(time.RFC3339Nano)
 		args[5] = createdAt.Format(time.RFC3339Nano)
+		if s.RequireTenantScope {
+			query += `,tenant_id`
+		}
+		query += `) VALUES (`
+		for i := range args {
+			if i > 0 {
+				query += `,`
+			}
+			query += `?`
+		}
+		query += `)`
 	}
-	_, err := tx.ExecContext(ctx, query, args...)
+	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -34,11 +61,22 @@ func (s *UserStore) ConsumeInvite(ctx context.Context, tx database.Executor, tok
 	if err := requireAuthExecutor(tx); err != nil {
 		return "", "", err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return "", "", err
+	}
 	query := `SELECT email,role FROM auth_invites WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > $2`
 	args := []any{tokenHash, now}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $3`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `SELECT email,role FROM auth_invites WHERE token_hash = ? AND consumed_at IS NULL AND expires_at > ?`
 		args[1] = now.Format(time.RFC3339Nano)
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
 	}
 	var email, role string
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&email, &role); err != nil {
@@ -46,9 +84,16 @@ func (s *UserStore) ConsumeInvite(ctx context.Context, tx database.Executor, tok
 	}
 	update := `UPDATE auth_invites SET consumed_at = $1 WHERE token_hash = $2 AND consumed_at IS NULL`
 	updateArgs := []any{now, tokenHash}
+	if s.RequireTenantScope {
+		update += ` AND tenant_id = $3`
+		updateArgs = append(updateArgs, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		update = `UPDATE auth_invites SET consumed_at = ? WHERE token_hash = ? AND consumed_at IS NULL`
 		updateArgs[0] = now.Format(time.RFC3339Nano)
+		if s.RequireTenantScope {
+			update += ` AND tenant_id = ?`
+		}
 	}
 	result, err := tx.ExecContext(ctx, update, updateArgs...)
 	if err != nil {

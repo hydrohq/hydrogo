@@ -18,11 +18,23 @@ func (s *UserStore) UpdatePassword(ctx context.Context, tx database.Executor, us
 	if err := requireAuthExecutor(tx); err != nil {
 		return err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
 	query := `UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3`
 	args := []any{passwordHash, time.Now().UTC(), userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $4`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`
 		args = []any{passwordHash, time.Now().UTC().Format(time.RFC3339Nano), userID}
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+			args = append(args, tenantID)
+		}
 	}
 	result, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -45,13 +57,41 @@ func (s *UserStore) CreateRecoveryToken(ctx context.Context, tx database.Executo
 	if err := requireAuthExecutor(tx); err != nil {
 		return err
 	}
-	query := `INSERT INTO auth_recovery_tokens (id, user_id, purpose, token_hash, expires_at, created_at) VALUES ($1, $2, $3, $4, $5, $6)`
-	args := []any{id, userID, purpose, tokenHash, expiresAt, createdAt}
-	if s.dialect == database.SQLite {
-		query = `INSERT INTO auth_recovery_tokens (id, user_id, purpose, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)`
-		args = []any{id, userID, purpose, tokenHash, expiresAt.Format(time.RFC3339Nano), createdAt.Format(time.RFC3339Nano)}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
 	}
-	_, err := tx.ExecContext(ctx, query, args...)
+	query := `INSERT INTO auth_recovery_tokens (id, user_id, purpose, token_hash, expires_at, created_at`
+	args := []any{id, userID, purpose, tokenHash, expiresAt, createdAt}
+	if s.RequireTenantScope {
+		query += `, tenant_id`
+		args = append(args, tenantID)
+	}
+	query += `) VALUES (`
+	for i := range args {
+		if i > 0 {
+			query += `, `
+		}
+		query += fmt.Sprintf("$%d", i+1)
+	}
+	query += `)`
+	if s.dialect == database.SQLite {
+		query = `INSERT INTO auth_recovery_tokens (id, user_id, purpose, token_hash, expires_at, created_at`
+		args = []any{id, userID, purpose, tokenHash, expiresAt.Format(time.RFC3339Nano), createdAt.Format(time.RFC3339Nano)}
+		if s.RequireTenantScope {
+			query += `, tenant_id`
+			args = append(args, tenantID)
+		}
+		query += `) VALUES (`
+		for i := range args {
+			if i > 0 {
+				query += `, `
+			}
+			query += `?`
+		}
+		query += `)`
+	}
+	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -62,26 +102,48 @@ func (s *UserStore) ConsumeRecoveryToken(ctx context.Context, tx database.Execut
 	if err := requireAuthExecutor(tx); err != nil {
 		return "", err
 	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return "", err
+	}
 	query := `SELECT user_id FROM auth_recovery_tokens WHERE purpose = $1 AND token_hash = $2 AND consumed_at IS NULL AND expires_at > $3`
 	argNow := any(now)
+	args := []any{purpose, tokenHash, argNow}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $4`
+		args = append(args, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		query = `SELECT user_id FROM auth_recovery_tokens WHERE purpose = ? AND token_hash = ? AND consumed_at IS NULL AND expires_at > ?`
 		argNow = now.Format(time.RFC3339Nano)
+		args = []any{purpose, tokenHash, argNow}
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+			args = append(args, tenantID)
+		}
 	}
 	var userID string
-	if err := tx.QueryRowContext(ctx, query, purpose, tokenHash, argNow).Scan(&userID); err != nil {
+	if err := tx.QueryRowContext(ctx, query, args...).Scan(&userID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", auth.ErrRecoveryTokenInvalid
 		}
 		return "", err
 	}
 	update := `UPDATE auth_recovery_tokens SET consumed_at = $1 WHERE purpose = $2 AND token_hash = $3 AND consumed_at IS NULL`
-	args := []any{now, purpose, tokenHash}
+	updateArgs := []any{now, purpose, tokenHash}
+	if s.RequireTenantScope {
+		update += ` AND tenant_id = $4`
+		updateArgs = append(updateArgs, tenantID)
+	}
 	if s.dialect == database.SQLite {
 		update = `UPDATE auth_recovery_tokens SET consumed_at = ? WHERE purpose = ? AND token_hash = ? AND consumed_at IS NULL`
-		args = []any{now.Format(time.RFC3339Nano), purpose, tokenHash}
+		updateArgs = []any{now.Format(time.RFC3339Nano), purpose, tokenHash}
+		if s.RequireTenantScope {
+			update += ` AND tenant_id = ?`
+			updateArgs = append(updateArgs, tenantID)
+		}
 	}
-	result, err := tx.ExecContext(ctx, update, args...)
+	result, err := tx.ExecContext(ctx, update, updateArgs...)
 	if err != nil {
 		return "", err
 	}

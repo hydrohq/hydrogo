@@ -228,6 +228,9 @@ reports and a published support matrix.
   Admin users and browser sessions now enforce the resolved tenant in shared
   mode (ADR-0178/R115); invites, recovery, MFA and password mutation paths
   remain open.
+  Invite, password-recovery and MFA stores now enforce the resolved tenant in
+  shared mode (ADR-0179/R116); provisioning, backfill and PostgreSQL RLS remain
+  open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
