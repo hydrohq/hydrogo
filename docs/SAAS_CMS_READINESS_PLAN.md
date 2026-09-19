@@ -107,7 +107,8 @@ fixture, and dated mobile threat-model report.
   (R68/R75/R79/R82); the Redis/Valkey shared adapter is covered by R84, while
   provider key/TLS/failover certification and staging E2E are still required;
   `bffproxy.AuthHandler` now consumes the common `SessionStore` boundary so the
-  shared adapter is selectable without changing browser-facing routes.
+  shared adapter is selectable without changing browser-facing routes, and its
+  login path accepts a deployment-owned abuse limiter.
 - [ ] Prove public CORS allowlists, cross-origin mutation rejection, preview
   confidentiality, SEO metadata, sitemap, locale and media behavior end to end.
 - [ ] Run frontend-to-API contract compatibility checks in both old/new API order.
