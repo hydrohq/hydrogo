@@ -1036,6 +1036,7 @@ func serve(args []string, stderr io.Writer) error {
 		return err
 	}
 	defer db.Close()
+	transactioner := database.NewTenantTransactor(db, cfg.Database.Dialect, requireTenantScope)
 
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
@@ -1060,7 +1061,7 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		return security.NewAttemptLimiter(10000, limit, window)
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: database.NewTransactor(db), LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -1088,7 +1089,7 @@ func serve(args []string, stderr io.Writer) error {
 		return fmt.Errorf("configure redis page cache: %w", err)
 	}
 	contentService := pageservice.ContentService{
-		Transactions: database.NewTransactor(db),
+		Transactions: transactioner,
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
@@ -1148,7 +1149,7 @@ func serve(args []string, stderr io.Writer) error {
 				return fmt.Errorf("configure media object storage: %w", err)
 			}
 		}
-		mediaService = media.Service{Transactions: database.NewTransactor(db), Uploader: uploader, BlobStore: blobStore, Assets: mediaStore, Optimizer: mediaOptimizer}
+		mediaService = media.Service{Transactions: transactioner, Uploader: uploader, BlobStore: blobStore, Assets: mediaStore, Optimizer: mediaOptimizer}
 		go func() { <-ctx.Done(); mediaOptimizer.Close() }()
 	}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
@@ -1157,7 +1158,7 @@ func serve(args []string, stderr io.Writer) error {
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
 	if modules["site"] {
-		siteService = site.Service{Transactions: database.NewTransactor(db), Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
+		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
 		if modules["forms"] {
 			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		}
@@ -1181,7 +1182,7 @@ func serve(args []string, stderr io.Writer) error {
 	var newsWorker newsservice.Worker
 	if moduleEnabled(cfg.Modules, "news") {
 		newsStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-		newsService = newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
+		newsService = newsservice.Service{Transactions: transactioner, Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
 			if user := auth.UserFromContext(ctx); user != nil {
 				return string(user.Role)
 			}
@@ -1505,9 +1506,9 @@ func serve(args []string, stderr io.Writer) error {
 	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))})
 	if moduleEnabled(cfg.Modules, "commerce") {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
+		commerceService := commerce.Service{Transactions: transactioner, Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
 		go runCommerceReservationReleaser(ctx, commerceService, 15*time.Minute, stderr)
-		commerceCatalog := commerce.CatalogService{Transactions: database.NewTransactor(db), Store: commerceStore, Variants: commerceStore}
+		commerceCatalog := commerce.CatalogService{Transactions: transactioner, Store: commerceStore, Variants: commerceStore}
 		graphqlHTTP.Catalog = commerceCatalog
 		graphqlHTTP.Commerce = true
 		providers := make(map[string]commerce.PaymentProvider)
@@ -1520,13 +1521,13 @@ func serve(args []string, stderr io.Writer) error {
 		if cfg.Payments.PayTRMerchantKey != "" {
 			providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency, BaseURL: cfg.Payments.PayTRBaseURL, SuccessURL: cfg.Payments.PayTRSuccessURL, FailURL: cfg.Payments.PayTRFailURL}
 		}
-		paymentService := commerce.PaymentService{Transactions: database.NewTransactor(db), Store: commerceStore, Providers: providers}
+		paymentService := commerce.PaymentService{Transactions: transactioner, Store: commerceStore, Providers: providers}
 		commerceCollection, ok := studioRegistry.Collection("commerce")
 		if !ok {
 			return errors.New("commerce admin studio metadata missing")
 		}
 		commerceCollection.Fields = append(commerceCollection.Fields, adminstudio.Field{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"})
-		commerceHTTP := commercetransport.Handler{DB: db, Media: mediaService, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: database.NewTransactor(db), Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies, DefaultLocale: cfg.I18N.DefaultLocale,
+		commerceHTTP := commercetransport.Handler{DB: db, Media: mediaService, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: transactioner, Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies, DefaultLocale: cfg.I18N.DefaultLocale,
 			ResolveMemberID: func(r *http.Request) (string, bool) {
 				cookie, err := r.Cookie(members.SessionCookieName)
 				if err != nil || strings.TrimSpace(cookie.Value) == "" {
@@ -2559,7 +2560,7 @@ func adminControlRoutePatterns(enabled map[string]bool) []string {
 func newAuditRecorder(db *sql.DB, dialect database.Dialect, requireTenantScope bool) auth.AuditRecorder {
 	store := auditstore.Store{Dialect: dialect, RequireTenantScope: requireTenantScope}
 	return auth.AuditRecorderFunc(func(ctx context.Context, action, targetID string) error {
-		return database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		return database.NewTenantTransactor(db, dialect, requireTenantScope).Within(ctx, func(tx database.Executor) error {
 			return store.Record(ctx, tx, newAuditID(), action, targetID)
 		})
 	})

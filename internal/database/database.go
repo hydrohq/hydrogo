@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
@@ -32,7 +34,9 @@ type Executor interface {
 }
 
 type Transactor struct {
-	db *sql.DB
+	db                 *sql.DB
+	dialect            Dialect
+	requireTenantScope bool
 }
 
 var ErrDatabaseRequired = errors.New("database is required")
@@ -67,6 +71,15 @@ func NewTransactor(db *sql.DB) Transactor {
 	return Transactor{db: db}
 }
 
+// NewTenantTransactor binds the request/job tenant to PostgreSQL's
+// transaction-local RLS settings. SQLite keeps the same explicit scope
+// contract in repositories but does not execute PostgreSQL session settings.
+// When requireTenantScope is false, PostgreSQL is explicitly put in
+// single-tenant mode for the transaction.
+func NewTenantTransactor(db *sql.DB, dialect Dialect, requireTenantScope bool) Transactor {
+	return Transactor{db: db, dialect: dialect, requireTenantScope: requireTenantScope}
+}
+
 func (t Transactor) Within(ctx context.Context, fn func(Executor) error) error {
 	if t.db == nil {
 		return ErrDatabaseRequired
@@ -80,6 +93,19 @@ func (t Transactor) Within(ctx context.Context, fn func(Executor) error) error {
 		return err
 	}
 	defer tx.Rollback()
+	if t.dialect == Postgres {
+		if t.requireTenantScope {
+			scope, scopeErr := tenant.Require(ctx)
+			if scopeErr != nil {
+				return scopeErr
+			}
+			if err := tenant.BindPostgresTransaction(ctx, tx, scope); err != nil {
+				return err
+			}
+		} else if err := tenant.BindPostgresSingleTenantTransaction(ctx, tx); err != nil {
+			return err
+		}
+	}
 
 	if err := fn(tx); err != nil {
 		return err
