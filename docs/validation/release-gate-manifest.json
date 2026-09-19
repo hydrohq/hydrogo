@@ -186,6 +186,10 @@
         {
           "path": "R115-tenant-scoped-admin-identity-sessions-2026-09-20.md",
           "command": "go test ./internal/auth/sqlstore ./internal/auth ./cmd/hydro -count=1"
+        },
+        {
+          "path": "R116-tenant-scoped-auth-security-2026-09-20.md",
+          "command": "go test ./internal/auth/sqlstore ./internal/auth ./cmd/hydro -count=1"
         }
       ]
     },
