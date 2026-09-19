@@ -1070,7 +1070,7 @@ func serve(args []string, stderr io.Writer) error {
 		memberService = members.Service{Members: memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
 	}
 	if modules["members"] {
-		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}, DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
+		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}, DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})

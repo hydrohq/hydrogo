@@ -178,6 +178,10 @@
         {
           "path": "R113-tenant-scoped-form-registry-2026-09-19.md",
           "command": "go test ./internal/forms/sqlstore ./modules/site/... ./cmd/hydro -count=1"
+        },
+        {
+          "path": "R114-tenant-scoped-member-mobile-sessions-2026-09-19.md",
+          "command": "go test ./modules/members/... ./cmd/hydro -count=1"
         }
       ]
     },
