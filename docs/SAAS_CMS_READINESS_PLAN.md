@@ -61,7 +61,8 @@ and a clean issue list categorized as code, environment, legal, or product decis
   and concurrent-refresh coverage is now present as conditional contract tests
   (`tests/contract/*mobile*_contract_test.go`) and requires a configured DSN to
   produce environment evidence. Login and MFA rate-limit plus audit assertions
-  are present; member audit-event certification remains open.
+  are present, including member login/refresh/revoke audit assertions; real
+  production sink delivery and retention certification remain open.
 - [x] Publish OpenAPI endpoints and error schemas; add pagination, idempotency and
   deprecation behavior for every mobile resource. Staff and consumer/member
   authentication surfaces are now published and baseline-checked; business
