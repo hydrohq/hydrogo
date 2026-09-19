@@ -40,3 +40,8 @@ The host must still add CSP/frame policy, lifecycle/rollback and a versioned
 postMessage protocol before enabling customer-provided manifests in a production
 tenant. Private signing keys remain in the release environment; a key embedded
 in a customer manifest is never trusted by itself.
+
+The versioned message envelope is `extension/v1.AdminMessage`. The host must
+pin `postMessage` `targetOrigin` to the manifest's exact HTTPS origin, reject
+`*`, send only the bounded `AdminBootstrapPayload`, and never include cookies,
+bearer tokens or raw database data in a payload.

@@ -98,6 +98,10 @@
         {
           "path": "R93-admin-extension-signatures-2026-09-19.md",
           "command": "go test ./extension/v1 -run TestSignedAdminExtensionManifest -count=1"
+        },
+        {
+          "path": "R94-admin-extension-message-contract-2026-09-19.md",
+          "command": "go test ./extension/v1 -run TestAdminMessageContract -count=1"
         }
       ]
     },

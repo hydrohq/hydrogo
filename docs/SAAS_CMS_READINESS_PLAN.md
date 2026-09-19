@@ -141,7 +141,8 @@ not templates, synthetic assertions or `main` as a commit identifier.
   Admin customization now has a versioned declarative external-surface contract
   (`extension/v1.AdminExtensionManifest`, ADR-0157/R92); signed rollout, iframe
   policy and marketplace lifecycle remain open. Ed25519 manifest verification
-  against operator-configured key IDs is now covered by R93.
+  against operator-configured key IDs is now covered by R93; the bounded,
+  versioned host/extension message envelope is covered by R94.
 - [ ] Finish editorial taxonomy, lifecycle, moderation, search, accessibility,
   locale and data-portability acceptance criteria for each sold bundle.
 - [ ] Treat payments, analytics, OIDC/SAML and provider integrations as separately
