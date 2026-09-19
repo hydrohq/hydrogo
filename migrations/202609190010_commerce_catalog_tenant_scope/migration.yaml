@@ -1,0 +1,25 @@
+id: "202609190010_commerce_catalog_tenant_scope"
+module: "commerce"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "0722aaede8a383612d604203e3e6d7e1bc34e08cf158495da2a61444fe4ef1a7"
+  postgres: "0722aaede8a383612d604203e3e6d7e1bc34e08cf158495da2a61444fe4ef1a7"
+dependencies:
+  - "202609110002_commerce_product_media"
+schema:
+  readable_epoch: 7
+  writable_epoch: 7
+preconditions:
+  - "Commerce products and variants migrations are applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Two tenant discriminators and catalog lookup indexes"
+compatibility: "Adds empty-namespace tenant discriminators; shared mode writes and reads are scoped by validated request context."
+smoke:
+  - "Existing catalog rows remain readable in the empty namespace until an explicit backfill."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

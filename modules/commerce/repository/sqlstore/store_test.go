@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
 
@@ -142,6 +143,46 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	prod2, err := store.GetProduct(context.Background(), db, "p1")
 	if err != nil || prod2.Title != "Updated Bottle" || prod2.PriceCents != 1500 {
 		t.Fatalf("get updated product = %#v, %v", prod2, err)
+	}
+}
+
+func TestSQLiteCatalogTenantScope(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, "file:commerce-tenant-catalog?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, statement := range []string{
+		`CREATE TABLE commerce_products (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sku TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', media_id TEXT NOT NULL DEFAULT '', price_cents INTEGER NOT NULL, currency TEXT NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE commerce_product_variants (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, product_id TEXT NOT NULL, sku TEXT NOT NULL, title TEXT NOT NULL, price_cents INTEGER NOT NULL, stock INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, statement := range []string{
+		`INSERT INTO commerce_products (id,tenant_id,sku,title,description,media_id,price_cents,currency,stock,status,created_at,updated_at) VALUES ('a','tenant-a','A','Alpha','','',100,'TRY',2,'published','now','now')`,
+		`INSERT INTO commerce_products (id,tenant_id,sku,title,description,media_id,price_cents,currency,stock,status,created_at,updated_at) VALUES ('b','tenant-b','B','Beta','','',100,'TRY',2,'published','now','now')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
+	ctx := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "tenant-a", Slug: "a"})
+	products, err := store.ListProductsPage(ctx, db, false, 10, 0)
+	if err != nil || len(products) != 1 || products[0].ID != "a" {
+		t.Fatalf("tenant catalog = %#v, %v", products, err)
+	}
+	if _, err := store.GetProduct(context.Background(), db, "a"); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing scope error = %v", err)
+	}
+	if err := store.CreateProduct(ctx, db, commerce.Product{ID: "c", SKU: "C", Title: "Gamma", Currency: "TRY", Status: "published"}); err != nil {
+		t.Fatal(err)
+	}
+	var gotTenant string
+	if err := db.QueryRow(`SELECT tenant_id FROM commerce_products WHERE id='c'`).Scan(&gotTenant); err != nil || gotTenant != "tenant-a" {
+		t.Fatalf("created tenant = %q, %v", gotTenant, err)
 	}
 }
 

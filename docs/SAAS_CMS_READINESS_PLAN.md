@@ -213,6 +213,9 @@ reports and a published support matrix.
   Member and member-session stores now require tenant scope in shared mode
   (ADR-0173/R110); mobile device sessions, auth identity stores and tenant
   onboarding remain open.
+  Commerce products and variants now require tenant scope for catalog reads,
+  writes and stock reservation (ADR-0174/R111); orders, carts, payments and
+  customer-order readers remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

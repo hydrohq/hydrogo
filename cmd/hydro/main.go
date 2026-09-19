@@ -1502,7 +1502,7 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))})
 	if moduleEnabled(cfg.Modules, "commerce") {
-		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
+		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
 		go runCommerceReservationReleaser(ctx, commerceService, 15*time.Minute, stderr)
 		commerceCatalog := commerce.CatalogService{Transactions: database.NewTransactor(db), Store: commerceStore, Variants: commerceStore}
