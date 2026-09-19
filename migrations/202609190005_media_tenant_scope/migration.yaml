@@ -1,0 +1,25 @@
+id: "202609190005_media_tenant_scope"
+module: "media"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "1e04d1dc7d1d636dfe55b30531055c4072fb53f1652bad8cdadf9e5f110aee47"
+  postgres: "1e04d1dc7d1d636dfe55b30531055c4072fb53f1652bad8cdadf9e5f110aee47"
+dependencies:
+  - "202609120001_media_variants"
+schema:
+  readable_epoch: 4
+  writable_epoch: 4
+preconditions:
+  - "Media variants migration is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Tenant discriminators and media lookup indexes"
+compatibility: "Adds default-empty tenant discriminators while preserving single-customer media rows"
+smoke:
+  - "Scoped media reads and state transitions cannot cross tenant identity"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

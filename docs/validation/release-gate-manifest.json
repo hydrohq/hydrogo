@@ -130,6 +130,10 @@
           {
             "path": "R101-tenant-scoped-audit-contract-2026-09-19.md",
             "command": "go test ./internal/audit/sqlstore ./internal/database ./internal/tenant -count=1"
+          },
+          {
+            "path": "R102-tenant-scoped-media-metadata-2026-09-19.md",
+            "command": "go test ./internal/media/... ./internal/database ./internal/tenant -count=1"
           }
       ]
     },

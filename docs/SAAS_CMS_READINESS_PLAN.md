@@ -185,6 +185,9 @@ reports and a published support matrix.
   Audit writes now carry the same tenant discriminator and fail-closed context
   boundary (ADR-0164/R101); tenant-aware audit queries, export/erasure and
   operator authorization remain open.
+  Media asset and derivative metadata now carry tenant discriminators and
+  fail-closed scoped reads/transitions (ADR-0165/R102); object-store namespace,
+  signed URL authorization and tenant backfill remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
