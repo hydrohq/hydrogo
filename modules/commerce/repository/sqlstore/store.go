@@ -126,12 +126,24 @@ func (s Store) ListOrdersByUserID(ctx context.Context, db database.Executor, use
 }
 
 func (s Store) GetOrderByUserID(ctx context.Context, db database.Executor, userID, orderID string) (commerce.Order, error) {
-	order, err := s.GetOrder(ctx, db, orderID)
-	if err != nil {
+	if err := database.RequireExecutor(db); err != nil {
 		return commerce.Order{}, err
 	}
-	if strings.TrimSpace(userID) == "" || order.UserID != userID {
+	if strings.TrimSpace(userID) == "" || strings.TrimSpace(orderID) == "" {
 		return commerce.Order{}, sql.ErrNoRows
+	}
+	// Keep the member projection data-minimal: do not load immutable checkout
+	// contact/identity fields merely to discard them in CustomerOrderReader.
+	q := `SELECT id, user_id, currency, total_cents, payment_status, shipping_status FROM commerce_orders WHERE id = ` + s.placeholder(1) + ` AND user_id = ` + s.placeholder(2)
+	var order commerce.Order
+	if err := db.QueryRowContext(ctx, q, orderID, userID).Scan(&order.ID, &order.UserID, &order.Currency, &order.TotalCents, &order.PaymentStatus, &order.ShippingStatus); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return commerce.Order{}, sql.ErrNoRows
+		}
+		return commerce.Order{}, err
+	}
+	if err := s.loadItems(ctx, db, &order); err != nil {
+		return commerce.Order{}, err
 	}
 	return order, nil
 }
