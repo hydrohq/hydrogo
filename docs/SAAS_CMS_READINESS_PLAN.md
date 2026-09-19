@@ -35,8 +35,11 @@ is enabled only after the dedicated multi-tenant gates below pass.
 
 - [ ] Reconcile README, roadmap, ADR status and validation reports with actual
   implementation; remove unsupported production/SaaS claims.
-- [ ] Create a release gate manifest that fails when a claimed profile lacks
-  database, restore, proxy, capacity, or security evidence.
+- [x] Create a release gate manifest that fails when a claimed profile lacks
+  database, restore, proxy, capacity, or security evidence. The machine-readable
+  manifest and validator are `docs/validation/release-gate-manifest.json` and
+  `go run ./tools/releasegates`; the Standard profile remains explicitly a
+  candidate until the external gates are evidenced.
 - [x] Establish a versioned OpenAPI baseline and CI-compatible breaking-change
   check for staff mobile, consumer/member mobile-commerce and public content
   API surfaces. Admin mutation APIs still need their own published contract
@@ -44,7 +47,8 @@ is enabled only after the dedicated multi-tenant gates below pass.
 - [ ] Add a dependency/SBOM/vulnerability review cadence with recorded owners.
 
 **Exit evidence:** source-to-document traceability table, release gate command,
-and a clean issue list categorized as code, environment, legal, or product decision.
+`docs/validation/R66-release-gate-manifest-2026-09-19.md`, and a clean issue list
+categorized as code, environment, legal, or product decision.
 
 ## Phase 2 — Mobile API completion
 
