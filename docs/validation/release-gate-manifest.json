@@ -78,6 +78,10 @@
         {
           "path": "R88-headless-api-compatibility-matrix-2026-09-19.md",
           "command": "npm test (examples/headless-starter) + go run ./tools/openapidiff for four published baselines"
+        },
+        {
+          "path": "R89-ci-openapi-step-indentation-2026-09-19.md",
+          "command": "python -c \"import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))\" && go run ./tools/actionguard"
         }
       ]
     },
