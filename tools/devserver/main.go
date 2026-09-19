@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -331,7 +332,15 @@ func main() {
 		fatal(err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, proxyErr error) {
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, proxyErr error) {
+		deadline := time.Now().Add(4 * time.Second)
+		for time.Now().Before(deadline) {
+			if supervisor.waitForReady(150 * time.Millisecond) {
+				proxy.ServeHTTP(w, r)
+				return
+			}
+			time.Sleep(60 * time.Millisecond)
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 		w.Header().Set("Pragma", "no-cache")
@@ -349,6 +358,31 @@ func main() {
 		}
 		return nil
 	}
+
+	holdWhileRebuilding := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// If server is currently building, migrating or restarting, hold the request up to 12s so the browser seamlessly gets the freshly compiled page
+		deadline := time.Now().Add(12 * time.Second)
+		for time.Now().Before(deadline) {
+			snap := status.snapshot()
+			if snap.Phase == "ready" || snap.Phase == "error" {
+				break
+			}
+			time.Sleep(30 * time.Millisecond)
+		}
+
+		snap := status.snapshot()
+		if snap.Phase == "error" && snap.Error != "" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+			w.WriteHeader(http.StatusInternalServerError)
+			errorEscaped := template.HTMLEscapeString(snap.Error)
+			_, _ = io.WriteString(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HydroGo · Build Error</title><link rel="stylesheet" href="`+stylePath+`"><script src="`+clientPath+`"></script></head><body class="hydrogo-dev-body"><main class="hydrogo-dev-card hdev-error" style="max-width:720px;text-align:left"><div class="hdev-brand"><span>Hydro<b>Go</b> Dev Compiler</span></div><div class="hdev-badge" style="color:#ef4444;border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.1)">COMPILER ERROR</div><h2>Build Failed</h2><pre style="width:100%;overflow:auto;background:#05080f;color:#fca5a5;padding:14px;border-radius:10px;font-size:12px;border:1px solid rgba(255,255,255,0.1);max-height:400px">`+errorEscaped+`</pre><p style="margin-top:14px;font-size:12px;color:#94a3b8">Fix the error in your editor; the compiler will automatically reload when saved.</p></main></body></html>`)
+			return
+		}
+
+		proxy.ServeHTTP(w, r)
+	})
+
 	mux := http.NewServeMux()
 	mux.HandleFunc(statusPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -359,7 +393,7 @@ func main() {
 		mux.HandleFunc(clientPath, serveClient)
 		mux.HandleFunc(stylePath, serveStyles)
 	}
-	mux.Handle("/", proxy)
+	mux.Handle("/", holdWhileRebuilding)
 
 	go watch(ctx, root, *poll, func(change fileChange) {
 		if change.rebuild {
