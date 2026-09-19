@@ -235,6 +235,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0188](0188-blue-green-zero-downtime-migration-safety.md) | Blue/Green zero-downtime deployment & migration safety certification | Accepted |
 | [0189](0189-backup-restore-pitr-failover-isolation.md) | Backup, restore & point-in-time failover isolation certification | Accepted |
 | [0190](0190-capacity-profiles-concurrency-budgets.md) | Capacity profiles, concurrency budgets & RPO/RTO certification | Accepted |
+| [0191](0191-distributed-cache-session-failover.md) | Distributed cache & multi-instance session failover certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
