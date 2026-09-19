@@ -232,6 +232,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0185](0185-postgres-rls-contract-certification.md) | PostgreSQL tenant RLS contract isolation certification | Accepted |
 | [0186](0186-tenant-provisioning-and-backfill-cli.md) | Tenant provisioning and legacy data backfill CLI | Accepted |
 | [0187](0187-mobile-api-contract-and-transport-certification.md) | Mobile API contract and transport certification | Accepted |
+| [0188](0188-blue-green-zero-downtime-migration-safety.md) | Blue/Green zero-downtime deployment & migration safety certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
