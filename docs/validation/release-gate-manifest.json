@@ -74,6 +74,10 @@
         {
           "path": "R87-bff-login-abuse-boundary-2026-09-19.md",
           "command": "go test ./internal/security/bffproxy -run TestAuthHandlerLoginLimiterBlocksBeforeCore"
+        },
+        {
+          "path": "R88-headless-api-compatibility-matrix-2026-09-19.md",
+          "command": "npm test (examples/headless-starter) + go run ./tools/openapidiff for four published baselines"
         }
       ]
     },
