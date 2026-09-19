@@ -85,3 +85,44 @@ func TestPlanAndExecuteBackfill(t *testing.T) {
 		t.Errorf("expected at least 2 pages with tenant-migrated, got count=%d, err=%v", count, err)
 	}
 }
+
+func TestExecuteBackfillRollsBackOnNonMissingTableError(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test_backfill_rollback.db")
+	db, err := database.Open(ctx, database.SQLite, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.ExecContext(ctx, `INSERT INTO pages
+		(id, title, version, locale, slug, body, status, revision, publication_generation, tenant_id, created_at, updated_at)
+		VALUES ('rollback-page', 'Legacy', 1, 'en', 'rollback', 'body', 'draft', 1, 0, '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Keep the table present but remove its tenant_id column. This is a real
+	// schema error and must not be treated as an optional missing module.
+	if _, err := db.ExecContext(ctx, "DROP TABLE page_revisions"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "CREATE TABLE page_revisions (id TEXT PRIMARY KEY)"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := tenant.ExecuteBackfill(ctx, db, "sqlite", "tenant-rollback"); err == nil {
+		t.Fatal("expected backfill to fail on missing tenant_id column")
+	}
+
+	var tenantID string
+	if err := db.QueryRowContext(ctx, "SELECT tenant_id FROM pages WHERE id = 'rollback-page'").Scan(&tenantID); err != nil {
+		t.Fatal(err)
+	}
+	if tenantID != "" {
+		t.Fatalf("expected transaction rollback to preserve empty tenant_id, got %q", tenantID)
+	}
+}
