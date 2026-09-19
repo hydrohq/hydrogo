@@ -103,10 +103,14 @@
           "path": "R94-admin-extension-message-contract-2026-09-19.md",
           "command": "go test ./extension/v1 -run TestAdminMessageContract -count=1"
         },
-        {
-          "path": "R95-bounded-outbox-polling-2026-09-19.md",
-          "command": "go test ./internal/webhooks -run TestWorkerRun -count=1"
-        }
+          {
+            "path": "R95-bounded-outbox-polling-2026-09-19.md",
+            "command": "go test ./internal/webhooks -run TestWorkerRun -count=1"
+          },
+          {
+            "path": "R96-sqlite-external-write-cache-monitor-2026-09-19.md",
+            "command": "go test ./internal/cache -run TestSQLiteDataVersionMonitor -count=1"
+          }
       ]
     },
     {

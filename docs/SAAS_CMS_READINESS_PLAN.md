@@ -125,7 +125,10 @@ versioned frontend compatibility matrix.
 - [ ] Validate actual Docker/Compose or IaC deployment using PostgreSQL, Redis/
   Valkey, object storage, SMTP and a publicly trusted TLS certificate.
   The webhook worker now has a bounded adaptive polling lifecycle for SQLite and
-  PostgreSQL (ADR-0158/R95); real lock/throughput soak remains open.
+  PostgreSQL (ADR-0158/R95); real lock/throughput soak remains open. An opt-in
+  SQLite `data_version` cache safety net now detects writes from another
+  connection (ADR-0159/R96); dedicated-connection integration and soak evidence
+  remain open, so direct DB writes are still not a supported production API.
 - [ ] Run two-process blue/green deploy, rollback-after-write and retained-asset
   drills behind the selected reverse proxy.
 - [ ] Perform clean-target database-plus-media restores, session revocation,
