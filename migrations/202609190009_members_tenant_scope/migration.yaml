@@ -1,0 +1,25 @@
+id: "202609190009_members_tenant_scope"
+module: "members"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "2eb6212a489f919943564d806e433a396a7d73c416462aae643b1fec7e042445"
+  postgres: "2eb6212a489f919943564d806e433a396a7d73c416462aae643b1fec7e042445"
+dependencies:
+  - "202609190002_member_mobile_device_sessions"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "Members and member session tables are present"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Member tenant discriminators and lookup indexes"
+compatibility: "Adds default-empty tenant discriminators while preserving single-customer rows"
+smoke:
+  - "Scoped member and session reads cannot cross tenant identity"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

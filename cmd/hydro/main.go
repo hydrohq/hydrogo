@@ -1060,8 +1060,8 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: database.NewTransactor(db), LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
-	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect}
-	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect}
+	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect}
 	modules := enabledModuleSet(cfg.Modules)
 	var memberService members.Service

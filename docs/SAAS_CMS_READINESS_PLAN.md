@@ -210,6 +210,9 @@ reports and a published support matrix.
   Site settings, navigation, redirects and form inbox records now use tenant
   identity with composite keys where needed (ADR-0172/R109); auth/members,
   commerce and standalone forms workflows remain open.
+  Member and member-session stores now require tenant scope in shared mode
+  (ADR-0173/R110); mobile device sessions, auth identity stores and tenant
+  onboarding remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
