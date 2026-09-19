@@ -60,7 +60,11 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "E2E auth setup failed with exit code $LASTEXITCODE" }
         npm run generate
         if ($LASTEXITCODE -ne 0) { throw "E2E generation failed with exit code $LASTEXITCODE" }
-        npm test
+        if ($env:HYDRO_E2E_UPDATE_SNAPSHOTS -eq "1") {
+            npm test -- --update-snapshots
+        } else {
+            npm test
+        }
         if ($LASTEXITCODE -ne 0) { throw "Playwright E2E failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
     Write-Host "PASS: generated Admin Studio and frontend E2E completed"
