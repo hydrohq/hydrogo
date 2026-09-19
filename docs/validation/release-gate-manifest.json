@@ -54,6 +54,10 @@
         {
           "path": "R82-bff-auth-exchange-2026-09-19.md",
           "command": "go test ./internal/security/bffproxy"
+        },
+        {
+          "path": "R83-full-suite-after-bff-auth-2026-09-19.md",
+          "command": "go test ./... -p 1 -count=1 -timeout=5m"
         }
       ]
     },
