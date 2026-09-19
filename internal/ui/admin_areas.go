@@ -25,7 +25,44 @@ type AdminResourceUsageData struct {
 
 var adminResourceUsageTemplate = template.Must(template.New("admin-resource-usage").Parse(`<section class="resource-page" data-testid="resource-page">
 <div class="resource-banner"><div><span class="eyebrow">CANLI PROCESS GÖRÜNÜMÜ</span><h2>Sistem kaynakları</h2><p>Bu ekran yalnızca mevcut process'in ölçebildiği anlık değerleri gösterir. Tarihsel veri, host CPU yüzdesi ve disk telemetrisi bu uygulama tarafından uydurulmaz.</p></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span class="resource-status {{if .Snapshot.ReadinessState}}is-ready{{else}}is-waiting{{end}}"><i></i>{{if .Snapshot.ReadinessState}}Hazır{{else}}Hazırlanıyor{{end}}</span><a href="/admin/developer/resources" class="button button-quiet" style="font-size:.76rem;height:28px;min-height:28px;">Yenile ↻</a></div></div>
-<div class="resource-kpis"><div class="resource-kpi"><small>Heap kullanımı</small><strong>{{.HeapAlloc}}</strong><span>{{.HeapInUse}} kullanım alanı</span></div><div class="resource-kpi"><small>Goroutine</small><strong>{{.Snapshot.Goroutines}}</strong><span>{{.Snapshot.GOMAXPROCS}} paralel çalışma limiti</span></div><div class="resource-kpi"><small>İstek / gecikme</small><strong>{{.Snapshot.Requests}}</strong><span>Ortalama {{.Snapshot.AvgLatencyMS}} ms</span></div><div class="resource-kpi"><small>Uptime</small><strong>{{.Uptime}}</strong><span>Başlangıç: {{.StartedAt}}</span></div></div>
+<div class="resource-kpis">
+	<div class="resource-kpi">
+		<small>Heap kullanımı</small>
+		<strong>{{.HeapAlloc}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--brand)" d="M0 20 L0 14 Q25 6 50 12 T100 4 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--brand)" d="M0 14 Q25 6 50 12 T100 4"></path>
+		</svg>
+		<span>{{.HeapInUse}} kullanım alanı</span>
+	</div>
+	<div class="resource-kpi">
+		<small>Goroutine</small>
+		<strong>{{.Snapshot.Goroutines}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--green)" d="M0 20 L0 16 Q35 12 70 8 T100 2 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--green)" d="M0 16 Q35 12 70 8 T100 2"></path>
+		</svg>
+		<span>{{.Snapshot.GOMAXPROCS}} paralel çalışma limiti</span>
+	</div>
+	<div class="resource-kpi">
+		<small>İstek / gecikme</small>
+		<strong>{{.Snapshot.Requests}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--purple, #a855f7)" d="M0 20 L0 10 Q30 18 60 8 T100 4 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--purple, #a855f7)" d="M0 10 Q30 18 60 8 T100 4"></path>
+		</svg>
+		<span>Ortalama {{.Snapshot.AvgLatencyMS}} ms</span>
+	</div>
+	<div class="resource-kpi">
+		<small>Uptime</small>
+		<strong>{{.Uptime}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--brand)" d="M0 20 L0 15 Q40 10 70 12 T100 6 L100 20 Z"></path>
+			<path class="spark-line" stroke="var(--brand)" d="M0 15 Q40 10 70 12 T100 6"></path>
+		</svg>
+		<span>Başlangıç: {{.StartedAt}}</span>
+	</div>
+</div>
 <div class="resource-grid"><article class="studio-card"><div class="resource-card-title"><h3>Process belleği</h3><span class="resource-badge">runtime.ReadMemStats</span></div><dl class="resource-list"><dt>Heap alloc</dt><dd>{{.HeapAlloc}}</dd><dt>Heap in-use</dt><dd>{{.HeapInUse}}</dd><dt>Heap system</dt><dd>{{.HeapSys}}</dd><dt>Heap objects</dt><dd>{{.Snapshot.HeapObjects}}</dd></dl></article><article class="studio-card"><div class="resource-card-title"><h3>HTTP ve trafik</h3><span class="resource-badge">Process ömrü</span></div><dl class="resource-list"><dt>Toplam istek</dt><dd>{{.Snapshot.Requests}}</dd><dt>Aktif istek</dt><dd>{{.Snapshot.InFlight}}</dd><dt>Sayfa görüntüleme</dt><dd>{{.Snapshot.Views}}</dd><dt>4xx / 5xx hata</dt><dd>{{.Snapshot.Errors}}</dd><dt>Benzersiz ziyaretçi</dt><dd>{{.Snapshot.UniqueVisitors}}</dd></dl></article>{{if .Snapshot.HasDatabase}}<article class="studio-card"><div class="resource-card-title"><h3>Veritabanı havuzu</h3><span class="resource-badge">sql.DB</span></div><dl class="resource-list"><dt>Açık bağlantı</dt><dd>{{.Snapshot.Database.OpenConnections}} / {{.Snapshot.Database.MaxOpenConnections}}</dd><dt>Kullanımda</dt><dd>{{.Snapshot.Database.InUseConnections}}</dd><dt>Boşta</dt><dd>{{.Snapshot.Database.IdleConnections}}</dd><dt>Bekleme sayısı</dt><dd>{{.Snapshot.Database.WaitCount}}</dd></dl></article>{{end}}{{if .Snapshot.HasCache}}<article class="studio-card"><div class="resource-card-title"><h3>Cache</h3><span class="resource-badge">public content</span></div><dl class="resource-list"><dt>Hit / miss</dt><dd>{{.Snapshot.Cache.Hits}} / {{.Snapshot.Cache.Misses}}</dd><dt>Load / hata</dt><dd>{{.Snapshot.Cache.Loads}} / {{.Snapshot.Cache.LoadErrors}}</dd><dt>Eviction / expiry</dt><dd>{{.Snapshot.Cache.Evictions}} / {{.Snapshot.Cache.Expirations}}</dd></dl></article>{{end}}{{if .Snapshot.HasJobs}}<article class="studio-card"><div class="resource-card-title"><h3>Arka plan işleri</h3><span class="resource-badge">bounded queue</span></div><dl class="resource-list"><dt>Bekleyen / lease</dt><dd>{{.Snapshot.Jobs.Depth}} / {{.Snapshot.Jobs.Leased}}</dd><dt>Dead-letter</dt><dd>{{.Snapshot.Jobs.DeadLettered}}</dd><dt>Worker paralelliği</dt><dd>{{.Snapshot.WorkerConcurrency}}</dd><dt>İşlenen / başarısız</dt><dd>{{.Snapshot.WorkerProcessed}} / {{.Snapshot.WorkerFailures}}</dd></dl></article>{{end}}</div>
 <p class="resource-note">Başlangıç: {{.StartedAt}} · Readiness hataları: {{.Snapshot.ReadinessFails}} · Değerler süreç yeniden başladığında sıfırlanan process-local telemetridir.</p>
 </section>`))

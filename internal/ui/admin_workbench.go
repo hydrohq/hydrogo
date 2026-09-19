@@ -103,6 +103,10 @@ var adminWorkbenchDashboardTemplate = template.Must(template.New("admin-workbenc
 			<span class="wb-metric-tag is-live">Canlı</span>
 		</div>
 		<strong>{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--brand)" d="M0 24 L0 18 Q25 8 50 14 T100 6 L100 24 Z"></path>
+			<path class="spark-line" stroke="var(--brand)" d="M0 18 Q25 8 50 14 T100 6"></path>
+		</svg>
 		<div class="wb-metric-footer">
 			<span>Oturum trafiği</span>
 			<span class="trend-up">Aktif</span>
@@ -114,6 +118,10 @@ var adminWorkbenchDashboardTemplate = template.Must(template.New("admin-workbenc
 			<span class="wb-metric-tag">Genel</span>
 		</div>
 		<strong>{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--green)" d="M0 24 L0 16 Q30 20 60 10 T100 4 L100 24 Z"></path>
+			<path class="spark-line" stroke="var(--green)" d="M0 16 Q30 20 60 10 T100 4"></path>
+		</svg>
 		<div class="wb-metric-footer">
 			<span>Sayfa ve vitrin trafiği</span>
 			<span class="trend-neutral">Stabil</span>
@@ -125,6 +133,10 @@ var adminWorkbenchDashboardTemplate = template.Must(template.New("admin-workbenc
 			<span class="wb-metric-tag">Gecikme</span>
 		</div>
 		<strong>{{if .Metrics}}{{.Metrics.AverageLatencyMS}} ms{{else}}0 ms{{end}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--brand)" d="M0 24 L0 12 Q35 6 70 16 T100 8 L100 24 Z"></path>
+			<path class="spark-line" stroke="var(--brand)" d="M0 12 Q35 6 70 16 T100 8"></path>
+		</svg>
 		<div class="wb-metric-footer">
 			<span>Süreç içi yanıt süresi</span>
 			<span class="trend-up">Hızlı</span>
@@ -136,6 +148,10 @@ var adminWorkbenchDashboardTemplate = template.Must(template.New("admin-workbenc
 			<span class="wb-metric-tag is-live">Hesap</span>
 		</div>
 		<strong>{{.MemberStats.ActiveMembers}}</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 24" preserveAspectRatio="none">
+			<path class="spark-area" fill="var(--purple, #a855f7)" d="M0 24 L0 20 Q40 18 70 10 T100 4 L100 24 Z"></path>
+			<path class="spark-line" stroke="var(--purple, #a855f7)" d="M0 20 Q40 18 70 10 T100 4"></path>
+		</svg>
 		<div class="wb-metric-footer">
 			<span>Doğrulanmış: {{.MemberStats.VerifiedMembers}}</span>
 			<span class="trend-up">Aktif</span>
