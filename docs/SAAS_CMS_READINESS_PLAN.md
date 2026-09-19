@@ -156,7 +156,9 @@ reports and a published support matrix.
   The validated fail-closed `internal/tenant` scope primitive and tenant-prefixed
   cache-key helper are now available (ADR-0154/R85); end-to-end propagation is
   still open. L1/L2 caches now expose `GetOrLoadScoped` with the same
-  fail-closed prefixing boundary (ADR-0155/R90).
+  fail-closed prefixing boundary (ADR-0155/R90). PostgreSQL transactions now
+  have a parameterized transaction-local RLS binding primitive
+  (ADR-0156/R91); table policies and call-site propagation remain open.
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.
