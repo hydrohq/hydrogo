@@ -19,20 +19,28 @@ import (
 var localePattern = regexp.MustCompile(`^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?$`)
 
 type Config struct {
-	Profile  capacity.Profile `yaml:"profile"`
-	Modules  []string         `yaml:"modules"`
-	HTTP     HTTP             `yaml:"http"`
-	Database Database         `yaml:"database"`
-	Media    Media            `yaml:"media"`
-	ThemeDir string           `yaml:"theme_dir"`
-	Theme    string           `yaml:"theme"`
-	I18N     I18N             `yaml:"i18n"`
-	Security Security         `yaml:"security"`
-	Mail     Mail             `yaml:"mail"`
-	Redis    Redis            `yaml:"redis"`
-	License  License          `yaml:"license"`
-	Webhooks []Webhook        `yaml:"webhooks"`
-	Payments Payments         `yaml:"-"`
+	Profile         capacity.Profile `yaml:"profile"`
+	Modules         []string         `yaml:"modules"`
+	HTTP            HTTP             `yaml:"http"`
+	Database        Database         `yaml:"database"`
+	Media           Media            `yaml:"media"`
+	ThemeDir        string           `yaml:"theme_dir"`
+	Theme           string           `yaml:"theme"`
+	AdminExtensions AdminExtensions  `yaml:"admin_extensions"`
+	I18N            I18N             `yaml:"i18n"`
+	Security        Security         `yaml:"security"`
+	Mail            Mail             `yaml:"mail"`
+	Redis           Redis            `yaml:"redis"`
+	License         License          `yaml:"license"`
+	Webhooks        []Webhook        `yaml:"webhooks"`
+	Payments        Payments         `yaml:"-"`
+}
+
+// AdminExtensions configures signed, externally hosted Admin Studio surfaces.
+// Empty paths keep the feature disabled and impose no runtime overhead.
+type AdminExtensions struct {
+	ManifestDir     string `yaml:"manifest_dir"`
+	TrustedKeysFile string `yaml:"trusted_keys_file"`
 }
 
 type Webhook struct {
@@ -199,6 +207,12 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_THEME"); ok && value != "" {
 		result.Theme = value
+	}
+	if value, ok := lookup("HYDRO_ADMIN_EXTENSION_MANIFEST_DIR"); ok && value != "" {
+		result.AdminExtensions.ManifestDir = value
+	}
+	if value, ok := lookup("HYDRO_ADMIN_EXTENSION_TRUSTED_KEYS_FILE"); ok && value != "" {
+		result.AdminExtensions.TrustedKeysFile = value
 	}
 	if value, ok := lookup("HYDRO_I18N_ENABLED"); ok && value != "" {
 		enabled, err := strconv.ParseBool(value)

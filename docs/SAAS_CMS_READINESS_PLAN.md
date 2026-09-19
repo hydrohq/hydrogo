@@ -147,7 +147,10 @@ not templates, synthetic assertions or `main` as a commit identifier.
   (`extension/v1.AdminExtensionManifest`, ADR-0157/R92); signed rollout, iframe
   policy and marketplace lifecycle remain open. Ed25519 manifest verification
   against operator-configured key IDs is now covered by R93; the bounded,
-  versioned host/extension message envelope is covered by R94.
+  versioned host/extension message envelope is covered by R94. A signed runtime
+  loader, protected metadata endpoint and sandboxed iframe shell are now
+  available (ADR-0160/R97); key rotation, revocation and staging browser E2E
+  remain open.
 - [ ] Finish editorial taxonomy, lifecycle, moderation, search, accessibility,
   locale and data-portability acceptance criteria for each sold bundle.
 - [ ] Treat payments, analytics, OIDC/SAML and provider integrations as separately

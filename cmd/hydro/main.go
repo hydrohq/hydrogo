@@ -995,6 +995,10 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	extensionRegistry, err := adminstudio.LoadSignedAdminExtensions(cfg.AdminExtensions.ManifestDir, cfg.AdminExtensions.TrustedKeysFile)
+	if err != nil {
+		return fmt.Errorf("admin extensions: %w", err)
+	}
 	if _, err := validateRuntimeLicense(cfg, stderr); err != nil {
 		return err
 	}
@@ -1234,6 +1238,24 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(adminstudio.E2EManifestForCollections(activeStudioCollections()))
+	})})
+	routes = append(routes, router.Route{Pattern: "GET /admin/extensions/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(extensionRegistry.Manifests())
+	})})
+	routes = append(routes, router.Route{Pattern: "GET /admin/extensions/{extension_id}/{surface_id}", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		extensionRegistry.ServeExtensionSurface(w, r, r.PathValue("extension_id"), r.PathValue("surface_id"), cfg.I18N.DefaultLocale)
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/admin")
