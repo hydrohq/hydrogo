@@ -1,0 +1,15 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HydroGo Consumer Mobile API",
+    "version": "1.0.0",
+    "description": "Bearer-token authentication surface for consumer/member applications. It is separate from staff mobile authentication and browser sessions."
+  },
+  "servers": [{ "url": "/" }],
+  "paths": {
+    "/api/v1/mobile/member/auth/login": { "post": { "operationId": "memberMobileLogin", "responses": { "200": {}, "400": {}, "401": {}, "429": {}, "503": {} } } },
+    "/api/v1/mobile/member/auth/refresh": { "post": { "operationId": "memberMobileRefresh", "responses": { "200": {}, "400": {}, "401": {}, "503": {} } } },
+    "/api/v1/mobile/member/auth/revoke": { "post": { "operationId": "revokeMemberMobileDevice", "responses": { "204": {}, "401": {}, "503": {} } } },
+    "/api/v1/mobile/member/auth/revoke-all": { "post": { "operationId": "revokeAllMemberMobileDevices", "responses": { "204": {}, "401": {}, "503": {} } } }
+  }
+}
