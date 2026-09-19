@@ -1001,14 +1001,23 @@ func serve(args []string, stderr io.Writer) error {
 		return fmt.Errorf("admin extensions: %w", err)
 	}
 	var tenantResolver *tenant.HostResolver
+	var tenantScopes []tenant.Scope
+	requireTenantScope := cfg.Tenancy.Enabled
 	if cfg.Tenancy.Enabled {
 		hostScopes := make(map[string]tenant.Scope, len(cfg.Tenancy.Hosts))
-		for host, tenantID := range cfg.Tenancy.Hosts {
+		hostNames := make([]string, 0, len(cfg.Tenancy.Hosts))
+		for host := range cfg.Tenancy.Hosts {
+			hostNames = append(hostNames, host)
+		}
+		sort.Strings(hostNames)
+		for _, host := range hostNames {
+			tenantID := cfg.Tenancy.Hosts[host]
 			scope, scopeErr := tenant.NewScope(tenantID, tenantID)
 			if scopeErr != nil {
 				return fmt.Errorf("tenancy host %q: %w", host, scopeErr)
 			}
 			hostScopes[host] = scope
+			tenantScopes = append(tenantScopes, scope)
 		}
 		resolver := tenant.NewHostResolver(hostScopes, cfg.Tenancy.RequireHost)
 		tenantResolver = &resolver
@@ -1049,8 +1058,8 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		return security.NewAttemptLimiter(10000, limit, window)
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: database.NewTransactor(db), LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
-	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect)}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: database.NewTransactor(db), LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
+	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect}
@@ -1061,7 +1070,7 @@ func serve(args []string, stderr io.Writer) error {
 		memberService = members.Service{Members: memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
 	}
 	if modules["members"] {
-		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect}}, DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
+		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect}}, DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
@@ -1079,8 +1088,8 @@ func serve(args []string, stderr io.Writer) error {
 	contentService := pageservice.ContentService{
 		Transactions: database.NewTransactor(db),
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect},
-		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect},
-		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect},
+		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
+		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		PublicCache:  publicPageCache,
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
@@ -1122,7 +1131,7 @@ func serve(args []string, stderr io.Writer) error {
 			return fmt.Errorf("load theme %q: %w", cfg.Theme, err)
 		}
 	}
-	mediaStore := mediastore.Store{Dialect: cfg.Database.Dialect}
+	mediaStore := mediastore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	var mediaService media.Service
 	if modules["media"] {
 		uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
@@ -1146,7 +1155,7 @@ func serve(args []string, stderr io.Writer) error {
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
 	if modules["site"] {
-		siteService = site.Service{Transactions: database.NewTransactor(db), Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}}
+		siteService = site.Service{Transactions: database.NewTransactor(db), Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
 		if modules["forms"] {
 			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
 		}
@@ -1170,7 +1179,7 @@ func serve(args []string, stderr io.Writer) error {
 	var newsWorker newsservice.Worker
 	if moduleEnabled(cfg.Modules, "news") {
 		newsStore := newsstore.Store{Dialect: cfg.Database.Dialect}
-		newsService = newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}, WorkflowRole: func(ctx context.Context) string {
+		newsService = newsservice.Service{Transactions: database.NewTransactor(db), Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
 			if user := auth.UserFromContext(ctx); user != nil {
 				return string(user.Role)
 			}
@@ -1493,7 +1502,7 @@ func serve(args []string, stderr io.Writer) error {
 	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))})
 	if moduleEnabled(cfg.Modules, "commerce") {
 		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect}
-		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect}}
+		commerceService := commerce.Service{Transactions: database.NewTransactor(db), Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
 		go runCommerceReservationReleaser(ctx, commerceService, 15*time.Minute, stderr)
 		commerceCatalog := commerce.CatalogService{Transactions: database.NewTransactor(db), Store: commerceStore, Variants: commerceStore}
 		graphqlHTTP.Catalog = commerceCatalog
@@ -1612,7 +1621,7 @@ func serve(args []string, stderr io.Writer) error {
 		webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
 	}
 	if modules["pages"] || modules["news"] || modules["commerce"] {
-		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect}, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
+		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
 	}
 	logWriter := stderr
 	if logWriter == nil {
@@ -2544,8 +2553,8 @@ func adminControlRoutePatterns(enabled map[string]bool) []string {
 	return patterns
 }
 
-func newAuditRecorder(db *sql.DB, dialect database.Dialect) auth.AuditRecorder {
-	store := auditstore.Store{Dialect: dialect}
+func newAuditRecorder(db *sql.DB, dialect database.Dialect, requireTenantScope bool) auth.AuditRecorder {
+	store := auditstore.Store{Dialect: dialect, RequireTenantScope: requireTenantScope}
 	return auth.AuditRecorderFunc(func(ctx context.Context, action, targetID string) error {
 		return database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
 			return store.Record(ctx, tx, newAuditID(), action, targetID)
