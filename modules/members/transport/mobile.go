@@ -62,6 +62,7 @@ func (h Handler) mobileLogin(w http.ResponseWriter, r *http.Request) {
 		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
 		return
 	}
+	h.recordMobileAudit(r, "member_mobile_auth.login", member.ID)
 	writeMemberMobileJSON(w, http.StatusOK, pair)
 }
 
@@ -88,6 +89,7 @@ func (h Handler) mobileRefresh(w http.ResponseWriter, r *http.Request) {
 		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
 		return
 	}
+	h.recordMobileAudit(r, "member_mobile_auth.refresh", "")
 	writeMemberMobileJSON(w, http.StatusOK, pair)
 }
 
@@ -100,6 +102,7 @@ func (h Handler) mobileRevoke(w http.ResponseWriter, r *http.Request) {
 		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
 		return
 	}
+	h.recordMobileAudit(r, "member_mobile_auth.device_revoked", memberID)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -112,7 +115,14 @@ func (h Handler) mobileRevokeAll(w http.ResponseWriter, r *http.Request) {
 		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
 		return
 	}
+	h.recordMobileAudit(r, "member_mobile_auth.all_devices_revoked", memberID)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) recordMobileAudit(r *http.Request, action, targetID string) {
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), action, targetID)
+	}
 }
 
 func (h Handler) memberMobilePrincipal(w http.ResponseWriter, r *http.Request) (string, string, bool) {

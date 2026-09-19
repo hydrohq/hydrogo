@@ -21,6 +21,13 @@ import (
 
 type mobileOrderReaderStub struct{}
 
+type memberMobileAuditStub struct{ actions []string }
+
+func (a *memberMobileAuditStub) Record(_ context.Context, action, _ string) error {
+	a.actions = append(a.actions, action)
+	return nil
+}
+
 func (mobileOrderReaderStub) ListOrdersByUserID(context.Context, database.Executor, string, int) ([]customerorders.Order, error) {
 	return []customerorders.Order{{ID: "order-1"}}, nil
 }
@@ -47,11 +54,13 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	store := newMemoryMemberStore()
 	store.members["member-http"] = &members.Member{ID: "member-http", Email: "reader@example.test", PasswordHash: hash, Active: true}
 	store.byEmail["reader@example.test"] = store.members["member-http"]
+	audit := &memberMobileAuditStub{}
 	handler := transport.Handler{
 		Service: members.Service{Members: store, Sessions: newMemorySessionStore(), ArgonParams: auth.DefaultArgon2Params},
 		Mobile:  &members.MobileAuthService{DB: db, Dialect: database.SQLite},
 		Orders:  mobileOrderReaderStub{},
 		DB:      db,
+		Audit:   audit,
 	}
 	mux := http.NewServeMux()
 	for _, route := range handler.Routes() {
@@ -75,6 +84,9 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	}
 	if pair.AccessToken == "" || pair.RefreshToken == "" {
 		t.Fatal("mobile login returned incomplete token pair")
+	}
+	if len(audit.actions) != 1 || audit.actions[0] != "member_mobile_auth.login" {
+		t.Fatalf("login audit actions = %#v", audit.actions)
 	}
 
 	refreshBody, _ := json.Marshal(map[string]string{"refresh_token": pair.RefreshToken})
@@ -106,6 +118,9 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	mux.ServeHTTP(revokeResponse, revoke)
 	if revokeResponse.Code != http.StatusNoContent {
 		t.Fatalf("revoke status = %d, body = %s", revokeResponse.Code, revokeResponse.Body.String())
+	}
+	if len(audit.actions) < 3 || audit.actions[len(audit.actions)-1] != "member_mobile_auth.device_revoked" {
+		t.Fatalf("revoke audit actions = %#v", audit.actions)
 	}
 	unauthorized := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/revoke-all", nil)
 	unauthorized.Header.Set("Authorization", "Bearer "+rotated.AccessToken)

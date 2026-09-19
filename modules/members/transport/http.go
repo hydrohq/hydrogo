@@ -26,6 +26,7 @@ type Handler struct {
 	Mobile        *members.MobileAuthService
 	Secure        bool
 	Limiter       interface{ Allow(string) bool }
+	Audit         auth.AuditRecorder
 	Orders        customerorders.Reader
 	DB            database.Executor
 	DefaultLocale string
