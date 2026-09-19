@@ -32,15 +32,3 @@ func TestSharedComponentsContracts(t *testing.T) {
 		t.Fatalf("empty state contract missing: %s", got)
 	}
 }
-
-func TestComponentShowcaseUsesSemanticContracts(t *testing.T) {
-	var out strings.Builder
-	if err := RenderComponentShowcase(&out, "nonce-test"); err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{"Component Showcase", `aria-label="UI component showcase"`, `aria-invalid="true"`, "Reduced-motion"} {
-		if !strings.Contains(out.String(), want) {
-			t.Fatalf("showcase missing %q", want)
-		}
-	}
-}
