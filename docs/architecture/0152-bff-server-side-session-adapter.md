@@ -15,7 +15,9 @@ of the CSRF token, applies expiry and a maximum entry count, and supports
 explicit revoke. Unsafe BFF methods use the same store as a constant-time
 CSRF validator. The auth handler accepts a bounded form, calls only Core's
 login/logout endpoints server-to-server, and never forwards Core `Set-Cookie`
-to the browser.
+to the browser. Deployments may inject a `LoginLimiter` into the exchange;
+when configured, it rate-limits a normalized account/IP key before any Core
+request and returns a generic 429 response.
 
 The in-memory adapter is intentionally not a shared production session service.
 A multi-instance BFF can select the shared `RedisStore` implementation behind

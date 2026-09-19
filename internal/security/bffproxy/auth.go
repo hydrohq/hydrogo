@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -18,6 +19,12 @@ var (
 	ErrAuthUnavailable   = errors.New("bff authentication upstream unavailable")
 )
 
+// LoginLimiter is an optional deployment-owned abuse boundary. Implementations
+// should fail closed when their shared backend is unavailable.
+type LoginLimiter interface {
+	Allow(key string) bool
+}
+
 // AuthHandler is the deployment-owned login/logout exchange for the BFF
 // reference topology. It intentionally exposes only a CSRF token and generic
 // auth result to the browser; Core's session cookie remains server-side.
@@ -27,6 +34,7 @@ type AuthHandler struct {
 	Store          bffsession.SessionStore
 	CoreCookieName string
 	MaxBodyBytes   int64
+	LoginLimiter   LoginLimiter
 }
 
 func (h AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +60,11 @@ func (h AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	form := url.Values{"email": {r.FormValue("email")}, "password": {r.FormValue("password")}}
+	if h.LoginLimiter != nil && !h.LoginLimiter.Allow(loginLimitKey(r, form.Get("email"))) {
+		w.Header().Set("Retry-After", "60")
+		http.Error(w, "too many login attempts", http.StatusTooManyRequests)
+		return
+	}
 	if mfa := strings.TrimSpace(r.FormValue("mfa_code")); mfa != "" {
 		form.Set("mfa_code", mfa)
 	}
@@ -76,6 +89,17 @@ func (h AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeAuthJSON(w, http.StatusOK, map[string]any{"authenticated": true, "csrf_token": csrf})
+}
+
+func loginLimitKey(r *http.Request, email string) string {
+	remote := "unknown"
+	if r != nil {
+		remote = strings.TrimSpace(r.RemoteAddr)
+		if host, _, err := net.SplitHostPort(remote); err == nil {
+			remote = host
+		}
+	}
+	return strings.ToLower(strings.TrimSpace(email)) + "\x00" + remote
 }
 
 func (h AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {

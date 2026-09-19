@@ -70,6 +70,10 @@
         {
           "path": "R86-bff-shared-session-selection-2026-09-19.md",
           "command": "go test ./internal/security/bffsession ./internal/security/bffproxy"
+        },
+        {
+          "path": "R87-bff-login-abuse-boundary-2026-09-19.md",
+          "command": "go test ./internal/security/bffproxy -run TestAuthHandlerLoginLimiterBlocksBeforeCore"
         }
       ]
     },

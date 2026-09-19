@@ -13,6 +13,16 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security/bffsession"
 )
 
+type loginLimiterStub struct {
+	allow bool
+	keys  []string
+}
+
+func (l *loginLimiterStub) Allow(key string) bool {
+	l.keys = append(l.keys, key)
+	return l.allow
+}
+
 func TestAuthHandlerLoginAndLogoutExchange(t *testing.T) {
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/auth/login" {
@@ -88,5 +98,36 @@ func TestAuthHandlerRejectsMissingCoreCookie(t *testing.T) {
 	(AuthHandler{CoreOrigin: origin, Store: store}).Login(response, request)
 	if response.Code != http.StatusBadGateway {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusBadGateway)
+	}
+}
+
+func TestAuthHandlerLoginLimiterBlocksBeforeCore(t *testing.T) {
+	coreCalls := 0
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		coreCalls++
+		http.SetCookie(w, &http.Cookie{Name: "hydro_session", Value: "should-not-be-reached"})
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer core.Close()
+	origin, _ := url.Parse(core.URL)
+	store, err := bffsession.New(bffsession.Config{CookieName: "bff_sid", TTL: time.Minute, MaxEntries: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	limiter := &loginLimiterStub{}
+	handler := AuthHandler{CoreOrigin: origin, Store: store, LoginLimiter: limiter}
+	request := httptest.NewRequest(http.MethodPost, "https://frontend.example/login", strings.NewReader("email=Reader%40Example.test&password=secret"))
+	request.RemoteAddr = "203.0.113.9:43122"
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response := httptest.NewRecorder()
+	handler.Login(response, request)
+	if response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") != "60" {
+		t.Fatalf("status=%d retry-after=%q", response.Code, response.Header().Get("Retry-After"))
+	}
+	if coreCalls != 0 {
+		t.Fatalf("core calls = %d, want 0", coreCalls)
+	}
+	if len(limiter.keys) != 1 || limiter.keys[0] != "reader@example.test\x00203.0.113.9" {
+		t.Fatalf("limiter key = %#v", limiter.keys)
 	}
 }
