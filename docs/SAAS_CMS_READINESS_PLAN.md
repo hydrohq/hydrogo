@@ -112,6 +112,10 @@ fixture, and dated mobile threat-model report.
 - [ ] Prove public CORS allowlists, cross-origin mutation rejection, preview
   confidentiality, SEO metadata, sitemap, locale and media behavior end to end.
 - [ ] Run frontend-to-API contract compatibility checks in both old/new API order.
+  The current compatibility matrix is exercised for staff mobile, member mobile,
+  member commerce and public content (R88), and the headless TypeScript client
+  passes its contract smoke; old-server/new-client staging compatibility remains
+  open.
 
 **Exit evidence:** ADR-0020/0021 acceptance tests, browser E2E in staging, and a
 versioned frontend compatibility matrix.
