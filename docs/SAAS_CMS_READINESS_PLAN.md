@@ -155,7 +155,8 @@ reports and a published support matrix.
   cache, jobs/outbox, media, audit, export/restore and authorization boundaries.
   The validated fail-closed `internal/tenant` scope primitive and tenant-prefixed
   cache-key helper are now available (ADR-0154/R85); end-to-end propagation is
-  still open.
+  still open. L1/L2 caches now expose `GetOrLoadScoped` with the same
+  fail-closed prefixing boundary (ADR-0155/R90).
 - [ ] Enforce fail-closed tenant scope and PostgreSQL RLS defense in depth.
 - [ ] Implement tenant provisioning, suspension, deletion, quotas, billing events,
   super-admin auditing and per-tenant key/data lifecycle.

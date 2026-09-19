@@ -1,11 +1,14 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 func TestCacheCoalescesConcurrentLoads(t *testing.T) {
@@ -286,5 +289,31 @@ func TestCacheLoaderPanicDoesNotBlockCoalescedWaiters(t *testing.T) {
 func TestWithGenerationAcceptsNilContext(t *testing.T) {
 	if generation, ok := GenerationFromContext(WithGeneration(nil, 7)); !ok || generation != 7 {
 		t.Fatalf("generation from nil context = %d/%v", generation, ok)
+	}
+}
+
+func TestLocalCacheScopedRequiresTenantAndSeparatesValues(t *testing.T) {
+	cache := New[string](8, time.Minute)
+	scopeA, err := tenant.NewScope("tenant-a", "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scopeB, err := tenant.NewScope("tenant-b", "beta")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctxA := tenant.WithScope(context.Background(), scopeA)
+	ctxB := tenant.WithScope(context.Background(), scopeB)
+	if value, err := cache.GetOrLoadScoped(ctxA, "pages", "home", func() (string, error) { return "alpha-home", nil }); err != nil || value != "alpha-home" {
+		t.Fatalf("tenant A load = %q/%v", value, err)
+	}
+	if value, err := cache.GetOrLoadScoped(ctxB, "pages", "home", func() (string, error) { return "beta-home", nil }); err != nil || value != "beta-home" {
+		t.Fatalf("tenant B load = %q/%v", value, err)
+	}
+	if value, err := cache.GetOrLoadScoped(ctxA, "pages", "home", func() (string, error) { return "wrong", nil }); err != nil || value != "alpha-home" {
+		t.Fatalf("tenant A cache hit = %q/%v", value, err)
+	}
+	if _, err := cache.GetOrLoadScoped(context.Background(), "pages", "home", func() (string, error) { return "wrong", nil }); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing scope error = %v", err)
 	}
 }

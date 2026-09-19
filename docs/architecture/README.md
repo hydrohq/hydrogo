@@ -199,6 +199,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0152](0152-bff-server-side-session-adapter.md) | BFF server-side session adapter | Accepted (bounded single-instance reference) |
 | [0153](0153-bff-shared-session-backend.md) | BFF shared Redis/Valkey session backend | Accepted (provider certification open) |
 | [0154](0154-tenant-scope-primitive.md) | Explicit tenant scope primitive | Accepted (foundation only; shared mode disabled) |
+| [0155](0155-tenant-scoped-cache-api.md) | Tenant-scoped cache API | Accepted (opt-in foundation; shared mode disabled) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |

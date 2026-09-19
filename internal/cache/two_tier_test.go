@@ -1,11 +1,14 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 type fakeRemote struct {
@@ -123,5 +126,23 @@ func TestTwoTierFailsClosedWhenUnavailable(t *testing.T) {
 	zeroCache := TwoTier[string]{}
 	if _, err := zeroCache.GetOrLoad("key", func() (string, error) { return "value", nil }); !errors.Is(err, ErrTwoTierUnavailable) {
 		t.Fatalf("zero-value two-tier cache = %v, want %v", err, ErrTwoTierUnavailable)
+	}
+}
+
+func TestTwoTierScopedRequiresTenant(t *testing.T) {
+	cache, err := NewTwoTier(New[string](4, time.Minute), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, err := tenant.NewScope("tenant-a", "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := cache.GetOrLoadScoped(tenant.WithScope(context.Background(), scope), "pages", "home", func() (string, error) { return "home", nil })
+	if err != nil || value != "home" {
+		t.Fatalf("scoped load = %q/%v", value, err)
+	}
+	if _, err := cache.GetOrLoadScoped(context.Background(), "pages", "home", func() (string, error) { return "bad", nil }); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing scope error = %v", err)
 	}
 }
