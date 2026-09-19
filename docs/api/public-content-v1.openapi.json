@@ -1,0 +1,42 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "HydroGo Public Content API", "version": "1.0.0", "description": "Unauthenticated published Pages and News projections for headless frontends." },
+  "servers": [{ "url": "/" }],
+  "paths": {
+    "/api/v1/pages": {
+      "get": {
+        "operationId": "listPublishedPages",
+        "parameters": [{ "name": "locale", "in": "query", "required": false }, { "name": "limit", "in": "query", "required": false }],
+        "responses": { "200": { "description": "Published page summaries." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "503": { "$ref": "#/components/responses/Unavailable" } }
+      }
+    },
+    "/api/v1/pages/by-slug": {
+      "get": {
+        "operationId": "getPublishedPageBySlug",
+        "parameters": [{ "name": "locale", "in": "query", "required": true }, { "name": "slug", "in": "query", "required": true }],
+        "responses": { "200": { "description": "Published page." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/api/v1/news": {
+      "get": {
+        "operationId": "listPublishedNews",
+        "parameters": [{ "name": "locale", "in": "query", "required": false }, { "name": "limit", "in": "query", "required": false }],
+        "responses": { "200": { "description": "Published news summaries." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "503": { "$ref": "#/components/responses/Unavailable" } }
+      }
+    },
+    "/api/v1/news/by-slug": {
+      "get": {
+        "operationId": "getPublishedNewsBySlug",
+        "parameters": [{ "name": "locale", "in": "query", "required": true }, { "name": "slug", "in": "query", "required": true }],
+        "responses": { "200": { "description": "Published news item." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "InvalidRequest": { "description": "Invalid request." },
+      "NotFound": { "description": "Published resource not found." },
+      "Unavailable": { "description": "Content is temporarily unavailable." }
+    }
+  }
+}

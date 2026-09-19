@@ -1,0 +1,10 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "HydroGo Public Content API", "version": "1.0.0" },
+  "paths": {
+    "/api/v1/pages": { "get": { "parameters": [{ "name": "locale", "in": "query", "required": false }, { "name": "limit", "in": "query", "required": false }], "responses": { "200": {}, "400": {}, "503": {} } } },
+    "/api/v1/pages/by-slug": { "get": { "parameters": [{ "name": "locale", "in": "query", "required": true }, { "name": "slug", "in": "query", "required": true }], "responses": { "200": {}, "400": {}, "404": {} } } },
+    "/api/v1/news": { "get": { "parameters": [{ "name": "locale", "in": "query", "required": false }, { "name": "limit", "in": "query", "required": false }], "responses": { "200": {}, "400": {}, "503": {} } } },
+    "/api/v1/news/by-slug": { "get": { "parameters": [{ "name": "locale", "in": "query", "required": true }, { "name": "slug", "in": "query", "required": true }], "responses": { "200": {}, "400": {}, "404": {} } } }
+  }
+}
