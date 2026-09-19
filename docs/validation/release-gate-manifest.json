@@ -134,6 +134,10 @@
           {
             "path": "R102-tenant-scoped-media-metadata-2026-09-19.md",
             "command": "go test ./internal/media/... ./internal/database ./internal/tenant -count=1"
+          },
+          {
+            "path": "R103-tenant-object-storage-namespace-2026-09-19.md",
+            "command": "go test ./internal/media ./internal/media/sqlstore -count=1"
           }
       ]
     },

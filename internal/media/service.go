@@ -86,9 +86,13 @@ func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) 
 	if err != nil {
 		return nil, err
 	}
+	storageKey, err := StorageKeyForContext(ctx, filepath.Base(result.StoragePath))
+	if err != nil {
+		return nil, err
+	}
 	asset := Asset{
 		ID:               result.ID,
-		StorageKey:       filepath.Base(result.StoragePath),
+		StorageKey:       storageKey,
 		OriginalFilename: result.Filename,
 		MimeType:         result.MimeType,
 		SizeBytes:        result.SizeBytes,
@@ -106,7 +110,7 @@ func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) 
 			return nil, openErr
 		}
 		defer file.Close()
-		if err := s.BlobStore.Put(ctx, filepath.Base(result.StoragePath), file, result.SizeBytes, result.MimeType); err != nil {
+		if err := s.BlobStore.Put(ctx, storageKey, file, result.SizeBytes, result.MimeType); err != nil {
 			return nil, err
 		}
 	}
