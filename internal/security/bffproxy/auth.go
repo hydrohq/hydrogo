@@ -24,7 +24,7 @@ var (
 type AuthHandler struct {
 	CoreOrigin     *url.URL
 	Client         *http.Client
-	Store          *bffsession.Store
+	Store          bffsession.SessionStore
 	CoreCookieName string
 	MaxBodyBytes   int64
 }
@@ -70,7 +70,7 @@ func (h AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "authentication unavailable", http.StatusBadGateway)
 		return
 	}
-	csrf, err := h.Store.Create(w, coreCookie)
+	csrf, err := h.Store.Create(r.Context(), w, coreCookie)
 	if err != nil {
 		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
 		return
@@ -104,7 +104,7 @@ func (h AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	h.Store.Revoke(w, r)
+	h.Store.Revoke(r.Context(), w, r)
 	if upstreamErr != nil {
 		http.Error(w, "authentication unavailable", http.StatusBadGateway)
 		return

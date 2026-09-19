@@ -6,9 +6,10 @@
 
 ## Decision
 
-HydroGo provides `internal/security/bffsession.Store` as a bounded reference
-adapter for a single BFF instance and `internal/security/bffproxy.AuthHandler`
-as its login/logout exchange. The store creates a random opaque browser
+HydroGo provides `internal/security/bffsession.SessionStore` as the common
+session boundary, with `Store` as the bounded single-instance reference
+implementation and `internal/security/bffproxy.AuthHandler` as its
+login/logout exchange. The store creates a random opaque browser
 cookie, keeps the Core session cookie only on the server, stores only a hash
 of the CSRF token, applies expiry and a maximum entry count, and supports
 explicit revoke. Unsafe BFF methods use the same store as a constant-time
@@ -16,10 +17,10 @@ CSRF validator. The auth handler accepts a bounded form, calls only Core's
 login/logout endpoints server-to-server, and never forwards Core `Set-Cookie`
 to the browser.
 
-The adapter is intentionally not a shared production session service. A
-multi-instance BFF must replace it with a shared, encrypted-at-rest/session-
-keyed implementation with eviction, failover, key rotation and privacy
-retention evidence. `Secure=true` and an explicit SameSite policy are required
+The in-memory adapter is intentionally not a shared production session service.
+A multi-instance BFF can select the shared `RedisStore` implementation behind
+the same boundary, but still requires encrypted-at-rest/session-keyed storage,
+eviction, failover, key rotation and privacy retention evidence. `Secure=true` and an explicit SameSite policy are required
 for production browser cookies; local HTTP fixtures may opt into `Secure=false`.
 
 ## Consequences

@@ -119,7 +119,7 @@ func TestHandlerAndSessionStoreMutationFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	cookieRecorder := httptest.NewRecorder()
-	csrf, err := store.Create(cookieRecorder, "hydro_session=server")
+	csrf, err := store.Create(context.Background(), cookieRecorder, "hydro_session=server")
 	if err != nil {
 		t.Fatal(err)
 	}

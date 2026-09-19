@@ -45,6 +45,18 @@ type Store struct {
 	now      func() time.Time
 }
 
+// SessionStore is the common BFF session boundary. Implementations may be
+// process-local or shared (for example Redis/Valkey), but callers always pass
+// the request context so shared stores can enforce bounded I/O.
+type SessionStore interface {
+	Create(ctx context.Context, w http.ResponseWriter, coreCookie string) (string, error)
+	CoreCookie(ctx context.Context, r *http.Request) (string, error)
+	Validate(ctx context.Context, r *http.Request) error
+	Revoke(ctx context.Context, w http.ResponseWriter, r *http.Request)
+}
+
+var _ SessionStore = (*Store)(nil)
+
 // New validates the explicit cookie/security policy. Secure=false is allowed
 // only for local HTTP fixtures; production callers should require Secure=true.
 func New(config Config) (*Store, error) {
@@ -77,7 +89,7 @@ func validCookieName(name string) bool {
 // Create stores a server-side Core cookie and sends a BFF-only cookie to the
 // browser. The returned CSRF token must be rendered into the BFF frontend's
 // protected form/bootstrap response; it is never sent to Core automatically.
-func (s *Store) Create(w http.ResponseWriter, coreCookie string) (string, error) {
+func (s *Store) Create(_ context.Context, w http.ResponseWriter, coreCookie string) (string, error) {
 	if s == nil || strings.TrimSpace(coreCookie) == "" {
 		return "", ErrUnauthenticated
 	}
@@ -133,7 +145,7 @@ func (s *Store) Validate(_ context.Context, r *http.Request) error {
 	return nil
 }
 
-func (s *Store) Revoke(w http.ResponseWriter, r *http.Request) {
+func (s *Store) Revoke(_ context.Context, w http.ResponseWriter, r *http.Request) {
 	if s == nil || r == nil {
 		return
 	}

@@ -40,6 +40,8 @@ type RedisStore struct {
 	config RedisConfig
 }
 
+var _ SessionStore = (*RedisStore)(nil)
+
 type redisRecord struct {
 	CoreCookie string            `json:"core_cookie"`
 	CSRFHash   [sha256.Size]byte `json:"csrf_hash"`
