@@ -1070,6 +1070,31 @@ func serve(args []string, stderr io.Writer) error {
 		PublicCache:  publicPageCache,
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
+	var sqliteCacheConn *sql.Conn
+	if cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && publicPageCache != nil {
+		sqliteCacheConn, err = db.Conn(ctx)
+		if err != nil {
+			return fmt.Errorf("open sqlite cache monitor connection: %w", err)
+		}
+		defer sqliteCacheConn.Close()
+		monitor := cache.NewSQLiteDataVersionMonitor(db)
+		monitor.ReadVersion = func(readCtx context.Context) (int64, error) {
+			var version int64
+			err := sqliteCacheConn.QueryRowContext(readCtx, "PRAGMA data_version").Scan(&version)
+			return version, err
+		}
+		monitor.OnChange = publicPageCache.Clear
+		monitor.OnError = func(monitorErr error) {
+			if stderr != nil {
+				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor: %v\n", monitorErr)
+			}
+		}
+		go func() {
+			if monitorErr := monitor.Run(ctx); monitorErr != nil && ctx.Err() == nil && stderr != nil {
+				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor stopped: %v\n", monitorErr)
+			}
+		}()
+	}
 	var selectedTheme *themev1.ThemeBundle
 	themeName := cfg.Theme
 	if themeName == "" {

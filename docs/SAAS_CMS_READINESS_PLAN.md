@@ -129,6 +129,9 @@ versioned frontend compatibility matrix.
   SQLite `data_version` cache safety net now detects writes from another
   connection (ADR-0159/R96); dedicated-connection integration and soak evidence
   remain open, so direct DB writes are still not a supported production API.
+  An explicit `HYDRO_SQLITE_EXTERNAL_WRITE_WATCH=true` switch now binds that
+  monitor to the page cache through a dedicated SQLite connection
+  (ADR-0161/R98); external-writer and lock/throughput evidence remain open.
 - [ ] Run two-process blue/green deploy, rollback-after-write and retained-asset
   drills behind the selected reverse proxy.
 - [ ] Perform clean-target database-plus-media restores, session revocation,

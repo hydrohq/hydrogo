@@ -56,8 +56,9 @@ type HTTP struct {
 }
 
 type Database struct {
-	Dialect database.Dialect `yaml:"dialect"`
-	DSN     string           `yaml:"dsn"`
+	Dialect                  database.Dialect `yaml:"dialect"`
+	DSN                      string           `yaml:"dsn"`
+	SQLiteExternalWriteWatch bool             `yaml:"sqlite_external_write_watch"`
 }
 
 type Media struct {
@@ -349,6 +350,13 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if value, ok := lookup("HYDRO_DATABASE_DSN"); ok && value != "" {
 		dsnSources++
 		result.Database.DSN = value
+	}
+	if value, ok := lookup("HYDRO_SQLITE_EXTERNAL_WRITE_WATCH"); ok && value != "" {
+		watch, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_SQLITE_EXTERNAL_WRITE_WATCH: %w", err)
+		}
+		result.Database.SQLiteExternalWriteWatch = watch
 	}
 	if overrides.DatabaseDSN != nil && *overrides.DatabaseDSN != "" {
 		dsnSources++
