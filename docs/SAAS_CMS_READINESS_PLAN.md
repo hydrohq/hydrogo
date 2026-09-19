@@ -38,8 +38,9 @@ is enabled only after the dedicated multi-tenant gates below pass.
 - [ ] Create a release gate manifest that fails when a claimed profile lacks
   database, restore, proxy, capacity, or security evidence.
 - [x] Establish a versioned OpenAPI baseline and CI-compatible breaking-change
-  check for the staff mobile API. Other published API surfaces still need their
-  own baselines before a general API compatibility claim is made.
+  check for staff mobile, consumer/member mobile-commerce and public content
+  API surfaces. Admin mutation APIs still need their own published contract
+  before a general API compatibility claim is made.
 - [ ] Add a dependency/SBOM/vulnerability review cadence with recorded owners.
 
 **Exit evidence:** source-to-document traceability table, release gate command,
