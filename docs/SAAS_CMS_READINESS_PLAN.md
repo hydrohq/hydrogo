@@ -65,8 +65,9 @@ and a clean issue list categorized as code, environment, legal, or product decis
   authentication surfaces are now published and baseline-checked; business
   catalog, cart and member order-history projections are now published and
   baseline-checked; payment intent/confirmation resources remain open.
-- [x] Add a minimal iOS/Android-neutral client contract fixture covering login,
-  refresh, logout, offline retry and token loss.
+- [x] Add platform-neutral iOS/Android client contract fixtures for staff and
+  consumer/member audiences, covering login, refresh, logout, offline retry,
+  token loss and member cart/order scope.
 - [ ] Run threat-model, abuse and device-loss drills with real deployment settings.
 
 **Exit evidence:** ADR-0139 release gates, two dialects, authenticated E2E API
