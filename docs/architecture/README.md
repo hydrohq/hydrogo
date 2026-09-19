@@ -225,6 +225,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0178](0178-tenant-scoped-admin-identity-and-sessions.md) | Tenant-scoped admin identity and sessions | Accepted (users/session boundary; invites/recovery/MFA open) |
 | [0179](0179-tenant-scoped-auth-security-tokens.md) | Tenant-scoped auth security tokens and MFA | Accepted (invite/recovery/MFA boundary; provisioning/RLS open) |
 | [0180](0180-postgres-tenant-rls-enforcement.md) | PostgreSQL tenant RLS enforcement at transaction boundaries | Accepted (defense-in-depth phase; direct pool call-site audit open) |
+| [0181](0181-auth-identity-rls-call-sites.md) | Bind auth identity lookups to tenant transactions | Accepted (auth identity covered; remaining direct pool paths open) |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
 | [0145](0145-hydro-run-development-entrypoint.md) | `hydro run` development entrypoint; `hydro dev` compatibility alias | Accepted |
