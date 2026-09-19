@@ -54,6 +54,17 @@ const memberClient = createHydroGoClient({
 });
 const memberOrders = await memberClient.memberOrders("member-access", 1);
 assert.equal(memberOrders[0].id, "order-1");
+const memberDetailClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url, init) => {
+    assert.equal(url, "https://hydrogo.example/api/v1/mobile/member/orders/order-1");
+    assert.equal(init?.credentials, "omit");
+    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer member-access");
+    return new Response(JSON.stringify({ id: "order-1", currency: "TRY", total_cents: 1000, payment_status: "paid", shipping_status: "pending", items: [] }), { status: 200 });
+  },
+});
+assert.equal((await memberDetailClient.memberOrder("member-access", "order-1")).payment_status, "paid");
+await assert.rejects(() => memberDetailClient.memberOrder("", "order-1"), RangeError);
 await assert.rejects(() => memberClient.memberGetCart(""), RangeError);
 
 const registrationClient = createHydroGoClient({

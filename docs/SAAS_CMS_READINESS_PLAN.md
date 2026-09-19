@@ -75,7 +75,9 @@ categorized as code, environment, legal, or product decision.
   deprecation behavior for every mobile resource. Staff and consumer/member
   authentication surfaces are now published and baseline-checked; business
   catalog, cart and member order-history projections are now published and
-  baseline-checked; payment confirmation/webhook client resources remain open.
+  baseline-checked; member order detail/payment-status projection is now
+  published; provider webhook delivery remains a backend-only integration and
+  still requires provider sandbox evidence.
 - [x] Add platform-neutral iOS/Android client contract fixtures for staff and
   consumer/member audiences, covering login, refresh, logout, offline retry,
   token loss and member cart/order scope.

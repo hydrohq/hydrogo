@@ -61,6 +61,14 @@
         "responses": { "200": { "description": "Orders belonging to the authenticated member." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "503": { "$ref": "#/components/responses/Unavailable" } }
       }
     },
+    "/api/v1/mobile/member/orders/{orderID}": {
+      "get": {
+        "operationId": "getMemberOrder",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "orderID", "in": "path", "required": true, "schema": { "type": "string", "maxLength": 256 } }],
+        "responses": { "200": { "description": "A bounded order projection belonging to the authenticated member." }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "503": { "$ref": "#/components/responses/Unavailable" } }
+      }
+    },
     "/api/v1/mobile/member/commerce/orders/{orderID}/payment-intent": {
       "post": {
         "operationId": "createMemberPaymentIntent",

@@ -162,6 +162,11 @@ export class HydroGoClient {
     return response.orders;
   }
 
+  async memberOrder(accessToken: string, orderID: string, options?: HydroGoRequestOptions): Promise<MemberOrder> {
+    if (!orderID || orderID.length > 256) throw new RangeError("orderID is required and bounded");
+    return this.request<MemberOrder>(`/api/v1/mobile/member/orders/${encodeURIComponent(orderID)}`, { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
+  }
+
   async memberGetCart(accessToken: string, options?: HydroGoRequestOptions): Promise<Cart> {
     return this.request<Cart>("/api/v1/mobile/member/commerce/cart", { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
   }

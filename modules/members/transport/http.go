@@ -83,6 +83,7 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "GET /api/v1/mobile/member/auth/devices", Access: router.Public, Handler: http.HandlerFunc(h.mobileDevices)},
 		{Pattern: "GET /api/v1/mobile/member/me", Access: router.Public, Handler: http.HandlerFunc(h.mobileMe)},
 		{Pattern: "GET /api/v1/mobile/member/orders", Access: router.Public, Handler: http.HandlerFunc(h.mobileOrders)},
+		{Pattern: "GET /api/v1/mobile/member/orders/{orderID}", Access: router.Public, Handler: http.HandlerFunc(h.mobileOrder)},
 		{Pattern: "GET /member/login", Access: router.Public, Handler: http.HandlerFunc(h.loginPage)},
 		{Pattern: "GET /member/register", Access: router.Public, Handler: http.HandlerFunc(h.registerPage)},
 		{Pattern: "GET /member/account", Access: router.Public, Handler: http.HandlerFunc(h.accountPage)},
@@ -148,6 +149,29 @@ func (h Handler) mobileOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeMemberMobileJSON(w, http.StatusOK, map[string]any{"orders": orders, "limit": limit})
+}
+
+func (h Handler) mobileOrder(w http.ResponseWriter, r *http.Request) {
+	memberID, _, ok := h.memberMobilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	reader, ok := h.Orders.(customerorders.DetailReader)
+	if !ok || h.DB == nil {
+		writeMemberMobileError(w, http.StatusServiceUnavailable, "ORDERS_UNAVAILABLE", "Orders are temporarily unavailable.")
+		return
+	}
+	orderID := strings.TrimSpace(r.PathValue("orderID"))
+	if orderID == "" || len(orderID) > 256 {
+		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid order.")
+		return
+	}
+	order, err := reader.GetOrderByUserID(r.Context(), h.DB, memberID, orderID)
+	if err != nil {
+		writeMemberMobileError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Order not found.")
+		return
+	}
+	writeMemberMobileJSON(w, http.StatusOK, order)
 }
 
 func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {

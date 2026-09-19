@@ -90,6 +90,13 @@ func TestSQLiteVariantReservationAndOrderListing(t *testing.T) {
 	if err != nil || len(orders) != 1 || orders[0].UserID != "u1" {
 		t.Fatalf("list customer orders = %#v, %v", orders, err)
 	}
+	detail, err := store.GetOrderByUserID(context.Background(), db, "u1", "o1")
+	if err != nil || detail.ID != "o1" || len(detail.Items) != 1 {
+		t.Fatalf("get customer order = %#v, %v", detail, err)
+	}
+	if _, err := store.GetOrderByUserID(context.Background(), db, "other-user", "o1"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("cross-member order lookup = %v, want sql.ErrNoRows", err)
+	}
 	_, err = db.Exec(`INSERT INTO commerce_products (id, sku, title, description, media_id, price_cents, currency, stock, status, created_at, updated_at) VALUES ('p2','P2','Reserved','','',1000,'TRY',0,'published','now','now')`)
 	if err != nil {
 		t.Fatal(err)

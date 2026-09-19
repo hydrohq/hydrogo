@@ -33,6 +33,10 @@ func (mobileOrderReaderStub) ListOrdersByUserID(context.Context, database.Execut
 	return []customerorders.Order{{ID: "order-1"}}, nil
 }
 
+func (mobileOrderReaderStub) GetOrderByUserID(context.Context, database.Executor, string, string) (customerorders.Order, error) {
+	return customerorders.Order{ID: "order-1", PaymentStatus: "paid"}, nil
+}
+
 func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "member-mobile-http.sqlite"))
@@ -125,6 +129,13 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 	mux.ServeHTTP(ordersResponse, orders)
 	if ordersResponse.Code != http.StatusOK || !strings.Contains(ordersResponse.Body.String(), `"order-1"`) {
 		t.Fatalf("orders status = %d, body = %s", ordersResponse.Code, ordersResponse.Body.String())
+	}
+	detail := httptest.NewRequest(http.MethodGet, "/api/v1/mobile/member/orders/order-1", nil)
+	detail.Header.Set("Authorization", "Bearer "+rotated.AccessToken)
+	detailResponse := httptest.NewRecorder()
+	mux.ServeHTTP(detailResponse, detail)
+	if detailResponse.Code != http.StatusOK || !strings.Contains(detailResponse.Body.String(), `"order-1"`) {
+		t.Fatalf("order detail status = %d, body = %s", detailResponse.Code, detailResponse.Body.String())
 	}
 
 	revoke := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/revoke", nil)
