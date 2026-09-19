@@ -11,6 +11,7 @@ export type Order = { id: string; currency: string; total_cents: number; payment
 export type MemberTokenPair = { access_token: string; refresh_token: string; token_type: "Bearer"; expires_in: number; expires_at: string };
 export type MemberOrder = Order & { user_id?: string; items?: Array<{ product_id: string; variant_id?: string; sku: string; title: string; quantity: number; unit_cents: number; total_cents: number }> };
 export type MemberDevice = { device_id: string; device_name: string; platform: string; created_at: string; last_used_at: string; is_current: boolean };
+export type MemberProfile = { id: string; email: string; active: boolean; email_verified_at?: string | null; last_login_at?: string | null; created_at: string; updated_at: string };
 export type MemberLoginInput = { email: string; password: string; device_id: string; device_name?: string; platform: string };
 
 export type HydroAPIErrorBody = { code?: string; message?: string; error?: string; request_id?: string };
@@ -145,6 +146,10 @@ export class HydroGoClient {
   async memberDevices(accessToken: string, options?: HydroGoRequestOptions): Promise<MemberDevice[]> {
     const response = await this.request<{ devices: MemberDevice[] }>("/api/v1/mobile/member/auth/devices", { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
     return response.devices;
+  }
+
+  async memberMe(accessToken: string, options?: HydroGoRequestOptions): Promise<MemberProfile> {
+    return this.request<MemberProfile>("/api/v1/mobile/member/me", { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
   }
 
   async memberOrders(accessToken: string, limit = 100, options?: HydroGoRequestOptions): Promise<MemberOrder[]> {

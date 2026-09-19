@@ -26,6 +26,11 @@
       "expect": {"status": 200, "scope": "current_member_only"}
     },
     {
+      "name": "profile",
+      "request": {"method": "GET", "path": "/me", "authorization": "Bearer $stored.access_token"},
+      "expect": {"status": 200, "no_fields": ["password_hash"]}
+    },
+    {
       "name": "devices",
       "request": {"method": "GET", "path": "/auth/devices", "authorization": "Bearer $stored.access_token"},
       "expect": {"status": 200, "scope": "current_member_only"}

@@ -132,6 +132,23 @@ func (h Handler) mobileDevices(w http.ResponseWriter, r *http.Request) {
 	writeMemberMobileJSON(w, http.StatusOK, map[string]any{"devices": devices})
 }
 
+func (h Handler) mobileMe(w http.ResponseWriter, r *http.Request) {
+	memberID, _, ok := h.memberMobilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	if h.Service.Members == nil {
+		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		return
+	}
+	member, err := h.Service.Members.GetByID(r.Context(), memberID)
+	if err != nil || member == nil || !member.Active {
+		writeMemberMobileError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required.")
+		return
+	}
+	writeMemberMobileJSON(w, http.StatusOK, member)
+}
+
 func (h Handler) recordMobileAudit(r *http.Request, action, targetID string) {
 	if h.Audit != nil {
 		_ = h.Audit.Record(r.Context(), action, targetID)
