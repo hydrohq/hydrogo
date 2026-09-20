@@ -1,9 +1,8 @@
 name: CI
 
+# Temporarily manual-only to control GitHub Actions usage.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
