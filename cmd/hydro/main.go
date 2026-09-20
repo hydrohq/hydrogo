@@ -206,6 +206,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return runtimeCommand(args[1:], stdout, stderr)
 	case "license":
 		return licenseCommand(args[1:], stdout, stderr)
+	case "extension":
+		return extensionCommand(args[1:], stdout, stderr)
 	case "new":
 		return newProjectCommand(args[1:], stdin, stdout, stderr)
 	case "project":
