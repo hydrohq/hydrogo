@@ -231,7 +231,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 func devCommand(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("dev", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	_ = flags.String("address", "127.0.0.1:8090", "development proxy listen address")
+	_ = flags.String("address", "0.0.0.0:8090", "development proxy listen address")
 	_ = flags.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	_ = flags.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
 	_ = flags.String("redis-url", "", "Optional Redis URL passed to the child server")
@@ -239,7 +239,6 @@ func devCommand(args []string, stdout, stderr io.Writer) error {
 	_ = flags.String("compose-file", "deploy/local/docker-compose.storage.yml", "Docker Compose file for local dependencies")
 	_ = flags.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	_ = flags.Bool("seed-demo", true, "seed the disposable local demo data before starting")
-	_ = flags.Bool("open", true, "open the local development URL in the default browser")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -3433,7 +3432,7 @@ Examples:
   hydro test --package ./modules/news/... --timeout 2m
   hydro module create --spec ./module.yaml --out ./modules/catalog
   hydro resource create --name products --field title:text --field price:integer
-	  hydro run --address 127.0.0.1:8090
+	  hydro run --address 0.0.0.0:8090
 
 Failure remediation:
   config/database errors: run "hydro validate --config PATH", then check the

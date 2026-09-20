@@ -273,7 +273,7 @@ func (s *supervisor) stop() {
 }
 
 func main() {
-	address := flag.String("address", "127.0.0.1:8090", "development proxy listen address")
+	address := flag.String("address", "0.0.0.0:8090", "development proxy listen address")
 	appAddress := flag.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	databaseDSN := flag.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
 	redisURL := flag.String("redis-url", "", "Optional Redis URL passed to the child server")
@@ -282,7 +282,6 @@ func main() {
 	poll := flag.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	seedDemo := flag.Bool("seed-demo", true, "seed disposable local demo data before starting")
 	devIndicator := flag.Bool("dev-indicator", true, "show the browser development status indicator")
-	openBrowser := flag.Bool("open", true, "open the local development URL in the default browser")
 	flag.Parse()
 
 	root, err := os.Getwd()
@@ -431,34 +430,9 @@ func main() {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 	fmt.Printf("HydroGo dev proxy hazır: http://%s (uygulama: %s)\n", *address, *appAddress)
-	if *openBrowser {
-		go openDevelopmentURL(*address)
-	}
 	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		fatal(err)
 	}
-}
-
-func openDevelopmentURL(address string) {
-	time.Sleep(250 * time.Millisecond)
-	host, port, err := net.SplitHostPort(address)
-	if err != nil || port == "" {
-		return
-	}
-	if host == "" || host == "0.0.0.0" || host == "::" || host == "[::]" {
-		host = "127.0.0.1"
-	}
-	url := "http://" + net.JoinHostPort(host, port)
-	var command *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		command = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	case "darwin":
-		command = exec.Command("open", url)
-	default:
-		command = exec.Command("xdg-open", url)
-	}
-	_ = command.Start()
 }
 
 func noStore(next http.Handler) http.Handler {
