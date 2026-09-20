@@ -1,0 +1,20 @@
+{
+  "admin.language": "Language",
+  "admin.language.tr": "Turkish",
+  "admin.language.en": "English",
+  "admin.language.save": "Save language",
+  "admin.language.saved": "Your language preference was updated.",
+  "admin.account.title": "Administrator Account Settings",
+  "admin.account.eyebrow": "ACCOUNT DETAILS",
+  "admin.dashboard": "Dashboard",
+  "admin.reports": "Reports",
+  "admin.news": "News",
+  "admin.pages": "Pages",
+  "admin.products": "Product catalog",
+  "admin.orders": "Orders",
+  "admin.members": "Members",
+  "admin.media": "Media",
+  "admin.developer": "Developer & API",
+  "admin.account": "Account settings",
+  "admin.security": "Security & permissions"
+}
