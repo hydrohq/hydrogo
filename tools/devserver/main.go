@@ -62,6 +62,7 @@ type supervisor struct {
 	root, binary, appAddress, databaseDSN, redisURL string
 	state                                           *state
 	mu                                              sync.Mutex
+	readyMu                                         sync.Mutex
 	child                                           *exec.Cmd
 }
 
@@ -180,16 +181,20 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 }
 
 func (s *supervisor) waitForReady(timeout time.Duration) bool {
+	// Several browser requests can fail together while the child is restarting.
+	// Serialize readiness probes so each failed request does not create its own
+	// health-check storm against the application process.
+	s.readyMu.Lock()
+	defer s.readyMu.Unlock()
+
 	pingClient := &http.Client{Timeout: 300 * time.Millisecond}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		for _, path := range []string{"/healthz", "/"} {
-			resp, err := pingClient.Get("http://" + s.appAddress + path)
-			if err == nil {
-				_ = resp.Body.Close()
-				if resp.StatusCode < http.StatusInternalServerError {
-					return true
-				}
+		resp, err := pingClient.Get("http://" + s.appAddress + "/healthz")
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode < http.StatusInternalServerError {
+				return true
 			}
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -333,13 +338,9 @@ func main() {
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, proxyErr error) {
-		deadline := time.Now().Add(4 * time.Second)
-		for time.Now().Before(deadline) {
-			if supervisor.waitForReady(150 * time.Millisecond) {
-				proxy.ServeHTTP(w, r)
-				return
-			}
-			time.Sleep(60 * time.Millisecond)
+		if supervisor.waitForReady(4 * time.Second) {
+			proxy.ServeHTTP(w, r)
+			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
