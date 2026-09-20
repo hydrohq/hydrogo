@@ -574,10 +574,20 @@ function testGraphQL(btn){
 		profileTitle := "👤 Yönetici Profil Bilgileri"
 		profileIntro := "Admin Studio paneline erişim sağlayan mevcut yetkili hesap:"
 		securityTitle := "🔒 Hesap Güvenliği &amp; Parola Yenileme"
+		emailLabel, roleLabel, sessionLabel, scopeLabel := "E-Posta:", "Rol:", "Oturum Tipi:", "Erişim Alanı:"
+		roleValue, sessionValue, scopeValue := "👑 Sistem Yöneticisi (Admin)", "Güvenli Oturum", "Tüm Modüller &amp; Operasyon"
+		securityIntro := "Yönetici parolanız yüksek güvenlik standartları ile korunmaktadır. Güvenlik politikası gereği güçlü parolalar (en az 8 karakter) zorunludur."
+		passwordLabel := "Parola Değiştirme:"
+		passwordHelp := "Parolanızı yenilemek için Güvenlik Merkezinden şifre sıfırlama akışını başlatabilir veya CLI üzerinden <code>hydro user reset-password</code> komutunu çalıştırabilirsiniz."
 		if data.Locale == "en" {
 			profileTitle = "👤 Administrator profile"
 			profileIntro = "The administrator account currently authorized to access Admin Studio:"
 			securityTitle = "🔒 Account security &amp; password reset"
+			emailLabel, roleLabel, sessionLabel, scopeLabel = "Email:", "Role:", "Session type:", "Access scope:"
+			roleValue, sessionValue, scopeValue = "👑 System administrator (Admin)", "Secure session", "All modules &amp; operations"
+			securityIntro = "Your administrator password is protected by strong security standards. Passwords must contain at least 8 characters."
+			passwordLabel = "Change password:"
+			passwordHelp = "Start a password reset flow from the Security Center or run <code>hydro user reset-password</code> from the CLI."
 		}
 		languageSaved := ""
 		if data.LocaleSaved {
@@ -588,10 +598,10 @@ function testGraphQL(btn){
     <h3>%s</h3>
     <p>%s</p>
     <div style="margin:12px 0;">
-      <div class="acc-info-row"><span class="acc-info-label">E-Posta:</span><span class="acc-info-val">%s</span></div>
-      <div class="acc-info-row"><span class="acc-info-label">Rol:</span><span class="acc-info-val" style="color:var(--brand-light);">👑 Sistem Yöneticisi (Admin)</span></div>
-      <div class="acc-info-row"><span class="acc-info-label">Oturum Tipi:</span><span class="acc-info-val">Güvenli Oturum</span></div>
-      <div class="acc-info-row"><span class="acc-info-label">Erişim Alanı:</span><span class="acc-info-val">Tüm Modüller &amp; Operasyon</span></div>
+      <div class="acc-info-row"><span class="acc-info-label">%s</span><span class="acc-info-val">%s</span></div>
+      <div class="acc-info-row"><span class="acc-info-label">%s</span><span class="acc-info-val" style="color:var(--brand-light);">%s</span></div>
+      <div class="acc-info-row"><span class="acc-info-label">%s</span><span class="acc-info-val">%s</span></div>
+      <div class="acc-info-row"><span class="acc-info-label">%s</span><span class="acc-info-val">%s</span></div>
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;">
       <a href="/admin/security" class="button">Güvenlik &amp; Yetki Ayarları</a>
@@ -601,10 +611,10 @@ function testGraphQL(btn){
 
   <div class="acc-card">
     <h3>%s</h3>
-    <p>Yönetici parolanız yüksek güvenlik standartları ile korunmaktadır. Güvenlik politikası gereği güçlü parolalar (en az 8 karakter) zorunludur.</p>
+    <p>%s</p>
     <div style="background:var(--bg-subtle);border:1px solid var(--line);border-radius:var(--radius-md);padding:14px;margin-top:12px;">
-      <div style="font-weight:700;font-size:.85rem;color:var(--ink);margin-bottom:4px;">Parola Değiştirme:</div>
-      <div style="font-size:.78rem;color:var(--muted);line-height:1.45;">Parolanızı yenilemek için Güvenlik Merkezinden şifre sıfırlama akışını başlatabilir veya CLI üzerinden <code>hydro user reset-password</code> komutunu çalıştırabilirsiniz.</div>
+      <div style="font-weight:700;font-size:.85rem;color:var(--ink);margin-bottom:4px;">%s</div>
+      <div style="font-size:.78rem;color:var(--muted);line-height:1.45;">%s</div>
     </div>
   </div>
   <div class="acc-card">
@@ -617,7 +627,7 @@ function testGraphQL(btn){
       <button class="button" type="submit">%s</button>
     </form>
   </div>
-</div>`, profileTitle, profileIntro, email, securityTitle, i18n.T(data.Locale, "admin.language"), i18n.T(data.Locale, "admin.language"), languageSaved, csrf, i18n.T(data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.T(data.Locale, "admin.language.save"))
+</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, i18n.T(data.Locale, "admin.language"), i18n.T(data.Locale, "admin.language"), languageSaved, csrf, i18n.T(data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.T(data.Locale, "admin.language.save"))
 
 	default:
 		_, _ = fmt.Fprintf(w, `<div class="studio-card"><p>Yönetim alanı yükleniyor...</p></div>`)
