@@ -282,6 +282,7 @@ func main() {
 	poll := flag.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	seedDemo := flag.Bool("seed-demo", true, "seed disposable local demo data before starting")
 	devIndicator := flag.Bool("dev-indicator", true, "show the browser development status indicator")
+	openBrowser := flag.Bool("open", true, "open the local development URL in the default browser")
 	flag.Parse()
 
 	root, err := os.Getwd()
@@ -419,6 +420,10 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}
+	listener, err := net.Listen("tcp", *address)
+	if err != nil {
+		fatal(err)
+	}
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 3*time.Second)
@@ -426,9 +431,34 @@ func main() {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 	fmt.Printf("HydroGo dev proxy hazır: http://%s (uygulama: %s)\n", *address, *appAddress)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if *openBrowser {
+		go openDevelopmentURL(*address)
+	}
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		fatal(err)
 	}
+}
+
+func openDevelopmentURL(address string) {
+	time.Sleep(250 * time.Millisecond)
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || port == "" {
+		return
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" || host == "[::]" {
+		host = "127.0.0.1"
+	}
+	url := "http://" + net.JoinHostPort(host, port)
+	var command *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		command = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	case "darwin":
+		command = exec.Command("open", url)
+	default:
+		command = exec.Command("xdg-open", url)
+	}
+	_ = command.Start()
 }
 
 func noStore(next http.Handler) http.Handler {

@@ -146,7 +146,8 @@ or disable injection entirely with `hydro run --dev-indicator=false` (the
 `hydro run` starts the internal `tools/devserver` proxy; do not invoke that Go
 path directly. `hydro dev` is a backwards-compatible alias accepting the same
 options. The default proxy is `127.0.0.1:8090` and the application address is
-`127.0.0.1:8091`.
+`127.0.0.1:8091`. The local Studio URL opens in the default browser automatically;
+use `hydro run --open=false` to disable that behavior.
 
 If `hydro help` does not list `hydro run`, the shell is resolving an older
 binary. From the repository root, rebuild it and verify the resolved executable:
