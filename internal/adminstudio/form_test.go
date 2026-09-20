@@ -35,6 +35,25 @@ func TestRenderCreateFormRendersSharedMediaPicker(t *testing.T) {
 			t.Fatalf("media form missing %q: %s", expected, out.String())
 		}
 	}
+	html := out.String()
+	if !strings.Contains(html, `media-select-field has-selected`) || !strings.Contains(html, `media-select-card has-selected`) {
+		t.Fatalf("selected media state classes missing: %s", html)
+	}
+	if strings.Contains(html, `style="display:none;"`) || strings.Contains(html, `style="display: none;"`) {
+		t.Fatalf("media visibility still depends on inline display styles: %s", html)
+	}
+	if !strings.Contains(html, `media-select-clear"`) || strings.Contains(html, `media-select-clear is-hidden`) {
+		t.Fatalf("selected media clear action should be visible by class state: %s", html)
+	}
+
+	out.Reset()
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/news", CSRFToken: "csrf"}); err != nil {
+		t.Fatalf("render empty media form: %v", err)
+	}
+	html = out.String()
+	if !strings.Contains(html, `media-select-preview"><img class="is-hidden"`) || !strings.Contains(html, `media-select-clear is-hidden`) {
+		t.Fatalf("empty media state classes missing: %s", html)
+	}
 }
 
 func TestRenderCreateFormRejectsUnsafeAction(t *testing.T) {
