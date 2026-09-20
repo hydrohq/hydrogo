@@ -53,3 +53,21 @@ func T(locale, key string) string {
 
 // SupportedCatalogLocales returns a stable copy for admin selectors and tests.
 func SupportedCatalogLocales() []string { return []string{"tr", "en"} }
+
+func ResolveCatalogLocale(requested string) string {
+	chain, err := LocaleFallbackChain(requested, SupportedCatalogLocales(), "tr")
+	if err == nil && len(chain) > 0 {
+		return chain[0]
+	}
+	return "tr"
+}
+
+func IsSupportedCatalogLocale(requested string) bool {
+	locale := canonical.Locale(requested)
+	for _, supported := range SupportedCatalogLocales() {
+		if locale == supported || strings.HasPrefix(locale, supported+"-") {
+			return true
+		}
+	}
+	return false
+}

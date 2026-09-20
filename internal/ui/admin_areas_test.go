@@ -28,6 +28,19 @@ func TestRenderAdminResourceUsage(t *testing.T) {
 	}
 }
 
+func TestRenderAdminAccountEnglishLocaleSelector(t *testing.T) {
+	var out bytes.Buffer
+	if err := RenderAdminArea(&out, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account", Locale: "en"}); err != nil {
+		t.Fatalf("RenderAdminArea(account) error = %v", err)
+	}
+	markup := out.String()
+	for _, want := range []string{`lang="en"`, "Administrator profile", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("English account markup missing %q", want)
+		}
+	}
+}
+
 func TestAdminShellSPARouterAdoptsFragmentAssetsWithDocumentNonce(t *testing.T) {
 	for _, want := range []string{"currentDocumentNonce", "adoptFragmentStyles", "Normalize while the fragment is still inert", "oldStyle.setAttribute('nonce', nonce)", "replaceChildren(...Array.from(newMain.childNodes))", "adoptFragmentStyles(newMain)", "searchGlobalBound"} {
 		if !strings.Contains(AdminSPARouterJS, want) {
