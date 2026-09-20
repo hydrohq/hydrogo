@@ -1,72 +1,45 @@
 package v1
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"strings"
 )
 
-// LifecycleRequest carries release-owned identity to an optional lifecycle
-// hook. Hooks are opt-in; a module that does not need one implements nothing.
-type LifecycleRequest struct {
-	Module      string
-	FromVersion string
-	ToVersion   string
-	DryRun      bool
-}
+type PackageState string
 
-// MigrationPlan is returned by a preflight hook. IDs are descriptive and are
-// executed by Core; extensions never run DDL directly from an admin request.
-type MigrationPlan struct {
-	MigrationIDs    []string
-	Destructive     bool
-	RequiresRestart bool
-}
+const (
+	StateInstalled PackageState = "installed"
+	StateApproved  PackageState = "approved"
+	StateEnabled   PackageState = "enabled"
+	StateSuspended PackageState = "suspended"
+	StateRevoked   PackageState = "revoked"
+)
 
-type InstallHook interface {
-	Install(context.Context, LifecycleRequest) error
-}
+var ErrInvalidPackageTransition = errors.New("invalid extension package state transition")
 
-type EnableHook interface {
-	Enable(context.Context, LifecycleRequest) error
-}
-
-type DisableHook interface {
-	Disable(context.Context, LifecycleRequest) error
-}
-
-type UpgradeHook interface {
-	Upgrade(context.Context, LifecycleRequest) error
-}
-
-type MigrationPreflightHook interface {
-	PreflightMigration(context.Context, LifecycleRequest) (MigrationPlan, error)
-}
-
-func ValidateLifecycleRequest(request LifecycleRequest) error {
-	if strings.TrimSpace(request.Module) == "" {
-		return fmt.Errorf("lifecycle module is required")
+// CanTransition is the runtime lifecycle guard. It deliberately does not
+// perform filesystem or authorization work; callers must verify the artifact
+// and operator grants before moving into an active state.
+func CanTransition(from, to PackageState) bool {
+	switch from {
+	case StateInstalled:
+		return to == StateApproved || to == StateRevoked
+	case StateApproved:
+		return to == StateEnabled || to == StateSuspended || to == StateRevoked
+	case StateEnabled:
+		return to == StateSuspended || to == StateRevoked
+	case StateSuspended:
+		return to == StateEnabled || to == StateRevoked
+	case StateRevoked:
+		return false
+	default:
+		return false
 	}
-	if strings.TrimSpace(request.ToVersion) == "" {
-		return fmt.Errorf("lifecycle target version is required")
-	}
-	if request.FromVersion == request.ToVersion && request.FromVersion != "" {
-		return fmt.Errorf("lifecycle source and target versions are identical")
-	}
-	return nil
 }
 
-func ValidateMigrationPlan(plan MigrationPlan) error {
-	seen := make(map[string]struct{}, len(plan.MigrationIDs))
-	for _, rawID := range plan.MigrationIDs {
-		id := strings.TrimSpace(rawID)
-		if id == "" {
-			return fmt.Errorf("migration plan contains an empty ID")
-		}
-		if _, exists := seen[id]; exists {
-			return fmt.Errorf("migration plan repeats %q", id)
-		}
-		seen[id] = struct{}{}
+func Transition(from, to PackageState) error {
+	if !CanTransition(from, to) {
+		return fmt.Errorf("%w: %s -> %s", ErrInvalidPackageTransition, from, to)
 	}
 	return nil
 }

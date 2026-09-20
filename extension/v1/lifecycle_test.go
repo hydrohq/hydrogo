@@ -1,20 +1,20 @@
 package v1
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
-func TestLifecycleContractsValidateRequestsAndPlans(t *testing.T) {
-	if err := ValidateLifecycleRequest(LifecycleRequest{Module: "pages", ToVersion: "2.0.0"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := ValidateMigrationPlan(MigrationPlan{MigrationIDs: []string{"001", "002"}}); err != nil {
-		t.Fatal(err)
-	}
-	for _, request := range []LifecycleRequest{{ToVersion: "1"}, {Module: "pages"}, {Module: "pages", FromVersion: "1", ToVersion: "1"}} {
-		if err := ValidateLifecycleRequest(request); err == nil {
-			t.Fatalf("invalid lifecycle request accepted: %#v", request)
+func TestExtensionPackageLifecycleTransitions(t *testing.T) {
+	valid := [][2]PackageState{{StateInstalled, StateApproved}, {StateApproved, StateEnabled}, {StateEnabled, StateSuspended}, {StateSuspended, StateEnabled}, {StateEnabled, StateRevoked}}
+	for _, pair := range valid {
+		if err := Transition(pair[0], pair[1]); err != nil {
+			t.Fatalf("%s -> %s: %v", pair[0], pair[1], err)
 		}
 	}
-	if err := ValidateMigrationPlan(MigrationPlan{MigrationIDs: []string{"001", "001"}}); err == nil {
-		t.Fatal("duplicate migration plan ID accepted")
+	for _, pair := range [][2]PackageState{{StateInstalled, StateEnabled}, {StateRevoked, StateEnabled}, {StateRevoked, StateApproved}} {
+		if err := Transition(pair[0], pair[1]); !errors.Is(err, ErrInvalidPackageTransition) {
+			t.Fatalf("%s -> %s error = %v", pair[0], pair[1], err)
+		}
 	}
 }
