@@ -49,6 +49,22 @@ func TestRichTextHTMLRendersListsAndImages(t *testing.T) {
 	}
 }
 
+func TestRichTextHTMLRendersInlineSizeFontAndSafeColor(t *testing.T) {
+	got := RichTextHTML(`{"ops":[{"insert":"Large","attributes":{"size":"large","font":"serif","color":"#123456"}},{"insert":"\n"}]}`)
+	for _, want := range []string{`font-size:1.5em`, `font-family:Georgia,Times New Roman,serif`, `color:#123456`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("inline formatting missing %q in %s", want, got)
+		}
+	}
+}
+
+func TestRichTextHTMLRejectsUnsafeInlineColor(t *testing.T) {
+	got := RichTextHTML(`{"ops":[{"insert":"Unsafe","attributes":{"color":"red; background:url(javascript:alert(1))"}},{"insert":"\n"}]}`)
+	if strings.Contains(got, "javascript") || strings.Contains(got, "background") {
+		t.Fatalf("unsafe inline style rendered: %s", got)
+	}
+}
+
 func TestRichTextHTMLRejectsProtocolRelativeAndDataSVG(t *testing.T) {
 	gotLink := RichTextHTML(`{"ops":[{"insert":"click","attributes":{"link":"//evil.com"}}]}`)
 	if strings.Contains(gotLink, "evil.com") && strings.Contains(gotLink, "<a href=") {

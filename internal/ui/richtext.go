@@ -155,5 +155,35 @@ func formatDeltaText(text string, attrs map[string]interface{}) string {
 	if _, ok := attrs["code"]; ok {
 		text = "<code>" + text + "</code>"
 	}
+	if size, ok := attrs["size"].(string); ok {
+		sizes := map[string]string{"small": ".75em", "large": "1.5em", "huge": "2.5em"}
+		if cssSize, valid := sizes[size]; valid {
+			text = `<span style="font-size:` + cssSize + `">` + text + `</span>`
+		}
+	}
+	if font, ok := attrs["font"].(string); ok {
+		fonts := map[string]string{"serif": "Georgia,Times New Roman,serif", "monospace": "Monaco,Courier New,monospace"}
+		if cssFont, valid := fonts[font]; valid {
+			text = `<span style="font-family:` + cssFont + `">` + text + `</span>`
+		}
+	}
+	if color, ok := attrs["color"].(string); ok && safeHexColor(color) {
+		text = `<span style="color:` + color + `">` + text + `</span>`
+	}
+	if background, ok := attrs["background"].(string); ok && safeHexColor(background) {
+		text = `<span style="background-color:` + background + `">` + text + `</span>`
+	}
 	return text
+}
+
+func safeHexColor(value string) bool {
+	if (len(value) != 4 && len(value) != 7) || value[0] != '#' {
+		return false
+	}
+	for _, r := range value[1:] {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
