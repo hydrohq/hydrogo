@@ -30,7 +30,7 @@ func TestRenderCreateFormRendersSharedMediaPicker(t *testing.T) {
 	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/news", CSRFToken: "csrf", Nonce: "nonce", Values: map[string]string{"cover_media_id": "asset-1"}}); err != nil {
 		t.Fatalf("render media form: %v", err)
 	}
-	for _, expected := range []string{`name="cover_media_id"`, `data-media-target="media_cover_media_id"`, `HydroOpenMediaPicker`} {
+	for _, expected := range []string{`name="cover_media_id"`, `data-media-target="media_cover_media_id"`, `media-picker-open`, `HydroInitMediaSelectPreviews`} {
 		if !strings.Contains(out.String(), expected) {
 			t.Fatalf("media form missing %q: %s", expected, out.String())
 		}
