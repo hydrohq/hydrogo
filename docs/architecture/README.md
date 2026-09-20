@@ -237,6 +237,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0190](0190-capacity-profiles-concurrency-budgets.md) | Capacity profiles, concurrency budgets & RPO/RTO certification | Accepted |
 | [0191](0191-distributed-cache-session-failover.md) | Distributed cache & multi-instance session failover certification | Accepted |
 | [0192](0192-extension-sdk-boundary-admin-studio-security.md) | Extension SDK boundary & Admin Studio security certification | Accepted |
+| [0195](0195-admin-extension-channel-binding.md) | Admin Extension channel binding protocol v1 | Accepted; browser E2E open |
+| [0196](0196-extension-package-lifecycle-and-operator-cli.md) | Extension package lifecycle and operator CLI | Accepted; CLI E2E open |
 | [0193](0193-release-provenance-sbom-production-readiness.md) | Release provenance, SPDX SBOM & production readiness certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
