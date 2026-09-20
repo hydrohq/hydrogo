@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -177,6 +178,55 @@ func WriteArchive(destination string, signed SignedPackage, assets map[string][]
 		}
 	}
 	return archive.Close()
+}
+
+// ReadArchive reads a bounded .hx archive without trusting paths or executing
+// any contents. Signature verification is intentionally a separate operation.
+func ReadArchive(source string) (SignedPackage, map[string][]byte, error) {
+	archive, err := zip.OpenReader(source)
+	if err != nil {
+		return SignedPackage{}, nil, err
+	}
+	defer archive.Close()
+	var signed SignedPackage
+	assets := make(map[string][]byte)
+	seenPackage := false
+	for _, entry := range archive.File {
+		if entry.FileInfo().IsDir() {
+			continue
+		}
+		clean := path.Clean(strings.ReplaceAll(entry.Name, "\\", "/"))
+		if clean != entry.Name || clean == "." || strings.HasPrefix(clean, "../") || strings.HasPrefix(clean, "/") || strings.Contains(clean, ":") {
+			return SignedPackage{}, nil, ErrInvalidExtensionPackage
+		}
+		reader, err := entry.Open()
+		if err != nil {
+			return SignedPackage{}, nil, err
+		}
+		data, readErr := io.ReadAll(io.LimitReader(reader, MaxExtensionPackageFileBytes+1))
+		_ = reader.Close()
+		if readErr != nil || int64(len(data)) > MaxExtensionPackageFileBytes {
+			return SignedPackage{}, nil, ErrInvalidExtensionPackage
+		}
+		if clean == "package.json" {
+			if seenPackage {
+				return SignedPackage{}, nil, ErrInvalidExtensionPackage
+			}
+			seenPackage = true
+			if err := json.Unmarshal(data, &signed); err != nil {
+				return SignedPackage{}, nil, ErrInvalidExtensionPackage
+			}
+			continue
+		}
+		if _, exists := assets[clean]; exists {
+			return SignedPackage{}, nil, ErrInvalidExtensionPackage
+		}
+		assets[clean] = data
+	}
+	if signed.Package.Validate() != nil || signed.KeyID == "" || signed.Signature == "" || signed.Package.VerifyAssets(assets) != nil {
+		return SignedPackage{}, nil, ErrInvalidExtensionPackage
+	}
+	return signed, assets, nil
 }
 
 func writeZipEntry(archive *zip.Writer, name string, data []byte) error {
