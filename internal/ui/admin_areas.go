@@ -589,6 +589,18 @@ function testGraphQL(btn){
 		}
 		for _, u := range data.Users {
 			roleOptions := fmt.Sprintf(`<select name="role"><option value="admin"%s>Admin</option><option value="editor"%s>Editor</option><option value="viewer"%s>Viewer</option></select>`, selectedLocale(string(u.Role), "admin"), selectedLocale(string(u.Role), "editor"), selectedLocale(string(u.Role), "viewer"))
+			permissionControls := ""
+			for _, permission := range auth.KnownPermissions {
+				value := "inherit"
+				if allowed, ok := u.PermissionOverrides[permission]; ok {
+					if allowed {
+						value = "allow"
+					} else {
+						value = "deny"
+					}
+				}
+				permissionControls += fmt.Sprintf(`<label style="display:flex;align-items:center;gap:8px;font-size:.78rem;"><span style="flex:1;">%s</span><select name="perm_%s"><option value="inherit"%s>Inherit</option><option value="allow"%s>Allow</option><option value="deny"%s>Deny</option></select></label>`, template.HTMLEscapeString(permission), template.HTMLEscapeString(permission), selectedLocale(value, "inherit"), selectedLocale(value, "allow"), selectedLocale(value, "deny"))
+			}
 			status := "Inactive"
 			if u.Active {
 				status = "Active"
@@ -599,12 +611,12 @@ function testGraphQL(btn){
 			if data.Locale == "tr" && !u.Active {
 				status = "Pasif"
 			}
-			_, _ = fmt.Fprintf(w, `<tr><td><strong>%s</strong></td><td><form method="post" action="/auth/users/%s/role" class="inline-form"><input type="hidden" name="_csrf" value="%s">%s <button class="button button-quiet" type="submit">%s</button></form></td><td>%s</td><td>%s</td></tr>`, template.HTMLEscapeString(u.Email), template.HTMLEscapeString(u.ID), csrf, roleOptions, saveLabel, status, func() string {
+			_, _ = fmt.Fprintf(w, `<tr><td><strong>%s</strong></td><td><form method="post" action="/auth/users/%s/role" class="inline-form"><input type="hidden" name="_csrf" value="%s">%s <button class="button button-quiet" type="submit">%s</button></form></td><td>%s</td><td>%s<details style="margin-top:8px;"><summary>Custom permissions</summary><form method="post" action="/auth/users/%s/permissions" class="studio-form" style="margin-top:8px;"><input type="hidden" name="_csrf" value="%s">%s<button class="button button-quiet" type="submit">%s</button></form></details></td></tr>`, template.HTMLEscapeString(u.Email), template.HTMLEscapeString(u.ID), csrf, roleOptions, saveLabel, status, func() string {
 				if u.ID == "" {
 					return ""
 				}
 				return fmt.Sprintf(`<form method="post" action="/auth/users/%s/disable"><input type="hidden" name="_csrf" value="%s"><button class="button button-quiet" type="submit">Disable</button></form>`, template.HTMLEscapeString(u.ID), csrf)
-			}())
+			}(), template.HTMLEscapeString(u.ID), csrf, permissionControls, saveLabel)
 		}
 		_, _ = io.WriteString(w, `</tbody></table></div></div>`)
 

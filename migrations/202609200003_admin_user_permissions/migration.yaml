@@ -1,0 +1,25 @@
+id: "202609200003_admin_user_permissions"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "5a29c25e4131fccc0894cb4ebf6e6cc64f50e95674faed30ed8254a5e3d2617e"
+  postgres: "16fb8100e0f3150aaa8ef601aeb996c57bdbbe6ccb126445b2c977f115fe4762"
+dependencies:
+  - "202609200002_auth_security_tenant_scope"
+schema:
+  readable_epoch: 6
+  writable_epoch: 6
+preconditions:
+  - "Admin identity tables are available"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "One bounded row per explicit user permission override"
+compatibility: "Additive permission override storage; absent rows inherit the role policy."
+smoke:
+  - "Existing users continue to resolve permissions from their role defaults."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

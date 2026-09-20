@@ -27,6 +27,7 @@ var (
 	ErrMobileSessionRevokerRequired = errors.New("mobile session revoker is required")
 	ErrCurrentPasswordRequired      = errors.New("current password is required")
 	ErrPasswordMismatch             = errors.New("new passwords do not match")
+	ErrLastAdmin                    = errors.New("cannot remove the last active administrator")
 )
 
 type contextKey string
@@ -43,6 +44,13 @@ type AuthService struct {
 	argonParams    Argon2Params
 	dummyHash      string
 	idleTTL        time.Duration
+	permissions    PermissionStore
+}
+
+func (s *AuthService) SetPermissionStore(store PermissionStore) {
+	if s != nil {
+		s.permissions = store
+	}
 }
 
 // MobileSessionRevoker keeps bearer credentials on the same disable lifecycle
@@ -129,7 +137,6 @@ func (s *AuthService) Authenticate(ctx context.Context, email, password string) 
 	if !u.Active {
 		return nil, ErrUserInactive
 	}
-
 	valid, err := VerifyPassword(password, u.PasswordHash)
 	if err != nil || !valid {
 		return nil, ErrInvalidCredentials
@@ -200,6 +207,13 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 	}
 	if !u.Active {
 		return nil, nil, ErrUserInactive
+	}
+	if s.permissions != nil {
+		overrides, err := s.permissions.LoadPermissionOverrides(ctx, u.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		u.PermissionOverrides = overrides
 	}
 	if s.idleTTL > 0 && now.Sub(sess.LastSeenAt) > s.idleTTL {
 		_ = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
@@ -301,10 +315,51 @@ func (s *AuthService) UpdateUserRole(ctx context.Context, userID string, role Ro
 	if !ok {
 		return ErrUserRepositoryRequired
 	}
+	users, err := repo.List(ctx)
+	if err != nil {
+		return err
+	}
+	activeAdmins := 0
+	targetWasAdmin := false
+	for _, user := range users {
+		if user.Active && user.Role == RoleAdmin {
+			activeAdmins++
+		}
+		if user.ID == userID && user.Role == RoleAdmin {
+			targetWasAdmin = true
+		}
+	}
+	if targetWasAdmin && role != RoleAdmin && activeAdmins <= 1 {
+		return ErrLastAdmin
+	}
 	if err := repo.UpdateRole(ctx, userID, role); err != nil {
 		return err
 	}
 	return s.RevokeAllUserSessions(ctx, userID)
+}
+
+func (s *AuthService) ReplaceUserPermissions(ctx context.Context, userID string, overrides map[string]bool) error {
+	if s == nil || s.permissions == nil {
+		return ErrUserRepositoryRequired
+	}
+	for permission := range overrides {
+		if !containsPermission(permission) {
+			return errors.New("invalid permission")
+		}
+	}
+	if err := s.permissions.ReplacePermissionOverrides(ctx, userID, overrides); err != nil {
+		return err
+	}
+	return s.RevokeAllUserSessions(ctx, userID)
+}
+
+func containsPermission(permission string) bool {
+	for _, known := range KnownPermissions {
+		if permission == known {
+			return true
+		}
+	}
+	return false
 }
 
 func SetSessionCookie(w http.ResponseWriter, rawToken string, expiresAt time.Time, secure bool) {

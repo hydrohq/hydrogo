@@ -1062,7 +1062,7 @@ func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
 
 func editorAllowed(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
-	return user != nil && user.Active && (user.Role == auth.RoleAdmin || user.Role == auth.RoleEditor)
+	return auth.Can(user, auth.PermissionContentWrite)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {

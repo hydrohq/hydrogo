@@ -1049,6 +1049,7 @@ func serve(args []string, stderr io.Writer) error {
 	sessionStore.RequireTenantScope = requireTenantScope
 	mobileAuth := auth.NewMobileAuthService(db, cfg.Database.Dialect)
 	authSvc := auth.NewAuthService(userStore, sessionStore, mobileAuth, auth.DefaultArgon2Params)
+	authSvc.SetPermissionStore(userStore)
 	mfaService := &auth.MFAService{Store: userStore, MasterKey: []byte(cfg.Security.MFAMasterKey)}
 	recoveryService := &auth.PasswordRecovery{Users: userStore, Tokens: userStore, Sessions: sessionStore, ArgonParams: auth.DefaultArgon2Params}
 	invitationService := &auth.InvitationService{Users: userStore, Invites: userStore, ArgonParams: auth.DefaultArgon2Params}
