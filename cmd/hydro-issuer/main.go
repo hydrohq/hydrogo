@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	extensionv1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 )
 
@@ -26,16 +27,69 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("command requires a subcommand (issue, keygen)")
+		return errors.New("command requires a subcommand (issue, keygen, extension)")
 	}
 	switch args[0] {
 	case "issue":
 		return issueCommand(args[1:], stdout, stderr)
 	case "keygen":
 		return keygenCommand(args[1:], stdout, stderr)
+	case "extension":
+		return extensionCommand(args[1:], stdout, stderr)
 	default:
-		return fmt.Errorf("unknown subcommand %q (supported: issue, keygen)", args[0])
+		return fmt.Errorf("unknown subcommand %q (supported: issue, keygen, extension)", args[0])
 	}
+}
+
+func extensionCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "sign" {
+		return errors.New("extension requires the sign subcommand")
+	}
+	flags := flag.NewFlagSet("extension sign", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	manifestPath := flags.String("manifest", "", "Path to extension.json (required)")
+	assetsRoot := flags.String("assets", "", "Directory containing extension assets (required)")
+	keyID := flags.String("key-id", "", "Vendor signing key slot identifier (required)")
+	privateKey := flags.String("private-key", "", "Path to Ed25519 private key or base64 value (required)")
+	outPath := flags.String("out", "", "Output .hx path (required)")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if strings.TrimSpace(*manifestPath) == "" || strings.TrimSpace(*assetsRoot) == "" || strings.TrimSpace(*keyID) == "" || strings.TrimSpace(*privateKey) == "" || strings.TrimSpace(*outPath) == "" {
+		return errors.New("extension sign requires --manifest, --assets, --key-id, --private-key, and --out")
+	}
+	manifestData, err := os.ReadFile(*manifestPath)
+	if err != nil {
+		return fmt.Errorf("read extension manifest: %w", err)
+	}
+	manifest, err := extensionv1.ParseAdminExtensionManifest(manifestData)
+	if err != nil {
+		return fmt.Errorf("validate extension manifest: %w", err)
+	}
+	assets, err := extensionv1.LoadAssets(*assetsRoot)
+	if err != nil {
+		return fmt.Errorf("load extension assets: %w", err)
+	}
+	files, err := extensionv1.HashFiles(assets)
+	if err != nil {
+		return fmt.Errorf("hash extension assets: %w", err)
+	}
+	key, err := loadPrivateKey(*privateKey)
+	if err != nil {
+		return fmt.Errorf("load signing key: %w", err)
+	}
+	signed, err := extensionv1.SignPackage(extensionv1.PackageMetadata{FormatVersion: extensionv1.ExtensionPackageFormatVersion, Manifest: manifest, Files: files}, strings.TrimSpace(*keyID), key)
+	if err != nil {
+		return fmt.Errorf("sign extension package: %w", err)
+	}
+	if err := extensionv1.WriteArchive(*outPath, signed, assets); err != nil {
+		return fmt.Errorf("write extension package: %w", err)
+	}
+	_, err = fmt.Fprintf(stdout, "extension-signed out=%s id=%s version=%s assets=%d key_id=%s\n", *outPath, manifest.ID, manifest.Version, len(files), *keyID)
+	return err
 }
 
 func issueCommand(args []string, stdout, stderr io.Writer) error {
