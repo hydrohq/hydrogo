@@ -2422,7 +2422,7 @@ func technicalHomeHTML(locale, demoPath string, demoEnabled bool, nonce ...strin
   </div>
 
   <h1 class="hero-title">Welcome to HydroGo</h1>
-  <p class="hero-subtitle">İçerik, üyelik ve e-ticaret operasyonlarınızı tek bir merkezden hızlı ve güvenli şekilde yönetin.</p>
+  <p class="hero-subtitle">Manage your content, memberships, and commerce operations from one fast, secure workspace.</p>
 
   <div class="actions-group">
     <a href="/admin" class="btn-hero btn-start">Get Started</a>
