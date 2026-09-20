@@ -169,7 +169,7 @@ var adminWorkbenchDashboardTemplate = template.Must(template.New("admin-workbenc
 		</div>
 		<div class="wb-collection-grid">
 			{{range .Collections}}
-			<a class="wb-collection" href="/admin/{{.ID}}">
+			<a class="wb-collection" href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">
 				<span class="wb-collection-icon" data-studio-icon="{{.ID}}"></span>
 				<span>
 					<strong>{{.Label}}</strong>

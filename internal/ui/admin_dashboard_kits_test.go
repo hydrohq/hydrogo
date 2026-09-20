@@ -20,3 +20,17 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderAdminDashboardUsesCollectionActionRoute(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "commerce", Label: "Products", Description: "Catalog", Actions: []adminstudio.Action{{Label: "Catalog", Href: "/admin/commerce/products"}}, Fields: []adminstudio.Field{{ID: "title", Label: "Title", Kind: adminstudio.FieldText}}}}, Active: "dashboard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `href="/admin/commerce/products"`) {
+		t.Fatal("dashboard collection did not use its declared action route")
+	}
+	if strings.Contains(out.String(), `href="/admin/commerce"`) {
+		t.Fatal("dashboard collection used the raw collection id as a route")
+	}
+}
