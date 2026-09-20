@@ -4,6 +4,7 @@ go 1.27.0
 
 require (
 	github.com/a-h/templ v0.3.1020
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/graphql-go/graphql v0.8.1
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/microcosm-cc/bluemonday v1.0.27

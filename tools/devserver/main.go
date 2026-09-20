@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/fsnotify/fsnotify"
 )
 
 const (
@@ -490,6 +491,93 @@ type fileChange struct {
 }
 
 func watch(ctx context.Context, root string, interval time.Duration, changed func(fileChange)) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		// Keep the development command usable on unusual filesystems where
+		// native notifications are unavailable.
+		pollWatch(ctx, root, interval, changed)
+		return
+	}
+	defer watcher.Close()
+
+	if err := addWatchDirectories(watcher, root); err != nil {
+		pollWatch(ctx, root, interval, changed)
+		return
+	}
+
+	pending := make(map[string]struct{})
+	var debounce *time.Timer
+	var debounceC <-chan time.Time
+	flush := func() {
+		if len(pending) == 0 {
+			return
+		}
+		paths := make([]string, 0, len(pending))
+		for path := range pending {
+			paths = append(paths, path)
+		}
+		sort.Strings(paths)
+		assetOnly := true
+		for _, path := range paths {
+			if !isAsset(path) {
+				assetOnly = false
+				break
+			}
+		}
+		pending = make(map[string]struct{})
+		changed(fileChange{path: paths[0], rebuild: !assetOnly})
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			if debounce != nil {
+				debounce.Stop()
+			}
+			return
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Remove|fsnotify.Rename) == 0 {
+				continue
+			}
+			if event.Op&fsnotify.Create != 0 {
+				if info, statErr := os.Stat(event.Name); statErr == nil && info.IsDir() && shouldWatchDirectory(event.Name, root) {
+					_ = addWatchDirectory(watcher, event.Name)
+					continue
+				}
+			}
+			if !watched(event.Name) {
+				continue
+			}
+			pending[event.Name] = struct{}{}
+			if debounce == nil {
+				debounce = time.NewTimer(150 * time.Millisecond)
+			} else {
+				if !debounce.Stop() {
+					select {
+					case <-debounce.C:
+					default:
+					}
+				}
+				debounce.Reset(150 * time.Millisecond)
+			}
+			debounceC = debounce.C
+		case <-debounceC:
+			debounceC = nil
+			flush()
+		case _, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			// The next editor save will still be observed. Avoid falling back
+			// to a full repository scan on every transient watcher warning.
+		}
+	}
+}
+
+func pollWatch(ctx context.Context, root string, interval time.Duration, changed func(fileChange)) {
 	known := scan(root)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -514,6 +602,42 @@ func watch(ctx context.Context, root string, interval time.Duration, changed fun
 			changed(fileChange{path: paths[0], rebuild: !assetOnly})
 		}
 	}
+}
+
+func addWatchDirectories(watcher *fsnotify.Watcher, root string) error {
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		if path != root && !shouldWatchDirectory(path, root) {
+			return filepath.SkipDir
+		}
+		return addWatchDirectory(watcher, path)
+	})
+}
+
+func addWatchDirectory(watcher *fsnotify.Watcher, path string) error {
+	return watcher.Add(path)
+}
+
+func shouldWatchDirectory(path, root string) bool {
+	if path == root {
+		return true
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		switch part {
+		case ".git", ".tmp", "data", "node_modules", "vendor":
+			return false
+		}
+	}
+	return true
 }
 
 type fileStamp struct {
