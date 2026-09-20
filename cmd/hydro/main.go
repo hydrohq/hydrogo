@@ -1488,6 +1488,9 @@ func serve(args []string, stderr io.Writer) error {
 		if r.URL.Path == "/admin/account" {
 			active = "account"
 		}
+		if r.URL.Path == "/admin/users" {
+			active = "users"
+		}
 		if r.URL.Path == "/admin/permissions" {
 			active = "permissions"
 		}
@@ -1495,7 +1498,17 @@ func serve(args []string, stderr io.Writer) error {
 		if active == "control" {
 			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
-			err = ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), LocaleSaved: r.URL.Query().Get("locale_saved") == "1"})
+			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), LocaleSaved: r.URL.Query().Get("locale_saved") == "1"}
+			if active == "users" {
+				if repo, ok := any(userStore).(auth.UserAdminRepository); ok {
+					areaData.Users, err = repo.List(r.Context())
+				} else {
+					err = fmt.Errorf("admin user repository unavailable")
+				}
+			}
+			if err == nil {
+				err = ui.RenderAdminArea(w, areaData)
+			}
 		}
 		if err != nil {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)
@@ -2567,6 +2580,7 @@ func adminControlRoutePatterns(enabled map[string]bool) []string {
 		"GET /admin/security",
 		"GET /admin/operations",
 		"GET /admin/account",
+		"GET /admin/users",
 		"GET /admin/permissions",
 		"GET /admin/developer",
 		"GET /admin/developer/resources",

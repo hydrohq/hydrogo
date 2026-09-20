@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
@@ -18,6 +19,7 @@ type AdminAreaData struct {
 	Area        string
 	Locale      string
 	LocaleSaved bool
+	Users       []*auth.User
 }
 
 type AdminResourceUsageData struct {
@@ -159,6 +161,8 @@ func adminAreaEnglishLabels(area string) (string, string) {
 		return "Security & Access Control", "SECURITY CENTER"
 	case "permissions":
 		return "Role & Permission Matrix (RBAC)", "PERMISSION MANAGEMENT"
+	case "users":
+		return "Admin Users", "USER MANAGEMENT"
 	case "media":
 		return "Media & Asset Pipeline", "MEDIA LIBRARY"
 	case "site":
@@ -186,6 +190,8 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 		title, areaLabel = "Güvenlik & Erişim Kontrolü", "GÜVENLİK MERKEZİ"
 	case "permissions":
 		title, areaLabel = "Rol & Yetki Matrisi (RBAC)", "YETKİ YÖNETİMİ"
+	case "users":
+		title, areaLabel = "Admin Kullanıcıları", "KULLANICI YÖNETİMİ"
 	case "account":
 		title, areaLabel = "Yönetici Hesap Ayarları", "HESAP BİLGİLERİ"
 	case "media":
@@ -565,10 +571,42 @@ function testGraphQL(btn){
     <p>Yetkilendirme kuralları yalnızca arayüzdeki menüleri gizlemekle kalmaz; tüm servis ve veri işlemlerinde sistem yetkilendirme çekirdeği tarafından merkezi olarak zorunlu doğrulanır.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <a href="/admin/security" class="button">Güvenlik &amp; Davet Merkezi →</a>
-      <a href="/admin/control#security" class="button button-quiet">Kullanıcı Yetkilerini Düzenle</a>
+      <a href="/admin/users" class="button button-quiet">Kullanıcıları Yönet</a>
     </div>
   </div>
-</div>`)
+		</div>`)
+
+	case "users":
+		usersTitle, usersIntro, emptyText := "Admin Studio Kullanıcıları", "Bu liste yalnızca yönetim paneline giriş yapan hesapları içerir. Frontend üyeleri Üyeler ekranında ayrı tutulur.", "Henüz admin kullanıcısı bulunamadı."
+		roleLabel, activeLabel, saveLabel := "Rol", "Durum", "Kaydet"
+		if data.Locale == "en" {
+			usersTitle, usersIntro, emptyText = "Admin Studio users", "This list contains Admin Studio accounts only. Frontend members remain separate on the Members screen.", "No admin users found."
+			roleLabel, activeLabel, saveLabel = "Role", "Status", "Save"
+		}
+		_, _ = fmt.Fprintf(w, `<div class="studio-card" data-testid="users-area"><div class="dashboard-card-head"><div><h2>%s</h2><p class="muted">%s</p></div></div><div class="studio-table-wrap"><table class="studio-table"><thead><tr><th>Email</th><th>%s</th><th>%s</th><th>Actions</th></tr></thead><tbody>`, usersTitle, usersIntro, roleLabel, activeLabel)
+		if len(data.Users) == 0 {
+			_, _ = fmt.Fprintf(w, `<tr><td colspan="4">%s</td></tr>`, emptyText)
+		}
+		for _, u := range data.Users {
+			roleOptions := fmt.Sprintf(`<select name="role"><option value="admin"%s>Admin</option><option value="editor"%s>Editor</option><option value="viewer"%s>Viewer</option></select>`, selectedLocale(string(u.Role), "admin"), selectedLocale(string(u.Role), "editor"), selectedLocale(string(u.Role), "viewer"))
+			status := "Inactive"
+			if u.Active {
+				status = "Active"
+			}
+			if data.Locale == "tr" && u.Active {
+				status = "Aktif"
+			}
+			if data.Locale == "tr" && !u.Active {
+				status = "Pasif"
+			}
+			_, _ = fmt.Fprintf(w, `<tr><td><strong>%s</strong></td><td><form method="post" action="/auth/users/%s/role" class="inline-form"><input type="hidden" name="_csrf" value="%s">%s <button class="button button-quiet" type="submit">%s</button></form></td><td>%s</td><td>%s</td></tr>`, template.HTMLEscapeString(u.Email), template.HTMLEscapeString(u.ID), csrf, roleOptions, saveLabel, status, func() string {
+				if u.ID == "" {
+					return ""
+				}
+				return fmt.Sprintf(`<form method="post" action="/auth/users/%s/disable"><input type="hidden" name="_csrf" value="%s"><button class="button button-quiet" type="submit">Disable</button></form>`, template.HTMLEscapeString(u.ID), csrf)
+			}())
+		}
+		_, _ = io.WriteString(w, `</tbody></table></div></div>`)
 
 	case "account":
 		profileTitle := "👤 Yönetici Profil Bilgileri"
@@ -579,6 +617,8 @@ function testGraphQL(btn){
 		securityIntro := "Yönetici parolanız yüksek güvenlik standartları ile korunmaktadır. Güvenlik politikası gereği güçlü parolalar (en az 8 karakter) zorunludur."
 		passwordLabel := "Parola Değiştirme:"
 		passwordHelp := "Parolanızı yenilemek için Güvenlik Merkezinden şifre sıfırlama akışını başlatabilir veya CLI üzerinden <code>hydro user reset-password</code> komutunu çalıştırabilirsiniz."
+		accountSave, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel := "Hesap Bilgilerini Kaydet", "Mevcut Parola", "Yeni Parola", "Yeni Parola (Tekrar)"
+		accountHelp := "Email veya parolanızı değiştirmek için mevcut parolanızı doğrulayın. Değişiklikten sonra güvenlik için tüm oturumlar kapatılır."
 		if data.Locale == "en" {
 			profileTitle = "👤 Administrator profile"
 			profileIntro = "The administrator account currently authorized to access Admin Studio:"
@@ -588,6 +628,8 @@ function testGraphQL(btn){
 			securityIntro = "Your administrator password is protected by strong security standards. Passwords must contain at least 8 characters."
 			passwordLabel = "Change password:"
 			passwordHelp = "Start a password reset flow from the Security Center or run <code>hydro user reset-password</code> from the CLI."
+			accountSave, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel = "Save account changes", "Current password", "New password", "New password (confirm)"
+			accountHelp = "Verify your current password to change your email or password. All sessions will be signed out after the change."
 		}
 		languageSaved := ""
 		if data.LocaleSaved {
@@ -618,6 +660,18 @@ function testGraphQL(btn){
     </div>
   </div>
   <div class="acc-card">
+    <h3>✏️ %s</h3>
+    <p>%s</p>
+    <form method="post" action="/auth/me/credentials" class="studio-form" style="margin-top:14px;">
+      <input type="hidden" name="_csrf" value="%s">
+      <label class="studio-form-field"><span>%s</span><input type="email" name="email" value="%s" autocomplete="email" required></label>
+      <label class="studio-form-field"><span>%s</span><input type="password" name="current_password" autocomplete="current-password" required></label>
+      <label class="studio-form-field"><span>%s</span><input type="password" name="new_password" minlength="8" autocomplete="new-password"></label>
+      <label class="studio-form-field"><span>%s</span><input type="password" name="confirm_password" minlength="8" autocomplete="new-password"></label>
+      <button class="button" type="submit">%s</button>
+    </form>
+  </div>
+  <div class="acc-card">
     <h3>🌐 %s</h3>
     <p>%s</p>
     %s
@@ -627,7 +681,7 @@ function testGraphQL(btn){
       <button class="button" type="submit">%s</button>
     </form>
   </div>
-</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, i18n.T(data.Locale, "admin.language"), i18n.T(data.Locale, "admin.language"), languageSaved, csrf, i18n.T(data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.T(data.Locale, "admin.language.save"))
+</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.T(data.Locale, "admin.language"), i18n.T(data.Locale, "admin.language"), languageSaved, csrf, i18n.T(data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.T(data.Locale, "admin.language.save"))
 
 	default:
 		_, _ = fmt.Fprintf(w, `<div class="studio-card"><p>Yönetim alanı yükleniyor...</p></div>`)

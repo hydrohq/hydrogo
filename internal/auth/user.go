@@ -33,6 +33,15 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// UserAdminRepository contains the administrative account operations used by
+// the Admin Studio users surface. It is deliberately separate from the login
+// repository so member identities cannot accidentally implement this boundary.
+type UserAdminRepository interface {
+	List(ctx context.Context) ([]*User, error)
+	UpdateEmail(ctx context.Context, tx database.Executor, userID, email string) error
+	UpdateRole(ctx context.Context, userID string, role Role) error
+}
+
 func NormalizeEmail(email string) string {
 	return canonical.Email(email)
 }
@@ -53,4 +62,5 @@ type UserRepository interface {
 	Count(ctx context.Context) (int64, error)
 	SetActive(ctx context.Context, id string, active bool) error
 	UpdatePassword(ctx context.Context, tx database.Executor, userID, passwordHash string) error
+	UpdateEmail(ctx context.Context, tx database.Executor, userID, email string) error
 }
