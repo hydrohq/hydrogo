@@ -547,7 +547,7 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 
 		<div class="hero-content">
 			<h1 class="hero-headline">Güçlü Yönetim, <br><span class="gradient-text">Yüksek Performans</span></h1>
-			<p class="hero-description">İçerik, üyelik ve e-ticaret operasyonlarınızı tek bir merkezden hızlı ve güvenli şekilde yönetin.</p>
+			<p class="hero-description">Manage your content, memberships, and commerce operations from one fast, secure workspace.</p>
 		</div>
 	</aside>
 
