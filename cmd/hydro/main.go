@@ -239,6 +239,7 @@ func devCommand(args []string, stdout, stderr io.Writer) error {
 	_ = flags.String("compose-file", "deploy/local/docker-compose.storage.yml", "Docker Compose file for local dependencies")
 	_ = flags.Duration("poll", 600*time.Millisecond, "file watch polling interval")
 	_ = flags.Bool("seed-demo", true, "seed the disposable local demo data before starting")
+	_ = flags.Bool("open", true, "open the local development URL in the default browser")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
