@@ -36,6 +36,9 @@ func (r httpUserRepo) SetActive(context.Context, string, bool) error { return ni
 func (r httpUserRepo) UpdatePassword(context.Context, database.Executor, string, string) error {
 	return nil
 }
+func (r httpUserRepo) UpdateEmail(context.Context, database.Executor, string, string) error {
+	return nil
+}
 
 type httpSessionRepo struct{ session *Session }
 

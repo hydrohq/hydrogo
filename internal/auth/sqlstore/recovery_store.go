@@ -50,6 +50,45 @@ func (s *UserStore) UpdatePassword(ctx context.Context, tx database.Executor, us
 	return nil
 }
 
+func (s *UserStore) UpdateEmail(ctx context.Context, tx database.Executor, userID, email string) error {
+	if err := requireUserStore(s); err != nil {
+		return err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE users SET email = $1, updated_at = $2 WHERE id = $3`
+	args := []any{auth.NormalizeEmail(email), time.Now().UTC(), userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $4`
+		args = append(args, tenantID)
+	}
+	if s.dialect == database.SQLite {
+		query = `UPDATE users SET email = ?, updated_at = ? WHERE id = ?`
+		args = []any{auth.NormalizeEmail(email), time.Now().UTC().Format(time.RFC3339Nano), userID}
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+			args = append(args, tenantID)
+		}
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return auth.ErrUserNotFound
+	}
+	return nil
+}
+
 func (s *UserStore) CreateRecoveryToken(ctx context.Context, tx database.Executor, id, userID, purpose, tokenHash string, expiresAt, createdAt time.Time) error {
 	if err := requireUserStore(s); err != nil {
 		return err

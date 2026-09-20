@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
@@ -24,6 +25,8 @@ var (
 	ErrUserRepositoryRequired       = errors.New("user repository is required")
 	ErrSessionRepositoryRequired    = errors.New("session repository is required")
 	ErrMobileSessionRevokerRequired = errors.New("mobile session revoker is required")
+	ErrCurrentPasswordRequired      = errors.New("current password is required")
+	ErrPasswordMismatch             = errors.New("new passwords do not match")
 )
 
 type contextKey string
@@ -226,6 +229,48 @@ func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID string) 
 	return s.sessionRepo.DeleteByUserID(ctx, userID)
 }
 
+// ChangeCredentials verifies the current password before changing either
+// account credential. The caller must revoke the browser session afterwards;
+// this service method keeps hashing and persistence in one place.
+func (s *AuthService) ChangeCredentials(ctx context.Context, userID, currentPassword, email, newPassword string, tx database.Executor) error {
+	if s == nil || guards.IsNil(s.userRepo) {
+		return ErrUserRepositoryRequired
+	}
+	u, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	valid, err := VerifyPassword(currentPassword, u.PasswordHash)
+	if err != nil || !valid {
+		return ErrInvalidCredentials
+	}
+	if email == "" && newPassword == "" {
+		return ErrCurrentPasswordRequired
+	}
+	if email != "" {
+		email = NormalizeEmail(email)
+		if !ValidateEmail(email) {
+			return errors.New("invalid email address")
+		}
+		if existing, lookupErr := s.userRepo.GetByEmail(ctx, email); lookupErr == nil && existing.ID != userID {
+			return ErrUserAlreadyExists
+		}
+		if err := s.userRepo.UpdateEmail(ctx, tx, userID, email); err != nil {
+			return err
+		}
+	}
+	if newPassword != "" {
+		hash, err := HashPassword(newPassword, s.argonParams)
+		if err != nil {
+			return err
+		}
+		if err := s.userRepo.UpdatePassword(ctx, tx, userID, hash); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *AuthService) SetUserActive(ctx context.Context, userID string, active bool) error {
 	if s == nil || guards.IsNil(s.userRepo) {
 		return ErrUserRepositoryRequired
@@ -246,6 +291,20 @@ func (s *AuthService) SetUserActive(ctx context.Context, userID string, active b
 		return s.mobileSessions.RevokeAllDevices(ctx, userID)
 	}
 	return nil
+}
+
+func (s *AuthService) UpdateUserRole(ctx context.Context, userID string, role Role) error {
+	if s == nil || guards.IsNil(s.userRepo) {
+		return ErrUserRepositoryRequired
+	}
+	repo, ok := s.userRepo.(UserAdminRepository)
+	if !ok {
+		return ErrUserRepositoryRequired
+	}
+	if err := repo.UpdateRole(ctx, userID, role); err != nil {
+		return err
+	}
+	return s.RevokeAllUserSessions(ctx, userID)
 }
 
 func SetSessionCookie(w http.ResponseWriter, rawToken string, expiresAt time.Time, secure bool) {

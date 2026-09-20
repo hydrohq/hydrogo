@@ -82,7 +82,9 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/login", Public: true, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
+		{Pattern: "POST /auth/me/credentials", Handler: http.HandlerFunc(h.changeCredentials)},
 		{Pattern: "POST /auth/users/{id}/disable", Handler: http.HandlerFunc(h.disableUser)},
+		{Pattern: "POST /auth/users/{id}/role", Handler: http.HandlerFunc(h.updateUserRole)},
 		{Pattern: "POST /auth/me/mfa/enroll", Handler: http.HandlerFunc(h.enrollMFA)},
 		{Pattern: "POST /auth/me/mfa/enable", Handler: http.HandlerFunc(h.enableMFA)},
 		{Pattern: "POST /auth/password-reset/request", Public: true, Handler: http.HandlerFunc(h.requestPasswordReset)},
@@ -361,6 +363,59 @@ func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active})
 }
 
+func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil || !user.Active || h.Service == nil || h.Transactions == (database.Transactor{}) {
+		http.Error(w, "authentication unavailable", http.StatusUnauthorized)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid account update", http.StatusBadRequest)
+		return
+	}
+	newEmail := strings.TrimSpace(r.FormValue("email"))
+	newPassword := r.FormValue("new_password")
+	if newEmail == user.Email {
+		newEmail = ""
+	}
+	if newEmail == "" && newPassword == "" {
+		http.Error(w, "no account changes requested", http.StatusBadRequest)
+		return
+	}
+	if newPassword != "" && newPassword != r.FormValue("confirm_password") {
+		http.Error(w, "new passwords do not match", http.StatusBadRequest)
+		return
+	}
+	if newPassword != "" && len([]rune(newPassword)) < 8 {
+		http.Error(w, "new password must be at least 8 characters", http.StatusBadRequest)
+		return
+	}
+	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		return h.Service.ChangeCredentials(r.Context(), user.ID, r.FormValue("current_password"), newEmail, newPassword, tx)
+	})
+	if errors.Is(err, ErrInvalidCredentials) {
+		http.Error(w, "current password is incorrect", http.StatusUnauthorized)
+		return
+	}
+	if errors.Is(err, ErrUserAlreadyExists) {
+		http.Error(w, "email is already in use", http.StatusConflict)
+		return
+	}
+	if err != nil {
+		writeAuthDependencyError(w, "account update failed", err, http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.RevokeAllUserSessions(r.Context(), user.ID); err != nil {
+		writeAuthDependencyError(w, "account update failed", err, http.StatusInternalServerError)
+		return
+	}
+	if h.Audit != nil {
+		h.recordAuthEvent(r, "auth.credentials_changed", user.ID)
+	}
+	ClearSessionCookie(w, h.Secure)
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
 	if h.Service == nil {
 		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
@@ -391,6 +446,29 @@ func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h HTTPHandler) updateUserRole(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil || !h.adminUser(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	actor := UserFromContext(r.Context())
+	targetID := r.PathValue("id")
+	if targetID == "" || targetID == actor.ID {
+		http.Error(w, "administrator role cannot be changed here", http.StatusConflict)
+		return
+	}
+	if err := h.Service.UpdateUserRole(r.Context(), targetID, Role(strings.TrimSpace(r.FormValue("role")))); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		writeAuthDependencyError(w, "user role update failed", err, http.StatusBadRequest)
+		return
+	}
+	h.recordAuthEvent(r, "auth.user_role_changed", targetID)
 	w.WriteHeader(http.StatusNoContent)
 }
 
