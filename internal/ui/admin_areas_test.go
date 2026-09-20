@@ -67,6 +67,24 @@ func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesMobileNavigationContract(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Mobil navigasyon", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	markup := out.String()
+	for _, want := range []string{
+		`class="studio-mobile-menu-toggle"`,
+		`aria-expanded="false"`,
+		`studio-mobile-nav-open`,
+		`pointerdown`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("admin shell missing mobile navigation contract %q", want)
+		}
+	}
+}
+
 func TestAdminShellWriterPreservesInputLengthAfterRewrite(t *testing.T) {
 	var out bytes.Buffer
 	writer := adminShellWriter{Writer: &out}
