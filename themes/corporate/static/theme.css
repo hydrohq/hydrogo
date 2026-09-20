@@ -3848,6 +3848,43 @@ body {
   background-image: none;
 }
 
+/* Responsive integrity layer: shared guardrails for public pages and
+   customer-facing components. Component-specific breakpoints above remain
+   responsible for their visual rhythm; these rules prevent overflow and
+   preserve readable interaction targets at every width. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, main, section, article, header, footer, nav, form { min-width: 0; }
+img, video, iframe, svg { max-width: 100%; }
+pre, code, .cli-command, .code-block, .product-description-rich { max-width: 100%; overflow-wrap: anywhere; }
+pre, .code-block, .cli-command { overflow-x: auto; }
+.page-container, .news-portal, .member-portal, .cart-page,
+.hero-inner-container, .product-detail-layout, .news-detail-layout,
+.content-body, .product-description-rich { min-width: 0; }
+
+@media (max-width: 900px) {
+  .header-container, .page-container { padding-left: 20px; padding-right: 20px; }
+  .hero-inner-container, .product-detail-layout, .news-detail-layout,
+  .member-portal, .cart-page { width: 100%; }
+  .hero-inner-container > *, .product-detail-layout > *, .news-detail-layout > * { min-width: 0; }
+}
+
+@media (max-width: 640px) {
+  .header-container, .page-container { padding-left: 16px; padding-right: 16px; }
+  .news-portal { padding-left: 16px; padding-right: 16px; }
+  .section-head-wrap { max-width: 100%; }
+  .section-title, .hero-headline { overflow-wrap: anywhere; }
+  .hero-actions, .news-hero-actions, .product-actions, .cart-actions { width: 100%; }
+  .hero-actions a, .news-hero-actions a, .product-actions a, .cart-actions a,
+  .hero-actions button, .news-hero-actions button, .product-actions button, .cart-actions button {
+    max-width: 100%;
+  }
+  .window-titlebar, .news-breadcrumb, .product-tabs-nav { min-width: 0; }
+  .window-titlebar { overflow-x: auto; }
+  .window-tab-btn { flex: 0 0 auto; }
+  .content-body table { display: block; max-width: 100%; overflow-x: auto; }
+  .content-body pre { white-space: pre-wrap; }
+}
+
 .news-header,
 .diag-node,
 .pricing-card,
