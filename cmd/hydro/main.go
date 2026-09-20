@@ -51,6 +51,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/generator"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
@@ -1350,17 +1351,32 @@ func serve(args []string, stderr io.Writer) error {
 				DataTime:    dataTime,
 				DataSource:  "Proses İçi Bellek Telemetrisi",
 				DateFilter:  dateRange,
+				Locale:      adminLocaleFromRequest(r),
 			}); err != nil {
 				http.Error(w, "admin reports unavailable", http.StatusInternalServerError)
 			}
 			return
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard"}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r)}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
 	routes = append(routes, router.Route{Pattern: "GET /admin", Access: router.Protected, Handler: adminDashboardHandler})
 	routes = append(routes, router.Route{Pattern: "GET /admin/reports", Access: router.Protected, Handler: adminDashboardHandler})
+	routes = append(routes, router.Route{Pattern: "POST /admin/account/locale", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		locale := strings.TrimSpace(r.FormValue("locale"))
+		if !i18n.IsSupportedCatalogLocale(locale) {
+			http.Error(w, "unsupported locale", http.StatusBadRequest)
+			return
+		}
+		setAdminLocaleCookie(w, locale, cfg.Security.SecureCookies)
+		http.Redirect(w, r, "/admin/account?locale_saved=1", http.StatusSeeOther)
+	})})
 
 	adminReportsExportHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
@@ -1454,13 +1470,13 @@ func serve(args []string, stderr io.Writer) error {
 			active = "operations"
 		}
 		if r.URL.Path == "/admin/developer" {
-			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer"}); err != nil {
+			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer", Locale: adminLocaleFromRequest(r)}); err != nil {
 				http.Error(w, "developer tools unavailable", http.StatusInternalServerError)
 			}
 			return
 		}
 		if r.URL.Path == "/admin/developer/resources" {
-			if err := ui.RenderAdminResourceUsage(w, ui.AdminResourceUsageData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), Snapshot: runtimeMetrics.Snapshot()}); err != nil {
+			if err := ui.RenderAdminResourceUsage(w, ui.AdminResourceUsageData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), Snapshot: runtimeMetrics.Snapshot(), Locale: adminLocaleFromRequest(r)}); err != nil {
 				http.Error(w, "resource usage unavailable", http.StatusInternalServerError)
 			}
 			return
@@ -1477,9 +1493,9 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		var err error
 		if active == "control" {
-			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active})
+			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
-			err = ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active})
+			err = ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), LocaleSaved: r.URL.Query().Get("locale_saved") == "1"})
 		}
 		if err != nil {
 			http.Error(w, "admin control center unavailable", http.StatusInternalServerError)

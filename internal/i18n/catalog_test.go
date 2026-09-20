@@ -13,3 +13,15 @@ func TestCatalogTranslatesEnglishAndFallsBack(t *testing.T) {
 		t.Fatalf("missing translation = %q", got)
 	}
 }
+
+func TestResolveCatalogLocaleAndValidation(t *testing.T) {
+	if got := ResolveCatalogLocale("en-US"); got != "en" {
+		t.Fatalf("resolved locale = %q", got)
+	}
+	if got := ResolveCatalogLocale("de"); got != "tr" {
+		t.Fatalf("unsupported locale fallback = %q", got)
+	}
+	if !IsSupportedCatalogLocale("tr-TR") || IsSupportedCatalogLocale("de-DE") {
+		t.Fatal("locale validation did not enforce catalog allowlist")
+	}
+}

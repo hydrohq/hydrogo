@@ -7,20 +7,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
 type AdminAreaData struct {
-	Email string
-	Nonce string
-	CSRF  string
-	Area  string
+	Email       string
+	Nonce       string
+	CSRF        string
+	Area        string
+	Locale      string
+	LocaleSaved bool
 }
 
 type AdminResourceUsageData struct {
 	Email    string
 	Nonce    string
 	Snapshot observability.RuntimeSnapshot
+	Locale   string
 }
 
 var adminResourceUsageTemplate = template.Must(template.New("admin-resource-usage").Parse(`<section class="resource-page" data-testid="resource-page">
@@ -111,7 +115,7 @@ func RenderAdminResourceUsage(w io.Writer, data AdminResourceUsageData) error {
 		Uptime:                 formatDuration(s.Uptime),
 		StartedAt:              s.StartedAt.Local().Format("02.01.2006 15:04:05"),
 	}
-	if err := AdminStart(w, "Kaynak tüketimi", "GELİŞTİRİCİ", data.Nonce, "resources"); err != nil {
+	if err := AdminStartLocale(w, "Kaynak tüketimi", "GELİŞTİRİCİ", data.Nonce, "resources", data.Locale); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(w, renderDeveloperTabs("resources")); err != nil {
@@ -145,6 +149,32 @@ func formatDuration(value time.Duration) string {
 	return fmt.Sprintf("%dd %02dh %02dm", int(value/(24*time.Hour)), int(value/time.Hour)%24, int(value/time.Minute)%60)
 }
 
+func adminAreaEnglishLabels(area string) (string, string) {
+	switch area {
+	case "account":
+		return "Administrator Account Settings", "ACCOUNT"
+	case "developer":
+		return "API & Integration Console", "DEVELOPER CENTER"
+	case "security":
+		return "Security & Access Control", "SECURITY CENTER"
+	case "permissions":
+		return "Role & Permission Matrix (RBAC)", "PERMISSION MANAGEMENT"
+	case "media":
+		return "Media & Asset Pipeline", "MEDIA LIBRARY"
+	case "site":
+		return "Site & Publishing Surface", "SITE CONFIGURATION"
+	default:
+		return "Administration Area", "STUDIO"
+	}
+}
+
+func selectedLocale(current, option string) string {
+	if current == option {
+		return ` selected`
+	}
+	return ""
+}
+
 func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 	var title, areaLabel string
 	switch data.Area {
@@ -170,7 +200,10 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 	if activeItem == "security" || activeItem == "control" || activeItem == "operations" {
 		activeItem = "developer"
 	}
-	if err := AdminStart(w, title, areaLabel, data.Nonce, activeItem); err != nil {
+	if data.Locale == "en" {
+		title, areaLabel = adminAreaEnglishLabels(data.Area)
+	}
+	if err := AdminStartLocale(w, title, areaLabel, data.Nonce, activeItem, data.Locale); err != nil {
 		return err
 	}
 
@@ -297,6 +330,7 @@ function testEndpoint(btn, url){
       btn.textContent = 'Tekrar Dene';
     });
 }
+
 function testGraphQL(btn){
   const box = btn.closest('.dev-endpoint-card').querySelector('.dev-preview-box');
   btn.disabled = true;
@@ -537,10 +571,22 @@ function testGraphQL(btn){
 </div>`)
 
 	case "account":
+		profileTitle := "👤 Yönetici Profil Bilgileri"
+		profileIntro := "Admin Studio paneline erişim sağlayan mevcut yetkili hesap:"
+		securityTitle := "🔒 Hesap Güvenliği &amp; Parola Yenileme"
+		if data.Locale == "en" {
+			profileTitle = "👤 Administrator profile"
+			profileIntro = "The administrator account currently authorized to access Admin Studio:"
+			securityTitle = "🔒 Account security &amp; password reset"
+		}
+		languageSaved := ""
+		if data.LocaleSaved {
+			languageSaved = `<p class="studio-kit-summary" role="status">` + template.HTMLEscapeString(i18n.T(data.Locale, "admin.language.saved")) + `</p>`
+		}
 		_, _ = fmt.Fprintf(w, `<div class="acc-grid">
   <div class="acc-card">
-    <h3>👤 Yönetici Profil Bilgileri</h3>
-    <p>Admin Studio paneline erişim sağlayan mevcut yetkili hesap:</p>
+    <h3>%s</h3>
+    <p>%s</p>
     <div style="margin:12px 0;">
       <div class="acc-info-row"><span class="acc-info-label">E-Posta:</span><span class="acc-info-val">%s</span></div>
       <div class="acc-info-row"><span class="acc-info-label">Rol:</span><span class="acc-info-val" style="color:var(--brand-light);">👑 Sistem Yöneticisi (Admin)</span></div>
@@ -554,14 +600,24 @@ function testGraphQL(btn){
   </div>
 
   <div class="acc-card">
-    <h3>🔒 Hesap Güvenliği &amp; Parola Yenileme</h3>
+    <h3>%s</h3>
     <p>Yönetici parolanız yüksek güvenlik standartları ile korunmaktadır. Güvenlik politikası gereği güçlü parolalar (en az 8 karakter) zorunludur.</p>
     <div style="background:var(--bg-subtle);border:1px solid var(--line);border-radius:var(--radius-md);padding:14px;margin-top:12px;">
       <div style="font-weight:700;font-size:.85rem;color:var(--ink);margin-bottom:4px;">Parola Değiştirme:</div>
       <div style="font-size:.78rem;color:var(--muted);line-height:1.45;">Parolanızı yenilemek için Güvenlik Merkezinden şifre sıfırlama akışını başlatabilir veya CLI üzerinden <code>hydro user reset-password</code> komutunu çalıştırabilirsiniz.</div>
     </div>
   </div>
-</div>`, email)
+  <div class="acc-card">
+    <h3>🌐 %s</h3>
+    <p>%s</p>
+    %s
+    <form method="post" action="/admin/account/locale" class="studio-form">
+      <input type="hidden" name="_csrf" value="%s">
+      <label class="studio-form-field"><span>%s</span><select name="locale"><option value="tr"%s>Türkçe (TR)</option><option value="en"%s>English (EN)</option></select></label>
+      <button class="button" type="submit">%s</button>
+    </form>
+  </div>
+</div>`, profileTitle, profileIntro, email, securityTitle, i18n.T(data.Locale, "admin.language"), i18n.T(data.Locale, "admin.language"), languageSaved, csrf, i18n.T(data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.T(data.Locale, "admin.language.save"))
 
 	default:
 		_, _ = fmt.Fprintf(w, `<div class="studio-card"><p>Yönetim alanı yükleniyor...</p></div>`)

@@ -20,10 +20,11 @@ type AdminDashboardData struct {
 	DataTime    string
 	DataSource  string
 	DateFilter  string
+	Locale      string
 }
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
-	if err := AdminStart(w, "Dashboard", "", data.Nonce, data.Active); err != nil {
+	if err := AdminStartLocale(w, "Dashboard", "", data.Nonce, data.Active, data.Locale); err != nil {
 		return err
 	}
 	if err := adminWorkbenchDashboardTemplate.Execute(w, data); err != nil {
@@ -47,7 +48,7 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 }
 
 func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
-	if err := AdminStart(w, "Raporlar", "Analitik ve Performans", data.Nonce, data.Active); err != nil {
+	if err := AdminStartLocale(w, "Raporlar", "Analitik ve Performans", data.Nonce, data.Active, data.Locale); err != nil {
 		return err
 	}
 	if err := adminReportsKPIsTemplate.Execute(w, data); err != nil {
