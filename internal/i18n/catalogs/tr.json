@@ -1,0 +1,20 @@
+{
+  "admin.language": "Dil",
+  "admin.language.tr": "Türkçe",
+  "admin.language.en": "English",
+  "admin.language.save": "Dili kaydet",
+  "admin.language.saved": "Dil tercihiniz güncellendi.",
+  "admin.account.title": "Yönetici Hesap Ayarları",
+  "admin.account.eyebrow": "HESAP BİLGİLERİ",
+  "admin.dashboard": "Dashboard",
+  "admin.reports": "Raporlar",
+  "admin.news": "Haberler",
+  "admin.pages": "Sayfalar",
+  "admin.products": "Ürün kataloğu",
+  "admin.orders": "Siparişler",
+  "admin.members": "Üyeler",
+  "admin.media": "Medya",
+  "admin.developer": "Geliştirici & API",
+  "admin.account": "Hesap Ayarları",
+  "admin.security": "Güvenlik & Yetkiler"
+}
