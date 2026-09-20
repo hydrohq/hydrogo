@@ -360,7 +360,7 @@ func (h Handler) me(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 	u := auth.UserFromContext(r.Context())
-	if u == nil || !u.Active || u.Role != auth.RoleAdmin {
+	if !auth.Can(u, auth.PermissionMembersManage) {
 		http.Error(w, "forbidden", 403)
 		return false
 	}
@@ -451,7 +451,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 			if member.LastLoginAt != nil {
 				lastLoginText = fmt.Sprintf(`<span style="font-size:0.84rem;font-family:var(--font-mono);">%s</span>`, member.LastLoginAt.Format("2006-01-02 15:04"))
 			}
-			fmt.Fprintf(&body, `<tr><td><strong><a href="/admin/members/%s" style="color:var(--ink);text-decoration:none;">%s</a></strong></td><td><span class="%s">%s</span></td><td>%s</td><td>%s</td><td style="font-family:var(--font-mono);font-size:0.84rem;">%s</td><td><div style="display:inline-flex;gap:6px;"><a href="/admin/members/%s" class="button button-quiet" style="min-height:30px;padding:4px 10px;font-size:0.78rem;">Detay</a></div></td></tr>`,
+			fmt.Fprintf(&body, `<tr><td><strong><a href="/admin/members/%s" style="color:var(--ink);text-decoration:none;">%s</a></strong></td><td><span class="%s">%s</span></td><td>%s</td><td>%s</td><td style="font-family:var(--font-mono);font-size:0.84rem;">%s</td><td><div style="display:inline-flex;gap:6px;"><a href="/admin/members/%s" class="button button-quiet" style="min-height:28px;padding:4px 12px;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;">Detay</a></div></td></tr>`,
 				template.HTMLEscapeString(member.ID),
 				template.HTMLEscapeString(member.Email),
 				statusClass,

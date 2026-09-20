@@ -120,6 +120,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminVariants), Protected: true},
 		{Pattern: "POST /admin/commerce/products/{productID}/variants", Handler: http.HandlerFunc(h.adminCreateVariant), Protected: true},
 		{Pattern: "GET /admin/commerce/orders", Handler: http.HandlerFunc(h.adminOrders), Protected: true},
+		{Pattern: "GET /admin/commerce/orders/{orderID}", Handler: http.HandlerFunc(h.adminOrderDetail), Protected: true},
 		{Pattern: "POST /admin/commerce/orders/{orderID}/refund", Handler: http.HandlerFunc(h.adminRefund), Protected: true},
 		{Pattern: "GET /admin/commerce/refunds/pending", Handler: http.HandlerFunc(h.pendingRefunds), Protected: true},
 	}
@@ -134,7 +135,7 @@ func (h Handler) defaultLocale() string {
 
 func (h Handler) pendingRefunds(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -286,7 +287,7 @@ func catalogPage(r *http.Request) (int, error) {
 
 func (h Handler) createVariant(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -396,7 +397,7 @@ func (h Handler) products(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) createProduct(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -432,7 +433,7 @@ func (h Handler) getProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -760,7 +761,7 @@ func (h Handler) productMediaMarkup(product commerce.Product) template.HTML {
 
 func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -804,7 +805,7 @@ func (h Handler) adminProducts(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminNewProduct(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -830,7 +831,7 @@ func (h Handler) adminNewProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.CatalogVariants == nil {
+	if !auth.Can(user, auth.PermissionCommerceWrite) || h.CatalogVariants == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -863,7 +864,7 @@ func (h Handler) adminVariants(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminCreateVariant(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.CatalogVariants == nil {
+	if !auth.Can(user, auth.PermissionCommerceWrite) || h.CatalogVariants == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -892,7 +893,7 @@ func (h Handler) adminCreateVariant(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -921,7 +922,7 @@ func (h Handler) adminCreateProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminProductPage(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -962,7 +963,7 @@ func (h Handler) adminProductPage(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminUpdateProduct(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -997,7 +998,7 @@ func (h Handler) adminUpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -1014,21 +1015,187 @@ func (h Handler) adminOrders(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStart(w, "Siparişler", "Commerce", security.NonceFromContext(r.Context()), "orders"); err != nil {
 		return
 	}
-	_, _ = w.Write([]byte(`<section class="studio-card"><div class="table-wrap"><table><thead><tr><th>Sipariş No</th><th>Müşteri</th><th>Tutar</th><th>Ödeme Durumu</th><th>Kargo Durumu</th><th>Ürün Adedi</th><th style="text-align:right">İşlem</th></tr></thead><tbody>`))
-	for _, order := range orders {
-		refund := `<span>-</span>`
-		if order.PaymentStatus == "paid" {
-			refund = fmt.Sprintf(`<form method="post" action="/admin/commerce/orders/%s/refund"><input type="hidden" name="_csrf" value="%s"><input name="provider" placeholder="stripe" required style="width:70px;display:inline-block;padding:4px 8px;font-size:.78rem;"><input name="payment_id" placeholder="id" required style="width:70px;display:inline-block;padding:4px 8px;font-size:.78rem;"><input name="amount_cents" type="number" min="1" value="%d" required style="width:60px;display:inline-block;padding:4px 8px;font-size:.78rem;"><button type="submit" class="button button-quiet button-danger" style="padding:4px 10px;font-size:.78rem;">İade et</button></form>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), order.TotalCents)
+	var b strings.Builder
+	b.WriteString(`<section class="studio-card"><div class="table-wrap"><table><thead><tr><th>Sipariş No</th><th>Müşteri</th><th>Tutar</th><th>Ödeme Durumu</th><th>Kargo Durumu</th><th>Ürün Adedi</th><th style="text-align:right">İşlem</th></tr></thead><tbody>`)
+	if len(orders) == 0 {
+		b.WriteString(`<tr><td colspan="7" class="empty">Henüz sipariş kaydı bulunmuyor.</td></tr>`)
+	} else {
+		for _, order := range orders {
+			customerDisplay := order.Customer.Name
+			if customerDisplay == "" {
+				customerDisplay = order.Customer.Email
+			}
+			if customerDisplay == "" {
+				customerDisplay = order.UserID
+			}
+			payBadge := `<span class="status">` + template.HTMLEscapeString(order.PaymentStatus) + `</span>`
+			switch order.PaymentStatus {
+			case "paid":
+				payBadge = `<span class="status-badge status-badge-success">Ödendi</span>`
+			case "refunded":
+				payBadge = `<span class="status-badge status-badge-muted">İade Edildi</span>`
+			case "pending":
+				payBadge = `<span class="status-badge status-badge-warning">Bekliyor</span>`
+			case "failed":
+				payBadge = `<span class="status-badge status-badge-danger">Başarısız</span>`
+			}
+			shipBadge := `<span class="status-badge">` + template.HTMLEscapeString(order.ShippingStatus) + `</span>`
+			switch order.ShippingStatus {
+			case "pending":
+				shipBadge = `<span class="status-badge status-badge-warning">Hazırlanıyor</span>`
+			case "shipped":
+				shipBadge = `<span class="status-badge status-badge-info">Kargoda</span>`
+			case "delivered":
+				shipBadge = `<span class="status-badge status-badge-success">Teslim Edildi</span>`
+			case "cancelled":
+				shipBadge = `<span class="status-badge status-badge-muted">İptal</span>`
+			}
+			fmt.Fprintf(&b, `<tr><td><strong><a href="/admin/commerce/orders/%s" style="color:var(--ink);text-decoration:none;font-family:var(--font-mono);">#%s</a></strong></td><td>%s</td><td><strong>%s %s</strong></td><td>%s</td><td>%s</td><td>%d adet</td><td style="text-align:right"><a href="/admin/commerce/orders/%s" class="button button-quiet" style="min-height:28px;padding:4px 12px;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;">Detay</a></td></tr>`,
+				template.HTMLEscapeString(order.ID),
+				template.HTMLEscapeString(order.ID),
+				template.HTMLEscapeString(customerDisplay),
+				formatCents(order.TotalCents),
+				template.HTMLEscapeString(order.Currency),
+				payBadge,
+				shipBadge,
+				len(order.Items),
+				template.HTMLEscapeString(order.ID),
+			)
 		}
-		_, _ = fmt.Fprintf(w, `<tr><td><code>%s</code></td><td><code>%s</code></td><td><strong>%d %s</strong></td><td><span class="status">%s</span></td><td>%s</td><td>%d</td><td style="text-align:right">%s</td></tr>`, template.HTMLEscapeString(order.ID), template.HTMLEscapeString(order.UserID), order.TotalCents, template.HTMLEscapeString(order.Currency), template.HTMLEscapeString(order.PaymentStatus), template.HTMLEscapeString(order.ShippingStatus), len(order.Items), refund)
 	}
-	_, _ = w.Write([]byte(`</tbody></table></div></section>`))
+	b.WriteString(`</tbody></table></div></section>`)
+	_, _ = w.Write([]byte(b.String()))
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminOrderDetail(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Orders == nil {
+		http.Error(w, "order management unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	orderID := r.PathValue("orderID")
+	order, err := h.Orders.GetOrder(r.Context(), h.DB, orderID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	var transaction commerce.PaymentTransaction
+	if refundStore, ok := h.PaymentService.Store.(commerce.PaymentRefundStore); ok {
+		if tx, err := refundStore.GetPaymentTransaction(r.Context(), h.DB, orderID); err == nil {
+			transaction = tx
+		}
+	} else if refundStore, ok := h.Orders.(commerce.PaymentRefundStore); ok {
+		if tx, err := refundStore.GetPaymentTransaction(r.Context(), h.DB, orderID); err == nil {
+			transaction = tx
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Sipariş #"+order.ID, "Commerce", security.NonceFromContext(r.Context()), "orders"); err != nil {
+		return
+	}
+	csrf := security.CSRFTokenFromContext(r.Context())
+	var b strings.Builder
+	fmt.Fprintf(&b, `<div style="margin-bottom:14px;"><a href="/admin/commerce/orders" class="text-link">← Tüm Siparişlere Dön</a></div>`)
+	b.WriteString(`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:18px;">`)
+
+	// Card 1: Order Summary
+	b.WriteString(`<section class="studio-card"><div class="dashboard-card-head"><h2>Sipariş Özeti</h2></div><div style="display:grid;gap:8px;font-size:0.84rem;">`)
+	fmt.Fprintf(&b, `<div><span class="muted">Sipariş ID:</span> <code style="font-family:var(--font-mono);">%s</code></div>`, template.HTMLEscapeString(order.ID))
+	fmt.Fprintf(&b, `<div><span class="muted">Toplam Tutar:</span> <strong>%s %s</strong></div>`, formatCents(order.TotalCents), template.HTMLEscapeString(order.Currency))
+	fmt.Fprintf(&b, `<div><span class="muted">Ödeme Durumu:</span> <span class="status">%s</span></div>`, template.HTMLEscapeString(order.PaymentStatus))
+	fmt.Fprintf(&b, `<div><span class="muted">Kargo Durumu:</span> <span class="status">%s</span></div>`, template.HTMLEscapeString(order.ShippingStatus))
+	b.WriteString(`</div></section>`)
+
+	// Card 2: Customer Info
+	b.WriteString(`<section class="studio-card"><div class="dashboard-card-head"><h2>Müşteri Bilgileri</h2></div><div style="display:grid;gap:8px;font-size:0.84rem;">`)
+	if order.Customer.Name != "" {
+		fmt.Fprintf(&b, `<div><span class="muted">İsim:</span> <strong>%s</strong></div>`, template.HTMLEscapeString(order.Customer.Name))
+	}
+	if order.Customer.Email != "" {
+		fmt.Fprintf(&b, `<div><span class="muted">E-posta:</span> <a href="mailto:%s" style="color:var(--brand);">%s</a></div>`, template.HTMLEscapeString(order.Customer.Email), template.HTMLEscapeString(order.Customer.Email))
+	}
+	if order.Customer.Phone != "" {
+		fmt.Fprintf(&b, `<div><span class="muted">Telefon:</span> %s</div>`, template.HTMLEscapeString(order.Customer.Phone))
+	}
+	addressLine := order.Customer.Address
+	if order.Customer.City != "" || order.Customer.Country != "" {
+		addressLine += " " + order.Customer.City + " / " + order.Customer.Country
+	}
+	if addressLine != "" {
+		fmt.Fprintf(&b, `<div><span class="muted">Adres:</span> %s</div>`, template.HTMLEscapeString(addressLine))
+	}
+	fmt.Fprintf(&b, `<div><span class="muted">Kullanıcı / Üye ID:</span> <code>%s</code></div>`, template.HTMLEscapeString(order.UserID))
+	b.WriteString(`</div></section>`)
+
+	// Card 3: Payment Technical Details & Refund Form
+	b.WriteString(`<section class="studio-card"><div class="dashboard-card-head"><h2>Ödeme &amp; İşlem Detayı</h2></div><div style="display:grid;gap:8px;font-size:0.84rem;">`)
+	providerDisplay := transaction.Provider
+	if providerDisplay == "" {
+		providerDisplay = "—"
+	}
+	paymentIDDisplay := transaction.ProviderPaymentID
+	if paymentIDDisplay == "" {
+		paymentIDDisplay = "—"
+	}
+	fmt.Fprintf(&b, `<div><span class="muted">Ödeme Sağlayıcı:</span> <strong>%s</strong></div>`, template.HTMLEscapeString(strings.ToUpper(providerDisplay)))
+	fmt.Fprintf(&b, `<div><span class="muted">Sağlayıcı İşlem ID:</span> <code>%s</code></div>`, template.HTMLEscapeString(paymentIDDisplay))
+	if transaction.Status != "" {
+		fmt.Fprintf(&b, `<div><span class="muted">İşlem Durumu:</span> <span class="status">%s</span></div>`, template.HTMLEscapeString(transaction.Status))
+	}
+
+	if order.PaymentStatus == "paid" {
+		providerVal := transaction.Provider
+		if providerVal == "" {
+			providerVal = "stripe"
+		}
+		payIDVal := transaction.ProviderPaymentID
+		if payIDVal == "" {
+			payIDVal = order.ID
+		}
+		b.WriteString(`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">`)
+		fmt.Fprintf(&b, `<form method="post" action="/admin/commerce/orders/%s/refund" style="display:flex;align-items:center;gap:8px;"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="provider" value="%s"><input type="hidden" name="payment_id" value="%s"><input type="hidden" name="amount_cents" value="%d"><button type="submit" class="button button-quiet button-danger" style="min-height:30px;padding:4px 14px;" onclick="return confirm('Bu sipariş için %s %s tutarındaki iade işlemini başlatmak istediğinize emin misiniz?');">Siparişi İade Et (%s %s)</button></form>`,
+			template.HTMLEscapeString(order.ID),
+			template.HTMLEscapeString(csrf),
+			template.HTMLEscapeString(providerVal),
+			template.HTMLEscapeString(payIDVal),
+			order.TotalCents,
+			formatCents(order.TotalCents),
+			template.HTMLEscapeString(order.Currency),
+			formatCents(order.TotalCents),
+			template.HTMLEscapeString(order.Currency),
+		)
+		b.WriteString(`</div>`)
+	}
+	b.WriteString(`</div></section></div>`)
+
+	// Card 4: Order Items Table
+	b.WriteString(`<section class="studio-card"><div class="dashboard-card-head"><h2>Sipariş Kalemleri</h2></div><div class="table-wrap"><table><thead><tr><th>Ürün / Başlık</th><th>SKU</th><th>Adet</th><th>Birim Fiyat</th><th>Toplam</th></tr></thead><tbody>`)
+	for _, item := range order.Items {
+		fmt.Fprintf(&b, `<tr><td><strong>%s</strong></td><td><code>%s</code></td><td>%d</td><td>%s %s</td><td><strong>%s %s</strong></td></tr>`,
+			template.HTMLEscapeString(item.Title),
+			template.HTMLEscapeString(item.SKU),
+			item.Quantity,
+			formatCents(item.UnitCents),
+			template.HTMLEscapeString(order.Currency),
+			formatCents(item.TotalCents),
+			template.HTMLEscapeString(order.Currency),
+		)
+	}
+	b.WriteString(`</tbody></table></div></section>`)
+
+	_, _ = w.Write([]byte(b.String()))
 	_ = ui.AdminEnd(w)
 }
 
 func (h Handler) adminRefund(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !auth.Can(user, auth.PermissionCommerceWrite) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -1036,12 +1203,45 @@ func (h Handler) adminRefund(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid refund", http.StatusBadRequest)
 		return
 	}
-	amount, err := strconv.ParseInt(r.FormValue("amount_cents"), 10, 64)
-	if err != nil || amount <= 0 {
+	orderID := r.PathValue("orderID")
+	providerName := r.FormValue("provider")
+	paymentID := r.FormValue("payment_id")
+	amountRaw := r.FormValue("amount_cents")
+	var amount int64
+	if amountRaw != "" {
+		parsed, err := strconv.ParseInt(amountRaw, 10, 64)
+		if err == nil && parsed > 0 {
+			amount = parsed
+		}
+	}
+	if (providerName == "" || paymentID == "" || amount <= 0) && h.Orders != nil {
+		if order, err := h.Orders.GetOrder(r.Context(), h.DB, orderID); err == nil {
+			if amount <= 0 {
+				amount = order.TotalCents
+			}
+			if refundStore, ok := h.PaymentService.Store.(commerce.PaymentRefundStore); ok {
+				if tx, err := refundStore.GetPaymentTransaction(r.Context(), h.DB, orderID); err == nil {
+					if providerName == "" {
+						providerName = tx.Provider
+					}
+					if paymentID == "" {
+						paymentID = tx.ProviderPaymentID
+					}
+				}
+			}
+		}
+	}
+	if providerName == "" {
+		providerName = "stripe"
+	}
+	if paymentID == "" {
+		paymentID = orderID
+	}
+	if amount <= 0 {
 		http.Error(w, "invalid refund amount", http.StatusBadRequest)
 		return
 	}
-	if err := h.PaymentService.Refund(r.Context(), h.DB, r.PathValue("orderID"), r.FormValue("provider"), r.FormValue("payment_id"), amount); err != nil {
+	if err := h.PaymentService.Refund(r.Context(), h.DB, orderID, providerName, paymentID, amount); err != nil {
 		if errors.Is(err, commerce.ErrRefundPending) {
 			http.Error(w, "refund is pending reconciliation", http.StatusConflict)
 			return
@@ -1049,7 +1249,14 @@ func (h Handler) adminRefund(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "refund failed", http.StatusBadGateway)
 		return
 	}
-	http.Redirect(w, r, "/admin/commerce/orders", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/commerce/orders/"+url.PathEscape(orderID), http.StatusSeeOther)
+}
+
+func formatCents(cents int64) string {
+	if cents%100 == 0 {
+		return fmt.Sprintf("%d", cents/100)
+	}
+	return fmt.Sprintf("%.2f", float64(cents)/100.0)
 }
 
 func (h Handler) removeCartItemForm(w http.ResponseWriter, r *http.Request) {
