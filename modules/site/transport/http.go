@@ -264,7 +264,7 @@ func (h Handler) saveNavigation(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) admin(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
-	return user != nil && user.Active && user.Role == auth.RoleAdmin
+	return auth.Can(user, auth.PermissionSiteManage)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {

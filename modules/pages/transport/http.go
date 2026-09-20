@@ -656,5 +656,5 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 
 func editorAllowed(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
-	return user != nil && user.Active && (user.Role == auth.RoleAdmin || user.Role == auth.RoleEditor)
+	return auth.Can(user, auth.PermissionContentWrite)
 }

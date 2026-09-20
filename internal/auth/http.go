@@ -85,6 +85,7 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/me/credentials", Handler: http.HandlerFunc(h.changeCredentials)},
 		{Pattern: "POST /auth/users/{id}/disable", Handler: http.HandlerFunc(h.disableUser)},
 		{Pattern: "POST /auth/users/{id}/role", Handler: http.HandlerFunc(h.updateUserRole)},
+		{Pattern: "POST /auth/users/{id}/permissions", Handler: http.HandlerFunc(h.updateUserPermissions)},
 		{Pattern: "POST /auth/me/mfa/enroll", Handler: http.HandlerFunc(h.enrollMFA)},
 		{Pattern: "POST /auth/me/mfa/enable", Handler: http.HandlerFunc(h.enableMFA)},
 		{Pattern: "POST /auth/password-reset/request", Public: true, Handler: http.HandlerFunc(h.requestPasswordReset)},
@@ -469,6 +470,38 @@ func (h HTTPHandler) updateUserRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.recordAuthEvent(r, "auth.user_role_changed", targetID)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h HTTPHandler) updateUserPermissions(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil || !h.adminUser(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	actor := UserFromContext(r.Context())
+	targetID := r.PathValue("id")
+	if targetID == "" || targetID == actor.ID {
+		http.Error(w, "administrator permissions cannot be changed for the current account", http.StatusConflict)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid permission update", http.StatusBadRequest)
+		return
+	}
+	overrides := make(map[string]bool)
+	for _, permission := range KnownPermissions {
+		switch r.FormValue("perm_" + permission) {
+		case "allow":
+			overrides[permission] = true
+		case "deny":
+			overrides[permission] = false
+		}
+	}
+	if err := h.Service.ReplaceUserPermissions(r.Context(), targetID, overrides); err != nil {
+		writeAuthDependencyError(w, "user permissions update failed", err, http.StatusBadRequest)
+		return
+	}
+	h.recordAuthEvent(r, "auth.user_permissions_changed", targetID)
 	w.WriteHeader(http.StatusNoContent)
 }
 

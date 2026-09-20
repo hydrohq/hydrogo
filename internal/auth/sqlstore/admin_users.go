@@ -57,6 +57,12 @@ func (s *UserStore) List(ctx context.Context) ([]*auth.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list users: %w", err)
 	}
+	for _, user := range users {
+		user.PermissionOverrides, err = s.LoadPermissionOverrides(ctx, user.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load user permissions: %w", err)
+		}
+	}
 	return users, nil
 }
 
