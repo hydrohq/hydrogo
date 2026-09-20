@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -36,5 +37,16 @@ func TestEnvBoolDisabled(t *testing.T) {
 		if envBoolDisabled("HYDRO_DEV_INDICATOR") {
 			t.Fatalf("%q should keep the indicator enabled", value)
 		}
+	}
+}
+
+func TestDevClientKeepsReadyPillCompact(t *testing.T) {
+	for _, want := range []string{"HYDROGO", "hdev-phase-tag", "HydroGo Development Status", "Show HydroGo development status"} {
+		if !strings.Contains(devClient, want) {
+			t.Fatalf("dev client missing %q", want)
+		}
+	}
+	if !strings.Contains(devClient, `hdev-value" hidden`) {
+		t.Fatal("dev client should keep detailed status out of the compact pill")
 	}
 }

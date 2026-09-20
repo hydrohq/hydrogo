@@ -34,7 +34,7 @@ func TestRenderAdminAccountEnglishLocaleSelector(t *testing.T) {
 		t.Fatalf("RenderAdminArea(account) error = %v", err)
 	}
 	markup := out.String()
-	for _, want := range []string{`lang="en"`, "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`} {
+	for _, want := range []string{`lang="en"`, "The operation could not be completed.", "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("English account markup missing %q", want)
 		}
