@@ -271,6 +271,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0216](0216-production-html-output-boundary.md) | Production HTML output boundary | Accepted |
 | [0217](0217-consent-gated-content-view-analytics.md) | Consent-gated content view analytics | Accepted |
 | [0218](0218-structured-request-telemetry.md) | Structured request telemetry dimensions | Accepted |
+| [0219](0219-scaffold-verification-and-interactive-blueprints.md) | Scaffold verification and interactive Blueprint flow | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

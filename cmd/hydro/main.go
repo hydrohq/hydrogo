@@ -227,6 +227,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	case "extension":
 		return extensionCommand(args[1:], stdout, stderr)
 	case "new":
+		if len(args) > 1 && args[1] == "resource" {
+			return interactiveResourceCommand(args[2:], stdin, stdout, stderr)
+		}
 		return newProjectCommand(args[1:], stdin, stdout, stderr)
 	case "project":
 		return projectCommand(args[1:], stdin, stdout, stderr)
@@ -591,6 +594,7 @@ func generateScaffoldCommand(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	blueprintPath := flags.String("blueprint", "", "Blueprint YAML/JSON path")
 	outputRoot := flags.String("out", ".", "Client Edition output root")
+	verify := flags.Bool("verify", true, "Run bounded post-generation gofmt and tests when a Go module is present")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -616,8 +620,47 @@ func generateScaffoldCommand(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 	}
+	if *verify {
+		if err := verifyGeneratedScaffold(*outputRoot); err != nil {
+			return fmt.Errorf("generated scaffold verification: %w", err)
+		}
+	}
 	_, err = fmt.Fprintf(stdout, "scaffold-created collection=%s generated=%s custom=%s spec_sha256=%s\n", spec.Name, filepath.Join(*outputRoot, "generated", spec.Name), customRoot, lock.SpecSHA256)
 	return err
+}
+
+func verifyGeneratedScaffold(root string) error {
+	if _, err := os.Stat(filepath.Join(root, "go.mod")); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	files := make([]string, 0)
+	for _, dir := range []string{filepath.Join(root, "generated"), filepath.Join(root, "custom")} {
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, walkErr error) error {
+			if walkErr == nil && info != nil && !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
+				files = append(files, path)
+			}
+			return nil
+		})
+	}
+	if len(files) == 0 {
+		return nil
+	}
+	formatArgs := append([]string{"-w"}, files...)
+	format := exec.CommandContext(ctx, "gofmt", formatArgs...)
+	format.Dir = root
+	if output, err := format.CombinedOutput(); err != nil {
+		return fmt.Errorf("gofmt: %w (%s)", err, strings.TrimSpace(string(output)))
+	}
+	test := exec.CommandContext(ctx, "go", "test", "./...")
+	test.Dir = root
+	if output, err := test.CombinedOutput(); err != nil {
+		return fmt.Errorf("go test: %w (%s)", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 func currentVersionInfo() (versionInfo, error) {
