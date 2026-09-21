@@ -1,0 +1,57 @@
+{
+  "version": "v0",
+  "collection": {
+    "name": "project",
+    "table": "projects",
+    "fields": [
+      {
+        "name": "project_code",
+        "type": "string",
+        "nullable": false,
+        "admin": {
+          "label": "",
+          "widget": "",
+          "read_only": false,
+          "visible_in_list": false
+        }
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "nullable": false,
+        "admin": {
+          "label": "",
+          "widget": "select",
+          "read_only": false,
+          "visible_in_list": false
+        }
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "nullable": false,
+        "admin": {
+          "label": "",
+          "widget": "",
+          "read_only": false,
+          "visible_in_list": false
+        }
+      }
+    ],
+    "permissions": [
+      "project.read",
+      "project.write"
+    ],
+    "dialects": [
+      "postgres",
+      "sqlite"
+    ],
+    "destructive": false,
+    "admin": {
+      "label": "",
+      "description": "",
+      "actions": null,
+      "bulk_actions": null
+    }
+  }
+}
