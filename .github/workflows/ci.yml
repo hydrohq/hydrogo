@@ -76,6 +76,8 @@ jobs:
           check-latest: false
       - name: Verify workflow action pins
         run: go run ./tools/actionguard
+      - name: Validate release-gate manifest and local readiness claim
+        run: go run ./tools/releasegates -manifest docs/validation/release-gate-manifest.json -profile local-development -require-ready
       - name: Enforce staff mobile API compatibility baseline
         run: go run ./tools/openapidiff --baseline docs/api/baselines/mobile-v1.openapi.json --current docs/api/mobile-v1.openapi.json
       - name: Enforce consumer member mobile API compatibility baseline
