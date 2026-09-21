@@ -15,3 +15,8 @@ go test ./internal/eventcatalog ./cmd/hydro -count=1
 ```
 
 Result: pass. Consumer delivery retry/dead-letter rehearsal remains open.
+
+Webhook configuration now rejects unknown catalog topics and duplicate topic
+entries. A topic marked PII, currently `user.invited`, additionally requires
+the endpoint-level `allow_pii: true` opt-in. This makes accidental broad PII
+subscription fail during configuration load rather than at dispatch time.

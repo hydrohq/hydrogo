@@ -141,7 +141,8 @@ and the first Construction Client Edition.
   and signed webhook boundary; add event compatibility and delivery-operator
   evidence.
   - [x] E0.4a: Deterministic versioned JSON catalog artifact is exported by
-    operator CLI; removals and PII reclassification are compatibility errors.
+    operator CLI; removals and PII reclassification are compatibility errors;
+    webhook config rejects unknown topics and requires PII opt-in.
   - [ ] E0.4b: Webhook consumer baseline/retry/dead-letter operator rehearsal.
 - [ ] E0.5: Add a provider-neutral OpenTelemetry boundary with bounded
   sampling/export, PII redaction, and Compact-off behavior.
