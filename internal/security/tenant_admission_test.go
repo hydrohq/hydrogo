@@ -72,3 +72,26 @@ func TestTenantAdmissionCancellationRecoversCapacity(t *testing.T) {
 	}
 	a.Release(ctx)
 }
+
+func TestTenantAdmissionMiddlewareIsolatesNoisyNeighbor(t *testing.T) {
+	a := &TenantAdmission{PerTenant: 1}
+	scopeA, _ := tenant.NewScope("tenant-noisy-a", "a")
+	scopeB, _ := tenant.NewScope("tenant-noisy-b", "b")
+	ctxA := tenant.WithScope(context.Background(), scopeA)
+	ctxB := tenant.WithScope(context.Background(), scopeB)
+	if err := a.Acquire(ctxA); err != nil {
+		t.Fatal(err)
+	}
+	h := a.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	noisy := httptest.NewRecorder()
+	h.ServeHTTP(noisy, httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctxA))
+	if noisy.Code != http.StatusTooManyRequests {
+		t.Fatalf("noisy tenant status=%d, want 429", noisy.Code)
+	}
+	healthy := httptest.NewRecorder()
+	h.ServeHTTP(healthy, httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctxB))
+	if healthy.Code != http.StatusNoContent {
+		t.Fatalf("healthy tenant status=%d, want 204", healthy.Code)
+	}
+	a.Release(ctxA)
+}
