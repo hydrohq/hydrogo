@@ -119,7 +119,7 @@ func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, loca
 		query := `INSERT INTO navigation_items (tenant_id,id,locale,label,href,position,is_visible,updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `)`
 		args := []any{scopeID, item.ID, locale, item.Label, item.Href, item.Position, item.Visible, item.UpdatedAt.UTC().Format(time.RFC3339Nano)}
 		if item.UpdatedAt.IsZero() {
-			args[6] = time.Now().UTC().Format(time.RFC3339Nano)
+			args[7] = time.Now().UTC().Format(time.RFC3339Nano)
 		}
 		if s.Dialect == database.SQLite {
 			query = `INSERT INTO navigation_items (tenant_id,id,locale,label,href,position,is_visible,updated_at) VALUES (?,?,?,?,?,?,?,?)`

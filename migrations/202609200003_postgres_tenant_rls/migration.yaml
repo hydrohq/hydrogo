@@ -8,7 +8,7 @@ transactional:
   postgres: true
 checksum_sha256:
   sqlite: "5bbb274f16cb10cc910e67ce0deeb060f87b0f5e6801ea5e29693c70cd07baa5"
-  postgres: "024a7eb545c7331a991321a1cc4051756373cddd19e56c04ee1a6276d9e77c9b"
+  postgres: "fcba3684cd190891364caf3028f106e2a9d9cefe4f8305dd7c543cac32eecfd9"
 dependencies:
   - "202609200002_auth_security_tenant_scope"
 schema:

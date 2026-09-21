@@ -17,6 +17,9 @@ BEGIN
         'commerce_cart_items', 'commerce_payment_transactions',
         'commerce_payment_webhook_events', 'hydro_forms'
     ] LOOP
+        IF to_regclass(table_name) IS NULL THEN
+            CONTINUE;
+        END IF;
         EXECUTE 'ALTER TABLE ' || quote_ident(table_name) || ' ENABLE ROW LEVEL SECURITY';
         EXECUTE 'ALTER TABLE ' || quote_ident(table_name) || ' FORCE ROW LEVEL SECURITY';
         EXECUTE 'DROP POLICY IF EXISTS hydrogo_tenant_isolation ON ' || quote_ident(table_name);
