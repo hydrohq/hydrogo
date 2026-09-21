@@ -155,6 +155,9 @@ and the first Construction Client Edition.
   hierarchy, project roles, revisioned documents, daily reports, issues, and
   approval workflow. Financial ledger, payroll, invoicing, procurement, and
   payment processing remain out of scope.
+  - [x] E0.9a: External Edition domain contract fixture and import-boundary CI.
+  - [ ] E0.9b: Persisted PostgreSQL/SQLite workflows, scoped authorization,
+    audit trail, migrations and optimistic-concurrency contracts.
 - [ ] E0.10: Run a per-customer isolated live pilot, then reconsider shared
   SaaS only with all ADR-0149 production evidence and an explicit new release
   decision.
