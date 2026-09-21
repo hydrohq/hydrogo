@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
 type ContentViewSink interface {
@@ -97,9 +98,11 @@ func (q *ContentViewQueue) worker() {
 		case <-q.close:
 			return
 		case job := <-q.jobs:
-			if err := q.sink.RecordContentView(context.Background(), job.ConsentID, job.PurposeVersion, job.Event); err != nil {
+			ctx, span := observability.StartComponentSpan(context.Background(), "analytics", "content_view.persist")
+			if err := q.sink.RecordContentView(ctx, job.ConsentID, job.PurposeVersion, job.Event); err != nil {
 				q.failed.Add(1)
 			}
+			span.End()
 		}
 	}
 }
