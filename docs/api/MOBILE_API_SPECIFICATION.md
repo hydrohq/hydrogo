@@ -122,6 +122,6 @@ All mobile errors return a standard JSON structure with HTTP 4xx/5xx status code
 ## 3. Idempotency & Offline Sync
 
 - This authentication surface has no retryable business mutation. Future mobile
-  resources such as checkout or form submissions require an
+  resources such as form submissions require an
   `Idempotency-Key: <UUID>` header before they can be published.
 - Cached content payloads include `ETag` and support conditional `If-None-Match` requests to minimize mobile battery and data usage.

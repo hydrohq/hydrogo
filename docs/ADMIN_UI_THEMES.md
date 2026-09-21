@@ -3,7 +3,7 @@
 HydroGo Studio keeps the visual layer independent from the server-rendered
 admin screens. The existing HydroGo and shadcn modes remain available; the
 Workbench mode adds a denser, enterprise-oriented presentation for daily
-content, commerce, and operations work.
+content and operations work.
 
 ## Available modes
 

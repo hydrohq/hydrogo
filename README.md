@@ -36,7 +36,7 @@ Vendor-only signing is performed with `hydro-issuer`; the customer runtime expos
 - Allowlist-based portable export/import excluding secrets and session state
 - Ed25519-signed release manifests and trusted public-key verification
 - Separate staff and consumer/member mobile API boundaries with bearer rotation,
-  device revocation, member commerce/order projections, and versioned contracts
+  device revocation, profile/session isolation, and versioned contracts
 - Deterministic generation, Client Edition boundaries, and an SDK v1 candidate
 
 ## How it works
@@ -419,7 +419,7 @@ specific production drills listed above.
 
 Commercial SLA claims for Compact or Standard remain blocked until the R3/R5
 evidence gates are closed. Distributed, Redis/Valkey, S3/CDN, OIDC/SAML, advanced
-search, commerce, AI, and multi-tenant features have provider-neutral ADR boundaries
+search, AI, and shared multi-tenant features have provider-neutral ADR boundaries
 but still require real customer/provider evidence and their own verification gates.
 Remaining production actions are listed in [`docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md`](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md).
 
