@@ -29,7 +29,7 @@ func TestExportJSONIsVersionedAndDeterministic(t *testing.T) {
 		t.Fatalf("catalog export changed: %s / %s, err=%v", first, second, err)
 	}
 	var document Document
-	if err := json.Unmarshal(first, &document); err != nil || document.Version != "v1" || len(document.Events) != len(Definitions()) {
+	if err := json.Unmarshal(first, &document); err != nil || document.Version != "v1" || len(document.Events) != len(Definitions()) || !bytes.Contains(first, []byte(`"payload_version"`)) {
 		t.Fatalf("catalog document = %#v, err=%v", document, err)
 	}
 }
