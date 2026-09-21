@@ -38,6 +38,17 @@ type ProjectMembership struct {
 	Role      ProjectRole
 }
 
+type ProjectCapability string
+
+const (
+	CapabilityProjectRead       ProjectCapability = "project.read"
+	CapabilityDocumentWrite     ProjectCapability = "document.write"
+	CapabilityDailyReportWrite  ProjectCapability = "daily-report.write"
+	CapabilityIssueWrite        ProjectCapability = "issue.write"
+	CapabilityApprovalDecide    ProjectCapability = "approval.decide"
+	CapabilityProjectMembership ProjectCapability = "project.membership.manage"
+)
+
 type DocumentRevision struct {
 	DocumentID string
 	Revision   int
@@ -84,6 +95,27 @@ func ValidateProjectMembership(value ProjectMembership) error {
 		return nil
 	default:
 		return ErrInvalidProjectRole
+	}
+}
+
+// CanProject performs a deny-by-default decision for one already scoped
+// project membership. Callers must still verify that the membership belongs to
+// the requested project; a role string alone is never authorization.
+func CanProject(membership ProjectMembership, capability ProjectCapability) bool {
+	if ValidateProjectMembership(membership) != nil {
+		return false
+	}
+	switch membership.Role {
+	case ProjectRoleOwner:
+		return capability == CapabilityProjectRead || capability == CapabilityDocumentWrite || capability == CapabilityDailyReportWrite || capability == CapabilityIssueWrite || capability == CapabilityApprovalDecide || capability == CapabilityProjectMembership
+	case ProjectRoleManager:
+		return capability == CapabilityProjectRead || capability == CapabilityDocumentWrite || capability == CapabilityDailyReportWrite || capability == CapabilityIssueWrite || capability == CapabilityApprovalDecide
+	case ProjectRoleContributor:
+		return capability == CapabilityProjectRead || capability == CapabilityDocumentWrite || capability == CapabilityDailyReportWrite || capability == CapabilityIssueWrite
+	case ProjectRoleViewer:
+		return capability == CapabilityProjectRead
+	default:
+		return false
 	}
 }
 
