@@ -251,6 +251,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0213](0213-generated-transport-composition.md) | Generated transport composition boundary | Accepted |
 | [0214](0214-edition-server-composition.md) | Client Edition server composition and reviewed migration boundary | Accepted |
 | [0215](0215-endpoint-observability-contract.md) | Bounded endpoint observability contract | Accepted |
+| [0216](0216-production-html-output-boundary.md) | Production HTML output boundary | Accepted |
 | [0201](0201-tenant-registry-provisioning-and-bootstrap-backfill.md) | Tenant registry, idempotent provisioning, and bootstrap backfill | Accepted |
 | [0202](0202-core-client-edition-and-construction-pilot.md) | Core/Client Edition boundary and Construction pilot | Accepted |
 | [0203](0203-versioned-event-catalog.md) | Versioned event catalog | Accepted |

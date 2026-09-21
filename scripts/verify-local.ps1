@@ -46,6 +46,7 @@ if (Get-Command npm -ErrorAction SilentlyContinue) {
     Write-Warning "npm bulunamadı; headless starter contract smoke atlandı (CI/browser-e2e job'ında zorunludur)."
 }
 Invoke-Required "theme token lint" { & (Join-Path $PSScriptRoot "theme-token-lint.ps1") }
+Invoke-Required "HTML comment lint" { & (Join-Path $PSScriptRoot "html-comment-lint.ps1") }
 Invoke-Required "ADR index drift check" { & (Join-Path $PSScriptRoot "adr-drift-check.ps1") }
 Invoke-Required "binary health/readiness smoke" { & (Join-Path $PSScriptRoot "smoke-local.ps1") }
 
