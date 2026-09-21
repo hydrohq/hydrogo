@@ -39,6 +39,7 @@ type Config struct {
 	PublicOrigin     string
 	PublicAPIOrigins []string
 	TenantResolver   *tenant.HostResolver
+	TenantAdmission  *security.TenantAdmission
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -141,6 +142,9 @@ func NewHandler(config Config) http.Handler {
 	handler = hostMiddleware(handler)
 	if config.TenantResolver != nil && config.TenantResolver.Enabled() {
 		handler = config.TenantResolver.Middleware(handler)
+	}
+	if config.TenantAdmission != nil {
+		handler = config.TenantAdmission.Middleware(handler)
 	}
 	publicCORS, err := security.NewPublicReadCORSMiddleware(config.PublicAPIOrigins)
 	if err != nil {
