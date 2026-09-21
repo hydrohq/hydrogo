@@ -25,7 +25,7 @@ type Handler struct {
 	Service       members.Service
 	Mobile        *members.MobileAuthService
 	Secure        bool
-	Limiter       interface{ Allow(string) bool }
+	Limiter       security.RateLimiter
 	Audit         auth.AuditRecorder
 	Orders        customerorders.Reader
 	DB            database.Executor
@@ -270,7 +270,7 @@ func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) register(w http.ResponseWriter, r *http.Request) {
-	if h.Limiter != nil && !h.Limiter.Allow("member-register:"+requestmeta.ClientIP(r)) {
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-register:"+requestmeta.ClientIP(r)) {
 		http.Error(w, "too many requests", 429)
 		return
 	}
@@ -296,7 +296,7 @@ func (h Handler) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) login(w http.ResponseWriter, r *http.Request) {
-	if h.Limiter != nil && !h.Limiter.Allow("member-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(r.FormValue("email"))) {
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(r.FormValue("email"))) {
 		http.Error(w, "too many requests", 429)
 		return
 	}

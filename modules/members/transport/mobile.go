@@ -9,6 +9,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
@@ -52,7 +53,7 @@ func (h Handler) mobileLogin(w http.ResponseWriter, r *http.Request) {
 		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid device metadata.")
 		return
 	}
-	if h.Limiter != nil && !h.Limiter.Allow("member-mobile-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-mobile-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
 		writeMemberMobileError(w, http.StatusTooManyRequests, "RATE_LIMITED", "Too many authentication attempts.")
 		return
 	}
@@ -90,7 +91,7 @@ func (h Handler) mobileRegister(w http.ResponseWriter, r *http.Request) {
 		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid device metadata.")
 		return
 	}
-	if h.Limiter != nil && !h.Limiter.Allow("member-mobile-register:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-mobile-register:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
 		writeMemberMobileError(w, http.StatusTooManyRequests, "RATE_LIMITED", "Too many registration attempts.")
 		return
 	}

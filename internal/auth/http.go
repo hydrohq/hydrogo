@@ -132,7 +132,7 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid invitation request", http.StatusBadRequest)
 		return
 	}
-	if h.InviteAcceptLimiter != nil && !h.InviteAcceptLimiter.Allow(clientIP(r)) {
+	if h.InviteAcceptLimiter != nil && !security.AllowForRequest(h.InviteAcceptLimiter, r.Context(), clientIP(r)) {
 		security.WriteRateLimitedResponse(w, "too many invitation attempts", time.Minute)
 		return
 	}
@@ -167,7 +167,7 @@ func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid password recovery request", http.StatusBadRequest)
 		return
 	}
-	if h.RecoveryLimiter != nil && !h.RecoveryLimiter.Allow(clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
+	if h.RecoveryLimiter != nil && !security.AllowForRequest(h.RecoveryLimiter, r.Context(), clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
 		security.WriteRateLimitedResponse(w, "too many password recovery requests", time.Minute)
 		return
 	}
@@ -203,7 +203,7 @@ func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid password recovery request", http.StatusBadRequest)
 		return
 	}
-	if h.RecoveryConfirmLimiter != nil && !h.RecoveryConfirmLimiter.Allow(clientIP(r)) {
+	if h.RecoveryConfirmLimiter != nil && !security.AllowForRequest(h.RecoveryConfirmLimiter, r.Context(), clientIP(r)) {
 		security.WriteRateLimitedResponse(w, "too many password recovery attempts", time.Minute)
 		return
 	}
@@ -245,7 +245,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid login request", http.StatusBadRequest)
 		return
 	}
-	if h.LoginLimiter != nil && !h.LoginLimiter.Allow(clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
+	if h.LoginLimiter != nil && !security.AllowForRequest(h.LoginLimiter, r.Context(), clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
 		security.WriteRateLimitedResponse(w, "too many authentication attempts", time.Minute)
 		return
 	}
@@ -270,7 +270,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if enabled {
-			if h.MFALimiter != nil && !h.MFALimiter.Allow(clientIP(r)+":"+user.ID) {
+			if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
 				security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
 				return
 			}
@@ -534,7 +534,7 @@ func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid MFA request", http.StatusBadRequest)
 		return
 	}
-	if h.MFALimiter != nil && !h.MFALimiter.Allow(clientIP(r)+":"+user.ID) {
+	if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
 		security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
 		return
 	}
