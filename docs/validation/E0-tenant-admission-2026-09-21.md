@@ -23,3 +23,14 @@ external certification gate.
 When `HYDRO_TEST_REDIS_URL` is provided, the integration gate creates two
 independent Redis clients and verifies shared tenant-A saturation, tenant-B
 isolation, and release recovery against the same sorted-set lease namespace.
+
+WSL evidence (temporary Redis 7 daemon on port `6389`, no persistence) passed:
+
+```text
+HYDRO_TEST_REDIS_URL=redis://127.0.0.1:6389/15 \
+  go test ./internal/security -run TestRedisTenantAdmissionIntegrationSharesLeasesAcrossInstances -count=1
+ok  github.com/ardaozyildirim/hydrogo/internal/security
+```
+
+The daemon was shut down after the test. Redis failover, partition, and
+clock-skew behavior remain separate external certification cases.
