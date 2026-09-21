@@ -313,6 +313,9 @@ var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths")
 					<th>Toplam İstek</th>
 					<th>Hata</th>
 					<th>Ort. Yanıt Süresi</th>
+					<th>P95</th>
+					<th>4xx/5xx</th>
+					<th>Byte (in/out)</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -324,12 +327,15 @@ var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths")
 							<td>{{.Requests}}</td>
 							<td>{{if gt .Errors 0}}<strong style="color:var(--red)">{{.Errors}}</strong>{{else}}0{{end}}</td>
 							<td>{{.AvgMS}} ms</td>
+							<td>{{.P95MS}} ms</td>
+							<td>{{.Status4xx}}/{{.Status5xx}}</td>
+							<td>{{.BytesIn}}/{{.BytesOut}}</td>
 						</tr>
 					{{else}}
-						<tr><td colspan="5" class="empty">Henüz rota verisi kaydedilmedi.</td></tr>
+						<tr><td colspan="8" class="empty">Henüz rota verisi kaydedilmedi.</td></tr>
 					{{end}}
 				{{else}}
-					<tr><td colspan="5" class="empty">Ölçüm sağlayıcısı bağlı değil.</td></tr>
+					<tr><td colspan="8" class="empty">Ölçüm sağlayıcısı bağlı değil.</td></tr>
 				{{end}}
 			</tbody>
 		</table>
