@@ -7,13 +7,14 @@ The Workspace scaffold flow was exercised against two checked-in examples:
 
 For each edition:
 
-1. `hydro generate scaffold --blueprint ... --out ...` produced 28 reviewable
+1. `hydro generate scaffold --blueprint ... --out ...` produced 29 reviewable
    artifacts under `generated/<collection>` and a `custom/` policy boundary.
 2. `hydro resource check --root ...` passed with the generated lock and SHA-256
    compatibility evidence.
-3. Generated migration SQL is an artifact for operator review; no command in
-   this validation executed DDL or registered runtime workers/routes.
+3. Generated `migration.yaml` records SQLite/PostgreSQL class, transactional
+   behavior, checksums, compatibility, and rollback metadata next to the SQL.
+   The SQL remains an artifact for operator review; no command in this
+   validation executed DDL or registered runtime workers/routes.
 
 The examples intentionally leave workflow, tenant ownership, and authorization
 in `custom/` so the Core/Edition boundary remains explicit.
-
