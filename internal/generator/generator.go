@@ -32,7 +32,15 @@ type Field struct {
 	Name     string     `json:"name" yaml:"name"`
 	Type     string     `json:"type" yaml:"type"`
 	Nullable bool       `json:"nullable" yaml:"nullable"`
+	Relation *Relation  `json:"relation,omitempty" yaml:"relation,omitempty"`
 	Admin    FieldAdmin `json:"admin" yaml:"admin"`
+}
+
+// Relation makes the target and cardinality of a relation reviewable. It is
+// metadata for a generated contract, never permission to create runtime DDL.
+type Relation struct {
+	Collection  string `json:"collection" yaml:"collection"`
+	Cardinality string `json:"cardinality" yaml:"cardinality"`
 }
 
 // FieldAdmin is presentation metadata. It does not change persistence or
@@ -100,6 +108,14 @@ func Validate(spec Spec) error {
 			return ErrInvalidSpec
 		}
 		if _, ok := seen[field.Name]; ok {
+			return ErrInvalidSpec
+		}
+		isRelation := strings.EqualFold(field.Type, "relation") || strings.EqualFold(field.Type, "reference")
+		if isRelation {
+			if field.Relation == nil || !identifierPattern.MatchString(field.Relation.Collection) || (field.Relation.Cardinality != "one" && field.Relation.Cardinality != "many") {
+				return ErrInvalidSpec
+			}
+		} else if field.Relation != nil {
 			return ErrInvalidSpec
 		}
 		seen[field.Name] = struct{}{}

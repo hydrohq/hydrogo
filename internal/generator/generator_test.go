@@ -147,6 +147,21 @@ func TestValidateDeniesUnsafeOrDuplicatePermissions(t *testing.T) {
 	}
 }
 
+func TestValidateRequiresExplicitRelationTargetAndCardinality(t *testing.T) {
+	base := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "author", Type: "relation"}}, Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if !errors.Is(Validate(base), ErrInvalidSpec) {
+		t.Fatal("relation without metadata was accepted")
+	}
+	base.Fields[0].Relation = &Relation{Collection: "authors", Cardinality: "one"}
+	if err := Validate(base); err != nil {
+		t.Fatalf("valid relation rejected: %v", err)
+	}
+	base.Fields[0].Relation.Cardinality = "many_to_many"
+	if !errors.Is(Validate(base), ErrInvalidSpec) {
+		t.Fatal("unsupported relation cardinality was accepted")
+	}
+}
+
 func TestGeneratePreservesPublishedMigration(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "pages", Table: "pages_generated", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"pages.read"}, Dialects: []string{"sqlite", "postgres"}}
