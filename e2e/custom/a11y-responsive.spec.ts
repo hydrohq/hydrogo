@@ -28,6 +28,7 @@ test.describe("P2 Responsive Matrix & Viewport Bounds", () => {
       test(`viewport ${vp.name} on ${surface.name}: no horizontal overflow or broken media`, async ({ page }) => {
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto(`${baseURL}${surface.path}`, { waitUntil: "domcontentloaded" });
+        await page.waitForLoadState("networkidle");
 
         // 1. Check no horizontal overflow
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
