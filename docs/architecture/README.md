@@ -245,6 +245,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0200](0200-reviewed-collection-designer.md) | Reviewed visual collection designer | Proposed |
 | [0201](0201-tenant-registry-provisioning-and-bootstrap-backfill.md) | Tenant registry, idempotent provisioning, and bootstrap backfill | Accepted |
 | [0202](0202-core-client-edition-and-construction-pilot.md) | Core/Client Edition boundary and Construction pilot | Accepted |
+| [0203](0203-versioned-event-catalog.md) | Versioned event catalog | Accepted |
 | [0193](0193-release-provenance-sbom-production-readiness.md) | Release provenance, SPDX SBOM & production readiness certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
