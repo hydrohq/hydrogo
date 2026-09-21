@@ -1,9 +1,13 @@
 package security
 
 import (
+	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"sync"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 type attempt struct {
@@ -22,6 +26,42 @@ type AttemptLimiter struct {
 
 type RateLimiter interface {
 	Allow(string) bool
+}
+
+// ContextRateLimiter receives the request lifetime when a limiter supports it.
+type ContextRateLimiter interface {
+	AllowContext(context.Context, string) bool
+}
+
+// AllowForRequest preserves the basic limiter contract while forwarding request
+// cancellation and tenant context to implementations that support it.
+func AllowForRequest(l RateLimiter, ctx context.Context, key string) bool {
+	if l == nil {
+		return false
+	}
+	if contextual, ok := l.(ContextRateLimiter); ok {
+		return contextual.AllowContext(ctx, key)
+	}
+	return l.Allow(key)
+}
+
+// TenantScopedRateLimiter isolates each tenant's buckets. It fails closed when
+// a shared-mode request has no validated tenant scope and never exposes the raw
+// caller key to the underlying limiter.
+type TenantScopedRateLimiter struct{ Inner RateLimiter }
+
+func (l TenantScopedRateLimiter) Allow(string) bool { return false }
+
+func (l TenantScopedRateLimiter) AllowContext(ctx context.Context, key string) bool {
+	if l.Inner == nil {
+		return false
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil || key == "" {
+		return false
+	}
+	digest := sha256.Sum256([]byte(key))
+	return AllowForRequest(l.Inner, ctx, "tenant:"+scope.TenantID+":"+hex.EncodeToString(digest[:]))
 }
 
 func NewAttemptLimiter(maxEntries, limit int, window time.Duration) *AttemptLimiter {

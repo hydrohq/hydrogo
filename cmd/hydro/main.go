@@ -1056,10 +1056,16 @@ func serve(args []string, stderr io.Writer) error {
 		defer redisClient.Close()
 	}
 	newRateLimiter := func(limit int, window time.Duration) security.RateLimiter {
+		var limiter security.RateLimiter
 		if redisClient != nil {
-			return security.RedisRateLimiter{Client: redisClient, Prefix: cfg.Redis.KeyPrefix + "hydro:ratelimit:", Limit: limit, Window: window}
+			limiter = security.RedisRateLimiter{Client: redisClient, Prefix: cfg.Redis.KeyPrefix + "hydro:ratelimit:", Limit: limit, Window: window}
+		} else {
+			limiter = security.NewAttemptLimiter(10000, limit, window)
 		}
-		return security.NewAttemptLimiter(10000, limit, window)
+		if requireTenantScope {
+			return security.TenantScopedRateLimiter{Inner: limiter}
+		}
+		return limiter
 	}
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
