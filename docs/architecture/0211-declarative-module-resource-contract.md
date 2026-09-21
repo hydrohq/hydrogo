@@ -6,8 +6,9 @@
 ## Decision
 
 Optional modules may expose a `modules.Manifest` through the versioned module
-composition boundary. The manifest declares dependencies, migration IDs,
-assets, and worker IDs. The registry exposes deterministic manifests and an
+composition boundary. The manifest declares dependencies, route declarations,
+migration IDs, assets, and worker IDs. The registry exposes deterministic
+manifests and an
 explicit `RegisterIfEnabled`/`RegisterEnabled` path.
 
 An inactive module is not registered and therefore contributes no routes or
@@ -23,4 +24,3 @@ while Editions migrate to the declarative interface.
 - Edition tooling can inspect dependencies and resource ownership before startup.
 - Migration and worker activation remain explicit, preserving no-runtime-DDL and
   bounded Compact-profile behavior.
-

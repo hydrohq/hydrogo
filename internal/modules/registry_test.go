@@ -17,7 +17,7 @@ type dummyModule struct {
 type declarativeModule struct{ dummyModule }
 
 func (declarativeModule) ModuleManifest() Manifest {
-	return Manifest{ID: "sample", Dependencies: []string{"pages"}, Migrations: []string{"20260921_sample"}, Assets: []string{"sample.css"}, Workers: []WorkerSpec{{ID: "sample-index"}}}
+	return Manifest{ID: "sample", Dependencies: []string{"pages"}, Routes: []RouteSpec{{Pattern: "GET /sample", Public: true}}, Migrations: []string{"20260921_sample"}, Assets: []string{"sample.css"}, Workers: []WorkerSpec{{ID: "sample-index"}}}
 }
 
 func TestRegisterRejectsTypedNilModule(t *testing.T) {
