@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/language/ast"
@@ -27,8 +26,6 @@ type Handler struct {
 	DB           database.Executor
 	Pages        service.ContentService
 	PagesEnabled bool
-	Catalog      commerce.CatalogService
-	Commerce     bool
 }
 
 type request struct {
@@ -136,25 +133,12 @@ func (h Handler) schema() (graphql.Schema, error) {
 		"body":   &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 		"blocks": &graphql.Field{Type: graphql.NewList(blockType)},
 	}})
-	productType := graphql.NewObject(graphql.ObjectConfig{Name: "Product", Fields: graphql.Fields{
-		"id":          &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"sku":         &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"title":       &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"description": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"priceCents":  &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
-		"currency":    &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		"stock":       &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
-		"status":      &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-	}})
 	fields := graphql.Fields{}
 	if h.PagesEnabled {
 		fields["page"] = &graphql.Field{Type: pageType, Args: graphql.FieldConfigArgument{
 			"locale": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 			"slug":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 		}, Resolve: h.resolvePage}
-	}
-	if h.Commerce {
-		fields["products"] = &graphql.Field{Type: graphql.NewList(productType), Resolve: h.resolveProducts}
 	}
 	root := graphql.NewObject(graphql.ObjectConfig{Name: "Query", Fields: fields})
 	return graphql.NewSchema(graphql.SchemaConfig{Query: root})
@@ -173,19 +157,4 @@ func (h Handler) resolvePage(p graphql.ResolveParams) (any, error) {
 		blocks = append(blocks, map[string]string{"type": block.Type, "payload": string(block.Payload)})
 	}
 	return map[string]any{"id": page.ID, "locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body, "blocks": blocks}, nil
-}
-
-func (h Handler) resolveProducts(p graphql.ResolveParams) (any, error) {
-	if !h.Commerce {
-		return nil, nil
-	}
-	products, err := h.Catalog.ListProductsPage(p.Context, h.DB, true, commerce.PublicCatalogPageSize, 0)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]map[string]any, 0, len(products))
-	for _, product := range products {
-		result = append(result, map[string]any{"id": product.ID, "sku": product.SKU, "title": product.Title, "description": product.Description, "priceCents": product.PriceCents, "currency": product.Currency, "stock": product.Stock, "status": product.Status})
-	}
-	return result, nil
 }

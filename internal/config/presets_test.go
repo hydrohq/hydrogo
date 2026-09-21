@@ -11,8 +11,7 @@ func TestDeploymentPresetsDeclareExplicitModuleSets(t *testing.T) {
 	want := map[string][]string{
 		"compact-site.yaml": {"core", "auth", "members", "pages", "media", "site"},
 		"editorial.yaml":    {"core", "auth", "members", "pages", "media", "site", "news"},
-		"commerce.yaml":     {"core", "auth", "members", "pages", "media", "site", "commerce"},
-		"headless.yaml":     {"core", "auth", "pages", "media", "site", "news", "commerce"},
+		"headless.yaml":     {"core", "auth", "pages", "media", "site", "news"},
 	}
 	for name, modules := range want {
 		path := filepath.Join("..", "..", "config", "presets", name)

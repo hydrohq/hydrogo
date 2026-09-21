@@ -73,12 +73,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	graphqlapi "github.com/ardaozyildirim/hydrogo/modules/api/graphql"
-	commerce "github.com/ardaozyildirim/hydrogo/modules/commerce"
-	iyzicoprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/iyzico"
-	paytrprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/paytr"
-	stripeprovider "github.com/ardaozyildirim/hydrogo/modules/commerce/providers/stripe"
-	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
-	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
@@ -1075,11 +1069,11 @@ func serve(args []string, stderr io.Writer) error {
 	modules := enabledModuleSet(cfg.Modules)
 	var memberService members.Service
 	var memberHTTP membertransport.Handler
-	if modules["members"] || modules["commerce"] {
+	if modules["members"] {
 		memberService = members.Service{Members: memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
 	}
 	if modules["members"] {
-		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Orders: commerce.CustomerOrderReader{Reader: commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}, DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
+		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
@@ -1203,12 +1197,10 @@ func serve(args []string, stderr io.Writer) error {
 		}
 	}
 
-	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService, PagesEnabled: modules["pages"], Commerce: modules["commerce"]}
+	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService, PagesEnabled: modules["pages"]}
 	studioRegistry, err := adminstudio.NewRegistry([]adminstudio.Collection{
 		{ID: "pages", Label: "Sayfalar", Description: "Taslak, bloklar ve yayınlanmış içerik.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}, {ID: "blocks", Label: "Bloklar", Kind: adminstudio.FieldRelation}}, Actions: []adminstudio.Action{{Label: "Tüm sayfalar", Href: "/admin/pages"}, {Label: "Ana sayfayı düzenle", Href: "/admin/pages/demo-home"}, {Label: "Showcase'i düzenle", Href: "/admin/pages/demo-showcase"}, {Label: "Hakkında sayfasını düzenle", Href: "/admin/pages/demo-about"}}},
 		{ID: "news", Label: "Haberler", Description: "Taslak, zamanlama ve yayın akışı.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "cover_media_id", Label: "Kapak görseli (herkese açık asset)", Kind: adminstudio.FieldText, Widget: "media"}, {ID: "excerpt", Label: "Kısa özet", Kind: adminstudio.FieldText, Widget: "textarea"}, {ID: "key_takeaways", Label: "Önemli Noktalar (Key Takeaways)", Kind: adminstudio.FieldText, Widget: "list"}, {ID: "category", Label: "Kategori", Kind: adminstudio.FieldText}, {ID: "author_name", Label: "Yazar adı", Kind: adminstudio.FieldText}, {ID: "featured", Label: "Öne çıkan", Kind: adminstudio.FieldText, Widget: "checkbox"}, {ID: "tags", Label: "Etiketler", Kind: adminstudio.FieldText}, {ID: "seo_title", Label: "SEO başlığı", Kind: adminstudio.FieldText}, {ID: "seo_description", Label: "SEO açıklaması", Kind: adminstudio.FieldText, Widget: "textarea"}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}}, Actions: []adminstudio.Action{{Label: "Tüm haberler", Href: "/admin/news"}, {Label: "Release notes", Href: "/admin/news/demo-news"}, {Label: "Başlangıç rehberi", Href: "/admin/news/demo-news-guide"}}},
-		{ID: "commerce", Label: "Ürünler", Description: "Katalog, görsel, fiyat, stok ve varyant yönetimi.", Fields: []adminstudio.Field{{ID: "title", Label: "Ürün adı", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "sku", Label: "SKU", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "media_id", Label: "Ürün görseli", Kind: adminstudio.FieldText, Widget: "media"}, {ID: "price_cents", Label: "Fiyat (kuruş)", Kind: adminstudio.FieldNumber, Required: true, VisibleInList: true}, {ID: "currency", Label: "Para birimi", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "stock", Label: "Stok", Kind: adminstudio.FieldNumber, Required: true, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, Required: true, VisibleInList: true, Options: []string{"draft", "published"}}}, Actions: []adminstudio.Action{{Label: "Ürün kataloğu", Href: "/admin/commerce/products"}, {Label: "Varyant ve stok", Href: "/admin/commerce/products/demo-shirt/variants"}, {Label: "Siparişler ve iade", Href: "/admin/commerce/orders"}}},
-		{ID: "commerce_variants", Label: "Varyantlar", Description: "Ürün varyantları ve stok seviyeleri.", Fields: []adminstudio.Field{{ID: "sku", Label: "SKU", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Varyant adı", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "price_cents", Label: "Fiyat (kuruş)", Kind: adminstudio.FieldNumber, Required: true, VisibleInList: true}, {ID: "currency", Label: "Para birimi", Kind: adminstudio.FieldText, ReadOnly: true, VisibleInList: true}, {ID: "stock", Label: "Stok", Kind: adminstudio.FieldNumber, Required: true, VisibleInList: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, Required: true, VisibleInList: true, Options: []string{"draft", "published"}}}, Actions: []adminstudio.Action{{Label: "Ürün kataloğuna dön", Href: "/admin/commerce/products"}}},
 	})
 	if err != nil {
 		return fmt.Errorf("admin studio registry: %w", err)
@@ -1538,66 +1530,71 @@ func serve(args []string, stderr io.Writer) error {
 		return fmt.Errorf("prepare embedded vendor assets: %w", err)
 	}
 	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))})
-	if moduleEnabled(cfg.Modules, "commerce") {
-		commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-		commerceService := commerce.Service{Transactions: transactioner, Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
-		go runCommerceReservationReleaser(ctx, commerceService, 15*time.Minute, stderr)
-		commerceCatalog := commerce.CatalogService{Transactions: transactioner, Store: commerceStore, Variants: commerceStore}
-		graphqlHTTP.Catalog = commerceCatalog
-		graphqlHTTP.Commerce = true
-		providers := make(map[string]commerce.PaymentProvider)
-		if cfg.Payments.StripeSecretKey != "" {
-			providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
+	/* Commerce is intentionally deferred; see ADR-0199. Retain this historical
+	composition only until the removed module files disappear from all supported
+	customer branches. It is excluded from the build below. */
+	/*
+		if moduleEnabled(cfg.Modules, "commerce") {
+			commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+			commerceService := commerce.Service{Transactions: transactioner, Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
+			go runCommerceReservationReleaser(ctx, commerceService, 15*time.Minute, stderr)
+			commerceCatalog := commerce.CatalogService{Transactions: transactioner, Store: commerceStore, Variants: commerceStore}
+			graphqlHTTP.Catalog = commerceCatalog
+			graphqlHTTP.Commerce = true
+			providers := make(map[string]commerce.PaymentProvider)
+			if cfg.Payments.StripeSecretKey != "" {
+				providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
+			}
+			if cfg.Payments.IyzicoSecretKey != "" {
+				providers["iyzico"] = iyzicoprovider.Provider{APIKey: cfg.Payments.IyzicoAPIKey, SecretKey: cfg.Payments.IyzicoSecretKey, BaseURL: cfg.Payments.IyzicoBaseURL, CallbackURL: cfg.Payments.IyzicoCallbackURL}
+			}
+			if cfg.Payments.PayTRMerchantKey != "" {
+				providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency, BaseURL: cfg.Payments.PayTRBaseURL, SuccessURL: cfg.Payments.PayTRSuccessURL, FailURL: cfg.Payments.PayTRFailURL}
+			}
+			paymentService := commerce.PaymentService{Transactions: transactioner, Store: commerceStore, Providers: providers}
+			commerceCollection, ok := studioRegistry.Collection("commerce")
+			if !ok {
+				return errors.New("commerce admin studio metadata missing")
+			}
+			commerceCollection.Fields = append(commerceCollection.Fields, adminstudio.Field{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"})
+			commerceHTTP := commercetransport.Handler{DB: db, Media: mediaService, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: transactioner, Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies, DefaultLocale: cfg.I18N.DefaultLocale,
+				ResolveMemberID: func(r *http.Request) (string, bool) {
+					cookie, err := r.Cookie(members.SessionCookieName)
+					if err != nil || strings.TrimSpace(cookie.Value) == "" {
+						return "", false
+					}
+					_, member, err := memberService.ValidateSession(r.Context(), cookie.Value)
+					if err != nil || member == nil || !member.Active {
+						return "", false
+					}
+					return member.ID, true
+				},
+				ResolveMobileMemberID: func(r *http.Request) (string, bool) {
+					if memberHTTP.Mobile == nil {
+						return "", false
+					}
+					parts := strings.Fields(r.Header.Get("Authorization"))
+					if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
+						return "", false
+					}
+					memberID, _, err := memberHTTP.Mobile.ValidateAccess(r.Context(), parts[1])
+					if err != nil || strings.TrimSpace(memberID) == "" {
+						return "", false
+					}
+					return memberID, true
+				},
+			}
+			variantCollection, ok := studioRegistry.Collection("commerce_variants")
+			if !ok {
+				return errors.New("commerce variants admin studio metadata missing")
+			}
+			commerceHTTP.VariantCollection = variantCollection
+			paymentHTTP := commercetransport.PaymentWebhookHandler{Service: paymentService}
+			routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
+			routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
 		}
-		if cfg.Payments.IyzicoSecretKey != "" {
-			providers["iyzico"] = iyzicoprovider.Provider{APIKey: cfg.Payments.IyzicoAPIKey, SecretKey: cfg.Payments.IyzicoSecretKey, BaseURL: cfg.Payments.IyzicoBaseURL, CallbackURL: cfg.Payments.IyzicoCallbackURL}
-		}
-		if cfg.Payments.PayTRMerchantKey != "" {
-			providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency, BaseURL: cfg.Payments.PayTRBaseURL, SuccessURL: cfg.Payments.PayTRSuccessURL, FailURL: cfg.Payments.PayTRFailURL}
-		}
-		paymentService := commerce.PaymentService{Transactions: transactioner, Store: commerceStore, Providers: providers}
-		commerceCollection, ok := studioRegistry.Collection("commerce")
-		if !ok {
-			return errors.New("commerce admin studio metadata missing")
-		}
-		commerceCollection.Fields = append(commerceCollection.Fields, adminstudio.Field{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"})
-		commerceHTTP := commercetransport.Handler{DB: db, Media: mediaService, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: transactioner, Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies, DefaultLocale: cfg.I18N.DefaultLocale,
-			ResolveMemberID: func(r *http.Request) (string, bool) {
-				cookie, err := r.Cookie(members.SessionCookieName)
-				if err != nil || strings.TrimSpace(cookie.Value) == "" {
-					return "", false
-				}
-				_, member, err := memberService.ValidateSession(r.Context(), cookie.Value)
-				if err != nil || member == nil || !member.Active {
-					return "", false
-				}
-				return member.ID, true
-			},
-			ResolveMobileMemberID: func(r *http.Request) (string, bool) {
-				if memberHTTP.Mobile == nil {
-					return "", false
-				}
-				parts := strings.Fields(r.Header.Get("Authorization"))
-				if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
-					return "", false
-				}
-				memberID, _, err := memberHTTP.Mobile.ValidateAccess(r.Context(), parts[1])
-				if err != nil || strings.TrimSpace(memberID) == "" {
-					return "", false
-				}
-				return memberID, true
-			},
-		}
-		variantCollection, ok := studioRegistry.Collection("commerce_variants")
-		if !ok {
-			return errors.New("commerce variants admin studio metadata missing")
-		}
-		commerceHTTP.VariantCollection = variantCollection
-		paymentHTTP := commercetransport.PaymentWebhookHandler{Service: paymentService}
-		routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
-		routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
-	}
-	if modules["pages"] || modules["commerce"] {
+	*/
+	if modules["pages"] {
 		graphqlLimiter := newRateLimiter(60, time.Minute)
 		routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !graphqlLimiter.Allow("graphql:" + requestmeta.ClientIP(r)) {
@@ -1709,6 +1706,7 @@ func runOutboxWorker(ctx context.Context, worker webhooks.Worker, stderr io.Writ
 	}
 }
 
+/*
 func runCommerceReservationReleaser(ctx context.Context, service commerce.Service, hold time.Duration, stderr io.Writer) {
 	if hold <= 0 {
 		return
@@ -1727,6 +1725,7 @@ func runCommerceReservationReleaser(ctx context.Context, service commerce.Servic
 		}
 	}
 }
+*/
 
 func doctor(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
@@ -2257,6 +2256,7 @@ func newsRouterRoutes(routes []newstransport.Route) []router.Route {
 	return result
 }
 
+/*
 func commerceRouterRoutes(routes []commercetransport.Route) []router.Route {
 	result := make([]router.Route, 0, len(routes))
 	for _, route := range routes {
@@ -2268,6 +2268,7 @@ func commerceRouterRoutes(routes []commercetransport.Route) []router.Route {
 	}
 	return result
 }
+*/
 
 func publicHomePath(locale string) string {
 	locale = strings.TrimSpace(locale)
@@ -2893,69 +2894,6 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("seed demo about: %w", err)
 	}
 
-	products := []struct {
-		id, sku, title, desc, mediaID string
-		price, stock                  int
-	}{
-		{"demo-prod-starter", "HYDRO-ED-STARTER", "HydroGo Starter", "SQLite ile başlayan, sayfa ve medya yönetimini denemek için örnek paket.", "demo-media-prod-1", 0, 999},
-		{"demo-prod-growth", "HYDRO-ED-GROWTH", "HydroGo Growth", "Ürün kataloğu, varyant, stok ve içerik akışlarını birlikte deneyimlemek için örnek paket.", "demo-media-prod-2", 49900, 150},
-		{"demo-prod-enterprise", "HYDRO-ED-ENTERPRISE", "HydroGo Enterprise Demo", "PostgreSQL, iş kuyruğu ve operasyon ekranlarını anlatan örnek paket; canlı SLA içermez.", "demo-media-prod-3", 149900, 50},
-		{"demo-bottle", "DEMO-BOTTLE", "HydroGo Akıllı Termos (750ml)", "Çift katmanlı paslanmaz çelik gövde, 24 saat sıcak/soğuk koruma ve dijital sıcaklık göstergesi.", "demo-media-prod-4", 34900, 45},
-		{"demo-shirt", "DEMO-SHIRT", "HydroGo Developer T-Shirt", "%100 organik pamuk, nefes alabilir kumaş ve modern geliştirici tasarım baskısı.", "demo-media-prod-5", 49900, 30},
-		{"demo-keyboard", "DEMO-KEYBOARD", "HydroGo Mekanik Klavye (Hot-Swap)", "Gateron switch seçenekleri, RGB aydınlatma, PBT tuş takımı ve alüminyum kasa.", "demo-media-prod-6", 189900, 15},
-		{"demo-backpack", "DEMO-BACKPACK", "HydroGo Tech Sırt Çantası", "Su geçirmez kumaş, 16 inç laptop bölmesi, USB şarj portu ve ergonomik sırt desteği.", "demo-media-prod-7", 89900, 20},
-		{"demo-edge-hub", "DEMO-EDGE-HUB", "HydroGo Edge IoT Gateway", "Yerel ağ üzerinden HydroGo API ile haberleşen, ARM64 uyumlu edge ağ geçidi.", "demo-media-prod-8", 249900, 10},
-	}
-
-	for _, product := range products {
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO commerce_products (id,sku,title,description,media_id,price_cents,currency,stock,status,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,'TRY',$7,'published',$8,$8) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO commerce_products (id,sku,title,description,media_id,price_cents,currency,stock,status,created_at,updated_at) VALUES (?,?,?,?,?,?,'TRY',?,'published',?,?)`, product.id, product.sku, product.title, product.desc, product.mediaID, product.price, product.stock, now, now); err != nil {
-			return fmt.Errorf("seed product %s: %w", product.id, err)
-		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE commerce_products SET title=$1,description=$2,media_id=$3,price_cents=$4,stock=$5,status='published',updated_at=$6 WHERE id=$7`, `UPDATE commerce_products SET title=?1,description=?2,media_id=?3,price_cents=?4,stock=?5,status='published',updated_at=?6 WHERE id=?7`, product.title, product.desc, product.mediaID, product.price, product.stock, now, product.id); err != nil {
-			return fmt.Errorf("update seed product %s: %w", product.id, err)
-		}
-	}
-
-	variants := []struct {
-		id, product, sku, title string
-		price, stock            int
-	}{
-		{"demo-growth-annual", "demo-prod-growth", "HYDRO-GROWTH-ANNUAL", "Yıllık Lisans (%20 İndirimli)", 479000, 100},
-		{"demo-growth-monthly", "demo-prod-growth", "HYDRO-GROWTH-MONTHLY", "Aylık Lisans", 49900, 150},
-		{"demo-ent-annual", "demo-prod-enterprise", "HYDRO-ENT-ANNUAL", "Kurumsal Yıllık Lisans (24/7 SLA)", 1439000, 30},
-		{"demo-ent-monthly", "demo-prod-enterprise", "HYDRO-ENT-MONTHLY", "Kurumsal Aylık Lisans", 149900, 50},
-		{"demo-bottle-matte", "demo-bottle", "DEMO-BOTTLE-MATTE", "Mat Siyah 750ml", 34900, 25},
-		{"demo-bottle-silver", "demo-bottle", "DEMO-BOTTLE-SILVER", "Fırçalanmış Gümüş 750ml", 34900, 20},
-		{"demo-shirt-blue-m", "demo-shirt", "DEMO-SHIRT-BLUE-M", "Okyanus Mavisi / M", 49900, 10},
-		{"demo-shirt-black-l", "demo-shirt", "DEMO-SHIRT-BLACK-L", "Gece Siyahı / L", 49900, 12},
-		{"demo-shirt-white-s", "demo-shirt", "DEMO-SHIRT-WHITE-S", "Saf Beyaz / S", 49900, 8},
-		{"demo-kb-linear", "demo-keyboard", "DEMO-KB-RED", "Red Linear Switch (Sessiz)", 189900, 8},
-		{"demo-kb-tactile", "demo-keyboard", "DEMO-KB-BROWN", "Brown Tactile Switch (Dengeli)", 189900, 7},
-		{"demo-backpack-charcoal", "demo-backpack", "DEMO-BP-CHARCOAL", "Kömür Grisi (16 inç)", 89900, 12},
-		{"demo-backpack-navy", "demo-backpack", "DEMO-BP-NAVY", "Lacivert (16 inç)", 89900, 8},
-		{"demo-edge-wifi", "demo-edge-hub", "DEMO-EDGE-WIFI", "Dual-Band Wi-Fi + PoE Modeli", 249900, 10},
-	}
-	for _, variant := range variants {
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO commerce_product_variants (id,product_id,sku,title,price_cents,stock,status,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,'published',$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO commerce_product_variants (id,product_id,sku,title,price_cents,stock,status,created_at,updated_at) VALUES (?,?,?,?,?,?,'published',?,?)`, variant.id, variant.product, variant.sku, variant.title, variant.price, variant.stock, now, now); err != nil {
-			return fmt.Errorf("seed variant %s: %w", variant.id, err)
-		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE commerce_product_variants SET title=$1,price_cents=$2,stock=$3,status='published',updated_at=$4 WHERE id=$5`, `UPDATE commerce_product_variants SET title=?1,price_cents=?2,stock=?3,status='published',updated_at=?4 WHERE id=?5`, variant.title, variant.price, variant.stock, now, variant.id); err != nil {
-			return fmt.Errorf("update seed variant %s: %w", variant.id, err)
-		}
-	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect,
-		`INSERT INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,customer_name,customer_identity_number,customer_email,customer_phone,customer_address,customer_city,customer_country,customer_postal_code,customer_client_ip,created_at) VALUES ($1,$2,$3,'TRY',$4,'paid','processing',$5,'',$6,$7,$8,$9,'TR',$10,'127.0.0.1',$11) ON CONFLICT (id) DO NOTHING`,
-		`INSERT OR IGNORE INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,customer_name,customer_identity_number,customer_email,customer_phone,customer_address,customer_city,customer_country,customer_postal_code,customer_client_ip,created_at) VALUES (?,?,?,'TRY',?,'paid','processing',?,'',?,?,?,?, 'TR',?,'127.0.0.1',?)`,
-		"demo-order-001", "demo-member-portal", "demo-order-key-001", 49900, "Demo Üye", "member@hydrogo.local", "+90 555 000 0000", "Demo adres", "İstanbul", "34000", now); err != nil {
-		return fmt.Errorf("seed demo order: %w", err)
-	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect,
-		`INSERT INTO commerce_order_items (id,order_id,product_id,sku,title,quantity,unit_cents,total_cents,variant_id) VALUES ($1,$2,$3,$4,$5,1,$6,$6,$7) ON CONFLICT (id) DO NOTHING`,
-		`INSERT OR IGNORE INTO commerce_order_items (id,order_id,product_id,sku,title,quantity,unit_cents,total_cents,variant_id) VALUES (?,?,?,?,?,1,?,?,?)`,
-		"demo-order-item-001", "demo-order-001", "demo-prod-growth", "HYDRO-GROWTH-MONTHLY", "HydroGo Growth Edition · Aylık Lisans", 49900, 49900, "demo-growth-monthly"); err != nil {
-		return fmt.Errorf("seed demo order item: %w", err)
-	}
-
 	newsList := []struct {
 		id, slug, title, excerpt, takeaways, category, author, coverMediaID, tags, body string
 		featured                                                                        bool
@@ -3084,7 +3022,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `DELETE FROM navigation_items WHERE id LIKE $1`, `DELETE FROM navigation_items WHERE id LIKE ?`, "demo-nav-%"); err != nil {
 		return fmt.Errorf("remove legacy demo navigation: %w", err)
 	}
-	_, err = fmt.Fprintf(stdout, "demo-seeded pages=%d news=%d products=%d variants=%d media=%d navigation=0\n", 3, len(newsList), len(products), len(variants), len(mediaFixtures))
+	_, err = fmt.Fprintf(stdout, "demo-seeded pages=%d news=%d media=%d navigation=0\n", 3, len(newsList), len(mediaFixtures))
 	return err
 }
 

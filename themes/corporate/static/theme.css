@@ -981,6 +981,24 @@ img {
   .btn-primary, .btn-secondary {
     width: 100%;
   }
+  .window-titlebar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .window-badge {
+    display: none;
+  }
+  .window-tab-btn {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+  .window-body {
+    padding: 16px 12px;
+  }
+  .diag-split-wrap {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 /* ==========================================================================
    Section Headers
@@ -3614,21 +3632,23 @@ body.theme-corporate-body {
 .news-footer { background: #080a0a; }
 
 @media (max-width: 900px) {
-  .theme-corporate-hero { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
+  .theme-corporate-hero { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
   .hero-inner-container { grid-template-columns: 1fr; gap: 0; }
   .hero-content { padding-bottom: 42px; }
   .hero-media-wrapper { padding-bottom: 36px; }
 }
 
 @media (max-width: 640px) {
-  .page-container { padding: 52px 20px 72px; }
+  .page-container { padding: 52px 16px 72px; }
   .theme-corporate-hero { padding-top: 58px; margin-bottom: 72px; }
   .hero-headline { font-size: clamp(2.65rem, 14vw, 4.1rem); }
   .hero-stats-row { gap: 14px; grid-template-columns: 1fr; }
   .stat-pill, .stat-pill:first-child { border-left: 0; border-top: 1px solid var(--edge); padding: 14px 0 0; }
   .stat-pill:first-child { border-top: 0; padding-top: 0; }
-  .window-titlebar { padding: 10px 12px; }
-  .window-tab-btn { padding: 6px 8px; }
+  .window-titlebar { padding: 8px 10px; gap: 6px; }
+  .window-badge { display: none; }
+  .window-tab-btn { padding: 4px 6px; font-size: 0.72rem; }
+  .diag-split-wrap { grid-template-columns: 1fr; }
 }
 
 /* Page-specific banners: the home page keeps the full product hero; inner

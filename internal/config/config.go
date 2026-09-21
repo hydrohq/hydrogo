@@ -34,7 +34,6 @@ type Config struct {
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
-	Payments        Payments         `yaml:"-"`
 }
 
 // AdminExtensions configures signed, externally hosted Admin Studio surfaces.
@@ -118,22 +117,6 @@ type License struct {
 	Features  []string `yaml:"features"`
 }
 
-type Payments struct {
-	StripeSecretKey     string
-	StripeWebhookSecret string
-	IyzicoAPIKey        string
-	IyzicoSecretKey     string
-	IyzicoBaseURL       string
-	IyzicoCallbackURL   string
-	PayTRMerchantID     string
-	PayTRMerchantKey    string
-	PayTRMerchantSalt   string
-	PayTRCurrency       string
-	PayTRBaseURL        string
-	PayTRSuccessURL     string
-	PayTRFailURL        string
-}
-
 type Overrides struct {
 	CapacityProfile *string
 	HTTPAddress     *string
@@ -147,7 +130,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "commerce"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}}
 	result.License.File = "hydro.lic"
 	if path != "" {
 		file, err := os.Open(path)
@@ -335,23 +318,6 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		}
 		result.Mail.StartTLS = startTLS
 	}
-	result.Payments.StripeSecretKey, _ = lookup("HYDRO_STRIPE_SECRET_KEY")
-	result.Payments.StripeWebhookSecret, _ = lookup("HYDRO_STRIPE_WEBHOOK_SECRET")
-	result.Payments.IyzicoAPIKey, _ = lookup("HYDRO_IYZICO_API_KEY")
-	result.Payments.IyzicoSecretKey, _ = lookup("HYDRO_IYZICO_SECRET_KEY")
-	result.Payments.IyzicoBaseURL, _ = lookup("HYDRO_IYZICO_BASE_URL")
-	result.Payments.IyzicoCallbackURL, _ = lookup("HYDRO_IYZICO_CALLBACK_URL")
-	result.Payments.PayTRMerchantID, _ = lookup("HYDRO_PAYTR_MERCHANT_ID")
-	result.Payments.PayTRMerchantKey, _ = lookup("HYDRO_PAYTR_MERCHANT_KEY")
-	result.Payments.PayTRMerchantSalt, _ = lookup("HYDRO_PAYTR_MERCHANT_SALT")
-	result.Payments.PayTRCurrency, _ = lookup("HYDRO_PAYTR_CURRENCY")
-	result.Payments.PayTRBaseURL, _ = lookup("HYDRO_PAYTR_BASE_URL")
-	result.Payments.PayTRSuccessURL, _ = lookup("HYDRO_PAYTR_SUCCESS_URL")
-	result.Payments.PayTRFailURL, _ = lookup("HYDRO_PAYTR_FAIL_URL")
-	if result.Payments.PayTRCurrency == "" {
-		result.Payments.PayTRCurrency = "TRY"
-	}
-
 	dsnSources := 0
 	if result.Database.DSN != "" {
 		dsnSources++
@@ -428,6 +394,9 @@ func (c Config) Validate() error {
 		if module == "" {
 			return errors.New("module name cannot be empty")
 		}
+		if module == "commerce" {
+			return errors.New("commerce is deferred and cannot be enabled in this release")
+		}
 		if _, exists := seenModules[module]; exists {
 			return fmt.Errorf("module %q is configured more than once", module)
 		}
@@ -444,30 +413,6 @@ func (c Config) Validate() error {
 			}
 		}
 		c.Tenancy.RequireHost = true
-	}
-	if (c.Payments.StripeSecretKey == "") != (c.Payments.StripeWebhookSecret == "") {
-		return errors.New("Stripe secret and webhook secret must be configured together")
-	}
-	if (c.Payments.PayTRMerchantKey == "") != (c.Payments.PayTRMerchantSalt == "") {
-		return errors.New("PayTR merchant key and salt must be configured together")
-	}
-	if (c.Payments.IyzicoAPIKey == "") != (c.Payments.IyzicoSecretKey == "") {
-		return errors.New("iyzico API key and secret key must be configured together")
-	}
-	if c.Payments.IyzicoAPIKey != "" && c.Payments.IyzicoCallbackURL == "" {
-		return errors.New("iyzico callback URL is required when iyzico is configured")
-	}
-	if c.Payments.IyzicoAPIKey != "" && !isHTTPSCallbackURL(c.Payments.IyzicoCallbackURL) {
-		return errors.New("iyzico callback URL must be an absolute HTTPS URL without credentials or fragments")
-	}
-	if (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantKey == "") || (c.Payments.PayTRMerchantID == "") != (c.Payments.PayTRMerchantSalt == "") {
-		return errors.New("PayTR merchant ID, key and salt must be configured together")
-	}
-	if c.Payments.PayTRMerchantID != "" && (c.Payments.PayTRSuccessURL == "" || c.Payments.PayTRFailURL == "") {
-		return errors.New("PayTR success and fail URLs are required when PayTR is configured")
-	}
-	if c.Payments.PayTRMerchantID != "" && (!isHTTPSCallbackURL(c.Payments.PayTRSuccessURL) || !isHTTPSCallbackURL(c.Payments.PayTRFailURL)) {
-		return errors.New("PayTR success and fail URLs must be absolute HTTPS URLs without credentials or fragments")
 	}
 	for _, webhook := range c.Webhooks {
 		if strings.TrimSpace(webhook.ID) == "" || strings.TrimSpace(webhook.URL) == "" || strings.TrimSpace(webhook.Secret) == "" {

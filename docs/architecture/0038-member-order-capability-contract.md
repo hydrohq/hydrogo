@@ -1,6 +1,6 @@
 # ADR-0038: Member order capability contract
 
-- Status: Accepted
+- Status: Superseded by ADR-0199
 - Date: 2026-09-13
 - Supersedes: none
 - Related: [ADR-0037](0037-strict-modular-monolith-boundaries.md), [ADR-0029](0029-commerce-customer-capability-boundary.md)

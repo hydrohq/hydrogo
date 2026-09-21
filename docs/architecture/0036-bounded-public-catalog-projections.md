@@ -1,6 +1,6 @@
 # ADR-0036: Bounded public catalog projections
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0199
 - **Date:** 2026-09-13
 - **Related decisions:** [ADR-0007](0007-capacity-profiles.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0017](0017-commerce-consistency-and-payments.md)
 

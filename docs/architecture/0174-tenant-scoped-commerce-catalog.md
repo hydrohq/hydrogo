@@ -1,6 +1,6 @@
 # ADR-0174: Tenant-scoped commerce catalog
 
-- Status: Accepted (product and variant repository boundary; checkout and payment scope open)
+- Status: Superseded by ADR-0199
 - Date: 2026-09-19
 - Related decisions: [ADR-0168](0168-host-based-tenant-resolution.md), [ADR-0172](0172-tenant-scoped-site-data.md), [ADR-0173](0173-tenant-scoped-members-and-sessions.md)
 

@@ -217,12 +217,12 @@
 <span class="syn-kw">import</span> (
     <span class="syn-str">"github.com/ardaozyildirim/hydrogo/internal/server"</span>
     <span class="syn-str">"github.com/ardaozyildirim/hydrogo/modules/news"</span>
-    <span class="syn-str">"github.com/ardaozyildirim/hydrogo/modules/commerce"</span>
+    <span class="syn-str">"github.com/ardaozyildirim/hydrogo/modules/pages"</span>
 )
 
 <span class="syn-fn">func</span> <span class="syn-title">main</span>() {
     app := server.<span class="syn-fn">New</span>(server.Config{Dialect: <span class="syn-str">"sqlite"</span>})
-    app.<span class="syn-fn">Register</span>(news.<span class="syn-fn">New</span>(), commerce.<span class="syn-fn">New</span>())
+    app.<span class="syn-fn">Register</span>(news.<span class="syn-fn">New</span>(), pages.<span class="syn-fn">New</span>())
     app.<span class="syn-fn">Serve</span>(<span class="syn-str">":8090"</span>)
 }</code></pre>
             </div>

@@ -45,7 +45,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0014](0014-publication-routes-and-erasure-recovery.md) | Route/SEO during publish and erasure history independent of restore | Accepted; planned |
 | [0015](0015-versioned-http-api.md) | Versioned HTTP API routes and backward alias | Accepted |
 | [0016](0016-structured-page-blocks-and-theme-slots.md) | Structured page blocks and theme slots | Accepted |
-| [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Accepted |
+| [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |
 | [0020](0020-headless-first-admin-studio-and-frontend-templates.md) | Headless-first Admin Studio and frontend template boundary | Proposed |
@@ -80,16 +80,16 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0045](0045-admin-kit-summary-styles.md) | Admin capability summary styles | Accepted |
 | [0026](0026-bounded-media-derivatives.md) | Bounded media derivatives | Accepted |
 | [0028](0028-core-isolation-and-licensing.md) | Core isolation and commercial licensing | Accepted |
-| [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Accepted |
+| [0029](0029-commerce-customer-capability-boundary.md) | Commerce customer capability and public catalog boundary | Superseded by ADR-0199 |
 | [0030](0030-client-address-trust-boundary.md) | Client IP derivation and proxy trust boundary | Accepted |
-| [0031](0031-commerce-reservation-expiry.md) | Bounded pending-order stock reservation expiry | Accepted |
-| [0032](0032-payment-provider-transport-safety.md) | Bounded, redirect-safe payment provider transport | Accepted |
+| [0031](0031-commerce-reservation-expiry.md) | Bounded pending-order stock reservation expiry | Superseded by ADR-0199 |
+| [0032](0032-payment-provider-transport-safety.md) | Bounded, redirect-safe payment provider transport | Superseded by ADR-0199 |
 | [0033](0033-runtime-module-resource-gating.md) | Runtime resources gated by active modules | Accepted |
-| [0034](0034-refund-reconciliation-state.md) | Idempotent refund reconciliation state | Accepted |
-| [0035](0035-secure-payment-return-url-validation.md) | Secure payment return URL validation | Accepted |
-| [0036](0036-bounded-public-catalog-projections.md) | Bounded public catalog projections | Accepted |
+| [0034](0034-refund-reconciliation-state.md) | Idempotent refund reconciliation state | Superseded by ADR-0199 |
+| [0035](0035-secure-payment-return-url-validation.md) | Secure payment return URL validation | Superseded by ADR-0199 |
+| [0036](0036-bounded-public-catalog-projections.md) | Bounded public catalog projections | Superseded by ADR-0199 |
 | [0037](0037-strict-modular-monolith-boundaries.md) | Strict modular monolith boundaries | Accepted |
-| [0038](0038-member-order-capability-contract.md) | Member order capability contract | Accepted |
+| [0038](0038-member-order-capability-contract.md) | Member order capability contract | Superseded by ADR-0199 |
 | [0039](0039-conditional-cross-module-migrations.md) | Conditional cross-module migration scopes | Accepted |
 | [0040](0040-conditional-headless-schema.md) | Conditional headless schema surface | Accepted |
 | [0041](0041-admin-visual-theme-modes.md) | Admin visual theme modes | Accepted |
@@ -218,8 +218,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0171](0171-tenant-scoped-news-content-and-jobs.md) | Tenant-scoped news content and scheduled jobs | Accepted (repository and payload bridge; job-store isolation open) |
 | [0172](0172-tenant-scoped-site-data.md) | Tenant-scoped site data | Accepted (site repository boundary; forms/auth/commerce workflows open) |
 | [0173](0173-tenant-scoped-members-and-sessions.md) | Tenant-scoped members and sessions | Accepted (member repository boundary; device-session and identity provisioning open) |
-| [0174](0174-tenant-scoped-commerce-catalog.md) | Tenant-scoped commerce catalog | Accepted (product/variant repository boundary; checkout and payment scope open) |
-| [0175](0175-tenant-scoped-commerce-checkout.md) | Tenant-scoped commerce checkout and payments | Accepted (checkout repository boundary; provisioning/backfill and RLS open) |
+| [0174](0174-tenant-scoped-commerce-catalog.md) | Tenant-scoped commerce catalog | Superseded by ADR-0199 |
+| [0175](0175-tenant-scoped-commerce-checkout.md) | Tenant-scoped commerce checkout and payments | Superseded by ADR-0199 |
 | [0176](0176-tenant-scoped-form-registry.md) | Tenant-scoped form registry | Accepted (form schema repository boundary; submission/backfill open) |
 | [0177](0177-tenant-scoped-member-mobile-sessions.md) | Tenant-scoped member mobile sessions | Accepted (member mobile token boundary; admin auth identity open) |
 | [0178](0178-tenant-scoped-admin-identity-and-sessions.md) | Tenant-scoped admin identity and sessions | Accepted (users/session boundary; invites/recovery/MFA open) |
@@ -241,6 +241,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0196](0196-extension-package-lifecycle-and-operator-cli.md) | Extension package lifecycle and operator CLI | Accepted; CLI E2E open |
 | [0197](0197-admin-ui-locale-preference-and-local-catalog.md) | Admin UI locale preference and local catalog | Accepted; full surface translation open |
 | [0198](0198-admin-user-account-and-permission-overrides.md) | Admin user accounts and permission overrides | Accepted; module permission audit open |
+| [0199](0199-commerce-deferral-and-runtime-removal.md) | Defer Commerce and remove its runtime surface | Accepted |
 | [0193](0193-release-provenance-sbom-production-readiness.md) | Release provenance, SPDX SBOM & production readiness certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |

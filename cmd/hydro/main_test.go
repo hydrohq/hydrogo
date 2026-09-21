@@ -22,28 +22,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
-	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 )
-
-func TestCommerceRouterRoutesPreserveCommerceRouteSet(t *testing.T) {
-	routes := commerceRouterRoutes([]commercetransport.Route{
-		{Pattern: "GET /api/commerce/products"},
-		{Pattern: "POST /api/webhooks/payment/{provider}"},
-		{Pattern: "GET /admin/commerce/products"},
-	})
-	patterns := make(map[string]bool, len(routes))
-	for _, route := range routes {
-		patterns[route.Pattern] = true
-	}
-	for _, pattern := range []string{"GET /api/commerce/products", "POST /api/webhooks/payment/{provider}", "GET /admin/commerce/products"} {
-		if !patterns[pattern] {
-			t.Fatalf("missing route %q in %#v", pattern, patterns)
-		}
-	}
-	if len(patterns) != 3 {
-		t.Fatalf("unexpected route set: %#v", patterns)
-	}
-}
 
 func TestModuleHelpersCanonicalizeNames(t *testing.T) {
 	configured := []string{" Pages ", "NEWS"}

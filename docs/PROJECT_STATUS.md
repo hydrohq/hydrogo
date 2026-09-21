@@ -55,9 +55,9 @@ migrations, workers, assets, or mandatory infrastructure.
 - Cryptographic licensing (`internal/licensing` and `hydro license`) provides offline
   Ed25519 license verification, grace period management, lockfile consistency (`hydrogo.lock`),
   and fail-closed runtime enforcement.
-- Commerce is available as an optional experimental/pilot module with contract-tested
-  order/cart idempotency, atomic stock reservation, and Stripe/iyzico/PayTR sandbox adapters;
-  commercial production certification remains open.
+- Commerce is deferred and has no runtime, API, provider, worker, or configuration
+  surface in this release. Its historical migrations are retained; a future return
+  requires a new activation decision under ADR-0199.
 - Cache behavior includes bounded L1 caching, optional TwoTier caching,
   generation invalidation, stale-refill rejection, single-flight misses, and
   invalidation fanout/reconciliation tests.

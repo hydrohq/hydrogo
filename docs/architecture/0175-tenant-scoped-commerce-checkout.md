@@ -1,6 +1,6 @@
 # ADR-0175: Tenant-scoped commerce checkout and payments
 
-- Status: Accepted (checkout repository boundary; provisioning/backfill and production RLS open)
+- Status: Superseded by ADR-0199
 - Date: 2026-09-19
 - Related decisions: [ADR-0174](0174-tenant-scoped-commerce-catalog.md), [ADR-0173](0173-tenant-scoped-members-and-sessions.md), [ADR-0168](0168-host-based-tenant-resolution.md)
 

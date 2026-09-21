@@ -9,7 +9,6 @@ test.describe("HydroGo visual contract", () => {
   for (const surface of [
     ["home", "/public/pages/tr/demo/html"],
     ["news", "/public/news/tr/html"],
-    ["shop", "/shop"],
   ] as const) {
     test(`${surface[0]} desktop`, async ({ page }) => {
       await page.goto(surface[1], { waitUntil: "domcontentloaded" });
