@@ -19,3 +19,7 @@ lease with expiry cleanup and idempotent release, wired through
 `server.Config.DistributedTenantAdmission`. Compact remains process-local by
 default; the live Redis/Valkey multi-instance and partition drill is still an
 external certification gate.
+
+When `HYDRO_TEST_REDIS_URL` is provided, the integration gate creates two
+independent Redis clients and verifies shared tenant-A saturation, tenant-B
+isolation, and release recovery against the same sorted-set lease namespace.
