@@ -1,0 +1,25 @@
+id: "202609220001_analytics_content_views"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies:
+  - "202609160003_analytics"
+checksum_sha256:
+  sqlite: "938b24da5c34d24b480a537fdc14cff2c557c0ed5902728a751c9091bba75dd8"
+  postgres: "c6cd2cd5fd5e90afdb976b1233c01dfc54b7443a45499ee84f40904416250c35"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "Analytics capability is enabled"
+lock_timeout: "Migration runner deadline applies"
+disk_estimate: "One bounded aggregate row per tenant/content/day/locale/purpose"
+compatibility: "Adds consent-gated aggregate content view counts; no visitor identity is stored."
+smoke:
+  - "Consent is checked before content view aggregate is updated."
+restart: "Safe to rerun; committed checksum is verified before no-op."
+rollback: "No production down migration; restore or forward migration only."

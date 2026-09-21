@@ -30,6 +30,17 @@ func TestAnalyticsEventRejectsImpossibleDate(t *testing.T) {
 	}
 }
 
+func TestContentViewEventRejectsIdentityLikeUnboundedFields(t *testing.T) {
+	event := ContentViewEvent{Day: "2026-09-22", TenantID: "tenant-a", ContentType: "article", ContentID: "article-1", Locale: "tr-TR"}
+	if err := event.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	event.ContentID = "line1\nline2"
+	if err := event.Validate(); err == nil {
+		t.Fatal("content view accepted control characters")
+	}
+}
+
 func TestAnalyticsConsentRejectsRevokeBeforeDecision(t *testing.T) {
 	decided := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 	revoked := decided.Add(-time.Minute)

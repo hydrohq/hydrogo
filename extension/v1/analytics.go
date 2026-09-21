@@ -10,6 +10,10 @@ const (
 	MaxAnalyticsPurposeVersion = 64
 	MaxAnalyticsCountryCode    = 2
 	MaxAnalyticsEventType      = 32
+	MaxAnalyticsTenantID       = 128
+	MaxAnalyticsContentType    = 32
+	MaxAnalyticsContentID      = 128
+	MaxAnalyticsLocale         = 16
 )
 
 type ConsentDecision string
@@ -46,6 +50,40 @@ type AnalyticsEvent struct {
 	DurationSeconds int                `json:"duration_seconds,omitempty"`
 }
 
+// ContentViewEvent is an aggregate-safe content view dimension. It carries
+// no IP, account, fingerprint, full URL or advertising identifier. Consent
+// is checked by the analytics store before the daily aggregate is updated.
+type ContentViewEvent struct {
+	Day         string `json:"day"`
+	TenantID    string `json:"tenant_id"`
+	ContentType string `json:"content_type"`
+	ContentID   string `json:"content_id"`
+	Locale      string `json:"locale,omitempty"`
+}
+
+func (e ContentViewEvent) Validate() error {
+	if err := validateAnalyticsDay(e.Day); err != nil {
+		return err
+	}
+	for _, field := range []struct {
+		name  string
+		value string
+		max   int
+	}{{"tenant_id", e.TenantID, MaxAnalyticsTenantID}, {"content_type", e.ContentType, MaxAnalyticsContentType}, {"content_id", e.ContentID, MaxAnalyticsContentID}} {
+		name, value, max := field.name, field.value, field.max
+		if strings.TrimSpace(value) == "" || len(value) > max {
+			return fmt.Errorf("analytics %s is required and bounded", name)
+		}
+		if strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("analytics %s contains invalid control characters", name)
+		}
+	}
+	if e.Locale != "" && (len(e.Locale) > MaxAnalyticsLocale || strings.ContainsAny(e.Locale, "\r\n")) {
+		return fmt.Errorf("analytics locale is bounded")
+	}
+	return nil
+}
+
 func (c AnalyticsConsent) Validate() error {
 	if c.Decision != ConsentRejected && c.Decision != ConsentGranted && c.Decision != ConsentRevoked {
 		return fmt.Errorf("invalid analytics consent decision")
@@ -69,11 +107,8 @@ func (e AnalyticsEvent) Validate() error {
 	if e.Type != AnalyticsPageView && e.Type != AnalyticsSessionDuration && e.Type != AnalyticsCountryVisit {
 		return fmt.Errorf("invalid analytics event type")
 	}
-	if len(e.Day) != 10 || e.Day[4] != '-' || e.Day[7] != '-' {
-		return fmt.Errorf("analytics event day must be YYYY-MM-DD")
-	}
-	if parsed, err := time.Parse("2006-01-02", e.Day); err != nil || parsed.Format("2006-01-02") != e.Day {
-		return fmt.Errorf("analytics event day must be a valid UTC date")
+	if err := validateAnalyticsDay(e.Day); err != nil {
+		return err
 	}
 	if e.Country != "" && (len(e.Country) != MaxAnalyticsCountryCode || strings.ToUpper(e.Country) != e.Country) {
 		return fmt.Errorf("analytics country must be ISO alpha-2")
@@ -86,6 +121,16 @@ func (e AnalyticsEvent) Validate() error {
 	}
 	if e.Type == AnalyticsSessionDuration && e.DurationSeconds == 0 {
 		return fmt.Errorf("session duration requires duration")
+	}
+	return nil
+}
+
+func validateAnalyticsDay(day string) error {
+	if len(day) != 10 || day[4] != '-' || day[7] != '-' {
+		return fmt.Errorf("analytics event day must be YYYY-MM-DD")
+	}
+	if parsed, err := time.Parse("2006-01-02", day); err != nil || parsed.Format("2006-01-02") != day {
+		return fmt.Errorf("analytics event day must be a valid UTC date")
 	}
 	return nil
 }
