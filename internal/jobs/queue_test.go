@@ -2,7 +2,10 @@ package jobs
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -75,5 +78,48 @@ func TestQueueFailsClosedWhenNilOrZeroValue(t *testing.T) {
 	zeroQueue := Queue{}
 	if err := zeroQueue.Enqueue(Job{ID: "job", Type: "work"}); !errors.Is(err, ErrQueueUnavailable) {
 		t.Fatalf("zero-value queue enqueue = %v, want %v", err, ErrQueueUnavailable)
+	}
+}
+
+func TestQueueConcurrentWorkersClaimAndAcknowledgeEachJobOnce(t *testing.T) {
+	const jobsToProcess = 128
+	q := NewQueue(jobsToProcess)
+	now := time.Unix(100, 0).UTC()
+	for i := 0; i < jobsToProcess; i++ {
+		if err := q.Enqueue(Job{ID: fmt.Sprintf("job-%03d", i), Type: "news.publish", Payload: "generation=1", CreatedAt: now, AvailableAt: now}); err != nil {
+			t.Fatalf("enqueue %d: %v", i, err)
+		}
+	}
+
+	var claimed sync.Map
+	var acknowledged atomic.Int32
+	var workers sync.WaitGroup
+	for worker := 0; worker < 16; worker++ {
+		workers.Add(1)
+		go func(worker int) {
+			defer workers.Done()
+			for {
+				job, token, ok := q.Claim(fmt.Sprintf("worker-%d", worker), now, time.Minute)
+				if !ok {
+					return
+				}
+				if _, loaded := claimed.LoadOrStore(job.ID, struct{}{}); loaded {
+					t.Errorf("job %q was claimed more than once", job.ID)
+					return
+				}
+				if err := q.Ack(job.ID, fmt.Sprintf("worker-%d", worker), token); err != nil {
+					t.Errorf("ack %q: %v", job.ID, err)
+					return
+				}
+				acknowledged.Add(1)
+			}
+		}(worker)
+	}
+	workers.Wait()
+	if got := int(acknowledged.Load()); got != jobsToProcess {
+		t.Fatalf("acknowledged %d jobs, want %d", got, jobsToProcess)
+	}
+	if len(q.jobs) != 0 {
+		t.Fatalf("queue retained %d jobs after all acknowledgements", len(q.jobs))
 	}
 }

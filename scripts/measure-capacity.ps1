@@ -12,6 +12,8 @@ $runRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('hydrogo-capacity-' + [g
 $binary = Join-Path $runRoot 'hydro.exe'
 $profiles = @('compact', 'standard', 'distributed')
 $observations = @()
+$savedRedisURL = $env:HYDRO_REDIS_URL
+$savedRedisPrefix = $env:HYDRO_REDIS_KEY_PREFIX
 
 New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
 
@@ -41,6 +43,11 @@ function Wait-Ready {
 }
 
 try {
+    # Capacity profile smoke is intentionally local and self-contained. A
+    # developer's Redis environment must not turn it into an external-service
+    # availability test.
+    Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:HYDRO_REDIS_KEY_PREFIX -ErrorAction SilentlyContinue
     Write-Host '==> build capacity binary'
     & go build -trimpath -buildvcs=false -o $binary ./cmd/hydro
     if ($LASTEXITCODE -ne 0) { throw 'capacity binary build failed' }
@@ -99,6 +106,8 @@ try {
     }
 }
 finally {
+    if ($null -ne $savedRedisURL) { $env:HYDRO_REDIS_URL = $savedRedisURL }
+    if ($null -ne $savedRedisPrefix) { $env:HYDRO_REDIS_KEY_PREFIX = $savedRedisPrefix }
     if (Test-Path -LiteralPath $runRoot) {
         Remove-Item -LiteralPath $runRoot -Recurse -Force
     }
