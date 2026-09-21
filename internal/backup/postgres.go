@@ -52,6 +52,10 @@ func (o *boundedCommandOutput) String() string {
 type PostgresTools struct {
 	DumpBinary    string
 	RestoreBinary string
+	// PrivilegedRole is an optional operator-supplied role used with --role.
+	// It must be granted explicitly by the deployment; HydroGo never embeds
+	// credentials or silently escalates a database user.
+	PrivilegedRole string
 }
 
 // SnapshotPostgres creates a custom-format database dump and copies immutable
@@ -188,7 +192,7 @@ func LocatePostgresTools() (PostgresTools, error) {
 			return PostgresTools{}, fmt.Errorf("%s binary %q: %w", name, path, err)
 		}
 	}
-	return PostgresTools{DumpBinary: dump, RestoreBinary: restore}, nil
+	return PostgresTools{DumpBinary: dump, RestoreBinary: restore, PrivilegedRole: strings.TrimSpace(os.Getenv("HYDRO_PG_PRIVILEGED_ROLE"))}, nil
 }
 
 func (t PostgresTools) Dump(ctx context.Context, dsn, destination string) error {
@@ -263,12 +267,20 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
-		args = []string{"--format=custom", "--no-owner", "--file", absolutePath, redactedDSN}
+		args = []string{"--format=custom", "--no-owner", "--file", absolutePath}
+		if strings.TrimSpace(t.PrivilegedRole) != "" {
+			args = append(args, "--role="+t.PrivilegedRole)
+		}
+		args = append(args, redactedDSN)
 	} else {
 		if _, err := os.Stat(absolutePath); err != nil {
 			return fmt.Errorf("backup source: %w", err)
 		}
-		args = []string{"--exit-on-error", "--no-owner", "--dbname", redactedDSN, absolutePath}
+		args = []string{"--exit-on-error", "--no-owner"}
+		if strings.TrimSpace(t.PrivilegedRole) != "" {
+			args = append(args, "--role="+t.PrivilegedRole)
+		}
+		args = append(args, "--dbname", redactedDSN, absolutePath)
 	}
 	command := exec.CommandContext(ctx, binary, args...)
 	command.Env = append(os.Environ(), "PGPASSFILE="+passPath)
