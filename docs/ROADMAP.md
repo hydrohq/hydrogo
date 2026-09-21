@@ -136,7 +136,8 @@ and the first Construction Client Edition.
 - [ ] E0.3: Close the shared-tenancy prerequisites: direct-pool audit, real
   PostgreSQL RLS/IDOR evidence, tenant quota/noisy-neighbor tests, and
   recovery evidence. This does not enable shared tenancy before the ADR-0149
-  gate is certified.
+  gate is certified. Process-local tenant admission is implemented; shared
+  distributed quota and recovery certification remain open.
 - [x] E0.4: Publish a versioned event catalog over the existing durable outbox
   and signed webhook boundary; add event compatibility and delivery-operator
   evidence.
