@@ -1,6 +1,6 @@
 # Headless GraphQL API
 
-HydroGo exposes a public, read-only GraphQL endpoint at `POST /api/graphql` (and the versioned alias `POST /api/v1/graphql`). Mutations remain on the versioned REST endpoints so CSRF, idempotency, audit, and payment authorization rules have one write path.
+HydroGo exposes a public, read-only GraphQL endpoint at `POST /api/graphql` (and the versioned alias `POST /api/v1/graphql`). Mutations remain on the versioned REST endpoints so CSRF, idempotency, and audit rules have one write path.
 
 Example query:
 
@@ -17,4 +17,4 @@ query PublishedPage($locale: String!, $slug: String!) {
 }
 ```
 
-Commerce-enabled instances additionally expose `products` for published catalog items. The endpoint uses the same published-page cache and catalog service contracts as the REST/HTML transports; it does not read SQL directly.
+The current Site Edition publishes Pages and News read models only. Commerce is deferred and has no GraphQL surface in this release.
