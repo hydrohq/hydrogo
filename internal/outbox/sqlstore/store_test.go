@@ -21,6 +21,7 @@ func TestSQLiteOutboxLeaseContract(t *testing.T) {
 	for _, statement := range []string{
 		`CREATE TABLE outbox_events (id TEXT PRIMARY KEY, topic TEXT NOT NULL, aggregate_id TEXT NOT NULL, payload_version INTEGER NOT NULL, available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z', attempts INTEGER NOT NULL DEFAULT 0, lease_owner TEXT, lease_token TEXT, lease_until TEXT, last_error TEXT)`,
 		`CREATE INDEX idx_outbox_claimable ON outbox_events(available_at, lease_until, id)`,
+		`CREATE TABLE outbox_dead_letters (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL, aggregate_id TEXT NOT NULL, payload_version INTEGER NOT NULL, attempts INTEGER NOT NULL, last_error TEXT NOT NULL, failed_at TEXT NOT NULL)`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			t.Fatal(err)
@@ -58,6 +59,45 @@ func TestSQLiteOutboxLeaseContract(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("acknowledged events = %d", count)
+	}
+}
+
+func TestSQLiteOutboxDeadLetterRequiresLeaseAndPersistsFailure(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, "file:outbox-dead-letter-contract?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, statement := range []string{
+		`CREATE TABLE outbox_events (id TEXT PRIMARY KEY, topic TEXT NOT NULL, aggregate_id TEXT NOT NULL, payload_version INTEGER NOT NULL, available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z', attempts INTEGER NOT NULL DEFAULT 0, lease_owner TEXT, lease_token TEXT, lease_until TEXT, last_error TEXT)`,
+		`CREATE TABLE outbox_dead_letters (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL, aggregate_id TEXT NOT NULL, payload_version INTEGER NOT NULL, attempts INTEGER NOT NULL, last_error TEXT NOT NULL, failed_at TEXT NOT NULL)`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := Store{Dialect: database.SQLite}
+	ctx := context.Background()
+	if err := store.Enqueue(ctx, db, "event-dl", "order.created", "order-1", 1); err != nil {
+		t.Fatal(err)
+	}
+	event, token, ok, err := store.Claim(ctx, db, "worker", time.Now().UTC(), time.Minute)
+	if err != nil || !ok {
+		t.Fatalf("claim: %#v %q %v", event, token, err)
+	}
+	if err := store.DeadLetter(ctx, db, event, "worker", token, "endpoint permanently unavailable"); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM outbox_events`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("queue count=%d err=%v", count, err)
+	}
+	var topic, reason string
+	if err := db.QueryRow(`SELECT topic,last_error FROM outbox_dead_letters WHERE id = 'event-dl'`).Scan(&topic, &reason); err != nil {
+		t.Fatal(err)
+	}
+	if topic != "order.created" || reason == "" {
+		t.Fatalf("dead letter = %q/%q", topic, reason)
 	}
 }
 

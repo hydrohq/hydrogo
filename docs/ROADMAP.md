@@ -137,13 +137,13 @@ and the first Construction Client Edition.
   PostgreSQL RLS/IDOR evidence, tenant quota/noisy-neighbor tests, and
   recovery evidence. This does not enable shared tenancy before the ADR-0149
   gate is certified.
-- [ ] E0.4: Publish a versioned event catalog over the existing durable outbox
+- [x] E0.4: Publish a versioned event catalog over the existing durable outbox
   and signed webhook boundary; add event compatibility and delivery-operator
   evidence.
   - [x] E0.4a: Deterministic versioned JSON catalog artifact is exported by
     operator CLI; removals and PII reclassification are compatibility errors;
     webhook config rejects unknown topics and requires PII opt-in.
-  - [ ] E0.4b: Webhook consumer baseline/retry/dead-letter operator rehearsal.
+  - [x] E0.4b: Webhook consumer baseline/retry/dead-letter operator rehearsal.
 - [ ] E0.5: Add a provider-neutral OpenTelemetry boundary with bounded
   sampling/export, PII redaction, and Compact-off behavior.
   - [x] E0.5a: HTTP tracing attributes are exporter-tested to exclude query,

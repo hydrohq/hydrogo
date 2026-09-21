@@ -1,0 +1,25 @@
+id: "202609210002_outbox_dead_letters"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "f518cde83af80ea23be82cf4e5673e65c05307e26f19848a8cb23dcd6ac72e5b"
+  postgres: "f518cde83af80ea23be82cf4e5673e65c05307e26f19848a8cb23dcd6ac72e5b"
+dependencies:
+  - "202609100006_outbox_delivery"
+schema:
+  readable_epoch: 8
+  writable_epoch: 8
+preconditions:
+  - "The outbox delivery migration is current before bounded failure archival is enabled."
+lock_timeout: "Migration runner deadline."
+disk_estimate: "One append-only row per permanently failed delivery."
+compatibility: "Expand-only; old binaries continue retrying until upgraded."
+smoke:
+  - "A permanently failed leased event can be archived and removed from the active outbox."
+restart: "Safe to rerun only through the migration ledger."
+rollback: "No destructive down migration; retain archive for operator recovery."

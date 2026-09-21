@@ -3,6 +3,8 @@ package webhooks
 import (
 	"context"
 	"database/sql"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -12,9 +14,9 @@ import (
 )
 
 type fakeOutbox struct {
-	event                   outbox.Event
-	claimed, acked, retried bool
-	scopeIDs                []string
+	event                                 outbox.Event
+	claimed, acked, retried, deadLettered bool
+	scopeIDs                              []string
 }
 
 func (f *fakeOutbox) Claim(ctx context.Context, _ database.Executor, _ string, _ time.Time, _ time.Duration) (outbox.Event, string, bool, error) {
@@ -31,6 +33,21 @@ func (f *fakeOutbox) Ack(context.Context, database.Executor, string, string, str
 func (f *fakeOutbox) Retry(context.Context, database.Executor, string, string, string, time.Time, string) error {
 	f.retried = true
 	return nil
+}
+func (f *fakeOutbox) DeadLetter(context.Context, database.Executor, outbox.Event, string, string, string) error {
+	f.deadLettered = true
+	return nil
+}
+
+func TestWorkerDeadLettersAfterBoundedDeliveryAttempts(t *testing.T) {
+	store := &fakeOutbox{event: outbox.Event{ID: "event-dead", Topic: "order.created", AggregateID: "order-1", PayloadVersion: 1, Attempts: 3}}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "permanent", http.StatusBadGateway) }))
+	defer server.Close()
+	worker := Worker{DB: structExecutor{}, Store: store, WorkerID: "w1", Lease: time.Minute, MaxDeliveryAttempts: 3, Dispatcher: Dispatcher{Endpoints: []Endpoint{{ID: "erp", URL: server.URL, Secret: "secret", Topics: map[string]struct{}{"order.created": {}}}}, MaxAttempts: 1}}
+	processed, err := worker.RunOnce(context.Background(), time.Now())
+	if err == nil || !processed || !store.deadLettered || store.retried {
+		t.Fatalf("dead letter state processed=%v err=%v store=%+v", processed, err, store)
+	}
 }
 
 func TestWorkerAcknowledgesOnlyAfterDelivery(t *testing.T) {
