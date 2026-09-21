@@ -151,6 +151,11 @@ and the first Construction Client Edition.
 - [ ] E0.8: Certify direct object-storage upload, private-media authorization,
   checksum/quarantine, and provider failure behavior for large construction
   documents.
+  - [x] E0.8a: Provider-neutral bounded object size/SHA-256 verification;
+    checksum mismatch and provider read failure fail closed before a caller
+    can mark an asset ready.
+  - [ ] E0.8b: Direct-upload intent/complete flow, temporary object quarantine,
+    private-media authorization and real S3-compatible provider certification.
 - [ ] E0.9: Build the Construction MVP as an external Edition: organization
   hierarchy, project roles, revisioned documents, daily reports, issues, and
   approval workflow. Financial ledger, payroll, invoicing, procurement, and
