@@ -13,22 +13,25 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
-func tenantCommand(args []string, stdout, stderr io.Writer) error {
+func tenantCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("tenant command requires a subcommand (validate, backfill, list)")
+		return errors.New("tenant command requires a subcommand (validate, provision, backfill, list)")
 	}
 
 	switch args[0] {
 	case "validate":
 		return tenantValidateCommand(args[1:], stdout, stderr)
+	case "provision":
+		return tenantProvisionCommand(args[1:], stdin, stdout, stderr)
 	case "backfill":
 		return tenantBackfillCommand(args[1:], stdout, stderr)
 	case "list":
 		return tenantListCommand(args[1:], stdout, stderr)
 	default:
-		return fmt.Errorf("unknown tenant subcommand %q (supported: validate, backfill, list)", args[0])
+		return fmt.Errorf("unknown tenant subcommand %q (supported: validate, provision, backfill, list)", args[0])
 	}
 }
 
@@ -118,6 +121,7 @@ func tenantBackfillCommand(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
 	targetTenantID := flags.String("tenant-id", "", "Target tenant ID to assign unassigned rows to (required)")
+	activeTenants := flags.Bool("active", false, "Backfill current bootstrap defaults for every active tenant")
 	confirm := flags.Bool("confirm", false, "Confirm execution of the backfill migration")
 	dryRun := flags.Bool("dry-run", false, "Simulate backfill and report unassigned row counts without modifying data")
 	jsonOutput := flags.Bool("json", false, "Print output in JSON format")
@@ -130,11 +134,13 @@ func tenantBackfillCommand(args []string, stdout, stderr io.Writer) error {
 	}
 
 	trimmedTenantID := strings.TrimSpace(*targetTenantID)
-	if trimmedTenantID == "" {
-		return errors.New("--tenant-id is required")
+	if *activeTenants == (trimmedTenantID != "") {
+		return errors.New("tenant backfill requires exactly one of --tenant-id or --active")
 	}
-	if _, err := tenant.NewScope(trimmedTenantID, trimmedTenantID); err != nil {
-		return fmt.Errorf("invalid --tenant-id: %w", err)
+	if trimmedTenantID != "" {
+		if _, err := tenant.NewScope(trimmedTenantID, trimmedTenantID); err != nil {
+			return fmt.Errorf("invalid --tenant-id: %w", err)
+		}
 	}
 
 	if !*confirm && !*dryRun {
@@ -156,6 +162,21 @@ func tenantBackfillCommand(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("database: %w", err)
 	}
 	defer db.Close()
+	if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
+		return fmt.Errorf("schema is not ready for tenant backfill: %w", err)
+	}
+
+	if *activeTenants {
+		report, err := tenant.BackfillActiveTenants(ctx, db, string(cfg.Database.Dialect), *dryRun)
+		if err != nil {
+			return fmt.Errorf("backfill active tenants: %w", err)
+		}
+		if *jsonOutput {
+			return json.NewEncoder(stdout).Encode(report)
+		}
+		_, err = fmt.Fprintf(stdout, "tenant-active-backfill-complete dry_run=%t tenants_processed=%d defaults_applied=%d\n", report.DryRun, report.TenantsProcessed, report.DefaultsApplied)
+		return err
+	}
 
 	if *dryRun {
 		report, err := tenant.PlanBackfill(ctx, db, string(cfg.Database.Dialect), trimmedTenantID)

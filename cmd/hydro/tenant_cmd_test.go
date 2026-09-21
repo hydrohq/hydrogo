@@ -104,3 +104,37 @@ tenancy:
 		t.Fatalf("expected JSON total_tenants output, got: %s", stdout.String())
 	}
 }
+
+func TestTenantCLIProvisionReadsPasswordFromStandardInput(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "tenant_provision_cli.db")
+	db, err := database.Open(ctx, database.SQLite, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Close()
+	configPath := filepath.Join(t.TempDir(), "tenant_config.yaml")
+	configContent := `profile: compact
+database:
+  dialect: sqlite
+  dsn: ` + filepath.ToSlash(dbPath) + `
+tenancy:
+  enabled: true
+  hosts:
+    tenant.example.test: tenant-cli
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	err = run([]string{"tenant", "provision", "--config", configPath, "--tenant-id", "tenant-cli", "--admin-email", "owner@example.test", "--admin-password-stdin", "--json"}, strings.NewReader("correct horse battery staple\n"), &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("tenant provision failed: %v (%s)", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"tenant_id":"tenant-cli"`) || !strings.Contains(stdout.String(), `"state":"active"`) {
+		t.Fatalf("unexpected provision output: %s", stdout.String())
+	}
+}

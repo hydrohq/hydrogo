@@ -243,6 +243,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0198](0198-admin-user-account-and-permission-overrides.md) | Admin user accounts and permission overrides | Accepted; module permission audit open |
 | [0199](0199-commerce-deferral-and-runtime-removal.md) | Defer Commerce and remove its runtime surface | Accepted |
 | [0200](0200-reviewed-collection-designer.md) | Reviewed visual collection designer | Proposed |
+| [0201](0201-tenant-registry-provisioning-and-bootstrap-backfill.md) | Tenant registry, idempotent provisioning, and bootstrap backfill | Accepted |
 | [0193](0193-release-provenance-sbom-production-readiness.md) | Release provenance, SPDX SBOM & production readiness certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
