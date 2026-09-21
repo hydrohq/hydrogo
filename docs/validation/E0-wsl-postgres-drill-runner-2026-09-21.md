@@ -1,0 +1,17 @@
+# E0 WSL PostgreSQL Drill Runner — 2026-09-21
+
+`scripts/verify-wsl-postgres-drill.ps1` now creates a uniquely named,
+disposable PostgreSQL database inside WSL, runs the backup and contract suites
+with the peer-authenticated `arda` role, and drops the database in `finally`.
+
+Observed pass:
+
+```text
+ok  github.com/ardaozyildirim/hydrogo/internal/backup
+ok  github.com/ardaozyildirim/hydrogo/tests/contract
+PASS: WSL PostgreSQL backup/contract drill
+```
+
+The runner does not alter a shared database and does not claim production
+privileged-role or external backup-key recovery certification; those remain
+separate operational gates.
