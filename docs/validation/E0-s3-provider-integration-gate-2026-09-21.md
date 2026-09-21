@@ -21,3 +21,8 @@ Without those credentials the test is skipped by `go test`, while the runner
 fails closed and explicitly reports the missing environment. No provider is
 claimed certified by local mock tests; a passing report requires the operator
 to run this gate against the controlled S3/MinIO environment.
+
+Environment check on 2026-09-21: WSL has no Docker/Podman/MinIO executable,
+and the public MinIO binary endpoint returned `410 Gone`. Therefore no local
+provider certification is claimed; the gate remains ready for controlled
+staging credentials.
