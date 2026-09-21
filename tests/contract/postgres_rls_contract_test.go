@@ -273,8 +273,8 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		}
 		return nil
 	})
-	if err != nil {
-		t.Fatalf("WITH CHECK constraint verification failed: %v", err)
+	if err == nil {
+		t.Fatal("WITH CHECK constraint verification unexpectedly committed")
 	}
 
 	// Step G: Fail-closed verification with empty tenant context
