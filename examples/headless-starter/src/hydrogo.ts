@@ -2,14 +2,7 @@ export type Block = { type: string; payload: Record<string, unknown> };
 export type Page = { id: string; locale: string; slug: string; title: string; body: string; blocks: Block[]; status: "draft" | "published"; revision: number; published_revision?: number };
 export type PageSummary = { id: string; locale: string; slug: string; title: string; revision: number; publication_generation: number; updated_at: string };
 export type NewsItem = { id: string; locale: string; slug: string; title: string; body: string; status: "published"; revision: number; published_revision: number; updated_at: string };
-export type Product = { id: string; sku: string; title: string; price_cents: number; currency: string; stock: number; status: "draft" | "published" | "out_of_stock" };
-export type ProductVariant = Product & { product_id: string };
-export type CartItem = { id: string; product_id: string; variant_id?: string; sku: string; title: string; quantity: number; unit_cents: number; total_cents: number };
-export type Cart = { id: string; currency: string; items: CartItem[]; total_cents: number };
-export type CheckoutInput = { cart_id?: string; items?: Array<{ product_id: string; variant_id?: string; quantity: number }>; customer: { name: string; identity_number: string; email: string; phone: string; address: string; city: string; country: string; postal_code?: string } };
-export type Order = { id: string; currency: string; total_cents: number; payment_status: string; shipping_status: string };
 export type MemberTokenPair = { access_token: string; refresh_token: string; token_type: "Bearer"; expires_in: number; expires_at: string };
-export type MemberOrder = Order & { user_id?: string; items?: Array<{ product_id: string; variant_id?: string; sku: string; title: string; quantity: number; unit_cents: number; total_cents: number }> };
 export type MemberDevice = { device_id: string; device_name: string; platform: string; created_at: string; last_used_at: string; is_current: boolean };
 export type MemberProfile = { id: string; email: string; active: boolean; email_verified_at?: string | null; last_login_at?: string | null; created_at: string; updated_at: string };
 export type MemberLoginInput = { email: string; password: string; device_id: string; device_name?: string; platform: string };
@@ -25,11 +18,6 @@ export class HydroGoError extends Error {
     this.code = body?.code ?? "api_error";
     this.requestId = body?.request_id ?? requestId;
   }
-}
-
-export function validateIdempotencyKey(key: string): string {
-  if (!/^[\x21-\x7e]{16,128}$/.test(key)) throw new RangeError("Idempotency-Key must be 16–128 visible ASCII characters");
-  return key;
 }
 
 export type HydroGoRequestOptions = { signal?: AbortSignal };
@@ -106,26 +94,6 @@ export class HydroGoClient {
     return this.request<NewsItem>(`/api/v1/news/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`, {}, options);
   }
 
-  async listProducts(options?: HydroGoRequestOptions): Promise<Product[]> { return this.request<Product[]>("/api/v1/commerce/products", {}, options); }
-
-  async listVariants(productID: string, options?: HydroGoRequestOptions): Promise<ProductVariant[]> {
-    return this.request<ProductVariant[]>(`/api/v1/commerce/products/${encodeURIComponent(productID)}/variants`, {}, options);
-  }
-
-  async getCart(options?: HydroGoRequestOptions): Promise<Cart> { return this.request<Cart>("/api/v1/commerce/cart", { credentials: "include" }, options); }
-
-  async addCartItem(input: { product_id: string; variant_id?: string; quantity: number }, csrfToken: string, options?: HydroGoRequestOptions): Promise<Cart> {
-    return this.request<Cart>("/api/v1/commerce/cart/items", this.mutation(input, csrfToken), options);
-  }
-
-  async removeCartItem(productID: string, csrfToken: string, options?: HydroGoRequestOptions): Promise<void> {
-    await this.request<void>(`/api/v1/commerce/cart/items/${encodeURIComponent(productID)}`, { method: "DELETE", credentials: "include", headers: { "X-CSRF-Token": csrfToken } }, options);
-  }
-
-  async checkout(input: CheckoutInput, idempotencyKey: string, csrfToken: string, options?: HydroGoRequestOptions): Promise<Order> {
-    return this.request<Order>("/api/v1/commerce/cart/checkout", this.mutation(input, csrfToken, { "Idempotency-Key": validateIdempotencyKey(idempotencyKey) }), options);
-  }
-
   // Member methods use only the explicit bearer passed by the host application.
   // They never opt into browser cookies, so a consumer client cannot silently
   // cross the browser-session/staff boundary.
@@ -156,40 +124,9 @@ export class HydroGoClient {
     return this.request<MemberProfile>("/api/v1/mobile/member/me", { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
   }
 
-  async memberOrders(accessToken: string, limit = 100, options?: HydroGoRequestOptions): Promise<MemberOrder[]> {
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
-    const response = await this.request<{ orders: MemberOrder[] }>(`/api/v1/mobile/member/orders?limit=${limit}`, { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
-    return response.orders;
-  }
-
-  async memberOrder(accessToken: string, orderID: string, options?: HydroGoRequestOptions): Promise<MemberOrder> {
-    if (!orderID || orderID.length > 256) throw new RangeError("orderID is required and bounded");
-    return this.request<MemberOrder>(`/api/v1/mobile/member/orders/${encodeURIComponent(orderID)}`, { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
-  }
-
-  async memberGetCart(accessToken: string, options?: HydroGoRequestOptions): Promise<Cart> {
-    return this.request<Cart>("/api/v1/mobile/member/commerce/cart", { credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
-  }
-
-  async memberAddCartItem(accessToken: string, input: { product_id: string; variant_id?: string; quantity: number }, options?: HydroGoRequestOptions): Promise<Cart> {
-    return this.request<Cart>("/api/v1/mobile/member/commerce/cart/items", { method: "POST", credentials: "omit", headers: { ...this.memberHeaders(accessToken), "Content-Type": "application/json" }, body: JSON.stringify(input) }, options);
-  }
-
-  async memberRemoveCartItem(accessToken: string, productID: string, options?: HydroGoRequestOptions): Promise<void> {
-    await this.request<void>(`/api/v1/mobile/member/commerce/cart/items/${encodeURIComponent(productID)}`, { method: "DELETE", credentials: "omit", headers: this.memberHeaders(accessToken) }, options);
-  }
-
-  async memberCheckout(accessToken: string, input: CheckoutInput, idempotencyKey: string, options?: HydroGoRequestOptions): Promise<Order> {
-    return this.request<Order>("/api/v1/mobile/member/commerce/cart/checkout", { method: "POST", credentials: "omit", headers: { ...this.memberHeaders(accessToken), "Content-Type": "application/json", "Idempotency-Key": validateIdempotencyKey(idempotencyKey) }, body: JSON.stringify(input) }, options);
-  }
-
   private memberHeaders(accessToken: string): Record<string, string> {
     if (!accessToken.trim()) throw new RangeError("accessToken is required");
     return { Authorization: `Bearer ${accessToken}` };
-  }
-
-  private mutation(body: unknown, csrfToken: string, extraHeaders: Record<string, string> = {}): RequestInit {
-    return { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken, ...extraHeaders }, body: JSON.stringify(body) };
   }
 
   private async request<T>(path: string, init: RequestInit = {}, options?: HydroGoRequestOptions): Promise<T> {
