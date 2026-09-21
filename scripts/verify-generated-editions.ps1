@@ -13,6 +13,13 @@ try {
     & go test ./examples/project-edition/generated/project ./examples/article-edition/generated/article ./tests/contract -run "Edition|Migration" -count=1
     if ($LASTEXITCODE -ne 0) { throw "generated migration contracts failed" }
 
+    Write-Host "==> Generated TypeScript SDK contracts"
+    Push-Location (Join-Path $repo "examples\headless-starter")
+    try {
+        & npm run generated-contract
+        if ($LASTEXITCODE -ne 0) { throw "generated TypeScript contracts failed" }
+    } finally { Pop-Location }
+
     Write-Host "==> Core migrate/serve readiness with Edition verification path"
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo "scripts\smoke-local.ps1")
     if ($LASTEXITCODE -ne 0) { throw "core migrate/serve smoke failed" }
