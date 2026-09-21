@@ -14,6 +14,12 @@ type dummyModule struct {
 	routes []extension.ModuleRoute
 }
 
+type declarativeModule struct{ dummyModule }
+
+func (declarativeModule) ModuleManifest() Manifest {
+	return Manifest{ID: "sample", Dependencies: []string{"pages"}, Migrations: []string{"20260921_sample"}, Assets: []string{"sample.css"}, Workers: []WorkerSpec{{ID: "sample-index"}}}
+}
+
 func TestRegisterRejectsTypedNilModule(t *testing.T) {
 	var module *dummyModule
 	if err := NewRegistry().Register(module); err == nil {
@@ -95,5 +101,22 @@ func TestRegisterCanonicalizesModuleNamesAndRejectsDuplicates(t *testing.T) {
 func TestRegisterRejectsWhitespaceOnlyModuleName(t *testing.T) {
 	if err := NewRegistry().Register(dummyModule{name: " \t "}); err == nil {
 		t.Fatal("whitespace-only module name was accepted")
+	}
+}
+
+func TestInactiveDeclarativeModuleContributesNoResources(t *testing.T) {
+	reg := NewRegistry()
+	module := declarativeModule{dummyModule{name: "sample"}}
+	if err := reg.RegisterIfEnabled(module, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(reg.Routes()) != 0 || len(reg.Manifests()) != 0 {
+		t.Fatalf("inactive module contributed resources: routes=%v manifests=%v", reg.Routes(), reg.Manifests())
+	}
+	if err := reg.RegisterIfEnabled(module, true); err != nil {
+		t.Fatal(err)
+	}
+	if len(reg.Manifests()) != 1 || reg.Manifests()[0].Migrations[0] != "20260921_sample" {
+		t.Fatalf("unexpected manifest: %#v", reg.Manifests())
 	}
 }

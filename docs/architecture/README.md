@@ -246,6 +246,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0208](0208-admin-extension-origin-handshake.md) | Admin Extension origin-preserving sandbox handshake | Accepted; browser E2E open |
 | [0209](0209-typed-server-ui-contract.md) | Typed server-rendered UI contract | Accepted |
 | [0210](0210-blueprint-scaffold-boundary.md) | Blueprint-driven scaffold boundary | Accepted |
+| [0211](0211-declarative-module-resource-contract.md) | Declarative module resource contract | Accepted |
 | [0201](0201-tenant-registry-provisioning-and-bootstrap-backfill.md) | Tenant registry, idempotent provisioning, and bootstrap backfill | Accepted |
 | [0202](0202-core-client-edition-and-construction-pilot.md) | Core/Client Edition boundary and Construction pilot | Accepted |
 | [0203](0203-versioned-event-catalog.md) | Versioned event catalog | Accepted |
