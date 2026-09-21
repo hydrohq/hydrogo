@@ -1,0 +1,15 @@
+# Generated Edition browser contract — 2026-09-21
+
+Playwright renders the checked-in Project and Article generated table/form
+artifacts in Chromium and verifies visible table/form structure, required
+inputs, and the absence of executable script tags:
+
+```text
+npx playwright test custom/generated-editions.spec.ts --reporter=line
+2 passed
+```
+
+This is a generated-artifact browser contract. It does not claim a full
+production server journey, authentication topology, or customer Edition
+deployment; those remain separate staging gates.
+
