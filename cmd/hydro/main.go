@@ -255,6 +255,8 @@ func generateCommand(args []string, stdout, stderr io.Writer) error {
 	switch args[0] {
 	case "module", "resource", "crud", "page", "form", "api", "admin":
 		return generateModuleCommand(args[1:], stdout, stderr)
+	case "scaffold":
+		return generateScaffoldCommand(args[1:], stdout, stderr)
 	default:
 		return fmt.Errorf("unsupported generate target %q", args[0])
 	}
@@ -558,6 +560,40 @@ func generateModuleCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, "generated collection=%s spec_sha256=%s generator=%s\n", spec.Name, lock.SpecSHA256, lock.GeneratorVersion)
+	return err
+}
+
+func generateScaffoldCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("generate scaffold", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	blueprintPath := flags.String("blueprint", "", "Blueprint YAML/JSON path")
+	outputRoot := flags.String("out", ".", "Client Edition output root")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*blueprintPath) == "" {
+		return errors.New("generate scaffold requires --blueprint")
+	}
+	spec, err := generator.LoadBlueprint(*blueprintPath)
+	if err != nil {
+		return err
+	}
+	lock, err := generator.Generate(*outputRoot, spec)
+	if err != nil {
+		return err
+	}
+	customRoot := filepath.Join(*outputRoot, "custom")
+	if err := os.MkdirAll(customRoot, 0o755); err != nil {
+		return err
+	}
+	customReadme := filepath.Join(customRoot, spec.Name+"_policy.go")
+	if _, err := os.Stat(customReadme); errors.Is(err, os.ErrNotExist) {
+		content := fmt.Sprintf("// Client Edition policy for %s. Generated artifacts stay under generated/%s.\npackage custom\n\n// Add authorization, workflow, and tenant policy here.\n", spec.Name, spec.Name)
+		if err := os.WriteFile(customReadme, []byte(content), 0o644); err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprintf(stdout, "scaffold-created collection=%s generated=%s custom=%s spec_sha256=%s\n", spec.Name, filepath.Join(*outputRoot, "generated", spec.Name), customRoot, lock.SpecSHA256)
 	return err
 }
 
