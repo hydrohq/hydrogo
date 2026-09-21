@@ -27,6 +27,11 @@ In particular, Construction event names are owned by the separately versioned
 Construction Edition. They are not Core catalog entries and cannot become
 mandatory outbox vocabulary for unrelated Editions.
 
+Operators and build pipelines obtain the portable artifact with
+`hydro events catalog`. Its JSON document is versioned and deterministic; it
+is suitable for a checked-in consumer baseline but does not grant subscription
+or delivery authority.
+
 ## Validation
 
 - Unit tests reject unknown topics and versions.

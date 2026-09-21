@@ -140,6 +140,9 @@ and the first Construction Client Edition.
 - [ ] E0.4: Publish a versioned event catalog over the existing durable outbox
   and signed webhook boundary; add event compatibility and delivery-operator
   evidence.
+  - [x] E0.4a: Deterministic versioned JSON catalog artifact is exported by
+    operator CLI; removals and PII reclassification are compatibility errors.
+  - [ ] E0.4b: Webhook consumer baseline/retry/dead-letter operator rehearsal.
 - [ ] E0.5: Add a provider-neutral OpenTelemetry boundary with bounded
   sampling/export, PII redaction, and Compact-off behavior.
   - [x] E0.5a: HTTP tracing attributes are exporter-tested to exclude query,
