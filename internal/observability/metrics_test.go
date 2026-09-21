@@ -211,3 +211,34 @@ func TestMetricsErrorTrackingAndTopErrors(t *testing.T) {
 		t.Errorf("second error = %+v, want /api/v1/notfound with 1 error", topErrors[1])
 	}
 }
+
+func TestMetricsExposeBoundedEndpointPercentilesBytesAndStatuses(t *testing.T) {
+	m := NewMetrics()
+	handler := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/project/p-1" {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte("limited"))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/project/p-1", strings.NewReader("in"))
+		handler.ServeHTTP(httptest.NewRecorder(), req)
+	}
+	stats := m.PathStats()
+	if len(stats) != 1 {
+		t.Fatalf("stats = %#v", stats)
+	}
+	got := stats[0]
+	if got.Path != "/api/v1/project/{id}" {
+		t.Fatalf("route was not normalized: %#v", got)
+	}
+	if got.Requests != 3 || got.Status4xx != 3 || got.RateLimited != 3 {
+		t.Fatalf("endpoint counters = %#v", got)
+	}
+	if got.BytesIn != uint64(len("in"))*3 || got.BytesOut != uint64(len("limited"))*3 {
+		t.Fatalf("endpoint bytes = %#v", got)
+	}
+}

@@ -35,19 +35,27 @@ type Metrics struct {
 	readinessState      atomic.Int32
 	pathMu              sync.RWMutex
 	paths               map[string]PathStats
+	pathSamples         map[string][]uint64
 	sessionCleanupRuns  atomic.Uint64
 	sessionCleanupRows  atomic.Uint64
 	sessionCleanupError atomic.Uint64
 }
 
 type PathStats struct {
-	Path                             string
-	Requests, Views, Errors, TotalMS uint64
+	Path                                       string
+	Requests, Views, Errors, TotalMS           uint64
+	BytesIn, BytesOut                          uint64
+	Status2xx, Status3xx, Status4xx, Status5xx uint64
+	Timeouts, RateLimited                      uint64
 }
 
 type PathStatsSnapshot struct {
-	Path                           string
-	Requests, Views, Errors, AvgMS uint64
+	Path                                       string
+	Requests, Views, Errors, AvgMS             uint64
+	P50MS, P95MS, P99MS                        uint64
+	BytesIn, BytesOut                          uint64
+	Status2xx, Status3xx, Status4xx, Status5xx uint64
+	Timeouts, RateLimited                      uint64
 }
 
 type DatabaseStats struct {
@@ -113,8 +121,9 @@ var latencyBuckets = [...]time.Duration{5 * time.Millisecond, 25 * time.Millisec
 
 func NewMetrics() *Metrics {
 	m := &Metrics{
-		startedAt: time.Now().UTC(),
-		paths:     make(map[string]PathStats),
+		startedAt:   time.Now().UTC(),
+		paths:       make(map[string]PathStats),
+		pathSamples: make(map[string][]uint64),
 	}
 	return m
 }
@@ -130,7 +139,12 @@ func (m *Metrics) PathStats() []PathStatsSnapshot {
 		if stats.Requests > 0 {
 			avg = stats.TotalMS / stats.Requests
 		}
-		items = append(items, PathStatsSnapshot{Path: path, Requests: stats.Requests, Views: stats.Views, Errors: stats.Errors, AvgMS: avg})
+		items = append(items, PathStatsSnapshot{
+			Path: path, Requests: stats.Requests, Views: stats.Views, Errors: stats.Errors,
+			AvgMS: avg, P50MS: percentile(m.pathSamples[path], 50), P95MS: percentile(m.pathSamples[path], 95), P99MS: percentile(m.pathSamples[path], 99),
+			BytesIn: stats.BytesIn, BytesOut: stats.BytesOut, Status2xx: stats.Status2xx, Status3xx: stats.Status3xx,
+			Status4xx: stats.Status4xx, Status5xx: stats.Status5xx, Timeouts: stats.Timeouts, RateLimited: stats.RateLimited,
+		})
 	}
 	m.pathMu.RUnlock()
 	sort.Slice(items, func(i, j int) bool { return items[i].Requests > items[j].Requests })
@@ -371,6 +385,9 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 		m.requests.Add(1)
 		m.inFlight.Add(1)
 		recorder := &responseRecorder{ResponseWriter: w, status: http.StatusOK}
+		if r.ContentLength > 0 {
+			recorder.requestBytes = uint64(r.ContentLength)
+		}
 		defer func() {
 			elapsed := time.Since(started)
 			m.latencyCount.Add(1)
@@ -385,20 +402,23 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 			if bucket >= 1 && bucket <= 5 {
 				m.responses[bucket].Add(1)
 			}
-			m.recordPath(r, recorder.status, elapsed)
+			m.recordPath(r, recorder.status, elapsed, recorder.bytes, recorder.requestBytes)
 		}()
 		next.ServeHTTP(recorder, r)
 	})
 }
 
-func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration) {
+func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration, bytesOut, bytesIn uint64) {
 	if m == nil || r == nil || len(r.URL.Path) == 0 || len(r.URL.Path) > 128 || !trackablePath(r.URL.Path) {
 		return
 	}
-	path := r.URL.Path
+	path := normalizeRoute(r.URL.Path)
 	m.pathMu.Lock()
 	if m.paths == nil {
 		m.paths = make(map[string]PathStats)
+	}
+	if m.pathSamples == nil {
+		m.pathSamples = make(map[string][]uint64)
 	}
 	stats, ok := m.paths[path]
 	if !ok && len(m.paths) >= 64 {
@@ -408,6 +428,24 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration)
 	stats.Path = path
 	stats.Requests++
 	stats.TotalMS += uint64(elapsed.Milliseconds())
+	stats.BytesIn += bytesIn
+	stats.BytesOut += bytesOut
+	switch status / 100 {
+	case 2:
+		stats.Status2xx++
+	case 3:
+		stats.Status3xx++
+	case 4:
+		stats.Status4xx++
+	case 5:
+		stats.Status5xx++
+	}
+	if status == http.StatusRequestTimeout || status == http.StatusGatewayTimeout {
+		stats.Timeouts++
+	}
+	if status == http.StatusTooManyRequests {
+		stats.RateLimited++
+	}
 	if status >= http.StatusBadRequest {
 		stats.Errors++
 	}
@@ -415,7 +453,55 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration)
 		stats.Views++
 	}
 	m.paths[path] = stats
+	samples := m.pathSamples[path]
+	latencyMS := uint64(elapsed.Milliseconds())
+	if len(samples) < 128 {
+		samples = append(samples, latencyMS)
+	} else {
+		samples[(stats.Requests-1)%128] = latencyMS
+	}
+	m.pathSamples[path] = samples
 	m.pathMu.Unlock()
+}
+
+// normalizeRoute keeps endpoint metrics useful without allowing customer IDs,
+// slugs, or arbitrary path segments to create unbounded label cardinality.
+// Public content paths intentionally remain content paths for the existing
+// view report; API resource IDs are normalized after the resource segment.
+func normalizeRoute(path string) string {
+	if !strings.HasPrefix(path, "/api/") {
+		return path
+	}
+	parts := strings.Split(path, "/")
+	start := 3 // /api/<resource>/<id>
+	if len(parts) > 2 && parts[2] == "v1" {
+		start = 4 // /api/v1/<resource>/<id>
+	}
+	if len(parts) <= start {
+		return path
+	}
+	for i := start; i < len(parts); i++ {
+		if parts[i] != "" {
+			parts[i] = "{id}"
+		}
+	}
+	return strings.Join(parts, "/")
+}
+
+func percentile(samples []uint64, p int) uint64 {
+	if len(samples) == 0 {
+		return 0
+	}
+	copySamples := append([]uint64(nil), samples...)
+	sort.Slice(copySamples, func(i, j int) bool { return copySamples[i] < copySamples[j] })
+	index := (p*len(copySamples) + 99) / 100
+	if index < 1 {
+		index = 1
+	}
+	if index > len(copySamples) {
+		index = len(copySamples)
+	}
+	return copySamples[index-1]
 }
 
 func trackablePath(path string) bool {
@@ -482,8 +568,10 @@ func (m *Metrics) Handler(w http.ResponseWriter, _ *http.Request) {
 
 type responseRecorder struct {
 	http.ResponseWriter
-	status      int
-	wroteHeader bool
+	status       int
+	wroteHeader  bool
+	bytes        uint64
+	requestBytes uint64
 }
 
 func (r *responseRecorder) WriteHeader(status int) {
@@ -499,7 +587,9 @@ func (r *responseRecorder) Write(body []byte) (int, error) {
 	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
 	}
-	return r.ResponseWriter.Write(body)
+	n, err := r.ResponseWriter.Write(body)
+	r.bytes += uint64(n)
+	return n, err
 }
 
 func (r *responseRecorder) Flush() {
