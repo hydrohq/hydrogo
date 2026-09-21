@@ -2,8 +2,8 @@
 package generated
 
 type Project struct {
-	ID string `json:"id"`
+	ID          string `json:"id"`
 	ProjectCode string `json:"project_code"`
-	Status string `json:"status"`
-	Title string `json:"title"`
+	Status      string `json:"status"`
+	Title       string `json:"title"`
 }

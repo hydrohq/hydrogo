@@ -27,29 +27,59 @@ func (h ProjectHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := strings.TrimPrefix(r.URL.Path, ProjectRoute+"/")
-	if id == r.URL.Path { id = "" }
+	if id == r.URL.Path {
+		id = ""
+	}
 	switch r.Method {
 	case http.MethodGet:
-		if id == "" || !h.Policy.CanRead(r.Context(), id) { http.Error(w, "not found", http.StatusNotFound); return }
+		if id == "" || !h.Policy.CanRead(r.Context(), id) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
 		item, err := h.Service.Get(r.Context(), id)
-		if err != nil { http.Error(w, "not found", http.StatusNotFound); return }
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
 		writeProjectJSON(w, http.StatusOK, item)
 	case http.MethodPost:
-		if id != "" || !h.Policy.CanCreate(r.Context()) { http.Error(w, "forbidden", http.StatusForbidden); return }
+		if id != "" || !h.Policy.CanCreate(r.Context()) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		var item Project
-		if !decodeProjectJSON(w, r, &item) { return }
-		if err := h.Service.Create(r.Context(), item); err != nil { http.Error(w, "conflict", http.StatusConflict); return }
+		if !decodeProjectJSON(w, r, &item) {
+			return
+		}
+		if err := h.Service.Create(r.Context(), item); err != nil {
+			http.Error(w, "conflict", http.StatusConflict)
+			return
+		}
 		writeProjectJSON(w, http.StatusCreated, item)
 	case http.MethodPut, http.MethodPatch:
-		if id == "" || !h.Policy.CanUpdate(r.Context(), id) { http.Error(w, "forbidden", http.StatusForbidden); return }
+		if id == "" || !h.Policy.CanUpdate(r.Context(), id) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		var item Project
-		if !decodeProjectJSON(w, r, &item) { return }
+		if !decodeProjectJSON(w, r, &item) {
+			return
+		}
 		item.ID = id
-		if err := h.Service.Update(r.Context(), item); err != nil { http.Error(w, "conflict", http.StatusConflict); return }
+		if err := h.Service.Update(r.Context(), item); err != nil {
+			http.Error(w, "conflict", http.StatusConflict)
+			return
+		}
 		writeProjectJSON(w, http.StatusOK, item)
 	case http.MethodDelete:
-		if id == "" || !h.Policy.CanDelete(r.Context(), id) { http.Error(w, "forbidden", http.StatusForbidden); return }
-		if err := h.Service.Delete(r.Context(), id); err != nil { http.Error(w, "not found", http.StatusNotFound); return }
+		if id == "" || !h.Policy.CanDelete(r.Context(), id) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if err := h.Service.Delete(r.Context(), id); err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.Header().Set("Allow", "GET, POST, PUT, PATCH, DELETE")
@@ -61,7 +91,10 @@ func decodeProjectJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(dst); err != nil { http.Error(w, "invalid request", http.StatusBadRequest); return false }
+	if err := decoder.Decode(dst); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return false
+	}
 	return true
 }
 
@@ -70,4 +103,5 @@ func writeProjectJSON(w http.ResponseWriter, status int, value any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
+
 // Generated transport for Project.

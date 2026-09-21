@@ -2,8 +2,8 @@
 package generated
 
 type Article struct {
-	ID string `json:"id"`
-	Slug string `json:"slug"`
+	ID     string `json:"id"`
+	Slug   string `json:"slug"`
 	Status string `json:"status"`
-	Title string `json:"title"`
+	Title  string `json:"title"`
 }

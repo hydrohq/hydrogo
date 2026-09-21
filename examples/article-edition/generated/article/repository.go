@@ -2,43 +2,45 @@
 package generated
 
 import (
-    "context"
-    "database/sql"
-    "fmt"
+	"context"
+	"database/sql"
+	"fmt"
 )
 
 // ArticleRepository is a reviewable CRUD boundary; no runtime DDL is emitted.
 type ArticleRepository struct {
-    DB *sql.DB
-    Dialect string
+	DB      *sql.DB
+	Dialect string
 }
 
 func (r ArticleRepository) Get(ctx context.Context, id string) (Article, error) {
-    var item Article
-    dialect := r.Dialect
-    err := r.DB.QueryRowContext(ctx, "SELECT id, slug, status, title FROM articles WHERE id = "+placeholder(dialect, 1), id).Scan(&item.ID, &item.Slug, &item.Status, &item.Title)
-    return item, err
+	var item Article
+	dialect := r.Dialect
+	err := r.DB.QueryRowContext(ctx, "SELECT id, slug, status, title FROM articles WHERE id = "+placeholder(dialect, 1), id).Scan(&item.ID, &item.Slug, &item.Status, &item.Title)
+	return item, err
 }
 
 func (r ArticleRepository) Create(ctx context.Context, item Article) error {
-    dialect := r.Dialect
-	_, err := r.DB.ExecContext(ctx, "INSERT INTO articles (id, slug, status, title) VALUES (" + placeholder(dialect, 1) + ", " + placeholder(dialect, 2) + ", " + placeholder(dialect, 3) + ", " + placeholder(dialect, 4) + ")", item.ID, item.Slug, item.Status, item.Title)
-    return err
+	dialect := r.Dialect
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO articles (id, slug, status, title) VALUES ("+placeholder(dialect, 1)+", "+placeholder(dialect, 2)+", "+placeholder(dialect, 3)+", "+placeholder(dialect, 4)+")", item.ID, item.Slug, item.Status, item.Title)
+	return err
 }
 
 func (r ArticleRepository) Update(ctx context.Context, item Article) error {
-    dialect := r.Dialect
-	_, err := r.DB.ExecContext(ctx, "UPDATE articles SET " + "slug = " + placeholder(dialect, 1) + ", " + "status = " + placeholder(dialect, 2) + ", " + "title = " + placeholder(dialect, 3) + " WHERE id = " + placeholder(dialect, 4), item.Slug, item.Status, item.Title, item.ID)
-    return err
+	dialect := r.Dialect
+	_, err := r.DB.ExecContext(ctx, "UPDATE articles SET "+"slug = "+placeholder(dialect, 1)+", "+"status = "+placeholder(dialect, 2)+", "+"title = "+placeholder(dialect, 3)+" WHERE id = "+placeholder(dialect, 4), item.Slug, item.Status, item.Title, item.ID)
+	return err
 }
 
 func (r ArticleRepository) Delete(ctx context.Context, id string) error {
-    dialect := r.Dialect
-    _, err := r.DB.ExecContext(ctx, "DELETE FROM articles WHERE id = "+placeholder(dialect, 1), id)
-    return err
+	dialect := r.Dialect
+	_, err := r.DB.ExecContext(ctx, "DELETE FROM articles WHERE id = "+placeholder(dialect, 1), id)
+	return err
 }
 
 func placeholder(dialect string, position int) string {
-    if dialect == "postgres" { return fmt.Sprintf("$%d", position) }
-    return "?"
+	if dialect == "postgres" {
+		return fmt.Sprintf("$%d", position)
+	}
+	return "?"
 }
