@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 type distributedStore struct {
@@ -126,3 +128,33 @@ func TestAttemptLimiterFailsClosedWhenZeroValue(t *testing.T) {
 		t.Fatal("zero-value limiter accepted an attempt")
 	}
 }
+
+func TestTenantScopedRateLimiterSeparatesBucketsAndFailsClosed(t *testing.T) {
+	var received []string
+	inner := rateLimiterFunc(func(key string) bool {
+		received = append(received, key)
+		return true
+	})
+	limiter := TenantScopedRateLimiter{Inner: inner}
+	alpha, err := tenant.NewScope("tenant-alpha", "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := tenant.NewScope("tenant-beta", "beta")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !limiter.AllowContext(tenant.WithScope(context.Background(), alpha), "198.51.100.10:member@example.test") || !limiter.AllowContext(tenant.WithScope(context.Background(), beta), "198.51.100.10:member@example.test") {
+		t.Fatal("scoped limiter rejected valid requests")
+	}
+	if limiter.AllowContext(context.Background(), "198.51.100.10:member@example.test") {
+		t.Fatal("missing tenant scope was accepted")
+	}
+	if len(received) != 2 || received[0] == received[1] || strings.Contains(received[0], "member@example.test") || strings.Contains(received[0], "198.51.100.10") {
+		t.Fatalf("tenant limiter keys = %#v", received)
+	}
+}
+
+type rateLimiterFunc func(string) bool
+
+func (f rateLimiterFunc) Allow(key string) bool { return f(key) }
