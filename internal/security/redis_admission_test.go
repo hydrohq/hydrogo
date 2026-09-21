@@ -17,6 +17,7 @@ func TestRedisTenantAdmissionFailsClosedWithoutSharedStore(t *testing.T) {
 	for _, admission := range []RedisTenantAdmission{
 		{},
 		{PerTenant: 1, LeaseTTL: time.Second},
+		{PerTenant: 1, LeaseTTL: 500 * time.Microsecond},
 		{Client: redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"}), PerTenant: 1, LeaseTTL: time.Second},
 	} {
 		release, err := admission.Acquire(ctx)

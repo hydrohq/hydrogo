@@ -27,7 +27,7 @@ func (a RedisTenantAdmission) Acquire(ctx context.Context) (func(), error) {
 		ctx = context.Background()
 	}
 	scope, err := tenant.Require(ctx)
-	if err != nil || a.Client == nil || a.PerTenant <= 0 || a.LeaseTTL <= 0 {
+	if err != nil || a.Client == nil || a.PerTenant <= 0 || a.LeaseTTL < time.Millisecond {
 		return nil, ErrTenantAdmissionDenied
 	}
 	var tokenBytes [16]byte
