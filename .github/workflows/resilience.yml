@@ -1,0 +1,57 @@
+name: Resilience Drills
+
+on:
+  workflow_dispatch:
+    inputs:
+      repetitions:
+        description: Number of repeated resilience contract runs (1-50)
+        required: true
+        default: '20'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  resilience-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.0'
+          check-latest: false
+      - name: Validate repetition count
+        env:
+          REPETITIONS: ${{ inputs.repetitions }}
+        run: |
+          [[ "$REPETITIONS" =~ ^[1-9][0-9]*$ ]] && (( REPETITIONS <= 50 ))
+      - name: Repeat queue, worker and blue-green resilience contracts
+        env:
+          REPETITIONS: ${{ inputs.repetitions }}
+        run: go test -count="$REPETITIONS" -timeout=5m ./internal/jobs ./internal/webhooks ./internal/release ./modules/news
+      - name: Race-check concurrent queue and release traffic
+        env:
+          CGO_ENABLED: '1'
+        run: go test -race -count=1 -timeout=5m ./internal/jobs ./internal/release
+
+  capacity-profile-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.0'
+          check-latest: false
+      - name: Measure bounded local capacity profiles
+        shell: pwsh
+        run: ./scripts/measure-capacity.ps1 -OutputPath .tmp/capacity-profiles.json
+      - name: Upload capacity evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hydrogo-capacity-profiles
+          path: .tmp/capacity-profiles.json
+          if-no-files-found: warn
