@@ -3,6 +3,8 @@ package media
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,6 +40,8 @@ func TestS3ProviderIntegration(t *testing.T) {
 	}
 	key := fmt.Sprintf("quarantine/integration-%x/object.txt", suffix)
 	body := []byte("hydrogo-live-provider-drill")
+	digest := sha256.Sum256(body)
+	digestHex := hex.EncodeToString(digest[:])
 	if err := store.Put(ctx, key, strings.NewReader(string(body)), int64(len(body)), "text/plain"); err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +61,9 @@ func TestS3ProviderIntegration(t *testing.T) {
 	}
 	if string(got) != string(body) {
 		t.Fatalf("provider round-trip body = %q, want %q", got, body)
+	}
+	if err := VerifyObject(ctx, store, key, int64(len(body)), digestHex); err != nil {
+		t.Fatalf("provider object integrity verification failed: %v", err)
 	}
 
 	quarantineKey := fmt.Sprintf("tenants/integration/quarantine-%x/direct.txt", suffix)
