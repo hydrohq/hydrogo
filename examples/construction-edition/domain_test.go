@@ -13,6 +13,9 @@ func TestConstructionDomainContracts(t *testing.T) {
 	if err := ValidateProjectMembership(ProjectMembership{ProjectID: "p1", UserID: "u1", Role: ProjectRoleManager}); err != nil {
 		t.Fatal(err)
 	}
+	if CanProject(ProjectMembership{ProjectID: "p1", UserID: "u1", Role: ProjectRoleContributor}, CapabilityApprovalDecide) || !CanProject(ProjectMembership{ProjectID: "p1", UserID: "u1", Role: ProjectRoleManager}, CapabilityApprovalDecide) {
+		t.Fatal("project role authorization matrix is not fail-closed")
+	}
 	if err := ValidateDocumentRevision(DocumentRevision{DocumentID: "d1", Revision: 1, ObjectKey: "documents/d1/r1.pdf", Checksum: "sha256:abc", CreatedBy: "u1"}); err != nil {
 		t.Fatal(err)
 	}
