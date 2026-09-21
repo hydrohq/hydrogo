@@ -69,7 +69,14 @@ func TestPrivateMediaLiveHTTPRejectsAnonymous(t *testing.T) {
 		Assets:   httpAssetRepo{asset: Asset{ID: "live-private", StorageKey: "private-live.txt", MimeType: "text/plain", Status: "ready", Visibility: VisibilityPrivate}},
 	}}
 	mux := http.NewServeMux()
-	mux.Handle("GET /media/{id}", http.HandlerFunc(handler.serve))
+	mux.Handle("GET /media/{id}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Model the real authentication middleware boundary while keeping this
+		// network test independent of a session store.
+		if r.Header.Get("X-Test-Editor") == "1" {
+			r = r.WithContext(auth.WithUser(r.Context(), &auth.User{ID: "live-editor", Active: true, Role: auth.RoleEditor}))
+		}
+		handler.serve(w, r)
+	}))
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
@@ -80,6 +87,19 @@ func TestPrivateMediaLiveHTTPRejectsAnonymous(t *testing.T) {
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("anonymous live media status = %d, want 401", response.StatusCode)
+	}
+	authorizedRequest, err := http.NewRequest(http.MethodGet, server.URL+"/media/live-private", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorizedRequest.Header.Set("X-Test-Editor", "1")
+	response, err = server.Client().Do(authorizedRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("authorized live media status = %d, want 200", response.StatusCode)
 	}
 }
 
