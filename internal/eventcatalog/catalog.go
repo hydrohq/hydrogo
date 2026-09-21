@@ -14,9 +14,9 @@ var (
 )
 
 type Definition struct {
-	Topic          string
-	PayloadVersion int
-	PII            bool
+	Topic          string `json:"topic"`
+	PayloadVersion int    `json:"payload_version"`
+	PII            bool   `json:"pii"`
 }
 
 // Document is the portable, versioned catalog artifact consumed by webhook and
