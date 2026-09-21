@@ -70,11 +70,12 @@ type AdminBootstrapPayload struct {
 type AdminChannelInitPayload struct {
 	ExtensionID string `json:"extension_id"`
 	SurfaceID   string `json:"surface_id"`
+	ChannelID   string `json:"channel_id"`
 	Challenge   string `json:"challenge"`
 }
 
 func (p AdminChannelInitPayload) Validate() error {
-	if !validIdentifier(p.ExtensionID) || !validIdentifier(p.SurfaceID) || !validIdentifier(p.Challenge) || len(p.Challenge) < 16 {
+	if !validIdentifier(p.ExtensionID) || !validIdentifier(p.SurfaceID) || !validIdentifier(p.ChannelID) || !validIdentifier(p.Challenge) || len(p.Challenge) < 16 {
 		return ErrInvalidAdminMessage
 	}
 	return nil
