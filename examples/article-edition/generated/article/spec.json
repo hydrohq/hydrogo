@@ -1,0 +1,57 @@
+{
+  "version": "v0",
+  "collection": {
+    "name": "article",
+    "table": "articles",
+    "fields": [
+      {
+        "name": "slug",
+        "type": "string",
+        "nullable": false,
+        "admin": {
+          "label": "",
+          "widget": "",
+          "read_only": false,
+          "visible_in_list": false
+        }
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "nullable": false,
+        "admin": {
+          "label": "",
+          "widget": "select",
+          "read_only": false,
+          "visible_in_list": false
+        }
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "nullable": false,
+        "admin": {
+          "label": "",
+          "widget": "",
+          "read_only": false,
+          "visible_in_list": false
+        }
+      }
+    ],
+    "permissions": [
+      "article.read",
+      "article.write"
+    ],
+    "dialects": [
+      "postgres",
+      "sqlite"
+    ],
+    "destructive": false,
+    "admin": {
+      "label": "",
+      "description": "",
+      "actions": null,
+      "bulk_actions": null
+    }
+  }
+}

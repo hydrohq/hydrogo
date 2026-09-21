@@ -1,0 +1,19 @@
+version: v0
+name: article
+table: articles
+permissions:
+  - article.read
+  - article.write
+dialects:
+  - postgres
+  - sqlite
+fields:
+  - name: slug
+    type: string
+    nullable: false
+  - name: status
+    type: string
+    nullable: false
+  - name: title
+    type: string
+    nullable: false

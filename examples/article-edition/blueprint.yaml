@@ -1,0 +1,13 @@
+name: article
+fields:
+  - name: title
+    type: string
+    required: true
+  - name: slug
+    type: string
+    required: true
+  - name: status
+    type: enum
+    required: true
+    values: [draft, published, archived]
+
