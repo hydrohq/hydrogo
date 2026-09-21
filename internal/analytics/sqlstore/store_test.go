@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -18,10 +19,41 @@ func testStore(t *testing.T) Store {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if _, err := db.Exec(`CREATE TABLE analytics_consent (consent_id TEXT PRIMARY KEY, decision TEXT NOT NULL, purpose_version TEXT NOT NULL, decided_at TEXT NOT NULL, revoked_at TEXT NULL); CREATE TABLE analytics_daily (day TEXT NOT NULL, event_type TEXT NOT NULL, country TEXT NOT NULL, purpose_version TEXT NOT NULL, event_count INTEGER NOT NULL, duration_seconds INTEGER NOT NULL, PRIMARY KEY(day,event_type,country,purpose_version))`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE analytics_consent (consent_id TEXT PRIMARY KEY, decision TEXT NOT NULL, purpose_version TEXT NOT NULL, decided_at TEXT NOT NULL, revoked_at TEXT NULL); CREATE TABLE analytics_daily (day TEXT NOT NULL, event_type TEXT NOT NULL, country TEXT NOT NULL, purpose_version TEXT NOT NULL, event_count INTEGER NOT NULL, duration_seconds INTEGER NOT NULL, PRIMARY KEY(day,event_type,country,purpose_version)); CREATE TABLE analytics_content_daily (day TEXT NOT NULL, tenant_id TEXT NOT NULL, content_type TEXT NOT NULL, content_id TEXT NOT NULL, locale TEXT NOT NULL, purpose_version TEXT NOT NULL, view_count INTEGER NOT NULL, PRIMARY KEY(day,tenant_id,content_type,content_id,locale,purpose_version))`); err != nil {
 		t.Fatal(err)
 	}
 	return Store{Executor: db, Dialect: database.SQLite}
+}
+
+func TestStoreRecordAndListContentViews(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE analytics_consent (consent_id TEXT PRIMARY KEY, decision TEXT NOT NULL, purpose_version TEXT NOT NULL, decided_at TEXT NOT NULL, revoked_at TEXT NULL); CREATE TABLE analytics_content_daily (day TEXT NOT NULL, tenant_id TEXT NOT NULL, content_type TEXT NOT NULL, content_id TEXT NOT NULL, locale TEXT NOT NULL, purpose_version TEXT NOT NULL, view_count INTEGER NOT NULL, PRIMARY KEY(day,tenant_id,content_type,content_id,locale,purpose_version))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Executor: db, Dialect: database.SQLite}
+	consentID := "content-consent"
+	if err := store.SaveConsent(context.Background(), consentID, v1.AnalyticsConsent{Decision: v1.ConsentGranted, PurposeVersion: "v1", DecidedAt: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	event := v1.ContentViewEvent{Day: "2026-09-22", TenantID: "tenant-a", ContentType: "article", ContentID: "a-1", Locale: "tr"}
+	if err := store.RecordContentView(context.Background(), consentID, "v1", event); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordContentView(context.Background(), consentID, "v1", event); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.ListContentViews(context.Background(), ContentViewFilter{TenantID: "tenant-a", ContentType: "article"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].ViewCount != 2 || rows[0].ContentID != "a-1" {
+		t.Fatalf("content view rows = %#v", rows)
+	}
 }
 
 func TestStoreRequiresCurrentGrantedConsentAndAggregates(t *testing.T) {
