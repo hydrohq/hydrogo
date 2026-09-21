@@ -69,4 +69,10 @@ func TestRedisTenantAdmissionIntegrationSharesLeasesAcrossInstances(t *testing.T
 	} else {
 		release()
 	}
+	if err := clientB.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if release, err := b.Acquire(ctxB); release != nil || err != ErrTenantAdmissionDenied {
+		t.Fatalf("closed shared store must fail closed: release=%t err=%v", release != nil, err)
+	}
 }
