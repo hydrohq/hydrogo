@@ -22,6 +22,11 @@ ok  github.com/ardaozyildirim/hydrogo/internal/backup
 ok  github.com/ardaozyildirim/hydrogo/tests/contract
 ```
 
+The aggregate runner now supports `HYDRO_RUN_WSL_POSTGRES=1`; the same command
+completed SQLite, backup/release/portable, cache rollback, and disposable WSL
+PostgreSQL drills in one report. The temporary database was dropped after the
+run.
+
 ## Still external
 
 This does not certify a real reverse-proxy/process restart rollback, external

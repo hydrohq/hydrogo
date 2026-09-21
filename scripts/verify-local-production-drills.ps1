@@ -49,7 +49,11 @@ Invoke-Drill "blue-green cache rollback stability" {
 
 Add-Content -LiteralPath $report -Value "" -Encoding utf8
 Add-Content -LiteralPath $report -Value "## PostgreSQL drill" -Encoding utf8
-if ([string]::IsNullOrWhiteSpace($env:HYDRO_TEST_POSTGRES_URL)) {
+if ($env:HYDRO_RUN_WSL_POSTGRES -eq "1") {
+    Invoke-Drill "disposable WSL PostgreSQL backup and contract drill" {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "scripts\verify-wsl-postgres-drill.ps1")
+    }
+} elseif ([string]::IsNullOrWhiteSpace($env:HYDRO_TEST_POSTGRES_URL)) {
     Add-Content -LiteralPath $report -Value "- PENDING: HYDRO_TEST_POSTGRES_URL is not configured" -Encoding utf8
     Write-Host "PENDING: PostgreSQL drill requires HYDRO_TEST_POSTGRES_URL."
 } else {
