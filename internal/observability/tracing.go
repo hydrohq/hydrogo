@@ -23,7 +23,7 @@ func TracingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), r.Method+" "+boundedPath(r.URL.Path), trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
-		span.SetAttributes(attribute.String("http.request.method", r.Method), attribute.String("url.path", boundedPath(r.URL.Path)))
+		span.SetAttributes(attribute.String("http.request.method", r.Method), attribute.String("url.path", boundedPath(r.URL.Path)), attribute.String("hydro.route", NormalizeRoute(r.URL.Path)))
 		if requestID := security.RequestIDFromContext(ctx); requestID != "" {
 			span.SetAttributes(attribute.String("hydro.request_id", requestID))
 		}

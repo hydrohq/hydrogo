@@ -267,6 +267,10 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0147](0147-single-tenant-production-deployment-and-bff-model.md) | Single-tenant production deployment and web BFF model | Accepted |
 | [0148](0148-web-frontend-bff-and-cors-policy.md) | Web frontend decoupling, BFF architecture and CORS policy | Accepted |
 | [0149](0149-shared-multi-tenant-saas-evolution.md) | Shared multi-tenant SaaS evolution and isolation architecture | Proposed |
+| [0215](0215-endpoint-observability-contract.md) | Bounded endpoint observability contract | Accepted |
+| [0216](0216-production-html-output-boundary.md) | Production HTML output boundary | Accepted |
+| [0217](0217-consent-gated-content-view-analytics.md) | Consent-gated content view analytics | Accepted |
+| [0218](0218-structured-request-telemetry.md) | Structured request telemetry dimensions | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
