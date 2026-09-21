@@ -1,6 +1,6 @@
 # ADR-0160: Signed Admin Extension runtime host
 
-- Status: Accepted (single-process host foundation; rollout and staging E2E open)
+- Status: Superseded by [ADR-0208](0208-admin-extension-origin-handshake.md)
 - Date: 2026-09-19
 - Related decisions: [ADR-0157](0157-admin-studio-extension-boundary.md), [ADR-0159](0159-sqlite-external-write-cache-monitor.md)
 

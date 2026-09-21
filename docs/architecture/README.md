@@ -204,7 +204,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0157](0157-admin-studio-extension-boundary.md) | Runtime Admin Studio extension boundary | Accepted (declarative external-surface foundation) |
 | [0158](0158-bounded-outbox-polling.md) | Bounded outbox polling lifecycle | Accepted (worker-loop foundation; production soak open) |
 | [0159](0159-sqlite-external-write-cache-monitor.md) | SQLite external-write cache monitor | Accepted (bounded safety net; integration and soak open) |
-| [0160](0160-admin-extension-runtime-host.md) | Signed Admin Extension runtime host | Accepted (single-process host foundation; rollout and staging E2E open) |
+| [0160](0160-admin-extension-runtime-host.md) | Signed Admin Extension runtime host | Superseded by ADR-0208 |
 | [0161](0161-sqlite-cache-watch-runtime-integration.md) | Opt-in SQLite cache watch runtime integration | Accepted (single-process integration; external-write soak open) |
 | [0162](0162-tenant-scoped-outbox-contract.md) | Tenant-scoped outbox contract | Accepted (storage primitive; end-to-end propagation open) |
 | [0163](0163-tenant-context-outbox-propagation.md) | Tenant-context outbox propagation | Accepted (context bridge; shared-mode call-site audit open) |
@@ -243,6 +243,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0198](0198-admin-user-account-and-permission-overrides.md) | Admin user accounts and permission overrides | Accepted; module permission audit open |
 | [0199](0199-commerce-deferral-and-runtime-removal.md) | Defer Commerce and remove its runtime surface | Accepted |
 | [0200](0200-reviewed-collection-designer.md) | Reviewed visual collection designer | Proposed |
+| [0208](0208-admin-extension-origin-handshake.md) | Admin Extension origin-preserving sandbox handshake | Accepted; browser E2E open |
 | [0201](0201-tenant-registry-provisioning-and-bootstrap-backfill.md) | Tenant registry, idempotent provisioning, and bootstrap backfill | Accepted |
 | [0202](0202-core-client-edition-and-construction-pilot.md) | Core/Client Edition boundary and Construction pilot | Accepted |
 | [0203](0203-versioned-event-catalog.md) | Versioned event catalog | Accepted |
