@@ -14,6 +14,14 @@ HYDRO_TEST_POSTGRES_URL=... go test ./internal/backup -count=1
 ok  github.com/ardaozyildirim/hydrogo/internal/backup
 ```
 
+The same WSL DSN also passed the combined backup and contract suite:
+
+```text
+go test ./internal/backup ./tests/contract -count=1 -timeout=5m
+ok  github.com/ardaozyildirim/hydrogo/internal/backup
+ok  github.com/ardaozyildirim/hydrogo/tests/contract
+```
+
 The test temporarily removes `FORCE ROW LEVEL SECURITY` on the disposable
 source database only; this separates snapshot mechanics from the dedicated
 RLS isolation contract. A production drill with an ordinary role is still
