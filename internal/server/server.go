@@ -25,21 +25,22 @@ func nonNilContext(ctx context.Context) context.Context {
 }
 
 type Config struct {
-	Address          string
-	ShutdownTimeout  time.Duration
-	Ready            func(context.Context) error
-	AuthSvc          *auth.AuthService
-	Routes           []router.Route
-	Authorizer       router.Authorizer
-	Metrics          *observability.Metrics
-	Logger           *slog.Logger
-	EnableHSTS       bool
-	SecureCookie     bool
-	HTTPBodyLimit    int64
-	PublicOrigin     string
-	PublicAPIOrigins []string
-	TenantResolver   *tenant.HostResolver
-	TenantAdmission  *security.TenantAdmission
+	Address                    string
+	ShutdownTimeout            time.Duration
+	Ready                      func(context.Context) error
+	AuthSvc                    *auth.AuthService
+	Routes                     []router.Route
+	Authorizer                 router.Authorizer
+	Metrics                    *observability.Metrics
+	Logger                     *slog.Logger
+	EnableHSTS                 bool
+	SecureCookie               bool
+	HTTPBodyLimit              int64
+	PublicOrigin               string
+	PublicAPIOrigins           []string
+	TenantResolver             *tenant.HostResolver
+	TenantAdmission            *security.TenantAdmission
+	DistributedTenantAdmission *security.RedisTenantAdmission
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -143,7 +144,9 @@ func NewHandler(config Config) http.Handler {
 	if config.TenantResolver != nil && config.TenantResolver.Enabled() {
 		handler = config.TenantResolver.Middleware(handler)
 	}
-	if config.TenantAdmission != nil {
+	if config.DistributedTenantAdmission != nil {
+		handler = config.DistributedTenantAdmission.Middleware(handler)
+	} else if config.TenantAdmission != nil {
 		handler = config.TenantAdmission.Middleware(handler)
 	}
 	publicCORS, err := security.NewPublicReadCORSMiddleware(config.PublicAPIOrigins)
