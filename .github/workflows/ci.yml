@@ -36,7 +36,7 @@ jobs:
 
   go:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:18
@@ -100,10 +100,24 @@ jobs:
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./... -count=1 -p 1 -timeout=5m
+      - name: Run PostgreSQL adapter contract matrix
+        run: go test ./tests/contract -run '^TestPostgres' -count=1 -p 1 -timeout=5m
       - name: Risk-weighted coverage floors
         run: bash scripts/risk-coverage.sh
       - name: Run shuffled test suite
         run: go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
+      - name: Measure shuffled test stability
+        env:
+          HYDRO_TEST_STABILITY_RUNS: '3'
+          HYDRO_TEST_STABILITY_REPORT: .tmp/test-stability.json
+        run: bash scripts/measure-test-stability.sh
+      - name: Upload test stability evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hydrogo-test-stability
+          path: .tmp/test-stability.json
+          if-no-files-found: warn
       - run: go build -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3
@@ -136,11 +150,16 @@ jobs:
       - name: Run bounded fuzz smoke suite
         run: |
           go test ./extension/v1 -run '^$' -fuzz '^FuzzSafeThemePath$' -fuzztime=2s
+          go test ./extension/v1 -run '^$' -fuzz '^FuzzThemeManifestValidate$' -fuzztime=2s
+          go test ./internal/canonical -run '^$' -fuzz '^FuzzPath$' -fuzztime=2s
+          go test ./internal/canonical -run '^$' -fuzz '^FuzzEmail$' -fuzztime=2s
           go test ./internal/config -run '^$' -fuzz '^FuzzLoadEnvironmentValues$' -fuzztime=2s
           go test ./internal/content -run '^$' -fuzz '^FuzzValidateRichText$' -fuzztime=2s
           go test ./modules/api/graphql -run '^$' -fuzz '^FuzzQueryBudget$' -fuzztime=2s
           go test ./internal/database -run '^$' -fuzz '^FuzzDiscoverMigrations$' -fuzztime=2s
+          go test ./internal/portable -run '^$' -fuzz '^FuzzUnmarshalPortable$' -fuzztime=2s
           go test ./internal/security -run '^$' -fuzz '^FuzzCSRFMiddlewareTokens$' -fuzztime=2s
+          go test ./internal/security -run '^$' -fuzz '^FuzzSafeReturnPath$' -fuzztime=2s
           go test ./internal/webhooks -run '^$' -fuzz '^FuzzValidateWebhookURL$' -fuzztime=2s
           go test ./internal/webhooks -run '^$' -fuzz '^FuzzWebhookSignature$' -fuzztime=2s
       - name: Prove Go internal boundary
