@@ -49,3 +49,12 @@ func TestChannelManagerFailsClosedAfterExpiry(t *testing.T) {
 		t.Fatalf("expired channel authorize = %v", err)
 	}
 }
+
+func TestChannelChallengeEqualRejectsDifferentLengthAndContent(t *testing.T) {
+	if !channelChallengeEqual("0123456789", "0123456789") {
+		t.Fatal("equal challenge rejected")
+	}
+	if channelChallengeEqual("0123456789", "012345678") || channelChallengeEqual("0123456789", "0123456780") {
+		t.Fatal("different challenge accepted")
+	}
+}

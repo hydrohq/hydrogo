@@ -2,6 +2,7 @@ package adminstudio
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"sync"
@@ -81,7 +82,7 @@ func (m *ChannelManager) Bind(id, challenge string, principal ChannelPrincipal) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	channel, ok := m.channels[id]
-	if !ok || !m.now().Before(channel.ExpiresAt) || channel.Bound || channel.Challenge != challenge || channel.Principal != principal {
+	if !ok || !m.now().Before(channel.ExpiresAt) || channel.Bound || !channelChallengeEqual(channel.Challenge, challenge) || channel.Principal != principal {
 		return ErrExtensionChannelDenied
 	}
 	channel.Bound = true
@@ -140,4 +141,11 @@ func extensionChannelToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+func channelChallengeEqual(expected, actual string) bool {
+	if len(expected) != len(actual) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(actual)) == 1
 }
