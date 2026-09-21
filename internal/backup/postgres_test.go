@@ -55,6 +55,27 @@ func TestPostgresDumpRestoreContract(t *testing.T) {
 	if err := database.ApplyMigrations(ctx, source, database.Postgres, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
+	// The dump contract exercises snapshot/restore mechanics separately from
+	// the RLS isolation contract. In this disposable database the table owner
+	// temporarily removes FORCE so pg_dump can read a complete snapshot;
+	// production uses the explicitly provisioned privileged backup role.
+	rows, err := source.QueryContext(ctx, `SELECT quote_ident(relname) FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind = 'r' AND relrowsecurity AND relforcerowsecurity`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var table string
+		if err := rows.Scan(&table); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := source.ExecContext(ctx, "ALTER TABLE "+table+" NO FORCE ROW LEVEL SECURITY"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 	marker := "pg-restore-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	if _, err := source.ExecContext(ctx, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,publication_generation,created_at,updated_at) VALUES ($1,$2,1,'en',$3,'restore-body','draft',1,0,NOW(),NOW())`, marker, "restore marker", marker); err != nil {
 		t.Fatal(err)
