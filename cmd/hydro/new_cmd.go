@@ -31,6 +31,63 @@ func projectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	}
 }
 
+// interactiveResourceCommand authors the same Blueprint consumed by scaffold;
+// it is intentionally a thin prompt layer, not a second schema language.
+func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("new resource", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	out := flags.String("out", ".", "Client Edition output root")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("new resource accepts only --out")
+	}
+	in := bufio.NewReader(stdin)
+	read := func(prompt string) (string, error) {
+		if _, err := fmt.Fprint(stdout, prompt); err != nil {
+			return "", err
+		}
+		value, err := in.ReadString('\n')
+		return strings.TrimSpace(value), err
+	}
+	name, err := read("Resource name: ")
+	if err != nil {
+		return err
+	}
+	fields, err := read("Fields (name:type[:required], comma-separated): ")
+	if err != nil {
+		return err
+	}
+	if name == "" || fields == "" {
+		return errors.New("resource name and fields are required")
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "name: %s\nfields:\n", name)
+	for _, raw := range strings.Split(fields, ",") {
+		parts := strings.Split(strings.TrimSpace(raw), ":")
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf("invalid field %q", raw)
+		}
+		fmt.Fprintf(&b, "  - name: %s\n    type: %s\n", parts[0], parts[1])
+		if len(parts) > 2 && strings.EqualFold(parts[2], "required") {
+			b.WriteString("    required: true\n")
+		}
+	}
+	if err := os.MkdirAll(*out, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(*out, strings.ToLower(name)+".blueprint.yaml")
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("blueprint already exists: %s", path)
+	}
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "blueprint-created path=%s\n", path)
+	return err
+}
+
 func projectCheckCommand(args []string, stdout, stderr io.Writer) error {
 	lockPath := ""
 	configPath := ""
