@@ -55,6 +55,34 @@ func TestPrivateMediaIsNotServedWithoutSession(t *testing.T) {
 	}
 }
 
+func TestPrivateMediaLiveHTTPRejectsAnonymous(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "private-live.txt"), []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	uploader, err := NewUploader(dir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := HTTPHandler{Service: Service{
+		Uploader: uploader,
+		Assets:   httpAssetRepo{asset: Asset{ID: "live-private", StorageKey: "private-live.txt", MimeType: "text/plain", Status: "ready", Visibility: VisibilityPrivate}},
+	}}
+	mux := http.NewServeMux()
+	mux.Handle("GET /media/{id}", http.HandlerFunc(handler.serve))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	response, err := server.Client().Get(server.URL + "/media/live-private")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous live media status = %d, want 401", response.StatusCode)
+	}
+}
+
 func TestPrivateMediaIsNotServedToViewer(t *testing.T) {
 	handler := HTTPHandler{Service: Service{Uploader: &Uploader{}, Assets: httpAssetRepo{asset: Asset{Status: "ready", Visibility: VisibilityPrivate}}}}
 	request := httptest.NewRequest(http.MethodGet, "/media/a1", nil)
