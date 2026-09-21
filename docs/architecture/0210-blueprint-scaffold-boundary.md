@@ -11,6 +11,10 @@ blueprint into the existing versioned generator contract and emits reviewable
 artifacts under `generated/<collection>`, plus a human-owned policy starter in
 `custom/`.
 
+The authoring contract is published as
+`docs/schemas/blueprint.schema.json`; the Go parser remains the final
+fail-closed validation authority and rejects unknown fields.
+
 The blueprint layer never executes DDL, registers runtime routes, or invents
 authorization. It supplies conservative default read/write permission names,
 requires both SQLite and PostgreSQL metadata, and delegates validation,
@@ -26,4 +30,3 @@ existing generator. Business policy and workflow remain in `custom/`.
 - Enum values are currently presentation metadata and do not imply a database
   constraint; a future enum migration contract must be explicit.
 - The generator does not replace operator approval and `hydro migrate`.
-
