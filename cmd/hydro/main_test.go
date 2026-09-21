@@ -20,6 +20,7 @@ import (
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
+	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 )
@@ -32,6 +33,17 @@ func TestModuleHelpersCanonicalizeNames(t *testing.T) {
 	set := enabledModuleSet(configured)
 	if !set["pages"] || !set["news"] || len(set) != 2 {
 		t.Fatalf("enabledModuleSet = %#v", set)
+	}
+}
+
+func TestEventsCatalogCommandExportsPublishedVocabulary(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"events", "catalog"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("events catalog: %v (%s)", err, stderr.String())
+	}
+	data, err := eventcatalog.ExportJSON()
+	if err != nil || strings.TrimSpace(stdout.String()) != string(data) {
+		t.Fatalf("catalog output=%q expected=%q err=%v", stdout.String(), data, err)
 	}
 }
 
