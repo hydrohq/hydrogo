@@ -1,6 +1,6 @@
 # ADR-0200: Reviewed visual collection designer
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-21
 - Related: ADR-0010, ADR-0133, ADR-0190
 
@@ -28,5 +28,11 @@ does not claim Strapi-style live schema mutation or a generic marketplace.
 ## Validation
 
 Generator validation rejects relation fields without an explicit target and
-bounded cardinality. Future designer browser work requires CSRF, RBAC, export
-integrity, SQLite/PostgreSQL generation tests and visual/a11y coverage.
+bounded cardinality. The reviewed `v0` specification loader rejects unknown
+fields, symbolic links, unsupported versions and destructive flags before the
+deterministic generator can run. It remains a developer/operator workflow:
+there is no browser route, persistence endpoint, runtime DDL, route activation
+or permission grant associated with a specification.
+
+Future designer browser work requires a separate accepted ADR and CSRF, RBAC,
+export-integrity, SQLite/PostgreSQL generation tests and visual/a11y coverage.

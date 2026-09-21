@@ -144,8 +144,10 @@ and the first Construction Client Edition.
   sampling/export, PII redaction, and Compact-off behavior.
 - [ ] E0.6: Productize generated TypeScript SDK output and API compatibility
   checks without turning a generated client into a Core runtime dependency.
-- [ ] E0.7: Implement ADR-0200 only as reviewed spec-to-code generation; no
-  runtime DDL, route activation, or permission grant.
+- [x] E0.7: Implement ADR-0200 only as reviewed spec-to-code generation; no
+  runtime DDL, route activation, or permission grant. The accepted v0 spec
+  loader and deterministic generator are covered by validation evidence;
+  browser designer work remains explicitly out of scope.
 - [ ] E0.8: Certify direct object-storage upload, private-media authorization,
   checksum/quarantine, and provider failure behavior for large construction
   documents.
