@@ -7,7 +7,7 @@
     "admin_manifest.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
     "bulk.ts": "f7a14f1ebaa40e524477bbe456c31beba76b09a6da8e53ad80e5c03b08e3a385",
     "client.ts": "f54b198bb56dbd5937c13cc4e7220b66afa8701d7d3935b7afb397b236d2a032",
-    "contract_test.go": "53a9129fa554cf0b76f0d75c573ca1b2f78915f721f71c0b98bd5f4b46b986f9",
+    "contract_test.go": "f659a83dbdda7e736b2a5044760a72b200e0e973002c10981f2bd07f91bf0d30",
     "fixture_test.go": "8d73a5c365627ec5b89f01aa114af8da0c97ab65e67ef3a7bd3a4562803e8ffe",
     "form.html": "3c41f1d94789699e121fc1cb6a2f0e65c1a29a447d2794fe51bf293ede004669",
     "form.schema.json": "c73d76b667e3c1c355c9969af665143a8ea1427b8f7ed55b54fa7003e7dc827e",
