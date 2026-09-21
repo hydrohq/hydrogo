@@ -147,6 +147,11 @@ jobs:
       - name: Build external News Edition
         working-directory: examples/news-edition
         run: go build ./...
+      - name: Enforce Construction Edition import boundary
+        run: go run ./tools/importguard -root examples/construction-edition
+      - name: Build external Construction Edition
+        working-directory: examples/construction-edition
+        run: go test ./... && go build ./...
       - name: Run Linux binary health/readiness smoke
         run: bash ./scripts/smoke-local.sh
       - name: Run bounded fuzz smoke suite
