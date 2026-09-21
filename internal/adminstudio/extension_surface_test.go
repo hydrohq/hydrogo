@@ -18,7 +18,7 @@ func TestServeExtensionSurfaceDoesNotExposeSecrets(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	registry.ServeExtensionSurface(recorder, req, "reports", "home", "tr-TR")
 	body := recorder.Body.String()
-	if recorder.Code != 200 || !strings.Contains(body, "https://reports.example/") || !strings.Contains(body, "reports.read") || strings.Contains(body, "Authorization") || strings.Contains(body, "hydro_session") {
+	if recorder.Code != 200 || !strings.Contains(body, "https://reports.example/") || !strings.Contains(body, "MessageChannel") || !strings.Contains(body, "event.source!==frame.contentWindow") || strings.Contains(body, "Authorization") || strings.Contains(body, "hydro_session") {
 		t.Fatalf("unexpected extension shell: status=%d body=%s", recorder.Code, body)
 	}
 	if recorder.Header().Get("Cache-Control") != "no-store" || recorder.Header().Get("Content-Security-Policy") == "" {
