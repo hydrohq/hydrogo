@@ -2,9 +2,15 @@
 // HydroGo Core boundary through the durable outbox and signed webhook layer.
 package eventcatalog
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
-var ErrUnknownEvent = errors.New("unknown event topic or payload version")
+var (
+	ErrUnknownEvent    = errors.New("unknown event topic or payload version")
+	ErrBreakingCatalog = errors.New("breaking event catalog change")
+)
 
 type Definition struct {
 	Topic          string
@@ -38,4 +44,30 @@ func Validate(topic string, version int) error {
 		}
 	}
 	return ErrUnknownEvent
+}
+
+// CompareBaseline rejects removals and PII classification changes for already
+// published topic/version pairs. New entries are additive. Payload shape is
+// intentionally not inferred here: producers must version it rather than
+// mutate an existing published version in place.
+func CompareBaseline(baseline, current []Definition) error {
+	currentIndex := make(map[string]Definition, len(current))
+	for _, definition := range current {
+		if definition.Topic == "" || definition.PayloadVersion < 1 {
+			return fmt.Errorf("%w: invalid current event definition", ErrBreakingCatalog)
+		}
+		key := definition.Topic + "@" + fmt.Sprint(definition.PayloadVersion)
+		if _, exists := currentIndex[key]; exists {
+			return fmt.Errorf("%w: duplicate current event %s", ErrBreakingCatalog, key)
+		}
+		currentIndex[key] = definition
+	}
+	for _, definition := range baseline {
+		key := definition.Topic + "@" + fmt.Sprint(definition.PayloadVersion)
+		got, exists := currentIndex[key]
+		if !exists || got.PII != definition.PII {
+			return fmt.Errorf("%w: changed or removed event %s", ErrBreakingCatalog, key)
+		}
+	}
+	return nil
 }

@@ -26,6 +26,8 @@ their domain vocabulary in Core.
 ## Validation
 
 - Unit tests reject unknown topics and versions.
+- A compatibility helper rejects removal or PII reclassification of a
+  published topic/version pair; additions require a new explicit entry.
 - Event producers and webhook consumers must use a catalog entry before a
   public subscription is documented.
 - Payload compatibility, tenant scope, idempotency, and PII minimization are
