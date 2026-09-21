@@ -159,6 +159,8 @@ and the first Construction Client Edition.
   - [x] E0.9a.1: Construction-owned versioned event vocabulary remains outside
     Core's generic catalog and has a fail-closed contract fixture.
   - [x] E0.9a.2: Deny-by-default project role/capability decision contract.
+  - [x] E0.9a.3: Document and daily-report approval state machines with
+    project-bound authorization and optimistic-concurrency contracts.
   - [ ] E0.9b: Persisted PostgreSQL/SQLite workflows, scoped authorization,
     audit trail, migrations and optimistic-concurrency contracts.
 - [ ] E0.10: Run a per-customer isolated live pilot, then reconsider shared

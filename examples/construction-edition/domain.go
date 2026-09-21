@@ -13,6 +13,8 @@ var (
 	ErrInvalidDailyReport  = errors.New("daily report is invalid")
 	ErrInvalidIssue        = errors.New("issue is invalid")
 	ErrInvalidApproval     = errors.New("approval transition is invalid")
+	ErrRevisionConflict    = errors.New("document revision conflict")
+	ErrApprovalDenied      = errors.New("approval is not authorized")
 )
 
 // Organization is a Construction Edition domain object. ParentID is only a
@@ -57,11 +59,41 @@ type DocumentRevision struct {
 	CreatedBy  string
 }
 
+type DocumentStatus string
+
+const (
+	DocumentDraft    DocumentStatus = "draft"
+	DocumentPending  DocumentStatus = "pending"
+	DocumentApproved DocumentStatus = "approved"
+	DocumentRejected DocumentStatus = "rejected"
+)
+
+type ProjectDocument struct {
+	ProjectID string
+	Revision  DocumentRevision
+	Status    DocumentStatus
+}
+
 type DailyReport struct {
 	ProjectID string
 	ReportDay time.Time
 	AuthorID  string
 	Summary   string
+}
+
+type DailyReportStatus string
+
+const (
+	DailyReportDraft    DailyReportStatus = "draft"
+	DailyReportPending  DailyReportStatus = "pending"
+	DailyReportApproved DailyReportStatus = "approved"
+	DailyReportRejected DailyReportStatus = "rejected"
+)
+
+type ReviewedDailyReport struct {
+	DailyReport
+	Revision int
+	Status   DailyReportStatus
 }
 
 type Issue struct {
@@ -125,11 +157,43 @@ func ValidateDocumentRevision(value DocumentRevision) error {
 	return nil
 }
 
+// ApproveDocument is the Edition's application-level optimistic-concurrency
+// contract. Persistence must compare-and-swap the same revision atomically.
+func ApproveDocument(projectID string, actor ProjectMembership, document ProjectDocument, expectedRevision int) (ProjectDocument, error) {
+	if !CanProject(projectID, actor, CapabilityApprovalDecide) {
+		return ProjectDocument{}, ErrApprovalDenied
+	}
+	if document.ProjectID != projectID || ValidateDocumentRevision(document.Revision) != nil || expectedRevision != document.Revision.Revision {
+		return ProjectDocument{}, ErrRevisionConflict
+	}
+	if document.Status != DocumentPending {
+		return ProjectDocument{}, ErrInvalidApproval
+	}
+	document.Status = DocumentApproved
+	document.Revision.Revision++
+	return document, nil
+}
+
 func ValidateDailyReport(value DailyReport) error {
 	if strings.TrimSpace(value.ProjectID) == "" || value.ReportDay.IsZero() || strings.TrimSpace(value.AuthorID) == "" || strings.TrimSpace(value.Summary) == "" {
 		return ErrInvalidDailyReport
 	}
 	return nil
+}
+
+func ApproveDailyReport(projectID string, actor ProjectMembership, report ReviewedDailyReport, expectedRevision int) (ReviewedDailyReport, error) {
+	if !CanProject(projectID, actor, CapabilityApprovalDecide) {
+		return ReviewedDailyReport{}, ErrApprovalDenied
+	}
+	if report.ProjectID != projectID || ValidateDailyReport(report.DailyReport) != nil || report.Revision < 1 || expectedRevision != report.Revision {
+		return ReviewedDailyReport{}, ErrRevisionConflict
+	}
+	if report.Status != DailyReportPending {
+		return ReviewedDailyReport{}, ErrInvalidApproval
+	}
+	report.Status = DailyReportApproved
+	report.Revision++
+	return report, nil
 }
 
 func ValidateIssue(value Issue) error {
