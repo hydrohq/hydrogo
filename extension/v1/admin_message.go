@@ -25,7 +25,7 @@ type AdminMessage struct {
 }
 
 var allowedAdminMessageTypes = map[string]struct{}{
-	"ready": {}, "resize": {}, "navigate": {}, "request": {}, "response": {}, "error": {},
+	"init": {}, "ready": {}, "bound": {}, "revoke": {}, "resize": {}, "navigate": {}, "request": {}, "response": {}, "error": {},
 }
 
 func (m AdminMessage) Validate() error {
@@ -62,6 +62,22 @@ type AdminBootstrapPayload struct {
 	SurfaceID   string   `json:"surface_id"`
 	Locale      string   `json:"locale"`
 	Permissions []string `json:"permissions,omitempty"`
+}
+
+// AdminChannelInitPayload is deliberately non-secret bootstrap data sent to
+// the exact iframe origin. The challenge only binds that concrete iframe to a
+// short-lived host handshake; it is never an authorization credential.
+type AdminChannelInitPayload struct {
+	ExtensionID string `json:"extension_id"`
+	SurfaceID   string `json:"surface_id"`
+	Challenge   string `json:"challenge"`
+}
+
+func (p AdminChannelInitPayload) Validate() error {
+	if !validIdentifier(p.ExtensionID) || !validIdentifier(p.SurfaceID) || !validIdentifier(p.Challenge) || len(p.Challenge) < 16 {
+		return ErrInvalidAdminMessage
+	}
+	return nil
 }
 
 func (p AdminBootstrapPayload) Validate() error {
