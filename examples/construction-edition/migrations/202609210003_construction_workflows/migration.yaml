@@ -1,0 +1,10 @@
+id: "202609210003_construction_workflows"
+module: "construction-edition"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+compatibility: "Edition-owned additive workflow schema; Core does not import these tables."
+rollback: "No destructive down migration; restore or forward migration only."
