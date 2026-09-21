@@ -34,3 +34,6 @@ ok  github.com/ardaozyildirim/hydrogo/internal/security
 
 The daemon was shut down after the test. Redis failover, partition, and
 clock-skew behavior remain separate external certification cases.
+
+The complete `internal/security` suite was also run against a temporary Redis
+daemon on port `6390` with `HYDRO_TEST_REDIS_URL` configured and passed.
