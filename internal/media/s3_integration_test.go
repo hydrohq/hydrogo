@@ -59,6 +59,41 @@ func TestS3ProviderIntegration(t *testing.T) {
 		t.Fatalf("provider round-trip body = %q, want %q", got, body)
 	}
 
+	quarantineKey := fmt.Sprintf("tenants/integration/quarantine-%x/direct.txt", suffix)
+	defer func() { _ = store.Delete(context.Background(), quarantineKey) }()
+	putURL, err := store.PresignedQuarantineUploadURL(ctx, quarantineKey, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putRequest, err := http.NewRequestWithContext(ctx, http.MethodPut, putURL, strings.NewReader(string(body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	putRequest.Header.Set("Content-Type", "text/plain")
+	putResponse, err := http.DefaultClient.Do(putRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putResponse.Body.Close()
+	if putResponse.StatusCode < 200 || putResponse.StatusCode >= 300 {
+		t.Fatalf("presigned quarantine PUT status = %d", putResponse.StatusCode)
+	}
+	quarantineObject, err := store.Get(ctx, quarantineKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	quarantineBytes, readErr := io.ReadAll(quarantineObject)
+	closeErr = quarantineObject.Close()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if string(quarantineBytes) != string(body) {
+		t.Fatalf("presigned quarantine body = %q, want %q", quarantineBytes, body)
+	}
+
 	getURL, err := store.PresignedURL(ctx, key, time.Minute)
 	if err != nil {
 		t.Fatal(err)
