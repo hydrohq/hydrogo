@@ -152,8 +152,9 @@ and the first Construction Client Edition.
     request correlation.
   - [x] E0.5b: Operator-owned exporter adapter with sampling, timeout, retry
       and production failure-behavior certification.
-- [ ] E0.6: Productize generated TypeScript SDK output and API compatibility
+- [x] E0.6: Productize generated TypeScript SDK output and API compatibility
   checks without turning a generated client into a Core runtime dependency.
+  Repeatable gate: `scripts/verify-sdk-compat.ps1`.
 - [x] E0.7: Implement ADR-0200 only as reviewed spec-to-code generation; no
   runtime DDL, route activation, or permission grant. The accepted v0 spec
   loader and deterministic generator are covered by validation evidence;
