@@ -121,3 +121,42 @@ R3 initial commit: disabled user/session revoke, admin-controlled user disable r
 The necessary conditions and evidence format for gates left open in real environments are maintained in the [Production gate evidence checklist](validation/PRODUCTION-GATES.md). Latest automated reliability and security hardening evidence: [R7 validation report](validation/R7-reliability-security-hardening-2026-09-10.md). Latest WSL execution records: [PostgreSQL contract](validation/R11-wsl-postgresql-contract-2026-09-17.md), [production-gate preflight](validation/R12-wsl-production-gate-preflight-2026-09-17.md), and [Redis outage recovery](validation/R13-wsl-redis-outage-recovery-2026-09-17.md).
 
 Every piece of work is delivered as a small reviewable change. The report includes commit, environment/toolchain/DB versions, commands, expected/observed outcome, limitations, and the related roadmap item. `docs/validation/` only holds real results; planned tests are not shown as successful. In a failed experiment, an alternative is evaluated first; if an accepted decision changes, a new ADR is written.
+
+## E0 — Enterprise Headless Platform and Construction pilot
+
+**Dependency:** R5 candidate contracts and the current production-gate
+manifest. **Responsibility:** Core boundaries, security evidence, Edition DX,
+and the first Construction Client Edition.
+
+- [x] E0.1: Keep Construction as a separately versioned Client Edition; define
+  per-customer isolated pilot topology and explicit non-goals in ADR-0202.
+- [ ] E0.2: Complete ADR-0195 channel binding with origin/source validation,
+  single-use challenge, MessagePort transfer, server-side channel context,
+  revocation, replay bounds, and browser E2E.
+- [ ] E0.3: Close the shared-tenancy prerequisites: direct-pool audit, real
+  PostgreSQL RLS/IDOR evidence, tenant quota/noisy-neighbor tests, and
+  recovery evidence. This does not enable shared tenancy before the ADR-0149
+  gate is certified.
+- [ ] E0.4: Publish a versioned event catalog over the existing durable outbox
+  and signed webhook boundary; add event compatibility and delivery-operator
+  evidence.
+- [ ] E0.5: Add a provider-neutral OpenTelemetry boundary with bounded
+  sampling/export, PII redaction, and Compact-off behavior.
+- [ ] E0.6: Productize generated TypeScript SDK output and API compatibility
+  checks without turning a generated client into a Core runtime dependency.
+- [ ] E0.7: Implement ADR-0200 only as reviewed spec-to-code generation; no
+  runtime DDL, route activation, or permission grant.
+- [ ] E0.8: Certify direct object-storage upload, private-media authorization,
+  checksum/quarantine, and provider failure behavior for large construction
+  documents.
+- [ ] E0.9: Build the Construction MVP as an external Edition: organization
+  hierarchy, project roles, revisioned documents, daily reports, issues, and
+  approval workflow. Financial ledger, payroll, invoicing, procurement, and
+  payment processing remain out of scope.
+- [ ] E0.10: Run a per-customer isolated live pilot, then reconsider shared
+  SaaS only with all ADR-0149 production evidence and an explicit new release
+  decision.
+
+**Exit rule:** A checkbox only closes with code, tests, ADR/compatibility
+metadata where required, and a dated validation report. Planned or synthetic
+checks are never recorded as production evidence.
