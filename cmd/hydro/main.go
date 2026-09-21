@@ -212,7 +212,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
 	case "tenant":
-		return tenantCommand(args[1:], stdout, stderr)
+		return tenantCommand(args[1:], stdin, stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -3356,7 +3356,8 @@ Usage:
   hydro project check [--config config.yaml] [--lock hydrogo.lock] [--json]
   hydro check [--config config.yaml] [--lock hydrogo.lock] [--json]
   hydro tenant validate [runtime flags]
-  hydro tenant backfill --tenant-id ID [--dry-run|--confirm] [runtime flags]
+  hydro tenant provision --tenant-id ID --admin-email EMAIL --admin-password-stdin [runtime flags]
+  hydro tenant backfill (--tenant-id ID|--active) [--dry-run|--confirm] [runtime flags]
   hydro tenant list [runtime flags]
   hydro module create --spec SPEC --out OUTPUT
   hydro module new --spec SPEC --out OUTPUT

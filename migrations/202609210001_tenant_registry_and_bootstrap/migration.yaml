@@ -1,0 +1,26 @@
+id: "202609210001_tenant_registry_and_bootstrap"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "4001b733b5f15913ddc97c12e47633309c8046e4ab47d597ccec10de71257e39"
+  postgres: "859d98b2b2f2542383ecd329ddb2e2bf2f4b5bfc49487e211dc77666e6c1ea70"
+dependencies:
+  - "202609200003_postgres_tenant_rls"
+schema:
+  readable_epoch: 7
+  writable_epoch: 7
+preconditions:
+  - "The standard migration ledger is current before any tenant provisioning action."
+lock_timeout: "Migration runner deadline; provisioning uses short per-tenant transactions."
+disk_estimate: "One registry row and append-only lifecycle audit rows per tenant."
+compatibility: "Expand-only global registry. Old binaries ignore the new tables; new binaries refuse provisioning until the ledger is current."
+smoke:
+  - "A provisioned tenant has an active registry row, an initial admin, and the required site defaults."
+  - "Repeated provisioning and active-tenant backfill do not duplicate rows."
+restart: "Safe to rerun; registry/default inserts use conflict-safe operations and lifecycle audit remains append-only."
+rollback: "No destructive down migration; restore or forward migration only."
