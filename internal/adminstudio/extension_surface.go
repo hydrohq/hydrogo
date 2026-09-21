@@ -30,6 +30,14 @@ func (r ExtensionRegistry) ServeExtensionSurface(w http.ResponseWriter, req *htt
 		http.NotFound(w, req)
 		return
 	}
+	// With allow-same-origin enabled, embedding a surface on HydroGo's own
+	// origin would let same-origin extension code escape the sandbox. Signed
+	// manifests must remain externally hosted; reject a host collision at the
+	// request boundary while retaining the manifest's HTTPS validation.
+	if req != nil && strings.EqualFold(parsed.Host, req.Host) {
+		http.NotFound(w, req)
+		return
+	}
 	if strings.TrimSpace(locale) == "" || len(locale) > 32 || strings.ContainsAny(locale, "\r\n") {
 		locale = "en"
 	}

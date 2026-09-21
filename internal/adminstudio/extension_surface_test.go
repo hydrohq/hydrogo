@@ -25,3 +25,17 @@ func TestServeExtensionSurfaceDoesNotExposeSecrets(t *testing.T) {
 		t.Fatalf("missing security headers: %#v", recorder.Header())
 	}
 }
+
+func TestServeExtensionSurfaceRejectsHostCollision(t *testing.T) {
+	manifest := extensionv1.AdminExtensionManifest{ID: "same-origin", Name: "Same", Version: "1", EntrypointURL: "https://admin.example.test/extensions", Surfaces: []extensionv1.AdminSurface{{ID: "home", Label: "Home", Path: "/", Placement: "same"}}}
+	registry, err := NewExtensionRegistry([]extensionv1.AdminExtensionManifest{manifest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("GET", "https://admin.example.test/admin/extensions/same-origin/home", nil)
+	recorder := httptest.NewRecorder()
+	registry.ServeExtensionSurface(recorder, req, "same-origin", "home", "en", ChannelPrincipal{SessionID: "s1", UserID: "u1"})
+	if recorder.Code != 404 {
+		t.Fatalf("same-origin extension status=%d, want 404", recorder.Code)
+	}
+}
