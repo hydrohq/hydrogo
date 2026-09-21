@@ -192,6 +192,8 @@ func NewHandler(config Config) http.Handler {
 	if config.Metrics != nil {
 		handler = config.Metrics.Middleware(handler)
 	}
+	// Final response guard: no HTML comment is allowed into production output.
+	handler = observability.HTMLCommentMiddleware(handler)
 
 	return handler
 }

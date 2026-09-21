@@ -39,7 +39,6 @@
     </div>
     <div class="hero-media-wrapper" data-tabs-container>
       {{if eq .Payload.media_asset_id "demo-media-hero-showcase"}}
-      <!-- SHOWCASE HERO VISUAL: Component & Module Sandbox -->
       <div class="hero-interactive-window showcase-window-theme">
         <div class="window-titlebar">
           <div class="traffic-lights">
@@ -86,7 +85,6 @@
       </div>
 
       {{else if eq .Payload.media_asset_id "demo-media-hero-about"}}
-      <!-- ABOUT HERO VISUAL: Security, Architecture & Governance Shield -->
       <div class="hero-interactive-window about-window-theme">
         <div class="window-titlebar">
           <div class="traffic-lights">
@@ -134,7 +132,6 @@
       </div>
 
       {{else}}
-      <!-- HOME / DEFAULT HERO VISUAL: Interactive Architecture & Live Telemetry -->
       <div class="hero-interactive-window">
         <div class="window-titlebar">
           <div class="traffic-lights">
@@ -160,7 +157,6 @@
         </div>
 
         <div class="window-body">
-          <!-- Tab 1: Visual Architecture SVG -->
           <div class="window-panel is-active" data-tab-panel="tab-arch">
             <div class="arch-diagram-wrap">
               <div class="diagram-flow">
@@ -206,7 +202,6 @@
             </div>
           </div>
 
-          <!-- Tab 2: Go Code Preview -->
           <div class="window-panel" data-tab-panel="tab-code" hidden>
             <div class="code-editor-body">
               <div class="editor-line-numbers">
@@ -228,7 +223,6 @@
             </div>
           </div>
 
-          <!-- Tab 3: Telemetry Dashboard -->
           <div class="window-panel" data-tab-panel="tab-metrics" hidden>
             <div class="telemetry-grid">
               <div class="telem-item">
