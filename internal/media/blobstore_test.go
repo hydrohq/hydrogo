@@ -87,13 +87,35 @@ func TestS3BlobStoreValidatesKeysForAllObjectOperations(t *testing.T) {
 }
 
 func TestS3BlobStorePresignedURLIsBounded(t *testing.T) {
-	store, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:9000", Bucket: "hydro", AccessKey: "access", SecretKey: "secret"})
+	store, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:9000", Bucket: "hydro", Region: "us-east-1", AccessKey: "access", SecretKey: "secret"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, expiry := range []time.Duration{0, 500 * time.Millisecond, 25 * time.Hour} {
 		if _, err := store.PresignedURL(context.Background(), "images/hero.png", expiry); err == nil {
 			t.Fatalf("expiry accepted: %s", expiry)
+		}
+	}
+}
+
+func TestS3BlobStorePresignedQuarantineUploadURLIsNarrow(t *testing.T) {
+	store, err := NewS3BlobStore(S3Config{Endpoint: "http://127.0.0.1:9000", Bucket: "hydro", Region: "us-east-1", AccessKey: "access", SecretKey: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if url, err := store.PresignedQuarantineUploadURL(context.Background(), "tenants/tenant-a/quarantine/upload-a", time.Minute); err != nil || !strings.Contains(url, "X-Amz-Signature") {
+		t.Fatalf("scoped quarantine URL = %q, %v", url, err)
+	}
+	for _, test := range []struct {
+		key    string
+		expiry time.Duration
+	}{
+		{key: "documents/final.pdf", expiry: time.Minute},
+		{key: "quarantine/upload-a", expiry: 0},
+		{key: "quarantine/upload-a", expiry: 16 * time.Minute},
+	} {
+		if _, err := store.PresignedQuarantineUploadURL(context.Background(), test.key, test.expiry); err == nil {
+			t.Fatalf("quarantine upload accepted key=%q expiry=%s", test.key, test.expiry)
 		}
 	}
 }

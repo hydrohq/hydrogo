@@ -33,6 +33,13 @@ type SignedURLProvider interface {
 	PresignedURL(context.Context, string, time.Duration) (string, error)
 }
 
+// QuarantineUploadURLProvider may grant a client a short-lived direct PUT only
+// for a pending/quarantine object. It never grants a URL for a final ready
+// object; the application must verify and promote the object separately.
+type QuarantineUploadURLProvider interface {
+	PresignedQuarantineUploadURL(context.Context, string, time.Duration) (string, error)
+}
+
 // S3Config enables AWS S3 and S3-compatible services (MinIO, R2, B2).
 // An empty endpoint/credentials keeps the default local filesystem path.
 type S3Config struct {
@@ -133,6 +140,35 @@ func (s *S3BlobStore) PresignedURL(ctx context.Context, key string, expiry time.
 		return "", err
 	}
 	return url.String(), nil
+}
+
+// PresignedQuarantineUploadURL creates a short-lived PUT URL only for the
+// quarantine namespace. It intentionally does not add public visibility or
+// treat the object as ready; callers must complete integrity/authorization
+// checks before promoting it to an immutable final key.
+func (s *S3BlobStore) PresignedQuarantineUploadURL(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	if s == nil || s.client == nil {
+		return "", errors.New("s3 blob store is unavailable")
+	}
+	if expiry < time.Second || expiry > 15*time.Minute {
+		return "", errors.New("quarantine upload URL expiry must be between 1s and 15m")
+	}
+	key, parts, err := validateObjectKey(key)
+	if err != nil || !isQuarantineKey(parts) {
+		return "", errors.New("object key must be in the quarantine namespace")
+	}
+	url, err := s.client.PresignedPutObject(ctx, s.bucket, key, expiry)
+	if err != nil {
+		return "", err
+	}
+	return url.String(), nil
+}
+
+func isQuarantineKey(parts []string) bool {
+	if len(parts) >= 2 && parts[0] == "quarantine" {
+		return true
+	}
+	return len(parts) >= 4 && parts[0] == "tenants" && parts[1] != "" && parts[2] == "quarantine"
 }
 
 func validateObjectKey(raw string) (string, []string, error) {
