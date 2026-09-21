@@ -7,7 +7,7 @@
     "admin_manifest.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
     "bulk.ts": "f7a14f1ebaa40e524477bbe456c31beba76b09a6da8e53ad80e5c03b08e3a385",
     "client.ts": "f54b198bb56dbd5937c13cc4e7220b66afa8701d7d3935b7afb397b236d2a032",
-    "contract_test.go": "f659a83dbdda7e736b2a5044760a72b200e0e973002c10981f2bd07f91bf0d30",
+    "contract_test.go": "4add16c27ba2fd64575214f92ee5fb0a8bf97f78982cbcebafa3218c16a03d9a",
     "fixture_test.go": "8d73a5c365627ec5b89f01aa114af8da0c97ab65e67ef3a7bd3a4562803e8ffe",
     "form.html": "3c41f1d94789699e121fc1cb6a2f0e65c1a29a447d2794fe51bf293ede004669",
     "form.schema.json": "c73d76b667e3c1c355c9969af665143a8ea1427b8f7ed55b54fa7003e7dc827e",
@@ -28,7 +28,8 @@
     "spec.json": "e59efc1ff4d25e09c90946d46b3b992cf60ffbf49b4e9cb7316a36bf4d339eb0",
     "swr.ts": "ee200679c02584ced8df0677f4dc490c4eeec0ac3e75537f099debb401dbe48e",
     "table.html": "e243b7e5726d99ec5321b431163d8870ff07ac5476a6f4a023c3d995155e42f6",
-    "transport.go": "e9c0bac8f38013264fcbe52dab9596d9b6627c23e9d48889abdea3f4da89d7f7",
+    "transport.go": "a4506179583e162b17ff582dc2fb9b3bdb982a2a7305e11af8e4ef3a0a5df0c5",
+    "transport_test.go": "8bf29257fbd936da7ecccf93d09352d5f0955e460979ae72fb61fe8178134411",
     "upload.ts": "89032ba289ce16f406389416e2390714dcc1fa961320e7f3777e901e32595007",
     "vanilla.ts": "6db87a8babbc103a3fc3a72cf76b52448096d3e27de6aeb1bdf7ea0353504ffd"
   }

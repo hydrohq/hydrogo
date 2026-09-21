@@ -21,7 +21,7 @@ type CompatibilityReport struct {
 	FilesChecked     int
 }
 
-var requiredGeneratedFiles = []string{"spec.json", "model.go", "repository.go", "service.go", "policy.go", "transport.go", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "migration.sql", "migration.yaml", "contract_test.go", "fixture_test.go", "admin_manifest.json", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md"}
+var requiredGeneratedFiles = []string{"spec.json", "model.go", "repository.go", "service.go", "policy.go", "transport.go", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "migration.sql", "migration.yaml", "contract_test.go", "transport_test.go", "fixture_test.go", "admin_manifest.json", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md"}
 
 // CheckCompatibility verifies generated artifacts without rewriting them.
 func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
