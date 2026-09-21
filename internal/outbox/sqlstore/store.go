@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
 	"github.com/ardaozyildirim/hydrogo/internal/outbox"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
@@ -23,6 +24,9 @@ func (s Store) Enqueue(ctx context.Context, tx database.Executor, id, topic, agg
 	} else if s.RequireTenantScope {
 		return scopeErr
 	}
+	if err := eventcatalog.Validate(topic, payloadVersion); err != nil {
+		return err
+	}
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
@@ -35,6 +39,9 @@ func (s Store) Enqueue(ctx context.Context, tx database.Executor, id, topic, agg
 func (s Store) EnqueueScoped(ctx context.Context, tx database.Executor, id, topic, aggregateID string, payloadVersion int) error {
 	scope, err := tenant.Require(ctx)
 	if err != nil {
+		return err
+	}
+	if err := eventcatalog.Validate(topic, payloadVersion); err != nil {
 		return err
 	}
 	if err := database.RequireExecutor(tx); err != nil {
