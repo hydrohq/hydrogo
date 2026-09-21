@@ -38,6 +38,7 @@ func (s Store) Schema() []string {
 		`CREATE TABLE IF NOT EXISTS construction_memberships (project_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, PRIMARY KEY(project_id,user_id))`,
 		`CREATE TABLE IF NOT EXISTS construction_documents (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, object_key TEXT NOT NULL, checksum TEXT NOT NULL, status TEXT NOT NULL, revision INTEGER NOT NULL, created_by TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS construction_daily_reports (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, report_day TEXT NOT NULL, author_id TEXT NOT NULL, summary TEXT NOT NULL, status TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS construction_issues (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL, opened_by TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS construction_audit_events (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, target_id TEXT NOT NULL, created_at TEXT NOT NULL)`,
 	}
 }
@@ -67,14 +68,74 @@ func (s Store) CreateDocument(ctx context.Context, db *sql.DB, id, projectID, ob
 	return err
 }
 
+func (s Store) CreateDailyReport(ctx context.Context, db *sql.DB, id, projectID, reportDay, author, summary string) error {
+	if id == "" || projectID == "" || reportDay == "" || author == "" || strings.TrimSpace(summary) == "" {
+		return ErrDenied
+	}
+	_, err := db.ExecContext(ctx, "INSERT INTO construction_daily_reports(id,project_id,report_day,author_id,summary,status,revision,updated_at) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+","+s.p(4)+","+s.p(5)+",'pending',1,"+s.p(6)+")", id, projectID, reportDay, author, summary, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func (s Store) ApproveDailyReport(ctx context.Context, db *sql.DB, projectID, reportID, actor string, expectedRevision int) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	var role, status, storedProject string
+	var revision int
+	q := "SELECT m.role,r.status,r.project_id,r.revision FROM construction_memberships m JOIN construction_daily_reports r ON r.project_id=m.project_id WHERE m.project_id=" + s.p(1) + " AND m.user_id=" + s.p(2) + " AND r.id=" + s.p(3)
+	if err = tx.QueryRowContext(ctx, q, projectID, actor, reportID).Scan(&role, &status, &storedProject, &revision); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if storedProject != projectID || (role != "owner" && role != "manager") {
+		return ErrDenied
+	}
+	if status != "pending" || revision != expectedRevision {
+		return ErrConflict
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	res, err := tx.ExecContext(ctx, "UPDATE construction_daily_reports SET status='approved',revision=revision+1,updated_at="+s.p(1)+" WHERE id="+s.p(2)+" AND project_id="+s.p(3)+" AND status='pending' AND revision="+s.p(4), now, reportID, projectID, expectedRevision)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return ErrConflict
+	}
+	_, err = tx.ExecContext(ctx, "INSERT INTO construction_audit_events(id,project_id,actor_id,action,target_id,created_at) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+",'daily-report.approved',"+s.p(4)+","+s.p(5)+")", fmt.Sprintf("audit-%d-%s", time.Now().UnixNano(), reportID), projectID, actor, reportID, now)
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	committed = err == nil
+	return err
+}
+
+func (s Store) CreateIssue(ctx context.Context, db *sql.DB, id, projectID, title, openedBy string) error {
+	if id == "" || projectID == "" || strings.TrimSpace(title) == "" || openedBy == "" {
+		return ErrDenied
+	}
+	_, err := db.ExecContext(ctx, "INSERT INTO construction_issues(id,project_id,title,opened_by,status,created_at) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+","+s.p(4)+",'open',"+s.p(5)+")", id, projectID, title, openedBy, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
 // ApproveDocument performs authorization and revision compare-and-swap in one transaction.
 func (s Store) ApproveDocument(ctx context.Context, db *sql.DB, projectID, documentID, actor string, expectedRevision int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
+	committed := false
 	defer func() {
-		if err != nil {
+		if !committed {
 			_ = tx.Rollback()
 		}
 	}()
@@ -101,10 +162,11 @@ func (s Store) ApproveDocument(ctx context.Context, db *sql.DB, projectID, docum
 	if n, _ := res.RowsAffected(); n != 1 {
 		return ErrConflict
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO construction_audit_events(id,project_id,actor_id,action,target_id,created_at) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+",'document.approved',"+s.p(4)+","+s.p(5)+")", fmt.Sprintf("audit-%d", time.Now().UnixNano()), projectID, actor, documentID, now)
+	_, err = tx.ExecContext(ctx, "INSERT INTO construction_audit_events(id,project_id,actor_id,action,target_id,created_at) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+",'document.approved',"+s.p(4)+","+s.p(5)+")", fmt.Sprintf("audit-%d-%s", time.Now().UnixNano(), documentID), projectID, actor, documentID, now)
 	if err != nil {
 		return err
 	}
 	err = tx.Commit()
+	committed = err == nil
 	return err
 }

@@ -54,8 +54,20 @@ func TestConstructionPersistenceApprovalIsScopedAndAudited(t *testing.T) {
 	if err := store.ApproveDocument(ctx, db, "p1", "d1", "manager-1", 1); err != ErrConflict {
 		t.Fatalf("stale approval=%v", err)
 	}
+	if err := store.CreateDailyReport(ctx, db, "r1", "p1", "2026-09-21", "author", "Pour completed"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ApproveDailyReport(ctx, db, "p1", "r1", "viewer-1", 1); err != ErrDenied {
+		t.Fatalf("viewer report approval=%v", err)
+	}
+	if err := store.ApproveDailyReport(ctx, db, "p1", "r1", "manager-1", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateIssue(ctx, db, "i1", "p1", "Blocked delivery", "author"); err != nil {
+		t.Fatal(err)
+	}
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM construction_audit_events WHERE action='document.approved'`).Scan(&count); err != nil || count != 1 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM construction_audit_events`).Scan(&count); err != nil || count != 2 {
 		t.Fatalf("audit=%d/%v", count, err)
 	}
 }
