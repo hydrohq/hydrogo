@@ -14,6 +14,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
 )
 
 var localePattern = regexp.MustCompile(`^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?$`)
@@ -52,10 +53,11 @@ type Tenancy struct {
 }
 
 type Webhook struct {
-	ID     string   `yaml:"id"`
-	URL    string   `yaml:"url"`
-	Secret string   `yaml:"-"`
-	Topics []string `yaml:"topics"`
+	ID       string   `yaml:"id"`
+	URL      string   `yaml:"url"`
+	Secret   string   `yaml:"-"`
+	Topics   []string `yaml:"topics"`
+	AllowPII bool     `yaml:"allow_pii"`
 }
 
 type HTTP struct {
@@ -425,9 +427,22 @@ func (c Config) Validate() error {
 		if len(webhook.Topics) > 64 {
 			return errors.New("webhook topics exceed limit")
 		}
+		seenTopics := make(map[string]struct{}, len(webhook.Topics))
 		for _, topic := range webhook.Topics {
-			if strings.TrimSpace(topic) == "" {
+			topic = strings.TrimSpace(topic)
+			if topic == "" {
 				return errors.New("webhook topic cannot be empty")
+			}
+			if _, exists := seenTopics[topic]; exists {
+				return fmt.Errorf("webhook topic %q is configured more than once", topic)
+			}
+			seenTopics[topic] = struct{}{}
+			known, pii := eventcatalog.TopicPolicy(topic)
+			if !known {
+				return fmt.Errorf("webhook topic %q is not published in the event catalog", topic)
+			}
+			if pii && !webhook.AllowPII {
+				return fmt.Errorf("webhook topic %q requires explicit allow_pii", topic)
 			}
 		}
 	}

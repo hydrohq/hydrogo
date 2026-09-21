@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -126,6 +127,22 @@ func TestLoadMediaS3RequiresEndpointAndBucket(t *testing.T) {
 		if _, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{}); err == nil {
 			t.Fatalf("unsafe CDN base accepted: %q", base)
 		}
+	}
+}
+
+func TestLoadWebhookRequiresPublishedTopicAndExplicitPIIOptIn(t *testing.T) {
+	base := "webhooks:\n  - id: consumer\n    url: https://consumer.example.test/hooks\n    topics: [%s]\n"
+	for _, topic := range []string{"unknown.event", "user.invited"} {
+		path := writeConfig(t, fmt.Sprintf(base, topic))
+		_, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_WEBHOOK_SECRET": "test-secret"}), Overrides{})
+		if err == nil {
+			t.Fatalf("webhook topic %q accepted without policy", topic)
+		}
+	}
+	path := writeConfig(t, "webhooks:\n  - id: consumer\n    url: https://consumer.example.test/hooks\n    allow_pii: true\n    topics: [user.invited]\n")
+	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_WEBHOOK_SECRET": "test-secret"}), Overrides{})
+	if err != nil || !cfg.Webhooks[0].AllowPII {
+		t.Fatalf("PII webhook opt-in = %#v, err=%v", cfg.Webhooks, err)
 	}
 }
 
