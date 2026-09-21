@@ -2,7 +2,29 @@
 
 **Durum:** Kod deposundaki güvenli yerel doğrulamalar tamamlanabilir; bu belge production,
 dış servis, hukuk, ticari karar veya gerçek müşteri ortamı gerektiren işleri listeler.
-**Güncelleme:** 2026-09-17
+**Güncelleme:** 2026-09-21
+
+## Goal kapanış notu — yapılamayan dış kanıtlar (2026-09-21)
+
+Aşağıdaki maddeler bu çalışma ortamında tamamlanamadı; eksik olan şey kod değil,
+gerçek dış sistem/operatör kanıtıdır:
+
+- ADR-0195 browser E2E: imzalı, harici extension manifesti ve staging HTTPS
+  entrypoint’i sağlanmadı.
+- S3-compatible provider sertifikasyonu: gerçek endpoint, IAM erişimi, bucket ve
+  KMS/retention politikası sağlanmadı; lokal mock sertifika yerine geçmez.
+- Canlı deployment tatbikatı: reverse-proxy arkasında iki prosesli blue/green
+  restart/rollback ortamı yok.
+- Harici backup/key escrow: temiz müşteri-benzeri hedef, anahtar kurtarma ve
+  erişim-kaybı senaryosu çalıştırılamadı.
+- Redis failover/partition/clock-skew ve uzun süreli kapasite: çok düğümlü
+  staging Redis/Valkey topolojisi yok.
+- İzole canlı müşteri pilotu: yazılı müşteri kapsamı, staging erişimi, destek
+  sahibi ve RPO/RTO ölçüm verisi sağlanmadı.
+
+Bu maddeler için yerel test veya disposable WSL çalışması “production certified”
+kanıtı olarak sayılmadı. Gerekli erişimler sağlanınca her madde kendi runbook ve
+validation kaydıyla kapatılmalıdır.
 
 Bu liste “yapılmadı” ile “kullanıcı/operatör ortamı olmadan yapılamaz” ayrımını korur.
 Bir madde için kanıt yoksa production-ready kabul edilmez. CI kotası tükenmişse CI sonucu
