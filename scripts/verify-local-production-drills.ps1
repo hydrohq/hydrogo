@@ -62,6 +62,12 @@ if ($env:HYDRO_RUN_WSL_POSTGRES -eq "1") {
     }
 }
 
+if ($env:HYDRO_RUN_WSL_REDIS -eq "1") {
+    Invoke-Drill "disposable WSL Redis distributed admission/race drill" {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "scripts\verify-wsl-redis-drill.ps1")
+    }
+}
+
 Add-Content -LiteralPath $report -Value "" -Encoding utf8
 Add-Content -LiteralPath $report -Value "## Still external to this local drill" -Encoding utf8
 Add-Content -LiteralPath $report -Value "- Reverse-proxy two-process deployment and rollback" -Encoding utf8

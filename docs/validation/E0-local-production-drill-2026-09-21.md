@@ -27,6 +27,10 @@ completed SQLite, backup/release/portable, cache rollback, and disposable WSL
 PostgreSQL drills in one report. The temporary database was dropped after the
 run.
 
+With both `HYDRO_RUN_WSL_POSTGRES=1` and `HYDRO_RUN_WSL_REDIS=1`, the aggregate
+runner additionally passed the disposable Redis distributed-admission/race
+drill and cleaned up both temporary services.
+
 ## Still external
 
 This does not certify a real reverse-proxy/process restart rollback, external
