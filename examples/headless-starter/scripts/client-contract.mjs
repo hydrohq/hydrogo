@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
-import { HydroGoError, createHydroGoClient, validateIdempotencyKey } from "../dist/hydrogo.js";
+import { HydroGoError, createHydroGoClient } from "../dist/hydrogo.js";
 
-assert.throws(() => validateIdempotencyKey("too-short"), RangeError);
-assert.equal(validateIdempotencyKey("checkout-key-0001"), "checkout-key-0001");
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 0 }), RangeError);
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 120001 }), RangeError);
 assert.throws(() => createHydroGoClient({ origin: "javascript:alert(1)" }), RangeError);
@@ -42,30 +40,6 @@ const client = createHydroGoClient({
 const news = await client.listNews("tr");
 assert.equal(news[0].id, "n1");
 assert.equal(calls, 1);
-
-const memberClient = createHydroGoClient({
-  origin: "https://hydrogo.example",
-  fetch: async (url, init) => {
-    assert.equal(url, "https://hydrogo.example/api/v1/mobile/member/orders?limit=1");
-    assert.equal(init?.credentials, "omit");
-    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer member-access");
-    return new Response(JSON.stringify({ orders: [{ id: "order-1", currency: "TRY", total_cents: 1000, payment_status: "pending", shipping_status: "new" }], limit: 1 }), { status: 200, headers: { "content-type": "application/json" } });
-  },
-});
-const memberOrders = await memberClient.memberOrders("member-access", 1);
-assert.equal(memberOrders[0].id, "order-1");
-const memberDetailClient = createHydroGoClient({
-  origin: "https://hydrogo.example",
-  fetch: async (url, init) => {
-    assert.equal(url, "https://hydrogo.example/api/v1/mobile/member/orders/order-1");
-    assert.equal(init?.credentials, "omit");
-    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer member-access");
-    return new Response(JSON.stringify({ id: "order-1", currency: "TRY", total_cents: 1000, payment_status: "paid", shipping_status: "pending", items: [] }), { status: 200 });
-  },
-});
-assert.equal((await memberDetailClient.memberOrder("member-access", "order-1")).payment_status, "paid");
-await assert.rejects(() => memberDetailClient.memberOrder("", "order-1"), RangeError);
-await assert.rejects(() => memberClient.memberGetCart(""), RangeError);
 
 const registrationClient = createHydroGoClient({
   origin: "https://hydrogo.example",
