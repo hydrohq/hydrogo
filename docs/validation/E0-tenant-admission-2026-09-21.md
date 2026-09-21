@@ -14,4 +14,8 @@ go test ./internal/security -count=1
 ```
 
 This is a single-process noisy-neighbor boundary. A distributed deployment
-still needs gateway/queue quotas backed by a shared coordination service.
+can now opt into `security.RedisTenantAdmission`, a Redis/Valkey sorted-set
+lease with expiry cleanup and idempotent release, wired through
+`server.Config.DistributedTenantAdmission`. Compact remains process-local by
+default; the live Redis/Valkey multi-instance and partition drill is still an
+external certification gate.
