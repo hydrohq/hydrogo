@@ -181,8 +181,10 @@ and the first Construction Client Edition.
   - [x] E0.9a.2: Deny-by-default project role/capability decision contract.
   - [x] E0.9a.3: Document and daily-report approval state machines with
     project-bound authorization and optimistic-concurrency contracts.
-  - [x] E0.9b: Persisted PostgreSQL/SQLite workflows, scoped authorization,
-    audit trail, migrations and optimistic-concurrency contracts.
+  - [ ] E0.9b: Persisted PostgreSQL/SQLite workflows, scoped authorization,
+    audit trail, migrations and optimistic-concurrency contracts. Document
+    approval persistence is implemented; daily-report and issue persistence
+    remain open.
 - [ ] E0.10: Run a per-customer isolated live pilot, then reconsider shared
   SaaS only with all ADR-0149 production evidence and an explicit new release
   decision.
