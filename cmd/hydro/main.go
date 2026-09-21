@@ -2899,7 +2899,21 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES ($1,$2,$3,'image/png',$4,$5,$6,'public','ready',$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES (?1,?2,?3,'image/png',?4,?5,?6,'public','ready',?7,?7)`, id, storageKey, filename, sizeBytes, width, height, now); err != nil {
 			return fmt.Errorf("seed media asset %s: %w", id, err)
 		}
-		return seedExec(ctx, db, cfg.Database.Dialect, `UPDATE media_assets SET storage_key=$1,original_filename=$2,size_bytes=$3,width=$4,height=$5,visibility='public',status='ready',updated_at=$6 WHERE id=$7`, `UPDATE media_assets SET storage_key=?1,original_filename=?2,size_bytes=?3,width=?4,height=?5,visibility='public',status='ready',updated_at=?6 WHERE id=?7`, storageKey, filename, sizeBytes, width, height, now, id)
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE media_assets SET storage_key=$1,original_filename=$2,size_bytes=$3,width=$4,height=$5,visibility='public',status='ready',updated_at=$6 WHERE id=$7`, `UPDATE media_assets SET storage_key=?1,original_filename=?2,size_bytes=?3,width=?4,height=?5,visibility='public',status='ready',updated_at=?6 WHERE id=?7`, storageKey, filename, sizeBytes, width, height, now, id); err != nil {
+			return err
+		}
+		var storedKey string
+		query := `SELECT storage_key FROM media_assets WHERE id=$1`
+		if cfg.Database.Dialect == database.SQLite {
+			query = `SELECT storage_key FROM media_assets WHERE id=?1`
+		}
+		if err := db.QueryRowContext(ctx, query, id).Scan(&storedKey); err != nil {
+			return fmt.Errorf("seed media asset %s was not persisted: %w", id, err)
+		}
+		if storedKey != storageKey {
+			return fmt.Errorf("seed media asset %s storage key collision: got %q, want %q", id, storedKey, storageKey)
+		}
+		return nil
 	}
 
 	mediaFixtures := []struct {
