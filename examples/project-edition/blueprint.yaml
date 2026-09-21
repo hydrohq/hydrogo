@@ -1,0 +1,13 @@
+name: project
+fields:
+  - name: title
+    type: string
+    required: true
+  - name: status
+    type: enum
+    required: true
+    values: [draft, active, completed]
+  - name: project_code
+    type: string
+    required: true
+

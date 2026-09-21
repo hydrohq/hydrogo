@@ -1,0 +1,19 @@
+version: v0
+name: project
+table: projects
+permissions:
+  - project.read
+  - project.write
+dialects:
+  - postgres
+  - sqlite
+fields:
+  - name: project_code
+    type: string
+    nullable: false
+  - name: status
+    type: string
+    nullable: false
+  - name: title
+    type: string
+    nullable: false

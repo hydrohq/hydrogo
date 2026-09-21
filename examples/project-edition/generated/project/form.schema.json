@@ -1,0 +1,24 @@
+{
+  "id": "project",
+  "title": "Project",
+  "fields": [
+    {
+      "id": "project_code",
+      "type": "text",
+      "label": "ProjectCode",
+      "required": true
+    },
+    {
+      "id": "status",
+      "type": "text",
+      "label": "Status",
+      "required": true
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    }
+  ]
+}
