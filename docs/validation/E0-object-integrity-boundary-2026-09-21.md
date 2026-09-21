@@ -25,6 +25,13 @@ keys, with a 1-second to 15-minute expiry. It rejects final object keys. The
 URL does not imply readiness, does not set public visibility, and still needs
 an authorized completion workflow plus `VerifyObject` before promotion.
 
+`media.Service.PrepareQuarantineUpload` selects an opaque random key on the
+server and prefixes it with the validated tenant namespace when present. The
+browser never selects a final key. The method deliberately creates no media
+asset row and cannot mark a row ready; the later completion endpoint must bind
+the pending record, checksum expectation, actor authorization and promotion in
+one reviewed workflow.
+
 ## Command run
 
 ```text
