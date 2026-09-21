@@ -57,6 +57,19 @@ func Validate(topic string, version int) error {
 	return ErrUnknownEvent
 }
 
+// TopicPolicy returns whether a topic is published and whether any published
+// version carries PII. Subscription configuration is topic-based, so a PII
+// classification on any version requires an explicit consumer opt-in.
+func TopicPolicy(topic string) (known, pii bool) {
+	for _, definition := range definitions {
+		if definition.Topic == topic {
+			known = true
+			pii = pii || definition.PII
+		}
+	}
+	return known, pii
+}
+
 // CompareBaseline rejects removals and PII classification changes for already
 // published topic/version pairs. New entries are additive. Payload shape is
 // intentionally not inferred here: producers must version it rather than

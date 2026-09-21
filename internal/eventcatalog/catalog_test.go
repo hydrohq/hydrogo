@@ -19,6 +19,18 @@ func TestCatalogAcceptsOnlyPublishedTopicVersions(t *testing.T) {
 	}
 }
 
+func TestTopicPolicyRequiresKnownTopicAndIdentifiesPII(t *testing.T) {
+	if known, pii := TopicPolicy("user.invited"); !known || !pii {
+		t.Fatalf("user.invited policy = known:%v pii:%v", known, pii)
+	}
+	if known, pii := TopicPolicy("page.published"); !known || pii {
+		t.Fatalf("page.published policy = known:%v pii:%v", known, pii)
+	}
+	if known, pii := TopicPolicy("unknown"); known || pii {
+		t.Fatalf("unknown policy = known:%v pii:%v", known, pii)
+	}
+}
+
 func TestExportJSONIsVersionedAndDeterministic(t *testing.T) {
 	first, err := ExportJSON()
 	if err != nil {
