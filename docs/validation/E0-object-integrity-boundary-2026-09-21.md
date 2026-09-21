@@ -19,6 +19,12 @@ The function deliberately does not mark metadata `ready`; the owning workflow
 must run it before its transactional status transition. A failed verification
 leaves the pending/quarantine object outside public readiness.
 
+`S3BlobStore.PresignedQuarantineUploadURL` additionally exposes a direct PUT
+capability only for `quarantine/...` or `tenants/{tenant}/quarantine/...`
+keys, with a 1-second to 15-minute expiry. It rejects final object keys. The
+URL does not imply readiness, does not set public visibility, and still needs
+an authorized completion workflow plus `VerifyObject` before promotion.
+
 ## Command run
 
 ```text
