@@ -158,6 +158,8 @@ and the first Construction Client Edition.
     private-media authorization and real S3-compatible provider certification.
     - [x] E0.8b.1: S3-compatible provider emits bounded presigned PUT URLs only
       for `quarantine/` (including tenant-scoped quarantine) object keys.
+    - [x] E0.8b.2: Media service issues opaque server-generated, tenant-scoped
+      quarantine upload intents; clients do not choose final object keys.
 - [ ] E0.9: Build the Construction MVP as an external Edition: organization
   hierarchy, project roles, revisioned documents, daily reports, issues, and
   approval workflow. Financial ledger, payroll, invoicing, procurement, and
