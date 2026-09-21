@@ -12,15 +12,20 @@ var migrationFiles embed.FS
 
 func TestProjectMigrationContract(t *testing.T) {
 	sql, err := migrationFiles.ReadFile("migration.sql")
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	text := string(sql)
 	if !strings.Contains(text, "CREATE TABLE projects") || strings.Contains(strings.ToUpper(text), "DROP TABLE") || strings.Contains(strings.ToUpper(text), "DELETE FROM") {
 		t.Fatalf("migration is missing its additive table or contains destructive SQL: %s", text)
 	}
 	metadata, err := migrationFiles.ReadFile("migration.yaml")
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, marker := range []string{"sqlite: expand", "postgres: expand", "checksum_sha256:", "rollback:"} {
-		if !strings.Contains(string(metadata), marker) { t.Fatalf("migration metadata missing %q", marker) }
+		if !strings.Contains(string(metadata), marker) {
+			t.Fatalf("migration metadata missing %q", marker)
+		}
 	}
 }
-

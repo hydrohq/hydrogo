@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/format"
 	"html"
 	"os"
 	"path/filepath"
@@ -239,6 +240,14 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"RUNTIME_WIRING.md":   renderRuntimeWiring(spec),
 	}
 	for name, content := range files {
+		if filepath.Ext(name) == ".go" {
+			formatted, err := format.Source([]byte(content))
+			if err != nil {
+				return Lock{}, fmt.Errorf("format generated Go artifact %s: %w", name, err)
+			}
+			content = string(formatted)
+			files[name] = content
+		}
 		path := filepath.Join(generatedCollection, name)
 		var err error
 		if name == "migration.sql" {

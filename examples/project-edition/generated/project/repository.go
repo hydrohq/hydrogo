@@ -2,43 +2,45 @@
 package generated
 
 import (
-    "context"
-    "database/sql"
-    "fmt"
+	"context"
+	"database/sql"
+	"fmt"
 )
 
 // ProjectRepository is a reviewable CRUD boundary; no runtime DDL is emitted.
 type ProjectRepository struct {
-    DB *sql.DB
-    Dialect string
+	DB      *sql.DB
+	Dialect string
 }
 
 func (r ProjectRepository) Get(ctx context.Context, id string) (Project, error) {
-    var item Project
-    dialect := r.Dialect
-    err := r.DB.QueryRowContext(ctx, "SELECT id, project_code, status, title FROM projects WHERE id = "+placeholder(dialect, 1), id).Scan(&item.ID, &item.ProjectCode, &item.Status, &item.Title)
-    return item, err
+	var item Project
+	dialect := r.Dialect
+	err := r.DB.QueryRowContext(ctx, "SELECT id, project_code, status, title FROM projects WHERE id = "+placeholder(dialect, 1), id).Scan(&item.ID, &item.ProjectCode, &item.Status, &item.Title)
+	return item, err
 }
 
 func (r ProjectRepository) Create(ctx context.Context, item Project) error {
-    dialect := r.Dialect
-	_, err := r.DB.ExecContext(ctx, "INSERT INTO projects (id, project_code, status, title) VALUES (" + placeholder(dialect, 1) + ", " + placeholder(dialect, 2) + ", " + placeholder(dialect, 3) + ", " + placeholder(dialect, 4) + ")", item.ID, item.ProjectCode, item.Status, item.Title)
-    return err
+	dialect := r.Dialect
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO projects (id, project_code, status, title) VALUES ("+placeholder(dialect, 1)+", "+placeholder(dialect, 2)+", "+placeholder(dialect, 3)+", "+placeholder(dialect, 4)+")", item.ID, item.ProjectCode, item.Status, item.Title)
+	return err
 }
 
 func (r ProjectRepository) Update(ctx context.Context, item Project) error {
-    dialect := r.Dialect
-	_, err := r.DB.ExecContext(ctx, "UPDATE projects SET " + "project_code = " + placeholder(dialect, 1) + ", " + "status = " + placeholder(dialect, 2) + ", " + "title = " + placeholder(dialect, 3) + " WHERE id = " + placeholder(dialect, 4), item.ProjectCode, item.Status, item.Title, item.ID)
-    return err
+	dialect := r.Dialect
+	_, err := r.DB.ExecContext(ctx, "UPDATE projects SET "+"project_code = "+placeholder(dialect, 1)+", "+"status = "+placeholder(dialect, 2)+", "+"title = "+placeholder(dialect, 3)+" WHERE id = "+placeholder(dialect, 4), item.ProjectCode, item.Status, item.Title, item.ID)
+	return err
 }
 
 func (r ProjectRepository) Delete(ctx context.Context, id string) error {
-    dialect := r.Dialect
-    _, err := r.DB.ExecContext(ctx, "DELETE FROM projects WHERE id = "+placeholder(dialect, 1), id)
-    return err
+	dialect := r.Dialect
+	_, err := r.DB.ExecContext(ctx, "DELETE FROM projects WHERE id = "+placeholder(dialect, 1), id)
+	return err
 }
 
 func placeholder(dialect string, position int) string {
-    if dialect == "postgres" { return fmt.Sprintf("$%d", position) }
-    return "?"
+	if dialect == "postgres" {
+		return fmt.Sprintf("$%d", position)
+	}
+	return "?"
 }

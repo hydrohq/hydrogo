@@ -3,4 +3,3 @@ package custom
 
 // Add tenant ownership, workflow transitions, and role checks here.
 // Generated artifacts under generated/project remain machine-owned.
-
