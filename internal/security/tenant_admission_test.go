@@ -3,6 +3,8 @@ package security
 import (
 	"context"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -33,4 +35,21 @@ func TestTenantAdmissionSeparatesCapacityAndFailsClosed(t *testing.T) {
 	}
 	a.Release(ctx)
 	a.Release(ctxB)
+}
+
+func TestTenantAdmissionMiddlewareReturns429AtCapacity(t *testing.T) {
+	a := &TenantAdmission{PerTenant: 1}
+	scope, _ := tenant.NewScope("tenant-a", "a")
+	ctx := tenant.WithScope(context.Background(), scope)
+	if err := a.Acquire(ctx); err != nil {
+		t.Fatal(err)
+	}
+	h := a.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	req := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
+	res := httptest.NewRecorder()
+	h.ServeHTTP(res, req)
+	if res.Code != http.StatusTooManyRequests {
+		t.Fatalf("status=%d", res.Code)
+	}
+	a.Release(ctx)
 }
