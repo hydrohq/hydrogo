@@ -248,6 +248,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0210](0210-blueprint-scaffold-boundary.md) | Blueprint-driven scaffold boundary | Accepted |
 | [0211](0211-declarative-module-resource-contract.md) | Declarative module resource contract | Accepted |
 | [0212](0212-embedded-release-assets.md) | Embedded release-owned assets | Accepted |
+| [0213](0213-generated-transport-composition.md) | Generated transport composition boundary | Accepted |
 | [0201](0201-tenant-registry-provisioning-and-bootstrap-backfill.md) | Tenant registry, idempotent provisioning, and bootstrap backfill | Accepted |
 | [0202](0202-core-client-edition-and-construction-pilot.md) | Core/Client Edition boundary and Construction pilot | Accepted |
 | [0203](0203-versioned-event-catalog.md) | Versioned event catalog | Accepted |
