@@ -16,6 +16,7 @@
     "index.ts": "a6e7a6c8705ee82c56e83bce6b18dc3a6eff594a72f3794b23876eb737f7e9ff",
     "kits.ts": "7b2b60b0b4825c33aedba37fba8ddbcadde2f04a85b4ec77f152193c644d8848",
     "migration.sql": "70062fac0394ca610327ea817e93ef4310e84433d3bc3cc7c15a19eb715f5d5d",
+    "migration.yaml": "5358e60ac54b7bbd99882c0e4f220ffab2b24b949de22be6c700f3d70f31da33",
     "model.go": "0e5f0715b92d01888a7d23fd1adf40d5008e05bccdee4559161eaf2cf542c1c5",
     "module.yaml": "8b1e02158f5b2797d0266efa9b35b85ee19336f9dfef27db7c7a419b18d92841",
     "openapi.json": "d5e5ce513d62454da3cd4402bd233edbd669b4da5ac5513badad504deb161b4a",

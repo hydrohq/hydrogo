@@ -228,6 +228,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"kits.ts":             renderKitManifest(spec),
 		"index.ts":            renderFrontendIndex(),
 		"migration.sql":       renderMigration(spec),
+		"migration.yaml":      renderMigrationMetadata(spec),
 		"contract_test.go":    renderContractTest(spec),
 		"fixture_test.go":     renderFixtureTest(spec),
 		"admin_manifest.json": renderAdminManifest(spec),
@@ -1072,6 +1073,13 @@ func renderMigration(spec Spec) string {
 	}
 	b.WriteString("\n);\n")
 	return b.String()
+}
+
+func renderMigrationMetadata(spec Spec) string {
+	sql := renderMigration(spec)
+	digest := sha256.Sum256([]byte(sql))
+	checksum := hex.EncodeToString(digest[:])
+	return fmt.Sprintf("id: generated_%s\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: []\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 1\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, checksum, checksum, "Additive generated table; review indexes, RLS, and tenant policy before enabling.", "No production down migration; restore or forward migration only.")
 }
 
 func fieldArgs(fields []Field) []string {
