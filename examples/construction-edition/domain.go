@@ -98,11 +98,10 @@ func ValidateProjectMembership(value ProjectMembership) error {
 	}
 }
 
-// CanProject performs a deny-by-default decision for one already scoped
-// project membership. Callers must still verify that the membership belongs to
-// the requested project; a role string alone is never authorization.
-func CanProject(membership ProjectMembership, capability ProjectCapability) bool {
-	if ValidateProjectMembership(membership) != nil {
+// CanProject performs a deny-by-default decision for the requested project.
+// A role string or membership from another project is never authorization.
+func CanProject(projectID string, membership ProjectMembership, capability ProjectCapability) bool {
+	if strings.TrimSpace(projectID) == "" || projectID != membership.ProjectID || ValidateProjectMembership(membership) != nil {
 		return false
 	}
 	switch membership.Role {
