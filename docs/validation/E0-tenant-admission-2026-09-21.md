@@ -43,3 +43,5 @@ The lease release path additionally passes the WSL CGO race detector for the
 distributed admission tests.
 The full `internal/security` package also passes `-race` against a temporary
 live Redis daemon with `HYDRO_TEST_REDIS_URL` configured.
+Lease configuration rejects sub-millisecond TTLs so Redis cannot silently
+convert a positive duration into an immediately expired lease.
