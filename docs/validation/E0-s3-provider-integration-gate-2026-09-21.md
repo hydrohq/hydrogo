@@ -12,6 +12,7 @@ secret key, and bucket (with optional region, TLS, and path-style settings).
 
 - object PUT into the quarantine namespace;
 - GET and byte-for-byte round-trip verification;
+- provider-read SHA-256/size verification through `VerifyObject`;
 - short-lived presigned quarantine PUT over HTTP, followed by provider GET;
 - one-minute presigned GET over HTTP;
 - cleanup with DELETE.
