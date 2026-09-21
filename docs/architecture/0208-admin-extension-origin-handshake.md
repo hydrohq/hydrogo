@@ -24,8 +24,8 @@ channel authorization on every request.
 
 `allow-same-origin` is therefore not a trust grant to HydroGo. It is a browser
 compatibility requirement for the external origin that ADR-0195 already treats
-as the trust-boundary input. Same-origin extension entrypoints remain rejected
-by manifest validation and must never be deployed as a substitute for the
+as the trust-boundary input. Same-origin extension entrypoints are rejected by
+the host request boundary and must never be deployed as a substitute for the
 external-origin model.
 
 ## Consequences
