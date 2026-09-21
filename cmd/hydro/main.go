@@ -2911,7 +2911,10 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		{"demo-media-hero-showcase", "hero-showcase.png", 800, 450, 15, 23, 42},
 		{"demo-media-news-1", "news-2-0.png", 800, 450, 37, 99, 235},
 		{"demo-media-news-2", "news-guide.png", 800, 450, 14, 116, 144},
-		{"demo-media-news-3", "news-security.png", 800, 450, 15, 23, 42},
+		// Keep the generated payload distinct from hero-showcase; storage keys
+		// are content hashes and duplicate bytes would be ignored by the
+		// unique-key constraint, silently dropping this fixture.
+		{"demo-media-news-3", "news-security.png", 800, 450, 16, 24, 43},
 		{"demo-media-news-4", "news-db.png", 800, 450, 79, 70, 229},
 		{"demo-media-news-5", "news-jobs.png", 800, 450, 5, 150, 105},
 		{"demo-media-news-6", "news-cache.png", 800, 450, 217, 119, 6},
