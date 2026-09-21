@@ -3413,6 +3413,7 @@ Usage:
   hydro tenant provision --tenant-id ID --admin-email EMAIL --admin-password-stdin [runtime flags]
   hydro tenant backfill (--tenant-id ID|--active) [--dry-run|--confirm] [runtime flags]
   hydro tenant list [runtime flags]
+  hydro events catalog
   hydro module create --spec SPEC --out OUTPUT
   hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
