@@ -142,6 +142,11 @@ and the first Construction Client Edition.
   evidence.
 - [ ] E0.5: Add a provider-neutral OpenTelemetry boundary with bounded
   sampling/export, PII redaction, and Compact-off behavior.
+  - [x] E0.5a: HTTP tracing attributes are exporter-tested to exclude query,
+    authorization header and cookie secrets while retaining bounded path and
+    request correlation.
+  - [ ] E0.5b: Operator-owned exporter adapter with sampling, timeout, retry
+    and production failure-behavior certification.
 - [ ] E0.6: Productize generated TypeScript SDK output and API compatibility
   checks without turning a generated client into a Core runtime dependency.
 - [x] E0.7: Implement ADR-0200 only as reviewed spec-to-code generation; no
