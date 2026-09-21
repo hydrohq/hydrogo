@@ -30,9 +30,6 @@ var definitions = []Definition{
 	{Topic: "order.created", PayloadVersion: 1},
 	{Topic: "tenant.provisioned", PayloadVersion: 1},
 	{Topic: "user.invited", PayloadVersion: 1, PII: true},
-	{Topic: "construction.document.approved", PayloadVersion: 1},
-	{Topic: "construction.daily-report.approved", PayloadVersion: 1},
-	{Topic: "construction.issue.created", PayloadVersion: 1},
 }
 
 func Definitions() []Definition { return append([]Definition(nil), definitions...) }

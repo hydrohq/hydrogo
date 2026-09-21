@@ -23,6 +23,10 @@ existing durable outbox, signed webhook, lease, retry, and idempotency path.
 Client Editions may add their own reviewed namespaced events without placing
 their domain vocabulary in Core.
 
+In particular, Construction event names are owned by the separately versioned
+Construction Edition. They are not Core catalog entries and cannot become
+mandatory outbox vocabulary for unrelated Editions.
+
 ## Validation
 
 - Unit tests reject unknown topics and versions.
