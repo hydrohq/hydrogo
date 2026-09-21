@@ -4,6 +4,8 @@
 quota per tenant, rejects missing tenant scope, and caps the number of active
 tenant buckets. The contract test proves tenant A cannot consume tenant B's
 slot and that new buckets are denied after the configured bound.
+The recovery contract also proves a canceled waiter does not leak capacity:
+after release, the tenant can acquire a fresh slot again.
 
 ```text
 go test ./internal/security -count=1
