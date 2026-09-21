@@ -7,11 +7,13 @@ The Workspace scaffold flow was exercised against two checked-in examples:
 
 For each edition:
 
-1. `hydro generate scaffold --blueprint ... --out ...` produced 29 reviewable
+1. `hydro generate scaffold --blueprint ... --out ...` produced 30 reviewable
    artifacts under `generated/<collection>` and a `custom/` policy boundary.
 2. `hydro resource check --root ...` passed with the generated lock and SHA-256
    compatibility evidence.
-3. Generated `migration.yaml` records SQLite/PostgreSQL class, transactional
+3. Generated `transport.go` now includes a dependency-injected JSON CRUD
+   handler whose deny-by-default policy boundary is covered by generated tests.
+4. Generated `migration.yaml` records SQLite/PostgreSQL class, transactional
    behavior, checksums, compatibility, and rollback metadata next to the SQL.
    The generated Go contract test embeds both files and rejects missing table
    declarations or `DROP TABLE`/`DELETE FROM` statements; both example

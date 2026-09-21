@@ -23,3 +23,4 @@ func TestArticleMigrationContract(t *testing.T) {
 		if !strings.Contains(string(metadata), marker) { t.Fatalf("migration metadata missing %q", marker) }
 	}
 }
+
