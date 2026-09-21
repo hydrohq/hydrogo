@@ -15,6 +15,7 @@
     "import-export.ts": "1689ca528bee6666d980401bb6569168af25a2e7fa66a730d212ff5b857f3e31",
     "index.ts": "a6e7a6c8705ee82c56e83bce6b18dc3a6eff594a72f3794b23876eb737f7e9ff",
     "kits.ts": "6d3b6afc4779cb6b57efe230724e598ba5e80de5fbb182b5cf31738366d5b2b7",
+    "migration.go": "05eea1f72815cc34a065437a9e968a5bc181f47ffe000f8a24f0160612cbec8b",
     "migration.sql": "518f6cf15b3cd57294c24cbad3963a52dcee329bd08360d77a18b0e1dbd99375",
     "migration.yaml": "6e67567d1eebf0c162dbe99b0a19698ef419587abb7e8bf63376e13890e654d2",
     "model.go": "e9f7d7f60bdcedd9a9dfda1a845aef5853fc160c99166841510f4ea8ab515454",
