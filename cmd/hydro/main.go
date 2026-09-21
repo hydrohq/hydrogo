@@ -137,6 +137,29 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 
 	switch args[0] {
+	case "healthcheck":
+		if len(args) != 1 {
+			return errors.New("healthcheck takes no arguments")
+		}
+		address := os.Getenv("HYDRO_HEALTHCHECK_URL")
+		if address == "" {
+			address = "http://127.0.0.1:8080/healthz"
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("healthcheck returned %s", resp.Status)
+		}
+		return nil
 	case "version":
 		if len(args) == 1 {
 			_, err := fmt.Fprintln(stdout, version)
