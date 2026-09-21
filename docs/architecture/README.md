@@ -254,6 +254,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0202](0202-core-client-edition-and-construction-pilot.md) | Core/Client Edition boundary and Construction pilot | Accepted |
 | [0203](0203-versioned-event-catalog.md) | Versioned event catalog | Accepted |
 | [0204](0204-opentelemetry-observability-boundary.md) | OpenTelemetry observability boundary | Accepted |
+| [0205](0205-webhook-dead-letter-boundary.md) | Webhook dead-letter and retry boundary | Accepted |
+| [0207](0207-postgres-backup-role-boundary.md) | PostgreSQL backup role boundary | Accepted |
 | [0193](0193-release-provenance-sbom-production-readiness.md) | Release provenance, SPDX SBOM & production readiness certification | Accepted |
 | [0143](0143-binary-only-customer-distribution.md) | Binary-only customer distribution | Accepted |
 | [0144](0144-customer-package-source-exclusion.md) | Customer package source exclusion | Accepted |
