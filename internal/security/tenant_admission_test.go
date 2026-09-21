@@ -53,3 +53,22 @@ func TestTenantAdmissionMiddlewareReturns429AtCapacity(t *testing.T) {
 	}
 	a.Release(ctx)
 }
+
+func TestTenantAdmissionCancellationRecoversCapacity(t *testing.T) {
+	a := &TenantAdmission{PerTenant: 1}
+	scope, _ := tenant.NewScope("tenant-recovery", "recovery")
+	ctx := tenant.WithScope(context.Background(), scope)
+	if err := a.Acquire(ctx); err != nil {
+		t.Fatal(err)
+	}
+	canceled, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+	defer cancel()
+	if err := a.Acquire(canceled); err == nil {
+		t.Fatal("expected blocked admission to honor cancellation")
+	}
+	a.Release(ctx)
+	if err := a.Acquire(ctx); err != nil {
+		t.Fatalf("capacity did not recover after cancellation/release: %v", err)
+	}
+	a.Release(ctx)
+}
