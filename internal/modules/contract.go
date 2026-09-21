@@ -13,9 +13,15 @@ import (
 type Manifest struct {
 	ID           string
 	Dependencies []string
+	Routes       []RouteSpec
 	Migrations   []string
 	Assets       []string
 	Workers      []WorkerSpec
+}
+
+type RouteSpec struct {
+	Pattern string
+	Public  bool
 }
 
 type WorkerSpec struct {
