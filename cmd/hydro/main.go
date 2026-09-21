@@ -1311,11 +1311,41 @@ func serve(args []string, stderr io.Writer) error {
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /admin/extensions/{extension_id}/{surface_id}", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
-		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		session := auth.SessionFromContext(r.Context())
+		if user == nil || session == nil || !user.Active || user.Role != auth.RoleAdmin {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		extensionRegistry.ServeExtensionSurface(w, r, r.PathValue("extension_id"), r.PathValue("surface_id"), cfg.I18N.DefaultLocale)
+		principal := adminstudio.ChannelPrincipal{SessionID: session.ID, UserID: user.ID}
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			principal.TenantID = scope.TenantID
+		}
+		extensionRegistry.ServeExtensionSurface(w, r, r.PathValue("extension_id"), r.PathValue("surface_id"), cfg.I18N.DefaultLocale, principal)
+	})})
+	routes = append(routes, router.Route{Pattern: "POST /admin/extensions/channels/bind", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, session := auth.UserFromContext(r.Context()), auth.SessionFromContext(r.Context())
+		if user == nil || session == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		var input struct {
+			ChannelID string `json:"channel_id"`
+			Challenge string `json:"challenge"`
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1024)
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		principal := adminstudio.ChannelPrincipal{SessionID: session.ID, UserID: user.ID}
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			principal.TenantID = scope.TenantID
+		}
+		if err := extensionRegistry.BindChannel(input.ChannelID, input.Challenge, principal); err != nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/admin")

@@ -15,7 +15,7 @@ func TestAdminMessageContractAcceptsBoundedTypedEnvelope(t *testing.T) {
 	if err := payload.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if err := (AdminChannelInitPayload{ExtensionID: "acme-reports", SurfaceID: "sales", Challenge: "challenge-123456789"}).Validate(); err != nil {
+	if err := (AdminChannelInitPayload{ExtensionID: "acme-reports", SurfaceID: "sales", ChannelID: "channel-123456789", Challenge: "challenge-123456789"}).Validate(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -36,7 +36,7 @@ func TestAdminMessageContractRejectsUnknownTypesAndOversizedPayload(t *testing.T
 	if err := (AdminBootstrapPayload{ExtensionID: "x", SurfaceID: "y", Locale: "en\nUS"}).Validate(); !errors.Is(err, ErrInvalidAdminMessage) {
 		t.Fatalf("invalid bootstrap error = %v", err)
 	}
-	if err := (AdminChannelInitPayload{ExtensionID: "x", SurfaceID: "y", Challenge: "short"}).Validate(); !errors.Is(err, ErrInvalidAdminMessage) {
+	if err := (AdminChannelInitPayload{ExtensionID: "x", SurfaceID: "y", ChannelID: "channel-123456789", Challenge: "short"}).Validate(); !errors.Is(err, ErrInvalidAdminMessage) {
 		t.Fatalf("short challenge error = %v", err)
 	}
 }

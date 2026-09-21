@@ -13,6 +13,7 @@ var ErrInvalidAdminExtensionRegistry = errors.New("invalid admin extension regis
 // loads Go plugins or executes customer code inside the HydroGo process.
 type ExtensionRegistry struct {
 	manifests []extensionv1.AdminExtensionManifest
+	channels  *ChannelManager
 }
 
 func NewExtensionRegistry(manifests []extensionv1.AdminExtensionManifest) (ExtensionRegistry, error) {
@@ -27,7 +28,20 @@ func NewExtensionRegistry(manifests []extensionv1.AdminExtensionManifest) (Exten
 		}
 		seen[manifest.ID] = struct{}{}
 	}
-	return ExtensionRegistry{manifests: copyManifests}, nil
+	return ExtensionRegistry{manifests: copyManifests, channels: NewChannelManager()}, nil
+}
+
+func (r ExtensionRegistry) BindChannel(id, challenge string, principal ChannelPrincipal) error {
+	if r.channels == nil {
+		return ErrExtensionChannelDenied
+	}
+	return r.channels.Bind(id, challenge, principal)
+}
+
+func (r ExtensionRegistry) RevokeChannel(id string, principal ChannelPrincipal) {
+	if r.channels != nil {
+		r.channels.Revoke(id, principal)
+	}
 }
 
 func (r ExtensionRegistry) Manifests() []extensionv1.AdminExtensionManifest {
