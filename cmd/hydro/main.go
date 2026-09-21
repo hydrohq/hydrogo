@@ -1347,6 +1347,28 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})})
+	routes = append(routes, router.Route{Pattern: "POST /admin/extensions/channels/revoke", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, session := auth.UserFromContext(r.Context()), auth.SessionFromContext(r.Context())
+		if user == nil || session == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		var input struct {
+			ChannelID string `json:"channel_id"`
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 512)
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.ChannelID == "" {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		principal := adminstudio.ChannelPrincipal{SessionID: session.ID, UserID: user.ID}
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			principal.TenantID = scope.TenantID
+		}
+		// Deliberately idempotent: callers do not learn whether a channel existed.
+		extensionRegistry.RevokeChannel(input.ChannelID, principal)
+		w.WriteHeader(http.StatusNoContent)
+	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/admin")
 		if user := auth.UserFromContext(r.Context()); user != nil && user.Active && user.Role == auth.RoleAdmin {
