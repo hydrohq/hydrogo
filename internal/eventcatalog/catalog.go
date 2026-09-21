@@ -3,6 +3,7 @@
 package eventcatalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -16,6 +17,13 @@ type Definition struct {
 	Topic          string
 	PayloadVersion int
 	PII            bool
+}
+
+// Document is the portable, versioned catalog artifact consumed by webhook and
+// Client Edition tooling. It has no runtime delivery authority.
+type Document struct {
+	Version string       `json:"version"`
+	Events  []Definition `json:"events"`
 }
 
 var definitions = []Definition{
@@ -33,6 +41,12 @@ var definitions = []Definition{
 }
 
 func Definitions() []Definition { return append([]Definition(nil), definitions...) }
+
+// ExportJSON emits the catalog deterministically for operator publication and
+// compatibility review. It does not expose event payloads or subscriptions.
+func ExportJSON() ([]byte, error) {
+	return json.Marshal(Document{Version: "v1", Events: Definitions()})
+}
 
 func Validate(topic string, version int) error {
 	for _, definition := range definitions {

@@ -1,6 +1,8 @@
 package eventcatalog
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"testing"
 )
@@ -14,6 +16,21 @@ func TestCatalogAcceptsOnlyPublishedTopicVersions(t *testing.T) {
 	}
 	if err := Validate("made.up", 1); !errors.Is(err, ErrUnknownEvent) {
 		t.Fatalf("topic = %v", err)
+	}
+}
+
+func TestExportJSONIsVersionedAndDeterministic(t *testing.T) {
+	first, err := ExportJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := ExportJSON()
+	if err != nil || !bytes.Equal(first, second) {
+		t.Fatalf("catalog export changed: %s / %s, err=%v", first, second, err)
+	}
+	var document Document
+	if err := json.Unmarshal(first, &document); err != nil || document.Version != "v1" || len(document.Events) != len(Definitions()) {
+		t.Fatalf("catalog document = %#v, err=%v", document, err)
 	}
 }
 
