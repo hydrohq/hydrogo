@@ -14,6 +14,7 @@ import (
 var ErrAssetRepositoryRequired = errors.New("asset repository is required")
 var ErrAssetListingUnsupported = errors.New("asset repository does not support listing")
 var ErrAssetVisibilityUnsupported = errors.New("asset repository does not support visibility updates")
+var ErrQuarantineCompletion = errors.New("quarantine upload completion is invalid")
 
 type AssetRepository interface {
 	Get(context.Context, database.Executor, string) (Asset, error)
@@ -32,6 +33,10 @@ type AssetListRepository interface {
 // them again.
 type AssetVisibilityRepository interface {
 	SetVisibility(context.Context, database.Executor, string, string) error
+}
+
+type VerifiedAssetRepository interface {
+	MarkReadyVerified(context.Context, database.Executor, string, string, string) error
 }
 
 func (s Service) Get(ctx context.Context, db database.Executor, id string) (Asset, error) {
@@ -130,6 +135,27 @@ func (s Service) MarkReady(ctx context.Context, id, visibility string) error {
 		}
 	}
 	return err
+}
+
+// CompleteQuarantineUpload verifies the provider object before promoting a
+// pending asset. The storage key is supplied by the server-issued intent and
+// must remain inside quarantine until verification succeeds.
+func (s Service) CompleteQuarantineUpload(ctx context.Context, id, objectKey string, expectedSize int64, expectedSHA256, visibility string) error {
+	if s.BlobStore == nil || guards.IsNil(s.Assets) {
+		return ErrQuarantineCompletion
+	}
+	if _, parts, err := validateObjectKey(objectKey); err != nil || !isQuarantineKey(parts) {
+		return ErrQuarantineCompletion
+	}
+	if err := VerifyObject(ctx, s.BlobStore, objectKey, expectedSize, expectedSHA256); err != nil {
+		return err
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if verified, ok := s.Assets.(VerifiedAssetRepository); ok {
+			return verified.MarkReadyVerified(ctx, tx, id, objectKey, visibility)
+		}
+		return s.Assets.MarkReady(ctx, tx, id, visibility)
+	})
 }
 
 func (s Service) SetVisibility(ctx context.Context, id, visibility string) error {

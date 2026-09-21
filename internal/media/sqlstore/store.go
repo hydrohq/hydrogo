@@ -253,6 +253,37 @@ func (s Store) MarkReady(ctx context.Context, tx database.Executor, id, visibili
 	return nil
 }
 
+func (s Store) MarkReadyVerified(ctx context.Context, tx database.Executor, id, storageKey, visibility string) error {
+	scope, scoped, err := s.scope(ctx)
+	if err != nil {
+		return err
+	}
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	if visibility != media.VisibilityPrivate && visibility != media.VisibilityPublic {
+		return media.ErrInvalidVisibility
+	}
+	query := "UPDATE media_assets SET status = 'ready', visibility = " + s.p(1) + ", updated_at = " + s.p(2) + " WHERE id = " + s.p(3) + " AND storage_key = " + s.p(4) + " AND status = 'pending'"
+	args := []any{visibility, time.Now().UTC().Format(time.RFC3339Nano), id, storageKey}
+	if scoped {
+		query += " AND tenant_id=" + s.p(5)
+		args = append(args, scope.TenantID)
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return media.ErrAssetState
+	}
+	return nil
+}
+
 func (s Store) SetVisibility(ctx context.Context, tx database.Executor, id, visibility string) error {
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
