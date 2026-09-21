@@ -1,5 +1,5 @@
 profile: compact
-modules: [core, auth, pages, media, site, news, commerce]
+modules: [core, auth, pages, media, site, news]
 http:
   address: "127.0.0.1:8080"
   public_origin: ""

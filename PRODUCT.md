@@ -8,15 +8,15 @@ web
 
 ## Users
 
-Assumption for this redesign: public visitors evaluating HydroGo and browsing its articles/store, plus content and commerce teams operating the Studio panel.
+Assumption for this redesign: public visitors evaluating HydroGo and browsing its articles, plus content teams operating the Studio panel.
 
 ## Product Purpose
 
-HydroGo is a modular content and commerce platform for managing pages, news, media, products, variants, stock, members, and orders from one Go-based system. Success means visitors understand the product quickly and teams can operate content and commerce flows without visual or cognitive friction.
+HydroGo is a modular content platform for managing pages, news, media and members from one Go-based system. Success means visitors understand the product quickly and teams can operate content flows without visual or cognitive friction.
 
 ## Positioning
 
-HydroGo combines a contract-driven Go core with SQLite/PostgreSQL portability and modular content, news, commerce, and member capabilities in one platform.
+HydroGo combines a contract-driven Go core with SQLite/PostgreSQL portability and modular content, news and member capabilities in one platform.
 
 ## Operating Context
 
@@ -24,7 +24,7 @@ The public web surface is read on desktop and mobile. Editors and store operator
 
 ## Capabilities and Constraints
 
-- Public pages, news index/detail, shop/catalog, cart, member login/account, and protected Studio routes already exist.
+- Public pages, news index/detail, member login/account, and protected Studio routes already exist.
 - Preserve existing routes, content, accessibility semantics, security headers, and responsive behavior.
 - Do not invent customer logos, testimonials, benchmarks, prices, or production payment claims.
 - Keep the theme dependency-free and compatible with the existing server-rendered templates.
@@ -35,12 +35,12 @@ Preserve the HydroGo name, layered cube mark, Turkish-first copy, and direct pro
 
 ## Evidence on Hand
 
-Real templates and styles live under `themes/corporate/`; demo content is seeded by the development server and rendered through the public page/news/shop routes. No external brand asset pack is present.
+Real templates and styles live under `themes/corporate/`; demo content is seeded by the development server and rendered through the public page/news routes. No external brand asset pack is present.
 
 ## Product Principles
 
 1. Make the product mechanism understandable before making it decorative.
-2. Give content and commerce equal visual credibility.
+2. Give content workflows clear visual credibility.
 3. Prefer honest evidence and clear actions over invented marketing proof.
 4. Keep scanning, reading, and operating fast on small screens.
 

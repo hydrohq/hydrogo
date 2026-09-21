@@ -10,17 +10,14 @@ import (
 func TestServeHTTPAcceptsReadOnlyQuery(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/graphql", strings.NewReader(`{"query":"{ __typename }"}`))
 	res := httptest.NewRecorder()
-	(Handler{Commerce: true}).ServeHTTP(res, req)
+	(Handler{PagesEnabled: true}).ServeHTTP(res, req)
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"data"`) {
 		t.Fatalf("response = %d %s", res.Code, res.Body.String())
 	}
 }
 
 func TestSchemaOmitsDisabledModuleFields(t *testing.T) {
-	for name, handler := range map[string]Handler{
-		"pages-only":    {PagesEnabled: true},
-		"commerce-only": {Commerce: true},
-	} {
+	for name, handler := range map[string]Handler{"pages-only": {PagesEnabled: true}} {
 		schema, err := handler.schema()
 		if err != nil {
 			t.Fatalf("%s schema: %v", name, err)
@@ -29,8 +26,8 @@ func TestSchemaOmitsDisabledModuleFields(t *testing.T) {
 		if _, ok := fields["page"]; ok != handler.PagesEnabled {
 			t.Fatalf("%s page field presence=%v, enabled=%v", name, ok, handler.PagesEnabled)
 		}
-		if _, ok := fields["products"]; ok != handler.Commerce {
-			t.Fatalf("%s products field presence=%v, enabled=%v", name, ok, handler.Commerce)
+		if _, ok := fields["products"]; ok {
+			t.Fatalf("%s unexpectedly exposes products", name)
 		}
 	}
 }

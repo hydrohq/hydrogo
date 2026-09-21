@@ -6,7 +6,6 @@ set -euo pipefail
 targets=(
   "internal/auth/sqlstore:4.0"
   "modules/members/transport:45.0"
-  "modules/commerce/providers:43.0"
   "modules/api/graphql:65.0"
 )
 tmp_root="${TMPDIR:-/tmp}/hydrogo-risk-coverage-$$"

@@ -1,6 +1,6 @@
 # ADR-0031: Bounded commerce reservation expiry
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0199
 - **Date:** 2026-09-12
 - **Related decisions:** [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0017](0017-commerce-consistency-and-payments.md), [ADR-0029](0029-commerce-customer-capability-boundary.md)
 

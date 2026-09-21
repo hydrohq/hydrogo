@@ -13,7 +13,7 @@ import (
 )
 
 func TestGenerateAllPresets(t *testing.T) {
-	presets := []string{"news", "commerce", "corporate", "portal", "headless"}
+	presets := []string{"news", "corporate", "portal", "headless"}
 
 	for _, preset := range presets {
 		t.Run(preset, func(t *testing.T) {
@@ -233,7 +233,7 @@ func TestGenerateNormalizesBuildOptions(t *testing.T) {
 
 func TestPresetFrontendRoutesAreDeterministicAndCovered(t *testing.T) {
 	tests := map[string][]string{
-		"news": {"home", "news_room", "member_login"}, "commerce": {"home", "shop", "cart"},
+		"news":      {"home", "news_room", "member_login"},
 		"corporate": {"home"}, "portal": {"home"}, "headless": {"home"},
 	}
 	for preset, wantNames := range tests {

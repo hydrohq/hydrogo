@@ -151,7 +151,7 @@ func Generate(opts Options) (string, error) {
 	// generated lockfile cannot disagree about mixed-case CLI input.
 	opts.Preset = strings.ToLower(strings.TrimSpace(opts.Preset))
 	if !isPreset(opts.Preset) {
-		return "", fmt.Errorf("%w: %q (supported: news, editorial, commerce, membership, dashboard, erp, compact-site, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
+		return "", fmt.Errorf("%w: %q (supported: news, editorial, membership, dashboard, erp, compact-site, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
 	}
 	if opts.Profile == "" {
 		opts.Profile = "compact"
@@ -367,7 +367,7 @@ export interface FormDefinition { id: string; title: string; fields: FormField[]
 export interface SearchQuery { text: string; locale?: string; limit?: number; offset?: number; }
 export interface SearchResult { id: string; score: number; title: string; snippet?: string; }
 export interface SearchResponse { items: SearchResult[]; total: number; }
-export type CapabilityKit = 'localization' | 'media' | 'seo' | 'forms' | 'redirects' | 'search' | 'commerce';
+export type CapabilityKit = 'localization' | 'media' | 'seo' | 'forms' | 'redirects' | 'search';
 export interface AnalyticsConsent { decision: 'rejected' | 'granted' | 'revoked'; purpose_version: string; decided_at: string; revoked_at?: string; }
 export type AnalyticsEvent = { type: 'page_view' | 'session_duration' | 'country_visit'; day: string; country?: string; duration_seconds?: number; };
 `
@@ -375,7 +375,7 @@ export type AnalyticsEvent = { type: 'page_view' | 'session_duration' | 'country
 
 func isPreset(value string) bool {
 	switch strings.ToLower(value) {
-	case "news", "editorial", "commerce", "membership", "dashboard", "erp", "compact-site", "corporate", "portal", "headless":
+	case "news", "editorial", "membership", "dashboard", "erp", "compact-site", "corporate", "portal", "headless":
 		return true
 	default:
 		return false
@@ -386,8 +386,6 @@ func presetTheme(preset string) string {
 	switch strings.ToLower(preset) {
 	case "news", "editorial":
 		return "newsroom"
-	case "commerce":
-		return "commerce"
 	case "membership":
 		return "portal"
 	case "dashboard", "erp":
@@ -405,14 +403,12 @@ func presetFeatures(preset string) []string {
 	switch strings.ToLower(preset) {
 	case "news", "editorial":
 		return []string{"pages", "news", "media", "members", "site"}
-	case "commerce":
-		return []string{"pages", "commerce", "media", "members", "site"}
 	case "membership":
 		return []string{"pages", "members", "media", "site"}
 	case "dashboard":
 		return []string{"pages", "members", "media"}
 	case "erp":
-		return []string{"pages", "commerce", "members", "media", "site", "jobs"}
+		return []string{"pages", "members", "media", "site", "jobs"}
 	case "portal":
 		return []string{"pages", "news", "media", "members", "site"}
 	case "headless":
@@ -1100,11 +1096,6 @@ func presetFrontendRoutes(preset string) []map[string]any {
 		routes = append(routes,
 			map[string]any{"name": "news_room", "path": "/public/news/tr/html", "public": true, "test_id": "news-feed"},
 			map[string]any{"name": "member_login", "path": "/member/login", "public": true, "test_id": "member-login"},
-		)
-	case "commerce", "erp":
-		routes = append(routes,
-			map[string]any{"name": "shop", "path": "/shop", "public": true, "test_id": "product-catalog"},
-			map[string]any{"name": "cart", "path": "/cart", "public": true, "test_id": "shopping-cart"},
 		)
 	case "membership":
 		routes = append(routes, map[string]any{"name": "member_login", "path": "/member/login", "public": true, "test_id": "member-login"})

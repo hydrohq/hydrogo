@@ -18,9 +18,7 @@
   "frontend": {
     "routes": [
       {"name": "home", "path": "/public/pages/tr/demo/html", "public": true, "test_id": "public-page"},
-      {"name": "shop", "path": "/shop", "public": true, "test_id": "public-shop"},
       {"name": "news", "path": "/public/news/tr/html", "public": true, "test_id": "public-news"},
-      {"name": "product", "path": "/shop/products/demo-bottle", "public": true, "test_id": "public-product"},
       {"name": "member login", "path": "/member/login", "public": true, "test_id": "member-auth"}
     ]
   },
@@ -32,7 +30,7 @@
     "corporate": {
       "version": "1.0.0",
       "assets": {
-        "theme.css": {"bytes": 72843, "sha256": "d986ae3d766be283a136830d6da6a9e4425be10eb6ba23daf8ef951682e7ea66"},
+        "theme.css": {"bytes": 86197, "sha256": "b2b2406606b513022690beb9337cb88522f22a3857280140d7ed5f991ba89c9a"},
         "theme.js": {"bytes": 18240, "sha256": "60d7340a209909ac69d88785cdfef48356edab1cffe6606d93a95b59ae3fa65e"}
       }
     }

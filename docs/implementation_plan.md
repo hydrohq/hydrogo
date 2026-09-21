@@ -23,7 +23,7 @@ The initial release focuses solely on proving the following result:
 - Database and media can be backed up together and restored to a clean installation.
 - Customer view customizations are validated at compile or startup time.
 
-The first commercial product is the Site Edition; scope and pilot/v1/Distributed separation are in [ADR-0009](architecture/0009-site-edition-and-delivery-scope.md). Form Builder, e-commerce, and AI are subsequent scopes. SQLite provides fast local development; PostgreSQL contract tests start from the first Pages slice and are completed before the stable v1. MySQL and other engines are added with adapter certification upon real demand.
+The first commercial product is the Site Edition; scope and pilot/v1/Distributed separation are in [ADR-0009](architecture/0009-site-edition-and-delivery-scope.md). Form Builder, e-commerce, and AI are subsequent scopes. Commerce is explicitly deferred under [ADR-0199](architecture/0199-commerce-deferral-and-runtime-removal.md). SQLite provides fast local development; PostgreSQL contract tests start from the first Pages slice and are completed before the stable v1. MySQL and other engines are added with adapter certification upon real demand.
 
 ## 2. Core architectural decisions
 

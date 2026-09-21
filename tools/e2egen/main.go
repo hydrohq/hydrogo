@@ -185,9 +185,9 @@ func render(m manifest) string {
 	b.WriteString(";\n\n")
 	b.WriteString("test.describe('HydroGo generated frontend', () => {\n")
 	for _, r := range routes {
-		intermediatePath, intermediateTestID := "/shop", "public-shop"
+		intermediatePath, intermediateTestID := "/public/news/tr/html", "public-news"
 		if r.Path == intermediatePath {
-			intermediatePath, intermediateTestID = "/public/news/tr/html", "public-news"
+			intermediatePath, intermediateTestID = "/public/pages/tr/demo/html", "public-page"
 		}
 		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    await expect(page.locator('[data-testid=%q]')).toBeAttached();\n    await expect(page).toHaveTitle(/\\S+/);\n    await expect(page.locator('main')).toBeAttached();\n  });\n", "frontend: "+r.Name, r.Path, r.TestID))
 		b.WriteString(fmt.Sprintf("  test(%q, async ({ page }) => {\n    await page.goto(`${baseURL}%s`);\n    const unnamed = await page.locator('a,button,input,select,textarea').evaluateAll((elements) => elements.filter((element) => {\n      const html = element as HTMLElement;\n      if (html.hidden || getComputedStyle(html).display === 'none' || getComputedStyle(html).visibility === 'hidden') return false;\n      if (element instanceof HTMLInputElement && element.type === 'hidden') return false;\n      const label = element.id ? document.querySelector(`label[for=\\\"${CSS.escape(element.id)}\\\"]`)?.textContent : element.closest('label')?.textContent;\n      return ![element.getAttribute('aria-label'), element.getAttribute('title'), element.getAttribute('placeholder'), element.textContent, label].some((value) => value?.trim());\n    }).length);\n    console.log('unnamed controls', unnamed);\n    expect(unnamed).toBe(0);\n  });\n", "frontend accessible names: "+r.Name, r.Path))

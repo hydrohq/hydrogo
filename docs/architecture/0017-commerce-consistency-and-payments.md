@@ -1,6 +1,6 @@
 # ADR-0017: Commerce consistency and payment providers
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0199
 - **Date:** 2026-09-10
 - **Related decisions:** [ADR-0006](0006-extensible-database-adapters.md), [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0015](0015-versioned-http-api.md)
 - **Implementation status:** Commerce domain/service, SQL store, HTTP checkout, provider-neutral payment contract, webhook replay migration, and Stripe/iyzico/PayTR signature verifiers have been implemented. Orders carry the customer/address data to be sent to the provider as an immutable checkout snapshot; with migration 202609100007, old orders remain readable backwards. iyzico/PayTR payment creation and refund flows are subject to a separate sandbox gate with provider account/API configuration.

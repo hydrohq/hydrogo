@@ -1,7 +1,9 @@
 name: CI
 
-# Temporarily manual-only to control GitHub Actions usage.
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -23,6 +25,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check git diff formatting
+        run: git diff --check
       - name: Validate container hardening markers
         run: bash scripts/container-lint.sh
       - name: Scan tracked files for high-confidence credentials
@@ -63,6 +67,8 @@ jobs:
       HYDRO_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check git diff formatting
+        run: git diff --check
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         timeout-minutes: 3
         with:
@@ -74,8 +80,6 @@ jobs:
         run: go run ./tools/openapidiff --baseline docs/api/baselines/mobile-v1.openapi.json --current docs/api/mobile-v1.openapi.json
       - name: Enforce consumer member mobile API compatibility baseline
         run: go run ./tools/openapidiff --baseline docs/api/baselines/member-mobile-v1.openapi.json --current docs/api/member-mobile-v1.openapi.json
-      - name: Enforce consumer commerce API compatibility baseline
-        run: go run ./tools/openapidiff --baseline docs/api/baselines/member-commerce-v1.openapi.json --current docs/api/member-commerce-v1.openapi.json
       - name: Enforce public content API compatibility baseline
         run: go run ./tools/openapidiff --baseline docs/api/baselines/public-content-v1.openapi.json --current docs/api/public-content-v1.openapi.json
       - name: Install PostgreSQL client tools
@@ -95,7 +99,7 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
-      - run: go test ./... -p 1 -timeout=5m
+      - run: go test ./... -count=1 -p 1 -timeout=5m
       - name: Risk-weighted coverage floors
         run: bash scripts/risk-coverage.sh
       - name: Run shuffled test suite
@@ -163,12 +167,13 @@ jobs:
       - name: Verify format, vet, tests and build
         shell: pwsh
         run: |
+          git diff --check
           $formatted = gofmt -l .
           if ($formatted) { Write-Error "gofmt required: $formatted" }
           go mod verify
           go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
           go vet ./...
-          go test ./... -p 1 -timeout=5m
+          go test ./... -count=1 -p 1 -timeout=5m
           go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
           go build -ldflags "-X main.buildCommit=$env:GITHUB_SHA -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build

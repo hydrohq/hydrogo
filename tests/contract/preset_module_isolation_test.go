@@ -16,19 +16,18 @@ import (
 )
 
 var presetModuleTables = map[string]string{
-	"pages":    "pages",
-	"media":    "media_assets",
-	"news":     "news_items",
-	"commerce": "commerce_products",
-	"members":  "members",
-	"site":     "site_settings",
+	"pages":   "pages",
+	"media":   "media_assets",
+	"news":    "news_items",
+	"members": "members",
+	"site":    "site_settings",
 }
 
 // TestGeneratedPresetsKeepModuleSchemasIsolated certifies that every shipped
 // preset selects only its own module-owned schema. SQLite always runs; the
 // PostgreSQL half runs when HYDRO_TEST_POSTGRES_URL is configured.
 func TestGeneratedPresetsKeepModuleSchemasIsolated(t *testing.T) {
-	presets := []string{"news", "editorial", "commerce", "compact-site", "corporate", "portal", "headless", "membership", "dashboard", "erp"}
+	presets := []string{"news", "editorial", "compact-site", "corporate", "portal", "headless", "membership", "dashboard", "erp"}
 	for _, dialect := range []database.Dialect{database.SQLite, database.Postgres} {
 		dialect := dialect
 		if dialect == database.Postgres && os.Getenv("HYDRO_TEST_POSTGRES_URL") == "" {
