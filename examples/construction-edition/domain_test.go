@@ -25,4 +25,10 @@ func TestConstructionDomainContracts(t *testing.T) {
 	if CanTransitionApproval(ApprovalDraft, ApprovalApproved) || !CanTransitionApproval(ApprovalPending, ApprovalApproved) {
 		t.Fatal("approval workflow bypass accepted")
 	}
+	if err := ValidateConstructionEvent("construction.document.approved", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateConstructionEvent("construction.document.approved", 2); !errors.Is(err, ErrUnknownConstructionEvent) {
+		t.Fatalf("unknown construction event version = %v", err)
+	}
 }
