@@ -81,7 +81,7 @@ func (m *ChannelManager) Bind(id, challenge string, principal ChannelPrincipal) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	channel, ok := m.channels[id]
-	if !ok || m.now().After(channel.ExpiresAt) || channel.Bound || channel.Challenge != challenge || channel.Principal != principal {
+	if !ok || !m.now().Before(channel.ExpiresAt) || channel.Bound || channel.Challenge != challenge || channel.Principal != principal {
 		return ErrExtensionChannelDenied
 	}
 	channel.Bound = true
@@ -92,7 +92,7 @@ func (m *ChannelManager) Authorize(id, requestID, permission string, principal C
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	channel, ok := m.channels[id]
-	if !ok || !channel.Bound || m.now().After(channel.ExpiresAt) || channel.Principal != principal || !channel.Permissions[permission] || requestID == "" {
+	if !ok || !channel.Bound || !m.now().Before(channel.ExpiresAt) || channel.Principal != principal || !channel.Permissions[permission] || requestID == "" {
 		return ErrExtensionChannelDenied
 	}
 	if _, replay := channel.requests[requestID]; replay {
