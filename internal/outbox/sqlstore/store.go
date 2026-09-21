@@ -220,6 +220,64 @@ func (s Store) Retry(ctx context.Context, db database.Executor, id, worker, toke
 	return nil
 }
 
+// DeadLetter permanently removes a leased event from the delivery queue and
+// records the bounded-delivery failure for operator inspection.
+func (s Store) DeadLetter(ctx context.Context, db database.Executor, event outbox.Event, worker, token, reason string) error {
+	if _, scopeErr := tenant.FromContext(ctx); scopeErr == nil {
+		return s.DeadLetterScoped(ctx, db, event, worker, token, reason)
+	} else if s.RequireTenantScope {
+		return scopeErr
+	}
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	if err := insertDeadLetter(ctx, db, s, event, "", reason); err != nil {
+		return err
+	}
+	result, err := db.ExecContext(ctx, `DELETE FROM outbox_events WHERE id = `+s.placeholder(1)+` AND lease_owner = `+s.placeholder(2)+` AND lease_token = `+s.placeholder(3), event.ID, worker, token)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return outbox.ErrLeaseInvalid
+	}
+	return nil
+}
+
+func (s Store) DeadLetterScoped(ctx context.Context, db database.Executor, event outbox.Event, worker, token, reason string) error {
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return err
+	}
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	if err := insertDeadLetter(ctx, db, s, event, scope.TenantID, reason); err != nil {
+		return err
+	}
+	result, err := db.ExecContext(ctx, `DELETE FROM outbox_events WHERE id = `+s.placeholder(1)+` AND tenant_id = `+s.placeholder(2)+` AND lease_owner = `+s.placeholder(3)+` AND lease_token = `+s.placeholder(4), event.ID, scope.TenantID, worker, token)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return outbox.ErrLeaseInvalid
+	}
+	return nil
+}
+
+func insertDeadLetter(ctx context.Context, db database.Executor, s Store, event outbox.Event, tenantID, reason string) error {
+	_, err := db.ExecContext(ctx, `INSERT INTO outbox_dead_letters (id, tenant_id, topic, aggregate_id, payload_version, attempts, last_error, failed_at) VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, `+s.placeholder(3)+`, `+s.placeholder(4)+`, `+s.placeholder(5)+`, `+s.placeholder(6)+`, `+s.placeholder(7)+`, `+s.placeholder(8)+`)`, event.ID, tenantID, event.Topic, event.AggregateID, event.PayloadVersion, event.Attempts, reason, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
 func newToken(worker, id string, now time.Time) string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {

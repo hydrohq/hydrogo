@@ -19,15 +19,20 @@ type OutboxStore interface {
 	Retry(context.Context, database.Executor, string, string, string, time.Time, string) error
 }
 
+type deadLetterStore interface {
+	DeadLetter(context.Context, database.Executor, outbox.Event, string, string, string) error
+}
+
 type Worker struct {
-	DB              database.Executor
-	Store           OutboxStore
-	Dispatcher      Dispatcher
-	WorkerID        string
-	Lease           time.Duration
-	RetryAfter      time.Duration
-	PollInterval    time.Duration
-	MaxPollInterval time.Duration
+	DB                  database.Executor
+	Store               OutboxStore
+	Dispatcher          Dispatcher
+	WorkerID            string
+	Lease               time.Duration
+	RetryAfter          time.Duration
+	PollInterval        time.Duration
+	MaxPollInterval     time.Duration
+	MaxDeliveryAttempts int
 	// TenantScopes makes shared-tenancy workers explicit. Each polling pass is
 	// executed with one validated scope; an empty slice preserves single-tenant
 	// behavior for deployments where tenancy is disabled.
@@ -131,6 +136,18 @@ func (w Worker) RunOnce(ctx context.Context, now time.Time) (bool, error) {
 	err = w.Dispatcher.Dispatch(ctx, Event{ID: event.ID, Topic: event.Topic, AggregateID: event.AggregateID, PayloadVersion: event.PayloadVersion})
 	if err == nil {
 		return true, w.Store.Ack(ctx, w.DB, event.ID, w.WorkerID, token)
+	}
+	maxAttempts := w.MaxDeliveryAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 8
+	}
+	if event.Attempts >= maxAttempts {
+		if dl, ok := w.Store.(deadLetterStore); ok {
+			if dlErr := dl.DeadLetter(ctx, w.DB, event, w.WorkerID, token, err.Error()); dlErr != nil {
+				return true, dlErr
+			}
+			return true, err
+		}
 	}
 	delay := w.RetryAfter
 	if delay <= 0 {
