@@ -65,10 +65,12 @@ func LoadBlueprint(path string) (Spec, error) {
 	fields := make([]Field, 0, len(blueprint.Fields))
 	for _, field := range blueprint.Fields {
 		typ := strings.ToLower(strings.TrimSpace(field.Type))
+		admin := FieldAdmin{}
 		if len(field.Values) > 0 {
 			typ = "string"
+			admin.Widget = "select"
 		}
-		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required})
+		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Admin: admin})
 	}
 	permissions := []string{name + ".read", name + ".write"}
 	spec := Spec{Name: name, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
