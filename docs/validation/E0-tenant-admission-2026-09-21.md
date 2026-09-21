@@ -23,6 +23,8 @@ external certification gate.
 When `HYDRO_TEST_REDIS_URL` is provided, the integration gate creates two
 independent Redis clients and verifies shared tenant-A saturation, tenant-B
 isolation, and release recovery against the same sorted-set lease namespace.
+The same integration test closes one client and verifies subsequent admission
+fails closed rather than granting a lease during shared-store outage.
 
 WSL evidence (temporary Redis 7 daemon on port `6389`, no persistence) passed:
 
