@@ -159,6 +159,10 @@ func NewHandler(config Config) http.Handler {
 	// middleware so even middleware-generated errors include request_id.
 	handler = security.ErrorMiddleware(handler)
 	handler = observability.LoggingMiddleware(config.Logger)(handler)
+	// Trace context is optional/no-op until an operator configures an exporter.
+	// It is wrapped before RequestID below so the request correlation ID is
+	// available as a bounded trace attribute.
+	handler = observability.TracingMiddleware(handler)
 
 	// Generate a fresh correlation identifier before security and auth middleware.
 	handler = security.RequestIDMiddleware(handler)
