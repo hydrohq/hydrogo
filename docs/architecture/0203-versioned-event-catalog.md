@@ -32,6 +32,11 @@ Operators and build pipelines obtain the portable artifact with
 is suitable for a checked-in consumer baseline but does not grant subscription
 or delivery authority.
 
+Outbound webhook configuration may subscribe only to a published Core topic.
+Any topic classified PII requires the endpoint's explicit `allow_pii: true`
+operator declaration; this is a configuration review signal, not a blanket
+permission for future PII topics.
+
 ## Validation
 
 - Unit tests reject unknown topics and versions.
