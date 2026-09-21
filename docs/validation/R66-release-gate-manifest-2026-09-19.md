@@ -9,6 +9,11 @@ verified gate has an existing repository evidence file and rejects a `ready`
 profile when any required gate is pending. It does not convert a prose plan or
 local synthetic benchmark into production evidence.
 
+P3 shuffled stability evidence and P4 repeatable resilience drills are also
+represented in the manifest. CI validates the local-development readiness claim
+on every run; the managed Standard profile remains fail-closed as a candidate
+until its external gates are evidenced.
+
 ```text
 go test ./tools/releasegates
 go run ./tools/releasegates -manifest docs/validation/release-gate-manifest.json

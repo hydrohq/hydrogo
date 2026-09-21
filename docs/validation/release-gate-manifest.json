@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "generated_date": "2026-09-19",
+  "generated_date": "2026-09-21",
   "gates": [
     {
       "id": "local-contracts",
@@ -217,6 +217,30 @@
       "note": "SQLite synthetic baseline; production capacity remains a separate gate."
     },
     {
+      "id": "test-stability",
+      "category": "automated",
+      "status": "verified",
+      "evidence": [
+        {
+          "path": "R117-test-stability-and-resilience-2026-09-21.md",
+          "command": "bash scripts/measure-test-stability.sh"
+        }
+      ],
+      "note": "Repeated shuffled runs produce CI evidence; they do not replace production soak testing."
+    },
+    {
+      "id": "resilience-drills",
+      "category": "resilience",
+      "status": "verified",
+      "evidence": [
+        {
+          "path": "R117-test-stability-and-resilience-2026-09-21.md",
+          "command": "workflow_dispatch: Resilience Drills"
+        }
+      ],
+      "note": "Repeated in-process contracts and local profile measurements; external dependency and proxy drills remain pending."
+    },
+    {
       "id": "restore-rpo-rto",
       "category": "recovery",
       "status": "pending",
@@ -256,7 +280,7 @@
     {
       "name": "local-development",
       "claim": "ready",
-      "required_gates": ["local-contracts"]
+      "required_gates": ["local-contracts", "test-stability"]
     },
     {
       "name": "managed-single-customer-standard",
@@ -265,6 +289,8 @@
         "local-contracts",
         "database-postgresql",
         "capacity-baseline",
+        "test-stability",
+        "resilience-drills",
         "restore-rpo-rto",
         "reverse-proxy-bluegreen",
         "security-external"
