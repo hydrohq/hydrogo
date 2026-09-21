@@ -23,3 +23,6 @@ production evidence before a tracing-service support claim.
 - The tracing middleware preserves request semantics under the no-op provider.
 - Existing logging and Prometheus metrics remain independent fallbacks.
 - Any exporter adapter requires bounded failure behavior and PII review.
+- ADR-0204's operator adapter is implemented as a provider-neutral, opt-in
+  boundary in `internal/observability/exporter.go`; it samples only already
+  redacted records and applies bounded timeout/retry behavior.
