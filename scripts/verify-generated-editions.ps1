@@ -10,7 +10,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "article compatibility failed" }
 
     Write-Host "==> Generated Go migration contracts"
-    & go test ./examples/project-edition/generated/project ./examples/article-edition/generated/article ./tests/contract -run "Edition|Migration" -count=1
+    & go test ./examples/project-edition/custom ./examples/project-edition/generated/project ./examples/article-edition/custom ./examples/article-edition/generated/article ./tests/contract -run "Edition|Migration|Composition" -count=1
     if ($LASTEXITCODE -ne 0) { throw "generated migration contracts failed" }
 
     Write-Host "==> Generated TypeScript SDK contracts"

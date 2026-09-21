@@ -1,7 +1,7 @@
 # Generated Edition browser contract — 2026-09-21
 
 `scripts/verify-generated-editions.ps1` runs compatibility, generated Go
-migration tests, generated TypeScript SDK compilation, the isolated Core
+migration and composition-root HTTP tests, generated TypeScript SDK compilation, the isolated Core
 `hydro migrate`/`hydro serve` readiness smoke, and Playwright together.
 Playwright renders the checked-in
 Project and Article generated table/form
