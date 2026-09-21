@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/client-edition/Dockerfile
+    restart: unless-stopped
+    user: "10001:10001"
+    environment:
+      HYDRO_ENV: production
+      HYDRO_HTTP_ADDRESS: 0.0.0.0:8080
+      HYDRO_DATABASE_DIALECT: postgres
+      HYDRO_DATABASE_DSN: ${HYDRO_DATABASE_DSN:?set database DSN}
+      HYDRO_PUBLIC_ORIGIN: https://${HYDRO_PUBLIC_HOST:?set public host}
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/hydro", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks: [hydro]
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hydro}
+      POSTGRES_USER: ${POSTGRES_USER:-hydro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set database password}
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+    networks: [hydro]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment: ["HYDRO_PUBLIC_HOST=${HYDRO_PUBLIC_HOST:?set public host}"]
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro, caddy_data:/data, caddy_config:/config]
+    depends_on: [app]
+    networks: [hydro]
+
+volumes: { pg_data: {}, caddy_data: {}, caddy_config: {} }
+networks: { hydro: {} }
