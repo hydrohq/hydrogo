@@ -8,6 +8,8 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const maxLoggedPathBytes = 512
@@ -27,11 +29,20 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("request_id", security.RequestIDFromContext(r.Context())),
 				slog.String("method", r.Method),
 				slog.String("path", boundedPath(r.URL.Path)),
+				slog.String("route", NormalizeRoute(r.URL.Path)),
 				slog.Int("status", recorder.status),
 				slog.Int64("duration_ms", time.Since(started).Milliseconds()),
+				slog.Int64("request_bytes", r.ContentLength),
+				slog.Int64("response_bytes", int64(recorder.bytes)),
+			}
+			if span := trace.SpanContextFromContext(r.Context()); span.IsValid() {
+				attrs = append(attrs, slog.String("trace_id", span.TraceID().String()))
+			}
+			if scope, err := tenant.FromContext(r.Context()); err == nil {
+				attrs = append(attrs, slog.String("tenant_id", scope.TenantID))
 			}
 			if user := auth.UserFromContext(r.Context()); user != nil && user.ID != "" {
-				attrs = append(attrs, slog.String("actor_id", user.ID))
+				attrs = append(attrs, slog.String("actor_id", user.ID), slog.String("user_id", user.ID))
 			}
 			if session := auth.SessionFromContext(r.Context()); session != nil && session.ID != "" {
 				attrs = append(attrs, slog.String("session_id", session.ID))
@@ -59,6 +70,7 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status      int
 	wroteHeader bool
+	bytes       int
 }
 
 func (r *statusRecorder) WriteHeader(status int) {
@@ -74,7 +86,9 @@ func (r *statusRecorder) Write(body []byte) (int, error) {
 	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
 	}
-	return r.ResponseWriter.Write(body)
+	n, err := r.ResponseWriter.Write(body)
+	r.bytes += n
+	return n, err
 }
 
 func (r *statusRecorder) Flush() {

@@ -488,6 +488,9 @@ func normalizeRoute(path string) string {
 	return strings.Join(parts, "/")
 }
 
+// NormalizeRoute exposes the bounded route label used by metrics and logs.
+func NormalizeRoute(path string) string { return normalizeRoute(path) }
+
 func percentile(samples []uint64, p int) uint64 {
 	if len(samples) == 0 {
 		return 0

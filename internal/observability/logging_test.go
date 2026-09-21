@@ -11,6 +11,8 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestBoundedPathCapsLogField(t *testing.T) {
@@ -64,5 +66,22 @@ func TestBoundedPathDoesNotSplitUTF8(t *testing.T) {
 	bounded := boundedPath(path)
 	if !utf8.ValidString(bounded) {
 		t.Fatalf("bounded path is invalid UTF-8: %q", bounded)
+	}
+}
+
+func TestLoggingMiddlewareAddsBoundedOperationalDimensions(t *testing.T) {
+	var logs strings.Builder
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
+	scope, _ := tenant.NewScope("tenant-a", "alpha")
+	ctx := tenant.WithScope(context.Background(), scope)
+	ctx = trace.ContextWithSpanContext(ctx, trace.NewSpanContext(trace.SpanContextConfig{TraceID: [16]byte{1}, SpanID: [8]byte{2}, TraceFlags: trace.FlagsSampled}))
+	h := LoggingMiddleware(logger)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) }))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/project/p-1", nil).WithContext(ctx)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	out := logs.String()
+	for _, want := range []string{"\"route\":\"/api/v1/project/{id}\"", "\"tenant_id\":\"tenant-a\"", "\"trace_id\"", "\"response_bytes\":2"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %s: %s", want, out)
+		}
 	}
 }
