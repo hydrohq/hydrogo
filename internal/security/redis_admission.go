@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -42,13 +43,9 @@ func (a RedisTenantAdmission) Acquire(ctx context.Context) (func(), error) {
 	if err != nil || result != 1 {
 		return nil, ErrTenantAdmissionDenied
 	}
-	var once bool
+	var once sync.Once
 	release := func() {
-		if once {
-			return
-		}
-		once = true
-		_ = a.Client.ZRem(context.Background(), key, token).Err()
+		once.Do(func() { _ = a.Client.ZRem(context.Background(), key, token).Err() })
 	}
 	return release, nil
 }
