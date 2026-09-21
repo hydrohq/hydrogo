@@ -37,3 +37,5 @@ clock-skew behavior remain separate external certification cases.
 
 The complete `internal/security` suite was also run against a temporary Redis
 daemon on port `6390` with `HYDRO_TEST_REDIS_URL` configured and passed.
+The lease release path additionally passes the WSL CGO race detector for the
+distributed admission tests.
