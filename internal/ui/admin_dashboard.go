@@ -11,16 +11,22 @@ import (
 )
 
 type AdminDashboardData struct {
-	Email       string
-	Collections []adminstudio.Collection
-	Nonce       string
-	Active      string
-	Metrics     *observability.Metrics
-	MemberStats members.MemberStats
-	DataTime    string
-	DataSource  string
-	DateFilter  string
-	Locale      string
+	Email        string
+	Collections  []adminstudio.Collection
+	Nonce        string
+	Active       string
+	Metrics      *observability.Metrics
+	MemberStats  members.MemberStats
+	DataTime     string
+	DataSource   string
+	DateFilter   string
+	Locale       string
+	ContentViews []ContentViewReportRow
+}
+
+type ContentViewReportRow struct {
+	Day, TenantID, ContentType, ContentID, Locale string
+	ViewCount                                     int64
 }
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
@@ -56,6 +62,17 @@ func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 	}
 	if err := adminReportsPathTemplate.Execute(w, data); err != nil {
 		return err
+	}
+	if len(data.ContentViews) > 0 {
+		if _, err := io.WriteString(w, `<section class="studio-card"><h2>Consentli içerik görüntülenmeleri</h2><div class="table-wrap"><table><thead><tr><th>Gün</th><th>Tür</th><th>İçerik</th><th>Dil</th><th>Görüntülenme</th></tr></thead><tbody>`); err != nil {
+			return err
+		}
+		for _, row := range data.ContentViews {
+			fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td></tr>`, template.HTMLEscapeString(row.Day), template.HTMLEscapeString(row.ContentType), template.HTMLEscapeString(row.ContentID), template.HTMLEscapeString(row.Locale), row.ViewCount)
+		}
+		if _, err := io.WriteString(w, `</tbody></table></div><small>Yalnızca açık analitik rızası bulunan aggregate kayıtlar.</small></section>`); err != nil {
+			return err
+		}
 	}
 	return AdminEnd(w)
 }

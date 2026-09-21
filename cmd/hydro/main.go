@@ -41,6 +41,8 @@ import (
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/internal/analytics"
+	analyticsstore "github.com/ardaozyildirim/hydrogo/internal/analytics/sqlstore"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
@@ -1140,6 +1142,9 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	defer db.Close()
 	transactioner := database.NewTenantTransactor(db, cfg.Database.Dialect, requireTenantScope)
+	analyticsStore := analyticsstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
+	contentViewQueue := analytics.NewContentViewQueue(analyticsStore, 256, 1)
+	defer contentViewQueue.Close()
 
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
@@ -1367,7 +1372,13 @@ func serve(args []string, stderr io.Writer) error {
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
 	routes = append(routes, mobileAuthHTTP.RouterRoutes()...)
 	if modules["pages"] {
-		routes = append(routes, pageRouterRoutes(pageHTTP.Routes())...)
+		pageRoutes := pageRouterRoutes(pageHTTP.Routes())
+		for i := range pageRoutes {
+			if strings.HasPrefix(pageRoutes[i].Pattern, "GET /public/pages/") {
+				pageRoutes[i].Handler = analytics.ContentViewMiddleware(pageRoutes[i].Handler, contentViewQueue, "page")
+			}
+		}
+		routes = append(routes, pageRoutes...)
 	}
 	if enabledModuleSet(cfg.Modules)["members"] {
 		routes = append(routes, memberHTTP.Routes()...)
@@ -1394,6 +1405,7 @@ func serve(args []string, stderr io.Writer) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = io.WriteString(w, docsComingSoonHTML(security.NonceFromContext(r.Context())))
 	})})
+	routes = append(routes, router.Route{Pattern: "POST /analytics/consent", Access: router.Public, Handler: analytics.ConsentHandler(analyticsStore, cfg.Security.SecureCookies)})
 	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
@@ -1500,17 +1512,23 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			dataTime := time.Now().Format("02.01.2006 15:04:05")
 			dateRange := r.URL.Query().Get("range")
+			contentViews, _ := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 100})
+			contentViewRows := make([]ui.ContentViewReportRow, 0, len(contentViews))
+			for _, row := range contentViews {
+				contentViewRows = append(contentViewRows, ui.ContentViewReportRow{Day: row.Day, TenantID: row.TenantID, ContentType: row.ContentType, ContentID: row.ContentID, Locale: row.Locale, ViewCount: row.ViewCount})
+			}
 			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
-				Email:       user.Email,
-				Collections: activeStudioCollections(),
-				Nonce:       security.NonceFromContext(r.Context()),
-				Active:      "reports",
-				Metrics:     runtimeMetrics,
-				MemberStats: stats,
-				DataTime:    dataTime,
-				DataSource:  "Proses İçi Bellek Telemetrisi",
-				DateFilter:  dateRange,
-				Locale:      adminLocaleFromRequest(r),
+				Email:        user.Email,
+				Collections:  activeStudioCollections(),
+				Nonce:        security.NonceFromContext(r.Context()),
+				Active:       "reports",
+				Metrics:      runtimeMetrics,
+				MemberStats:  stats,
+				DataTime:     dataTime,
+				DataSource:   "Proses İçi Bellek Telemetrisi",
+				DateFilter:   dateRange,
+				Locale:       adminLocaleFromRequest(r),
+				ContentViews: contentViewRows,
 			}); err != nil {
 				http.Error(w, "admin reports unavailable", http.StatusInternalServerError)
 			}
@@ -1589,6 +1607,10 @@ func serve(args []string, stderr io.Writer) error {
 					"verified_members": stats.VerifiedMembers,
 				},
 				"paths": paths,
+				"content_views": func() []analyticsstore.ContentViewAggregate {
+					rows, _ := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 500})
+					return rows
+				}(),
 			}
 			_ = json.NewEncoder(w).Encode(out)
 			return
@@ -1603,6 +1625,13 @@ func serve(args []string, stderr io.Writer) error {
 		_ = writer.Write([]string{"Path", "Views", "Requests", "Errors", "AvgLatencyMS", "P50MS", "P95MS", "P99MS", "BytesIn", "BytesOut", "Status2xx", "Status3xx", "Status4xx", "Status5xx", "Timeouts", "RateLimited"})
 		for _, p := range paths {
 			_ = writer.Write([]string{p.Path, strconv.FormatUint(p.Views, 10), strconv.FormatUint(p.Requests, 10), strconv.FormatUint(p.Errors, 10), strconv.FormatUint(p.AvgMS, 10), strconv.FormatUint(p.P50MS, 10), strconv.FormatUint(p.P95MS, 10), strconv.FormatUint(p.P99MS, 10), strconv.FormatUint(p.BytesIn, 10), strconv.FormatUint(p.BytesOut, 10), strconv.FormatUint(p.Status2xx, 10), strconv.FormatUint(p.Status3xx, 10), strconv.FormatUint(p.Status4xx, 10), strconv.FormatUint(p.Status5xx, 10), strconv.FormatUint(p.Timeouts, 10), strconv.FormatUint(p.RateLimited, 10)})
+		}
+		if rows, err := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 500}); err == nil && len(rows) > 0 {
+			_ = writer.Write([]string{})
+			_ = writer.Write([]string{"ContentViews", "Day", "TenantID", "ContentType", "ContentID", "Locale", "ViewCount"})
+			for _, row := range rows {
+				_ = writer.Write([]string{"", row.Day, row.TenantID, row.ContentType, row.ContentID, row.Locale, strconv.FormatInt(row.ViewCount, 10)})
+			}
 		}
 		writer.Flush()
 	})
@@ -1684,7 +1713,13 @@ func serve(args []string, stderr io.Writer) error {
 		routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
 	}
 	if modules["news"] {
-		routes = append(routes, newsRouterRoutes(newsHTTP.Routes())...)
+		newsRoutes := newsRouterRoutes(newsHTTP.Routes())
+		for i := range newsRoutes {
+			if strings.HasPrefix(newsRoutes[i].Pattern, "GET /public/news/") {
+				newsRoutes[i].Handler = analytics.ContentViewMiddleware(newsRoutes[i].Handler, contentViewQueue, "news")
+			}
+		}
+		routes = append(routes, newsRoutes...)
 	}
 	if selectedTheme != nil {
 		routes = append(routes, router.Route{Pattern: "GET /theme/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(selectedTheme.ServeAsset)})
