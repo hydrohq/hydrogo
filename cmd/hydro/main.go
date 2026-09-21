@@ -1162,14 +1162,18 @@ func serve(args []string, stderr io.Writer) error {
 		if modules["forms"] {
 			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		}
-		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: cfg.HTTP.PublicOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		sitemapOrigin := cfg.HTTP.PublicOrigin
+		if sitemapOrigin == "" && cfg.HTTP.Address != "" {
+			sitemapOrigin = "http://" + cfg.HTTP.Address
+		}
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err
 			}
 			entries := make([]site.SitemapEntry, 0, len(published))
 			for _, page := range published {
-				seo, err := site.BuildSEO(site.SEOInput{Origin: cfg.HTTP.PublicOrigin, Locale: page.Locale, Path: page.Slug, Title: page.Title})
+				seo, err := site.BuildSEO(site.SEOInput{Origin: sitemapOrigin, Locale: page.Locale, Path: page.Slug, Title: page.Title})
 				if err != nil {
 					return nil, err
 				}
