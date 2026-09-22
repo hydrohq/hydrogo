@@ -289,6 +289,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0240](0240-generated-route-composition.md) | Generated route composition helper | Accepted |
 | [0241](0241-versioned-blueprint-input.md) | Versioned Blueprint input boundary | Accepted |
 | [0242](0242-resource-auth-composition-flag.md) | Resource auth composition flag | Accepted |
+| [0243](0243-generated-auth-route-guard.md) | Generated auth route guard | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

@@ -72,6 +72,10 @@ func TestLoadBlueprintMapsAuthCompositionFlag(t *testing.T) {
 	if err != nil || !strings.Contains(string(wiring), "Identity/Session/RBAC") {
 		t.Fatalf("generated wiring lacks auth review gate: %v", err)
 	}
+	runtime, err := os.ReadFile(filepath.Join(root, "generated", "article", "runtime.go"))
+	if err != nil || !strings.Contains(string(runtime), "authenticated func(*http.Request) bool") || !strings.Contains(string(runtime), "http.StatusUnauthorized") {
+		t.Fatalf("generated auth route guard missing: %v", err)
+	}
 }
 
 func TestLoadBlueprintMapsAdminAndUIHintsWithoutChangingPersistence(t *testing.T) {

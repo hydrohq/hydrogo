@@ -16,7 +16,9 @@ func RegisterArticleRoute(mux *http.ServeMux, db *sql.DB, dialect string, policy
 	}
 	repository := ArticleRepository{DB: db, Dialect: dialect}
 	service := NewArticleService(repository)
-	mux.Handle(ArticleRoute, NewArticleHTTPHandler(service, policy))
-	mux.Handle(ArticleRoute+"/", NewArticleHTTPHandler(service, policy))
+	handler := NewArticleHTTPHandler(service, policy)
+	routeHandler := handler
+	mux.Handle(ArticleRoute, routeHandler)
+	mux.Handle(ArticleRoute+"/", routeHandler)
 	return nil
 }
