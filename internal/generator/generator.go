@@ -305,6 +305,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"spec.json":           renderSpec(spec),
 		"model.go":            renderModel(spec),
 		"repository.go":       renderRepository(spec),
+		"relations_store.go":  renderRelationStore(spec),
 		"service.go":          renderService(spec),
 		"validation.go":       renderValidation(spec),
 		"policy.go":           renderPolicy(spec),
@@ -527,7 +528,11 @@ func renderFields(spec Spec) string {
 		b.WriteString("\tTenantID string `json:\"tenant_id\"`\n")
 	}
 	for _, field := range fields {
-		fmt.Fprintf(&b, "\t%s %s `json:\"%s\"`\n", goFieldName(field.Name), goType(field.Type), field.Name)
+		typeName := goType(field.Type)
+		if field.Relation != nil && field.Relation.Cardinality == "many" {
+			typeName = "[]string"
+		}
+		fmt.Fprintf(&b, "\t%s %s `json:\"%s\"`\n", goFieldName(field.Name), typeName, field.Name)
 	}
 	return b.String()
 }
@@ -537,8 +542,7 @@ func renderRepository(spec Spec) string {
 		return renderTenantRepository(spec)
 	}
 	name := exportName(spec.Name)
-	fields := append([]Field(nil), spec.Fields...)
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	fields := repositoryFields(spec)
 	columns := []string{"id"}
 	for _, field := range fields {
 		columns = append(columns, field.Name)
@@ -639,8 +643,7 @@ func placeholder(dialect string, position int) string {
 
 func renderTenantRepository(spec Spec) string {
 	name := exportName(spec.Name)
-	fields := append([]Field(nil), spec.Fields...)
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	fields := repositoryFields(spec)
 	columns := []string{"id", "tenant_id"}
 	for _, field := range fields {
 		columns = append(columns, field.Name)
@@ -653,6 +656,10 @@ func renderTenantRepository(spec Spec) string {
 		fmt.Fprintf(&scan, "&item.%s", goFieldName(column))
 	}
 	insertArgs := append([]string{"item.ID", "tenantID"}, fieldArgs(fields)...)
+	insertValues := make([]string, len(fields))
+	for i := range fields {
+		insertValues[i] = fmt.Sprintf("placeholder(dialect, %d)", i+3)
+	}
 	updateParts := make([]string, 0, len(fields))
 	updateArgs := make([]string, 0, len(fields)+2)
 	for i, field := range fields {
@@ -684,7 +691,22 @@ func (r %sRepository) Create(ctx context.Context, tenantID string, item %s) erro
 func (r %sRepository) Update(ctx context.Context, tenantID string, item %s) error { if tenantID == "" { return fmt.Errorf("tenant scope is required") }; dialect := r.Dialect; _, err := r.DB.ExecContext(ctx, "UPDATE %s SET "+%s+" WHERE id = "+placeholder(dialect, %d)+" AND tenant_id = "+placeholder(dialect, %d), %s); return err }
 func (r %sRepository) Delete(ctx context.Context, tenantID, id string) error { if tenantID == "" { return fmt.Errorf("tenant scope is required") }; dialect := r.Dialect; _, err := r.DB.ExecContext(ctx, "DELETE FROM %s WHERE id = "+placeholder(dialect, 1)+" AND tenant_id = "+placeholder(dialect, 2), id, tenantID); return err }
 func placeholder(dialect string, position int) string { if dialect == "postgres" { return fmt.Sprintf("$%%d", position) }; return "?" }
-`, name, name, name, name, strings.Join(columns, ", "), spec.Table, scan.String(), name, name, strings.Join(columns, ", "), spec.Table, name, name, scan.String(), entries.String(), name, name, spec.Table, strings.Join(columns, ", "), strings.Join(fieldArgs(fields), ", "), strings.Join(insertArgs, ", "), name, name, spec.Table, strings.Join(updateParts, " + "), len(fields)+1, len(fields)+2, strings.Join(updateArgs, ", "), name, spec.Table)
+`, name, name, name, name, strings.Join(columns, ", "), spec.Table, scan.String(), name, name, strings.Join(columns, ", "), spec.Table, name, name, scan.String(), entries.String(), name, name, spec.Table, strings.Join(columns, ", "), strings.Join(insertValues, "+\",\"+"), strings.Join(insertArgs, ", "), name, name, spec.Table, strings.Join(updateParts, " + "), len(fields)+1, len(fields)+2, strings.Join(updateArgs, ", "), name, spec.Table)
+}
+
+// Many-valued relations are persisted through generated relation methods, not
+// as columns in the resource table. Keep ordinary CRUD/query SQL limited to
+// columns that exist in the normalized resource schema.
+func repositoryFields(spec Spec) []Field {
+	fields := make([]Field, 0, len(spec.Fields))
+	for _, field := range spec.Fields {
+		if field.Relation != nil && field.Relation.Cardinality == "many" {
+			continue
+		}
+		fields = append(fields, field)
+	}
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	return fields
 }
 
 func queryFieldEntries(fields []Field) []string {
@@ -988,7 +1010,7 @@ func renderRuntimeWiring(spec Spec) string {
 	}
 	for _, field := range spec.Fields {
 		if field.Relation != nil {
-			relationEvidence = "- [ ] Bind each relation target through an authorized Edition resolver; many-valued relation storage, deletion policy and eager loading require provider contract tests.\n"
+			relationEvidence = "- [ ] Bind each relation target through an authorized Edition resolver; verify generated many-valued relation replacements in the owning transaction, and define deletion/eager-loading policy with provider contract tests.\n"
 			break
 		}
 	}
@@ -1418,7 +1440,6 @@ export function create%sClient(options: %sRequest) {
   const fetcher = options.fetcher ?? fetch;
   return { list: (query = "") => fetcher(options.baseUrl + "/api/v1/%s" + query, { headers: { Accept: "application/json" } }) };
 }
-
 `, exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), exportName(spec.Name), spec.Name)
 }
 
@@ -1724,6 +1745,12 @@ func renderMigration(spec Spec) string {
 		b.WriteString(",\n    tenant_id TEXT NOT NULL")
 	}
 	for _, field := range fields {
+		// A many-valued relation is stored only in its normalized join table;
+		// emitting a scalar column as well would create two conflicting sources
+		// of truth for the same Blueprint field.
+		if field.Relation != nil && field.Relation.Cardinality == "many" {
+			continue
+		}
 		nullable := " NOT NULL"
 		if field.Nullable {
 			nullable = ""
@@ -1734,7 +1761,117 @@ func renderMigration(spec Spec) string {
 	if spec.TenantScoped {
 		fmt.Fprintf(&b, "CREATE INDEX %s ON %s (tenant_id, id);\n", tenantIndexName(spec.Table), spec.Table)
 	}
+	for _, field := range manyRelationFields(spec) {
+		table := relationJoinTable(spec, field)
+		if spec.TenantScoped {
+			fmt.Fprintf(&b, "CREATE TABLE %s (tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL, related_id TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY (tenant_id, resource_id, related_id));\n", table)
+			fmt.Fprintf(&b, "CREATE INDEX %s_related_idx ON %s (tenant_id, related_id);\n", table, table)
+		} else {
+			fmt.Fprintf(&b, "CREATE TABLE %s (resource_id TEXT NOT NULL, related_id TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY (resource_id, related_id));\n", table)
+			fmt.Fprintf(&b, "CREATE INDEX %s_related_idx ON %s (related_id);\n", table, table)
+		}
+	}
 	return b.String()
+}
+
+func manyRelationFields(spec Spec) []Field {
+	fields := make([]Field, 0)
+	for _, field := range spec.Fields {
+		if field.Relation != nil && field.Relation.Cardinality == "many" {
+			fields = append(fields, field)
+		}
+	}
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	return fields
+}
+
+func relationJoinTable(spec Spec, field Field) string {
+	base := spec.Table + "_" + field.Name + "_rel"
+	if len(base) <= 40 {
+		return base
+	}
+	digest := sha256.Sum256([]byte(spec.Table + "." + field.Name))
+	return strings.TrimRight(base[:31], "_") + "_" + hex.EncodeToString(digest[:])[:8]
+}
+
+func renderRelationStore(spec Spec) string {
+	name := exportName(spec.Name)
+	fields := manyRelationFields(spec)
+	if len(fields) == 0 {
+		return "// Code generated by hydrogo generator; no many-valued relations are declared.\npackage generated\n"
+	}
+	var methods strings.Builder
+	for _, field := range fields {
+		method := goFieldName(field.Name)
+		table := relationJoinTable(spec, field)
+		maxItems := field.Relation.MaxItems
+		if maxItems == 0 {
+			maxItems = 50
+		}
+		if spec.TenantScoped {
+			fmt.Fprintf(&methods, "func (r %sRepository) Replace%s(ctx context.Context, tenantID, sourceID string, relatedIDs []string) error { if strings.TrimSpace(tenantID) == \"\" { return ErrInvalid%sRelations }; return replaceRelationIDs(ctx, r.DB, r.Dialect, %q, tenantID, sourceID, relatedIDs, %d) }\n", name, method, name, table, maxItems)
+			fmt.Fprintf(&methods, "func (r %sRepository) Replace%sTx(ctx context.Context, tx *sql.Tx, tenantID, sourceID string, relatedIDs []string) error { if strings.TrimSpace(tenantID) == \"\" { return ErrInvalid%sRelations }; return replaceRelationIDsTx(ctx, tx, r.Dialect, %q, tenantID, sourceID, relatedIDs, %d) }\n", name, method, name, table, maxItems)
+			fmt.Fprintf(&methods, "func (r %sRepository) List%s(ctx context.Context, tenantID, sourceID string) ([]string, error) { if strings.TrimSpace(tenantID) == \"\" { return nil, ErrInvalid%sRelations }; return listRelationIDs(ctx, r.DB, r.Dialect, %q, tenantID, sourceID, %d) }\n", name, method, name, table, maxItems)
+		} else {
+			fmt.Fprintf(&methods, "func (r %sRepository) Replace%s(ctx context.Context, sourceID string, relatedIDs []string) error { return replaceRelationIDs(ctx, r.DB, r.Dialect, %q, \"\", sourceID, relatedIDs, %d) }\n", name, method, table, maxItems)
+			fmt.Fprintf(&methods, "func (r %sRepository) Replace%sTx(ctx context.Context, tx *sql.Tx, sourceID string, relatedIDs []string) error { return replaceRelationIDsTx(ctx, tx, r.Dialect, %q, \"\", sourceID, relatedIDs, %d) }\n", name, method, table, maxItems)
+			fmt.Fprintf(&methods, "func (r %sRepository) List%s(ctx context.Context, sourceID string) ([]string, error) { return listRelationIDs(ctx, r.DB, r.Dialect, %q, \"\", sourceID, %d) }\n", name, method, table, maxItems)
+		}
+	}
+	return fmt.Sprintf(`// Code generated by hydrogo generator; many-valued relation persistence.
+package generated
+
+import (
+    "context"
+    "database/sql"
+    "errors"
+    "strings"
+)
+
+var ErrInvalid%sRelations = errors.New("invalid relation identifiers or item budget")
+
+func replaceRelationIDs(ctx context.Context, db *sql.DB, dialect, table, tenantID, sourceID string, relatedIDs []string, maxItems int) error {
+    if db == nil { return ErrInvalid%sRelations }
+    tx, err := db.BeginTx(ctx, nil); if err != nil { return err }; defer tx.Rollback()
+    if err := replaceRelationIDsTx(ctx, tx, dialect, table, tenantID, sourceID, relatedIDs, maxItems); err != nil { return err }
+    return tx.Commit()
+}
+
+func replaceRelationIDsTx(ctx context.Context, tx *sql.Tx, dialect, table, tenantID, sourceID string, relatedIDs []string, maxItems int) error {
+    ids, err := normalize%sRelationIDs(relatedIDs, maxItems)
+    if err != nil || tx == nil || strings.TrimSpace(sourceID) == "" { return ErrInvalid%sRelations }
+    deleteQuery := "DELETE FROM " + table + " WHERE resource_id = " + placeholder(dialect, 1)
+    deleteArgs := []any{sourceID}
+    if tenantID != "" { deleteQuery = "DELETE FROM " + table + " WHERE tenant_id = " + placeholder(dialect, 1) + " AND resource_id = " + placeholder(dialect, 2); deleteArgs = []any{tenantID, sourceID} }
+    if _, err := tx.ExecContext(ctx, deleteQuery, deleteArgs...); err != nil { return err }
+    for position, relatedID := range ids {
+        query := "INSERT INTO " + table + " (resource_id,related_id,position) VALUES (" + placeholder(dialect,1) + "," + placeholder(dialect,2) + "," + placeholder(dialect,3) + ")"
+        args := []any{sourceID, relatedID, position}
+        if tenantID != "" { query = "INSERT INTO " + table + " (tenant_id,resource_id,related_id,position) VALUES (" + placeholder(dialect,1) + "," + placeholder(dialect,2) + "," + placeholder(dialect,3) + "," + placeholder(dialect,4) + ")"; args = []any{tenantID, sourceID, relatedID, position} }
+        if _, err := tx.ExecContext(ctx, query, args...); err != nil { return err }
+    }
+    return nil
+}
+
+func listRelationIDs(ctx context.Context, db *sql.DB, dialect, table, tenantID, sourceID string, maxItems int) ([]string, error) {
+    if db == nil || strings.TrimSpace(sourceID) == "" || maxItems < 1 || maxItems > 100 { return nil, ErrInvalid%sRelations }
+    query := "SELECT related_id FROM " + table + " WHERE resource_id = " + placeholder(dialect,1) + " ORDER BY position,related_id LIMIT " + placeholder(dialect,2)
+    args := []any{sourceID, maxItems+1}
+    if tenantID != "" { query = "SELECT related_id FROM " + table + " WHERE tenant_id = " + placeholder(dialect,1) + " AND resource_id = " + placeholder(dialect,2) + " ORDER BY position,related_id LIMIT " + placeholder(dialect,3); args = []any{tenantID, sourceID, maxItems+1} }
+    rows, err := db.QueryContext(ctx, query, args...); if err != nil { return nil, err }; defer rows.Close()
+    ids := make([]string, 0, maxItems)
+    for rows.Next() { var id string; if err := rows.Scan(&id); err != nil { return nil, err }; ids = append(ids, id) }
+    if err := rows.Err(); err != nil { return nil, err }; if len(ids) > maxItems { return nil, ErrInvalid%sRelations }; return ids, nil
+}
+
+func normalize%sRelationIDs(input []string, maxItems int) ([]string, error) {
+    if maxItems < 1 || maxItems > 100 || len(input) > maxItems { return nil, ErrInvalid%sRelations }
+    ids := make([]string, 0, len(input)); seen := make(map[string]struct{}, len(input))
+    for _, raw := range input { id := strings.TrimSpace(raw); if id == "" || len(id) > 128 { return nil, ErrInvalid%sRelations }; if _, ok := seen[id]; ok { return nil, ErrInvalid%sRelations }; seen[id] = struct{}{}; ids = append(ids, id) }
+    return ids, nil
+}
+
+%s`, name, name, name, name, name, name, name, name, name, name, methods.String())
 }
 
 func tenantIndexName(table string) string {
@@ -1757,7 +1894,11 @@ func renderMigrationMetadata(spec Spec) string {
 	sql := renderMigration(spec)
 	digest := sha256.Sum256([]byte(sql))
 	checksum := hex.EncodeToString(digest[:])
-	return fmt.Sprintf("id: generated_%s\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: []\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 1\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, checksum, checksum, "Additive generated table; review indexes, RLS, and tenant policy before enabling.", "No production down migration; restore or forward migration only.")
+	compatibility := "Additive generated table; review indexes, RLS, and tenant policy before enabling."
+	if len(manyRelationFields(spec)) > 0 {
+		compatibility = "Additive generated resource and bounded relation tables; review tenant isolation, retention, and index plans before enabling."
+	}
+	return fmt.Sprintf("id: generated_%s\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: []\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 1\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, checksum, checksum, compatibility, "No production down migration; restore or forward migration only.")
 }
 
 func fieldArgs(fields []Field) []string {

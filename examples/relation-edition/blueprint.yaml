@@ -1,0 +1,16 @@
+version: v0
+name: relation_record
+tenant_scoped: true
+fields:
+  - name: title
+    type: string
+    required: true
+    ui:
+      list: true
+  - name: tag_ids
+    type: relation
+    required: false
+    relation:
+      collection: tag
+      cardinality: many
+      max_items: 20
