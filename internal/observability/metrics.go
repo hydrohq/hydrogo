@@ -509,6 +509,9 @@ func routeModule(path string) string {
 	}
 	return "root"
 }
+
+// RouteModule returns the bounded module label shared by logs and metrics.
+func RouteModule(path string) string { return routeModule(path) }
 func dimensionKey(r *http.Request, path string) string {
 	return dimensionTenant(r) + "\x00" + routeModule(path)
 }
