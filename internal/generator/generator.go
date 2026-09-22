@@ -1484,7 +1484,19 @@ func renderMigration(spec Spec) string {
 		fmt.Fprintf(&b, ",\n    %s %s%s", field.Name, sqlType(field.Type), nullable)
 	}
 	b.WriteString("\n);\n")
+	if spec.TenantScoped {
+		fmt.Fprintf(&b, "CREATE INDEX %s ON %s (tenant_id, id);\n", tenantIndexName(spec.Table), spec.Table)
+	}
 	return b.String()
+}
+
+func tenantIndexName(table string) string {
+	base := table + "_tenant_id_idx"
+	if len(base) <= 63 {
+		return base
+	}
+	digest := sha256.Sum256([]byte(table))
+	return table[:54] + "_" + hex.EncodeToString(digest[:])[:8]
 }
 
 func renderMigrationGo(spec Spec) string {
