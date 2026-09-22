@@ -1,0 +1,42 @@
+version: v0
+collection:
+  name: article
+  table: articles
+  permissions:
+    - article.read
+    - article.write
+  dialects:
+    - sqlite
+    - postgres
+  fields:
+    - name: title
+      type: string
+      admin:
+        label: Title
+        visible_in_list: true
+        searchable: true
+    - name: slug
+      type: string
+      admin:
+        label: Slug
+        visible_in_list: true
+        searchable: true
+    - name: body
+      type: text
+      nullable: true
+      admin:
+        label: Body
+        widget: block-editor
+    - name: status
+      type: enum
+      admin:
+        label: Status
+        visible_in_list: true
+        filterable: true
+        options: [draft, published]
+  admin:
+    label: Articles
+    description: Independent editorial resource for the golden-path baseline.
+    actions:
+      - label: Open articles
+        href: /admin/articles
