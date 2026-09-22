@@ -122,8 +122,10 @@ ve ADR-0091'e bakın.
 
 ## Faz bazlı ilerleme
 
-- **Faz 0 (benchmark):** HydroGo baseline ölçüldü (23.454 s, yerel Windows);
-  Payload eşdeğer haber örneği ve iki müşteri akışıyla göreli ölçüm açık.
+- **Faz 0 (benchmark):** HydroGo iki bağımsız resource fixture'ında ölçüldü
+  (median 1.651 s / 1.546 s, yerel Windows); Payload 3.90.1 SQLite harness'ında
+  build, cold/warm admin ve warm API smoke ölçüldü. Authenticated CRUD,
+  p95/p99 yük testi ve kapasite parity'si açık (`R102`).
 - **Faz 1 (resource contract/CLI):** Kısmi. Proje namespace'i, lock yükleme ve
   check akışı var; generated collection'lar artık deterministic `spec.json` ile
   kendini tanımlıyor ve `hydro resource check --root` tüm scaffold'u keşfedip
@@ -175,8 +177,10 @@ eklenmelidir. Şifre veya token raporlara yazılmaz.
 
 ## Sonraki güvenli sıra
 
-1. Payload benchmark protokolünü iki bağımsız resource senaryosunda çalıştır.
-2. Resource contract'ın otomatik wiring kapsamını ölçüm sonuçlarına göre genişlet.
+1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
+   yük testiyle tamamla.
+2. Resource contract'ın migration/admin/API runtime wiring kapsamını ölçüm
+   sonuçlarına göre genişlet.
 3. Login/broker için gerçek servis kararlarını ADR ile kabul et.
 4. İmzalı release pipeline ve installer'ları gerçek hesaplarla doğrula.
 5. Production kapasite/restore/upgrade tatbikatlarını çalıştır.
