@@ -129,6 +129,11 @@ ve ADR-0091'e bakın.
   tam field/operator binding'i ve migration/admin/API runtime wiring'i hâlâ açık.
 - **Faz 2–3 (Admin/editorial):** Açık. Async relation, bulk işlemler, preview
   bridge, schedule ve locale fallback için ürün kabul testleri gerekiyor.
+- **Tenant-scoped resource generation:** Tamamlandı (contract seviyesinde).
+  Blueprint `tenant_scoped` işareti generated model/repository/service/transport
+  yüzeylerini açık tenant parametresi ve fail-closed resolver ile üretir;
+  gerçek PostgreSQL RLS, provisioning, quota ve restore kabulü hâlâ üretim
+  kapısıdır (ADR-0235).
 - **Faz 4 (kit ekosistemi):** Kısmi. Kit/edition sözleşmeleri mevcut; registry,
   dependency çözümleme ve uyumluluk matrisi tamamlanmadı.
 - **Faz 5 (frontend SDK/starter):** Kısmi. Adapter sözleşmeleri, typed client/query akışı, disposable SQLite demo ve 47 testli yerel Chromium E2E kanıtı var; harici Client Edition ve production kimlik doğrulama kabulü tamamlanmadı.

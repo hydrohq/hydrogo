@@ -15,12 +15,13 @@ import (
 // It is deliberately translated into the reviewed Spec contract before any
 // artifact is written.
 type Blueprint struct {
-	Name   string           `json:"name" yaml:"name"`
-	Type   string           `json:"type,omitempty" yaml:"type,omitempty"`
-	Table  string           `json:"table,omitempty" yaml:"table,omitempty"`
-	Fields []BlueprintField `json:"fields" yaml:"fields"`
-	Admin  Admin            `json:"admin,omitempty" yaml:"admin,omitempty"`
-	Kits   []string         `json:"kits,omitempty" yaml:"kits,omitempty"`
+	Name         string           `json:"name" yaml:"name"`
+	Type         string           `json:"type,omitempty" yaml:"type,omitempty"`
+	TenantScoped bool             `json:"tenant_scoped,omitempty" yaml:"tenant_scoped,omitempty"`
+	Table        string           `json:"table,omitempty" yaml:"table,omitempty"`
+	Fields       []BlueprintField `json:"fields" yaml:"fields"`
+	Admin        Admin            `json:"admin,omitempty" yaml:"admin,omitempty"`
+	Kits         []string         `json:"kits,omitempty" yaml:"kits,omitempty"`
 }
 
 type BlueprintField struct {
@@ -98,7 +99,7 @@ func LoadBlueprint(path string) (Spec, error) {
 		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Validation: field.Validation, Admin: admin})
 	}
 	permissions := []string{name + ".read", name + ".write"}
-	spec := Spec{Name: name, Type: typeName, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
+	spec := Spec{Name: name, Type: typeName, TenantScoped: blueprint.TenantScoped, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
 	if err := Validate(spec); err != nil {
 		return Spec{}, err
 	}
