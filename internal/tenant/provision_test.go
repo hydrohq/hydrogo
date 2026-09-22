@@ -98,3 +98,19 @@ func TestActiveBackfillRestoresOnlyMissingDefaults(t *testing.T) {
 		t.Fatalf("restored=%d audit=%d", restored, audit)
 	}
 }
+
+func TestVerifyProvisioningRLSForTablesValidatesEditionTableNames(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "rls-table-validation.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := tenant.VerifyProvisioningRLSForTables(context.Background(), db, "sqlite", []string{"invoices", "project_members"}); err != nil {
+		t.Fatalf("valid SQLite table set rejected: %v", err)
+	}
+	for _, tables := range [][]string{{"invoices", "invoices"}, {"invoices; DROP TABLE users", "users"}, nil} {
+		if err := tenant.VerifyProvisioningRLSForTables(context.Background(), db, "sqlite", tables); err == nil {
+			t.Fatalf("unsafe table set accepted: %#v", tables)
+		}
+	}
+}

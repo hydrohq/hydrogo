@@ -7,11 +7,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
 
 var ErrProvisionInput = errors.New("invalid tenant provisioning input")
+
+var rlsTablePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
 type ProvisionRequest struct {
 	TenantID          string
@@ -87,13 +91,38 @@ func validTimezone(value string) bool {
 // VerifyProvisioningRLS makes RLS a PostgreSQL provisioning precondition. The
 // SQLite contract has no database-side RLS and remains useful for local tests.
 func VerifyProvisioningRLS(ctx context.Context, db *sql.DB, dialect string) error {
+	return VerifyProvisioningRLSForTables(ctx, db, dialect, []string{"pages", "users", "site_settings", "media_assets"})
+}
+
+// VerifyProvisioningRLSForTables verifies the database-side defense-in-depth
+// contract for Core and generated tenant-scoped tables. Table identifiers are
+// validated as data before being used as query parameters; Editions must pass
+// their complete tenant table set before provisioning or enabling shared mode.
+func VerifyProvisioningRLSForTables(ctx context.Context, db *sql.DB, dialect string, tables []string) error {
 	if db == nil {
 		return errors.New("database is required")
+	}
+	if len(tables) == 0 || len(tables) > 256 {
+		return ErrProvisionInput
+	}
+	validated := make([]string, 0, len(tables))
+	seen := make(map[string]struct{}, len(tables))
+	for _, table := range tables {
+		table = strings.TrimSpace(table)
+		if !rlsTablePattern.MatchString(table) {
+			return fmt.Errorf("invalid RLS table %q", table)
+		}
+		if _, ok := seen[table]; ok {
+			return fmt.Errorf("duplicate RLS table %q", table)
+		}
+		seen[table] = struct{}{}
+		validated = append(validated, table)
 	}
 	if dialect != "postgres" {
 		return nil
 	}
-	for _, table := range []string{"pages", "users", "site_settings", "media_assets"} {
+	sort.Strings(validated)
+	for _, table := range validated {
 		var enabled, forced, policy bool
 		err := db.QueryRowContext(ctx, `SELECT c.relrowsecurity, c.relforcerowsecurity,
  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = current_schema() AND p.tablename = c.relname AND p.policyname = 'hydrogo_tenant_isolation')
