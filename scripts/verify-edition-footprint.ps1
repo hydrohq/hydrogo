@@ -75,21 +75,21 @@ try {
         }
     }
 
-    $runtimeTags = "hydro_compact,hydro_no_graphql,hydro_no_otlp,hydro_no_s3"
-    $runtimeBinary = Join-Path $resolvedWorkRoot "hydro-compact-no-graphql-no-otlp-no-s3.exe"
+    $runtimeTags = "hydro_compact,hydro_no_graphql,hydro_no_otlp,hydro_no_s3,hydro_no_redis"
+    $runtimeBinary = Join-Path $resolvedWorkRoot "hydro-compact-no-graphql-no-otlp-no-s3-no-redis.exe"
     & go build -tags $runtimeTags -trimpath -buildvcs=false -ldflags "-s -w -buildid=" -o $runtimeBinary ./cmd/hydro
     if ($LASTEXITCODE -ne 0) { throw "Compact SQLite/no-GraphQL Workspace build failed" }
     $runtimeBytes = (Get-Item -LiteralPath $runtimeBinary).Length
-    if ($runtimeBytes -gt 29MB) { throw "Compact SQLite/no-GraphQL/no-OTLP/no-S3 Workspace binary is $runtimeBytes bytes; budget is $([int](29MB))" }
+    if ($runtimeBytes -gt 22MB) { throw "Compact SQLite/no-GraphQL/no-OTLP/no-S3/no-Redis Workspace binary is $runtimeBytes bytes; budget is $([int](22MB))" }
     $runtimeImports = @(& go list -deps -tags $runtimeTags -f "{{if not .Standard}}{{.ImportPath}}{{end}}" ./cmd/hydro | Where-Object { $_ } | Sort-Object -Unique)
     if ($LASTEXITCODE -ne 0) { throw "Compact SQLite/no-GraphQL/no-OTLP Workspace dependency listing failed" }
-    if ($runtimeImports.Count -gt 175) { throw "Compact SQLite/no-GraphQL/no-OTLP/no-S3 Workspace has $($runtimeImports.Count) non-stdlib packages; budget is 175" }
+    if ($runtimeImports.Count -gt 160) { throw "Compact SQLite/no-GraphQL/no-OTLP/no-S3/no-Redis Workspace has $($runtimeImports.Count) non-stdlib packages; budget is 160" }
     foreach ($import in $runtimeImports) {
-        if ($import -eq "github.com/jackc/pgx/v5" -or $import.StartsWith("github.com/jackc/pgx/v5/", [StringComparison]::Ordinal) -or $import -eq "github.com/graphql-go/graphql" -or $import.StartsWith("github.com/graphql-go/graphql/", [StringComparison]::Ordinal) -or $import -eq "github.com/ardaozyildirim/hydrogo/modules/api/graphql" -or $import -like "go.opentelemetry.io/otel/exporters/otlp*" -or $import -eq "go.opentelemetry.io/proto/otlp" -or $import -like "google.golang.org/grpc*" -or $import -eq "github.com/minio/minio-go/v7" -or $import.StartsWith("github.com/minio/minio-go/v7/", [StringComparison]::Ordinal)) {
-            throw "Compact SQLite/no-GraphQL/no-OTLP/no-S3 Workspace unexpectedly imports $import"
+        if ($import -eq "github.com/jackc/pgx/v5" -or $import.StartsWith("github.com/jackc/pgx/v5/", [StringComparison]::Ordinal) -or $import -eq "github.com/graphql-go/graphql" -or $import.StartsWith("github.com/graphql-go/graphql/", [StringComparison]::Ordinal) -or $import -eq "github.com/ardaozyildirim/hydrogo/modules/api/graphql" -or $import -like "go.opentelemetry.io/otel/exporters/otlp*" -or $import -eq "go.opentelemetry.io/proto/otlp" -or $import -like "google.golang.org/grpc*" -or $import -eq "github.com/minio/minio-go/v7" -or $import.StartsWith("github.com/minio/minio-go/v7/", [StringComparison]::Ordinal) -or $import -eq "github.com/redis/go-redis/v9" -or $import.StartsWith("github.com/redis/go-redis/v9/", [StringComparison]::Ordinal)) {
+            throw "Compact SQLite/no-GraphQL/no-OTLP/no-S3/no-Redis Workspace unexpectedly imports $import"
         }
     }
-    Write-Host "PASS: workspace variant=compact-sqlite-no-graphql-no-otlp-no-s3 binary_bytes=$runtimeBytes nonstdlib_packages=$($runtimeImports.Count)"
+    Write-Host "PASS: workspace variant=compact-sqlite-no-graphql-no-otlp-no-s3-no-redis binary_bytes=$runtimeBytes nonstdlib_packages=$($runtimeImports.Count)"
 }
 finally {
     Pop-Location

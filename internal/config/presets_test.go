@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -19,7 +18,7 @@ func TestDeploymentPresetsDeclareExplicitModuleSets(t *testing.T) {
 			if key == "HYDRO_DATABASE_DSN" {
 				return "file:./data/hydro.db?_busy_timeout=5000&_journal_mode=WAL", true
 			}
-			return os.LookupEnv(key)
+			return "", false
 		}
 		cfg, err := Load(path, lookup, Overrides{})
 		if err != nil {

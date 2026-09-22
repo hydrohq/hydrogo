@@ -12,9 +12,14 @@ database_variant="${HYDRO_DATABASE_VARIANT:-dual}"
 graphql_variant="${HYDRO_GRAPHQL:-enabled}"
 otlp_variant="${HYDRO_OTLP:-enabled}"
 s3_variant="${HYDRO_S3:-enabled}"
+redis_variant="${HYDRO_REDIS:-enabled}"
 case "$database_variant" in
   dual|sqlite) ;;
   *) echo "HYDRO_DATABASE_VARIANT must be 'dual' or 'sqlite'" >&2; exit 1 ;;
+esac
+case "$redis_variant" in
+  enabled|disabled) ;;
+  *) echo "HYDRO_REDIS must be 'enabled' or 'disabled'" >&2; exit 1 ;;
 esac
 case "$s3_variant" in
   enabled|disabled) ;;
@@ -47,6 +52,9 @@ fi
 if [[ "$s3_variant" == "disabled" ]]; then
   build_tags+=(hydro_no_s3)
 fi
+if [[ "$redis_variant" == "disabled" ]]; then
+  build_tags+=(hydro_no_redis)
+fi
 if ((${#build_tags[@]} > 0)); then
   tag_list=$(IFS=,; printf '%s' "${build_tags[*]}")
   build_args+=(-tags "$tag_list")
@@ -77,6 +85,7 @@ cat > "$out/PACKAGE-MANIFEST.md" <<EOF
 - GraphQL: ${graphql_variant}
 - OTLP: ${otlp_variant}
 - S3: ${s3_variant}
+- Redis: ${redis_variant}
 - Source modules/Core: not included
 - Obfuscated: ${HYDRO_OBFUSCATE:-false}
 - Build commit: $(git rev-parse HEAD)
