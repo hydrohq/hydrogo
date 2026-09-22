@@ -1,5 +1,11 @@
 # HydroGo headless starter
 
+This is the presentation layer of a Client Edition, deliberately kept outside
+HydroGo Core. HydroGo owns the versioned API contracts, authorization and
+operational boundaries; this starter owns rendering, routing, SEO and the
+component system. It can be replaced by React, Next, Nuxt, Astro, HTMX or a
+native client without changing the Core.
+
 This is an independent TypeScript frontend foundation. It imports no HydroGo Go package and consumes only the versioned `/api/v1` surface.
 
 ```powershell

@@ -1,5 +1,10 @@
 # Module specs
 
+Module specs are versioned Workspace inputs, not runtime configuration. They
+describe a reusable capability that HydroGo can generate and review for a
+Client Edition. They never invent customer authorization, execute DDL, or
+activate routes/workers for an inactive module.
+
 The `v0/` directory carries versioned collection resources for Admin Studio and the generator. To compile a spec into artifacts for review purposes:
 
 ```powershell
