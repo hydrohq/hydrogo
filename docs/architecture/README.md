@@ -302,3 +302,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0228: Public bounded resource query contract](0228-public-resource-query-contract.md)
 - [ADR-0229: Generated bounded list transport](0229-generated-list-transport-contract.md)
 - [ADR-0230: Bounded relation plan contract](0230-bounded-relation-plan-contract.md)
+- [ADR-0231: Bounded Admin Studio saved-view contract](0231-bounded-admin-saved-view-contract.md)
