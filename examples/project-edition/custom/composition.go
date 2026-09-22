@@ -18,9 +18,11 @@ func NewDemoHandler(db *sql.DB) http.Handler {
 // NewHandler is the Edition composition point. The caller owns the database
 // lifecycle and must pass the dialect selected by the deployment profile.
 func NewHandler(db *sql.DB, dialect string) http.Handler {
-	repository := generated.ProjectRepository{DB: db, Dialect: dialect}
-	service := generated.NewProjectService(repository)
-	return generated.NewProjectHTTPHandler(service, demoPolicy{})
+	mux := http.NewServeMux()
+	if err := generated.RegisterProjectRoute(mux, db, dialect, demoPolicy{}); err != nil {
+		panic(err)
+	}
+	return mux
 }
 
 type demoPolicy struct{}

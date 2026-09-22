@@ -286,6 +286,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0224](0224-global-resource-contract.md) | Global resource contract | Accepted |
 | [0225](0225-bounded-resource-query-contract.md) | Bounded resource query contract | Accepted |
 | [0226](0226-versioned-field-validation-contract.md) | Versioned field validation contract | Accepted |
+| [0240](0240-generated-route-composition.md) | Generated route composition helper | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

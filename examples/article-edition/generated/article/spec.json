@@ -3,6 +3,7 @@
   "collection": {
     "name": "article",
     "type": "collection",
+    "tenant_scoped": false,
     "table": "articles",
     "fields": [
       {
