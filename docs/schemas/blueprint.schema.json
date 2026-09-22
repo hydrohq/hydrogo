@@ -6,6 +6,7 @@
   "additionalProperties": false,
   "required": ["name", "fields"],
   "properties": {
+    "version": { "type": "string", "enum": ["v0"], "default": "v0" },
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$" },
     "type": { "type": "string", "enum": ["collection", "global"], "default": "collection" },
     "tenant_scoped": { "type": "boolean", "default": false },
