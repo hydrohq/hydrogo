@@ -10,6 +10,7 @@ dependencies.
 - [ ] Call RegisterArticleRoute from the module composition root with the
   configured SQL dialect/connection pool and the Edition-owned policy.
 - Route contract: /api/v1/article
+
 - [ ] For tenant-scoped resources, provide the Edition-owned tenant resolver;
   keep authentication, authorization and request limits in the outer stack.
 - [ ] Bind the generated form/table/admin manifest to the authenticated admin

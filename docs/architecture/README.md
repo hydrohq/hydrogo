@@ -288,6 +288,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0226](0226-versioned-field-validation-contract.md) | Versioned field validation contract | Accepted |
 | [0240](0240-generated-route-composition.md) | Generated route composition helper | Accepted |
 | [0241](0241-versioned-blueprint-input.md) | Versioned Blueprint input boundary | Accepted |
+| [0242](0242-resource-auth-composition-flag.md) | Resource auth composition flag | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

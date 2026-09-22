@@ -18,6 +18,7 @@ type Blueprint struct {
 	Version      string           `json:"version,omitempty" yaml:"version,omitempty"`
 	Name         string           `json:"name" yaml:"name"`
 	Type         string           `json:"type,omitempty" yaml:"type,omitempty"`
+	Auth         bool             `json:"auth,omitempty" yaml:"auth,omitempty"`
 	TenantScoped bool             `json:"tenant_scoped,omitempty" yaml:"tenant_scoped,omitempty"`
 	Table        string           `json:"table,omitempty" yaml:"table,omitempty"`
 	Fields       []BlueprintField `json:"fields" yaml:"fields"`
@@ -107,7 +108,7 @@ func LoadBlueprint(path string) (Spec, error) {
 		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Validation: field.Validation, Admin: admin})
 	}
 	permissions := []string{name + ".read", name + ".write"}
-	spec := Spec{Name: name, Type: typeName, TenantScoped: blueprint.TenantScoped, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
+	spec := Spec{Name: name, Type: typeName, Auth: blueprint.Auth, TenantScoped: blueprint.TenantScoped, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
 	if err := Validate(spec); err != nil {
 		return Spec{}, err
 	}

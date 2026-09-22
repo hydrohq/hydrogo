@@ -3,7 +3,7 @@
   "spec_sha256": "863bce071b36b0e795a55e520ca41649d3749a1e0651400f80d6da8db666429a",
   "artifacts_sha256": {
     "REVIEW.md": "5702d3e254a3e0efe697d04072a8efaa6032be6a4e2be1a991020bfc8789fa1c",
-    "RUNTIME_WIRING.md": "ba9ef2d4aab736e0f52b0ac37846a21d1de256083a2cd5b57d1bd13b43f61bb5",
+    "RUNTIME_WIRING.md": "c81719d2202ed623c846d5785a56264844d31606d166e14d06545883d64944b2",
     "admin/form.templ": "ad2dcd82b656dcebb5a8d9a3f2b7d77903d18c44bd89e1a225dd2b4b068af24f",
     "admin/list.templ": "dc32512c3b31162f213531e121b112c349881e81ce4c976aa7ca756f8e40a5c7",
     "admin/views.json": "f1b4a22cd9bd47636597842ebef49cee157221d07118eacef911db541822b5d0",
@@ -22,7 +22,7 @@
     "migration.sql": "70062fac0394ca610327ea817e93ef4310e84433d3bc3cc7c15a19eb715f5d5d",
     "migration.yaml": "5358e60ac54b7bbd99882c0e4f220ffab2b24b949de22be6c700f3d70f31da33",
     "model.go": "4a8cd86eddd1b5669c1539abbc1b8977b1bd634406279002a52a43c14d957c93",
-    "module.yaml": "9fab004acd91a1e35949553b2e5e61fc994c1e6223cd20011d5c399e81ff42d4",
+    "module.yaml": "ffe169057757ccdf59b4c50a41d173e14644c52aae1fbd9b279c2d1b45f521c0",
     "openapi.json": "d5e5ce513d62454da3cd4402bd233edbd669b4da5ac5513badad504deb161b4a",
     "policy.go": "3aa638f73f88e191e868b33c706c68580bbe981299387b40adb7c4d568c82956",
     "query.ts": "fc3772d66cd3b1031f4f8db2032121306c809fe7ece5b6bf260c77593ac214cc",

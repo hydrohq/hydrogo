@@ -9,6 +9,7 @@
     "version": { "type": "string", "enum": ["v0"], "default": "v0" },
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$" },
     "type": { "type": "string", "enum": ["collection", "global"], "default": "collection" },
+    "auth": { "type": "boolean", "default": false, "description": "Require Edition-owned Identity/Session/RBAC composition before exposing the generated resource." },
     "tenant_scoped": { "type": "boolean", "default": false },
     "table": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$" },
     "fields": {
