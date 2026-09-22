@@ -2,7 +2,9 @@ package generator
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -707,6 +709,54 @@ func TestCheckCompatibility(t *testing.T) {
 	}
 	if _, err := CheckCompatibility(root, spec); err == nil {
 		t.Fatal("expected spec hash mismatch")
+	}
+}
+
+func TestCheckCompatibilityRejectsEmbeddedSpecDriftWithUpdatedArtifactDigest(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "testimonial", Table: "testimonials", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"testimonial.read"}, Dialects: []string{"sqlite"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	generatedRoot := filepath.Join(root, "generated")
+	specPath := filepath.Join(generatedRoot, spec.Name, "spec.json")
+	specBytes, err := os.ReadFile(specPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document SpecDocument
+	if err := json.Unmarshal(specBytes, &document); err != nil {
+		t.Fatal(err)
+	}
+	document.Collection.Fields[0].Type = "integer"
+	tampered, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered = append(tampered, '\n')
+	if err := os.WriteFile(specPath, tampered, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(generatedRoot, "generator.lock")
+	lockBytes, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lock Lock
+	if err := json.Unmarshal(lockBytes, &lock); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(tampered)
+	lock.ArtifactsSHA256["spec.json"] = hex.EncodeToString(digest[:])
+	lockBytes, err = json.MarshalIndent(lock, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lockPath, append(lockBytes, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CheckCompatibility(root, spec); err == nil || !strings.Contains(err.Error(), "embedded resource spec does not match requested contract") {
+		t.Fatalf("expected embedded spec drift rejection despite updated artifact digest, got %v", err)
 	}
 }
 
