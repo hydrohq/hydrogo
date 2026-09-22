@@ -391,6 +391,57 @@ func TestGeneratedAdminTemplatesUseTypedRelationAndMediaContracts(t *testing.T) 
 	}
 }
 
+func TestGeneratedManyRelationUsesNormalizedBoundedStorage(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{
+		Name: "record", Table: "records", TenantScoped: true,
+		Fields: []Field{
+			{Name: "tag_ids", Type: "relation", Relation: &Relation{Collection: "tag", Cardinality: "many", MaxItems: 20}},
+			{Name: "title", Type: "string"},
+		},
+		Permissions: []string{"record.read"}, Dialects: []string{"sqlite", "postgres"},
+	}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	migration, err := os.ReadFile(filepath.Join(root, "generated", "record", "migration.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	relations, err := os.ReadFile(filepath.Join(root, "generated", "record", "relations_store.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := os.ReadFile(filepath.Join(root, "generated", "record", "repository.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := os.ReadFile(filepath.Join(root, "generated", "record", "model.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{
+		"CREATE TABLE records_tag_ids_rel (tenant_id TEXT NOT NULL",
+		"PRIMARY KEY (tenant_id, resource_id, related_id)",
+		"CREATE INDEX records_tag_ids_rel_related_idx",
+	} {
+		if !strings.Contains(string(migration), marker) {
+			t.Fatalf("generated migration missing %q: %s", marker, migration)
+		}
+	}
+	if strings.Contains(string(migration), "tag_ids TEXT") {
+		t.Fatalf("many relation also emitted as scalar column: %s", migration)
+	}
+	for _, marker := range []string{"ReplaceTagIdsTx", "ListTagIds", "maxItems int", "tenant_id = "} {
+		if !strings.Contains(string(relations), marker) {
+			t.Fatalf("generated relation store missing %q: %s", marker, relations)
+		}
+	}
+	if !strings.Contains(string(model), "TagIds") || !strings.Contains(string(model), "[]string") || strings.Contains(string(repository), "tag_ids") {
+		t.Fatalf("many-valued field must remain typed but be excluded from scalar CRUD SQL: model=%s repository=%s", model, repository)
+	}
+}
+
 func TestGeneratedServiceBindsValidationContract(t *testing.T) {
 	root := t.TempDir()
 	minLength := 3

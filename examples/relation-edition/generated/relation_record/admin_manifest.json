@@ -1,0 +1,29 @@
+{
+  "id": "relation_record",
+  "type": "collection",
+  "label": "RelationRecord",
+  "description": "",
+  "fields": [
+    {
+      "id": "title",
+      "label": "Title",
+      "kind": "text",
+      "required": true,
+      "visible_in_list": true
+    },
+    {
+      "id": "tag_ids",
+      "label": "TagIds",
+      "kind": "relation",
+      "widget": "relation",
+      "required": false,
+      "visible_in_list": false
+    }
+  ],
+  "actions": [
+    {
+      "label": "Open RelationRecord",
+      "href": "/admin/relation_record"
+    }
+  ]
+}
