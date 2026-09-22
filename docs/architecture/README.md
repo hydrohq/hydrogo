@@ -310,3 +310,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0236: Bounded Admin bulk execution primitive](0236-bounded-admin-bulk-execution.md)
 - [ADR-0237: Edition-extensible tenant RLS verification](0237-tenant-rls-verification-extension.md)
 - [ADR-0238: Global singleton database invariant](0238-global-singleton-database-invariant.md)
+- [ADR-0239: Generated global admin surface](0239-generated-global-admin-surface.md)
