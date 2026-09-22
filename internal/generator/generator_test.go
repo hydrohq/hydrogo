@@ -522,6 +522,58 @@ func TestGeneratedAdminFormsExposeValidationHints(t *testing.T) {
 	}
 }
 
+func TestGeneratedUniqueIndexesAreTenantScopedAndPortable(t *testing.T) {
+	email := Field{Name: "email", Type: "string", Validation: Validation{Unique: true}}
+	for _, tc := range []struct {
+		name   string
+		spec   Spec
+		marker string
+	}{
+		{name: "global unique", spec: Spec{Name: "contact", Table: "contacts", Fields: []Field{email}, Dialects: []string{"sqlite", "postgres"}}, marker: "ON contacts (email)"},
+		{name: "tenant unique", spec: Spec{Name: "member", Table: "members", TenantScoped: true, Fields: []Field{email}, Dialects: []string{"sqlite", "postgres"}}, marker: "ON members (tenant_id, email)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			migration := renderMigration(tc.spec)
+			if !strings.Contains(migration, "CREATE UNIQUE INDEX") || !strings.Contains(migration, tc.marker) {
+				t.Fatalf("unique migration missing scope %q: %s", tc.marker, migration)
+			}
+			indexName := uniqueIndexName(tc.spec.Table, "email")
+			if len(indexName) > 63 || indexName != uniqueIndexName(tc.spec.Table, "email") {
+				t.Fatalf("index name is not deterministic/bounded: %q", indexName)
+			}
+			db, err := sql.Open("sqlite", ":memory:")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			if _, err := db.Exec(migration); err != nil {
+				t.Fatalf("SQLite rejected generated migration: %v", err)
+			}
+			if tc.spec.TenantScoped {
+				if _, err := db.Exec("INSERT INTO members(id,tenant_id,email) VALUES(?,?,?)", "1", "a", "same@example.com"); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := db.Exec("INSERT INTO members(id,tenant_id,email) VALUES(?,?,?)", "2", "b", "same@example.com"); err != nil {
+					t.Fatalf("uniqueness crossed tenants: %v", err)
+				}
+				if _, err := db.Exec("INSERT INTO members(id,tenant_id,email) VALUES(?,?,?)", "3", "a", "same@example.com"); err == nil {
+					t.Fatal("duplicate within tenant accepted")
+				}
+			} else {
+				if _, err := db.Exec("INSERT INTO contacts(id,email) VALUES(?,?)", "1", "same@example.com"); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := db.Exec("INSERT INTO contacts(id,email) VALUES(?,?)", "2", "same@example.com"); err == nil {
+					t.Fatal("global duplicate accepted")
+				}
+			}
+		})
+	}
+	if err := Validate(Spec{Name: "tags", Table: "tags", Fields: []Field{{Name: "tag_ids", Type: "relation", Relation: &Relation{Collection: "tag", Cardinality: "many", MaxItems: 5}, Validation: Validation{Unique: true}}}, Dialects: []string{"sqlite", "postgres"}}); err == nil {
+		t.Fatal("many-valued relation accepted scalar uniqueness")
+	}
+}
+
 func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "settings", Type: "global", Table: "settings", Fields: []Field{{Name: "site_title", Type: "string"}}, Permissions: []string{"settings.read"}, Dialects: []string{"sqlite", "postgres"}}

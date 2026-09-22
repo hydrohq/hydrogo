@@ -26,4 +26,7 @@ generated `validation.go` is called by generated service Create/Update methods
 and is compiled in the fixture suite. Runtime string formats and Unicode
 length semantics are specified by [ADR-0257](0257-executable-generated-field-validation.md);
 unique, immutable, and default semantics still require an Edition-owned
-contract and must not be treated as automatically enforced.
+contract and must not be treated as automatically enforced. The generated
+database uniqueness boundary and tenant-local default scope are specified by
+[ADR-0258](0258-tenant-scoped-blueprint-uniqueness.md); immutable and
+create-time default execution remain open.

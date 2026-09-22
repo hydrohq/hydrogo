@@ -304,6 +304,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0255](0255-edition-permission-catalog.md) | Edition-registered permission catalog and generated RBAC surface | Accepted |
 | [0256](0256-resource-query-ast-validation-budgets.md) | Revalidate bounded resource query ASTs | Accepted |
 | [0257](0257-executable-generated-field-validation.md) | Execute generated string format validation | Accepted |
+| [0258](0258-tenant-scoped-blueprint-uniqueness.md) | Enforce Blueprint uniqueness at the database boundary | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
