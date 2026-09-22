@@ -298,3 +298,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 5. Confirm that it does not create unnecessary services or unbounded resource consumption in the Compact profile.
 6. Verify that old and new versions can coexist during blue/green deployment.
 7. If the migration requires a maintenance window, explain this in the release metadata.
+- [ADR-0227: Client Edition lifecycle hook extension contract](0227-lifecycle-hook-extension-contract.md)
