@@ -19,7 +19,8 @@ authorization, migration execution, or route activation behavior was changed.
   passed its full matrix; the Compact combined Workspace measured 21,343,744
   bytes and 152 non-standard packages on Windows amd64/Go 1.27.0.
 - Tests cover emitted lock metadata, legacy lock acceptance without the marker,
-  and rejection of an unsupported contract version.
+  rejection of an unsupported contract version, and rejection of a modified
+  embedded resource spec even when its artifact digest has also been changed.
 - `git diff --check` — passed.
 
 ## Compatibility and limits
