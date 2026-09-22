@@ -26,6 +26,9 @@ The generated Project/Article fixture servers measured the same 11,661,312 B /
 fixtures never imported GraphQL. They remain harnesses, not full customer
 Editions.
 
+R125 subsequently removes the independent OTLP exporter tree and records the
+combined smaller artifact; this report retains the isolated GraphQL delta.
+
 ## Verification
 
 - `go test ./cmd/hydro -count=1` — passed; default feature retained.
@@ -41,7 +44,6 @@ Editions.
 ## Remaining gaps
 
 This is one independently selectable feature. Redis/Valkey, S3/MinIO, OTLP,
-and other optional capabilities remain linked in the universal Workspace
-binary and require their own composition decisions, compatibility checks, and
-measured variants. Full Edition composition and production deployment remain
-unverified.
+and other optional capabilities require their own composition decisions,
+compatibility checks, and measured variants. Full Edition composition and
+production deployment remain unverified.

@@ -1,9 +1,9 @@
+//go:build !hydro_no_otlp
+
 package observability
 
 import (
 	"context"
-	"errors"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -24,5 +24,3 @@ func InstallOTLPProvider(ctx context.Context, profile TracingProfile) (func(cont
 	otel.SetTracerProvider(provider)
 	return provider.Shutdown, nil
 }
-
-var ErrOTLPUnavailable = errors.New("otlp exporter unavailable")
