@@ -23,6 +23,7 @@ type adminTemplateData struct {
 	Name         string
 	Title        string
 	Route        string
+	Singleton    bool
 	Fields       []adminTemplateField
 	ListFields   []adminTemplateField
 	SearchFields []adminTemplateField
@@ -32,7 +33,7 @@ type adminTemplateData struct {
 func newAdminTemplateData(spec Spec) adminTemplateData {
 	fields := append([]Field(nil), spec.Fields...)
 	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
-	data := adminTemplateData{Name: exportName(spec.Name), Title: strings.TrimSpace(spec.Admin.Label), Route: "/admin/" + spec.Name}
+	data := adminTemplateData{Name: exportName(spec.Name), Title: strings.TrimSpace(spec.Admin.Label), Route: "/admin/" + spec.Name, Singleton: strings.EqualFold(spec.Type, "global")}
 	if data.Title == "" {
 		data.Title = exportName(spec.Name)
 	}
@@ -92,6 +93,9 @@ type {{.Name}}ListView struct {
 templ {{.Name}}List(view {{.Name}}ListView) {
 	<section class="admin-resource" data-resource="{{.Route}}">
 		<h1>{{.Title}}</h1>
+{{- if .Singleton}}
+		<p>Bu kaynak tekil bir ayardır; liste görünümü kullanılmaz.</p>
+{{- else}}
 {{- if .SearchFields}}
 		<div class="admin-list-toolbar">
 		{{- with index .SearchFields 0}}
@@ -113,6 +117,7 @@ templ {{.Name}}List(view {{.Name}}ListView) {
 			@ui.Pagination(ui.PaginationProps{Page: view.Page, Pages: view.Pages, BaseURL: "{{.Route}}", Target: "#{{.Name}}-list", Swap: "innerHTML"})
 		</div>
 	</section>
+{{- end}}
 }
 
 func {{.Name}}ListColumns() []string {

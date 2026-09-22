@@ -425,6 +425,10 @@ func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	listTemplate, err := os.ReadFile(filepath.Join(root, "generated", "settings", "admin", "list.templ"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	migration, err := os.ReadFile(filepath.Join(root, "generated", "settings", "migration.sql"))
 	if err != nil {
 		t.Fatal(err)
@@ -434,6 +438,9 @@ func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
 	}
 	if !bytes.Contains(migration, []byte("CHECK (id = 'global')")) {
 		t.Fatalf("global migration must enforce singleton id: %s", migration)
+	}
+	if !bytes.Contains(listTemplate, []byte("tekil bir ayardır")) || bytes.Contains(listTemplate, []byte("@ui.Table")) {
+		t.Fatalf("global admin list must not render collection table: %s", listTemplate)
 	}
 }
 
