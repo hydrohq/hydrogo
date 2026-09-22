@@ -8,6 +8,9 @@
 - Endpoint metrics testleri route normalization, p50/p95/p99, status/timeout/rate-limit, bytes ve tenant/module dimension sözleşmesini doğrular.
 - Analytics SQLite contract testleri consent gate, aggregate upsert, bounded queue ve report filtrelerini doğrular.
 - Backup testleri SQLite/PostgreSQL snapshot/restore staging, manifest digest ve path traversal guard'larını doğrular.
+- `scripts/verify-wsl-postgres-drill.ps1` WSL PostgreSQL 18 üzerinde backup ve
+  contract paketlerini sıralı çalıştırarak geçti; disposable database sonunda
+  silindi.
 
 ## Bilinçli operasyon sınırları
 

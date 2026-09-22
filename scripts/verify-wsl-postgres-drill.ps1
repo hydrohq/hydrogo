@@ -10,7 +10,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "failed to create WSL PostgreSQL database $dbName" }
     $created = $true
     $linuxRepo = "/mnt/" + $repo.Substring(0, 1).ToLowerInvariant() + $repo.Substring(2).Replace('\', '/')
-    $command = "cd '$linuxRepo' && HYDRO_TEST_POSTGRES_URL='${dsn}' go test ./internal/backup ./tests/contract -count=1 -timeout=5m"
+    # Run package groups sequentially: both suites intentionally create/drop
+    # disposable PostgreSQL schemas and concurrent `go test` processes can
+    # invalidate the other suite's dump snapshot.
+    $command = "cd '$linuxRepo' && export HYDRO_TEST_POSTGRES_URL='${dsn}' && go test ./internal/backup -count=1 -timeout=5m && go test ./tests/contract -count=1 -timeout=5m"
     & wsl bash -lc $command
     if ($LASTEXITCODE -ne 0) { throw "WSL PostgreSQL backup/contract drill failed with exit code $LASTEXITCODE" }
     Write-Host "PASS: WSL PostgreSQL backup/contract drill ($dbName)"
