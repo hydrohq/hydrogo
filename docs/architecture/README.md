@@ -297,6 +297,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0248](0248-sqlite-only-customer-runtime-build.md) | SQLite-only customer runtime build variant | Accepted |
 | [0249](0249-optional-graphql-runtime-build.md) | Optional GraphQL runtime build capability | Accepted |
 | [0250](0250-optional-otlp-exporter-build.md) | Optional OTLP exporter build capability | Accepted |
+| [0251](0251-optional-s3-media-build.md) | Optional S3 media provider build capability | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

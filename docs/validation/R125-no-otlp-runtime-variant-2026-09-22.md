@@ -42,6 +42,7 @@ promise.
 
 ## Remaining gaps
 
-Redis/Valkey, MinIO/S3, and other optional runtime features remain candidates
-for composition-time selection. Full Client Edition composition, production
-startup/RSS/capacity measurements, and deployment certification remain open.
+Redis/Valkey and other optional runtime features remain candidates for
+composition-time selection. R126 records the later S3 provider separation.
+Full Client Edition composition, production startup/RSS/capacity measurements,
+and deployment certification remain open.
