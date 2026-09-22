@@ -1,5 +1,6 @@
 {
   "generator_version": "0.1.0",
+  "contract_version": "v0",
   "spec_sha256": "0f04af6ad0d954ada7c8e08d94310aa1828963e1ef4e6175da70a1bc21c6b52c",
   "artifacts_sha256": {
     "REVIEW.md": "6ba055e2582ebdcdbce7d1d117c5d08ae4e2f5a39596a643e0ec6673de3e3de1",
@@ -7,7 +8,7 @@
     "admin/form.templ": "3aa82bf1a1ba1cd0ac9e01c56838ad1f82cd6d6284df55db05a76fe7953e2767",
     "admin/list.templ": "7ab5ad466401b47fe3ec5a34cd583a1f274201706292854da51c838f706b455f",
     "admin/views.json": "ff06531e0aeed46a812517327e9b044944ee021f339f3ecb70beb5ee894bf46c",
-    "admin_manifest.json": "4ae0afdde994424c0e8194aff8378a702994885e402fe79bba7fd4363c140117",
+    "admin_manifest.json": "bd08b7143d8b4c1e300920e89db5802b9178a00001b5e89645ffbdd9e9203353",
     "bulk.ts": "6fed25b68fa97f8512315fd85c3d925b37ceb00df732bb344736a7203140bed6",
     "client.ts": "9019b3b3c5363c2364f3c715bff1d61e8de9c091ce6c2b7d5ef04a4038a8b6d4",
     "contract_test.go": "554fce9bf5e7a1f37d31e7d3bc4c184f98237443db7a41feddead290ebb94486",

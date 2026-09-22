@@ -325,7 +325,7 @@ func validateResourceCommand(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprintf(stdout, "resource-compatible collection=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked)
+		_, err = fmt.Fprintf(stdout, "resource-compatible collection=%s contract=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.ContractVersion, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked)
 		return err
 	}
 	reports, err := generator.CheckGeneratedCompatibility(*root)
@@ -333,7 +333,7 @@ func validateResourceCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	for _, report := range reports {
-		if _, err := fmt.Fprintf(stdout, "resource-compatible collection=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked); err != nil {
+		if _, err := fmt.Fprintf(stdout, "resource-compatible collection=%s contract=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.ContractVersion, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked); err != nil {
 			return err
 		}
 	}
@@ -2150,7 +2150,7 @@ func validateGeneratorCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "compatible collection=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked)
+	_, err = fmt.Fprintf(stdout, "compatible collection=%s contract=%s generator=%s spec_sha256=%s files=%d\n", report.Collection, report.ContractVersion, report.GeneratorVersion, report.SpecSHA256, report.FilesChecked)
 	return err
 }
 
