@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -55,7 +56,13 @@ var allowedOperators = map[string]bool{
 
 func Parse(values url.Values, fields map[string]Field) (Query, error) {
 	result := Query{Limit: 25}
-	for key, rawValues := range values {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		rawValues := values[key]
 		if key == "limit" || key == "page" || key == "offset" || key == "sort" {
 			if err := parseControl(&result, key, rawValues); err != nil {
 				return Query{}, err

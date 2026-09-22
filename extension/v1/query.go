@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -63,7 +64,13 @@ var queryOperators = map[string]bool{
 // Field names and operators must be supplied by the generated resource.
 func ParseResourceQuery(values url.Values, fields map[string]QueryField) (ResourceQuery, error) {
 	result := ResourceQuery{Limit: 25}
-	for key, raw := range values {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		raw := values[key]
 		if key == "limit" || key == "page" || key == "offset" || key == "sort" {
 			if err := parseQueryControl(&result, key, raw); err != nil {
 				return ResourceQuery{}, err
