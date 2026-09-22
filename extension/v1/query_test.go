@@ -33,3 +33,29 @@ func TestResourceQueryBuildSQLBindsValues(t *testing.T) {
 		t.Fatalf("unexpected SQL: %#v", sql)
 	}
 }
+
+func TestResourceQueryBuildSQLGroupsOrAndRange(t *testing.T) {
+	fields := map[string]QueryField{
+		"title":    {Name: "title"},
+		"priority": {Name: "priority"},
+	}
+	values := url.Values{
+		"where[or][0][title][equals]":      {"one"},
+		"where[or][1][title][equals]":      {"two"},
+		"where[priority][less_than_equal]": {"3"},
+	}
+	q, err := ParseResourceQuery(values, fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql, err := q.BuildSQL("sqlite", fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sql.Where != "priority <= ? AND (title = ? OR title = ?)" {
+		t.Fatalf("unexpected grouped SQL: %q", sql.Where)
+	}
+	if len(sql.Args) != 3 {
+		t.Fatalf("args = %#v", sql.Args)
+	}
+}
