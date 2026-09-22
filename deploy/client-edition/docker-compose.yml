@@ -11,6 +11,9 @@ services:
       HYDRO_DATABASE_DIALECT: postgres
       HYDRO_DATABASE_DSN: ${HYDRO_DATABASE_DSN:?set database DSN}
       HYDRO_PUBLIC_ORIGIN: https://${HYDRO_PUBLIC_HOST:?set public host}
+      HYDRO_OTEL_ENABLED: ${HYDRO_OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-0.1}
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:

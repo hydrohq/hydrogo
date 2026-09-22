@@ -19,3 +19,7 @@ Compact profili exporter olmadan çalışır. Standard/Enterprise dağıtımlar�
 OTEL SDK/provider'ı dışarıdan kurup OTLP endpoint ve sampling oranını secret
 olmayan deployment config'i ile seçebilir. Collector retention ve erişim
 politikasından sorumludur.
+
+`LoadTracingProfile` endpoint'in mutlak URL olmasını ve sampling oranının
+0..1 aralığında kalmasını doğrular; exporter adapter'ı bu profile göre
+kurulur.
