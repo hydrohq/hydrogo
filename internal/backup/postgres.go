@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
 const maxPostgresCommandOutput = 64 << 10
@@ -61,6 +63,8 @@ type PostgresTools struct {
 // SnapshotPostgres creates a custom-format database dump and copies immutable
 // media into the same manifest root. The destination must not already exist.
 func SnapshotPostgres(ctx context.Context, tools PostgresTools, dsn, mediaDir, destination string) (Manifest, error) {
+	ctx, span := observability.StartComponentSpan(ctx, "backup", "snapshot.postgres")
+	defer span.End()
 	if strings.TrimSpace(destination) == "" || strings.TrimSpace(mediaDir) == "" {
 		return Manifest{}, errors.New("media directory and destination are required")
 	}

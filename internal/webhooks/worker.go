@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/outbox"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -125,6 +126,8 @@ func sleepContext(ctx context.Context, delay time.Duration) error {
 // RunOnce claims at most one event. Delivery is acknowledged only after every
 // matching endpoint succeeds; failures release the lease for a bounded retry.
 func (w Worker) RunOnce(ctx context.Context, now time.Time) (bool, error) {
+	ctx, span := observability.StartComponentSpan(ctx, "webhook", "deliver")
+	defer span.End()
 	if w.Store == nil || w.DB == nil || w.WorkerID == "" || w.Lease <= 0 {
 		return false, nil
 	}
