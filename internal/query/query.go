@@ -18,6 +18,11 @@ import (
 const (
 	MaxConditions = 32
 	MaxValueBytes = 256
+	MaxInValues   = 32
+	MaxTotalArgs  = 256
+	MaxQueryKeys  = 64
+	MaxQueryBytes = 16 * 1024
+	MaxSortFields = 8
 	MaxLimit      = 100
 	MaxOffset     = 10000
 )
@@ -56,11 +61,30 @@ var allowedOperators = map[string]bool{
 
 func Parse(values url.Values, fields map[string]Field) (Query, error) {
 	result := Query{Limit: 25}
+	if len(values) > MaxQueryKeys {
+		return Query{}, errors.New("query parameter budget exceeded")
+	}
+	queryBytes := 0
+	for key, rawValues := range values {
+		queryBytes += len(key)
+		for _, value := range rawValues {
+			queryBytes += len(value)
+		}
+		if queryBytes > MaxQueryBytes {
+			return Query{}, errors.New("query byte budget exceeded")
+		}
+	}
+	_, hasPage := values["page"]
+	_, hasOffset := values["offset"]
+	if hasPage && hasOffset {
+		return Query{}, errors.New("page and offset cannot be combined")
+	}
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+	totalArgs := 0
 	for _, key := range keys {
 		rawValues := values[key]
 		if key == "limit" || key == "page" || key == "offset" || key == "sort" {
@@ -70,12 +94,16 @@ func Parse(values url.Values, fields map[string]Field) (Query, error) {
 			continue
 		}
 		tokens := bracketTokens(key)
-		if len(tokens) < 3 || tokens[0] != "where" {
+		if tokens == nil || tokens[0] != "where" || (len(tokens) != 3 && len(tokens) != 5) {
 			return Query{}, fmt.Errorf("unsupported query parameter %q", key)
 		}
 		group := "and"
 		fieldToken, operatorToken := tokens[1], tokens[2]
-		if len(tokens) == 5 && (tokens[1] == "and" || tokens[1] == "or") {
+		if len(tokens) == 5 {
+			index, err := strconv.Atoi(tokens[2])
+			if (tokens[1] != "and" && tokens[1] != "or") || err != nil || index < 0 || index >= MaxConditions {
+				return Query{}, fmt.Errorf("unsupported query parameter %q", key)
+			}
 			group, fieldToken, operatorToken = tokens[1], tokens[3], tokens[4]
 		}
 		field, ok := fields[fieldToken]
@@ -89,6 +117,12 @@ func Parse(values url.Values, fields map[string]Field) (Query, error) {
 			return Query{}, errors.New("query value is required")
 		}
 		condition := Condition{Field: fieldToken, Operator: operatorToken, Group: group}
+		if operatorToken != "in" && len(rawValues) != 1 {
+			return Query{}, errors.New("query operator requires exactly one value")
+		}
+		if operatorToken == "exists" && len(rawValues) == 1 && rawValues[0] != "true" && rawValues[0] != "false" {
+			return Query{}, errors.New("exists requires a boolean")
+		}
 		for _, value := range rawValues {
 			if len(value) > MaxValueBytes {
 				return Query{}, errors.New("query value is too large")
@@ -99,12 +133,21 @@ func Parse(values url.Values, fields map[string]Field) (Query, error) {
 						return Query{}, errors.New("in query contains an empty value")
 					}
 					condition.Values = append(condition.Values, strings.TrimSpace(item))
+					if len(condition.Values) > MaxInValues {
+						return Query{}, errors.New("in query value budget exceeded")
+					}
 				}
 			} else {
 				condition.Values = append(condition.Values, value)
 			}
 		}
 		result.Conditions = append(result.Conditions, condition)
+		if operatorToken != "exists" {
+			totalArgs += len(condition.Values)
+		}
+		if totalArgs > MaxTotalArgs {
+			return Query{}, errors.New("query argument budget exceeded")
+		}
 		if len(result.Conditions) > MaxConditions {
 			return Query{}, errors.New("query condition budget exceeded")
 		}
@@ -126,7 +169,7 @@ func parseControl(query *Query, key string, values []string) error {
 			}
 			query.Sort = append(query.Sort, Sort{Field: field, Desc: desc})
 		}
-		if len(query.Sort) > 8 {
+		if len(query.Sort) > MaxSortFields {
 			return errors.New("sort budget exceeded")
 		}
 		return nil
@@ -180,6 +223,9 @@ func (q Query) BuildSQL(dialect database.Dialect, fields map[string]Field) (SQL,
 	if dialect != database.SQLite && dialect != database.Postgres {
 		return SQL{}, fmt.Errorf("unsupported query dialect %q", dialect)
 	}
+	if len(q.Conditions) > MaxConditions || len(q.Sort) > MaxSortFields || q.Limit < 1 || q.Limit > MaxLimit || q.Offset < 0 || q.Offset > MaxOffset {
+		return SQL{}, errors.New("query budget exceeded")
+	}
 	andParts := make([]string, 0, len(q.Conditions))
 	orParts := make([]string, 0)
 	args := make([]any, 0)
@@ -191,17 +237,29 @@ func (q Query) BuildSQL(dialect database.Dialect, fields map[string]Field) (SQL,
 	}
 	for _, condition := range q.Conditions {
 		field, ok := fields[condition.Field]
-		if !ok || !allowedOperators[condition.Operator] || (len(field.Operators) > 0 && !field.Operators[condition.Operator]) {
+		if !ok || !identifier.MatchString(condition.Field) || field.Name != condition.Field || !allowedOperators[condition.Operator] || (len(field.Operators) > 0 && !field.Operators[condition.Operator]) || (condition.Group != "and" && condition.Group != "or") {
 			return SQL{}, fmt.Errorf("condition is not allowed for %q", condition.Field)
 		}
-		if len(condition.Values) == 0 {
+		if len(condition.Values) == 0 || (condition.Operator != "in" && len(condition.Values) != 1) || (condition.Operator == "in" && len(condition.Values) > MaxInValues) {
 			return SQL{}, errors.New("condition has no values")
+		}
+		for _, value := range condition.Values {
+			if len(value) > MaxValueBytes || (condition.Operator == "in" && strings.TrimSpace(value) == "") {
+				return SQL{}, errors.New("query value is invalid or too large")
+			}
 		}
 		column := condition.Field
 		var expression string
 		switch condition.Operator {
 		case "exists":
-			expression = column + " IS " + map[bool]string{true: "NOT NULL", false: "NULL"}[condition.Values[0] == "true"]
+			if condition.Values[0] != "true" && condition.Values[0] != "false" {
+				return SQL{}, errors.New("exists requires a boolean")
+			}
+			if condition.Values[0] == "true" {
+				expression = column + " IS NOT NULL"
+			} else {
+				expression = column + " IS NULL"
+			}
 		case "in":
 			markers := make([]string, len(condition.Values))
 			for i, value := range condition.Values {
@@ -227,6 +285,9 @@ func (q Query) BuildSQL(dialect database.Dialect, fields map[string]Field) (SQL,
 			expression = column + " " + operator + " " + placeholder()
 			args = append(args, value)
 		}
+		if len(args) > MaxTotalArgs {
+			return SQL{}, errors.New("query argument budget exceeded")
+		}
 		if condition.Group == "or" {
 			orParts = append(orParts, expression)
 		} else {
@@ -242,7 +303,7 @@ func (q Query) BuildSQL(dialect database.Dialect, fields map[string]Field) (SQL,
 	}
 	orders := make([]string, 0, len(q.Sort))
 	for _, sort := range q.Sort {
-		if field, ok := fields[sort.Field]; !ok || !identifier.MatchString(field.Name) {
+		if field, ok := fields[sort.Field]; !ok || !identifier.MatchString(sort.Field) || field.Name != sort.Field {
 			return SQL{}, fmt.Errorf("sort field %q is not allowed", sort.Field)
 		} else if sort.Desc {
 			orders = append(orders, sort.Field+" DESC")

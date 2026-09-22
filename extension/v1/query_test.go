@@ -2,6 +2,8 @@ package v1
 
 import (
 	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -58,4 +60,59 @@ func TestResourceQueryBuildSQLGroupsOrAndRange(t *testing.T) {
 	if len(sql.Args) != 3 {
 		t.Fatalf("args = %#v", sql.Args)
 	}
+}
+
+func TestResourceQueryRejectsAmbiguousAndDirectUnboundedAST(t *testing.T) {
+	fields := map[string]QueryField{
+		"title":  {Name: "title", Operators: map[string]bool{"contains": true}},
+		"status": {Name: "status", Operators: map[string]bool{"exists": true, "in": true}},
+	}
+	for name, values := range map[string]url.Values{
+		"repeated scalar": {"where[title][contains]": {"a", "b"}},
+		"invalid exists":  {"where[status][exists]": {"yes"}},
+		"page and offset": {"page": {"2"}, "offset": {"10"}},
+		"too many IN":     {"where[status][in]": {strings.Repeat("x,", MaxQueryInValues)}},
+		"too many keys":   makePublicQueryKeys(MaxQueryKeys + 1),
+		"extra segment":   {"where[title][contains][ignored]": {"x"}},
+		"invalid index":   {"where[or][bad][title][equals]": {"x"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ParseResourceQuery(values, fields); err == nil {
+				t.Fatalf("accepted %#v", values)
+			}
+		})
+	}
+	for name, q := range map[string]ResourceQuery{
+		"strict exists":      {Conditions: []QueryCondition{{Field: "status", Operator: "exists", Values: []string{"1"}, Group: "and"}}, Limit: 25},
+		"scalar cardinality": {Conditions: []QueryCondition{{Field: "title", Operator: "contains", Values: []string{"a", "b"}, Group: "and"}}, Limit: 25},
+		"group allowlist":    {Conditions: []QueryCondition{{Field: "title", Operator: "contains", Values: []string{"x"}, Group: "anything"}}, Limit: 25},
+		"total args":         {Conditions: publicManyInConditions(MaxQueryTotalArgs + 1), Limit: 25},
+		"limit required":     {Limit: 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := q.BuildSQL("sqlite", fields); err == nil {
+				t.Fatalf("accepted %#v", q)
+			}
+		})
+	}
+}
+
+func makePublicQueryKeys(n int) url.Values {
+	values := make(url.Values, n)
+	for i := 0; i < n; i++ {
+		values["x"+strconv.Itoa(i)] = []string{"v"}
+	}
+	return values
+}
+
+func publicManyInConditions(n int) []QueryCondition {
+	conditions := make([]QueryCondition, 0, n/MaxQueryInValues+1)
+	for len(conditions)*MaxQueryInValues < n {
+		values := make([]string, MaxQueryInValues)
+		for i := range values {
+			values[i] = "x"
+		}
+		conditions = append(conditions, QueryCondition{Field: "status", Operator: "in", Values: values, Group: "and"})
+	}
+	return conditions
 }

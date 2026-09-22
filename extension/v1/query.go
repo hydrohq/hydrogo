@@ -15,6 +15,11 @@ import (
 const (
 	MaxQueryConditions = 32
 	MaxQueryValueBytes = 256
+	MaxQueryInValues   = 32
+	MaxQueryTotalArgs  = 256
+	MaxQueryKeys       = 64
+	MaxQueryBytes      = 16 * 1024
+	MaxQuerySortFields = 8
 	MaxQueryLimit      = 100
 	MaxQueryOffset     = 10000
 )
@@ -64,11 +69,30 @@ var queryOperators = map[string]bool{
 // Field names and operators must be supplied by the generated resource.
 func ParseResourceQuery(values url.Values, fields map[string]QueryField) (ResourceQuery, error) {
 	result := ResourceQuery{Limit: 25}
+	if len(values) > MaxQueryKeys {
+		return ResourceQuery{}, errors.New("query parameter budget exceeded")
+	}
+	queryBytes := 0
+	for key, rawValues := range values {
+		queryBytes += len(key)
+		for _, value := range rawValues {
+			queryBytes += len(value)
+		}
+		if queryBytes > MaxQueryBytes {
+			return ResourceQuery{}, errors.New("query byte budget exceeded")
+		}
+	}
+	_, hasPage := values["page"]
+	_, hasOffset := values["offset"]
+	if hasPage && hasOffset {
+		return ResourceQuery{}, errors.New("page and offset cannot be combined")
+	}
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+	totalArgs := 0
 	for _, key := range keys {
 		raw := values[key]
 		if key == "limit" || key == "page" || key == "offset" || key == "sort" {
@@ -78,11 +102,15 @@ func ParseResourceQuery(values url.Values, fields map[string]QueryField) (Resour
 			continue
 		}
 		tokens := queryBracketTokens(key)
-		if len(tokens) < 3 || tokens[0] != "where" {
+		if tokens == nil || tokens[0] != "where" || (len(tokens) != 3 && len(tokens) != 5) {
 			return ResourceQuery{}, fmt.Errorf("unsupported query parameter %q", key)
 		}
 		group, fieldName, operator := "and", tokens[1], tokens[2]
-		if len(tokens) == 5 && (tokens[1] == "and" || tokens[1] == "or") {
+		if len(tokens) == 5 {
+			index, err := strconv.Atoi(tokens[2])
+			if (tokens[1] != "and" && tokens[1] != "or") || err != nil || index < 0 || index >= MaxQueryConditions {
+				return ResourceQuery{}, fmt.Errorf("unsupported query parameter %q", key)
+			}
 			group, fieldName, operator = tokens[1], tokens[3], tokens[4]
 		}
 		field, ok := fields[fieldName]
@@ -96,6 +124,12 @@ func ParseResourceQuery(values url.Values, fields map[string]QueryField) (Resour
 			return ResourceQuery{}, errors.New("query value is required")
 		}
 		condition := QueryCondition{Field: fieldName, Operator: operator, Group: group}
+		if operator != "in" && len(raw) != 1 {
+			return ResourceQuery{}, errors.New("query operator requires exactly one value")
+		}
+		if operator == "exists" && len(raw) == 1 && raw[0] != "true" && raw[0] != "false" {
+			return ResourceQuery{}, errors.New("exists requires a boolean")
+		}
 		for _, value := range raw {
 			if len(value) > MaxQueryValueBytes {
 				return ResourceQuery{}, errors.New("query value is too large")
@@ -107,12 +141,21 @@ func ParseResourceQuery(values url.Values, fields map[string]QueryField) (Resour
 						return ResourceQuery{}, errors.New("in query contains an empty value")
 					}
 					condition.Values = append(condition.Values, item)
+					if len(condition.Values) > MaxQueryInValues {
+						return ResourceQuery{}, errors.New("in query value budget exceeded")
+					}
 				}
 			} else {
 				condition.Values = append(condition.Values, value)
 			}
 		}
 		result.Conditions = append(result.Conditions, condition)
+		if operator != "exists" {
+			totalArgs += len(condition.Values)
+		}
+		if totalArgs > MaxQueryTotalArgs {
+			return ResourceQuery{}, errors.New("query argument budget exceeded")
+		}
 		if len(result.Conditions) > MaxQueryConditions {
 			return ResourceQuery{}, errors.New("query condition budget exceeded")
 		}
@@ -133,7 +176,7 @@ func parseQueryControl(query *ResourceQuery, key string, values []string) error 
 			}
 			query.Sort = append(query.Sort, QuerySort{Field: field, Desc: desc})
 		}
-		if len(query.Sort) > 8 {
+		if len(query.Sort) > MaxQuerySortFields {
 			return errors.New("sort budget exceeded")
 		}
 		return nil
@@ -179,6 +222,9 @@ func (q ResourceQuery) BuildSQL(dialect string, fields map[string]QueryField) (Q
 	if dialect != "sqlite" && dialect != "postgres" {
 		return QuerySQL{}, fmt.Errorf("unsupported query dialect %q", dialect)
 	}
+	if len(q.Conditions) > MaxQueryConditions || len(q.Sort) > MaxQuerySortFields || q.Limit < 1 || q.Limit > MaxQueryLimit || q.Offset < 0 || q.Offset > MaxQueryOffset {
+		return QuerySQL{}, errors.New("query budget exceeded")
+	}
 	args := make([]any, 0)
 	placeholder := func() string {
 		if dialect == "postgres" {
@@ -189,11 +235,16 @@ func (q ResourceQuery) BuildSQL(dialect string, fields map[string]QueryField) (Q
 	andParts, orParts := make([]string, 0), make([]string, 0)
 	for _, condition := range q.Conditions {
 		field, ok := fields[condition.Field]
-		if !ok || !queryOperators[condition.Operator] || (len(field.Operators) > 0 && !field.Operators[condition.Operator]) {
+		if !ok || !queryIdentifier.MatchString(condition.Field) || field.Name != condition.Field || !queryOperators[condition.Operator] || (len(field.Operators) > 0 && !field.Operators[condition.Operator]) || (condition.Group != "and" && condition.Group != "or") {
 			return QuerySQL{}, fmt.Errorf("condition is not allowed for %q", condition.Field)
 		}
-		if len(condition.Values) == 0 {
+		if len(condition.Values) == 0 || (condition.Operator != "in" && len(condition.Values) != 1) || (condition.Operator == "in" && len(condition.Values) > MaxQueryInValues) {
 			return QuerySQL{}, errors.New("condition has no values")
+		}
+		for _, value := range condition.Values {
+			if len(value) > MaxQueryValueBytes || (condition.Operator == "in" && strings.TrimSpace(value) == "") {
+				return QuerySQL{}, errors.New("query value is invalid or too large")
+			}
 		}
 		var expression string
 		switch condition.Operator {
@@ -231,6 +282,9 @@ func (q ResourceQuery) BuildSQL(dialect string, fields map[string]QueryField) (Q
 			expression = condition.Field + " " + operator + " " + placeholder()
 			args = append(args, value)
 		}
+		if len(args) > MaxQueryTotalArgs {
+			return QuerySQL{}, errors.New("query argument budget exceeded")
+		}
 		if condition.Group == "or" {
 			orParts = append(orParts, expression)
 		} else {
@@ -243,7 +297,7 @@ func (q ResourceQuery) BuildSQL(dialect string, fields map[string]QueryField) (Q
 	orders := make([]string, 0, len(q.Sort))
 	for _, item := range q.Sort {
 		field, ok := fields[item.Field]
-		if !ok || !queryIdentifier.MatchString(field.Name) {
+		if !ok || !queryIdentifier.MatchString(item.Field) || field.Name != item.Field {
 			return QuerySQL{}, fmt.Errorf("sort field %q is not allowed", item.Field)
 		}
 		direction := "ASC"

@@ -17,6 +17,8 @@ The parser enforces maximum condition/value/sort/page budgets. SQL rendering
 supports SQLite and PostgreSQL placeholders without exposing dialect details to
 domain or service code. Tenant predicates and authorization filters are added
 by the application service/policy layer, not by untrusted query parameters.
+The parser and SQL builder apply the same bounds, and the builder revalidates
+directly constructed ASTs at the SQL boundary; see [ADR-0256](0256-resource-query-ast-validation-budgets.md).
 
 ## Consequences
 
