@@ -16,6 +16,7 @@ Bu belge, mevcut kararların ve doğrulama kanıtlarının nerede tutulduğunu g
 | Yeni proje üretimi ve SDK CLI | [PROJECT_GENERATOR.md](PROJECT_GENERATOR.md), [CLI_WORKFLOW.md](CLI_WORKFLOW.md), [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md) |
 | SDK ve extension | [SDK_CAPABILITY_MATRIX.md](SDK_CAPABILITY_MATRIX.md), [SDK_SUPPORT_POLICY.md](SDK_SUPPORT_POLICY.md) |
 | Payload hız/parite planı | [PAYLOAD_PARITY_EXECUTION_PLAN.md](PAYLOAD_PARITY_EXECUTION_PLAN.md) |
+| Core bloat ve Compact profil denetimi | [CORE_BLOAT_AUDIT.md](CORE_BLOAT_AUDIT.md) |
 | Payload ölçüm yöntemi | [PAYLOAD_BENCHMARK_PROTOCOL.md](PAYLOAD_BENCHMARK_PROTOCOL.md) |
 | HydroGo iterasyon baseline | [validation/R5-iteration-baseline-2026-09-16.md](validation/R5-iteration-baseline-2026-09-16.md) |
 | Public SDK/private runtime | [HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md), [ADR-0091](architecture/0091-sdk-runtime-artifact-distribution.md) |
