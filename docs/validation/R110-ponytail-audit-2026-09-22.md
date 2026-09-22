@@ -21,6 +21,9 @@ Ponytail whole-repo taraması aşağıdaki adayları inceledi:
 - `stdlib`/`native`: bağımlılık manifestinde doğrudan stdlib ile güvenle
   değiştirilebilecek production dependency tespit edilmedi; templ, pgx,
   Redis, S3, OTEL, SQLite ve YAML gerçek capability sınırlarıdır.
+- `go mod why` ile doğrudan kontrol edilen `x/net/idna`, `x/text/currency` ve
+  OTEL exporter paketleri gerçek production import'larına bağlandı; bunlar
+  transitif/ölü dependency değildir.
 
 **Sonuç:** Davranışı bozmadan güvenle silinebilecek satır: 0; güvenle
 kaldırılabilecek dependency: 0. Deprecated `extension.Module` için ileride
