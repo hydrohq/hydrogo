@@ -6,6 +6,7 @@
     "RUNTIME_WIRING.md": "45934aba7c89714e1988ed7a42b0bb5cf103721a2acb3cd9c8dad241f5e3a9f6",
     "admin/form.templ": "9979ce7a4f7a20aa4daa795a0bc93f2c0a6bc1626271d1b7257ef3b3d3abf8d5",
     "admin/list.templ": "df05b7129b7d6561e1d8bcb20667e00938c97b49142b524652b37f32126eecef",
+    "admin/views.json": "6f3668acf8479789472c100061d9f68ea93281736a8cb81f1edfba94a2f058ff",
     "admin_manifest.json": "6cdcd7b7c13b4105b1639cec4d475fa480fee55e367c4b60aa44724dd46330c1",
     "bulk.ts": "f7a14f1ebaa40e524477bbe456c31beba76b09a6da8e53ad80e5c03b08e3a385",
     "client.ts": "f54b198bb56dbd5937c13cc4e7220b66afa8701d7d3935b7afb397b236d2a032",

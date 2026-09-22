@@ -43,6 +43,7 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Bounded Admin saved-view contract | Tamamlandı (yerel) | Kullanıcı görünümleri için kolon/filtre/sort metadata'sını field/operator allowlist ve boyut bütçeleriyle doğrular; execution policy Edition'a aittir | `ADR-0231` |
 | Bounded offline sync contract | Tamamlandı (yerel) | Saha/offline Edition'lar için cursor, idempotent command, payload ve batch bütçelerini doğrular; conflict/attachment policy Edition'a aittir | `ADR-0232` |
 | Public tenant scope contract | Tamamlandı (yerel) | External Edition boundary için fail-closed tenant context/cache key sözleşmesi; authenticated resolver ve DB RLS/predicate wiring Edition'a aittir | `ADR-0233` |
+| Generated Admin view metadata | Tamamlandı (yerel) | Her resource için deterministic `admin/views.json` default view üretir ve compatibility lock ile doğrular; user persistence Edition'a aittir | `ADR-0234` |
 | Versioned field validation binding | Tamamlandı (yerel) | Blueprint validation metadata'sı generated `validation.go` içine taşınır ve service Create/Update tarafından çağrılır | `ADR-0226`, `110833a0`, `b985bf7b` |
 | Client Edition lifecycle hook scaffold | Tamamlandı (yerel) | Scaffold mevcut custom hook dosyasını ezmeden Before/After create/update/delete iskeleti üretir; yan etkiler outbox'a yönlendirilir | `ADR-0227`, `5a98918d` |
 | Public bounded resource query contract | Tamamlandı (yerel) | Client Edition'ların import edebileceği `extension/v1` parser alan/operator allowlist ve query budget'lerini uygular | `ADR-0228`, `c67bdf71` |
