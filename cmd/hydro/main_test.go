@@ -447,14 +447,14 @@ func TestRunResourceCheckAlias(t *testing.T) {
 	if err := run([]string{"resource", "check", "--spec", specPath, "--root", outRoot}, strings.NewReader(""), &stdout, &stderr); err != nil {
 		t.Fatalf("resource check: %v stderr=%s", err, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "compatible collection=article") {
+	if !strings.Contains(stdout.String(), "compatible collection=article") || !strings.Contains(stdout.String(), "contract=v0") {
 		t.Fatalf("resource check output = %q", stdout.String())
 	}
 	stdout.Reset()
 	if err := run([]string{"resource", "check", "--root", outRoot}, strings.NewReader(""), &stdout, &stderr); err != nil {
 		t.Fatalf("resource discovery check: %v stderr=%s", err, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "compatible collection=article") {
+	if !strings.Contains(stdout.String(), "compatible collection=article") || !strings.Contains(stdout.String(), "contract=v0") {
 		t.Fatalf("resource discovery output = %q", stdout.String())
 	}
 }

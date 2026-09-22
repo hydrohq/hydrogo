@@ -12,6 +12,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// CollectionContractVersion is the version of the persisted resource contract
+// embedded in generated/spec.json. Changing it requires an explicit
+// compatibility decision and loader support.
+const CollectionContractVersion = "v0"
+
 // SpecDocument is the versioned, file-backed form of a module specification.
 // New schema versions must be introduced deliberately instead of being inferred
 // from fields that happen to be present in a source file.
@@ -54,7 +59,7 @@ func LoadSpec(path string) (Spec, error) {
 	if err != nil {
 		return Spec{}, fmt.Errorf("decode module spec: %w", err)
 	}
-	if document.Version != "v0" {
+	if document.Version != CollectionContractVersion {
 		return Spec{}, fmt.Errorf("unsupported module spec version %q", document.Version)
 	}
 	if err := Validate(document.Collection); err != nil {

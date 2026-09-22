@@ -106,6 +106,7 @@ type Spec struct {
 
 type Lock struct {
 	GeneratorVersion string            `json:"generator_version"`
+	ContractVersion  string            `json:"contract_version"`
 	SpecSHA256       string            `json:"spec_sha256"`
 	ArtifactsSHA256  map[string]string `json:"artifacts_sha256,omitempty"`
 }
@@ -300,7 +301,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		return Lock{}, err
 	}
 	hash := sha256.Sum256(canonical)
-	lock := Lock{GeneratorVersion: "0.1.0", SpecSHA256: hex.EncodeToString(hash[:])}
+	lock := Lock{GeneratorVersion: "0.1.0", ContractVersion: CollectionContractVersion, SpecSHA256: hex.EncodeToString(hash[:])}
 	files := map[string]string{
 		"spec.json":           renderSpec(spec),
 		"model.go":            renderModel(spec),
@@ -379,7 +380,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 }
 
 func renderSpec(spec Spec) string {
-	document := SpecDocument{Version: "v0", Collection: normalizedSpec(spec)}
+	document := SpecDocument{Version: CollectionContractVersion, Collection: normalizedSpec(spec)}
 	data, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return "{}\n"

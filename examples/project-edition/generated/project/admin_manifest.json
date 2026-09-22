@@ -5,8 +5,8 @@
   "description": "",
   "fields": [
     {
-      "id": "title",
-      "label": "Title",
+      "id": "project_code",
+      "label": "ProjectCode",
       "kind": "text",
       "required": true,
       "visible_in_list": false
@@ -25,8 +25,8 @@
       ]
     },
     {
-      "id": "project_code",
-      "label": "ProjectCode",
+      "id": "title",
+      "label": "Title",
       "kind": "text",
       "required": true,
       "visible_in_list": false

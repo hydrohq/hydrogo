@@ -5,13 +5,6 @@
   "description": "",
   "fields": [
     {
-      "id": "title",
-      "label": "Title",
-      "kind": "text",
-      "required": true,
-      "visible_in_list": false
-    },
-    {
       "id": "slug",
       "label": "Slug",
       "kind": "text",
@@ -30,6 +23,13 @@
         "published",
         "archived"
       ]
+    },
+    {
+      "id": "title",
+      "label": "Title",
+      "kind": "text",
+      "required": true,
+      "visible_in_list": false
     }
   ],
   "actions": [

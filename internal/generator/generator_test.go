@@ -664,10 +664,47 @@ func TestCheckCompatibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("check compatibility: %v", err)
 	}
-	if report.Collection != spec.Name || report.FilesChecked != len(requiredGeneratedFiles) {
+	if report.Collection != spec.Name || report.ContractVersion != CollectionContractVersion || report.FilesChecked != len(requiredGeneratedFiles) {
 		t.Fatalf("unexpected report: %+v", report)
 	}
+	lockData, err := os.ReadFile(filepath.Join(root, "generated", "generator.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lock Lock
+	if err := json.Unmarshal(lockData, &lock); err != nil {
+		t.Fatal(err)
+	}
+	if lock.ContractVersion != CollectionContractVersion {
+		t.Fatalf("generated lock contract version = %q", lock.ContractVersion)
+	}
+	lock.ContractVersion = ""
+	legacyLock, err := json.Marshal(lock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "generated", "generator.lock"), legacyLock, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	legacyReport, err := CheckCompatibility(root, spec)
+	if err != nil || legacyReport.ContractVersion != CollectionContractVersion {
+		t.Fatalf("legacy lock compatibility report = %+v, err=%v", legacyReport, err)
+	}
+	lock.ContractVersion = "v999"
+	unsupportedLock, err := json.Marshal(lock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "generated", "generator.lock"), unsupportedLock, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CheckCompatibility(root, spec); err == nil {
+		t.Fatal("expected unsupported generated contract version to fail")
+	}
 	spec.Fields[0].Name = "changed"
+	if _, err := Generate(root, Spec{Name: "testimonial", Table: "testimonials", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"testimonial.read"}, Dialects: []string{"sqlite"}}); err != nil {
+		t.Fatalf("restore generated lock: %v", err)
+	}
 	if _, err := CheckCompatibility(root, spec); err == nil {
 		t.Fatal("expected spec hash mismatch")
 	}

@@ -17,6 +17,7 @@ import (
 type CompatibilityReport struct {
 	Collection       string
 	GeneratorVersion string
+	ContractVersion  string
 	SpecSHA256       string
 	FilesChecked     int
 }
@@ -44,6 +45,14 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 	}
 	if lock.GeneratorVersion == "" || lock.SpecSHA256 == "" {
 		return CompatibilityReport{}, errors.New("generator lock is incomplete")
+	}
+	contractVersion := strings.TrimSpace(lock.ContractVersion)
+	if contractVersion == "" {
+		// Locks created before contract_version was introduced represented v0.
+		contractVersion = CollectionContractVersion
+	}
+	if contractVersion != CollectionContractVersion {
+		return CompatibilityReport{}, fmt.Errorf("unsupported generated contract version %q", contractVersion)
 	}
 	if lock.SpecSHA256 != expected {
 		return CompatibilityReport{}, fmt.Errorf("generated spec hash mismatch: lock=%s expected=%s", lock.SpecSHA256, expected)
@@ -73,7 +82,7 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 			}
 		}
 	}
-	return CompatibilityReport{Collection: spec.Name, GeneratorVersion: lock.GeneratorVersion, SpecSHA256: lock.SpecSHA256, FilesChecked: len(requiredGeneratedFiles)}, nil
+	return CompatibilityReport{Collection: spec.Name, GeneratorVersion: lock.GeneratorVersion, ContractVersion: contractVersion, SpecSHA256: lock.SpecSHA256, FilesChecked: len(requiredGeneratedFiles)}, nil
 }
 
 // CheckGeneratedCompatibility discovers every generated collection beneath

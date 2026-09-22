@@ -1,5 +1,6 @@
 {
   "generator_version": "0.1.0",
+  "contract_version": "v0",
   "spec_sha256": "863bce071b36b0e795a55e520ca41649d3749a1e0651400f80d6da8db666429a",
   "artifacts_sha256": {
     "REVIEW.md": "5702d3e254a3e0efe697d04072a8efaa6032be6a4e2be1a991020bfc8789fa1c",
@@ -7,7 +8,7 @@
     "admin/form.templ": "ad2dcd82b656dcebb5a8d9a3f2b7d77903d18c44bd89e1a225dd2b4b068af24f",
     "admin/list.templ": "dc32512c3b31162f213531e121b112c349881e81ce4c976aa7ca756f8e40a5c7",
     "admin/views.json": "f1b4a22cd9bd47636597842ebef49cee157221d07118eacef911db541822b5d0",
-    "admin_manifest.json": "21a0734e8b5fc01df40811598fa38560808635611eb82d4631142a5901506e13",
+    "admin_manifest.json": "02da04cc147b2a5fac53f8c0a13b2587ba83c78864569fbe520e5e329fd627a2",
     "bulk.ts": "dd2c3961bb847ec509c44be922d4207a7755ade6855278c5c7818adea232ec25",
     "client.ts": "c522f5258c0e5b9940ad68075a206224ab1a1cac3250590566849b54f903d990",
     "contract_test.go": "62cc4e7fdada06e0b9a1c1fc0c6c886a33fd7f21ca75bca2d7877b1e2622f9a3",
@@ -28,6 +29,7 @@
     "query.ts": "fc3772d66cd3b1031f4f8db2032121306c809fe7ece5b6bf260c77593ac214cc",
     "react.ts": "6c68d406ffef42de82eb720a59d135d109c91b01709fdfd9537a8c7112723c15",
     "relations.json": "2c05300d005cbcb95299d39e935c8993956917422c82270312ef0cc2c02eaefb",
+    "relations_store.go": "10d6069e5eae64a6c312daa8fe20b4d7d815ee38b6122a37094a83012eb16439",
     "repository.go": "888564b36ceaa9e79b3e7f9936caa6830d1a3527b8831efabe93704678b4b143",
     "runtime.go": "f72121c26b37a917a436d8c45d86cca915d9fcc95c9bba59b499e6fd4d94fb19",
     "service.go": "c29bc8795e87b0a5ad7f3ea434c5a42ab918e2f0f49bbad79eda7e0efd969b44",
@@ -38,7 +40,7 @@
     "transport_test.go": "b452aad13312f1529551560170949243045cd6339c6cc2a57b9f9c84953afdd3",
     "upload.ts": "43dd196fb6194106640f87204e71a35ddab970d342697e8637ea329f8b5c4393",
     "validation.go": "9d13042aed353dbae5307ce8d098b814e951836e0eaa8dc2852d810cb3dd310c",
-    "vanilla.ts": "082de7eea5135d1f5694b2ea9373a04bd312373ea9d3cad9507b760425d124f8",
+    "vanilla.ts": "e6d0d9bb7feeae70f672ca59c0483f9f36224d6418c6773278f7eaa5dda6ccfd",
     "workflow.json": "959c746af994c36ba2beeae80a40dc25aceafd991522252d00609d5f0f19488d"
   }
 }
