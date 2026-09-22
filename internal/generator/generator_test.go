@@ -190,8 +190,9 @@ func TestGeneratePreservesPublishedMigration(t *testing.T) {
 }
 
 func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
+	titleMin, titleMax := 2, 2
 	for _, spec := range []Spec{
-		{Name: "pages", Table: "pages", Fields: []Field{{Name: "title", Type: "string", Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "status", Type: "string", Admin: FieldAdmin{Filterable: true, Options: []string{"draft", "published"}}}}, Permissions: []string{"pages.read", "pages.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "pages", Table: "pages", Fields: []Field{{Name: "title", Type: "string", Validation: Validation{MinLength: &titleMin, MaxLength: &titleMax}, Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "status", Type: "string", Admin: FieldAdmin{Filterable: true, Options: []string{"draft", "published"}}}, {Name: "email", Type: "string", Validation: Validation{Format: "email"}}, {Name: "published_on", Type: "string", Validation: Validation{Format: "date"}}, {Name: "updated_at", Type: "string", Validation: Validation{Format: "datetime"}}, {Name: "canonical_url", Type: "string", Validation: Validation{Format: "url"}}}, Permissions: []string{"pages.read", "pages.write"}, Dialects: []string{"sqlite", "postgres"}},
 		{Name: "news_items", Table: "news_items", Fields: []Field{{Name: "headline", Type: "string", Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "scheduled", Type: "bool"}}, Permissions: []string{"news.read", "news.write"}, Dialects: []string{"sqlite", "postgres"}},
 	} {
 		root := t.TempDir()
@@ -321,6 +322,28 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		moduleFile := fmt.Sprintf("module generatedfixture\n\ngo 1.27\n\nrequire github.com/ardaozyildirim/hydrogo v0.0.0\nreplace github.com/ardaozyildirim/hydrogo => %s\n", filepath.ToSlash(repoRoot))
 		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(moduleFile), 0o644); err != nil {
 			t.Fatal(err)
+		}
+		if spec.Name == "pages" {
+			validationTest := `package generated
+import "testing"
+func TestGeneratedValidationRuntime(t *testing.T) {
+    item := Pages{ID:"p1", Title:"漢字", Status:"draft", Email:"a@example.com", PublishedOn:"2026-09-23", UpdatedAt:"2026-09-23T12:00:00Z", CanonicalUrl:"https://example.com"}
+    if err := item.Validate(); err != nil { t.Fatalf("valid Unicode/formats rejected: %v", err) }
+    item.Title = "漢字語"
+    if err := item.Validate(); err == nil { t.Fatal("Unicode max length was not enforced") }
+    item.Title = "漢字"
+    invalid := []struct{name string; change func(*Pages)}{
+        {"email", func(p *Pages){ p.Email = "display <a@example.com>" }},
+        {"date", func(p *Pages){ p.PublishedOn = "2026-02-30" }},
+        {"datetime", func(p *Pages){ p.UpdatedAt = "2026-09-23 12:00:00" }},
+        {"url", func(p *Pages){ p.CanonicalUrl = "ftp://example.com/file" }},
+    }
+    for _, tc := range invalid { t.Run(tc.name, func(t *testing.T){ candidate := item; tc.change(&candidate); if err := candidate.Validate(); err == nil { t.Fatal("invalid value accepted") } }) }
+}
+`
+			if err := os.WriteFile(filepath.Join(root, "generated", spec.Name, "validation_runtime_test.go"), []byte(validationTest), 0o644); err != nil {
+				t.Fatal(err)
+			}
 		}
 		command := exec.Command("go", "test", "-mod=mod", "./...")
 		command.Dir = root
@@ -459,8 +482,29 @@ func TestGeneratedServiceBindsValidationContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(validation, []byte("len(item.Name) < 3")) || !bytes.Contains(service, []byte("item.Validate()")) {
+	if !bytes.Contains(validation, []byte("utf8.RuneCountInString(item.Name) < 3")) || !bytes.Contains(service, []byte("item.Validate()")) {
 		t.Fatalf("generated validation was not bound: validation=%s service=%s", validation, service)
+	}
+}
+
+func TestGeneratedValidationExecutesDeclaredFormats(t *testing.T) {
+	spec := Spec{Name: "profile", Table: "profiles", Fields: []Field{
+		{Name: "email", Type: "string", Validation: Validation{Format: "email"}},
+		{Name: "birthday", Type: "string", Validation: Validation{Format: "date"}},
+		{Name: "created_at", Type: "string", Validation: Validation{Format: "datetime"}},
+		{Name: "website", Type: "text", Validation: Validation{Format: "url"}},
+	}, Permissions: []string{"profile.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if err := Validate(spec); err != nil {
+		t.Fatal(err)
+	}
+	validation := renderValidation(spec)
+	for _, marker := range []string{"mail.ParseAddress(item.Email)", "time.Parse(\"2006-01-02\", item.Birthday)", "time.Parse(time.RFC3339, item.CreatedAt)", "url.ParseRequestURI(item.Website)"} {
+		if !strings.Contains(validation, marker) {
+			t.Fatalf("format validation missing %q: %s", marker, validation)
+		}
+	}
+	if err := Validate(Spec{Name: "profile", Table: "profiles", Fields: []Field{{Name: "age", Type: "integer", Validation: Validation{Format: "date"}}}, Dialects: []string{"sqlite"}}); err == nil {
+		t.Fatal("non-text field accepted a text format")
 	}
 }
 

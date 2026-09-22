@@ -23,4 +23,7 @@ tenant scope remain explicit migration/service responsibilities.
 Blueprint tests cover strict decoding and mapping of validation metadata;
 generator validation covers invalid bounds, formats and regular expressions;
 generated `validation.go` is called by generated service Create/Update methods
-and is compiled in the fixture suite.
+and is compiled in the fixture suite. Runtime string formats and Unicode
+length semantics are specified by [ADR-0257](0257-executable-generated-field-validation.md);
+unique, immutable, and default semantics still require an Edition-owned
+contract and must not be treated as automatically enforced.
