@@ -43,15 +43,15 @@ function Invoke-Required {
         }
         Add-ReportLine "- PASS: $Name"
     } catch {
-        Add-ReportLine "- FAIL: $Name — $($_.Exception.Message)"
+        Add-ReportLine "- FAIL: $Name - $($_.Exception.Message)"
         throw "$Name failed: $($_.Exception.Message)"
     }
 }
 
 function Add-Pending {
     param([string]$Name, [string]$Reason)
-    Write-Host "PENDING: $Name — $Reason"
-    Add-ReportLine "- PENDING: $Name — $Reason"
+    Write-Host "PENDING: $Name - $Reason"
+    Add-ReportLine "- PENDING: $Name - $Reason"
 }
 
 Write-Host "HydroGo production gate preflight"
