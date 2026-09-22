@@ -28,7 +28,7 @@
     "query.ts": "33f1e783d1d7c77c1c7fb9d9e44f46a8d5d352461f0f193d1cd04fbb40ee941f",
     "react.ts": "470b4470759c985697ae53cc0228293b1618ef14ab3c8b0640879ac138d1408c",
     "repository.go": "c2dc38e3e6ca96f88737b769d8582e8d33443f8a610054bb970189a9bdd43fca",
-    "runtime.go": "18e3a7bda63a9d7f0d30d35f0f70e3a56a006a7109f6d77af4fc0995a8c41983",
+    "runtime.go": "1fdeed1bfbfb48a8f38a157d675057315b03817175d77a47dd13f1e1ae189023",
     "service.go": "09dada2b10deb1f3bd0022507322fafbde42fa6bd7331af166560eaa0404fe22",
     "spec.json": "dc6960da3df047e5478fc21053daa89bc7c53b99a5da63fcc9bf7be74fc5bac7",
     "swr.ts": "ee200679c02584ced8df0677f4dc490c4eeec0ac3e75537f099debb401dbe48e",

@@ -16,7 +16,9 @@ func RegisterProjectRoute(mux *http.ServeMux, db *sql.DB, dialect string, policy
 	}
 	repository := ProjectRepository{DB: db, Dialect: dialect}
 	service := NewProjectService(repository)
-	mux.Handle(ProjectRoute, NewProjectHTTPHandler(service, policy))
-	mux.Handle(ProjectRoute+"/", NewProjectHTTPHandler(service, policy))
+	handler := NewProjectHTTPHandler(service, policy)
+	routeHandler := handler
+	mux.Handle(ProjectRoute, routeHandler)
+	mux.Handle(ProjectRoute+"/", routeHandler)
 	return nil
 }
