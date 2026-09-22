@@ -624,6 +624,30 @@ func generateScaffoldCommand(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 	}
+	hooksFile := filepath.Join(customRoot, spec.Name+"_hooks.go")
+	if _, err := os.Stat(hooksFile); errors.Is(err, os.ErrNotExist) {
+		content := fmt.Sprintf(`// Client Edition lifecycle hooks for %s.
+// This file is human-owned; generated artifacts stay under generated/%s.
+package custom
+
+import "context"
+
+// %sHooks is an explicit extension point. Keep database, authorization and
+// tenant decisions in the owning service; dispatch side effects through the
+// durable outbox rather than performing network I/O inline.
+type %sHooks struct{}
+
+func (%sHooks) BeforeCreate(context.Context, any) error { return nil }
+func (%sHooks) AfterCreate(context.Context, any) error  { return nil }
+func (%sHooks) BeforeUpdate(context.Context, any, any) error { return nil }
+func (%sHooks) AfterUpdate(context.Context, any, any) error  { return nil }
+func (%sHooks) BeforeDelete(context.Context, any) error { return nil }
+func (%sHooks) AfterDelete(context.Context, any) error  { return nil }
+`, spec.Name, spec.Name, generatorExportName(spec.Name), generatorExportName(spec.Name), generatorExportName(spec.Name), generatorExportName(spec.Name), generatorExportName(spec.Name), generatorExportName(spec.Name), generatorExportName(spec.Name), generatorExportName(spec.Name))
+		if err := os.WriteFile(hooksFile, []byte(content), 0o644); err != nil {
+			return err
+		}
+	}
 	if *verify {
 		if err := verifyGeneratedScaffold(*outputRoot); err != nil {
 			return fmt.Errorf("generated scaffold verification: %w", err)
@@ -631,6 +655,22 @@ func generateScaffoldCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	_, err = fmt.Fprintf(stdout, "scaffold-created collection=%s generated=%s custom=%s spec_sha256=%s\n", spec.Name, filepath.Join(*outputRoot, "generated", spec.Name), customRoot, lock.SpecSHA256)
 	return err
+}
+
+// generatorExportName mirrors the generator's stable Go identifier convention
+// for scaffold-owned extension points without exposing generator internals to
+// the CLI package.
+func generatorExportName(value string) string {
+	parts := strings.FieldsFunc(strings.TrimSpace(value), func(r rune) bool {
+		return r == '_' || r == '-' || r == ' '
+	})
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	return strings.Join(parts, "")
 }
 
 func verifyGeneratedScaffold(root string) error {
