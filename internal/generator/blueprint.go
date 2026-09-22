@@ -23,10 +23,21 @@ type Blueprint struct {
 }
 
 type BlueprintField struct {
-	Name     string   `json:"name" yaml:"name"`
-	Type     string   `json:"type" yaml:"type"`
-	Required bool     `json:"required" yaml:"required"`
-	Values   []string `json:"values,omitempty" yaml:"values,omitempty"`
+	Name     string           `json:"name" yaml:"name"`
+	Type     string           `json:"type" yaml:"type"`
+	Required bool             `json:"required" yaml:"required"`
+	Values   []string         `json:"values,omitempty" yaml:"values,omitempty"`
+	UI       BlueprintFieldUI `json:"ui,omitempty" yaml:"ui,omitempty"`
+}
+
+// BlueprintFieldUI contains presentation hints only. It is intentionally
+// separate from persistence and authorization metadata: changing a widget or
+// list visibility must never change a migration or grant access to a field.
+type BlueprintFieldUI struct {
+	List       bool   `json:"list,omitempty" yaml:"list,omitempty"`
+	Searchable bool   `json:"searchable,omitempty" yaml:"searchable,omitempty"`
+	Filterable bool   `json:"filterable,omitempty" yaml:"filterable,omitempty"`
+	Widget     string `json:"widget,omitempty" yaml:"widget,omitempty"`
 }
 
 func LoadBlueprint(path string) (Spec, error) {
@@ -65,10 +76,17 @@ func LoadBlueprint(path string) (Spec, error) {
 	fields := make([]Field, 0, len(blueprint.Fields))
 	for _, field := range blueprint.Fields {
 		typ := strings.ToLower(strings.TrimSpace(field.Type))
-		admin := FieldAdmin{}
+		admin := FieldAdmin{
+			Widget:        strings.ToLower(strings.TrimSpace(field.UI.Widget)),
+			VisibleInList: field.UI.List,
+			Searchable:    field.UI.Searchable,
+			Filterable:    field.UI.Filterable,
+		}
 		if len(field.Values) > 0 {
 			typ = "string"
-			admin.Widget = "select"
+			if admin.Widget == "" {
+				admin.Widget = "select"
+			}
 		}
 		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Admin: admin})
 	}
