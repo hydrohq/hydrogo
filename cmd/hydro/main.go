@@ -1151,6 +1151,15 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	tracingProfile, err := observability.LoadTracingProfile()
+	if err != nil {
+		return fmt.Errorf("tracing profile: %w", err)
+	}
+	shutdownTracing, err := observability.InstallOTLPProvider(ctx, tracingProfile)
+	if err != nil {
+		return fmt.Errorf("install otlp tracing: %w", err)
+	}
+	defer func() { _ = shutdownTracing(context.Background()) }()
 	budget, err := capacity.Defaults(cfg.Profile)
 	if err != nil {
 		return err
