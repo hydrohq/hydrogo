@@ -47,12 +47,13 @@ type Relation struct {
 // FieldAdmin is presentation metadata. It does not change persistence or
 // authorization rules, which remain explicit in the generated review surface.
 type FieldAdmin struct {
-	Label         string `json:"label" yaml:"label"`
-	Widget        string `json:"widget" yaml:"widget"`
-	ReadOnly      bool   `json:"read_only" yaml:"read_only"`
-	VisibleInList bool   `json:"visible_in_list" yaml:"visible_in_list"`
-	Searchable    bool   `json:"searchable" yaml:"searchable"`
-	Filterable    bool   `json:"filterable" yaml:"filterable"`
+	Label         string   `json:"label" yaml:"label"`
+	Widget        string   `json:"widget" yaml:"widget"`
+	ReadOnly      bool     `json:"read_only" yaml:"read_only"`
+	VisibleInList bool     `json:"visible_in_list" yaml:"visible_in_list"`
+	Searchable    bool     `json:"searchable" yaml:"searchable"`
+	Filterable    bool     `json:"filterable" yaml:"filterable"`
+	Options       []string `json:"options,omitempty" yaml:"options,omitempty"`
 }
 
 type Admin struct {
@@ -160,7 +161,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		if fieldLabel == "" {
 			fieldLabel = exportName(field.Name)
 		}
-		fields = append(fields, adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable})
+		fields = append(fields, adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable, Options: append([]string(nil), field.Admin.Options...)})
 	}
 	actions := append([]adminstudio.Action(nil), spec.Admin.Actions...)
 	if len(actions) == 0 {
@@ -219,6 +220,8 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"transport.go":        renderTransport(spec),
 		"form.html":           renderForm(spec),
 		"form.schema.json":    renderFormSchema(spec),
+		"admin/list.templ":    renderAdminListTempl(spec),
+		"admin/form.templ":    renderAdminFormTempl(spec),
 		"table.html":          renderTable(spec),
 		"openapi.json":        renderOpenAPI(spec),
 		"client.ts":           renderTypeScriptClient(spec),

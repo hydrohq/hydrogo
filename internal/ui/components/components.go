@@ -42,6 +42,7 @@ type InputProps struct {
 	Value       string
 	Placeholder string
 	Required    bool
+	Checked     bool
 	HTMX        HTMX
 }
 
@@ -106,6 +107,9 @@ func Input(p InputProps) templ.Component {
 		}
 		if p.Required {
 			attrs += ` required="required"`
+		}
+		if p.Checked {
+			attrs += ` checked="checked"`
 		}
 		attrs += htmxAttrs(p.HTMX)
 		_, err := io.WriteString(w, `<label for="`+esc(p.ID)+`">`+esc(p.Label)+`</label><input`+attrs+`>`)
