@@ -33,8 +33,8 @@ executable remains available for Workspace and operator workflows.
 
 - Thin Edition builds remain single self-contained binaries with composition
   time module selection; runtime plugins and runtime DDL are not introduced.
-- SQLite and PostgreSQL drivers remain together in these fixtures for current
-  contract coverage. Driver-specific artifacts are not yet promised.
+- The default fixtures retain both SQLite and PostgreSQL drivers for contract
+  coverage; ADR-0248 adds an explicitly measured SQLite-only variant.
 - Binary size and import closure are both checked because dead-code removal
   can otherwise hide an unintended dependency.
 - The budget does not certify Admin, Identity, Site, multi-tenant, or
@@ -48,6 +48,8 @@ executable remains available for Workspace and operator workflows.
 
 ## Verification
 
-`scripts/verify-edition-footprint.ps1` builds both examples and fails on byte,
-package-count, or forbidden-import regressions. Current results are in R122.
-Full Client Edition composition and production profile budgets remain open.
+`scripts/verify-edition-footprint.ps1` builds both examples in dual and
+SQLite-only variants and fails on byte, package-count, or forbidden-import
+regressions. Historical dual-build results are in R122; current variant
+measurements are in R123. Full Client Edition composition and production
+profile budgets remain open.

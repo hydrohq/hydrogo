@@ -12,9 +12,6 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/telemetry"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "modernc.org/sqlite"
 )
 
 type Dialect string
@@ -191,6 +188,9 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	default:
 		return nil, fmt.Errorf("unsupported database dialect %q", dialect)
 	}
+	if err := ValidateDialectAvailable(dialect); err != nil {
+		return nil, err
+	}
 
 	if options.MaxOpenConns <= 0 {
 		if dialect == SQLite {
@@ -220,6 +220,34 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 		return nil, err
 	}
 	return db, nil
+}
+
+// ValidateDialectAvailable checks that this build includes the selected SQL
+// adapter without opening a connection. Edition composition can use it during
+// config preflight; Compact builds intentionally omit PostgreSQL.
+func ValidateDialectAvailable(dialect Dialect) error {
+	var driver string
+	switch dialect {
+	case SQLite:
+		driver = "sqlite"
+	case Postgres:
+		driver = "pgx"
+	default:
+		return fmt.Errorf("unsupported database dialect %q", dialect)
+	}
+	if !driverRegistered(driver) {
+		return fmt.Errorf("database driver %q is not included in this Edition build", driver)
+	}
+	return nil
+}
+
+func driverRegistered(name string) bool {
+	for _, registered := range sql.Drivers() {
+		if registered == name {
+			return true
+		}
+	}
+	return false
 }
 
 func SQLiteDSN(path string) string {

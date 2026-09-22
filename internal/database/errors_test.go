@@ -7,9 +7,20 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+type sqlStateTestError string
+
+func (e sqlStateTestError) Error() string    { return string(e) }
+func (e sqlStateTestError) SQLState() string { return string(e) }
+
 func TestIsUniqueViolationRecognizesPostgresSQLState(t *testing.T) {
 	if !IsUniqueViolation(&pgconn.PgError{Code: "23505"}) {
 		t.Fatal("expected SQLSTATE 23505 to be recognized")
+	}
+}
+
+func TestIsUniqueViolationUsesAdapterNeutralSQLState(t *testing.T) {
+	if !IsUniqueViolation(sqlStateTestError("23505")) {
+		t.Fatal("expected adapter-neutral SQLSTATE to be recognized")
 	}
 }
 

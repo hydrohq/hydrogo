@@ -489,6 +489,9 @@ func (c Config) Validate() error {
 	default:
 		return fmt.Errorf("unsupported database dialect %q", c.Database.Dialect)
 	}
+	if err := database.ValidateDialectAvailable(c.Database.Dialect); err != nil {
+		return err
+	}
 	if strings.TrimSpace(c.Database.DSN) == "" {
 		return errors.New("database DSN is required")
 	}

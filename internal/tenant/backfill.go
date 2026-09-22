@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // BackfillReport tracks unassigned rows migrated per table.
@@ -62,9 +60,9 @@ func isMissingTableError(err error) bool {
 	// typed error instead of matching the human-readable message: messages such
 	// as "does not exist" can also describe a missing column, schema, function,
 	// or role and must never be silently skipped by a data migration.
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "42P01"
+	var sqlState interface{ SQLState() string }
+	if errors.As(err, &sqlState) {
+		return sqlState.SQLState() == "42P01"
 	}
 
 	// modernc SQLite reports missing relations with this specific prefix. Keep
