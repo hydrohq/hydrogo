@@ -1,10 +1,12 @@
 {
   "generator_version": "0.1.0",
-  "spec_sha256": "f32d9f5f10909515aecb7ed3da6c0ad27c27a98a9d10b7dc1bbbf2e97e394cb4",
+  "spec_sha256": "686375d7f21896b374bd98f75bceb79476d2e16c10af132ca68314c70debc65c",
   "artifacts_sha256": {
     "REVIEW.md": "5702d3e254a3e0efe697d04072a8efaa6032be6a4e2be1a991020bfc8789fa1c",
     "RUNTIME_WIRING.md": "67883c8109b9fc1fd040011a04f8dd8114bf21cd513be5a4890bd8801d752e6b",
-    "admin_manifest.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "admin/form.templ": "ad2dcd82b656dcebb5a8d9a3f2b7d77903d18c44bd89e1a225dd2b4b068af24f",
+    "admin/list.templ": "dc32512c3b31162f213531e121b112c349881e81ce4c976aa7ca756f8e40a5c7",
+    "admin_manifest.json": "382c966f4c121f1c22bd7a50f0989a2924c851c7a449d5373dd297b114b68d90",
     "bulk.ts": "dd2c3961bb847ec509c44be922d4207a7755ade6855278c5c7818adea232ec25",
     "client.ts": "c522f5258c0e5b9940ad68075a206224ab1a1cac3250590566849b54f903d990",
     "contract_test.go": "62cc4e7fdada06e0b9a1c1fc0c6c886a33fd7f21ca75bca2d7877b1e2622f9a3",
@@ -26,7 +28,7 @@
     "react.ts": "6c68d406ffef42de82eb720a59d135d109c91b01709fdfd9537a8c7112723c15",
     "repository.go": "0685cae040985fd2db368620f411cf204b117c805f764cee8e9273945854e489",
     "service.go": "153110d922e37d45c9aea97028e4f606c4f37da8fc46def2c0a382b6fdfadf03",
-    "spec.json": "fff9f9ee0dc180fa9bf8d387dbadf0a82e2e4fb7de5923a8038e7e2db9c75942",
+    "spec.json": "0f7969ef9a69222df2445f802582d78ac289c5502dc6757431a23be80d063457",
     "swr.ts": "ab6e680d3a3f596f99a9b447560973c9c4d9ad1603046b0da36f3b00acbba14e",
     "table.html": "e383b5219090cd5755e4a97a39b4ecfe5a10a07d62318ae3692b23256fbe89a5",
     "transport.go": "1c39e36251bacb1d50b9c700acfc8fdf9ef47febd3a576735d319870d2abcf7a",

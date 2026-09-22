@@ -12,7 +12,9 @@
           "label": "",
           "widget": "",
           "read_only": false,
-          "visible_in_list": false
+          "visible_in_list": false,
+          "searchable": false,
+          "filterable": false
         }
       },
       {
@@ -23,7 +25,14 @@
           "label": "",
           "widget": "select",
           "read_only": false,
-          "visible_in_list": false
+          "visible_in_list": false,
+          "searchable": false,
+          "filterable": false,
+          "options": [
+            "draft",
+            "published",
+            "archived"
+          ]
         }
       },
       {
@@ -34,7 +43,9 @@
           "label": "",
           "widget": "",
           "read_only": false,
-          "visible_in_list": false
+          "visible_in_list": false,
+          "searchable": false,
+          "filterable": false
         }
       }
     ],
@@ -50,6 +61,8 @@
     "admin": {
       "label": "",
       "description": "",
+      "icon": "",
+      "group": "",
       "actions": null,
       "bulk_actions": null
     }

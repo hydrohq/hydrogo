@@ -1,1 +1,40 @@
-{}
+{
+  "id": "article",
+  "label": "Article",
+  "description": "",
+  "fields": [
+    {
+      "id": "title",
+      "label": "Title",
+      "kind": "text",
+      "required": true,
+      "visible_in_list": false
+    },
+    {
+      "id": "slug",
+      "label": "Slug",
+      "kind": "text",
+      "required": true,
+      "visible_in_list": false
+    },
+    {
+      "id": "status",
+      "label": "Status",
+      "kind": "text",
+      "widget": "select",
+      "required": true,
+      "visible_in_list": false,
+      "options": [
+        "draft",
+        "published",
+        "archived"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "label": "Open Article",
+      "href": "/admin/article"
+    }
+  ]
+}
