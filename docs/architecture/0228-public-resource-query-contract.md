@@ -23,4 +23,5 @@ Public contract tests cover allowlisted operators, pagination, bounds and
 prepared SQLite/PostgreSQL placeholder generation. Generated transports bind
 this parser before constructing repository queries. Editions record
 dialect-specific SQL plans and index behavior in their resource review
-evidence.
+evidence. The parser and SQL builder budgets are aligned and independently
+enforced at the builder boundary as documented in [ADR-0256](0256-resource-query-ast-validation-budgets.md).

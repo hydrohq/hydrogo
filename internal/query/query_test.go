@@ -2,6 +2,7 @@ package query
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -74,4 +75,60 @@ func TestParseSupportsBoundedOrGroup(t *testing.T) {
 	if built.Where != "(status = ? OR status = ?)" {
 		t.Fatalf("unexpected OR SQL: %s", built.Where)
 	}
+}
+
+func TestParseAndBuildSQLRejectAmbiguousOrUnboundedInputs(t *testing.T) {
+	parseFields := schema()
+	parseFields["status"] = Field{Name: "status", Operators: map[string]bool{"exists": true, "in": true}}
+	for name, values := range map[string]url.Values{
+		"repeated scalar":       {"where[title][contains]": {"a", "b"}},
+		"invalid exists":        {"where[status][exists]": {"perhaps"}},
+		"page and offset":       {"page": {"2"}, "offset": {"10"}},
+		"too many IN values":    {"where[status][in]": {strings.Repeat("x,", MaxInValues)}},
+		"too many query keys":   makeQueryKeys(MaxQueryKeys + 1),
+		"extra bracket segment": {"where[title][contains][ignored]": {"x"}},
+		"invalid group index":   {"where[or][bad][title][equals]": {"x"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := Parse(values, parseFields); err == nil {
+				t.Fatalf("accepted %#v", values)
+			}
+		})
+	}
+	fields := schema()
+	fields["status"] = Field{Name: "status", Operators: map[string]bool{"exists": true, "in": true}}
+	for name, q := range map[string]Query{
+		"exists has strict bool": {Conditions: []Condition{{Field: "status", Operator: "exists", Values: []string{"no"}, Group: "and"}}, Limit: 25},
+		"exists one value":       {Conditions: []Condition{{Field: "status", Operator: "exists", Values: []string{"true", "false"}, Group: "and"}}, Limit: 25},
+		"scalar one value":       {Conditions: []Condition{{Field: "title", Operator: "contains", Values: []string{"a", "b"}, Group: "and"}}, Limit: 25},
+		"identifier revalidated": {Conditions: []Condition{{Field: "title) OR 1=1 --", Operator: "contains", Values: []string{"x"}, Group: "and"}}, Limit: 25},
+		"total args bounded":     {Conditions: manyInConditions(MaxTotalArgs + 1), Limit: 25},
+		"pagination revalidated": {Limit: 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := q.BuildSQL(database.SQLite, fields); err == nil {
+				t.Fatalf("accepted %#v", q)
+			}
+		})
+	}
+}
+
+func makeQueryKeys(n int) url.Values {
+	values := make(url.Values, n)
+	for i := 0; i < n; i++ {
+		values["x"+strconv.Itoa(i)] = []string{"v"}
+	}
+	return values
+}
+
+func manyInConditions(n int) []Condition {
+	conditions := make([]Condition, 0, n/32+1)
+	for len(conditions)*MaxInValues < n {
+		values := make([]string, MaxInValues)
+		for i := range values {
+			values[i] = "x"
+		}
+		conditions = append(conditions, Condition{Field: "status", Operator: "in", Values: values, Group: "and"})
+	}
+	return conditions
 }
