@@ -25,6 +25,35 @@ func TestLoadBlueprintMapsRequiredFieldsAndDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadBlueprintPreservesTypedAndEmptyDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "defaults.yaml")
+	data := []byte("name: defaults\nfields:\n  - name: enabled\n    type: boolean\n    required: true\n    validation:\n      default: \"true\"\n  - name: title\n    type: string\n    required: false\n    validation:\n      default: \"\"\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := LoadBlueprint(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Fields[0].Validation.Default == nil || *spec.Fields[0].Validation.Default != "true" {
+		t.Fatalf("boolean default lost: %#v", spec.Fields[0].Validation.Default)
+	}
+	if spec.Fields[1].Validation.Default == nil || *spec.Fields[1].Validation.Default != "" {
+		t.Fatalf("explicit empty default lost: %#v", spec.Fields[1].Validation.Default)
+	}
+}
+
+func TestLoadBlueprintRejectsInvalidTypedDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "invalid-default.yaml")
+	data := []byte("name: defaults\nfields:\n  - name: attempts\n    type: integer\n    required: true\n    validation:\n      default: many\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadBlueprint(path); err == nil {
+		t.Fatal("invalid integer default accepted")
+	}
+}
+
 func TestLoadBlueprintRejectsUnsupportedVersion(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "future.yaml")
 	data := []byte("version: v1\nname: project\nfields:\n  - name: title\n    type: string\n")

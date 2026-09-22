@@ -191,8 +191,9 @@ func TestGeneratePreservesPublishedMigration(t *testing.T) {
 
 func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 	titleMin, titleMax := 2, 2
+	defaultAttempts, defaultFeatured, defaultSummary := "7", "true", "fallback"
 	for _, spec := range []Spec{
-		{Name: "pages", Table: "pages", Fields: []Field{{Name: "title", Type: "string", Validation: Validation{MinLength: &titleMin, MaxLength: &titleMax}, Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "status", Type: "string", Admin: FieldAdmin{Filterable: true, Options: []string{"draft", "published"}}}, {Name: "email", Type: "string", Validation: Validation{Format: "email"}}, {Name: "published_on", Type: "string", Validation: Validation{Format: "date"}}, {Name: "updated_at", Type: "string", Validation: Validation{Format: "datetime"}}, {Name: "canonical_url", Type: "string", Validation: Validation{Format: "url"}}}, Permissions: []string{"pages.read", "pages.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "pages", Table: "pages", Fields: []Field{{Name: "title", Type: "string", Validation: Validation{MinLength: &titleMin, MaxLength: &titleMax}, Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "status", Type: "string", Admin: FieldAdmin{Filterable: true, Options: []string{"draft", "published"}}}, {Name: "email", Type: "string", Validation: Validation{Format: "email"}}, {Name: "published_on", Type: "string", Validation: Validation{Format: "date"}}, {Name: "updated_at", Type: "string", Validation: Validation{Format: "datetime"}}, {Name: "canonical_url", Type: "string", Validation: Validation{Format: "url"}}, {Name: "attempts", Type: "integer", Validation: Validation{Default: &defaultAttempts}}, {Name: "featured", Type: "bool", Validation: Validation{Default: &defaultFeatured}}, {Name: "summary", Type: "text", Nullable: true, Validation: Validation{Default: &defaultSummary}}}, Permissions: []string{"pages.read", "pages.write"}, Dialects: []string{"sqlite", "postgres"}},
 		{Name: "news_items", Table: "news_items", Fields: []Field{{Name: "headline", Type: "string", Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "scheduled", Type: "bool"}}, Permissions: []string{"news.read", "news.write"}, Dialects: []string{"sqlite", "postgres"}},
 	} {
 		root := t.TempDir()
@@ -259,8 +260,14 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 			t.Fatalf("%s generated client missing bounded typed errors: %v", spec.Name, err)
 		}
 		openapi, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "openapi.json"))
-		if err != nil || !bytes.Contains(openapi, []byte("HydroAPIError")) || !bytes.Contains(openapi, []byte("page_size")) || !bytes.Contains(openapi, []byte("429")) || !bytes.Contains(openapi, []byte("422")) || !bytes.Contains(openapi, []byte("/{id}")) || !bytes.Contains(openapi, []byte("\"post\"")) {
+		if err != nil || !bytes.Contains(openapi, []byte("HydroAPIError")) || !bytes.Contains(openapi, []byte("page_size")) || !bytes.Contains(openapi, []byte("429")) || !bytes.Contains(openapi, []byte("422")) || !bytes.Contains(openapi, []byte("/{id}")) || !bytes.Contains(openapi, []byte("\"post\"")) || spec.Name == "pages" && (!bytes.Contains(openapi, []byte("\"default\": 7")) || !bytes.Contains(openapi, []byte("\"default\": true"))) {
 			t.Fatalf("%s OpenAPI missing query/error contract: %v", spec.Name, err)
+		}
+		if spec.Name == "pages" {
+			formSchema, readErr := os.ReadFile(filepath.Join(root, "generated", spec.Name, "form.schema.json"))
+			if readErr != nil || !bytes.Contains(formSchema, []byte(`"default": "fallback"`)) {
+				t.Fatalf("form schema missing defaults including explicit empty string: err=%v schema=%s", readErr, formSchema)
+			}
 		}
 		react, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "react.ts"))
 		if err != nil || !bytes.Contains(react, []byte("QueryOptions")) || !bytes.Contains(react, []byte("QueryKey")) {
@@ -351,6 +358,14 @@ func TestGeneratedValidationRuntime(t *testing.T) {
         {"url", func(p *Pages){ p.CanonicalUrl = "ftp://example.com/file" }},
     }
     for _, tc := range invalid { t.Run(tc.name, func(t *testing.T){ candidate := item; tc.change(&candidate); if err := candidate.Validate(); err == nil { t.Fatal("invalid value accepted") } }) }
+}
+func TestGeneratedPresenceAwareDefaults(t *testing.T) {
+    omitted := httptest.NewRequest(http.MethodPost, PagesRoute, strings.NewReader("{}")); omittedResult := httptest.NewRecorder(); var omittedItem Pages
+    omittedFields, ok := decodePagesCreateJSON(omittedResult, omitted, &omittedItem); if !ok { t.Fatalf("omitted decode failed: %s", omittedResult.Body.String()) }; omittedItem.ApplyCreateDefaults(omittedFields)
+    if omittedItem.Attempts != 7 || !omittedItem.Featured || omittedItem.Summary != "fallback" { t.Fatalf("omitted defaults not applied: %+v", omittedItem) }
+    explicit := httptest.NewRequest(http.MethodPost, PagesRoute, strings.NewReader("{\"attempts\":0,\"featured\":false,\"summary\":\"\"}")); explicitResult := httptest.NewRecorder(); var explicitItem Pages
+    explicitFields, ok := decodePagesCreateJSON(explicitResult, explicit, &explicitItem); if !ok { t.Fatalf("explicit decode failed: %s", explicitResult.Body.String()) }; explicitItem.ApplyCreateDefaults(explicitFields)
+    if explicitItem.Attempts != 0 || explicitItem.Featured || explicitItem.Summary != "" { t.Fatalf("explicit zero values were overwritten: %+v", explicitItem) }
 }
 
 func TestGeneratedTransportReturnsSafeFieldValidationError(t *testing.T) {
@@ -453,6 +468,16 @@ func TestImmutableFieldRequiresRepresentableScalarValue(t *testing.T) {
 		if err := Validate(spec); err == nil {
 			t.Errorf("unsupported immutable contract accepted for %s", spec.Name)
 		}
+	}
+}
+
+func TestFormDefaultsAreEscapedAndTyped(t *testing.T) {
+	unsafe := `"><script>alert(1)</script>`
+	truth := "true"
+	spec := Spec{Name: "form_defaults", Table: "form_defaults", Fields: []Field{{Name: "title", Type: "string", Nullable: true, Validation: Validation{Default: &unsafe}}, {Name: "enabled", Type: "bool", Validation: Validation{Default: &truth}}}, Permissions: []string{"form_defaults.read"}, Dialects: []string{"sqlite"}}
+	form := renderForm(spec)
+	if strings.Contains(form, `<script>alert(1)</script>`) || !strings.Contains(form, `value="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"`) || !strings.Contains(form, `type="checkbox" required checked`) {
+		t.Fatalf("defaults were not safely rendered: %s", form)
 	}
 }
 
