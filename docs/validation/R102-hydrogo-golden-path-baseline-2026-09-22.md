@@ -26,6 +26,12 @@ karşılaştırması henüz çalıştırılmadı. İlk testimonial koşusundaki 
 soğuk başlangıç outlier'ı ayrıca izlenmelidir; warm koşular 1,620–1,651 ms
 aralığındadır.
 
+Payload harness kurulumu (`create-payload-app@3.90.1 -t blank`) da denendi;
+Codex terminalinde Payload CLI'nin TTY başlatması `uv_tty_init returned EBADF`
+ile durduğu için karşılaştırma koşusu başlatılmadı. Bu nedenle Payload sonucu
+ölçülmüş gibi raporlanmıyor; gerçek terminal/CI runner üzerinde aynı protokol
+ayrıca yürütülmelidir.
+
 Ham çıktılar `.tmp/benchmark-module-starter.json` ve
 `.tmp/benchmark-article-collection.json` altında üretildi; `.tmp` release
 artefact'ı değildir.
