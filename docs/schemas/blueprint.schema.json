@@ -21,6 +21,21 @@
           "type": { "type": "string", "minLength": 1 },
           "required": { "type": "boolean" },
           "values": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+          "validation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min_length": { "type": "integer", "minimum": 0 },
+              "max_length": { "type": "integer", "minimum": 0 },
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "regex": { "type": "string", "maxLength": 256 },
+              "format": { "type": "string", "enum": ["email", "date", "datetime", "url"] },
+              "unique": { "type": "boolean" },
+              "immutable": { "type": "boolean" },
+              "default": { "type": "string", "maxLength": 256 }
+            }
+          },
           "ui": {
             "type": "object",
             "additionalProperties": false,

@@ -285,6 +285,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0223](0223-generated-admin-ui-and-publishing-preview.md) | Generated admin UI and publishing preview boundary | Accepted |
 | [0224](0224-global-resource-contract.md) | Global resource contract | Accepted |
 | [0225](0225-bounded-resource-query-contract.md) | Bounded resource query contract | Accepted |
+| [0226](0226-versioned-field-validation-contract.md) | Versioned field validation contract | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

@@ -30,11 +30,26 @@ var (
 )
 
 type Field struct {
-	Name     string     `json:"name" yaml:"name"`
-	Type     string     `json:"type" yaml:"type"`
-	Nullable bool       `json:"nullable" yaml:"nullable"`
-	Relation *Relation  `json:"relation,omitempty" yaml:"relation,omitempty"`
-	Admin    FieldAdmin `json:"admin" yaml:"admin"`
+	Name       string     `json:"name" yaml:"name"`
+	Type       string     `json:"type" yaml:"type"`
+	Nullable   bool       `json:"nullable" yaml:"nullable"`
+	Relation   *Relation  `json:"relation,omitempty" yaml:"relation,omitempty"`
+	Validation Validation `json:"validation,omitempty" yaml:"validation,omitempty"`
+	Admin      FieldAdmin `json:"admin" yaml:"admin"`
+}
+
+// Validation is a provider-neutral input contract. It is metadata only until
+// the owning service binds it to a mutation policy.
+type Validation struct {
+	MinLength *int     `json:"min_length,omitempty" yaml:"min_length,omitempty"`
+	MaxLength *int     `json:"max_length,omitempty" yaml:"max_length,omitempty"`
+	Min       *float64 `json:"min,omitempty" yaml:"min,omitempty"`
+	Max       *float64 `json:"max,omitempty" yaml:"max,omitempty"`
+	Regex     string   `json:"regex,omitempty" yaml:"regex,omitempty"`
+	Format    string   `json:"format,omitempty" yaml:"format,omitempty"`
+	Unique    bool     `json:"unique,omitempty" yaml:"unique,omitempty"`
+	Immutable bool     `json:"immutable,omitempty" yaml:"immutable,omitempty"`
+	Default   string   `json:"default,omitempty" yaml:"default,omitempty"`
 }
 
 // Relation makes the target and cardinality of a relation reviewable. It is
@@ -124,6 +139,24 @@ func Validate(spec Spec) error {
 			}
 		} else if field.Relation != nil {
 			return ErrInvalidSpec
+		}
+		validation := field.Validation
+		if validation.MinLength != nil && *validation.MinLength < 0 || validation.MaxLength != nil && *validation.MaxLength < 0 {
+			return ErrInvalidSpec
+		}
+		if validation.MinLength != nil && validation.MaxLength != nil && *validation.MinLength > *validation.MaxLength {
+			return ErrInvalidSpec
+		}
+		if validation.Min != nil && validation.Max != nil && *validation.Min > *validation.Max {
+			return ErrInvalidSpec
+		}
+		if validation.Format != "" && validation.Format != "email" && validation.Format != "date" && validation.Format != "datetime" && validation.Format != "url" {
+			return ErrInvalidSpec
+		}
+		if validation.Regex != "" {
+			if _, err := regexp.Compile(validation.Regex); err != nil {
+				return ErrInvalidSpec
+			}
 		}
 		seen[field.Name] = struct{}{}
 	}
