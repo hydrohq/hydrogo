@@ -368,6 +368,26 @@ func TestGeneratedAdminTemplatesUseTypedRelationAndMediaContracts(t *testing.T) 
 	}
 }
 
+func TestGeneratedServiceBindsValidationContract(t *testing.T) {
+	root := t.TempDir()
+	minLength := 3
+	spec := Spec{Name: "profile", Table: "profiles", Fields: []Field{{Name: "name", Type: "string", Validation: Validation{MinLength: &minLength}}}, Permissions: []string{"profile.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	validation, err := os.ReadFile(filepath.Join(root, "generated", "profile", "validation.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := os.ReadFile(filepath.Join(root, "generated", "profile", "service.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(validation, []byte("len(item.Name) < 3")) || !bytes.Contains(service, []byte("item.Validate()")) {
+		t.Fatalf("generated validation was not bound: validation=%s service=%s", validation, service)
+	}
+}
+
 func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "testimonial.yaml")
 	content := `version: v0
