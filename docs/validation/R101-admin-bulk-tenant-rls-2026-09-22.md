@@ -1,4 +1,4 @@
-# R100 — Admin bulk ve generated tenant RLS doğrulaması
+# R101 — Admin bulk ve generated tenant RLS doğrulaması
 
 **Tarih:** 2026-09-22  
 **Durum:** Yerel doğrulama başarılı; gerçek PostgreSQL restore/capacity kabulü
