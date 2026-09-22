@@ -1,3 +1,5 @@
+//go:build !hydro_no_s3
+
 package media
 
 import (

@@ -504,6 +504,9 @@ func (c Config) Validate() error {
 	if c.Media.StorageDriver != "local" && c.Media.StorageDriver != "s3" {
 		return fmt.Errorf("unsupported media storage driver %q", c.Media.StorageDriver)
 	}
+	if err := validateMediaStorageBuild(c.Media.StorageDriver); err != nil {
+		return err
+	}
 	if c.Media.StorageDriver == "s3" && (strings.TrimSpace(c.Media.S3Endpoint) == "" || strings.TrimSpace(c.Media.S3Bucket) == "") {
 		return errors.New("s3 media storage requires endpoint and bucket")
 	}
