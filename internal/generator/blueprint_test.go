@@ -78,6 +78,40 @@ func TestLoadBlueprintMapsAuthCompositionFlag(t *testing.T) {
 	}
 }
 
+func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "workflow.yaml")
+	data := []byte("name: article\nworkflow:\n  states: [draft, review, published]\n  transitions:\n    draft: [review]\n    review: [published, draft]\nfields:\n  - name: title\n    type: string\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := LoadBlueprint(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Workflow == nil || len(spec.Workflow.States) != 3 || len(spec.Workflow.Transitions["review"]) != 2 {
+		t.Fatalf("workflow metadata was not mapped: %#v", spec.Workflow)
+	}
+	root := t.TempDir()
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	workflow, err := os.ReadFile(filepath.Join(root, "generated", "article", "workflow.json"))
+	if err != nil || !strings.Contains(string(workflow), `"enabled": true`) || !strings.Contains(string(workflow), `"published"`) {
+		t.Fatalf("generated workflow contract missing: %v\n%s", err, workflow)
+	}
+}
+
+func TestLoadBlueprintRejectsInvalidWorkflowTransition(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "invalid-workflow.yaml")
+	data := []byte("name: article\nworkflow:\n  states: [draft]\n  transitions:\n    draft: [missing]\nfields:\n  - name: title\n    type: string\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadBlueprint(path); err == nil {
+		t.Fatal("workflow transition to unknown state was accepted")
+	}
+}
+
 func TestLoadBlueprintMapsAdminAndUIHintsWithoutChangingPersistence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "article.yaml")
 	data := []byte("name: article\nadmin:\n  label: Articles\n  icon: newspaper\n  group: content\nfields:\n  - name: title\n    type: string\n    required: true\n    ui:\n      list: true\n      searchable: true\n      filterable: true\n      widget: text\n  - name: body\n    type: text\n    required: false\n    ui:\n      widget: block-editor\n")
