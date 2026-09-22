@@ -11,6 +11,8 @@
 - `scripts/verify-wsl-postgres-drill.ps1` WSL PostgreSQL 18 üzerinde backup ve
   contract paketlerini sıralı çalıştırarak geçti; disposable database sonunda
   silindi.
+- OTLP profile unit testleri endpoint ve 0..1 sampling doğrulamasını; optional
+  `InstallOTLPProvider` path'i HTTP OTLP batch exporter kurulumunu doğrular.
 
 ## Bilinçli operasyon sınırları
 
