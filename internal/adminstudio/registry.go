@@ -52,6 +52,8 @@ type Field struct {
 	Required      bool      `json:"required"`
 	ReadOnly      bool      `json:"read_only,omitempty"`
 	VisibleInList bool      `json:"visible_in_list"`
+	Searchable    bool      `json:"searchable,omitempty"`
+	Filterable    bool      `json:"filterable,omitempty"`
 	Options       []string  `json:"options,omitempty"`
 }
 
@@ -119,7 +121,7 @@ func validateCollection(collection Collection) error {
 		if strings.TrimSpace(field.ID) == "" || strings.TrimSpace(field.Label) == "" || !fieldRegistry.Supports(field.Kind) {
 			return ErrInvalidCollection
 		}
-		if field.Widget != "" && field.Widget != "textarea" && field.Widget != "currency" && field.Widget != "richtext" && field.Widget != "media" && field.Widget != "checkbox" && field.Widget != "hidden" && field.Widget != "list" {
+		if field.Widget != "" && !supportedWidget(field.Widget) {
 			return ErrInvalidCollection
 		}
 		if _, exists := seenFields[field.ID]; exists {
@@ -151,6 +153,15 @@ func validateCollection(collection Collection) error {
 		}
 	}
 	return nil
+}
+
+func supportedWidget(widget string) bool {
+	switch widget {
+	case "text", "textarea", "number", "boolean", "date", "datetime", "select", "media", "richtext", "block-editor", "relation", "array", "blocks", "currency", "checkbox", "hidden", "list":
+		return true
+	default:
+		return false
+	}
 }
 
 func cloneCollection(collection Collection) Collection {

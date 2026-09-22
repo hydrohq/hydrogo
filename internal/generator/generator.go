@@ -51,11 +51,15 @@ type FieldAdmin struct {
 	Widget        string `json:"widget" yaml:"widget"`
 	ReadOnly      bool   `json:"read_only" yaml:"read_only"`
 	VisibleInList bool   `json:"visible_in_list" yaml:"visible_in_list"`
+	Searchable    bool   `json:"searchable" yaml:"searchable"`
+	Filterable    bool   `json:"filterable" yaml:"filterable"`
 }
 
 type Admin struct {
 	Label       string               `json:"label" yaml:"label"`
 	Description string               `json:"description" yaml:"description"`
+	Icon        string               `json:"icon" yaml:"icon"`
+	Group       string               `json:"group" yaml:"group"`
 	Actions     []adminstudio.Action `json:"actions" yaml:"actions"`
 	BulkActions []adminstudio.Action `json:"bulk_actions" yaml:"bulk_actions"`
 }
@@ -156,7 +160,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		if fieldLabel == "" {
 			fieldLabel = exportName(field.Name)
 		}
-		fields = append(fields, adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList})
+		fields = append(fields, adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable})
 	}
 	actions := append([]adminstudio.Action(nil), spec.Admin.Actions...)
 	if len(actions) == 0 {
