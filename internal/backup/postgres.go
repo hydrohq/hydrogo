@@ -107,7 +107,7 @@ func SnapshotPostgres(ctx context.Context, tools PostgresTools, dsn, mediaDir, d
 			return Manifest{}, err
 		}
 	}
-	manifest := Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: databaseDigest, Media: media}
+	manifest := withOperationalMetadata(Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: databaseDigest, Media: media})
 	if err := WriteManifest(filepath.Join(destination, "manifest.json"), manifest); err != nil {
 		cleanup()
 		return Manifest{}, err
