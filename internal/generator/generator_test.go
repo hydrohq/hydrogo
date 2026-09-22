@@ -474,6 +474,14 @@ func TestGeneratedTenantScopedResourceBindsTenantContract(t *testing.T) {
 	}
 }
 
+func TestTenantIndexNameStaysWithinDialectIdentifierLimit(t *testing.T) {
+	table := strings.Repeat("a", 63)
+	name := tenantIndexName(table)
+	if len(name) != 63 || !strings.HasPrefix(name, table[:54]+"_") {
+		t.Fatalf("tenant index name is not bounded: %q (%d)", name, len(name))
+	}
+}
+
 func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "testimonial.yaml")
 	content := `version: v0
