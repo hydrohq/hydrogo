@@ -300,3 +300,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 7. If the migration requires a maintenance window, explain this in the release metadata.
 - [ADR-0227: Client Edition lifecycle hook extension contract](0227-lifecycle-hook-extension-contract.md)
 - [ADR-0228: Public bounded resource query contract](0228-public-resource-query-contract.md)
+- [ADR-0229: Generated bounded list transport](0229-generated-list-transport-contract.md)
