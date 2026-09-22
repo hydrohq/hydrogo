@@ -241,6 +241,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return jobsCommand(args[1:], stdout, stderr)
 	case "tenant":
 		return tenantCommand(args[1:], stdin, stdout, stderr)
+	case "profile":
+		return profileCommand(args[1:], stdout, stderr)
 	case "events":
 		return eventsCommand(args[1:], stdout)
 	case "help", "-h", "--help":
