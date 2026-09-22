@@ -3,6 +3,7 @@
   "collection": {
     "name": "project",
     "type": "collection",
+    "tenant_scoped": false,
     "table": "projects",
     "fields": [
       {

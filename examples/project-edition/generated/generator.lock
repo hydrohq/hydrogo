@@ -1,9 +1,9 @@
 {
   "generator_version": "0.1.0",
-  "spec_sha256": "9cc3e439707b501d11d79ecde55a44935b6dfe56a34ffca7af88e40134db8437",
+  "spec_sha256": "863bce071b36b0e795a55e520ca41649d3749a1e0651400f80d6da8db666429a",
   "artifacts_sha256": {
     "REVIEW.md": "5702d3e254a3e0efe697d04072a8efaa6032be6a4e2be1a991020bfc8789fa1c",
-    "RUNTIME_WIRING.md": "67883c8109b9fc1fd040011a04f8dd8114bf21cd513be5a4890bd8801d752e6b",
+    "RUNTIME_WIRING.md": "ba9ef2d4aab736e0f52b0ac37846a21d1de256083a2cd5b57d1bd13b43f61bb5",
     "admin/form.templ": "ad2dcd82b656dcebb5a8d9a3f2b7d77903d18c44bd89e1a225dd2b4b068af24f",
     "admin/list.templ": "dc32512c3b31162f213531e121b112c349881e81ce4c976aa7ca756f8e40a5c7",
     "admin/views.json": "f1b4a22cd9bd47636597842ebef49cee157221d07118eacef911db541822b5d0",
@@ -28,8 +28,9 @@
     "query.ts": "fc3772d66cd3b1031f4f8db2032121306c809fe7ece5b6bf260c77593ac214cc",
     "react.ts": "6c68d406ffef42de82eb720a59d135d109c91b01709fdfd9537a8c7112723c15",
     "repository.go": "888564b36ceaa9e79b3e7f9936caa6830d1a3527b8831efabe93704678b4b143",
+    "runtime.go": "b924e2342ff04b39398721422b3540d1b3a7685a2f038077f22f5d2759e13981",
     "service.go": "c29bc8795e87b0a5ad7f3ea434c5a42ab918e2f0f49bbad79eda7e0efd969b44",
-    "spec.json": "4b04844e0951cf3e7bef4fbfa394aa5c5c6d5c2abba0691b7cd425476e69449f",
+    "spec.json": "e33c0c73d03b319f6f96a77e2cb586b91510a97a18f37cbbea1294414101cba7",
     "swr.ts": "ab6e680d3a3f596f99a9b447560973c9c4d9ad1603046b0da36f3b00acbba14e",
     "table.html": "e383b5219090cd5755e4a97a39b4ecfe5a10a07d62318ae3692b23256fbe89a5",
     "transport.go": "7339f287753c2648555bffa5753afb7a811ad08232bed9d5e5aac024e7746c7f",

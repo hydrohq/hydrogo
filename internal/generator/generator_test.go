@@ -218,10 +218,14 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s repository missing %q", spec.Name, method)
 			}
 		}
-		for _, file := range []string{"spec.json", "service.go", "policy.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "admin/list.templ", "admin/form.templ", "admin/views.json"} {
+		for _, file := range []string{"spec.json", "service.go", "policy.go", "runtime.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "admin/list.templ", "admin/form.templ", "admin/views.json"} {
 			if _, err := os.Stat(filepath.Join(root, "generated", spec.Name, file)); err != nil {
 				t.Fatalf("%s scaffold %s missing: %v", spec.Name, file, err)
 			}
+		}
+		runtime, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "runtime.go"))
+		if err != nil || !bytes.Contains(runtime, []byte("Register"+exportName(spec.Name)+"Route")) || !bytes.Contains(runtime, []byte("policy")) {
+			t.Fatalf("%s runtime route registration missing: %v", spec.Name, err)
 		}
 		wiring, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "RUNTIME_WIRING.md"))
 		if err != nil || !bytes.Contains(wiring, []byte("/api/v1/"+spec.Name)) || !bytes.Contains(wiring, []byte("Compact profile")) {
