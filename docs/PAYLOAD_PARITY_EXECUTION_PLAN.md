@@ -84,6 +84,124 @@ HydroGo ancak şu üç koşul birlikte sağlandığında Payload hızına yakın
 
 Bu plan, HydroGo’nun Core izolasyonu, varsayılan deny, kullanılmayan modülün sıfır footprint’i ve “önce doğrula, sonra otomatikleştir” ilkeleriyle uyumludur.
 
+## Platform-factory expansion — Payload’ı aşma planı
+
+Bu bölüm, HydroGo’yu yalnızca bir CMS alternatifi değil; CMS, ERP, inşaat,
+üyelik, portal ve operasyon yazılımları üreten genel amaçlı bir Workspace/Engine
+haline getirme hedefini tanımlar. Her faz ayrı commit, ADR/uyumluluk kaydı ve
+ölçülebilir doğrulama ile teslim edilir.
+
+### P0 — Core bloat audit ve sınırların korunması (zorunlu önkoşul)
+
+- `internal/` altındaki her paketi Core primitive, opt-in module, kit, Edition
+  veya demo/UI katmanı olarak sınıflandır.
+- Core’a import edilen her bağımlılık için boyut, başlatma süresi, binary etkisi,
+  Compact profile etkisi ve lisans kaydı çıkar.
+- Kullanılmayan modüllerin route, migration, asset, worker, goroutine veya
+  bağlantı havuzu oluşturmadığını test et.
+- CMS/commerce/construction özel iş mantığını Core’dan Edition/module sınırına
+  taşı; Core fork’u oluşmasını engelle.
+- Tekrarlanan inline HTML/CSS/JS ve gereksiz runtime bağımlılıklarını typed
+  component, embedded asset veya Edition-owned asset sınırına taşı.
+- Her capability için `hydro profile explain` ve `hydro profile check` çıktısı
+  üret; Compact profil için binary/resource budget kabul kriteri belirle.
+
+**Çıkış kriteri:** Core dependency/import grafiği, capability matrisi ve Compact
+  resource budget raporu yayınlanır; gereksiz Core yükleri ayrı commit’lerle
+  kaldırılır veya gerekçeli ADR ile tutulur.
+
+### P1 — Versioned domain/resource contract
+
+Blueprint dili `collection`, `global`, `relation`, `value_object`, `computed`,
+`workflow`, `event`, `policy`, `job` ve `integration` türlerini destekler.
+Blueprint sürümü; schema diff, breaking-change tespiti, migration planı,
+rollback metadata ve lock dosyasıyla birlikte yönetilir.
+
+Yeni CLI akışı:
+
+```text
+hydro new <edition>
+hydro resource new|validate|diff|check-breaking
+hydro schema diff
+hydro api diff
+hydro permissions check
+```
+
+### P2 — Zero-setup identity ve policy platformu
+
+`auth: true` yeni bir auth sistemi üretmez; mevcut Identity/Session/RBAC
+çekirdeğini composition ile etkinleştirir. Admin, member, service-account,
+API-key, OIDC, MFA/WebAuthn, session/device yönetimi ve tenant-aware policy
+aynı sözleşmede birleşir. Resource erişimi deny-by-default olur; gerçek policy
+`custom/` altında kalır.
+
+### P3 — Güvenli deep querying ve API parity
+
+Query URL’si önce typed filter AST’ye, sonra field/operator allowlist ve query
+complexity budget kontrolünden geçer. `equals`, `contains`, `in`, `exists`,
+`and`, `or`, `sort`, `limit` gibi operatörler yalnızca tanımlı alanlarda
+çalışır. SQL builder prepared statement üretir; tenant predicate, join depth,
+page size ve index hint sınırları SQLite/PostgreSQL kontrat testleriyle
+sertifikalanır.
+
+### P4 — Globals, validation ve relation parity
+
+Global kaynaklar tekil form/API sözleşmesi üretir; tek kayıt invariant’ı
+transaction içinde korunur. Alan validation kuralları (`min`, `max`, regex,
+unique, default, immutable, email vb.) HTML, REST ve service katmanında aynı
+typed contract’tan çalışır. Relation’lar `has_one`, `has_many` ve
+`many_to_many`, async picker, eager loading, cascade/restrict ve N+1 bütçesi
+ile genişletilir.
+
+### P5 — Workflow, lifecycle ve event platformu
+
+Draft/review/approved/published gibi state machine’ler Blueprint’ten tanımlanır.
+Hook’lar generic ve typed interface olarak üretilir; yan etkiler doğrudan hook
+içinde değil transaction → domain event → outbox → worker zincirinde çalışır.
+Retry, idempotency, dead-letter, audit ve timeout davranışları zorunlu
+kontrat olur.
+
+### P6 — Admin Studio parity
+
+Generated list/form/detail scaffolds; relation search, nested blocks, tabs,
+bulk actions, saved filters, column selection, autosave, optimistic locking,
+revision diff/restore, schedule takvimi, permission-aware görünürlük ve
+erişilebilir keyboard navigation ile genişletilir. Runtime Studio yalnızca
+güvenli metadata render eder; iş mantığı ve yetki kararları Go service/policy
+katmanında kalır.
+
+### P7 — Profile-aware frontend ve offline saha desteği
+
+Server-rendered Templ/HTMX, headless REST/OpenAPI ve rich application
+WebSocket/SSE profilleri birbirinden ayrılır. İnşaat/saha senaryoları için
+offline command queue, sync cursor, conflict resolution, attachment retry ve
+event replay sözleşmeleri opt-in capability olarak eklenir.
+
+### P8 — Operations, portability ve marketplace
+
+Her resource için export/import, dry-run, validation, media manifest ve schema
+version üretilir. Backup/restore, per-tenant recovery, observability, alerting,
+SBOM, signed release ve upgrade rehearsal production gate’lerine bağlanır.
+Kits versioned dependency graph ile seçilir; güvenilmeyen Go kodu runtime’da
+yüklenmez.
+
+### P9 — Golden-path ve ölçümlü Payload karşılaştırması
+
+`hydro new construction-saas` veya `hydro new editorial` komutu çalışan login,
+admin, tenant, örnek resource, media, audit, OpenAPI, seed ve test fixture’ı
+üretir. Aynı senaryo Payload ile karşılaştırılır: ilk çalışan MVP süresi,
+manuel dosya/dokunuş sayısı, hata sayısı, binary boyutu, bellek, p95 latency ve
+deployment adımı ölçülür. İki bağımsız Edition’da doğrulanmadan hız iddiası
+yayınlanmaz.
+
+### Platform “hazır” kriteri
+
+HydroGo ancak Core bloat raporu temiz, standart resource 30 dakika içinde
+çalışan admin/API/seed/test üretiyor, SQLite/PostgreSQL ve tenant isolation
+kontratları geçiyor, gerçek pilot kapasitesi ölçülmüş ve Core/module/kit/SDK
+upgrade matrisi yeşil ise Payload’ı aşan genel amaçlı platform olarak kabul
+edilir.
+
 ## 2026-09-16 uygulama notu
 
 Planın SDK/runtime dağıtımına temas eden ilk teslimatları uygulanmıştır:
