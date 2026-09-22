@@ -27,10 +27,13 @@ type FileDigest struct {
 }
 
 type Manifest struct {
-	Version   int          `json:"version"`
-	CreatedAt time.Time    `json:"created_at"`
-	Database  FileDigest   `json:"database"`
-	Media     []FileDigest `json:"media"`
+	Version       int          `json:"version"`
+	CreatedAt     time.Time    `json:"created_at"`
+	Edition       string       `json:"edition,omitempty"`
+	Retention     string       `json:"retention_class,omitempty"`
+	EncryptionRef string       `json:"encryption_ref,omitempty"`
+	Database      FileDigest   `json:"database"`
+	Media         []FileDigest `json:"media"`
 }
 
 type RestoreControls struct {
@@ -153,7 +156,7 @@ func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destina
 			return Manifest{}, err
 		}
 	}
-	manifest := Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: dbDigest, Media: media}
+	manifest := withOperationalMetadata(Manifest{Version: 1, CreatedAt: time.Now().UTC(), Database: dbDigest, Media: media})
 	if err := WriteManifest(filepath.Join(destination, "manifest.json"), manifest); err != nil {
 		cleanup()
 		return Manifest{}, err
@@ -167,6 +170,20 @@ func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destina
 		return Manifest{}, fmt.Errorf("verify snapshot: %w", err)
 	}
 	return manifest, nil
+}
+
+func withOperationalMetadata(manifest Manifest) Manifest {
+	manifest.Edition = boundedMetadata(os.Getenv("HYDRO_EDITION_ID"), 128)
+	manifest.Retention = boundedMetadata(os.Getenv("HYDRO_BACKUP_RETENTION_CLASS"), 64)
+	manifest.EncryptionRef = boundedMetadata(os.Getenv("HYDRO_BACKUP_ENCRYPTION_REF"), 256)
+	return manifest
+}
+func boundedMetadata(value string, max int) string {
+	value = strings.TrimSpace(value)
+	if len(value) > max {
+		return value[:max]
+	}
+	return value
 }
 
 func sqliteDatabaseBytes(ctx context.Context, db *sql.DB) (int64, error) {
