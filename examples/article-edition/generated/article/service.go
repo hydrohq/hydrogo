@@ -17,11 +17,23 @@ func (s ArticleService) Get(ctx context.Context, id string) (Article, error) {
 	return s.Repository.Get(ctx, id)
 }
 
+func (s ArticleService) List(ctx context.Context, limit, offset int, sortField string, desc bool) ([]Article, error) {
+	return s.Repository.List(ctx, limit, offset, sortField, desc)
+}
+
 func (s ArticleService) Create(ctx context.Context, item Article) error {
+	item.normalize()
+	if err := item.Validate(); err != nil {
+		return err
+	}
 	return s.Repository.Create(ctx, item)
 }
 
 func (s ArticleService) Update(ctx context.Context, item Article) error {
+	item.normalize()
+	if err := item.Validate(); err != nil {
+		return err
+	}
 	return s.Repository.Update(ctx, item)
 }
 

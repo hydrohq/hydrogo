@@ -1,5 +1,6 @@
 {
   "id": "project",
+  "type": "collection",
   "label": "Project",
   "description": "",
   "fields": [

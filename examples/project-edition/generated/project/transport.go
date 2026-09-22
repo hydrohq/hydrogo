@@ -4,6 +4,7 @@ package generated
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -32,7 +33,25 @@ func (h ProjectHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
-		if id == "" || !h.Policy.CanRead(r.Context(), id) {
+		if id == "" {
+			if !h.Policy.CanRead(r.Context(), "") {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			limit, offset, sortField, desc, ok := parseProjectListQuery(r)
+			if !ok {
+				http.Error(w, "invalid query", http.StatusBadRequest)
+				return
+			}
+			items, err := h.Service.List(r.Context(), limit, offset, sortField, desc)
+			if err != nil {
+				http.Error(w, "invalid query", http.StatusBadRequest)
+				return
+			}
+			writeProjectJSON(w, http.StatusOK, items)
+			return
+		}
+		if !h.Policy.CanRead(r.Context(), id) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
@@ -102,6 +121,37 @@ func writeProjectJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+func parseProjectListQuery(r *http.Request) (limit, offset int, sortField string, desc, ok bool) {
+	limit, offset, ok = 25, 0, true
+	q := r.URL.Query()
+	if raw := q.Get("limit"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 1 || value > 100 {
+			return 0, 0, "", false, false
+		}
+		limit = value
+	}
+	if raw := q.Get("page"); raw != "" {
+		page, err := strconv.Atoi(raw)
+		if err != nil || page < 1 {
+			return 0, 0, "", false, false
+		}
+		offset = (page - 1) * limit
+	}
+	if raw := q.Get("offset"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil || value < 0 || value > 10000 {
+			return 0, 0, "", false, false
+		}
+		offset = value
+	}
+	if offset > 10000 {
+		return 0, 0, "", false, false
+	}
+	sortRaw := q.Get("sort")
+	sortField, desc = strings.TrimPrefix(sortRaw, "-"), strings.HasPrefix(sortRaw, "-")
+	return limit, offset, sortField, desc, true
 }
 
 // Generated transport for Project.
