@@ -69,8 +69,12 @@ func TestLoadBlueprintMapsAuthCompositionFlag(t *testing.T) {
 		t.Fatalf("generated module lost auth metadata: %v\n%s", err, module)
 	}
 	wiring, err := os.ReadFile(filepath.Join(root, "generated", "article", "RUNTIME_WIRING.md"))
-	if err != nil || !strings.Contains(string(wiring), "Identity/Session/RBAC") {
+	if err != nil || !strings.Contains(string(wiring), "Identity/Session/RBAC") || !strings.Contains(string(wiring), "auth.NewPermissionCatalog(generated.ArticlePermissions()...)") || !strings.Contains(string(wiring), "authSvc.SetPermissionCatalog") {
 		t.Fatalf("generated wiring lacks auth review gate: %v", err)
+	}
+	permissions, err := os.ReadFile(filepath.Join(root, "generated", "article", "permissions.go"))
+	if err != nil || !strings.Contains(string(permissions), `"article.read"`) || !strings.Contains(string(permissions), `"article.write"`) {
+		t.Fatalf("generated permission catalog is incomplete: %v\n%s", err, permissions)
 	}
 	runtime, err := os.ReadFile(filepath.Join(root, "generated", "article", "runtime.go"))
 	if err != nil || !strings.Contains(string(runtime), "authenticated func(*http.Request) bool") || !strings.Contains(string(runtime), "http.StatusUnauthorized") {

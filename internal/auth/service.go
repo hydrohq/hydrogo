@@ -38,19 +38,54 @@ const (
 )
 
 type AuthService struct {
-	userRepo       UserRepository
-	sessionRepo    SessionRepository
-	mobileSessions MobileSessionRevoker
-	argonParams    Argon2Params
-	dummyHash      string
-	idleTTL        time.Duration
-	permissions    PermissionStore
+	userRepo          UserRepository
+	sessionRepo       SessionRepository
+	mobileSessions    MobileSessionRevoker
+	argonParams       Argon2Params
+	dummyHash         string
+	idleTTL           time.Duration
+	permissions       PermissionStore
+	permissionCatalog *PermissionCatalog
 }
 
 func (s *AuthService) SetPermissionStore(store PermissionStore) {
 	if s != nil {
 		s.permissions = store
 	}
+}
+
+// SetPermissionCatalog installs the active Edition's explicit permission
+// allowlist. Call during composition before serving requests.
+func (s *AuthService) SetPermissionCatalog(catalog *PermissionCatalog) error {
+	if s == nil || catalog == nil {
+		return errors.New("permission catalog is required")
+	}
+	s.permissionCatalog = catalog
+	return nil
+}
+
+// AvailablePermissions returns the deterministic names exposed to the
+// authenticated Admin Studio permission editor.
+func (s *AuthService) AvailablePermissions() []string {
+	if s != nil && s.permissionCatalog != nil {
+		return s.permissionCatalog.Names()
+	}
+	catalog, _ := NewPermissionCatalog()
+	return catalog.Names()
+}
+
+// Can checks an actor against this service's active Edition permission
+// catalog. Custom Edition policies should prefer this over checking names
+// from untrusted request input.
+func (s *AuthService) Can(user *User, permission string) bool {
+	if s == nil {
+		return false
+	}
+	catalog := s.permissionCatalog
+	if catalog == nil {
+		catalog, _ = NewPermissionCatalog()
+	}
+	return catalog.Allows(user, permission)
 }
 
 // MobileSessionRevoker keeps bearer credentials on the same disable lifecycle
@@ -60,6 +95,7 @@ type MobileSessionRevoker interface {
 }
 
 func NewAuthService(users UserRepository, sessions SessionRepository, mobileSessions MobileSessionRevoker, params Argon2Params) *AuthService {
+	permissionCatalog, _ := NewPermissionCatalog()
 	dummyParams := params
 	if err := validateArgon2Params(params); err != nil {
 		// Keep authentication's timing defense usable even if an embedding
@@ -70,12 +106,13 @@ func NewAuthService(users UserRepository, sessions SessionRepository, mobileSess
 	// Keep the unknown-user verification at the same Argon2 cost as real users.
 	dummyHash, _ := HashPassword("hydrogo-dummy-password", dummyParams)
 	return &AuthService{
-		userRepo:       users,
-		sessionRepo:    sessions,
-		mobileSessions: mobileSessions,
-		argonParams:    params,
-		dummyHash:      dummyHash,
-		idleTTL:        DefaultIdleTTL,
+		userRepo:          users,
+		sessionRepo:       sessions,
+		mobileSessions:    mobileSessions,
+		argonParams:       params,
+		dummyHash:         dummyHash,
+		idleTTL:           DefaultIdleTTL,
+		permissionCatalog: permissionCatalog,
 	}
 }
 
@@ -213,7 +250,13 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 		if err != nil {
 			return nil, nil, err
 		}
-		u.PermissionOverrides = overrides
+		activeOverrides := make(map[string]bool, len(overrides))
+		for permission, allowed := range overrides {
+			if s.permissionKnown(permission) {
+				activeOverrides[permission] = allowed
+			}
+		}
+		u.PermissionOverrides = activeOverrides
 	}
 	if s.idleTTL > 0 && now.Sub(sess.LastSeenAt) > s.idleTTL {
 		_ = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)
@@ -343,7 +386,7 @@ func (s *AuthService) ReplaceUserPermissions(ctx context.Context, userID string,
 		return ErrUserRepositoryRequired
 	}
 	for permission := range overrides {
-		if !containsPermission(permission) {
+		if !s.permissionKnown(permission) {
 			return errors.New("invalid permission")
 		}
 	}
@@ -353,7 +396,10 @@ func (s *AuthService) ReplaceUserPermissions(ctx context.Context, userID string,
 	return s.RevokeAllUserSessions(ctx, userID)
 }
 
-func containsPermission(permission string) bool {
+func (s *AuthService) permissionKnown(permission string) bool {
+	if s != nil && s.permissionCatalog != nil {
+		return s.permissionCatalog.Contains(permission)
+	}
 	for _, known := range KnownPermissions {
 		if permission == known {
 			return true

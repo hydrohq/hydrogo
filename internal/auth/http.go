@@ -55,6 +55,7 @@ type HTTPRoute struct {
 }
 
 const maxAuthFormBytes = 16 << 10
+const maxPermissionFormBytes = 256 << 10
 
 // HTTPHandler exposes the small, session-backed authentication surface used by the server.
 type HTTPHandler struct {
@@ -484,12 +485,13 @@ func (h HTTPHandler) updateUserPermissions(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "administrator permissions cannot be changed for the current account", http.StatusConflict)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxPermissionFormBytes)
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid permission update", http.StatusBadRequest)
 		return
 	}
 	overrides := make(map[string]bool)
-	for _, permission := range KnownPermissions {
+	for _, permission := range h.Service.AvailablePermissions() {
 		switch r.FormValue("perm_" + permission) {
 		case "allow":
 			overrides[permission] = true

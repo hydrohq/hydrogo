@@ -656,6 +656,42 @@ func TestModuleStarterFixtureLoadsAndValidates(t *testing.T) {
 	}
 }
 
+func TestGeneratedPermissionCatalogIsDeterministic(t *testing.T) {
+	generated := renderPermissions(Spec{Name: "article", Permissions: []string{"article.write", "article.read"}})
+	readAt, writeAt := strings.Index(generated, `"article.read"`), strings.Index(generated, `"article.write"`)
+	if !strings.Contains(generated, "func ArticlePermissions() []string") || readAt < 0 || writeAt < 0 || readAt > writeAt {
+		t.Fatalf("generated permission catalog is missing or not sorted: %s", generated)
+	}
+}
+
+func TestAuthEnabledRuntimeWiringRegistersGeneratedPermissionCatalog(t *testing.T) {
+	spec := Spec{Name: "article", Auth: true, Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"article.read", "article.write"}, Dialects: []string{"sqlite"}}
+	wiring := renderRuntimeWiring(spec)
+	for _, marker := range []string{"auth.NewPermissionCatalog(generated.ArticlePermissions()...)", "authSvc.SetPermissionCatalog", "generated permissions do not receive role grants implicitly", "unknown names deny"} {
+		if !strings.Contains(wiring, marker) {
+			t.Errorf("auth runtime wiring missing %q", marker)
+		}
+	}
+}
+
+func TestResourcePermissionNamesMustBeCanonical(t *testing.T) {
+	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{" article.read"}, Dialects: []string{"sqlite"}}
+	if err := Validate(spec); err == nil {
+		t.Fatal("whitespace-padded permission identifier was accepted")
+	}
+}
+
+func TestResourcePermissionListHasBoundedSize(t *testing.T) {
+	permissions := make([]string, maxResourcePermissions+1)
+	for i := range permissions {
+		permissions[i] = fmt.Sprintf("resource.permission:%d", i)
+	}
+	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: permissions, Dialects: []string{"sqlite"}}
+	if err := Validate(spec); err == nil {
+		t.Fatal("oversized resource permission list was accepted")
+	}
+}
+
 func TestCheckCompatibility(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "testimonial", Table: "testimonials", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"testimonial.read"}, Dialects: []string{"sqlite"}}

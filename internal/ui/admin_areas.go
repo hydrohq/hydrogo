@@ -20,6 +20,7 @@ type AdminAreaData struct {
 	Locale      string
 	LocaleSaved bool
 	Users       []*auth.User
+	Permissions []string
 }
 
 type AdminResourceUsageData struct {
@@ -574,6 +575,13 @@ function testGraphQL(btn){
     </div>
   </div>
 		</div>`)
+		if len(data.Permissions) != 0 {
+			_, _ = io.WriteString(w, `<section class="studio-card" data-testid="edition-permission-catalog"><h2>Edition resource permissions</h2><p class="muted">Only permissions declared by active Edition resources can be assigned. Resource policy still decides how each permission is enforced.</p><ul>`)
+			for _, permission := range data.Permissions {
+				_, _ = fmt.Fprintf(w, `<li><code>%s</code></li>`, template.HTMLEscapeString(permission))
+			}
+			_, _ = io.WriteString(w, `</ul></section>`)
+		}
 
 	case "users":
 		usersTitle, usersIntro, emptyText := "Admin Studio Kullanıcıları", "Bu liste yalnızca yönetim paneline giriş yapan hesapları içerir. Frontend üyeleri Üyeler ekranında ayrı tutulur.", "Henüz admin kullanıcısı bulunamadı."
@@ -589,7 +597,11 @@ function testGraphQL(btn){
 		for _, u := range data.Users {
 			roleOptions := fmt.Sprintf(`<select name="role"><option value="admin"%s>Admin</option><option value="editor"%s>Editor</option><option value="viewer"%s>Viewer</option></select>`, selectedLocale(string(u.Role), "admin"), selectedLocale(string(u.Role), "editor"), selectedLocale(string(u.Role), "viewer"))
 			permissionControls := ""
-			for _, permission := range auth.KnownPermissions {
+			permissions := data.Permissions
+			if len(permissions) == 0 {
+				permissions = auth.KnownPermissions
+			}
+			for _, permission := range permissions {
 				value := "inherit"
 				if allowed, ok := u.PermissionOverrides[permission]; ok {
 					if allowed {

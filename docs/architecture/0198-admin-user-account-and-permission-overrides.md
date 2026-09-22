@@ -1,8 +1,8 @@
 # ADR-0198: Admin user accounts and permission overrides
 
-- **Status:** Accepted (account and role management implemented; full module permission audit remains a release gate)
+- **Status:** Partially superseded by [ADR-0255](0255-edition-permission-catalog.md) for the permission-catalog/override scope; account and role decisions remain accepted.
 - **Date:** 2026-09-20
-- **Related decisions:** [ADR-0013](0013-identity-and-security-boundaries.md), [ADR-0025](0025-separate-frontend-members.md), [ADR-0178](0178-tenant-scoped-admin-identity-and-sessions.md), [ADR-0179](0179-tenant-scoped-auth-security-tokens.md)
+- **Related decisions:** [ADR-0013](0013-identity-and-security-boundaries.md), [ADR-0025](0025-separate-frontend-members.md), [ADR-0178](0178-tenant-scoped-admin-identity-and-sessions.md), [ADR-0179](0179-tenant-scoped-auth-security-tokens.md), [ADR-0255](0255-edition-permission-catalog.md)
 
 ## Decision
 
@@ -20,8 +20,10 @@ Roles provide bounded defaults (`admin`, `editor`, `viewer`). A user-specific
 permission override is an explicit `allow` or `deny` stored in the
 tenant-scoped `admin_user_permissions` table; no row means inherit the role
 default. The effective decision is evaluated by Core authorization code, not by
-navigation visibility. The override catalog is static and versioned; unknown
-permission names are rejected.
+navigation visibility. Core permissions are fixed; generated resource
+permissions are added only by the active Edition's explicit permission catalog.
+Unknown or inactive-catalog permission names are rejected. No role grant is
+inferred for a generated permission.
 
 ## Consequences and release gates
 
