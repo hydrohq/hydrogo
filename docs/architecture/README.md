@@ -295,6 +295,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0246](0246-generated-many-relation-storage.md) | Generated bounded many-relation storage | Accepted |
 | [0247](0247-generated-edition-footprint-budget.md) | Generated Edition footprint regression budget | Accepted |
 | [0248](0248-sqlite-only-customer-runtime-build.md) | SQLite-only customer runtime build variant | Accepted |
+| [0249](0249-optional-graphql-runtime-build.md) | Optional GraphQL runtime build capability | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

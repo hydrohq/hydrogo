@@ -9,6 +9,8 @@ $license = $env:HYDRO_CUSTOMER_LICENSE
 $trustedKeys = $env:HYDRO_TRUSTED_PUBLIC_KEYS
 $databaseVariant = if ($env:HYDRO_DATABASE_VARIANT) { $env:HYDRO_DATABASE_VARIANT.ToLowerInvariant() } else { "dual" }
 if ($databaseVariant -notin @("dual", "sqlite")) { throw "HYDRO_DATABASE_VARIANT must be 'dual' or 'sqlite'." }
+$graphqlVariant = if ($env:HYDRO_GRAPHQL) { $env:HYDRO_GRAPHQL.ToLowerInvariant() } else { "enabled" }
+if ($graphqlVariant -notin @("enabled", "disabled")) { throw "HYDRO_GRAPHQL must be 'enabled' or 'disabled'." }
 if ([string]::IsNullOrWhiteSpace($trustedKeys)) { throw "HYDRO_TRUSTED_PUBLIC_KEYS is required; do not build an untrusted customer runtime." }
 if ([string]::IsNullOrWhiteSpace($license) -or -not (Test-Path -LiteralPath $license -PathType Leaf)) { throw "HYDRO_CUSTOMER_LICENSE must point to a signed hydro.lic file." }
 $license = (Resolve-Path -LiteralPath $license).Path
@@ -18,7 +20,10 @@ New-Item -ItemType Directory -Force $out | Out-Null
 $binary = Join-Path $out "hydro.exe"
 $ldflags = "-s -w -X github.com/ardaozyildirim/hydrogo/internal/licensing.TrustedPublicKeysBase64=$trustedKeys"
 $buildArgs = @("build", "-trimpath", "-ldflags", $ldflags)
-if ($databaseVariant -eq "sqlite") { $buildArgs += @("-tags", "hydro_compact") }
+$buildTags = @()
+if ($databaseVariant -eq "sqlite") { $buildTags += "hydro_compact" }
+if ($graphqlVariant -eq "disabled") { $buildTags += "hydro_no_graphql" }
+if ($buildTags.Count -gt 0) { $buildArgs += @("-tags", ($buildTags -join ",")) }
 $buildArgs += @("-o", $binary, "./cmd/hydro")
 if ($env:HYDRO_OBFUSCATE -eq "true") {
     if (-not (Get-Command garble -ErrorAction SilentlyContinue)) { throw "HYDRO_OBFUSCATE=true requires garble in the vendor build environment." }
@@ -43,5 +48,5 @@ $forbidden = Get-ChildItem -LiteralPath $out -Recurse -Force -File | Where-Objec
     $_.FullName -match '(^|[\\/])\.git([\\/]|$)|(^|[\\/])(internal|modules|cmd)([\\/]|$)|(^|[\\/])go\.(mod|sum)$|\.key$|private'
 }
 if ($forbidden) { throw "forbidden source/signing material found in customer package: $($forbidden.FullName -join ', ')" }
-@("# HydroGo customer runtime package", "", "- Binary: hydro.exe", "- License: hydro.lic", "- Database variant: $databaseVariant", "- Source modules/Core: not included", "- Obfuscated: $($env:HYDRO_OBFUSCATE -eq 'true')", "- Build commit: $((git rev-parse HEAD).Trim())") | Set-Content -LiteralPath (Join-Path $out "PACKAGE-MANIFEST.md") -Encoding utf8
+@("# HydroGo customer runtime package", "", "- Binary: hydro.exe", "- License: hydro.lic", "- Database variant: $databaseVariant", "- GraphQL: $graphqlVariant", "- Source modules/Core: not included", "- Obfuscated: $($env:HYDRO_OBFUSCATE -eq 'true')", "- Build commit: $((git rev-parse HEAD).Trim())") | Set-Content -LiteralPath (Join-Path $out "PACKAGE-MANIFEST.md") -Encoding utf8
 Write-Host "PASS: customer runtime package created at $out"

@@ -10,7 +10,8 @@ if (-not $resolvedWorkRoot.StartsWith($tempRoot, [StringComparison]::OrdinalIgno
 
 $variants = @(
     @{ Name = "dual-database"; Tags = $null; MaxBytes = 18MB; MaxPackages = 100 },
-    @{ Name = "compact-sqlite"; Tags = "hydro_compact"; MaxBytes = 13MB; MaxPackages = 70 }
+    @{ Name = "compact-sqlite"; Tags = "hydro_compact"; MaxBytes = 13MB; MaxPackages = 70 },
+    @{ Name = "compact-sqlite-no-graphql"; Tags = "hydro_compact,hydro_no_graphql"; MaxBytes = 13MB; MaxPackages = 70 }
 )
 $baseForbiddenImports = @(
     "github.com/ardaozyildirim/hydrogo/cmd/hydro",
@@ -57,8 +58,11 @@ try {
             }
 
             $forbiddenImports = @($baseForbiddenImports)
-            if ($variant.Tags -eq "hydro_compact") {
+            if ($variant.Tags -match "hydro_compact") {
                 $forbiddenImports += @("github.com/jackc/pgx/v5", "github.com/jackc/pgpassfile", "github.com/jackc/pgservicefile", "github.com/jackc/puddle/v2")
+            }
+            if ($variant.Tags -match "hydro_no_graphql") {
+                $forbiddenImports += @("github.com/ardaozyildirim/hydrogo/modules/api/graphql", "github.com/graphql-go/graphql")
             }
             foreach ($import in $imports) {
                 foreach ($forbidden in $forbiddenImports) {
@@ -70,6 +74,21 @@ try {
             Write-Host "PASS: edition=$edition variant=$($variant.Name) binary_bytes=$binaryBytes nonstdlib_packages=$($imports.Count)"
         }
     }
+
+    $runtimeBinary = Join-Path $resolvedWorkRoot "hydro-compact-no-graphql.exe"
+    & go build -tags "hydro_compact,hydro_no_graphql" -trimpath -buildvcs=false -ldflags "-s -w -buildid=" -o $runtimeBinary ./cmd/hydro
+    if ($LASTEXITCODE -ne 0) { throw "Compact SQLite/no-GraphQL Workspace build failed" }
+    $runtimeBytes = (Get-Item -LiteralPath $runtimeBinary).Length
+    if ($runtimeBytes -gt 34MB) { throw "Compact SQLite/no-GraphQL Workspace binary is $runtimeBytes bytes; budget is $([int](34MB))" }
+    $runtimeImports = @(& go list -deps -tags "hydro_compact,hydro_no_graphql" -f "{{if not .Standard}}{{.ImportPath}}{{end}}" ./cmd/hydro | Where-Object { $_ } | Sort-Object -Unique)
+    if ($LASTEXITCODE -ne 0) { throw "Compact SQLite/no-GraphQL Workspace dependency listing failed" }
+    if ($runtimeImports.Count -gt 340) { throw "Compact SQLite/no-GraphQL Workspace has $($runtimeImports.Count) non-stdlib packages; budget is 340" }
+    foreach ($import in $runtimeImports) {
+        if ($import -eq "github.com/jackc/pgx/v5" -or $import.StartsWith("github.com/jackc/pgx/v5/", [StringComparison]::Ordinal) -or $import -eq "github.com/graphql-go/graphql" -or $import.StartsWith("github.com/graphql-go/graphql/", [StringComparison]::Ordinal) -or $import -eq "github.com/ardaozyildirim/hydrogo/modules/api/graphql") {
+            throw "Compact SQLite/no-GraphQL Workspace unexpectedly imports $import"
+        }
+    }
+    Write-Host "PASS: workspace variant=compact-sqlite-no-graphql binary_bytes=$runtimeBytes nonstdlib_packages=$($runtimeImports.Count)"
 }
 finally {
     Pop-Location
