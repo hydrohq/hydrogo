@@ -15,6 +15,7 @@ import (
 // It is deliberately translated into the reviewed Spec contract before any
 // artifact is written.
 type Blueprint struct {
+	Version      string           `json:"version,omitempty" yaml:"version,omitempty"`
 	Name         string           `json:"name" yaml:"name"`
 	Type         string           `json:"type,omitempty" yaml:"type,omitempty"`
 	TenantScoped bool             `json:"tenant_scoped,omitempty" yaml:"tenant_scoped,omitempty"`
@@ -70,6 +71,13 @@ func LoadBlueprint(path string) (Spec, error) {
 	}
 	if err != nil {
 		return Spec{}, fmt.Errorf("decode blueprint: %w", err)
+	}
+	version := strings.TrimSpace(blueprint.Version)
+	if version == "" {
+		version = "v0"
+	}
+	if version != "v0" {
+		return Spec{}, fmt.Errorf("unsupported blueprint version %q", version)
 	}
 	name := strings.ToLower(strings.TrimSpace(blueprint.Name))
 	typeName := strings.ToLower(strings.TrimSpace(blueprint.Type))

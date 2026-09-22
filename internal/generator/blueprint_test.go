@@ -25,6 +25,28 @@ func TestLoadBlueprintMapsRequiredFieldsAndDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadBlueprintRejectsUnsupportedVersion(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "future.yaml")
+	data := []byte("version: v1\nname: project\nfields:\n  - name: title\n    type: string\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadBlueprint(path); err == nil || !strings.Contains(err.Error(), "unsupported blueprint version") {
+		t.Fatalf("expected fail-closed version error, got %v", err)
+	}
+}
+
+func TestLoadBlueprintAcceptsExplicitV0(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v0.yaml")
+	data := []byte("version: v0\nname: project\nfields:\n  - name: title\n    type: string\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadBlueprint(path); err != nil {
+		t.Fatalf("explicit v0 blueprint rejected: %v", err)
+	}
+}
+
 func TestLoadBlueprintMapsAdminAndUIHintsWithoutChangingPersistence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "article.yaml")
 	data := []byte("name: article\nadmin:\n  label: Articles\n  icon: newspaper\n  group: content\nfields:\n  - name: title\n    type: string\n    required: true\n    ui:\n      list: true\n      searchable: true\n      filterable: true\n      widget: text\n  - name: body\n    type: text\n    required: false\n    ui:\n      widget: block-editor\n")
