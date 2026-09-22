@@ -259,7 +259,7 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 			t.Fatalf("%s generated client missing bounded typed errors: %v", spec.Name, err)
 		}
 		openapi, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "openapi.json"))
-		if err != nil || !bytes.Contains(openapi, []byte("HydroAPIError")) || !bytes.Contains(openapi, []byte("page_size")) || !bytes.Contains(openapi, []byte("429")) {
+		if err != nil || !bytes.Contains(openapi, []byte("HydroAPIError")) || !bytes.Contains(openapi, []byte("page_size")) || !bytes.Contains(openapi, []byte("429")) || !bytes.Contains(openapi, []byte("422")) || !bytes.Contains(openapi, []byte("/{id}")) || !bytes.Contains(openapi, []byte("\"post\"")) {
 			t.Fatalf("%s OpenAPI missing query/error contract: %v", spec.Name, err)
 		}
 		react, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "react.ts"))
@@ -325,7 +325,19 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		}
 		if spec.Name == "pages" {
 			validationTest := `package generated
-import "testing"
+import (
+    "context"
+    "errors"
+    "net/http"
+    "net/http/httptest"
+    "strings"
+    "testing"
+)
+type allowPagesPolicy struct{}
+func (allowPagesPolicy) CanRead(context.Context, string) bool { return true }
+func (allowPagesPolicy) CanCreate(context.Context) bool { return true }
+func (allowPagesPolicy) CanUpdate(context.Context, string) bool { return true }
+func (allowPagesPolicy) CanDelete(context.Context, string) bool { return true }
 func TestGeneratedValidationRuntime(t *testing.T) {
     item := Pages{ID:"p1", Title:"漢字", Status:"draft", Email:"a@example.com", PublishedOn:"2026-09-23", UpdatedAt:"2026-09-23T12:00:00Z", CanonicalUrl:"https://example.com"}
     if err := item.Validate(); err != nil { t.Fatalf("valid Unicode/formats rejected: %v", err) }
@@ -339,6 +351,22 @@ func TestGeneratedValidationRuntime(t *testing.T) {
         {"url", func(p *Pages){ p.CanonicalUrl = "ftp://example.com/file" }},
     }
     for _, tc := range invalid { t.Run(tc.name, func(t *testing.T){ candidate := item; tc.change(&candidate); if err := candidate.Validate(); err == nil { t.Fatal("invalid value accepted") } }) }
+}
+func TestGeneratedTransportReturnsSafeFieldValidationError(t *testing.T) {
+    handler := NewPagesHTTPHandler(NewPagesService(PagesRepository{}), allowPagesPolicy{})
+    body := strings.NewReader("{\"id\":\"p2\",\"title\":\"漢字\",\"status\":\"draft\",\"email\":\"not-an-email\",\"published_on\":\"2026-09-23\",\"updated_at\":\"2026-09-23T12:00:00Z\",\"canonical_url\":\"https://example.com\"}")
+    req := httptest.NewRequest(http.MethodPost, PagesRoute, body)
+    req.Header.Set("X-Request-ID", "req_123-test")
+    response := httptest.NewRecorder()
+    handler.ServeHTTP(response, req)
+    if response.Code != http.StatusUnprocessableEntity { t.Fatalf("status = %d body=%s", response.Code, response.Body.String()) }
+    for _, marker := range []string{"\"code\":\"validation_failed\"", "\"fields\":{\"email\":\"invalid_format\"}", "\"request_id\":\"req_123-test\""} { if !strings.Contains(response.Body.String(), marker) { t.Fatalf("missing %s: %s", marker, response.Body.String()) } }
+    if strings.Contains(response.Body.String(), "not-an-email") || strings.Contains(response.Body.String(), "mail.ParseAddress") { t.Fatalf("sensitive input or internals leaked: %s", response.Body.String()) }
+}
+func TestGeneratedTransportDoesNotMisclassifyRepositoryErrors(t *testing.T) {
+    for _, tc := range []struct { name string; err error; want int }{{"internal", errors.New("database unavailable: secret"), http.StatusInternalServerError}, {"conflict", ErrResourceConflict, http.StatusConflict}} {
+        t.Run(tc.name, func(t *testing.T) { req := httptest.NewRequest(http.MethodPost, PagesRoute, nil); response := httptest.NewRecorder(); writeGeneratedMutationError(response, req, tc.err); if response.Code != tc.want { t.Fatalf("status = %d, want %d", response.Code, tc.want) }; if strings.Contains(response.Body.String(), "database unavailable") || strings.Contains(response.Body.String(), "secret") { t.Fatalf("internal error leaked: %s", response.Body.String()) } })
+    }
 }
 `
 			if err := os.WriteFile(filepath.Join(root, "generated", spec.Name, "validation_runtime_test.go"), []byte(validationTest), 0o644); err != nil {

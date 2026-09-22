@@ -305,6 +305,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0256](0256-resource-query-ast-validation-budgets.md) | Revalidate bounded resource query ASTs | Accepted |
 | [0257](0257-executable-generated-field-validation.md) | Execute generated string format validation | Accepted |
 | [0258](0258-tenant-scoped-blueprint-uniqueness.md) | Enforce Blueprint uniqueness at the database boundary | Accepted |
+| [0259](0259-generated-field-validation-error-contract.md) | Generated field-validation error contract | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
