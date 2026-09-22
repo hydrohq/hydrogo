@@ -352,6 +352,7 @@ func TestGeneratedValidationRuntime(t *testing.T) {
     }
     for _, tc := range invalid { t.Run(tc.name, func(t *testing.T){ candidate := item; tc.change(&candidate); if err := candidate.Validate(); err == nil { t.Fatal("invalid value accepted") } }) }
 }
+
 func TestGeneratedTransportReturnsSafeFieldValidationError(t *testing.T) {
     handler := NewPagesHTTPHandler(NewPagesService(PagesRepository{}), allowPagesPolicy{})
     body := strings.NewReader("{\"id\":\"p2\",\"title\":\"漢字\",\"status\":\"draft\",\"email\":\"not-an-email\",\"published_on\":\"2026-09-23\",\"updated_at\":\"2026-09-23T12:00:00Z\",\"canonical_url\":\"https://example.com\"}")
@@ -377,6 +378,80 @@ func TestGeneratedTransportDoesNotMisclassifyRepositoryErrors(t *testing.T) {
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("%s generated fixture does not compile: %v\n%s", spec.Name, err, output)
+		}
+	}
+}
+
+func TestGeneratedImmutableFieldsUseAtomicUpdateGuards(t *testing.T) {
+	root := t.TempDir()
+	specs := []Spec{
+		{Name: "immutable_doc", Table: "immutable_docs", Fields: []Field{{Name: "title", Type: "string", Validation: Validation{Immutable: true}}, {Name: "body", Type: "string"}}, Permissions: []string{"immutable_doc.read", "immutable_doc.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "tenant_immutable_doc", Table: "tenant_immutable_docs", TenantScoped: true, Fields: []Field{{Name: "title", Type: "string", Validation: Validation{Immutable: true}}, {Name: "body", Type: "string"}}, Permissions: []string{"tenant_immutable_doc.read", "tenant_immutable_doc.write"}, Dialects: []string{"sqlite", "postgres"}},
+	}
+	for _, spec := range specs {
+		if _, err := Generate(root, spec); err != nil {
+			t.Fatal(err)
+		}
+		name := exportName(spec.Name)
+		var source string
+		if spec.TenantScoped {
+			source = fmt.Sprintf(`package generated
+import ("context"; "database/sql"; "errors"; "testing"; _ "modernc.org/sqlite")
+func TestImmutableMutationIsAtomic(t *testing.T) {
+ db, err := sql.Open("sqlite", ":memory:"); if err != nil { t.Fatal(err) }; defer db.Close()
+ if _, err := db.Exec("CREATE TABLE %s (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL)"); err != nil { t.Fatal(err) }
+ repo := %sRepository{DB: db, Dialect: "sqlite"}; ctx := context.Background()
+ item := %s{ID:"row-1", TenantID:"tenant-1", Title:"fixed", Body:"before"}
+ if err := repo.Create(ctx, "tenant-1", item); err != nil { t.Fatal(err) }
+ changed := item; changed.Title = "tampered"; changed.Body = "after"
+ if err := repo.Update(ctx, "tenant-1", changed); !errors.Is(err, ErrResourceConflict) { t.Fatalf("immutable update error = %%v", err) }
+ got, err := repo.Get(ctx, "tenant-1", "row-1"); if err != nil { t.Fatal(err) }; if got.Title != "fixed" || got.Body != "before" { t.Fatalf("rejected update changed row: %%+v", got) }
+ item.Body = "after"; if err := repo.Update(ctx, "tenant-1", item); err != nil { t.Fatalf("mutable field update failed: %%v", err) }
+}
+`, spec.Table, name, name)
+		} else {
+			source = fmt.Sprintf(`package generated
+import ("context"; "database/sql"; "errors"; "testing"; _ "modernc.org/sqlite")
+func TestImmutableMutationIsAtomic(t *testing.T) {
+ db, err := sql.Open("sqlite", ":memory:"); if err != nil { t.Fatal(err) }; defer db.Close()
+ if _, err := db.Exec("CREATE TABLE %s (id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL)"); err != nil { t.Fatal(err) }
+ repo := %sRepository{DB: db, Dialect: "sqlite"}; ctx := context.Background()
+ item := %s{ID:"row-1", Title:"fixed", Body:"before"}
+ if err := repo.Create(ctx, item); err != nil { t.Fatal(err) }
+ changed := item; changed.Title = "tampered"; changed.Body = "after"
+ if err := repo.Update(ctx, changed); !errors.Is(err, ErrResourceConflict) { t.Fatalf("immutable update error = %%v", err) }
+ got, err := repo.Get(ctx, "row-1"); if err != nil { t.Fatal(err) }; if got.Title != "fixed" || got.Body != "before" { t.Fatalf("rejected update changed row: %%+v", got) }
+ item.Body = "after"; if err := repo.Update(ctx, item); err != nil { t.Fatalf("mutable field update failed: %%v", err) }
+}
+`, spec.Table, name, name)
+		}
+		if err := os.WriteFile(filepath.Join(root, "generated", spec.Name, "immutable_runtime_test.go"), []byte(source), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	moduleFile := fmt.Sprintf("module generatedimmutablefixture\n\ngo 1.27\n\nrequire (\n github.com/ardaozyildirim/hydrogo v0.0.0\n modernc.org/sqlite v1.59.0\n)\nreplace github.com/ardaozyildirim/hydrogo => %s\n", filepath.ToSlash(repoRoot))
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(moduleFile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command("go", "test", "-mod=mod", "./generated/...")
+	command.Dir = root
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("generated immutable fixtures failed: %v\n%s", err, output)
+	}
+}
+
+func TestImmutableFieldRequiresRepresentableScalarValue(t *testing.T) {
+	tests := []Spec{
+		{Name: "nullable_immutable", Table: "nullable_immutables", Fields: []Field{{Name: "value", Type: "string", Nullable: true, Validation: Validation{Immutable: true}}}, Permissions: []string{"nullable_immutable.read"}, Dialects: []string{"sqlite"}},
+		{Name: "many_immutable", Table: "many_immutables", Fields: []Field{{Name: "related_ids", Type: "relation", Nullable: false, Relation: &Relation{Collection: "related_item", Cardinality: "many", MaxItems: 10}, Validation: Validation{Immutable: true}}}, Permissions: []string{"many_immutable.read"}, Dialects: []string{"sqlite"}},
+	}
+	for _, spec := range tests {
+		if err := Validate(spec); err == nil {
+			t.Errorf("unsupported immutable contract accepted for %s", spec.Name)
 		}
 	}
 }

@@ -30,10 +30,12 @@ This uses no runtime service or external dependency and runs before generated
 service Create/Update repository writes. Validation errors remain generic
 field-level messages and do not echo user input.
 
-This decision does not define uniqueness scope, update-baseline semantics for
-immutability, or create-only default application. Those metadata properties
-remain Edition-owned until a versioned contract states tenant and lifecycle
-semantics; generated code must not imply they are enforced automatically.
+This decision does not define uniqueness scope or create-only default
+application. Uniqueness is defined by ADR-0258. Supported scalar immutable
+fields are enforced atomically under ADR-0260; nullable fields and many-valued
+relations remain rejected until their presence/baseline semantics are modeled.
+Create defaults remain Edition-owned until a versioned field-presence contract
+is adopted.
 
 ## Consequences
 

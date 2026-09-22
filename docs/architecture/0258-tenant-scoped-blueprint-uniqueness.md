@@ -38,9 +38,10 @@ violations to a user-safe conflict response without exposing driver messages.
 - Adding `unique: true` to an already-published resource changes its generated
   migration and requires the existing compatibility process, duplicate audit,
   and operator-approved cleanup plan.
-- Immutability and defaults are not solved here: immutable checks require a
-  trusted prior value in an atomic update boundary; defaults require field
-  presence semantics distinct from a zero value.
+- Uniqueness does not define immutability or defaults. Immutable scalar
+  enforcement is separately defined by [ADR-0260](0260-generated-immutable-field-enforcement.md);
+  create defaults still require field-presence semantics distinct from a zero
+  value and remain open.
 
 ## Verification
 
