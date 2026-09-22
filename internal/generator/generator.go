@@ -1120,11 +1120,13 @@ func (s %sService) Get(ctx context.Context, id string) (%s, error) {
 }
 
 func (s %sService) Create(ctx context.Context, item %s) error {
+	item.normalize()
 	if err := item.Validate(); err != nil { return err }
 	return s.Repository.Create(ctx, item)
 }
 
 func (s %sService) Update(ctx context.Context, item %s) error {
+	item.normalize()
 	if err := item.Validate(); err != nil { return err }
 	return s.Repository.Update(ctx, item)
 }
@@ -1176,7 +1178,15 @@ func renderValidation(spec Spec) string {
 			fmt.Fprintf(&b, "    if ok, _ := regexp.MatchString(%q, fmt.Sprint(%s)); !ok { return errors.New(%q) }\n", validation.Regex, value, field.Name+" has invalid format")
 		}
 	}
-	b.WriteString("    return nil\n}\n")
+	b.WriteString("    return nil\n}\n\n")
+	if spec.Type == "global" {
+		fmt.Fprintf(&b, "const %sGlobalID = \"global\"\n\n", name)
+	}
+	b.WriteString(fmt.Sprintf("func (item *%s) normalize() {\n", name))
+	if spec.Type == "global" {
+		fmt.Fprintf(&b, "    item.ID = %sGlobalID\n", name)
+	}
+	b.WriteString("}\n")
 	return b.String()
 }
 
