@@ -47,6 +47,33 @@ func TestLoadBlueprintAcceptsExplicitV0(t *testing.T) {
 	}
 }
 
+func TestLoadBlueprintMapsAuthCompositionFlag(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "auth.yaml")
+	data := []byte("name: article\nauth: true\nfields:\n  - name: title\n    type: string\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := LoadBlueprint(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !spec.Auth {
+		t.Fatal("auth flag was not mapped to the versioned Spec")
+	}
+	root := t.TempDir()
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	module, err := os.ReadFile(filepath.Join(root, "generated", "article", "module.yaml"))
+	if err != nil || !strings.Contains(string(module), "auth: true\npermissions:") {
+		t.Fatalf("generated module lost auth metadata: %v\n%s", err, module)
+	}
+	wiring, err := os.ReadFile(filepath.Join(root, "generated", "article", "RUNTIME_WIRING.md"))
+	if err != nil || !strings.Contains(string(wiring), "Identity/Session/RBAC") {
+		t.Fatalf("generated wiring lacks auth review gate: %v", err)
+	}
+}
+
 func TestLoadBlueprintMapsAdminAndUIHintsWithoutChangingPersistence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "article.yaml")
 	data := []byte("name: article\nadmin:\n  label: Articles\n  icon: newspaper\n  group: content\nfields:\n  - name: title\n    type: string\n    required: true\n    ui:\n      list: true\n      searchable: true\n      filterable: true\n      widget: text\n  - name: body\n    type: text\n    required: false\n    ui:\n      widget: block-editor\n")

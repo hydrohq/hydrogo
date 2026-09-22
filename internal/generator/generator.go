@@ -83,6 +83,7 @@ type Admin struct {
 type Spec struct {
 	Name         string   `json:"name" yaml:"name"`
 	Type         string   `json:"type" yaml:"type"`
+	Auth         bool     `json:"auth,omitempty" yaml:"auth,omitempty"`
 	TenantScoped bool     `json:"tenant_scoped" yaml:"tenant_scoped"`
 	Table        string   `json:"table" yaml:"table"`
 	Fields       []Field  `json:"fields" yaml:"fields"`
@@ -831,6 +832,10 @@ func Register%sRoute(mux *http.ServeMux, db *sql.DB, dialect string, policy %sPo
 func renderRuntimeWiring(spec Spec) string {
 	kits := resolvedKitNames(spec.Kits)
 	tenantEvidence := ""
+	authEvidence := ""
+	if spec.Auth {
+		authEvidence = "- [ ] Attach the existing Identity/Session/RBAC middleware and verify the generated policy with authenticated and anonymous tests; `auth: true` never creates a parallel auth system.\n"
+	}
 	if spec.TenantScoped {
 		tenantEvidence = "- [ ] Pass every generated tenant table to tenant.VerifyProvisioningRLSForTables before shared-mode provisioning.\n"
 	}
@@ -846,6 +851,7 @@ dependencies.
 - [ ] Call Register%sRoute from the module composition root with the
   configured SQL dialect/connection pool and the Edition-owned policy.
 - Route contract: /api/v1/%s
+%s
 - [ ] For tenant-scoped resources, provide the Edition-owned tenant resolver;
   keep authentication, authorization and request limits in the outer stack.
 - [ ] Bind the generated form/table/admin manifest to the authenticated admin
@@ -869,7 +875,7 @@ an omitted kit must not add routes, migrations, workers or assets.
 
 Record the owning ADR, migration/rollback result, policy test, deployment
 compatibility result and capacity impact in REVIEW.md before release.
-`, exportName(spec.Name), exportName(spec.Name), spec.Name, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
+`, exportName(spec.Name), exportName(spec.Name), spec.Name, authEvidence, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
 }
 
 func resolvedKitNames(declared []string) []string {
@@ -1524,7 +1530,13 @@ func renderModuleManifest(spec Spec) string {
 	if typeName == "" {
 		typeName = "collection"
 	}
-	fmt.Fprintf(&b, "version: v0\ntype: %s\nname: %s\ntable: %s\npermissions:\n", typeName, spec.Name, spec.Table)
+	fmt.Fprintf(&b, "version: v0\ntype: %s\nname: %s\ntable: %s\n", typeName, spec.Name, spec.Table)
+	if spec.Auth {
+		b.WriteString("auth: true\n")
+	} else {
+		b.WriteString("auth: false\n")
+	}
+	b.WriteString("permissions:\n")
 	permissions := append([]string(nil), spec.Permissions...)
 	sort.Strings(permissions)
 	for _, permission := range permissions {
