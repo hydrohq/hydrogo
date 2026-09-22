@@ -416,6 +416,21 @@ func TestRunResourceNewAliasGeneratesCollection(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveResourceUsesBlueprintPipeline(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	input := strings.NewReader("article\ntitle:string:required,body:text\n")
+	if err := run([]string{"new", "resource", "--out", root}, input, &stdout, &stderr); err != nil {
+		t.Fatalf("interactive resource: %v stderr=%s", err, stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "article.blueprint.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "generated", "article")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRunResourceCheckAlias(t *testing.T) {
 	root := t.TempDir()
 	specPath := filepath.Join(root, "article.yaml")

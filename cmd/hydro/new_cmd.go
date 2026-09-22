@@ -85,7 +85,12 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, "blueprint-created path=%s\n", path)
-	return err
+	if err != nil {
+		return err
+	}
+	// Re-enter the canonical scaffold pipeline; interactive mode never grows a
+	// second generator or bypasses the generated/custom boundary.
+	return generateScaffoldCommand([]string{"--blueprint", path, "--out", *out}, stdin, stdout, stderr)
 }
 
 func projectCheckCommand(args []string, stdout, stderr io.Writer) error {
