@@ -65,6 +65,7 @@ type WorkflowSpec struct {
 type Relation struct {
 	Collection  string `json:"collection" yaml:"collection"`
 	Cardinality string `json:"cardinality" yaml:"cardinality"`
+	MaxItems    int    `json:"max_items,omitempty" yaml:"max_items,omitempty"`
 }
 
 // FieldAdmin is presentation metadata. It does not change persistence or
@@ -149,6 +150,9 @@ func Validate(spec Spec) error {
 		isRelation := strings.EqualFold(field.Type, "relation") || strings.EqualFold(field.Type, "reference")
 		if isRelation {
 			if field.Relation == nil || !identifierPattern.MatchString(field.Relation.Collection) || (field.Relation.Cardinality != "one" && field.Relation.Cardinality != "many") {
+				return ErrInvalidSpec
+			}
+			if field.Relation.Cardinality == "one" && field.Relation.MaxItems != 0 || field.Relation.Cardinality == "many" && (field.Relation.MaxItems < 0 || field.Relation.MaxItems > 100) {
 				return ErrInvalidSpec
 			}
 		} else if field.Relation != nil {
@@ -307,6 +311,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"transport.go":        renderTransport(spec),
 		"runtime.go":          renderRuntimeRegistration(spec),
 		"workflow.json":       renderWorkflow(spec),
+		"relations.json":      renderRelations(spec),
 		"form.html":           renderForm(spec),
 		"form.schema.json":    renderFormSchema(spec),
 		"admin/list.templ":    renderAdminListTempl(spec),
@@ -403,6 +408,41 @@ func renderWorkflow(spec Spec) string {
 		document["transitions"] = transitions
 	}
 	data, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return "{}\n"
+	}
+	return string(data) + "\n"
+}
+
+func renderRelations(spec Spec) string {
+	type relationDocument struct {
+		Version   string `json:"version"`
+		Resource  string `json:"resource"`
+		Relations []any  `json:"relations"`
+	}
+	fields := append([]Field(nil), spec.Fields...)
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	relations := make([]any, 0)
+	for _, field := range fields {
+		if field.Relation == nil {
+			continue
+		}
+		maxItems := 1
+		storage := "scalar_reference"
+		if field.Relation.Cardinality == "many" {
+			storage = "edition_managed_collection"
+			maxItems = field.Relation.MaxItems
+			if maxItems == 0 {
+				maxItems = 50
+			}
+		}
+		relations = append(relations, map[string]any{
+			"field": field.Name, "target": field.Relation.Collection,
+			"cardinality": field.Relation.Cardinality, "max_items": maxItems,
+			"required": !field.Nullable, "storage": storage,
+		})
+	}
+	data, err := json.MarshalIndent(relationDocument{Version: "v0", Resource: spec.Name, Relations: relations}, "", "  ")
 	if err != nil {
 		return "{}\n"
 	}
@@ -936,6 +976,7 @@ func renderRuntimeWiring(spec Spec) string {
 	tenantEvidence := ""
 	authEvidence := ""
 	workflowEvidence := ""
+	relationEvidence := ""
 	if spec.Auth {
 		authEvidence = "- [ ] Attach the existing Identity/Session/RBAC middleware and verify the generated policy with authenticated and anonymous tests; `auth: true` never creates a parallel auth system.\n"
 	}
@@ -944,6 +985,12 @@ func renderRuntimeWiring(spec Spec) string {
 	}
 	if spec.Workflow != nil {
 		workflowEvidence = "- [ ] Bind workflow transitions inside the service transaction and publish side effects through the durable outbox; generated metadata does not authorize transitions.\n"
+	}
+	for _, field := range spec.Fields {
+		if field.Relation != nil {
+			relationEvidence = "- [ ] Bind each relation target through an authorized Edition resolver; many-valued relation storage, deletion policy and eager loading require provider contract tests.\n"
+			break
+		}
 	}
 	return fmt.Sprintf(`# %s runtime wiring
 
@@ -960,6 +1007,7 @@ dependencies.
 %s
 - [ ] For tenant-scoped resources, provide the Edition-owned tenant resolver;
   keep authentication, authorization and request limits in the outer stack.
+%s
 %s
 - [ ] Bind the generated form/table/admin manifest to the authenticated admin
   surface; add CSRF, validation, error and empty-state handling.
@@ -982,7 +1030,7 @@ an omitted kit must not add routes, migrations, workers or assets.
 
 Record the owning ADR, migration/rollback result, policy test, deployment
 compatibility result and capacity impact in REVIEW.md before release.
-`, exportName(spec.Name), exportName(spec.Name), spec.Name, authEvidence, workflowEvidence, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
+`, exportName(spec.Name), exportName(spec.Name), spec.Name, authEvidence, workflowEvidence, relationEvidence, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
 }
 
 func resolvedKitNames(declared []string) []string {

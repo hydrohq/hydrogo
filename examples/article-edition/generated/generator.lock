@@ -3,7 +3,7 @@
   "spec_sha256": "bfe914f78169cdd8d2b51fdfa4f19e2c5f554f4494e81aab71c2430fe38e0910",
   "artifacts_sha256": {
     "REVIEW.md": "490e59594be7c0a1e3550bb549b59958c4e3e0ffd0eaf78c317732c4856daa4e",
-    "RUNTIME_WIRING.md": "8187028b03045fbd28590dbc12670488aad7601f7ddb6f8426697ea3cf59cf9c",
+    "RUNTIME_WIRING.md": "72b510b84c657fb796dbadc10ccec9f81afc334355fe79464cf36c576f580a18",
     "admin/form.templ": "9979ce7a4f7a20aa4daa795a0bc93f2c0a6bc1626271d1b7257ef3b3d3abf8d5",
     "admin/list.templ": "df05b7129b7d6561e1d8bcb20667e00938c97b49142b524652b37f32126eecef",
     "admin/views.json": "6f3668acf8479789472c100061d9f68ea93281736a8cb81f1edfba94a2f058ff",
@@ -27,6 +27,7 @@
     "policy.go": "8e7bde3a6428cae3c1f55518575b576dd0a15809861eef3a3d33939c4a189a2e",
     "query.ts": "33f1e783d1d7c77c1c7fb9d9e44f46a8d5d352461f0f193d1cd04fbb40ee941f",
     "react.ts": "470b4470759c985697ae53cc0228293b1618ef14ab3c8b0640879ac138d1408c",
+    "relations.json": "bb854f248d7d649e3a8724037da55e464308143342179a25aedb402faea7acd6",
     "repository.go": "c2dc38e3e6ca96f88737b769d8582e8d33443f8a610054bb970189a9bdd43fca",
     "runtime.go": "1fdeed1bfbfb48a8f38a157d675057315b03817175d77a47dd13f1e1ae189023",
     "service.go": "09dada2b10deb1f3bd0022507322fafbde42fa6bd7331af166560eaa0404fe22",
