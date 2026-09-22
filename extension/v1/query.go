@@ -215,10 +215,7 @@ func (q ResourceQuery) BuildSQL(dialect string, fields map[string]QueryField) (Q
 			expression = condition.Field + " IN (" + strings.Join(markers, ",") + ")"
 		default:
 			value := condition.Values[0]
-			operator := map[string]string{"equals": "=", "not_equals": "<>", "greater_than": ">", "less_than": "<", "greater_than_equal": ">=", "less_than_equal": "="}[condition.Operator]
-			if condition.Operator == "less_than_equal" {
-				operator = "<="
-			}
+			operator := map[string]string{"equals": "=", "not_equals": "<>", "greater_than": ">", "less_than": "<", "greater_than_equal": ">=", "less_than_equal": "<="}[condition.Operator]
 			if condition.Operator == "contains" {
 				operator, value = "LIKE", "%"+value+"%"
 			}
