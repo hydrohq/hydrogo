@@ -265,6 +265,10 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s service scaffold missing %s", spec.Name, method)
 			}
 		}
+		repository, err = os.ReadFile(filepath.Join(root, "generated", spec.Name, "repository.go"))
+		if err != nil || !bytes.Contains(repository, []byte("func (r "+exportName(spec.Name)+"Repository) List")) || !bytes.Contains(repository, []byte("invalid pagination")) {
+			t.Fatalf("%s repository pagination scaffold missing: %v", spec.Name, err)
+		}
 		policy, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "policy.go"))
 		if err != nil || !bytes.Contains(policy, []byte("CanCreate")) {
 			t.Fatalf("%s policy scaffold missing: %v", spec.Name, err)
