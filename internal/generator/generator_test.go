@@ -428,6 +428,52 @@ func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
 	}
 }
 
+func TestGeneratedTenantScopedResourceBindsTenantContract(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "invoice", Table: "invoices", TenantScoped: true, Fields: []Field{{Name: "total", Type: "decimal"}}, Permissions: []string{"invoice.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	model, err := os.ReadFile(filepath.Join(root, "generated", "invoice", "model.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := os.ReadFile(filepath.Join(root, "generated", "invoice", "repository.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := os.ReadFile(filepath.Join(root, "generated", "invoice", "service.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport, err := os.ReadFile(filepath.Join(root, "generated", "invoice", "transport.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	migration, err := os.ReadFile(filepath.Join(root, "generated", "invoice", "migration.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checks := []struct {
+		name    string
+		data    []byte
+		markers []string
+	}{
+		{"model", model, []string{"TenantID string `json:\"tenant_id\"`"}},
+		{"repository", repository, []string{"Get(ctx context.Context, tenantID, id string)", "tenant_id =", "List(ctx context.Context, tenantID string"}},
+		{"service", service, []string{"Create(ctx context.Context, tenantID string", "Update(ctx context.Context, tenantID string"}},
+		{"transport", transport, []string{"ResolveTenant", "h.ResolveTenant", "Service.List(r.Context(), tenantID"}},
+		{"migration", migration, []string{"tenant_id TEXT NOT NULL"}},
+	}
+	for _, check := range checks {
+		for _, marker := range check.markers {
+			if !bytes.Contains(check.data, []byte(marker)) {
+				t.Fatalf("tenant scoped %s missing %q: %s", check.name, marker, check.data)
+			}
+		}
+	}
+}
+
 func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "testimonial.yaml")
 	content := `version: v0

@@ -8,6 +8,7 @@
   "properties": {
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$" },
     "type": { "type": "string", "enum": ["collection", "global"], "default": "collection" },
+    "tenant_scoped": { "type": "boolean", "default": false },
     "table": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$" },
     "fields": {
       "type": "array",
