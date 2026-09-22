@@ -33,6 +33,7 @@ func (h ArticleHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
+
 		if id == "" {
 			if !h.Policy.CanRead(r.Context(), "") {
 				http.Error(w, "forbidden", http.StatusForbidden)
@@ -126,4 +127,4 @@ func parseArticleListQuery(r *http.Request) (hydroquery.ResourceQuery, error) {
 	return hydroquery.ParseResourceQuery(r.URL.Query(), queryFields)
 }
 
-// Generated transport for Article.
+// Generated transport for article.
