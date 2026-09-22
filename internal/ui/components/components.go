@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -35,15 +36,19 @@ type ButtonProps struct {
 
 // InputProps describes a safe, accessible form input.
 type InputProps struct {
-	ID          string
-	Name        string
-	Label       string
-	Type        string
-	Value       string
-	Placeholder string
-	Required    bool
-	Checked     bool
-	HTMX        HTMX
+	ID           string
+	Name         string
+	Label        string
+	Type         string
+	Value        string
+	Placeholder  string
+	Required     bool
+	Checked      bool
+	MinLength    int
+	MaxLength    int
+	HasMinLength bool
+	HasMaxLength bool
+	HTMX         HTMX
 }
 
 // CardProps wraps generated content in a stable design-system surface.
@@ -110,6 +115,12 @@ func Input(p InputProps) templ.Component {
 		}
 		if p.Checked {
 			attrs += ` checked="checked"`
+		}
+		if p.HasMinLength && p.MinLength >= 0 {
+			attrs += ` minlength="` + strconv.Itoa(p.MinLength) + `"`
+		}
+		if p.HasMaxLength && p.MaxLength >= 0 {
+			attrs += ` maxlength="` + strconv.Itoa(p.MaxLength) + `"`
 		}
 		attrs += htmxAttrs(p.HTMX)
 		_, err := io.WriteString(w, `<label for="`+esc(p.ID)+`">`+esc(p.Label)+`</label><input`+attrs+`>`)

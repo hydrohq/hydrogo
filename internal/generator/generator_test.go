@@ -508,6 +508,20 @@ func TestGeneratedValidationExecutesDeclaredFormats(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminFormsExposeValidationHints(t *testing.T) {
+	minLength, maxLength := 3, 80
+	spec := Spec{Name: "profile", Fields: []Field{
+		{Name: "email", Type: "string", Validation: Validation{Format: "email", MinLength: &minLength, MaxLength: &maxLength}},
+		{Name: "bio", Type: "text", Admin: FieldAdmin{Widget: "textarea"}, Validation: Validation{MinLength: &minLength, MaxLength: &maxLength}},
+	}}
+	form := renderAdminFormTempl(spec)
+	for _, marker := range []string{`Type: "email"`, `MinLength: 3`, `MaxLength: 80`, `HasMinLength: true`, `HasMaxLength: true`} {
+		if !strings.Contains(form, marker) {
+			t.Fatalf("generated form is missing %q: %s", marker, form)
+		}
+	}
+}
+
 func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "settings", Type: "global", Table: "settings", Fields: []Field{{Name: "site_title", Type: "string"}}, Permissions: []string{"settings.read"}, Dialects: []string{"sqlite", "postgres"}}

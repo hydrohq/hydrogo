@@ -21,6 +21,11 @@ absolute HTTP or HTTPS URLs with a host. Format hints are valid only on
 `string` and `text` fields. String min/max length uses Unicode code-point
 counting and rejects invalid UTF-8 when a length rule is configured.
 
+Generated Admin forms map `email`, `date`, and `url` to corresponding HTML
+input types and render typed `minlength`/`maxlength` hints for input and
+textarea components. These browser constraints improve editing feedback only;
+they are not accepted as a substitute for generated server validation.
+
 This uses no runtime service or external dependency and runs before generated
 service Create/Update repository writes. Validation errors remain generic
 field-level messages and do not echo user input.
