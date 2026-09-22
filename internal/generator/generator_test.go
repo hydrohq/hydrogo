@@ -344,6 +344,30 @@ func TestGeneratedAdminTemplatesUseBlockEditorContract(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminTemplatesUseTypedRelationAndMediaContracts(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{
+		Name: "task", Table: "tasks", Fields: []Field{
+			{Name: "project_id", Type: "relation", Relation: &Relation{Collection: "project", Cardinality: "one"}, Admin: FieldAdmin{Widget: "relation"}},
+			{Name: "attachment", Type: "string", Admin: FieldAdmin{Widget: "media"}},
+		},
+		Permissions: []string{"task.read"}, Dialects: []string{"sqlite", "postgres"},
+	}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(root, "generated", "task", "admin", "form.templ"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	for _, marker := range []string{"RelationOptions map[string][]string", "ui.Select", "view.RelationOptions[\"project_id\"]", "ui.MediaPicker"} {
+		if !strings.Contains(text, marker) {
+			t.Fatalf("generated form missing %q: %s", marker, text)
+		}
+	}
+}
+
 func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "testimonial.yaml")
 	content := `version: v0
