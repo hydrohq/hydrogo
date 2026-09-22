@@ -67,6 +67,7 @@ type Admin struct {
 
 type Spec struct {
 	Name        string   `json:"name" yaml:"name"`
+	Type        string   `json:"type" yaml:"type"`
 	Table       string   `json:"table" yaml:"table"`
 	Fields      []Field  `json:"fields" yaml:"fields"`
 	Permissions []string `json:"permissions" yaml:"permissions"`
@@ -83,7 +84,7 @@ type Lock struct {
 }
 
 func Validate(spec Spec) error {
-	if !identifierPattern.MatchString(spec.Name) || !identifierPattern.MatchString(spec.Table) || len(spec.Fields) == 0 || len(spec.Permissions) == 0 {
+	if !identifierPattern.MatchString(spec.Name) || (spec.Type != "" && spec.Type != "collection" && spec.Type != "global") || !identifierPattern.MatchString(spec.Table) || len(spec.Fields) == 0 || len(spec.Permissions) == 0 {
 		return ErrInvalidSpec
 	}
 	if spec.Destructive {
@@ -176,7 +177,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		return adminstudio.Collection{}, err
 	}
 	bulkActions := append([]adminstudio.Action(nil), spec.Admin.BulkActions...)
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}
@@ -297,6 +298,9 @@ func canonicalSpec(spec Spec) ([]byte, error) {
 
 func normalizedSpec(spec Spec) Spec {
 	copySpec := spec
+	if copySpec.Type == "" {
+		copySpec.Type = "collection"
+	}
 	copySpec.Permissions = append([]string(nil), spec.Permissions...)
 	copySpec.Dialects = append([]string(nil), spec.Dialects...)
 	copySpec.Kits = append([]string(nil), spec.Kits...)
@@ -1132,7 +1136,11 @@ func renderModuleManifest(spec Spec) string {
 	fields := append([]Field(nil), spec.Fields...)
 	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 	var b strings.Builder
-	fmt.Fprintf(&b, "version: v0\nname: %s\ntable: %s\npermissions:\n", spec.Name, spec.Table)
+	typeName := spec.Type
+	if typeName == "" {
+		typeName = "collection"
+	}
+	fmt.Fprintf(&b, "version: v0\ntype: %s\nname: %s\ntable: %s\npermissions:\n", typeName, spec.Name, spec.Table)
 	permissions := append([]string(nil), spec.Permissions...)
 	sort.Strings(permissions)
 	for _, permission := range permissions {

@@ -283,6 +283,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0221](0221-tenant-module-endpoint-dimensions.md) | Tenant/module endpoint dimensions | Accepted |
 | [0222](0222-backup-edition-retention-boundary.md) | Backup Edition/retention/encryption boundary | Accepted |
 | [0223](0223-generated-admin-ui-and-publishing-preview.md) | Generated admin UI and publishing preview boundary | Accepted |
+| [0224](0224-global-resource-contract.md) | Global resource contract | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 
