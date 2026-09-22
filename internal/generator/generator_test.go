@@ -480,6 +480,7 @@ func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
 collection:
   name: testimonial
   table: testimonials
+  tenant_scoped: true
   permissions: [testimonial.read]
   dialects: [sqlite, postgres]
   fields:
@@ -501,7 +502,7 @@ collection:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if spec.Name != "testimonial" || !spec.Fields[0].Admin.VisibleInList || spec.Admin.Actions[0].Href != "/admin/testimonials" {
+	if spec.Name != "testimonial" || !spec.TenantScoped || !spec.Fields[0].Admin.VisibleInList || spec.Admin.Actions[0].Href != "/admin/testimonials" {
 		t.Fatalf("loaded spec = %#v", spec)
 	}
 	if err := os.WriteFile(path, []byte(content+"  unknown: value\n"), 0o644); err != nil {
