@@ -19,7 +19,8 @@ may add operators only with compatibility and abuse-budget review.
 
 ## Verification
 
-Public contract tests cover allowlisted operators, pagination and bounds;
-generated transports must bind this parser before constructing repository
-queries. Editions record dialect-specific SQL and index behavior in their
-resource review evidence.
+Public contract tests cover allowlisted operators, pagination, bounds and
+prepared SQLite/PostgreSQL placeholder generation. Generated transports bind
+this parser before constructing repository queries. Editions record
+dialect-specific SQL plans and index behavior in their resource review
+evidence.

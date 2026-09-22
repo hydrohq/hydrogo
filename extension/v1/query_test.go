@@ -18,3 +18,18 @@ func TestParseResourceQueryBoundsAndAllowlist(t *testing.T) {
 		t.Fatal("expected operator rejection")
 	}
 }
+
+func TestResourceQueryBuildSQLBindsValues(t *testing.T) {
+	fields := map[string]QueryField{"title": {Name: "title", Operators: map[string]bool{"contains": true}}}
+	q, err := ParseResourceQuery(url.Values{"where[title][contains]": {"x' OR 1=1"}, "sort": {"-title"}}, fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql, err := q.BuildSQL("postgres", fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sql.Where != "title LIKE $1" || len(sql.Args) != 1 || sql.Order != "title DESC" {
+		t.Fatalf("unexpected SQL: %#v", sql)
+	}
+}

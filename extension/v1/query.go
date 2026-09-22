@@ -44,6 +44,14 @@ type ResourceQuery struct {
 	Offset     int
 }
 
+type QuerySQL struct {
+	Where  string
+	Args   []any
+	Order  string
+	Limit  int
+	Offset int
+}
+
 var queryOperators = map[string]bool{
 	"equals": true, "not_equals": true, "contains": true,
 	"starts_with": true, "ends_with": true, "in": true, "exists": true,
@@ -155,4 +163,90 @@ func queryBracketTokens(key string) []string {
 		return nil
 	}
 	return append([]string{"where"}, strings.Split(strings.TrimSuffix(strings.TrimPrefix(key, "where["), "]"), "][")...)
+}
+
+// BuildSQL turns the validated AST into dialect-specific placeholders. Field
+// identifiers are accepted only from the generated allowlist; values are
+// always returned as bound arguments.
+func (q ResourceQuery) BuildSQL(dialect string, fields map[string]QueryField) (QuerySQL, error) {
+	if dialect != "sqlite" && dialect != "postgres" {
+		return QuerySQL{}, fmt.Errorf("unsupported query dialect %q", dialect)
+	}
+	args := make([]any, 0)
+	placeholder := func() string {
+		if dialect == "postgres" {
+			return fmt.Sprintf("$%d", len(args)+1)
+		}
+		return "?"
+	}
+	andParts, orParts := make([]string, 0), make([]string, 0)
+	for _, condition := range q.Conditions {
+		field, ok := fields[condition.Field]
+		if !ok || !queryOperators[condition.Operator] || (len(field.Operators) > 0 && !field.Operators[condition.Operator]) {
+			return QuerySQL{}, fmt.Errorf("condition is not allowed for %q", condition.Field)
+		}
+		if len(condition.Values) == 0 {
+			return QuerySQL{}, errors.New("condition has no values")
+		}
+		var expression string
+		switch condition.Operator {
+		case "exists":
+			if condition.Values[0] != "true" && condition.Values[0] != "false" {
+				return QuerySQL{}, errors.New("exists requires a boolean")
+			}
+			if condition.Values[0] == "true" {
+				expression = condition.Field + " IS NOT NULL"
+			} else {
+				expression = condition.Field + " IS NULL"
+			}
+		case "in":
+			markers := make([]string, len(condition.Values))
+			for i, value := range condition.Values {
+				markers[i] = placeholder()
+				args = append(args, value)
+			}
+			expression = condition.Field + " IN (" + strings.Join(markers, ",") + ")"
+		default:
+			value := condition.Values[0]
+			operator := map[string]string{"equals": "=", "not_equals": "<>", "greater_than": ">", "less_than": "<", "greater_than_equal": ">=", "less_than_equal": "="}[condition.Operator]
+			if condition.Operator == "less_than_equal" {
+				operator = "<="
+			}
+			if condition.Operator == "contains" {
+				operator, value = "LIKE", "%"+value+"%"
+			}
+			if condition.Operator == "starts_with" {
+				operator, value = "LIKE", value+"%"
+			}
+			if condition.Operator == "ends_with" {
+				operator, value = "LIKE", "%"+value
+			}
+			if operator == "" {
+				return QuerySQL{}, fmt.Errorf("operator %q cannot be built", condition.Operator)
+			}
+			expression = condition.Field + " " + operator + " " + placeholder()
+			args = append(args, value)
+		}
+		if condition.Group == "or" {
+			orParts = append(orParts, expression)
+		} else {
+			andParts = append(andParts, expression)
+		}
+	}
+	if len(orParts) > 0 {
+		andParts = append(andParts, "("+strings.Join(orParts, " OR ")+")")
+	}
+	orders := make([]string, 0, len(q.Sort))
+	for _, item := range q.Sort {
+		field, ok := fields[item.Field]
+		if !ok || !queryIdentifier.MatchString(field.Name) {
+			return QuerySQL{}, fmt.Errorf("sort field %q is not allowed", item.Field)
+		}
+		direction := "ASC"
+		if item.Desc {
+			direction = "DESC"
+		}
+		orders = append(orders, item.Field+" "+direction)
+	}
+	return QuerySQL{Where: strings.Join(andParts, " AND "), Args: args, Order: strings.Join(orders, ", "), Limit: q.Limit, Offset: q.Offset}, nil
 }

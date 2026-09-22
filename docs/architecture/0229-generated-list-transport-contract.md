@@ -13,9 +13,10 @@ The repository validates limits again and constructs the order clause only from
 generated field names; values remain bound SQL parameters. An empty resource
 path is a collection read and still requires the explicit read policy.
 
-This is the first safe API parity slice. Rich field operators and tenant/join
-predicates must be bound through the versioned public query AST before they are
-enabled by a resource.
+The transport now binds the versioned public query AST and generated field
+allowlist, so equals/contains/in/exists/range operators are converted to
+prepared SQL arguments before repository execution. Tenant predicates and
+join-depth budgets remain explicit Edition policy and relation contracts.
 
 ## Verification
 

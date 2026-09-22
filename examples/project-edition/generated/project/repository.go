@@ -5,7 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
+
+	hydroquery "github.com/ardaozyildirim/hydrogo/extension/v1"
 )
 
 // ProjectRepository is a reviewable CRUD boundary; no runtime DDL is emitted.
@@ -21,34 +22,29 @@ func (r ProjectRepository) Get(ctx context.Context, id string) (Project, error) 
 	return item, err
 }
 
-func (r ProjectRepository) List(ctx context.Context, limit, offset int, sortField string, desc bool) ([]Project, error) {
-	if limit < 1 || limit > 100 || offset < 0 || offset > 10000 {
+func (r ProjectRepository) List(ctx context.Context, query hydroquery.ResourceQuery) ([]Project, error) {
+	if query.Limit < 1 || query.Limit > 100 || query.Offset < 0 || query.Offset > 10000 {
 		return nil, fmt.Errorf("invalid pagination")
 	}
-	order := "id ASC"
-	switch sortField {
-	case "":
-		// default order is stable and index-friendly.
-	case "project_code":
-		order = "project_code ASC"
-	case "status":
-		order = "status ASC"
-	case "title":
-		order = "title ASC"
-	default:
-		return nil, fmt.Errorf("invalid sort field")
+	sqlQuery, err := query.BuildSQL(r.Dialect, queryFields)
+	if err != nil {
+		return nil, err
 	}
-	if desc {
-		order = strings.TrimSuffix(order, "ASC") + "DESC"
+	order := sqlQuery.Order
+	if order == "" {
+		order = "id ASC"
 	}
-
 	dialect := r.Dialect
-	rows, err := r.DB.QueryContext(ctx, "SELECT id, project_code, status, title FROM projects ORDER BY "+order+" LIMIT "+placeholder(dialect, 1)+" OFFSET "+placeholder(dialect, 2), limit, offset)
+	where := ""
+	if sqlQuery.Where != "" {
+		where = " WHERE " + sqlQuery.Where
+	}
+	rows, err := r.DB.QueryContext(ctx, "SELECT id, project_code, status, title FROM projects"+where+" ORDER BY "+order+" LIMIT "+placeholder(dialect, len(sqlQuery.Args)+1)+" OFFSET "+placeholder(dialect, len(sqlQuery.Args)+2), append(sqlQuery.Args, sqlQuery.Limit, sqlQuery.Offset)...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := make([]Project, 0, limit)
+	items := make([]Project, 0, query.Limit)
 	for rows.Next() {
 		var item Project
 		if err := rows.Scan(&item.ID, &item.ProjectCode, &item.Status, &item.Title); err != nil {
@@ -60,6 +56,13 @@ func (r ProjectRepository) List(ctx context.Context, limit, offset int, sortFiel
 		return nil, err
 	}
 	return items, nil
+}
+
+var queryFields = map[string]hydroquery.QueryField{
+	"id":           {Name: "id"},
+	"project_code": {Name: "project_code"},
+	"status":       {Name: "status"},
+	"title":        {Name: "title"},
 }
 
 func (r ProjectRepository) Create(ctx context.Context, item Project) error {

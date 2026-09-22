@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -287,6 +288,9 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if !bytes.Contains(transport, []byte("/api/v1/"+spec.Name)) {
 			t.Fatalf("%s transport does not use versioned API path: %s", spec.Name, transport)
 		}
+		if !bytes.Contains(transport, []byte("ParseResourceQuery")) || !bytes.Contains(transport, []byte("invalid query")) {
+			t.Fatalf("%s transport does not bind the public query contract", spec.Name)
+		}
 		manifest, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "admin_manifest.json"))
 		if err != nil {
 			t.Fatal(err)
@@ -298,10 +302,19 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 		if collection.ID != spec.Name || len(collection.Fields) != len(spec.Fields) || len(collection.Actions) == 0 {
 			t.Fatalf("%s admin manifest = %#v", spec.Name, collection)
 		}
-		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module generatedfixture\n\ngo 1.27\n"), 0o644); err != nil {
+		repoRoot, err := os.Getwd()
+		if err != nil {
 			t.Fatal(err)
 		}
-		command := exec.Command("go", "test", "./...")
+		repoRoot, err = filepath.Abs(filepath.Join(repoRoot, "..", ".."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		moduleFile := fmt.Sprintf("module generatedfixture\n\ngo 1.27\n\nrequire github.com/ardaozyildirim/hydrogo v0.0.0\nreplace github.com/ardaozyildirim/hydrogo => %s\n", filepath.ToSlash(repoRoot))
+		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(moduleFile), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		command := exec.Command("go", "test", "-mod=mod", "./...")
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("%s generated fixture does not compile: %v\n%s", spec.Name, err, output)
