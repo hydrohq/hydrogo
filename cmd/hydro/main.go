@@ -65,7 +65,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
 	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/sdkdist"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -74,7 +73,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
 	"github.com/ardaozyildirim/hydrogo/migrations"
-	graphqlapi "github.com/ardaozyildirim/hydrogo/modules/api/graphql"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
@@ -1386,7 +1384,7 @@ func serve(args []string, stderr io.Writer) error {
 		}
 	}
 
-	graphqlHTTP := graphqlapi.Handler{DB: db, Pages: contentService, PagesEnabled: modules["pages"]}
+	graphqlHTTP, graphqlEnabled := newGraphQLHandler(db, contentService, modules["pages"])
 	studioRegistry, err := adminstudio.NewRegistry([]adminstudio.Collection{
 		{ID: "pages", Label: "Sayfalar", Description: "Taslak, bloklar ve yayınlanmış içerik.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}, {ID: "blocks", Label: "Bloklar", Kind: adminstudio.FieldRelation}}, Actions: []adminstudio.Action{{Label: "Tüm sayfalar", Href: "/admin/pages"}, {Label: "Ana sayfayı düzenle", Href: "/admin/pages/demo-home"}, {Label: "Showcase'i düzenle", Href: "/admin/pages/demo-showcase"}, {Label: "Hakkında sayfasını düzenle", Href: "/admin/pages/demo-about"}}},
 		{ID: "news", Label: "Haberler", Description: "Taslak, zamanlama ve yayın akışı.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "cover_media_id", Label: "Kapak görseli (herkese açık asset)", Kind: adminstudio.FieldText, Widget: "media"}, {ID: "excerpt", Label: "Kısa özet", Kind: adminstudio.FieldText, Widget: "textarea"}, {ID: "key_takeaways", Label: "Önemli Noktalar (Key Takeaways)", Kind: adminstudio.FieldText, Widget: "list"}, {ID: "category", Label: "Kategori", Kind: adminstudio.FieldText}, {ID: "author_name", Label: "Yazar adı", Kind: adminstudio.FieldText}, {ID: "featured", Label: "Öne çıkan", Kind: adminstudio.FieldText, Widget: "checkbox"}, {ID: "tags", Label: "Etiketler", Kind: adminstudio.FieldText}, {ID: "seo_title", Label: "SEO başlığı", Kind: adminstudio.FieldText}, {ID: "seo_description", Label: "SEO açıklaması", Kind: adminstudio.FieldText, Widget: "textarea"}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}}, Actions: []adminstudio.Action{{Label: "Tüm haberler", Href: "/admin/news"}, {Label: "Release notes", Href: "/admin/news/demo-news"}, {Label: "Başlangıç rehberi", Href: "/admin/news/demo-news-guide"}}},
@@ -1879,16 +1877,9 @@ func serve(args []string, stderr io.Writer) error {
 			routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
 		}
 	*/
-	if modules["pages"] {
-		graphqlLimiter := newRateLimiter(60, time.Minute)
-		routes = append(routes, router.Route{Pattern: "POST /api/graphql", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !graphqlLimiter.Allow("graphql:" + requestmeta.ClientIP(r)) {
-				w.Header().Set("Retry-After", "60")
-				http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
-				return
-			}
-			graphqlHTTP.ServeHTTP(w, r)
-		})})
+	graphqlEnabled = graphqlEnabled && modules["pages"]
+	if graphqlEnabled {
+		routes = append(routes, graphQLRoutes(graphqlHTTP, newRateLimiter(60, time.Minute))...)
 	}
 
 	metrics := observability.NewMetrics()

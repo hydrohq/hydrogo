@@ -9,9 +9,14 @@ case "$out" in "$repo_real"|"$repo_real"/*) ;; *) echo 'HYDRO_CUSTOMER_OUT must 
 license="${HYDRO_CUSTOMER_LICENSE:-}"
 trusted_keys="${HYDRO_TRUSTED_PUBLIC_KEYS:-}"
 database_variant="${HYDRO_DATABASE_VARIANT:-dual}"
+graphql_variant="${HYDRO_GRAPHQL:-enabled}"
 case "$database_variant" in
   dual|sqlite) ;;
   *) echo "HYDRO_DATABASE_VARIANT must be 'dual' or 'sqlite'" >&2; exit 1 ;;
+esac
+case "$graphql_variant" in
+  enabled|disabled) ;;
+  *) echo "HYDRO_GRAPHQL must be 'enabled' or 'disabled'" >&2; exit 1 ;;
 esac
 [[ -n "$trusted_keys" ]] || { echo 'HYDRO_TRUSTED_PUBLIC_KEYS is required' >&2; exit 1; }
 [[ -n "$license" && -f "$license" ]] || { echo 'HYDRO_CUSTOMER_LICENSE must point to hydro.lic' >&2; exit 1; }
@@ -19,8 +24,16 @@ rm -rf -- "$out"
 mkdir -p -- "$out"
 ldflags="-s -w -X github.com/ardaozyildirim/hydrogo/internal/licensing.TrustedPublicKeysBase64=${trusted_keys}"
 build_args=(-trimpath -ldflags "$ldflags")
+build_tags=()
 if [[ "$database_variant" == "sqlite" ]]; then
-  build_args+=(-tags hydro_compact)
+  build_tags+=(hydro_compact)
+fi
+if [[ "$graphql_variant" == "disabled" ]]; then
+  build_tags+=(hydro_no_graphql)
+fi
+if ((${#build_tags[@]} > 0)); then
+  tag_list=$(IFS=,; printf '%s' "${build_tags[*]}")
+  build_args+=(-tags "$tag_list")
 fi
 if [[ "${HYDRO_OBFUSCATE:-false}" == "true" ]]; then
   command -v garble >/dev/null 2>&1 || { echo 'HYDRO_OBFUSCATE=true requires garble' >&2; exit 1; }
@@ -45,6 +58,7 @@ cat > "$out/PACKAGE-MANIFEST.md" <<EOF
 - Binary: hydro
 - License: hydro.lic
 - Database variant: ${database_variant}
+- GraphQL: ${graphql_variant}
 - Source modules/Core: not included
 - Obfuscated: ${HYDRO_OBFUSCATE:-false}
 - Build commit: $(git rev-parse HEAD)
