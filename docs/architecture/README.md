@@ -307,6 +307,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0258](0258-tenant-scoped-blueprint-uniqueness.md) | Enforce Blueprint uniqueness at the database boundary | Accepted |
 | [0259](0259-generated-field-validation-error-contract.md) | Generated field-validation error contract | Accepted |
 | [0260](0260-generated-immutable-field-enforcement.md) | Enforce generated immutable fields atomically | Accepted |
+| [0261](0261-blueprint-create-default-presence.md) | Apply Blueprint defaults only to omitted create fields | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

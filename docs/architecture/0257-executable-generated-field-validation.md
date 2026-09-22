@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-23
-- **Related decisions:** [ADR-0226](0226-versioned-field-validation-contract.md), [ADR-0210](0210-blueprint-scaffold-boundary.md)
+- **Related decisions:** [ADR-0226](0226-versioned-field-validation-contract.md), [ADR-0210](0210-blueprint-scaffold-boundary.md), [ADR-0261](0261-blueprint-create-default-presence.md)
 
 ## Context
 
