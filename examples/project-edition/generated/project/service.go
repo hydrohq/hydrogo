@@ -17,11 +17,23 @@ func (s ProjectService) Get(ctx context.Context, id string) (Project, error) {
 	return s.Repository.Get(ctx, id)
 }
 
+func (s ProjectService) List(ctx context.Context, limit, offset int, sortField string, desc bool) ([]Project, error) {
+	return s.Repository.List(ctx, limit, offset, sortField, desc)
+}
+
 func (s ProjectService) Create(ctx context.Context, item Project) error {
+	item.normalize()
+	if err := item.Validate(); err != nil {
+		return err
+	}
 	return s.Repository.Create(ctx, item)
 }
 
 func (s ProjectService) Update(ctx context.Context, item Project) error {
+	item.normalize()
+	if err := item.Validate(); err != nil {
+		return err
+	}
 	return s.Repository.Update(ctx, item)
 }
 

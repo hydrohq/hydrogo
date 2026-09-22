@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // ProjectRepository is a reviewable CRUD boundary; no runtime DDL is emitted.
@@ -18,6 +19,47 @@ func (r ProjectRepository) Get(ctx context.Context, id string) (Project, error) 
 	dialect := r.Dialect
 	err := r.DB.QueryRowContext(ctx, "SELECT id, project_code, status, title FROM projects WHERE id = "+placeholder(dialect, 1), id).Scan(&item.ID, &item.ProjectCode, &item.Status, &item.Title)
 	return item, err
+}
+
+func (r ProjectRepository) List(ctx context.Context, limit, offset int, sortField string, desc bool) ([]Project, error) {
+	if limit < 1 || limit > 100 || offset < 0 || offset > 10000 {
+		return nil, fmt.Errorf("invalid pagination")
+	}
+	order := "id ASC"
+	switch sortField {
+	case "":
+		// default order is stable and index-friendly.
+	case "project_code":
+		order = "project_code ASC"
+	case "status":
+		order = "status ASC"
+	case "title":
+		order = "title ASC"
+	default:
+		return nil, fmt.Errorf("invalid sort field")
+	}
+	if desc {
+		order = strings.TrimSuffix(order, "ASC") + "DESC"
+	}
+
+	dialect := r.Dialect
+	rows, err := r.DB.QueryContext(ctx, "SELECT id, project_code, status, title FROM projects ORDER BY "+order+" LIMIT "+placeholder(dialect, 1)+" OFFSET "+placeholder(dialect, 2), limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]Project, 0, limit)
+	for rows.Next() {
+		var item Project
+		if err := rows.Scan(&item.ID, &item.ProjectCode, &item.Status, &item.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func (r ProjectRepository) Create(ctx context.Context, item Project) error {

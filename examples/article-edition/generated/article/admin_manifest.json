@@ -1,5 +1,6 @@
 {
   "id": "article",
+  "type": "collection",
   "label": "Article",
   "description": "",
   "fields": [

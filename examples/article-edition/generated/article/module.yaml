@@ -1,4 +1,5 @@
 version: v0
+type: collection
 name: article
 table: articles
 permissions:

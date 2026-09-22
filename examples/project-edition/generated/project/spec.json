@@ -2,12 +2,14 @@
   "version": "v0",
   "collection": {
     "name": "project",
+    "type": "collection",
     "table": "projects",
     "fields": [
       {
         "name": "project_code",
         "type": "string",
         "nullable": false,
+        "validation": {},
         "admin": {
           "label": "",
           "widget": "",
@@ -21,6 +23,7 @@
         "name": "status",
         "type": "string",
         "nullable": false,
+        "validation": {},
         "admin": {
           "label": "",
           "widget": "select",
@@ -39,6 +42,7 @@
         "name": "title",
         "type": "string",
         "nullable": false,
+        "validation": {},
         "admin": {
           "label": "",
           "widget": "",
