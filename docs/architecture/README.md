@@ -2,6 +2,13 @@
 
 This directory is the main source of HydroGo's long-lived architectural decisions. The implementation plan describes the order of work, while ADRs explain why the system is built this way.
 
+HydroGo is a Workspace/Engine: HydroCore supplies generic, versioned contracts
+and a single-binary runtime; a Client Edition supplies the customer-facing
+edition manifest, theme, generated artifacts and human-owned `custom/` policy.
+The architecture therefore optimizes for repeatable product generation,
+SQLite/PostgreSQL contract parity, explicit migrations and operator control—not
+for a single vertical's business logic.
+
 Questions not yet accepted and proposed answers are tracked in the [Architecture Decision Backlog](DECISION_BACKLOG.md).
 
 Coding risks and open proof gates are in the [Pre-implementation review](../PRE_IMPLEMENTATION_REVIEW.md), roadmap, and [production gate checklist](../validation/PRODUCTION-GATES.md); security flows are in the [Threat model](../security/THREAT_MODEL.md). **An accepted ADR alone is not proof of implementation or testing; the actual status of each ADR is evaluated together with the roadmap and validation reports.**

@@ -1,18 +1,56 @@
-# HydroGo
+# HydroGo — Workspace/Engine for Client Editions
 
-HydroGo is a modular Go CMS and JSON API platform designed for customer-owned deployments without forking the Core.
+HydroGo is a Go-based **product factory**, not a single customer-specific CMS.
+It turns versioned blueprints, modules and policies into deployable Client
+Editions for corporate sites, editorial platforms, portals, mobile backends and
+transaction-heavy business products. The Core stays generic; the business
+meaning of a particular customer lives in an Edition's `custom/` boundary.
 
-Its purpose is:
+The purpose is to give teams a secure, portable and operable foundation that
+they can own and deploy without forking HydroCore or accepting infrastructure
+they do not use. A Client Edition can be delivered as one signed, stripped Go
+binary with its database, media, configuration and secrets kept outside the
+artifact.
 
-> Give customers control of their data and deployment through a secure, portable, operable CMS that does not add infrastructure they do not use.
+HydroGo deliberately is not an “everything CMS” and not a frontend framework.
+It is a contract-driven runtime and workspace: inactive modules create no
+routes, migrations, assets, workers or mandatory services; customer workflows
+are explicit policy code; schema changes are reviewed migrations, never runtime
+DDL.
 
-HydroGo is not designed as an “everything CMS.” It is a stable Core with attachable modules. Disabled modules must not create routes, migrations, workers, or mandatory external services.
+## Architecture at a glance
+
+```text
+Blueprint / Edition manifest / module contracts
+                         │
+                         ▼
+                 generated/ artifacts
+                         │      custom/ policy + workflow
+                         └──────────────┐
+                                        ▼
+HTTP/JSON/Templ → application service → repository contract → SQLite/PostgreSQL
+                                        │
+                         audit · jobs · cache · media · observability
+```
+
+The HTML admin surface and JSON API call the same application services,
+validation, authorization and transaction boundaries. SQLite is the compact
+portable profile; PostgreSQL is the production/tenant-isolation profile.
+Redis/Valkey, S3/CDN, SMTP, FFmpeg and OTLP are opt-in deployment capabilities,
+not hidden runtime requirements.
 
 ## Current status
 
-The repository provides a working technical foundation and a broad contract-test suite. Pages and News modules, Site Edition flows, authentication/MFA, media, cache, backup/restore, portable export/import, release manifests, and generator experiments are implemented.
+The repository contains a working Core and a broad contract-test suite. Pages,
+News, Site, Members, media, authentication/MFA, cache, jobs, audit/outbox,
+backup/restore, portable export/import, release manifests, Client Edition
+generation, endpoint telemetry and consent-gated content analytics are
+implemented.
 
-This repository is not yet declared a fully certified, commercially supported v1 across all production profiles. The remaining R3 pilot, R5 v1, and R6 Distributed evidence gates are tracked separately in the roadmap.
+Production readiness is profile-specific rather than a blanket claim. Compact
+and Standard deployment paths have local evidence; Distributed, external
+provider and commercial SLA gates still require the real-customer evidence
+listed in the [roadmap](docs/ROADMAP.md) and [open gates](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md).
 
 ### Binary-only customer distribution
 
@@ -38,6 +76,14 @@ Vendor-only signing is performed with `hydro-issuer`; the customer runtime expos
 - Separate staff and consumer/member mobile API boundaries with bearer rotation,
   device revocation, profile/session isolation, and versioned contracts
 - Deterministic generation, Client Edition boundaries, and an SDK v1 candidate
+- Schema-driven Blueprints with generated/custom ownership, scaffold verification,
+  and interactive `hydro new resource` authoring
+- Bounded endpoint reports with route-normalized latency percentiles, status,
+  byte, timeout, rate-limit and tenant/module dimensions
+- Consent-gated, aggregate-only content-view analytics with asynchronous
+  backpressure, admin filtering and JSON/CSV export
+- Structured JSON logs, provider-neutral spans, optional OTLP export, and a
+  production HTML boundary that removes comments from emitted HTML
 
 ## How it works
 
@@ -86,6 +132,24 @@ source code; use a secret manager or protected environment variables.
 - `internal/release`: manifests, signatures, attestations, retained assets, and Blue/Green state
 - `internal/portable`: allowlist-based data portability
 - `internal/generator`: reviewable CRUD and migration drafts from collection specs
+
+### Workspace workflow
+
+1. Define a resource in a reviewed Blueprint or module spec.
+2. Run `hydro generate scaffold` (or `hydro new resource`) to produce
+   deterministic artifacts under `generated/` and a human-owned policy stub
+   under `custom/`.
+3. Review migration proposals, permissions, routes and compatibility output;
+   an inactive module is never activated implicitly.
+4. Run the Edition's contract checks, then apply migrations explicitly with
+   `hydro migrate`.
+5. Build the Client Edition binary and deploy it through the non-root
+   Docker/Caddy golden path in [`deploy/client-edition`](deploy/client-edition/).
+
+The generator owns shape, not business decisions. Authorization, workflow,
+tenant policy and integrations remain in `custom/`; generated files must not be
+edited by hand. `templ generate`, `go mod tidy` and live-reload tools belong to
+development workflows only.
 
 ## Quick start
 
@@ -205,6 +269,10 @@ Endpoints:
 - `/healthz`: process liveness only; it does not validate dependencies
 - `/readyz`: database and migration-compatibility readiness
 - `/metrics`: authenticated operational counters with bounded status labels
+- `/admin/reports`: endpoint latency/status/bytes and consented content-view
+  reports; `/admin/reports/export?format=json|csv` exports the same bounded data
+- `POST /analytics/consent`: explicit purpose-versioned analytics consent; no
+  content-view identity is stored without this consent
 - Versioned JSON API routes use `/api/v1/...`; existing `/api/...` paths remain compatibility aliases and advertise their successor
 - Admin/API routes: default-deny routing and authorization policies
 
@@ -244,7 +312,9 @@ resulting outputs are verified with the binary.
 ```text
 hydro run [--address ADDR]
 hydro new PROJECT [--preset PRESET]  (legacy alias; recommended: hydro project new)
+hydro new resource --out EDITION_DIR  (interactive Blueprint + scaffold)
 hydro serve
+hydro healthcheck
 hydro migrate
 hydro version --json
 hydro doctor
@@ -255,6 +325,7 @@ hydro seed-demo --confirm-demo
 hydro validate --config config.yaml
 hydro test --package ./modules/news/... --timeout 2m
 hydro generate module --spec module.yaml --out modules/catalog
+hydro generate scaffold --blueprint blueprint.yaml --out EDITION_DIR
 hydro module create --spec module.yaml --out modules/catalog
 hydro resource new --name article --field title:text --out .
 hydro frontend check --manifest frontend/starter.json
@@ -392,6 +463,8 @@ The repository does not claim a production profile or SLA until those forms of e
 - [Production gate checklist](docs/validation/PRODUCTION-GATES.md): evidence format for real environments
 - [Open gates and operator actions](docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md): operator actions and production blockers
 - [Operations runbook](docs/OPERATIONS_RUNBOOK.md): deploy, backup, restore, and alarm flows
+- [Observability profile](docs/operations/OBSERVABILITY.md): logs, traces, retention and OTLP profiles
+- [Client Edition deployment](deploy/client-edition/README.md): non-root image, PostgreSQL, Caddy/Dokploy and rollback
 - [Support matrix](docs/SUPPORT_MATRIX.md): supported and uncertified profiles
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md): old/new release boundaries
 - [Threat model](docs/security/THREAT_MODEL.md): security assumptions and open risks
