@@ -24,11 +24,12 @@ type Blueprint struct {
 }
 
 type BlueprintField struct {
-	Name     string           `json:"name" yaml:"name"`
-	Type     string           `json:"type" yaml:"type"`
-	Required bool             `json:"required" yaml:"required"`
-	Values   []string         `json:"values,omitempty" yaml:"values,omitempty"`
-	UI       BlueprintFieldUI `json:"ui,omitempty" yaml:"ui,omitempty"`
+	Name       string           `json:"name" yaml:"name"`
+	Type       string           `json:"type" yaml:"type"`
+	Required   bool             `json:"required" yaml:"required"`
+	Values     []string         `json:"values,omitempty" yaml:"values,omitempty"`
+	Validation Validation       `json:"validation,omitempty" yaml:"validation,omitempty"`
+	UI         BlueprintFieldUI `json:"ui,omitempty" yaml:"ui,omitempty"`
 }
 
 // BlueprintFieldUI contains presentation hints only. It is intentionally
@@ -94,7 +95,7 @@ func LoadBlueprint(path string) (Spec, error) {
 				admin.Widget = "select"
 			}
 		}
-		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Admin: admin})
+		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Validation: field.Validation, Admin: admin})
 	}
 	permissions := []string{name + ".read", name + ".write"}
 	spec := Spec{Name: name, Type: typeName, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}

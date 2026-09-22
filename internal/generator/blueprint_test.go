@@ -76,6 +76,22 @@ func TestLoadBlueprintSupportsGlobalResourceType(t *testing.T) {
 	}
 }
 
+func TestLoadBlueprintMapsValidationContract(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "profile.yaml")
+	content := []byte("name: profile\nfields:\n  - name: email\n    type: string\n    required: true\n    validation:\n      min_length: 5\n      max_length: 120\n      format: email\n      unique: true\n")
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := LoadBlueprint(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validation := spec.Fields[0].Validation
+	if validation.MinLength == nil || *validation.MinLength != 5 || validation.MaxLength == nil || *validation.MaxLength != 120 || validation.Format != "email" || !validation.Unique {
+		t.Fatalf("validation = %#v", validation)
+	}
+}
+
 func TestGeneratedMigrationMetadataIsDialectAwareAndNonDestructive(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"}}
