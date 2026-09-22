@@ -1,10 +1,13 @@
 package observability
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 func TestMetricsExposeDeadLetterDepth(t *testing.T) {
@@ -240,5 +243,17 @@ func TestMetricsExposeBoundedEndpointPercentilesBytesAndStatuses(t *testing.T) {
 	}
 	if got.BytesIn != uint64(len("in"))*3 || got.BytesOut != uint64(len("limited"))*3 {
 		t.Fatalf("endpoint bytes = %#v", got)
+	}
+}
+
+func TestMetricsExposeTenantAndModuleDimensions(t *testing.T) {
+	m := NewMetrics()
+	scope, _ := tenant.NewScope("tenant-a", "alpha")
+	h := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) }))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/p-1", nil).WithContext(tenant.WithScope(context.Background(), scope))
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	dims := m.DimensionStats()
+	if len(dims) != 1 || dims[0].TenantID != "tenant-a" || dims[0].Module != "projects" || dims[0].Requests != 1 {
+		t.Fatalf("unexpected dimensions: %#v", dims)
 	}
 }

@@ -273,6 +273,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0218](0218-structured-request-telemetry.md) | Structured request telemetry dimensions | Accepted |
 | [0219](0219-scaffold-verification-and-interactive-blueprints.md) | Scaffold verification and interactive Blueprint flow | Accepted |
 | [0220](0220-provider-neutral-tracing-boundaries.md) | Provider-neutral tracing boundaries | Accepted |
+| [0221](0221-tenant-module-endpoint-dimensions.md) | Tenant/module endpoint dimensions | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

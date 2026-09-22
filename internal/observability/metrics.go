@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 // Metrics is safe for concurrent HTTP handlers. It intentionally has no
@@ -36,6 +38,7 @@ type Metrics struct {
 	pathMu              sync.RWMutex
 	paths               map[string]PathStats
 	pathSamples         map[string][]uint64
+	dimensionStats      map[string]DimensionStats
 	sessionCleanupRuns  atomic.Uint64
 	sessionCleanupRows  atomic.Uint64
 	sessionCleanupError atomic.Uint64
@@ -56,6 +59,15 @@ type PathStatsSnapshot struct {
 	BytesIn, BytesOut                          uint64
 	Status2xx, Status3xx, Status4xx, Status5xx uint64
 	Timeouts, RateLimited                      uint64
+}
+
+type DimensionStats struct {
+	TenantID, Module          string
+	Requests, Errors, TotalMS uint64
+}
+type DimensionStatsSnapshot struct {
+	TenantID, Module        string
+	Requests, Errors, AvgMS uint64
 }
 
 type DatabaseStats struct {
@@ -461,7 +473,67 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration,
 		samples[(stats.Requests-1)%128] = latencyMS
 	}
 	m.pathSamples[path] = samples
+	key := dimensionKey(r, path)
+	if m.dimensionStats == nil {
+		m.dimensionStats = make(map[string]DimensionStats)
+	}
+	if dim, exists := m.dimensionStats[key]; exists || len(m.dimensionStats) < 128 {
+		if !exists {
+			dim = DimensionStats{TenantID: dimensionTenant(r), Module: routeModule(path)}
+		}
+		dim.Requests++
+		dim.TotalMS += uint64(elapsed.Milliseconds())
+		if status >= 400 {
+			dim.Errors++
+		}
+		m.dimensionStats[key] = dim
+	}
 	m.pathMu.Unlock()
+}
+
+func dimensionTenant(r *http.Request) string {
+	if r != nil {
+		if scope, err := tenant.FromContext(r.Context()); err == nil {
+			return scope.TenantID
+		}
+	}
+	return "default"
+}
+func routeModule(path string) string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) >= 2 {
+		if parts[0] == "api" && len(parts) >= 3 {
+			return parts[2]
+		}
+		return parts[1]
+	}
+	return "root"
+}
+func dimensionKey(r *http.Request, path string) string {
+	return dimensionTenant(r) + "\x00" + routeModule(path)
+}
+
+func (m *Metrics) DimensionStats() []DimensionStatsSnapshot {
+	if m == nil {
+		return nil
+	}
+	m.pathMu.RLock()
+	defer m.pathMu.RUnlock()
+	out := make([]DimensionStatsSnapshot, 0, len(m.dimensionStats))
+	for _, dim := range m.dimensionStats {
+		avg := uint64(0)
+		if dim.Requests > 0 {
+			avg = dim.TotalMS / dim.Requests
+		}
+		out = append(out, DimensionStatsSnapshot{TenantID: dim.TenantID, Module: dim.Module, Requests: dim.Requests, Errors: dim.Errors, AvgMS: avg})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].TenantID == out[j].TenantID {
+			return out[i].Module < out[j].Module
+		}
+		return out[i].TenantID < out[j].TenantID
+	})
+	return out
 }
 
 // normalizeRoute keeps endpoint metrics useful without allowing customer IDs,

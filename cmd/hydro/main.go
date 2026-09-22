@@ -1607,6 +1607,12 @@ func serve(args []string, stderr io.Writer) error {
 					"verified_members": stats.VerifiedMembers,
 				},
 				"paths": paths,
+				"dimensions": func() []observability.DimensionStatsSnapshot {
+					if runtimeMetrics == nil {
+						return nil
+					}
+					return runtimeMetrics.DimensionStats()
+				}(),
 				"content_views": func() []analyticsstore.ContentViewAggregate {
 					rows, _ := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 500})
 					return rows
@@ -1625,6 +1631,13 @@ func serve(args []string, stderr io.Writer) error {
 		_ = writer.Write([]string{"Path", "Views", "Requests", "Errors", "AvgLatencyMS", "P50MS", "P95MS", "P99MS", "BytesIn", "BytesOut", "Status2xx", "Status3xx", "Status4xx", "Status5xx", "Timeouts", "RateLimited"})
 		for _, p := range paths {
 			_ = writer.Write([]string{p.Path, strconv.FormatUint(p.Views, 10), strconv.FormatUint(p.Requests, 10), strconv.FormatUint(p.Errors, 10), strconv.FormatUint(p.AvgMS, 10), strconv.FormatUint(p.P50MS, 10), strconv.FormatUint(p.P95MS, 10), strconv.FormatUint(p.P99MS, 10), strconv.FormatUint(p.BytesIn, 10), strconv.FormatUint(p.BytesOut, 10), strconv.FormatUint(p.Status2xx, 10), strconv.FormatUint(p.Status3xx, 10), strconv.FormatUint(p.Status4xx, 10), strconv.FormatUint(p.Status5xx, 10), strconv.FormatUint(p.Timeouts, 10), strconv.FormatUint(p.RateLimited, 10)})
+		}
+		if runtimeMetrics != nil {
+			_ = writer.Write([]string{})
+			_ = writer.Write([]string{"Dimensions", "TenantID", "Module", "Requests", "Errors", "AvgLatencyMS"})
+			for _, d := range runtimeMetrics.DimensionStats() {
+				_ = writer.Write([]string{"", d.TenantID, d.Module, strconv.FormatUint(d.Requests, 10), strconv.FormatUint(d.Errors, 10), strconv.FormatUint(d.AvgMS, 10)})
+			}
 		}
 		if rows, err := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 500}); err == nil && len(rows) > 0 {
 			_ = writer.Write([]string{})
