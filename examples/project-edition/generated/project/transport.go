@@ -3,8 +3,8 @@ package generated
 
 import (
 	"encoding/json"
+	hydroquery "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -38,12 +38,12 @@ func (h ProjectHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
-			limit, offset, sortField, desc, ok := parseProjectListQuery(r)
-			if !ok {
+			query, err := parseProjectListQuery(r)
+			if err != nil {
 				http.Error(w, "invalid query", http.StatusBadRequest)
 				return
 			}
-			items, err := h.Service.List(r.Context(), limit, offset, sortField, desc)
+			items, err := h.Service.List(r.Context(), query)
 			if err != nil {
 				http.Error(w, "invalid query", http.StatusBadRequest)
 				return
@@ -122,36 +122,8 @@ func writeProjectJSON(w http.ResponseWriter, status int, value any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
-func parseProjectListQuery(r *http.Request) (limit, offset int, sortField string, desc, ok bool) {
-	limit, offset, ok = 25, 0, true
-	q := r.URL.Query()
-	if raw := q.Get("limit"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 1 || value > 100 {
-			return 0, 0, "", false, false
-		}
-		limit = value
-	}
-	if raw := q.Get("page"); raw != "" {
-		page, err := strconv.Atoi(raw)
-		if err != nil || page < 1 {
-			return 0, 0, "", false, false
-		}
-		offset = (page - 1) * limit
-	}
-	if raw := q.Get("offset"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 0 || value > 10000 {
-			return 0, 0, "", false, false
-		}
-		offset = value
-	}
-	if offset > 10000 {
-		return 0, 0, "", false, false
-	}
-	sortRaw := q.Get("sort")
-	sortField, desc = strings.TrimPrefix(sortRaw, "-"), strings.HasPrefix(sortRaw, "-")
-	return limit, offset, sortField, desc, true
+func parseProjectListQuery(r *http.Request) (hydroquery.ResourceQuery, error) {
+	return hydroquery.ParseResourceQuery(r.URL.Query(), queryFields)
 }
 
 // Generated transport for Project.
