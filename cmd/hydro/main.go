@@ -683,6 +683,25 @@ func currentVersionInfo() (versionInfo, error) {
 	return versionInfo{Version: version, Commit: buildCommit, BuildTime: buildTime, GoVersion: runtime.Version(), SchemaMigration: ids[len(ids)-1]}, nil
 }
 
+func contentViewFilterFromRequest(r *http.Request, limit int) analyticsstore.ContentViewFilter {
+	filter := analyticsstore.ContentViewFilter{Limit: limit}
+	if r == nil {
+		return filter
+	}
+	q := r.URL.Query()
+	filter.TenantID, filter.ContentType, filter.ContentID, filter.Locale = strings.TrimSpace(q.Get("tenant_id")), strings.TrimSpace(q.Get("content_type")), strings.TrimSpace(q.Get("content_id")), strings.TrimSpace(q.Get("locale"))
+	switch q.Get("range") {
+	case "7d", "30d":
+		days := 7
+		if q.Get("range") == "30d" {
+			days = 30
+		}
+		filter.FromDay = time.Now().UTC().AddDate(0, 0, -days+1).Format("2006-01-02")
+		filter.ToDay = time.Now().UTC().Format("2006-01-02")
+	}
+	return filter
+}
+
 func portableCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("portable command requires a subcommand (export or import)")
@@ -1512,7 +1531,8 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			dataTime := time.Now().Format("02.01.2006 15:04:05")
 			dateRange := r.URL.Query().Get("range")
-			contentViews, _ := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 100})
+			contentFilter := contentViewFilterFromRequest(r, 100)
+			contentViews, _ := analyticsStore.ListContentViews(r.Context(), contentFilter)
 			contentViewRows := make([]ui.ContentViewReportRow, 0, len(contentViews))
 			for _, row := range contentViews {
 				contentViewRows = append(contentViewRows, ui.ContentViewReportRow{Day: row.Day, TenantID: row.TenantID, ContentType: row.ContentType, ContentID: row.ContentID, Locale: row.Locale, ViewCount: row.ViewCount})
@@ -1614,7 +1634,7 @@ func serve(args []string, stderr io.Writer) error {
 					return runtimeMetrics.DimensionStats()
 				}(),
 				"content_views": func() []analyticsstore.ContentViewAggregate {
-					rows, _ := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 500})
+					rows, _ := analyticsStore.ListContentViews(r.Context(), contentViewFilterFromRequest(r, 500))
 					return rows
 				}(),
 			}
@@ -1639,7 +1659,7 @@ func serve(args []string, stderr io.Writer) error {
 				_ = writer.Write([]string{"", d.TenantID, d.Module, strconv.FormatUint(d.Requests, 10), strconv.FormatUint(d.Errors, 10), strconv.FormatUint(d.AvgMS, 10)})
 			}
 		}
-		if rows, err := analyticsStore.ListContentViews(r.Context(), analyticsstore.ContentViewFilter{Limit: 500}); err == nil && len(rows) > 0 {
+		if rows, err := analyticsStore.ListContentViews(r.Context(), contentViewFilterFromRequest(r, 500)); err == nil && len(rows) > 0 {
 			_ = writer.Write([]string{})
 			_ = writer.Write([]string{"ContentViews", "Day", "TenantID", "ContentType", "ContentID", "Locale", "ViewCount"})
 			for _, row := range rows {
