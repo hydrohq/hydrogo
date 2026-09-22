@@ -138,6 +138,10 @@ ve ADR-0091'e bakın.
   Module-owned callback ile sıralı, bounded ve callback hata metnini sızdırmayan
   sonuç üretimi eklendi; authorization, idempotency, audit ve transaction
   semantiği Edition/module sorumluluğunda kalıyor (ADR-0236).
+- **Edition-extensible tenant RLS verification:** Tamamlandı (contract
+  seviyesinde). Provisioning verifier artık generated tenant tablolarını
+  fail-closed şekilde doğrulayabiliyor; policy/migration oluşturma ve gerçek
+  PostgreSQL restore/capacity kanıtı hâlâ operasyon kapısıdır (ADR-0237).
 - **Faz 4 (kit ekosistemi):** Kısmi. Kit/edition sözleşmeleri mevcut; registry,
   dependency çözümleme ve uyumluluk matrisi tamamlanmadı.
 - **Faz 5 (frontend SDK/starter):** Kısmi. Adapter sözleşmeleri, typed client/query akışı, disposable SQLite demo ve 47 testli yerel Chromium E2E kanıtı var; harici Client Edition ve production kimlik doğrulama kabulü tamamlanmadı.
