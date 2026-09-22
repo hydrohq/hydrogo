@@ -299,3 +299,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 6. Verify that old and new versions can coexist during blue/green deployment.
 7. If the migration requires a maintenance window, explain this in the release metadata.
 - [ADR-0227: Client Edition lifecycle hook extension contract](0227-lifecycle-hook-extension-contract.md)
+- [ADR-0228: Public bounded resource query contract](0228-public-resource-query-contract.md)
