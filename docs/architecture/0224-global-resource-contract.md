@@ -21,8 +21,10 @@ invariant transactionally.
 
 The generator does not create a hidden runtime DDL path or infer authorization.
 Edition composition owns the singleton route, tenant scope, validation and
-policy binding. A future migration that changes a collection into a global (or
-the reverse) is a breaking schema diff and requires an explicit migration plan.
+policy binding. Generated global transports resolve an empty resource path to
+the stable `global` identifier and never expose collection-list semantics; a
+future migration that changes a collection into a global (or the reverse) is a
+breaking schema diff and requires an explicit migration plan.
 
 ## Consequences
 
@@ -35,8 +37,9 @@ the reverse) is a breaking schema diff and requires an explicit migration plan.
 ## Verification
 
 `internal/generator` tests cover `type: global`, default collection behavior,
-strict Blueprint decoding and generated Spec metadata. Edition-level global
-persistence and PostgreSQL/SQLite singleton race certification remain a
-follow-up implementation gate. Generated global services normalize the ID to a
-stable `global` key before validation and persistence; this is defense in depth,
-not a replacement for the transaction/database invariant.
+strict Blueprint decoding, generated Spec metadata and singleton transport
+resolution. Edition-level global persistence and PostgreSQL/SQLite singleton
+race certification remain a follow-up implementation gate. Generated global
+services normalize the ID to a stable `global` key before validation and
+persistence; this is defense in depth, not a replacement for the
+transaction/database invariant.

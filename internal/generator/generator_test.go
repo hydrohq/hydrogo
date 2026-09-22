@@ -419,7 +419,11 @@ func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(validation, []byte(`const SettingsGlobalID = "global"`)) || !bytes.Contains(validation, []byte("item.ID = SettingsGlobalID")) || !bytes.Contains(service, []byte("item.normalize()")) {
+	transport, err := os.ReadFile(filepath.Join(root, "generated", "settings", "transport.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(validation, []byte(`const SettingsGlobalID = "global"`)) || !bytes.Contains(validation, []byte("item.ID = SettingsGlobalID")) || !bytes.Contains(service, []byte("item.normalize()")) || !bytes.Contains(transport, []byte(`id = SettingsGlobalID`)) {
 		t.Fatalf("global singleton normalization missing: validation=%s service=%s", validation, service)
 	}
 }
