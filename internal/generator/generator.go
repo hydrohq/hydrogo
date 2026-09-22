@@ -157,6 +157,9 @@ func Validate(spec Spec) error {
 			if field.Relation.Cardinality == "one" && field.Relation.MaxItems != 0 || field.Relation.Cardinality == "many" && (field.Relation.MaxItems < 0 || field.Relation.MaxItems > 100) {
 				return ErrInvalidSpec
 			}
+			if field.Relation.Cardinality == "many" && field.Validation.Unique {
+				return ErrInvalidSpec
+			}
 		} else if field.Relation != nil {
 			return ErrInvalidSpec
 		}
@@ -1813,6 +1816,13 @@ func renderMigration(spec Spec) string {
 		fmt.Fprintf(&b, ",\n    %s %s%s", field.Name, sqlType(field.Type), nullable)
 	}
 	b.WriteString("\n);\n")
+	for _, field := range uniqueFields(spec) {
+		columns := field.Name
+		if spec.TenantScoped {
+			columns = "tenant_id, " + columns
+		}
+		fmt.Fprintf(&b, "CREATE UNIQUE INDEX %s ON %s (%s);\n", uniqueIndexName(spec.Table, field.Name), spec.Table, columns)
+	}
 	if spec.TenantScoped {
 		fmt.Fprintf(&b, "CREATE INDEX %s ON %s (tenant_id, id);\n", tenantIndexName(spec.Table), spec.Table)
 	}
@@ -1827,6 +1837,26 @@ func renderMigration(spec Spec) string {
 		}
 	}
 	return b.String()
+}
+
+func uniqueFields(spec Spec) []Field {
+	fields := make([]Field, 0)
+	for _, field := range spec.Fields {
+		if field.Validation.Unique && (field.Relation == nil || field.Relation.Cardinality != "many") {
+			fields = append(fields, field)
+		}
+	}
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	return fields
+}
+
+func uniqueIndexName(table, field string) string {
+	name := table + "_" + field + "_uidx"
+	if len(name) <= 63 {
+		return name
+	}
+	digest := sha256.Sum256([]byte(name))
+	return strings.TrimRight(name[:50], "_") + "_" + hex.EncodeToString(digest[:])[:12]
 }
 
 func manyRelationFields(spec Spec) []Field {
@@ -1952,6 +1982,9 @@ func renderMigrationMetadata(spec Spec) string {
 	compatibility := "Additive generated table; review indexes, RLS, and tenant policy before enabling."
 	if len(manyRelationFields(spec)) > 0 {
 		compatibility = "Additive generated resource and bounded relation tables; review tenant isolation, retention, and index plans before enabling."
+	}
+	if len(uniqueFields(spec)) > 0 {
+		compatibility += " Audit existing duplicate values before applying generated unique indexes; resolve conflicts with an operator-approved data migration."
 	}
 	return fmt.Sprintf("id: generated_%s\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: []\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 1\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, checksum, checksum, compatibility, "No production down migration; restore or forward migration only.")
 }

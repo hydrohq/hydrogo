@@ -17,9 +17,10 @@ library packages are emitted as imports.
 
 ## Deferred semantics
 
-`unique`, `immutable`, and `default` remain metadata, not guaranteed runtime
-behavior. Uniqueness needs explicit global-vs-tenant scope and portable
-constraint/error mapping; immutability needs a trusted persisted baseline;
-defaults need create-only/null/empty behavior and backward-compatible schema
-rules. Do not claim these are enforced merely because the Blueprint carries
-them.
+At the time of this validation, `unique`, `immutable`, and `default` remained
+metadata. Uniqueness was subsequently specified and implemented by
+[ADR-0258](../architecture/0258-tenant-scoped-blueprint-uniqueness.md) and
+validated separately in [R135](R135-generated-unique-index-contract-2026-09-23.md).
+Immutability still needs a trusted persisted baseline; defaults need create-only
+field-presence semantics. Do not claim either is enforced merely because the
+Blueprint carries it.
