@@ -326,6 +326,24 @@ func TestAdminCollectionUsesExplicitPresentationMetadata(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminTemplatesUseBlockEditorContract(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "body", Type: "text", Admin: FieldAdmin{Widget: "block-editor"}}}, Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(root, "generated", "article", "admin", "form.templ"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	for _, marker := range []string{"ui.BlockEditor", `PreviewURL: "/api/preview"`, "Nonce: view.Nonce"} {
+		if !strings.Contains(text, marker) {
+			t.Fatalf("generated form missing %q: %s", marker, text)
+		}
+	}
+}
+
 func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "testimonial.yaml")
 	content := `version: v0

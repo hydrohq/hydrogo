@@ -130,6 +130,7 @@ import ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 
 type {{.Name}}FormView struct {
 	CSRFToken string
+	Nonce string
 	Values map[string]string
 }
 
@@ -141,7 +142,9 @@ templ {{.Name}}FormFields(view {{.Name}}FormView) {
 {{- range .Fields}}
 {{- if eq .Widget "select"}}
 	@ui.Select(ui.SelectProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Options: []string{ {{range $i, $option := .Options}}{{if $i}}, {{end}}{{printf "%q" $option}}{{end}} }, Required: {{.Required}}})
-{{- else if or (eq .Widget "textarea") (eq .Widget "richtext") (eq .Widget "block-editor")}}
+{{- else if eq .Widget "block-editor"}}
+	@ui.BlockEditor(ui.BlockEditorProps{ID: "{{.Name}}-editor", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Nonce: view.Nonce, PreviewURL: "/api/preview"})
+{{- else if or (eq .Widget "textarea") (eq .Widget "richtext")}}
 	@ui.Textarea(ui.TextareaProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Required: {{.Required}}, Rows: 8})
 	{{- else if .Boolean}}
 	@ui.Input(ui.InputProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Type: "{{.InputType}}", Value: view.Values[{{printf "%q" .Name}}], Required: {{.Required}}, Checked: view.Values[{{printf "%q" .Name}}] == "true"})
