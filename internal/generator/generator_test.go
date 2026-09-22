@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	_ "modernc.org/sqlite"
 )
 
 func TestGenerateIsDeterministicAndPreservesCustom(t *testing.T) {
@@ -432,6 +434,32 @@ func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
 	}
 	if !bytes.Contains(migration, []byte("CHECK (id = 'global')")) {
 		t.Fatalf("global migration must enforce singleton id: %s", migration)
+	}
+}
+
+func TestGeneratedGlobalMigrationEnforcesSQLiteSingleton(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "site_settings", Type: "global", Table: "site_settings", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"settings.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	migration, err := os.ReadFile(filepath.Join(root, "generated", "site_settings", "migration.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(string(migration)); err != nil {
+		t.Fatalf("generated global migration must execute on sqlite: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO site_settings (id, title) VALUES ('global', 'ok')"); err != nil {
+		t.Fatalf("stable global id insert failed: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO site_settings (id, title) VALUES ('other', 'bad')"); err == nil {
+		t.Fatal("non-global singleton id unexpectedly accepted")
 	}
 }
 
