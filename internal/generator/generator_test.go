@@ -186,8 +186,8 @@ func TestGeneratePreservesPublishedMigration(t *testing.T) {
 
 func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 	for _, spec := range []Spec{
-		{Name: "pages", Table: "pages", Fields: []Field{{Name: "title", Type: "string"}, {Name: "status", Type: "string"}}, Permissions: []string{"pages.read", "pages.write"}, Dialects: []string{"sqlite", "postgres"}},
-		{Name: "news_items", Table: "news_items", Fields: []Field{{Name: "headline", Type: "string"}, {Name: "scheduled", Type: "bool"}}, Permissions: []string{"news.read", "news.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "pages", Table: "pages", Fields: []Field{{Name: "title", Type: "string", Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "status", Type: "string", Admin: FieldAdmin{Filterable: true, Options: []string{"draft", "published"}}}}, Permissions: []string{"pages.read", "pages.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "news_items", Table: "news_items", Fields: []Field{{Name: "headline", Type: "string", Admin: FieldAdmin{VisibleInList: true, Searchable: true}}, {Name: "scheduled", Type: "bool"}}, Permissions: []string{"news.read", "news.write"}, Dialects: []string{"sqlite", "postgres"}},
 	} {
 		root := t.TempDir()
 		first, err := Generate(root, spec)
@@ -215,7 +215,7 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 				t.Fatalf("%s repository missing %q", spec.Name, method)
 			}
 		}
-		for _, file := range []string{"spec.json", "service.go", "policy.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts"} {
+		for _, file := range []string{"spec.json", "service.go", "policy.go", "fixture_test.go", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "admin/list.templ", "admin/form.templ"} {
 			if _, err := os.Stat(filepath.Join(root, "generated", spec.Name, file)); err != nil {
 				t.Fatalf("%s scaffold %s missing: %v", spec.Name, file, err)
 			}
@@ -229,6 +229,14 @@ func TestCoreCollectionFixturesGenerateDeterministically(t *testing.T) {
 			if readErr != nil || len(content) == 0 {
 				t.Fatalf("generated %s missing: %v", file, readErr)
 			}
+		}
+		listTemplate, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "admin", "list.templ"))
+		if err != nil || !bytes.Contains(listTemplate, []byte("ui.Table")) || !bytes.Contains(listTemplate, []byte("delay:300ms")) || bytes.Contains(listTemplate, []byte("<!--")) {
+			t.Fatalf("%s generated list template missing typed HTMX contract: %v", spec.Name, err)
+		}
+		formTemplate, err := os.ReadFile(filepath.Join(root, "generated", spec.Name, "admin", "form.templ"))
+		if err != nil || !bytes.Contains(formTemplate, []byte("ui.Form")) || !bytes.Contains(formTemplate, []byte("CSRFToken")) || bytes.Contains(formTemplate, []byte("<!--")) {
+			t.Fatalf("%s generated form template missing typed CSRF contract: %v", spec.Name, err)
 		}
 		for file, marker := range map[string]string{"react.ts": "create" + exportName(spec.Name) + "Query", "swr.ts": "create" + exportName(spec.Name) + "SWR", "htmx.ts": "hx-get", "vanilla.ts": "create" + exportName(spec.Name) + "Client"} {
 			content, readErr := os.ReadFile(filepath.Join(root, "generated", spec.Name, file))

@@ -81,6 +81,7 @@ func LoadBlueprint(path string) (Spec, error) {
 			VisibleInList: field.UI.List,
 			Searchable:    field.UI.Searchable,
 			Filterable:    field.UI.Filterable,
+			Options:       append([]string(nil), field.Values...),
 		}
 		if len(field.Values) > 0 {
 			typ = "string"

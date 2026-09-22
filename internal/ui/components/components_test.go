@@ -34,3 +34,14 @@ func TestFormAndInputRenderCSRFAndEscapedValues(t *testing.T) {
 		t.Fatalf("unexpected form output: %s", out)
 	}
 }
+
+func TestTypedDataComponentsEscapeValuesAndRenderHTMX(t *testing.T) {
+	out := render(t, Select(SelectProps{ID: "status", Name: "status", Label: "Status", Value: "<x>", Options: []string{"<x>", "published"}, HTMX: HTMX{Get: "/admin/articles", Target: "#list", Swap: "innerHTML"}}))
+	if !strings.Contains(out, `value="&lt;x&gt;" selected="selected"`) || !strings.Contains(out, `hx-target="#list"`) || strings.Contains(out, "<x>") {
+		t.Fatalf("select output was not safely rendered: %s", out)
+	}
+	out = render(t, Table(TableProps{Caption: "Articles", Columns: []string{"Title"}, Rows: [][]string{{`<script>alert(1)</script>`}}}))
+	if strings.Contains(out, "<script>") || !strings.Contains(out, "&lt;script&gt;") {
+		t.Fatalf("table output was not escaped: %s", out)
+	}
+}
