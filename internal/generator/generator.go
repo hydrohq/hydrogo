@@ -772,6 +772,10 @@ Generated collection: %s
 
 func renderRuntimeWiring(spec Spec) string {
 	kits := resolvedKitNames(spec.Kits)
+	tenantEvidence := ""
+	if spec.TenantScoped {
+		tenantEvidence = "- [ ] Pass every generated tenant table to tenant.VerifyProvisioningRLSForTables before shared-mode provisioning.\n"
+	}
 	return fmt.Sprintf(`# %s runtime wiring
 
 This generated contract deliberately separates deterministic scaffolding from
@@ -789,6 +793,7 @@ dependencies.
   surface; add CSRF, validation, error and empty-state handling.
 - [ ] Apply the migration through the module migration registry for every
   declared dialect: %s.
+%s
 - [ ] Add cache policy, invalidation and background-job ownership only when the
   module contract requires them; keep Compact profile resources bounded.
 - [ ] Extend contract/fixture tests with domain invariants and include this
@@ -805,7 +810,7 @@ an omitted kit must not add routes, migrations, workers or assets.
 
 Record the owning ADR, migration/rollback result, policy test, deployment
 compatibility result and capacity impact in REVIEW.md before release.
-`, exportName(spec.Name), spec.Name, strings.Join(sortedStrings(spec.Dialects), ", "), strings.Join(kits, ", "))
+`, exportName(spec.Name), spec.Name, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
 }
 
 func resolvedKitNames(declared []string) []string {
