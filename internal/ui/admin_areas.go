@@ -442,7 +442,6 @@ function testGraphQL(btn){
     </div>
   </div>
 
-  <!-- Entegre Rol & Yetki Matrisi (RBAC) -->
   <div class="perm-table-card">
     <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
       <strong style="font-size:.88rem;color:var(--ink);">🛡️ Rol &amp; Yetki Matrisi (RBAC)</strong>

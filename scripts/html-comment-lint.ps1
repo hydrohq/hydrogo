@@ -14,7 +14,14 @@ foreach ($root in $roots) {
         if ($content -match '<!--') { $violations += $_.FullName }
     }
 }
+$uiRoot = Join-Path $repositoryRoot "internal/ui"
+if (Test-Path -LiteralPath $uiRoot) {
+    Get-ChildItem -LiteralPath $uiRoot -File -Filter *.go | ForEach-Object {
+        $content = Get-Content -LiteralPath $_.FullName -Raw
+        if ($content -match '<!--') { $violations += $_.FullName }
+    }
+}
 if ($violations.Count -gt 0) {
     throw "HTML comments are forbidden in production-facing assets: $($violations -join ', ')"
 }
-Write-Host "PASS: no HTML comments in production-facing theme/generated assets"
+Write-Host "PASS: no HTML comments in production-facing theme/generated/raw UI sources"
