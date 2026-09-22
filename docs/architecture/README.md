@@ -309,3 +309,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0235: Generated tenant-scoped resource contract](0235-generated-tenant-scoped-resource-contract.md)
 - [ADR-0236: Bounded Admin bulk execution primitive](0236-bounded-admin-bulk-execution.md)
 - [ADR-0237: Edition-extensible tenant RLS verification](0237-tenant-rls-verification-extension.md)
+- [ADR-0238: Global singleton database invariant](0238-global-singleton-database-invariant.md)
