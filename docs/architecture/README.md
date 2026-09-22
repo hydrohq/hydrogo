@@ -247,7 +247,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0195](0195-admin-extension-channel-binding.md) | Admin Extension channel binding protocol v1 | Accepted; browser E2E open |
 | [0196](0196-extension-package-lifecycle-and-operator-cli.md) | Extension package lifecycle and operator CLI | Accepted; CLI E2E open |
 | [0197](0197-admin-ui-locale-preference-and-local-catalog.md) | Admin UI locale preference and local catalog | Accepted; full surface translation open |
-| [0198](0198-admin-user-account-and-permission-overrides.md) | Admin user accounts and permission overrides | Accepted; module permission audit open |
+| [0198](0198-admin-user-account-and-permission-overrides.md) | Admin user accounts and permission overrides | Account/role accepted; permission catalog partially superseded by 0255 |
 | [0199](0199-commerce-deferral-and-runtime-removal.md) | Defer Commerce and remove its runtime surface | Accepted |
 | [0200](0200-reviewed-collection-designer.md) | Reviewed visual collection designer | Proposed |
 | [0208](0208-admin-extension-origin-handshake.md) | Admin Extension origin-preserving sandbox handshake | Accepted; browser E2E open |
@@ -301,6 +301,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0252](0252-optional-redis-runtime-build.md) | Optional Redis/Valkey runtime build capability | Accepted |
 | [0253](0253-generated-resource-contract-version-lock.md) | Generated resource contract version in generator lock | Accepted |
 | [0254](0254-generated-spec-source-lock-consistency.md) | Generated resource spec/source consistency check | Accepted |
+| [0255](0255-edition-permission-catalog.md) | Edition-registered permission catalog and generated RBAC surface | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

@@ -329,3 +329,43 @@ func TestInviteAcceptanceIsRateLimitedByClient(t *testing.T) {
 		t.Fatalf("second invite acceptance status = %d, want %d", second.Code, http.StatusTooManyRequests)
 	}
 }
+
+func TestAdminPermissionEndpointAcceptsOnlyEditionCatalogNames(t *testing.T) {
+	catalog, err := NewPermissionCatalog("article.read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &permissionTestStore{}
+	service := NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params)
+	service.SetPermissionStore(store)
+	if err := service.SetPermissionCatalog(catalog); err != nil {
+		t.Fatal(err)
+	}
+	values := url.Values{"perm_article.read": {"allow"}, "perm_unregistered.delete": {"allow"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/users/user-2/permissions", strings.NewReader(values.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetPathValue("id", "user-2")
+	req = req.WithContext(WithUser(req.Context(), &User{ID: "admin", Role: RoleAdmin, Active: true}))
+	rec := httptest.NewRecorder()
+	(HTTPHandler{Service: service}).updateUserPermissions(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("permission update status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if len(store.saved) != 1 || !store.saved["article.read"] {
+		t.Fatalf("saved permissions included undeclared names: %#v", store.saved)
+	}
+}
+
+func TestAdminPermissionEndpointBoundsFormBody(t *testing.T) {
+	service := NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params)
+	service.SetPermissionStore(&permissionTestStore{})
+	req := httptest.NewRequest(http.MethodPost, "/auth/users/user-2/permissions", strings.NewReader(strings.Repeat("x", maxPermissionFormBytes+1)))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetPathValue("id", "user-2")
+	req = req.WithContext(WithUser(req.Context(), &User{ID: "admin", Role: RoleAdmin, Active: true}))
+	rec := httptest.NewRecorder()
+	(HTTPHandler{Service: service}).updateUserPermissions(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("oversized permission form status=%d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}

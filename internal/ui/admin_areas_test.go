@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
@@ -25,6 +26,38 @@ func TestRenderAdminResourceUsage(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("rendered resource page missing %q", want)
 		}
+	}
+}
+
+func TestAdminUserPermissionEditorUsesEditionCatalog(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminArea(&out, AdminAreaData{
+		Area:        "users",
+		CSRF:        "csrf-token",
+		Permissions: []string{"article.read", "article.write"},
+		Users:       []*auth.User{{ID: "user-1", Email: "editor@example.test", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{"article.read": true}}},
+	})
+	if err != nil {
+		t.Fatalf("RenderAdminArea(users): %v", err)
+	}
+	html := out.String()
+	for _, marker := range []string{`name="perm_article.read"`, `name="perm_article.write"`, "article.read", "article.write"} {
+		if !strings.Contains(html, marker) {
+			t.Errorf("dynamic permission editor missing %q", marker)
+		}
+	}
+	if strings.Contains(html, `name="perm_admin.users.manage"`) {
+		t.Fatal("editor rendered a permission that the active Edition did not declare")
+	}
+}
+
+func TestAdminPermissionCatalogEscapesEditionNames(t *testing.T) {
+	var out bytes.Buffer
+	if err := RenderAdminArea(&out, AdminAreaData{Area: "permissions", Permissions: []string{`article<script>`}}); err != nil {
+		t.Fatalf("RenderAdminArea(permissions): %v", err)
+	}
+	if strings.Contains(out.String(), "<script>") || !strings.Contains(out.String(), "&lt;script&gt;") {
+		t.Fatal("Edition permission catalog rendered an unescaped permission name")
 	}
 }
 

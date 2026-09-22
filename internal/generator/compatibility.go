@@ -23,7 +23,7 @@ type CompatibilityReport struct {
 	FilesChecked     int
 }
 
-var requiredGeneratedFiles = []string{"spec.json", "model.go", "repository.go", "relations_store.go", "service.go", "validation.go", "policy.go", "transport.go", "runtime.go", "workflow.json", "relations.json", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "migration.sql", "migration.go", "migration.yaml", "contract_test.go", "transport_test.go", "fixture_test.go", "admin_manifest.json", "admin/views.json", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md"}
+var requiredGeneratedFiles = []string{"spec.json", "model.go", "repository.go", "relations_store.go", "service.go", "validation.go", "policy.go", "permissions.go", "transport.go", "runtime.go", "workflow.json", "relations.json", "form.html", "form.schema.json", "table.html", "openapi.json", "client.ts", "query.ts", "bulk.ts", "import-export.ts", "upload.ts", "react.ts", "swr.ts", "htmx.ts", "vanilla.ts", "kits.ts", "index.ts", "migration.sql", "migration.go", "migration.yaml", "contract_test.go", "transport_test.go", "fixture_test.go", "admin_manifest.json", "admin/views.json", "module.yaml", "REVIEW.md", "RUNTIME_WIRING.md"}
 
 // CheckCompatibility verifies generated artifacts without rewriting them.
 func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
