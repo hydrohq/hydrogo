@@ -472,6 +472,23 @@ func TestGeneratedTenantScopedResourceBindsTenantContract(t *testing.T) {
 			}
 		}
 	}
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoRoot, err = filepath.Abs(filepath.Join(repoRoot, "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	moduleFile := fmt.Sprintf("module tenantfixture\n\ngo 1.27\n\nrequire github.com/ardaozyildirim/hydrogo v0.0.0\nreplace github.com/ardaozyildirim/hydrogo => %s\n", filepath.ToSlash(repoRoot))
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(moduleFile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command("go", "test", "-mod=mod", "./...")
+	command.Dir = root
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("tenant generated fixture does not compile: %v\n%s", err, output)
+	}
 }
 
 func TestTenantIndexNameStaysWithinDialectIdentifierLimit(t *testing.T) {
