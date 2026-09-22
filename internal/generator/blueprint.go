@@ -31,6 +31,7 @@ type BlueprintField struct {
 	Name       string           `json:"name" yaml:"name"`
 	Type       string           `json:"type" yaml:"type"`
 	Required   bool             `json:"required" yaml:"required"`
+	Relation   *Relation        `json:"relation,omitempty" yaml:"relation,omitempty"`
 	Values     []string         `json:"values,omitempty" yaml:"values,omitempty"`
 	Validation Validation       `json:"validation,omitempty" yaml:"validation,omitempty"`
 	UI         BlueprintFieldUI `json:"ui,omitempty" yaml:"ui,omitempty"`
@@ -106,7 +107,10 @@ func LoadBlueprint(path string) (Spec, error) {
 				admin.Widget = "select"
 			}
 		}
-		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Validation: field.Validation, Admin: admin})
+		if (typ == "relation" || typ == "reference") && admin.Widget == "" {
+			admin.Widget = "relation"
+		}
+		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Relation: field.Relation, Validation: field.Validation, Admin: admin})
 	}
 	permissions := []string{name + ".read", name + ".write"}
 	spec := Spec{Name: name, Type: typeName, Auth: blueprint.Auth, TenantScoped: blueprint.TenantScoped, Workflow: blueprint.Workflow, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}

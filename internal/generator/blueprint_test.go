@@ -112,6 +112,48 @@ func TestLoadBlueprintRejectsInvalidWorkflowTransition(t *testing.T) {
 	}
 }
 
+func TestLoadBlueprintMapsRelationsIntoManifestAndAdminForm(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "relations.yaml")
+	data := []byte("name: article\nfields:\n  - name: author_id\n    type: relation\n    required: true\n    relation:\n      collection: author\n      cardinality: one\n  - name: tag_ids\n    type: relation\n    required: false\n    relation:\n      collection: tag\n      cardinality: many\n      max_items: 12\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := LoadBlueprint(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Fields[0].Relation == nil || spec.Fields[0].Relation.Collection != "author" || spec.Fields[0].Admin.Widget != "relation" || spec.Fields[0].Nullable {
+		t.Fatalf("single relation mapping is incomplete: %#v", spec.Fields[0])
+	}
+	root := t.TempDir()
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(root, "generated", "article", "relations.json"))
+	if err != nil || !strings.Contains(string(manifest), `"max_items": 12`) || !strings.Contains(string(manifest), `"storage": "edition_managed_collection"`) {
+		t.Fatalf("relation metadata missing: %v\n%s", err, manifest)
+	}
+	form, err := os.ReadFile(filepath.Join(root, "generated", "article", "admin", "form.templ"))
+	if err != nil || !strings.Contains(string(form), `RelationOptions["author_id"]`) {
+		t.Fatalf("relation selector metadata missing from admin form: %v", err)
+	}
+	wiring, err := os.ReadFile(filepath.Join(root, "generated", "article", "RUNTIME_WIRING.md"))
+	if err != nil || !strings.Contains(string(wiring), "authorized Edition resolver") {
+		t.Fatalf("relation resolver review gate missing: %v", err)
+	}
+}
+
+func TestLoadBlueprintRejectsUnboundedRelation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "invalid-relation.yaml")
+	data := []byte("name: article\nfields:\n  - name: tag_ids\n    type: relation\n    relation:\n      collection: tag\n      cardinality: many\n      max_items: 101\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadBlueprint(path); err == nil {
+		t.Fatal("relation above the item budget was accepted")
+	}
+}
+
 func TestLoadBlueprintMapsAdminAndUIHintsWithoutChangingPersistence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "article.yaml")
 	data := []byte("name: article\nadmin:\n  label: Articles\n  icon: newspaper\n  group: content\nfields:\n  - name: title\n    type: string\n    required: true\n    ui:\n      list: true\n      searchable: true\n      filterable: true\n      widget: text\n  - name: body\n    type: text\n    required: false\n    ui:\n      widget: block-editor\n")

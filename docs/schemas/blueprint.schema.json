@@ -33,6 +33,16 @@
           "type": { "type": "string", "minLength": 1 },
           "required": { "type": "boolean" },
           "values": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+          "relation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["collection", "cardinality"],
+            "properties": {
+              "collection": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$" },
+              "cardinality": { "type": "string", "enum": ["one", "many"] },
+              "max_items": { "type": "integer", "minimum": 1, "maximum": 100 }
+            }
+          },
           "validation": {
             "type": "object",
             "additionalProperties": false,
