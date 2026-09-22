@@ -463,7 +463,7 @@ func TestGeneratedTenantScopedResourceBindsTenantContract(t *testing.T) {
 		{"repository", repository, []string{"Get(ctx context.Context, tenantID, id string)", "tenant_id =", "List(ctx context.Context, tenantID string"}},
 		{"service", service, []string{"Create(ctx context.Context, tenantID string", "Update(ctx context.Context, tenantID string"}},
 		{"transport", transport, []string{"ResolveTenant", "h.ResolveTenant", "Service.List(r.Context(), tenantID"}},
-		{"migration", migration, []string{"tenant_id TEXT NOT NULL"}},
+		{"migration", migration, []string{"tenant_id TEXT NOT NULL", "CREATE INDEX invoices_tenant_id_idx ON invoices (tenant_id, id)"}},
 	}
 	for _, check := range checks {
 		for _, marker := range check.markers {

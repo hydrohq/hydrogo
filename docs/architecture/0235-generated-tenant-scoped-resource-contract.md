@@ -18,9 +18,10 @@ and pagination. PostgreSQL RLS remains an adapter/deployment control, not a
 replacement for the generated predicate. Tenant provisioning, membership,
 cross-tenant administration and policy decisions remain Edition-owned.
 
-The generator only proposes the migration column (`tenant_id TEXT NOT NULL`)
-and never executes DDL. Editions must add indexes, RLS policies, rollback
-metadata and certified SQLite/PostgreSQL tests before enabling the resource.
+The generator proposes the migration column (`tenant_id TEXT NOT NULL`) and a
+bounded `(tenant_id, id)` index with a deterministic, dialect-safe identifier;
+it never executes DDL. Editions must still add RLS policies, rollback metadata
+and certified SQLite/PostgreSQL tests before enabling the resource.
 
 ## Consequences
 
