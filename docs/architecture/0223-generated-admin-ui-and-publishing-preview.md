@@ -19,6 +19,12 @@ Blueprints may declare presentation-only metadata under `fields[].ui`:
 - `list`, `searchable`, and `filterable` visibility hints;
 - a bounded provider-neutral `widget` identifier.
 
+The `relation` widget is rendered as a typed select whose options are supplied
+by the Edition view model (`RelationOptions`); the generator never queries a
+database or invents relation authorization. The `media` widget renders a typed
+reference picker affordance and hidden value, while upload, ownership, tenant,
+and visibility checks remain mandatory at the protected mutation endpoint.
+
 `admin.icon` and `admin.group` are navigation metadata only. They do not grant
 route access, create routes, or change migrations. The generator emits
 `generated/<collection>/admin/list.templ` and `form.templ`, which call typed
@@ -44,11 +50,16 @@ non-cacheable.
 - The generated list/form files are scaffolds, not authorization policy or
   repository implementations. Edition composition must still bind tenant
   scope, permissions, validation and route middleware explicitly.
+- Relation and media controls are presentation contracts only: submitted
+  relation IDs and media references are untrusted input and must be revalidated
+  by the application service before persistence.
 
 ## Verification
 
 `internal/generator` verifies deterministic list/form output, UI metadata
 mapping, block-editor selection and absence of HTML comments. The typed UI
 component tests verify escaping, CSRF rendering, bounded HTMX attributes and
-Editor.js/live-preview markup. `internal/ui` verifies bounded preview payloads,
-private no-store responses and redacted renderer errors.
+Editor.js/live-preview markup, including escaped media references. Generator
+tests verify relation option binding without adding runtime database access.
+`internal/ui` verifies bounded preview payloads, private no-store responses and
+redacted renderer errors.
