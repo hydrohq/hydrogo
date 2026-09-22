@@ -46,10 +46,14 @@ capability has a stable public API or belongs in every Edition.
 Existing tests verify that inactive modules do not contribute routes or
 registry manifests and that an inactive Pages module does not construct its
 page cache. Existing `internal/capacity` profiles bound DB pools, cache,
-workers, queues and request/media bodies. There is no `hydro profile explain`
-or `hydro profile check` command, nor a per-Edition binary/import budget.
-The present tests do not certify zero inactive migration, asset, worker,
-goroutine, or all adapter construction across every module.
+workers, queues and request/media bodies. `hydro profile explain` and
+`hydro profile check` already exist. They expose bounded defaults and a
+hand-authored capability manifest, but that manifest explicitly leaves actual
+provider/route binding to composition roots; it does not mechanically resolve
+an Edition or prove its linked/runtime capability set. There is no per-Edition
+binary/import budget. Existing tests cover selected route and Pages-cache
+non-construction, not zero inactive migration, asset, worker, goroutine, or
+all adapter construction across every module.
 
 No dependency was removed in this baseline-only stage. The broad R110
 over-engineering audit found no safe unconditional deletion; this measurement
@@ -66,10 +70,10 @@ chase a size number.
 2. Make driver/exporter choices composition-time, so SQLite Compact need not
    link PostgreSQL, Redis, S3, OTLP/GRPC, or GraphQL unless that Edition opts in.
    Retain shared interfaces and certify each supported combination.
-3. Add `hydro profile explain/check` and measurable profile budgets for binary
-   bytes, startup, steady-state RSS, connections, workers, and inactive module
-   construction. Re-measure Linux/Windows release artifacts before accepting
-   a size target.
+3. Bind `hydro profile explain/check` to the Edition's resolved capability
+   graph and add measurable budgets for binary bytes, startup, steady-state
+   RSS, connections, workers, and inactive-module construction. Re-measure
+   Linux/Windows release artifacts before accepting a size target.
 
 This report is a baseline, not P0 completion. No architecture, dependency, or
 deployment contract changes are accepted here; any build-target separation
