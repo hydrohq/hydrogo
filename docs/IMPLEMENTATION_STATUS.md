@@ -36,6 +36,11 @@ anlamına gelir; production hazır olduğu anlamına gelmez.
 | Frontend manifest input bounds | Tamamlandı (yerel) | Manifest dosyası 1 MiB, route adı/path/test-id uzunlukları bounded ve non-regular dosyalar reddedilir | `R5-bounded-frontend-manifest-input` |
 | Generated resource self-description | Tamamlandı (yerel) | Her generated collection deterministic `spec.json` ve artifact checksum'ları taşır; `hydro resource check --root` spec dosyalarını keşfedip tüm scaffold'u dependency-free ve fail-closed doğrular | `R6-generated-resource-discovery`, `R6-generated-artifact-integrity` |
 | Generated OpenAPI query/error contract | Tamamlandı (yerel) | OpenAPI çıktısı bounded list query parametrelerini ve standart `HydroAPIError` yanıtlarını içerir; `hydro validate api` request parametre/body silinmesi ve optional→required kırılmalarını da yakalar | `R6-generated-openapi-contract`, `ADR-0026` |
+| Versioned global resource contract | Tamamlandı (yerel) | Blueprint `type: global` tekil kaynak metadata'sı, global ID normalizasyonu ve admin manifest/API sözleşmesi üretir | `ADR-0224`, `305072e1`, `c5f702df` |
+| Versioned field validation binding | Tamamlandı (yerel) | Blueprint validation metadata'sı generated `validation.go` içine taşınır ve service Create/Update tarafından çağrılır | `ADR-0226`, `110833a0`, `b985bf7b` |
+| Client Edition lifecycle hook scaffold | Tamamlandı (yerel) | Scaffold mevcut custom hook dosyasını ezmeden Before/After create/update/delete iskeleti üretir; yan etkiler outbox'a yönlendirilir | `ADR-0227`, `5a98918d` |
+| Public bounded resource query contract | Tamamlandı (yerel) | Client Edition'ların import edebileceği `extension/v1` parser alan/operator allowlist ve query budget'lerini uygular | `ADR-0228`, `c67bdf71` |
+| Generated bounded collection list transport | Tamamlandı (yerel) | Generated repository/service/HTTP transport limit-page-offset ve stable sort allowlist ile collection GET sağlar | `ADR-0229`, `00af1350`, `c3123829` |
 | Bounded HTTP idempotency pilot | Kısmi tamamlandı (yerel) | Site form submit için SQLite/PostgreSQL durable replay/conflict sözleşmesi, generated TypeScript mutation helper'ı, Commerce checkout bounded key + request fingerprint conflict koruması ve Stripe payment-intent provider-key forwarding; iyzico/PayTR provider certificationı açık | `R20-form-idempotency`, `R21-generated-idempotency-client`, `R25-commerce-idempotency-key-validation`, `R26-stripe-payment-intent-idempotency`, `R27-commerce-order-fingerprint`, `ADR-0136` |
 | Site inactive-module construction guard | Tamamlandı (yerel) | Site service, forms binding, limiter ve HTTP handler yalnızca Site modülü etkinse oluşturulur; preset route/migration acceptance hâlâ ayrı kanıttır | `R22-site-module-zero-construction`, `R17-wsl-preset-module-isolation` |
 | Pages cache inactive-module guard | Tamamlandı (yerel) | Pages kapalı profillerde in-process/Redis page cache oluşturulmaz; metrics provider nil-safe kalır | `R23-pages-cache-zero-construction`, `R17-wsl-preset-module-isolation` |
@@ -111,7 +116,9 @@ ve ADR-0091'e bakın.
 - **Faz 1 (resource contract/CLI):** Kısmi. Proje namespace'i, lock yükleme ve
   check akışı var; generated collection'lar artık deterministic `spec.json` ile
   kendini tanımlıyor ve `hydro resource check --root` tüm scaffold'u keşfedip
-  doğruluyor; migration/admin/API runtime wiring'i hâlâ açık.
+  doğruluyor; global resource, field validation, lifecycle scaffold ve bounded
+  collection list transport eklendi; rich query AST'nin generated transport'a
+  tam field/operator binding'i ve migration/admin/API runtime wiring'i hâlâ açık.
 - **Faz 2–3 (Admin/editorial):** Açık. Async relation, bulk işlemler, preview
   bridge, schedule ve locale fallback için ürün kabul testleri gerekiyor.
 - **Faz 4 (kit ekosistemi):** Kısmi. Kit/edition sözleşmeleri mevcut; registry,
