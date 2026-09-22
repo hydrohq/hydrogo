@@ -17,6 +17,9 @@ Editor.js block editor and the bounded HTMX live-preview boundary.
   CSRF through `ui.Form`, and contain no HTML comments.
 - Preview requests are bounded to 256 KiB, return `private, no-store`, and do
   not expose renderer error details.
+- Relation fields use runtime-provided option maps and media fields use the
+  typed picker contract; neither control grants authorization or executes
+  storage operations.
 
 ## Limitations
 
