@@ -293,6 +293,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0244](0244-generated-workflow-contract.md) | Generated bounded workflow contract | Accepted |
 | [0245](0245-blueprint-relation-metadata.md) | Blueprint bounded relation metadata | Accepted |
 | [0246](0246-generated-many-relation-storage.md) | Generated bounded many-relation storage | Accepted |
+| [0247](0247-generated-edition-footprint-budget.md) | Generated Edition footprint regression budget | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

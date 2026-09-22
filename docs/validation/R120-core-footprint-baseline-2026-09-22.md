@@ -55,6 +55,15 @@ binary/import budget. Existing tests cover selected route and Pages-cache
 non-construction, not zero inactive migration, asset, worker, goroutine, or
 all adapter construction across every module.
 
+Thin generated-route Edition harnesses provide a narrower composition path. A
+stripped Windows amd64 build of both
+`examples/project-edition/cmd/server` and
+`examples/article-edition/cmd/server` measured 15,782,400 bytes with 89
+non-standard-library dependency packages each. This is materially smaller than
+the universal binary, but these harnesses expose only a generated route and a
+health check; they are not the full Admin/Identity/Site production surface.
+R122 turns this limited result into a Windows CI regression gate.
+
 No dependency was removed in this baseline-only stage. The broad R110
 over-engineering audit found no safe unconditional deletion; this measurement
 identifies a different issue: optional capabilities are still present in the
@@ -63,18 +72,18 @@ chase a size number.
 
 ## Recommended P0 follow-up
 
-1. Define the supported artifact boundary: one self-contained binary per
-   Client Edition, with workspace generation/release tooling not linked into
-   the deployed Edition binary; keep operator migrations/backup available in
-   that Edition binary where required.
+1. Extend the thin Edition composition path to a complete Client Edition from
+   its selected module manifest. Keep workspace generation/release tooling
+   out of the deployed Edition binary and retain only selected operator
+   commands, migrations and providers.
 2. Make driver/exporter choices composition-time, so SQLite Compact need not
    link PostgreSQL, Redis, S3, OTLP/GRPC, or GraphQL unless that Edition opts in.
    Retain shared interfaces and certify each supported combination.
 3. Bind `hydro profile explain/check` to the Edition's resolved capability
    graph and add measurable budgets for binary bytes, startup, steady-state
    RSS, connections, workers, and inactive-module construction. Re-measure
-   Linux/Windows release artifacts before accepting a size target.
+   Linux/Windows full Edition artifacts before accepting a product size target.
 
-This report is a baseline, not P0 completion. No architecture, dependency, or
-deployment contract changes are accepted here; any build-target separation
-requires an ADR and Edition/CI compatibility proof.
+This report is a baseline, not P0 completion. ADR-0247 accepts only the narrow
+fixture build budget; full Edition composition and profile budgets still need
+an ADR-backed compatibility proof.
