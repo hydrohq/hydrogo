@@ -9,13 +9,14 @@ import (
 )
 
 type adminTemplateField struct {
-	Name      string
-	Label     string
-	Widget    string
-	InputType string
-	Required  bool
-	Boolean   bool
-	Options   []string
+	Name               string
+	Label              string
+	Widget             string
+	InputType          string
+	Required           bool
+	Boolean            bool
+	Options            []string
+	RelationCollection string
 }
 
 type adminTemplateData struct {
@@ -52,7 +53,11 @@ func newAdminTemplateData(spec Spec) adminTemplateData {
 		case "datetime", "timestamp":
 			inputType = "datetime-local"
 		}
-		item := adminTemplateField{Name: field.Name, Label: label, Widget: widget, InputType: inputType, Required: !field.Nullable, Boolean: inputType == "checkbox", Options: append([]string(nil), field.Admin.Options...)}
+		relationCollection := ""
+		if field.Relation != nil {
+			relationCollection = field.Relation.Collection
+		}
+		item := adminTemplateField{Name: field.Name, Label: label, Widget: widget, InputType: inputType, Required: !field.Nullable, Boolean: inputType == "checkbox", Options: append([]string(nil), field.Admin.Options...), RelationCollection: relationCollection}
 		data.Fields = append(data.Fields, item)
 		if field.Admin.VisibleInList {
 			data.ListFields = append(data.ListFields, item)
@@ -132,6 +137,7 @@ type {{.Name}}FormView struct {
 	CSRFToken string
 	Nonce string
 	Values map[string]string
+	RelationOptions map[string][]string
 }
 
 templ {{.Name}}Form(view {{.Name}}FormView) {
@@ -144,6 +150,10 @@ templ {{.Name}}FormFields(view {{.Name}}FormView) {
 	@ui.Select(ui.SelectProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Options: []string{ {{range $i, $option := .Options}}{{if $i}}, {{end}}{{printf "%q" $option}}{{end}} }, Required: {{.Required}}})
 {{- else if eq .Widget "block-editor"}}
 	@ui.BlockEditor(ui.BlockEditorProps{ID: "{{.Name}}-editor", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Nonce: view.Nonce, PreviewURL: "/api/preview"})
+{{- else if eq .Widget "relation"}}
+	@ui.Select(ui.SelectProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Options: view.RelationOptions[{{printf "%q" .Name}}], Required: {{.Required}}})
+{{- else if eq .Widget "media"}}
+	@ui.MediaPicker(ui.MediaPickerProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}]})
 {{- else if or (eq .Widget "textarea") (eq .Widget "richtext")}}
 	@ui.Textarea(ui.TextareaProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Required: {{.Required}}, Rows: 8})
 	{{- else if .Boolean}}

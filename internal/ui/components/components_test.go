@@ -64,3 +64,13 @@ func TestBlockEditorUsesEditionAssetAndAllowlistedLivePreview(t *testing.T) {
 		t.Fatalf("block editor emitted unsafe/comment markup: %s", out)
 	}
 }
+
+func TestMediaPickerEscapesReferenceAndKeepsChooserNonAuthorizing(t *testing.T) {
+	out := render(t, MediaPicker(MediaPickerProps{ID: "cover", Name: "cover", Label: `<Cover>`, Value: `a"b`}))
+	if !strings.Contains(out, `type="hidden"`) || !strings.Contains(out, `value="a&#34;b"`) || !strings.Contains(out, `/admin/media?select=cover`) {
+		t.Fatalf("media picker output missing contract: %s", out)
+	}
+	if strings.Contains(out, "<Cover>") || strings.Contains(out, "javascript:") {
+		t.Fatalf("media picker output was not safely rendered: %s", out)
+	}
+}
