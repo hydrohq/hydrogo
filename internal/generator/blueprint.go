@@ -16,6 +16,7 @@ import (
 // artifact is written.
 type Blueprint struct {
 	Name   string           `json:"name" yaml:"name"`
+	Type   string           `json:"type,omitempty" yaml:"type,omitempty"`
 	Table  string           `json:"table,omitempty" yaml:"table,omitempty"`
 	Fields []BlueprintField `json:"fields" yaml:"fields"`
 	Admin  Admin            `json:"admin,omitempty" yaml:"admin,omitempty"`
@@ -69,6 +70,10 @@ func LoadBlueprint(path string) (Spec, error) {
 		return Spec{}, fmt.Errorf("decode blueprint: %w", err)
 	}
 	name := strings.ToLower(strings.TrimSpace(blueprint.Name))
+	typeName := strings.ToLower(strings.TrimSpace(blueprint.Type))
+	if typeName == "" {
+		typeName = "collection"
+	}
 	table := strings.ToLower(strings.TrimSpace(blueprint.Table))
 	if table == "" {
 		table = name + "s"
@@ -92,7 +97,7 @@ func LoadBlueprint(path string) (Spec, error) {
 		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Admin: admin})
 	}
 	permissions := []string{name + ".read", name + ".write"}
-	spec := Spec{Name: name, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
+	spec := Spec{Name: name, Type: typeName, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
 	if err := Validate(spec); err != nil {
 		return Spec{}, err
 	}

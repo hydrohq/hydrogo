@@ -61,6 +61,21 @@ func TestLoadBlueprintValuesStillDefaultToSelectWidget(t *testing.T) {
 	}
 }
 
+func TestLoadBlueprintSupportsGlobalResourceType(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.yaml")
+	content := []byte("type: global\nname: settings\nfields:\n  - name: site_title\n    type: string\n    required: true\n")
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := LoadBlueprint(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Type != "global" {
+		t.Fatalf("type = %q, want global", spec.Type)
+	}
+}
+
 func TestGeneratedMigrationMetadataIsDialectAwareAndNonDestructive(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"}}

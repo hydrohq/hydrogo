@@ -66,6 +66,7 @@ type Action struct {
 // the module application service and its authorization policy.
 type Collection struct {
 	ID          string   `json:"id"`
+	Type        string   `json:"type,omitempty"`
 	Label       string   `json:"label"`
 	Description string   `json:"description"`
 	Fields      []Field  `json:"fields"`
@@ -112,7 +113,7 @@ func (r Registry) Collection(id string) (Collection, bool) {
 }
 
 func validateCollection(collection Collection) error {
-	if strings.TrimSpace(collection.ID) == "" || strings.TrimSpace(collection.Label) == "" || len(collection.Fields) == 0 || len(collection.Actions) == 0 {
+	if strings.TrimSpace(collection.ID) == "" || (collection.Type != "" && collection.Type != "collection" && collection.Type != "global") || strings.TrimSpace(collection.Label) == "" || len(collection.Fields) == 0 || len(collection.Actions) == 0 {
 		return ErrInvalidCollection
 	}
 	seenFields := make(map[string]struct{}, len(collection.Fields))
