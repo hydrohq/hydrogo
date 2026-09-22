@@ -47,13 +47,17 @@ func Select(p SelectProps) templ.Component {
 
 // TextareaProps describes a typed multiline control.
 type TextareaProps struct {
-	ID       string
-	Name     string
-	Label    string
-	Value    string
-	Required bool
-	Rows     int
-	HTMX     HTMX
+	ID           string
+	Name         string
+	Label        string
+	Value        string
+	Required     bool
+	Rows         int
+	MinLength    int
+	MaxLength    int
+	HasMinLength bool
+	HasMaxLength bool
+	HTMX         HTMX
 }
 
 func Textarea(p TextareaProps) templ.Component {
@@ -65,6 +69,12 @@ func Textarea(p TextareaProps) templ.Component {
 		attrs := ` id="` + esc(p.ID) + `" name="` + esc(p.Name) + `" rows="` + strconv.Itoa(rows) + `"` + htmxAttrs(p.HTMX)
 		if p.Required {
 			attrs += ` required="required"`
+		}
+		if p.HasMinLength && p.MinLength >= 0 {
+			attrs += ` minlength="` + strconv.Itoa(p.MinLength) + `"`
+		}
+		if p.HasMaxLength && p.MaxLength >= 0 {
+			attrs += ` maxlength="` + strconv.Itoa(p.MaxLength) + `"`
 		}
 		_, err := io.WriteString(w, `<label for="`+esc(p.ID)+`">`+esc(p.Label)+`</label><textarea`+attrs+`>`+esc(p.Value)+`</textarea>`)
 		return err

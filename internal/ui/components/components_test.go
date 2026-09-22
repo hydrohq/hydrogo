@@ -35,6 +35,19 @@ func TestFormAndInputRenderCSRFAndEscapedValues(t *testing.T) {
 	}
 }
 
+func TestInputsRenderTypedLengthConstraints(t *testing.T) {
+	out := render(t, Input(InputProps{ID: "email", Name: "email", Label: "Email", Type: "email", MinLength: 4, HasMinLength: true, MaxLength: 64, HasMaxLength: true}))
+	for _, marker := range []string{`type="email"`, `minlength="4"`, `maxlength="64"`} {
+		if !strings.Contains(out, marker) {
+			t.Fatalf("missing %q: %s", marker, out)
+		}
+	}
+	out = render(t, Textarea(TextareaProps{ID: "bio", Name: "bio", Label: "Bio", MinLength: 2, HasMinLength: true, MaxLength: 10, HasMaxLength: true}))
+	if !strings.Contains(out, `minlength="2"`) || !strings.Contains(out, `maxlength="10"`) {
+		t.Fatalf("textarea constraints missing: %s", out)
+	}
+}
+
 func TestTypedDataComponentsEscapeValuesAndRenderHTMX(t *testing.T) {
 	out := render(t, Select(SelectProps{ID: "status", Name: "status", Label: "Status", Value: "<x>", Options: []string{"<x>", "published"}, HTMX: HTMX{Get: "/admin/articles", Target: "#list", Swap: "innerHTML"}}))
 	if !strings.Contains(out, `value="&lt;x&gt;" selected="selected"`) || !strings.Contains(out, `hx-target="#list"`) || strings.Contains(out, "<x>") {
