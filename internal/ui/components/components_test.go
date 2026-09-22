@@ -52,3 +52,15 @@ func TestSidebarEscapesModuleMetadataAndMarksActiveItem(t *testing.T) {
 		t.Fatalf("sidebar output was not safely rendered: %s", out)
 	}
 }
+
+func TestBlockEditorUsesEditionAssetAndAllowlistedLivePreview(t *testing.T) {
+	out := render(t, BlockEditor(BlockEditorProps{ID: "body", Name: "body", Label: "Body", Nonce: "n\"1", Value: `{"blocks":[]}`, PreviewURL: "/api/preview"}))
+	for _, marker := range []string{`data-editorjs-mount="body"`, `hx-post="/api/preview"`, `hx-target="#body-preview"`, `hx-swap="innerHTML"`, `hx-trigger="keyup delay:300ms"`, `/vendor/editorjs/editorjs.umd.js`} {
+		if !strings.Contains(out, marker) {
+			t.Fatalf("block editor missing %q: %s", marker, out)
+		}
+	}
+	if strings.Contains(out, "<!--") || strings.Contains(out, "n\"1") {
+		t.Fatalf("block editor emitted unsafe/comment markup: %s", out)
+	}
+}
