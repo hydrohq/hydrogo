@@ -277,6 +277,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"transport_test.go":   renderTransportTest(spec),
 		"fixture_test.go":     renderFixtureTest(spec),
 		"admin_manifest.json": renderAdminManifest(spec),
+		"admin/views.json":    renderAdminViews(spec),
 		"module.yaml":         renderModuleManifest(spec),
 		"REVIEW.md":           renderReviewChecklist(spec),
 		"RUNTIME_WIRING.md":   renderRuntimeWiring(spec),
@@ -515,6 +516,32 @@ func queryFieldEntries(fields []Field) []string {
 		entries = append(entries, fmt.Sprintf("    %q: {Name: %q},", field.Name, field.Name))
 	}
 	return entries
+}
+
+func renderAdminViews(spec Spec) string {
+	columns := make([]string, 0)
+	filters := make([]map[string]string, 0)
+	for _, field := range spec.Fields {
+		if field.Admin.VisibleInList {
+			columns = append(columns, field.Name)
+		}
+		if field.Admin.Filterable {
+			op := "equals"
+			if field.Admin.Searchable {
+				op = "contains"
+			}
+			filters = append(filters, map[string]string{"field": field.Name, "operator": op})
+		}
+	}
+	if len(columns) == 0 {
+		columns = []string{"id"}
+	}
+	data := map[string]any{"version": "v1", "resource": spec.Name, "views": []any{map[string]any{"id": "all", "name": "All", "columns": columns, "filters": filters}}}
+	encoded, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "{}\n"
+	}
+	return string(encoded) + "\n"
 }
 
 func renderTransport(spec Spec) string {

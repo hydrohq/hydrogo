@@ -305,3 +305,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0231: Bounded Admin Studio saved-view contract](0231-bounded-admin-saved-view-contract.md)
 - [ADR-0232: Bounded offline sync contract](0232-bounded-offline-sync-contract.md)
 - [ADR-0233: Public tenant scope contract](0233-public-tenant-scope-contract.md)
+- [ADR-0234: Generated Admin Studio view metadata](0234-generated-admin-view-metadata.md)
