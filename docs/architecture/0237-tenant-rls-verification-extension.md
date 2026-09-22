@@ -28,5 +28,6 @@ create or alter policies and therefore preserves the no-runtime-DDL rule.
 ## Verification
 
 `internal/tenant/provision_test.go` validates accepted SQLite table sets and
-rejects duplicates, unsafe identifiers and empty sets. PostgreSQL integration
-continues to verify the actual catalog policy state.
+rejects duplicates, unsafe identifiers and empty sets. Generated tenant
+runtime wiring now records the verifier as a release checklist item, while
+PostgreSQL integration continues to verify the actual catalog policy state.
