@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
 const MaxManifestBytes int64 = 1 << 20
@@ -68,6 +70,8 @@ func SnapshotSQLite(ctx context.Context, db *sql.DB, mediaDir, destination strin
 // caller-provided wall-clock budget. A failed or over-budget snapshot never
 // leaves a usable destination directory behind.
 func SnapshotSQLiteWithLimits(ctx context.Context, db *sql.DB, mediaDir, destination string, limits SnapshotLimits) (Manifest, error) {
+	ctx, span := observability.StartComponentSpan(ctx, "backup", "snapshot.sqlite")
+	defer span.End()
 	if db == nil || strings.TrimSpace(mediaDir) == "" || strings.TrimSpace(destination) == "" {
 		return Manifest{}, errors.New("database, media directory, and destination are required")
 	}

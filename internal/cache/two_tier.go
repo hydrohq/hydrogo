@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
@@ -61,6 +62,8 @@ func (c *TwoTier[T]) GetOrLoad(key string, loader func() (T, error)) (T, error) 
 // GetOrLoadScoped requires an explicit tenant scope and applies it to both L1
 // and L2 keys, preventing cross-tenant cache hits in shared deployments.
 func (c *TwoTier[T]) GetOrLoadScoped(ctx context.Context, module, key string, loader func() (T, error)) (T, error) {
+	ctx, span := observability.StartComponentSpan(ctx, "cache", "get_or_load")
+	defer span.End()
 	scopedKey, err := tenant.CacheKey(ctx, module, key)
 	if err != nil {
 		var zero T
