@@ -3,8 +3,6 @@ package database
 import (
 	"errors"
 	"strings"
-
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // IsUniqueViolation identifies a uniqueness failure at the SQL adapter
@@ -13,8 +11,8 @@ func IsUniqueViolation(err error) bool {
 	if err == nil {
 		return false
 	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+	var sqlState interface{ SQLState() string }
+	if errors.As(err, &sqlState) && sqlState.SQLState() == "23505" {
 		return true
 	}
 	message := strings.ToLower(err.Error())

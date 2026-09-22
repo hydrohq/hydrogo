@@ -218,7 +218,9 @@ jobs:
         run: ./scripts/generator-smoke.ps1
       - name: Verify generated Edition footprint
         shell: pwsh
-        run: ./scripts/verify-edition-footprint.ps1
+        run: |
+          ./scripts/verify-edition-footprint.ps1
+          go test -tags hydro_compact ./internal/database ./internal/tenant ./internal/config -count=1
       - name: Lint theme token references
         shell: pwsh
         run: ./scripts/theme-token-lint.ps1

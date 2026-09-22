@@ -85,5 +85,6 @@ chase a size number.
    Linux/Windows full Edition artifacts before accepting a product size target.
 
 This report is a baseline, not P0 completion. ADR-0247 accepts only the narrow
-fixture build budget; full Edition composition and profile budgets still need
-an ADR-backed compatibility proof.
+fixture build budget; ADR-0248/R123 additionally measure a SQLite-only build,
+but full Edition composition and profile budgets still need an ADR-backed
+compatibility proof.
