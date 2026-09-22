@@ -300,6 +300,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0251](0251-optional-s3-media-build.md) | Optional S3 media provider build capability | Accepted |
 | [0252](0252-optional-redis-runtime-build.md) | Optional Redis/Valkey runtime build capability | Accepted |
 | [0253](0253-generated-resource-contract-version-lock.md) | Generated resource contract version in generator lock | Accepted |
+| [0254](0254-generated-spec-source-lock-consistency.md) | Generated resource spec/source consistency check | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

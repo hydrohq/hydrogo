@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -54,10 +55,36 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 	if contractVersion != CollectionContractVersion {
 		return CompatibilityReport{}, fmt.Errorf("unsupported generated contract version %q", contractVersion)
 	}
+	collectionRoot := filepath.Join(root, "generated", spec.Name)
+	specPath := filepath.Join(collectionRoot, "spec.json")
+	if err := pathguard.RejectSymlinkComponents(collectionRoot); err != nil {
+		return CompatibilityReport{}, fmt.Errorf("generated spec path: %w", err)
+	}
+	persistedSpec, err := LoadSpec(specPath)
+	if err != nil {
+		return CompatibilityReport{}, fmt.Errorf("load generated resource spec: %w", err)
+	}
+	persistedCanonical, err := canonicalSpec(persistedSpec)
+	if err != nil {
+		return CompatibilityReport{}, err
+	}
+	if !bytes.Equal(canonical, persistedCanonical) {
+		return CompatibilityReport{}, errors.New("embedded resource spec does not match requested contract")
+	}
+	versionBytes, err := os.ReadFile(specPath)
+	if err != nil {
+		return CompatibilityReport{}, fmt.Errorf("read generated resource spec version: %w", err)
+	}
+	var document SpecDocument
+	if err := json.Unmarshal(versionBytes, &document); err != nil {
+		return CompatibilityReport{}, fmt.Errorf("read generated resource contract version: %w", err)
+	}
+	if document.Version != contractVersion {
+		return CompatibilityReport{}, fmt.Errorf("generated lock contract version %q does not match embedded spec version %q", contractVersion, document.Version)
+	}
 	if lock.SpecSHA256 != expected {
 		return CompatibilityReport{}, fmt.Errorf("generated spec hash mismatch: lock=%s expected=%s", lock.SpecSHA256, expected)
 	}
-	collectionRoot := filepath.Join(root, "generated", spec.Name)
 	for _, name := range requiredGeneratedFiles {
 		artifactPath := filepath.Join(collectionRoot, name)
 		info, err := os.Lstat(artifactPath)
