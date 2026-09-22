@@ -13,6 +13,7 @@ dependencies.
 
 - [ ] For tenant-scoped resources, provide the Edition-owned tenant resolver;
   keep authentication, authorization and request limits in the outer stack.
+
 - [ ] Bind the generated form/table/admin manifest to the authenticated admin
   surface; add CSRF, validation, error and empty-state handling.
 - [ ] Apply the migration through the module migration registry for every

@@ -290,6 +290,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0241](0241-versioned-blueprint-input.md) | Versioned Blueprint input boundary | Accepted |
 | [0242](0242-resource-auth-composition-flag.md) | Resource auth composition flag | Accepted |
 | [0243](0243-generated-auth-route-guard.md) | Generated auth route guard | Accepted |
+| [0244](0244-generated-workflow-contract.md) | Generated bounded workflow contract | Accepted |
 
 Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 

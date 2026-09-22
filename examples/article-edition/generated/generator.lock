@@ -3,7 +3,7 @@
   "spec_sha256": "bfe914f78169cdd8d2b51fdfa4f19e2c5f554f4494e81aab71c2430fe38e0910",
   "artifacts_sha256": {
     "REVIEW.md": "490e59594be7c0a1e3550bb549b59958c4e3e0ffd0eaf78c317732c4856daa4e",
-    "RUNTIME_WIRING.md": "9548512ae6b183c7222e33c66553b873fde54cd5db9e17cf071d8e22f542b7c9",
+    "RUNTIME_WIRING.md": "8187028b03045fbd28590dbc12670488aad7601f7ddb6f8426697ea3cf59cf9c",
     "admin/form.templ": "9979ce7a4f7a20aa4daa795a0bc93f2c0a6bc1626271d1b7257ef3b3d3abf8d5",
     "admin/list.templ": "df05b7129b7d6561e1d8bcb20667e00938c97b49142b524652b37f32126eecef",
     "admin/views.json": "6f3668acf8479789472c100061d9f68ea93281736a8cb81f1edfba94a2f058ff",
@@ -37,6 +37,7 @@
     "transport_test.go": "76573a288d6cad41929aaae589a93fba866c8a0b5b4fd718b3e09a17e60e2b25",
     "upload.ts": "89032ba289ce16f406389416e2390714dcc1fa961320e7f3777e901e32595007",
     "validation.go": "8036ae33d7314de8e3ca59db068d03991ef166f6aa3b7ed65467da35a7293a6f",
-    "vanilla.ts": "6db87a8babbc103a3fc3a72cf76b52448096d3e27de6aeb1bdf7ea0353504ffd"
+    "vanilla.ts": "6db87a8babbc103a3fc3a72cf76b52448096d3e27de6aeb1bdf7ea0353504ffd",
+    "workflow.json": "3aeb9e6278001be4583182f95907318dfba4796bbf6e946313f2ae380766b26c"
   }
 }

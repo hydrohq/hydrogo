@@ -26,6 +26,7 @@ var (
 	ErrPublishedMigration = errors.New("published generated migration cannot be changed")
 	identifierPattern     = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
 	permissionPattern     = regexp.MustCompile(`^[a-z][a-z0-9_.:-]{1,127}$`)
+	workflowStatePattern  = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 	forbiddenFieldPattern = regexp.MustCompile(`(?i)(password|secret|token|private_key)`)
 )
 
@@ -50,6 +51,13 @@ type Validation struct {
 	Unique    bool     `json:"unique,omitempty" yaml:"unique,omitempty"`
 	Immutable bool     `json:"immutable,omitempty" yaml:"immutable,omitempty"`
 	Default   string   `json:"default,omitempty" yaml:"default,omitempty"`
+}
+
+// WorkflowSpec is a bounded, provider-neutral state machine declaration.
+// Persistence, role policy, scheduling, and side effects remain Edition-owned.
+type WorkflowSpec struct {
+	States      []string            `json:"states" yaml:"states"`
+	Transitions map[string][]string `json:"transitions" yaml:"transitions"`
 }
 
 // Relation makes the target and cardinality of a relation reviewable. It is
@@ -81,17 +89,18 @@ type Admin struct {
 }
 
 type Spec struct {
-	Name         string   `json:"name" yaml:"name"`
-	Type         string   `json:"type" yaml:"type"`
-	Auth         bool     `json:"auth,omitempty" yaml:"auth,omitempty"`
-	TenantScoped bool     `json:"tenant_scoped" yaml:"tenant_scoped"`
-	Table        string   `json:"table" yaml:"table"`
-	Fields       []Field  `json:"fields" yaml:"fields"`
-	Permissions  []string `json:"permissions" yaml:"permissions"`
-	Dialects     []string `json:"dialects" yaml:"dialects"`
-	Destructive  bool     `json:"destructive" yaml:"destructive"`
-	Admin        Admin    `json:"admin" yaml:"admin"`
-	Kits         []string `json:"kits,omitempty" yaml:"kits,omitempty"`
+	Name         string        `json:"name" yaml:"name"`
+	Type         string        `json:"type" yaml:"type"`
+	Auth         bool          `json:"auth,omitempty" yaml:"auth,omitempty"`
+	TenantScoped bool          `json:"tenant_scoped" yaml:"tenant_scoped"`
+	Workflow     *WorkflowSpec `json:"workflow,omitempty" yaml:"workflow,omitempty"`
+	Table        string        `json:"table" yaml:"table"`
+	Fields       []Field       `json:"fields" yaml:"fields"`
+	Permissions  []string      `json:"permissions" yaml:"permissions"`
+	Dialects     []string      `json:"dialects" yaml:"dialects"`
+	Destructive  bool          `json:"destructive" yaml:"destructive"`
+	Admin        Admin         `json:"admin" yaml:"admin"`
+	Kits         []string      `json:"kits,omitempty" yaml:"kits,omitempty"`
 }
 
 type Lock struct {
@@ -123,6 +132,9 @@ func Validate(spec Spec) error {
 		if dialect != "sqlite" && dialect != "postgres" {
 			return ErrInvalidSpec
 		}
+	}
+	if err := validateWorkflow(spec.Workflow); err != nil {
+		return err
 	}
 	if len(spec.Dialects) == 0 {
 		return ErrInvalidSpec
@@ -176,6 +188,44 @@ func Validate(spec Spec) error {
 	for _, kit := range spec.Kits {
 		if _, ok := knownKits[strings.ToLower(strings.TrimSpace(kit))]; !ok {
 			return ErrInvalidSpec
+		}
+	}
+	return nil
+}
+
+func validateWorkflow(workflow *WorkflowSpec) error {
+	if workflow == nil {
+		return nil
+	}
+	if len(workflow.States) == 0 || len(workflow.States) > 32 {
+		return ErrInvalidSpec
+	}
+	known := make(map[string]struct{}, len(workflow.States))
+	for _, raw := range workflow.States {
+		state := strings.TrimSpace(raw)
+		if !workflowStatePattern.MatchString(state) {
+			return ErrInvalidSpec
+		}
+		if _, exists := known[state]; exists {
+			return ErrInvalidSpec
+		}
+		known[state] = struct{}{}
+	}
+	for rawFrom, rawTargets := range workflow.Transitions {
+		from := strings.TrimSpace(rawFrom)
+		if _, exists := known[from]; !exists || len(rawTargets) > 32 {
+			return ErrInvalidSpec
+		}
+		seen := make(map[string]struct{}, len(rawTargets))
+		for _, rawTo := range rawTargets {
+			to := strings.TrimSpace(rawTo)
+			if _, exists := known[to]; !exists {
+				return ErrInvalidSpec
+			}
+			if _, exists := seen[to]; exists {
+				return ErrInvalidSpec
+			}
+			seen[to] = struct{}{}
 		}
 	}
 	return nil
@@ -256,6 +306,7 @@ func Generate(root string, spec Spec) (Lock, error) {
 		"policy.go":           renderPolicy(spec),
 		"transport.go":        renderTransport(spec),
 		"runtime.go":          renderRuntimeRegistration(spec),
+		"workflow.json":       renderWorkflow(spec),
 		"form.html":           renderForm(spec),
 		"form.schema.json":    renderFormSchema(spec),
 		"admin/list.templ":    renderAdminListTempl(spec),
@@ -323,6 +374,34 @@ func Generate(root string, spec Spec) (Lock, error) {
 
 func renderSpec(spec Spec) string {
 	document := SpecDocument{Version: "v0", Collection: normalizedSpec(spec)}
+	data, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return "{}\n"
+	}
+	return string(data) + "\n"
+}
+
+func renderWorkflow(spec Spec) string {
+	document := map[string]any{
+		"version":  "v0",
+		"resource": spec.Name,
+		"enabled":  spec.Workflow != nil,
+	}
+	if spec.Workflow == nil {
+		document["states"] = []string{}
+		document["transitions"] = map[string][]string{}
+	} else {
+		states := append([]string(nil), spec.Workflow.States...)
+		sort.Strings(states)
+		transitions := make(map[string][]string, len(spec.Workflow.Transitions))
+		for from, targets := range spec.Workflow.Transitions {
+			copyTargets := append([]string(nil), targets...)
+			sort.Strings(copyTargets)
+			transitions[from] = copyTargets
+		}
+		document["states"] = states
+		document["transitions"] = transitions
+	}
 	data, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
 		return "{}\n"
@@ -856,11 +935,15 @@ func renderRuntimeWiring(spec Spec) string {
 	kits := resolvedKitNames(spec.Kits)
 	tenantEvidence := ""
 	authEvidence := ""
+	workflowEvidence := ""
 	if spec.Auth {
 		authEvidence = "- [ ] Attach the existing Identity/Session/RBAC middleware and verify the generated policy with authenticated and anonymous tests; `auth: true` never creates a parallel auth system.\n"
 	}
 	if spec.TenantScoped {
 		tenantEvidence = "- [ ] Pass every generated tenant table to tenant.VerifyProvisioningRLSForTables before shared-mode provisioning.\n"
+	}
+	if spec.Workflow != nil {
+		workflowEvidence = "- [ ] Bind workflow transitions inside the service transaction and publish side effects through the durable outbox; generated metadata does not authorize transitions.\n"
 	}
 	return fmt.Sprintf(`# %s runtime wiring
 
@@ -877,6 +960,7 @@ dependencies.
 %s
 - [ ] For tenant-scoped resources, provide the Edition-owned tenant resolver;
   keep authentication, authorization and request limits in the outer stack.
+%s
 - [ ] Bind the generated form/table/admin manifest to the authenticated admin
   surface; add CSRF, validation, error and empty-state handling.
 - [ ] Apply the migration through the module migration registry for every
@@ -898,7 +982,7 @@ an omitted kit must not add routes, migrations, workers or assets.
 
 Record the owning ADR, migration/rollback result, policy test, deployment
 compatibility result and capacity impact in REVIEW.md before release.
-`, exportName(spec.Name), exportName(spec.Name), spec.Name, authEvidence, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
+`, exportName(spec.Name), exportName(spec.Name), spec.Name, authEvidence, workflowEvidence, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
 }
 
 func resolvedKitNames(declared []string) []string {
