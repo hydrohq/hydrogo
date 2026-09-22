@@ -16,10 +16,12 @@ version directly from the lock.
 
 New generator locks record `contract_version` using the same explicit version
 as the generated resource document. The current supported value is `v0`.
-Compatibility checks reject a non-empty unsupported value before declaring a
-generated resource compatible. A missing value in a pre-existing lock is
-treated as `v0` for backward compatibility; it is not silently upgraded or
-rewritten by a read-only compatibility check.
+Compatibility checks require the lock version to match the embedded
+`spec.json`, load and validate that embedded spec, and verify it is the same
+normalized resource contract as the requested source before declaring the
+resource compatible. A non-empty unsupported value is rejected. A missing
+value in a pre-existing lock is treated as `v0` for backward compatibility; it
+is not silently upgraded or rewritten by a read-only compatibility check.
 
 The version is metadata, not permission to activate routes, execute DDL, infer
 authorization, or overwrite human-owned `custom/` files. Introducing another
@@ -38,3 +40,6 @@ conversion/compatibility tests, and regenerated reviewable artifacts.
 
 `TestCheckCompatibility` verifies the new lock marker, legacy missing-marker
 compatibility, and fail-closed rejection of an unknown contract version.
+`TestCheckCompatibilityRejectsEmbeddedSpecDriftWithUpdatedArtifactDigest`
+proves source-vs-generated resource drift is rejected even when a changed
+`spec.json` has a correspondingly updated file digest.
