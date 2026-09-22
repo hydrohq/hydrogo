@@ -787,6 +787,7 @@ package generated
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	hydroquery "github.com/ardaozyildirim/hydrogo/extension/v1"
@@ -821,14 +822,14 @@ func (h %sHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if id != "" || !h.Policy.CanCreate(r.Context()) { http.Error(w, "forbidden", http.StatusForbidden); return }
 		var item %s
 		if !decode%sJSON(w, r, &item) { return }
-		if err := h.Service.Create(r.Context(), item); err != nil { http.Error(w, "conflict", http.StatusConflict); return }
+		if err := h.Service.Create(r.Context(), item); err != nil { writeGeneratedMutationError(w, r, err); return }
 		write%sJSON(w, http.StatusCreated, item)
 	case http.MethodPut, http.MethodPatch:
 		if id == "" || !h.Policy.CanUpdate(r.Context(), id) { http.Error(w, "forbidden", http.StatusForbidden); return }
 		var item %s
 		if !decode%sJSON(w, r, &item) { return }
 		item.ID = id
-		if err := h.Service.Update(r.Context(), item); err != nil { http.Error(w, "conflict", http.StatusConflict); return }
+		if err := h.Service.Update(r.Context(), item); err != nil { writeGeneratedMutationError(w, r, err); return }
 		write%sJSON(w, http.StatusOK, item)
 	case http.MethodDelete:
 		if id == "" || !h.Policy.CanDelete(r.Context(), id) { http.Error(w, "forbidden", http.StatusForbidden); return }
@@ -853,6 +854,29 @@ func write%sJSON(w http.ResponseWriter, status int, value any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
+func writeGeneratedErrorJSON(w http.ResponseWriter, r *http.Request, status int, code, message string, fields map[string]string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	requestID := r.Header.Get("X-Request-ID")
+	if len(requestID) > 64 { requestID = "" }
+	for _, ch := range requestID { if !(ch >= 'a' && ch <= 'z') && !(ch >= 'A' && ch <= 'Z') && !(ch >= '0' && ch <= '9') && ch != '-' && ch != '_' && ch != '.' { requestID = ""; break } }
+	payload := map[string]any{"code": code, "message": message, "request_id": requestID}
+	if fields != nil { payload["fields"] = fields }
+	_ = json.NewEncoder(w).Encode(payload)
+}
+var ErrResourceConflict = errors.New("resource conflict")
+func writeGeneratedMutationError(w http.ResponseWriter, r *http.Request, err error) {
+	var validation FieldValidationError
+	if errors.As(err, &validation) {
+		writeGeneratedErrorJSON(w, r, http.StatusUnprocessableEntity, "validation_failed", "One or more fields are invalid.", map[string]string{validation.Field: validation.Code})
+		return
+	}
+	if errors.Is(err, ErrResourceConflict) {
+		writeGeneratedErrorJSON(w, r, http.StatusConflict, "conflict", "The request conflicts with current resource state.", nil)
+		return
+	}
+	writeGeneratedErrorJSON(w, r, http.StatusInternalServerError, "internal_error", "The request could not be completed.", nil)
+}
 func parse%sListQuery(r *http.Request) (hydroquery.ResourceQuery, error) {
 	return hydroquery.ParseResourceQuery(r.URL.Query(), queryFields)
 }
@@ -867,6 +891,7 @@ package generated
 
 import (
     "encoding/json"
+    "errors"
     "net/http"
     "strings"
     hydroquery "github.com/ardaozyildirim/hydrogo/extension/v1"
@@ -885,9 +910,9 @@ func (h %sHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         if id == "" { if !h.Policy.CanRead(r.Context(), "") { http.Error(w, "forbidden", http.StatusForbidden); return }; query, err := hydroquery.ParseResourceQuery(r.URL.Query(), queryFields); if err != nil { http.Error(w, "invalid query", http.StatusBadRequest); return }; items, err := h.Service.List(r.Context(), tenantID, query); if err != nil { http.Error(w, "invalid query", http.StatusBadRequest); return }; write%sJSON(w, http.StatusOK, items); return }
         if !h.Policy.CanRead(r.Context(), id) { http.Error(w, "not found", http.StatusNotFound); return }; item, err := h.Service.Get(r.Context(), tenantID, id); if err != nil { http.Error(w, "not found", http.StatusNotFound); return }; write%sJSON(w, http.StatusOK, item)
     case http.MethodPost:
-        if id != "" || !h.Policy.CanCreate(r.Context()) { http.Error(w, "forbidden", http.StatusForbidden); return }; var item %s; if !decode%sJSON(w, r, &item) { return }; if err := h.Service.Create(r.Context(), tenantID, item); err != nil { http.Error(w, "conflict", http.StatusConflict); return }; write%sJSON(w, http.StatusCreated, item)
+        if id != "" || !h.Policy.CanCreate(r.Context()) { http.Error(w, "forbidden", http.StatusForbidden); return }; var item %s; if !decode%sJSON(w, r, &item) { return }; if err := h.Service.Create(r.Context(), tenantID, item); err != nil { writeGeneratedMutationError(w, r, err); return }; write%sJSON(w, http.StatusCreated, item)
     case http.MethodPut, http.MethodPatch:
-        if id == "" || !h.Policy.CanUpdate(r.Context(), id) { http.Error(w, "forbidden", http.StatusForbidden); return }; var item %s; if !decode%sJSON(w, r, &item) { return }; item.ID = id; if err := h.Service.Update(r.Context(), tenantID, item); err != nil { http.Error(w, "conflict", http.StatusConflict); return }; write%sJSON(w, http.StatusOK, item)
+        if id == "" || !h.Policy.CanUpdate(r.Context(), id) { http.Error(w, "forbidden", http.StatusForbidden); return }; var item %s; if !decode%sJSON(w, r, &item) { return }; item.ID = id; if err := h.Service.Update(r.Context(), tenantID, item); err != nil { writeGeneratedMutationError(w, r, err); return }; write%sJSON(w, http.StatusOK, item)
     case http.MethodDelete:
         if id == "" || !h.Policy.CanDelete(r.Context(), id) { http.Error(w, "forbidden", http.StatusForbidden); return }; if err := h.Service.Delete(r.Context(), tenantID, id); err != nil { http.Error(w, "not found", http.StatusNotFound); return }; w.WriteHeader(http.StatusNoContent)
     default: w.Header().Set("Allow", "GET, POST, PUT, PATCH, DELETE"); w.WriteHeader(http.StatusMethodNotAllowed)
@@ -895,6 +920,9 @@ func (h %sHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 func decode%sJSON(w http.ResponseWriter, r *http.Request, dst any) bool { r.Body = http.MaxBytesReader(w, r.Body, 1<<20); decoder := json.NewDecoder(r.Body); decoder.DisallowUnknownFields(); if err := decoder.Decode(dst); err != nil { http.Error(w, "invalid request", http.StatusBadRequest); return false }; return true }
 func write%sJSON(w http.ResponseWriter, status int, value any) { w.Header().Set("Content-Type", "application/json"); w.WriteHeader(status); _ = json.NewEncoder(w).Encode(value) }
+func writeGeneratedErrorJSON(w http.ResponseWriter, r *http.Request, status int, code, message string, fields map[string]string) { w.Header().Set("Content-Type", "application/json"); w.WriteHeader(status); requestID := r.Header.Get("X-Request-ID"); if len(requestID) > 64 { requestID = "" }; for _, ch := range requestID { if !(ch >= 'a' && ch <= 'z') && !(ch >= 'A' && ch <= 'Z') && !(ch >= '0' && ch <= '9') && ch != '-' && ch != '_' && ch != '.' { requestID = ""; break } }; payload := map[string]any{"code": code, "message": message, "request_id": requestID}; if fields != nil { payload["fields"] = fields }; _ = json.NewEncoder(w).Encode(payload) }
+var ErrResourceConflict = errors.New("resource conflict")
+func writeGeneratedMutationError(w http.ResponseWriter, r *http.Request, err error) { var validation FieldValidationError; if errors.As(err, &validation) { writeGeneratedErrorJSON(w, r, http.StatusUnprocessableEntity, "validation_failed", "One or more fields are invalid.", map[string]string{validation.Field: validation.Code}); return }; if errors.Is(err, ErrResourceConflict) { writeGeneratedErrorJSON(w, r, http.StatusConflict, "conflict", "The request conflicts with current resource state.", nil); return }; writeGeneratedErrorJSON(w, r, http.StatusInternalServerError, "internal_error", "The request could not be completed.", nil) }
 `, name, spec.Name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name, name)
 }
 
@@ -1199,6 +1227,8 @@ func renderOpenAPI(spec Spec) string {
 		"401": map[string]any{"description": "Authentication required", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
 		"403": map[string]any{"description": "Forbidden", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
 		"404": map[string]any{"description": "Not found", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+		"409": map[string]any{"description": "Resource conflict", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
+		"422": map[string]any{"description": "Field validation failed", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
 		"429": map[string]any{"description": "Rate limited", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
 		"500": map[string]any{"description": "Server error", "content": map[string]any{"application/json": map[string]any{"schema": errorRef}}},
 	}
@@ -1209,7 +1239,20 @@ func renderOpenAPI(spec Spec) string {
 		map[string]any{"name": "order", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"asc", "desc"}}},
 		map[string]any{"name": "filter.*", "in": "query", "description": "Bounded field filter; keys and values are validated by the resource contract.", "schema": map[string]any{"type": "string", "maxLength": 256}},
 	}
-	path := map[string]any{"get": map[string]any{"parameters": parameters, "responses": responses}}
+	modelRef := map[string]any{"$ref": "#/components/schemas/" + exportName(spec.Name)}
+	requestBody := map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": modelRef}}}
+	path := map[string]any{
+		"get":  map[string]any{"parameters": parameters, "responses": responses},
+		"post": map[string]any{"requestBody": requestBody, "responses": map[string]any{"201": map[string]any{"description": "Created", "content": map[string]any{"application/json": map[string]any{"schema": modelRef}}}, "400": responses["400"], "403": responses["403"], "409": responses["409"], "422": responses["422"], "500": responses["500"]}},
+	}
+	idParameter := map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "string"}}
+	path["/{id}"] = map[string]any{
+		"parameters": []any{idParameter},
+		"get":        map[string]any{"parameters": []any{idParameter}, "responses": map[string]any{"200": map[string]any{"description": "OK", "content": map[string]any{"application/json": map[string]any{"schema": modelRef}}}, "403": responses["403"], "404": responses["404"], "500": responses["500"]}},
+		"put":        map[string]any{"parameters": []any{idParameter}, "requestBody": requestBody, "responses": map[string]any{"200": map[string]any{"description": "Updated", "content": map[string]any{"application/json": map[string]any{"schema": modelRef}}}, "400": responses["400"], "403": responses["403"], "409": responses["409"], "422": responses["422"], "500": responses["500"]}},
+		"patch":      map[string]any{"parameters": []any{idParameter}, "requestBody": requestBody, "responses": map[string]any{"200": map[string]any{"description": "Updated", "content": map[string]any{"application/json": map[string]any{"schema": modelRef}}}, "400": responses["400"], "403": responses["403"], "409": responses["409"], "422": responses["422"], "500": responses["500"]}},
+		"delete":     map[string]any{"parameters": []any{idParameter}, "responses": map[string]any{"204": map[string]any{"description": "Deleted"}, "403": responses["403"], "404": responses["404"], "500": responses["500"]}},
+	}
 	errorSchema := map[string]any{"type": "object", "required": []string{"code", "message", "request_id"}, "properties": map[string]any{
 		"code": map[string]any{"type": "string"}, "message": map[string]any{"type": "string"}, "fields": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}}, "request_id": map[string]any{"type": "string"},
 	}}
@@ -1616,13 +1659,8 @@ func renderValidation(spec Spec) string {
 	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 	var b strings.Builder
 	needsRegex := false
-	needsErrors := false
 	formats := map[string]bool{}
 	for _, field := range fields {
-		if !field.Nullable && (strings.EqualFold(field.Type, "string") || strings.EqualFold(field.Type, "text") || strings.EqualFold(field.Type, "uuid")) ||
-			field.Validation.MinLength != nil || field.Validation.MaxLength != nil || field.Validation.Min != nil || field.Validation.Max != nil || field.Validation.Regex != "" || field.Validation.Format != "" {
-			needsErrors = true
-		}
 		if field.Validation.Regex != "" {
 			needsRegex = true
 		}
@@ -1631,11 +1669,8 @@ func renderValidation(spec Spec) string {
 		}
 	}
 	b.WriteString("// Code generated by hydrogo generator; validation rules come from the reviewed Blueprint.\npackage generated\n\n")
-	if needsErrors || needsRegex {
+	if needsRegex || len(formats) > 0 || fieldsHaveTextLength(fields) {
 		b.WriteString("import (\n")
-		if needsErrors {
-			b.WriteString("    \"errors\"\n")
-		}
 		if needsRegex {
 			b.WriteString("    \"fmt\"\n    \"regexp\"\n")
 		}
@@ -1658,39 +1693,41 @@ func renderValidation(spec Spec) string {
 		goName := goFieldName(field.Name)
 		value := "item." + goName
 		if !field.Nullable && (strings.EqualFold(field.Type, "string") || strings.EqualFold(field.Type, "text") || strings.EqualFold(field.Type, "uuid")) {
-			fmt.Fprintf(&b, "    if %s == \"\" { return errors.New(\"%s is required\") }\n", value, field.Name)
+			fmt.Fprintf(&b, "    if %s == \"\" { return FieldValidationError{Field: %q, Code: \"required\"} }\n", value, field.Name)
 		}
 		validation := field.Validation
 		if (strings.EqualFold(field.Type, "string") || strings.EqualFold(field.Type, "text")) && (validation.MinLength != nil || validation.MaxLength != nil) {
-			fmt.Fprintf(&b, "    if !utf8.ValidString(%s) { return errors.New(%q) }\n", value, field.Name+" contains invalid text encoding")
+			fmt.Fprintf(&b, "    if !utf8.ValidString(%s) { return FieldValidationError{Field: %q, Code: \"invalid_text_encoding\"} }\n", value, field.Name)
 		}
 		if validation.MinLength != nil && (strings.EqualFold(field.Type, "string") || strings.EqualFold(field.Type, "text")) {
-			fmt.Fprintf(&b, "    if utf8.RuneCountInString(%s) < %d { return errors.New(\"%s is too short\") }\n", value, *validation.MinLength, field.Name)
+			fmt.Fprintf(&b, "    if utf8.RuneCountInString(%s) < %d { return FieldValidationError{Field: %q, Code: \"too_short\"} }\n", value, *validation.MinLength, field.Name)
 		}
 		if validation.MaxLength != nil && (strings.EqualFold(field.Type, "string") || strings.EqualFold(field.Type, "text")) {
-			fmt.Fprintf(&b, "    if utf8.RuneCountInString(%s) > %d { return errors.New(\"%s is too long\") }\n", value, *validation.MaxLength, field.Name)
+			fmt.Fprintf(&b, "    if utf8.RuneCountInString(%s) > %d { return FieldValidationError{Field: %q, Code: \"too_long\"} }\n", value, *validation.MaxLength, field.Name)
 		}
 		if validation.Min != nil && (strings.EqualFold(field.Type, "int") || strings.EqualFold(field.Type, "integer") || strings.EqualFold(field.Type, "real") || strings.EqualFold(field.Type, "float")) {
-			fmt.Fprintf(&b, "    if float64(%s) < %v { return errors.New(\"%s is below minimum\") }\n", value, *validation.Min, field.Name)
+			fmt.Fprintf(&b, "    if float64(%s) < %v { return FieldValidationError{Field: %q, Code: \"below_minimum\"} }\n", value, *validation.Min, field.Name)
 		}
 		if validation.Max != nil && (strings.EqualFold(field.Type, "int") || strings.EqualFold(field.Type, "integer") || strings.EqualFold(field.Type, "real") || strings.EqualFold(field.Type, "float")) {
-			fmt.Fprintf(&b, "    if float64(%s) > %v { return errors.New(\"%s is above maximum\") }\n", value, *validation.Max, field.Name)
+			fmt.Fprintf(&b, "    if float64(%s) > %v { return FieldValidationError{Field: %q, Code: \"above_maximum\"} }\n", value, *validation.Max, field.Name)
 		}
 		if validation.Regex != "" {
-			fmt.Fprintf(&b, "    if ok, _ := regexp.MatchString(%q, fmt.Sprint(%s)); !ok { return errors.New(%q) }\n", validation.Regex, value, field.Name+" has invalid format")
+			fmt.Fprintf(&b, "    if ok, _ := regexp.MatchString(%q, fmt.Sprint(%s)); !ok { return FieldValidationError{Field: %q, Code: \"invalid_format\"} }\n", validation.Regex, value, field.Name)
 		}
 		switch validation.Format {
 		case "email":
-			fmt.Fprintf(&b, "    if parsed, err := mail.ParseAddress(%s); err != nil || parsed.Address != %s || parsed.Name != \"\" { return errors.New(%q) }\n", value, value, field.Name+" has invalid email format")
+			fmt.Fprintf(&b, "    if parsed, err := mail.ParseAddress(%s); err != nil || parsed.Address != %s || parsed.Name != \"\" { return FieldValidationError{Field: %q, Code: \"invalid_format\"} }\n", value, value, field.Name)
 		case "date":
-			fmt.Fprintf(&b, "    if _, err := time.Parse(\"2006-01-02\", %s); err != nil { return errors.New(%q) }\n", value, field.Name+" has invalid date format")
+			fmt.Fprintf(&b, "    if _, err := time.Parse(\"2006-01-02\", %s); err != nil { return FieldValidationError{Field: %q, Code: \"invalid_format\"} }\n", value, field.Name)
 		case "datetime":
-			fmt.Fprintf(&b, "    if _, err := time.Parse(time.RFC3339, %s); err != nil { return errors.New(%q) }\n", value, field.Name+" has invalid datetime format")
+			fmt.Fprintf(&b, "    if _, err := time.Parse(time.RFC3339, %s); err != nil { return FieldValidationError{Field: %q, Code: \"invalid_format\"} }\n", value, field.Name)
 		case "url":
-			fmt.Fprintf(&b, "    if parsed, err := url.ParseRequestURI(%s); err != nil || !parsed.IsAbs() || parsed.Host == \"\" || (parsed.Scheme != \"http\" && parsed.Scheme != \"https\") { return errors.New(%q) }\n", value, field.Name+" has invalid URL format")
+			fmt.Fprintf(&b, "    if parsed, err := url.ParseRequestURI(%s); err != nil || !parsed.IsAbs() || parsed.Host == \"\" || (parsed.Scheme != \"http\" && parsed.Scheme != \"https\") { return FieldValidationError{Field: %q, Code: \"invalid_format\"} }\n", value, field.Name)
 		}
 	}
 	b.WriteString("    return nil\n}\n\n")
+	b.WriteString("type FieldValidationError struct { Field string; Code string }\n")
+	b.WriteString("func (e FieldValidationError) Error() string { return \"field validation failed\" }\n\n")
 	if spec.Type == "global" {
 		fmt.Fprintf(&b, "const %sGlobalID = \"global\"\n\n", name)
 	}
