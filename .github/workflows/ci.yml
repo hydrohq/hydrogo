@@ -223,6 +223,8 @@ jobs:
           go test -tags hydro_compact ./internal/database ./internal/tenant ./internal/config -count=1
           go test -tags hydro_no_graphql ./cmd/hydro -count=1
           go test -tags hydro_compact,hydro_no_graphql ./cmd/hydro ./internal/database ./internal/tenant ./internal/config -count=1
+          go test -tags hydro_no_otlp ./cmd/hydro ./internal/observability -count=1
+          go test -tags hydro_compact,hydro_no_graphql,hydro_no_otlp ./cmd/hydro ./internal/config ./internal/database ./internal/tenant ./internal/observability -count=1
       - name: Lint theme token references
         shell: pwsh
         run: ./scripts/theme-token-lint.ps1
