@@ -454,6 +454,10 @@ func TestGeneratedTenantScopedResourceBindsTenantContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	wiring, err := os.ReadFile(filepath.Join(root, "generated", "invoice", "RUNTIME_WIRING.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	checks := []struct {
 		name    string
 		data    []byte
@@ -464,6 +468,7 @@ func TestGeneratedTenantScopedResourceBindsTenantContract(t *testing.T) {
 		{"service", service, []string{"Create(ctx context.Context, tenantID string", "Update(ctx context.Context, tenantID string"}},
 		{"transport", transport, []string{"ResolveTenant", "h.ResolveTenant", "Service.List(r.Context(), tenantID"}},
 		{"migration", migration, []string{"tenant_id TEXT NOT NULL", "CREATE INDEX invoices_tenant_id_idx ON invoices (tenant_id, id)"}},
+		{"runtime wiring", wiring, []string{"tenant.VerifyProvisioningRLSForTables"}},
 	}
 	for _, check := range checks {
 		for _, marker := range check.markers {
