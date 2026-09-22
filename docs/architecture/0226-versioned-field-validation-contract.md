@@ -21,4 +21,6 @@ tenant scope remain explicit migration/service responsibilities.
 ## Verification
 
 Blueprint tests cover strict decoding and mapping of validation metadata;
-generator validation covers invalid bounds, formats and regular expressions.
+generator validation covers invalid bounds, formats and regular expressions;
+generated `validation.go` is called by generated service Create/Update methods
+and is compiled in the fixture suite.
