@@ -32,6 +32,6 @@ These are regression limits, not customer hardware promises.
 
 ## Remaining gaps
 
-Redis/Valkey, full Client Edition composition, module-aware command/runtime
-selection, production startup/RSS/capacity budgets, and clean deployment
-certification remain open.
+R127 records the later Redis/Valkey separation. Full Client Edition
+composition, module-aware command/runtime selection, production startup/RSS/
+capacity budgets, and clean deployment certification remain open.

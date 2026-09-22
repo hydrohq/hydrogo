@@ -507,6 +507,9 @@ func (c Config) Validate() error {
 	if err := validateMediaStorageBuild(c.Media.StorageDriver); err != nil {
 		return err
 	}
+	if err := validateRedisBuild(c.Redis.URL); err != nil {
+		return err
+	}
 	if c.Media.StorageDriver == "s3" && (strings.TrimSpace(c.Media.S3Endpoint) == "" || strings.TrimSpace(c.Media.S3Bucket) == "") {
 		return errors.New("s3 media storage requires endpoint and bucket")
 	}

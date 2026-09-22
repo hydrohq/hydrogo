@@ -15,6 +15,8 @@ $otlpVariant = if ($env:HYDRO_OTLP) { $env:HYDRO_OTLP.ToLowerInvariant() } else 
 if ($otlpVariant -notin @("enabled", "disabled")) { throw "HYDRO_OTLP must be 'enabled' or 'disabled'." }
 $s3Variant = if ($env:HYDRO_S3) { $env:HYDRO_S3.ToLowerInvariant() } else { "enabled" }
 if ($s3Variant -notin @("enabled", "disabled")) { throw "HYDRO_S3 must be 'enabled' or 'disabled'." }
+$redisVariant = if ($env:HYDRO_REDIS) { $env:HYDRO_REDIS.ToLowerInvariant() } else { "enabled" }
+if ($redisVariant -notin @("enabled", "disabled")) { throw "HYDRO_REDIS must be 'enabled' or 'disabled'." }
 if ([string]::IsNullOrWhiteSpace($trustedKeys)) { throw "HYDRO_TRUSTED_PUBLIC_KEYS is required; do not build an untrusted customer runtime." }
 if ([string]::IsNullOrWhiteSpace($license) -or -not (Test-Path -LiteralPath $license -PathType Leaf)) { throw "HYDRO_CUSTOMER_LICENSE must point to a signed hydro.lic file." }
 $license = (Resolve-Path -LiteralPath $license).Path
@@ -29,6 +31,7 @@ if ($databaseVariant -eq "sqlite") { $buildTags += "hydro_compact" }
 if ($graphqlVariant -eq "disabled") { $buildTags += "hydro_no_graphql" }
 if ($otlpVariant -eq "disabled") { $buildTags += "hydro_no_otlp" }
 if ($s3Variant -eq "disabled") { $buildTags += "hydro_no_s3" }
+if ($redisVariant -eq "disabled") { $buildTags += "hydro_no_redis" }
 if ($buildTags.Count -gt 0) { $buildArgs += @("-tags", ($buildTags -join ",")) }
 $buildArgs += @("-o", $binary, "./cmd/hydro")
 if ($env:HYDRO_OBFUSCATE -eq "true") {
@@ -54,5 +57,5 @@ $forbidden = Get-ChildItem -LiteralPath $out -Recurse -Force -File | Where-Objec
     $_.FullName -match '(^|[\\/])\.git([\\/]|$)|(^|[\\/])(internal|modules|cmd)([\\/]|$)|(^|[\\/])go\.(mod|sum)$|\.key$|private'
 }
 if ($forbidden) { throw "forbidden source/signing material found in customer package: $($forbidden.FullName -join ', ')" }
-@("# HydroGo customer runtime package", "", "- Binary: hydro.exe", "- License: hydro.lic", "- Database variant: $databaseVariant", "- GraphQL: $graphqlVariant", "- OTLP: $otlpVariant", "- S3: $s3Variant", "- Source modules/Core: not included", "- Obfuscated: $($env:HYDRO_OBFUSCATE -eq 'true')", "- Build commit: $((git rev-parse HEAD).Trim())") | Set-Content -LiteralPath (Join-Path $out "PACKAGE-MANIFEST.md") -Encoding utf8
+@("# HydroGo customer runtime package", "", "- Binary: hydro.exe", "- License: hydro.lic", "- Database variant: $databaseVariant", "- GraphQL: $graphqlVariant", "- OTLP: $otlpVariant", "- S3: $s3Variant", "- Redis: $redisVariant", "- Source modules/Core: not included", "- Obfuscated: $($env:HYDRO_OBFUSCATE -eq 'true')", "- Build commit: $((git rev-parse HEAD).Trim())") | Set-Content -LiteralPath (Join-Path $out "PACKAGE-MANIFEST.md") -Encoding utf8
 Write-Host "PASS: customer runtime package created at $out"

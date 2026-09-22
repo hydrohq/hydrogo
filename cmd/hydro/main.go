@@ -87,7 +87,6 @@ import (
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
 	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
 	staticassets "github.com/ardaozyildirim/hydrogo/static"
-	"github.com/redis/go-redis/v9"
 )
 
 type pageCache interface {
@@ -95,17 +94,6 @@ type pageCache interface {
 	GetOrLoadAtGeneration(string, uint64, func() (pages.Page, error)) (pages.Page, error)
 	Clear()
 	Stats() cache.Stats
-}
-
-func newPageCache(enabled bool, budget capacity.Budget, redisClient *redis.Client, prefix string) (pageCache, error) {
-	if !enabled {
-		return nil, nil
-	}
-	local := cache.New[pages.Page](budget.CacheEntries, budget.CacheTTL)
-	if redisClient == nil {
-		return local, nil
-	}
-	return cache.NewTwoTier(local, cache.RedisJSONRemote[pages.Page]{Client: redisClient, Prefix: prefix + "hydro:cache:page:", TTL: budget.CacheTTL})
 }
 
 const version = "0.0.0-dev"
@@ -1224,25 +1212,13 @@ func serve(args []string, stderr io.Writer) error {
 	mfaService := &auth.MFAService{Store: userStore, MasterKey: []byte(cfg.Security.MFAMasterKey)}
 	recoveryService := &auth.PasswordRecovery{Users: userStore, Tokens: userStore, Sessions: sessionStore, ArgonParams: auth.DefaultArgon2Params}
 	invitationService := &auth.InvitationService{Users: userStore, Invites: userStore, ArgonParams: auth.DefaultArgon2Params}
-	var redisClient *redis.Client
-	if cfg.Redis.URL != "" {
-		redisClient, err = security.NewRedisClient(ctx, cfg.Redis.URL)
-		if err != nil {
-			return fmt.Errorf("connect redis: %w", err)
-		}
-		defer redisClient.Close()
+	redisClient, err := newRedisRuntime(ctx, cfg.Redis.URL)
+	if err != nil {
+		return fmt.Errorf("connect redis: %w", err)
 	}
+	defer redisClient.Close()
 	newRateLimiter := func(limit int, window time.Duration) security.RateLimiter {
-		var limiter security.RateLimiter
-		if redisClient != nil {
-			limiter = security.RedisRateLimiter{Client: redisClient, Prefix: cfg.Redis.KeyPrefix + "hydro:ratelimit:", Limit: limit, Window: window}
-		} else {
-			limiter = security.NewAttemptLimiter(10000, limit, window)
-		}
-		if requireTenantScope {
-			return security.TenantScopedRateLimiter{Inner: limiter}
-		}
-		return limiter
+		return newRuntimeRateLimiter(redisClient, cfg.Redis.KeyPrefix, limit, window, requireTenantScope)
 	}
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}

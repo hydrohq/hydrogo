@@ -1,3 +1,5 @@
+//go:build !hydro_no_redis
+
 package security
 
 import (

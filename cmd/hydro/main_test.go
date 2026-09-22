@@ -98,10 +98,10 @@ func TestPageCacheConstructionFollowsModuleActivation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pageCache, err := newPageCache(false, budget, nil, ""); err != nil || pageCache != nil {
+	if pageCache, err := newPageCache(false, budget, redisRuntime{}, ""); err != nil || pageCache != nil {
 		t.Fatalf("inactive page cache = %#v err=%v, want nil", pageCache, err)
 	}
-	if pageCache, err := newPageCache(true, budget, nil, ""); err != nil || pageCache == nil {
+	if pageCache, err := newPageCache(true, budget, redisRuntime{}, ""); err != nil || pageCache == nil {
 		t.Fatalf("active page cache = %#v err=%v, want non-nil", pageCache, err)
 	}
 }

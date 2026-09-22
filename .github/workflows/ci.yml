@@ -227,6 +227,12 @@ jobs:
           go test -tags hydro_compact,hydro_no_graphql,hydro_no_otlp ./cmd/hydro ./internal/config ./internal/database ./internal/tenant ./internal/observability -count=1
           go test -tags hydro_no_s3 ./cmd/hydro ./internal/config ./internal/media -count=1
           go test -tags hydro_compact,hydro_no_graphql,hydro_no_otlp,hydro_no_s3 ./cmd/hydro ./internal/config ./internal/database ./internal/tenant ./internal/observability ./internal/media -count=1
+          Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue
+          go test -tags hydro_no_redis ./cmd/hydro ./internal/config ./internal/cache ./internal/security ./internal/security/bffsession ./internal/server -count=1
+          $testExit = $LASTEXITCODE
+          if ($testExit -ne 0) { exit $testExit }
+          go test -tags hydro_compact,hydro_no_graphql,hydro_no_otlp,hydro_no_s3,hydro_no_redis ./cmd/hydro ./internal/config ./internal/database ./internal/tenant ./internal/observability ./internal/media ./internal/cache ./internal/security ./internal/security/bffsession ./internal/server -count=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Lint theme token references
         shell: pwsh
         run: ./scripts/theme-token-lint.ps1
