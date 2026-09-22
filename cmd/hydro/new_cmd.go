@@ -90,7 +90,7 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 	}
 	// Re-enter the canonical scaffold pipeline; interactive mode never grows a
 	// second generator or bypasses the generated/custom boundary.
-	return generateScaffoldCommand([]string{"--blueprint", path, "--out", *out}, stdin, stdout, stderr)
+	return generateScaffoldCommand([]string{"--blueprint", path, "--out", *out}, stdout, stderr)
 }
 
 func projectCheckCommand(args []string, stdout, stderr io.Writer) error {
