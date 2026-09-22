@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/telemetry"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -97,6 +98,8 @@ func (t Transactor) Within(ctx context.Context, fn func(Executor) error) error {
 		return errors.New("transaction callback is required")
 	}
 	ctx = nonNilContext(ctx)
+	ctx, span := telemetry.StartSpan(ctx, "database", "transaction")
+	defer span.End()
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -132,6 +135,8 @@ func (t Transactor) WithinQuery(ctx context.Context, fn func(QueryExecutor) erro
 		return errors.New("transaction callback is required")
 	}
 	ctx = nonNilContext(ctx)
+	ctx, span := telemetry.StartSpan(ctx, "database", "transaction.query")
+	defer span.End()
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
