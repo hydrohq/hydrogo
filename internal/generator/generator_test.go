@@ -388,6 +388,25 @@ func TestGeneratedServiceBindsValidationContract(t *testing.T) {
 	}
 }
 
+func TestGeneratedGlobalServiceNormalizesSingletonID(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "settings", Type: "global", Table: "settings", Fields: []Field{{Name: "site_title", Type: "string"}}, Permissions: []string{"settings.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	validation, err := os.ReadFile(filepath.Join(root, "generated", "settings", "validation.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := os.ReadFile(filepath.Join(root, "generated", "settings", "service.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(validation, []byte(`const SettingsGlobalID = "global"`)) || !bytes.Contains(validation, []byte("item.ID = SettingsGlobalID")) || !bytes.Contains(service, []byte("item.normalize()")) {
+		t.Fatalf("global singleton normalization missing: validation=%s service=%s", validation, service)
+	}
+}
+
 func TestLoadSpecUsesVersionedStrictYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "testimonial.yaml")
 	content := `version: v0

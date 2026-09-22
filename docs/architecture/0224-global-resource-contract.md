@@ -37,4 +37,6 @@ the reverse) is a breaking schema diff and requires an explicit migration plan.
 `internal/generator` tests cover `type: global`, default collection behavior,
 strict Blueprint decoding and generated Spec metadata. Edition-level global
 persistence and PostgreSQL/SQLite singleton race certification remain a
-follow-up implementation gate.
+follow-up implementation gate. Generated global services normalize the ID to a
+stable `global` key before validation and persistence; this is defense in depth,
+not a replacement for the transaction/database invariant.
