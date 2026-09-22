@@ -134,6 +134,10 @@ ve ADR-0091'e bakın.
   yüzeylerini açık tenant parametresi ve fail-closed resolver ile üretir;
   gerçek PostgreSQL RLS, provisioning, quota ve restore kabulü hâlâ üretim
   kapısıdır (ADR-0235).
+- **Admin bulk execution primitive:** Tamamlandı (Core contract seviyesinde).
+  Module-owned callback ile sıralı, bounded ve callback hata metnini sızdırmayan
+  sonuç üretimi eklendi; authorization, idempotency, audit ve transaction
+  semantiği Edition/module sorumluluğunda kalıyor (ADR-0236).
 - **Faz 4 (kit ekosistemi):** Kısmi. Kit/edition sözleşmeleri mevcut; registry,
   dependency çözümleme ve uyumluluk matrisi tamamlanmadı.
 - **Faz 5 (frontend SDK/starter):** Kısmi. Adapter sözleşmeleri, typed client/query akışı, disposable SQLite demo ve 47 testli yerel Chromium E2E kanıtı var; harici Client Edition ve production kimlik doğrulama kabulü tamamlanmadı.
