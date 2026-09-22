@@ -45,3 +45,10 @@ func TestTypedDataComponentsEscapeValuesAndRenderHTMX(t *testing.T) {
 		t.Fatalf("table output was not escaped: %s", out)
 	}
 }
+
+func TestSidebarEscapesModuleMetadataAndMarksActiveItem(t *testing.T) {
+	out := render(t, Sidebar([]SidebarItem{{Route: "/admin/news", Label: `<News>`, Icon: `book"`, Group: "Content", Active: true}}))
+	if !strings.Contains(out, `href="/admin/news"`) || !strings.Contains(out, `is-active`) || !strings.Contains(out, `&lt;News&gt;`) || strings.Contains(out, `<News>`) || strings.Contains(out, `book"`) {
+		t.Fatalf("sidebar output was not safely rendered: %s", out)
+	}
+}

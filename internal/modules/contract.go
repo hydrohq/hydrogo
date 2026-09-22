@@ -17,6 +17,27 @@ type Manifest struct {
 	Migrations   []string
 	Assets       []string
 	Workers      []WorkerSpec
+	Admin        AdminManifest
+}
+
+// AdminManifest is optional presentation metadata for the authenticated
+// admin surface. It contributes no route or authorization by itself; those
+// remain explicit module contracts.
+type AdminManifest struct {
+	Route string
+	Label string
+	Icon  string
+	Group string
+	Order int
+}
+
+type AdminNavigationItem struct {
+	ModuleID string
+	Route    string
+	Label    string
+	Icon     string
+	Group    string
+	Order    int
 }
 
 type RouteSpec struct {
@@ -69,4 +90,31 @@ func (r *Registry) Manifests() []Manifest {
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
 	return result
+}
+
+// AdminNavigation returns only valid admin declarations from active,
+// declarative modules. It is deterministic so generated HTML and cache keys
+// remain stable across process restarts.
+func (r *Registry) AdminNavigation() []AdminNavigationItem {
+	if r == nil {
+		return nil
+	}
+	items := make([]AdminNavigationItem, 0)
+	for _, manifest := range r.Manifests() {
+		admin := manifest.Admin
+		if strings.TrimSpace(admin.Route) == "" || !strings.HasPrefix(admin.Route, "/") || strings.HasPrefix(admin.Route, "//") || strings.TrimSpace(admin.Label) == "" {
+			continue
+		}
+		items = append(items, AdminNavigationItem{ModuleID: manifest.ID, Route: admin.Route, Label: admin.Label, Icon: admin.Icon, Group: admin.Group, Order: admin.Order})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if strings.ToLower(items[i].Group) != strings.ToLower(items[j].Group) {
+			return strings.ToLower(items[i].Group) < strings.ToLower(items[j].Group)
+		}
+		if items[i].Order != items[j].Order {
+			return items[i].Order < items[j].Order
+		}
+		return items[i].ModuleID < items[j].ModuleID
+	})
+	return items
 }

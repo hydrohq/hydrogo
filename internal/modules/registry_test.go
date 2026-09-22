@@ -17,7 +17,7 @@ type dummyModule struct {
 type declarativeModule struct{ dummyModule }
 
 func (declarativeModule) ModuleManifest() Manifest {
-	return Manifest{ID: "sample", Dependencies: []string{"pages"}, Routes: []RouteSpec{{Pattern: "GET /sample", Public: true}}, Migrations: []string{"20260921_sample"}, Assets: []string{"sample.css"}, Workers: []WorkerSpec{{ID: "sample-index"}}}
+	return Manifest{ID: "sample", Dependencies: []string{"pages"}, Routes: []RouteSpec{{Pattern: "GET /sample", Public: true}}, Migrations: []string{"20260921_sample"}, Assets: []string{"sample.css"}, Workers: []WorkerSpec{{ID: "sample-index"}}, Admin: AdminManifest{Route: "/admin/sample", Label: "Sample", Icon: "box", Group: "Content", Order: 10}}
 }
 
 func TestRegisterRejectsTypedNilModule(t *testing.T) {
@@ -119,4 +119,47 @@ func TestInactiveDeclarativeModuleContributesNoResources(t *testing.T) {
 	if len(reg.Manifests()) != 1 || reg.Manifests()[0].Migrations[0] != "20260921_sample" {
 		t.Fatalf("unexpected manifest: %#v", reg.Manifests())
 	}
+	items := reg.AdminNavigation()
+	if len(items) != 1 || items[0].Route != "/admin/sample" || items[0].Group != "Content" {
+		t.Fatalf("unexpected admin navigation: %#v", items)
+	}
 }
+
+func TestAdminNavigationSkipsInvalidDeclarationsAndSortsDeterministically(t *testing.T) {
+	reg := NewRegistry()
+	valid := declarativeModule{dummyModule{name: "zeta"}}
+	validManifest := valid.ModuleManifest()
+	validManifest.ID = "zeta"
+	validManifest.Admin = AdminManifest{Route: "/admin/zeta", Label: "Zeta", Group: "Content", Order: 2}
+	first := declarativeModule{dummyModule{name: "alpha"}}
+	firstManifest := first.ModuleManifest()
+	firstManifest.ID = "alpha"
+	firstManifest.Admin = AdminManifest{Route: "/admin/alpha", Label: "Alpha", Group: "Content", Order: 1}
+	// Use wrappers so each test module returns its own manifest.
+	modules := []struct {
+		module   declarativeModule
+		manifest Manifest
+	}{{valid, validManifest}, {first, firstManifest}}
+	for _, item := range modules {
+		module := manifestModule{Module: item.module.dummyModule, Manifest: item.manifest}
+		if err := reg.Register(module); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := reg.Register(manifestModule{Module: dummyModule{name: "invalid"}, Manifest: Manifest{ID: "invalid", Admin: AdminManifest{Route: "https://evil.example", Label: "Invalid"}}}); err != nil {
+		t.Fatal(err)
+	}
+	items := reg.AdminNavigation()
+	if len(items) != 2 || items[0].ModuleID != "alpha" || items[1].ModuleID != "zeta" {
+		t.Fatalf("unexpected sorted navigation: %#v", items)
+	}
+}
+
+type manifestModule struct {
+	Module   dummyModule
+	Manifest Manifest
+}
+
+func (m manifestModule) Name() string                    { return m.Module.Name() }
+func (m manifestModule) Routes() []extension.ModuleRoute { return m.Module.Routes() }
+func (m manifestModule) ModuleManifest() Manifest        { return m.Manifest }
