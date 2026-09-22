@@ -14,9 +14,7 @@ type AdminControlData struct {
 }
 
 var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<div class="control-container">
-	<!-- Üst Grid: Site Yapılandırması & Medya Hattı -->
 	<div class="dashboard-grid">
-		<!-- Site Yapılandırması & Redirects -->
 		<article class="studio-card dashboard-card">
 			<div class="dashboard-card-head">
 				<div class="card-title-group">
@@ -34,7 +32,6 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 			</div>
 
 			<div style="display:flex;flex-direction:column;gap:20px;">
-				<!-- Ayar Formu -->
 				<div>
 					<h3 style="font-size:0.95rem;font-weight:700;margin:0 0 10px;color:var(--ink);display:flex;align-items:center;gap:6px;">
 						<span>Ayar Kaydet / Güncelle</span>
@@ -56,7 +53,6 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 
 				<div style="height:1px;background:var(--line);"></div>
 
-				<!-- Redirect Formu -->
 				<div>
 					<h3 style="font-size:0.95rem;font-weight:700;margin:0 0 10px;color:var(--ink);">URL Yönlendirme (Redirect)</h3>
 					<form class="studio-form" id="redirect-form" style="margin-top:0;">
@@ -85,7 +81,6 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 			</div>
 		</article>
 
-		<!-- Medya Kütüphanesi & Asset Hattı -->
 		<article class="studio-card dashboard-card">
 			<div class="dashboard-card-head">
 				<div class="card-title-group">
@@ -148,9 +143,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 		</article>
 	</div>
 
-	<!-- Orta Grid: Kullanıcı & Davet, Sistem Tanıları -->
 	<div class="dashboard-grid">
-		<!-- Kullanıcı & Davet -->
 		<article class="studio-card dashboard-card">
 			<div class="dashboard-card-head">
 				<div class="card-title-group">
@@ -201,7 +194,6 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 			</div>
 		</article>
 
-		<!-- Sistem & Geliştirici Uçları -->
 		<article class="studio-card dashboard-card">
 			<div class="dashboard-card-head">
 				<div class="card-title-group">
@@ -258,7 +250,6 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 		</article>
 	</div>
 
-	<!-- Alt Bar: Hızlı Modül Kısayolları -->
 	<section class="studio-card" style="margin-top:0;">
 		<div class="dashboard-card-head" style="margin-bottom:14px;padding-bottom:10px;">
 			<div class="card-title-group">

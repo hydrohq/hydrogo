@@ -529,7 +529,6 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 <body class="login-body">
 <div class="login-layout">
 
-	<!-- Sol Bölüm: Platform Kimlik Paneli -->
 	<aside class="login-hero-pane">
 		<div class="hero-glow-sphere"></div>
 
@@ -551,7 +550,6 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 		</div>
 	</aside>
 
-	<!-- Sağ Bölüm: Giriş Formu -->
 	<main class="login-form-pane">
 		<div class="pane-top-actions">
 			<button id="theme-toggle-btn" class="theme-switch-btn" type="button" aria-label="Temayı Değiştir">
