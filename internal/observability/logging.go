@@ -30,6 +30,7 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("method", r.Method),
 				slog.String("path", boundedPath(r.URL.Path)),
 				slog.String("route", NormalizeRoute(r.URL.Path)),
+				slog.String("module", RouteModule(r.URL.Path)),
 				slog.Int("status", recorder.status),
 				slog.Int64("duration_ms", time.Since(started).Milliseconds()),
 				slog.Int64("request_bytes", r.ContentLength),
