@@ -1,6 +1,7 @@
 (() => {
   if (window.__hydroDesignSystemWidgets) return;
   window.__hydroDesignSystemWidgets = true;
+  document.querySelectorAll('link[data-hydro-late-style]').forEach(link => { link.rel = 'stylesheet'; link.removeAttribute('data-hydro-late-style'); });
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const each = (selector, fn, root = document) => root.querySelectorAll(selector).forEach(fn);
 

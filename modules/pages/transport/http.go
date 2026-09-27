@@ -27,6 +27,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	blockrender "github.com/ardaozyildirim/hydrogo/modules/pages/render"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
+	"github.com/ardaozyildirim/hydrogo/modules/seo"
+	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 type Handler struct {
@@ -39,6 +41,11 @@ type Handler struct {
 	AdminCollection   adminstudio.Collection
 	DefaultLocale     string
 	AllowDemoFrontend bool
+	SEOOrigin         string
+	OGBrand           func(context.Context) string
+	OGRenderer        *seo.OGRenderer
+	DiscoveryProvider seo.DiscoveryProvider
+	DiscoveryCache    *seo.DiscoveryCache
 }
 
 func (h Handler) defaultLocale() string {
@@ -79,7 +86,7 @@ type pageSummary struct {
 }
 
 func (h Handler) Routes() []Route {
-	return []Route{
+	routes := []Route{
 		{Pattern: "POST /api/pages", Handler: http.HandlerFunc(h.create), Protected: true},
 		{Pattern: "GET /api/pages", Handler: http.HandlerFunc(h.listPublished)},
 		{Pattern: "GET /api/pages/{id}", Handler: http.HandlerFunc(h.get), Protected: true},
@@ -89,6 +96,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /public/pages/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
 		{Pattern: "GET /api/pages/by-slug", Handler: http.HandlerFunc(h.getPublishedByQuery)},
 		{Pattern: "GET /public/pages/{locale}/{slug}/html", Handler: http.HandlerFunc(h.getPublishedHTML)},
+		{Pattern: "GET /og/{locale}/{slug}.png", Handler: http.HandlerFunc(h.openGraphImage)},
 		{Pattern: "GET /admin/pages/new", Handler: http.HandlerFunc(h.adminNewPage), Protected: true},
 		{Pattern: "GET /admin/pages/{id}", Handler: http.HandlerFunc(h.adminPage), Protected: true},
 		{Pattern: "GET /admin/pages", Handler: http.HandlerFunc(h.adminList), Protected: true},
@@ -96,6 +104,10 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/pages/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
 	}
+	for _, route := range seo.DiscoveryRoutes(h.DiscoveryProvider, h.DiscoveryCache) {
+		routes = append(routes, Route{Pattern: route.Pattern, Handler: route.Handler})
+	}
+	return routes
 }
 
 type adminListRepository interface {
@@ -264,6 +276,11 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	seoMeta, err := h.pageSEOMeta(r.Context(), page)
+	if err != nil {
+		http.Error(w, "page render failed", http.StatusInternalServerError)
+		return
+	}
 	designHead := ""
 	if pageHasDesignSystemBlocks(page.Blocks) {
 		var head bytes.Buffer
@@ -273,6 +290,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		designHead = head.String()
 	}
+	designHead += seoMeta
 	for i, block := range renderBlocks {
 		if block.Type != "faq" {
 			continue
@@ -316,6 +334,48 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body), blocks)
+}
+
+func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, error) {
+	origin := strings.TrimSpace(h.SEOOrigin)
+	if origin == "" {
+		return "", nil
+	}
+	ogInput := h.pageOGInput(ctx, page)
+	imagePath := "/og/" + url.PathEscape(page.Locale) + "/" + url.PathEscape(page.Slug) + ".png?v=" + seo.OGVersion(ogInput)
+	view, err := site.BuildSEO(site.SEOInput{Origin: origin, Locale: page.Locale, Path: "/" + page.Slug, Title: page.Title, OGImage: strings.TrimRight(origin, "/") + imagePath})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`<link rel="canonical" href="%s"><meta name="description" content="%s"><meta property="og:type" content="website"><meta property="og:title" content="%s"><meta property="og:description" content="%s"><meta property="og:url" content="%s"><meta property="og:image" content="%s"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="%s">`, template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.Description), template.HTMLEscapeString(view.OGTitle), template.HTMLEscapeString(view.OGDescription), template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.OGImage), template.HTMLEscapeString(view.OGImage)), nil
+}
+
+func (h Handler) pageOGInput(ctx context.Context, page pages.Page) seo.OGInput {
+	input := seo.OGInput{Title: page.Title, Category: "Page"}
+	if h.OGBrand != nil {
+		input.Brand = h.OGBrand(ctx)
+	}
+	return input
+}
+
+func (h Handler) openGraphImage(w http.ResponseWriter, r *http.Request) {
+	if h.OGRenderer == nil {
+		http.NotFound(w, r)
+		return
+	}
+	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
+	if err != nil || !h.publicPageAllowed(page) {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := h.OGRenderer.Render(h.pageOGInput(r.Context(), page))
+	if err != nil {
+		http.Error(w, "image unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	_, _ = w.Write(data)
 }
 
 func pageHasDesignSystemBlocks(blocks []pages.Block) bool {

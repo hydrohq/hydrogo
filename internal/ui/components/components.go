@@ -5,6 +5,7 @@ package components
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -32,6 +33,26 @@ type ButtonProps struct {
 	Class    string
 	Disabled bool
 	HTMX     HTMX
+}
+
+type LinkProps struct{ Href, Label, Class string }
+
+func Link(p LinkProps) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		if !validLocalPath(p.Href) {
+			return errors.New("link must use a local path")
+		}
+		class := ""
+		if strings.TrimSpace(p.Class) != "" {
+			class = ` class="` + esc(p.Class) + `"`
+		}
+		_, err := io.WriteString(w, `<a href="`+esc(p.Href)+`"`+class+`>`+esc(p.Label)+`</a>`)
+		return err
+	})
+}
+
+func validLocalPath(value string) bool {
+	return strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.ContainsAny(value, "?#\r\n\x00")
 }
 
 // InputProps describes a safe, accessible form input.

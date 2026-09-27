@@ -14,6 +14,11 @@ media:
 redis:
   url: ""
   key_prefix: "hydro:"
+# Analytics is an opt-in module. No-cookie daily visitor summaries also require
+# analytics.no_cookie_enabled and HYDRO_ANALYTICS_HASH_KEY (32+ random bytes).
+analytics:
+  no_cookie_enabled: false
+  hash_key: ""
 theme_dir: "themes"
 theme: "corporate"
 # Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,

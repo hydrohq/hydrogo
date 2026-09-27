@@ -99,6 +99,25 @@ func TestLoadTreatsNilEnvironmentLookupAsEmpty(t *testing.T) {
 	}
 }
 
+func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
+	if cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:analytics-disabled.sqlite"}), Overrides{}); err != nil || cfg.Analytics.NoCookieEnabled {
+		t.Fatalf("default analytics config=%+v err=%v", cfg.Analytics, err)
+	}
+	if _, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:analytics-bad.sqlite", "HYDRO_ANALYTICS_NO_COOKIE_ENABLED": "true"}), Overrides{}); err == nil || !strings.Contains(err.Error(), "analytics module") {
+		t.Fatalf("enabled analytics without shared key error=%v", err)
+	}
+	key := strings.Repeat("k", 32)
+	path := writeConfig(t, "modules: [core, analytics]\n")
+	_, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:analytics-bad-key.sqlite", "HYDRO_ANALYTICS_NO_COOKIE_ENABLED": "true", "HYDRO_ANALYTICS_HASH_KEY": "short"}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "at least 32 bytes") {
+		t.Fatalf("enabled analytics without sufficient key error=%v", err)
+	}
+	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:analytics-enabled.sqlite", "HYDRO_ANALYTICS_NO_COOKIE_ENABLED": "true", "HYDRO_ANALYTICS_HASH_KEY": key}), Overrides{})
+	if err != nil || !cfg.Analytics.NoCookieEnabled || cfg.Analytics.HashKey != key {
+		t.Fatalf("enabled analytics config=%+v err=%v", cfg.Analytics, err)
+	}
+}
+
 func TestLoadWebhookRequiresPublishedTopicAndExplicitPIIOptIn(t *testing.T) {
 	base := "webhooks:\n  - id: consumer\n    url: https://consumer.example.test/hooks\n    topics: [%s]\n"
 	for _, topic := range []string{"unknown.event", "user.invited"} {
@@ -137,6 +156,17 @@ func TestLoadTurnstileConfiguration(t *testing.T) {
 	}), Overrides{})
 	if err == nil || !strings.Contains(err.Error(), "configured together") {
 		t.Fatalf("partial Turnstile config error = %v", err)
+	}
+}
+
+func TestLoadSEOAssetDirectories(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SEO_OG_CACHE_DIR": "data/og", "HYDRO_SEO_FONTS_DIR": "public/fonts"}), Overrides{})
+	if err != nil || cfg.SEO.OGCacheDir != "data/og" || cfg.SEO.FontsDir != "public/fonts" {
+		t.Fatalf("SEO config=%#v err=%v", cfg.SEO, err)
+	}
+	_, err = Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SEO_FONTS_DIR": "fonts\nmalicious"}), Overrides{})
+	if err == nil {
+		t.Fatal("newline in font directory was accepted")
 	}
 }
 

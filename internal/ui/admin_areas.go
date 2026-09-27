@@ -1,15 +1,18 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 )
 
 type AdminAreaData struct {
@@ -219,6 +222,18 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 	email := template.HTMLEscapeString(data.Email)
 
 	switch data.Area {
+	case "site":
+		body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+			for _, link := range []uicomponents.LinkProps{{Href: "/admin/site/seo", Label: "SEO ayarları", Class: "button button-primary"}, {Href: "/admin/site/redirect-rules", Label: "Yönlendirmeler", Class: "button button-quiet"}} {
+				if err := uicomponents.Link(link).Render(ctx, output); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err := uicomponents.Card(uicomponents.CardProps{Title: "Site keşfi ve bağlantılar", Body: body}).Render(context.Background(), w); err != nil {
+			return err
+		}
 	case "developer":
 		if _, err := io.WriteString(w, renderDeveloperTabs("console")); err != nil {
 			return err

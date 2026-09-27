@@ -28,6 +28,18 @@ func TestButtonEscapesAndAllowlistsHTMX(t *testing.T) {
 	}
 }
 
+func TestTypedLinksRequireLocalPathsAndEscapeLabels(t *testing.T) {
+	out := render(t, Link(LinkProps{Href: "/admin/site/seo", Label: "<SEO>"}))
+	if !strings.Contains(out, `href="/admin/site/seo"`) || !strings.Contains(out, "&lt;SEO&gt;") {
+		t.Fatalf("typed link output=%s", out)
+	}
+	for _, href := range []string{"https://example.test", "//example.test", "/path?next=evil"} {
+		if err := Link(LinkProps{Href: href, Label: "open"}).Render(context.Background(), &bytes.Buffer{}); err == nil {
+			t.Errorf("unsafe link %q accepted", href)
+		}
+	}
+}
+
 func TestFormAndInputRenderCSRFAndEscapedValues(t *testing.T) {
 	out := render(t, Form(FormProps{Action: `/projects/<x>`, CSRF: `a"b`, Body: Input(InputProps{ID: "title", Name: "title", Label: "Title", Required: true})}))
 	if !strings.Contains(out, `name="_csrf" value="a&#34;b"`) || !strings.Contains(out, `action="/projects/&lt;x&gt;"`) || !strings.Contains(out, `required="required"`) {
@@ -56,6 +68,22 @@ func TestTypedDataComponentsEscapeValuesAndRenderHTMX(t *testing.T) {
 	out = render(t, Table(TableProps{Caption: "Articles", Columns: []string{"Title"}, Rows: [][]string{{`<script>alert(1)</script>`}}}))
 	if strings.Contains(out, "<script>") || !strings.Contains(out, "&lt;script&gt;") {
 		t.Fatalf("table output was not escaped: %s", out)
+	}
+}
+
+func TestTableRowActionIsLocalAndCSRFProtected(t *testing.T) {
+	out := render(t, Table(TableProps{Caption: "Redirects", Columns: []string{"Path"}, Rows: [][]string{{"/old"}}, RowActions: [][]TableAction{{{Label: "Remove", Action: "/admin/redirects/id/delete", CSRF: "token", Variant: Danger}}}}))
+	for _, marker := range []string{`<th scope="col">İşlem</th>`, `method="post"`, `name="_csrf" value="token"`, `>Remove</button>`} {
+		if !strings.Contains(out, marker) {
+			t.Fatalf("table action missing %q: %s", marker, out)
+		}
+	}
+	if strings.Contains(out, `action="https://`) {
+		t.Fatalf("table action allowed an external path: %s", out)
+	}
+	bad := Table(TableProps{Rows: [][]string{{"row"}}, RowActions: [][]TableAction{{{Label: "Remove", Action: "//example.test"}}}})
+	if err := bad.Render(context.Background(), &bytes.Buffer{}); err == nil {
+		t.Fatal("external row action path accepted")
 	}
 }
 

@@ -296,6 +296,43 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	return items, rows.Err()
 }
 
+// StreamPublishedRoutes emits only the public route projection for sitemap
+// generation. Rows are read in key order without loading the catalog.
+func (s Store) StreamPublishedRoutes(ctx context.Context, db database.QueryExecutor, visit func(news.Item) error) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	if visit == nil {
+		return errors.New("published route visitor is required")
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 1)
+	if err != nil {
+		return err
+	}
+	query := `SELECT id,locale,slug,title,seo_description,updated_at FROM news_items WHERE status='published' AND published_revision IS NOT NULL` + filter + ` ORDER BY locale,slug,id`
+	args := []any{}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item news.Item
+		var updated any
+		if err := rows.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.SEODescription, &updated); err != nil {
+			return err
+		}
+		item.UpdatedAt = parseTime(updated)
+		if err := visit(item); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
 // ListRelatedPublished returns a bounded published projection sharing at least
 // one taxonomy term with the source item. It never exposes drafts or relation
 // storage details to callers.

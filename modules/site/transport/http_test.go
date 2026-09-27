@@ -62,6 +62,21 @@ func TestFormBuilderRoutesArePresent(t *testing.T) {
 	}
 }
 
+func TestSEORoutesAreAvailableOnlyWithSiteModuleComposition(t *testing.T) {
+	handler := Handler{}
+	want := map[string]bool{"GET /admin/site/seo": false, "POST /admin/site/seo": false, "GET /sitemap.xml": false}
+	for _, route := range handler.Routes() {
+		if _, ok := want[route.Pattern]; ok {
+			want[route.Pattern] = true
+		}
+	}
+	for pattern, found := range want {
+		if !found {
+			t.Errorf("missing SEO route %q", pattern)
+		}
+	}
+}
+
 func TestFormRoutesAreAbsentWhenFormsAreDisabled(t *testing.T) {
 	for _, route := range (Handler{}).Routes() {
 		if strings.Contains(route.Pattern, "/forms") || strings.Contains(route.Pattern, "/inbox") {
@@ -123,6 +138,32 @@ func TestSitemapRouteUsesPublishedProvider(t *testing.T) {
 	handler.sitemap(res, req)
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "https://example.com/en/home") {
 		t.Fatalf("sitemap response = %d %s", res.Code, res.Body.String())
+	}
+}
+
+func TestStreamingSitemapProducesCategoryIndexAndArticleParts(t *testing.T) {
+	handler := Handler{
+		SitemapOrigin:     "https://example.com",
+		SitemapCategories: []string{"pages", "articles"},
+		SitemapStream: func(_ context.Context, category string, visit func(site.SitemapEntry) error) error {
+			if category == "pages" {
+				return visit(site.SitemapEntry{URL: "https://example.com/en/home", Category: category})
+			}
+			if category == "articles" {
+				return visit(site.SitemapEntry{URL: "https://example.com/public/news/en/story", Category: category})
+			}
+			return nil
+		},
+	}
+	indexResponse := httptest.NewRecorder()
+	handler.sitemap(indexResponse, httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil))
+	if indexResponse.Code != http.StatusOK || !strings.Contains(indexResponse.Body.String(), "/sitemap-pages.xml?part=1") || !strings.Contains(indexResponse.Body.String(), "/sitemap-articles.xml?part=1") {
+		t.Fatalf("categorized sitemap index = %d %s", indexResponse.Code, indexResponse.Body.String())
+	}
+	articleResponse := httptest.NewRecorder()
+	handler.sitemapArticlePart(articleResponse, httptest.NewRequest(http.MethodGet, "/sitemap-articles.xml?part=1", nil))
+	if articleResponse.Code != http.StatusOK || !strings.Contains(articleResponse.Body.String(), "public/news/en/story") {
+		t.Fatalf("article sitemap part = %d %s", articleResponse.Code, articleResponse.Body.String())
 	}
 }
 

@@ -1,0 +1,26 @@
+id: "202609280001_seo_redirect_rules"
+module: "site"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "bbf6e7f83e6570729175c90b09d23c67529e489ddf07bab7f5377385f0442a52"
+  postgres: "bd3006dcbd44997610d7a9e2151294b394793c1ec89a5c23909d3b7b92512874"
+dependencies:
+  - "202609190008_site_tenant_scope"
+schema:
+  readable_epoch: 4
+  writable_epoch: 5
+preconditions:
+  - "Tenant-scoped Site module schema is current"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Small bounded redirect rules table and index"
+compatibility: "Adds optional SEO redirect rules without changing publication redirects"
+smoke:
+  - "Redirect rules are isolated by tenant and accept only validated internal targets"
+  - "Existing publication redirects remain available to previous binaries"
+restart: "Transactional expansion; old binaries ignore the new table"
+rollback: "Retain rules and forward-fix; dropping the table discards operator-managed redirects"
