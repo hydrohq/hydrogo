@@ -53,6 +53,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0015](0015-versioned-http-api.md) | Versioned HTTP API routes and backward alias | Accepted |
 | [0016](0016-structured-page-blocks-and-theme-slots.md) | Structured page blocks and theme slots | Accepted |
 | [0266](0266-design-system-blocks-and-interactions.md) | Design-system blocks and lightweight interactions | Accepted; supersedes 0016 |
+| [0267](0267-form-leads-and-mail-spool.md) | Form leads and durable mail spool | Accepted |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |

@@ -32,6 +32,19 @@ Reset and invite tokens are stored exclusively as hashes. Tokens are never writt
 
 In production, SMTP notifier settings (`HYDRO_SMTP_HOST`, `HYDRO_SMTP_PORT`, `HYDRO_SMTP_FROM`, `HYDRO_SMTP_USERNAME`, `HYDRO_SMTP_PASSWORD`, and `HYDRO_SMTP_STARTTLS`) are validated together. If SMTP delivery fails, the reset/invite is not reported as successful; provider retry and alerting policies belong to the deployment layer.
 
+## Forms and Mail Spool
+
+The optional Forms module accepts public form requests only when enabled. Configure
+`HYDRO_FORMS_TURNSTILE_SITE_KEY` and `HYDRO_FORMS_TURNSTILE_SECRET_KEY` together
+to enable Turnstile; leaving both unset disables the challenge. Keep the secret
+key in the deployment secret store. Form alerts and autoresponders are committed
+to the tenant-scoped SQLite/PostgreSQL mail spool with the submission, then sent
+by the worker when SMTP is configured. Monitor `/admin/site/mail` for permanent
+delivery failures and use its retry action after fixing provider configuration.
+Delivered spool records are eligible for cleanup after 30 days; failed records
+remain visible for operator action. Queue capacity follows the active capacity
+profile, and a full queue rejects the submission without losing its payload.
+
 ## Disk Space Exhaustion
 
 New uploads and snapshot operations are halted with a safe error; existing ready media and database files are never deleted. Temporary/pending media, failed snapshots, and expired inbox records are cleaned up first according to retention policies. Migrations, restore activations, and GC are blocked until the filesystem is confirmed writable again.

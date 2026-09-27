@@ -122,6 +122,24 @@ func TestLoadRejectsPartialSMTPConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadTurnstileConfiguration(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":               "file:test.sqlite",
+		"HYDRO_FORMS_TURNSTILE_SITE_KEY":   "site-key",
+		"HYDRO_FORMS_TURNSTILE_SECRET_KEY": "secret-key",
+	}), Overrides{})
+	if err != nil || cfg.Forms.TurnstileSiteKey != "site-key" || cfg.Forms.TurnstileSecretKey != "secret-key" {
+		t.Fatalf("Turnstile config = %#v, error = %v", cfg.Forms, err)
+	}
+	_, err = Load("", lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":             "file:test.sqlite",
+		"HYDRO_FORMS_TURNSTILE_SITE_KEY": "site-key",
+	}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "configured together") {
+		t.Fatalf("partial Turnstile config error = %v", err)
+	}
+}
+
 func TestLoadRejectsSMTPAuthWithoutTLS(t *testing.T) {
 	_, err := Load("", lookup(map[string]string{
 		"HYDRO_DATABASE_DSN":  "file:test.sqlite",

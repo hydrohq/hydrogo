@@ -15,6 +15,7 @@
 | `HYDRO_REDIS_URL` | Valkey / Redis cluster authentication | URI with password | Docker / K8s secret volume | 90 days | Multi-pass AUTH update without cache eviction |
 | `HYDRO_S3_SECRET_KEY` | Media asset bucket IAM access | AWS Secret Key string | IAM Role / Assumed Role (IRSA) | 90 days | IAM credential rotation |
 | `HYDRO_MAILER_SMTP_PASS`| Transactional email delivery | API key token | Secrets Manager | 180 days | API key regenerated on provider |
+| `HYDRO_FORMS_TURNSTILE_SECRET_KEY` | Verifies optional public-form challenges | Provider secret | Secrets Manager | Provider policy | Rotate alongside site key and redeploy both values together |
 | `HYDRO_METRICS_TOKEN` | Prometheus metrics scrape authentication | High-entropy Bearer token | Secret Manager | 180 days | Updated in Prometheus scrape config + App |
 
 ---

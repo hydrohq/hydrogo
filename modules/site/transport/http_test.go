@@ -48,7 +48,7 @@ func (fakeExecutor) ExecContext(context.Context, string, ...any) (sql.Result, er
 func (fakeExecutor) QueryRowContext(context.Context, string, ...any) *sql.Row        { return nil }
 
 func TestFormBuilderRoutesArePresent(t *testing.T) {
-	handler := Handler{}
+	handler := Handler{FormsEnabled: true}
 	want := map[string]bool{"GET /admin/site/forms": false, "POST /admin/site/forms": false, "POST /admin/site/forms/{id}/delete": false}
 	for _, route := range handler.Routes() {
 		if _, ok := want[route.Pattern]; ok {
@@ -58,6 +58,14 @@ func TestFormBuilderRoutesArePresent(t *testing.T) {
 	for pattern, found := range want {
 		if !found {
 			t.Fatalf("missing form route %q", pattern)
+		}
+	}
+}
+
+func TestFormRoutesAreAbsentWhenFormsAreDisabled(t *testing.T) {
+	for _, route := range (Handler{}).Routes() {
+		if strings.Contains(route.Pattern, "/forms") || strings.Contains(route.Pattern, "/inbox") {
+			t.Fatalf("inactive Forms route registered: %s", route.Pattern)
 		}
 	}
 }

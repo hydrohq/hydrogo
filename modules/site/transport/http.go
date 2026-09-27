@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,8 +22,10 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
@@ -37,25 +41,44 @@ type Handler struct {
 	Service           *site.Service
 	SubmissionLimiter security.RateLimiter
 	AllowedForms      map[string]struct{}
-	SitemapOrigin     string
-	SitemapProvider   func(context.Context) ([]site.SitemapEntry, error)
+	FormsEnabled      bool
+	Turnstile         interface {
+		Verify(context.Context, string, string) (bool, error)
+	}
+	MailSpool interface {
+		List(context.Context, string, int) ([]mailer.SpoolEntry, error)
+		RetryNow(context.Context, string) error
+	}
+	SitemapOrigin   string
+	SitemapProvider func(context.Context) ([]site.SitemapEntry, error)
 }
 
 func (h Handler) Routes() []Route {
-	return []Route{
+	routes := []Route{
 		{Pattern: "GET /site/settings", Public: true, Handler: http.HandlerFunc(h.publicSettings)},
 		{Pattern: "GET /site/navigation/{locale}", Public: true, Handler: http.HandlerFunc(h.navigation)},
 		{Pattern: "GET /sitemap.xml", Public: true, Handler: http.HandlerFunc(h.sitemap)},
 		{Pattern: "POST /admin/site/settings", Handler: http.HandlerFunc(h.saveSetting)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
 		{Pattern: "POST /admin/site/navigation/{locale}", Handler: http.HandlerFunc(h.saveNavigation)},
-		{Pattern: "GET /admin/site/inbox/{form}", Handler: http.HandlerFunc(h.inbox)},
-		{Pattern: "GET /admin/site/forms", Handler: http.HandlerFunc(h.forms)},
-		{Pattern: "POST /admin/site/forms", Handler: http.HandlerFunc(h.saveForm)},
-		{Pattern: "POST /admin/site/forms/{id}/delete", Handler: http.HandlerFunc(h.deleteForm)},
-		{Pattern: "POST /admin/site/inbox/{id}/status", Handler: http.HandlerFunc(h.inboxStatus)},
-		{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
 	}
+	if h.FormsEnabled {
+		routes = append(routes,
+			Route{Pattern: "GET /admin/site/inbox/{form}", Handler: http.HandlerFunc(h.inbox)},
+			Route{Pattern: "GET /admin/site/forms", Handler: http.HandlerFunc(h.forms)},
+			Route{Pattern: "POST /admin/site/forms", Handler: http.HandlerFunc(h.saveForm)},
+			Route{Pattern: "POST /admin/site/forms/{id}/delete", Handler: http.HandlerFunc(h.deleteForm)},
+			Route{Pattern: "POST /admin/site/inbox/{id}/status", Handler: http.HandlerFunc(h.inboxStatus)},
+			Route{Pattern: "POST /admin/site/inbox/{id}/lead", Handler: http.HandlerFunc(h.leadUpdate)},
+			Route{Pattern: "POST /admin/site/inbox/{id}/notes", Handler: http.HandlerFunc(h.leadNoteCreate)},
+			Route{Pattern: "GET /admin/site/inbox/{id}/notes", Handler: http.HandlerFunc(h.leadNotes)},
+			Route{Pattern: "GET /admin/site/inbox/{form}/export.csv", Handler: http.HandlerFunc(h.exportInboxCSV)},
+			Route{Pattern: "GET /admin/site/mail", Handler: http.HandlerFunc(h.mailSpool)},
+			Route{Pattern: "POST /admin/site/mail/{id}/retry", Handler: http.HandlerFunc(h.mailSpoolRetry)},
+			Route{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
+		)
+	}
+	return routes
 }
 
 func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
@@ -138,8 +161,28 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "inbox unavailable", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(items)
+	if strings.Contains(r.Header.Get("Accept"), "application/json") {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(items)
+		return
+	}
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+	rows := make([][]string, 0, len(items))
+	for _, item := range items {
+		if query != "" && !strings.Contains(strings.ToLower(item.Email+" "+item.Payload+" "+item.ID), query) {
+			continue
+		}
+		rows = append(rows, []string{item.Email, item.Status, item.LeadStage, item.AssignedTo, item.CreatedAt.UTC().Format(time.RFC3339)})
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if ui.AdminStart(w, "Gelen talepler", "Form gelen kutusu", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(w, `<form method="get" action="/admin/site/inbox/%s" class="studio-form">`, template.URLQueryEscaper(r.PathValue("form")))
+	_ = uicomponents.Input(uicomponents.InputProps{ID: "inbox-search", Name: "q", Label: "Ara", Value: query, Type: "search", MaxLength: 128, HasMaxLength: true}).Render(r.Context(), w)
+	_, _ = fmt.Fprint(w, `<button class="button button-primary" type="submit">Ara</button></form><p><a class="button button-quiet" href="/admin/site/inbox/`+template.URLQueryEscaper(r.PathValue("form"))+`/export.csv">CSV indir</a></p>`)
+	_ = uicomponents.Table(uicomponents.TableProps{Caption: "Form talepleri", Columns: []string{"E-posta", "Durum", "Lead aşaması", "Atanan kişi", "Tarih"}, Rows: rows, EmptyMessage: "Eşleşen talep yok."}).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
 }
 
 func (h Handler) inboxStatus(w http.ResponseWriter, r *http.Request) {
@@ -157,6 +200,136 @@ func (h Handler) inboxStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) leadUpdate(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid lead update", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.UpdateLead(r.Context(), r.PathValue("id"), r.FormValue("lead_status"), r.FormValue("assigned_to")); err != nil {
+		http.Error(w, "lead update failed", siteStatus(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) leadNoteCreate(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !h.admin(r) || h.Service == nil || user == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 9<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid note", http.StatusBadRequest)
+		return
+	}
+	id, err := randomID("note-")
+	if err != nil {
+		http.Error(w, "notes unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	note := site.LeadNote{ID: id, SubmissionID: r.PathValue("id"), AuthorID: user.ID, Note: r.FormValue("note"), CreatedAt: time.Now().UTC()}
+	if err := h.Service.AddLeadNote(r.Context(), note); err != nil {
+		http.Error(w, "note could not be saved", siteStatus(err))
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h Handler) leadNotes(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Service.ListLeadNotes(r.Context(), r.PathValue("id"), 100)
+	if err != nil {
+		http.Error(w, "notes unavailable", siteStatus(err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(items)
+}
+
+func (h Handler) exportInboxCSV(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || guards.IsNil(h.Store) || database.RequireExecutor(h.DB) != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Store.ListSubmissions(r.Context(), h.DB, r.PathValue("form"), 1000)
+	if err != nil {
+		http.Error(w, "inbox unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="form-inbox.csv"`)
+	writer := csv.NewWriter(w)
+	_ = writer.Write([]string{"ID", "Form", "Email", "Created at", "Inbox status", "Lead stage", "Assigned to", "Values"})
+	for _, item := range items {
+		created := item.CreatedAt.UTC().Format(time.RFC3339)
+		_ = writer.Write([]string{csvSafe(item.ID), csvSafe(item.FormKey), csvSafe(item.Email), created, csvSafe(item.Status), csvSafe(item.LeadStage), csvSafe(item.AssignedTo), csvSafe(item.Payload)})
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+		return
+	}
+}
+
+func (h Handler) mailSpool(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.MailSpool == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.MailSpool.List(r.Context(), r.URL.Query().Get("status"), 100)
+	if err != nil {
+		http.Error(w, "mail queue unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = io.WriteString(w, `<!doctype html><html><head><meta charset="utf-8"><title>Mail queue</title></head><body><main><h1>Mail queue</h1><p>Pending messages are retried automatically. Delivery can happen more than once after an unclear server response.</p><table><thead><tr><th>Status</th><th>Recipient</th><th>Subject</th><th>Attempts</th><th>Next attempt</th><th>Action</th></tr></thead><tbody>`)
+	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
+	for _, item := range items {
+		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>`, template.HTMLEscapeString(item.Status), template.HTMLEscapeString(item.Message.To), template.HTMLEscapeString(item.Message.Subject), item.Attempts, template.HTMLEscapeString(item.NextAttemptAt.UTC().Format(time.RFC3339)))
+		if item.Status == mailer.SpoolFailedPermanent {
+			fmt.Fprintf(w, `<form method="post" action="/admin/site/mail/%s/retry"><input type="hidden" name="_csrf" value="%s"><button type="submit">Retry now</button></form>`, url.PathEscape(item.ID), csrf)
+		}
+		_, _ = io.WriteString(w, `</td></tr>`)
+	}
+	_, _ = io.WriteString(w, `</tbody></table></main></body></html>`)
+}
+
+func (h Handler) mailSpoolRetry(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.MailSpool == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := h.MailSpool.RetryNow(r.Context(), r.PathValue("id")); err != nil {
+		http.Error(w, "message could not be retried", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/mail", http.StatusSeeOther)
+}
+
+func csvSafe(value string) string {
+	trimmed := strings.TrimLeft(value, " \t\r\n")
+	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+		return "'" + value
+	}
+	return value
+}
+
+func randomID(prefix string) (string, error) {
+	value := make([]byte, 16)
+	if _, err := rand.Read(value); err != nil {
+		return "", err
+	}
+	return prefix + hex.EncodeToString(value), nil
 }
 
 func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
@@ -178,14 +351,51 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form submission", http.StatusBadRequest)
 		return
 	}
-	email := strings.TrimSpace(r.FormValue("email"))
-	message := strings.TrimSpace(r.FormValue("message"))
-	if email == "" || message == "" || len(message) > 32<<10 {
+	if honeypotFilled(r) {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	form, err := h.publicForm(r.Context(), formKey)
+	if err != nil {
+		http.Error(w, "form not found", http.StatusNotFound)
+		return
+	}
+	if form.TurnstileEnabled {
+		if h.Turnstile == nil {
+			http.Error(w, "form temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		verified, verifyErr := h.Turnstile.Verify(r.Context(), r.PostForm.Get("cf-turnstile-response"), requestIP(r))
+		if verifyErr != nil {
+			http.Error(w, "form temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !verified {
+			http.Error(w, "please check your form and try again", http.StatusBadRequest)
+			return
+		}
+	}
+	values := make(map[string]string, len(form.Fields))
+	for _, field := range form.Fields {
+		values[field.ID] = r.PostForm.Get(field.ID)
+	}
+	clean, validation, err := form.NormalizeSubmission(values)
+	if err != nil || len(validation) != 0 {
 		http.Error(w, "invalid form submission", http.StatusBadRequest)
 		return
 	}
-	name := strings.TrimSpace(r.FormValue("name"))
-	payload, err := json.Marshal(map[string]string{"message": message, "name": name})
+	email := ""
+	for _, field := range form.Fields {
+		if field.Type == forms.Email {
+			email = clean[field.ID]
+			break
+		}
+	}
+	if email == "" {
+		http.Error(w, "invalid form submission", http.StatusBadRequest)
+		return
+	}
+	payload, err := json.Marshal(clean)
 	if err != nil {
 		http.Error(w, "invalid form submission", http.StatusBadRequest)
 		return
@@ -196,15 +406,102 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "form inbox unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	idempotencyKey := r.Header.Get("Idempotency-Key")
-	requestBytes, _ := json.Marshal(map[string]string{"form": formKey, "email": email, "message": message, "name": name})
+	idempotencyKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	if idempotencyKey == "" {
+		idempotencyKey = strings.TrimSpace(r.PostForm.Get("_submission_token"))
+	}
+	if site.ValidateIdempotencyKey(idempotencyKey) != nil {
+		http.Error(w, "invalid form submission", http.StatusBadRequest)
+		return
+	}
+	requestBytes, _ := json.Marshal(struct {
+		Form   string            `json:"form"`
+		Values map[string]string `json:"values"`
+	}{Form: formKey, Values: clean})
 	requestHash := sha256.Sum256(requestBytes)
 	submission := site.Submission{ID: "form-" + hex.EncodeToString(idBytes), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:]), IdempotencyKey: idempotencyKey, RequestHash: hex.EncodeToString(requestHash[:])}
+	submission.Notifications = formNotifications(form, clean, submission.ID)
 	if _, err := h.Service.SubmitIdempotent(r.Context(), submission); err != nil {
 		http.Error(w, "form submission failed", siteStatus(err))
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h Handler) publicForm(ctx context.Context, id string) (forms.Form, error) {
+	if h.Service != nil && !guards.IsNil(h.Service.Forms) {
+		form, err := h.Service.Forms.Get(ctx, id)
+		if err == nil {
+			return form, nil
+		}
+		if id != "contact" {
+			return forms.Form{}, err
+		}
+	}
+	if _, ok := h.AllowedForms[id]; !ok || id != "contact" {
+		return forms.Form{}, site.ErrInvalidSubmission
+	}
+	return forms.Form{ID: "contact", Title: "İletişim", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "E-posta", Required: true}, {ID: "name", Type: forms.Text, Label: "Adınız"}, {ID: "message", Type: forms.Textarea, Label: "Mesaj", Required: true}}}, nil
+}
+
+func honeypotFilled(r *http.Request) bool {
+	for _, field := range []string{"website_url", "hp_token", "_gotcha"} {
+		if strings.TrimSpace(r.PostForm.Get(field)) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func formNotifications(form forms.Form, values map[string]string, submissionID string) []site.EmailNotification {
+	if len(form.NotificationRecipients) == 0 && !form.Autoresponder {
+		return nil
+	}
+	variables := make(map[string]string, len(values)+1)
+	for key, value := range values {
+		variables[key] = value
+	}
+	variables["ticket_code"] = strings.ToUpper(strings.TrimPrefix(submissionID, "form-"))
+	var summary strings.Builder
+	fmt.Fprintf(&summary, "New submission: %s\n\n", form.Title)
+	for _, field := range form.Fields {
+		fmt.Fprintf(&summary, "%s: %s\n", field.Label, values[field.ID])
+	}
+	result := make([]site.EmailNotification, 0, len(form.NotificationRecipients)+1)
+	for index, recipient := range form.NotificationRecipients {
+		result = append(result, site.EmailNotification{EventKey: fmt.Sprintf("%s:notification:%d", submissionID, index), To: recipient, Subject: "New form submission: " + form.Title, Body: summary.String()})
+	}
+	if form.Autoresponder {
+		email := ""
+		for _, field := range form.Fields {
+			if field.Type == forms.Email {
+				email = values[field.ID]
+				break
+			}
+		}
+		subject := form.AutoresponderSubject
+		if subject == "" {
+			subject = "We received your message"
+		}
+		body := form.AutoresponderBody
+		if body == "" {
+			body = "Thank you for contacting us. We have received your message. Your reference is {{ticket_code}}."
+		}
+		subject = expandEmailTemplate(subject, variables)
+		body = expandEmailTemplate(body, variables)
+		htmlBody, err := mailer.RenderAutoresponderHTML(subject, body)
+		if err == nil {
+			result = append(result, site.EmailNotification{EventKey: submissionID + ":autoresponder", To: email, Subject: subject, Body: body, HTMLBody: htmlBody})
+		}
+	}
+	return result
+}
+
+func expandEmailTemplate(value string, variables map[string]string) string {
+	for key, replacement := range variables {
+		value = strings.ReplaceAll(value, "{{"+key+"}}", replacement)
+	}
+	return value
 }
 
 func requestIP(r *http.Request) string {
@@ -279,7 +576,7 @@ func siteStatus(err error) int {
 	if errors.Is(err, site.ErrIdempotencyConflict) {
 		return http.StatusConflict
 	}
-	if errors.Is(err, site.ErrIdempotencyStoreRequired) {
+	if errors.Is(err, site.ErrIdempotencyStoreRequired) || errors.Is(err, site.ErrLeadStoreRequired) || errors.Is(err, site.ErrMailQueueRequired) || errors.Is(err, mailer.ErrSpoolLeaseInvalid) {
 		return http.StatusServiceUnavailable
 	}
 	if errors.Is(err, site.ErrStoreRequired) || errors.Is(err, database.ErrDatabaseRequired) {

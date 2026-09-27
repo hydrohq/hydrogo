@@ -220,10 +220,7 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	query := `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	if s.Dialect == database.SQLite {
-		query = `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES (?,?,?,?,?,?,?,?,?)`
-	}
+	query := `INSERT INTO form_inbox (tenant_id,id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `)`
 	created := value.CreatedAt.UTC().Format(time.RFC3339Nano)
 	if value.CreatedAt.IsZero() {
 		created = time.Now().UTC().Format(time.RFC3339Nano)
@@ -231,6 +228,10 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 	status := value.Status
 	if status == "" {
 		status = "new"
+	}
+	leadStage := value.LeadStage
+	if leadStage == "" {
+		leadStage = "new"
 	}
 	scopeID := ""
 	if s.RequireTenantScope {
@@ -240,11 +241,7 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 		}
 		scopeID = scope.TenantID
 	}
-	query = `INSERT INTO form_inbox (tenant_id,id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
-	args := []any{scopeID, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created, value.IdempotencyKey, value.RequestHash}
-	if s.Dialect == database.SQLite {
-		query = `INSERT INTO form_inbox (tenant_id,id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES (?,?,?,?,?,?,?,?,?,?)`
-	}
+	args := []any{scopeID, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created, value.IdempotencyKey, value.RequestHash, leadStage, value.AssignedTo}
 	_, err := tx.ExecContext(ctx, query, args...)
 	return err
 }
@@ -257,9 +254,9 @@ func (s Store) FindSubmissionByIdempotency(ctx context.Context, db database.Exec
 	if err != nil {
 		return site.Submission{}, false, err
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1 AND idempotency_key = $2` + filter + ` LIMIT 1`
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = $1 AND idempotency_key = $2` + filter + ` LIMIT 1`
 	if s.Dialect == database.SQLite {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ? AND idempotency_key = ?` + filter + ` LIMIT 1`
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = ? AND idempotency_key = ?` + filter + ` LIMIT 1`
 	}
 	var value site.Submission
 	var created any
@@ -267,7 +264,7 @@ func (s Store) FindSubmissionByIdempotency(ctx context.Context, db database.Exec
 	if filter != "" {
 		args = append(args, scopeID)
 	}
-	err = db.QueryRowContext(ctx, query, args...).Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash)
+	err = db.QueryRowContext(ctx, query, args...).Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash, &value.LeadStage, &value.AssignedTo)
 	if errors.Is(err, sql.ErrNoRows) {
 		return site.Submission{}, false, nil
 	}
@@ -283,9 +280,9 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = $1` + filter + ` ORDER BY created_at DESC LIMIT $2`
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = $1` + filter + ` ORDER BY created_at DESC LIMIT $2`
 	if s.Dialect == database.SQLite {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash FROM form_inbox WHERE form_key = ?` + filter + ` ORDER BY created_at DESC LIMIT ?`
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = ?` + filter + ` ORDER BY created_at DESC LIMIT ?`
 	}
 	args := []any{formKey, limit}
 	if filter != "" {
@@ -304,11 +301,114 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	for rows.Next() {
 		var value site.Submission
 		var created any
-		if err := rows.Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash); err != nil {
+		if err := rows.Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash, &value.LeadStage, &value.AssignedTo); err != nil {
 			return nil, err
 		}
 		value.CreatedAt = parseTime(created)
 		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
+func (s Store) UpdateLead(ctx context.Context, tx database.Executor, id, stage, assignedTo string) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE form_inbox SET lead_status = $1, assigned_to = $2 WHERE id = $3` + filter
+	if s.Dialect == database.SQLite {
+		query = `UPDATE form_inbox SET lead_status = ?, assigned_to = ? WHERE id = ?` + filter
+	}
+	args := []any{stage, assignedTo, id}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s Store) CreateLeadNote(ctx context.Context, tx database.Executor, note site.LeadNote) error {
+	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	tenantID := ""
+	if s.RequireTenantScope {
+		scope, err := tenant.Require(ctx)
+		if err != nil {
+			return err
+		}
+		tenantID = scope.TenantID
+	}
+	if note.CreatedAt.IsZero() {
+		note.CreatedAt = time.Now().UTC()
+	}
+	query := `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) SELECT $1,$2,$3,$4,$5,$6 WHERE EXISTS (SELECT 1 FROM form_inbox WHERE id = $3 AND tenant_id = $2)`
+	args := []any{note.ID, tenantID, note.SubmissionID, note.AuthorID, strings.TrimSpace(note.Note), note.CreatedAt.UTC()}
+	if s.Dialect == database.SQLite {
+		query = `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM form_inbox WHERE id = ? AND tenant_id = ?)`
+		args = []any{note.ID, tenantID, note.SubmissionID, note.AuthorID, strings.TrimSpace(note.Note), note.CreatedAt.UTC().Format(time.RFC3339Nano), note.SubmissionID, tenantID}
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s Store) ListLeadNotes(ctx context.Context, db database.QueryExecutor, submissionID string, limit int) ([]site.LeadNote, error) {
+	if limit < 1 || limit > 500 {
+		limit = 100
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT id,tenant_id,submission_id,author_id,note,created_at FROM form_lead_notes WHERE submission_id = $1` + filter + ` ORDER BY created_at,id LIMIT $2`
+	args := []any{submissionID, limit}
+	if s.Dialect == database.SQLite {
+		query = `SELECT id,tenant_id,submission_id,author_id,note,created_at FROM form_lead_notes WHERE submission_id = ?` + filter + ` ORDER BY created_at,id LIMIT ?`
+	}
+	if filter != "" {
+		if s.Dialect == database.Postgres {
+			args = []any{submissionID, scopeID, limit}
+		} else {
+			args = []any{submissionID, scopeID, limit}
+		}
+	}
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]site.LeadNote, 0, limit)
+	for rows.Next() {
+		var item site.LeadNote
+		var created any
+		if err := rows.Scan(&item.ID, &item.TenantID, &item.SubmissionID, &item.AuthorID, &item.Note, &created); err != nil {
+			return nil, err
+		}
+		item.CreatedAt = parseTime(created)
+		result = append(result, item)
 	}
 	return result, rows.Err()
 }

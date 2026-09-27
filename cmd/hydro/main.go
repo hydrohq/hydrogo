@@ -51,12 +51,14 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	formsruntime "github.com/ardaozyildirim/hydrogo/internal/forms"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
+	mailstore "github.com/ardaozyildirim/hydrogo/internal/mailer/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
@@ -1251,11 +1253,13 @@ func serve(args []string, stderr io.Writer) error {
 	if modules["members"] {
 		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
 	}
+	var smtpSender mailer.Sender
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
 		if err != nil {
 			return err
 		}
+		smtpSender = sender
 		notifier := mailer.NotificationSender{Sender: sender}
 		authHTTP.Notifier = notifier
 		authHTTP.InviteNotice = notifier
@@ -1345,18 +1349,30 @@ func serve(args []string, stderr io.Writer) error {
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+	var spoolStore mailstore.Spool
+	var mailWorker mailer.SpoolWorker
+	if modules["forms"] {
+		spoolStore = mailstore.Spool{DB: db, Tx: transactioner, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, MaxPending: budget.QueueEntries}
+		if smtpSender != nil {
+			mailWorker = mailer.SpoolWorker{Store: spoolStore, Sender: smtpSender, WorkerID: "mail-spool-worker-0", Lease: time.Minute, TenantScopes: tenantScopes}
+			if stderr != nil {
+				mailWorker.OnError = func(err error) { _, _ = fmt.Fprintf(stderr, "hydro mail spool: %v\n", err) }
+			}
+		}
+	}
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
 	if modules["site"] {
 		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
 		if modules["forms"] {
 			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+			siteService.MailQueue = spoolStore
 		}
 		sitemapOrigin := cfg.HTTP.PublicOrigin
 		if sitemapOrigin == "" && cfg.HTTP.Address != "" {
 			sitemapOrigin = "http://" + cfg.HTTP.Address
 		}
-		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), AllowedForms: map[string]struct{}{"contact": {}}, SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), FormsEnabled: modules["forms"], SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err
@@ -1371,6 +1387,13 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return entries, nil
 		}}
+		if modules["forms"] {
+			siteHTTP.AllowedForms = map[string]struct{}{"contact": {}}
+			siteHTTP.MailSpool = spoolStore
+			if cfg.Forms.TurnstileSecretKey != "" {
+				siteHTTP.Turnstile = formsruntime.TurnstileVerifier{Secret: cfg.Forms.TurnstileSecretKey}
+			}
+		}
 	}
 	var newsService newsservice.Service
 	var newsWorker newsservice.Worker
@@ -1826,6 +1849,9 @@ func serve(args []string, stderr io.Writer) error {
 	if modules["pages"] || modules["forms"] {
 		routes = append(routes, router.Route{Pattern: "GET /designsystem/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(designsystem.ServeAsset)})
 	}
+	if modules["forms"] {
+		routes = append(routes, router.Route{Pattern: "GET /forms/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(formsruntime.ServeAsset)})
+	}
 	if selectedTheme != nil {
 		routes = append(routes, router.Route{Pattern: "GET /theme/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(selectedTheme.ServeAsset)})
 	}
@@ -1945,6 +1971,9 @@ func serve(args []string, stderr io.Writer) error {
 	if !*cgiMode {
 		go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
 	}
+	if modules["forms"] && smtpSender != nil && !*cgiMode {
+		go mailWorker.Run(ctx, 500*time.Millisecond)
+	}
 	if modules["news"] && !*cgiMode {
 		go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
 	}
@@ -2031,6 +2060,9 @@ func serve(args []string, stderr io.Writer) error {
 					RetryAfter:   30 * time.Second,
 				}
 				_, _ = outboxWorker.RunOnce(cronCtx, time.Now().UTC())
+			}
+			if modules["forms"] && smtpSender != nil {
+				_, _ = mailWorker.RunOnce(cronCtx)
 			}
 		})
 		return server.ServeCGI(handler)

@@ -33,6 +33,16 @@ type IdempotentSubmissionStore interface {
 	FindSubmissionByIdempotency(context.Context, database.Executor, string, string) (Submission, bool, error)
 }
 
+type LeadStore interface {
+	UpdateLead(context.Context, database.Executor, string, string, string) error
+	CreateLeadNote(context.Context, database.Executor, LeadNote) error
+	ListLeadNotes(context.Context, database.QueryExecutor, string, int) ([]LeadNote, error)
+}
+
+type TransactionalMailQueue interface {
+	Enqueue(context.Context, database.Executor, EmailNotification) error
+}
+
 type AuditWriter interface {
 	Record(context.Context, database.Executor, string, string, string) error
 }
@@ -51,6 +61,7 @@ type Service struct {
 	Store        Store
 	Audit        AuditWriter
 	Forms        FormRegistry
+	MailQueue    TransactionalMailQueue
 }
 
 func (s Service) SaveForm(ctx context.Context, form forms.Form) error {
@@ -193,12 +204,18 @@ func (s Service) submit(ctx context.Context, value Submission, idempotent bool) 
 			return false, ErrIdempotencyConflict
 		}
 	}
+	if idempotent && value.IdempotencyKey == "" {
+		return false, ErrInvalidIdempotencyKey
+	}
 	if err := s.requireStore(); err != nil {
 		return false, err
 	}
 	if !idempotent || value.IdempotencyKey == "" {
 		return false, s.Transactions.Within(ctx, func(tx database.Executor) error {
 			if err := s.Store.CreateSubmission(ctx, tx, value); err != nil {
+				return err
+			}
+			if err := s.enqueueNotifications(ctx, tx, value.Notifications); err != nil {
 				return err
 			}
 			return s.audit(ctx, tx, "site.form.submitted", value.ID)
@@ -227,6 +244,9 @@ func (s Service) submit(ctx context.Context, value Submission, idempotent bool) 
 				duplicate = true
 				return err
 			}
+			return err
+		}
+		if err := s.enqueueNotifications(ctx, tx, value.Notifications); err != nil {
 			return err
 		}
 		return s.audit(ctx, tx, "site.form.submitted", value.ID)
@@ -260,6 +280,79 @@ func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) err
 		}
 		return s.audit(ctx, tx, "site.inbox.status_updated", id)
 	})
+}
+
+func (s Service) UpdateLead(ctx context.Context, id, stage, assignedTo string) error {
+	if strings.TrimSpace(id) == "" || ValidateLeadStage(stage) != nil || ValidateLeadAssignee(assignedTo) != nil {
+		return ErrInvalidInboxState
+	}
+	store, ok := s.Store.(LeadStore)
+	if !ok {
+		return ErrLeadStoreRequired
+	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := store.UpdateLead(ctx, tx, id, strings.TrimSpace(stage), strings.TrimSpace(assignedTo)); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.inbox.lead_updated", id)
+	})
+}
+
+func (s Service) AddLeadNote(ctx context.Context, note LeadNote) error {
+	if err := ValidateLeadNote(note); err != nil {
+		return err
+	}
+	store, ok := s.Store.(LeadStore)
+	if !ok {
+		return ErrLeadStoreRequired
+	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := store.CreateLeadNote(ctx, tx, note); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.inbox.note_added", note.SubmissionID)
+	})
+}
+
+func (s Service) ListLeadNotes(ctx context.Context, id string, limit int) ([]LeadNote, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, ErrInvalidInboxState
+	}
+	store, ok := s.Store.(LeadStore)
+	if !ok {
+		return nil, ErrLeadStoreRequired
+	}
+	if err := s.requireStore(); err != nil {
+		return nil, err
+	}
+	var result []LeadNote
+	err := s.Transactions.WithinQuery(ctx, func(tx database.QueryExecutor) error {
+		var err error
+		result, err = store.ListLeadNotes(ctx, tx, id, limit)
+		return err
+	})
+	return result, err
+}
+
+func (s Service) enqueueNotifications(ctx context.Context, tx database.Executor, notifications []EmailNotification) error {
+	if len(notifications) == 0 {
+		return nil
+	}
+	if guards.IsNil(s.MailQueue) {
+		return ErrMailQueueRequired
+	}
+	for _, notification := range notifications {
+		if err := s.MailQueue.Enqueue(ctx, tx, notification); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s Service) PurgeInbox(ctx context.Context, before time.Time) (int64, error) {

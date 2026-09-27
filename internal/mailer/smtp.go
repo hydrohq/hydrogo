@@ -7,8 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
+	"mime/multipart"
+	"mime/quotedprintable"
 	"net"
+	"net/mail"
 	"net/smtp"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
@@ -17,16 +22,20 @@ import (
 )
 
 type Message struct {
-	To      string
-	Subject string
-	Body    string
+	To       string
+	Subject  string
+	Body     string
+	HTMLBody string
 }
 
 type Sender interface {
 	Send(context.Context, Message) error
 }
 
-var ErrSenderRequired = errors.New("notification sender is required")
+var (
+	ErrSenderRequired = errors.New("notification sender is required")
+	ErrInvalidMessage = errors.New("invalid notification message")
+)
 
 // NotificationSender adapts password-reset and invitation events to the
 // application notifier interfaces without logging or persisting raw tokens.
@@ -152,23 +161,42 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 }
 
 func validateMessage(message Message) error {
-	if strings.TrimSpace(message.To) == "" || strings.TrimSpace(message.Subject) == "" {
-		return errors.New("notification recipient and subject are required")
+	parsed, parseErr := mail.ParseAddress(strings.TrimSpace(message.To))
+	if parseErr != nil || parsed.Address != strings.TrimSpace(message.To) || strings.TrimSpace(message.Subject) == "" {
+		return fmt.Errorf("%w: recipient and subject are required", ErrInvalidMessage)
 	}
 	if strings.ContainsAny(message.To+message.Subject, "\r\n") {
-		return errors.New("notification header contains a newline")
+		return fmt.Errorf("%w: header contains a newline", ErrInvalidMessage)
 	}
-	if len(message.Body) > 1<<20 {
-		return errors.New("notification body is too large")
+	if len(message.Body) > 1<<20 || len(message.HTMLBody) > 1<<20 {
+		return fmt.Errorf("%w: body is too large", ErrInvalidMessage)
 	}
 	return nil
 }
 
 func formatMessage(from string, message Message) string {
-	return "From: " + from + "\r\n" +
+	headers := "From: " + from + "\r\n" +
 		"To: " + message.To + "\r\n" +
-		"Subject: " + message.Subject + "\r\n" +
+		"Subject: " + mime.QEncoding.Encode("UTF-8", message.Subject) + "\r\n" +
 		"Date: " + time.Now().UTC().Format(time.RFC1123Z) + "\r\n" +
-		"MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" +
-		message.Body + "\r\n"
+		"MIME-Version: 1.0\r\n"
+	if message.HTMLBody == "" {
+		return headers + "Content-Type: text/plain; charset=utf-8\r\n\r\n" + message.Body + "\r\n"
+	}
+	var body strings.Builder
+	writer := multipart.NewWriter(&body)
+	_, _ = io.WriteString(&body, headers+"Content-Type: multipart/alternative; boundary=\""+writer.Boundary()+"\"\r\n\r\n")
+	writeQuotedPart := func(contentType, value string) {
+		part, err := writer.CreatePart(textproto.MIMEHeader{"Content-Type": {contentType}, "Content-Transfer-Encoding": {"quoted-printable"}})
+		if err != nil {
+			return
+		}
+		encoded := quotedprintable.NewWriter(part)
+		_, _ = io.WriteString(encoded, value)
+		_ = encoded.Close()
+	}
+	writeQuotedPart("text/plain; charset=utf-8", message.Body)
+	writeQuotedPart("text/html; charset=utf-8", message.HTMLBody)
+	_ = writer.Close()
+	return body.String()
 }

@@ -20,6 +20,8 @@ var (
 	ErrInvalidIdempotencyKey    = errors.New("invalid idempotency key")
 	ErrIdempotencyConflict      = errors.New("idempotency key conflict")
 	ErrIdempotencyStoreRequired = errors.New("idempotency store is required")
+	ErrLeadStoreRequired        = errors.New("lead store is required")
+	ErrMailQueueRequired        = errors.New("mail queue is required")
 )
 
 type Setting struct {
@@ -79,6 +81,26 @@ type Submission struct {
 	CreatedAt      time.Time
 	IdempotencyKey string
 	RequestHash    string
+	LeadStage      string
+	AssignedTo     string
+	Notifications  []EmailNotification `json:"-"`
+}
+
+type EmailNotification struct {
+	EventKey string
+	To       string
+	Subject  string
+	Body     string
+	HTMLBody string
+}
+
+type LeadNote struct {
+	ID           string
+	TenantID     string
+	SubmissionID string
+	AuthorID     string
+	Note         string
+	CreatedAt    time.Time
 }
 
 func ValidateIdempotencyKey(key string) error {
@@ -146,6 +168,30 @@ func ValidateInboxStatus(status string) error {
 	default:
 		return ErrInvalidInboxState
 	}
+}
+
+func ValidateLeadStage(stage string) error {
+	switch strings.TrimSpace(stage) {
+	case "new", "contacted", "qualified", "won", "lost":
+		return nil
+	default:
+		return ErrInvalidInboxState
+	}
+}
+
+func ValidateLeadAssignee(id string) error {
+	id = strings.TrimSpace(id)
+	if len(id) > 128 || strings.ContainsAny(id, "\r\n\x00") {
+		return ErrInvalidInboxState
+	}
+	return nil
+}
+
+func ValidateLeadNote(note LeadNote) error {
+	if strings.TrimSpace(note.ID) == "" || len(note.ID) > 128 || strings.TrimSpace(note.SubmissionID) == "" || len(note.SubmissionID) > 128 || strings.TrimSpace(note.AuthorID) == "" || len(note.AuthorID) > 128 || strings.TrimSpace(note.Note) == "" || len(note.Note) > 8192 {
+		return ErrInvalidInboxState
+	}
+	return nil
 }
 
 func normalizePath(value string) string {
