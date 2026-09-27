@@ -63,8 +63,8 @@ func TestFormBuilderRoutesArePresent(t *testing.T) {
 }
 
 func TestSEORoutesAreAvailableOnlyWithSiteModuleComposition(t *testing.T) {
-	handler := Handler{}
-	want := map[string]bool{"GET /admin/site/seo": false, "POST /admin/site/seo": false, "GET /sitemap.xml": false}
+	handler := Handler{FontsEnabled: true}
+	want := map[string]bool{"GET /admin/site/seo": false, "POST /admin/site/seo": false, "GET /admin/site/fonts": false, "POST /admin/site/fonts": false, "GET /sitemap.xml": false}
 	for _, route := range handler.Routes() {
 		if _, ok := want[route.Pattern]; ok {
 			want[route.Pattern] = true
@@ -73,6 +73,14 @@ func TestSEORoutesAreAvailableOnlyWithSiteModuleComposition(t *testing.T) {
 	for pattern, found := range want {
 		if !found {
 			t.Errorf("missing SEO route %q", pattern)
+		}
+	}
+}
+
+func TestFontPickerRoutesStayAbsentWithoutPages(t *testing.T) {
+	for _, route := range (Handler{}).Routes() {
+		if strings.Contains(route.Pattern, "/admin/site/fonts") {
+			t.Fatalf("inactive Pages font picker route registered: %s", route.Pattern)
 		}
 	}
 }

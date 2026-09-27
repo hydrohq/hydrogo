@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
@@ -60,6 +62,8 @@ type Handler struct {
 	SitemapStream       site.SitemapStream
 	SitemapCategories   []string
 	InvalidateDiscovery func()
+	FontsDir            string
+	FontsEnabled        bool
 }
 
 func (h Handler) Routes() []Route {
@@ -80,6 +84,12 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/redirect-rules/{id}/delete", Handler: http.HandlerFunc(h.deleteRedirectRule)},
 		{Pattern: "POST /admin/site/navigation/{locale}", Handler: http.HandlerFunc(h.saveNavigation)},
 		{Pattern: "GET /{path...}", Public: true, Handler: http.HandlerFunc(h.redirectFallback)},
+	}
+	if h.FontsEnabled {
+		routes = append(routes,
+			Route{Pattern: "GET /admin/site/fonts", Handler: http.HandlerFunc(h.fontPicker)},
+			Route{Pattern: "POST /admin/site/fonts", Handler: http.HandlerFunc(h.localizeFont)},
+		)
 	}
 	if h.FormsEnabled {
 		routes = append(routes,
@@ -843,6 +853,90 @@ func (h Handler) saveSEOSettings(w http.ResponseWriter, r *http.Request) {
 		h.InvalidateDiscovery()
 	}
 	http.Redirect(w, r, "/admin/site/seo", http.StatusSeeOther)
+}
+
+var localFontFamilies = []string{"Inter", "Lato", "Montserrat", "Open Sans", "Roboto", "Source Sans 3"}
+
+func (h Handler) fontPicker(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	settings, err := h.Store.ListPublicSettings(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "site settings unavailable", http.StatusInternalServerError)
+		return
+	}
+	current := ""
+	for _, item := range settings {
+		if item.Key == "design.font_css" {
+			current = item.Value
+			break
+		}
+	}
+	if ui.AdminStart(w, "Yerel yazı tipi", "Kendi siteniz için yerel bir yazı tipi seçin", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+		for _, component := range []templ.Component{
+			uicomponents.Select(uicomponents.SelectProps{ID: "font-family", Name: "family", Label: "Yazı tipi", Options: localFontFamilies, Required: true}),
+			uicomponents.Button(uicomponents.ButtonProps{Label: "Yazı tipini indir ve uygula", Type: "submit", Variant: uicomponents.Primary}),
+		} {
+			if err := component.Render(ctx, output); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if current != "" {
+		_, _ = fmt.Fprintf(w, `<p>Etkin yerel yazı tipi: <code>%s</code></p>`, template.HTMLEscapeString(filepath.Base(current)))
+	}
+	if r.URL.Query().Get("saved") == "1" {
+		_, _ = io.WriteString(w, `<p role="status">Yazı tipi indirildi ve siteye uygulandı.</p>`)
+	}
+	_ = uicomponents.Card(uicomponents.CardProps{Title: "Yazı tipi seç", Body: uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/fonts", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: body})}).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) localizeFont(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.FontsDir == "" {
+		http.Error(w, "Bu özellik için yerel yazı tipi klasörü yapılandırılmalı.", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Yazı tipi seçimi geçersiz.", http.StatusBadRequest)
+		return
+	}
+	family := r.FormValue("family")
+	allowed := false
+	for _, option := range localFontFamilies {
+		if option == family {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		http.Error(w, "Yazı tipi seçimi geçersiz.", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	cssPath, err := designsystem.LocalizeGoogleFont(ctx, family, h.FontsDir, nil)
+	if err != nil {
+		http.Error(w, "Yazı tipi indirilemedi. Lütfen daha sonra tekrar deneyin.", http.StatusBadGateway)
+		return
+	}
+	publicPath := "/fonts/" + filepath.Base(cssPath)
+	if err := h.Service.SaveSetting(r.Context(), site.Setting{Key: "design.font_css", Value: publicPath, Public: true, UpdatedAt: time.Now().UTC()}); err != nil {
+		http.Error(w, "Yazı tipi ayarı kaydedilemedi.", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/fonts?saved=1", http.StatusSeeOther)
 }
 
 func (h Handler) saveRedirect(w http.ResponseWriter, r *http.Request) {

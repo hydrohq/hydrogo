@@ -136,6 +136,7 @@ func LocalizeGoogleFont(ctx context.Context, family, destination string, client 
 	if output.Len() == 0 {
 		return "", errors.New("Google Fonts stylesheet has no supported WOFF2 faces")
 	}
+	fmt.Fprintf(&output, "body{font-family:'%s',sans-serif;}\n", family)
 	slug := strings.ToLower(strings.ReplaceAll(strings.Join(strings.Fields(family), "-"), " ", "-"))
 	filename := "font-" + slug + ".css"
 	if err := writeFontFile(destination, filename, []byte(output.String())); err != nil {

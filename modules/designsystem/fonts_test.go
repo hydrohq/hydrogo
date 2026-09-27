@@ -35,7 +35,7 @@ func TestLocalizeGoogleFontDownloadsBoundedWOFF2AndGeneratesCSS(t *testing.T) {
 		t.Fatal(err)
 	}
 	css, err := os.ReadFile(cssPath)
-	if err != nil || !strings.Contains(string(css), "font-display:swap") || !strings.Contains(string(css), "format('woff2')") {
+	if err != nil || !strings.Contains(string(css), "font-display:swap") || !strings.Contains(string(css), "format('woff2')") || !strings.Contains(string(css), "body{font-family:'Inter'") {
 		t.Fatalf("generated CSS=%s err=%v", css, err)
 	}
 	fonts, err := filepath.Glob(filepath.Join(destination, "*.woff2"))

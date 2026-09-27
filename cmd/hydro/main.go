@@ -1490,7 +1490,7 @@ func serve(args []string, stderr io.Writer) error {
 		if sitemapOrigin == "" && cfg.HTTP.Address != "" {
 			sitemapOrigin = "http://" + cfg.HTTP.Address
 		}
-		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Redirects: redirectRegistry, SubmissionLimiter: newRateLimiter(5, time.Minute), FormsEnabled: modules["forms"], SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(5, time.Minute), FormsEnabled: modules["forms"], SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err
@@ -1598,20 +1598,26 @@ func serve(args []string, stderr io.Writer) error {
 			}
 		}
 		pageLLMSCache = &seo.DiscoveryCache{}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, OGBrand: func(brandCtx context.Context) string {
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
+			var result pagetransport.PublicSEOSettings
 			if !modules["site"] {
-				return ""
+				return result
 			}
-			settings, err := siteStore.ListPublicSettings(brandCtx, db)
+			settings, err := siteStore.ListPublicSettings(seoCtx, db)
 			if err != nil {
-				return ""
+				return result
 			}
 			for _, setting := range settings {
-				if setting.Key == "site.name" || setting.Key == "site.title" {
-					return setting.Value
+				switch setting.Key {
+				case "site.name", "site.title":
+					if result.Brand == "" {
+						result.Brand = setting.Value
+					}
+				case "design.font_css":
+					result.FontCSS = setting.Value
 				}
 			}
-			return ""
+			return result
 		}}
 		pageHTTP.DiscoveryProvider = func(providerCtx context.Context) (seo.Discovery, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
@@ -2064,7 +2070,7 @@ func serve(args []string, stderr io.Writer) error {
 		if active == "control" {
 			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
-			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), LocaleSaved: r.URL.Query().Get("locale_saved") == "1", Permissions: authSvc.AvailablePermissions()}
+			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), LocaleSaved: r.URL.Query().Get("locale_saved") == "1", FontToolsEnabled: modules["pages"], Permissions: authSvc.AvailablePermissions()}
 			if active == "users" {
 				if repo, ok := any(userStore).(auth.UserAdminRepository); ok {
 					areaData.Users, err = repo.List(r.Context())

@@ -9,19 +9,35 @@ import (
 )
 
 func TestPageSEOMetadataIncludesBrandAndVersionedOGImage(t *testing.T) {
-	handler := Handler{SEOOrigin: "https://client.example", OGBrand: func(context.Context) string { return "Client Brand" }}
+	handler := Handler{SEOOrigin: "https://client.example", PublicSEOSettings: func(context.Context) PublicSEOSettings {
+		return PublicSEOSettings{Brand: "Client Brand", FontCSS: "/fonts/font-inter.css"}
+	}}
 	page := pages.Page{Locale: "tr", Slug: "home", Title: "Yeni Başlık"}
 	meta, err := handler.pageSEOMeta(context.Background(), page)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(meta, `https://client.example/tr/home`) || !strings.Contains(meta, `og:image`) || !strings.Contains(meta, `?v=`) {
+	if !strings.Contains(meta, `https://client.example/tr/home`) || !strings.Contains(meta, `og:image`) || !strings.Contains(meta, `?v=`) || !strings.Contains(meta, `/fonts/font-inter.css`) {
 		t.Fatalf("SEO tags missing canonical or versioned OG image: %s", meta)
 	}
-	first := handler.pageOGInput(context.Background(), page)
-	handler.OGBrand = func(context.Context) string { return "Other Brand" }
-	second := handler.pageOGInput(context.Background(), page)
+	first := handler.pageOGInput(page, handler.publicSEOSettings(context.Background()))
+	handler.PublicSEOSettings = func(context.Context) PublicSEOSettings { return PublicSEOSettings{Brand: "Other Brand"} }
+	second := handler.pageOGInput(page, handler.publicSEOSettings(context.Background()))
 	if first.Brand == second.Brand {
 		t.Fatal("brand metadata callback was ignored")
+	}
+}
+
+func TestPageSEOOnlyEmitsGeneratedLocalFontStylesheets(t *testing.T) {
+	page := pages.Page{Locale: "tr", Slug: "home", Title: "Home"}
+	for _, value := range []string{"https://evil.test/a.css", "/fonts/secret.css", "/fonts/font-../x.css"} {
+		handler := Handler{PublicSEOSettings: func(context.Context) PublicSEOSettings { return PublicSEOSettings{FontCSS: value} }}
+		meta, err := handler.pageSEOMeta(context.Background(), page)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(meta, "rel=\"stylesheet\"") {
+			t.Errorf("unsafe font URL emitted: %s", meta)
+		}
 	}
 }
