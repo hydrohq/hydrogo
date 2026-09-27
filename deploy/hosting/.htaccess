@@ -2,17 +2,33 @@ Options +ExecCGI -Indexes
 AddHandler cgi-script .cgi
 RewriteEngine On
 
-# Keep real files and directories on Apache's static file path.
+# 1. Keep real static assets (images, CSS, JS, favicon) on Apache's direct static path.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Static HTML files are served by Apache and revalidated frequently so
-# deployments can replace them without leaving stale page copies for long.
+# 2. Static HTML Cache Passthrough:
+# If a cached static HTML file exists and the visitor has no active session cookie,
+# Apache serves the static file directly from disk with ZERO CGI process invocation!
+RewriteCond %{REQUEST_METHOD} GET
+RewriteCond %{HTTP_COOKIE} !hydro_session [NC]
+RewriteCond %{DOCUMENT_ROOT}/static_cache%{REQUEST_URI}/index.html -f
+RewriteRule ^(.*)$ static_cache/$1/index.html [L]
+
+RewriteCond %{REQUEST_METHOD} GET
+RewriteCond %{HTTP_COOKIE} !hydro_session [NC]
+RewriteCond %{DOCUMENT_ROOT}/static_cache%{REQUEST_URI}.html -f
+RewriteRule ^(.*)$ static_cache/$1.html [L]
+
+# 3. Static asset caching headers
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType text/html "access plus 1 minute"
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
 </IfModule>
 
-# Install the self-contained HydroGo binary as an executable CGI script.
+# 4. Route all remaining dynamic requests to the self-contained HydroGo binary.
 RewriteRule ^ hydro.cgi [QSA,L]

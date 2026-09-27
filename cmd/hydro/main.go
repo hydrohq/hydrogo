@@ -1953,26 +1953,49 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	if *cgiMode {
 		handler := server.NewHandler(serverConfig)
-		if modules["news"] {
-			handler = server.LazyCron(handler, func(cronCtx context.Context) {
-				cronCtx, cancel := context.WithTimeout(cronCtx, 5*time.Second)
-				defer cancel()
-				if err := newsWorker.EnqueueDue(cronCtx, db, time.Now().UTC()); err != nil {
-					_, _ = fmt.Fprintf(stderr, "hydro lazy cron enqueue: %v\n", err)
-					return
-				}
-				for i := 0; i < 4; i++ {
-					worked, err := newsWorker.RunOnce(cronCtx, "cgi-lazy-cron", time.Now().UTC())
-					if err != nil {
-						_, _ = fmt.Fprintf(stderr, "hydro lazy cron: %v\n", err)
-						return
+		// 1. Enable static disk cache for public GET pages in CGI environments
+		handler = server.StaticDiskCacheMiddleware(server.StaticCacheOptions{
+			BaseDir:       "static_cache",
+			SessionCookie: "hydro_session",
+		})(handler)
+
+		// 2. Comprehensive Lazy Cron runner for CGI request lifecycles
+		handler = server.LazyCron(handler, func(cronCtx context.Context) {
+			// Bounded cron context
+			cronCtx, cancel := context.WithTimeout(cronCtx, 5*time.Second)
+			defer cancel()
+
+			// A. Scheduled news publications
+			if modules["news"] {
+				if err := newsWorker.EnqueueDue(cronCtx, db, time.Now().UTC()); err == nil {
+					for i := 0; i < 4; i++ {
+						worked, err := newsWorker.RunOnce(cronCtx, "cgi-lazy-cron", time.Now().UTC())
+						if err != nil || !worked {
+							break
+						}
 					}
-					if !worked {
-						return
-					}
 				}
-			})
-		}
+			}
+
+			// B. Session cleanup
+			if sessionStore != nil {
+				_, _ = sessionStore.DeleteExpired(cronCtx, time.Now().UTC())
+			}
+
+			// C. Outbox webhook dispatch
+			if len(webhookEndpoints) > 0 {
+				outboxWorker := webhooks.Worker{
+					DB:           db,
+					Store:        outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
+					TenantScopes: tenantScopes,
+					Dispatcher:   webhooks.Dispatcher{Endpoints: webhookEndpoints},
+					WorkerID:     "cgi-lazy-cron",
+					Lease:        10 * time.Second,
+					RetryAfter:   30 * time.Second,
+				}
+				_, _ = outboxWorker.RunOnce(cronCtx, time.Now().UTC())
+			}
+		})
 		return server.ServeCGI(handler)
 	}
 	return server.Serve(ctx, serverConfig)
