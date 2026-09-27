@@ -52,6 +52,16 @@ func TestValidateImageDimensionsRejectsInvalidDimensions(t *testing.T) {
 	}
 }
 
+func TestUploaderRejectsExecutableDoubleExtensions(t *testing.T) {
+	uploader, err := NewUploader(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := uploader.Save(bytes.NewReader(createTestPNG(2, 2)), "../avatar.png.php"); !errors.Is(err, ErrDisallowedMimeType) {
+		t.Fatalf("double extension error = %v", err)
+	}
+}
+
 func TestUploaderSaveContextHonorsCancellationWhileBusy(t *testing.T) {
 	uploader, err := NewUploaderWithConcurrency(t.TempDir(), 1<<20, 1)
 	if err != nil {

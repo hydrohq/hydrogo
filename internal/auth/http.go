@@ -70,6 +70,7 @@ type HTTPHandler struct {
 	RecoveryLimiter        security.RateLimiter
 	RecoveryConfirmLimiter security.RateLimiter
 	InviteAcceptLimiter    security.RateLimiter
+	LoginTarpit            *security.Tarpit
 	Recovery               *PasswordRecovery
 	RecoveryDB             database.Executor
 	Notifier               RecoveryNotifier
@@ -254,6 +255,11 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
 			h.recordAuthFailure(r, r.FormValue("email"))
+			if h.LoginTarpit != nil {
+				if err := h.LoginTarpit.Wait(r.Context(), loginAttemptKey(r)); err != nil {
+					return
+				}
+			}
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
@@ -299,6 +305,9 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if h.LoginTarpit != nil {
+		h.LoginTarpit.Reset(loginAttemptKey(r))
+	}
 	token, session, err := h.Service.CreateSession(r.Context(), user.ID, r.UserAgent(), clientIP(r), DefaultSessionTTL)
 	if err != nil {
 		writeAuthDependencyError(w, "authentication failed", err, http.StatusInternalServerError)
@@ -314,6 +323,10 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role})
+}
+
+func loginAttemptKey(r *http.Request) string {
+	return clientIP(r) + ":" + NormalizeEmail(r.FormValue("email"))
 }
 
 func (h HTTPHandler) logout(w http.ResponseWriter, r *http.Request) {

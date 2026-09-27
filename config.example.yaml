@@ -10,6 +10,7 @@ database:
   dsn: ""
 media:
   dir: "data/media"
+  min_free_bytes: 52428800
 seo:
   fonts_dir: "public/fonts"
 # Optional Redis/Valkey endpoint. Leave empty for Compact/local mode.
@@ -29,6 +30,9 @@ security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false
   enable_hsts: false
+  headers_preset: strict
+  enable_anomaly_filter: true
+  anomaly_bypass_paths: []
   # Optional explicit allowlist for credential-free published /api/v1 reads.
   # Browser writes remain same-site or BFF-only; wildcard origins are not supported.
   public_api_origins: []

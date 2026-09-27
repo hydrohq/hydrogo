@@ -25,7 +25,10 @@ type AdminAreaData struct {
 	FontToolsEnabled bool
 	Users            []*auth.User
 	Permissions      []string
+	IPBans           []SecurityBanRow
 }
+
+type SecurityBanRow struct{ Address, Expires string }
 
 type AdminResourceUsageData struct {
 	Email    string
@@ -526,6 +529,32 @@ function testGraphQL(btn){
     </div>
   </div>
 </div>`, csrf, email)
+		_, _ = io.WriteString(w, `<section class="sec-card" aria-labelledby="ip-ban-title"><h3 id="ip-ban-title">IP engelleme</h3><p>Bir IP adresini veya CIDR aralığını geçici ya da süresiz engelleyin.</p><form method="post" action="/admin/security/bans" class="studio-form"><input type="hidden" name="_csrf" value="`+csrf+`">`)
+		if err := uicomponents.Input(uicomponents.InputProps{ID: "security-ban-address", Name: "address", Label: "IP adresi veya CIDR", Type: "text", Placeholder: "192.0.2.10 veya 192.0.2.0/24", Required: true, MaxLength: 64, HasMaxLength: true}).Render(context.Background(), w); err != nil {
+			return err
+		}
+		if err := uicomponents.Input(uicomponents.InputProps{ID: "security-ban-duration", Name: "duration", Label: "Süre (örn. 24h; boş bırakılırsa süresiz)", Type: "text", Placeholder: "24h", MaxLength: 32, HasMaxLength: true}).Render(context.Background(), w); err != nil {
+			return err
+		}
+		if err := uicomponents.Button(uicomponents.ButtonProps{Label: "IP engelle", Type: "submit", Variant: uicomponents.Primary}).Render(context.Background(), w); err != nil {
+			return err
+		}
+		_, _ = io.WriteString(w, `</form><form method="post" action="/admin/security/bans/remove" class="studio-form"><input type="hidden" name="_csrf" value="`+csrf+`">`)
+		if err := uicomponents.Input(uicomponents.InputProps{ID: "security-unban-address", Name: "address", Label: "Engeli kaldırılacak adres veya CIDR", Type: "text", Required: true, MaxLength: 64, HasMaxLength: true}).Render(context.Background(), w); err != nil {
+			return err
+		}
+		if err := uicomponents.Button(uicomponents.ButtonProps{Label: "Engeli kaldır", Type: "submit", Variant: uicomponents.Quiet}).Render(context.Background(), w); err != nil {
+			return err
+		}
+		_, _ = io.WriteString(w, `</form>`)
+		rows := make([][]string, 0, len(data.IPBans))
+		for _, item := range data.IPBans {
+			rows = append(rows, []string{item.Address, item.Expires})
+		}
+		if err := uicomponents.Table(uicomponents.TableProps{Caption: "Engellenen IP adresleri", Columns: []string{"Adres", "Bitiş"}, Rows: rows, EmptyMessage: "Etkin engelleme yok."}).Render(context.Background(), w); err != nil {
+			return err
+		}
+		_, _ = io.WriteString(w, `</section>`)
 
 	case "permissions":
 		_, _ = io.WriteString(w, `<div class="perm-grid" data-testid="permissions-area">

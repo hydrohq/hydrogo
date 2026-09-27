@@ -38,7 +38,14 @@ func NonceFromContext(ctx context.Context) string {
 
 type HeaderConfig struct {
 	EnableHSTS bool
+	Preset     string
 }
+
+const (
+	HeaderPresetStrict   = "strict"
+	HeaderPresetStandard = "standard"
+	HeaderPresetRelaxed  = "relaxed"
+)
 
 func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -51,15 +58,29 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 
 			ctx := context.WithValue(r.Context(), cspNonceContextKey{}, nonce)
 
-			csp := fmt.Sprintf(
-				"default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self' 'nonce-%s'; style-src-attr 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';",
-				nonce, nonce,
-			)
-
+			preset := strings.ToLower(strings.TrimSpace(cfg.Preset))
+			if preset == "" {
+				preset = HeaderPresetStrict
+			}
+			frameAncestors, frameOptions := "'none'", "DENY"
+			referrer := "strict-origin-when-cross-origin"
+			stylePolicy := "'nonce-" + nonce + "'"
+			switch preset {
+			case HeaderPresetStandard:
+				frameAncestors, frameOptions = "'self'", "SAMEORIGIN"
+				referrer = "no-referrer-when-downgrade"
+			case HeaderPresetRelaxed:
+				frameAncestors, frameOptions = "'self'", "SAMEORIGIN"
+				referrer = "no-referrer-when-downgrade"
+				stylePolicy += " 'unsafe-inline'"
+			default:
+				preset = HeaderPresetStrict
+			}
+			csp := fmt.Sprintf("default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self' %s; style-src-attr 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors %s; form-action 'self';", nonce, stylePolicy, frameAncestors)
 			w.Header().Set("Content-Security-Policy", csp)
 			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.Header().Set("X-Frame-Options", "DENY")
-			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			w.Header().Set("X-Frame-Options", frameOptions)
+			w.Header().Set("Referrer-Policy", referrer)
 			w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 			w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 			w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")

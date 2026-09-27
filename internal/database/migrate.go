@@ -120,6 +120,89 @@ func ApplyMigrationsForModules(ctx context.Context, db *sql.DB, dialect Dialect,
 	return nil
 }
 
+// PendingMigrations reports selected, unapplied migrations and verifies every
+// recorded checksum without creating or changing the migration ledger.
+func PendingMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrationFS fs.FS, enabled map[string]bool) ([]string, error) {
+	if db == nil {
+		return nil, ErrDatabaseRequired
+	}
+	if err := validateMigrationDialect(dialect); err != nil {
+		return nil, err
+	}
+	all, err := discoverMigrations(migrationFS)
+	if err != nil {
+		return nil, err
+	}
+	selected := make([]string, 0, len(all))
+	for _, id := range all {
+		if enabled == nil {
+			selected = append(selected, id)
+			continue
+		}
+		include, err := migrationSelected(migrationFS, id, canonicalEnabledModules(enabled))
+		if err != nil {
+			return nil, err
+		}
+		if include {
+			selected = append(selected, id)
+		}
+	}
+	hasLedger := false
+	if dialect == SQLite {
+		err = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations')`).Scan(&hasLedger)
+	} else {
+		err = db.QueryRowContext(ctx, `SELECT to_regclass('public.schema_migrations') IS NOT NULL`).Scan(&hasLedger)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("inspect migration ledger: %w", err)
+	}
+	if !hasLedger {
+		return selected, nil
+	}
+	known := make(map[string]struct{}, len(all))
+	for _, id := range all {
+		known[id] = struct{}{}
+	}
+	if err := rejectUnknownMigrations(ctx, db, known); err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx, "SELECT id,checksum FROM schema_migrations")
+	if err != nil {
+		return nil, fmt.Errorf("read migration ledger: %w", err)
+	}
+	applied := make(map[string]string)
+	for rows.Next() {
+		var id, checksum string
+		if err := rows.Scan(&id, &checksum); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		applied[id] = checksum
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	pending := make([]string, 0)
+	for _, id := range selected {
+		content, err := fs.ReadFile(migrationFS, fmt.Sprintf("%s/%s.sql", id, dialect))
+		if err != nil {
+			return nil, fmt.Errorf("missing migration script %s: %w", id, err)
+		}
+		digest := sha256.Sum256(content)
+		checksum := hex.EncodeToString(digest[:])
+		if prior, ok := applied[id]; ok {
+			if prior != checksum {
+				return nil, fmt.Errorf("migration %s checksum mismatch", id)
+			}
+			continue
+		}
+		pending = append(pending, id)
+	}
+	return pending, nil
+}
+
 func canonicalEnabledModules(enabled map[string]bool) map[string]bool {
 	if enabled == nil {
 		return nil

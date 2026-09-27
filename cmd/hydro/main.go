@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -70,7 +71,9 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/sdkdist"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
+	"github.com/ardaozyildirim/hydrogo/internal/storage"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
@@ -186,6 +189,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return devCommand(args[1:], stdout, stderr)
 	case "migrate":
 		return migrate(args[1:], stderr)
+	case "rollback":
+		return rollbackCommand(args[1:], stdout, stderr)
+	case "ban":
+		return ipBanCommand(args[1:], false, stdout, stderr)
+	case "unban":
+		return ipBanCommand(args[1:], true, stdout, stderr)
 	case "migration":
 		return migrationCommand(args[1:], stdout, stderr)
 	case "upgrade":
@@ -1301,7 +1310,23 @@ func serve(args []string, stderr io.Writer) error {
 		return err
 	}
 	defer db.Close()
+	if cfg.Database.Dialect == database.SQLite {
+		if err := database.RecoverSQLite(ctx, db); err != nil {
+			return fmt.Errorf("SQLite startup recovery failed: %w", err)
+		}
+		if stderr != nil {
+			_, _ = fmt.Fprintln(stderr, `{"event":"sqlite_recovery","integrity":"ok","wal_checkpoint":"restart"}`)
+		}
+	}
 	transactioner := database.NewTenantTransactor(db, cfg.Database.Dialect, requireTenantScope)
+	ipBlocklist := security.NewIPBlocklist(4096)
+	banStore := securitystore.BanStore{Dialect: cfg.Database.Dialect}
+	if err := refreshIPBlocklist(ctx, db, banStore, ipBlocklist); err != nil {
+		return fmt.Errorf("load IP security rules: %w", err)
+	}
+	if !*cgiMode {
+		go runIPBlocklistRefresh(ctx, db, banStore, ipBlocklist)
+	}
 
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
@@ -1321,7 +1346,7 @@ func serve(args []string, stderr io.Writer) error {
 	newRateLimiter := func(limit int, window time.Duration) security.RateLimiter {
 		return newRuntimeRateLimiter(redisClient, cfg.Redis.KeyPrefix, limit, window, requireTenantScope)
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -1438,6 +1463,7 @@ func serve(args []string, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
+		uploader.QuotaGuard = storage.QuotaGuard{MinFreeBytes: cfg.Media.MinFreeBytes}
 		var mediaOptimizer *media.Optimizer
 		if !*cgiMode {
 			mediaOptimizer = media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
@@ -2087,6 +2113,21 @@ func serve(args []string, stderr io.Writer) error {
 					err = fmt.Errorf("admin user repository unavailable")
 				}
 			}
+			if active == "security" {
+				entries, listErr := banStore.ListActive(r.Context(), db, time.Now().UTC(), 4096)
+				if listErr != nil {
+					err = listErr
+				} else {
+					areaData.IPBans = make([]ui.SecurityBanRow, 0, len(entries))
+					for _, entry := range entries {
+						expires := "Süresiz"
+						if !entry.Expires.IsZero() {
+							expires = entry.Expires.UTC().Format(time.RFC3339)
+						}
+						areaData.IPBans = append(areaData.IPBans, ui.SecurityBanRow{Address: entry.Prefix.String(), Expires: expires})
+					}
+				}
+			}
 			if err == nil {
 				err = ui.RenderAdminArea(w, areaData)
 			}
@@ -2098,6 +2139,64 @@ func serve(args []string, stderr io.Writer) error {
 	for _, pattern := range adminControlRoutePatterns(modules) {
 		routes = append(routes, router.Route{Pattern: pattern, Access: router.Protected, Handler: adminControlHandler})
 	}
+	adminBanMutation := func(remove bool) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			user := auth.UserFromContext(r.Context())
+			if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+			if err := r.ParseForm(); err != nil {
+				http.Error(w, "invalid IP rule", http.StatusBadRequest)
+				return
+			}
+			prefix, err := parseIPBanPrefix(r.FormValue("address"))
+			if err != nil {
+				http.Error(w, "invalid IP address or CIDR", http.StatusBadRequest)
+				return
+			}
+			if remove {
+				err = banStore.Remove(r.Context(), db, prefix)
+				if err == nil {
+					err = ipBlocklist.Unban(prefix.String())
+				}
+			} else {
+				var expires time.Time
+				rawDuration := strings.TrimSpace(r.FormValue("duration"))
+				if rawDuration != "" {
+					duration, parseErr := time.ParseDuration(rawDuration)
+					if parseErr != nil || duration < 0 || duration > 365*24*time.Hour {
+						http.Error(w, "invalid ban duration", http.StatusBadRequest)
+						return
+					}
+					if duration > 0 {
+						expires = time.Now().UTC().Add(duration)
+					}
+				}
+				err = banStore.Put(r.Context(), db, prefix, expires)
+				if err == nil {
+					err = ipBlocklist.Ban(prefix.String(), expires)
+				}
+			}
+			if err != nil {
+				http.Error(w, "IP rule could not be updated", http.StatusServiceUnavailable)
+				return
+			}
+			action := "security.ip_ban.created"
+			if remove {
+				action = "security.ip_ban.removed"
+			}
+			if authHTTP.Audit != nil {
+				_ = authHTTP.Audit.Record(r.Context(), action, prefix.String())
+			}
+			http.Redirect(w, r, "/admin/security", http.StatusSeeOther)
+		}
+	}
+	routes = append(routes,
+		router.Route{Pattern: "POST /admin/security/bans", Access: router.Protected, Handler: adminBanMutation(false)},
+		router.Route{Pattern: "POST /admin/security/bans/remove", Access: router.Protected, Handler: adminBanMutation(true)},
+	)
 	if modules["media"] {
 		routes = append(routes, mediaRouterRoutes(mediaHTTP.AdminRoutes())...)
 		routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
@@ -2282,12 +2381,22 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	serverConfig := server.Config{
-		Address:          cfg.HTTP.Address,
-		ShutdownTimeout:  budget.ShutdownTimeout,
-		AuthSvc:          authSvc,
-		Metrics:          metrics,
-		Logger:           logger,
-		EnableHSTS:       cfg.Security.EnableHSTS,
+		Address:               cfg.HTTP.Address,
+		ShutdownTimeout:       budget.ShutdownTimeout,
+		AuthSvc:               authSvc,
+		Metrics:               metrics,
+		Logger:                logger,
+		EnableHSTS:            cfg.Security.EnableHSTS,
+		SecurityHeadersPreset: cfg.Security.HeadersPreset,
+		IPBlocklist:           ipBlocklist,
+		AnomalyFilterEnabled:  cfg.Security.EnableAnomalyFilter,
+		AnomalyBypassPaths:    cfg.Security.AnomalyBypassPaths,
+		OnSecurityAnomaly: func(r *http.Request, rule string) {
+			if authHTTP.Audit != nil {
+				target := rule + " from " + r.RemoteAddr
+				_ = authHTTP.Audit.Record(r.Context(), "security.request_rejected", target)
+			}
+		},
 		SecureCookie:     cfg.Security.SecureCookies,
 		HTTPBodyLimit:    budget.HTTPBodyBytes,
 		PublicOrigin:     cfg.HTTP.PublicOrigin,
@@ -2829,6 +2938,32 @@ func profileDatabaseOptions(budget capacity.Budget, profile capacity.Profile) da
 	}
 }
 
+func refreshIPBlocklist(ctx context.Context, db *sql.DB, store securitystore.BanStore, list *security.IPBlocklist) error {
+	entries, err := store.ListActive(ctx, db, time.Now().UTC(), 4096)
+	if err != nil {
+		return err
+	}
+	return list.Replace(entries)
+}
+
+func runIPBlocklistRefresh(ctx context.Context, db *sql.DB, store securitystore.BanStore, list *security.IPBlocklist) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			refreshCtx, cancel := context.WithTimeout(ctx, time.Second)
+			err := refreshIPBlocklist(refreshCtx, db, store, list)
+			cancel()
+			if err != nil {
+				slog.Warn("security blocklist refresh failed", "error", err)
+			}
+		}
+	}
+}
+
 func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, metrics *observability.Metrics, stderr io.Writer, concurrency int) {
 	if concurrency < 1 {
 		concurrency = 1
@@ -3302,6 +3437,7 @@ func migrate(args []string, stderr io.Writer) error {
 	flags := flag.NewFlagSet("migrate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
+	dryRun := flags.Bool("dry-run", false, "Report pending migrations without changing the schema")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -3323,7 +3459,271 @@ func migrate(args []string, stderr io.Writer) error {
 		return err
 	}
 	defer db.Close()
+	if cfg.Database.Dialect == database.SQLite && !*dryRun {
+		if err := database.RecoverSQLite(ctx, db); err != nil {
+			return fmt.Errorf("SQLite recovery check failed: %w", err)
+		}
+	}
+	if *dryRun {
+		pending, err := database.PendingMigrations(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
+		if err != nil {
+			return err
+		}
+		if len(pending) == 0 {
+			_, err = fmt.Fprintln(stderr, "migration-plan no pending migrations")
+			return err
+		}
+		_, err = fmt.Fprintf(stderr, "migration-plan pending=%s\n", strings.Join(pending, ","))
+		return err
+	}
+	if cfg.Database.Dialect == database.SQLite {
+		dbPath, err := sqliteDatabasePath(cfg.Database.DSN)
+		if err != nil {
+			return err
+		}
+		snapshot := dbPath + ".bak-" + time.Now().UTC().Format("20060102T150405.000000000Z")
+		if err := backupstore.SnapshotSQLiteFile(ctx, db, snapshot); err != nil {
+			return fmt.Errorf("create pre-migration snapshot: %w", err)
+		}
+		if stderr != nil {
+			_, _ = fmt.Fprintf(stderr, "migration-snapshot-created path=%s\n", snapshot)
+		}
+	}
 	return database.ApplyMigrationsForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
+}
+
+func sqliteDatabasePath(dsn string) (string, error) {
+	value := strings.TrimSpace(dsn)
+	if strings.HasPrefix(value, "file:") {
+		value = strings.TrimPrefix(value, "file:")
+	}
+	if index := strings.IndexByte(value, '?'); index >= 0 {
+		query := value[index+1:]
+		value = value[:index]
+		if strings.Contains(query, "mode=memory") {
+			return "", errors.New("automatic migration snapshots require a file-backed SQLite database")
+		}
+	}
+	if value == "" || value == ":memory:" {
+		return "", errors.New("automatic migration snapshots require a file-backed SQLite database")
+	}
+	return filepath.Abs(value)
+}
+
+func rollbackCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("rollback", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	snapshotFlag := flags.String("snapshot", "", "Pre-migration SQLite snapshot file (defaults to newest adjacent snapshot)")
+	confirm := flags.Bool("confirm", false, "Confirm HydroGo is stopped and database writes may be rolled back")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if !*confirm {
+		return errors.New("rollback requires --confirm after stopping HydroGo and reviewing the snapshot")
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	if cfg.Database.Dialect != database.SQLite {
+		return errors.New("hydro rollback currently supports SQLite only")
+	}
+	dbPath, err := sqliteDatabasePath(cfg.Database.DSN)
+	if err != nil {
+		return err
+	}
+	snapshot := strings.TrimSpace(*snapshotFlag)
+	if snapshot == "" {
+		matches, err := filepath.Glob(dbPath + ".bak-*")
+		if err != nil {
+			return err
+		}
+		if len(matches) == 0 {
+			return errors.New("no pre-migration snapshots found; pass --snapshot PATH")
+		}
+		sort.Strings(matches)
+		snapshot = matches[len(matches)-1]
+	}
+	snapshot, err = filepath.Abs(snapshot)
+	if err != nil {
+		return err
+	}
+	if snapshot == dbPath {
+		return errors.New("snapshot and active database paths must differ")
+	}
+	if err := validateSQLiteFile(snapshot); err != nil {
+		return fmt.Errorf("snapshot verification failed: %w", err)
+	}
+	if err := validateSQLiteFile(dbPath); err != nil {
+		return fmt.Errorf("active database verification failed: %w", err)
+	}
+	timestamp := time.Now().UTC().Format("20060102T150405.000000000Z")
+	previous := dbPath + ".before-rollback-" + timestamp
+	temporary := dbPath + ".rollback-" + timestamp
+	if err := copyRegularFile(snapshot, temporary); err != nil {
+		return fmt.Errorf("stage rollback database: %w", err)
+	}
+	defer os.Remove(temporary)
+	if err := validateSQLiteFile(temporary); err != nil {
+		return fmt.Errorf("staged rollback database verification failed: %w", err)
+	}
+	if err := os.Rename(dbPath, previous); err != nil {
+		return fmt.Errorf("preserve current database: %w", err)
+	}
+	var movedSidecars []struct{ source, destination string }
+	for _, suffix := range []string{"-wal", "-shm"} {
+		source, destination := dbPath+suffix, previous+suffix
+		if err := os.Rename(source, destination); err == nil {
+			movedSidecars = append(movedSidecars, struct{ source, destination string }{source, destination})
+		} else if !errors.Is(err, os.ErrNotExist) {
+			_ = os.Rename(previous, dbPath)
+			for _, sidecar := range movedSidecars {
+				_ = os.Rename(sidecar.destination, sidecar.source)
+			}
+			return fmt.Errorf("preserve SQLite sidecar: %w", err)
+		}
+	}
+	if err := os.Rename(temporary, dbPath); err != nil {
+		_ = os.Rename(previous, dbPath)
+		for _, sidecar := range movedSidecars {
+			_ = os.Rename(sidecar.destination, sidecar.source)
+		}
+		return fmt.Errorf("activate rollback database: %w", err)
+	}
+	if err := validateSQLiteFile(dbPath); err != nil {
+		return fmt.Errorf("activated rollback database failed integrity check; prior database preserved at %s: %w", previous, err)
+	}
+	_, err = fmt.Fprintf(stdout, "rollback-complete database=%s snapshot=%s previous=%s\n", dbPath, snapshot, previous)
+	return err
+}
+
+func validateSQLiteFile(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return errors.New("database path must be a regular file")
+	}
+	db, err := database.Open(context.Background(), database.SQLite, path)
+	if err != nil {
+		return err
+	}
+	recoveryErr := database.RecoverSQLite(context.Background(), db)
+	closeErr := db.Close()
+	if recoveryErr != nil {
+		return recoveryErr
+	}
+	return closeErr
+}
+
+func copyRegularFile(source, destination string) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	info, err := input.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return errors.New("snapshot must be a regular file")
+	}
+	output, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(output, input)
+	syncErr := output.Sync()
+	closeErr := output.Close()
+	if copyErr != nil {
+		_ = os.Remove(destination)
+		return copyErr
+	}
+	if syncErr != nil {
+		_ = os.Remove(destination)
+		return syncErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(destination)
+		return closeErr
+	}
+	return nil
+}
+
+func ipBanCommand(args []string, remove bool, stdout, stderr io.Writer) error {
+	name := "ban"
+	if remove {
+		name = "unban"
+	}
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	duration := flags.Duration("for", 24*time.Hour, "Temporary ban duration; zero means permanent")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 1 {
+		return fmt.Errorf("%s requires one IP address or CIDR", name)
+	}
+	value := strings.TrimSpace(flags.Arg(0))
+	prefix, err := parseIPBanPrefix(value)
+	if err != nil {
+		return err
+	}
+	if *duration < 0 || *duration > 365*24*time.Hour {
+		return errors.New("ban duration must be between zero and 365 days")
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	store := securitystore.BanStore{Dialect: cfg.Database.Dialect}
+	if remove {
+		err = store.Remove(ctx, db, prefix)
+	} else {
+		var expires time.Time
+		if *duration > 0 {
+			expires = time.Now().UTC().Add(*duration)
+		}
+		err = store.Put(ctx, db, prefix, expires)
+	}
+	if err != nil {
+		return fmt.Errorf("update IP blocklist (run hydro migrate if this is a new database): %w", err)
+	}
+	verb := "banned"
+	if remove {
+		verb = "unbanned"
+	}
+	_, err = fmt.Fprintf(stdout, "ip-%s prefix=%s\n", verb, prefix)
+	return err
+}
+
+func parseIPBanPrefix(value string) (netip.Prefix, error) {
+	if prefix, err := netip.ParsePrefix(value); err == nil {
+		return prefix.Masked(), nil
+	}
+	address, err := netip.ParseAddr(value)
+	if err != nil {
+		return netip.Prefix{}, errors.New("invalid IP address or CIDR")
+	}
+	bits := 128
+	if address.Is4() {
+		bits = 32
+	}
+	return netip.PrefixFrom(address, bits), nil
 }
 
 func upgrade(args []string, stdout, stderr io.Writer) error {
