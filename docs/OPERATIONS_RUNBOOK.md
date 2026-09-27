@@ -30,7 +30,7 @@ Without the marker, staging cannot be activated for public traffic, workers, or 
 
 Reset and invite tokens are stored exclusively as hashes. Tokens are never written to logs or audit records once passed to the email/notifier adapter. Unknown password reset requests receive an identical `202 Accepted` response. Token consumption and user creation during invite acceptance execute in a single database transaction.
 
-In production, SMTP notifier settings (`HYDRO_SMTP_HOST`, `HYDRO_SMTP_PORT`, `HYDRO_SMTP_FROM`, `HYDRO_SMTP_USERNAME`, `HYDRO_SMTP_PASSWORD`, and `HYDRO_SMTP_STARTTLS`) are validated together. If SMTP delivery fails, the reset/invite is not reported as successful; provider retry and alerting policies belong to the deployment layer.
+In production, SMTP notifier settings (`HYDRO_SMTP_HOST`, `HYDRO_SMTP_PORT`, `HYDRO_SMTP_FROM`, `HYDRO_SMTP_USERNAME`, `HYDRO_SMTP_PASSWORD`, and `HYDRO_SMTP_STARTTLS`) are validated together. A sender-only `HYDRO_SMTP_FROM` opts into direct MX delivery for staging and low-volume use; it requires outbound port 25 and receiver acceptance. Forms email remains in the durable spool for retry when delivery fails. Use an authenticated submission provider for production; direct MX does not configure SPF or DKIM (see ADR-0270).
 
 ## Forms and Mail Spool
 
@@ -39,8 +39,8 @@ The optional Forms module accepts public form requests only when enabled. Config
 to enable Turnstile; leaving both unset disables the challenge. Keep the secret
 key in the deployment secret store. Form alerts and autoresponders are committed
 to the tenant-scoped SQLite/PostgreSQL mail spool with the submission, then sent
-by the worker when SMTP is configured. Monitor `/admin/site/mail` for permanent
-delivery failures and use its retry action after fixing provider configuration.
+by the worker when an SMTP or explicitly enabled direct MX sender is configured.
+Monitor `/admin/site/mail` for permanent delivery failures and use its retry action after fixing provider configuration.
 Delivered spool records are eligible for cleanup after 30 days; failed records
 remain visible for operator action. Queue capacity follows the active capacity
 profile, and a full queue rejects the submission without losing its payload.

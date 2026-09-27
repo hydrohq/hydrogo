@@ -1362,6 +1362,15 @@ func serve(args []string, stderr io.Writer) error {
 		notifier := mailer.NotificationSender{Sender: sender}
 		authHTTP.Notifier = notifier
 		authHTTP.InviteNotice = notifier
+	} else if cfg.Mail.From != "" {
+		// Without a submission provider, the configured sender address opts into
+		// direct STARTTLS delivery to recipient MX servers. Unavailable direct
+		// delivery remains in the durable mail spool for retry.
+		sender := mailer.MXSender{From: cfg.Mail.From}
+		smtpSender = sender
+		notifier := mailer.NotificationSender{Sender: sender}
+		authHTTP.Notifier = notifier
+		authHTTP.InviteNotice = notifier
 	}
 	publicPageCache, err := newPageCache(modules["pages"], budget, redisClient, cfg.Redis.KeyPrefix)
 	if err != nil {

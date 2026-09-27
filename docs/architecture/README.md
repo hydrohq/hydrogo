@@ -56,6 +56,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0267](0267-form-leads-and-mail-spool.md) | Form leads and durable mail spool | Accepted |
 | [0268](0268-seo-performance-and-discovery-runtime.md) | SEO, performance, and public discovery runtime | Accepted |
 | [0269](0269-optional-no-cookie-visitor-analytics.md) | Optional no-cookie daily visitor analytics | Accepted; partially supersedes 0217 |
+| [0270](0270-direct-mx-mail-fallback.md) | Opt-in direct MX mail fallback | Accepted |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |
@@ -343,3 +344,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0265: FastCGI and persistent CGI HTML cache](0265-fastcgi-and-persistent-html-cache.md)
 - [ADR-0268: SEO, performance, and public discovery runtime](0268-seo-performance-and-discovery-runtime.md)
 - [ADR-0269: Optional no-cookie daily visitor analytics](0269-optional-no-cookie-visitor-analytics.md)
+- [ADR-0270: Opt-in direct MX mail fallback](0270-direct-mx-mail-fallback.md)
