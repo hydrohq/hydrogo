@@ -2,6 +2,11 @@ Options +ExecCGI -Indexes
 AddHandler cgi-script .cgi
 RewriteEngine On
 
+# Cached HTML is only an internal rewrite target. Never expose its filesystem
+# path as a public URL.
+RewriteCond %{THE_REQUEST} \s/+static_cache/ [NC]
+RewriteRule ^static_cache/ - [F,L]
+
 # 1. Keep real static assets (images, CSS, JS, favicon) on Apache's direct static path.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
@@ -11,14 +16,10 @@ RewriteRule ^ - [L]
 # If a cached static HTML file exists and the visitor has no active session cookie,
 # Apache serves the static file directly from disk with ZERO CGI process invocation!
 RewriteCond %{REQUEST_METHOD} GET
-RewriteCond %{HTTP_COOKIE} !hydro_session [NC]
-RewriteCond %{DOCUMENT_ROOT}/static_cache%{REQUEST_URI}/index.html -f
-RewriteRule ^(.*)$ static_cache/$1/index.html [L]
-
-RewriteCond %{REQUEST_METHOD} GET
-RewriteCond %{HTTP_COOKIE} !hydro_session [NC]
-RewriteCond %{DOCUMENT_ROOT}/static_cache%{REQUEST_URI}.html -f
-RewriteRule ^(.*)$ static_cache/$1.html [L]
+RewriteCond %{QUERY_STRING} ^$
+RewriteCond %{HTTP_COOKIE} ^$
+RewriteCond %{DOCUMENT_ROOT}/static_cache/%{SERVER_NAME}%{REQUEST_URI}.html -f
+RewriteRule ^(.*)$ static_cache/%{SERVER_NAME}/$1.html [L]
 
 # 3. Static asset caching headers
 <IfModule mod_expires.c>
@@ -29,6 +30,14 @@ RewriteRule ^(.*)$ static_cache/$1.html [L]
   ExpiresByType text/css "access plus 1 week"
   ExpiresByType application/javascript "access plus 1 week"
 </IfModule>
+
+# Cached HTML has no per-request CSP nonce, so use a fixed policy.
+<FilesMatch "\.html$">
+  <IfModule mod_headers.c>
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+    Header always set X-Content-Type-Options "nosniff"
+  </IfModule>
+</FilesMatch>
 
 # 4. Route all remaining dynamic requests to the self-contained HydroGo binary.
 RewriteRule ^ hydro.cgi [QSA,L]

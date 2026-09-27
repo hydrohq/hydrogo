@@ -1,6 +1,6 @@
 # ADR-0264: CGI hosting runtime
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0265](0265-fastcgi-and-persistent-html-cache.md)
 - **Date:** 2026-09-27
 
 ## Context

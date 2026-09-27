@@ -336,3 +336,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0262: Pure Go image derivatives](0262-pure-go-image-derivatives.md)
 - [ADR-0263: SQLite PRAGMA profiles](0263-sqlite-pragma-profiles.md)
 - [ADR-0264: CGI hosting runtime](0264-cgi-hosting-runtime.md)
+- [ADR-0265: FastCGI and persistent CGI HTML cache](0265-fastcgi-and-persistent-html-cache.md)

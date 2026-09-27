@@ -96,6 +96,16 @@ type pageCache interface {
 	Stats() cache.Stats
 }
 
+type pageCacheWithStaticInvalidation struct {
+	pageCache
+	staticCacheDir string
+}
+
+func (c pageCacheWithStaticInvalidation) Clear() {
+	c.pageCache.Clear()
+	_ = server.PurgeStaticDiskCache(c.staticCacheDir)
+}
+
 const version = "0.0.0-dev"
 
 var (
@@ -771,7 +781,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+		db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 		if err != nil {
 			return err
 		}
@@ -840,7 +850,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+		db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 		if err != nil {
 			return err
 		}
@@ -948,11 +958,7 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if cfg.Database.Dialect != database.SQLite {
 		return errors.New("backup sqlite requires --database-dialect sqlite")
 	}
-	sqliteProfile := database.SQLiteCompactProfile
-	if cfg.Profile != "compact" {
-		sqliteProfile = database.SQLiteVPSProfile
-	}
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns, SQLiteProfile: sqliteProfile})
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return err
 	}
@@ -1141,12 +1147,17 @@ func serve(args []string, stderr io.Writer) error {
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	cgiMode := flags.Bool("cgi", false, "handle one request from a CGI web server")
+	fastCGIMode := flags.Bool("fastcgi", false, "serve FastCGI requests on a listener")
+	fastCGIAddress := flags.String("fastcgi-address", "127.0.0.1:9001", "FastCGI listener address (loopback by default)")
 	values := addRuntimeFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if *cgiMode && *fastCGIMode {
+		return errors.New("--cgi and --fastcgi cannot be combined")
 	}
 
 	cfg, err := loadRuntimeConfig(flags, values)
@@ -1197,11 +1208,7 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	sqliteProfile := database.SQLiteCompactProfile
-	if cfg.Profile != "compact" {
-		sqliteProfile = database.SQLiteVPSProfile
-	}
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns, SQLiteProfile: sqliteProfile})
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return err
 	}
@@ -1255,6 +1262,15 @@ func serve(args []string, stderr io.Writer) error {
 	publicPageCache, err := newPageCache(modules["pages"], budget, redisClient, cfg.Redis.KeyPrefix)
 	if err != nil {
 		return fmt.Errorf("configure redis page cache: %w", err)
+	}
+	staticCacheDir := ""
+	if *cgiMode && (modules["pages"] || modules["news"]) {
+		if documentRoot := strings.TrimSpace(os.Getenv("DOCUMENT_ROOT")); documentRoot != "" {
+			staticCacheDir = filepath.Join(documentRoot, "static_cache")
+		}
+		if publicPageCache != nil {
+			publicPageCache = pageCacheWithStaticInvalidation{pageCache: publicPageCache, staticCacheDir: staticCacheDir}
+		}
 	}
 	contentService := pageservice.ContentService{
 		Transactions: transactioner,
@@ -1434,6 +1450,12 @@ func serve(args []string, stderr io.Writer) error {
 		for i := range pageRoutes {
 			if strings.HasPrefix(pageRoutes[i].Pattern, "GET /public/pages/") {
 				pageRoutes[i].Handler = analytics.ContentViewMiddleware(pageRoutes[i].Handler, contentViewQueue, "page")
+			} else if staticCacheDir != "" && !strings.HasPrefix(pageRoutes[i].Pattern, "GET ") {
+				original := pageRoutes[i].Handler
+				pageRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					defer server.PurgeStaticDiskCache(staticCacheDir)
+					original.ServeHTTP(w, r)
+				})
 			}
 		}
 		routes = append(routes, pageRoutes...)
@@ -1789,6 +1811,12 @@ func serve(args []string, stderr io.Writer) error {
 		for i := range newsRoutes {
 			if strings.HasPrefix(newsRoutes[i].Pattern, "GET /public/news/") {
 				newsRoutes[i].Handler = analytics.ContentViewMiddleware(newsRoutes[i].Handler, contentViewQueue, "news")
+			} else if staticCacheDir != "" && !strings.HasPrefix(newsRoutes[i].Pattern, "GET ") {
+				original := newsRoutes[i].Handler
+				newsRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					defer server.PurgeStaticDiskCache(staticCacheDir)
+					original.ServeHTTP(w, r)
+				})
 			}
 		}
 		routes = append(routes, newsRoutes...)
@@ -1953,10 +1981,9 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	if *cgiMode {
 		handler := server.NewHandler(serverConfig)
-		// 1. Enable static disk cache for public GET pages in CGI environments
 		handler = server.StaticDiskCacheMiddleware(server.StaticCacheOptions{
-			BaseDir:       "static_cache",
-			SessionCookie: "hydro_session",
+			BaseDir:       staticCacheDir,
+			SessionCookie: auth.SessionCookieName,
 		})(handler)
 
 		// 2. Comprehensive Lazy Cron runner for CGI request lifecycles
@@ -1967,13 +1994,18 @@ func serve(args []string, stderr io.Writer) error {
 
 			// A. Scheduled news publications
 			if modules["news"] {
+				published := false
 				if err := newsWorker.EnqueueDue(cronCtx, db, time.Now().UTC()); err == nil {
 					for i := 0; i < 4; i++ {
 						worked, err := newsWorker.RunOnce(cronCtx, "cgi-lazy-cron", time.Now().UTC())
 						if err != nil || !worked {
 							break
 						}
+						published = true
 					}
+				}
+				if published && staticCacheDir != "" {
+					_ = server.PurgeStaticDiskCache(staticCacheDir)
 				}
 			}
 
@@ -1997,6 +2029,9 @@ func serve(args []string, stderr io.Writer) error {
 			}
 		})
 		return server.ServeCGI(handler)
+	}
+	if *fastCGIMode {
+		return server.ServeFastCGI(ctx, "tcp", *fastCGIAddress, serverConfig)
 	}
 	return server.Serve(ctx, serverConfig)
 }
@@ -2064,7 +2099,7 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
@@ -2381,7 +2416,7 @@ func openJobsDatabase(flags *flag.FlagSet, values runtimeFlags) (config.Config, 
 	if err != nil {
 		return config.Config{}, capacity.Budget{}, nil, err
 	}
-	db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return config.Config{}, capacity.Budget{}, nil, fmt.Errorf("database: %w", err)
 	}
@@ -2455,6 +2490,18 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func profileDatabaseOptions(budget capacity.Budget, profile capacity.Profile) database.OpenOptions {
+	sqliteProfile := database.SQLiteCompactProfile
+	if profile != capacity.Compact {
+		sqliteProfile = database.SQLiteVPSProfile
+	}
+	return database.OpenOptions{
+		MaxOpenConns:  budget.DBMaxOpenConns,
+		MaxIdleConns:  budget.DBMaxIdleConns,
+		SQLiteProfile: sqliteProfile,
+	}
 }
 
 func runNewsWorker(ctx context.Context, db database.Executor, worker newsservice.Worker, metrics *observability.Metrics, stderr io.Writer, concurrency int) {
@@ -2946,7 +2993,7 @@ func migrate(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return err
 	}
@@ -2977,7 +3024,7 @@ func upgrade(args []string, stdout, stderr io.Writer) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
@@ -3019,7 +3066,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	ctx := context.Background()
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return err
 	}
@@ -3401,7 +3448,7 @@ func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error
 	if err != nil {
 		return err
 	}
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
 	if err != nil {
 		return err
 	}
@@ -3697,7 +3744,7 @@ Usage:
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]
-  hydro serve [runtime flags]
+  hydro serve [--cgi | --fastcgi --fastcgi-address 127.0.0.1:9001] [runtime flags]
   hydro help
 
 Examples:
