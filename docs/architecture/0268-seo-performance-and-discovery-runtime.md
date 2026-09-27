@@ -32,8 +32,9 @@ contracts in ADR-0125, ADR-0131, and ADR-0217 remain unchanged.
 - `/llms.txt` and `/llms-full.txt` expose only published page projections,
   apply bounded text/output limits, and cache output briefly. Page mutations
   invalidate the discovery cache.
-- `hydro fonts add` may contact the fixed Google Fonts CSS endpoint at
-  operator request time. It writes bounded, hashed WOFF2 assets locally; the
+- `hydro fonts add` and the Admin Studio font picker may contact the fixed
+  Google Fonts CSS endpoint after an operator action. They write bounded,
+  hashed WOFF2 assets locally and publish the chosen local stylesheet; the
   runtime serves only those local files and does not contact Google.
 - Critical design tokens are inlined in server-rendered heads. Remaining CSS
   is preloaded and activated by the existing deferred vanilla script.

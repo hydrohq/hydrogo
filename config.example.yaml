@@ -10,6 +10,8 @@ database:
   dsn: ""
 media:
   dir: "data/media"
+seo:
+  fonts_dir: "public/fonts"
 # Optional Redis/Valkey endpoint. Leave empty for Compact/local mode.
 redis:
   url: ""

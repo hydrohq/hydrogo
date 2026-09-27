@@ -42,11 +42,13 @@ type Handler struct {
 	DefaultLocale     string
 	AllowDemoFrontend bool
 	SEOOrigin         string
-	OGBrand           func(context.Context) string
+	PublicSEOSettings func(context.Context) PublicSEOSettings
 	OGRenderer        *seo.OGRenderer
 	DiscoveryProvider seo.DiscoveryProvider
 	DiscoveryCache    *seo.DiscoveryCache
 }
+
+type PublicSEOSettings struct{ Brand, FontCSS string }
 
 func (h Handler) defaultLocale() string {
 	if h.DefaultLocale != "" {
@@ -337,25 +339,57 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, error) {
+	settings := PublicSEOSettings{}
+	if h.PublicSEOSettings != nil {
+		settings = h.PublicSEOSettings(ctx)
+	}
+	var head strings.Builder
+	if validLocalFontCSS(settings.FontCSS) {
+		fmt.Fprintf(&head, `<link rel="stylesheet" href="%s">`, template.HTMLEscapeString(settings.FontCSS))
+	}
 	origin := strings.TrimSpace(h.SEOOrigin)
 	if origin == "" {
-		return "", nil
+		return head.String(), nil
 	}
-	ogInput := h.pageOGInput(ctx, page)
+	ogInput := h.pageOGInput(page, settings)
 	imagePath := "/og/" + url.PathEscape(page.Locale) + "/" + url.PathEscape(page.Slug) + ".png?v=" + seo.OGVersion(ogInput)
 	view, err := site.BuildSEO(site.SEOInput{Origin: origin, Locale: page.Locale, Path: "/" + page.Slug, Title: page.Title, OGImage: strings.TrimRight(origin, "/") + imagePath})
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(`<link rel="canonical" href="%s"><meta name="description" content="%s"><meta property="og:type" content="website"><meta property="og:title" content="%s"><meta property="og:description" content="%s"><meta property="og:url" content="%s"><meta property="og:image" content="%s"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="%s">`, template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.Description), template.HTMLEscapeString(view.OGTitle), template.HTMLEscapeString(view.OGDescription), template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.OGImage), template.HTMLEscapeString(view.OGImage)), nil
+	fmt.Fprintf(&head, `<link rel="canonical" href="%s"><meta name="description" content="%s"><meta property="og:type" content="website"><meta property="og:title" content="%s"><meta property="og:description" content="%s"><meta property="og:url" content="%s"><meta property="og:image" content="%s"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="%s">`, template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.Description), template.HTMLEscapeString(view.OGTitle), template.HTMLEscapeString(view.OGDescription), template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.OGImage), template.HTMLEscapeString(view.OGImage))
+	return head.String(), nil
 }
 
-func (h Handler) pageOGInput(ctx context.Context, page pages.Page) seo.OGInput {
-	input := seo.OGInput{Title: page.Title, Category: "Page"}
-	if h.OGBrand != nil {
-		input.Brand = h.OGBrand(ctx)
+func (h Handler) publicSEOSettings(ctx context.Context) PublicSEOSettings {
+	if h.PublicSEOSettings == nil {
+		return PublicSEOSettings{}
 	}
+	return h.PublicSEOSettings(ctx)
+}
+
+func (h Handler) pageOGInput(page pages.Page, settings PublicSEOSettings) seo.OGInput {
+	input := seo.OGInput{Title: page.Title, Category: "Page"}
+	input.Brand = settings.Brand
 	return input
+}
+
+func validLocalFontCSS(value string) bool {
+	value = strings.TrimSpace(value)
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != value || !strings.HasPrefix(value, "/fonts/font-") || !strings.HasSuffix(value, ".css") || strings.ContainsAny(value, "\\\r\n\x00") {
+		return false
+	}
+	name := strings.TrimSuffix(strings.TrimPrefix(value, "/fonts/font-"), ".css")
+	if name == "" {
+		return false
+	}
+	for _, char := range name {
+		if !((char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || char == '-' || char == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 func (h Handler) openGraphImage(w http.ResponseWriter, r *http.Request) {
@@ -368,7 +402,7 @@ func (h Handler) openGraphImage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	data, err := h.OGRenderer.Render(h.pageOGInput(r.Context(), page))
+	data, err := h.OGRenderer.Render(h.pageOGInput(page, h.publicSEOSettings(r.Context())))
 	if err != nil {
 		http.Error(w, "image unavailable", http.StatusServiceUnavailable)
 		return
