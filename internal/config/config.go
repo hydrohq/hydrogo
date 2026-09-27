@@ -32,6 +32,7 @@ type Config struct {
 	I18N            I18N             `yaml:"i18n"`
 	Security        Security         `yaml:"security"`
 	Mail            Mail             `yaml:"mail"`
+	Forms           Forms            `yaml:"forms"`
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
@@ -104,6 +105,11 @@ type Mail struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 	StartTLS bool   `yaml:"starttls"`
+}
+
+type Forms struct {
+	TurnstileSiteKey   string `yaml:"turnstile_site_key"`
+	TurnstileSecretKey string `yaml:"turnstile_secret_key"`
 }
 
 type Redis struct {
@@ -319,6 +325,12 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 			return Config{}, fmt.Errorf("invalid HYDRO_SMTP_STARTTLS: %w", err)
 		}
 		result.Mail.StartTLS = startTLS
+	}
+	if value, ok := lookup("HYDRO_FORMS_TURNSTILE_SITE_KEY"); ok && value != "" {
+		result.Forms.TurnstileSiteKey = value
+	}
+	if value, ok := lookup("HYDRO_FORMS_TURNSTILE_SECRET_KEY"); ok && value != "" {
+		result.Forms.TurnstileSecretKey = value
 	}
 	dsnSources := 0
 	if result.Database.DSN != "" {
@@ -544,6 +556,12 @@ func (c Config) Validate() error {
 		if c.Mail.Username != "" && !c.Mail.StartTLS {
 			return errors.New("mail SMTP AUTH requires STARTTLS")
 		}
+	}
+	if (c.Forms.TurnstileSiteKey == "") != (c.Forms.TurnstileSecretKey == "") {
+		return errors.New("Turnstile site key and secret key must be configured together")
+	}
+	if len(c.Forms.TurnstileSiteKey) > 256 || len(c.Forms.TurnstileSecretKey) > 512 || strings.ContainsAny(c.Forms.TurnstileSiteKey+c.Forms.TurnstileSecretKey, "\r\n") {
+		return errors.New("Turnstile configuration is invalid")
 	}
 	return nil
 }

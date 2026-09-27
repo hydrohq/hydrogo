@@ -1,0 +1,14 @@
+.hydro-form{display:grid;gap:1rem;max-width:42rem;color:var(--foreground,#17212b)}
+.hydro-form__field{display:grid;gap:.4rem}
+.hydro-form__field input,.hydro-form__field select,.hydro-form__field textarea{box-sizing:border-box;width:100%;padding:.7rem .8rem;border:1px solid var(--border,#ccd3dc);border-radius:.45rem;background:var(--background,#fff);color:inherit;font:inherit}
+.hydro-form__field input[type=checkbox]{width:auto;min-height:1.25rem;min-width:1.25rem}
+.hydro-form button{justify-self:start;display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1rem;border:0;border-radius:.45rem;background:var(--primary,#2457d6);color:var(--primary-foreground,#fff);font:inherit;font-weight:600;cursor:pointer}
+.hydro-form button:disabled{opacity:.65;cursor:wait}
+.hydro-form :focus-visible{outline:3px solid var(--ring,#7193f5);outline-offset:2px}
+.hydro-form__honeypot{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.hydro-form__spinner{width:.9rem;height:.9rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:hydro-form-spin .7s linear infinite}
+.hydro-form__suggestion:not(:empty){display:block;color:var(--muted,#596579);font-size:.9rem}
+.hydro-form__suggestion button{padding:.2rem .35rem;background:transparent;color:var(--primary,#2457d6);text-decoration:underline;font-weight:500}
+@keyframes hydro-form-spin{to{transform:rotate(360deg)}}
+@media(prefers-color-scheme:dark){.hydro-form{--background:#171b22;--foreground:#edf1f7;--border:#4a5260;--muted:#b4bdca;--primary:#91adff;--primary-foreground:#111827;--ring:#a3b9ff}}
+@media(prefers-reduced-motion:reduce){.hydro-form__spinner{animation:none;border-right-color:currentColor}}

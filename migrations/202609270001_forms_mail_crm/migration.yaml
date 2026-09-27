@@ -1,0 +1,29 @@
+id: "202609270001_forms_mail_crm"
+module: "forms"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "f33338d42352ce5df23c80811608cf8957118c53f853dfd2f90f3440bd10dd67"
+  postgres: "eafaf1a046cb9e18fbacf6050c95561b41565707f040a4f46d4ec0a0385f3290"
+dependencies:
+  - "202609080009_site_edition"
+  - "202609170001_form_idempotency"
+  - "202609190008_site_tenant_scope"
+schema:
+  readable_epoch: 4
+  writable_epoch: 5
+preconditions:
+  - "Forms registry and tenant-scoped Site form inbox are present"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Two inbox columns, lead notes, and bounded mail spool indexes"
+compatibility: "Adds defaulted lead metadata and optional forms-only spool records"
+smoke:
+  - "Legacy inbox rows retain the new lead stage and assignee defaults"
+  - "Idempotency uniqueness is isolated by tenant and form"
+  - "Lead notes and queued mail are isolated by tenant"
+restart: "Transactional and safe to rerun through the migration ledger"
+rollback: "No production down migration; retain queued mail and lead notes, or restore a pre-migration backup"

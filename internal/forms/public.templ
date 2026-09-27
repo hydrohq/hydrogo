@@ -1,0 +1,62 @@
+package forms
+
+import "fmt"
+
+type PublicFormProps struct {
+	Form              Form
+	Action            string
+	CSRFToken         string
+	SubmissionToken   string
+	TurnstileSiteKey  string
+	SubmitLabel       string
+}
+
+templ Head() {
+	<link rel="stylesheet" href="/forms/static/forms.css" />
+	<script src="/forms/static/forms.js" defer></script>
+}
+
+templ PublicForm(p PublicFormProps) {
+	if p.Form.Validate() == nil {
+	<form class="hydro-form" method="post" action={ safeFormAction(p.Action, p.Form.ID) } data-public-form>
+		<input type="hidden" name="_csrf" value={ p.CSRFToken } />
+		<input type="hidden" name="_submission_token" value={ publicSubmissionToken(p.SubmissionToken) } />
+		<div class="hydro-form__honeypot" aria-hidden="true"><label for="hydro-website-url">Leave this field empty</label><input id="hydro-website-url" name="website_url" type="text" tabindex="-1" autocomplete="off" /></div>
+		<h2>{ p.Form.Title }</h2>
+		for _, field := range p.Form.Fields {
+			<div class="hydro-form__field">
+				<label for={ "hydro-" + p.Form.ID + "-" + field.ID }>{ field.Label }
+					if field.Required {
+						<span aria-hidden="true">*</span>
+					}
+				</label>
+				if field.Type == Textarea {
+					<textarea id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } required?={ field.Required } maxlength={ fmt.Sprint(MaxValueLength) }></textarea>
+				} else if field.Type == Select {
+					<select id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } required?={ field.Required }>
+						<option value="">Choose one</option>
+						for _, option := range field.Options {
+							<option value={ option }>{ option }</option>
+						}
+					</select>
+				} else if field.Type == Checkbox {
+					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type="checkbox" value="true" required?={ field.Required } />
+				} else {
+					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type={ publicInputType(field.Type) } required?={ field.Required } maxlength={ fmt.Sprint(MaxValueLength) } data-email-suggest?={ field.Type == Email } />
+					if field.Type == Email {
+						<span class="hydro-form__suggestion" data-email-suggestion role="status" aria-live="polite"></span>
+					}
+				}
+			</div>
+		}
+		if p.Form.TurnstileEnabled {
+			if p.TurnstileSiteKey != "" {
+				<div class="cf-turnstile" data-sitekey={ p.TurnstileSiteKey }></div>
+				<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+			}
+		}
+		<button type="submit" data-form-submit><span data-submit-label>{ publicFormSubmitLabel(p.SubmitLabel) }</span><span class="hydro-form__spinner" data-submit-spinner hidden aria-hidden="true"></span></button>
+		<p data-submit-status role="status" aria-live="polite"></p>
+	</form>
+	}
+}
