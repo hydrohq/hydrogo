@@ -27,6 +27,12 @@ type Store interface {
 	PurgeSubmissionsBefore(context.Context, database.Executor, time.Time) (int64, error)
 }
 
+type RedirectRuleStore interface {
+	UpsertRedirectRule(context.Context, database.Executor, RedirectRule) error
+	DeleteRedirectRule(context.Context, database.Executor, string) error
+	ListRedirectRules(context.Context, database.QueryExecutor, int) ([]RedirectRule, error)
+}
+
 // IdempotentSubmissionStore is an optional extension implemented by durable stores.
 // Keeping it separate preserves compatibility for lightweight module fakes.
 type IdempotentSubmissionStore interface {
@@ -179,6 +185,77 @@ func (s Service) SaveRedirect(ctx context.Context, value Redirect) error {
 		}
 		return s.audit(ctx, tx, "site.redirect.updated", value.SourcePath)
 	})
+}
+
+func (s Service) SaveRedirectRule(ctx context.Context, value RedirectRule) error {
+	return s.SaveRedirectRules(ctx, []RedirectRule{value})
+}
+
+func (s Service) SaveRedirectRules(ctx context.Context, values []RedirectRule) error {
+	if len(values) == 0 || len(values) > 1000 {
+		return ErrInvalidRedirect
+	}
+	for i := range values {
+		values[i].Pattern = strings.TrimSpace(values[i].Pattern)
+		values[i].TargetPath = strings.TrimSpace(values[i].TargetPath)
+		if values[i].Kind == "exact" {
+			values[i].Pattern = normalizePath(values[i].Pattern)
+		}
+		if !strings.Contains(values[i].TargetPath, "*") && values[i].Kind != "regex" {
+			values[i].TargetPath = normalizePath(values[i].TargetPath)
+		}
+		if err := ValidateRedirectRule(values[i]); err != nil {
+			return err
+		}
+	}
+	store, ok := s.Store.(RedirectRuleStore)
+	if !ok {
+		return ErrRedirectStoreRequired
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		for _, value := range values {
+			if err := store.UpsertRedirectRule(ctx, tx, value); err != nil {
+				return err
+			}
+			if err := s.audit(ctx, tx, "site.redirect_rule.updated", value.Pattern); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s Service) DeleteRedirectRule(ctx context.Context, id string) error {
+	store, ok := s.Store.(RedirectRuleStore)
+	if !ok {
+		return ErrRedirectStoreRequired
+	}
+	if strings.TrimSpace(id) == "" || len(id) > 128 {
+		return ErrInvalidRedirect
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := store.DeleteRedirectRule(ctx, tx, id); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.redirect_rule.deleted", id)
+	})
+}
+
+func (s Service) ListRedirectRules(ctx context.Context, limit int) ([]RedirectRule, error) {
+	store, ok := s.Store.(RedirectRuleStore)
+	if !ok {
+		return nil, ErrRedirectStoreRequired
+	}
+	var result []RedirectRule
+	if limit < 1 || limit > 1000 {
+		limit = 100
+	}
+	err := s.Transactions.WithinQuery(ctx, func(query database.QueryExecutor) error {
+		var err error
+		result, err = store.ListRedirectRules(ctx, query, limit)
+		return err
+	})
+	return result, err
 }
 
 func (s Service) Submit(ctx context.Context, value Submission) error {

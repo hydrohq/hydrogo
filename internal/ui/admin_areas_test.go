@@ -51,6 +51,18 @@ func TestAdminUserPermissionEditorUsesEditionCatalog(t *testing.T) {
 	}
 }
 
+func TestAdminSiteAreaLinksToSEOAndRedirectTools(t *testing.T) {
+	var out bytes.Buffer
+	if err := RenderAdminArea(&out, AdminAreaData{Area: "site"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`href="/admin/site/seo"`, `href="/admin/site/redirect-rules"`, "SEO ayarları", "Yönlendirmeler"} {
+		if !strings.Contains(out.String(), marker) {
+			t.Errorf("site admin area missing %q", marker)
+		}
+	}
+}
+
 func TestAdminPermissionCatalogEscapesEditionNames(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderAdminArea(&out, AdminAreaData{Area: "permissions", Permissions: []string{`article<script>`}}); err != nil {

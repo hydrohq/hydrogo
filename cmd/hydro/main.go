@@ -86,6 +86,7 @@ import (
 	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
 	pageservice "github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
+	"github.com/ardaozyildirim/hydrogo/modules/seo"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
 	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
@@ -244,6 +245,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return profileCommand(args[1:], stdout, stderr)
 	case "events":
 		return eventsCommand(args[1:], stdout)
+	case "fonts":
+		return fontsCommand(args[1:], stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -251,6 +254,34 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+func fontsCommand(args []string, stdout io.Writer) error {
+	if len(args) < 2 || args[0] != "add" {
+		return errors.New("fonts requires: hydro fonts add FAMILY [--out DIR]")
+	}
+	family := args[1]
+	destination := "public/fonts"
+	for i := 2; i < len(args); i++ {
+		if strings.HasPrefix(args[i], "--out=") {
+			destination = strings.TrimPrefix(args[i], "--out=")
+			continue
+		}
+		if args[i] == "--out" && i+1 < len(args) {
+			i++
+			destination = args[i]
+			continue
+		}
+		return fmt.Errorf("unknown fonts option %q", args[i])
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cssPath, err := designsystem.LocalizeGoogleFont(ctx, family, destination, nil)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "Font files saved. Include /fonts/%s in the edition stylesheet.\n", filepath.Base(cssPath))
+	return err
 }
 
 func devCommand(args []string, stdout, stderr io.Writer) error {
@@ -743,6 +774,60 @@ func contentViewFilterFromRequest(r *http.Request, limit int) analyticsstore.Con
 	return filter
 }
 
+func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, tenantID, day string) ([]ui.NoCookieAnalyticsRow, int64, error) {
+	end, err := time.Parse("2006-01-02", day)
+	if err != nil {
+		return nil, 0, err
+	}
+	start := end.AddDate(0, 0, -29).Format("2006-01-02")
+	rows, err := store.ListDailyStatsBetween(ctx, start, day, tenantID, 5000)
+	if err != nil {
+		return nil, 0, err
+	}
+	aggregates := make(map[string]int64)
+	dailyViews := make(map[string]int64)
+	var unique int64
+	todayRows, err := store.ListDailyStats(ctx, day, tenantID, 500)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, row := range todayRows {
+		if row.Metric == "unique_visitors" {
+			unique = row.EventCount
+			break
+		}
+	}
+	for _, row := range rows {
+		if row.Metric == "page" {
+			aggregates[row.Metric+"\x00"+row.Dimension] += row.EventCount
+			dailyViews[row.Day] += row.EventCount
+		} else if row.Metric != "unique_visitors" {
+			aggregates[row.Metric+"\x00"+row.Dimension] += row.EventCount
+		}
+	}
+	result := make([]ui.NoCookieAnalyticsRow, 0, len(aggregates)+len(dailyViews))
+	for date, count := range dailyViews {
+		result = append(result, ui.NoCookieAnalyticsRow{Day: date, Metric: "daily_views", EventCount: count})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Day < result[j].Day })
+	var dimensions []ui.NoCookieAnalyticsRow
+	for key, count := range aggregates {
+		parts := strings.SplitN(key, "\x00", 2)
+		dimensions = append(dimensions, ui.NoCookieAnalyticsRow{Metric: parts[0], Dimension: parts[1], EventCount: count})
+	}
+	sort.Slice(dimensions, func(i, j int) bool {
+		if dimensions[i].Metric != dimensions[j].Metric {
+			return dimensions[i].Metric < dimensions[j].Metric
+		}
+		if dimensions[i].EventCount != dimensions[j].EventCount {
+			return dimensions[i].EventCount > dimensions[j].EventCount
+		}
+		return dimensions[i].Dimension < dimensions[j].Dimension
+	})
+	result = append(result, dimensions...)
+	return result, unique, nil
+}
+
 func portableCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("portable command requires a subcommand (export or import)")
@@ -1217,9 +1302,6 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	defer db.Close()
 	transactioner := database.NewTenantTransactor(db, cfg.Database.Dialect, requireTenantScope)
-	analyticsStore := analyticsstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
-	contentViewQueue := analytics.NewContentViewQueue(analyticsStore, 256, 1)
-	defer contentViewQueue.Close()
 
 	userStore := authstore.NewUserStore(db, cfg.Database.Dialect)
 	sessionStore := authstore.NewSessionStore(db, cfg.Database.Dialect)
@@ -1245,6 +1327,23 @@ func serve(args []string, stderr io.Writer) error {
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	modules := enabledModuleSet(cfg.Modules)
+	var analyticsStore analyticsstore.Store
+	var contentViewQueue *analytics.ContentViewQueue
+	var noCookieQueue *analytics.NoCookieQueue
+	var noCookieHasher *analytics.VisitorHasher
+	if modules["analytics"] {
+		analyticsStore = analyticsstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
+		contentViewQueue = analytics.NewContentViewQueue(analyticsStore, 256, 1)
+		defer contentViewQueue.Close()
+		if cfg.Analytics.NoCookieEnabled {
+			noCookieHasher, err = analytics.NewVisitorHasher([]byte(cfg.Analytics.HashKey))
+			if err != nil {
+				return fmt.Errorf("initialize local analytics: %w", err)
+			}
+			noCookieQueue = analytics.NewNoCookieQueue(analyticsStore, 256)
+			defer noCookieQueue.Close()
+		}
+	}
 	var memberService members.Service
 	var memberHTTP membertransport.Handler
 	if modules["members"] {
@@ -1349,6 +1448,7 @@ func serve(args []string, stderr io.Writer) error {
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+	newsRouteStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	var spoolStore mailstore.Spool
 	var mailWorker mailer.SpoolWorker
 	if modules["forms"] {
@@ -1364,6 +1464,24 @@ func serve(args []string, stderr io.Writer) error {
 	var siteHTTP sitetransport.Handler
 	if modules["site"] {
 		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
+		redirectRegistry := &site.RedirectRegistry{RequireTenantScope: requireTenantScope}
+		redirectScopes := tenantScopes
+		if !requireTenantScope {
+			redirectScopes = []tenant.Scope{{}}
+		}
+		for _, scope := range redirectScopes {
+			redirectCtx := ctx
+			if requireTenantScope {
+				redirectCtx = tenant.WithScope(redirectCtx, scope)
+			}
+			rules, loadErr := siteService.ListRedirectRules(redirectCtx, 1000)
+			if loadErr != nil {
+				return fmt.Errorf("load site redirects: %w", loadErr)
+			}
+			if loadErr = redirectRegistry.Replace(scope.TenantID, rules); loadErr != nil {
+				return fmt.Errorf("validate site redirects: %w", loadErr)
+			}
+		}
 		if modules["forms"] {
 			siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 			siteService.MailQueue = spoolStore
@@ -1372,7 +1490,7 @@ func serve(args []string, stderr io.Writer) error {
 		if sitemapOrigin == "" && cfg.HTTP.Address != "" {
 			sitemapOrigin = "http://" + cfg.HTTP.Address
 		}
-		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, SubmissionLimiter: newRateLimiter(5, time.Minute), FormsEnabled: modules["forms"], SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Redirects: redirectRegistry, SubmissionLimiter: newRateLimiter(5, time.Minute), FormsEnabled: modules["forms"], SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err
@@ -1387,6 +1505,41 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return entries, nil
 		}}
+		siteHTTP.SitemapCategories = []string{}
+		if moduleEnabled(cfg.Modules, "pages") {
+			siteHTTP.SitemapCategories = append(siteHTTP.SitemapCategories, "pages")
+		}
+		if moduleEnabled(cfg.Modules, "news") {
+			siteHTTP.SitemapCategories = append(siteHTTP.SitemapCategories, "articles")
+		}
+		siteHTTP.SitemapStream = func(providerCtx context.Context, category string, visit func(site.SitemapEntry) error) error {
+			switch category {
+			case "pages":
+				if !moduleEnabled(cfg.Modules, "pages") {
+					return nil
+				}
+				return pageStore.StreamPublishedRoutes(providerCtx, db, func(page pages.Page) error {
+					seoView, err := site.BuildSEO(site.SEOInput{Origin: sitemapOrigin, Locale: page.Locale, Path: page.Slug, Title: page.Title})
+					if err != nil {
+						return err
+					}
+					return visit(site.SitemapEntry{URL: seoView.CanonicalURL, LastModified: page.UpdatedAt, Category: "pages"})
+				})
+			case "articles":
+				if !moduleEnabled(cfg.Modules, "news") {
+					return nil
+				}
+				return newsRouteStore.StreamPublishedRoutes(providerCtx, db, func(item newsservice.Item) error {
+					seoView, err := site.BuildSEO(site.SEOInput{Origin: sitemapOrigin, Path: "/public/news/" + item.Locale + "/" + item.Slug, Title: item.Title})
+					if err != nil {
+						return err
+					}
+					return visit(site.SitemapEntry{URL: seoView.CanonicalURL, LastModified: item.UpdatedAt, Category: "articles"})
+				})
+			default:
+				return site.ErrInvalidSEOOrigin
+			}
+		}
 		if modules["forms"] {
 			siteHTTP.AllowedForms = map[string]struct{}{"contact": {}}
 			siteHTTP.MailSpool = spoolStore
@@ -1398,8 +1551,7 @@ func serve(args []string, stderr io.Writer) error {
 	var newsService newsservice.Service
 	var newsWorker newsservice.Worker
 	if moduleEnabled(cfg.Modules, "news") {
-		newsStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-		newsService = newsservice.Service{Transactions: transactioner, Repository: newsStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
+		newsService = newsservice.Service{Transactions: transactioner, Repository: newsRouteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
 			if user := auth.UserFromContext(ctx); user != nil {
 				return string(user.Role)
 			}
@@ -1426,6 +1578,7 @@ func serve(args []string, stderr io.Writer) error {
 		return adminstudio.FilterActiveCollections(studioRegistry.Collections(), enabledModuleSet(cfg.Modules))
 	}
 	var pageHTTP pagetransport.Handler
+	var pageLLMSCache *seo.DiscoveryCache
 	if moduleEnabled(cfg.Modules, "pages") {
 		pageCollection, ok := studioRegistry.Collection("pages")
 		if !ok {
@@ -1444,7 +1597,66 @@ func serve(args []string, stderr io.Writer) error {
 				}
 			}
 		}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled()}
+		pageLLMSCache = &seo.DiscoveryCache{}
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, OGBrand: func(brandCtx context.Context) string {
+			if !modules["site"] {
+				return ""
+			}
+			settings, err := siteStore.ListPublicSettings(brandCtx, db)
+			if err != nil {
+				return ""
+			}
+			for _, setting := range settings {
+				if setting.Key == "site.name" || setting.Key == "site.title" {
+					return setting.Value
+				}
+			}
+			return ""
+		}}
+		pageHTTP.DiscoveryProvider = func(providerCtx context.Context) (seo.Discovery, error) {
+			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
+			if err != nil {
+				return seo.Discovery{}, err
+			}
+			discovery := seo.Discovery{Origin: cfg.HTTP.PublicOrigin, Name: "Website", Pages: make([]seo.DiscoveryPage, 0, len(published))}
+			if modules["site"] {
+				if settings, err := siteStore.ListPublicSettings(providerCtx, db); err == nil {
+					for _, setting := range settings {
+						switch setting.Key {
+						case "site.name", "site.title":
+							discovery.Name = setting.Value
+						case "site.description":
+							discovery.Description = setting.Value
+						case "seo.llms_excluded_paths":
+							discovery.ExcludePath = strings.FieldsFunc(setting.Value, func(r rune) bool { return r == ',' || r == '\n' || r == '\r' })
+						}
+					}
+				}
+			}
+			for _, page := range published {
+				discovery.Pages = append(discovery.Pages, seo.DiscoveryPage{Title: page.Title, Path: "/" + page.Locale + "/" + page.Slug, Text: string(ui.RichTextHTML(page.Body))})
+			}
+			if modules["news"] {
+				if err := newsRouteStore.StreamPublishedRoutes(providerCtx, db, func(item newsservice.Item) error {
+					title := item.SEOTitle
+					if strings.TrimSpace(title) == "" {
+						title = item.Title
+					}
+					text := item.Body
+					if strings.TrimSpace(text) == "" {
+						text = item.Excerpt
+					}
+					discovery.Pages = append(discovery.Pages, seo.DiscoveryPage{Title: title, Path: "/public/news/" + item.Locale + "/" + item.Slug, Description: item.SEODescription, Text: string(ui.RichTextHTML(text))})
+					return nil
+				}); err != nil {
+					return seo.Discovery{}, err
+				}
+			}
+			return discovery, nil
+		}
+		if modules["site"] {
+			siteHTTP.InvalidateDiscovery = pageLLMSCache.Invalidate
+		}
 	}
 	var newsHTTP newstransport.Handler
 	if moduleEnabled(cfg.Modules, "news") {
@@ -1473,11 +1685,18 @@ func serve(args []string, stderr io.Writer) error {
 		pageRoutes := pageRouterRoutes(pageHTTP.Routes())
 		for i := range pageRoutes {
 			if strings.HasPrefix(pageRoutes[i].Pattern, "GET /public/pages/") {
-				pageRoutes[i].Handler = analytics.ContentViewMiddleware(pageRoutes[i].Handler, contentViewQueue, "page")
-			} else if staticCacheDir != "" && !strings.HasPrefix(pageRoutes[i].Pattern, "GET ") {
+				if modules["analytics"] {
+					pageRoutes[i].Handler = analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(pageRoutes[i].Handler, contentViewQueue, "page"), noCookieQueue, noCookieHasher)
+				}
+			} else if !strings.HasPrefix(pageRoutes[i].Pattern, "GET ") {
 				original := pageRoutes[i].Handler
 				pageRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					defer server.PurgeStaticDiskCache(staticCacheDir)
+					if pageLLMSCache != nil {
+						defer pageLLMSCache.Invalidate()
+					}
+					if staticCacheDir != "" {
+						defer server.PurgeStaticDiskCache(staticCacheDir)
+					}
 					original.ServeHTTP(w, r)
 				})
 			}
@@ -1509,8 +1728,10 @@ func serve(args []string, stderr io.Writer) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = io.WriteString(w, docsComingSoonHTML(security.NonceFromContext(r.Context())))
 	})})
-	routes = append(routes, router.Route{Pattern: "POST /analytics/consent", Access: router.Public, Handler: analytics.ConsentHandler(analyticsStore, cfg.Security.SecureCookies)})
-	routes = append(routes, router.Route{Pattern: "POST /analytics/contact", Access: router.Public, Handler: analytics.ContactClickHandler(analyticsStore)})
+	if modules["analytics"] {
+		routes = append(routes, router.Route{Pattern: "POST /analytics/consent", Access: router.Public, Handler: analytics.ConsentHandler(analyticsStore, cfg.Security.SecureCookies)})
+		routes = append(routes, router.Route{Pattern: "POST /analytics/contact", Access: router.Public, Handler: analytics.ContactClickHandler(analyticsStore)})
+	}
 	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
@@ -1617,24 +1838,36 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			dataTime := time.Now().Format("02.01.2006 15:04:05")
 			dateRange := r.URL.Query().Get("range")
-			contentFilter := contentViewFilterFromRequest(r, 100)
-			contentViews, _ := analyticsStore.ListContentViews(r.Context(), contentFilter)
+			contentViews := []analyticsstore.ContentViewAggregate(nil)
+			var noCookieStats []ui.NoCookieAnalyticsRow
+			var uniqueVisitors int64
+			if modules["analytics"] {
+				contentViews, _ = analyticsStore.ListContentViews(r.Context(), contentViewFilterFromRequest(r, 100))
+				tenantID := ""
+				if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+					tenantID = scope.TenantID
+				}
+				noCookieStats, uniqueVisitors, _ = dailyNoCookieAnalytics(r.Context(), analyticsStore, tenantID, time.Now().UTC().Format("2006-01-02"))
+			}
 			contentViewRows := make([]ui.ContentViewReportRow, 0, len(contentViews))
 			for _, row := range contentViews {
 				contentViewRows = append(contentViewRows, ui.ContentViewReportRow{Day: row.Day, TenantID: row.TenantID, ContentType: row.ContentType, ContentID: row.ContentID, Locale: row.Locale, ViewCount: row.ViewCount})
 			}
 			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
-				Email:        user.Email,
-				Collections:  activeStudioCollections(),
-				Nonce:        security.NonceFromContext(r.Context()),
-				Active:       "reports",
-				Metrics:      runtimeMetrics,
-				MemberStats:  stats,
-				DataTime:     dataTime,
-				DataSource:   "Proses İçi Bellek Telemetrisi",
-				DateFilter:   dateRange,
-				Locale:       adminLocaleFromRequest(r),
-				ContentViews: contentViewRows,
+				Email:            user.Email,
+				Collections:      activeStudioCollections(),
+				Nonce:            security.NonceFromContext(r.Context()),
+				Active:           "reports",
+				Metrics:          runtimeMetrics,
+				MemberStats:      stats,
+				DataTime:         dataTime,
+				DataSource:       "Proses İçi Bellek Telemetrisi",
+				DateFilter:       dateRange,
+				Locale:           adminLocaleFromRequest(r),
+				ContentViews:     contentViewRows,
+				AnalyticsEnabled: modules["analytics"] && cfg.Analytics.NoCookieEnabled,
+				NoCookieStats:    noCookieStats,
+				UniqueVisitors:   uniqueVisitors,
 			}); err != nil {
 				http.Error(w, "admin reports unavailable", http.StatusInternalServerError)
 			}
@@ -1688,15 +1921,22 @@ func serve(args []string, stderr io.Writer) error {
 			totalViews := uint64(0)
 			totalErrors := uint64(0)
 			avgLatency := uint64(0)
-			uniqueVisitors := 0
+			uniqueVisitors := int64(0)
+			var noCookieStats []ui.NoCookieAnalyticsRow
 			var startedAt time.Time
 			if runtimeMetrics != nil {
 				totalReq = runtimeMetrics.TotalRequests()
 				totalViews = runtimeMetrics.TotalViews()
 				totalErrors = runtimeMetrics.TotalErrors()
 				avgLatency = runtimeMetrics.AvgLatencyMS()
-				uniqueVisitors = runtimeMetrics.UniqueVisitorsCount()
 				startedAt = runtimeMetrics.StartedAt()
+			}
+			if modules["analytics"] && cfg.Analytics.NoCookieEnabled {
+				tenantID := ""
+				if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+					tenantID = scope.TenantID
+				}
+				noCookieStats, uniqueVisitors, _ = dailyNoCookieAnalytics(r.Context(), analyticsStore, tenantID, time.Now().UTC().Format("2006-01-02"))
 			}
 			out := map[string]any{
 				"timestamp":       time.Now().UTC().Format(time.RFC3339),
@@ -1720,9 +1960,13 @@ func serve(args []string, stderr io.Writer) error {
 					return runtimeMetrics.DimensionStats()
 				}(),
 				"content_views": func() []analyticsstore.ContentViewAggregate {
+					if !modules["analytics"] {
+						return nil
+					}
 					rows, _ := analyticsStore.ListContentViews(r.Context(), contentViewFilterFromRequest(r, 500))
 					return rows
 				}(),
+				"analytics_daily": noCookieStats,
 			}
 			_ = json.NewEncoder(w).Encode(out)
 			return
@@ -1745,11 +1989,26 @@ func serve(args []string, stderr io.Writer) error {
 				_ = writer.Write([]string{"", d.TenantID, d.Module, strconv.FormatUint(d.Requests, 10), strconv.FormatUint(d.Errors, 10), strconv.FormatUint(d.AvgMS, 10)})
 			}
 		}
-		if rows, err := analyticsStore.ListContentViews(r.Context(), contentViewFilterFromRequest(r, 500)); err == nil && len(rows) > 0 {
-			_ = writer.Write([]string{})
-			_ = writer.Write([]string{"ContentViews", "Day", "TenantID", "ContentType", "ContentID", "Locale", "ViewCount"})
-			for _, row := range rows {
-				_ = writer.Write([]string{"", row.Day, row.TenantID, row.ContentType, row.ContentID, row.Locale, strconv.FormatInt(row.ViewCount, 10)})
+		if modules["analytics"] {
+			if rows, err := analyticsStore.ListContentViews(r.Context(), contentViewFilterFromRequest(r, 500)); err == nil && len(rows) > 0 {
+				_ = writer.Write([]string{})
+				_ = writer.Write([]string{"ContentViews", "Day", "TenantID", "ContentType", "ContentID", "Locale", "ViewCount"})
+				for _, row := range rows {
+					_ = writer.Write([]string{"", row.Day, row.TenantID, row.ContentType, row.ContentID, row.Locale, strconv.FormatInt(row.ViewCount, 10)})
+				}
+			}
+		}
+		if modules["analytics"] && cfg.Analytics.NoCookieEnabled {
+			tenantID := ""
+			if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+				tenantID = scope.TenantID
+			}
+			if rows, err := analyticsStore.ListDailyStats(r.Context(), time.Now().UTC().Format("2006-01-02"), tenantID, 500); err == nil && len(rows) > 0 {
+				_ = writer.Write([]string{})
+				_ = writer.Write([]string{"DailyAnalytics", "Metric", "Dimension", "EventCount"})
+				for _, row := range rows {
+					_ = writer.Write([]string{"", row.Metric, row.Dimension, strconv.FormatInt(row.EventCount, 10)})
+				}
 			}
 		}
 		writer.Flush()
@@ -1835,11 +2094,18 @@ func serve(args []string, stderr io.Writer) error {
 		newsRoutes := newsRouterRoutes(newsHTTP.Routes())
 		for i := range newsRoutes {
 			if strings.HasPrefix(newsRoutes[i].Pattern, "GET /public/news/") {
-				newsRoutes[i].Handler = analytics.ContentViewMiddleware(newsRoutes[i].Handler, contentViewQueue, "news")
-			} else if staticCacheDir != "" && !strings.HasPrefix(newsRoutes[i].Pattern, "GET ") {
+				if modules["analytics"] {
+					newsRoutes[i].Handler = analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(newsRoutes[i].Handler, contentViewQueue, "news"), noCookieQueue, noCookieHasher)
+				}
+			} else if !strings.HasPrefix(newsRoutes[i].Pattern, "GET ") {
 				original := newsRoutes[i].Handler
 				newsRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					defer server.PurgeStaticDiskCache(staticCacheDir)
+					if pageLLMSCache != nil {
+						defer pageLLMSCache.Invalidate()
+					}
+					if staticCacheDir != "" {
+						defer server.PurgeStaticDiskCache(staticCacheDir)
+					}
 					original.ServeHTTP(w, r)
 				})
 			}
@@ -1848,6 +2114,13 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	if modules["pages"] || modules["forms"] {
 		routes = append(routes, router.Route{Pattern: "GET /designsystem/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(designsystem.ServeAsset)})
+	}
+	if modules["pages"] {
+		fontsDir := cfg.SEO.FontsDir
+		if fontsDir == "" {
+			fontsDir = "public/fonts"
+		}
+		routes = append(routes, router.Route{Pattern: "GET /fonts/{path...}", Access: router.Public, Handler: designsystem.FontAssets(fontsDir)})
 	}
 	if modules["forms"] {
 		routes = append(routes, router.Route{Pattern: "GET /forms/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(formsruntime.ServeAsset)})
@@ -3767,6 +4040,7 @@ Usage:
   hydro tenant backfill (--tenant-id ID|--active) [--dry-run|--confirm] [runtime flags]
   hydro tenant list [runtime flags]
   hydro events catalog
+  hydro fonts add FAMILY [--out public/fonts]
   hydro module create --spec SPEC --out OUTPUT
   hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT

@@ -1,9 +1,14 @@
 package site
 
 import (
+	"bytes"
+	"context"
 	"encoding/xml"
 	"errors"
+	"io"
 	"net/url"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,7 +62,17 @@ func BuildSEO(input SEOInput) (SEOView, error) {
 type SitemapEntry struct {
 	URL          string
 	LastModified time.Time
+	Category     string
 }
+
+// SitemapStream visits published URLs in stable order without retaining the
+// full catalog in memory. The category is one of the registered public sets.
+type SitemapStream func(context.Context, string, func(SitemapEntry) error) error
+
+const (
+	MaxSitemapURLs  = 50000
+	MaxSitemapBytes = 50 << 20
+)
 
 type sitemapURLSet struct {
 	XMLName xml.Name      `xml:"urlset"`
@@ -89,6 +104,198 @@ func RenderSitemap(entries []SitemapEntry) ([]byte, error) {
 		result.URLs = append(result.URLs, node)
 	}
 	return xml.Marshal(result)
+}
+
+type sitemapIndex struct {
+	XMLName xml.Name          `xml:"sitemapindex"`
+	XMLNS   string            `xml:"xmlns,attr"`
+	Files   []sitemapIndexURL `xml:"sitemap"`
+}
+
+type sitemapIndexURL struct {
+	Location string `xml:"loc"`
+}
+
+// SplitSitemap keeps every protocol file below both standard URL and byte caps.
+// Callers can lower the caps in tests; zero values use the sitemap defaults.
+func SplitSitemap(entries []SitemapEntry, maxURLs, maxBytes int) ([][]SitemapEntry, error) {
+	if maxURLs < 1 || maxURLs > MaxSitemapURLs {
+		maxURLs = MaxSitemapURLs
+	}
+	if maxBytes < 256 || maxBytes > MaxSitemapBytes {
+		maxBytes = MaxSitemapBytes
+	}
+	parts := make([][]SitemapEntry, 0, len(entries)/maxURLs+1)
+	current := make([]SitemapEntry, 0, min(maxURLs, len(entries)))
+	bytesUsed := 128
+	for _, entry := range entries {
+		parsed, err := url.ParseRequestURI(entry.URL)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return nil, ErrInvalidSEOOrigin
+		}
+		var escaped bytes.Buffer
+		if err := xml.EscapeText(&escaped, []byte(entry.URL)); err != nil {
+			return nil, err
+		}
+		estimate := escaped.Len() + 64
+		if estimate+128 > maxBytes {
+			return nil, ErrInvalidSEOOrigin
+		}
+		if len(current) > 0 && (len(current) == maxURLs || bytesUsed+estimate > maxBytes) {
+			parts = append(parts, current)
+			current = make([]SitemapEntry, 0, min(maxURLs, len(entries)))
+			bytesUsed = 128
+		}
+		current = append(current, entry)
+		bytesUsed += estimate
+	}
+	if len(current) > 0 || len(parts) == 0 {
+		parts = append(parts, current)
+	}
+	return parts, nil
+}
+
+func RenderSitemapIndex(origin string, parts int) ([]byte, error) {
+	return RenderCategorizedSitemapIndex(origin, map[string]int{"pages": parts})
+}
+
+func RenderCategorizedSitemapIndex(origin string, categories map[string]int) ([]byte, error) {
+	base, err := validOrigin(origin)
+	if err != nil || len(categories) == 0 {
+		return nil, ErrInvalidSEOOrigin
+	}
+	keys := make([]string, 0, len(categories))
+	total := 0
+	for category, parts := range categories {
+		if !validSitemapCategory(category) || parts < 0 || parts > 10000 {
+			return nil, ErrInvalidSEOOrigin
+		}
+		if parts > 0 {
+			keys = append(keys, category)
+			total += parts
+		}
+	}
+	if total == 0 || total > MaxSitemapURLs {
+		return nil, ErrInvalidSEOOrigin
+	}
+	sort.Strings(keys)
+	result := sitemapIndex{XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9", Files: make([]sitemapIndexURL, 0, total)}
+	for _, category := range keys {
+		for part := 1; part <= categories[category]; part++ {
+			result.Files = append(result.Files, sitemapIndexURL{Location: base + "/sitemap-" + category + ".xml?part=" + strconv.Itoa(part)})
+		}
+	}
+	return xml.Marshal(result)
+}
+
+func validSitemapCategory(category string) bool {
+	if category == "" || len(category) > 32 {
+		return false
+	}
+	for _, char := range category {
+		if char < 'a' || char > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+// StreamSitemapPart emits one protocol-bounded URL set while counting all
+// parts. targetPart=0 counts only; callers can build an index without buffering
+// or materializing the catalog. The writer receives only the requested part.
+func StreamSitemapPart(ctx context.Context, stream SitemapStream, category string, targetPart, maxURLs, maxBytes int, output io.Writer) (int, error) {
+	if stream == nil || !validSitemapCategory(category) || targetPart < 0 {
+		return 0, ErrInvalidSEOOrigin
+	}
+	if maxURLs < 1 || maxURLs > MaxSitemapURLs {
+		maxURLs = MaxSitemapURLs
+	}
+	if maxBytes < 256 || maxBytes > MaxSitemapBytes {
+		maxBytes = MaxSitemapBytes
+	}
+	const open = `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`
+	const close = `</urlset>`
+	part, count, used := 0, 0, len(open)+len(close)
+	var buffer bytes.Buffer
+	beginPart := func() {
+		part++
+		count = 0
+		used = len(open) + len(close)
+		buffer.Reset()
+		if targetPart == part {
+			buffer.WriteString(open)
+		}
+	}
+	finishPart := func() error {
+		if count == 0 {
+			return nil
+		}
+		if targetPart == part && output != nil {
+			buffer.WriteString(close)
+			_, err := output.Write(buffer.Bytes())
+			return err
+		}
+		return nil
+	}
+	err := stream(ctx, category, func(entry SitemapEntry) error {
+		if !validSitemapEntry(entry.URL) {
+			return ErrInvalidSEOOrigin
+		}
+		node, err := marshalSitemapNode(entry)
+		if err != nil {
+			return err
+		}
+		if len(open)+len(close)+len(node) > maxBytes {
+			return ErrInvalidSEOOrigin
+		}
+		if count > 0 && (count >= maxURLs || used+len(node) > maxBytes) {
+			if err := finishPart(); err != nil {
+				return err
+			}
+			count = 0
+			used = len(open) + len(close)
+			buffer.Reset()
+		}
+		if count == 0 {
+			beginPart()
+		}
+		if targetPart == part {
+			buffer.Write(node)
+		}
+		count++
+		used += len(node)
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	if err := finishPart(); err != nil {
+		return 0, err
+	}
+	return part, nil
+}
+
+func validSitemapEntry(value string) bool {
+	parsed, err := url.ParseRequestURI(value)
+	return err == nil && parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https")
+}
+
+func marshalSitemapNode(entry SitemapEntry) ([]byte, error) {
+	var result bytes.Buffer
+	result.WriteString("<url><loc>")
+	if err := xml.EscapeText(&result, []byte(entry.URL)); err != nil {
+		return nil, err
+	}
+	result.WriteString("</loc>")
+	if !entry.LastModified.IsZero() {
+		result.WriteString("<lastmod>")
+		if err := xml.EscapeText(&result, []byte(entry.LastModified.UTC().Format("2006-01-02"))); err != nil {
+			return nil, err
+		}
+		result.WriteString("</lastmod>")
+	}
+	result.WriteString("</url>")
+	return result.Bytes(), nil
 }
 
 func validOrigin(value string) (string, error) {

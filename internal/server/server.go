@@ -136,6 +136,8 @@ func NewHandler(config Config) http.Handler {
 	}
 
 	var handler http.Handler = routerHandler
+	handler = CompressionMiddleware(handler)
+	handler = ETagMiddleware(handler)
 	hostMiddleware, err := security.NewHostMiddleware(config.PublicOrigin)
 	if err != nil {
 		panic(err)

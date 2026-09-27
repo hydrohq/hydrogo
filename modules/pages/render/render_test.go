@@ -19,6 +19,17 @@ func TestBlocksEscapesTextAndRendersKnownTypes(t *testing.T) {
 	}
 }
 
+func BenchmarkBlocks(b *testing.B) {
+	blocks := []pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","subtitle":"A fast page"}`)}}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := Blocks(blocks); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestHeroRendersMediaAssetMetadataSafely(t *testing.T) {
 	blocks := []pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","media_asset_id":"asset-1"}`)}}
 	html, err := Blocks(blocks)

@@ -11,22 +11,30 @@ import (
 )
 
 type AdminDashboardData struct {
-	Email        string
-	Collections  []adminstudio.Collection
-	Nonce        string
-	Active       string
-	Metrics      *observability.Metrics
-	MemberStats  members.MemberStats
-	DataTime     string
-	DataSource   string
-	DateFilter   string
-	Locale       string
-	ContentViews []ContentViewReportRow
+	Email            string
+	Collections      []adminstudio.Collection
+	Nonce            string
+	Active           string
+	Metrics          *observability.Metrics
+	MemberStats      members.MemberStats
+	DataTime         string
+	DataSource       string
+	DateFilter       string
+	Locale           string
+	ContentViews     []ContentViewReportRow
+	AnalyticsEnabled bool
+	NoCookieStats    []NoCookieAnalyticsRow
+	UniqueVisitors   int64
 }
 
 type ContentViewReportRow struct {
 	Day, TenantID, ContentType, ContentID, Locale string
 	ViewCount                                     int64
+}
+
+type NoCookieAnalyticsRow struct {
+	Day, Metric, Dimension string
+	EventCount             int64
 }
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
@@ -74,7 +82,67 @@ func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 			return err
 		}
 	}
+	if data.AnalyticsEnabled {
+		if err := renderNoCookieAnalytics(w, data); err != nil {
+			return err
+		}
+	}
 	return AdminEnd(w)
+}
+
+func renderNoCookieAnalytics(w io.Writer, data AdminDashboardData) error {
+	if _, err := fmt.Fprintf(w, `<section class="studio-card"><h2>Günlük site istatistikleri</h2><p>Bugün yaklaşık %d tekil ziyaretçi</p>`, data.UniqueVisitors); err != nil {
+		return err
+	}
+	var peak int64 = 1
+	for _, row := range data.NoCookieStats {
+		if row.Metric == "daily_views" && row.EventCount > peak {
+			peak = row.EventCount
+		}
+	}
+	if _, err := io.WriteString(w, `<h3>Son 30 günün görüntülenmeleri</h3><ol class="analytics-daily-views">`); err != nil {
+		return err
+	}
+	for _, row := range data.NoCookieStats {
+		if row.Metric != "daily_views" {
+			continue
+		}
+		if _, err := fmt.Fprintf(w, `<li><span>%s</span> <meter min="0" max="%d" value="%d" aria-label="%s: %d görüntülenme"></meter> <strong>%d</strong></li>`, template.HTMLEscapeString(row.Day), peak, row.EventCount, template.HTMLEscapeString(row.Day), row.EventCount, row.EventCount); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(w, `</ol>`); err != nil {
+		return err
+	}
+	labels := map[string]string{"page": "En çok görüntülenen sayfalar", "referrer": "Ziyaret kaynakları", "device": "Cihazlar", "browser": "Tarayıcılar", "os": "İşletim sistemleri"}
+	for _, metric := range []string{"page", "referrer", "device", "browser", "os"} {
+		if _, err := io.WriteString(w, `<h3>`+labels[metric]+`</h3><ul>`); err != nil {
+			return err
+		}
+		count := 0
+		for _, row := range data.NoCookieStats {
+			if row.Metric != metric {
+				continue
+			}
+			if _, err := fmt.Fprintf(w, `<li>%s <strong>%d</strong></li>`, template.HTMLEscapeString(row.Dimension), row.EventCount); err != nil {
+				return err
+			}
+			count++
+			if count == 5 {
+				break
+			}
+		}
+		if count == 0 {
+			if _, err := io.WriteString(w, `<li>Henüz veri yok</li>`); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(w, `</ul>`); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(w, `<small>Özet veriler yerel olarak tutulur. Bu özellik için sitenizin gizlilik bildirimini güncel tutun.</small></section>`)
+	return err
 }
 
 var adminReportsKPIsTemplate = template.Must(template.New("admin-reports-kpis").Funcs(template.FuncMap{
@@ -127,13 +195,13 @@ var adminReportsKPIsTemplate = template.Must(template.New("admin-reports-kpis").
 	</article>
 	<article class="dashboard-kpi">
 		<div class="kpi-top"><span class="kpi-icon kpi-purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span><span class="kpi-tag">Tekil</span></div>
-		<span class="kpi-label">Benzersiz Ziyaretçi (kapalı)</span>
-		<strong>{{if .Metrics}}{{.Metrics.UniqueVisitorsCount}}{{else}}0{{end}}</strong>
+		<span class="kpi-label">Benzersiz Ziyaretçi{{if .AnalyticsEnabled}} (bugün){{else}} (kapalı){{end}}</span>
+		<strong>{{.UniqueVisitors}}</strong>
 		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
 			<path class="spark-area" fill="var(--muted)" d="M0 20 L0 18 Q50 18 100 18 L100 20 Z"></path>
 			<path class="spark-line" stroke="var(--muted)" d="M0 18 Q50 18 100 18"></path>
 		</svg>
-		<small>Açık rıza gerektiren analitik modülü etkin değil</small>
+		<small>{{if .AnalyticsEnabled}}Yerel günlük özet; tarayıcı gizlilik tercihleri uygulanır{{else}}Günlük site özeti kapalı{{end}}</small>
 	</article>
 	<article class="dashboard-kpi">
 		<div class="kpi-top"><span class="kpi-icon kpi-purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span><span class="kpi-tag">Gecikme</span></div>

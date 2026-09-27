@@ -33,6 +33,8 @@ type Config struct {
 	Security        Security         `yaml:"security"`
 	Mail            Mail             `yaml:"mail"`
 	Forms           Forms            `yaml:"forms"`
+	SEO             SEO              `yaml:"seo"`
+	Analytics       Analytics        `yaml:"analytics"`
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
@@ -110,6 +112,18 @@ type Mail struct {
 type Forms struct {
 	TurnstileSiteKey   string `yaml:"turnstile_site_key"`
 	TurnstileSecretKey string `yaml:"turnstile_secret_key"`
+}
+
+type SEO struct {
+	OGCacheDir string `yaml:"og_cache_dir"`
+	FontsDir   string `yaml:"fonts_dir"`
+}
+
+// Analytics stays disabled unless an operator explicitly enables the
+// no-cookie aggregate feature and provides a deployment-shared hash key.
+type Analytics struct {
+	NoCookieEnabled bool   `yaml:"no_cookie_enabled"`
+	HashKey         string `yaml:"hash_key"`
 }
 
 type Redis struct {
@@ -331,6 +345,22 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_FORMS_TURNSTILE_SECRET_KEY"); ok && value != "" {
 		result.Forms.TurnstileSecretKey = value
+	}
+	if value, ok := lookup("HYDRO_SEO_OG_CACHE_DIR"); ok && value != "" {
+		result.SEO.OGCacheDir = value
+	}
+	if value, ok := lookup("HYDRO_SEO_FONTS_DIR"); ok && value != "" {
+		result.SEO.FontsDir = value
+	}
+	if value, ok := lookup("HYDRO_ANALYTICS_NO_COOKIE_ENABLED"); ok && value != "" {
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_ANALYTICS_NO_COOKIE_ENABLED: %w", err)
+		}
+		result.Analytics.NoCookieEnabled = enabled
+	}
+	if value, ok := lookup("HYDRO_ANALYTICS_HASH_KEY"); ok && value != "" {
+		result.Analytics.HashKey = value
 	}
 	dsnSources := 0
 	if result.Database.DSN != "" {
@@ -562,6 +592,27 @@ func (c Config) Validate() error {
 	}
 	if len(c.Forms.TurnstileSiteKey) > 256 || len(c.Forms.TurnstileSecretKey) > 512 || strings.ContainsAny(c.Forms.TurnstileSiteKey+c.Forms.TurnstileSecretKey, "\r\n") {
 		return errors.New("Turnstile configuration is invalid")
+	}
+	if len(c.SEO.OGCacheDir) > 4096 || len(c.SEO.FontsDir) > 4096 || strings.ContainsAny(c.SEO.OGCacheDir+c.SEO.FontsDir, "\r\n\x00") {
+		return errors.New("SEO asset directory is invalid")
+	}
+	if len(c.Analytics.HashKey) > 4096 || strings.ContainsAny(c.Analytics.HashKey, "\r\n\x00") {
+		return errors.New("analytics hash key is invalid")
+	}
+	if c.Analytics.NoCookieEnabled {
+		analyticsModule := false
+		for _, module := range c.Modules {
+			if module == "analytics" {
+				analyticsModule = true
+				break
+			}
+		}
+		if !analyticsModule {
+			return errors.New("no-cookie analytics requires the analytics module")
+		}
+		if len(c.Analytics.HashKey) < 32 {
+			return errors.New("no-cookie analytics requires an analytics hash key of at least 32 bytes")
+		}
 	}
 	return nil
 }

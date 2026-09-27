@@ -1,0 +1,26 @@
+id: "202609280002_analytics_privacy_stats"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "f1f0df8ed0b282eee7e7733e516b8f50fcc4d603c7d5e19cce2c0c1ea3f14b70"
+  postgres: "838c5777954dfd50c0da24363322ee2375d754027a0c84e444ddfedbd3b011b8"
+dependencies:
+  - "202609220001_analytics_content_views"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "Optional Analytics module is enabled"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Daily grouped metrics plus short-lived daily visitor hashes; aggregates retained for 90 days and hashes for no more than 48 hours"
+compatibility: "Adds daily aggregates and deployment-keyed pseudonymous daily visitor hashes used only for unique counting"
+smoke:
+  - "Page, referrer, device, browser, OS and unique counts update by day and tenant"
+  - "Raw network address and user-agent are never persisted; visitor hashes expire after 48 hours"
+restart: "Transactional expand migration; old binaries ignore the additional table"
+rollback: "Keep aggregate data and forward-fix; dropping the tables loses reports and temporary deduplication state"

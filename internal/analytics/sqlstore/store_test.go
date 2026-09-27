@@ -4,13 +4,83 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/migrations"
 )
+
+func TestSQLiteNoCookieDailyStatsContract(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "no-cookie.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	runNoCookieStatsContract(t, db, database.SQLite)
+}
+
+func TestPostgresNoCookieDailyStatsContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	db, err := database.Open(context.Background(), database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.Postgres, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	runNoCookieStatsContract(t, db, database.Postgres)
+}
+
+func runNoCookieStatsContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	store := Store{Executor: db, Dialect: dialect}
+	day := "2026-09-28"
+	tenantID := fmt.Sprintf("analytics-%d", time.Now().UnixNano())
+	visit := analytics.NoCookieVisit{Day: day, TenantID: tenantID, Page: "/public/pages/en/home", Referrer: "search.example", Device: "desktop", Browser: "Chrome", OS: "Linux", VisitorKey: strings.Repeat("a", 64)}
+	if unique, err := store.RecordNoCookieVisit(ctx, visit); err != nil || !unique {
+		t.Fatalf("first visit unique=%v err=%v", unique, err)
+	}
+	if unique, err := store.RecordNoCookieVisit(ctx, visit); err != nil || unique {
+		t.Fatalf("repeat visit unique=%v err=%v", unique, err)
+	}
+	stats, err := store.ListDailyStats(ctx, day, tenantID, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := make(map[string]int64, len(stats))
+	for _, row := range stats {
+		counts[row.Metric+"\x00"+row.Dimension] = row.EventCount
+	}
+	if counts["unique_visitors\x00"] != 1 || counts["page\x00/public/pages/en/home"] != 2 || counts["browser\x00Chrome"] != 2 || len(stats) != 6 {
+		t.Fatalf("daily aggregate contract = %#v", counts)
+	}
+	ranged, err := store.ListDailyStatsBetween(ctx, "2026-09-01", day, tenantID, 100)
+	if err != nil || len(ranged) != len(stats) {
+		t.Fatalf("daily range rows=%d err=%v", len(ranged), err)
+	}
+	if err := store.PurgeNoCookieBefore(ctx, "2026-09-29", "2026-09-29"); err != nil {
+		t.Fatal(err)
+	}
+	stats, err = store.ListDailyStats(ctx, day, tenantID, 20)
+	if err != nil || len(stats) != 0 {
+		t.Fatalf("retention cleanup rows=%d err=%v", len(stats), err)
+	}
+}
 
 func testStore(t *testing.T) Store {
 	t.Helper()

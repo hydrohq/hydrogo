@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -14,16 +15,20 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
@@ -49,8 +54,12 @@ type Handler struct {
 		List(context.Context, string, int) ([]mailer.SpoolEntry, error)
 		RetryNow(context.Context, string) error
 	}
-	SitemapOrigin   string
-	SitemapProvider func(context.Context) ([]site.SitemapEntry, error)
+	Redirects           *site.RedirectRegistry
+	SitemapOrigin       string
+	SitemapProvider     func(context.Context) ([]site.SitemapEntry, error)
+	SitemapStream       site.SitemapStream
+	SitemapCategories   []string
+	InvalidateDiscovery func()
 }
 
 func (h Handler) Routes() []Route {
@@ -58,9 +67,19 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /site/settings", Public: true, Handler: http.HandlerFunc(h.publicSettings)},
 		{Pattern: "GET /site/navigation/{locale}", Public: true, Handler: http.HandlerFunc(h.navigation)},
 		{Pattern: "GET /sitemap.xml", Public: true, Handler: http.HandlerFunc(h.sitemap)},
+		{Pattern: "GET /sitemap-index.xml", Public: true, Handler: http.HandlerFunc(h.sitemapIndex)},
+		{Pattern: "GET /sitemap-pages.xml", Public: true, Handler: http.HandlerFunc(h.sitemapPart)},
+		{Pattern: "GET /sitemap-articles.xml", Public: true, Handler: http.HandlerFunc(h.sitemapArticlePart)},
 		{Pattern: "POST /admin/site/settings", Handler: http.HandlerFunc(h.saveSetting)},
+		{Pattern: "GET /admin/site/seo", Handler: http.HandlerFunc(h.seoSettings)},
+		{Pattern: "POST /admin/site/seo", Handler: http.HandlerFunc(h.saveSEOSettings)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
+		{Pattern: "GET /admin/site/redirect-rules", Handler: http.HandlerFunc(h.redirectRules)},
+		{Pattern: "POST /admin/site/redirect-rules", Handler: http.HandlerFunc(h.saveRedirectRule)},
+		{Pattern: "POST /admin/site/redirect-rules/import", Handler: http.HandlerFunc(h.importRedirectRules)},
+		{Pattern: "POST /admin/site/redirect-rules/{id}/delete", Handler: http.HandlerFunc(h.deleteRedirectRule)},
 		{Pattern: "POST /admin/site/navigation/{locale}", Handler: http.HandlerFunc(h.saveNavigation)},
+		{Pattern: "GET /{path...}", Public: true, Handler: http.HandlerFunc(h.redirectFallback)},
 	}
 	if h.FormsEnabled {
 		routes = append(routes,
@@ -79,6 +98,223 @@ func (h Handler) Routes() []Route {
 		)
 	}
 	return routes
+}
+
+func (h Handler) redirectFallback(w http.ResponseWriter, r *http.Request) {
+	if h.Redirects == nil {
+		http.NotFound(w, r)
+		return
+	}
+	scope, err := tenant.FromContext(r.Context())
+	if err != nil && h.Redirects.RequireTenantScope {
+		http.NotFound(w, r)
+		return
+	}
+	rule, ok := h.Redirects.Match(scope, r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	target := rule.TargetPath
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	http.Redirect(w, r, target, rule.Status)
+}
+
+func (h Handler) redirectRules(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Service.ListRedirectRules(r.Context(), 500)
+	if err != nil {
+		http.Error(w, "redirects unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if h.Redirects != nil {
+		tenantID := ""
+		if h.Redirects.RequireTenantScope {
+			if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+				tenantID = scope.TenantID
+			}
+		}
+		hits := make(map[string]uint64)
+		for _, rule := range h.Redirects.List(tenantID) {
+			hits[rule.ID] = rule.Hits
+		}
+		for i := range items {
+			if count, ok := hits[items[i].ID]; ok {
+				items[i].Hits = count
+			}
+		}
+	}
+	rows := make([][]string, 0, len(items))
+	rowActions := make([][]uicomponents.TableAction, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, []string{item.Pattern, item.Kind, item.TargetPath, strconv.Itoa(item.Status), strconv.FormatUint(item.Hits, 10)})
+		rowActions = append(rowActions, []uicomponents.TableAction{{Label: "Kaldır", Action: "/admin/site/redirect-rules/" + url.PathEscape(item.ID) + "/delete", CSRF: security.CSRFTokenFromContext(r.Context()), Variant: uicomponents.Danger}})
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if ui.AdminStart(w, "Yönlendirmeler", "Eski bağlantıları güncel sayfalara yönetin", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	newRuleBody := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+		for _, component := range []templ.Component{
+			uicomponents.Input(uicomponents.InputProps{ID: "redirect-pattern", Name: "pattern", Label: "Eski yol", Placeholder: "/old-page", Required: true, MaxLength: 512, HasMaxLength: true}),
+			uicomponents.Select(uicomponents.SelectProps{ID: "redirect-kind", Name: "kind", Label: "Eşleştirme", Options: []string{"exact", "wildcard", "regex"}}),
+			uicomponents.Input(uicomponents.InputProps{ID: "redirect-target", Name: "target", Label: "Yeni yol", Placeholder: "/new-page", Required: true, MaxLength: 2048, HasMaxLength: true}),
+			uicomponents.Select(uicomponents.SelectProps{ID: "redirect-status", Name: "status", Label: "Durum", Options: []string{"301", "302"}}),
+			uicomponents.Button(uicomponents.ButtonProps{Label: "Yönlendirme ekle", Type: "submit", Variant: uicomponents.Primary}),
+		} {
+			if err := component.Render(ctx, output); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err := uicomponents.Card(uicomponents.CardProps{Title: "Yeni yönlendirme", Body: uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/redirect-rules", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: newRuleBody})}).Render(r.Context(), w); err != nil {
+		return
+	}
+	importBody := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+		for _, component := range []templ.Component{
+			uicomponents.Input(uicomponents.InputProps{ID: "redirect-csv", Name: "file", Label: "CSV dosyası", Type: "file", Required: true}),
+			uicomponents.Button(uicomponents.ButtonProps{Label: "İçe aktar", Type: "submit", Variant: uicomponents.Quiet}),
+		} {
+			if err := component.Render(ctx, output); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err := uicomponents.Card(uicomponents.CardProps{Title: "CSV içe aktar", Body: uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/redirect-rules/import", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: importBody})}).Render(r.Context(), w); err != nil {
+		return
+	}
+	_ = uicomponents.Table(uicomponents.TableProps{Caption: "Yönlendirme kuralları", Columns: []string{"Eski yol", "Eşleştirme", "Yeni yol", "HTTP", "Ziyaret"}, Rows: rows, RowActions: rowActions, EmptyMessage: "Henüz yönlendirme kuralı yok."}).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveRedirectRule(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+	id, err := randomID("redirect-")
+	if err != nil {
+		http.Error(w, "redirects unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	rule := site.RedirectRule{ID: id, Pattern: r.FormValue("pattern"), Kind: r.FormValue("kind"), TargetPath: r.FormValue("target"), CreatedAt: time.Now().UTC()}
+	rule.Status, err = strconv.Atoi(r.FormValue("status"))
+	if err != nil {
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+	if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+		rule.TenantID = scope.TenantID
+	}
+	if err := h.Service.SaveRedirectRule(r.Context(), rule); err != nil {
+		http.Error(w, "redirect could not be saved", siteStatus(err))
+		return
+	}
+	if h.Redirects != nil {
+		_ = h.Redirects.Upsert(rule)
+	}
+	http.Redirect(w, r, "/admin/site/redirect-rules", http.StatusSeeOther)
+}
+
+func (h Handler) importRedirectRules(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		http.Error(w, "invalid CSV", http.StatusBadRequest)
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "invalid CSV", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	reader := csv.NewReader(io.LimitReader(file, 1<<20))
+	reader.FieldsPerRecord = 4
+	rules := make([]site.RedirectRule, 0, 64)
+	for {
+		row, readErr := reader.Read()
+		if errors.Is(readErr, io.EOF) {
+			break
+		}
+		if readErr != nil || len(rules) >= 1000 {
+			http.Error(w, "invalid CSV", http.StatusBadRequest)
+			return
+		}
+		if len(rules) == 0 && strings.EqualFold(strings.TrimSpace(row[0]), "pattern") {
+			continue
+		}
+		id, idErr := randomID("redirect-")
+		if idErr != nil {
+			http.Error(w, "redirects unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		status, parseErr := strconv.Atoi(strings.TrimSpace(row[3]))
+		if parseErr != nil {
+			http.Error(w, "invalid CSV", http.StatusBadRequest)
+			return
+		}
+		rule := site.RedirectRule{ID: id, Pattern: strings.TrimSpace(row[0]), Kind: strings.TrimSpace(row[1]), TargetPath: strings.TrimSpace(row[2]), Status: status, CreatedAt: time.Now().UTC()}
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			rule.TenantID = scope.TenantID
+		}
+		if err := site.ValidateRedirectRule(rule); err != nil {
+			http.Error(w, "invalid CSV", http.StatusBadRequest)
+			return
+		}
+		rules = append(rules, rule)
+	}
+	if len(rules) == 0 {
+		http.Error(w, "invalid CSV", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SaveRedirectRules(r.Context(), rules); err != nil {
+		http.Error(w, "redirect rules could not be imported", siteStatus(err))
+		return
+	}
+	if h.Redirects != nil {
+		for _, rule := range rules {
+			_ = h.Redirects.Upsert(rule)
+		}
+	}
+	http.Redirect(w, r, "/admin/site/redirect-rules", http.StatusSeeOther)
+}
+
+func (h Handler) deleteRedirectRule(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	id := r.PathValue("id")
+	if err := h.Service.DeleteRedirectRule(r.Context(), id); err != nil {
+		http.Error(w, "redirect could not be removed", siteStatus(err))
+		return
+	}
+	if h.Redirects != nil {
+		tenantID := ""
+		if h.Redirects.RequireTenantScope {
+			if scope, err := tenant.FromContext(r.Context()); err == nil {
+				tenantID = scope.TenantID
+			}
+		}
+		h.Redirects.Remove(tenantID, id)
+	}
+	http.Redirect(w, r, "/admin/site/redirect-rules", http.StatusSeeOther)
 }
 
 func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
@@ -524,7 +760,89 @@ func (h Handler) saveSetting(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid site setting", siteStatus(err))
 		return
 	}
+	if h.InvalidateDiscovery != nil {
+		h.InvalidateDiscovery()
+	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) seoSettings(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	settings, err := h.Store.ListPublicSettings(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "site settings unavailable", http.StatusInternalServerError)
+		return
+	}
+	var excluded string
+	for _, item := range settings {
+		if item.Key == "seo.llms_excluded_paths" {
+			excluded = item.Value
+			break
+		}
+	}
+	if ui.AdminStart(w, "SEO ayarları", "Yayınlanmış içeriklerin arama ve keşif görünümü", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+		for _, component := range []templ.Component{
+			uicomponents.Textarea(uicomponents.TextareaProps{ID: "llms-excluded-paths", Name: "paths", Label: "LLM metin dosyalarından çıkarılacak yollar (satır başına bir yol)", Value: excluded, Rows: 8, MaxLength: 4096, HasMaxLength: true}),
+			uicomponents.Button(uicomponents.ButtonProps{Label: "Ayarları kaydet", Type: "submit", Variant: uicomponents.Primary}),
+		} {
+			if err := component.Render(ctx, output); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	_ = uicomponents.Card(uicomponents.CardProps{Title: "Yayınlanan içerik", Body: uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/seo", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: body})}).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveSEOSettings(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid SEO settings", http.StatusBadRequest)
+		return
+	}
+	lines := strings.Split(r.FormValue("paths"), "\n")
+	paths := make([]string, 0, len(lines))
+	seen := make(map[string]struct{}, len(lines))
+	for _, line := range lines {
+		path := strings.TrimSpace(line)
+		if path == "" {
+			continue
+		}
+		parsed, err := url.ParseRequestURI(path)
+		if err != nil || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" || strings.ContainsAny(path, "\\\r\n\x00") || len(path) > 512 {
+			http.Error(w, "invalid SEO settings", http.StatusBadRequest)
+			return
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+	}
+	if len(paths) > 100 {
+		http.Error(w, "invalid SEO settings", http.StatusBadRequest)
+		return
+	}
+	value := site.Setting{Key: "seo.llms_excluded_paths", Value: strings.Join(paths, "\n"), Public: true, UpdatedAt: time.Now().UTC()}
+	if err := h.Service.SaveSetting(r.Context(), value); err != nil {
+		http.Error(w, "SEO settings could not be saved", siteStatus(err))
+		return
+	}
+	if h.InvalidateDiscovery != nil {
+		h.InvalidateDiscovery()
+	}
+	http.Redirect(w, r, "/admin/site/seo", http.StatusSeeOther)
 }
 
 func (h Handler) saveRedirect(w http.ResponseWriter, r *http.Request) {
@@ -539,6 +857,22 @@ func (h Handler) saveRedirect(w http.ResponseWriter, r *http.Request) {
 	if err := h.Service.SaveRedirect(r.Context(), value); err != nil {
 		http.Error(w, "invalid redirect", siteStatus(err))
 		return
+	}
+	if h.Redirects != nil {
+		source, sourceErr := canonical.Path(value.SourcePath)
+		target, targetErr := canonical.Path(value.TargetPath)
+		if sourceErr != nil || targetErr != nil {
+			http.Error(w, "invalid redirect", http.StatusBadRequest)
+			return
+		}
+		rule := site.RedirectRule{ID: "legacy:/" + source, Pattern: "/" + source, Kind: "exact", TargetPath: "/" + target, Status: value.Status, CreatedAt: value.CreatedAt}
+		if scope, err := tenant.FromContext(r.Context()); err == nil {
+			rule.TenantID = scope.TenantID
+		}
+		if err := h.Redirects.Upsert(rule); err != nil {
+			http.Error(w, "invalid redirect", siteStatus(err))
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -576,7 +910,7 @@ func siteStatus(err error) int {
 	if errors.Is(err, site.ErrIdempotencyConflict) {
 		return http.StatusConflict
 	}
-	if errors.Is(err, site.ErrIdempotencyStoreRequired) || errors.Is(err, site.ErrLeadStoreRequired) || errors.Is(err, site.ErrMailQueueRequired) || errors.Is(err, mailer.ErrSpoolLeaseInvalid) {
+	if errors.Is(err, site.ErrIdempotencyStoreRequired) || errors.Is(err, site.ErrLeadStoreRequired) || errors.Is(err, site.ErrMailQueueRequired) || errors.Is(err, site.ErrRedirectStoreRequired) || errors.Is(err, mailer.ErrSpoolLeaseInvalid) {
 		return http.StatusServiceUnavailable
 	}
 	if errors.Is(err, site.ErrStoreRequired) || errors.Is(err, database.ErrDatabaseRequired) {
@@ -586,21 +920,192 @@ func siteStatus(err error) int {
 }
 
 func (h Handler) sitemap(w http.ResponseWriter, r *http.Request) {
-	if h.SitemapProvider == nil || h.SitemapOrigin == "" {
-		http.Error(w, "sitemap unavailable", http.StatusServiceUnavailable)
+	if h.SitemapStream != nil {
+		h.streamSitemap(w, r, "", false)
 		return
 	}
-	entries, err := h.SitemapProvider(r.Context())
+	entries, ok := h.sitemapEntries(w, r)
+	if !ok {
+		return
+	}
+	parts, err := site.SplitSitemap(entries, site.MaxSitemapURLs, site.MaxSitemapBytes)
 	if err != nil {
 		http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
 		return
 	}
+	if part := strings.TrimSpace(r.URL.Query().Get("part")); part != "" {
+		index, parseErr := strconv.Atoi(part)
+		if parseErr != nil || index < 1 || index > len(parts) {
+			http.NotFound(w, r)
+			return
+		}
+		writeSitemap(w, parts[index-1])
+		return
+	}
+	if len(parts) > 1 {
+		data, err := site.RenderSitemapIndex(h.SitemapOrigin, len(parts))
+		if err != nil {
+			http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+			return
+		}
+		writeSitemapData(w, data)
+		return
+	}
+	writeSitemap(w, entries)
+}
+
+func (h Handler) sitemapIndex(w http.ResponseWriter, r *http.Request) {
+	if h.SitemapStream != nil {
+		h.streamSitemap(w, r, "", true)
+		return
+	}
+	entries, ok := h.sitemapEntries(w, r)
+	if !ok {
+		return
+	}
+	parts, err := site.SplitSitemap(entries, site.MaxSitemapURLs, site.MaxSitemapBytes)
+	if err != nil {
+		http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+		return
+	}
+	data, err := site.RenderSitemapIndex(h.SitemapOrigin, len(parts))
+	if err != nil {
+		http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+		return
+	}
+	writeSitemapData(w, data)
+}
+
+func (h Handler) sitemapPart(w http.ResponseWriter, r *http.Request) {
+	if h.SitemapStream != nil {
+		h.streamSitemap(w, r, "pages", false)
+		return
+	}
+	part, err := strconv.Atoi(r.URL.Query().Get("part"))
+	if err != nil || part < 1 {
+		http.NotFound(w, r)
+		return
+	}
+	entries, ok := h.sitemapEntries(w, r)
+	if !ok {
+		return
+	}
+	parts, err := site.SplitSitemap(entries, site.MaxSitemapURLs, site.MaxSitemapBytes)
+	if err != nil || part > len(parts) {
+		http.NotFound(w, r)
+		return
+	}
+	writeSitemap(w, parts[part-1])
+}
+
+func (h Handler) sitemapArticlePart(w http.ResponseWriter, r *http.Request) {
+	if h.SitemapStream == nil {
+		http.NotFound(w, r)
+		return
+	}
+	h.streamSitemap(w, r, "articles", false)
+}
+
+func (h Handler) streamSitemap(w http.ResponseWriter, r *http.Request, category string, forceIndex bool) {
+	if h.SitemapOrigin == "" {
+		http.Error(w, "sitemap unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if category == "" && strings.TrimSpace(r.URL.Query().Get("part")) != "" {
+		category = "pages"
+	}
+	categories := h.SitemapCategories
+	if len(categories) == 0 {
+		categories = []string{"pages"}
+	}
+	if category != "" {
+		part := 1
+		if raw := strings.TrimSpace(r.URL.Query().Get("part")); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 1 {
+				http.NotFound(w, r)
+				return
+			}
+			part = parsed
+		}
+		var output bytes.Buffer
+		count, err := site.StreamSitemapPart(r.Context(), h.SitemapStream, category, part, site.MaxSitemapURLs, site.MaxSitemapBytes, &output)
+		if err != nil {
+			http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+			return
+		}
+		if part > count || count == 0 {
+			http.NotFound(w, r)
+			return
+		}
+		writeSitemapData(w, output.Bytes())
+		return
+	}
+	counts := make(map[string]int, len(categories))
+	totalParts := 0
+	for _, item := range categories {
+		count, err := site.StreamSitemapPart(r.Context(), h.SitemapStream, item, 0, site.MaxSitemapURLs, site.MaxSitemapBytes, nil)
+		if err != nil {
+			http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+			return
+		}
+		if count > 0 {
+			counts[item] = count
+			totalParts += count
+		}
+	}
+	if totalParts == 0 {
+		writeSitemap(w, nil)
+		return
+	}
+	if forceIndex || totalParts > 1 {
+		data, err := site.RenderCategorizedSitemapIndex(h.SitemapOrigin, counts)
+		if err != nil {
+			http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+			return
+		}
+		writeSitemapData(w, data)
+		return
+	}
+	for item, count := range counts {
+		if count == 1 {
+			var output bytes.Buffer
+			_, err := site.StreamSitemapPart(r.Context(), h.SitemapStream, item, 1, site.MaxSitemapURLs, site.MaxSitemapBytes, &output)
+			if err != nil {
+				http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+				return
+			}
+			writeSitemapData(w, output.Bytes())
+			return
+		}
+	}
+}
+
+func (h Handler) sitemapEntries(w http.ResponseWriter, r *http.Request) ([]site.SitemapEntry, bool) {
+	if h.SitemapProvider == nil || h.SitemapOrigin == "" {
+		http.Error(w, "sitemap unavailable", http.StatusServiceUnavailable)
+		return nil, false
+	}
+	entries, err := h.SitemapProvider(r.Context())
+	if err != nil {
+		http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
+		return nil, false
+	}
+	return entries, true
+}
+
+func writeSitemap(w http.ResponseWriter, entries []site.SitemapEntry) {
 	data, err := site.RenderSitemap(entries)
 	if err != nil {
 		http.Error(w, "sitemap unavailable", http.StatusInternalServerError)
 		return
 	}
+	writeSitemapData(w, data)
+}
+
+func writeSitemapData(w http.ResponseWriter, data []byte) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=300")
 	_, _ = w.Write(data)
 }
 

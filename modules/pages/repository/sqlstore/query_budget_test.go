@@ -10,6 +10,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
 type countingQueryDB struct {
@@ -42,6 +43,13 @@ func TestScopedPublishedPagesCannotCrossTenant(t *testing.T) {
 	}
 	if _, err := (Store{Dialect: database.SQLite, RequireTenantScope: true}).ListPublished(ctx, db, "tr", 20); !errors.Is(err, tenant.ErrMissingScope) {
 		t.Fatalf("missing scope error = %v", err)
+	}
+	var streamed []string
+	if err := (Store{Dialect: database.SQLite, RequireTenantScope: true}).StreamPublishedRoutes(tenant.WithScope(ctx, alpha), db, func(page pages.Page) error {
+		streamed = append(streamed, page.ID)
+		return nil
+	}); err != nil || len(streamed) != 1 || streamed[0] != "page-a" {
+		t.Fatalf("streamed routes = %v, err=%v", streamed, err)
 	}
 }
 

@@ -41,6 +41,15 @@ func TestCoreBlocksRenderEscapedContentAndRejectUnsafeLinks(t *testing.T) {
 	}
 }
 
+func TestHeadInlinesCriticalTokensAndPreloadsRemainingStyles(t *testing.T) {
+	html := render(t, Head())
+	for _, want := range []string{`--background:#fff`, `rel="preload" as="style"`, `data-hydro-late-style`, `<noscript>`, `rel="stylesheet"`, `designsystem.css`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("Head missing %q: %s", want, html)
+		}
+	}
+}
+
 func TestBeforeAfterRender(t *testing.T) {
 	got := render(t, BeforeAfter(BeforeAfterProps{BeforeSrc: "/before.webp", AfterSrc: "/after.webp", BeforeLabel: "Old", AfterLabel: "New", Position: 150}))
 	for _, want := range []string{`type="range"`, `value="100"`, `aria-label="Old / New"`, `data-before-after`} {

@@ -54,6 +54,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0016](0016-structured-page-blocks-and-theme-slots.md) | Structured page blocks and theme slots | Accepted |
 | [0266](0266-design-system-blocks-and-interactions.md) | Design-system blocks and lightweight interactions | Accepted; supersedes 0016 |
 | [0267](0267-form-leads-and-mail-spool.md) | Form leads and durable mail spool | Accepted |
+| [0268](0268-seo-performance-and-discovery-runtime.md) | SEO, performance, and public discovery runtime | Accepted |
+| [0269](0269-optional-no-cookie-visitor-analytics.md) | Optional no-cookie daily visitor analytics | Accepted; partially supersedes 0217 |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |
@@ -261,7 +263,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0214](0214-edition-server-composition.md) | Client Edition server composition and reviewed migration boundary | Accepted |
 | [0215](0215-endpoint-observability-contract.md) | Bounded endpoint observability contract | Accepted |
 | [0216](0216-production-html-output-boundary.md) | Production HTML output boundary | Accepted |
-| [0217](0217-consent-gated-content-view-analytics.md) | Consent-gated bounded content view analytics | Accepted |
+| [0217](0217-consent-gated-content-view-analytics.md) | Consent-gated bounded content view analytics | Accepted; unique visitor provision partially superseded by 0269 |
 | [0201](0201-tenant-registry-provisioning-and-bootstrap-backfill.md) | Tenant registry, idempotent provisioning, and bootstrap backfill | Accepted |
 | [0202](0202-core-client-edition-and-construction-pilot.md) | Core/Client Edition boundary and Construction pilot | Accepted |
 | [0203](0203-versioned-event-catalog.md) | Versioned event catalog | Accepted |
@@ -278,7 +280,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0149](0149-shared-multi-tenant-saas-evolution.md) | Shared multi-tenant SaaS evolution and isolation architecture | Proposed |
 | [0215](0215-endpoint-observability-contract.md) | Bounded endpoint observability contract | Accepted |
 | [0216](0216-production-html-output-boundary.md) | Production HTML output boundary | Accepted |
-| [0217](0217-consent-gated-content-view-analytics.md) | Consent-gated content view analytics | Accepted |
+| [0217](0217-consent-gated-content-view-analytics.md) | Consent-gated content view analytics | Accepted; unique visitor provision partially superseded by 0269 |
 | [0218](0218-structured-request-telemetry.md) | Structured request telemetry dimensions | Accepted |
 | [0219](0219-scaffold-verification-and-interactive-blueprints.md) | Scaffold verification and interactive Blueprint flow | Accepted |
 | [0220](0220-provider-neutral-tracing-boundaries.md) | Provider-neutral tracing boundaries | Accepted |
@@ -339,3 +341,5 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0263: SQLite PRAGMA profiles](0263-sqlite-pragma-profiles.md)
 - [ADR-0264: CGI hosting runtime](0264-cgi-hosting-runtime.md)
 - [ADR-0265: FastCGI and persistent CGI HTML cache](0265-fastcgi-and-persistent-html-cache.md)
+- [ADR-0268: SEO, performance, and public discovery runtime](0268-seo-performance-and-discovery-runtime.md)
+- [ADR-0269: Optional no-cookie daily visitor analytics](0269-optional-no-cookie-visitor-analytics.md)

@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -86,7 +87,14 @@ type TableProps struct {
 	Caption      string
 	Columns      []string
 	Rows         [][]string
+	RowActions   [][]TableAction
 	EmptyMessage string
+}
+
+// TableAction is a CSRF-protected POST form rendered in its row.
+type TableAction struct {
+	Label, Action, CSRF string
+	Variant             Variant
 }
 
 func Table(p TableProps) templ.Component {
@@ -103,16 +111,26 @@ func Table(p TableProps) templ.Component {
 				return err
 			}
 		}
+		hasActions := len(p.RowActions) > 0
+		if hasActions {
+			if _, err := io.WriteString(w, `<th scope="col">İşlem</th>`); err != nil {
+				return err
+			}
+		}
 		if _, err := io.WriteString(w, `</tr></thead><tbody>`); err != nil {
 			return err
 		}
 		if len(p.Rows) == 0 {
-			_, err := io.WriteString(w, `<tr><td colspan="`+strconv.Itoa(max(1, len(p.Columns)))+`" role="status">`+esc(empty)+`</td></tr>`)
+			columns := len(p.Columns)
+			if hasActions {
+				columns++
+			}
+			_, err := io.WriteString(w, `<tr><td colspan="`+strconv.Itoa(max(1, columns))+`" role="status">`+esc(empty)+`</td></tr>`)
 			if err != nil {
 				return err
 			}
 		} else {
-			for _, row := range p.Rows {
+			for index, row := range p.Rows {
 				if _, err := io.WriteString(w, `<tr>`); err != nil {
 					return err
 				}
@@ -125,6 +143,25 @@ func Table(p TableProps) templ.Component {
 						return err
 					}
 				}
+				if hasActions {
+					if _, err := io.WriteString(w, `<td>`); err != nil {
+						return err
+					}
+					if index < len(p.RowActions) {
+						for _, action := range p.RowActions[index] {
+							if !validTableAction(action.Action) {
+								return errors.New("table action must be a local POST path")
+							}
+							form := Form(FormProps{Action: action.Action, Method: "post", CSRF: action.CSRF, Body: Button(ButtonProps{Label: action.Label, Type: "submit", Variant: action.Variant})})
+							if err := form.Render(ctx, w); err != nil {
+								return err
+							}
+						}
+					}
+					if _, err := io.WriteString(w, `</td>`); err != nil {
+						return err
+					}
+				}
 				if _, err := io.WriteString(w, `</tr>`); err != nil {
 					return err
 				}
@@ -133,6 +170,10 @@ func Table(p TableProps) templ.Component {
 		_, err := io.WriteString(w, `</tbody></table>`)
 		return err
 	})
+}
+
+func validTableAction(action string) bool {
+	return validLocalPath(action)
 }
 
 // PaginationProps keeps page navigation bounded and exposes only the HTMX

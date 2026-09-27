@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/mail"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ var (
 	ErrInvalidSetting           = errors.New("invalid site setting")
 	ErrInvalidNavigation        = errors.New("invalid navigation item")
 	ErrInvalidRedirect          = errors.New("invalid redirect")
+	ErrRedirectStoreRequired    = errors.New("redirect rule store is required")
 	ErrInvalidSubmission        = errors.New("invalid form submission")
 	ErrInvalidInboxState        = errors.New("invalid inbox state")
 	ErrStoreRequired            = errors.New("site store is required")
@@ -68,6 +70,17 @@ type Redirect struct {
 	SourcePath string
 	TargetPath string
 	Status     int
+	CreatedAt  time.Time
+}
+
+type RedirectRule struct {
+	ID         string
+	TenantID   string
+	Pattern    string
+	Kind       string
+	TargetPath string
+	Status     int
+	Hits       uint64
 	CreatedAt  time.Time
 }
 
@@ -146,6 +159,34 @@ func ValidateRedirect(value Redirect) error {
 	source := normalizePath(value.SourcePath)
 	target := normalizePath(value.TargetPath)
 	if source == "" || target == "" || source == target || (value.Status != 301 && value.Status != 308) {
+		return ErrInvalidRedirect
+	}
+	return nil
+}
+
+func ValidateRedirectRule(value RedirectRule) error {
+	pattern := strings.TrimSpace(value.Pattern)
+	target := strings.TrimSpace(value.TargetPath)
+	if strings.TrimSpace(value.ID) == "" || len(value.ID) > 128 || len(pattern) == 0 || len(pattern) > 512 || len(target) == 0 || len(target) > 2048 || (value.Status != 301 && value.Status != 302 && value.Status != 308) {
+		return ErrInvalidRedirect
+	}
+	if strings.ContainsAny(pattern+target, "\\\r\n\x00?#") || !strings.HasPrefix(pattern, "/") || !strings.HasPrefix(target, "/") || strings.HasPrefix(target, "//") {
+		return ErrInvalidRedirect
+	}
+	parsed, err := url.Parse(target)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.User != nil {
+		return ErrInvalidRedirect
+	}
+	switch value.Kind {
+	case "exact":
+		if strings.ContainsAny(pattern, "*[](){}") || normalizePath(pattern) != pattern { return ErrInvalidRedirect }
+	case "wildcard":
+		if strings.Count(pattern, "*") != 1 || strings.ContainsAny(pattern, "[](){}") { return ErrInvalidRedirect }
+		if strings.Count(target, "*") > 1 { return ErrInvalidRedirect }
+	case "regex":
+		if len(pattern) > 256 { return ErrInvalidRedirect }
+		if _, err := regexp.Compile(pattern); err != nil { return ErrInvalidRedirect }
+	default:
 		return ErrInvalidRedirect
 	}
 	return nil

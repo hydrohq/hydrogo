@@ -76,6 +76,64 @@ func TestPostgresVisibilityDialectContract(t *testing.T) {
 	runVisibilityContract(t, db, database.Postgres)
 }
 
+func TestSQLiteRedirectRuleContract(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "redirects.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	runRedirectRuleContract(t, db, database.SQLite)
+}
+
+func TestPostgresRedirectRuleContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	db, err := database.Open(context.Background(), database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.Postgres, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	runRedirectRuleContract(t, db, database.Postgres)
+}
+
+func runRedirectRuleContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	alpha, _ := tenant.NewScope("redirect-alpha", "alpha")
+	beta, _ := tenant.NewScope("redirect-beta", "beta")
+	store := Store{Dialect: dialect, RequireTenantScope: true}
+	rule := site.RedirectRule{ID: "rule-a", TenantID: alpha.TenantID, Pattern: "/old", Kind: "exact", TargetPath: "/new", Status: 301, CreatedAt: time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)}
+	if err := store.UpsertRedirectRule(tenant.WithScope(ctx, alpha), db, rule); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertRedirectRule(tenant.WithScope(ctx, beta), db, site.RedirectRule{ID: "rule-b", Pattern: "/old", Kind: "exact", TargetPath: "/beta", Status: 302, CreatedAt: rule.CreatedAt}); err != nil {
+		t.Fatal(err)
+	}
+	alphaRules, err := store.ListRedirectRules(tenant.WithScope(ctx, alpha), db, 10)
+	if err != nil || len(alphaRules) != 1 || alphaRules[0].TargetPath != "/new" {
+		t.Fatalf("alpha rules = %#v/%v", alphaRules, err)
+	}
+	betaRules, err := store.ListRedirectRules(tenant.WithScope(ctx, beta), db, 10)
+	if err != nil || len(betaRules) != 1 || betaRules[0].TargetPath != "/beta" {
+		t.Fatalf("beta rules = %#v/%v", betaRules, err)
+	}
+	if err := store.DeleteRedirectRule(tenant.WithScope(ctx, alpha), db, "rule-a"); err != nil {
+		t.Fatal(err)
+	}
+	alphaRules, err = store.ListRedirectRules(tenant.WithScope(ctx, alpha), db, 10)
+	if err != nil || len(alphaRules) != 0 {
+		t.Fatalf("deleted alpha rules = %#v/%v", alphaRules, err)
+	}
+}
+
 func runVisibilityContract(t *testing.T, db database.Executor, dialect database.Dialect) {
 	t.Helper()
 	ctx := context.Background()

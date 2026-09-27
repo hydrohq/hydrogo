@@ -1,7 +1,14 @@
 package designsystem
 
 templ Head() {
-	<link rel="stylesheet" href="/designsystem/static/designsystem.css" />
+	<style>
+		:root{--background:#fff;--foreground:#171923;--surface:#f7f8fa;--border:#d7dbe3;--primary:#315bd6;--primary-foreground:#fff;--radius:.6rem;color-scheme:light dark}
+		[data-theme="dark"],[data-color-scheme="dark"]{--background:#11151d;--foreground:#f4f6fa;--surface:#1b2230;--border:#394355;--primary:#8eacff;--primary-foreground:#10182b}
+		.bg-background{background:var(--background)}.bg-surface{background:var(--surface)}.text-foreground{color:var(--foreground)}
+		.ds-hero{display:grid;gap:1rem;padding:clamp(2rem,6vw,5rem);border-radius:var(--radius)}.ds-hero h1{max-width:18ch;margin:0;font:750 clamp(2rem,6vw,4rem)/1.05 system-ui,sans-serif}
+	</style>
+	<link rel="preload" as="style" href="/designsystem/static/designsystem.css" data-hydro-late-style />
+	<noscript><link rel="stylesheet" href="/designsystem/static/designsystem.css" /></noscript>
 	<script src="/designsystem/static/widgets.js" defer></script>
 }
 

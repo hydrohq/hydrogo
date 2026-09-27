@@ -15,7 +15,7 @@ import (
 // ListPublishedRoutes returns only the public projection used by discovery surfaces.
 // The hard cap protects sitemap generation from unbounded memory/response work;
 // installations exceeding it should partition sitemap generation by locale.
-const maxSitemapRoutes = 10000
+const maxSitemapRoutes = 50000
 
 var ErrInvalidListLimit = errors.New("page list limit must be between 1 and 100")
 
@@ -50,6 +50,45 @@ func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Pag
 		result = append(result, page)
 	}
 	return result, rows.Err()
+}
+
+// StreamPublishedRoutes emits the public sitemap projection row by row. It is
+// bounded by the driver's cursor and does not materialize the route catalog.
+func (s Store) StreamPublishedRoutes(ctx context.Context, db database.QueryExecutor, visit func(pages.Page) error) error {
+	if db == nil {
+		return database.ErrDatabaseRequired
+	}
+	if visit == nil {
+		return errors.New("published route visitor is required")
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 1)
+	if err != nil {
+		return err
+	}
+	query := `SELECT id,published_locale,published_slug,published_title,status,revision,publication_generation,updated_at FROM pages WHERE published_revision IS NOT NULL` + filter + ` ORDER BY published_locale,published_slug,id`
+	args := []any{}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var page pages.Page
+		var status string
+		var updated any
+		if err := rows.Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &status, &page.Revision, &page.PublicationGeneration, &updated); err != nil {
+			return err
+		}
+		page.Status = pages.Status(status)
+		page.UpdatedAt = parseStoredTime(updated)
+		if err := visit(page); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 // ListPublished returns bounded public page summaries for a locale. Draft

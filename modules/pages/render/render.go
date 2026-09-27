@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
@@ -13,6 +14,8 @@ import (
 )
 
 var ErrInvalidBlock = errors.New("cannot render invalid block")
+
+var componentBufferPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 
 // Blocks returns HTML generated only from validated, allowlisted block data.
 // The returned string is safe to pass to a trusted template component; it is
@@ -131,9 +134,16 @@ func blockHTML(block pages.Block) (string, error) {
 }
 
 func renderComponent(component templ.Component) (string, error) {
-	var out bytes.Buffer
-	if err := component.Render(context.Background(), &out); err != nil {
+	out := componentBufferPool.Get().(*bytes.Buffer)
+	out.Reset()
+	defer func() {
+		if out.Cap() <= 256<<10 {
+			out.Reset()
+			componentBufferPool.Put(out)
+		}
+	}()
+	if err := component.Render(context.Background(), out); err != nil {
 		return "", err
 	}
-	return out.String(), nil
+	return string(out.Bytes()), nil
 }
