@@ -25,6 +25,7 @@ config.env.*
 
 # Build and local tooling
 /bin/
+/build/
 /dist/
 /node_modules/
 /e2e/node_modules/

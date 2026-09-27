@@ -2,16 +2,18 @@ package media
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/deepteams/webp"
 )
 
 type recordingDerivativeRepository struct {
@@ -91,36 +93,46 @@ func TestOptimizerCloseIsIdempotentAndRejectsLateEnqueue(t *testing.T) {
 	}
 }
 
-func TestFFmpegTransformerFailsClosedWithoutEncoder(t *testing.T) {
-	_, err := (ffmpegTransformer{storageDir: t.TempDir()}).Transform(context.Background(), Asset{StorageKey: "input.png"}, VariantCard, "variant-1")
-	if err == nil || !strings.Contains(err.Error(), "ffmpeg is not configured") {
-		t.Fatalf("missing encoder error = %v, want explicit configuration failure", err)
+func TestVideoTransformFailsClosedWithoutEncoder(t *testing.T) {
+	_, err := (ffmpegTransformer{storageDir: t.TempDir()}).Transform(context.Background(), Asset{StorageKey: "input.mp4"}, VariantVideo, "variant-1")
+	if err == nil || !strings.Contains(err.Error(), "video encoder is not configured") {
+		t.Fatalf("missing video encoder error = %v", err)
 	}
 }
 
-func TestFFmpegTransformerProducesWebPWhenEncoderIsAvailable(t *testing.T) {
-	ffmpegPath, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Skip("ffmpeg is not installed")
-	}
+func TestImageTransformProducesPureGoWebP(t *testing.T) {
 	storage := t.TempDir()
 	input := filepath.Join(storage, "input.png")
-	// A deterministic 1x1 PNG keeps this contract small and reproducible.
-	pngBytes, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+	file, err := os.Create(input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(input, pngBytes, 0o600); err != nil {
+	img := image.NewRGBA(image.Rect(0, 0, 3, 2))
+	img.Set(1, 1, color.RGBA{R: 255, A: 255})
+	if err := png.Encode(file, img); err != nil {
+		_ = file.Close()
 		t.Fatal(err)
 	}
-	result, err := (ffmpegTransformer{path: ffmpegPath, storageDir: storage}).Transform(context.Background(), Asset{StorageKey: "input.png", MimeType: "image/png"}, VariantCard, "variant-webp")
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	result, err := (ffmpegTransformer{storageDir: storage}).Transform(context.Background(), Asset{StorageKey: "input.png", MimeType: "image/png"}, VariantCard, "variant-webp")
 	if err != nil {
-		t.Fatalf("ffmpeg WebP transform failed: %v", err)
+		t.Fatalf("pure Go WebP transform failed: %v", err)
 	}
 	if result.Mime != "image/webp" || result.Key != "variant-webp.webp" || result.Size <= 0 {
 		t.Fatalf("unexpected WebP result: %#v", result)
 	}
 	if _, err := os.Stat(filepath.Join(storage, result.Key)); err != nil {
 		t.Fatalf("WebP output missing: %v", err)
+	}
+	out, err := os.Open(filepath.Join(storage, result.Key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := webp.Decode(out)
+	_ = out.Close()
+	if err != nil || decoded.Bounds().Dx() != 3 || decoded.Bounds().Dy() != 2 {
+		t.Fatalf("WebP output decode = %v, error %v", decoded, err)
 	}
 }

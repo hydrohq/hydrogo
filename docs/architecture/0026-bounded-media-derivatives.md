@@ -1,5 +1,7 @@
 # ADR-0026: Bounded media derivatives
 
+- **Status:** Superseded for image derivatives by [ADR-0262](0262-pure-go-image-derivatives.md)
+
 ## Decision
 
 HydroGo keeps the uploaded original immutable and creates optional WebP image and WebM video derivatives in `internal/media`. Derivative work runs asynchronously through a bounded in-process worker. The original upload is never blocked by a missing encoder or a full derivative queue.

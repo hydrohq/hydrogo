@@ -6,13 +6,21 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/database"
+	webp "github.com/deepteams/webp"
+	xdraw "golang.org/x/image/draw"
 )
 
 const (
@@ -142,18 +150,16 @@ func (o *Optimizer) process(asset Asset) {
 type ffmpegTransformer struct{ path, storageDir string }
 
 func (t ffmpegTransformer) Transform(ctx context.Context, asset Asset, kind, id string) (transformResult, error) {
-	if strings.TrimSpace(t.path) == "" {
-		return transformResult{}, errors.New("ffmpeg is not configured; set HYDRO_MEDIA_FFMPEG")
-	}
 	input := filepath.Join(t.storageDir, filepath.Base(asset.StorageKey))
-	ext := ".webp"
-	args := []string{"-hide_banner", "-loglevel", "error", "-threads", "1", "-y", "-i", input}
 	if kind == VariantCard {
-		args = append(args, "-frames:v", "1", "-vf", "scale='min(1920,iw)':-2", "-c:v", "libwebp", "-quality", "82")
-	} else {
-		ext = ".webm"
-		args = append(args, "-t", "30", "-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0", "-deadline", "good", "-cpu-used", "4", "-c:a", "libopus", "-b:a", "96k")
+		return t.transformImage(ctx, input, id)
 	}
+	if strings.TrimSpace(t.path) == "" {
+		return transformResult{}, errors.New("video encoder is not configured; set HYDRO_MEDIA_FFMPEG")
+	}
+	ext := ".webm"
+	args := []string{"-hide_banner", "-loglevel", "error", "-threads", "1", "-y", "-i", input}
+	args = append(args, "-t", "30", "-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0", "-deadline", "good", "-cpu-used", "4", "-c:a", "libopus", "-b:a", "96k")
 	out := filepath.Join(t.storageDir, id+ext)
 	args = append(args, out)
 	if err := exec.CommandContext(ctx, t.path, args...).Run(); err != nil {
@@ -164,4 +170,58 @@ func (t ffmpegTransformer) Transform(ctx context.Context, asset Asset, kind, id 
 		return transformResult{}, errors.New("media transform produced no output")
 	}
 	return transformResult{Key: filepath.Base(out), Mime: map[string]string{".webp": "image/webp", ".webm": "video/webm"}[ext], Size: info.Size()}, nil
+}
+
+func (t ffmpegTransformer) transformImage(ctx context.Context, input, id string) (transformResult, error) {
+	file, err := os.Open(input)
+	if err != nil {
+		return transformResult{}, err
+	}
+	defer file.Close()
+	config, _, err := image.DecodeConfig(file)
+	if err != nil {
+		return transformResult{}, fmt.Errorf("decode image header: %w", err)
+	}
+	if config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > 40_000_000 {
+		return transformResult{}, errors.New("image dimensions exceed derivative limit")
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return transformResult{}, err
+	}
+	decoded, _, err := image.Decode(file)
+	if err != nil {
+		return transformResult{}, fmt.Errorf("decode image: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return transformResult{}, err
+	}
+	w, h := config.Width, config.Height
+	if w > 1920 {
+		h = h * 1920 / w
+		w = 1920
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), decoded, decoded.Bounds(), xdraw.Over, nil)
+	out := filepath.Join(t.storageDir, id+".webp")
+	tmp, err := os.CreateTemp(t.storageDir, id+"-*.tmp")
+	if err != nil {
+		return transformResult{}, err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := webp.Encode(tmp, dst, &webp.Options{Quality: 82}); err != nil {
+		_ = tmp.Close()
+		return transformResult{}, fmt.Errorf("encode WebP: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return transformResult{}, err
+	}
+	if err := os.Rename(tmpName, out); err != nil {
+		return transformResult{}, err
+	}
+	info, err := os.Stat(out)
+	if err != nil {
+		return transformResult{}, err
+	}
+	return transformResult{Key: filepath.Base(out), Mime: "image/webp", Size: info.Size()}, nil
 }

@@ -333,3 +333,6 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0237: Edition-extensible tenant RLS verification](0237-tenant-rls-verification-extension.md)
 - [ADR-0238: Global singleton database invariant](0238-global-singleton-database-invariant.md)
 - [ADR-0239: Generated global admin surface](0239-generated-global-admin-surface.md)
+- [ADR-0262: Pure Go image derivatives](0262-pure-go-image-derivatives.md)
+- [ADR-0263: SQLite PRAGMA profiles](0263-sqlite-pragma-profiles.md)
+- [ADR-0264: CGI hosting runtime](0264-cgi-hosting-runtime.md)
