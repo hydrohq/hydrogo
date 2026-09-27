@@ -12,6 +12,34 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func TestSnapshotSQLiteFileCapturesPreMigrationState(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "live.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(ctx, `CREATE TABLE sample(id INTEGER PRIMARY KEY, value TEXT); INSERT INTO sample(value) VALUES('before')`); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := filepath.Join(t.TempDir(), "app.db.bak-20260928T120000Z")
+	if err := SnapshotSQLiteFile(ctx, db, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE sample SET value='after'`); err != nil {
+		t.Fatal(err)
+	}
+	backupDB, err := sql.Open("sqlite", snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backupDB.Close()
+	var value string
+	if err := backupDB.QueryRowContext(ctx, `SELECT value FROM sample`).Scan(&value); err != nil || value != "before" {
+		t.Fatalf("snapshot value = %q, %v", value, err)
+	}
+}
+
 func TestSnapshotSQLiteManifestVerifiesAndDetectsTampering(t *testing.T) {
 	root := t.TempDir()
 	dbPath := filepath.Join(root, "source.sqlite")

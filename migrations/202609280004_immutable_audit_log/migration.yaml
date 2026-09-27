@@ -1,0 +1,24 @@
+id: "202609280004_immutable_audit_log"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies:
+  - "202609060001_transaction_contract"
+checksum_sha256:
+  sqlite: "0b5eb18fefd85138932e7621b1f4ba038122d6ca975bf5ce972ef8a0dd185ef9"
+  postgres: "0fecbd470c5f962de9bb356a74a9f23e5d560495fc54e41d6ca28556f9a7c2a5"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "audit_events table exists"
+compatibility: "Adds append-only enforcement to existing audit rows; insertion and reads are unchanged."
+smoke:
+  - "Audit event insert succeeds on both dialects"
+  - "Audit event update and delete fail on both dialects"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Keep the immutability triggers; do not drop or edit existing audit rows."

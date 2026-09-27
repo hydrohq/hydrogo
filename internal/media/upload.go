@@ -73,6 +73,7 @@ type Uploader struct {
 	StorageDir string
 	MaxBytes   int64
 	MaxPixels  int64
+	QuotaGuard interface{ Check(string, int64) error }
 	slots      chan struct{}
 }
 
@@ -131,6 +132,9 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 	if r == nil {
 		return nil, errors.New("upload reader is required")
 	}
+	if err := validateUploadFilename(originalFilename); err != nil {
+		return nil, err
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -138,6 +142,11 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 		return nil, err
 	}
 	defer u.release()
+	if u.QuotaGuard != nil {
+		if err := u.QuotaGuard.Check(u.StorageDir, u.MaxBytes); err != nil {
+			return nil, err
+		}
+	}
 
 	// 1. Create a bounded reader
 	lr := &io.LimitedReader{R: r, N: u.MaxBytes + 1}
@@ -218,6 +227,36 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 		if bounds.Dx() != width || bounds.Dy() != height {
 			return nil, ErrInvalidImageData
 		}
+		sanitizedPath, changed, err := stripImageMetadata(tempFile.Name(), u.StorageDir, detectedMime)
+		if err != nil {
+			return nil, fmt.Errorf("sanitize image metadata: %w", err)
+		}
+		if changed {
+			originalPath := tempFile.Name()
+			if err := tempFile.Close(); err != nil {
+				_ = os.Remove(sanitizedPath)
+				return nil, err
+			}
+			if err := replaceSanitizedFile(originalPath, sanitizedPath); err != nil {
+				_ = os.Remove(sanitizedPath)
+				return nil, err
+			}
+			tempFile, err = os.OpenFile(originalPath, os.O_RDWR, 0)
+			if err != nil {
+				return nil, err
+			}
+			hasher = sha256.New()
+			totalSize, err = io.Copy(hasher, tempFile)
+			if err != nil {
+				return nil, err
+			}
+			if totalSize > u.MaxBytes {
+				return nil, ErrFileTooLarge
+			}
+			if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	if err := tempFile.Sync(); err != nil {
@@ -270,7 +309,24 @@ func safeOriginalFilename(value string) string {
 	if name == "." || name == "/" || name == "" {
 		return "unnamed"
 	}
+	name = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune(" ._-()", r) {
+			return r
+		}
+		return '-'
+	}, name)
 	return name
+}
+
+func validateUploadFilename(value string) error {
+	name := strings.ToLower(path.Base(strings.ReplaceAll(strings.TrimSpace(value), "\\", "/")))
+	blocked := map[string]struct{}{"php": {}, "phtml": {}, "phar": {}, "asp": {}, "aspx": {}, "jsp": {}, "cgi": {}, "sh": {}, "bash": {}, "exe": {}, "dll": {}, "com": {}, "bat": {}, "cmd": {}, "scr": {}, "ps1": {}}
+	for _, extension := range strings.Split(name, ".")[1:] {
+		if _, exists := blocked[strings.TrimSpace(extension)]; exists {
+			return ErrDisallowedMimeType
+		}
+	}
+	return nil
 }
 
 func (u *Uploader) acquire(ctx context.Context) error {

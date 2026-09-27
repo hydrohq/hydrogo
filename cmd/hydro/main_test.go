@@ -20,9 +20,11 @@ import (
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
+	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 )
 
 func TestModuleHelpersCanonicalizeNames(t *testing.T) {
@@ -659,6 +661,10 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("migrate failed: %v, stderr: %s", err, stderr.String())
 	}
+	backups, err := filepath.Glob(dbPath + ".bak-*")
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("pre-migration snapshots = %v, %v", backups, err)
+	}
 	stdout.Reset()
 	stderr.Reset()
 	if err := run([]string{"upgrade", "check", "--database-dialect", "sqlite", "--database-dsn", dbPath, "--capacity-profile", "compact"}, strings.NewReader(""), &stdout, &stderr); err != nil {
@@ -693,6 +699,28 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "profile=compact database=sqlite") {
 		t.Fatalf("unexpected doctor output: %s", stdout.String())
+	}
+}
+
+func TestHydroBanAndUnbanPersistSQLiteRules(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "security.sqlite")
+	var stdout, stderr bytes.Buffer
+	for _, args := range [][]string{{"migrate", "--database-dialect", "sqlite", "--database-dsn", dbPath}, {"ban", "--database-dialect", "sqlite", "--database-dsn", dbPath, "192.0.2.0/24"}} {
+		if err := run(args, strings.NewReader(""), &stdout, &stderr); err != nil {
+			t.Fatalf("run %v failed: %v (%s)", args[:1], err, stderr.String())
+		}
+	}
+	db, err := database.Open(context.Background(), database.SQLite, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := (securitystore.BanStore{Dialect: database.SQLite}).ListActive(context.Background(), db, time.Now(), 10)
+	_ = db.Close()
+	if err != nil || len(items) != 1 || items[0].Prefix.String() != "192.0.2.0/24" {
+		t.Fatalf("persisted bans = %#v, %v", items, err)
+	}
+	if err := run([]string{"unban", "--database-dialect", "sqlite", "--database-dsn", dbPath, "192.0.2.0/24"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatal(err)
 	}
 }
 

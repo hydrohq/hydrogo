@@ -47,3 +47,20 @@ func TestHeadersMiddlewareOmitsHSTSWhenDisabled(t *testing.T) {
 		t.Fatalf("HSTS = %q when disabled", got)
 	}
 }
+
+func TestHeadersMiddlewarePresetsKeepNonceAndFramePolicy(t *testing.T) {
+	for _, test := range []struct {
+		preset string
+		frame  string
+		csp    string
+	}{{HeaderPresetStrict, "DENY", "frame-ancestors 'none'"}, {HeaderPresetStandard, "SAMEORIGIN", "frame-ancestors 'self'"}, {HeaderPresetRelaxed, "SAMEORIGIN", "frame-ancestors 'self'"}} {
+		t.Run(test.preset, func(t *testing.T) {
+			handler := HeadersMiddleware(HeaderConfig{Preset: test.preset})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+			if response.Header().Get("X-Frame-Options") != test.frame || !strings.Contains(response.Header().Get("Content-Security-Policy"), test.csp) || !strings.Contains(response.Header().Get("Content-Security-Policy"), "nonce-") {
+				t.Fatalf("preset headers = %#v", response.Header())
+			}
+		})
+	}
+}

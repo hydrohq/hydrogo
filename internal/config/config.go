@@ -77,6 +77,7 @@ type Database struct {
 
 type Media struct {
 	Dir              string `yaml:"dir"`
+	MinFreeBytes     uint64 `yaml:"min_free_bytes"`
 	StorageDriver    string `yaml:"storage_driver"`
 	S3Endpoint       string `yaml:"s3_endpoint"`
 	S3Bucket         string `yaml:"s3_bucket"`
@@ -89,10 +90,13 @@ type Media struct {
 }
 
 type Security struct {
-	MFAMasterKey     string   `yaml:"mfa_master_key"`
-	SecureCookies    bool     `yaml:"secure_cookies"`
-	EnableHSTS       bool     `yaml:"enable_hsts"`
-	PublicAPIOrigins []string `yaml:"public_api_origins"`
+	MFAMasterKey        string   `yaml:"mfa_master_key"`
+	SecureCookies       bool     `yaml:"secure_cookies"`
+	EnableHSTS          bool     `yaml:"enable_hsts"`
+	HeadersPreset       string   `yaml:"headers_preset"`
+	PublicAPIOrigins    []string `yaml:"public_api_origins"`
+	EnableAnomalyFilter bool     `yaml:"enable_anomaly_filter"`
+	AnomalyBypassPaths  []string `yaml:"anomaly_bypass_paths"`
 }
 
 type I18N struct {
@@ -153,7 +157,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media"}, ThemeDir: "themes", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, ThemeDir: "themes", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true}}
 	result.License.File = "hydro.lic"
 	if path != "" {
 		file, err := os.Open(path)
@@ -182,6 +186,13 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_MEDIA_DIR"); ok && value != "" {
 		result.Media.Dir = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_MIN_FREE_BYTES"); ok && value != "" {
+		minFree, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_MEDIA_MIN_FREE_BYTES: %w", err)
+		}
+		result.Media.MinFreeBytes = minFree
 	}
 	if value, ok := lookup("HYDRO_MEDIA_STORAGE_DRIVER"); ok && value != "" {
 		result.Media.StorageDriver = value
@@ -506,6 +517,17 @@ func (c Config) Validate() error {
 	if c.Security.EnableHSTS && !c.Security.SecureCookies {
 		return errors.New("HSTS requires secure cookies")
 	}
+	if preset := strings.ToLower(strings.TrimSpace(c.Security.HeadersPreset)); preset != "" && preset != "strict" && preset != "standard" && preset != "relaxed" {
+		return errors.New("security headers preset must be strict, standard or relaxed")
+	}
+	if len(c.Security.AnomalyBypassPaths) > 32 {
+		return errors.New("security anomaly bypass path list exceeds limit")
+	}
+	for _, path := range c.Security.AnomalyBypassPaths {
+		if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "?#\\") {
+			return fmt.Errorf("invalid security anomaly bypass path %q", path)
+		}
+	}
 	if c.Security.SecureCookies && (publicOrigin == nil || publicOrigin.Scheme != "https") {
 		return errors.New("secure cookies require an HTTPS public origin")
 	}
@@ -540,6 +562,9 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.Media.Dir) == "" {
 		return errors.New("media directory is required")
+	}
+	if c.Media.MinFreeBytes > 1<<50 {
+		return errors.New("media minimum free space exceeds limit")
 	}
 	if c.Media.StorageDriver == "" {
 		c.Media.StorageDriver = "local"

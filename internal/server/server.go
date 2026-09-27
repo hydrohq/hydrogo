@@ -34,6 +34,11 @@ type Config struct {
 	Metrics                    *observability.Metrics
 	Logger                     *slog.Logger
 	EnableHSTS                 bool
+	SecurityHeadersPreset      string
+	IPBlocklist                *security.IPBlocklist
+	AnomalyFilterEnabled       bool
+	AnomalyBypassPaths         []string
+	OnSecurityAnomaly          func(*http.Request, string)
 	SecureCookie               bool
 	HTTPBodyLimit              int64
 	PublicOrigin               string
@@ -162,6 +167,10 @@ func NewHandler(config Config) http.Handler {
 	handler = security.RequestBodyLimitMiddleware(config.HTTPBodyLimit, func(r *http.Request) bool {
 		return r.URL.Path == "/api/media" || r.URL.Path == "/api/v1/media"
 	})(handler)
+	handler = security.AnomalyMiddleware(security.AnomalyConfig{
+		Enabled: config.AnomalyFilterEnabled, MaxBodyBytes: config.HTTPBodyLimit,
+		BypassPaths: config.AnomalyBypassPaths, OnDetect: config.OnSecurityAnomaly,
+	})(handler)
 	handler = security.RecoveryMiddleware(config.Logger)(handler)
 
 	// Normalize handler errors after the body limit and before the request ID
@@ -183,10 +192,14 @@ func NewHandler(config Config) http.Handler {
 	if config.AuthSvc != nil {
 		handler = auth.Middleware(config.AuthSvc, config.SecureCookie)(handler)
 	}
+	if config.IPBlocklist != nil {
+		handler = config.IPBlocklist.Middleware(handler)
+	}
 
 	// Apply Security Headers with CSP nonces
 	handler = security.HeadersMiddleware(security.HeaderConfig{
 		EnableHSTS: config.EnableHSTS,
+		Preset:     config.SecurityHeadersPreset,
 	})(handler)
 
 	// Keep metrics outermost so rejected requests from every middleware layer

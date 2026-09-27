@@ -1,0 +1,20 @@
+id: "202609280003_security_ip_bans"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies: []
+checksum_sha256:
+  sqlite: "298e4853138d400c399665b59ba04c14d34366b119340be1f7b9471de7cc1712"
+  postgres: "ede4e307121e367c736cdd33e9f9b6df53ce8de725f329fd41f2e49b751e04a1"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+compatibility: "Adds global security IP ban rules; the in-memory lookup remains bounded and refreshable."
+smoke:
+  - "SQLite and PostgreSQL stores can insert/read/remove exact and CIDR ban rows"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Retain operator ban history or remove expired rows; no destructive schema rollback is required."

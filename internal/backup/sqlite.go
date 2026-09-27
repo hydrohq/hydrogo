@@ -66,6 +66,49 @@ func SnapshotSQLite(ctx context.Context, db *sql.DB, mediaDir, destination strin
 	return SnapshotSQLiteWithLimits(ctx, db, mediaDir, destination, SnapshotLimits{})
 }
 
+// SnapshotSQLiteFile writes an atomic, transactionally consistent pre-change
+// SQLite database copy to a new path. It is used before schema migrations and
+// intentionally snapshots the database only; full operational backups use the
+// manifest-bearing SnapshotSQLite flow.
+func SnapshotSQLiteFile(ctx context.Context, db *sql.DB, destination string) error {
+	if db == nil || strings.TrimSpace(destination) == "" {
+		return errors.New("database and snapshot destination are required")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	destination, err := filepath.Abs(destination)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(destination); err == nil {
+		return fmt.Errorf("snapshot destination already exists: %s", destination)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, "VACUUM INTO ?", destination); err != nil {
+		return fmt.Errorf("sqlite pre-migration snapshot: %w", err)
+	}
+	file, err := os.OpenFile(destination, os.O_RDWR, 0)
+	if err != nil {
+		_ = os.Remove(destination)
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		_ = os.Remove(destination)
+		return err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(destination)
+		return err
+	}
+	return nil
+}
+
 // SnapshotSQLiteWithLimits performs a preflight size check and enforces a
 // caller-provided wall-clock budget. A failed or over-budget snapshot never
 // leaves a usable destination directory behind.

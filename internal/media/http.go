@@ -13,6 +13,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/storage"
 )
 
 type HTTPHandler struct {
@@ -148,6 +149,10 @@ func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 	result, err := h.Service.Upload(r.Context(), file, header.Filename)
 	if err != nil {
+		if errors.Is(err, storage.ErrQuotaExceeded) {
+			http.Error(w, "Hosting storage limit reached, please contact support", http.StatusInsufficientStorage)
+			return
+		}
 		http.Error(w, "media upload failed", mediaStatus(err))
 		return
 	}
