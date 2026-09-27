@@ -1,9 +1,11 @@
 package transport
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -22,6 +24,32 @@ func TestParseBlockFormBuildsStructuredBlocks(t *testing.T) {
 	}
 	if len(blocks) != 1 || blocks[0].Type != "hero" {
 		t.Fatalf("blocks = %+v", blocks)
+	}
+}
+
+func TestParseBlockFormAcceptsTypedJSONWidgets(t *testing.T) {
+	form := url.Values{"block_count": {"1"}, "block_type_0": {"hotspots"}, "block_payload_0": {`{"image":"/room.webp","points":[{"x":20,"y":35,"title":"Window"}]}`}}
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	blocks, err := parseBlockForm(r)
+	if err != nil || len(blocks) != 1 || blocks[0].Type != "hotspots" {
+		t.Fatalf("blocks=%+v err=%v", blocks, err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(blocks[0].Payload, &payload); err != nil || payload["image"] != "/room.webp" {
+		t.Fatalf("payload=%s err=%v", blocks[0].Payload, err)
+	}
+}
+
+func TestBlockEditorOffersAddMoveAndAllTypedBlocks(t *testing.T) {
+	html := renderBlockEditor(nil, "csrf")
+	for _, marker := range []string{"data-block-add", "data-block-up", "data-block-down", "before_after", "stats", "contact_cta", "video", "masonry", "hotspots", "data-block-field=\"payload\""} {
+		if !strings.Contains(html, marker) {
+			t.Errorf("editor is missing %q", marker)
+		}
 	}
 }
 

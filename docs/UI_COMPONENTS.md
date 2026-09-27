@@ -17,5 +17,13 @@ local variant. Existing legacy templates can migrate incrementally; the
 semantic selectors (`button`, `form-error`, `ui-table`, `ui-pagination`, and
 state classes) remain compatible with both Hydro and shadcn visual modes.
 
-Browser-only components (Modal, Toast, Tabs) remain a separate follow-up: they
-need a lifecycle and focus-management contract before being shared safely.
+The public page design system in `modules/designsystem` provides typed Templ
+blocks for hero, CTA, pricing, testimonials, before/after, counters, form
+success, contact, FAQ, copy, sticky headers, video, masonry, and image
+hotspots. The same components are exposed through `internal/ui` for
+first-party server-rendered views. They use semantic theme tokens, native
+browser controls where possible, and a small deferred script for optional
+interactions. FAQ blocks add `FAQPage` JSON-LD to the document head.
+
+Browser-only components (Modal, Toast, Tabs) still need a lifecycle and
+focus-management contract before being shared safely.

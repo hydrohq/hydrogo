@@ -1,0 +1,206 @@
+package designsystem
+
+templ Head() {
+	<link rel="stylesheet" href="/designsystem/static/designsystem.css" />
+	<script src="/designsystem/static/widgets.js" defer></script>
+}
+
+templ HeroBlock(p HeroProps) {
+	<section class="ds-hero bg-surface text-foreground border-border" data-block="hero" data-media-asset-id={ p.MediaAssetID }>
+		if image := validMediaURL(p.MediaURL); image != "" {
+			<img src={ image } alt={ p.MediaAlt } loading="lazy" />
+		}
+		<h1>{ p.Title }</h1>
+		if p.Subtitle != "" {
+			<p>{ p.Subtitle }</p>
+		}
+		if href := safeLink(p.ButtonURL); href != "" && p.ButtonText != "" {
+			<a class="ds-button ds-button--primary" href={ href }>{ p.ButtonText }</a>
+		}
+	</section>
+}
+
+templ CTABlock(p CTAProps) {
+	<section class="ds-cta bg-surface text-foreground" data-block="cta">
+		<h2>{ p.Title }</h2>
+		if href := safeLink(p.ButtonURL); href != "" && p.ButtonText != "" {
+			<a class="ds-button ds-button--primary" href={ href }>{ p.ButtonText }</a>
+		}
+	</section>
+}
+
+templ PricingTable(p PricingTableProps) {
+	<section class="ds-pricing bg-background text-foreground" data-block="pricing_table">
+		<div class="ds-pricing__grid">
+			for _, item := range p.Items {
+				<article class="ds-pricing__card"><h2>{ item.Name }</h2><p class="ds-pricing__price">{ formatPrice(item.PriceCents) } { item.Currency }</p><ul>
+					for _, feature := range item.Features {
+						<li>{ feature }</li>
+					}
+				</ul></article>
+			}
+		</div>
+	</section>
+}
+
+templ Testimonials(p TestimonialsProps) {
+	<section class="ds-testimonials bg-background text-foreground" data-block="testimonials">
+		for _, item := range p.Items {
+			<blockquote><p>{ item.Quote }</p><cite>{ item.Name }</cite></blockquote>
+		}
+	</section>
+}
+
+templ BeforeAfter(p BeforeAfterProps) {
+	<div class="ds-before-after bg-surface text-foreground border-border" data-before-after style={ "--ds-position: " + beforeAfterPosition(p) + "%" }>
+		<img class="ds-before-after__image" src={ validMediaURL(p.BeforeSrc) } alt={ p.BeforeAlt } loading="lazy" />
+		<div class="ds-before-after__after" aria-hidden="true"><img class="ds-before-after__image" src={ validMediaURL(p.AfterSrc) } alt="" loading="lazy" /></div>
+		<span class="ds-before-after__label ds-before-after__label--before" aria-hidden="true">{ label(p.BeforeLabel, "Before") }</span>
+		<span class="ds-before-after__label ds-before-after__label--after" aria-hidden="true">{ label(p.AfterLabel, "After") }</span>
+		<input class="ds-before-after__range" type="range" min="0" max="100" value={ beforeAfterPosition(p) } aria-label={ label(p.BeforeLabel, "Before") + " / " + label(p.AfterLabel, "After") } />
+	</div>
+}
+
+templ AnimatedCounter(p CounterProps) {
+	<section id={ p.ID } class="ds-counter bg-background text-foreground" aria-label="Statistics" data-counter-group>
+		for _, stat := range p.Stats {
+			<article class="ds-counter__item">
+				if stat.Badge != "" {
+					<span class="ds-counter__badge" aria-hidden="true">{ stat.Badge }</span>
+				}
+				<p class="ds-counter__value"><span>{ stat.Prefix }</span><span data-counter-value={ fmtFloat(stat.Value) } aria-hidden="true">{ fmtFloat(stat.Value) }</span><span class="ds-sr-only">{ fmtFloat(stat.Value) }</span><span>{ stat.Suffix }</span></p>
+				<p class="ds-counter__label">{ stat.Label }</p>
+			</article>
+		}
+	</section>
+}
+
+templ FormSuccessConfetti(p ConfettiProps) {
+	if p.Enabled {
+		<span class="ds-confetti" data-confetti-success aria-hidden="true" data-success-label={ label(p.Label, "Form submitted") }></span>
+	}
+}
+
+templ ContactCTA(p ContactCTAProps) {
+	<section class="ds-contact-cta text-foreground" aria-label="Contact">
+		if tel := validPhone(p.Phone); tel != "" {
+			<a class="ds-button ds-button--primary" href={ "tel:" + tel } data-contact-action="call">{ label(p.PhoneLabel, "Call now") }</a>
+		}
+		if wa := WhatsAppURL(p.WhatsApp, p.Message); wa != "" {
+			<a class="ds-button ds-button--secondary" href={ templ.SafeURL(wa) } target="_blank" rel="noopener noreferrer" data-contact-action="whatsapp">{ label(p.WhatsAppLabel, "WhatsApp") }</a>
+		}
+	</section>
+}
+
+templ FAQAccordion(p FAQProps) {
+	<section id={ p.ID } class="ds-faq bg-background text-foreground" aria-label={ label(p.Heading, "Frequently asked questions") }>
+		if p.Heading != "" {
+			<h2>{ p.Heading }</h2>
+		}
+		@FAQItems(p.Items)
+		@FAQSchema(p.ID, p.Items)
+	</section>
+}
+
+templ FAQList(p FAQProps) {
+	<section id={ p.ID } class="ds-faq bg-background text-foreground" aria-label={ label(p.Heading, "Frequently asked questions") }>
+		if p.Heading != "" {
+			<h2>{ p.Heading }</h2>
+		}
+		@FAQItems(p.Items)
+	</section>
+}
+
+templ FAQItems(items []FAQItem) {
+	for _, item := range items {
+		<details class="ds-faq__item"><summary>{ item.Question }</summary><div class="ds-faq__answer">{ item.Answer }</div></details>
+	}
+}
+
+templ FAQSchema(id string, items []FAQItem) {
+	@templ.JSONScript("faq-" + safeID(id), faqJSONLD(items)).WithType("application/ld+json")
+}
+
+templ CopyButton(p CopyButtonProps) {
+	<button class="ds-copy" type="button" data-copy-text={ p.Text } aria-label={ label(p.Label, "Copy to clipboard") }>
+		if p.IconOnly {
+			<span data-copy-idle aria-hidden="true">⧉</span>
+		} else {
+			<span data-copy-idle>{ label(p.Label, "Copy") }</span>
+		}
+		<span data-copy-done hidden>{ label(p.CopiedLabel, "Copied") }</span>
+	</button>
+}
+
+templ StickyHeader(p StickyHeaderProps) {
+	<header id={ p.ID } class="ds-sticky-header" data-sticky-header data-threshold={ fmtInteger(p.Threshold) }>
+		{ children... }
+	</header>
+}
+
+templ VideoPlayer(p VideoProps) {
+	<div id={ p.ID } class="ds-video bg-surface text-foreground" data-video-player tabindex="0" aria-label={ label(p.Label, "Video player") }>
+		<video controls preload="metadata" poster={ validMediaURL(p.Poster) }>
+			<source src={ validMediaURL(p.Src) } type={ videoType(p.Type) } />
+			for _, track := range p.Tracks {
+				if validMediaURL(track.Src) != "" {
+					<track kind="captions" src={ validMediaURL(track.Src) } srclang={ track.Language } label={ track.Label } default?={ track.Default } />
+				}
+			}
+			Your browser does not support video playback.
+		</video>
+		<div class="ds-video__controls" role="group" aria-label="Video controls">
+			<button type="button" data-video-play aria-label="Play video">Play</button>
+			<label class="ds-sr-only" for={ p.ID + "-seek" }>Seek</label><input id={ p.ID + "-seek" } data-video-seek type="range" min="0" max="1000" value="0" />
+			<button type="button" data-video-mute aria-label="Mute video">Mute</button>
+			<label class="ds-sr-only" for={ p.ID + "-volume" }>Volume</label><input id={ p.ID + "-volume" } data-video-volume type="range" min="0" max="1" step="0.05" value="1" />
+			<label class="ds-sr-only" for={ p.ID + "-speed" }>Playback speed</label><select id={ p.ID + "-speed" } data-video-speed aria-label="Playback speed"><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+			<button type="button" data-video-pip aria-label="Picture in picture">PiP</button><button type="button" data-video-fullscreen aria-label="Full screen">Full screen</button>
+			<output data-video-time aria-live="off">0:00 / 0:00</output>
+		</div>
+		<p class="ds-sr-only">Keyboard: Space play or pause, M mute, F full screen, ArrowLeft and ArrowRight seek.</p>
+	</div>
+}
+
+templ MasonryGrid(p MasonryProps) {
+	<section id={ p.ID } class="ds-masonry bg-background text-foreground" aria-label={ label(p.Label, "Image gallery") } style={ "--ds-columns: " + fmtPosition(clampColumns(p.Columns)) }>
+		for _, item := range p.Items {
+			<figure class="ds-masonry__item">
+				if href := safeLink(item.Link); href != "" {
+					<a href={ href }><img src={ validMediaURL(item.Image) } alt={ item.Alt } loading="lazy" /></a>
+				} else {
+					<img src={ validMediaURL(item.Image) } alt={ item.Alt } loading="lazy" />
+				}
+				if item.Caption != "" {
+					<figcaption>{ item.Caption }</figcaption>
+				}
+			</figure>
+		}
+	</section>
+}
+
+templ ImageHotspots(p HotspotsProps) {
+	<section id={ p.ID } class="ds-hotspots bg-background text-foreground" aria-label={ label(p.Label, "Image details") }>
+		<div class="ds-hotspots__image"><img src={ validMediaURL(p.Image) } alt={ p.Alt } loading="lazy" />
+			for i, point := range p.Points {
+				<details class="ds-hotspot" style={ hotspotStyle(point) }>
+					<summary aria-label={ "Show details: " + point.Title }>{ fmtPosition(i + 1) }</summary>
+					<div class="ds-hotspot__popover"><strong>{ point.Title }</strong><p>{ point.Description }</p>
+						if href := safeLink(point.Link); href != "" {
+							<a href={ href }>{ label(point.LinkLabel, "Learn more") }</a>
+						}
+					</div>
+				</details>
+			}
+		</div>
+		<ol class="ds-hotspots__list">
+			for _, point := range p.Points {
+				<li><strong>{ point.Title }</strong><p>{ point.Description }</p>
+					if href := safeLink(point.Link); href != "" {
+						<a href={ href }>{ label(point.LinkLabel, "Learn more") }</a>
+					}
+				</li>
+			}
+		</ol>
+	</section>
+}
