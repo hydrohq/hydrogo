@@ -39,6 +39,8 @@ const (
 	AnalyticsPageView        AnalyticsEventType = "page_view"
 	AnalyticsSessionDuration AnalyticsEventType = "session_duration"
 	AnalyticsCountryVisit    AnalyticsEventType = "country_visit"
+	AnalyticsContactCall     AnalyticsEventType = "contact_call"
+	AnalyticsContactWhatsApp AnalyticsEventType = "contact_whatsapp"
 )
 
 // AnalyticsEvent intentionally contains only aggregate-safe dimensions. IP,
@@ -104,7 +106,7 @@ func (c AnalyticsConsent) Validate() error {
 }
 
 func (e AnalyticsEvent) Validate() error {
-	if e.Type != AnalyticsPageView && e.Type != AnalyticsSessionDuration && e.Type != AnalyticsCountryVisit {
+	if e.Type != AnalyticsPageView && e.Type != AnalyticsSessionDuration && e.Type != AnalyticsCountryVisit && e.Type != AnalyticsContactCall && e.Type != AnalyticsContactWhatsApp {
 		return fmt.Errorf("invalid analytics event type")
 	}
 	if err := validateAnalyticsDay(e.Day); err != nil {

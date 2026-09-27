@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -116,6 +118,58 @@ func ConsentHandler(store ConsentStore, secure bool) http.Handler {
 		}
 		http.SetCookie(w, &http.Cookie{Name: ConsentCookie, Value: id, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
 		http.SetCookie(w, &http.Cookie{Name: PurposeCookie, Value: DefaultPurpose, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+type AggregateEventStore interface {
+	RecordEvent(context.Context, string, string, v1.AnalyticsEvent) error
+}
+
+// ContactClickHandler records only consented, daily aggregate call/WhatsApp
+// clicks. It accepts no page URL, account ID, IP, or visitor identifier.
+func ContactClickHandler(store AggregateEventStore) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
+			return
+		}
+		if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" && site != "same-site" && site != "none" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if origin := r.Header.Get("Origin"); origin != "" {
+			u, err := url.Parse(origin)
+			if err != nil || !strings.EqualFold(u.Host, r.Host) {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		consent, err := r.Cookie(ConsentCookie)
+		if err != nil || consent.Value == "" || store == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		purpose := DefaultPurpose
+		if cookie, err := r.Cookie(PurposeCookie); err == nil && cookie.Value != "" {
+			purpose = cookie.Value
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1024)
+		if err := r.ParseForm(); err != nil && err != io.EOF {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		typ := v1.AnalyticsEventType("")
+		switch r.FormValue("action") {
+		case "call":
+			typ = v1.AnalyticsContactCall
+		case "whatsapp":
+			typ = v1.AnalyticsContactWhatsApp
+		default:
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_ = store.RecordEvent(r.Context(), consent.Value, purpose, v1.AnalyticsEvent{Type: typ, Day: time.Now().UTC().Format("2006-01-02")})
 		w.WriteHeader(http.StatusNoContent)
 	})
 }

@@ -1,6 +1,6 @@
 # ADR-0016: Structured page blocks and theme slots
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0266](0266-design-system-blocks-and-interactions.md)
 - **Date:** 2026-09-10
 - **Related decisions:** [ADR-0010](0010-sdk-lifecycle-and-edition-manifest.md), [ADR-0012](0012-content-media-and-portability.md), [ADR-0015](0015-versioned-http-api.md)
 - **Implementation status:** Block contract, SQLite/PostgreSQL migrations, store round-trip validation, admin visual editor, and safe renderer have been implemented.

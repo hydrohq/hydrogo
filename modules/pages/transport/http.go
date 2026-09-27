@@ -250,21 +250,51 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	blocks, err := blockrender.Blocks(page.Blocks)
+	renderBlocks := make([]pages.Block, len(page.Blocks))
+	for i, block := range page.Blocks {
+		renderBlocks[i], err = h.withPublicMedia(r.Context(), block)
+		if err != nil {
+			http.Error(w, "page media lookup failed", http.StatusInternalServerError)
+			return
+		}
+	}
+	blocks, err := blockrender.Blocks(renderBlocks)
 	if err != nil {
 		http.Error(w, "page render failed", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	designHead := ""
+	if pageHasDesignSystemBlocks(page.Blocks) {
+		var head bytes.Buffer
+		if err := ui.DesignSystemHead().Render(r.Context(), &head); err != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+			return
+		}
+		designHead = head.String()
+	}
+	for i, block := range renderBlocks {
+		if block.Type != "faq" {
+			continue
+		}
+		var payload struct {
+			Items []ui.FAQItem `json:"items"`
+		}
+		if json.Unmarshal(block.Payload, &payload) != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+			return
+		}
+		var schema bytes.Buffer
+		if err := ui.FAQSchema(fmt.Sprintf("page-faq-%d", i), payload.Items).Render(r.Context(), &schema); err != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+			return
+		}
+		designHead += schema.String()
+	}
 	if h.Theme != nil {
 		var content strings.Builder
 		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div></div>`, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body))
-		for _, block := range page.Blocks {
-			block, err = h.withPublicMedia(r.Context(), block)
-			if err != nil {
-				http.Error(w, "page media lookup failed", http.StatusInternalServerError)
-				return
-			}
+		for _, block := range renderBlocks {
 			var themed strings.Builder
 			if err := h.Theme.RenderBlock(&themed, block); err == nil {
 				content.WriteString(themed.String())
@@ -280,44 +310,56 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String())}}); err != nil {
+		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String()), "head": template.HTML(designHead)}}); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title></head><body><main data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body), blocks)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body), blocks)
+}
+
+func pageHasDesignSystemBlocks(blocks []pages.Block) bool {
+	return len(blocks) > 0
 }
 
 func (h Handler) withPublicMedia(ctx context.Context, block pages.Block) (pages.Block, error) {
-	if h.Media == nil || block.Type != "hero" {
+	if h.Media == nil || block.Type != "hero" && block.Type != "before_after" {
 		return block, nil
 	}
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(block.Payload, &payload); err != nil {
 		return block, err
 	}
-	var assetID string
-	if err := json.Unmarshal(payload["media_asset_id"], &assetID); err != nil || assetID == "" {
-		return block, nil
+	keys := map[string]string{"media_asset_id": "media_url"}
+	if block.Type == "before_after" {
+		keys = map[string]string{"before_image_asset_id": "before_image_url", "after_image_asset_id": "after_image_url"}
 	}
-	asset, err := h.Media.Get(ctx, h.DB, assetID)
-	if err != nil {
-		return block, nil
-	}
-	if asset.Status != "ready" || asset.Visibility != media.VisibilityPublic {
-		return block, nil
-	}
-	mediaURL := "/media/" + asset.ID
-	if provider, ok := h.Media.(interface{ PublicURL(string) (string, error) }); ok {
-		if publicURL, urlErr := provider.PublicURL(asset.StorageKey); urlErr == nil && publicURL != "" {
-			mediaURL = publicURL
+	changed := false
+	for idField, urlField := range keys {
+		var assetID string
+		if err := json.Unmarshal(payload[idField], &assetID); err != nil || assetID == "" {
+			continue
 		}
+		asset, err := h.Media.Get(ctx, h.DB, assetID)
+		if err != nil || asset.Status != "ready" || asset.Visibility != media.VisibilityPublic {
+			continue
+		}
+		mediaURL := "/media/" + asset.ID
+		if provider, ok := h.Media.(interface{ PublicURL(string) (string, error) }); ok {
+			if publicURL, urlErr := provider.PublicURL(asset.StorageKey); urlErr == nil && publicURL != "" {
+				mediaURL = publicURL
+			}
+		}
+		encodedURL, err := json.Marshal(mediaURL)
+		if err != nil {
+			return block, err
+		}
+		payload[urlField] = encodedURL
+		changed = true
 	}
-	encodedURL, err := json.Marshal(mediaURL)
-	if err != nil {
-		return block, err
+	if !changed {
+		return block, nil
 	}
-	payload["media_url"] = encodedURL
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return block, err
@@ -487,22 +529,24 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderBlockEditor(blocks []pages.Block, csrf string) string {
-	count := len(blocks)
-	if count < 1 {
-		count = 1
-	}
-	if count > 8 {
-		count = 8
-	}
+	count := min(pages.MaxBlocks, max(1, len(blocks)+1))
 	var out strings.Builder
-	out.WriteString(`<input type="hidden" name="block_count" value="` + strconv.Itoa(count) + `">`)
+	out.WriteString(`<input type="hidden" name="block_count" value="` + strconv.Itoa(count) + `"><div data-block-editor>`)
 	for i := 0; i < count; i++ {
 		blockType, title, subtitle, buttonText, buttonURL, mediaAssetID, items := "", "", "", "", "", "", "[]"
+		payload := "{}"
 		if i < len(blocks) {
 			blockType, title, subtitle, buttonText, buttonURL, mediaAssetID, items = blockEditorValues(blocks[i])
+			payload = string(blocks[i].Payload)
 		}
-		fmt.Fprintf(&out, `<div class="block-editor-row" data-block-row data-block-type="%s"><strong>Block %d</strong><label class="block-field block-field-type" data-block-field="type">Blok türü<select name="block_type_%d"><option value="">Remove</option><option value="hero" %s>Hero</option><option value="faq" %s>FAQ</option><option value="cta" %s>CTA</option><option value="pricing_table" %s>Pricing table</option><option value="testimonials" %s>Testimonials</option></select></label><label class="block-field" data-block-field="title">Başlık<input name="block_title_%d" value="%s" placeholder="Başlık"></label><label class="block-field" data-block-field="subtitle">Alt başlık<input name="block_subtitle_%d" value="%s" placeholder="Alt başlık"></label><div class="block-field media-field" data-block-field="media"><label>Medya asset ID<input id="block_media_asset_id_%d" name="block_media_asset_id_%d" value="%s" placeholder="Medyadan seçin"></label><button class="button button-quiet media-picker-open" type="button" data-media-target="block_media_asset_id_%d">Medyadan seç</button></div><label class="block-field" data-block-field="buttonText">Buton metni<input name="block_button_text_%d" value="%s" placeholder="Buton metni"></label><label class="block-field" data-block-field="buttonURL">Buton URL<input name="block_button_url_%d" value="%s" placeholder="/shop"></label><label class="block-field" data-block-field="items">Items JSON<textarea name="block_items_%d" placeholder='[{"question":"Soru","answer":"Cevap"}]'>%s</textarea></label><input type="hidden" name="block_csrf_%d" value="%s"></div>`, template.HTMLEscapeString(blockType), i+1, i, selected(blockType, "hero"), selected(blockType, "faq"), selected(blockType, "cta"), selected(blockType, "pricing_table"), selected(blockType, "testimonials"), i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, i, template.HTMLEscapeString(mediaAssetID), i, i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), i, template.HTMLEscapeString(csrf))
+		fmt.Fprintf(&out, `<div class="block-editor-row" data-block-row data-block-type="%s"><strong data-block-number>Block %d</strong><div class="block-editor-order"><button type="button" data-block-up aria-label="Move block %d up">↑</button><button type="button" data-block-down aria-label="Move block %d down">↓</button></div>`, template.HTMLEscapeString(blockType), i+1, i+1, i+1)
+		fmt.Fprintf(&out, `<label class="block-field block-field-type" data-block-field="type">Blok türü<select name="block_type_%d"><option value="">Remove</option>`, i)
+		for _, option := range []struct{ typ, label string }{{"hero", "Hero"}, {"faq", "FAQ"}, {"cta", "CTA"}, {"pricing_table", "Pricing table"}, {"testimonials", "Testimonials"}, {"before_after", "Before / after"}, {"stats", "Statistics"}, {"contact_cta", "Call / WhatsApp"}, {"video", "Video"}, {"masonry", "Masonry gallery"}, {"hotspots", "Image hotspots"}} {
+			fmt.Fprintf(&out, `<option value="%s" %s>%s</option>`, option.typ, selected(blockType, option.typ), option.label)
+		}
+		fmt.Fprintf(&out, `</select></label><label class="block-field" data-block-field="title">Başlık<input name="block_title_%d" value="%s" placeholder="Başlık"></label><label class="block-field" data-block-field="subtitle">Alt başlık<input name="block_subtitle_%d" value="%s" placeholder="Alt başlık"></label><div class="block-field media-field" data-block-field="media"><label>Medya asset ID<input id="block_media_asset_id_%d" name="block_media_asset_id_%d" value="%s" placeholder="Medyadan seçin"></label><button class="button button-quiet media-picker-open" type="button" data-media-target="block_media_asset_id_%d">Medyadan seç</button></div><label class="block-field" data-block-field="buttonText">Buton metni<input name="block_button_text_%d" value="%s" placeholder="Buton metni"></label><label class="block-field" data-block-field="buttonURL">Buton URL<input name="block_button_url_%d" value="%s" placeholder="/shop"></label><label class="block-field" data-block-field="items">Items JSON<textarea name="block_items_%d">%s</textarea></label><label class="block-field" data-block-field="payload">Block data JSON<textarea name="block_payload_%d" spellcheck="false">%s</textarea></label><input type="hidden" name="block_csrf_%d" value="%s"></div>`, i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, i, template.HTMLEscapeString(mediaAssetID), i, i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), i, template.HTMLEscapeString(payload), i, template.HTMLEscapeString(csrf))
 	}
+	fmt.Fprintf(&out, `<button type="button" data-block-add %s>Add block</button><p role="status" aria-live="polite" data-block-status></p></div>`, map[bool]string{true: `disabled aria-disabled="true"`}[count >= pages.MaxBlocks])
 	return out.String()
 }
 
@@ -533,7 +577,7 @@ func blockEditorValues(block pages.Block) (string, string, string, string, strin
 
 func parseBlockForm(r *http.Request) ([]pages.Block, error) {
 	count, err := strconv.Atoi(r.FormValue("block_count"))
-	if err != nil || count < 0 || count > 8 {
+	if err != nil || count < 0 || count > pages.MaxBlocks {
 		return nil, pages.ErrInvalidBlocks
 	}
 	blocks := make([]pages.Block, 0, count)
@@ -558,6 +602,11 @@ func parseBlockForm(r *http.Request) ([]pages.Block, error) {
 				return nil, pages.ErrInvalidBlocks
 			}
 			payload = map[string]any{"items": items}
+		} else if isJSONPayloadBlock(typ) {
+			payload = nil
+			if json.Unmarshal([]byte(r.FormValue("block_payload_"+strconv.Itoa(i))), &payload) != nil || payload == nil {
+				return nil, pages.ErrInvalidBlocks
+			}
 		} else {
 			payload["subtitle"] = r.FormValue("block_subtitle_" + strconv.Itoa(i))
 			payload["button_text"] = r.FormValue("block_button_text_" + strconv.Itoa(i))
@@ -573,6 +622,14 @@ func parseBlockForm(r *http.Request) ([]pages.Block, error) {
 		return nil, err
 	}
 	return blocks, nil
+}
+
+func isJSONPayloadBlock(typ string) bool {
+	switch typ {
+	case "before_after", "stats", "contact_cta", "video", "masonry", "hotspots":
+		return true
+	}
+	return false
 }
 
 func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {

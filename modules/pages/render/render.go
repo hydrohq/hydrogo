@@ -1,12 +1,14 @@
 package render
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
-	"html/template"
-	"strconv"
 	"strings"
 
+	"github.com/a-h/templ"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -16,7 +18,7 @@ var ErrInvalidBlock = errors.New("cannot render invalid block")
 // The returned string is safe to pass to a trusted template component; it is
 // never copied from a client-provided HTML field.
 func Blocks(blocks []pages.Block) (string, error) {
-	if err := pages.ValidateBlocks(blocks); err != nil {
+	if err := pages.ValidateBlocksForRender(blocks); err != nil {
 		return "", ErrInvalidBlock
 	}
 	var out strings.Builder
@@ -35,98 +37,103 @@ func blockHTML(block pages.Block) (string, error) {
 	if err := json.Unmarshal(block.Payload, &data); err != nil {
 		return "", ErrInvalidBlock
 	}
-	text := func(key string) (string, error) {
-		var value string
-		if err := json.Unmarshal(data[key], &value); err != nil {
-			return "", ErrInvalidBlock
-		}
-		return template.HTMLEscapeString(value), nil
-	}
 	switch block.Type {
 	case "hero":
-		title, err := text("title")
-		if err != nil {
-			return "", err
+		var p struct {
+			Title        string `json:"title"`
+			Subtitle     string `json:"subtitle"`
+			MediaAssetID string `json:"media_asset_id"`
+			MediaURL     string `json:"media_url"`
+			MediaAlt     string `json:"media_alt"`
+			ButtonText   string `json:"button_text"`
+			ButtonURL    string `json:"button_url"`
 		}
-		subtitle, _ := textOptional(data, "subtitle")
-		assetID, _ := textOptional(data, "media_asset_id")
-		attribute := ""
-		if assetID != "" {
-			attribute = ` data-media-asset-id="` + assetID + `"`
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
 		}
-		return `<section data-block="hero"` + attribute + `><h1>` + title + `</h1><p>` + subtitle + `</p></section>`, nil
+		return renderComponent(designsystem.HeroBlock(designsystem.HeroProps{Title: p.Title, Subtitle: p.Subtitle, MediaAssetID: p.MediaAssetID, MediaURL: p.MediaURL, MediaAlt: p.MediaAlt, ButtonText: p.ButtonText, ButtonURL: p.ButtonURL}))
 	case "cta":
-		title, err := text("title")
-		if err != nil {
-			return "", err
+		var p designsystem.CTAProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
 		}
-		url, _ := textOptional(data, "button_url")
-		label, _ := textOptional(data, "button_text")
-		return `<section data-block="cta"><h2>` + title + `</h2><a href="` + url + `">` + label + `</a></section>`, nil
+		return renderComponent(designsystem.CTABlock(p))
 	case "faq":
-		var items []struct {
-			Question string `json:"question"`
-			Answer   string `json:"answer"`
-		}
+		var items []designsystem.FAQItem
 		if err := json.Unmarshal(data["items"], &items); err != nil {
 			return "", ErrInvalidBlock
 		}
-		var out strings.Builder
-		out.WriteString(`<section data-block="faq">`)
-		for _, item := range items {
-			out.WriteString(`<details><summary>` + template.HTMLEscapeString(item.Question) + `</summary><p>` + template.HTMLEscapeString(item.Answer) + `</p></details>`)
+		return renderComponent(designsystem.FAQList(designsystem.FAQProps{Heading: "Frequently asked questions", Items: items}))
+	case "before_after":
+		var p struct {
+			BeforeID    string `json:"before_image_asset_id"`
+			AfterID     string `json:"after_image_asset_id"`
+			Before      string `json:"before_image_url"`
+			After       string `json:"after_image_url"`
+			BeforeAlt   string `json:"before_alt"`
+			AfterAlt    string `json:"after_alt"`
+			BeforeLabel string `json:"before_label"`
+			AfterLabel  string `json:"after_label"`
+			Position    int    `json:"initial_slider_position"`
 		}
-		out.WriteString(`</section>`)
-		return out.String(), nil
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		_, positionSet := data["initial_slider_position"]
+		return renderComponent(designsystem.BeforeAfter(designsystem.BeforeAfterProps{BeforeSrc: p.Before, AfterSrc: p.After, BeforeAlt: p.BeforeAlt, AfterAlt: p.AfterAlt, BeforeLabel: p.BeforeLabel, AfterLabel: p.AfterLabel, Position: p.Position, PositionSet: positionSet}))
+	case "stats":
+		var payload struct {
+			Stats []designsystem.CounterStat `json:"stats"`
+		}
+		if err := json.Unmarshal(block.Payload, &payload); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.AnimatedCounter(designsystem.CounterProps{Stats: payload.Stats}))
+	case "contact_cta":
+		var p designsystem.ContactCTAProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.ContactCTA(p))
+	case "video":
+		var p designsystem.VideoProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.VideoPlayer(p))
+	case "masonry":
+		var p designsystem.MasonryProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.MasonryGrid(p))
+	case "hotspots":
+		var p designsystem.HotspotsProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.ImageHotspots(p))
 	case "pricing_table":
-		var items []struct {
-			Name       string   `json:"name"`
-			PriceCents int64    `json:"price_cents"`
-			Currency   string   `json:"currency"`
-			Features   []string `json:"features"`
-		}
-		if err := json.Unmarshal(data["items"], &items); err != nil {
+		var p designsystem.PricingTableProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
 			return "", ErrInvalidBlock
 		}
-		var out strings.Builder
-		out.WriteString(`<section data-block="pricing_table"><div class="pricing-grid">`)
-		for _, item := range items {
-			out.WriteString(`<article><h2>` + template.HTMLEscapeString(item.Name) + `</h2><p>` + template.HTMLEscapeString(strconv.FormatInt(item.PriceCents, 10)) + ` ` + template.HTMLEscapeString(item.Currency) + `</p><ul>`)
-			for _, feature := range item.Features {
-				out.WriteString(`<li>` + template.HTMLEscapeString(feature) + `</li>`)
-			}
-			out.WriteString(`</ul></article>`)
-		}
-		out.WriteString(`</div></section>`)
-		return out.String(), nil
+		return renderComponent(designsystem.PricingTable(p))
 	case "testimonials":
-		var items []struct {
-			Name  string `json:"name"`
-			Quote string `json:"quote"`
-		}
-		if err := json.Unmarshal(data["items"], &items); err != nil {
+		var p designsystem.TestimonialsProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
 			return "", ErrInvalidBlock
 		}
-		var out strings.Builder
-		out.WriteString(`<section data-block="testimonials">`)
-		for _, item := range items {
-			out.WriteString(`<blockquote><p>` + template.HTMLEscapeString(item.Quote) + `</p><cite>` + template.HTMLEscapeString(item.Name) + `</cite></blockquote>`)
-		}
-		out.WriteString(`</section>`)
-		return out.String(), nil
+		return renderComponent(designsystem.Testimonials(p))
 	default:
-		return "", ErrInvalidBlock
+		return `<aside class="ds-block-unavailable" role="status">Some content is temporarily unavailable.</aside>`, nil
 	}
 }
 
-func textOptional(data map[string]json.RawMessage, key string) (string, error) {
-	raw, ok := data[key]
-	if !ok {
-		return "", nil
+func renderComponent(component templ.Component) (string, error) {
+	var out bytes.Buffer
+	if err := component.Render(context.Background(), &out); err != nil {
+		return "", err
 	}
-	var value string
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return "", ErrInvalidBlock
-	}
-	return template.HTMLEscapeString(value), nil
+	return out.String(), nil
 }

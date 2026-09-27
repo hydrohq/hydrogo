@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 )
@@ -88,6 +89,97 @@ func ValidateBlocks(blocks []Block) error {
 					return ErrInvalidBlocks
 				}
 			}
+		case "before_after":
+			if requireAsset(object, "before_image_asset_id") != nil || requireAsset(object, "after_image_asset_id") != nil {
+				return ErrInvalidBlocks
+			}
+			if raw, ok := object["initial_slider_position"]; ok {
+				var position int
+				if json.Unmarshal(raw, &position) != nil || position < 0 || position > 100 {
+					return ErrInvalidBlocks
+				}
+			}
+		case "stats":
+			var items []struct {
+				Number float64 `json:"number_value"`
+				Prefix string  `json:"prefix"`
+				Suffix string  `json:"suffix"`
+				Label  string  `json:"label"`
+				Badge  string  `json:"icon_badge"`
+			}
+			raw, ok := object["stats"]
+			if !ok || json.Unmarshal(raw, &items) != nil || len(items) == 0 || len(items) > 32 {
+				return ErrInvalidBlocks
+			}
+			for _, item := range items {
+				if math.IsNaN(item.Number) || math.IsInf(item.Number, 0) || item.Number < 0 || item.Number > 1e12 || strings.TrimSpace(item.Label) == "" || len(item.Prefix) > 32 || len(item.Suffix) > 32 || len(item.Badge) > 32 {
+					return ErrInvalidBlocks
+				}
+			}
+		case "contact_cta":
+			phone, whatsapp := rawString(object, "phone"), rawString(object, "whatsapp")
+			if phone == "" && whatsapp == "" || phone != "" && !validPhoneNumber(phone) || whatsapp != "" && !validWhatsAppNumber(whatsapp) {
+				return ErrInvalidBlocks
+			}
+		case "video":
+			if requireSafeStringURL(object, "src") != nil {
+				return ErrInvalidBlocks
+			}
+			if raw, ok := object["type"]; ok {
+				var typ string
+				if json.Unmarshal(raw, &typ) != nil || typ != "video/mp4" && typ != "video/webm" {
+					return ErrInvalidBlocks
+				}
+			}
+			if raw, ok := object["tracks"]; ok {
+				var tracks []struct {
+					Src      string `json:"src"`
+					Language string `json:"language"`
+					Label    string `json:"label"`
+				}
+				if json.Unmarshal(raw, &tracks) != nil || len(tracks) > 16 {
+					return ErrInvalidBlocks
+				}
+				for _, track := range tracks {
+					if !safeBlockURL(track.Src) || track.Language == "" || track.Label == "" {
+						return ErrInvalidBlocks
+					}
+				}
+			}
+		case "masonry":
+			var items []struct {
+				Image string `json:"image"`
+				Alt   string `json:"alt"`
+				Link  string `json:"link"`
+			}
+			raw, ok := object["items"]
+			if !ok || json.Unmarshal(raw, &items) != nil || len(items) == 0 || len(items) > 64 {
+				return ErrInvalidBlocks
+			}
+			for _, item := range items {
+				if !safeBlockURL(item.Image) || strings.TrimSpace(item.Alt) == "" || item.Link != "" && !safeBlockURL(item.Link) {
+					return ErrInvalidBlocks
+				}
+			}
+		case "hotspots":
+			if requireSafeStringURL(object, "image") != nil {
+				return ErrInvalidBlocks
+			}
+			var points []struct {
+				X     float64 `json:"x"`
+				Y     float64 `json:"y"`
+				Title string  `json:"title"`
+				Link  string  `json:"link"`
+			}
+			raw, ok := object["points"]
+			if !ok || json.Unmarshal(raw, &points) != nil || len(points) == 0 || len(points) > 64 {
+				return ErrInvalidBlocks
+			}
+			for _, point := range points {
+				if math.IsNaN(point.X) || math.IsNaN(point.Y) || math.IsInf(point.X, 0) || math.IsInf(point.Y, 0) || point.X < 0 || point.X > 100 || point.Y < 0 || point.Y > 100 || strings.TrimSpace(point.Title) == "" || point.Link != "" && !safeBlockURL(point.Link) {
+					return ErrInvalidBlocks
+				}
+			}
 		default:
 			return fmt.Errorf("%w: unsupported block type %q", ErrInvalidBlocks, block.Type)
 		}
@@ -99,6 +191,84 @@ func ValidateBlocks(blocks []Block) error {
 		}
 	}
 	return nil
+}
+
+// ValidateBlocksForRender retains old unknown block payloads for safe fallback
+// display. Write paths continue to use ValidateBlocks and reject unknown types.
+func ValidateBlocksForRender(blocks []Block) error {
+	if len(blocks) > MaxBlocks {
+		return ErrInvalidBlocks
+	}
+	for _, block := range blocks {
+		if strings.TrimSpace(block.Type) == "" || len(block.Payload) == 0 || len(block.Payload) > MaxBlockPayload {
+			return ErrInvalidBlocks
+		}
+		var object map[string]json.RawMessage
+		if err := json.Unmarshal(block.Payload, &object); err != nil || object == nil {
+			return ErrInvalidBlocks
+		}
+		if !knownBlockType(block.Type) {
+			continue
+		}
+		if err := ValidateBlocks([]Block{block}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func knownBlockType(blockType string) bool {
+	switch blockType {
+	case "hero", "cta", "pricing_table", "testimonials", "faq", "before_after", "stats", "contact_cta", "video", "masonry", "hotspots":
+		return true
+	}
+	return false
+}
+
+func requireAsset(object map[string]json.RawMessage, key string) error {
+	var id string
+	raw, ok := object[key]
+	if !ok || json.Unmarshal(raw, &id) != nil || !safeAssetID(id) {
+		return ErrInvalidBlocks
+	}
+	return nil
+}
+func rawString(object map[string]json.RawMessage, key string) string {
+	var value string
+	_ = json.Unmarshal(object[key], &value)
+	return strings.TrimSpace(value)
+}
+func requireSafeStringURL(object map[string]json.RawMessage, key string) error {
+	value := rawString(object, key)
+	if value == "" || !safeBlockURL(value) {
+		return ErrInvalidBlocks
+	}
+	return nil
+}
+func validPhoneNumber(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	for i, r := range value {
+		if r == '+' && i == 0 {
+			continue
+		}
+		if r >= '0' && r <= '9' || r == ' ' || r == '(' || r == ')' || r == '-' || r == '.' {
+			continue
+		}
+		return false
+	}
+	digits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, value)
+	return len(digits) >= 7 && len(digits) <= 15
+}
+func validWhatsAppNumber(value string) bool {
+	return validPhoneNumber(value) && !strings.HasPrefix(strings.TrimPrefix(strings.TrimSpace(value), "+"), "0")
 }
 
 func requireString(object map[string]json.RawMessage, key string) error {
@@ -164,7 +334,7 @@ func DecodeBlocksForStore(value any) ([]Block, error) {
 		return nil, nil
 	}
 	var blocks []Block
-	if err := json.Unmarshal(data, &blocks); err != nil || ValidateBlocks(blocks) != nil {
+	if err := json.Unmarshal(data, &blocks); err != nil || ValidateBlocksForRender(blocks) != nil {
 		return nil, ErrInvalidBlocks
 	}
 	return blocks, nil

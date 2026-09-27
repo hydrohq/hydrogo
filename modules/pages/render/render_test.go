@@ -33,10 +33,10 @@ func TestHeroRendersMediaAssetMetadataSafely(t *testing.T) {
 	}
 }
 
-func TestBlocksRejectUnknownType(t *testing.T) {
-	_, err := Blocks([]pages.Block{{Type: "custom", Payload: json.RawMessage(`{"title":"x"}`)}})
-	if err == nil {
-		t.Fatal("unknown block rendered")
+func TestBlocksSafelyFallbackForUnknownLegacyType(t *testing.T) {
+	html, err := Blocks([]pages.Block{{Type: "custom", Payload: json.RawMessage(`{"title":"<script>x</script>"}`)}})
+	if err != nil || !strings.Contains(html, "Some content is temporarily unavailable") || strings.Contains(html, "<script>") {
+		t.Fatalf("unknown block fallback = %s, %v", html, err)
 	}
 }
 

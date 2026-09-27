@@ -31,7 +31,7 @@ func ProjectListColumns() []string {
 
 func ProjectListRows(rows []ProjectListRow) [][]string {
 	result := make([][]string, 0, len(rows))
-	for _, row := range rows {
+	for range rows {
 		result = append(result, []string{  })
 	}
 	return result
