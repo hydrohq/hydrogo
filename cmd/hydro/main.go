@@ -948,7 +948,11 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if cfg.Database.Dialect != database.SQLite {
 		return errors.New("backup sqlite requires --database-dialect sqlite")
 	}
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	sqliteProfile := database.SQLiteCompactProfile
+	if cfg.Profile != "compact" {
+		sqliteProfile = database.SQLiteVPSProfile
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns, SQLiteProfile: sqliteProfile})
 	if err != nil {
 		return err
 	}
@@ -1136,6 +1140,7 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(stderr)
+	cgiMode := flags.Bool("cgi", false, "handle one request from a CGI web server")
 	values := addRuntimeFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -1192,7 +1197,11 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns})
+	sqliteProfile := database.SQLiteCompactProfile
+	if cfg.Profile != "compact" {
+		sqliteProfile = database.SQLiteVPSProfile
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, database.OpenOptions{MaxOpenConns: budget.DBMaxOpenConns, MaxIdleConns: budget.DBMaxIdleConns, SQLiteProfile: sqliteProfile})
 	if err != nil {
 		return err
 	}
@@ -1256,7 +1265,7 @@ func serve(args []string, stderr io.Writer) error {
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	var sqliteCacheConn *sql.Conn
-	if cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && publicPageCache != nil {
+	if !*cgiMode && cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && publicPageCache != nil {
 		sqliteCacheConn, err = db.Conn(ctx)
 		if err != nil {
 			return fmt.Errorf("open sqlite cache monitor connection: %w", err)
@@ -1300,7 +1309,10 @@ func serve(args []string, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		mediaOptimizer := media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
+		var mediaOptimizer *media.Optimizer
+		if !*cgiMode {
+			mediaOptimizer = media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
+		}
 		var blobStore media.BlobStore
 		if cfg.Media.StorageDriver == "s3" {
 			blobStore, err = media.NewS3BlobStore(media.S3Config{Endpoint: cfg.Media.S3Endpoint, AccessKey: cfg.Media.S3AccessKey, SecretKey: cfg.Media.S3SecretKey, Bucket: cfg.Media.S3Bucket, Region: cfg.Media.S3Region, UseSSL: cfg.Media.S3UseSSL, ForcePathStyle: cfg.Media.S3ForcePathStyle, PublicBaseURL: cfg.Media.CDNBaseURL})
@@ -1309,7 +1321,9 @@ func serve(args []string, stderr io.Writer) error {
 			}
 		}
 		mediaService = media.Service{Transactions: transactioner, Uploader: uploader, BlobStore: blobStore, Assets: mediaStore, Optimizer: mediaOptimizer}
-		go func() { <-ctx.Done(); mediaOptimizer.Close() }()
+		if mediaOptimizer != nil {
+			go func() { <-ctx.Done(); mediaOptimizer.Close() }()
+		}
 	}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -1895,8 +1909,10 @@ func serve(args []string, stderr io.Writer) error {
 		stats := db.Stats()
 		return observability.DatabaseStats{MaxOpenConnections: stats.MaxOpenConnections, OpenConnections: stats.OpenConnections, InUseConnections: stats.InUse, IdleConnections: stats.Idle, WaitCount: stats.WaitCount, WaitDuration: stats.WaitDuration}
 	})
-	go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
-	if modules["news"] {
+	if !*cgiMode {
+		go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
+	}
+	if modules["news"] && !*cgiMode {
 		go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
 	}
 	webhookEndpoints := make([]webhooks.Endpoint, 0, len(cfg.Webhooks))
@@ -1907,7 +1923,7 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
 	}
-	if modules["pages"] || modules["news"] || modules["commerce"] {
+	if !*cgiMode && (modules["pages"] || modules["news"] || modules["commerce"]) {
 		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
 	}
 	logWriter := stderr
@@ -1915,7 +1931,7 @@ func serve(args []string, stderr io.Writer) error {
 		logWriter = io.Discard
 	}
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	return server.Serve(ctx, server.Config{
+	serverConfig := server.Config{
 		Address:          cfg.HTTP.Address,
 		ShutdownTimeout:  budget.ShutdownTimeout,
 		AuthSvc:          authSvc,
@@ -1934,7 +1950,32 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return database.CheckCompatibilityForModules(checkCtx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
 		},
-	})
+	}
+	if *cgiMode {
+		handler := server.NewHandler(serverConfig)
+		if modules["news"] {
+			handler = server.LazyCron(handler, func(cronCtx context.Context) {
+				cronCtx, cancel := context.WithTimeout(cronCtx, 5*time.Second)
+				defer cancel()
+				if err := newsWorker.EnqueueDue(cronCtx, db, time.Now().UTC()); err != nil {
+					_, _ = fmt.Fprintf(stderr, "hydro lazy cron enqueue: %v\n", err)
+					return
+				}
+				for i := 0; i < 4; i++ {
+					worked, err := newsWorker.RunOnce(cronCtx, "cgi-lazy-cron", time.Now().UTC())
+					if err != nil {
+						_, _ = fmt.Fprintf(stderr, "hydro lazy cron: %v\n", err)
+						return
+					}
+					if !worked {
+						return
+					}
+				}
+			})
+		}
+		return server.ServeCGI(handler)
+	}
+	return server.Serve(ctx, serverConfig)
 }
 
 func runOutboxWorker(ctx context.Context, worker webhooks.Worker, stderr io.Writer) {

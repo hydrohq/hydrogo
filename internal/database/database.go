@@ -22,9 +22,15 @@ const (
 )
 
 type OpenOptions struct {
-	MaxOpenConns int
-	MaxIdleConns int
+	MaxOpenConns  int
+	MaxIdleConns  int
+	SQLiteProfile string
 }
+
+const (
+	SQLiteCompactProfile = "compact"
+	SQLiteVPSProfile     = "vps"
+)
 
 type Executor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
@@ -173,13 +179,16 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	if options.MaxIdleConns < 0 {
 		return nil, errors.New("database max idle connections cannot be negative")
 	}
+	if options.SQLiteProfile != "" && options.SQLiteProfile != SQLiteCompactProfile && options.SQLiteProfile != SQLiteVPSProfile {
+		return nil, fmt.Errorf("unsupported SQLite profile %q", options.SQLiteProfile)
+	}
 
 	driver := ""
 	switch dialect {
 	case SQLite:
 		driver = "sqlite"
 		var err error
-		dsn, err = normalizeSQLiteDSN(dsn)
+		dsn, err = normalizeSQLiteDSN(dsn, options.SQLiteProfile)
 		if err != nil {
 			return nil, err
 		}
@@ -260,27 +269,49 @@ func SQLiteDSN(path string) string {
 	// an invalid URI authority instead of a relative filename.
 	u := &url.URL{Scheme: "file", Opaque: uriPath}
 	query := u.Query()
-	query.Set("_busy_timeout", "5000")
-	query.Set("_foreign_keys", "on")
-	query.Set("_journal_mode", "WAL")
-	query.Set("_synchronous", "NORMAL")
+	applySQLiteProfile(query, SQLiteCompactProfile)
 	u.RawQuery = query.Encode()
 	return u.String()
 }
 
-func normalizeSQLiteDSN(dsn string) (string, error) {
+func normalizeSQLiteDSN(dsn, profile string) (string, error) {
 	if !strings.HasPrefix(dsn, "file:") {
-		return SQLiteDSN(dsn), nil
+		uri, err := url.Parse(SQLiteDSN(dsn))
+		if err != nil {
+			return "", err
+		}
+		query := uri.Query()
+		applySQLiteProfile(query, profile)
+		uri.RawQuery = query.Encode()
+		return uri.String(), nil
 	}
 	u, err := url.Parse(dsn)
 	if err != nil {
 		return "", fmt.Errorf("parse SQLite DSN: %w", err)
 	}
 	query := u.Query()
+	applySQLiteProfile(query, profile)
+	u.RawQuery = query.Encode()
+	return u.String(), nil
+}
+
+func applySQLiteProfile(query url.Values, profile string) {
+	if profile == "" {
+		profile = SQLiteCompactProfile
+	}
 	query.Set("_busy_timeout", "5000")
 	query.Set("_foreign_keys", "on")
 	query.Set("_journal_mode", "WAL")
 	query.Set("_synchronous", "NORMAL")
-	u.RawQuery = query.Encode()
-	return u.String(), nil
+	query.Del("_pragma")
+	switch profile {
+	case SQLiteCompactProfile:
+		query.Add("_pragma", "cache_size=-2000")
+	case SQLiteVPSProfile:
+		query.Set("_busy_timeout", "10000")
+		query.Add("_pragma", "cache_size=-8000")
+		query.Add("_pragma", "mmap_size=67108864")
+	default:
+		// OpenWithOptions validates profiles before reaching this helper.
+	}
 }

@@ -1,0 +1,18 @@
+Options +ExecCGI -Indexes
+AddHandler cgi-script .cgi
+RewriteEngine On
+
+# Keep real files and directories on Apache's static file path.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Static HTML files are served by Apache and revalidated frequently so
+# deployments can replace them without leaving stale page copies for long.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 1 minute"
+</IfModule>
+
+# Install the self-contained HydroGo binary as an executable CGI script.
+RewriteRule ^ hydro.cgi [QSA,L]

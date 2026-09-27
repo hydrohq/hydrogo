@@ -36,6 +36,38 @@ func TestCapacityProfilesMapToBoundedDatabasePools(t *testing.T) {
 	}
 }
 
+func TestSQLiteProfilesApplyBoundedPragmas(t *testing.T) {
+	for _, profile := range []struct {
+		name, cacheSize, busyTimeout string
+		mmapSize                     int64
+	}{
+		{name: SQLiteCompactProfile, cacheSize: "-2000", busyTimeout: "5000", mmapSize: 0},
+		{name: SQLiteVPSProfile, cacheSize: "-8000", busyTimeout: "10000", mmapSize: 67108864},
+	} {
+		t.Run(profile.name, func(t *testing.T) {
+			db, err := OpenWithOptions(context.Background(), SQLite, filepath.Join(t.TempDir(), "profile.sqlite"), OpenOptions{SQLiteProfile: profile.name})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			var cacheSize, busyTimeout string
+			var mmapSize int64
+			if err := db.QueryRow("PRAGMA cache_size").Scan(&cacheSize); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.QueryRow("PRAGMA busy_timeout").Scan(&busyTimeout); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.QueryRow("PRAGMA mmap_size").Scan(&mmapSize); err != nil {
+				t.Fatal(err)
+			}
+			if cacheSize != profile.cacheSize || busyTimeout != profile.busyTimeout || mmapSize != profile.mmapSize {
+				t.Fatalf("SQLite pragmas cache=%s busy=%s mmap=%d; want cache=%s busy=%s mmap=%d", cacheSize, busyTimeout, mmapSize, profile.cacheSize, profile.busyTimeout, profile.mmapSize)
+			}
+		})
+	}
+}
+
 func TestTransactorCommitsAndRollsBackAtomically(t *testing.T) {
 	db, err := Open(context.Background(), SQLite, filepath.Join(t.TempDir(), "transaction.sqlite"))
 	if err != nil {
