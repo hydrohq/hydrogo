@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-27
-- **Related:** [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0024](0024-optional-redis-rate-limiting-and-queue-boundary.md), [ADR-0121](0121-versioned-forms-contract.md), [ADR-0134](0134-durable-form-registry.md), [ADR-0176](0176-tenant-scoped-form-registry.md), [ADR-0183](0183-forms-media-rls-call-sites.md), [ADR-0190](0190-capacity-profiles-concurrency-budgets.md)
+- **Related:** [ADR-0011](0011-consistency-upgrade-and-recovery.md), [ADR-0024](0024-optional-redis-rate-limiting-and-queue-boundary.md), [ADR-0121](0121-versioned-forms-contract.md), [ADR-0134](0134-durable-form-registry.md), [ADR-0176](0176-tenant-scoped-form-registry.md), [ADR-0183](0183-forms-media-rls-call-sites.md), [ADR-0190](0190-capacity-profiles-concurrency-budgets.md), [ADR-0270](0270-direct-mx-mail-fallback.md)
 
 ## Context
 
@@ -32,7 +32,9 @@ existing capacity profile queue budget. Delivered records are eligible for
 bounded cleanup after 30 days; permanently failed records remain visible to
 operators until explicitly retried or removed under the configured retention
 policy. Worker concurrency is at most two and cannot exceed the selected
-profile's worker budget. It starts only when Forms and SMTP are both enabled.
+profile's worker budget. It starts only when Forms and a mail sender are both
+enabled. The sender may be the explicitly configured direct MX path defined by
+ADR-0270.
 CGI does not start a resident worker; existing CGI lazy cron may process a
 bounded due item within its request budget.
 

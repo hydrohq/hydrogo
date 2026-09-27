@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/url"
 	"os"
 	"regexp"
@@ -570,10 +571,18 @@ func (c Config) Validate() error {
 		}
 	}
 	if c.Mail.Host == "" {
-		if c.Mail.From != "" || c.Mail.Username != "" || c.Mail.Password != "" {
-			return errors.New("mail host is required when SMTP is configured")
+		if c.Mail.Username != "" || c.Mail.Password != "" {
+			return errors.New("mail username and password require an SMTP host")
 		}
-	} else {
+	}
+	if c.Mail.From != "" {
+		from := strings.TrimSpace(c.Mail.From)
+		parsed, err := mail.ParseAddress(from)
+		if err != nil || parsed.Address != from || strings.ContainsAny(from, "\r\n") {
+			return errors.New("mail from is invalid")
+		}
+	}
+	if c.Mail.Host != "" {
 		if strings.TrimSpace(c.Mail.From) == "" {
 			return errors.New("mail from is required when SMTP is configured")
 		}

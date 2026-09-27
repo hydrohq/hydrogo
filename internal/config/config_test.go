@@ -134,10 +134,17 @@ func TestLoadWebhookRequiresPublishedTopicAndExplicitPIIOptIn(t *testing.T) {
 	}
 }
 
-func TestLoadRejectsPartialSMTPConfiguration(t *testing.T) {
-	_, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_FROM": "from@example.test"}), Overrides{})
-	if err == nil || !strings.Contains(err.Error(), "mail host is required") {
-		t.Fatalf("partial SMTP error = %v", err)
+func TestLoadEnablesOptInDirectMXWithSenderAddressOnly(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_FROM": "contact@example.test"}), Overrides{})
+	if err != nil || cfg.Mail.Host != "" || cfg.Mail.From != "contact@example.test" {
+		t.Fatalf("direct MX config = %#v, error = %v", cfg.Mail, err)
+	}
+}
+
+func TestLoadRejectsInvalidDirectMXSenderAddress(t *testing.T) {
+	_, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_FROM": "bad\r\nBcc: victim@example.test"}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "mail from is invalid") {
+		t.Fatalf("invalid sender error = %v", err)
 	}
 }
 
