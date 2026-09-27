@@ -16,6 +16,8 @@ SQLite's WAL consistency rules.
 - Authentication failures use a bounded, expiring in-memory tarpit. Successful
   authentication clears the corresponding address/account entry. TOTP and
   hashed one-time recovery codes use the existing MFA storage contract.
+  Deployments may require MFA by role; accounts must enroll before an operator
+  enables that role policy to avoid locking out users.
 - IP and CIDR bans are persisted in the SQL store and loaded into a bounded
   in-memory matcher; the CLI and administrator surface update that matcher
   immediately. Proxy-derived addresses continue to follow ADR-0030.

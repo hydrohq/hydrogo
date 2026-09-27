@@ -114,6 +114,13 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 }
 
+func TestHTTPHandlerRequiresMFAForConfiguredRole(t *testing.T) {
+	handler := HTTPHandler{MFARequiredRoles: []Role{RoleAdmin}}
+	if !handler.requiresMFA(RoleAdmin) || handler.requiresMFA(RoleEditor) {
+		t.Fatal("MFA role policy did not match configured role")
+	}
+}
+
 func TestHTTPLoginRejectsOversizedForm(t *testing.T) {
 	hash, err := HashPassword("secret", TestArgon2Params)
 	if err != nil {
