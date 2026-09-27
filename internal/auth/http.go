@@ -63,6 +63,7 @@ type HTTPHandler struct {
 	Audit                  AuditRecorder
 	Secure                 bool
 	MFA                    *MFAService
+	MFARequiredRoles       []Role
 	MFADB                  database.Executor
 	Transactions           database.Transactor
 	LoginLimiter           security.RateLimiter
@@ -304,6 +305,13 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if h.requiresMFA(user.Role) && !enabled {
+			http.Error(w, "MFA setup required for this account", http.StatusForbidden)
+			return
+		}
+	} else if h.requiresMFA(user.Role) {
+		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
+		return
 	}
 	if h.LoginTarpit != nil {
 		h.LoginTarpit.Reset(loginAttemptKey(r))
@@ -323,6 +331,15 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role})
+}
+
+func (h HTTPHandler) requiresMFA(role Role) bool {
+	for _, required := range h.MFARequiredRoles {
+		if required == role {
+			return true
+		}
+	}
+	return false
 }
 
 func loginAttemptKey(r *http.Request) string {

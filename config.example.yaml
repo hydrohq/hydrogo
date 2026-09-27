@@ -33,6 +33,8 @@ security:
   headers_preset: strict
   enable_anomaly_filter: true
   anomaly_bypass_paths: []
+  # Enroll these accounts before enabling role enforcement.
+  mfa_required_roles: []
   # Optional explicit allowlist for credential-free published /api/v1 reads.
   # Browser writes remain same-site or BFF-only; wildcard origins are not supported.
   public_api_origins: []

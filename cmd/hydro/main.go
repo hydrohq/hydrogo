@@ -1346,7 +1346,7 @@ func serve(args []string, stderr io.Writer) error {
 	newRateLimiter := func(limit int, window time.Duration) security.RateLimiter {
 		return newRuntimeRateLimiter(redisClient, cfg.Redis.KeyPrefix, limit, window, requireTenantScope)
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -3423,6 +3423,14 @@ func newAuditRecorder(db *sql.DB, dialect database.Dialect, requireTenantScope b
 			return store.Record(ctx, tx, newAuditID(), action, targetID)
 		})
 	})
+}
+
+func configuredMFARoles(values []string) []auth.Role {
+	roles := make([]auth.Role, 0, len(values))
+	for _, value := range values {
+		roles = append(roles, auth.Role(value))
+	}
+	return roles
 }
 
 func newAuditID() string {

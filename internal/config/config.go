@@ -97,6 +97,7 @@ type Security struct {
 	PublicAPIOrigins    []string `yaml:"public_api_origins"`
 	EnableAnomalyFilter bool     `yaml:"enable_anomaly_filter"`
 	AnomalyBypassPaths  []string `yaml:"anomaly_bypass_paths"`
+	MFARequiredRoles    []string `yaml:"mfa_required_roles"`
 }
 
 type I18N struct {
@@ -526,6 +527,14 @@ func (c Config) Validate() error {
 	for _, path := range c.Security.AnomalyBypassPaths {
 		if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "?#\\") {
 			return fmt.Errorf("invalid security anomaly bypass path %q", path)
+		}
+	}
+	if len(c.Security.MFARequiredRoles) > 3 {
+		return errors.New("MFA required role list exceeds limit")
+	}
+	for _, role := range c.Security.MFARequiredRoles {
+		if role != "admin" && role != "editor" && role != "viewer" {
+			return fmt.Errorf("invalid MFA required role %q", role)
 		}
 	}
 	if c.Security.SecureCookies && (publicOrigin == nil || publicOrigin.Scheme != "https") {
