@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -26,7 +27,10 @@ func (h TestPreviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := ui.AdminStartForRequest(w, r, "Test email preview", "Mailer", security.NonceFromContext(r.Context()), "settings"); err != nil {
 			return
 		}
-		if err := ui.EmailTestPreviewForm(security.CSRFTokenFromContext(r.Context()), user.EmailVerifiedAt != nil, r.URL.Query().Get("verification_sent") == "1").Render(r.Context(), w); err != nil {
+		_, pingEnabled := h.Sender.(interface {
+			Ping(context.Context) (PingResult, error)
+		})
+		if err := ui.EmailTestPreviewForm(security.CSRFTokenFromContext(r.Context()), user.EmailVerifiedAt != nil, r.URL.Query().Get("verification_sent") == "1", pingEnabled).Render(r.Context(), w); err != nil {
 			http.Error(w, "email preview unavailable", http.StatusInternalServerError)
 			return
 		}
@@ -38,7 +42,56 @@ func (h TestPreviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin || user.EmailVerifiedAt == nil || !auth.ValidateEmail(user.Email) {
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		http.Error(w, "verified admin email required", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if r.FormValue("_action") == "ping" {
+		pingSender, ok := h.Sender.(interface {
+			Ping(context.Context) (PingResult, error)
+		})
+		if !ok {
+			http.Error(w, "SMTP diagnostics unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		result, err := pingSender.Ping(r.Context())
+		message := "SMTP connection verified."
+		if err != nil {
+			message = "SMTP connection failed. Check the configured host and port."
+			if result.Stage == "tls" {
+				message = "TLS negotiation failed. Check the server TLS settings."
+			} else if result.Stage == "authentication" {
+				message = "SMTP authentication failed. Check the configured credentials."
+			}
+		} else if result.Authenticated {
+			message = "SMTP connection and authentication verified."
+		}
+		if result.TLSVersion != "" {
+			message += " " + result.TLSVersion + " is active."
+		}
+		if r.Header.Get("HX-Request") == "true" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if err != nil {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}
+			_ = ui.EmailTestPreviewResult(message).Render(r.Context(), w)
+			return
+		}
+		status := http.StatusOK
+		if err != nil {
+			status = http.StatusServiceUnavailable
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(status)
+		_, _ = io.WriteString(w, message)
+		return
+	}
+	if user.EmailVerifiedAt == nil || !auth.ValidateEmail(user.Email) {
 		http.Error(w, "verified admin email required", http.StatusForbidden)
 		return
 	}

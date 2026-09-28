@@ -14,6 +14,15 @@ import (
 type previewSender struct{ message Message }
 
 func (s *previewSender) Send(_ context.Context, m Message) error { s.message = m; return nil }
+
+type pingPreviewSender struct {
+	previewSender
+	result PingResult
+	err    error
+}
+
+func (s *pingPreviewSender) Ping(context.Context) (PingResult, error) { return s.result, s.err }
+
 func TestTestPreviewSendsTextAndHTMLToAdmin(t *testing.T) {
 	sender := &previewSender{}
 	handler := TestPreviewHandler{Sender: sender}
@@ -38,13 +47,28 @@ func TestTestPreviewRejectsEditor(t *testing.T) {
 }
 
 func TestTestPreviewRendersAdminPage(t *testing.T) {
-	handler := TestPreviewHandler{Sender: &previewSender{}}
+	handler := TestPreviewHandler{Sender: &pingPreviewSender{}}
 	ctx := auth.WithUser(context.Background(), &auth.User{ID: "a", Role: auth.RoleAdmin, Active: true, Email: "admin@example.test", EmailVerifiedAt: func() *time.Time { now := time.Now(); return &now }()})
 	req := httptest.NewRequest("GET", "/admin/mailer/test-preview", nil).WithContext(ctx)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Send test email to my inbox") || !strings.Contains(rec.Body.String(), `hx-post="/admin/api/mailer/test-preview"`) {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Send test email to my inbox") || !strings.Contains(rec.Body.String(), "Check mail connection") || !strings.Contains(rec.Body.String(), `hx-post="/admin/api/mailer/test-preview"`) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestTestPreviewSMTPPingDoesNotRequireVerifiedEmail(t *testing.T) {
+	sender := &pingPreviewSender{result: PingResult{Stage: "complete", TLSVersion: "TLS 1.3", Authenticated: true}}
+	handler := TestPreviewHandler{Sender: sender}
+	ctx := auth.WithUser(context.Background(), &auth.User{ID: "a", Role: auth.RoleAdmin, Active: true, Email: "admin@example.test"})
+	request := httptest.NewRequest(http.MethodPost, "/admin/api/mailer/test-preview", strings.NewReader("_action=ping"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("HX-Request", "true")
+	request = request.WithContext(ctx)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "SMTP connection and authentication verified") || !strings.Contains(response.Body.String(), "TLS 1.3") {
+		t.Fatalf("ping response=%d body=%s", response.Code, response.Body.String())
 	}
 }
 

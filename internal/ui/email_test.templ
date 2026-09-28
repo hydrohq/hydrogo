@@ -1,8 +1,16 @@
 package ui
 
-templ EmailTestPreviewForm(csrf string, verified, verificationSent bool) {
+templ EmailTestPreviewForm(csrf string, verified, verificationSent, pingEnabled bool) {
 	<section class="studio-card">
 		<h1>Test email preview</h1>
+		if pingEnabled {
+			<p>Check SMTP connection, TLS and credentials without sending a message.</p>
+			<form method="post" action="/admin/api/mailer/test-preview" hx-post="/admin/api/mailer/test-preview" hx-target="#email-test-result" hx-swap="innerHTML">
+				<input type="hidden" name="_csrf" value={ csrf } />
+				<input type="hidden" name="_action" value="ping" />
+				<button type="submit" class="button button-quiet">Check mail connection</button>
+			</form>
+		}
 		if verified {
 			<p>Send the current HydroGo email layout with sample account, reset-link and verification-code values to your verified address.</p>
 			<form method="post" action="/admin/api/mailer/test-preview" hx-post="/admin/api/mailer/test-preview" hx-target="#email-test-result" hx-swap="innerHTML">
