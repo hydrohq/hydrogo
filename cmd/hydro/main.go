@@ -151,6 +151,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 
 	switch args[0] {
+	case "icons":
+		return runIconPack(args[1:], stdout, stderr)
 	case "healthcheck":
 		if len(args) != 1 {
 			return errors.New("healthcheck takes no arguments")
@@ -280,6 +282,29 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		printUsage(stderr)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+func runIconPack(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("icons", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	sourcePath := flags.String("source", "", "master PNG, JPEG, GIF or WebP logo")
+	outputDir := flags.String("output", "", "directory for favicon and web app icons")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *sourcePath == "" || *outputDir == "" || flags.NArg() != 0 {
+		return errors.New("icons requires --source and --output")
+	}
+	file, err := os.Open(*sourcePath)
+	if err != nil {
+		return errors.New("icon source could not be opened")
+	}
+	defer file.Close()
+	if err := media.GenerateIconPack(file, *outputDir); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "icon-pack-generated output=%s\n", *outputDir)
+	return err
 }
 
 func fontsCommand(args []string, stdout io.Writer) error {
@@ -1896,7 +1921,9 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			result.FaviconURL = appearance.FaviconURL
 			result.SocialImageURL = appearance.SocialImageURL
-			if profile, ok := site.BusinessProfileFromSettings(settings); ok { result.BusinessProfile = &profile }
+			if profile, ok := site.BusinessProfileFromSettings(settings); ok {
+				result.BusinessProfile = &profile
+			}
 			return result
 		}}
 		pageHTTP.DiscoveryProvider = func(providerCtx context.Context) (seo.Discovery, error) {
@@ -2643,6 +2670,9 @@ func serve(args []string, stderr io.Writer) error {
 	if !*cgiMode {
 		go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
 	}
+	if modules["media"] && !*cgiMode {
+		go runStaleMediaTempSweeper(ctx, cfg.Media.Dir, stderr)
+	}
 	if modules["forms"] && smtpSender != nil && !*cgiMode {
 		if modules["pages"] {
 			mailWorker.OnSchedule = func(jobCtx context.Context, now time.Time) error {
@@ -3332,6 +3362,21 @@ func runSessionCleanupObserved(ctx context.Context, cleaner expiredSessionCleane
 			return
 		case <-ticker.C:
 			run()
+		}
+	}
+}
+
+func runStaleMediaTempSweeper(ctx context.Context, mediaDir string, stderr io.Writer) {
+	for {
+		if _, err := storage.SweepStaleFiles(ctx, mediaDir, 24*time.Hour, time.Now()); err != nil && ctx.Err() == nil {
+			_, _ = fmt.Fprintf(stderr, "hydro stale media temp cleanup: %v\n", err)
+		}
+		timer := time.NewTimer(6 * time.Hour)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
 		}
 	}
 }
@@ -5112,6 +5157,7 @@ func printUsage(w io.Writer) {
 Usage:
   hydro version
   hydro version --json
+  hydro icons --source LOGO --output DIRECTORY
   hydro migrate [runtime flags]
 	  hydro run [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--dependencies auto|none|required] [--compose-file PATH] [--poll DUR]
 	  hydro dev [same options]  (backward-compatible alias for hydro run)
