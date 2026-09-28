@@ -4805,6 +4805,7 @@ Usage:
   hydro license status --license PATH [--public-key PATH] [--project-id ID] [--json]
   hydro-issuer keygen [--public-out PATH] [--private-out PATH]
   hydro new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
+  hydro new resource [NAME] [--fields name:type[:required][:unique],...] [--out DIR]
   hydro project new PROJECT [--preset=news] [--database=sqlite] [--profile=compact] [--git]
   hydro project check [--config config.yaml] [--lock hydrogo.lock] [--json]
   hydro check [--config config.yaml] [--lock hydrogo.lock] [--json]
