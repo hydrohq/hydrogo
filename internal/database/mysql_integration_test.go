@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"testing/fstest"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
 func TestMySQLPoolAndTransactionContract(t *testing.T) {
@@ -55,6 +57,64 @@ func TestMySQLPoolAndTransactionContract(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("rows after rollback = %d, want 0", count)
+	}
+}
+
+func TestMySQLNavigationMigrationContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_MYSQL_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_MYSQL_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.MySQL, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var ledgerExists int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='schema_migrations'`).Scan(&ledgerExists); err != nil {
+		t.Fatal(err)
+	}
+	if ledgerExists != 0 {
+		t.Skip("navigation migration contract requires an empty dedicated MySQL database")
+	}
+	table := fmt.Sprintf("hydro_mysql_navigation_%d", os.Getpid())
+	baseTable := table + "_base"
+	if _, err := db.ExecContext(ctx, "CREATE TABLE "+table+" (id VARCHAR(128) PRIMARY KEY) ENGINE=InnoDB"); err != nil {
+		t.Fatal(err)
+	}
+	defer db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+table)
+	defer db.ExecContext(context.Background(), "DROP TABLE IF EXISTS schema_migrations")
+	defer db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+baseTable)
+	metadata, err := migrations.FS.ReadFile("202609280023_navigation_tree/migration.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := migrations.FS.ReadFile("202609280023_navigation_tree/mysql.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script = []byte(strings.ReplaceAll(string(script), "navigation_items", table))
+	bundle := fstest.MapFS{
+		"000000000001_mysql_contract/migration.yaml":  &fstest.MapFile{Data: []byte("module: core\ntransactional:\n  mysql: false\n")},
+		"000000000001_mysql_contract/mysql.sql":       &fstest.MapFile{Data: []byte("CREATE TABLE " + baseTable + " (id VARCHAR(64) PRIMARY KEY) ENGINE=InnoDB")},
+		"202609280023_navigation_tree/migration.yaml": &fstest.MapFile{Data: metadata},
+		"202609280023_navigation_tree/mysql.sql":      &fstest.MapFile{Data: script},
+	}
+	for range 2 {
+		if err := database.ApplyMigrations(ctx, db, database.MySQL, bundle); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for column, length := range map[string]int{"parent_id": 128, "target": 8} {
+		var dataType string
+		var actualLength int
+		if err := db.QueryRowContext(ctx, `SELECT data_type,character_maximum_length FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=? AND column_name=?`, table, column).Scan(&dataType, &actualLength); err != nil {
+			t.Fatal(err)
+		}
+		if dataType != "varchar" || actualLength != length {
+			t.Errorf("%s type = %s(%d), want varchar(%d)", column, dataType, actualLength, length)
+		}
 	}
 }
 
