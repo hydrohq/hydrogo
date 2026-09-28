@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
@@ -37,6 +38,51 @@ type AssetVisibilityRepository interface {
 
 type VerifiedAssetRepository interface {
 	MarkReadyVerified(context.Context, database.Executor, string, string, string) error
+}
+
+type AssetMetadataRepository interface {
+	SetMetadata(context.Context, database.Executor, string, AssetMetadata) error
+}
+
+type AssetMetadata struct {
+	Focal    FocalPoint `json:"focal_point"`
+	FolderID string     `json:"folder_id,omitempty"`
+	Tags     []string   `json:"tags,omitempty"`
+}
+
+func (s Service) SetMetadata(ctx context.Context, id string, metadata AssetMetadata) error {
+	if guards.IsNil(s.Assets) {
+		return ErrAssetRepositoryRequired
+	}
+	if clamp01(metadata.Focal.X) != metadata.Focal.X || clamp01(metadata.Focal.Y) != metadata.Focal.Y || len(metadata.Tags) > 32 {
+		return ErrInvalidFolder
+	}
+	for _, tag := range metadata.Tags {
+		if strings.TrimSpace(tag) == "" || len(tag) > 64 {
+			return ErrInvalidFolder
+		}
+	}
+	repo, ok := s.Assets.(AssetMetadataRepository)
+	if !ok {
+		return errors.New("media metadata updates are unsupported")
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error { return repo.SetMetadata(ctx, tx, id, metadata) })
+}
+
+func (s Service) CreateFolder(ctx context.Context, folder Folder) error {
+	repo, ok := s.Assets.(FolderRepository)
+	if !ok {
+		return errors.New("media folders are unsupported")
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error { return repo.CreateFolder(ctx, tx, folder) })
+}
+
+func (s Service) ListFolders(ctx context.Context, db database.Executor) ([]Folder, error) {
+	repo, ok := s.Assets.(FolderRepository)
+	if !ok {
+		return nil, errors.New("media folders are unsupported")
+	}
+	return repo.ListFolders(ctx, db)
 }
 
 func (s Service) Get(ctx context.Context, db database.Executor, id string) (Asset, error) {
@@ -103,6 +149,10 @@ func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) 
 		SizeBytes:        result.SizeBytes,
 		Width:            result.Width,
 		Height:           result.Height,
+		BlurHash:         result.BlurHash,
+		FocalX:           0.5,
+		FocalY:           0.5,
+		DominantColors:   result.DominantColors,
 	}
 	if err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		return s.Assets.CreatePending(ctx, tx, asset)

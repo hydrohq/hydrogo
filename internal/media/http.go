@@ -17,8 +17,11 @@ import (
 )
 
 type HTTPHandler struct {
-	Service Service
-	DB      database.Executor
+	Service             Service
+	DB                  database.Executor
+	HotlinkProtection   bool
+	CanonicalOrigin     string
+	AllowedRefererHosts []string
 }
 
 type HTTPRoute struct {
@@ -30,13 +33,81 @@ type HTTPRoute struct {
 const multipartOverheadBytes int64 = 1 << 20
 
 func (h HTTPHandler) Routes() []HTTPRoute {
+	serve := http.Handler(http.HandlerFunc(h.serve))
+	if h.HotlinkProtection {
+		serve = HotlinkGuard(h.CanonicalOrigin, h.AllowedRefererHosts, serve)
+	}
 	return []HTTPRoute{
 		{Pattern: "GET /api/media", Protected: true, Handler: http.HandlerFunc(h.list)},
+		{Pattern: "GET /api/media/folders", Protected: true, Handler: http.HandlerFunc(h.folders)},
+		{Pattern: "POST /api/media/folders", Protected: true, Handler: http.HandlerFunc(h.createFolder)},
 		{Pattern: "GET /api/media/{id}/url", Protected: true, Handler: http.HandlerFunc(h.url)},
+		{Pattern: "PATCH /api/media/{id}/metadata", Protected: true, Handler: http.HandlerFunc(h.updateMetadata)},
 		{Pattern: "POST /api/media", Protected: true, Handler: http.HandlerFunc(h.upload)},
 		{Pattern: "POST /api/media/{id}/ready", Protected: true, Handler: http.HandlerFunc(h.ready)},
-		{Pattern: "GET /media/{id}", Handler: http.HandlerFunc(h.serve)},
+		{Pattern: "GET /media/{id}", Handler: serve},
 	}
+}
+
+func (h HTTPHandler) folders(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	folders, err := h.Service.ListFolders(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "media folders unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, http.StatusOK, folders)
+}
+
+func (h HTTPHandler) createFolder(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	var input struct {
+		Name     string `json:"name"`
+		ParentID string `json:"parent_id,omitempty"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		http.Error(w, "invalid folder", http.StatusBadRequest)
+		return
+	}
+	folder, err := NewFolder(input.Name, input.ParentID)
+	if err != nil {
+		http.Error(w, "invalid folder", http.StatusBadRequest)
+		return
+	}
+	if err = h.Service.CreateFolder(r.Context(), folder); err != nil {
+		http.Error(w, "folder could not be created", mediaStatus(err))
+		return
+	}
+	writeJSON(w, http.StatusCreated, folder)
+}
+
+func (h HTTPHandler) updateMetadata(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	var metadata AssetMetadata
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&metadata); err != nil {
+		http.Error(w, "invalid media metadata", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SetMetadata(r.Context(), r.PathValue("id"), metadata); err != nil {
+		http.Error(w, "media metadata update failed", mediaStatus(err))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"updated": true})
 }
 
 func (h HTTPHandler) url(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +263,7 @@ func editorAllowed(r *http.Request) bool {
 }
 
 func mediaStatus(err error) int {
-	if errors.Is(err, ErrFileTooLarge) || errors.Is(err, ErrImageTooLarge) || errors.Is(err, ErrDisallowedMimeType) || errors.Is(err, ErrInvalidImageData) || errors.Is(err, ErrInvalidVisibility) {
+	if errors.Is(err, ErrFileTooLarge) || errors.Is(err, ErrImageTooLarge) || errors.Is(err, ErrDisallowedMimeType) || errors.Is(err, ErrInvalidImageData) || errors.Is(err, ErrInvalidVisibility) || errors.Is(err, ErrInvalidFolder) {
 		return http.StatusBadRequest
 	}
 	if errors.Is(err, ErrUploaderRequired) || errors.Is(err, ErrAssetRepositoryRequired) || errors.Is(err, database.ErrDatabaseRequired) {

@@ -65,6 +65,16 @@ type Optimizer struct {
 }
 
 func NewOptimizer(storageDir string, workers int, variants DerivativeRepository, db database.Executor, ffmpegPath string) *Optimizer {
+	return newOptimizer(storageDir, workers, variants, db, ffmpegPath, nil)
+}
+
+// NewOptimizerWithWatermark enables watermarking on generated image variants.
+// Source objects remain unchanged.
+func NewOptimizerWithWatermark(storageDir string, workers int, variants DerivativeRepository, db database.Executor, ffmpegPath string, options WatermarkOptions) *Optimizer {
+	return newOptimizer(storageDir, workers, variants, db, ffmpegPath, &options)
+}
+
+func newOptimizer(storageDir string, workers int, variants DerivativeRepository, db database.Executor, ffmpegPath string, watermark *WatermarkOptions) *Optimizer {
 	if workers < 1 {
 		workers = 1
 	}
@@ -76,7 +86,7 @@ func NewOptimizer(storageDir string, workers int, variants DerivativeRepository,
 			ffmpegPath = discovered
 		}
 	}
-	o := &Optimizer{queue: make(chan Asset, variantQueueCapacity), workers: workers, variants: variants, db: db, storageDir: storageDir, transform: ffmpegTransformer{path: ffmpegPath, storageDir: storageDir}}
+	o := &Optimizer{queue: make(chan Asset, variantQueueCapacity), workers: workers, variants: variants, db: db, storageDir: storageDir, transform: ffmpegTransformer{path: ffmpegPath, storageDir: storageDir, watermark: watermark}}
 	for i := 0; i < workers; i++ {
 		o.wg.Add(1)
 		go o.run()
@@ -147,7 +157,10 @@ func (o *Optimizer) process(asset Asset) {
 	}
 }
 
-type ffmpegTransformer struct{ path, storageDir string }
+type ffmpegTransformer struct {
+	path, storageDir string
+	watermark        *WatermarkOptions
+}
 
 func (t ffmpegTransformer) Transform(ctx context.Context, asset Asset, kind, id string) (transformResult, error) {
 	input := filepath.Join(t.storageDir, filepath.Base(asset.StorageKey))
@@ -200,8 +213,15 @@ func (t ffmpegTransformer) transformImage(ctx context.Context, input, id string)
 		h = h * 1920 / w
 		w = 1920
 	}
-	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	xdraw.CatmullRom.Scale(dst, dst.Bounds(), decoded, decoded.Bounds(), xdraw.Over, nil)
+	resized := image.NewRGBA(image.Rect(0, 0, w, h))
+	xdraw.CatmullRom.Scale(resized, resized.Bounds(), decoded, decoded.Bounds(), xdraw.Over, nil)
+	var dst image.Image = resized
+	if t.watermark != nil {
+		dst, err = ApplyWatermark(dst, *t.watermark)
+		if err != nil {
+			return transformResult{}, err
+		}
+	}
 	out := filepath.Join(t.storageDir, id+".webp")
 	tmp, err := os.CreateTemp(t.storageDir, id+"-*.tmp")
 	if err != nil {
