@@ -50,6 +50,15 @@ func TestHeadInlinesCriticalTokensAndPreloadsRemainingStyles(t *testing.T) {
 	}
 }
 
+func TestBackToTopIsAccessibleAndProgressivelyEnhanced(t *testing.T) {
+	got := render(t, BackToTop("Page top"))
+	for _, want := range []string{`type="button"`, `aria-label="Page top"`, `data-back-to-top`, `hidden`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("back-to-top missing %q: %s", want, got)
+		}
+	}
+}
+
 func TestBeforeAfterRender(t *testing.T) {
 	got := render(t, BeforeAfter(BeforeAfterProps{BeforeSrc: "/before.webp", AfterSrc: "/after.webp", BeforeLabel: "Old", AfterLabel: "New", Position: 150}))
 	for _, want := range []string{`type="range"`, `value="100"`, `aria-label="Old / New"`, `data-before-after`} {

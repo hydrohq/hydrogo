@@ -61,6 +61,7 @@
   };
 
   document.addEventListener('click', async event => {
+    if (event.target.closest('[data-back-to-top]')) window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
     const pricingPeriod = event.target.closest('[data-pricing-period]');
     if (pricingPeriod) {
       const period = pricingPeriod.dataset.pricingPeriod;
@@ -95,6 +96,14 @@
       if (videoButton.matches('[data-video-pip]') && document.pictureInPictureEnabled) video.requestPictureInPicture().catch(() => {});
       if (videoButton.matches('[data-video-fullscreen]')) (document.fullscreenElement ? document.exitFullscreen() : player.requestFullscreen()).catch?.(() => {});
     }
+  });
+
+  const initBackToTop = () => each('[data-back-to-top]', button => {
+    if (button.dataset.ready) return;
+    button.dataset.ready = 'true';
+    const update = () => { button.hidden = window.scrollY < 480; };
+    window.addEventListener('scroll', update, { passive: true });
+    update();
   });
 
   document.addEventListener('change', event => {
@@ -194,7 +203,7 @@
     }
   });
 
-  const init = root => { animateCounters(root); initVideos(root); initSticky(root); initCountdowns(root); };
+  const init = root => { animateCounters(root); initVideos(root); initSticky(root); initCountdowns(root); initBackToTop(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => init(document)); else init(document);
   document.addEventListener('htmx:afterSettle', event => init(event.target));
 })();
