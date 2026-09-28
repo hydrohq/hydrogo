@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -108,37 +109,40 @@ func (h AdminSearchHandler) search(ctx context.Context, query Query, tenantID st
 		}
 		documents = append(documents, items...)
 	}
-	provider := NewMemoryProvider(len(documents) + 1)
-	index := make([]Document, 0, len(documents))
-	byID := make(map[string]adminSearchItem, len(documents))
+	terms := tokenize(strings.ToLower(strings.TrimSpace(query.Text)))
+	items := make([]adminSearchItem, 0, len(documents))
 	for _, item := range documents {
-		locale := item.Locale
-		if locale == "" {
-			locale = query.Locale
+		item.Score = adminSearchScore(item.Title, item.Sub, terms)
+		if item.Score == 0 {
+			continue
 		}
-		if locale == "" {
-			locale = "en"
-		}
-		index = append(index, Document{ID: item.ID, Locale: locale, Title: item.Title, Body: item.Sub})
-		byID[item.ID] = item
-	}
-	if err := provider.Rebuild(ctx, index); err != nil {
-		return nil, err
-	}
-	response, err := provider.Search(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	items := make([]adminSearchItem, 0, len(response.Items))
-	for _, result := range response.Items {
-		item := byID[result.ID]
-		item.Score = result.Score
-		if result.Snippet != "" {
-			item.Sub = result.Snippet
-		}
+		item.Sub = snippet(item.Sub, terms)
 		items = append(items, item)
 	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Score != items[j].Score {
+			return items[i].Score > items[j].Score
+		}
+		return items[i].ID < items[j].ID
+	})
+	if len(items) > adminSearchResultLimit {
+		items = items[:adminSearchResultLimit]
+	}
 	return items, nil
+}
+
+func adminSearchScore(title, body string, terms []string) float64 {
+	title, body = strings.ToLower(title), strings.ToLower(body)
+	score := 0.0
+	for _, term := range terms {
+		if strings.Contains(title, term) {
+			score += 2
+		}
+		if strings.Contains(body, term) {
+			score++
+		}
+	}
+	return score
 }
 
 type adminSearchSource struct {
