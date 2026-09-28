@@ -1,0 +1,29 @@
+id: "202609290006_news_expiry"
+module: "news"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "446c90e10321a1a6b2bf62b33f140fcce0c5d64e59965a7e59213d55d0a18a96"
+  postgres: "165c119d2f279062b3b15beadb6738d909523e465c161bb6b8449fe4f9ae7381"
+  mysql: "23f792ca07b9b8f36e8658b6158fd61ee2fa4fe9e896375417f8c6e7ea50c20e"
+dependencies:
+  - "202609080012_news_items"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "News module and news_items table are installed"
+lock_timeout: "bounded by migration runner deadline"
+disk_estimate: "Nullable expiry timestamp and a compact status index"
+compatibility: "Existing news remains public; expiry is opt-in and old binaries ignore the additive column"
+smoke:
+  - "Public route and list queries exclude expired published news"
+  - "Admin reads retain expired news for editing and auditing"
+restart: "Safe expand migration; no content rewrite"
+rollback: "No production down migration; remove the expiry value or restore the prior snapshot"

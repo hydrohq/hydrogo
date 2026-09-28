@@ -13,7 +13,6 @@ import (
 	"html/template"
 	"io"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -32,6 +31,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
@@ -833,6 +833,7 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if source := formSourcePath(r.Referer()); source != "" { clean["_source_url"] = source }
 	email := ""
 	for _, field := range form.Fields {
 		if field.Type == forms.Email {
@@ -960,11 +961,12 @@ func expandEmailTemplate(value string, variables map[string]string) string {
 	return value
 }
 
-func requestIP(r *http.Request) string {
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
-	}
-	return strings.TrimSpace(r.RemoteAddr)
+func requestIP(r *http.Request) string { return requestmeta.ClientIP(r) }
+
+func formSourcePath(value string) string {
+	u, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || u.User != nil || u.Path == "" || strings.HasPrefix(u.Path, "//") || strings.ContainsAny(u.Path, "\\\r\n\x00") { return "" }
+	return u.EscapedPath()
 }
 
 func (h Handler) saveSetting(w http.ResponseWriter, r *http.Request) {

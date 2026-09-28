@@ -26,6 +26,14 @@ func (s Store) p(n int) string {
 	return fmt.Sprintf("$%d", n)
 }
 
+func (s Store) expiryFilter() string { return s.expiryFilterPrefixed("") }
+func (s Store) expiryFilterPrefixed(alias string) string {
+	column := "expires_at"
+	if alias != "" { column = alias + ".expires_at" }
+	if s.Dialect == database.SQLite { return " AND (" + column + " IS NULL OR julianday(" + column + ") > julianday('now'))" }
+	return " AND (" + column + " IS NULL OR " + column + " > CURRENT_TIMESTAMP)"
+}
+
 func (s Store) tenantFilter(ctx context.Context, position int) (string, any, error) {
 	if !s.RequireTenantScope {
 		return "", nil, nil
@@ -50,17 +58,20 @@ func (s Store) CreateDraft(ctx context.Context, tx database.Executor, item news.
 		}
 		scopeID = scope.TenantID
 	}
-	query := `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'draft',1,1,0,$15,$16)`
-	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, now}
+	query := `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,expires_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'draft',1,1,0,$15,$16,$17)`
+	var expires any
+	if item.ExpiresAt != nil { expires = *item.ExpiresAt }
+	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, expires, now, now}
 	if s.Dialect == database.SQLite {
-		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft',1,1,0,?,?)`
-		args[14], args[15] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
+		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,expires_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft',1,1,0,?,?,?)`
+		if item.ExpiresAt != nil { args[14] = item.ExpiresAt.UTC().Format(time.RFC3339Nano) }
+		args[15], args[16] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
 	}
 	if s.RequireTenantScope {
-		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,created_at,updated_at,tenant_id) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,'draft',1,1,0,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `)`
+		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,expires_at,created_at,updated_at,tenant_id) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,'draft',1,1,0,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `)`
 		args = append(args, scopeID)
 		if s.Dialect == database.SQLite {
-			args[14], args[15] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
+			args[15], args[16] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
 		}
 	}
 	_, err := tx.ExecContext(ctx, query, args...)
@@ -72,15 +83,18 @@ func (s Store) UpdateDraft(ctx context.Context, tx database.Executor, item news.
 		return err
 	}
 	now := time.Now().UTC()
-	filter, scopeID, err := s.tenantFilter(ctx, 17)
+	filter, scopeID, err := s.tenantFilter(ctx, 18)
 	if err != nil {
 		return err
 	}
-	query := `UPDATE news_items SET locale=$1,slug=$2,title=$3,body=$4,cover_media_id=$5,excerpt=$6,key_takeaways=$7,category=$8,author_name=$9,featured=$10,tags=$11,seo_title=$12,seo_description=$13,status='draft',revision=revision+1,version=version+1,updated_at=$14 WHERE id=$15 AND version=$16 AND status IN ('draft','retracted')`
-	args := []any{item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, now, item.ID, expectedVersion}
+	var expires any
+	if item.ExpiresAt != nil { expires = *item.ExpiresAt }
+	query := `UPDATE news_items SET locale=$1,slug=$2,title=$3,body=$4,cover_media_id=$5,excerpt=$6,key_takeaways=$7,category=$8,author_name=$9,featured=$10,tags=$11,seo_title=$12,seo_description=$13,status='draft',revision=revision+1,version=version+1,expires_at=$14,updated_at=$15 WHERE id=$16 AND version=$17 AND status IN ('draft','retracted')`
+	args := []any{item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, expires, now, item.ID, expectedVersion}
 	if s.Dialect == database.SQLite {
-		query = `UPDATE news_items SET locale=?,slug=?,title=?,body=?,cover_media_id=?,excerpt=?,key_takeaways=?,category=?,author_name=?,featured=?,tags=?,seo_title=?,seo_description=?,status='draft',revision=revision+1,version=version+1,updated_at=? WHERE id=? AND version=? AND status IN ('draft','retracted')`
-		args[13] = now.Format(time.RFC3339Nano)
+		query = `UPDATE news_items SET locale=?,slug=?,title=?,body=?,cover_media_id=?,excerpt=?,key_takeaways=?,category=?,author_name=?,featured=?,tags=?,seo_title=?,seo_description=?,status='draft',revision=revision+1,version=version+1,expires_at=?,updated_at=? WHERE id=? AND version=? AND status IN ('draft','retracted')`
+		if item.ExpiresAt != nil { args[13] = item.ExpiresAt.UTC().Format(time.RFC3339Nano) }
+		args[14] = now.Format(time.RFC3339Nano)
 	}
 	if filter != "" {
 		query += filter
@@ -234,7 +248,7 @@ func (s Store) Get(ctx context.Context, db database.Executor, id string) (news.I
 	if filter != "" {
 		args = append(args, scopeID)
 	}
-	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE id = ` + s.p(1) + filter
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,expires_at,created_at,updated_at FROM news_items WHERE id = ` + s.p(1) + filter
 	return s.scan(ctx, db, query, args...)
 }
 
@@ -247,7 +261,7 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 	if filter != "" {
 		args = append(args, scopeID)
 	}
-	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND slug = ` + s.p(2) + ` AND status='published' AND published_revision IS NOT NULL` + filter
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,expires_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND slug = ` + s.p(2) + ` AND status='published' AND published_revision IS NOT NULL` + s.expiryFilter() + filter
 	return s.scan(ctx, db, query, args...)
 }
 
@@ -271,7 +285,7 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND status='published' AND published_revision IS NOT NULL` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(2)
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,expires_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + ` AND status='published' AND published_revision IS NOT NULL` + s.expiryFilter() + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(2)
 	args := []any{locale, limit}
 	if filter != "" {
 		if s.Dialect == database.Postgres {
@@ -353,9 +367,9 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, c
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=$1) AND n.id<>$1 AND n.locale=$2 AND n.status='published' AND n.published_revision IS NOT NULL` + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT $3`
+	query := `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=$1) AND n.id<>$1 AND n.locale=$2 AND n.status='published' AND n.published_revision IS NOT NULL` + s.expiryFilterPrefixed("n") + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT $3`
 	if s.Dialect == database.SQLite {
-		query = `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=?) AND n.id<>? AND n.locale=? AND n.status='published' AND n.published_revision IS NOT NULL` + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT ?`
+		query = `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=?) AND n.id<>? AND n.locale=? AND n.status='published' AND n.published_revision IS NOT NULL` + s.expiryFilterPrefixed("n") + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT ?`
 	}
 	args := []any{contentID, locale, limit}
 	if s.Dialect == database.SQLite {
@@ -407,7 +421,7 @@ func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) (
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,created_at,updated_at FROM news_items WHERE 1=1` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(1)
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,expires_at,created_at,updated_at FROM news_items WHERE 1=1` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(1)
 	args := []any{limit}
 	if filter != "" {
 		if s.Dialect == database.Postgres {
@@ -483,14 +497,14 @@ func (s Store) scan(ctx context.Context, db database.Executor, query string, arg
 	var published any
 	var featured any
 	var excerpt, keyTakeaways, category, authorName, tags, seoTitle, seoDescription string
-	var scheduled, created, updated any
-	err := db.QueryRowContext(ctx, query, args...).Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &excerpt, &keyTakeaways, &category, &authorName, &featured, &tags, &seoTitle, &seoDescription, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &created, &updated)
+	var scheduled, expires, created, updated any
+	err := db.QueryRowContext(ctx, query, args...).Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &excerpt, &keyTakeaways, &category, &authorName, &featured, &tags, &seoTitle, &seoDescription, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &expires, &created, &updated)
 	if err != nil {
 		return news.Item{}, err
 	}
 	item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, item.Tags, item.SEOTitle, item.SEODescription = excerpt, keyTakeaways, category, authorName, tags, seoTitle, seoDescription
 	item.Featured = boolValue(featured)
-	return itemFromColumns(item, status, published, scheduled, created, updated), nil
+	return itemFromColumns(item, status, published, scheduled, expires, created, updated), nil
 }
 
 type rowScanner interface {
@@ -503,13 +517,13 @@ func scanItem(row rowScanner) (news.Item, error) {
 	var published any
 	var featured any
 	var excerpt, keyTakeaways, category, authorName, tags, seoTitle, seoDescription string
-	var scheduled, created, updated any
-	if err := row.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &excerpt, &keyTakeaways, &category, &authorName, &featured, &tags, &seoTitle, &seoDescription, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &created, &updated); err != nil {
+	var scheduled, expires, created, updated any
+	if err := row.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Body, &item.CoverMediaID, &excerpt, &keyTakeaways, &category, &authorName, &featured, &tags, &seoTitle, &seoDescription, &status, &item.Version, &item.Revision, &published, &item.ScheduleGeneration, &scheduled, &expires, &created, &updated); err != nil {
 		return news.Item{}, err
 	}
 	item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, item.Tags, item.SEOTitle, item.SEODescription = excerpt, keyTakeaways, category, authorName, tags, seoTitle, seoDescription
 	item.Featured = boolValue(featured)
-	return itemFromColumns(item, status, published, scheduled, created, updated), nil
+	return itemFromColumns(item, status, published, scheduled, expires, created, updated), nil
 }
 
 func boolInt(value bool) int {
@@ -543,7 +557,7 @@ func boolValue(value any) bool {
 	}
 }
 
-func itemFromColumns(item news.Item, status string, published, scheduled, created, updated any) news.Item {
+func itemFromColumns(item news.Item, status string, published, scheduled, expires, created, updated any) news.Item {
 	item.Status = news.Status(status)
 	if published != nil {
 		var value int
@@ -561,6 +575,7 @@ func itemFromColumns(item news.Item, status string, published, scheduled, create
 			item.ScheduledAt = &value
 		}
 	}
+	if expires != nil { value := parseTime(expires); if !value.IsZero() { item.ExpiresAt = &value } }
 	item.CreatedAt, item.UpdatedAt = parseTime(created), parseTime(updated)
 	return item
 }

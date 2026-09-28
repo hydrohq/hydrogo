@@ -122,6 +122,91 @@ func ValidateBlocks(blocks []Block) error {
 			if phone == "" && whatsapp == "" || phone != "" && !validPhoneNumber(phone) || whatsapp != "" && !validWhatsAppNumber(whatsapp) {
 				return ErrInvalidBlocks
 			}
+		case "callout":
+			tone := rawString(object, "tone")
+			if title := rawString(object, "title"); title == "" || len(title) > 200 || len(rawString(object, "text")) > 4000 || tone != "" && tone != "info" && tone != "warning" && tone != "success" && tone != "tip" {
+				return ErrInvalidBlocks
+			}
+		case "action_card":
+			if requireString(object, "title") != nil || len(rawString(object, "text")) > 4000 || len(rawString(object, "button_text")) > 100 || !optionalSafeURL(rawString(object, "button_url")) {
+				return ErrInvalidBlocks
+			}
+		case "carousel":
+			var items []struct {
+				Src     string `json:"src"`
+				Alt     string `json:"alt"`
+				Caption string `json:"caption"`
+			}
+			raw, ok := object["slides"]
+			if !ok || json.Unmarshal(raw, &items) != nil || len(items) == 0 || len(items) > 20 {
+				return ErrInvalidBlocks
+			}
+			for _, item := range items {
+				if !safeBlockURL(item.Src) || strings.TrimSpace(item.Alt) == "" || len(item.Alt) > 500 || len(item.Caption) > 500 {
+					return ErrInvalidBlocks
+				}
+			}
+		case "columns":
+			var payload struct {
+				Count   int `json:"count"`
+				Columns []struct {
+					Title     string `json:"title"`
+					Text      string `json:"text"`
+					ButtonURL string `json:"button_url"`
+				} `json:"columns"`
+			}
+			if json.Unmarshal(block.Payload, &payload) != nil || payload.Count != 2 && payload.Count != 3 || len(payload.Columns) != payload.Count {
+				return ErrInvalidBlocks
+			}
+			for _, column := range payload.Columns {
+				if strings.TrimSpace(column.Title) == "" || len(column.Title) > 200 || len(column.Text) > 4000 || !optionalSafeURL(column.ButtonURL) {
+					return ErrInvalidBlocks
+				}
+			}
+		case "feature_list":
+			var payload struct {
+				Items []struct {
+					Title string `json:"title"`
+					Text  string `json:"text"`
+				} `json:"items"`
+			}
+			if json.Unmarshal(block.Payload, &payload) != nil || len(payload.Items) == 0 || len(payload.Items) > 32 {
+				return ErrInvalidBlocks
+			}
+			for _, item := range payload.Items {
+				if strings.TrimSpace(item.Title) == "" || len(item.Title) > 200 || len(item.Text) > 2000 {
+					return ErrInvalidBlocks
+				}
+			}
+		case "video_hero":
+			if requireString(object, "title") != nil || len(rawString(object, "subtitle")) > 2000 || requireSafeStringURL(object, "video_url") != nil || !optionalSafeURL(rawString(object, "poster_url")) || !optionalSafeURL(rawString(object, "button_url")) {
+				return ErrInvalidBlocks
+			}
+		case "trust_bar":
+			var payload struct {
+				Items []struct {
+					Title    string `json:"title"`
+					Subtitle string `json:"subtitle"`
+				} `json:"items"`
+			}
+			if json.Unmarshal(block.Payload, &payload) != nil || len(payload.Items) == 0 || len(payload.Items) > 16 {
+				return ErrInvalidBlocks
+			}
+			for _, item := range payload.Items {
+				if strings.TrimSpace(item.Title) == "" || len(item.Title) > 200 || len(item.Subtitle) > 500 {
+					return ErrInvalidBlocks
+				}
+			}
+		case "figure":
+			if requireSafeStringURL(object, "src") != nil || strings.TrimSpace(rawString(object, "alt")) == "" || len(rawString(object, "alt")) > 500 || len(rawString(object, "caption")) > 1000 || len(rawString(object, "credit")) > 200 || !optionalSafeURL(rawString(object, "credit_url")) {
+				return ErrInvalidBlocks
+			}
+		case "business_status":
+			var open bool
+			raw, ok := object["open"]
+			if !ok || json.Unmarshal(raw, &open) != nil || len(rawString(object, "open_label")) > 100 || len(rawString(object, "closed_label")) > 100 || len(rawString(object, "hours")) > 256 {
+				return ErrInvalidBlocks
+			}
 		case "countdown":
 			var payload struct {
 				Target   string `json:"target_datetime"`
@@ -238,11 +323,13 @@ func ValidateBlocksForRender(blocks []Block) error {
 
 func knownBlockType(blockType string) bool {
 	switch blockType {
-	case "hero", "cta", "pricing_table", "testimonials", "faq", "before_after", "stats", "contact_cta", "video", "masonry", "hotspots":
+	case "hero", "cta", "pricing_table", "testimonials", "faq", "before_after", "stats", "contact_cta", "video", "masonry", "hotspots", "callout", "action_card", "carousel", "columns", "feature_list", "video_hero", "trust_bar", "figure", "business_status":
 		return true
 	}
 	return false
 }
+
+func optionalSafeURL(value string) bool { return value == "" || safeBlockURL(value) }
 
 func requireAsset(object map[string]json.RawMessage, key string) error {
 	var id string

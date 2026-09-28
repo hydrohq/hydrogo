@@ -60,7 +60,10 @@ type Handler struct {
 	SearchEnabled       bool
 }
 
-type PublicSEOSettings struct{ Brand, FontCSS, AppearanceCSS, FaviconURL, SocialImageURL string }
+type PublicSEOSettings struct {
+	Brand, FontCSS, AppearanceCSS, FaviconURL, SocialImageURL string
+	BusinessProfile *site.BusinessProfile
+}
 
 func (h Handler) defaultLocale() string {
 	if h.DefaultLocale != "" {
@@ -749,6 +752,9 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 	if site.ValidAppearanceAssetURL(settings.FaviconURL) && settings.FaviconURL != "" {
 		fmt.Fprintf(&head, `<link rel="icon" href="%s">`, template.HTMLEscapeString(settings.FaviconURL))
 	}
+	if settings.BusinessProfile != nil {
+		if jsonLD, err := site.BusinessJSONLD(*settings.BusinessProfile); err == nil { fmt.Fprintf(&head, `<script type="application/ld+json">%s</script>`, jsonLD) }
+	}
 	origin := strings.TrimSpace(h.SEOOrigin)
 	if origin == "" {
 		return head.String(), nil
@@ -1323,7 +1329,7 @@ func renderBlockEditor(blocks []pages.Block, csrf string) string {
 		}
 		fmt.Fprintf(&out, `<div class="block-editor-row" data-block-row data-block-type="%s"><strong data-block-number>Block %d</strong><div class="block-editor-order"><button type="button" data-block-up aria-label="Move block %d up">↑</button><button type="button" data-block-down aria-label="Move block %d down">↓</button></div>`, template.HTMLEscapeString(blockType), i+1, i+1, i+1)
 		fmt.Fprintf(&out, `<label class="block-field block-field-type" data-block-field="type">Blok türü<select name="block_type_%d"><option value="">Remove</option>`, i)
-		for _, option := range []struct{ typ, label string }{{"hero", "Hero"}, {"faq", "FAQ"}, {"cta", "CTA"}, {"pricing_table", "Pricing table"}, {"testimonials", "Testimonials"}, {"before_after", "Before / after"}, {"stats", "Statistics"}, {"contact_cta", "Call / WhatsApp"}, {"video", "Video"}, {"masonry", "Masonry gallery"}, {"hotspots", "Image hotspots"}} {
+		for _, option := range []struct{ typ, label string }{{"hero", "Hero"}, {"faq", "FAQ"}, {"cta", "CTA"}, {"pricing_table", "Pricing table"}, {"testimonials", "Testimonials"}, {"before_after", "Before / after"}, {"stats", "Statistics"}, {"contact_cta", "Call / WhatsApp"}, {"video", "Video"}, {"masonry", "Masonry gallery"}, {"hotspots", "Image hotspots"}, {"callout", "Callout"}, {"action_card", "Quick action card"}, {"carousel", "Image carousel"}, {"columns", "Columns"}, {"feature_list", "Feature list"}, {"video_hero", "Video hero"}, {"trust_bar", "Trust badges"}, {"figure", "Image with caption"}, {"business_status", "Business status"}} {
 			fmt.Fprintf(&out, `<option value="%s" %s>%s</option>`, option.typ, selected(blockType, option.typ), option.label)
 		}
 		fmt.Fprintf(&out, `</select></label><label class="block-field" data-block-field="title">Başlık<input name="block_title_%d" value="%s" placeholder="Başlık"></label><label class="block-field" data-block-field="subtitle">Alt başlık<input name="block_subtitle_%d" value="%s" placeholder="Alt başlık"></label><div class="block-field media-field" data-block-field="media"><label>Medya asset ID<input id="block_media_asset_id_%d" name="block_media_asset_id_%d" value="%s" placeholder="Medyadan seçin"></label><button class="button button-quiet media-picker-open" type="button" data-media-target="block_media_asset_id_%d">Medyadan seç</button></div><label class="block-field" data-block-field="buttonText">Buton metni<input name="block_button_text_%d" value="%s" placeholder="Buton metni"></label><label class="block-field" data-block-field="buttonURL">Buton URL<input name="block_button_url_%d" value="%s" placeholder="/shop"></label><label class="block-field" data-block-field="items">Items JSON<textarea name="block_items_%d">%s</textarea></label><label class="block-field" data-block-field="payload">Block data JSON<textarea name="block_payload_%d" spellcheck="false">%s</textarea></label><input type="hidden" name="block_csrf_%d" value="%s"></div>`, i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, i, template.HTMLEscapeString(mediaAssetID), i, i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), i, template.HTMLEscapeString(payload), i, template.HTMLEscapeString(csrf))
@@ -1408,7 +1414,7 @@ func parseBlockForm(r *http.Request) ([]pages.Block, error) {
 
 func isJSONPayloadBlock(typ string) bool {
 	switch typ {
-	case "before_after", "stats", "contact_cta", "video", "masonry", "hotspots":
+	case "before_after", "stats", "contact_cta", "video", "masonry", "hotspots", "callout", "action_card", "carousel", "columns", "feature_list", "video_hero", "trust_bar", "figure", "business_status":
 		return true
 	}
 	return false

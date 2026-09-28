@@ -13,9 +13,9 @@ templ BusinessProfileView(profile BusinessProfile, openNow bool) {
 			<p><a href={ "mailto:" + profile.Email }>{ profile.Email }</a></p>
 		}
 		if openNow {
-			<p role="status">Şu anda açığız</p>
+			<p class="ds-business-status ds-business-status--open" role="status"><span aria-hidden="true"></span>Şu anda açığız</p>
 		} else {
-			<p role="status">Şu anda kapalıyız</p>
+			<p class="ds-business-status ds-business-status--closed" role="status"><span aria-hidden="true"></span>Şu anda kapalıyız</p>
 		}
 		<ul aria-label="Çalışma saatleri">
 			for day := time.Sunday; day <= time.Saturday; day++ {

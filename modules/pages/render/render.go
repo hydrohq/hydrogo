@@ -134,6 +134,60 @@ func blockHTML(block pages.Block) (string, error) {
 			return "", ErrInvalidBlock
 		}
 		return renderComponent(designsystem.Testimonials(p))
+	case "callout":
+		var p designsystem.CalloutProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.Callout(p))
+	case "action_card":
+		var p designsystem.ActionCardProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.ActionCard(p))
+	case "carousel":
+		var p designsystem.CarouselProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.ImageCarousel(p))
+	case "columns":
+		var p designsystem.ColumnsProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.ColumnLayout(p))
+	case "feature_list":
+		var p designsystem.FeatureListProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.FeatureList(p))
+	case "video_hero":
+		var p designsystem.VideoHeroProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.VideoHero(p))
+	case "trust_bar":
+		var p designsystem.TrustBarProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.TrustBar(p))
+	case "figure":
+		var p designsystem.FigureProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.SemanticFigure(p))
+	case "business_status":
+		var p designsystem.BusinessStatusProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.BusinessStatusBadge(p))
 	default:
 		return `<aside class="ds-block-unavailable" role="status">Some content is temporarily unavailable.</aside>`, nil
 	}

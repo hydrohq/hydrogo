@@ -244,11 +244,11 @@ func (s ContentService) requireMutationDependencies() error {
 
 func validatePage(page *pages.Page) error {
 	page.Locale = canonical.Locale(page.Locale)
-	var err error
-	page.Slug, err = canonical.Path(page.Slug)
+	page.Slug = canonical.Slugify(page.Slug)
+	if page.Slug == "" { page.Slug = canonical.Slugify(page.Title) }
 	page.Title = strings.TrimSpace(page.Title)
 	page.Tags = normalizePageTags(page.Tags)
-	if err != nil || page.ID == "" || len(page.ID) > 128 || page.Locale == "" || len(page.Locale) > 16 || page.Slug == "" || len(page.Slug) > 256 || page.Title == "" || len(page.Title) > 256 || len(page.Body) > 1<<20 {
+	if page.ID == "" || len(page.ID) > 128 || page.Locale == "" || len(page.Locale) > 16 || page.Slug == "" || len(page.Slug) > 256 || page.Title == "" || len(page.Title) > 256 || len(page.Body) > 1<<20 {
 		return ErrInvalidPage
 	}
 	if page.Status == "" {
