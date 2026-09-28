@@ -22,6 +22,8 @@ const (
 )
 
 var idPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+var googleAdsConversionIDPattern = regexp.MustCompile(`^AW-[0-9]{1,20}$`)
+var metaPixelEventPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,63}$`)
 
 type FieldType string
 
@@ -43,14 +45,18 @@ type Field struct {
 }
 
 type Form struct {
-	ID                     string   `json:"id"`
-	Title                  string   `json:"title"`
-	Fields                 []Field  `json:"fields"`
-	NotificationRecipients []string `json:"notification_recipients,omitempty"`
-	Autoresponder          bool     `json:"autoresponder,omitempty"`
-	TurnstileEnabled       bool     `json:"turnstile_enabled,omitempty"`
-	AutoresponderSubject   string   `json:"autoresponder_subject,omitempty"`
-	AutoresponderBody      string   `json:"autoresponder_body,omitempty"`
+	ID                       string   `json:"id"`
+	Title                    string   `json:"title"`
+	Fields                   []Field  `json:"fields"`
+	NotificationRecipients   []string `json:"notification_recipients,omitempty"`
+	Autoresponder            bool     `json:"autoresponder,omitempty"`
+	TurnstileEnabled         bool     `json:"turnstile_enabled,omitempty"`
+	AutoresponderSubject     string   `json:"autoresponder_subject,omitempty"`
+	AutoresponderBody        string   `json:"autoresponder_body,omitempty"`
+	ConversionTracking       bool     `json:"conversion_tracking,omitempty"`
+	GoogleAdsConversionID    string   `json:"google_ads_conversion_id,omitempty"`
+	GoogleAdsConversionLabel string   `json:"google_ads_conversion_label,omitempty"`
+	MetaPixelEventName       string   `json:"meta_pixel_event_name,omitempty"`
 }
 
 func (f Form) Validate() error {
@@ -62,6 +68,12 @@ func (f Form) Validate() error {
 	}
 	if len(f.NotificationRecipients) > 10 || len(f.AutoresponderSubject) > MaxLabelLength || len(f.AutoresponderBody) > 16<<10 || strings.ContainsAny(f.AutoresponderSubject, "\r\n") {
 		return fmt.Errorf("invalid form notification settings")
+	}
+	if len(f.GoogleAdsConversionID) > 32 || (f.GoogleAdsConversionID != "" && !googleAdsConversionIDPattern.MatchString(f.GoogleAdsConversionID)) || len(f.GoogleAdsConversionLabel) > 128 || strings.ContainsAny(f.GoogleAdsConversionLabel, "\r\n") || len(f.MetaPixelEventName) > 64 || (f.MetaPixelEventName != "" && !metaPixelEventPattern.MatchString(f.MetaPixelEventName)) {
+		return fmt.Errorf("invalid conversion tracking settings")
+	}
+	if !f.ConversionTracking && (f.GoogleAdsConversionID != "" || f.GoogleAdsConversionLabel != "" || f.MetaPixelEventName != "") {
+		return fmt.Errorf("conversion destinations require conversion tracking to be enabled")
 	}
 	for _, recipient := range f.NotificationRecipients {
 		parsed, err := mail.ParseAddress(strings.TrimSpace(recipient))
@@ -197,6 +209,16 @@ func publicFormSubmitLabel(label string) string {
 		return "Send message"
 	}
 	return label
+}
+
+func publicMetaPixelEvent(f Form) string {
+	if !f.ConversionTracking {
+		return ""
+	}
+	if f.MetaPixelEventName == "" {
+		return "Lead"
+	}
+	return f.MetaPixelEventName
 }
 
 func safeFormAction(action, formID string) string {

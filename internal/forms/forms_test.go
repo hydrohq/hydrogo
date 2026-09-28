@@ -88,6 +88,44 @@ func TestPublicFormUsesNativeAccessibleControlsAndSpamFields(t *testing.T) {
 	}
 }
 
+func TestPublicFormOptInConversionMetadataAndRejectsMalformedSettings(t *testing.T) {
+	form := Form{ID: "contact", Title: "Contact", ConversionTracking: true, GoogleAdsConversionID: "AW-12345", GoogleAdsConversionLabel: "contact-lead", Fields: []Field{{ID: "email", Type: Email, Label: "Email"}}}
+	var output bytes.Buffer
+	if err := PublicForm(PublicFormProps{Form: form}).Render(context.Background(), &output); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-conversion-enabled`, `data-google-ads-conversion-id="AW-12345"`, `data-google-ads-conversion-label="contact-lead"`, `data-meta-pixel-event="Lead"`} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("rendered form omitted %q: %s", want, output.String())
+		}
+	}
+	form.GoogleAdsConversionID = "AW-123\" onmouseover=\"alert(1)"
+	if err := form.Validate(); err == nil {
+		t.Fatal("malformed conversion ID accepted")
+	}
+	form.GoogleAdsConversionID = ""
+	form.ConversionTracking = false
+	if err := form.Validate(); err == nil {
+		t.Fatal("conversion destination accepted while tracking is disabled")
+	}
+}
+
+func TestConversionEventsAreOptInAndOnlySentAfterSuccessfulHTMXResponse(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/forms/static/forms.js", nil)
+	request.SetPathValue("path", "forms.js")
+	ServeAsset(recorder, request)
+	script := recorder.Body.String()
+	for _, want := range []string{"htmx:afterRequest", "event.detail?.successful === true", "statusCode < 300", "data-conversion-enabled", "window.gtag", "window.fbq", "data-conversion-sent"} {
+		if want == "data-conversion-sent" {
+			want = "conversionSent"
+		}
+		if !strings.Contains(script, want) {
+			t.Errorf("forms script omitted conversion guard %q", want)
+		}
+	}
+}
+
 func TestFormsAssetsAreAllowlisted(t *testing.T) {
 	request := httptest.NewRequest("GET", "/", nil)
 	request.SetPathValue("path", "forms.js")
