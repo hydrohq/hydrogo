@@ -76,6 +76,16 @@ func TestAdminSearchReturnsCategorizedContentWithoutSettingsValues(t *testing.T)
 	}
 }
 
+func TestAdminSearchRanksTitleMatchesAheadOfBodyMatches(t *testing.T) {
+	terms := tokenize("hydro studio")
+	if got := adminSearchScore("Hydro Studio", "", terms); got != 4 {
+		t.Fatalf("title score=%v, want 4", got)
+	}
+	if got := adminSearchScore("Overview", "Hydro Studio", terms); got != 2 {
+		t.Fatalf("body score=%v, want 2", got)
+	}
+}
+
 func TestAdminSearchRestrictsMembersAndRequiresTenant(t *testing.T) {
 	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "admin-search-scope.sqlite"))
 	if err != nil {
