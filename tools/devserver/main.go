@@ -35,6 +35,7 @@ const (
 	statusPath = "/__hydrogo/dev/status"
 	clientPath = "/__hydrogo/dev/client.js"
 	stylePath  = "/__hydrogo/dev/client.css"
+	templCLI   = "github.com/a-h/templ/cmd/templ@v0.3.1020"
 )
 
 type state struct {
@@ -316,6 +317,18 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	if hasTemplSources(root) {
+		templBinary, err := resolveTemplBinary(ctx, root)
+		if err != nil {
+			fatal(fmt.Errorf("prepare Templ generator: %w", err))
+		}
+		if err := runTemplGenerate(ctx, root, templBinary, os.Stdout, os.Stderr); err != nil {
+			fatal(fmt.Errorf("generate Templ views: %w", err))
+		}
+		if err := startTemplWatcher(ctx, root, templBinary); err != nil {
+			fatal(fmt.Errorf("start Templ watcher: %w", err))
+		}
+	}
 	status := &state{Phase: "starting", Progress: 5, Message: "Preparing development server…"}
 	supervisor := &supervisor{root: root, binary: binary, appAddress: *appAddress, databaseDSN: *databaseDSN, redisURL: *redisURL, state: status}
 	supervisor.rebuild(ctx, "initial build complete", true)
@@ -442,6 +455,73 @@ func noStore(next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func hasTemplSources(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case ".git", ".tmp", "data", "node_modules", "vendor":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(path), ".templ") {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
+}
+
+func resolveTemplBinary(ctx context.Context, root string) (string, error) {
+	binDir := filepath.Join(root, ".tmp", "dev", "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		return "", err
+	}
+	name := "templ"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	binary := filepath.Join(binDir, name)
+	if info, err := os.Stat(binary); err == nil && info.Mode().IsRegular() {
+		return binary, nil
+	}
+	command := exec.CommandContext(ctx, "go", "install", templCLI)
+	command.Dir = root
+	command.Stdout, command.Stderr = os.Stdout, os.Stderr
+	command.Env = append(os.Environ(), "GOBIN="+binDir)
+	if err := command.Run(); err != nil {
+		return "", fmt.Errorf("install pinned development tool %s: %w", templCLI, err)
+	}
+	return binary, nil
+}
+
+func runTemplGenerate(ctx context.Context, root, binary string, stdout, stderr io.Writer) error {
+	command := exec.CommandContext(ctx, binary, "generate")
+	command.Dir = root
+	command.Stdout, command.Stderr = stdout, stderr
+	return command.Run()
+}
+
+func startTemplWatcher(ctx context.Context, root, binary string) error {
+	command := exec.CommandContext(ctx, binary, "generate", "-watch")
+	command.Dir = root
+	command.Stdout, command.Stderr = os.Stdout, os.Stderr
+	if err := command.Start(); err != nil {
+		return err
+	}
+	go func() {
+		if err := command.Wait(); err != nil && ctx.Err() == nil {
+			_, _ = fmt.Fprintf(os.Stderr, "templ watcher stopped: %v\n", err)
+		}
+	}()
+	return nil
 }
 
 func envBoolDisabled(name string) bool {
@@ -672,7 +752,7 @@ func scan(root string) map[string]fileStamp {
 
 func watched(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".go", ".templ", ".html", ".css", ".js", ".yaml", ".yml":
+	case ".go", ".html", ".css", ".js", ".yaml", ".yml":
 		return true
 	default:
 		return false
@@ -680,12 +760,14 @@ func watched(path string) bool {
 }
 
 func isAsset(path string) bool {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".css", ".js":
-		return true
-	default:
+	extension := strings.ToLower(filepath.Ext(path))
+	if extension != ".css" && extension != ".js" {
 		return false
 	}
+	rel := "/" + filepath.ToSlash(path) + "/"
+	// Edition theme files are served from disk and can be reloaded without
+	// compiling the Go binary. Core module assets use go:embed and need rebuilds.
+	return strings.Contains(rel, "/themes/") && strings.Contains(rel, "/static/")
 }
 
 func changedPaths(before, after map[string]fileStamp) []string {
