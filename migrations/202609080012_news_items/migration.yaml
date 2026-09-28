@@ -3,12 +3,15 @@ module: "news"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "9fc046f0875aca9dfbabced6b81f292fabf1936c3815a8e28f17ab522ae1bf9b"
   postgres: "b67609e5b0908370b46e02125317eec49a4e4c36337118d5eeb5ea9e6bfe414f"
+  mysql: "da3e5a60416414fba20f49e4174707a0f693e633ca86742eb7ae63b581e97833"
 dependencies:
   - "202609080009_site_edition"
 schema:

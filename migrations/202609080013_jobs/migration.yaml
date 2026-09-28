@@ -3,12 +3,15 @@ module: "core"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "0ad3faeb1b65c7eee8456f425e48dd680138bfc92555e93458c24df49593a797"
   postgres: "0ad3faeb1b65c7eee8456f425e48dd680138bfc92555e93458c24df49593a797"
+  mysql: "ee5a94bf1c72f68e763a140ac9e9d134f6f732e4935e4e926f12a1fa83205eec"
 dependencies:
   - "202609080012_news_items"
 schema:
