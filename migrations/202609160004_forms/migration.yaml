@@ -3,12 +3,15 @@ module: "forms"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "8c1a42d77c193321738e3261dfb6578b0f470d72ba5ea71bbb8bd4e33c453c75"
   postgres: "007956275daf90fe85453dd14e4d59dcabef32e858fdc5b7e20204170d3f7d56"
+  mysql: "de7814715b824483f98c8b46d39b7243f54cf761528ae11ebb2d6611a859e580"
 dependencies: []
 schema:
   readable_epoch: 1

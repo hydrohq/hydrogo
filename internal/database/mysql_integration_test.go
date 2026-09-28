@@ -46,6 +46,10 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		"202609110003_news_editorial_metadata", "202609110004_news_key_takeaways", "202609110005_members",
 		"202609110006_members_metadata", "202609120001_media_variants", "202609140001_pages_list_indexes",
 		"202609140002_news_list_indexes", "202609160001_news_taxonomy", "202609160002_search_index",
+		"202609160003_analytics", "202609160004_forms", "202609170001_form_idempotency",
+		"202609170002_commerce_order_idempotency_hash", "202609190001_mobile_device_sessions",
+		"202609190002_member_mobile_device_sessions", "202609190003_outbox_tenant_scope",
+		"202609190004_audit_tenant_scope", "202609190005_media_tenant_scope", "202609190006_pages_tenant_scope",
 	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
@@ -76,12 +80,12 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}
 	defer func() {
 		for _, table := range []string{
-			"auth_invites", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
+			"auth_invites", "member_mobile_device_sessions", "mobile_device_sessions", "analytics_daily", "analytics_consent",
+			"hydro_forms", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
 			"news_taxonomy_relations", "news_taxonomy_terms", "hydro_search_documents", "member_sessions", "members",
 			"media_variants", "commerce_payment_webhook_events", "commerce_payment_transactions", "commerce_order_items", "commerce_cart_items",
 			"commerce_product_variants", "commerce_carts", "commerce_orders", "commerce_products", "job_queue_capacity_lock",
-			"restore_controls", "jobs", "news_items", "auth_invites", "form_inbox",
-			"page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens", "mfa_recovery_codes",
+			"restore_controls", "jobs", "news_items", "mfa_recovery_codes",
 			"user_mfa", "page_revisions", "sessions", "users", "media_assets", "pages", "audit_events",
 			"outbox_events", "schema_migrations",
 		} {
@@ -92,6 +96,9 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}()
 	now := time.Now().UTC()
 	if _, err := db.ExecContext(ctx, `INSERT INTO users (id,email,password_hash,role,created_at,updated_at) VALUES ('u1','one@example.test','hash','owner',?,?)`, now, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO users (id,email,password_hash,role,created_at,updated_at) VALUES ('u2','two@example.test','hash','owner',?,?)`, now, now); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO sessions (id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES ('s1','u1',REPEAT('a',64),?,?,?)`, now.Add(time.Hour), now, now); err != nil {
@@ -164,6 +171,9 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at) VALUES ('member-session1','member1',REPEAT('d',64),?,?,?)`, now.Add(time.Hour), now, now); err != nil {
 		t.Fatalf("member session insert: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO member_mobile_device_sessions (id,member_id,device_id,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES ('member-mobile1','member1','device1','family1',REPEAT('1',64),REPEAT('2',64),?,?,?,?)`, now.Add(time.Hour), now.Add(24*time.Hour), now, now); err != nil {
+		t.Fatalf("member mobile session insert: %v", err)
+	}
 	if _, err := db.ExecContext(ctx, `DELETE FROM members WHERE id='member1'`); err != nil {
 		t.Fatalf("member cascade delete: %v", err)
 	}
@@ -171,8 +181,12 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM member_sessions`).Scan(&memberSessionCount); err != nil {
 		t.Fatal(err)
 	}
-	if memberSessionCount != 0 {
-		t.Fatalf("member sessions after delete = %d, want 0", memberSessionCount)
+	var memberMobileSessionCount int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM member_mobile_device_sessions`).Scan(&memberMobileSessionCount); err != nil {
+		t.Fatal(err)
+	}
+	if memberSessionCount != 0 || memberMobileSessionCount != 0 {
+		t.Fatalf("member session rows after delete = (%d,%d), want (0,0)", memberSessionCount, memberMobileSessionCount)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO media_variants (id,media_id,kind,storage_key,mime_type,size_bytes,created_at,updated_at) VALUES ('variant-media1','m1','thumbnail','private/m1/thumb','image/webp',3,?,?)`, now, now); err != nil {
 		t.Fatalf("media variant insert: %v", err)
@@ -185,6 +199,40 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO hydro_search_documents (id,locale,title,body) VALUES ('search1','en','Search','document')`); err != nil {
 		t.Fatalf("search document insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO analytics_consent (consent_id,decision,purpose_version,decided_at) VALUES ('consent1','granted','v1',?)`, now); err != nil {
+		t.Fatalf("analytics consent insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO analytics_daily (day,event_type,country,purpose_version,event_count,duration_seconds) VALUES ('2026-09-28','page_view','TR','v1',1,4)`); err != nil {
+		t.Fatalf("analytics daily insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at) VALUES ('contact','Contact','{}',?)`, now); err != nil {
+		t.Fatalf("form schema insert: %v", err)
+	}
+	for i := range 2 {
+		id := fmt.Sprintf("submission-empty-%d", i)
+		if _, err := db.ExecContext(ctx, `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,created_at) VALUES (?,?,?,?,?,?)`, id, "contact", "sender@example.test", "{}", "", now); err != nil {
+			t.Fatalf("insert empty-idempotency submission: %v", err)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES ('submission-key1','contact','sender@example.test','{}','', 'new',?,'key1',REPEAT('e',64))`, now); err != nil {
+		t.Fatalf("insert idempotent submission: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES ('submission-key2','contact','sender@example.test','{}','', 'new',?,'key1',REPEAT('e',64))`, now); err == nil {
+		t.Fatal("accepted duplicate non-empty form idempotency key")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO mobile_device_sessions (id,user_id,device_id,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES ('mobile1','u2','device1','family1',REPEAT('f',64),REPEAT('0',64),?,?,?,?)`, now.Add(time.Hour), now.Add(24*time.Hour), now, now); err != nil {
+		t.Fatalf("mobile session insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM users WHERE id='u2'`); err != nil {
+		t.Fatalf("mobile session parent delete: %v", err)
+	}
+	var mobileSessions int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM mobile_device_sessions`).Scan(&mobileSessions); err != nil {
+		t.Fatal(err)
+	}
+	if mobileSessions != 0 {
+		t.Fatalf("mobile sessions after user delete = %d, want 0", mobileSessions)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO jobs (id,type,payload,available_at,created_at) VALUES ('j1','test','{}',?,?)`, now, now); err != nil {
 		t.Fatalf("job insert: %v", err)

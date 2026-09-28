@@ -1,0 +1,20 @@
+CREATE TABLE mobile_device_sessions (
+    id VARCHAR(128) PRIMARY KEY,
+    user_id VARCHAR(128) NOT NULL,
+    device_id VARCHAR(128) NOT NULL,
+    device_name VARCHAR(256) NOT NULL DEFAULT '',
+    platform VARCHAR(32) NOT NULL DEFAULT '',
+    family_id VARCHAR(128) NOT NULL,
+    refresh_token_hash CHAR(64) NOT NULL UNIQUE,
+    access_token_hash CHAR(64) NOT NULL,
+    revoked_at DATETIME(6),
+    access_expires_at DATETIME(6) NOT NULL,
+    refresh_expires_at DATETIME(6) NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    last_used_at DATETIME(6) NOT NULL,
+    INDEX idx_mobile_sessions_user (user_id),
+    INDEX idx_mobile_sessions_family (family_id),
+    INDEX idx_mobile_sessions_refresh_hash (refresh_token_hash),
+    INDEX idx_mobile_sessions_access_hash (access_token_hash),
+    CONSTRAINT mobile_sessions_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -3,12 +3,15 @@ module: "auth"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "527ec28fc6d8708ef22a2ddfcd60c892a17445e98894202444912503966a8332"
   postgres: "f59ccb1e0ff9e9a80f707b824b20d7512d07183c9dd8d80f9f8ec37778b9ad50"
+  mysql: "b9d04f4d4c0fb1e41d52a2d758105927066b738233791f6348225806d45005a1"
 dependencies: []
 schema:
   readable_epoch: 1

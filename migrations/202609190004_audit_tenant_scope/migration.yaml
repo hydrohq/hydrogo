@@ -5,12 +5,15 @@ requires_modules:
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "bf1d9da6ad10e0849667fbeb2b03cb85442b306c2fb0b2191b19acd01eff2b1d"
   postgres: "bf1d9da6ad10e0849667fbeb2b03cb85442b306c2fb0b2191b19acd01eff2b1d"
+  mysql: "c14990194d71d849d8d126dbb0655e2c2532c8dffba1590f27886885e19cca03"
 dependencies:
   - "202609090017_audit_request_id"
 schema:
