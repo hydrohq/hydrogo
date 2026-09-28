@@ -63,6 +63,16 @@ func main() {
 		if _, ok := m.Transactional["postgres"]; !ok {
 			failures = append(failures, fmt.Sprintf("%s: transactional.postgres is required", id))
 		}
+		if _, err := os.Stat(filepath.Join(*root, id, "mysql.sql")); err == nil {
+			if m.Checksums["mysql"] == "" {
+				failures = append(failures, fmt.Sprintf("%s: mysql checksum is required", id))
+			}
+			if _, ok := m.Transactional["mysql"]; !ok {
+				failures = append(failures, fmt.Sprintf("%s: transactional.mysql is required", id))
+			}
+		} else if !os.IsNotExist(err) {
+			failures = append(failures, fmt.Sprintf("%s: mysql SQL: %v", id, err))
+		}
 		for field, value := range map[string]string{"lock_timeout": m.LockTimeout, "disk_estimate": m.DiskEstimate, "compatibility": m.Compatibility, "rollback": m.Rollback} {
 			if strings.TrimSpace(value) == "" {
 				failures = append(failures, fmt.Sprintf("%s: %s is required", id, field))

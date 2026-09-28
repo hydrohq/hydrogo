@@ -3,12 +3,15 @@ module: "site"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "9f3a45d8fa42d160513df4a7781786c20a48eabd54e1e86b6f7772947a468b34"
   postgres: "9f3a45d8fa42d160513df4a7781786c20a48eabd54e1e86b6f7772947a468b34"
+  mysql: "73d14522b478c29645e3f0fff4ac0131d631650d98a0a8b92e5f5cb40b7efca9"
 schema:
   readable_epoch: 1
   writable_epoch: 2
