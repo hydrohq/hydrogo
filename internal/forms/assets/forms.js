@@ -83,4 +83,41 @@
     if (button) { button.disabled = false; button.removeAttribute('aria-busy'); }
     form.querySelector('[data-submit-spinner]')?.setAttribute('hidden', '');
   }));
+
+  const exitPrompts = Array.from(document.querySelectorAll('[data-exit-intent]'));
+  if (exitPrompts.length && matchMedia('(hover: hover) and (pointer: fine)').matches && innerWidth > 768) {
+    const shown = new Set();
+    const open = prompt => {
+      const key = prompt.dataset.exitIntentKey;
+      const storageKey = `hydro:exit-intent:${key}`;
+      const cooldown = Math.max(0, Number(prompt.dataset.exitIntentCooldown) || 604800000);
+      let lastShown = 0;
+      try { lastShown = Number(localStorage.getItem(storageKey)) || 0; } catch {}
+      if (shown.has(key) || Date.now() - lastShown < cooldown) return;
+      shown.add(key);
+      try { localStorage.setItem(storageKey, String(Date.now())); } catch {}
+      prompt.hidden = false;
+      prompt._hydroPreviousFocus = document.activeElement;
+      prompt.querySelector('input:not([type="hidden"]),textarea,select,button')?.focus();
+    };
+    const close = prompt => {
+      prompt.hidden = true;
+      prompt._hydroPreviousFocus?.focus?.();
+    };
+    document.addEventListener('mouseout', event => {
+      if (event.clientY > 0 || event.relatedTarget !== null) return;
+      const prompt = exitPrompts.find(candidate => candidate.hidden);
+      if (prompt) open(prompt);
+    });
+    document.addEventListener('click', event => {
+      const prompt = event.target.closest('[data-exit-intent]');
+      if (!prompt || prompt.hidden) return;
+      if (event.target === prompt || event.target.closest('[data-exit-intent-close]')) close(prompt);
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      const prompt = exitPrompts.find(candidate => !candidate.hidden);
+      if (prompt) close(prompt);
+    });
+  }
 })();

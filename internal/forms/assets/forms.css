@@ -12,3 +12,10 @@
 @keyframes hydro-form-spin{to{transform:rotate(360deg)}}
 @media(prefers-color-scheme:dark){.hydro-form{--background:#171b22;--foreground:#edf1f7;--border:#4a5260;--muted:#b4bdca;--primary:#91adff;--primary-foreground:#111827;--ring:#a3b9ff}}
 @media(prefers-reduced-motion:reduce){.hydro-form__spinner{animation:none;border-right-color:currentColor}}
+.hydro-exit-intent{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:1rem;background:rgb(15 23 42 / .68);color:var(--color-foreground,#111827)}
+.hydro-exit-intent[hidden]{display:none}
+.hydro-exit-intent__dialog{position:relative;width:min(34rem,100%);max-height:min(90vh,52rem);overflow:auto;padding:clamp(1.25rem,4vw,2rem);border:1px solid var(--color-border,#d1d5db);border-radius:1rem;background:var(--color-background,#fff);color:inherit;box-shadow:0 1.5rem 5rem rgb(0 0 0 / .25)}
+.hydro-exit-intent__close{position:absolute;top:.75rem;right:.75rem;display:grid;width:2.5rem;height:2.5rem;place-items:center;border:0;border-radius:.5rem;background:transparent;color:inherit;font-size:1.5rem;cursor:pointer}
+.hydro-exit-intent__close:hover{background:rgb(127 127 127 / .15)}
+@media(prefers-color-scheme:dark){.hydro-exit-intent{color-scheme:dark}.hydro-exit-intent__dialog{--color-foreground:#f9fafb;--color-background:#111827;--color-border:#374151}}
+@media(prefers-reduced-motion:no-preference){.hydro-exit-intent:not([hidden]) .hydro-exit-intent__dialog{animation:hydro-exit-intent-in .16s ease-out}@keyframes hydro-exit-intent-in{from{opacity:0;transform:translateY(.4rem) scale(.99)}to{opacity:1;transform:none}}}

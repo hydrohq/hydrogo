@@ -1,6 +1,7 @@
 package announcements
 
 import (
+	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/sectoral"
 	"time"
 )
@@ -11,6 +12,26 @@ type Announcement struct {
 	StartsAt    time.Time `json:"starts_at,omitempty"`
 	EndsAt      time.Time `json:"ends_at,omitempty"`
 	Dismissible bool      `json:"dismissible"`
+}
+
+// ExitIntentProps configures the optional desktop abandonment prompt. The
+// embedded form retains the Forms module's CSRF, honeypot and submission lock.
+type ExitIntentProps struct {
+	Form             forms.Form
+	Action           string
+	CSRFToken        string
+	SubmissionToken  string
+	TurnstileSiteKey string
+	Headline         string
+	Description      string
+	SubmitLabel      string
+}
+
+func exitIntentText(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func (v *Announcement) Validate() error {
