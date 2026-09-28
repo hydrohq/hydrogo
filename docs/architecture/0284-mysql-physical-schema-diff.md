@@ -39,7 +39,7 @@ inspect data, grants, storage configuration, or query plans.
 The MySQL integration contract applies all 87 migration bundles, compares a
 migration-built reference with an empty dedicated live database containing a
 changed column type and missing index/foreign key, and verifies scratch
-schemas are removed. The suite passed against MariaDB 13.0.2. It requires
+schemas are removed. The suite passed against MySQL 8.0.46, MariaDB 10.5, and MariaDB 13.0.2. It requires
 `HYDRO_TEST_MYSQL_URL` and a test account with the scratch database privileges
 described above. MySQL 8 and MariaDB minimum version coverage remain adapter
 release gates under ADR-0283.
