@@ -113,10 +113,13 @@ func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 		{name: "schema_migrations", want: true},
 		{name: "media_assets", want: true},
 		{name: "media_variants", want: true},
+		{name: "page_tags", want: true},
+		{name: "page_published_tags", want: true},
 		{name: "commerce_products", want: false},
 		{name: "news_items", want: false},
 		{name: "news_taxonomy_terms", want: false},
 		{name: "news_taxonomy_relations", want: false},
+		{name: "sectoral_portfolio_tags", want: false},
 	} {
 		var count int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table.name).Scan(&count); err != nil {
@@ -181,6 +184,15 @@ func TestSQLiteSectoralModulesCreateSchemaOnlyWhenEnabled(t *testing.T) {
 				db.Close()
 				t.Fatalf("module %s table exists=%v want %v with enabled=%v", module, count == 1, want, active)
 			}
+		}
+		var portfolioTags int
+		if err := db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='sectoral_portfolio_tags'").Scan(&portfolioTags); err != nil {
+			db.Close()
+			t.Fatal(err)
+		}
+		if (portfolioTags == 1) != enabled["portfolio"] {
+			db.Close()
+			t.Fatalf("portfolio tag relation exists=%v want enabled=%v", portfolioTags == 1, enabled["portfolio"])
 		}
 		if err := database.CheckCompatibilityForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
 			db.Close()

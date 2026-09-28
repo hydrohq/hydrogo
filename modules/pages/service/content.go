@@ -43,6 +43,21 @@ func (s ContentService) ListPublished(ctx context.Context, db database.Executor,
 	return s.Pages.ListPublished(ctx, db, locale, limit)
 }
 
+func (s ContentService) Related(ctx context.Context, db database.Executor, current pages.Page, limit int) ([]pages.Page, error) {
+	if guards.IsNil(s.Pages) {
+		return nil, ErrDependencyRequired
+	}
+	if limit < 1 || limit > 10 || current.ID == "" || current.Locale == "" {
+		return nil, ErrInvalidPage
+	}
+	if repository, ok := s.Pages.(interface {
+		ListRelatedPublished(context.Context, database.Executor, string, string, int) ([]pages.Page, error)
+	}); ok {
+		return repository.ListRelatedPublished(ctx, db, current.ID, canonical.Locale(current.Locale), limit)
+	}
+	return nil, ErrDependencyRequired
+}
+
 func (s ContentService) Get(ctx context.Context, db database.Executor, pageID string) (pages.Page, error) {
 	if strings.TrimSpace(pageID) == "" {
 		return pages.Page{}, ErrInvalidPage
@@ -206,6 +221,7 @@ func validatePage(page *pages.Page) error {
 	var err error
 	page.Slug, err = canonical.Path(page.Slug)
 	page.Title = strings.TrimSpace(page.Title)
+	page.Tags = normalizePageTags(page.Tags)
 	if err != nil || page.ID == "" || len(page.ID) > 128 || page.Locale == "" || len(page.Locale) > 16 || page.Slug == "" || len(page.Slug) > 256 || page.Title == "" || len(page.Title) > 256 || len(page.Body) > 1<<20 {
 		return ErrInvalidPage
 	}
@@ -216,4 +232,24 @@ func validatePage(page *pages.Page) error {
 		return ErrInvalidPage
 	}
 	return nil
+}
+
+func normalizePageTags(tags []string) []string {
+	seen := make(map[string]struct{}, len(tags))
+	result := make([]string, 0, min(len(tags), 50))
+	for _, tag := range tags {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" || len(tag) > 64 {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		result = append(result, tag)
+		if len(result) == 50 {
+			break
+		}
+	}
+	return result
 }

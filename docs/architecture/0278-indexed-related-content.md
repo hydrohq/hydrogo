@@ -1,6 +1,6 @@
 # ADR-0278: Indexed taxonomy recommendations for optional content
 
-- **Status:** Accepted for News and Portfolio; Pages integration remains open
+- **Status:** Accepted for News and Portfolio; Pages behavior is superseded by [ADR-0279](0279-indexed-related-pages.md)
 - **Date:** 2026-09-28
 - **Related:** [ADR-0273](0273-sectoral-content-modules.md), [ADR-0039](0039-conditional-cross-module-migrations.md)
 
@@ -24,8 +24,8 @@ the bounded projection from the service and owns only presentation.
 
 The module-specific table and index are created only when Portfolio is
 enabled. SQLite and PostgreSQL use the same logical relation and
-tenant-scoping contract. Pages still lacks authored taxonomy metadata and is
-not claimed as implemented by this decision.
+tenant-scoping contract. Page recommendations use the separately versioned
+page taxonomy snapshot defined by ADR-0279.
 
 ## Verification and operational impact
 

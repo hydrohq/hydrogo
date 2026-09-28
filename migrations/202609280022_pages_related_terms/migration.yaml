@@ -1,0 +1,23 @@
+id: "202609280022_pages_related_terms"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Up to 50 current and 50 published tag rows per page, with bounded lookup indexes."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "88c5bb3819c187e5514f5bedc34df0bd4b8d598bf44b95573b5c220221cc8b80"
+  postgres: "88e584de983a162ee864bad20421ab8ee833cc19b3ab2efdf4dca0aafc420131"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The Pages module and its page tables are enabled for this Edition"
+compatibility: "Adds optional current and published tag relations; existing page revisions and routes remain readable."
+smoke:
+  - "Create and update a draft page's tags in the page transaction"
+  - "Publishing snapshots tags into the public recommendation relation"
+rollback: "Back up the Pages module, then drop page_published_tags and page_tags; page content remains intact."

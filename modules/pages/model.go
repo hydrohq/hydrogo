@@ -24,6 +24,7 @@ type Page struct {
 	Title                 string    `json:"title"`
 	Body                  string    `json:"body"`
 	Blocks                []Block   `json:"blocks"`
+	Tags                  []string  `json:"tags,omitempty"`
 	Status                Status    `json:"status"`
 	Version               int       `json:"version"`
 	Revision              int       `json:"revision"`

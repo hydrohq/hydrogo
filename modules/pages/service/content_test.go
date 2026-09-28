@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +13,21 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
+
+func TestNormalizePageTagsBoundsAndDeduplicates(t *testing.T) {
+	tooLong := strings.Repeat("x", 65)
+	tags := normalizePageTags([]string{" Go ", "go", "", tooLong, "Hydro"})
+	if len(tags) != 2 || tags[0] != "go" || tags[1] != "hydro" {
+		t.Fatalf("normalized tags = %#v", tags)
+	}
+	values := make([]string, 55)
+	for i := range values {
+		values[i] = "tag-" + strconv.Itoa(i)
+	}
+	if got := len(normalizePageTags(values)); got != 50 {
+		t.Fatalf("normalized tag count = %d, want 50", got)
+	}
+}
 
 type countingPublicRepository struct {
 	mu    sync.Mutex

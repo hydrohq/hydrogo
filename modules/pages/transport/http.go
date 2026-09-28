@@ -26,6 +26,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	blockrender "github.com/ardaozyildirim/hydrogo/modules/pages/render"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
@@ -71,6 +72,7 @@ type pageInput struct {
 	Title  string        `json:"title"`
 	Body   string        `json:"body"`
 	Blocks []pages.Block `json:"blocks"`
+	Tags   []string      `json:"tags,omitempty"`
 }
 
 type updateInput struct {
@@ -472,6 +474,9 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		return
 	}
+	if err := uicomponents.Input(uicomponents.InputProps{ID: "page-tags", Name: "tags", Type: "text", Label: "İçerik etiketleri (virgülle ayrılmış)"}).Render(r.Context(), w); err != nil {
+		return
+	}
 	_, _ = fmt.Fprint(w, `</form></section>`)
 	_ = ui.AdminEnd(w)
 }
@@ -500,6 +505,7 @@ func (h Handler) adminCreateForm(w http.ResponseWriter, r *http.Request) {
 		Slug:   r.FormValue("slug"),
 		Title:  r.FormValue("title"),
 		Body:   r.FormValue("body"),
+		Tags:   strings.Split(r.FormValue("tags"), ","),
 		Status: pages.StatusDraft,
 	}
 	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
@@ -626,6 +632,13 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		designHead += schema.String()
 	}
+	relatedMarkup := template.HTML("")
+	if related, relatedErr := h.Content.Related(r.Context(), h.DB, page, 4); relatedErr == nil {
+		var relatedHTML bytes.Buffer
+		if renderErr := pages.RelatedPages(page.ID, page.Locale, related).Render(r.Context(), &relatedHTML); renderErr == nil {
+			relatedMarkup = template.HTML(relatedHTML.String())
+		}
+	}
 	if h.Theme != nil {
 		var content strings.Builder
 		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div></div>`, template.HTMLEscapeString(page.Title), readingTools.String(), template.HTML(tocHTML), template.HTML(articleHTML))
@@ -648,12 +661,13 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		content.WriteString(string(relatedMarkup))
 		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String()), "head": template.HTML(designHead)}}); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup)
 }
 
 func renderInPlaceEditLink(r *http.Request, pageID string) string {
@@ -838,7 +852,7 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	page := pages.Page{ID: id, Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks}
+	page := pages.Page{ID: id, Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks, Tags: input.Tags}
 	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
@@ -873,7 +887,7 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSON(w, r, &input); err != nil {
 		return
 	}
-	page := pages.Page{ID: r.PathValue("id"), Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks}
+	page := pages.Page{ID: r.PathValue("id"), Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks, Tags: input.Tags}
 	if err := h.Content.UpdateDraft(r.Context(), page, input.Version); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
@@ -938,6 +952,10 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	var form bytes.Buffer
 	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
+		http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := uicomponents.Input(uicomponents.InputProps{ID: "page-tags", Name: "tags", Type: "text", Label: "İçerik etiketleri (virgülle ayrılmış)", Value: strings.Join(page.Tags, ", ")}).Render(r.Context(), &form); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -1132,7 +1150,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if locale == "" {
 		locale = h.defaultLocale()
 	}
-	page := pages.Page{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Blocks: blocks}
+	page := pages.Page{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Blocks: blocks, Tags: strings.Split(r.FormValue("tags"), ",")}
 	if err := h.Content.UpdateDraft(r.Context(), page, version); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
