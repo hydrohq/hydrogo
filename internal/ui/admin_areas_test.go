@@ -138,9 +138,18 @@ func TestAdminShellIncludesAccessibleUXDialogsAndQuickActions(t *testing.T) {
 	if err := AdminEnd(&out); err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{`data-shortcuts-open`, `data-notifications-open`, `data-password-open`, `admin-shortcuts-dialog`, `admin-password-dialog`, `admin-onboarding-dialog`, `data-quick-password-form`} {
+	for _, marker := range []string{`data-shortcuts-open`, `data-notifications-open`, `data-notification-count`, `/admin/notifications/unread`, `data-password-open`, `admin-shortcuts-dialog`, `admin-password-dialog`, `admin-onboarding-dialog`, `data-quick-password-form`} {
 		if !strings.Contains(out.String(), marker) {
 			t.Errorf("Admin Studio shell is missing %q", marker)
+		}
+	}
+}
+
+func TestBulkToolbarBuildsContextualActionSelector(t *testing.T) {
+	script := adminUXScript()
+	for _, marker := range []string{`data-bulk-choice`, `new Option(action.textContent,action.dataset.bulkAction)`, `actions[choice?.selectedIndex||0]`} {
+		if !strings.Contains(script, marker) {
+			t.Errorf("bulk toolbar script missing %q", marker)
 		}
 	}
 }

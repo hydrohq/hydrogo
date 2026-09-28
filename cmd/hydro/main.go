@@ -1636,7 +1636,7 @@ func serve(args []string, stderr io.Writer) error {
 		pageCollection.BulkActions = []adminstudio.Action{{Label: "CSV dışa aktar", Href: "/admin/pages/bulk"}}
 		pageLLMSCache = &seo.DiscoveryCache{}
 		notificationStore := adminstudiosql.Store{Dialect: cfg.Database.Dialect}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
 			var result pagetransport.PublicSEOSettings
 			if !modules["site"] {
 				return result
@@ -2372,6 +2372,12 @@ func serve(args []string, stderr io.Writer) error {
 		go runSessionCleanupObserved(ctx, sessionStore, stderr, metrics)
 	}
 	if modules["forms"] && smtpSender != nil && !*cgiMode {
+		if modules["pages"] {
+			mailWorker.OnSchedule = func(jobCtx context.Context, now time.Time) error {
+				_, err := runAdminWeeklyDigestOnce(jobCtx, now, db, transactioner, adminstudiosql.Store{Dialect: cfg.Database.Dialect}, userStore, spoolStore, tenantScopes, requireTenantScope, modules["analytics"])
+				return err
+			}
+		}
 		go mailWorker.Run(ctx, 500*time.Millisecond)
 	}
 	if modules["news"] && !*cgiMode {
@@ -2472,7 +2478,8 @@ func serve(args []string, stderr io.Writer) error {
 				}
 				_, _ = outboxWorker.RunOnce(cronCtx, time.Now().UTC())
 			}
-			if modules["forms"] && smtpSender != nil {
+			if modules["forms"] && modules["pages"] && smtpSender != nil {
+				_, _ = runAdminWeeklyDigestOnce(cronCtx, time.Now(), db, transactioner, adminstudiosql.Store{Dialect: cfg.Database.Dialect}, userStore, spoolStore, tenantScopes, requireTenantScope, modules["analytics"])
 				_, _ = mailWorker.RunOnce(cronCtx)
 			}
 		})
@@ -2503,6 +2510,70 @@ func runOutboxWorker(ctx context.Context, worker webhooks.Worker, stderr io.Writ
 			}
 		}
 	}
+}
+
+func runAdminWeeklyDigestOnce(ctx context.Context, now time.Time, db database.QueryExecutor, tx database.Transactor, store adminstudiosql.Store, users *authstore.UserStore, spool mailstore.Spool, scopes []tenant.Scope, requireTenant, analyticsEnabled bool) (int, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return 0, err
+	}
+	if users == nil {
+		return 0, errors.New("weekly digest user store is required")
+	}
+	if requireTenant && len(scopes) == 0 {
+		return 0, tenant.ErrMissingScope
+	}
+	workScopes := scopes
+	if !requireTenant {
+		workScopes = []tenant.Scope{{}}
+	}
+	queued := 0
+	for _, scope := range workScopes {
+		jobCtx := ctx
+		if requireTenant {
+			jobCtx = tenant.WithScope(jobCtx, scope)
+		}
+		statsByWindow := map[string]adminstudio.WeeklyDigestStats{}
+		after := ""
+		for {
+			preferences, err := store.DigestPreferencesAfter(jobCtx, db, after, 500)
+			if err != nil { return queued, err }
+			if len(preferences) == 0 { break }
+			after = preferences[len(preferences)-1].UserID
+			duePreferences := make([]adminstudio.DigestPreference, 0, len(preferences))
+			digestUsers := make([]adminstudio.DigestUser, 0, len(preferences))
+			for _, preference := range preferences {
+				_, _, key, due, err := adminstudio.WeeklyDigestWindow(now, preference.Timezone)
+				if err != nil { return queued, err }
+				if !due || preference.LastSentWeek == key { continue }
+				account, err := users.GetByID(jobCtx, preference.UserID)
+				if errors.Is(err, auth.ErrUserNotFound) { continue }
+				if err != nil { return queued, err }
+				if account.Role != auth.RoleAdmin && account.Role != auth.RoleEditor { continue }
+				duePreferences = append(duePreferences, preference)
+				digestUsers = append(digestUsers, adminstudio.DigestUser{ID: account.ID, Email: account.Email, Active: account.Active})
+			}
+			if len(duePreferences) > 0 {
+				err = adminstudio.DeliverDueDigests(jobCtx, now, duePreferences, digestUsers, func(statsCtx context.Context, start, end time.Time) (adminstudio.WeeklyDigestStats, error) {
+					key := start.UTC().Format(time.RFC3339Nano) + "/" + end.UTC().Format(time.RFC3339Nano)
+					if stats, ok := statsByWindow[key]; ok { return stats, nil }
+					stats, err := store.WeeklyDigestStats(statsCtx, db, start, end, analyticsEnabled)
+					if err == nil { statsByWindow[key] = stats }
+					return stats, err
+				}, func(deliveryCtx context.Context, account adminstudio.DigestUser, week, body, htmlBody string) error {
+					return tx.Within(deliveryCtx, func(exec database.Executor) error {
+						claimed, err := store.ClaimDigestWeek(deliveryCtx, exec, account.ID, week)
+						if err != nil || !claimed { return err }
+						if err := spool.Enqueue(deliveryCtx, exec, site.EmailNotification{EventKey: "admin-weekly:" + account.ID + ":" + week, To: account.Email, Subject: "Haftalık site özeti", Body: body, HTMLBody: htmlBody}); err != nil { return err }
+						queued++
+						return nil
+					})
+				})
+				if err != nil { return queued, err }
+			}
+			if len(preferences) < 500 { break }
+		}
+	}
+	return queued, nil
 }
 
 /*

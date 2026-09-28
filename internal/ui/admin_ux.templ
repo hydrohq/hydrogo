@@ -29,7 +29,15 @@ templ AdminUXChrome() {
 		</section>
 	</div>
 	<div id="admin-onboarding-dialog" class="admin-ux-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-onboarding-title" hidden>
-		<section class="admin-ux-panel"><button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button><p class="eyebrow">BAŞLANGIÇ REHBERİ</p><h2 id="admin-onboarding-title">Studio’ya hoş geldin</h2><p>Sayfalarını ve haberlerini içerik menüsünden yönetebilir, değişiklikleri önizleyip yayınlayabilirsin.</p><nav><a href="/admin/pages">Sayfaları düzenle</a><a href="/admin/news">Haberleri yönet</a><a href="/admin/media">Görselleri aç</a></nav><button class="button button-quiet" type="button" data-onboarding-dismiss>Bir daha gösterme</button></section>
+		<section class="admin-ux-panel" data-onboarding-tour>
+			<button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button>
+			<p class="eyebrow">BAŞLANGIÇ REHBERİ</p><h2 id="admin-onboarding-title">Studio’ya hoş geldin</h2>
+			<article data-tour-step="0"><p>İçerik alanından site sayfalarını, haberleri ve görselleri yönetebilirsin.</p><nav><a href="/admin/pages">Sayfaları aç</a><a href="/admin/news">Haberleri aç</a></nav></article>
+			<article data-tour-step="1" hidden><p>Değişikliklerin taslak olarak kaydedilir. Önizleyip hazır olduğunda yayına alabilirsin.</p></article>
+			<article data-tour-step="2" hidden><p>Bu rehbere her zaman ulaşabilir ve hesabını üst çubuktan yönetebilirsin.</p><a href="/admin/guide">Yardım ve video rehberi</a></article>
+			<div class="studio-actions"><button class="button button-quiet" type="button" data-tour-prev disabled>Geri</button><button class="button button-primary" type="button" data-tour-next>İleri</button></div>
+			<button class="button button-quiet" type="button" data-onboarding-dismiss>Bu rehberi bir daha gösterme</button>
+		</section>
 	</div>
 }
 
@@ -103,6 +111,16 @@ templ RevisionDiffPanel(diffs []adminstudio.FieldDiff, editor, modified string, 
 	</section>
 }
 
+templ VisualRevisionCompare(before, after string, beforeLabel, afterLabel string) {
+	<section class="studio-card" data-visual-revision>
+		<h2>Görsel sürüm karşılaştırması</h2>
+		<div class="studio-split-editor">
+			<article><h3>{ beforeLabel }</h3><iframe class="revision-preview" sandbox="" loading="lazy" title={ beforeLabel } srcdoc={ before }></iframe></article>
+			<article><h3>{ afterLabel }</h3><iframe class="revision-preview" sandbox="" loading="lazy" title={ afterLabel } srcdoc={ after }></iframe></article>
+		</div>
+	</section>
+}
+
 templ ImportWizard(headers []string, csrf string, mapping bool) {
 	<section class="studio-card" data-import-wizard>
 		<h2>İçerik içe aktar</h2>
@@ -134,14 +152,52 @@ templ ImportWizard(headers []string, csrf string, mapping bool) {
 	</section>
 }
 
-templ NotificationCenter(items []NotificationItem, csrf string) {
+templ ImportPreview(csrf string, mappings map[string]string, valid, duplicates, invalid int) {
+	<section class="studio-card" data-import-preview>
+		<h2>Aktarımı gözden geçirin</h2>
+		<p>{ strconv.Itoa(valid) } yeni taslak aktarılabilir. { strconv.Itoa(duplicates) } yinelenen satır ve { strconv.Itoa(invalid) } geçersiz satır atlanacak.</p>
+		<p>Aktarım önizlemesi hazır. Devam etmek için aynı dosyayı yeniden seçin.</p>
+		<form method="post" enctype="multipart/form-data" action="/admin/pages/import">
+			<input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="import"/>
+			for _, field := range []string{"locale", "slug", "title", "body"} {
+				<input type="hidden" name={ "map_" + field } value={ mappings[field] }/>
+			}
+			<label>Dosya<input type="file" name="file" accept=".csv,.xlsx" required/></label>
+			<button class="button button-primary" type="submit">Taslakları aktar</button>
+		</form>
+	</section>
+}
+
+templ NotificationCenter(items []NotificationItem, csrf string, digestEnabled bool, timezone string, digestAvailable bool) {
 	<section class="studio-card" data-notification-center>
 		<div class="studio-actions"><h2>Bildirimler</h2><form method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="read_all"/><button class="button button-quiet" type="submit">Tümünü okundu işaretle</button></form></div>
+		if digestAvailable {
+			<form class="studio-actions" method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="digest"/><label><input type="checkbox" name="enabled" value="true" checked?={ digestEnabled }/> Pazartesi özeti e-postasını al</label><label>Saat dilimi<select name="timezone"><option value="UTC" selected?={ timezone == "UTC" }>UTC</option><option value="Europe/Istanbul" selected?={ timezone == "Europe/Istanbul" }>İstanbul</option><option value="Europe/London" selected?={ timezone == "Europe/London" }>Londra</option><option value="America/New_York" selected?={ timezone == "America/New_York" }>New York</option></select></label><button class="button button-quiet" type="submit">Tercihi kaydet</button></form>
+		}
 		if len(items) == 0 {
 			<p role="status">Yeni bildiriminiz yok.</p>
 		}
 		for _, item := range items {
 			<article class="notification-item"><div><h3>{ item.Title }</h3><p>{ item.Message }</p><time>{ item.Created }</time></div><div class="studio-actions"><a href={ item.TargetPath }>Görüntüle</a><form method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="dismiss"/><input type="hidden" name="id" value={ item.ID }/><button class="button button-quiet" type="submit">Kapat</button></form></div></article>
 		}
+	</section>
+}
+
+templ GuideCenter(videoURL string) {
+	<section class="studio-card" data-guide-center>
+		<h2>Yardım ve rehberler</h2>
+		<div role="tablist" aria-label="Rehber sekmeleri">
+			<button type="button" role="tab" aria-selected="true" aria-controls="guide-start" id="guide-tab-start" data-guide-tab="start">Başlangıç</button>
+			<button type="button" role="tab" aria-selected="false" aria-controls="guide-video" id="guide-tab-video" data-guide-tab="video">Video rehberi</button>
+		</div>
+		<section role="tabpanel" id="guide-start" aria-labelledby="guide-tab-start" data-guide-panel="start"><h3>Studio’da çalışmaya başlayın</h3><p>İçerik alanından sayfa ve haberlerinizi düzenleyin. Değişiklikleri önizleyip hazır olduğunda yayınlayın.</p><nav><a href="/admin/pages">Sayfaları aç</a><a href="/admin/news">Haberleri aç</a></nav></section>
+		<section role="tabpanel" id="guide-video" aria-labelledby="guide-tab-video" data-guide-panel="video" hidden><h3>Video rehberi</h3>
+			if videoURL != "" {
+				<p>Studio’nun temel adımlarını videoda izleyin.</p>
+				<a class="button button-primary" href={ videoURL } target="_blank" rel="noopener noreferrer">Videoyu aç</a>
+			} else {
+				<p>Video rehberi henüz yapılandırılmadı.</p>
+			}
+		</section>
 	</section>
 }

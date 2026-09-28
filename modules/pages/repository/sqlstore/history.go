@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -17,19 +18,18 @@ func (s Store) ListRevisions(ctx context.Context, db database.Executor, pageID s
 	if !ok {
 		return nil, database.ErrDatabaseRequired
 	}
-	filter, tenantID, err := s.tenantFilter(ctx, 2)
-	if err != nil {
-		return nil, err
-	}
-	limitPosition := 2
-	if filter != "" {
-		limitPosition = 3
-	}
-	query := `SELECT id,page_id,revision,title,body,blocks,created_at FROM page_revisions WHERE page_id=` + s.placeholder(1) + filter + ` ORDER BY revision DESC LIMIT ` + s.placeholder(limitPosition)
+	query := `SELECT pr.id,pr.page_id,pr.revision,pr.title,pr.body,pr.blocks,pr.created_at,pr.actor_id,COALESCE(u.email,'') FROM page_revisions pr LEFT JOIN users u ON u.id=pr.actor_id AND u.tenant_id=pr.tenant_id WHERE pr.page_id=` + s.placeholder(1)
 	args := []any{pageID}
-	if filter != "" {
-		args = append(args, tenantID)
+	if s.RequireTenantScope {
+		scope, scopeErr := tenant.Require(ctx)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		query += ` AND pr.tenant_id=` + s.placeholder(2)
+		args = append(args, scope.TenantID)
 	}
+	limitPosition := len(args) + 1
+	query += ` ORDER BY pr.revision DESC LIMIT ` + s.placeholder(limitPosition)
 	args = append(args, limit)
 	rows, err := queryer.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -40,7 +40,7 @@ func (s Store) ListRevisions(ctx context.Context, db database.Executor, pageID s
 	for rows.Next() {
 		var item pages.RevisionSnapshot
 		var rawBlocks, created any
-		if err := rows.Scan(&item.ID, &item.PageID, &item.Revision, &item.Title, &item.Body, &rawBlocks, &created); err != nil {
+		if err := rows.Scan(&item.ID, &item.PageID, &item.Revision, &item.Title, &item.Body, &rawBlocks, &created, &item.ActorID, &item.ActorEmail); err != nil {
 			return nil, err
 		}
 		item.Blocks, err = pages.DecodeBlocksForStore(rawBlocks)
