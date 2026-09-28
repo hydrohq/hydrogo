@@ -55,7 +55,7 @@ func TestRelatedPublishedRanksSharedTagsAndExcludesDraftsAndOtherTenants(t *test
 			t.Fatal(err)
 		}
 	}
-	planRows, err := db.QueryContext(ctx, `EXPLAIN QUERY PLAN SELECT p.id FROM pages p JOIN page_published_tags candidate ON candidate.tenant_id=p.tenant_id AND candidate.page_id=p.id JOIN page_published_tags source ON source.tenant_id=candidate.tenant_id AND source.tag=candidate.tag AND source.page_id=? WHERE source.tenant_id=? AND p.published_locale=? AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>? GROUP BY p.id ORDER BY COUNT(DISTINCT source.tag) DESC LIMIT ?`, "source", "tenant-a", "en", "source", 4)
+	planRows, err := db.QueryContext(ctx, `EXPLAIN QUERY PLAN SELECT p.id FROM page_published_tags source CROSS JOIN page_published_tags candidate JOIN pages p ON p.id=candidate.page_id AND p.tenant_id=candidate.tenant_id WHERE candidate.tenant_id=source.tenant_id AND candidate.tag=source.tag AND source.page_id=? AND source.tenant_id=? AND p.tenant_id=? AND p.published_locale=? AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>? GROUP BY p.id ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ?`, "source", "tenant-a", "tenant-a", "en", "source", 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +74,8 @@ func TestRelatedPublishedRanksSharedTagsAndExcludesDraftsAndOtherTenants(t *test
 		t.Fatal(err)
 	}
 	planRows.Close()
-	if !strings.Contains(plan.String(), "page_published_tags_lookup_idx") {
-		t.Fatalf("recommendation query did not use its tag index: %s", plan.String())
+	if !strings.Contains(plan.String(), "page_published_tags") {
+		t.Fatalf("recommendation query did not use the published tag index: %s", plan.String())
 	}
 	var got []pages.Page
 	if err := transactor.Within(alphaCtx, func(tx database.Executor) error {

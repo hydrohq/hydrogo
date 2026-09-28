@@ -80,7 +80,7 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.QueryExecut
 	if s.Store.Dialect == database.Postgres {
 		b1, b2, b3, b4, b5 = "$1", "$2", "$3", "$1", "$4"
 	}
-	query := `SELECT p.payload FROM sectoral_portfolio p JOIN sectoral_portfolio_tags candidate ON candidate.tenant_id=p.tenant_id AND candidate.content_id=p.id JOIN sectoral_portfolio_tags source ON source.tenant_id=candidate.tenant_id AND source.tag=candidate.tag AND source.content_id=` + b1 + ` WHERE p.tenant_id=` + b2 + ` AND p.locale=` + b3 + ` AND p.status='published' AND p.id<>` + b4 + ` GROUP BY p.id,p.payload,p.updated_at ORDER BY COUNT(DISTINCT source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ` + b5
+	query := `SELECT p.payload FROM sectoral_portfolio p JOIN sectoral_portfolio_tags candidate ON candidate.tenant_id=p.tenant_id AND candidate.content_id=p.id JOIN sectoral_portfolio_tags source ON source.tenant_id=candidate.tenant_id AND source.tag=candidate.tag AND source.content_id=` + b1 + ` WHERE p.tenant_id=` + b2 + ` AND p.locale=` + b3 + ` AND p.status='published' AND p.id<>` + b4 + ` GROUP BY p.id,p.payload,p.updated_at ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ` + b5
 	rows, err := queryer.QueryContext(ctx, query, sourceID, sectoral.TenantID(ctx), locale, sourceID, limit)
 	if err != nil {
 		return nil, err
