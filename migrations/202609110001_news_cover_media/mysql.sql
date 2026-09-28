@@ -1,0 +1,1 @@
+ALTER TABLE news_items ADD COLUMN cover_media_id VARCHAR(128) NOT NULL DEFAULT '';

@@ -39,7 +39,10 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		"202609080011_navigation_position_unique", "202609080012_news_items", "202609080013_jobs",
 		"202609080014_published_projection_backfill", "202609090015_restore_controls", "202609090016_restore_write_fence",
 		"202609090017_audit_request_id", "202609090018_job_retry_state", "202609090019_job_dead_letter_index",
-		"202609090020_job_capacity_lock",
+		"202609090020_job_capacity_lock", "202609100001_page_blocks", "202609100002_commerce_core",
+		"202609100003_commerce_payments", "202609100004_commerce_carts", "202609100005_commerce_variants",
+		"202609100006_outbox_delivery", "202609100007_commerce_order_customer", "202609100008_commerce_order_client_ip",
+		"202609100009_commerce_product_description", "202609110001_news_cover_media",
 	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
@@ -51,13 +54,29 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 			bundle[id+"/"+name] = &fstest.MapFile{Data: content}
 		}
 	}
+	initial := fstest.MapFS{}
+	for _, id := range ids[:13] {
+		initial[id+"/migration.yaml"] = bundle[id+"/migration.yaml"]
+		initial[id+"/mysql.sql"] = bundle[id+"/mysql.sql"]
+	}
+	if err := database.ApplyMigrations(ctx, db, database.MySQL, initial); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES ('backfill','Backfill','en','backfill','published body','published',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO outbox_events (id,topic,aggregate_id,payload_version) VALUES ('outbox1','test','aggregate1',1)`); err != nil {
+		t.Fatal(err)
+	}
 	if err := database.ApplyMigrations(ctx, db, database.MySQL, bundle); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		for _, table := range []string{
 			"auth_invites", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
-			"job_queue_capacity_lock", "restore_controls", "jobs", "news_items", "auth_invites", "form_inbox",
+			"commerce_payment_webhook_events", "commerce_payment_transactions", "commerce_order_items", "commerce_cart_items",
+			"commerce_product_variants", "commerce_carts", "commerce_orders", "commerce_products", "job_queue_capacity_lock",
+			"restore_controls", "jobs", "news_items", "auth_invites", "form_inbox",
 			"page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens", "mfa_recovery_codes",
 			"user_mfa", "page_revisions", "sessions", "users", "media_assets", "pages", "audit_events",
 			"outbox_events", "schema_migrations",
@@ -100,6 +119,22 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 			t.Fatalf("insert duplicate draft route %s: %v", id, err)
 		}
 	}
+	var blocks, publishedBlocks string
+	if err := db.QueryRowContext(ctx, `SELECT blocks,published_blocks FROM pages WHERE id='p1'`).Scan(&blocks, &publishedBlocks); err != nil {
+		t.Fatal(err)
+	}
+	if blocks != "[]" || publishedBlocks != "[]" {
+		t.Fatalf("old-write block defaults = (%q,%q), want empty JSON arrays", blocks, publishedBlocks)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,created_at) VALUES ('rev1','p1',1,'en','same-draft-route','Draft','body',?)`, now); err != nil {
+		t.Fatalf("page revision insert from old binary shape: %v", err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT blocks FROM page_revisions WHERE id='rev1'`).Scan(&blocks); err != nil {
+		t.Fatal(err)
+	}
+	if blocks != "[]" {
+		t.Fatalf("page revision blocks = %q, want empty JSON array", blocks)
+	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES ('p3','Published','en','about','body','published',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
 		t.Fatal(err)
 	}
@@ -117,6 +152,36 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO job_queue_capacity_lock (id) VALUES (1) ON DUPLICATE KEY UPDATE id=id`); err != nil {
 		t.Fatalf("job capacity lock idempotent insert: %v", err)
+	}
+	var publishedRevision int
+	var publishedSlug, publishedBody string
+	if err := db.QueryRowContext(ctx, `SELECT published_revision,published_slug,published_body FROM pages WHERE id='backfill'`).Scan(&publishedRevision, &publishedSlug, &publishedBody); err != nil {
+		t.Fatal(err)
+	}
+	if publishedRevision != 1 || publishedSlug != "backfill" || publishedBody != "published body" {
+		t.Fatalf("published projection = (%d,%q,%q)", publishedRevision, publishedSlug, publishedBody)
+	}
+	var availableAt time.Time
+	if err := db.QueryRowContext(ctx, `SELECT available_at FROM outbox_events WHERE id='outbox1'`).Scan(&availableAt); err != nil {
+		t.Fatal(err)
+	}
+	if availableAt.IsZero() {
+		t.Fatal("outbox availability backfill is zero")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO commerce_products (id,sku,title,price_cents,currency,stock,status,created_at,updated_at,description) VALUES ('product1','sku1','Product',100,'USD',5,'active',?,?,'A description')`, now, now); err != nil {
+		t.Fatalf("product insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO commerce_orders (id,user_id,idempotency_key,currency,total_cents,payment_status,shipping_status,created_at) VALUES ('order1','u2','key1','USD',100,'pending','pending',?)`, now); err != nil {
+		t.Fatalf("order insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO commerce_order_items (id,order_id,product_id,sku,title,quantity,unit_cents,total_cents) VALUES ('item1','order1','product1','sku1','Product',1,100,100)`); err != nil {
+		t.Fatalf("order item insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO commerce_product_variants (id,product_id,sku,title,price_cents,stock,status,created_at,updated_at) VALUES ('variant1','product1','sku1-blue','Blue',100,5,'active',?,?)`, now, now); err != nil {
+		t.Fatalf("variant insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE commerce_order_items SET variant_id='variant1' WHERE id='item1'`); err != nil {
+		t.Fatalf("variant assignment: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO restore_controls (id,sessions_revoked,egress_quarantined,old_writes_blocked,activated_at) VALUES (1,0,0,1,?)`, now); err != nil {
 		t.Fatal(err)
