@@ -25,6 +25,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
 func TestModuleHelpersCanonicalizeNames(t *testing.T) {
@@ -329,6 +330,115 @@ func TestLocalizeDemoNewsCreatesEnglishSeedContent(t *testing.T) {
 	item := localizeDemoNews(demoNewsSeed{id: "demo-news-one", title: "Turkish title", category: "Ürün"}, 3)
 	if item.id != "demo-news-one" || item.slug != "demo-story-003" || item.category != "Demo updates" || !strings.Contains(item.body, "synthetic") {
 		t.Fatalf("localized demo item = %+v", item)
+	}
+}
+
+func TestSeedDemoSQLiteIntegrationCountLocaleAndClean(t *testing.T) {
+	root := t.TempDir()
+	dsn := filepath.Join(root, "demo.sqlite")
+	configPath := filepath.Join(root, "config.yaml")
+	configuration := fmt.Sprintf("profile: compact\nmodules: [core, auth, members, pages, media, site, news]\ndatabase:\n  dialect: sqlite\n  dsn: %q\nmedia:\n  dir: %q\ni18n:\n  default_locale: tr\n", dsn, filepath.Join(root, "media"))
+	if err := os.WriteFile(configPath, []byte(configuration), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath, os.LookupEnv, config.Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := database.Open(context.Background(), database.SQLite, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.ApplyMigrationsForModules(context.Background(), db, database.SQLite, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	db.Close()
+	var stdout, stderr bytes.Buffer
+	if err := seedDemo([]string{"--config=" + configPath, "--confirm-demo", "--count=2", "--locale=en"}, &stdout, &stderr); err != nil {
+		t.Fatalf("seed English demo: %v (%s)", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "news=2") || !strings.Contains(stdout.String(), "locale=en") {
+		t.Fatalf("seed output = %q", stdout.String())
+	}
+	db, err = database.Open(context.Background(), database.SQLite, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM news_items WHERE id LIKE 'demo-news-%' AND locale='en' AND title LIKE 'HydroGo Demo Story%'`).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("English demo news count=%d err=%v", count, err)
+	}
+	var categories int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM news_taxonomy_relations r JOIN news_taxonomy_terms t ON t.id=r.term_id WHERE r.content_id LIKE 'demo-news-%' AND t.kind='category'`).Scan(&categories); err != nil || categories != 2 {
+		t.Fatalf("demo category relation count=%d err=%v", categories, err)
+	}
+	db.Close()
+	stdout.Reset()
+	if err := seedDemo([]string{"--config=" + configPath, "--confirm-demo", "--count=1", "--locale=tr", "--clean"}, &stdout, &stderr); err != nil {
+		t.Fatalf("clean and reseed: %v (%s)", err, stderr.String())
+	}
+	db, err = database.Open(context.Background(), database.SQLite, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.QueryRow(`SELECT COUNT(*) FROM news_items WHERE id LIKE 'demo-news-%'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("cleaned demo news count=%d err=%v", count, err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM news_taxonomy_terms WHERE id LIKE 'demo-category-%'`).Scan(&categories); err != nil || categories == 0 {
+		t.Fatalf("reseeded categories=%d err=%v", categories, err)
+	}
+}
+
+func TestSeedDemoPostgresIntegration(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv("HYDRO_TEST_POSTGRES_DSN"))
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_DSN is not configured")
+	}
+	root := t.TempDir()
+	configPath := filepath.Join(root, "config.yaml")
+	configuration := fmt.Sprintf("profile: compact\nmodules: [core, auth, members, pages, media, site, news]\ndatabase:\n  dialect: postgres\n  dsn: %q\nmedia:\n  dir: %q\ni18n:\n  default_locale: tr\n", dsn, filepath.Join(root, "media"))
+	if err := os.WriteFile(configPath, []byte(configuration), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath, os.LookupEnv, config.Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := database.Open(context.Background(), database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.ApplyMigrationsForModules(context.Background(), db, database.Postgres, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	db.Close()
+	var stdout, stderr bytes.Buffer
+	if err := seedDemo([]string{"--config=" + configPath, "--confirm-demo", "--count=2", "--locale=en"}, &stdout, &stderr); err != nil {
+		t.Fatalf("seed postgres demo: %v (%s)", err, stderr.String())
+	}
+	db, err = database.Open(context.Background(), database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM news_items WHERE id LIKE 'demo-news-%' AND locale='en' AND title LIKE 'HydroGo Demo Story%'`).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("PostgreSQL English demo news count=%d err=%v", count, err)
+	}
+	db.Close()
+	if err := seedDemo([]string{"--config=" + configPath, "--confirm-demo", "--count=1", "--locale=tr", "--clean"}, &stdout, &stderr); err != nil {
+		t.Fatalf("clean and reseed PostgreSQL demo: %v (%s)", err, stderr.String())
+	}
+	db, err = database.Open(context.Background(), database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.QueryRow(`SELECT COUNT(*) FROM news_items WHERE id LIKE 'demo-news-%'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("PostgreSQL cleaned demo news count=%d err=%v", count, err)
 	}
 }
 
