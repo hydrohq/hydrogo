@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bytes"
+	"context"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -187,6 +188,23 @@ func TestBulkToolbarBuildsContextualActionSelector(t *testing.T) {
 	for _, marker := range []string{`data-bulk-choice`, `new Option(action.textContent,action.dataset.bulkAction)`, `actions[choice?.selectedIndex||0]`} {
 		if !strings.Contains(script, marker) {
 			t.Errorf("bulk toolbar script missing %q", marker)
+		}
+	}
+}
+
+func TestListViewSwitcherIsAccessibleAndUsesPersistedTarget(t *testing.T) {
+	var out bytes.Buffer
+	if err := ListViewSwitcher("content-list", "hydro-view-content").Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`role="group"`, `aria-label="Liste görünümü"`, `data-list-view-toggle="content-list"`, `data-storage-key="hydro-view-content"`, `data-list-view-choice="cards"`, `data-list-view-choice="table"`} {
+		if !strings.Contains(out.String(), marker) {
+			t.Errorf("list view switch missing %q", marker)
+		}
+	}
+	for _, marker := range []string{`localStorage.setItem(toggle.dataset.storageKey||'hydro-view-default',value)`, `target.dataset.viewMode=mode`, `DOMContentLoaded`, `aria-pressed`} {
+		if !strings.Contains(AdminListViewJS, marker) {
+			t.Errorf("list view behavior missing %q", marker)
 		}
 	}
 }

@@ -15,7 +15,7 @@ func TestRenderListShowsOnlyConfiguredColumnsAndEscapesRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := out.String()
-	for _, want := range []string{"<caption class=\"visually-hidden\">Products listesi</caption>", `<th scope="col">Title</th>`, `<th scope="col">Status</th>`, "Variants", "&lt;img src=x&gt;"} {
+	for _, want := range []string{"<caption class=\"visually-hidden\">Products listesi</caption>", `<th scope="col">Title</th>`, `<th scope="col">Status</th>`, `data-label="Title"`, `data-label="İşlemler"`, "Variants", "&lt;img src=x&gt;"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("list missing %q: %s", want, html)
 		}

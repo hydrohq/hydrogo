@@ -1,0 +1,8 @@
+package ui
+
+templ ListViewSwitcher(target, storageKey string) {
+	<div class="list-view-switch" role="group" aria-label="Liste görünümü" data-list-view-toggle={ target } data-storage-key={ storageKey }>
+		<button type="button" data-list-view-choice="cards" aria-pressed="false">Kartlar</button>
+		<button type="button" data-list-view-choice="table" aria-pressed="false">Tablo</button>
+	</div>
+}
