@@ -546,18 +546,28 @@ func dbCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	var schemaChanges []database.SchemaChange
+	physicalInspection := cfg.Database.Dialect == database.SQLite
+	if physicalInspection {
+		schemaChanges, err = database.SQLiteSchemaDiff(ctx, db, migrations.FS, enabledModuleSet(cfg.Modules))
+		if err != nil {
+			return err
+		}
+	}
 	sort.Strings(pending)
 	if *jsonOutput {
 		return json.NewEncoder(stdout).Encode(struct {
-			Clean   bool     `json:"clean"`
-			Pending []string `json:"pending"`
-		}{Clean: len(pending) == 0, Pending: pending})
+			Clean              bool                    `json:"clean"`
+			Pending            []string                `json:"pending"`
+			PhysicalInspection bool                    `json:"physical_inspection"`
+			SchemaChanges      []database.SchemaChange `json:"schema_changes,omitempty"`
+		}{Clean: len(pending) == 0 && len(schemaChanges) == 0, Pending: pending, PhysicalInspection: physicalInspection, SchemaChanges: schemaChanges})
 	}
-	if len(pending) == 0 {
+	if len(pending) == 0 && len(schemaChanges) == 0 {
 		_, err = fmt.Fprintln(stdout, "schema-diff clean")
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "schema-diff pending=%s\n", strings.Join(pending, ","))
+	_, err = fmt.Fprintf(stdout, "schema-diff pending=%s drift=%d physical-inspection=%t\n", strings.Join(pending, ","), len(schemaChanges), physicalInspection)
 	return err
 }
 

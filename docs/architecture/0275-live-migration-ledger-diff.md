@@ -1,6 +1,6 @@
 # ADR-0275: Read-only live migration ledger diff
 
-- **Status:** Accepted (migration ledger only; physical catalog comparison remains open)
+- **Status:** Superseded in SQLite physical-catalog scope by [ADR-0277](0277-sqlite-physical-schema-diff.md); ledger behavior remains accepted
 - **Date:** 2026-09-28
 - **Related:** [ADR-0092: Signed schema compatibility preflight](0092-signed-schema-compatibility-preflight.md), [ADR-0039: Conditional cross-module migrations](0039-conditional-cross-module-migrations.md)
 

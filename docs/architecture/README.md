@@ -352,3 +352,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0274: Optional social OAuth sign-in](0274-optional-social-oauth-sign-in.md)
 - [ADR-0275: Read-only live migration ledger diff](0275-live-migration-ledger-diff.md)
 - [ADR-0276: Site appearance tokens and contrast validation](0276-site-appearance-and-contrast.md)
+- [ADR-0277: Read-only SQLite physical schema diff](0277-sqlite-physical-schema-diff.md)
