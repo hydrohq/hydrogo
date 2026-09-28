@@ -13,6 +13,64 @@ import (
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
+func TestMySQLInitialMigrationChainContract(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_MYSQL_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_MYSQL_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.MySQL, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var tableCount int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()`).Scan(&tableCount); err != nil {
+		t.Fatal(err)
+	}
+	if tableCount != 0 {
+		t.Skip("initial migration contract requires an empty dedicated MySQL database")
+	}
+	ids := []string{"202609060001_transaction_contract", "202609060002_auth_security", "202609080003_pages_content"}
+	bundle := fstest.MapFS{}
+	for _, id := range ids {
+		for _, name := range []string{"migration.yaml", "mysql.sql"} {
+			content, err := migrations.FS.ReadFile(id + "/" + name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bundle[id+"/"+name] = &fstest.MapFile{Data: content}
+		}
+	}
+	if err := database.ApplyMigrations(ctx, db, database.MySQL, bundle); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		for _, table := range []string{"page_revisions", "sessions", "users", "pages", "audit_events", "outbox_events", "schema_migrations"} {
+			if _, err := db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+table); err != nil {
+				t.Errorf("drop %s: %v", table, err)
+			}
+		}
+	}()
+	if _, err := db.ExecContext(ctx, `INSERT INTO users (id,email,password_hash,role,created_at,updated_at) VALUES ('u1','one@example.test','hash','owner',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO sessions (id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES ('s1','u1',REPEAT('a',64),CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatalf("session insert with parent key: %v", err)
+	}
+	for _, id := range []string{"p1", "p2"} {
+		if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES (?, 'Draft','en','', '', 'draft',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`, id); err != nil {
+			t.Fatalf("insert blank-slug page %s: %v", id, err)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES ('p3','Published','en','about','body','published',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES ('p4','Duplicate','en','about','body','published',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err == nil {
+		t.Fatal("accepted duplicate non-empty locale/slug pair")
+	}
+}
+
 func TestMySQLPoolAndTransactionContract(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_MYSQL_URL")
 	if dsn == "" {
