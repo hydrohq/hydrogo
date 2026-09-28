@@ -86,6 +86,7 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/login", Public: true, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
+		{Pattern: "POST /auth/me/session/extend", Handler: http.HandlerFunc(h.extendSession)},
 		{Pattern: "POST /auth/me/credentials", Handler: http.HandlerFunc(h.changeCredentials)},
 		{Pattern: "POST /auth/users/{id}/disable", Handler: http.HandlerFunc(h.disableUser)},
 		{Pattern: "POST /auth/users/{id}/role", Handler: http.HandlerFunc(h.updateUserRole)},
@@ -399,7 +400,34 @@ func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active})
+	session := SessionFromContext(r.Context())
+	expiresAt := time.Time{}
+	if session != nil {
+		expiresAt = session.ExpiresAt
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active, "session_expires_at": expiresAt})
+}
+
+func (h HTTPHandler) extendSession(w http.ResponseWriter, r *http.Request) {
+	noStoreAuthResponse(w)
+	user, current := UserFromContext(r.Context()), SessionFromContext(r.Context())
+	oldToken := sessionToken(r)
+	if user == nil || !user.Active || current == nil || oldToken == "" || h.Service == nil {
+		http.Error(w, "session extension unavailable", http.StatusUnauthorized)
+		return
+	}
+	token, next, err := h.Service.CreateSession(r.Context(), user.ID, r.UserAgent(), clientIP(r), DefaultSessionTTL)
+	if err != nil {
+		writeAuthDependencyError(w, "session extension failed", err, http.StatusInternalServerError)
+		return
+	}
+	if err := h.Service.RevokeSession(r.Context(), oldToken); err != nil {
+		_ = h.Service.RevokeSession(r.Context(), token)
+		writeAuthDependencyError(w, "session extension failed", err, http.StatusInternalServerError)
+		return
+	}
+	SetSessionCookie(w, token, next.ExpiresAt, h.Secure)
+	writeJSON(w, http.StatusOK, map[string]any{"session_expires_at": next.ExpiresAt})
 }
 
 func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {

@@ -114,6 +114,31 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 }
 
+func TestSessionExtensionRotatesCookieWithoutPageReload(t *testing.T) {
+	sessions := &httpSessionRepo{}
+	service := NewAuthService(httpUserRepo{}, sessions, nil, TestArgon2Params)
+	handler := HTTPHandler{Service: service, Secure: true}
+	user := &User{ID: "user-extend", Email: "editor@example.com", Role: RoleEditor, Active: true}
+	current := &Session{ID: "old-session", UserID: user.ID, ExpiresAt: time.Now().Add(time.Minute)}
+	req := httptest.NewRequest(http.MethodPost, "/auth/me/session/extend", nil)
+	req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: "old-token"})
+	req = req.WithContext(WithUser(WithSession(req.Context(), current), user))
+	recorder := httptest.NewRecorder()
+	handler.extendSession(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var cookie *http.Cookie
+	for _, candidate := range recorder.Result().Cookies() {
+		if candidate.Name == SessionCookieName {
+			cookie = candidate
+		}
+	}
+	if cookie == nil || cookie.Value == "old-token" || !cookie.Secure {
+		t.Fatalf("session cookie was not safely rotated: cookie=%+v", cookie)
+	}
+}
+
 func TestHTTPHandlerRequiresMFAForConfiguredRole(t *testing.T) {
 	handler := HTTPHandler{MFARequiredRoles: []Role{RoleAdmin}}
 	if !handler.requiresMFA(RoleAdmin) || handler.requiresMFA(RoleEditor) {

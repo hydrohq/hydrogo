@@ -120,6 +120,18 @@ func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesSessionExpiryWarning(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Session", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"/auth/me/session/extend", "Oturumunuz yakında sona erecek", "setAttribute('role','alertdialog')"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("admin shell session warning missing %q", want)
+		}
+	}
+}
+
 func TestAdminShellIncludesMobileNavigationContract(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Mobil navigasyon", "", "nonce-test", ""); err != nil {
