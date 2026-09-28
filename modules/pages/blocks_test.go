@@ -24,6 +24,10 @@ func TestValidateBlocksRejectsUnsafeOrUnknownPayloads(t *testing.T) {
 		{Type: "hero", Payload: json.RawMessage(`{"title":"x","button_url":"javascript:alert(1)"}`)},
 		{Type: "hero", Payload: json.RawMessage(`{"title":"x","media_asset_id":"asset id"}`)},
 		{Type: "hero", Payload: json.RawMessage(`{"button_url":"/missing-title"}`)},
+		{Type: "hero", Payload: json.RawMessage(`{"title":"x","bg_color":"url(javascript:alert(1))"}`)},
+		{Type: "hero", Payload: json.RawMessage(`{"title":"x","padding_y":"gigantic"}`)},
+		{Type: "hero", Payload: json.RawMessage(`{"title":"x","bg_color":42}`)},
+		{Type: "hero", Payload: json.RawMessage(`{"title":"x","padding_y":false}`)},
 	}
 	for _, block := range cases {
 		if !errors.Is(ValidateBlocks([]Block{block}), ErrInvalidBlocks) {

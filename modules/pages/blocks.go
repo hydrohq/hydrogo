@@ -35,6 +35,12 @@ func ValidateBlocks(blocks []Block) error {
 		if err := json.Unmarshal(block.Payload, &object); err != nil || object == nil {
 			return ErrInvalidBlocks
 		}
+		if err := validatePreset(object, "bg_color", "default", "muted", "primary_tint", "dark"); err != nil {
+			return err
+		}
+		if err := validatePreset(object, "padding_y", "normal", "compact", "spacious"); err != nil {
+			return err
+		}
 		switch block.Type {
 		case "hero", "cta":
 			if err := requireString(object, "title"); err != nil {
@@ -295,6 +301,23 @@ func ValidateBlocks(blocks []Block) error {
 		}
 	}
 	return nil
+}
+
+func validatePreset(object map[string]json.RawMessage, key string, allowed ...string) error {
+	raw, ok := object[key]
+	if !ok {
+		return nil
+	}
+	var value string
+	if json.Unmarshal(raw, &value) != nil {
+		return ErrInvalidBlocks
+	}
+	for _, option := range allowed {
+		if value == option {
+			return nil
+		}
+	}
+	return ErrInvalidBlocks
 }
 
 // ValidateBlocksForRender retains old unknown block payloads for safe fallback

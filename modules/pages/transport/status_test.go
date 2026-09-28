@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 )
 
 func TestParseBlockFormBuildsStructuredBlocks(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("block_count=1&block_type_0=hero&block_title_0=Welcome&block_button_url_0=%2Fstart"))
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("block_count=1&block_type_0=hero&block_title_0=Welcome&block_button_url_0=%2Fstart&block_bg_color_0=primary_tint&block_padding_y_0=spacious"))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if err := r.ParseForm(); err != nil {
 		t.Fatal(err)
@@ -24,6 +25,10 @@ func TestParseBlockFormBuildsStructuredBlocks(t *testing.T) {
 	}
 	if len(blocks) != 1 || blocks[0].Type != "hero" {
 		t.Fatalf("blocks = %+v", blocks)
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(blocks[0].Payload, &payload); err != nil || payload["bg_color"] != "primary_tint" || payload["padding_y"] != "spacious" {
+		t.Fatalf("block presets did not survive form parsing: %s err=%v", blocks[0].Payload, err)
 	}
 }
 
@@ -46,9 +51,18 @@ func TestParseBlockFormAcceptsTypedJSONWidgets(t *testing.T) {
 
 func TestBlockEditorOffersAddMoveAndAllTypedBlocks(t *testing.T) {
 	html := renderBlockEditor(nil, "csrf")
-	for _, marker := range []string{"data-block-add", "data-block-up", "data-block-down", "before_after", "stats", "contact_cta", "video", "masonry", "hotspots", "data-block-field=\"payload\""} {
+	for _, marker := range []string{"data-block-add", "data-block-up", "data-block-down", "before_after", "stats", "contact_cta", "video", "masonry", "hotspots", "block_bg_color_0", "block_padding_y_0", "data-block-field=\"payload\""} {
 		if !strings.Contains(html, marker) {
 			t.Errorf("editor is missing %q", marker)
+		}
+	}
+}
+
+func TestBlockEditorRestoresStylePresetSelections(t *testing.T) {
+	html := renderBlockEditor([]pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Title","bg_color":"dark","padding_y":"compact"}`)}}, "csrf")
+	for _, marker := range []string{`<option value="dark" selected>`, `<option value="compact" selected>`, `name="block_bg_color_0"`, `name="block_padding_y_0"`} {
+		if !strings.Contains(html, marker) {
+			t.Errorf("style preset editor missing %q", marker)
 		}
 	}
 }
