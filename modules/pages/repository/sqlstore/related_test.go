@@ -13,6 +13,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
@@ -117,6 +118,50 @@ func TestRelatedPublishedRanksSharedTagsAndExcludesDraftsAndOtherTenants(t *test
 		return err
 	}); err != nil || len(public.Tags) != 2 {
 		t.Fatalf("published tags=%v err=%v", public.Tags, err)
+	}
+}
+
+func TestMySQLRelatedPublishedRespectsPublicationAndTenantScope(t *testing.T) {
+	ctx := context.Background()
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	store := Store{Dialect: database.MySQL, RequireTenantScope: true}
+	transactor := database.NewTransactor(db)
+	alpha, _ := tenant.NewScope("mysql-page-alpha", "alpha")
+	beta, _ := tenant.NewScope("mysql-page-beta", "beta")
+	alphaCtx, betaCtx := tenant.WithScope(ctx, alpha), tenant.WithScope(ctx, beta)
+	for _, row := range []struct {
+		ctx     context.Context
+		page    pages.Page
+		publish bool
+	}{
+		{alphaCtx, pages.Page{ID: "mysql-page-source", Locale: "en", Slug: "source", Title: "Source", Tags: []string{"hydro", "go"}}, true},
+		{alphaCtx, pages.Page{ID: "mysql-page-related", Locale: "en", Slug: "related", Title: "Related", Tags: []string{"hydro", "go"}}, true},
+		{alphaCtx, pages.Page{ID: "mysql-page-draft", Locale: "en", Slug: "draft", Title: "Draft", Tags: []string{"hydro"}}, false},
+		{betaCtx, pages.Page{ID: "mysql-page-other", Locale: "en", Slug: "other", Title: "Other", Tags: []string{"hydro", "go"}}, true},
+	} {
+		if err := transactor.Within(row.ctx, func(tx database.Executor) error {
+			if err := store.CreateDraftContent(row.ctx, tx, row.page); err != nil {
+				return err
+			}
+			if row.publish {
+				return store.Publish(row.ctx, tx, row.page.ID, 1)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := store.ListRelatedPublished(alphaCtx, db, "mysql-page-source", "en", 4)
+	if err != nil || len(got) != 1 || got[0].ID != "mysql-page-related" {
+		t.Fatalf("related pages=%v err=%v", pageIDs(got), err)
+	}
+	if _, err := store.GetContent(betaCtx, db, "mysql-page-source"); err == nil {
+		t.Fatalf("cross-tenant page read: %v", err)
+	}
+	public, err := store.GetPublishedByRoute(alphaCtx, db, "en", "related")
+	if err != nil || public.ID != "mysql-page-related" || len(public.Tags) != 2 {
+		t.Fatalf("published page=%+v err=%v", public, err)
 	}
 }
 

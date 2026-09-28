@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
@@ -24,6 +25,14 @@ func TestSQLiteVisibilityDialectContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	runVisibilityContract(t, db, database.SQLite)
+}
+
+func TestMySQLSiteRepositoryContracts(t *testing.T) {
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	runVisibilityContract(t, db, database.MySQL)
+	runRedirectRuleContract(t, db, database.MySQL)
+	runIdempotencyContract(t, db, database.MySQL)
 }
 
 func TestScopedSiteSettingsAndNavigationCannotCrossTenant(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 )
 
 func TestAuthStoresRejectMissingDatabaseAndTransactions(t *testing.T) {
@@ -122,5 +123,66 @@ func TestAuthSecurityTenantScope(t *testing.T) {
 	}
 	if _, _, err := store.GetFactor(ctxB, db, "user-a"); !errors.Is(err, auth.ErrMFAUnavailable) {
 		t.Fatalf("cross-tenant MFA = %v", err)
+	}
+}
+
+func TestMySQLOAuthIdentityLinksOnlyExistingUser(t *testing.T) {
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	ctx := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "oauth-tenant", Slug: "oauth"})
+	otherTenant := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "other-tenant", Slug: "other"})
+	users := NewUserStore(db, database.MySQL)
+	users.RequireTenantScope = true
+	if err := users.Create(ctx, &auth.User{ID: "oauth-user", Email: "admin@example.test", PasswordHash: "hash", Role: auth.RoleAdmin, Active: true}); err != nil {
+		t.Fatal(err)
+	}
+	store := OAuthIdentityStore{DB: db, Dialect: database.MySQL, RequireTenantScope: true}
+	identity := auth.OAuthIdentity{Provider: "github", Subject: "github-subject", Email: "admin@example.test", EmailVerified: true}
+	user, err := store.ResolveOAuth(ctx, identity)
+	if err != nil || user.ID != "oauth-user" {
+		t.Fatalf("OAuth link user=%+v err=%v", user, err)
+	}
+	identity.Email = "changed@example.test"
+	user, err = store.ResolveOAuth(ctx, identity)
+	if err != nil || user.ID != "oauth-user" {
+		t.Fatalf("OAuth identity lookup user=%+v err=%v", user, err)
+	}
+	identity.Subject = "cross-tenant-subject"
+	if _, err := store.ResolveOAuth(otherTenant, identity); !errors.Is(err, auth.ErrUserNotFound) {
+		t.Fatalf("cross-tenant OAuth link error=%v", err)
+	}
+}
+
+func TestMySQLUserStoreTenantContract(t *testing.T) {
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	store := NewUserStore(db, database.MySQL)
+	store.RequireTenantScope = true
+	alpha := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "users-alpha", Slug: "alpha"})
+	beta := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "users-beta", Slug: "beta"})
+	for _, user := range []*auth.User{
+		{ID: "mysql-user-a", Email: "a@example.test", PasswordHash: "hash-a", Role: auth.RoleAdmin, Active: true},
+		{ID: "mysql-user-b", Email: "b@example.test", PasswordHash: "hash-b", Role: auth.RoleEditor, Active: true},
+	} {
+		ctx := alpha
+		if user.ID == "mysql-user-b" {
+			ctx = beta
+		}
+		if err := store.Create(ctx, user); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.GetByEmail(beta, "a@example.test"); !errors.Is(err, auth.ErrUserNotFound) {
+		t.Fatalf("cross-tenant email lookup: %v", err)
+	}
+	if count, err := store.Count(alpha); err != nil || count != 1 {
+		t.Fatalf("tenant user count=%d err=%v", count, err)
+	}
+	if err := store.SetActive(alpha, "mysql-user-a", false); err != nil {
+		t.Fatal(err)
+	}
+	user, err := store.GetByID(alpha, "mysql-user-a")
+	if err != nil || user.Active {
+		t.Fatalf("updated user=%+v err=%v", user, err)
 	}
 }

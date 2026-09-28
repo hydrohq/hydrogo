@@ -41,7 +41,7 @@ func (s Store) validate() error {
 	if err := database.RequireExecutor(s.Executor); err != nil {
 		return err
 	}
-	if s.Dialect != database.SQLite && s.Dialect != database.Postgres {
+	if s.Dialect != database.SQLite && s.Dialect != database.Postgres && s.Dialect != database.MySQL {
 		return fmt.Errorf("unsupported forms dialect %q", s.Dialect)
 	}
 	return nil
@@ -79,6 +79,15 @@ func (s Store) UpsertWithExecutor(ctx context.Context, executor database.Executo
 			_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at,tenant_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,schema_json=EXCLUDED.schema_json,updated_at=EXCLUDED.updated_at,tenant_id=EXCLUDED.tenant_id`, form.ID, form.Title, string(payload), time.Now().UTC(), tenantID)
 		} else {
 			_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at) VALUES ($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,schema_json=EXCLUDED.schema_json,updated_at=EXCLUDED.updated_at`, form.ID, form.Title, string(payload), time.Now().UTC())
+		}
+		return err
+	}
+	if s.Dialect == database.MySQL {
+		now := time.Now().UTC()
+		if s.RequireTenantScope {
+			_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at,tenant_id) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),schema_json=VALUES(schema_json),updated_at=VALUES(updated_at),tenant_id=VALUES(tenant_id)`, form.ID, form.Title, string(payload), now, tenantID)
+		} else {
+			_, err = s.Executor.ExecContext(ctx, `INSERT INTO hydro_forms (id,title,schema_json,updated_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),schema_json=VALUES(schema_json),updated_at=VALUES(updated_at)`, form.ID, form.Title, string(payload), now)
 		}
 		return err
 	}

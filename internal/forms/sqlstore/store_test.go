@@ -9,6 +9,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 )
 
 func newFormStore(t *testing.T) Store {
@@ -43,6 +44,32 @@ func TestFormStoreRoundTripListAndDelete(t *testing.T) {
 	}
 	if err := s.Delete(context.Background(), "contact"); !errors.Is(err, ErrFormNotFound) {
 		t.Fatalf("missing delete=%v", err)
+	}
+}
+
+func TestMySQLFormStoreTenantRoundTrip(t *testing.T) {
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	s := Store{Executor: db, Dialect: database.MySQL, RequireTenantScope: true}
+	ctxA := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "form-tenant-a", Slug: "a"})
+	ctxB := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "form-tenant-b", Slug: "b"})
+	form := forms.Form{ID: "mysql-contact", Title: "Contact", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}}}
+	if err := s.Upsert(ctxA, form); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(ctxA, form.ID)
+	if err != nil || got.ID != form.ID {
+		t.Fatalf("get form=%+v err=%v", got, err)
+	}
+	if _, err := s.Get(ctxB, form.ID); !errors.Is(err, ErrFormNotFound) {
+		t.Fatalf("cross-tenant form lookup: %v", err)
+	}
+	listed, err := s.List(ctxA)
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("forms=%+v err=%v", listed, err)
+	}
+	if err := s.Delete(ctxA, form.ID); err != nil {
+		t.Fatal(err)
 	}
 }
 

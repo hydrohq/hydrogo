@@ -216,7 +216,7 @@ func (s Store[T]) validate(db database.Executor) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	if s.Dialect != database.SQLite && s.Dialect != database.Postgres {
+	if s.Dialect != database.SQLite && s.Dialect != database.Postgres && s.Dialect != database.MySQL {
 		return errors.New("unsupported database dialect")
 	}
 	if !tableName.MatchString(s.Table) {

@@ -15,6 +15,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/jobs"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
@@ -80,6 +81,12 @@ func TestPostgresRestoreControlsRevokeSessionsAndQuarantineJobs(t *testing.T) {
 		t.Fatal(err)
 	}
 	runRestoreControlsContract(t, db, database.Postgres, "postgres")
+}
+
+func TestMySQLRestoreControlsRevokeSessionsAndQuarantineJobs(t *testing.T) {
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	runRestoreControlsContract(t, db, database.MySQL, "mysql")
 }
 
 func runRestoreControlsContract(t *testing.T, db *sql.DB, dialect database.Dialect, suffix string) {

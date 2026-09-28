@@ -77,7 +77,7 @@ func (s Store) RequeueDeadLetter(ctx context.Context, db database.Executor, id s
 	if s.Dialect == database.Postgres {
 		dead = "TRUE"
 	}
-	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", dead_lettered = "+s.boolLiteral(false)+" WHERE id = "+s.p(2)+" AND dead_lettered = "+dead, formatTime(availableAt.UTC()), id)
+	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", dead_lettered = "+s.boolLiteral(false)+" WHERE id = "+s.p(2)+" AND dead_lettered = "+dead, s.dbTime(availableAt.UTC()), id)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (s Store) PurgeDeadLetters(ctx context.Context, db database.Executor, befor
 	if !ok {
 		return 0, errors.New("database executor does not support row queries")
 	}
-	rows, err := queryer.QueryContext(ctx, "SELECT id FROM jobs WHERE dead_lettered = "+dead+" AND created_at < "+s.p(1)+" ORDER BY created_at, id LIMIT "+s.p(2), formatTime(before.UTC()), limit)
+	rows, err := queryer.QueryContext(ctx, "SELECT id FROM jobs WHERE dead_lettered = "+dead+" AND created_at < "+s.p(1)+" ORDER BY created_at, id LIMIT "+s.p(2), s.dbTime(before.UTC()), limit)
 	if err != nil {
 		return 0, err
 	}
@@ -201,7 +201,7 @@ func (s Store) enqueue(ctx context.Context, db database.Executor, job jobs.Job) 
 	if job.AvailableAt.IsZero() {
 		job.AvailableAt = job.CreatedAt
 	}
-	_, err := db.ExecContext(ctx, `INSERT INTO jobs (id, type, payload, available_at, created_at, attempts) VALUES (`+s.p(1)+`, `+s.p(2)+`, `+s.p(3)+`, `+s.p(4)+`, `+s.p(5)+`, 0)`, job.ID, job.Type, job.Payload, formatTime(job.AvailableAt), formatTime(job.CreatedAt))
+	_, err := db.ExecContext(ctx, `INSERT INTO jobs (id, type, payload, available_at, created_at, attempts) VALUES (`+s.p(1)+`, `+s.p(2)+`, `+s.p(3)+`, `+s.p(4)+`, `+s.p(5)+`, 0)`, job.ID, job.Type, job.Payload, s.dbTime(job.AvailableAt), s.dbTime(job.CreatedAt))
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			var existingType, existingPayload string
@@ -230,7 +230,7 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	}
 	// restore_controls stores its flags as INTEGER in both dialects. Keep the
 	// quarantine predicate numeric instead of using PostgreSQL's BOOLEAN literal.
-	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1) ORDER BY available_at, id LIMIT 1`, formatTime(now), formatTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts, &job.DeadLettered, &job.LastError)
+	err := db.QueryRowContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, '') FROM jobs WHERE available_at <= `+s.p(1)+` AND (lease_until IS NULL OR lease_until <= `+s.p(2)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1) ORDER BY available_at, id LIMIT 1`, s.dbTime(now), s.dbTime(now)).Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &attempts, &job.DeadLettered, &job.LastError)
 	if errors.Is(err, sql.ErrNoRows) {
 		return jobs.Job{}, "", false, nil
 	}
@@ -247,7 +247,7 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	}
 	job.Attempts = attempts + 1
 	token := newToken(worker, job.ID, now)
-	result, err := db.ExecContext(ctx, `UPDATE jobs SET lease_owner = `+s.p(1)+`, lease_token = `+s.p(2)+`, lease_until = `+s.p(3)+`, attempts = attempts + 1 WHERE id = `+s.p(4)+` AND (lease_until IS NULL OR lease_until <= `+s.p(5)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1)`, worker, token, formatTime(now.Add(duration)), job.ID, formatTime(now))
+	result, err := db.ExecContext(ctx, `UPDATE jobs SET lease_owner = `+s.p(1)+`, lease_token = `+s.p(2)+`, lease_until = `+s.p(3)+`, attempts = attempts + 1 WHERE id = `+s.p(4)+` AND (lease_until IS NULL OR lease_until <= `+s.p(5)+`) AND dead_lettered = `+deadLettered+` AND NOT EXISTS (SELECT 1 FROM restore_controls WHERE id = 1 AND egress_quarantined = 1)`, worker, token, s.dbTime(now.Add(duration)), job.ID, s.dbTime(now))
 	if err != nil {
 		return jobs.Job{}, "", false, err
 	}
@@ -287,7 +287,7 @@ func (s Store) NackWithError(ctx context.Context, db database.Executor, id, work
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", last_error = "+s.p(2)+" WHERE id = "+s.p(3)+" AND lease_owner = "+s.p(4)+" AND lease_token = "+s.p(5), formatTime(retryAt.UTC()), jobs.BoundError(reason), id, worker, token)
+	result, err := db.ExecContext(ctx, "UPDATE jobs SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = "+s.p(1)+", last_error = "+s.p(2)+" WHERE id = "+s.p(3)+" AND lease_owner = "+s.p(4)+" AND lease_token = "+s.p(5), s.dbTime(retryAt.UTC()), jobs.BoundError(reason), id, worker, token)
 	if err != nil {
 		return err
 	}
@@ -344,6 +344,13 @@ func (s Store) boolLiteral(value bool) string {
 }
 
 func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
+
+func (s Store) dbTime(value time.Time) any {
+	if s.Dialect == database.MySQL {
+		return value.UTC()
+	}
+	return formatTime(value)
+}
 
 func parseTime(value string) (time.Time, error) { return time.Parse(time.RFC3339Nano, value) }
 

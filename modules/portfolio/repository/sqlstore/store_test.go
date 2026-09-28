@@ -14,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/sectoral"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/portfolio"
 )
@@ -74,6 +75,33 @@ func TestRelatedPublishedRanksSharedTagsAndExcludesCurrentDraftAndOtherTenant(t 
 	var tenantTag string
 	if err := db.QueryRowContext(ctx, `SELECT tenant_id FROM sectoral_portfolio_tags WHERE content_id=? LIMIT 1`, "other-tenant").Scan(&tenantTag); err != nil || tenantTag != "tenant-b" {
 		t.Fatalf("tag tenant=%q err=%v", tenantTag, err)
+	}
+}
+
+func TestMySQLRelatedPublishedUsesSharedTagsAndTenantScope(t *testing.T) {
+	ctx := context.Background()
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	store := New(database.MySQL)
+	alpha, _ := tenant.NewScope("mysql-alpha", "alpha")
+	beta, _ := tenant.NewScope("mysql-beta", "beta")
+	alphaCtx, betaCtx := tenant.WithScope(ctx, alpha), tenant.WithScope(ctx, beta)
+	for _, row := range []struct {
+		ctx  context.Context
+		item portfolio.Project
+	}{
+		{alphaCtx, project("mysql-source", "source", "published", "hydro", "go")},
+		{alphaCtx, project("mysql-best", "best", "published", "hydro", "go")},
+		{alphaCtx, project("mysql-next", "next", "published", "hydro")},
+		{betaCtx, project("mysql-other", "other", "published", "hydro", "go")},
+	} {
+		if err := store.Create(row.ctx, db, row.item); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := store.ListRelatedPublished(alphaCtx, db, "mysql-source", "en", 4)
+	if err != nil || len(got) != 2 || got[0].ID != "mysql-best" || got[1].ID != "mysql-next" {
+		t.Fatalf("related project order=%v err=%v", projectIDs(got), err)
 	}
 }
 
