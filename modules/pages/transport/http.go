@@ -297,7 +297,23 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]adminstudio.Row, 0, len(items))
 	for _, item := range items {
-		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
+		title := item.Title
+		if h.Media != nil {
+			if content, contentErr := h.Content.Get(r.Context(), h.DB, item.ID); contentErr == nil {
+				serialized, _ := json.Marshal(content.Blocks)
+				references := media.MissingReferences(content.Body+string(serialized), nil)
+				missing := 0
+				for _, id := range references {
+					if _, getErr := h.Media.Get(r.Context(), h.DB, id); getErr != nil {
+						missing++
+					}
+				}
+				if missing > 0 {
+					title += fmt.Sprintf(" ⚠ %d eksik görsel", missing)
+				}
+			}
+		}
+		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStartForRequest(w, r, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {

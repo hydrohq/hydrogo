@@ -23,6 +23,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
@@ -35,9 +36,12 @@ type Route struct {
 }
 
 type Handler struct {
-	Service            news.Service
-	DB                 database.Executor
-	Media              publicMediaURLProvider
+	Service     news.Service
+	DB          database.Executor
+	Media       publicMediaURLProvider
+	MediaLookup interface {
+		Get(context.Context, database.Executor, string) (media.Asset, error)
+	}
 	AdminCollection    adminstudio.Collection
 	DefaultLocale      string
 	NavigationProvider func(context.Context, string) ([]v1.ThemeNavigationItem, error)
@@ -148,7 +152,22 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]adminstudio.Row, 0, len(items))
 	for _, item := range items {
-		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
+		title := item.Title
+		if h.MediaLookup != nil {
+			if content, contentErr := h.Service.Repository.Get(r.Context(), h.DB, item.ID); contentErr == nil {
+				references := media.MissingReferences(content.Body+content.CoverMediaID, nil)
+				missing := 0
+				for _, id := range references {
+					if _, getErr := h.MediaLookup.Get(r.Context(), h.DB, id); getErr != nil {
+						missing++
+					}
+				}
+				if missing > 0 {
+					title += fmt.Sprintf(" ⚠ %d eksik görsel", missing)
+				}
+			}
+		}
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
 	}
 	if r.URL.Query().Get("fragment") == "table" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
