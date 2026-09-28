@@ -83,6 +83,9 @@ func (r PasswordRecovery) Reset(ctx context.Context, tx database.Executor, rawTo
 	if strings.TrimSpace(rawToken) == "" || newPassword == "" {
 		return ErrRecoveryTokenInvalid
 	}
+	if err := ValidatePasswordStrength(newPassword); err != nil {
+		return err
+	}
 	digest := sha256.Sum256([]byte(rawToken))
 	userID, err := r.Tokens.ConsumeRecoveryToken(ctx, tx, PasswordResetPurpose, hex.EncodeToString(digest[:]), time.Now().UTC())
 	if err != nil {

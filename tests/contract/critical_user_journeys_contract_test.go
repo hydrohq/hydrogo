@@ -105,7 +105,7 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.NewMobileAuthService(sqlDB, dialect), auth.TestArgon2Params)
 	mfaSvc := auth.MFAService{Store: userStore, MasterKey: []byte("0123456789abcdef0123456789abcdef")}
 
-	adminUser, err := authSvc.CreateUser(ctx, "admin_journey@example.com", "AdminPassword123!", auth.RoleAdmin)
+	adminUser, err := authSvc.CreateUser(ctx, "admin_journey@example.com", "Amber-River7!Cedar", auth.RoleAdmin)
 	if err != nil {
 		t.Fatalf("create admin: %v", err)
 	}
@@ -128,7 +128,7 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 	// Login with password only -> MFA Required (Unauthorized)
 	authHandler := auth.HTTPHandler{Service: authSvc, MFA: &mfaSvc, MFADB: sqlDB, Transactions: database.NewTransactor(sqlDB)}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader("email=admin_journey@example.com&password=AdminPassword123!"))
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader("email=admin_journey@example.com&password=Amber-River7!Cedar"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	authHandler.Routes()[0].Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
@@ -141,7 +141,7 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 		t.Fatalf("generate TOTP: %v", err)
 	}
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(fmt.Sprintf("email=admin_journey@example.com&password=AdminPassword123!&mfa_code=%s", code)))
+	req = httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(fmt.Sprintf("email=admin_journey@example.com&password=Amber-River7!Cedar&mfa_code=%s", code)))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	authHandler.Routes()[0].Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -266,7 +266,7 @@ func runSecurityNegativePathsTest(t *testing.T, ctx context.Context, sqlDB *sql.
 	}
 
 	// B. Revoked Session Access Rejection
-	testUser, err := authSvc.CreateUser(ctx, "victim@example.com", "VictimPassword123!", auth.RoleEditor)
+	testUser, err := authSvc.CreateUser(ctx, "victim@example.com", "Amber-River7!Cedar", auth.RoleEditor)
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -298,14 +298,14 @@ func runSecurityNegativePathsTest(t *testing.T, ctx context.Context, sqlDB *sql.
 	}
 	// First use: success
 	err = database.NewTransactor(sqlDB).Within(ctx, func(tx database.Executor) error {
-		return resetSvc.Reset(ctx, tx, resetTok, "BrandNewPassword123!")
+		return resetSvc.Reset(ctx, tx, resetTok, "Copper-Lake5!Pine")
 	})
 	if err != nil {
 		t.Fatalf("first reset failed: %v", err)
 	}
 	// Second use: reject
 	err = database.NewTransactor(sqlDB).Within(ctx, func(tx database.Executor) error {
-		return resetSvc.Reset(ctx, tx, resetTok, "AnotherNewPassword123!")
+		return resetSvc.Reset(ctx, tx, resetTok, "Maple-Cloud8!Birch")
 	})
 	if !errors.Is(err, auth.ErrRecoveryTokenInvalid) {
 		t.Fatalf("reused reset token must fail, got: %v", err)

@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +21,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
@@ -218,7 +221,29 @@ func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, reg
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
 	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
+	page := &bufferedAuthPage{ResponseWriter: w, register: register, nonce: nonce, ctx: r.Context()}
+	w = page
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo</title><link rel="stylesheet" href="/theme/static/theme.css?v=e0fcce17"></head><body class="theme-corporate-body"><main data-testid="member-auth" class="member-auth-page"><a class="member-auth-brand" href="/"><span class="member-auth-brand-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span>HYDRO<b>GO</b></a><section class="member-auth-card"><div class="section-badge"><span class="badge-dot"></span> ÜYELİK MERKEZİ</div><h1>%s</h1><p class="member-auth-lead">Siparişlerinizi ve tercihlerinizi tek bir güvenli hesaptan yönetin.</p><form class="member-auth-form" method="post" data-member-form action="%s"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="return_to" value="%s"><label class="auth-field"><span class="field-label">E-posta Adresi</span><div class="field-input-wrap"><svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg><input name="email" type="email" autocomplete="email" required placeholder="ornek@site.com"></div></label><label class="auth-field"><span class="field-label">Şifre</span><div class="field-input-wrap"><svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><input name="password" type="password" autocomplete="%s" minlength="8" required placeholder="En az 8 karakter"></div></label><button class="btn-primary auth-submit-btn" type="submit"><span>%s</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button><div class="member-auth-status" data-member-status role="alert"></div></form><div class="auth-trust-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><span>Güvenli bağlantı ve KVKK uyumu</span></div><p class="member-auth-switch">%s <a href="%s" class="auth-back-link">%s →</a></p></section></main><script nonce="%s">(function(){var form=document.querySelector('[data-member-form]'),status=document.querySelector('[data-member-status]');function showMsg(type,text){status.className='member-auth-status status-'+type;status.textContent=text;status.style.display='block';}form.addEventListener('submit',async function(event){event.preventDefault();var button=form.querySelector('button');var originalContent=button.innerHTML;button.disabled=true;button.innerHTML='<span>İşleniyor…</span>';status.style.display='none';status.textContent='';try{var csrfInput=form.querySelector('input[name="_csrf"]');var csrfVal=csrfInput?csrfInput.value:'';var formData=new FormData(form);var body=new URLSearchParams(formData);var response=await fetch(form.action,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':csrfVal,'Accept':'application/json'},body:body});var rawText=await response.text();var data=null;try{data=JSON.parse(rawText);}catch(e){}if(!response.ok){var errMsg=(data&&data.error)?data.error:rawText;var lower=(errMsg||'').toLowerCase();if(lower.indexOf('already registered')!==-1||response.status===409){showMsg('error','Bu e-posta adresi zaten kayıtlı. Giriş yapmayı deneyin.');}else if(lower.indexOf('invalid credentials')!==-1||response.status===401){showMsg('error','E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.');}else if(lower.indexOf('too many')!==-1||response.status===429){showMsg('error','Çok fazla deneme yapıldı. Lütfen biraz bekleyip tekrar deneyin.');}else if(lower.indexOf('csrf')!==-1||response.status===403){showMsg('error','Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyin.');}else{showMsg('error',errMsg||'İşlem tamamlanamadı. Bilgilerinizi kontrol edin.');}button.disabled=false;button.innerHTML=originalContent;return;}if(data&&data.member){try{localStorage.setItem('hydro_member_state',JSON.stringify(data.member));if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGIN',member:data.member});}}catch(e){}}var target=(data&&data.redirect)?data.redirect:'%s';showMsg('success','İşlem başarılı! Yönlendiriliyorsunuz…');setTimeout(function(){window.location.href=target;},200);}catch(err){showMsg('error','Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').');button.disabled=false;button.innerHTML=originalContent;}});})();</script></body></html>`, title, heading, endpoint, csrf, template.HTMLEscapeString(returnTo), map[bool]string{true: "new-password", false: "current-password"}[register], submit, prompt, linkHref, linkText, nonce, template.HTMLEscapeString(returnTo))
+}
+
+type bufferedAuthPage struct {
+	http.ResponseWriter
+	register bool
+	nonce    string
+	ctx      context.Context
+}
+
+func (w *bufferedAuthPage) Write(value []byte) (int, error) {
+	markup := string(value)
+	if w.register {
+		markup = strings.Replace(markup, `autocomplete="new-password" minlength="8" required placeholder="En az 8 karakter"`, `autocomplete="new-password" minlength="8" required data-password-strength placeholder="En az 8 karakter"`, 1)
+		var strength bytes.Buffer
+		if err := designsystem.PasswordStrengthMeter().Render(w.ctx, &strength); err == nil {
+			markup = strings.Replace(markup, `placeholder="En az 8 karakter"></div></label><button class="btn-primary auth-submit-btn"`, `placeholder="En az 8 karakter"></div></label>`+strength.String()+`<button class="btn-primary auth-submit-btn"`, 1)
+		}
+		markup = strings.Replace(markup, `</body>`, `<script nonce="`+w.nonce+`">(function(){var form=document.querySelector('[data-member-form]'),input=form&&form.querySelector('[data-password-strength]'),meter=form&&form.querySelector('[data-password-meter]'),feedback=form&&form.querySelector('[data-password-feedback]');if(!input||!meter)return;function score(value){var chars=Array.from(value),lower=value.toLowerCase(),pool=0,classes=0;if(chars.length<8||chars.length>1024||new Set(chars).size<4||['password','qwerty','welcome','admin','secret','letmein','iloveyou','monkey','dragon','football','abc123'].some(function(word){return lower.indexOf(word)!==-1}))return 0;if(/[a-z]/.test(value)){pool+=26;classes++}if(/[A-Z]/.test(value)){pool+=26;classes++}if(/[0-9]/.test(value)){pool+=10;classes++}if(/[^A-Za-z0-9]/.test(value)){pool+=32;classes++}var entropy=chars.length*Math.log2(pool||1);return classes&&entropy>=40?Math.min(4,1+Math.floor((entropy-40)/20)):0}input.addEventListener('input',function(){var strength=score(input.value);meter.value=strength;if(feedback)feedback.textContent=strength?'Parola gücü: '+(strength>=3?'Güçlü':'Uygun')+'.':'En az 8 karakter seçin; yaygın parolalardan kaçının ve farklı karakterler ekleyin.'});form.addEventListener('submit',function(event){if(score(input.value)===0){event.preventDefault();event.stopImmediatePropagation();if(feedback)feedback.textContent='Daha uzun ve tahmin edilmesi zor bir parola seçin.';input.focus()}},true)})();</script></body>`, 1)
+	}
+	return w.ResponseWriter.Write([]byte(markup))
 }
 
 func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
@@ -289,6 +314,10 @@ func (h Handler) register(w http.ResponseWriter, r *http.Request) {
 	}
 	m, err := h.Service.Register(r.Context(), r.FormValue("email"), r.FormValue("password"))
 	if err != nil {
+		if errors.Is(err, auth.ErrWeakPassword) {
+			http.Error(w, "password too weak: choose a longer, less common password", http.StatusBadRequest)
+			return
+		}
 		if errors.Is(err, members.ErrMemberExists) {
 			http.Error(w, "email already registered", 409)
 			return

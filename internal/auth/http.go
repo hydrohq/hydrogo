@@ -159,6 +159,10 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid or expired invitation", http.StatusUnauthorized)
 		return
 	}
+	if errors.Is(err, ErrWeakPassword) {
+		http.Error(w, "Choose a longer, less common password.", http.StatusBadRequest)
+		return
+	}
 	if errors.Is(err, ErrUserAlreadyExists) {
 		http.Error(w, "user already exists", http.StatusConflict)
 		return
@@ -225,6 +229,10 @@ func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request
 	})
 	if errors.Is(err, ErrRecoveryTokenInvalid) {
 		http.Error(w, "invalid or expired recovery token", http.StatusUnauthorized)
+		return
+	}
+	if errors.Is(err, ErrWeakPassword) {
+		http.Error(w, "Choose a longer, less common password.", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
@@ -502,6 +510,12 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 	if newPassword != "" && len([]rune(newPassword)) < 8 {
 		http.Error(w, "new password must be at least 8 characters", http.StatusBadRequest)
 		return
+	}
+	if newPassword != "" {
+		if err := ValidatePasswordStrength(newPassword); err != nil {
+			http.Error(w, "Choose a longer, less common password.", http.StatusBadRequest)
+			return
+		}
 	}
 	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
 		return h.Service.ChangeCredentials(r.Context(), user.ID, r.FormValue("current_password"), newEmail, newPassword, tx)

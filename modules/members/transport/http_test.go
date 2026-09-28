@@ -148,9 +148,12 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 	if !strings.Contains(rr.Body.String(), `name="_csrf"`) {
 		t.Fatalf("missing _csrf in register page body")
 	}
+	if !strings.Contains(rr.Body.String(), `data-password-strength`) || !strings.Contains(rr.Body.String(), `data-password-meter`) || !strings.Contains(rr.Body.String(), `data-password-feedback`) {
+		t.Fatalf("registration page is missing accessible password guidance")
+	}
 
 	// 2. POST /member/register creates account and sets cookie
-	form := url.Values{"email": {"newuser@example.com"}, "password": {"secret1234"}}
+	form := url.Values{"email": {"newuser@example.com"}, "password": {"Amber-River7!Cedar"}}
 	postReq := httptest.NewRequest("POST", "/member/register", strings.NewReader(form.Encode()))
 	postReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	postRR := httptest.NewRecorder()

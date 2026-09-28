@@ -49,6 +49,23 @@ func TestAdminUXTemplComponentsRenderAccessibleBoundedFlows(t *testing.T) {
 	}
 }
 
+func TestAdminPasswordStrengthUsesDelegatedAccessibleFeedback(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminUXChrome().Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-password-strength`, `data-password-meter`, `data-password-feedback`, `aria-live="polite"`} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("admin password form missing %q", want)
+		}
+	}
+	for _, want := range []string{"document.addEventListener('input'", "document.addEventListener('submit'", "[data-password-feedback]", "yeni ve güçlü bir parola seçin"} {
+		if !strings.Contains(AdminPasswordStrengthJS+AdminPasswordSubmitJS, want) {
+			t.Fatalf("password strength behavior missing %q", want)
+		}
+	}
+}
+
 func TestRevisionDiffEscapesUntrustedFieldValues(t *testing.T) {
 	var out bytes.Buffer
 	if err := RevisionDiffPanel([]adminstudio.FieldDiff{{Field: "title", Before: "<script>bad</script>", After: "Yeni"}}, "Editor", "bugün", "/admin/pages/p/revisions/1/restore", "csrf").Render(context.Background(), &out); err != nil {

@@ -34,6 +34,19 @@ func TestArgon2PasswordHashingAndVerification(t *testing.T) {
 	}
 }
 
+func TestValidatePasswordStrength(t *testing.T) {
+	for _, weak := range []string{"short", "password123", "aaaaaaaaaaaaaaaa", "12345678", "AdminWelcome2026!"} {
+		if err := ValidatePasswordStrength(weak); err != ErrWeakPassword {
+			t.Errorf("ValidatePasswordStrength(%q) = %v, want ErrWeakPassword", weak, err)
+		}
+	}
+	for _, strong := range []string{"Lime-Train7!Harbor", "correct horse battery staple"} {
+		if err := ValidatePasswordStrength(strong); err != nil {
+			t.Errorf("ValidatePasswordStrength(%q) = %v", strong, err)
+		}
+	}
+}
+
 func TestVerifyPasswordInvalidFormat(t *testing.T) {
 	_, err := VerifyPassword("password", "not-a-valid-argon2-hash")
 	if err != ErrInvalidHash {

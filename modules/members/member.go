@@ -107,8 +107,11 @@ func (s Service) Register(ctx context.Context, email, password string) (*Member,
 		return nil, ErrMemberRepoRequired
 	}
 	email = auth.NormalizeEmail(email)
-	if email == "" || len(password) < 8 {
+	if email == "" {
 		return nil, auth.ErrInvalidCredentials
+	}
+	if err := auth.ValidatePasswordStrength(password); err != nil {
+		return nil, err
 	}
 	if existing, err := s.Members.GetByEmail(ctx, email); err == nil && existing != nil {
 		return nil, ErrMemberExists

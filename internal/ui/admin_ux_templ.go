@@ -11,6 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import "strconv"
 
 import "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+import "github.com/ardaozyildirim/hydrogo/modules/designsystem"
 
 func AdminUXChrome() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -37,7 +38,15 @@ func AdminUXChrome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"admin-shortcuts-dialog\" class=\"admin-ux-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"admin-shortcuts-title\" hidden><section class=\"admin-ux-panel\"><button class=\"admin-ux-close\" type=\"button\" data-ux-close aria-label=\"Kapat\">×</button><h2 id=\"admin-shortcuts-title\">Klavye kısayolları</h2><dl><dt>?</dt><dd>Bu yardım penceresini aç</dd><dt>⌘ / Ctrl + /</dt><dd>Kısayol listesini aç</dd><dt>⌘ / Ctrl + K</dt><dd>Hızlı aramayı aç</dd><dt>⌘ / Ctrl + S</dt><dd>Formu kaydet</dd><dt>Esc</dt><dd>Pencereyi kapat</dd><dt>J / K</dt><dd>Listede ilerle / geri git</dd><dt>N</dt><dd>Yeni kayıt oluştur</dd></dl></section></div><div id=\"admin-password-dialog\" class=\"admin-ux-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"admin-password-title\" hidden><section class=\"admin-ux-panel\"><button class=\"admin-ux-close\" type=\"button\" data-ux-close aria-label=\"Kapat\">×</button><h2 id=\"admin-password-title\">Parolanı değiştir</h2><form data-quick-password-form><input type=\"hidden\" name=\"_csrf\" data-ux-csrf> <label>Mevcut parola<input name=\"current_password\" type=\"password\" autocomplete=\"current-password\" required></label> <label>Yeni parola<input name=\"new_password\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\" required data-password-strength></label> <meter min=\"0\" max=\"4\" value=\"0\" data-password-meter aria-label=\"Parola gücü\"></meter> <label>Yeni parola (tekrar)<input name=\"confirm_password\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\" required></label> <label class=\"admin-ux-check\"><input type=\"checkbox\" name=\"invalidate_other_sessions\" value=\"true\" checked> Diğer cihazlardaki oturumları kapat</label><p role=\"status\" aria-live=\"polite\" data-quick-password-status></p><button class=\"button button-primary\" type=\"submit\">Parolayı güncelle</button></form></section></div><div id=\"admin-onboarding-dialog\" class=\"admin-ux-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"admin-onboarding-title\" hidden><section class=\"admin-ux-panel\" data-onboarding-tour><button class=\"admin-ux-close\" type=\"button\" data-ux-close aria-label=\"Kapat\">×</button><p class=\"eyebrow\">BAŞLANGIÇ REHBERİ</p><h2 id=\"admin-onboarding-title\">Studio’ya hoş geldin</h2><article data-tour-step=\"0\"><p>İçerik alanından site sayfalarını, haberleri ve görselleri yönetebilirsin.</p><nav><a href=\"/admin/pages\">Sayfaları aç</a><a href=\"/admin/news\">Haberleri aç</a></nav></article><article data-tour-step=\"1\" hidden><p>Değişikliklerin taslak olarak kaydedilir. Önizleyip hazır olduğunda yayına alabilirsin.</p></article><article data-tour-step=\"2\" hidden><p>Bu rehbere her zaman ulaşabilir ve hesabını üst çubuktan yönetebilirsin.</p><a href=\"/admin/guide\">Yardım ve video rehberi</a></article><div class=\"studio-actions\"><button class=\"button button-quiet\" type=\"button\" data-tour-prev disabled>Geri</button><button class=\"button button-primary\" type=\"button\" data-tour-next>İleri</button></div><button class=\"button button-quiet\" type=\"button\" data-onboarding-dismiss>Bu rehberi bir daha gösterme</button></section></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"admin-shortcuts-dialog\" class=\"admin-ux-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"admin-shortcuts-title\" hidden><section class=\"admin-ux-panel\"><button class=\"admin-ux-close\" type=\"button\" data-ux-close aria-label=\"Kapat\">×</button><h2 id=\"admin-shortcuts-title\">Klavye kısayolları</h2><dl><dt>?</dt><dd>Bu yardım penceresini aç</dd><dt>⌘ / Ctrl + /</dt><dd>Kısayol listesini aç</dd><dt>⌘ / Ctrl + K</dt><dd>Hızlı aramayı aç</dd><dt>⌘ / Ctrl + S</dt><dd>Formu kaydet</dd><dt>Esc</dt><dd>Pencereyi kapat</dd><dt>J / K</dt><dd>Listede ilerle / geri git</dd><dt>N</dt><dd>Yeni kayıt oluştur</dd></dl></section></div><div id=\"admin-password-dialog\" class=\"admin-ux-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"admin-password-title\" hidden><section class=\"admin-ux-panel\"><button class=\"admin-ux-close\" type=\"button\" data-ux-close aria-label=\"Kapat\">×</button><h2 id=\"admin-password-title\">Parolanı değiştir</h2><form data-quick-password-form><input type=\"hidden\" name=\"_csrf\" data-ux-csrf> <label>Mevcut parola<input name=\"current_password\" type=\"password\" autocomplete=\"current-password\" required></label> <label>Yeni parola<input name=\"new_password\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\" required data-password-strength></label>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = designsystem.PasswordStrengthMeter().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<label>Yeni parola (tekrar)<input name=\"confirm_password\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\" required></label> <label class=\"admin-ux-check\"><input type=\"checkbox\" name=\"invalidate_other_sessions\" value=\"true\" checked> Diğer cihazlardaki oturumları kapat</label><p role=\"status\" aria-live=\"polite\" data-quick-password-status></p><button class=\"button button-primary\" type=\"submit\">Parolayı güncelle</button></form></section></div><div id=\"admin-onboarding-dialog\" class=\"admin-ux-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"admin-onboarding-title\" hidden><section class=\"admin-ux-panel\" data-onboarding-tour><button class=\"admin-ux-close\" type=\"button\" data-ux-close aria-label=\"Kapat\">×</button><p class=\"eyebrow\">BAŞLANGIÇ REHBERİ</p><h2 id=\"admin-onboarding-title\">Studio’ya hoş geldin</h2><article data-tour-step=\"0\"><p>İçerik alanından site sayfalarını, haberleri ve görselleri yönetebilirsin.</p><nav><a href=\"/admin/pages\">Sayfaları aç</a><a href=\"/admin/news\">Haberleri aç</a></nav></article><article data-tour-step=\"1\" hidden><p>Değişikliklerin taslak olarak kaydedilir. Önizleyip hazır olduğunda yayına alabilirsin.</p></article><article data-tour-step=\"2\" hidden><p>Bu rehbere her zaman ulaşabilir ve hesabını üst çubuktan yönetebilirsin.</p><a href=\"/admin/guide\">Yardım ve video rehberi</a></article><div class=\"studio-actions\"><button class=\"button button-quiet\" type=\"button\" data-tour-prev disabled>Geri</button><button class=\"button button-primary\" type=\"button\" data-tour-next>İleri</button></div><button class=\"button button-quiet\" type=\"button\" data-onboarding-dismiss>Bu rehberi bir daha gösterme</button></section></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -79,139 +88,139 @@ func TranslationEditor(data TranslationEditorData) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"studio-card\" data-translation-editor><div class=\"studio-split-editor\"><article><h2>Kaynak içerik</h2><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<section class=\"studio-card\" data-translation-editor><div class=\"studio-split-editor\"><article><h2>Kaynak içerik</h2><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.SourceTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 61, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 62, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p><div class=\"translation-source\" data-translation-source>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</p><div class=\"translation-source\" data-translation-source>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.SourceBody)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 61, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 62, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></article><form method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></article><form method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 templ.SafeURL
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(data.Action)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 62, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 63, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" class=\"studio-form\"><h2>Çeviri · ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" class=\"studio-form\"><h2>Çeviri · ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.Locale)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 63, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 64, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</h2><input type=\"hidden\" name=\"_csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</h2><input type=\"hidden\" name=\"_csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.CSRF)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 64, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 65, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"> <input type=\"hidden\" name=\"locale\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <input type=\"hidden\" name=\"locale\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Locale)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 65, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 66, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <input type=\"hidden\" name=\"version\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"> <input type=\"hidden\" name=\"version\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(data.Version))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 66, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 67, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"> <label>Başlık<input name=\"title\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"> <label>Başlık<input name=\"title\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.TargetTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 67, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 68, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" required maxlength=\"256\"></label> <label>Metin<textarea name=\"body\" rows=\"16\" required data-translation-target>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" required maxlength=\"256\"></label> <label>Metin<textarea name=\"body\" rows=\"16\" required data-translation-target>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.TargetBody)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 68, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 69, Col: 98}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</textarea></label><p role=\"status\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</textarea></label><p role=\"status\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if data.Outdated {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<span>Kaynak güncellendi; çeviriyi gözden geçirin.</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<span>Kaynak güncellendi; çeviriyi gözden geçirin.</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if !data.Exists {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<span>Bu dil için henüz çeviri yok.</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span>Bu dil için henüz çeviri yok.</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</p><button class=\"button button-primary\" type=\"submit\">Çeviriyi kaydet</button></form></div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p><button class=\"button button-primary\" type=\"submit\">Çeviriyi kaydet</button></form></div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -240,20 +249,20 @@ func InPlaceEditLink(href string) templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<a class=\"hydro-inline-edit\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<a class=\"hydro-inline-edit\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 templ.SafeURL
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(href)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 83, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 84, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\" aria-label=\"Bu sayfayı düzenle\">✎ <span>Düzenle</span></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" aria-label=\"Bu sayfayı düzenle\">✎ <span>Düzenle</span></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -282,29 +291,29 @@ func BusinessOwnerDashboard(enabled map[string]bool) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<section class=\"business-home\" data-business-view><p class=\"eyebrow\">İŞLETME PANELİ</p><h2>İçeriğinizi kolayca yönetin</h2><p>Günlük işleriniz için ihtiyacınız olan alanları buradan açabilirsiniz.</p><nav aria-label=\"İçerik yönetimi\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<section class=\"business-home\" data-business-view><p class=\"eyebrow\">İŞLETME PANELİ</p><h2>İçeriğinizi kolayca yönetin</h2><p>Günlük işleriniz için ihtiyacınız olan alanları buradan açabilirsiniz.</p><nav aria-label=\"İçerik yönetimi\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if enabled["pages"] {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<a class=\"studio-card\" href=\"/admin/pages\"><strong>Sayfalar</strong><span>Site metinlerini ve sayfa bölümlerini düzenleyin.</span></a> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<a class=\"studio-card\" href=\"/admin/pages\"><strong>Sayfalar</strong><span>Site metinlerini ve sayfa bölümlerini düzenleyin.</span></a> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if enabled["news"] {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<a class=\"studio-card\" href=\"/admin/news\"><strong>Haberler</strong><span>Haberlerinizi hazırlayın ve yayınlayın.</span></a> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<a class=\"studio-card\" href=\"/admin/news\"><strong>Haberler</strong><span>Haberlerinizi hazırlayın ve yayınlayın.</span></a> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if enabled["media"] {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<a class=\"studio-card\" href=\"/admin/media\"><strong>Görseller</strong><span>Site görsellerini yönetin.</span></a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<a class=\"studio-card\" href=\"/admin/media\"><strong>Görseller</strong><span>Site görsellerini yönetin.</span></a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</nav></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</nav></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -333,108 +342,108 @@ func RevisionDiffPanel(diffs []adminstudio.FieldDiff, editor, modified string, r
 			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<section class=\"studio-card\" data-revision-diff><h2>Değişiklikleri karşılaştır</h2><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<section class=\"studio-card\" data-revision-diff><h2>Değişiklikleri karşılaştır</h2><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(editor)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 105, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 106, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, " · ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, " · ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(modified)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 105, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 106, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</p><div class=\"revision-diff-fields\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</p><div class=\"revision-diff-fields\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, diff := range diffs {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<article><h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<article><h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(diff.Field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 108, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 109, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</h3><div class=\"revision-removed\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</h3><div class=\"revision-removed\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(diff.Before)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 108, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 109, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div><div class=\"revision-added\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div><div class=\"revision-added\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(diff.After)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 108, Col: 127}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 109, Col: 127}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div></article>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</div></article>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</div><form method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</div><form method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var21 templ.SafeURL
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinURLErrs(restoreAction)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 111, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 112, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\" data-confirm-action=\"Bu sürüm geri yüklensin mi?\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" data-confirm-action=\"Bu sürüm geri yüklensin mi?\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 111, Col: 146}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 112, Col: 146}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"><button class=\"button button-quiet\" type=\"submit\">Bu sürümü geri yükle</button></form></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"><button class=\"button button-quiet\" type=\"submit\">Bu sürümü geri yükle</button></form></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -463,85 +472,85 @@ func VisualRevisionCompare(before, after string, beforeLabel, afterLabel string)
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<section class=\"studio-card\" data-visual-revision><h2>Görsel sürüm karşılaştırması</h2><div class=\"studio-split-editor\"><article><h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<section class=\"studio-card\" data-visual-revision><h2>Görsel sürüm karşılaştırması</h2><div class=\"studio-split-editor\"><article><h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(beforeLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 119, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 120, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</h3><iframe class=\"revision-preview\" sandbox=\"\" loading=\"lazy\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</h3><iframe class=\"revision-preview\" sandbox=\"\" loading=\"lazy\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(beforeLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 119, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 120, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\" srcdoc=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" srcdoc=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(before)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 119, Col: 132}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 120, Col: 132}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\"></iframe></article><article><h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"></iframe></article><article><h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(afterLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 120, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 121, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</h3><iframe class=\"revision-preview\" sandbox=\"\" loading=\"lazy\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</h3><iframe class=\"revision-preview\" sandbox=\"\" loading=\"lazy\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(afterLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 120, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 121, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" srcdoc=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\" srcdoc=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(after)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 120, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 121, Col: 129}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\"></iframe></article></div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\"></iframe></article></div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -570,113 +579,113 @@ func ImportWizard(headers []string, csrf string, mapping bool) templ.Component {
 			templ_7745c5c3_Var30 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<section class=\"studio-card\" data-import-wizard><h2>İçerik içe aktar</h2><p>CSV veya Excel dosyası yükleyin. Dosya 5 MB ve 5.000 satırla sınırlıdır.</p><form method=\"post\" enctype=\"multipart/form-data\" action=\"/admin/pages/import\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<section class=\"studio-card\" data-import-wizard><h2>İçerik içe aktar</h2><p>CSV veya Excel dosyası yükleyin. Dosya 5 MB ve 5.000 satırla sınırlıdır.</p><form method=\"post\" enctype=\"multipart/form-data\" action=\"/admin/pages/import\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 130, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 131, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\"> <label>Dosya<input type=\"file\" name=\"file\" accept=\".csv,.xlsx\" required></label> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\"> <label>Dosya<input type=\"file\" name=\"file\" accept=\".csv,.xlsx\" required></label> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if mapping {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<h3>Sütunları eşleştirin</h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<h3>Sütunları eşleştirin</h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, field := range []string{"locale", "slug", "title", "body"} {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<label>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<label>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(field)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 135, Col: 19}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 136, Col: 19}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " <select name=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " <select name=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue("map_" + field)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 136, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 137, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\"><option value=\"\">Atla</option> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\"><option value=\"\">Atla</option> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for i, header := range headers {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<option value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<option value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var34 string
 					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(i))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 139, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 140, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var35 string
 					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(header)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 139, Col: 50}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 140, Col: 50}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</option>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</option>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</select></label> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</select></label> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<button class=\"button button-primary\" type=\"submit\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<button class=\"button button-primary\" type=\"submit\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if mapping {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<span>Aktarımı başlat</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<span>Aktarımı başlat</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<span>Sütunları incele</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<span>Sütunları incele</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</button></form></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "</button></form></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -705,95 +714,95 @@ func ImportPreview(csrf string, mappings map[string]string, valid, duplicates, i
 			templ_7745c5c3_Var36 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<section class=\"studio-card\" data-import-preview><h2>Aktarımı gözden geçirin</h2><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "<section class=\"studio-card\" data-import-preview><h2>Aktarımı gözden geçirin</h2><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(valid))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 159, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 160, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, " yeni taslak aktarılabilir. ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, " yeni taslak aktarılabilir. ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(duplicates))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 159, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 160, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, " yinelenen satır ve ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, " yinelenen satır ve ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(invalid))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 159, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 160, Col: 129}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, " geçersiz satır atlanacak.</p><p>Aktarım önizlemesi hazır. Devam etmek için aynı dosyayı yeniden seçin.</p><form method=\"post\" enctype=\"multipart/form-data\" action=\"/admin/pages/import\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, " geçersiz satır atlanacak.</p><p>Aktarım önizlemesi hazır. Devam etmek için aynı dosyayı yeniden seçin.</p><form method=\"post\" enctype=\"multipart/form-data\" action=\"/admin/pages/import\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 162, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 163, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\"><input type=\"hidden\" name=\"action\" value=\"import\"> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\"><input type=\"hidden\" name=\"action\" value=\"import\"> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, field := range []string{"locale", "slug", "title", "body"} {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<input type=\"hidden\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<input type=\"hidden\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue("map_" + field)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 164, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 165, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var42 string
 			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(mappings[field])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 164, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 165, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<label>Dosya<input type=\"file\" name=\"file\" accept=\".csv,.xlsx\" required></label> <button class=\"button button-primary\" type=\"submit\">Taslakları aktar</button></form></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<label>Dosya<input type=\"file\" name=\"file\" accept=\".csv,.xlsx\" required></label> <button class=\"button button-primary\" type=\"submit\">Taslakları aktar</button></form></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -822,46 +831,46 @@ func DraftPreviewLinkForm(action, csrf string) templ.Component {
 			templ_7745c5c3_Var43 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<section class=\"studio-card\" aria-labelledby=\"draft-preview-title\"><h2 id=\"draft-preview-title\">Share draft preview</h2><p class=\"muted\">The link expires after 24 hours and stops working when this draft changes.</p><form method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<section class=\"studio-card\" aria-labelledby=\"draft-preview-title\"><h2 id=\"draft-preview-title\">Share draft preview</h2><p class=\"muted\">The link expires after 24 hours and stops working when this draft changes.</p><form method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var44 templ.SafeURL
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinURLErrs(action)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 176, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 177, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(action)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 176, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 177, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" hx-target=\"#draft-preview-result\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" hx-target=\"#draft-preview-result\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 177, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 178, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\"> <button type=\"submit\" class=\"button button-quiet\">Create preview link</button></form><div id=\"draft-preview-result\" aria-live=\"polite\"></div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\"> <button type=\"submit\" class=\"button button-quiet\">Create preview link</button></form><div id=\"draft-preview-result\" aria-live=\"polite\"></div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -890,46 +899,46 @@ func DraftPreviewLinkResult(link, expires string) templ.Component {
 			templ_7745c5c3_Var47 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<p><a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<p><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var48 templ.SafeURL
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinURLErrs(link)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 185, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 186, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "\" target=\"_blank\" rel=\"noopener noreferrer\">Open draft preview</a></p><label>Shareable preview URL<input type=\"url\" readonly value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\" target=\"_blank\" rel=\"noopener noreferrer\">Open draft preview</a></p><label>Shareable preview URL<input type=\"url\" readonly value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(link)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 186, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 187, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\"></label><p class=\"muted\">Expires ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "\"></label><p class=\"muted\">Expires ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(expires)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 187, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 188, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -958,183 +967,183 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 			templ_7745c5c3_Var51 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<section class=\"studio-card\" data-notification-center><div class=\"studio-actions\"><h2>Bildirimler</h2><form method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<section class=\"studio-card\" data-notification-center><div class=\"studio-actions\"><h2>Bildirimler</h2><form method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 192, Col: 146}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 193, Col: 146}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "\"><input type=\"hidden\" name=\"action\" value=\"read_all\"><button class=\"button button-quiet\" type=\"submit\">Tümünü okundu işaretle</button></form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\"><input type=\"hidden\" name=\"action\" value=\"read_all\"><button class=\"button button-quiet\" type=\"submit\">Tümünü okundu işaretle</button></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if digestAvailable {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<form class=\"studio-actions\" method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<form class=\"studio-actions\" method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var53 string
 			templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 194, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 195, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\"><input type=\"hidden\" name=\"action\" value=\"digest\"><label><input type=\"checkbox\" name=\"enabled\" value=\"true\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\"><input type=\"hidden\" name=\"action\" value=\"digest\"><label><input type=\"checkbox\" name=\"enabled\" value=\"true\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if digestEnabled {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, " checked")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, " checked")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "> Pazartesi özeti e-postasını al</label><label>Saat dilimi<select name=\"timezone\"><option value=\"UTC\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "> Pazartesi özeti e-postasını al</label><label>Saat dilimi<select name=\"timezone\"><option value=\"UTC\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if timezone == "UTC" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, " selected")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, ">UTC</option><option value=\"Europe/Istanbul\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, ">UTC</option><option value=\"Europe/Istanbul\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if timezone == "Europe/Istanbul" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, " selected")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, ">İstanbul</option><option value=\"Europe/London\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, ">İstanbul</option><option value=\"Europe/London\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if timezone == "Europe/London" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, " selected")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, ">Londra</option><option value=\"America/New_York\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, ">Londra</option><option value=\"America/New_York\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if timezone == "America/New_York" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, " selected")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, ">New York</option></select></label><button class=\"button button-quiet\" type=\"submit\">Tercihi kaydet</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, ">New York</option></select></label><button class=\"button button-quiet\" type=\"submit\">Tercihi kaydet</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if len(items) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<p role=\"status\">Yeni bildiriminiz yok.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<p role=\"status\">Yeni bildiriminiz yok.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		for _, item := range items {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<article class=\"notification-item\"><div><h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<article class=\"notification-item\"><div><h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 200, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 201, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</h3><p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</h3><p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(item.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 200, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 201, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</p><time>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</p><time>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(item.Created)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 200, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 201, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</time></div><div class=\"studio-actions\"><a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</time></div><div class=\"studio-actions\"><a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var57 templ.SafeURL
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinURLErrs(item.TargetPath)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 200, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 201, Col: 177}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "\">Görüntüle</a><form method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\">Görüntüle</a><form method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var58 string
 			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 200, Col: 292}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 201, Col: 292}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\"><input type=\"hidden\" name=\"action\" value=\"dismiss\"><input type=\"hidden\" name=\"id\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"><input type=\"hidden\" name=\"action\" value=\"dismiss\"><input type=\"hidden\" name=\"id\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var59 string
 			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 200, Col: 394}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 201, Col: 394}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"><button class=\"button button-quiet\" type=\"submit\">Kapat</button></form></div></article>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\"><button class=\"button button-quiet\" type=\"submit\">Kapat</button></form></div></article>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "</section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1163,35 +1172,35 @@ func GuideCenter(videoURL string) templ.Component {
 			templ_7745c5c3_Var60 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<section class=\"studio-card\" data-guide-center><h2>Yardım ve rehberler</h2><div role=\"tablist\" aria-label=\"Rehber sekmeleri\"><button type=\"button\" role=\"tab\" aria-selected=\"true\" aria-controls=\"guide-start\" id=\"guide-tab-start\" data-guide-tab=\"start\">Başlangıç</button> <button type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"guide-video\" id=\"guide-tab-video\" data-guide-tab=\"video\">Video rehberi</button></div><section role=\"tabpanel\" id=\"guide-start\" aria-labelledby=\"guide-tab-start\" data-guide-panel=\"start\"><h3>Studio’da çalışmaya başlayın</h3><p>İçerik alanından sayfa ve haberlerinizi düzenleyin. Değişiklikleri önizleyip hazır olduğunda yayınlayın.</p><nav><a href=\"/admin/pages\">Sayfaları aç</a><a href=\"/admin/news\">Haberleri aç</a></nav></section><section role=\"tabpanel\" id=\"guide-video\" aria-labelledby=\"guide-tab-video\" data-guide-panel=\"video\" hidden><h3>Video rehberi</h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<section class=\"studio-card\" data-guide-center><h2>Yardım ve rehberler</h2><div role=\"tablist\" aria-label=\"Rehber sekmeleri\"><button type=\"button\" role=\"tab\" aria-selected=\"true\" aria-controls=\"guide-start\" id=\"guide-tab-start\" data-guide-tab=\"start\">Başlangıç</button> <button type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"guide-video\" id=\"guide-tab-video\" data-guide-tab=\"video\">Video rehberi</button></div><section role=\"tabpanel\" id=\"guide-start\" aria-labelledby=\"guide-tab-start\" data-guide-panel=\"start\"><h3>Studio’da çalışmaya başlayın</h3><p>İçerik alanından sayfa ve haberlerinizi düzenleyin. Değişiklikleri önizleyip hazır olduğunda yayınlayın.</p><nav><a href=\"/admin/pages\">Sayfaları aç</a><a href=\"/admin/news\">Haberleri aç</a></nav></section><section role=\"tabpanel\" id=\"guide-video\" aria-labelledby=\"guide-tab-video\" data-guide-panel=\"video\" hidden><h3>Video rehberi</h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if videoURL != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<p>Studio’nun temel adımlarını videoda izleyin.</p><a class=\"button button-primary\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<p>Studio’nun temel adımlarını videoda izleyin.</p><a class=\"button button-primary\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var61 templ.SafeURL
 			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinURLErrs(videoURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 216, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/admin_ux.templ`, Line: 217, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\" target=\"_blank\" rel=\"noopener noreferrer\">Videoyu aç</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" target=\"_blank\" rel=\"noopener noreferrer\">Videoyu aç</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<p>Video rehberi henüz yapılandırılmadı.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<p>Video rehberi henüz yapılandırılmadı.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</section></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "</section></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

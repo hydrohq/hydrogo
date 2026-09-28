@@ -128,6 +128,9 @@ func (s *AuthService) CreateUser(ctx context.Context, email, password string, ro
 	if existing, _ := s.userRepo.GetByEmail(ctx, normEmail); existing != nil {
 		return nil, ErrUserAlreadyExists
 	}
+	if err := ValidatePasswordStrength(password); err != nil {
+		return nil, err
+	}
 
 	hash, err := HashPassword(password, s.argonParams)
 	if err != nil {
@@ -349,6 +352,11 @@ func (s *AuthService) ChangeCredentials(ctx context.Context, userID, currentPass
 	}
 	if email == "" && newPassword == "" {
 		return ErrCurrentPasswordRequired
+	}
+	if newPassword != "" {
+		if err := ValidatePasswordStrength(newPassword); err != nil {
+			return err
+		}
 	}
 	if email != "" {
 		email = NormalizeEmail(email)

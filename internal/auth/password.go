@@ -6,7 +6,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -15,6 +18,7 @@ var (
 	ErrInvalidHash         = errors.New("invalid password hash format")
 	ErrIncompatibleVersion = errors.New("incompatible argon2 version")
 	ErrInvalidArgonParams  = errors.New("invalid argon2 parameters")
+	ErrWeakPassword        = errors.New("password does not meet strength requirements")
 )
 
 type Argon2Params struct {
@@ -43,6 +47,69 @@ var TestArgon2Params = Argon2Params{
 }
 
 const maxEncodedPasswordHashBytes = 4096
+
+var commonPasswordFragments = []string{"password", "qwerty", "welcome", "admin", "secret", "letmein", "iloveyou", "monkey", "dragon", "football", "abc123"}
+
+// ValidatePasswordStrength applies a dependency-free server-side estimate for
+// newly chosen passwords. Long passphrases remain valid without character
+// class rules; common words and low-entropy strings are rejected.
+func ValidatePasswordStrength(password string) error {
+	runes := []rune(password)
+	if len(runes) < 8 || len(runes) > 1024 || !utf8.ValidString(password) {
+		return ErrWeakPassword
+	}
+	lower := strings.ToLower(password)
+	for _, fragment := range commonPasswordFragments {
+		if strings.Contains(lower, fragment) {
+			return ErrWeakPassword
+		}
+	}
+	pool := 0
+	classes := 0
+	var hasLower, hasUpper, hasDigit, hasSymbol bool
+	unique := make(map[rune]struct{}, len(runes))
+	for _, r := range runes {
+		unique[r] = struct{}{}
+		switch {
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case unicode.IsSpace(r):
+			hasSymbol = true
+		default:
+			hasSymbol = true
+		}
+	}
+	if hasLower {
+		pool += 26
+		classes++
+	}
+	if hasUpper {
+		pool += 26
+		classes++
+	}
+	if hasDigit {
+		pool += 10
+		classes++
+	}
+	if hasSymbol {
+		pool += 32
+		classes++
+	}
+	// A single repeated character or a single class with no meaningful variety
+	// has substantially less entropy than length alone suggests.
+	if len(unique) < 4 || classes == 0 {
+		return ErrWeakPassword
+	}
+	entropy := float64(len(runes)) * math.Log2(float64(pool))
+	if entropy < 40 {
+		return ErrWeakPassword
+	}
+	return nil
+}
 
 func validateArgon2Params(params Argon2Params) error {
 	if params.Memory < 8 || params.Memory > 256*1024 || params.Iterations < 1 || params.Iterations > 10 || params.Parallelism < 1 || params.Parallelism > 16 || params.Memory < uint32(params.Parallelism)*8 || params.SaltLength < 8 || params.SaltLength > 64 || params.KeyLength < 16 || params.KeyLength > 64 {

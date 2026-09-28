@@ -36,3 +36,15 @@ func TestCodeTokensPreserveExactUnicodeAndNormalizeLanguage(t *testing.T) {
 		t.Fatalf("typescript keywords were not highlighted: %#v", tokens)
 	}
 }
+
+func TestPasswordStrengthMeterProvidesAccessibleLiveGuidance(t *testing.T) {
+	var out strings.Builder
+	if err := PasswordStrengthMeter().Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-password-meter`, `aria-label="Parola gücü"`, `data-password-feedback`, `role="status"`, `aria-live="polite"`} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("password meter missing %q: %s", want, out.String())
+		}
+	}
+}
