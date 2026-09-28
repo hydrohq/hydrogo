@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -493,24 +494,26 @@ func (h HTTPHandler) adminUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, multipartBodyLimit(h.Service.Uploader.MaxBytes))
-	if err := r.ParseMultipartForm(2 << 20); err != nil {
+	requestFile, err := readMultipartUpload(r, h.Service.Uploader.StorageDir, h.Service.Uploader.MaxBytes)
+	if err != nil {
 		http.Error(w, "invalid media upload", http.StatusBadRequest)
 		return
 	}
-	file, header, err := r.FormFile("file")
+	defer os.Remove(requestFile.Path)
+	file, err := os.Open(requestFile.Path)
 	if err != nil {
-		http.Error(w, "file field is required", http.StatusBadRequest)
+		http.Error(w, "invalid media upload", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
-	result, err := h.Service.Upload(r.Context(), file, header.Filename)
+	result, err := h.Service.Upload(r.Context(), file, requestFile.Filename)
 	if err == nil {
-		if folderID := strings.TrimSpace(r.FormValue("folder_id")); folderID != "" {
+		if folderID := strings.TrimSpace(requestFile.Fields["folder_id"]); folderID != "" {
 			err = h.Service.SetMetadata(r.Context(), result.ID, AssetMetadata{Focal: FocalPoint{X: .5, Y: .5}, FolderID: folderID})
 		}
 	}
 	if err == nil {
-		visibility := r.FormValue("visibility")
+		visibility := requestFile.Fields["visibility"]
 		if visibility == "" {
 			visibility = VisibilityPrivate
 		}

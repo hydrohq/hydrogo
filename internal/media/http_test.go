@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -409,5 +410,58 @@ func TestMediaUploadRejectsMultipartBodyBeyondBound(t *testing.T) {
 	(HTTPHandler{Service: Service{Uploader: uploader, Assets: httpAssetRepo{}}}).upload(response, request)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("oversized multipart status = %d, want %d", response.Code, http.StatusBadRequest)
+	}
+}
+
+func TestReadMultipartUploadStreamsFileToTempAndValidatesHeader(t *testing.T) {
+	directory := t.TempDir()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("folder_id", "folder-1"); err != nil {
+		t.Fatal(err)
+	}
+	file, err := writer.CreateFormFile("file", `..\images\photo.png`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := createTestPNG(3, 2)
+	if _, err := file.Write(payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/admin/media", &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	result, err := readMultipartUpload(request, directory, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(result.Path)
+	if result.Filename != "photo.png" || result.Fields["folder_id"] != "folder-1" {
+		t.Fatalf("multipart metadata = %+v", result)
+	}
+	contents, err := os.ReadFile(result.Path)
+	if err != nil || !bytes.Equal(contents, payload) {
+		t.Fatalf("streamed temp content mismatch: %v", err)
+	}
+
+	badDirectory := t.TempDir()
+	var badBody bytes.Buffer
+	badWriter := multipart.NewWriter(&badBody)
+	badFile, err := badWriter.CreateFormFile("file", "payload.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = badFile.Write([]byte("not an allowed payload"))
+	_ = badWriter.Close()
+	badRequest := httptest.NewRequest(http.MethodPost, "/admin/media", &badBody)
+	badRequest.Header.Set("Content-Type", badWriter.FormDataContentType())
+	if _, err := readMultipartUpload(badRequest, badDirectory, 1<<20); !errors.Is(err, ErrDisallowedMimeType) {
+		t.Fatalf("invalid initial MIME = %v", err)
+	}
+	entries, err := os.ReadDir(badDirectory)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("failed upload left temp files: entries=%v err=%v", entries, err)
 	}
 }
