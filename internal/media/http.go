@@ -276,17 +276,19 @@ func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, multipartBodyLimit(h.Service.Uploader.MaxBytes))
-	if err := r.ParseMultipartForm(2 << 20); err != nil {
+	requestFile, err := readMultipartUpload(r, h.Service.Uploader.StorageDir, h.Service.Uploader.MaxBytes)
+	if err != nil {
 		http.Error(w, "invalid media upload", http.StatusBadRequest)
 		return
 	}
-	file, header, err := r.FormFile("file")
+	defer os.Remove(requestFile.Path)
+	file, err := os.Open(requestFile.Path)
 	if err != nil {
-		http.Error(w, "file field is required", http.StatusBadRequest)
+		http.Error(w, "invalid media upload", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
-	result, err := h.Service.Upload(r.Context(), file, header.Filename)
+	result, err := h.Service.Upload(r.Context(), file, requestFile.Filename)
 	if err != nil {
 		if errors.Is(err, storage.ErrQuotaExceeded) {
 			http.Error(w, "Hosting storage limit reached, please contact support", http.StatusInsufficientStorage)
