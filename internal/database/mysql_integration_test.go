@@ -36,6 +36,10 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		"202609060001_transaction_contract", "202609060002_auth_security", "202609080003_pages_content",
 		"202609080004_media_assets", "202609080005_published_route_index", "202609080006_published_projection",
 		"202609080007_mfa", "202609080008_recovery_tokens", "202609080009_site_edition", "202609080010_auth_invites",
+		"202609080011_navigation_position_unique", "202609080012_news_items", "202609080013_jobs",
+		"202609080014_published_projection_backfill", "202609090015_restore_controls", "202609090016_restore_write_fence",
+		"202609090017_audit_request_id", "202609090018_job_retry_state", "202609090019_job_dead_letter_index",
+		"202609090020_job_capacity_lock",
 	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
@@ -53,8 +57,10 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	defer func() {
 		for _, table := range []string{
 			"auth_invites", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
-			"mfa_recovery_codes", "user_mfa", "page_revisions", "sessions", "users", "media_assets", "pages",
-			"audit_events", "outbox_events", "schema_migrations",
+			"job_queue_capacity_lock", "restore_controls", "jobs", "news_items", "auth_invites", "form_inbox",
+			"page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens", "mfa_recovery_codes",
+			"user_mfa", "page_revisions", "sessions", "users", "media_assets", "pages", "audit_events",
+			"outbox_events", "schema_migrations",
 		} {
 			if _, err := db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+table); err != nil {
 				t.Errorf("drop %s: %v", table, err)
@@ -99,6 +105,36 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES ('p4','Duplicate','en','about','body','published',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err == nil {
 		t.Fatal("accepted duplicate non-empty locale/slug pair")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,created_at,updated_at) VALUES ('m1','private/m1','photo.png','image/png',3,?,?)`, now, now); err != nil {
+		t.Fatalf("media insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO news_items (id,locale,slug,title,body,status,created_at,updated_at) VALUES ('n1','en','news','News','body','draft',?,?)`, now, now); err != nil {
+		t.Fatalf("news insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO jobs (id,type,payload,available_at,created_at) VALUES ('j1','test','{}',?,?)`, now, now); err != nil {
+		t.Fatalf("job insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO job_queue_capacity_lock (id) VALUES (1) ON DUPLICATE KEY UPDATE id=id`); err != nil {
+		t.Fatalf("job capacity lock idempotent insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO restore_controls (id,sessions_revoked,egress_quarantined,old_writes_blocked,activated_at) VALUES (1,0,0,1,?)`, now); err != nil {
+		t.Fatal(err)
+	}
+	for name, query := range map[string]string{
+		"page insert":  `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES ('blocked','Blocked','en','blocked','body','draft',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`,
+		"page update":  `UPDATE pages SET title='blocked' WHERE id='p1'`,
+		"page delete":  `DELETE FROM pages WHERE id='p1'`,
+		"media insert": `INSERT INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,created_at,updated_at) VALUES ('blocked','private/blocked','photo.png','image/png',3,CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`,
+		"news insert":  `INSERT INTO news_items (id,locale,slug,title,body,status,created_at,updated_at) VALUES ('blocked','en','blocked','Blocked','body','draft',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`,
+		"job insert":   `INSERT INTO jobs (id,type,payload,available_at,created_at) VALUES ('blocked','test','{}',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`,
+	} {
+		if _, err := db.ExecContext(ctx, query); err == nil {
+			t.Errorf("restore fence accepted %s", name)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM restore_controls WHERE id=1`); err != nil {
+		t.Fatal(err)
 	}
 }
 

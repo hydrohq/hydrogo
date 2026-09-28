@@ -5,12 +5,15 @@ requires_modules:
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "8e4512eb931983f9a3888355bfcdccfd41317f83615ef17935163a78caaa6951"
   postgres: "8e4512eb931983f9a3888355bfcdccfd41317f83615ef17935163a78caaa6951"
+  mysql: "e4c5332b8f50dd787b900779804ca9fd56c96735720a5c08ca20d1d0d2e8343d"
 dependencies:
   - "202609090016_restore_write_fence"
 schema:
