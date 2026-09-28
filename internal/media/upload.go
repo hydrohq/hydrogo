@@ -60,6 +60,7 @@ var AllowedMimeTypes = map[string]string{
 	"image/jpeg":      ".jpg",
 	"image/png":       ".png",
 	"image/webp":      ".webp",
+	"image/svg+xml":   ".svg",
 	"video/mp4":       ".mp4",
 	"video/webm":      ".webm",
 	"video/quicktime": ".mov",
@@ -195,6 +196,9 @@ func (u *Uploader) saveContext(ctx context.Context, r io.Reader, originalFilenam
 	}
 
 	ext, allowed := AllowedMimeTypes[detectedMime]
+	if strings.EqualFold(path.Ext(originalFilename), ".svg") {
+		detectedMime, ext, allowed = "image/svg+xml", ".svg", true
+	}
 	document := isDocumentFilename(originalFilename)
 	if document {
 		detectedMime = ContentTypeForDocument(originalFilename)
@@ -238,7 +242,36 @@ func (u *Uploader) saveContext(ctx context.Context, r io.Reader, originalFilenam
 	var width, height int
 	var blurHash string
 	var dominantColors []string
-	if strings.HasPrefix(detectedMime, "image/") {
+	if detectedMime == "image/svg+xml" {
+		sanitizedPath, err := sanitizeSVGFile(tempFile.Name(), u.StorageDir, maxBytes)
+		if err != nil {
+			return nil, fmt.Errorf("sanitize SVG: %w", err)
+		}
+		originalPath := tempFile.Name()
+		if err := tempFile.Close(); err != nil {
+			_ = os.Remove(sanitizedPath)
+			return nil, err
+		}
+		if err := replaceSanitizedFile(originalPath, sanitizedPath); err != nil {
+			_ = os.Remove(sanitizedPath)
+			return nil, err
+		}
+		tempFile, err = os.OpenFile(originalPath, os.O_RDWR, 0)
+		if err != nil {
+			return nil, err
+		}
+		hasher = sha256.New()
+		totalSize, err = io.Copy(hasher, tempFile)
+		if err != nil {
+			return nil, err
+		}
+		if totalSize > maxBytes {
+			return nil, ErrFileTooLarge
+		}
+		if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+	} else if strings.HasPrefix(detectedMime, "image/") {
 		if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
 			return nil, err
 		}

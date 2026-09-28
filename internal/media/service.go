@@ -267,7 +267,7 @@ func (s Service) MarkReady(ctx context.Context, id, visibility string) error {
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		return s.Assets.MarkReady(ctx, tx, id, visibility)
 	})
-	if err == nil && s.Optimizer != nil {
+	if err == nil && s.Optimizer != nil && asset.MimeType != "image/svg+xml" {
 		s.Optimizer.EnqueueWithWatermark(asset, watermark)
 	}
 	return err

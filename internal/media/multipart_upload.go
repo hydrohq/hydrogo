@@ -140,6 +140,9 @@ func copyValidatedUpload(destination *os.File, source io.Reader, filename string
 	if index := strings.IndexByte(contentType, ';'); index >= 0 {
 		contentType = strings.TrimSpace(contentType[:index])
 	}
+	if strings.EqualFold(filepath.Ext(filename), ".svg") {
+		contentType = "image/svg+xml"
+	}
 	if !isDocumentFilename(filename) {
 		if _, allowed := AllowedMimeTypes[contentType]; !allowed {
 			return fmt.Errorf("%w: %s", ErrDisallowedMimeType, contentType)
