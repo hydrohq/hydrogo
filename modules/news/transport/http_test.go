@@ -38,6 +38,16 @@ func TestNewsCoverMarkupFallsBackWhenCDNUnavailable(t *testing.T) {
 	}
 }
 
+func TestReadingMinutesUsesAtLeastOneMinute(t *testing.T) {
+	if got := readingMinutes(""); got != 1 {
+		t.Fatalf("empty excerpt reading time = %d, want 1", got)
+	}
+	words := strings.Repeat("word ", 201)
+	if got := readingMinutes(words); got != 2 {
+		t.Fatalf("201-word excerpt reading time = %d, want 2", got)
+	}
+}
+
 type taxonomyTransactionProbe struct{}
 
 func (taxonomyTransactionProbe) ListTaxonomy(context.Context, database.Executor, string) ([]v1.TaxonomyTerm, error) {

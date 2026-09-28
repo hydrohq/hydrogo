@@ -549,6 +549,17 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	if trendingHTML.Len() == 0 {
 		trendingHTML.WriteString(`<p style="color:var(--theme-muted);font-size:.88rem;margin:0;">Başka yayınlanmış haber bulunmuyor.</p>`)
 	}
+	var relatedCards strings.Builder
+	if len(sidebarItems) > 0 {
+		relatedCards.WriteString(`<section class="related-content" aria-labelledby="related-content-title"><h2 id="related-content-title">Bunlar da ilginizi çekebilir</h2><div class="related-content-grid">`)
+		for _, related := range sidebarItems {
+			if related.Slug == item.Slug {
+				continue
+			}
+			fmt.Fprintf(&relatedCards, `<article class="related-content-card">%s<h3><a href="/public/news/%s/%s/html">%s</a></h3><p>%d dk okuma</p></article>`, h.newsCoverMarkup(related), template.HTMLEscapeString(locale), template.HTMLEscapeString(related.Slug), template.HTMLEscapeString(related.Title), readingMinutes(related.Excerpt))
+		}
+		relatedCards.WriteString(`</div></section>`)
+	}
 	articleHTML, tocHTML, err := ui.PrepareArticleHTML(renderParagraphs(item.Body))
 	if err != nil {
 		http.Error(w, "news unavailable", http.StatusInternalServerError)
@@ -562,7 +573,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
 	readingEnhancement := fmt.Sprintf(`<style nonce="%s">%s</style><script nonce="%s">%s</script>`, nonce, ui.PublicArticleCSS, nonce, ui.PublicArticleJS)
 
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
 		template.HTMLEscapeString(locale),
 		template.HTMLEscapeString(item.Title),
 		strings.ToUpper(template.HTMLEscapeString(locale)),
@@ -574,6 +585,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		template.HTML(tocHTML),
 		template.HTML(articleHTML),
 		newsTagsMarkup(item),
+		template.HTML(relatedCards.String()),
 		template.URLQueryEscaper(item.Title),
 		template.HTMLEscapeString(locale),
 		template.HTMLEscapeString(item.Slug),
@@ -663,6 +675,10 @@ func newsLead(body string) string {
 		return string([]rune(body)[:160]) + "…"
 	}
 	return body
+}
+
+func readingMinutes(text string) int {
+	return max(1, (len(strings.Fields(text))+199)/200)
 }
 
 func newsLeadItem(item news.Item) string {
