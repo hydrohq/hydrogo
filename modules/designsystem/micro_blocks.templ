@@ -1,7 +1,54 @@
 package designsystem
 
+import "strconv"
+
 templ BackToTop(labelText string) {
 	<button class="ds-back-to-top" type="button" data-back-to-top aria-label={ label(labelText, "Back to top") } hidden>
 		<span aria-hidden="true">↑</span>
 	</button>
+}
+
+templ LightboxGallery(p LightboxProps) {
+	<div id={ p.ID } class="ds-lightbox-gallery" data-lightbox-gallery aria-label={ label(p.Label, "Image gallery") }>
+		for i, item := range p.Images {
+			if src := validMediaURL(item.Src); src != "" {
+				<button class="ds-lightbox-gallery__item" type="button" data-lightbox-open={ strconv.Itoa(i) } aria-label={ label(item.Caption, "View image") }>
+					<img src={ src } alt={ item.Alt } loading="lazy" />
+					if item.Caption != "" {
+						<span>{ item.Caption }</span>
+					}
+				</button>
+			}
+		}
+		<dialog class="ds-lightbox" data-lightbox aria-label={ label(p.Label, "Image viewer") }>
+			<button type="button" data-lightbox-close aria-label="Close image viewer">×</button>
+			<button type="button" data-lightbox-previous aria-label="Previous image">←</button>
+			<figure><img data-lightbox-image alt="" /><figcaption data-lightbox-caption></figcaption></figure>
+			<button type="button" data-lightbox-next aria-label="Next image">→</button>
+		</dialog>
+	</div>
+}
+
+templ AudioPlayer(p AudioProps) {
+	if src := validMediaURL(p.Src); src != "" {
+		<section id={ p.ID } class="ds-audio-player bg-surface text-foreground" data-audio-player>
+			<h2>{ p.Title }</h2>
+			<audio controls preload="metadata"><source src={ src } type="audio/mpeg" />Audio playback is unavailable.</audio>
+			<label>Playback speed<select data-audio-speed aria-label="Playback speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+			if link := safeLink(p.TranscriptURL); link != "" {
+				<a href={ link }>Read transcript</a>
+			}
+		</section>
+	}
+}
+
+templ ShareButtons(p ShareProps) {
+	if value := validShareURL(p.URL); value != "" {
+		<nav class="ds-share" aria-label="Share this page">
+			<a href={ templ.SafeURL(shareIntentURL("linkedin", value, p.Title)) } target="_blank" rel="noopener noreferrer">LinkedIn</a>
+			<a href={ templ.SafeURL(shareIntentURL("whatsapp", value, p.Title)) } target="_blank" rel="noopener noreferrer">WhatsApp</a>
+			<a href={ templ.SafeURL(shareIntentURL("email", value, p.Title)) }>Email</a>
+			<button type="button" data-copy-text={ value } aria-label="Copy page link"><span data-copy-idle>Copy link</span><span data-copy-done hidden>Copied</span></button>
+		</nav>
+	}
 }

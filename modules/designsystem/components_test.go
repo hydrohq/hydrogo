@@ -59,6 +59,36 @@ func TestBackToTopIsAccessibleAndProgressivelyEnhanced(t *testing.T) {
 	}
 }
 
+func TestLightboxAudioAndShareComponentsValidateURLs(t *testing.T) {
+	gallery := render(t, LightboxGallery(LightboxProps{ID: "gallery", Label: "Photos", Images: []GalleryImage{{Src: "/one.webp", Alt: "One", Caption: "First"}, {Src: "javascript:alert(1)", Alt: "Unsafe"}}}))
+	for _, want := range []string{`data-lightbox-gallery`, `data-lightbox`, `data-lightbox-next`, `alt="One"`, `First`} {
+		if !strings.Contains(gallery, want) {
+			t.Errorf("gallery missing %q: %s", want, gallery)
+		}
+	}
+	if strings.Contains(gallery, "javascript:") {
+		t.Fatal("unsafe gallery image rendered")
+	}
+	audio := render(t, AudioPlayer(AudioProps{ID: "episode", Src: "/episode.mp3", Title: "Episode", TranscriptURL: "https://example.test/transcript"}))
+	for _, want := range []string{`<audio controls`, `data-audio-speed`, `Read transcript`, `Episode`} {
+		if !strings.Contains(audio, want) {
+			t.Errorf("audio player missing %q: %s", want, audio)
+		}
+	}
+	if got := render(t, AudioPlayer(AudioProps{Src: "javascript:alert(1)"})); got != "" {
+		t.Fatalf("unsafe audio source rendered: %s", got)
+	}
+	share := render(t, ShareButtons(ShareProps{URL: "https://example.test/a?x=1&y=2", Title: "A title"}))
+	for _, want := range []string{`aria-label="Share this page"`, `noopener noreferrer`, `https://www.linkedin.com/sharing/share-offsite/`, `data-copy-text=`} {
+		if !strings.Contains(share, want) {
+			t.Errorf("share controls missing %q: %s", want, share)
+		}
+	}
+	if got := render(t, ShareButtons(ShareProps{URL: "javascript:alert(1)"})); got != "" {
+		t.Fatalf("unsafe share URL rendered: %s", got)
+	}
+}
+
 func TestBeforeAfterRender(t *testing.T) {
 	got := render(t, BeforeAfter(BeforeAfterProps{BeforeSrc: "/before.webp", AfterSrc: "/after.webp", BeforeLabel: "Old", AfterLabel: "New", Position: 150}))
 	for _, want := range []string{`type="range"`, `value="100"`, `aria-label="Old / New"`, `data-before-after`} {
