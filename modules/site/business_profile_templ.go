@@ -126,12 +126,12 @@ func BusinessProfileView(profile BusinessProfile, openNow bool) templ.Component 
 			}
 		}
 		if openNow {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<p role=\"status\">Şu anda açığız</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<p class=\"ds-business-status ds-business-status--open\" role=\"status\"><span aria-hidden=\"true\"></span>Şu anda açığız</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p role=\"status\">Şu anda kapalıyız</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p class=\"ds-business-status ds-business-status--closed\" role=\"status\"><span aria-hidden=\"true\"></span>Şu anda kapalıyız</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

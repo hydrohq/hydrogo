@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/mail"
 	"net/url"
+	"math"
 	"regexp"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ type BusinessProfile struct {
 	Website  string                         `json:"website,omitempty"`
 	Timezone string                         `json:"timezone"`
 	Hours    map[time.Weekday]BusinessHours `json:"hours,omitempty"`
+	Latitude *float64 `json:"latitude,omitempty"`
+	Longitude *float64 `json:"longitude,omitempty"`
 }
 
 var businessPhone = regexp.MustCompile(`^\+?[0-9(). -]{7,24}$`)
@@ -37,7 +40,7 @@ func (p *BusinessProfile) Validate() error {
 	p.Name, p.Address = strings.TrimSpace(p.Name), strings.TrimSpace(p.Address)
 	p.Phone, p.Email, p.Website = strings.TrimSpace(p.Phone), strings.TrimSpace(p.Email), strings.TrimSpace(p.Website)
 	p.Timezone = strings.TrimSpace(p.Timezone)
-	if p.Name == "" || len(p.Name) > 200 || p.Address == "" || len(p.Address) > 1000 || (p.Phone != "" && !businessPhone.MatchString(p.Phone)) || (p.Email != "" && !validBusinessEmail(p.Email)) || (p.Website != "" && !validBusinessURL(p.Website)) || len(p.Hours) > 7 {
+	if p.Name == "" || len(p.Name) > 200 || p.Address == "" || len(p.Address) > 1000 || (p.Phone != "" && !businessPhone.MatchString(p.Phone)) || (p.Email != "" && !validBusinessEmail(p.Email)) || (p.Website != "" && !validBusinessURL(p.Website)) || len(p.Hours) > 7 || (p.Latitude == nil) != (p.Longitude == nil) || p.Latitude != nil && (math.IsNaN(*p.Latitude) || math.IsInf(*p.Latitude, 0) || *p.Latitude < -90 || *p.Latitude > 90 || math.IsNaN(*p.Longitude) || math.IsInf(*p.Longitude, 0) || *p.Longitude < -180 || *p.Longitude > 180) {
 		return ErrInvalidSetting
 	}
 	if _, err := time.LoadLocation(p.Timezone); err != nil {
@@ -55,6 +58,23 @@ func (p *BusinessProfile) Validate() error {
 		}
 	}
 	return nil
+}
+
+// BusinessJSONLD returns escaped JSON-LD for the existing public business profile.
+func BusinessJSONLD(profile BusinessProfile) (string, error) {
+	if err := profile.Validate(); err != nil { return "", err }
+	type openingHours struct { Type string `json:"@type"`; Day string `json:"dayOfWeek"`; Opens string `json:"opens"`; Closes string `json:"closes"` }
+	weekdays := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+	hours := make([]openingHours, 0, len(profile.Hours))
+	for day, item := range profile.Hours { if !item.Closed { hours = append(hours, openingHours{Type:"OpeningHoursSpecification", Day:"https://schema.org/"+weekdays[int(day)], Opens:item.Opens, Closes:item.Closes}) } }
+	data := map[string]any{"@context":"https://schema.org", "@type":"LocalBusiness", "name":profile.Name, "address":map[string]string{"@type":"PostalAddress", "streetAddress":profile.Address}}
+	if profile.Phone != "" { data["telephone"] = profile.Phone }
+	if profile.Email != "" { data["email"] = profile.Email }
+	if profile.Website != "" { data["url"] = profile.Website }
+	if len(hours) > 0 { data["openingHoursSpecification"] = hours }
+	if profile.Latitude != nil { data["geo"] = map[string]any{"@type":"GeoCoordinates", "latitude":*profile.Latitude, "longitude":*profile.Longitude} }
+	encoded, err := json.Marshal(data)
+	return string(encoded), err
 }
 
 func (p BusinessProfile) IsOpenAt(at time.Time) bool {

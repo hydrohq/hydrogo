@@ -55,7 +55,7 @@ func ValidateBase(b *Base) error {
 	b.Title = strings.TrimSpace(b.Title)
 	b.Tags = NormalizeTags(b.Tags, 50)
 	slug, err := canonical.Path(b.Slug)
-	if err != nil {
+	if err != nil || slug == "" {
 		return ErrInvalid
 	}
 	b.Slug = slug

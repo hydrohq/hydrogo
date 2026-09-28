@@ -1,0 +1,28 @@
+id: "202609290005_search_fts"
+module: "search"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "2f5542da3662baedcfded5064383f5f6568fcefffa8fecb8135665f31be2ebec"
+  postgres: "b4e0497804e46e0a0b0b8c31975b062152d551bac49c3c2e80932567b4085dcd"
+  mysql: "b4e0497804e46e0a0b0b8c31975b062152d551bac49c3c2e80932567b4085dcd"
+dependencies:
+  - "202609160002_search_index"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Search capability is enabled and the search projection table exists"
+lock_timeout: "bounded by migration runner deadline"
+disk_estimate: "One FTS5 index proportional to the bounded search projection"
+compatibility: "SQLite-only FTS5 index; PostgreSQL and MySQL retain their existing provider-neutral search adapter"
+smoke:
+  - "SQLite insert, update, delete and rebuild keep the FTS index synchronized"
+restart: "Transactional SQLite FTS table, triggers and backfill"
+rollback: "No production down migration; remove the optional search capability or restore the pre-migration snapshot"

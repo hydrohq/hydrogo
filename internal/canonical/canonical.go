@@ -21,6 +21,25 @@ func Locale(value string) string {
 	return strings.Trim(norm.NFC.String(strings.ToLower(strings.TrimSpace(value))), "/")
 }
 
+// Slugify creates an ASCII URL segment, including Turkish-specific letters.
+func Slugify(value string) string {
+	value = strings.NewReplacer("ı", "i", "İ", "i", "ß", "ss", "æ", "ae", "œ", "oe").Replace(strings.ToLower(norm.NFC.String(value)))
+	value = norm.NFD.String(value)
+	var out strings.Builder
+	separator := false
+	for _, r := range value {
+		if unicode.Is(unicode.Mn, r) { continue }
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			if separator && out.Len() > 0 { out.WriteByte('-') }
+			separator = false
+			out.WriteRune(r)
+		} else {
+			separator = true
+		}
+	}
+	return strings.Trim(out.String(), "-")
+}
+
 // Direction returns the safe document direction for a locale. Unknown and
 // malformed locale tags intentionally default to ltr; callers must not infer
 // direction from user-provided markup.

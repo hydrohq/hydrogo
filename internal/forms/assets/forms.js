@@ -42,6 +42,71 @@
 
   document.addEventListener('input', event => {
     if (event.target.matches('[data-email-suggest]')) suggest(event.target);
+    if (event.target.matches('[data-character-counter]')) {
+      const counter = event.target.closest('.hydro-form__field')?.querySelector('[data-character-count]');
+      if (counter) counter.textContent = `${event.target.value.length} / ${event.target.maxLength}`;
+    }
+    if (event.target.matches('[data-phone-mask]')) {
+      const input = event.target;
+      const digitsBefore = input.value.slice(0, input.selectionStart || 0).replace(/\D/g, '').length;
+      const digits = input.value.replace(/\D/g, '').slice(0, 15);
+      const international = input.value.trimStart().startsWith('+');
+      const groups = digits.match(/.{1,3}/g) || [];
+      input.value = `${international ? '+' : ''}${groups.join(' ')}`;
+      let cursor = international ? 1 : 0, seen = 0;
+      while (cursor < input.value.length && seen < digitsBefore) { if (/\d/.test(input.value[cursor])) seen++; cursor++; }
+      input.setSelectionRange(cursor, cursor);
+    }
+  });
+
+  document.querySelectorAll('[data-cascade-select]').forEach(select => {
+    const form = select.closest('form');
+    const parent = form?.elements.namedItem(select.dataset.cascadeParent);
+    if (!parent) return;
+    let choices = {};
+    try { choices = JSON.parse(select.dataset.cascadeOptions || '{}'); } catch {}
+    const update = () => {
+      const previous = select.value;
+      select.replaceChildren(new Option('Choose one', ''));
+      (choices[parent.value] || []).forEach(value => select.add(new Option(value, value)));
+      select.value = (choices[parent.value] || []).includes(previous) ? previous : '';
+      select.disabled = !(choices[parent.value] || []).length;
+    };
+    parent.addEventListener('change', update);
+    update();
+  });
+
+  document.querySelectorAll('form[data-step-wizard]').forEach(form => {
+    const fields = Array.from(form.querySelectorAll('[data-form-step]'));
+    const count = Math.max(1, Number(form.dataset.stepCount) || 1);
+    const previous = form.querySelector('[data-form-previous]');
+    const next = form.querySelector('[data-form-next]');
+    const status = form.querySelector('[data-form-step-status]');
+    let current = 1;
+    const show = step => {
+      current = Math.max(1, Math.min(count, step));
+      fields.forEach(field => { field.hidden = Number(field.dataset.formStep) !== current; });
+      if (previous) previous.disabled = current === 1;
+      if (next) next.hidden = current === count;
+      if (status) status.textContent = `Step ${current} of ${count}`;
+      fields.find(field => Number(field.dataset.formStep) === current)?.querySelector('input,select,textarea')?.focus({ preventScroll: true });
+    };
+    previous?.addEventListener('click', () => show(current - 1));
+    form.addEventListener('hydro:reset-step', () => show(1));
+    next?.addEventListener('click', () => {
+      const active = fields.filter(field => Number(field.dataset.formStep) === current);
+      const invalid = active.flatMap(field => Array.from(field.querySelectorAll('input,select,textarea'))).find(control => !control.checkValidity());
+      if (invalid) { invalid.reportValidity(); return; }
+      show(current + 1);
+    });
+    form.addEventListener('submit', event => {
+      const invalid = fields.flatMap(field => Array.from(field.querySelectorAll('input,select,textarea'))).find(control => !control.checkValidity());
+      if (!invalid) return;
+      event.preventDefault();
+      show(Number(invalid.closest('[data-form-step]')?.dataset.formStep) || 1);
+      invalid.reportValidity();
+    }, true);
+    show(1);
   });
 
   const lock = form => {
@@ -72,6 +137,15 @@
     if (!form) return;
     const statusCode = Number(event.detail?.xhr?.status || 0);
     const succeeded = event.detail?.successful === true || (statusCode >= 200 && statusCode < 300);
+    if (succeeded && form.hasAttribute('data-reset-on-success')) {
+      form.reset();
+      form.querySelectorAll('[data-character-counter]').forEach(input => {
+        const counter = input.closest('.hydro-form__field')?.querySelector('[data-character-count]');
+        if (counter) counter.textContent = `0 / ${input.maxLength}`;
+      });
+      form.dispatchEvent(new Event('hydro:reset-step'));
+      form.dataset.success = 'true';
+    }
     if (succeeded && form.hasAttribute('data-conversion-enabled') && form.dataset.conversionSent !== 'true') {
       form.dataset.conversionSent = 'true';
       const conversionID = form.dataset.googleAdsConversionId;

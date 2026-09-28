@@ -21,7 +21,7 @@ templ Head() {
 
 templ PublicForm(p PublicFormProps) {
 	if p.Form.Validate() == nil {
-	<form class="hydro-form" method="post" enctype="multipart/form-data" action={ safeFormAction(p.Action, p.Form.ID) } data-public-form data-conversion-enabled?={ p.Form.ConversionTracking } data-google-ads-conversion-id={ p.Form.GoogleAdsConversionID } data-google-ads-conversion-label={ p.Form.GoogleAdsConversionLabel } data-meta-pixel-event={ publicMetaPixelEvent(p.Form) }>
+	<form class="hydro-form" method="post" enctype="multipart/form-data" action={ safeFormAction(p.Action, p.Form.ID) } data-public-form data-reset-on-success data-step-wizard?={ publicFormHasSteps(p.Form) } novalidate?={ publicFormHasSteps(p.Form) } data-step-count={ fmt.Sprint(maximumFormStep(p.Form)) } data-conversion-enabled?={ p.Form.ConversionTracking } data-google-ads-conversion-id={ p.Form.GoogleAdsConversionID } data-google-ads-conversion-label={ p.Form.GoogleAdsConversionLabel } data-meta-pixel-event={ publicMetaPixelEvent(p.Form) }>
 		<input type="hidden" name="_csrf" value={ p.CSRFToken } />
 		<input type="hidden" name="_submission_token" value={ publicSubmissionToken(p.SubmissionToken) } />
 		<div class="hydro-form__honeypot" aria-hidden="true"><label for="hydro-website-url">Leave this field empty</label><input id="hydro-website-url" name="website_url" type="text" tabindex="-1" autocomplete="off" /></div>
@@ -30,7 +30,7 @@ templ PublicForm(p PublicFormProps) {
 			<p class="hydro-form__hours-notice" role="note">{ notice }</p>
 		}
 		for _, field := range p.Form.Fields {
-			<div class="hydro-form__field">
+			<div class="hydro-form__field" data-form-step={ fmt.Sprint(publicFieldStep(field)) } hidden?={ publicFormHasSteps(p.Form) && publicFieldStep(field) != 1 }>
 				<label for={ "hydro-" + p.Form.ID + "-" + field.ID }>{ field.Label }
 					if field.Required {
 						<span aria-hidden="true">*</span>
@@ -39,7 +39,15 @@ templ PublicForm(p PublicFormProps) {
 				if field.Type == Document {
 					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required?={ field.Required } />
 				} else if field.Type == Textarea {
-					<textarea id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } required?={ field.Required } maxlength={ fmt.Sprint(MaxValueLength) }></textarea>
+					<textarea id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } required?={ field.Required } maxlength={ fmt.Sprint(MaxValueLength) } data-character-counter></textarea>
+					<output class="hydro-form__counter" data-character-count aria-live="off">0 / { fmt.Sprint(MaxValueLength) }</output>
+				} else if field.Type == CascadingSelect {
+					<select id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } data-cascade-select data-cascade-parent={ field.DependsOn } data-cascade-options={ publicCascadeOptions(field) } required?={ field.Required }>
+						<option value="">Choose one</option>
+						for _, option := range field.Options {
+							<option value={ option }>{ option }</option>
+						}
+					</select>
 				} else if field.Type == Select {
 					<select id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } required?={ field.Required }>
 						<option value="">Choose one</option>
@@ -50,12 +58,15 @@ templ PublicForm(p PublicFormProps) {
 				} else if field.Type == Checkbox {
 					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type="checkbox" value="true" required?={ field.Required } />
 				} else {
-					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type={ publicInputType(field.Type) } required?={ field.Required } maxlength={ fmt.Sprint(MaxValueLength) } data-email-suggest?={ field.Type == Email } />
+					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type={ publicInputType(field.Type) } required?={ field.Required } maxlength={ fmt.Sprint(MaxValueLength) } inputmode={ phoneInputMode(field.Type) } autocomplete={ phoneAutocomplete(field.Type) } data-phone-mask?={ field.Type == Phone } data-email-suggest?={ field.Type == Email } />
 					if field.Type == Email {
 						<span class="hydro-form__suggestion" data-email-suggestion role="status" aria-live="polite"></span>
 					}
 				}
 			</div>
+		}
+		if publicFormHasSteps(p.Form) {
+			<nav class="hydro-form__steps" aria-label="Form steps"><button type="button" data-form-previous disabled>Previous</button><span data-form-step-status aria-live="polite"></span><button type="button" data-form-next>Next</button></nav>
 		}
 		if p.Form.TurnstileEnabled {
 			if p.TurnstileSiteKey != "" {
