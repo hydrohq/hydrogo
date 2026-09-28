@@ -353,9 +353,9 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, c
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT DISTINCT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.updated_at FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=$1) AND n.id<>$1 AND n.locale=$2 AND n.status='published' AND n.published_revision IS NOT NULL` + filter + ` ORDER BY n.updated_at DESC,n.id ASC LIMIT $3`
+	query := `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(DISTINCT rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=$1) AND n.id<>$1 AND n.locale=$2 AND n.status='published' AND n.published_revision IS NOT NULL` + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT $3`
 	if s.Dialect == database.SQLite {
-		query = `SELECT DISTINCT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.updated_at FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=?) AND n.id<>? AND n.locale=? AND n.status='published' AND n.published_revision IS NOT NULL` + filter + ` ORDER BY n.updated_at DESC,n.id ASC LIMIT ?`
+		query = `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(DISTINCT rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=?) AND n.id<>? AND n.locale=? AND n.status='published' AND n.published_revision IS NOT NULL` + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT ?`
 	}
 	args := []any{contentID, locale, limit}
 	if s.Dialect == database.SQLite {
@@ -377,7 +377,8 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, c
 	for rows.Next() {
 		var item news.Item
 		var updated any
-		if err := rows.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Category, &item.CoverMediaID, &updated); err != nil {
+		var relevance int
+		if err := rows.Scan(&item.ID, &item.Locale, &item.Slug, &item.Title, &item.Category, &item.CoverMediaID, &item.Excerpt, &updated, &relevance); err != nil {
 			return nil, err
 		}
 		item.UpdatedAt = parseTime(updated)
