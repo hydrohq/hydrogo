@@ -44,6 +44,21 @@ func ApplyMigrationsForModules(ctx context.Context, db *sql.DB, dialect Dialect,
 	if err := validateMigrationDialect(dialect); err != nil {
 		return err
 	}
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("open migration connection: %w", err)
+	}
+	defer conn.Close()
+	return applyMigrationsOnConnection(ctx, conn, dialect, migrationFS, enabled, true)
+}
+
+func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Dialect, migrationFS fs.FS, enabled map[string]bool, lock bool) error {
+	if conn == nil {
+		return errors.New("migration connection is required")
+	}
+	if err := validateMigrationDialect(dialect); err != nil {
+		return err
+	}
 	enabled = canonicalEnabledModules(enabled)
 	migrations, err := discoverMigrations(migrationFS)
 	if err != nil {
@@ -62,12 +77,7 @@ func ApplyMigrationsForModules(ctx context.Context, db *sql.DB, dialect Dialect,
 			}
 		}
 	}
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return fmt.Errorf("open migration connection: %w", err)
-	}
-	defer conn.Close()
-	if dialect == Postgres {
+	if dialect == Postgres && lock {
 		if err := acquireMigrationLock(ctx, conn); err != nil {
 			return err
 		}
