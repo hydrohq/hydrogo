@@ -51,7 +51,7 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.NewMobileAuthService(db, dialect), auth.TestArgon2Params)
 
 	// 1. Create User
-	u, err := authSvc.CreateUser(ctx, "Admin@HydroGo.io", "StrongSecretPassword123!", auth.RoleAdmin)
+	u, err := authSvc.CreateUser(ctx, "Admin@HydroGo.io", "Amber-River7!Cedar", auth.RoleAdmin)
 	if err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}
@@ -82,7 +82,7 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	}
 
 	// 3. Authenticate with correct password
-	authedUser, err := authSvc.Authenticate(ctx, "ADMIN@hydrogo.io", "StrongSecretPassword123!")
+	authedUser, err := authSvc.Authenticate(ctx, "ADMIN@hydrogo.io", "Amber-River7!Cedar")
 	if err != nil {
 		t.Fatalf("auth with valid password failed: %v", err)
 	}
@@ -125,7 +125,7 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	}
 
 	// 9. Disabling a user revokes every session.
-	editor, err := authSvc.CreateUser(ctx, "editor@hydrogo.io", "EditorSecretPassword123!", auth.RoleEditor)
+	editor, err := authSvc.CreateUser(ctx, "editor@hydrogo.io", "Copper-Lake5!Pine", auth.RoleEditor)
 	if err != nil {
 		t.Fatalf("create editor failed: %v", err)
 	}
@@ -162,14 +162,14 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 		t.Fatalf("TOTP verification failed: %v", err)
 	}
 	loginHTTP := auth.HTTPHandler{Service: authSvc, MFA: &mfa, MFADB: db, Transactions: database.NewTransactor(db)}
-	loginWithoutMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"StrongSecretPassword123!"}}.Encode()))
+	loginWithoutMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"Amber-River7!Cedar"}}.Encode()))
 	loginWithoutMFA.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	loginWithoutMFAResult := httptest.NewRecorder()
 	loginHTTP.Routes()[0].Handler.ServeHTTP(loginWithoutMFAResult, loginWithoutMFA)
 	if loginWithoutMFAResult.Code != http.StatusUnauthorized {
 		t.Fatalf("login without MFA status = %d", loginWithoutMFAResult.Code)
 	}
-	loginWithMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"StrongSecretPassword123!"}, "mfa_code": {code}}.Encode()))
+	loginWithMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"Amber-River7!Cedar"}, "mfa_code": {code}}.Encode()))
 	loginWithMFA.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	loginWithMFAResult := httptest.NewRecorder()
 	loginHTTP.Routes()[0].Handler.ServeHTTP(loginWithMFAResult, loginWithMFA)
@@ -193,19 +193,19 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 		t.Fatalf("issue reset token failed: %v", err)
 	}
 	err = database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
-		return resetService.Reset(ctx, tx, resetToken, "NewStrongPassword123!")
+		return resetService.Reset(ctx, tx, resetToken, "Copper-Lake5!Pine")
 	})
 	if err != nil {
 		t.Fatalf("reset password failed: %v", err)
 	}
-	if _, err := authSvc.Authenticate(ctx, u.Email, "NewStrongPassword123!"); err != nil {
+	if _, err := authSvc.Authenticate(ctx, u.Email, "Copper-Lake5!Pine"); err != nil {
 		t.Fatalf("new password authentication failed: %v", err)
 	}
-	if _, err := authSvc.Authenticate(ctx, u.Email, "StrongSecretPassword123!"); err != auth.ErrInvalidCredentials {
+	if _, err := authSvc.Authenticate(ctx, u.Email, "Amber-River7!Cedar"); err != auth.ErrInvalidCredentials {
 		t.Fatalf("old password result = %v, want invalid credentials", err)
 	}
 	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
-		return resetService.Reset(ctx, tx, resetToken, "AnotherPassword123!")
+		return resetService.Reset(ctx, tx, resetToken, "Maple-Cloud8!Birch")
 	}); !errors.Is(err, auth.ErrRecoveryTokenInvalid) {
 		t.Fatalf("second reset result = %v, want invalid token", err)
 	}
@@ -219,7 +219,7 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	var invited *auth.User
 	err = database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
 		var inner error
-		invited, inner = invitation.Accept(ctx, tx, inviteToken, "InvitedStrongPassword123!")
+		invited, inner = invitation.Accept(ctx, tx, inviteToken, "Gold-Harbor9!Willow")
 		return inner
 	})
 	if err != nil || invited.Role != auth.RoleEditor {
@@ -228,11 +228,11 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if invited.EmailVerifiedAt == nil {
 		t.Fatal("accepted email invitation did not verify the invited address")
 	}
-	if _, err := authSvc.Authenticate(ctx, invited.Email, "InvitedStrongPassword123!"); err != nil {
+	if _, err := authSvc.Authenticate(ctx, invited.Email, "Gold-Harbor9!Willow"); err != nil {
 		t.Fatalf("invited user authentication failed: %v", err)
 	}
 	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
-		_, inner := invitation.Accept(ctx, tx, inviteToken, "AnotherPassword123!")
+		_, inner := invitation.Accept(ctx, tx, inviteToken, "Maple-Cloud8!Birch")
 		return inner
 	}); !errors.Is(err, auth.ErrInviteInvalid) {
 		t.Fatalf("second invitation acceptance = %v, want invalid invitation", err)

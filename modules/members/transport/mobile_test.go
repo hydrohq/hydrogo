@@ -48,7 +48,7 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hash, err := auth.HashPassword("secret1234", auth.DefaultArgon2Params)
+	hash, err := auth.HashPassword("Amber-River7!Cedar", auth.DefaultArgon2Params)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestMemberMobileAuthUsesBearerTokensAndRotatesRefresh(t *testing.T) {
 		mux.Handle(route.Pattern, route.Handler)
 	}
 
-	loginBody := `{"email":"reader@example.test","password":"secret1234","device_id":"ios-1","device_name":"Reader phone","platform":"ios"}`
+	loginBody := `{"email":"reader@example.test","password":"Amber-River7!Cedar","device_id":"ios-1","device_name":"Reader phone","platform":"ios"}`
 	login := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/login", strings.NewReader(loginBody))
 	login.Header.Set("Content-Type", "application/json")
 	loginResponse := httptest.NewRecorder()
@@ -163,7 +163,7 @@ func TestMemberMobileRegisterRejectsInvalidMetadataBeforePersistence(t *testing.
 	for _, route := range handler.Routes() {
 		mux.Handle(route.Pattern, route.Handler)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/register", strings.NewReader(`{"email":"new@example.test","password":"secret1234","device_id":"","platform":"ios"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/register", strings.NewReader(`{"email":"new@example.test","password":"Amber-River7!Cedar","device_id":"","platform":"ios"}`))
 	req.Header.Set("Content-Type", "application/json")
 	res := httptest.NewRecorder()
 	mux.ServeHTTP(res, req)
@@ -191,7 +191,7 @@ func TestMemberMobileRegisterCreatesMemberAndTokenWithoutCookie(t *testing.T) {
 	for _, route := range handler.Routes() {
 		mux.Handle(route.Pattern, route.Handler)
 	}
-	body := `{"email":"mobile-register@example.test","password":"secret1234","device_id":"ios-register","device_name":"Reader phone","platform":"ios"}`
+	body := `{"email":"mobile-register@example.test","password":"Amber-River7!Cedar","device_id":"ios-register","device_name":"Reader phone","platform":"ios"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/mobile/member/auth/register", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	res := httptest.NewRecorder()

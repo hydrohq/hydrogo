@@ -164,12 +164,12 @@ func TestMemberRegistrationAndAuthentication(t *testing.T) {
 
 	// 1. Password too short (< 8 chars)
 	_, err := svc.Register(ctx, "user@example.com", "short")
-	if !errors.Is(err, auth.ErrInvalidCredentials) {
-		t.Fatalf("expected ErrInvalidCredentials for short password, got: %v", err)
+	if !errors.Is(err, auth.ErrWeakPassword) {
+		t.Fatalf("expected ErrWeakPassword for short password, got: %v", err)
 	}
 
 	// 2. Successful Registration
-	mem, err := svc.Register(ctx, "User@Example.com ", "securepassword123")
+	mem, err := svc.Register(ctx, "User@Example.com ", "Amber-River7!Cedar")
 	if err != nil {
 		t.Fatalf("registration failed: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestMemberRegistrationAndAuthentication(t *testing.T) {
 	}
 
 	// 3. Duplicate email registration
-	_, err = svc.Register(ctx, "user@example.com", "securepassword123")
+	_, err = svc.Register(ctx, "user@example.com", "Amber-River7!Cedar")
 	if !errors.Is(err, members.ErrMemberExists) {
 		t.Fatalf("expected ErrMemberExists, got: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestMemberRegistrationAndAuthentication(t *testing.T) {
 	}
 
 	// 5. Authenticate success
-	authedMem, err := svc.Authenticate(ctx, "user@example.com", "securepassword123")
+	authedMem, err := svc.Authenticate(ctx, "user@example.com", "Amber-River7!Cedar")
 	if err != nil {
 		t.Fatalf("authentication failed: %v", err)
 	}

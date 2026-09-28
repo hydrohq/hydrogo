@@ -22,3 +22,10 @@ templ codeToken(token CodeToken) {
 		<span class={ "code-token code-token-" + token.Kind }>{ token.Text }</span>
 	}
 }
+
+templ PasswordStrengthMeter() {
+	<div class="ds-password-strength">
+		<meter min="0" max="4" value="0" data-password-meter aria-label="Parola gücü"></meter>
+		<p data-password-feedback role="status" aria-live="polite">En az 8 karakter seçin; yaygın parolalardan kaçının.</p>
+	</div>
+}

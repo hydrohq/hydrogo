@@ -292,7 +292,7 @@ func TestPasswordResetConfirmIsRateLimitedByClient(t *testing.T) {
 		Transactions:           database.NewTransactor(db),
 		RecoveryConfirmLimiter: security.NewAttemptLimiter(1, 1, time.Hour),
 	}.confirmPasswordReset
-	form := url.Values{"token": {"invalid-token"}, "password": {"new-secret"}}
+	form := url.Values{"token": {"invalid-token"}, "password": {"Amber-River7!Cedar"}}
 	newRequest := func() *http.Request {
 		req := httptest.NewRequest(http.MethodPost, "/auth/password-reset/confirm", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -344,7 +344,7 @@ func TestInviteAcceptanceIsRateLimitedByClient(t *testing.T) {
 		Transactions:        database.NewTransactor(db),
 		InviteAcceptLimiter: security.NewAttemptLimiter(1, 1, time.Hour),
 	}.acceptInvite
-	form := url.Values{"token": {"invalid-token"}, "password": {"new-secret"}}
+	form := url.Values{"token": {"invalid-token"}, "password": {"Amber-River7!Cedar"}}
 	newRequest := func() *http.Request {
 		req := httptest.NewRequest(http.MethodPost, "/auth/invites/accept", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

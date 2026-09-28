@@ -3,6 +3,7 @@ package ui
 import "strconv"
 
 import "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+import "github.com/ardaozyildirim/hydrogo/modules/designsystem"
 
 templ AdminUXChrome() {
 	@EditorStats()
@@ -21,7 +22,7 @@ templ AdminUXChrome() {
 				<input type="hidden" name="_csrf" data-ux-csrf />
 				<label>Mevcut parola<input name="current_password" type="password" autocomplete="current-password" required /></label>
 				<label>Yeni parola<input name="new_password" type="password" autocomplete="new-password" minlength="8" required data-password-strength /></label>
-				<meter min="0" max="4" value="0" data-password-meter aria-label="Parola gücü"></meter>
+				@designsystem.PasswordStrengthMeter()
 				<label>Yeni parola (tekrar)<input name="confirm_password" type="password" autocomplete="new-password" minlength="8" required /></label>
 				<label class="admin-ux-check"><input type="checkbox" name="invalidate_other_sessions" value="true" checked /> Diğer cihazlardaki oturumları kapat</label>
 				<p role="status" aria-live="polite" data-quick-password-status></p>

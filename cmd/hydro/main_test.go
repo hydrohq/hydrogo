@@ -1005,7 +1005,7 @@ func TestRunMigrateAndCreateAdmin(t *testing.T) {
 		"--password-stdin",
 		"--database-dialect", "sqlite",
 		"--database-dsn", dbPath,
-	}, strings.NewReader("StrongPassword123!\n"), &stdout, &stderr)
+	}, strings.NewReader("Amber-River7!Cedar\n"), &stdout, &stderr)
 
 	if err != nil {
 		t.Fatalf("create-admin failed: %v, stderr: %s", err, stderr.String())

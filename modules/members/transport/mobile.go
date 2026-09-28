@@ -103,6 +103,8 @@ func (h Handler) mobileRegister(w http.ResponseWriter, r *http.Request) {
 			writeMemberMobileError(w, http.StatusConflict, "MEMBER_EXISTS", "An account with this email already exists.")
 		case errors.Is(err, auth.ErrInvalidCredentials):
 			writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid registration details.")
+		case errors.Is(err, auth.ErrWeakPassword):
+			writeMemberMobileError(w, http.StatusBadRequest, "WEAK_PASSWORD", "Choose a longer, less common password.")
 		default:
 			writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
 		}

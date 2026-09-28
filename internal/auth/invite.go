@@ -81,6 +81,9 @@ func (s InvitationService) Accept(ctx context.Context, tx database.Executor, raw
 	if strings.TrimSpace(rawToken) == "" || password == "" {
 		return nil, ErrInviteInvalid
 	}
+	if err := ValidatePasswordStrength(password); err != nil {
+		return nil, err
+	}
 	digest := sha256.Sum256([]byte(rawToken))
 	email, role, err := s.Invites.ConsumeInvite(ctx, tx, hex.EncodeToString(digest[:]), time.Now().UTC())
 	if err != nil {

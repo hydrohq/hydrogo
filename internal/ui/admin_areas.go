@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"html/template"
@@ -13,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 type AdminAreaData struct {
@@ -30,6 +32,18 @@ type AdminAreaData struct {
 }
 
 type SecurityBanRow struct{ Address, Expires string }
+
+type passwordStrengthWriter struct{ io.Writer }
+
+func (w passwordStrengthWriter) Write(data []byte) (int, error) {
+	markup := string(data)
+	var component bytes.Buffer
+	if err := designsystem.PasswordStrengthMeter().Render(context.Background(), &component); err == nil {
+		markup = strings.Replace(markup, `name="new_password" minlength="8" autocomplete="new-password"`, `name="new_password" minlength="8" autocomplete="new-password" data-password-strength`, 1)
+		markup = strings.Replace(markup, `autocomplete="new-password"></label>`, `autocomplete="new-password"></label>`+component.String(), 1)
+	}
+	return w.Writer.Write([]byte(markup))
+}
 
 type AdminResourceUsageData struct {
 	Email    string
@@ -682,6 +696,7 @@ function testGraphQL(btn){
 		_, _ = io.WriteString(w, `</tbody></table></div></div>`)
 
 	case "account":
+		w = passwordStrengthWriter{Writer: w}
 		profileTitle := "👤 Yönetici Profil Bilgileri"
 		profileIntro := "Admin Studio paneline erişim sağlayan mevcut yetkili hesap:"
 		securityTitle := "🔒 Hesap Güvenliği &amp; Parola Yenileme"
