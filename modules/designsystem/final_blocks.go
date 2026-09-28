@@ -29,6 +29,10 @@ type BusinessStatusProps struct {
 	Open                          bool
 	OpenLabel, ClosedLabel, Hours string
 }
+type LocalePickerProps struct {
+	Locales  []string
+	Selected string
+}
 
 func calloutTone(value string) string {
 	switch value {
