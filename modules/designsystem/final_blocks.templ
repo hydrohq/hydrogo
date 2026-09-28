@@ -1,5 +1,19 @@
 package designsystem
 
+templ LocalePicker(p LocalePickerProps) {
+	if len(p.Locales) > 1 {
+		<form class="fixed right-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-surface p-2 text-sm text-foreground shadow" action="/" method="get" aria-label="Language selection">
+			<label for="hydro-locale">Language</label>
+			<select id="hydro-locale" name="locale">
+				for _, locale := range p.Locales {
+					<option value={ locale } selected?={ locale == p.Selected }>{ locale }</option>
+				}
+			</select>
+			<button class="rounded bg-primary px-3 py-1 text-primary-foreground" type="submit">Apply</button>
+		</form>
+	}
+}
+
 templ Callout(p CalloutProps) {
 	<aside class={ "ds-callout ds-callout--" + calloutTone(p.Tone) } role="note" data-block="callout">
 		<strong>{ p.Title }</strong><p>{ p.Text }</p>

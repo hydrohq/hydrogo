@@ -2095,8 +2095,29 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if enabledModuleSet(cfg.Modules)["members"] {
 		routes = append(routes, memberHTTP.Routes()...)
 	}
-	routes = append(routes, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	localeEnabled := cfg.I18N.Enabled && len(cfg.I18N.Locales) > 0
+	routes = append(routes, router.Route{Pattern: "GET /{locale}/", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		locale := configuredLocale(r.PathValue("locale"), cfg.I18N.Locales)
+		if !localeEnabled || locale == "" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled(), security.NonceFromContext(r.Context())))
+	})}, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
+			if localeEnabled {
+				selected, manual := requestedLocale(r, cfg.I18N.Locales, cfg.I18N.DefaultLocale)
+				if manual {
+					http.SetCookie(w, &http.Cookie{Name: "hydro_locale", Value: selected, Path: "/", MaxAge: 31536000, HttpOnly: true, Secure: cfg.Security.SecureCookies, SameSite: http.SameSiteLaxMode})
+					localeRedirect(w, r, selected)
+					return
+				}
+				if selected != "" && !strings.EqualFold(selected, cfg.I18N.DefaultLocale) {
+					localeRedirect(w, r, selected)
+					return
+				}
+			}
 			homePath := ""
 			if modules["site"] {
 				if settings, err := siteStore.ListPublicSettings(r.Context(), db); err == nil {
@@ -2108,7 +2129,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = io.WriteString(w, technicalHomeHTML(cfg.I18N.DefaultLocale, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled(), security.NonceFromContext(r.Context())))
+			_, _ = io.WriteString(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled(), security.NonceFromContext(r.Context())))
 			return
 		}
 		http.NotFound(w, r)
@@ -3611,6 +3632,53 @@ func publicHomePath(locale string) string {
 		locale = "en"
 	}
 	return "/public/pages/" + url.PathEscape(locale) + "/demo/html"
+}
+
+func configuredLocale(locale string, supported []string) string {
+	locale = strings.TrimSpace(locale)
+	for _, candidate := range supported {
+		if strings.EqualFold(locale, candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func cookieValue(r *http.Request, name string) string {
+	cookie, err := r.Cookie(name)
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
+}
+
+func requestedLocale(r *http.Request, supported []string, defaultLocale string) (string, bool) {
+	if selected := configuredLocale(r.URL.Query().Get("locale"), supported); selected != "" {
+		return selected, true
+	}
+	if selected := configuredLocale(cookieValue(r, "hydro_locale"), supported); selected != "" {
+		return selected, false
+	}
+	return i18n.ResolveAcceptLanguage(r.Header.Get("Accept-Language"), supported, defaultLocale), false
+}
+
+func localeRedirect(w http.ResponseWriter, r *http.Request, locale string) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Add("Vary", "Accept-Language")
+	w.Header().Add("Vary", "Cookie")
+	http.Redirect(w, r, "/"+url.PathEscape(locale)+"/", http.StatusFound)
+}
+
+func technicalHomeWithLocales(locale string, locales []string, demoPath string, demoEnabled bool, nonce string) string {
+	markup := technicalHomeHTML(locale, demoPath, demoEnabled, nonce)
+	if len(locales) < 2 {
+		return markup
+	}
+	var picker bytes.Buffer
+	if err := designsystem.LocalePicker(designsystem.LocalePickerProps{Locales: locales, Selected: configuredLocale(locale, locales)}).Render(context.Background(), &picker); err != nil {
+		return markup
+	}
+	return strings.Replace(markup, "</body>", picker.String()+"</body>", 1)
 }
 
 // technicalHomeHTML is intentionally small: the default root is a runtime
