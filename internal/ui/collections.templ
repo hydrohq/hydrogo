@@ -12,20 +12,16 @@ templ CollectionStudio(schemas []collections.Schema, csrf string) {
 			<label>Collection ID<input name="id" pattern="[a-z][a-z0-9_]{0,62}" required /></label>
 			<label>Name<input name="label" maxlength="128" required /></label>
 			<label>Description<textarea name="description" maxlength="1000"></textarea></label>
-			<fieldset><legend>Fields</legend>
+			<fieldset id="collection-fields" data-current="8" data-max="64"><legend>Fields</legend>
 				for index := 0; index < 8; index++ {
-					<div class="studio-actions">
-						<label>Field ID<input name={ collectionFieldName("id", index) } pattern="[a-z][a-z0-9_]{0,62}" /></label>
-						<label>Label<input name={ collectionFieldName("label", index) } maxlength="128" /></label>
-						<label>Type<select name={ collectionFieldName("kind", index) }>
-							<option value="text">Text</option><option value="richtext">Rich text</option><option value="number">Number</option><option value="boolean">Boolean</option><option value="datetime">Date and time</option><option value="select">Single select</option><option value="multi_select">Multi select</option><option value="media">Media</option><option value="relation">Relation</option><option value="relation_many">Multiple relation</option>
-						</select></label>
-						<label>Options / relation ID<input name={ collectionFieldName("options", index) } placeholder="For selects: one,two; for relations: collection_id" /></label>
-						<label><input type="checkbox" name={ collectionFieldName("required", index) } value="true" /> Required</label>
-						<label><input type="checkbox" name={ collectionFieldName("unique", index) } value="true" /> Unique</label>
-					</div>
+					@CollectionSchemaField(index)
 				}
 			</fieldset>
+			<button class="button button-quiet" type="button" data-add-collection-field>Add field</button>
+			<template data-collection-field-template>
+				@CollectionSchemaField(-1)
+			</template>
+			<script src="/admin/collections/schema-builder.js" defer></script>
 			<button class="button button-primary" type="submit">Create collection</button>
 		</form>
 	</section>
@@ -36,10 +32,33 @@ templ CollectionStudio(schemas []collections.Schema, csrf string) {
 		}
 		<ul>
 			for _, schema := range schemas {
-				<li><a href={ "/admin/collections/" + schema.ID }>{ schema.Label }</a> <span class="muted">{ schema.ID } · { collectionFieldCount(schema.Fields) } fields</span></li>
+				<li>
+					<a href={ "/admin/collections/" + schema.ID }>{ schema.Label }</a>
+					<span class="muted">{ schema.ID } · { collectionFieldCount(schema.Fields) } fields</span>
+					<form method="post" action={ "/admin/collections/" + schema.ID + "/delete" } class="studio-actions">
+						<input type="hidden" name="_csrf" value={ csrf } />
+						<label><input type="checkbox" name="confirm_schema" value={ schema.ID } required /> Delete this schema and its records</label>
+						<button class="button button-danger" type="submit">Delete schema</button>
+					</form>
+				</li>
 			}
 		</ul>
 	</section>
+}
+
+templ CollectionSchemaField(index int) {
+	<div class="studio-actions" data-collection-field-row>
+		<label>Field ID<input name={ collectionFieldName("id", index) } pattern="[a-z][a-z0-9_]{0,62}" /></label>
+		<label>Label<input name={ collectionFieldName("label", index) } maxlength="128" /></label>
+		<label>Type<select name={ collectionFieldName("kind", index) }>
+			<option value="text">Text</option><option value="richtext">Rich text</option><option value="number">Number</option><option value="boolean">Boolean</option><option value="datetime">Date and time</option><option value="select">Single select</option><option value="multi_select">Multi select</option><option value="media">Media</option><option value="relation">Relation</option><option value="relation_many">Multiple relation</option>
+		</select></label>
+		<label>Options / relation ID<input name={ collectionFieldName("options", index) } placeholder="For selects: one,two; for relations: collection_id" /></label>
+		<label>Minimum<input type="number" step="any" name={ collectionFieldName("min", index) } /></label>
+		<label>Maximum<input type="number" step="any" name={ collectionFieldName("max", index) } /></label>
+		<label><input type="checkbox" name={ collectionFieldName("required", index) } value="true" /> Required</label>
+		<label><input type="checkbox" name={ collectionFieldName("unique", index) } value="true" /> Unique</label>
+	</div>
 }
 
 templ CollectionRecordsPage(schema collections.Schema, records []collections.Record, csrf string, fields []CollectionRecordField, action string) {

@@ -67,8 +67,12 @@ func (s *UserStore) Create(ctx context.Context, u *auth.User) error {
 	if s.dialect != database.Postgres {
 		active = boolToSQLite(u.Active)
 	}
-	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, s.dbTime(u.CreatedAt), s.dbTime(u.UpdatedAt)}
-	columns := `id, email, password_hash, role, active, created_at, updated_at`
+	var emailVerified any
+	if u.EmailVerifiedAt != nil {
+		emailVerified = s.dbTime(*u.EmailVerifiedAt)
+	}
+	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, s.dbTime(u.CreatedAt), s.dbTime(u.UpdatedAt), emailVerified}
+	columns := `id, email, password_hash, role, active, created_at, updated_at, email_verified_at`
 	if s.RequireTenantScope {
 		columns += `, tenant_id`
 		args = append(args, tenantID)
@@ -109,8 +113,12 @@ func (s *UserStore) CreateUserTx(ctx context.Context, tx database.Executor, u *a
 	if s.dialect != database.Postgres {
 		active = boolToSQLite(u.Active)
 	}
-	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, s.dbTime(u.CreatedAt), s.dbTime(u.UpdatedAt)}
-	columns := `id, email, password_hash, role, active, created_at, updated_at`
+	var emailVerified any
+	if u.EmailVerifiedAt != nil {
+		emailVerified = s.dbTime(*u.EmailVerifiedAt)
+	}
+	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, s.dbTime(u.CreatedAt), s.dbTime(u.UpdatedAt), emailVerified}
+	columns := `id, email, password_hash, role, active, created_at, updated_at, email_verified_at`
 	if s.RequireTenantScope {
 		columns += `, tenant_id`
 		args = append(args, tenantID)
@@ -128,7 +136,7 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) 
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = ` + s.bind(1)
+	query := `SELECT id, email, password_hash, role, active, created_at, updated_at, email_verified_at FROM users WHERE id = ` + s.bind(1)
 	args := []any{id}
 	if s.RequireTenantScope {
 		query += ` AND tenant_id = ` + s.bind(2)
@@ -138,10 +146,10 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) 
 	var u auth.User
 	var roleStr string
 	var activeVal any
-	var createdAtVal, updatedAtVal any
+	var createdAtVal, updatedAtVal, verifiedAtVal any
 
 	err = s.within(ctx, func(exec database.Executor) error {
-		return exec.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal)
+		return exec.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal, &verifiedAtVal)
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -154,6 +162,7 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) 
 	u.Active = parseActive(activeVal)
 	u.CreatedAt = parseTime(createdAtVal)
 	u.UpdatedAt = parseTime(updatedAtVal)
+	u.EmailVerifiedAt = parseOptionalTime(verifiedAtVal)
 
 	return &u, nil
 }
@@ -166,7 +175,7 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE email = ` + s.bind(1)
+	query := `SELECT id, email, password_hash, role, active, created_at, updated_at, email_verified_at FROM users WHERE email = ` + s.bind(1)
 	args := []any{auth.NormalizeEmail(email)}
 	if s.RequireTenantScope {
 		query += ` AND tenant_id = ` + s.bind(2)
@@ -176,10 +185,10 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 	var u auth.User
 	var roleStr string
 	var activeVal any
-	var createdAtVal, updatedAtVal any
+	var createdAtVal, updatedAtVal, verifiedAtVal any
 
 	err = s.within(ctx, func(exec database.Executor) error {
-		return exec.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal)
+		return exec.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Email, &u.PasswordHash, &roleStr, &activeVal, &createdAtVal, &updatedAtVal, &verifiedAtVal)
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -192,6 +201,7 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 	u.Active = parseActive(activeVal)
 	u.CreatedAt = parseTime(createdAtVal)
 	u.UpdatedAt = parseTime(updatedAtVal)
+	u.EmailVerifiedAt = parseOptionalTime(verifiedAtVal)
 
 	return &u, nil
 }
@@ -323,4 +333,78 @@ func parseTime(v any) time.Time {
 	default:
 		return time.Time{}
 	}
+}
+
+func parseOptionalTime(v any) *time.Time {
+	if v == nil {
+		return nil
+	}
+	parsed := parseTime(v)
+	if parsed.IsZero() {
+		return nil
+	}
+	return &parsed
+}
+
+func (s *UserStore) SetEmailVerifiedTx(ctx context.Context, tx database.Executor, userID string, verifiedAt time.Time) error {
+	if err := requireAuthExecutor(tx); err != nil {
+		return err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE users SET email_verified_at = COALESCE(email_verified_at, ` + s.bind(1) + `), updated_at = ` + s.bind(2) + ` WHERE id = ` + s.bind(3)
+	args := []any{s.dbTime(verifiedAt), s.dbTime(verifiedAt), userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = ` + s.bind(4)
+		args = append(args, tenantID)
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	if count, err := result.RowsAffected(); err == nil && count != 1 {
+		return auth.ErrUserNotFound
+	}
+	return nil
+}
+
+func (s *UserStore) LockEmailVerificationUserTx(ctx context.Context, tx database.Executor, userID string) (string, *time.Time, error) {
+	if err := requireUserStore(s); err != nil {
+		return "", nil, err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return "", nil, err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	if s.dialect == database.SQLite {
+		query := `UPDATE users SET updated_at=updated_at WHERE id=` + s.bind(1)
+		args := []any{userID}
+		if s.RequireTenantScope {
+			query += ` AND tenant_id=` + s.bind(2)
+			args = append(args, tenantID)
+		}
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return "", nil, err
+		}
+	}
+	query := `SELECT email,email_verified_at FROM users WHERE id=` + s.bind(1)
+	args := []any{userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id=` + s.bind(2)
+		args = append(args, tenantID)
+	}
+	if s.dialect != database.SQLite {
+		query += ` FOR UPDATE`
+	}
+	var email string
+	var verified any
+	if err := tx.QueryRowContext(ctx, query, args...).Scan(&email, &verified); err != nil {
+		return "", nil, auth.ErrUserNotFound
+	}
+	return email, parseOptionalTime(verified), nil
 }

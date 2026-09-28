@@ -364,7 +364,7 @@ func newID() (string, error) {
 	if _, err := rand.Read(raw); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(raw), nil
+	return "r_" + hex.EncodeToString(raw), nil
 }
 func parseTime(value string) time.Time {
 	parsed, _ := time.Parse(time.RFC3339Nano, value)

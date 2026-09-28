@@ -1,0 +1,34 @@
+package ui
+
+import "strconv"
+
+templ PushSettings(csrf string) {
+	<section class="studio-card">
+		<h1>Browser notifications</h1>
+		<p>Enable notifications on this browser to receive announcements sent by your administrator.</p>
+		<meta name="csrf-token" content={ csrf } />
+		<button class="button button-primary" type="button" data-push-subscribe>Enable browser notifications</button>
+		<button class="button button-quiet" type="button" data-push-unsubscribe>Disable browser notifications</button>
+		<p role="status" aria-live="polite" data-push-status></p>
+		<script src="/push/push-client.js" defer></script>
+	</section>
+}
+
+templ PushBroadcast(csrf string, sent, delivered, failed int, result bool) {
+	<section class="studio-card">
+		<h1>Push announcement</h1>
+		<p>Send a short notice to active browser and mobile subscriptions.</p>
+		<p><a href="/auth/me/push">Manage notifications for this browser</a></p>
+		if result {
+			<p role="status">Sent: { strconv.Itoa(sent) } · Provider accepted: { strconv.Itoa(delivered) } · Failed: { strconv.Itoa(failed) }</p>
+		}
+		<form method="post" action="/admin/push/broadcast" class="studio-form">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<label>Title<input name="title" maxlength="120" required /></label>
+			<label>Message<textarea name="body" maxlength="1024" required></textarea></label>
+			<label>Action URL<input name="url" maxlength="2048" placeholder="/news" /></label>
+			<label>Audience<select name="audience"><option value="all">All devices</option><option value="web">Browsers</option><option value="mobile">Mobile devices</option></select></label>
+			<button class="button button-primary" type="submit">Send announcement</button>
+		</form>
+	</section>
+}

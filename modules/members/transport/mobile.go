@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/push"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
@@ -257,4 +258,40 @@ func writeMemberMobileError(w http.ResponseWriter, status int, code, message str
 		"message":    message,
 		"request_id": w.Header().Get("X-Request-ID"),
 	}})
+}
+
+func (h Handler) mobilePushSubscribe(w http.ResponseWriter, r *http.Request) {
+	memberID, _, ok := h.memberMobilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		Token string `json:"token"`
+	}
+	if !decodeMemberMobileJSON(w, r, &input) {
+		return
+	}
+	if err := h.Push.Subscribe(r.Context(), push.Subscription{UserID: memberID, Platform: push.PlatformMobile, Endpoint: input.Token}); err != nil {
+		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be registered.")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) mobilePushUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	memberID, _, ok := h.memberMobilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		Token string `json:"token"`
+	}
+	if !decodeMemberMobileJSON(w, r, &input) {
+		return
+	}
+	if err := h.Push.Unsubscribe(r.Context(), memberID, push.PlatformMobile, input.Token); err != nil {
+		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be removed.")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

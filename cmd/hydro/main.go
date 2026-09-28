@@ -72,6 +72,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
+	pushservice "github.com/ardaozyildirim/hydrogo/internal/push"
+	pushstore "github.com/ardaozyildirim/hydrogo/internal/push/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
@@ -1463,6 +1465,33 @@ func serve(args []string, stderr io.Writer) error {
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	modules := enabledModuleSet(cfg.Modules)
+	var pushDispatcher *pushservice.Dispatcher
+	if modules["push"] {
+		repository := pushstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+		dispatcher := &pushservice.Dispatcher{Repository: repository}
+		vapidPublic, vapidPrivate, vapidSubject := os.Getenv("HYDRO_PUSH_VAPID_PUBLIC_KEY"), os.Getenv("HYDRO_PUSH_VAPID_PRIVATE_KEY"), os.Getenv("HYDRO_PUSH_VAPID_SUBJECT")
+		if vapidPublic != "" || vapidPrivate != "" || vapidSubject != "" {
+			if vapidPublic == "" || vapidPrivate == "" || vapidSubject == "" {
+				return fmt.Errorf("HYDRO_PUSH_VAPID_PUBLIC_KEY, HYDRO_PUSH_VAPID_PRIVATE_KEY, and HYDRO_PUSH_VAPID_SUBJECT must be set together")
+			}
+			dispatcher.Web = pushservice.WebPushSender{Public: vapidPublic, Private: vapidPrivate, Subject: vapidSubject}
+		}
+		if credentialsPath := os.Getenv("HYDRO_PUSH_FCM_CREDENTIALS"); credentialsPath != "" {
+			credentials, readErr := os.ReadFile(credentialsPath)
+			if readErr != nil {
+				return fmt.Errorf("read FCM credentials: %w", readErr)
+			}
+			fcm, fcmErr := pushservice.NewFCMSender(credentials, nil)
+			if fcmErr != nil {
+				return fmt.Errorf("configure FCM sender: %w", fcmErr)
+			}
+			dispatcher.Mobile = fcm
+		}
+		if dispatcher.Web == nil && dispatcher.Mobile == nil {
+			return fmt.Errorf("the push module requires VAPID settings or HYDRO_PUSH_FCM_CREDENTIALS")
+		}
+		pushDispatcher = dispatcher
+	}
 	var realtimeHub *realtime.Hub
 	if modules["realtime"] {
 		realtimeHub = &realtime.Hub{RequireTenantScope: requireTenantScope}
@@ -1490,7 +1519,7 @@ func serve(args []string, stderr io.Writer) error {
 		memberService = members.Service{Members: memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
 	}
 	if modules["members"] {
-		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale}
+		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale, Push: pushDispatcher}
 	}
 	var smtpSender mailer.Sender
 	if cfg.Mail.Host != "" {
@@ -1954,6 +1983,9 @@ func serve(args []string, stderr io.Writer) error {
 		collectionService := collections.Service{Repository: collectionDB}
 		routes = append(routes, (collectiontransport.Handler{Service: collectionService}).Routes()...)
 	}
+	if modules["push"] {
+		routes = append(routes, (pushservice.Handler{Dispatcher: *pushDispatcher, Limiter: newRateLimiter(3, time.Minute), Audit: auditRecorder}).Routes()...)
+	}
 	sessionPage := server.SessionPageHandler{Service: authSvc}
 	routes = append(routes, router.Route{Pattern: "GET /auth/me/sessions/manage", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/revoke-others", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/{id}/revoke", Access: router.Protected, Handler: sessionPage})
 	if modules["search"] {
@@ -2165,7 +2197,7 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r)}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
@@ -2749,8 +2781,14 @@ func serve(args []string, stderr io.Writer) error {
 		})
 		return server.ServeCGI(handler)
 	}
-	if smtpSender != nil {
+	if smtpSender != nil && modules["auth"] {
 		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}}, router.Route{Pattern: "POST /admin/api/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}})
+		verifyNotifier := auth.EmailVerificationNotifierFunc(func(notifyCtx context.Context, email, token string) error {
+			link := strings.TrimRight(cfg.HTTP.PublicOrigin, "/") + "/auth/email/verify?token=" + url.QueryEscape(token)
+			return (mailer.NotificationSender{Sender: smtpSender}).SendEmailVerification(notifyCtx, email, link)
+		})
+		verificationHandler := auth.EmailVerificationHandler{Service: auth.EmailVerificationService{Users: userStore, Tokens: userStore}, Transactions: transactioner, Notifier: verifyNotifier, PublicOrigin: cfg.HTTP.PublicOrigin, Limiter: newRateLimiter(3, time.Hour)}
+		routes = append(routes, verificationHandler.Routes()...)
 	}
 	if *fastCGIMode {
 		return server.ServeFastCGI(ctx, "tcp", *fastCGIAddress, serverConfig)

@@ -95,7 +95,7 @@ func (s InvitationService) Accept(ctx context.Context, tx database.Executor, raw
 		return nil, err
 	}
 	now := time.Now().UTC()
-	user := &User{ID: hex.EncodeToString(idBytes), Email: email, PasswordHash: hash, Role: role, Active: true, CreatedAt: now, UpdatedAt: now}
+	user := &User{ID: hex.EncodeToString(idBytes), Email: email, PasswordHash: hash, Role: role, Active: true, CreatedAt: now, UpdatedAt: now, EmailVerifiedAt: &now}
 	creator, ok := s.Users.(TransactionalUserCreator)
 	if !ok {
 		return nil, errors.New("transactional user creation is unavailable")

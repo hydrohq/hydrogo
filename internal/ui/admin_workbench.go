@@ -214,6 +214,16 @@ var adminWorkbenchDashboardTemplate = template.Must(template.New("admin-workbenc
 					<span><strong>Medya havuzu</strong><small>Varlıkları yönet ve yükle</small></span>
 					<span data-studio-icon="arrow"></span>
 				</a>
+				{{if .PushEnabled}}<a class="wb-action" href="/admin/push">
+					<span class="wb-action-icon" data-studio-icon="notifications"></span>
+					<span><strong>Bildirim yayınla</strong><small>Web ve mobil cihazlara duyur</small></span>
+					<span data-studio-icon="arrow"></span>
+				</a>{{end}}
+				{{if .EmailPreviewEnabled}}<a class="wb-action" href="/admin/mailer/test-preview">
+					<span class="wb-action-icon" data-studio-icon="settings"></span>
+					<span><strong>Test email preview</strong><small>Verify delivery to your inbox</small></span>
+					<span data-studio-icon="arrow"></span>
+				</a>{{end}}
 			</nav>
 		</article>
 

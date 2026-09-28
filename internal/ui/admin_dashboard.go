@@ -11,20 +11,22 @@ import (
 )
 
 type AdminDashboardData struct {
-	Email            string
-	Collections      []adminstudio.Collection
-	Nonce            string
-	Active           string
-	Metrics          *observability.Metrics
-	MemberStats      members.MemberStats
-	DataTime         string
-	DataSource       string
-	DateFilter       string
-	Locale           string
-	ContentViews     []ContentViewReportRow
-	AnalyticsEnabled bool
-	NoCookieStats    []NoCookieAnalyticsRow
-	UniqueVisitors   int64
+	Email               string
+	Collections         []adminstudio.Collection
+	Nonce               string
+	Active              string
+	Metrics             *observability.Metrics
+	MemberStats         members.MemberStats
+	DataTime            string
+	DataSource          string
+	DateFilter          string
+	Locale              string
+	ContentViews        []ContentViewReportRow
+	AnalyticsEnabled    bool
+	NoCookieStats       []NoCookieAnalyticsRow
+	UniqueVisitors      int64
+	PushEnabled         bool
+	EmailPreviewEnabled bool
 }
 
 type ContentViewReportRow struct {

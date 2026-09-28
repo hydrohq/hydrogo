@@ -1,0 +1,29 @@
+id: "202609290004_admin_email_verification"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "3df55e7f4832dfe709978ace092b2072f7250f633fa2583e0ba16e8d452ef594"
+  postgres: "d6e1d2caf5a59ecead1a322188967c983ab41a42591b40fd30a1531daf062571"
+  mysql: "ffd7133e321716a528b154b9093c6e3241f8845a10ef4408dfc260af63564382"
+dependencies:
+  - "202609060002_auth_security"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Auth module and admin users table are present"
+lock_timeout: "bounded by migration runner deadline"
+disk_estimate: "Nullable verification timestamp on users"
+compatibility: "Adds an optional verification timestamp; existing accounts require email confirmation"
+smoke:
+  - "Invite acceptance and verified social sign-in record verified timestamps"
+  - "Verification token is one-use, tenant-scoped, and time-limited"
+restart: "Safe to rerun through the migration ledger"
+rollback: "No production down migration; restore or use forward-only recovery"

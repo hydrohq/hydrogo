@@ -34,3 +34,29 @@ func TestRenderAdminDashboardUsesCollectionActionRoute(t *testing.T) {
 		t.Fatal("dashboard collection used the raw collection id as a route")
 	}
 }
+
+func TestPushQuickActionAppearsOnlyWhenModuleEnabled(t *testing.T) {
+	var active, inactive bytes.Buffer
+	if err := RenderAdminDashboard(&active, AdminDashboardData{Active: "dashboard", PushEnabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := RenderAdminDashboard(&inactive, AdminDashboardData{Active: "dashboard"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(active.String(), `href="/admin/push"`) || strings.Contains(inactive.String(), `href="/admin/push"`) {
+		t.Fatal("push navigation does not follow module activation")
+	}
+}
+
+func TestEmailPreviewActionAppearsOnlyWhenMailerConfigured(t *testing.T) {
+	var active, inactive bytes.Buffer
+	if err := RenderAdminDashboard(&active, AdminDashboardData{Active: "dashboard", EmailPreviewEnabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := RenderAdminDashboard(&inactive, AdminDashboardData{Active: "dashboard"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(active.String(), `href="/admin/mailer/test-preview"`) || strings.Contains(inactive.String(), `href="/admin/mailer/test-preview"`) {
+		t.Fatal("email preview navigation does not follow mailer availability")
+	}
+}

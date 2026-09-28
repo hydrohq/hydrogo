@@ -362,3 +362,5 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0277: Read-only SQLite physical schema diff](0277-sqlite-physical-schema-diff.md)
 - [ADR-0284: MySQL physical schema diff](0284-mysql-physical-schema-diff.md)
 - [ADR-0287: Dynamic collections on static, certified storage](0287-static-storage-dynamic-collections.md)
+- [ADR-0288: Optional unified push dispatcher](0288-unified-push-dispatcher.md)
+- [ADR-0289: Verified administrative email ownership](0289-verified-admin-email.md)
