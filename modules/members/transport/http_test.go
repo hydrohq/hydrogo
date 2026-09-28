@@ -1,7 +1,10 @@
 package transport_test
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,6 +20,23 @@ import (
 type memoryMemberStore struct {
 	members map[string]*members.Member
 	byEmail map[string]*members.Member
+}
+
+type fixedMemberStore struct {
+	*memoryMemberStore
+	rows []members.Member
+}
+
+func (s fixedMemberStore) Search(_ context.Context, filter members.MemberFilter) (members.MemberListResult, error) {
+	start := filter.Offset
+	if start > len(s.rows) {
+		start = len(s.rows)
+	}
+	end := start + filter.Limit
+	if end > len(s.rows) {
+		end = len(s.rows)
+	}
+	return members.MemberListResult{Members: s.rows[start:end], TotalCount: len(s.rows)}, nil
 }
 
 func newMemoryMemberStore() *memoryMemberStore {
@@ -203,6 +223,67 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 	mux.ServeHTTP(unauthRR, unauthReq)
 	if unauthRR.Code != http.StatusUnauthorized {
 		t.Fatalf("GET /member/me unauthenticated status = %d, expected 401", unauthRR.Code)
+	}
+}
+
+func TestAdminMemberXLSXExportIsProtectedAndValid(t *testing.T) {
+	store := fixedMemberStore{memoryMemberStore: newMemoryMemberStore(), rows: []members.Member{{ID: "m1", Email: "İstanbul@example.test", Active: true, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)}, {ID: "m2", Email: "=SUM(A1:A2)", CreatedAt: time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)}}}
+	svc := members.Service{Members: store, Sessions: newMemorySessionStore()}
+	handler := transport.Handler{Service: svc}
+	routes := map[string]http.Handler{}
+	for _, route := range handler.Routes() {
+		if strings.HasPrefix(route.Pattern, "GET /admin/members/export.") {
+			routes[route.Pattern] = route.Handler
+		}
+	}
+	export := routes["GET /admin/members/export.xlsx"]
+	if export == nil || routes["GET /admin/members/export.csv"] == nil {
+		t.Fatal("member spreadsheet export routes missing")
+	}
+	request := httptest.NewRequest(http.MethodGet, "/admin/members/export.xlsx", nil)
+	response := httptest.NewRecorder()
+	export.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("unauthenticated export status = %d", response.Code)
+	}
+	request = httptest.NewRequest(http.MethodGet, "/admin/members/export.xlsx", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response = httptest.NewRecorder()
+	export.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Header().Get("Content-Type"), "spreadsheetml") {
+		t.Fatalf("export status=%d content-type=%q body=%q", response.Code, response.Header().Get("Content-Type"), response.Body.String())
+	}
+	archive, err := zip.NewReader(bytes.NewReader(response.Body.Bytes()), int64(response.Body.Len()))
+	if err != nil {
+		t.Fatalf("invalid xlsx archive: %v", err)
+	}
+	if len(archive.File) < 5 {
+		t.Fatalf("workbook has only %d parts", len(archive.File))
+	}
+	var sheet string
+	for _, file := range archive.File {
+		if file.Name == "xl/worksheets/sheet1.xml" {
+			reader, err := file.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := io.ReadAll(reader)
+			_ = reader.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			sheet = string(body)
+		}
+	}
+	if !strings.Contains(sheet, "İstanbul@example.test") {
+		t.Fatalf("workbook lost UTF-8 member email: %s", sheet)
+	}
+	csvRequest := httptest.NewRequest(http.MethodGet, "/admin/members/export.csv", nil)
+	csvRequest = csvRequest.WithContext(auth.WithUser(csvRequest.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	csvResponse := httptest.NewRecorder()
+	routes["GET /admin/members/export.csv"].ServeHTTP(csvResponse, csvRequest)
+	if csvResponse.Code != http.StatusOK || !strings.Contains(csvResponse.Body.String(), "İstanbul@example.test") || !strings.Contains(csvResponse.Body.String(), "'=SUM(A1:A2)") {
+		t.Fatalf("CSV export status=%d body=%q", csvResponse.Code, csvResponse.Body.String())
 	}
 }
 

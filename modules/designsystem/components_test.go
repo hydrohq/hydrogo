@@ -41,6 +41,13 @@ func TestCoreBlocksRenderEscapedContentAndRejectUnsafeLinks(t *testing.T) {
 	}
 }
 
+func TestExportLinksRenderSafeTypedDownloads(t *testing.T) {
+	got := render(t, ExportLinks([]ExportLink{{Label: "Excel", URL: "/admin/export.xlsx?q=ş"}, {Label: "Unsafe", URL: "javascript:alert(1)"}}))
+	if !strings.Contains(got, `href="/admin/export.xlsx?q=ş"`) || !strings.Contains(got, `download`) || strings.Contains(got, "javascript:") || strings.Contains(got, "Unsafe") {
+		t.Fatalf("export links were not safely rendered: %s", got)
+	}
+}
+
 func TestInitialsAvatarIsEscapedAndPaletteIsStable(t *testing.T) {
 	avatar := render(t, InitialsAvatar(InitialsAvatarProps{Initials: Initials("arda.ozyildirim"), Class: InitialsAvatarClass("arda@example.test")}))
 	if !strings.Contains(avatar, `aria-label="AO"`) || !strings.Contains(avatar, `>AO</span>`) {

@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"database/sql"
 	"net/http"
@@ -60,6 +62,21 @@ func TestFormBuilderRoutesArePresent(t *testing.T) {
 		if !found {
 			t.Fatalf("missing form route %q", pattern)
 		}
+	}
+}
+
+func TestInboxXLSXExportIsAvailableToSiteAdmins(t *testing.T) {
+	handler := Handler{Store: fakeStore{}, DB: fakeExecutor{}}
+	request := httptest.NewRequest(http.MethodGet, "/admin/site/inbox/contact/export.xlsx", nil)
+	request.SetPathValue("form", "contact")
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	handler.exportInboxXLSX(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Header().Get("Content-Type"), "spreadsheetml") {
+		t.Fatalf("export status=%d content-type=%q", response.Code, response.Header().Get("Content-Type"))
+	}
+	if _, err := zip.NewReader(bytes.NewReader(response.Body.Bytes()), int64(response.Body.Len())); err != nil {
+		t.Fatalf("invalid XLSX response: %v", err)
 	}
 }
 

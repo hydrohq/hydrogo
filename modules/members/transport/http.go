@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	"github.com/ardaozyildirim/hydrogo/internal/xlsx"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
@@ -100,6 +102,8 @@ func (h Handler) Routes() []router.Route {
 
 		// Admin routes (Protected, RoleAdmin checked)
 		{Pattern: "GET /admin/members", Access: router.Protected, Handler: http.HandlerFunc(h.adminList)},
+		{Pattern: "GET /admin/members/export.xlsx", Access: router.Protected, Handler: http.HandlerFunc(h.adminExportXLSX)},
+		{Pattern: "GET /admin/members/export.csv", Access: router.Protected, Handler: http.HandlerFunc(h.adminExportCSV)},
 		{Pattern: "GET /admin/members/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminDetail)},
 		{Pattern: "POST /admin/members/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
 		{Pattern: "POST /admin/members/{id}/active", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
@@ -470,6 +474,11 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		body.WriteString(`<a href="/admin/members" class="button button-quiet">Temizle</a>`)
 	}
 	body.WriteString(`</form>`)
+	exportURL := "/admin/members/export.xlsx?q=" + url.QueryEscape(q) + "&status=" + url.QueryEscape(status)
+	var exportLinks bytes.Buffer
+	if err := designsystem.ExportLinks([]designsystem.ExportLink{{Label: "CSV dışa aktar", URL: strings.Replace(exportURL, "/export.xlsx", "/export.csv", 1)}, {Label: "Excel dışa aktar", URL: exportURL}}).Render(r.Context(), &exportLinks); err == nil {
+		body.WriteString(exportLinks.String())
+	}
 
 	// Table view
 	body.WriteString(`<div class="table-wrap"><table><thead><tr><th>E-posta</th><th>Durum</th><th>E-posta Doğrulama</th><th>Son Giriş</th><th>Kayıt Tarihi</th><th>İşlem</th></tr></thead><tbody>`)
@@ -522,6 +531,102 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	body.WriteString(`</section>`)
 	_, _ = w.Write([]byte(body.String()))
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) adminExportXLSX(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	rows, err := h.memberExportRows(r)
+	if err != nil {
+		writeMemberExportError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", `attachment; filename="members.xlsx"`)
+	if err := xlsx.Write(w, rows); err != nil {
+		return
+	}
+}
+
+func (h Handler) adminExportCSV(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	rows, err := h.memberExportRows(r)
+	if err != nil {
+		writeMemberExportError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="members.csv"`)
+	writer := csv.NewWriter(w)
+	for index, row := range rows {
+		if index > 0 && len(row) > 0 {
+			row[0] = csvSafeMember(row[0])
+		}
+		if err := writer.Write(row); err != nil {
+			return
+		}
+	}
+	writer.Flush()
+}
+
+func csvSafeMember(value string) string {
+	trimmed := strings.TrimLeft(value, " \t\r\n")
+	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+		return "'" + value
+	}
+	return value
+}
+
+func (h Handler) memberExportRows(r *http.Request) ([][]string, error) {
+	const pageSize, maxRows = 500, 20_000
+	filter := members.MemberFilter{Query: strings.TrimSpace(r.URL.Query().Get("q")), Status: r.URL.Query().Get("status"), Limit: pageSize}
+	first, err := h.Service.Members.Search(r.Context(), filter)
+	if err != nil {
+		return nil, err
+	}
+	if first.TotalCount > maxRows {
+		return nil, errMemberExportTooLarge
+	}
+	rows := make([][]string, 1, first.TotalCount+1)
+	rows[0] = []string{"Email", "Active", "Email verified at", "Last login at", "Created at"}
+	appendMembers := func(values []members.Member) {
+		for _, member := range values {
+			verified, lastLogin := "", ""
+			if member.EmailVerifiedAt != nil {
+				verified = member.EmailVerifiedAt.UTC().Format(time.RFC3339)
+			}
+			if member.LastLoginAt != nil {
+				lastLogin = member.LastLoginAt.UTC().Format(time.RFC3339)
+			}
+			rows = append(rows, []string{member.Email, strconv.FormatBool(member.Active), verified, lastLogin, member.CreatedAt.UTC().Format(time.RFC3339)})
+		}
+	}
+	appendMembers(first.Members)
+	for offset := len(first.Members); offset < first.TotalCount; offset += pageSize {
+		filter.Offset = offset
+		page, err := h.Service.Members.Search(r.Context(), filter)
+		if err != nil {
+			return nil, err
+		}
+		appendMembers(page.Members)
+		if len(page.Members) == 0 {
+			break
+		}
+	}
+	return rows, nil
+}
+
+var errMemberExportTooLarge = errors.New("member export exceeds row limit")
+
+func writeMemberExportError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errMemberExportTooLarge) {
+		http.Error(w, "export is too large; narrow the member filter", http.StatusRequestEntityTooLarge)
+		return
+	}
+	http.Error(w, "member export unavailable", http.StatusServiceUnavailable)
 }
 
 func (h Handler) adminDetail(w http.ResponseWriter, r *http.Request) {

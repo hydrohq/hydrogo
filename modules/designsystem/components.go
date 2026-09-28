@@ -51,6 +51,7 @@ type ConfettiProps struct {
 	Label   string
 }
 type ContactCTAProps struct{ Phone, WhatsApp, Message, PhoneLabel, WhatsAppLabel string }
+type ExportLink struct{ Label, URL string }
 type CountdownProps struct {
 	Target          string `json:"target_datetime"`
 	Timezone        string `json:"timezone"`
