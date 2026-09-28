@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -62,6 +64,26 @@ func TestPublicHomePathUsesConfiguredLocale(t *testing.T) {
 	}
 }
 
+func TestRequestedLocaleHonorsManualChoiceBeforeBrowserHeader(t *testing.T) {
+	supported := []string{"tr", "en"}
+	request := httptest.NewRequest("GET", "/?locale=tr", nil)
+	request.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	if selected, manual := requestedLocale(request, supported, "tr"); selected != "tr" || !manual {
+		t.Fatalf("manual locale = (%q, %v), want (tr, true)", selected, manual)
+	}
+	request = httptest.NewRequest("GET", "/", nil)
+	request.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	request.AddCookie(&http.Cookie{Name: "hydro_locale", Value: "tr"})
+	if selected, manual := requestedLocale(request, supported, "tr"); selected != "tr" || manual {
+		t.Fatalf("cookie locale = (%q, %v), want (tr, false)", selected, manual)
+	}
+	request = httptest.NewRequest("GET", "/", nil)
+	request.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	if selected, manual := requestedLocale(request, supported, "tr"); selected != "en" || manual {
+		t.Fatalf("browser locale = (%q, %v), want (en, false)", selected, manual)
+	}
+}
+
 func TestTechnicalHomeHTMLIsBackendFirstAndKeepsDemoOptIn(t *testing.T) {
 	markup := technicalHomeHTML("tr-TR", publicHomePath("tr-TR"), false, "test-nonce")
 	for _, want := range []string{"Welcome to HydroGo", "Get Started", "Documentation", "/admin", "/docs", "nonce=\"test-nonce\""} {
@@ -74,6 +96,18 @@ func TestTechnicalHomeHTMLIsBackendFirstAndKeepsDemoOptIn(t *testing.T) {
 		if !strings.Contains(docsMarkup, want) {
 			t.Fatalf("docs coming soon missing %q", want)
 		}
+	}
+}
+
+func TestTechnicalHomeIncludesTypedLocalePickerForConfiguredLocales(t *testing.T) {
+	markup := technicalHomeWithLocales("en", []string{"tr", "en"}, "/public/en", false, "nonce")
+	for _, want := range []string{`name="locale"`, `value="tr"`, `value="en"`, `selected`} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("locale home missing %q", want)
+		}
+	}
+	if markup := technicalHomeWithLocales("en", []string{"en"}, "/public/en", false, "nonce"); strings.Contains(markup, `name="locale"`) {
+		t.Fatal("single-locale home unexpectedly rendered locale picker")
 	}
 }
 
