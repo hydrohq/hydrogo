@@ -70,6 +70,13 @@ type SMTP struct {
 	config SMTPConfig
 }
 
+type PingResult struct {
+	Stage         string
+	TLSVersion    string
+	Authenticated bool
+	Elapsed       time.Duration
+}
+
 func NewSMTP(config SMTPConfig) (*SMTP, error) {
 	if strings.TrimSpace(config.Host) == "" || strings.TrimSpace(config.From) == "" {
 		return nil, errors.New("SMTP host and from are required")
@@ -87,6 +94,111 @@ func NewSMTP(config SMTPConfig) (*SMTP, error) {
 		return nil, errors.New("SMTP AUTH requires STARTTLS")
 	}
 	return &SMTP{config: config}, nil
+}
+
+// Ping checks SMTP greeting, configured TLS, and credentials without sending mail.
+func (s *SMTP) Ping(ctx context.Context) (result PingResult, err error) {
+	if s == nil {
+		return result, errors.New("SMTP sender is required")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	timeout := s.config.Timeout
+	if timeout <= 0 || timeout > time.Second {
+		timeout = time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	started := time.Now()
+	defer func() { result.Elapsed = time.Since(started) }()
+	result.Stage = "connect"
+	conn, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port)))
+	if err != nil {
+		return result, err
+	}
+	defer conn.Close()
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	result.Stage = "greeting"
+	client, err := smtp.NewClient(conn, s.config.Host)
+	if err != nil {
+		return result, err
+	}
+	defer client.Close()
+	if s.config.StartTLS {
+		result.Stage = "tls"
+		if ok, _ := client.Extension("STARTTLS"); !ok {
+			return result, errors.New("STARTTLS is unavailable")
+		}
+		if err := client.StartTLS(&tls.Config{ServerName: s.config.Host, MinVersion: tls.VersionTLS12}); err != nil {
+			return result, err
+		}
+		if state, ok := client.TLSConnectionState(); ok {
+			result.TLSVersion = tlsVersionName(state.Version)
+		}
+	}
+	if s.config.Username != "" {
+		result.Stage = "authentication"
+		ok, authMechanisms := client.Extension("AUTH")
+		if !ok {
+			return result, errors.New("SMTP AUTH is unavailable")
+		}
+		var auth smtp.Auth
+		switch {
+		case strings.Contains(strings.ToUpper(authMechanisms), "PLAIN"):
+			auth = smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host)
+		case strings.Contains(strings.ToUpper(authMechanisms), "LOGIN"):
+			auth = &smtpLoginAuth{username: s.config.Username, password: s.config.Password}
+		default:
+			return result, errors.New("SMTP AUTH LOGIN/PLAIN is unavailable")
+		}
+		if err := client.Auth(auth); err != nil {
+			return result, err
+		}
+		result.Authenticated = true
+	}
+	result.Stage = "complete"
+	if err := client.Quit(); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+type smtpLoginAuth struct {
+	username, password string
+	step               int
+}
+
+func (a *smtpLoginAuth) Start(*smtp.ServerInfo) (string, []byte, error) {
+	return "LOGIN", nil, nil
+}
+
+func (a *smtpLoginAuth) Next(_ []byte, more bool) ([]byte, error) {
+	if !more {
+		return nil, nil
+	}
+	if a.step == 0 {
+		a.step++
+		return []byte(a.username), nil
+	}
+	if a.step == 1 {
+		a.step++
+		return []byte(a.password), nil
+	}
+	return nil, errors.New("unexpected SMTP LOGIN challenge")
+}
+
+func tlsVersionName(version uint16) string {
+	switch version {
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+	default:
+		return "TLS"
+	}
 }
 
 func (s *SMTP) Send(ctx context.Context, message Message) error {

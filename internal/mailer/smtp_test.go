@@ -1,14 +1,88 @@
 package mailer
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestSMTPPingChecksGreetingWithoutSendingEmail(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	commands := make(chan string, 4)
+	go func() {
+		connection, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer connection.Close()
+		reader := bufio.NewReader(connection)
+		writer := bufio.NewWriter(connection)
+		_, _ = fmt.Fprint(writer, "220 mail.example.test ESMTP ready\r\n")
+		_ = writer.Flush()
+		for {
+			line, readErr := reader.ReadString('\n')
+			if readErr != nil {
+				return
+			}
+			command := strings.TrimSpace(line)
+			commands <- command
+			switch strings.ToUpper(strings.SplitN(command, " ", 2)[0]) {
+			case "EHLO", "HELO":
+				_, _ = fmt.Fprint(writer, "250-mail.example.test\r\n250 OK\r\n")
+			case "QUIT":
+				_, _ = fmt.Fprint(writer, "221 bye\r\n")
+				_ = writer.Flush()
+				return
+			default:
+				_, _ = fmt.Fprint(writer, "500 unsupported\r\n")
+			}
+			_ = writer.Flush()
+		}
+	}()
+
+	port := listener.Addr().(*net.TCPAddr).Port
+	sender, err := NewSMTP(SMTPConfig{Host: "127.0.0.1", Port: port, From: "from@example.test", Timeout: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := sender.Ping(context.Background())
+	if err != nil || result.Stage != "complete" || result.Elapsed >= time.Second {
+		t.Fatalf("ping result=%+v err=%v", result, err)
+	}
+	for len(commands) > 0 {
+		command := <-commands
+		if strings.HasPrefix(strings.ToUpper(command), "MAIL ") || strings.HasPrefix(strings.ToUpper(command), "RCPT ") || strings.EqualFold(command, "DATA") {
+			t.Fatalf("SMTP ping tried to send a message: %q", command)
+		}
+	}
+}
+
+func TestSMTPLoginAuthReturnsConfiguredCredentialsInOrder(t *testing.T) {
+	auth := &smtpLoginAuth{username: "mailer", password: "secret"}
+	mechanism, initial, err := auth.Start(nil)
+	if err != nil || mechanism != "LOGIN" || len(initial) != 0 {
+		t.Fatalf("AUTH LOGIN start = %q %q %v", mechanism, initial, err)
+	}
+	username, err := auth.Next([]byte("Username:"), true)
+	if err != nil || string(username) != "mailer" {
+		t.Fatalf("AUTH LOGIN username = %q %v", username, err)
+	}
+	password, err := auth.Next([]byte("Password:"), true)
+	if err != nil || string(password) != "secret" {
+		t.Fatalf("AUTH LOGIN password = %q %v", password, err)
+	}
+}
 
 type flakySender struct{ calls int }
 
