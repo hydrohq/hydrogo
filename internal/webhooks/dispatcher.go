@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -49,6 +50,7 @@ type Dispatcher struct {
 type TestResult struct {
 	Body      string        `json:"body"`
 	Signature string        `json:"signature"`
+	Timestamp string        `json:"timestamp"`
 	Status    int           `json:"status"`
 	Latency   time.Duration `json:"latency"`
 	Response  string        `json:"response"`
@@ -69,7 +71,8 @@ func (d Dispatcher) Test(ctx context.Context, endpoint Endpoint, event Event) (T
 	if err != nil {
 		return TestResult{}, err
 	}
-	sig := signature(body, endpoint.Secret)
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	sig := signatureAt(body, endpoint.Secret, timestamp)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.URL, bytes.NewReader(body))
 	if err != nil {
 		return TestResult{}, err
@@ -79,6 +82,7 @@ func (d Dispatcher) Test(ctx context.Context, endpoint Endpoint, event Event) (T
 	req.Header.Set("Idempotency-Key", event.ID)
 	req.Header.Set("X-Hydro-Event", event.Topic)
 	req.Header.Set("X-Hydro-Signature", sig)
+	req.Header.Set("X-Hydro-Timestamp", timestamp)
 	client := d.Client
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
@@ -87,17 +91,17 @@ func (d Dispatcher) Test(ctx context.Context, endpoint Endpoint, event Event) (T
 	response, err := safeClient(client).Do(req)
 	latency := time.Since(start)
 	if err != nil {
-		return TestResult{Body: string(body), Signature: sig, Latency: latency}, err
+		return TestResult{Body: string(body), Signature: sig, Timestamp: timestamp, Latency: latency}, err
 	}
 	defer response.Body.Close()
 	preview, readErr := io.ReadAll(io.LimitReader(response.Body, 2049))
 	if readErr != nil {
-		return TestResult{Body: string(body), Signature: sig, Status: response.StatusCode, Latency: latency}, readErr
+		return TestResult{Body: string(body), Signature: sig, Timestamp: timestamp, Status: response.StatusCode, Latency: latency}, readErr
 	}
 	if len(preview) > 2048 {
 		preview = preview[:2048]
 	}
-	result := TestResult{Body: string(body), Signature: sig, Status: response.StatusCode, Latency: latency, Response: string(preview)}
+	result := TestResult{Body: string(body), Signature: sig, Timestamp: timestamp, Status: response.StatusCode, Latency: latency, Response: string(preview)}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return result, fmt.Errorf("webhook returned status %d", response.StatusCode)
 	}
@@ -160,7 +164,9 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 			request.Header.Set("User-Agent", "HydroGo-Webhook/1")
 			request.Header.Set("Idempotency-Key", event.ID)
 			request.Header.Set("X-Hydro-Event", event.Topic)
-			request.Header.Set("X-Hydro-Signature", signature(body, endpoint.Secret))
+			timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+			request.Header.Set("X-Hydro-Signature", signatureAt(body, endpoint.Secret, timestamp))
+			request.Header.Set("X-Hydro-Timestamp", timestamp)
 			response, err := client.Do(request)
 			if err == nil {
 				_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
@@ -237,6 +243,13 @@ func safeClient(client *http.Client) *http.Client {
 
 func signature(body []byte, secret string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(body)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+func signatureAt(body []byte, secret, timestamp string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = io.WriteString(mac, timestamp+".")
 	_, _ = mac.Write(body)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }

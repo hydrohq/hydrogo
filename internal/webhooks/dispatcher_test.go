@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -19,7 +20,12 @@ func TestDispatcherSignsAndRetriesIdempotently(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attempts.Add(1)
 		body, _ := io.ReadAll(r.Body)
+		timestamp := r.Header.Get("X-Hydro-Timestamp")
+		if _, err := strconv.ParseInt(timestamp, 10, 64); err != nil {
+			t.Error("missing or invalid timestamp")
+		}
 		mac := hmac.New(sha256.New, []byte("secret"))
+		_, _ = io.WriteString(mac, timestamp+".")
 		_, _ = mac.Write(body)
 		if r.Header.Get("X-Hydro-Signature") != "sha256="+hex.EncodeToString(mac.Sum(nil)) {
 			t.Error("invalid signature")
