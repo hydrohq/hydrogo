@@ -1,5 +1,9 @@
 package announcements
-import "github.com/ardaozyildirim/hydrogo/internal/sectoral"
+
+import (
+	"github.com/ardaozyildirim/hydrogo/internal/forms"
+	"github.com/ardaozyildirim/hydrogo/internal/sectoral"
+)
 
 templ Collection(items []Announcement) {
 <section class="sectoral-announcements bg-surface text-foreground" data-module="announcements" aria-label="Duyurular">
@@ -13,4 +17,25 @@ templ Collection(items []Announcement) {
   }
  }
 </section>
+}
+
+// ExitIntentHead opt-in loads the lightweight form styles and behavior needed
+// by ExitIntentLeadCapture. It adds no assets unless a page renders the prompt.
+templ ExitIntentHead() {
+	@forms.Head()
+}
+
+// ExitIntentLeadCapture asks a desktop visitor whether they want to leave and
+// offers a regular, protected HydroGo form for follow-up.
+templ ExitIntentLeadCapture(p ExitIntentProps) {
+	if p.Form.Validate() == nil {
+		<div class="hydro-exit-intent" data-exit-intent data-exit-intent-key={ p.Form.ID } data-exit-intent-cooldown="604800000" hidden>
+			<section class="hydro-exit-intent__dialog" role="dialog" aria-modal="true" aria-labelledby={ "hydro-exit-intent-title-" + p.Form.ID } aria-describedby={ "hydro-exit-intent-description-" + p.Form.ID } tabindex="-1">
+				<button class="hydro-exit-intent__close" type="button" data-exit-intent-close aria-label="Kapat">×</button>
+				<h2 id={ "hydro-exit-intent-title-" + p.Form.ID }>{ exitIntentText(p.Headline, "Ayrılmadan önce") }</h2>
+				<p id={ "hydro-exit-intent-description-" + p.Form.ID }>{ exitIntentText(p.Description, "Size nasıl yardımcı olabiliriz?") }</p>
+				@forms.PublicForm(forms.PublicFormProps{Form: p.Form, Action: p.Action, CSRFToken: p.CSRFToken, SubmissionToken: p.SubmissionToken, TurnstileSiteKey: p.TurnstileSiteKey, SubmitLabel: p.SubmitLabel})
+			</section>
+		</div>
+	}
 }
