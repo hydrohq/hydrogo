@@ -37,14 +37,32 @@ func projectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 // interactiveResourceCommand authors the same Blueprint consumed by scaffold;
 // it is intentionally a thin prompt layer, not a second schema language.
 func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags := flag.NewFlagSet("new resource", flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	out := flags.String("out", ".", "Client Edition output root")
-	if err := flags.Parse(args); err != nil {
-		return err
-	}
-	if flags.NArg() != 0 {
-		return errors.New("new resource accepts only --out")
+	out, name := ".", ""
+	var fieldParts []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		key, value, hasValue := strings.Cut(arg, "=")
+		switch key {
+		case "--out", "--fields", "--field":
+			if !hasValue {
+				i++
+				if i == len(args) {
+					return fmt.Errorf("%s requires a value", key)
+				}
+				value = args[i]
+			}
+			switch key {
+			case "--out":
+				out = value
+			case "--fields", "--field":
+				fieldParts = append(fieldParts, value)
+			}
+		default:
+			if strings.HasPrefix(arg, "-") || name != "" {
+				return errors.New("usage: hydro new resource [name] [--fields name:type,...] [--out DIR]")
+			}
+			name = arg
+		}
 	}
 	in := bufio.NewReader(stdin)
 	read := func(prompt string) (string, error) {
@@ -54,13 +72,20 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 		value, err := in.ReadString('\n')
 		return strings.TrimSpace(value), err
 	}
-	name, err := read("Resource name: ")
-	if err != nil {
-		return err
+	if name == "" {
+		value, err := read("Resource name: ")
+		if err != nil {
+			return err
+		}
+		name = value
 	}
-	fields, err := read("Fields (name:type[:required], comma-separated; relation: name:relation:collection[:one|many]): ")
-	if err != nil {
-		return err
+	fields := strings.Join(fieldParts, ",")
+	if fields == "" {
+		value, err := read("Fields (name:type[:required][:unique], comma-separated; relation: name:relation:collection[:one|many]): ")
+		if err != nil {
+			return err
+		}
+		fields = value
 	}
 	if !resourceFieldPart.MatchString(strings.ToLower(name)) || fields == "" {
 		return errors.New("resource name and fields are required")
@@ -88,27 +113,43 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 			if cardinality == "many" {
 				b.WriteString("      max_items: 50\n")
 			}
-		} else if len(parts) > 2 && strings.EqualFold(parts[2], "required") {
-			b.WriteString("    required: true\n")
+		} else {
+			required, unique := false, false
+			for _, option := range parts[2:] {
+				switch strings.ToLower(option) {
+				case "required":
+					required = true
+				case "unique":
+					unique = true
+				default:
+					return fmt.Errorf("unsupported field option %q", option)
+				}
+			}
+			if required {
+				b.WriteString("    required: true\n")
+			}
+			if unique {
+				b.WriteString("    validation:\n      unique: true\n")
+			}
 		}
 	}
-	if err := os.MkdirAll(*out, 0o755); err != nil {
+	if err := os.MkdirAll(out, 0o755); err != nil {
 		return err
 	}
-	path := filepath.Join(*out, strings.ToLower(name)+".blueprint.yaml")
+	path := filepath.Join(out, strings.ToLower(name)+".blueprint.yaml")
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("blueprint already exists: %s", path)
 	}
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "blueprint-created path=%s\n", path)
+	_, err := fmt.Fprintf(stdout, "blueprint-created path=%s\n", path)
 	if err != nil {
 		return err
 	}
 	// Re-enter the canonical scaffold pipeline; interactive mode never grows a
 	// second generator or bypasses the generated/custom boundary.
-	return generateScaffoldCommand([]string{"--blueprint", path, "--out", *out}, stdout, stderr)
+	return generateScaffoldCommand([]string{"--blueprint", path, "--out", out}, stdout, stderr)
 }
 
 func projectCheckCommand(args []string, stdout, stderr io.Writer) error {

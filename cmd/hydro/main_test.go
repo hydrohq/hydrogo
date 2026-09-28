@@ -647,6 +647,27 @@ func TestRunInteractiveResourceAcceptsRelationshipFields(t *testing.T) {
 	}
 }
 
+func TestResourceWizardAcceptsNamedFlagsAndUniqueConstraints(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	args := []string{"new", "resource", "catalog_item", "--out", root, "--fields", "sku:string:required:unique,category:relation:categories:one"}
+	if err := run(args, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("resource wizard flags: %v stderr=%s", err, stderr.String())
+	}
+	blueprint, err := os.ReadFile(filepath.Join(root, "catalog_item.blueprint.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"required: true", "unique: true", "collection: categories", "cardinality: one"} {
+		if !strings.Contains(string(blueprint), want) {
+			t.Errorf("blueprint missing %q:\n%s", want, blueprint)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "generated", "catalog_item", "model.go")); err != nil {
+		t.Fatalf("generated model missing: %v", err)
+	}
+}
+
 func TestInteractiveResourceRejectsUnsafeNamesAndFields(t *testing.T) {
 	for _, input := range []string{"../outside\ntitle:string\n"} {
 		var stdout, stderr bytes.Buffer
