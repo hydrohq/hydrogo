@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -45,19 +46,26 @@ type Field struct {
 	Options  []string  `json:"options,omitempty"`
 }
 
+// AutoresponderBodyFor adds the configured response-time notice without
+// changing the normal-hours response.
+func(f Form)AutoresponderBodyFor(now time.Time)(string,error){
+	body:=f.AutoresponderBody;if f.WorkingHours==nil{return body,nil};notice,after,err:=f.WorkingHours.AfterHoursNotice(now);if err!=nil{return "",err};if after{if body!=""{body+="\n\n"};body+=notice};return body,nil
+}
+
 type Form struct {
-	ID                       string   `json:"id"`
-	Title                    string   `json:"title"`
-	Fields                   []Field  `json:"fields"`
-	NotificationRecipients   []string `json:"notification_recipients,omitempty"`
-	Autoresponder            bool     `json:"autoresponder,omitempty"`
-	TurnstileEnabled         bool     `json:"turnstile_enabled,omitempty"`
-	AutoresponderSubject     string   `json:"autoresponder_subject,omitempty"`
-	AutoresponderBody        string   `json:"autoresponder_body,omitempty"`
-	ConversionTracking       bool     `json:"conversion_tracking,omitempty"`
-	GoogleAdsConversionID    string   `json:"google_ads_conversion_id,omitempty"`
-	GoogleAdsConversionLabel string   `json:"google_ads_conversion_label,omitempty"`
-	MetaPixelEventName       string   `json:"meta_pixel_event_name,omitempty"`
+	ID                       string        `json:"id"`
+	Title                    string        `json:"title"`
+	Fields                   []Field       `json:"fields"`
+	NotificationRecipients   []string      `json:"notification_recipients,omitempty"`
+	Autoresponder            bool          `json:"autoresponder,omitempty"`
+	TurnstileEnabled         bool          `json:"turnstile_enabled,omitempty"`
+	AutoresponderSubject     string        `json:"autoresponder_subject,omitempty"`
+	AutoresponderBody        string        `json:"autoresponder_body,omitempty"`
+	ConversionTracking       bool          `json:"conversion_tracking,omitempty"`
+	GoogleAdsConversionID    string        `json:"google_ads_conversion_id,omitempty"`
+	GoogleAdsConversionLabel string        `json:"google_ads_conversion_label,omitempty"`
+	MetaPixelEventName       string        `json:"meta_pixel_event_name,omitempty"`
+	WorkingHours             *WorkingHours `json:"working_hours,omitempty"`
 }
 
 func (f Form) Validate() error {
@@ -69,6 +77,11 @@ func (f Form) Validate() error {
 	}
 	if len(f.NotificationRecipients) > 10 || len(f.AutoresponderSubject) > MaxLabelLength || len(f.AutoresponderBody) > 16<<10 || strings.ContainsAny(f.AutoresponderSubject, "\r\n") {
 		return fmt.Errorf("invalid form notification settings")
+	}
+	if f.WorkingHours != nil {
+		if err := f.WorkingHours.Validate(); err != nil {
+			return err
+		}
 	}
 	if len(f.GoogleAdsConversionID) > 32 || (f.GoogleAdsConversionID != "" && !googleAdsConversionIDPattern.MatchString(f.GoogleAdsConversionID)) || len(f.GoogleAdsConversionLabel) > 128 || strings.ContainsAny(f.GoogleAdsConversionLabel, "\r\n") || len(f.MetaPixelEventName) > 64 || (f.MetaPixelEventName != "" && !metaPixelEventPattern.MatchString(f.MetaPixelEventName)) {
 		return fmt.Errorf("invalid conversion tracking settings")

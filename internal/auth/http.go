@@ -86,6 +86,8 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/login", Public: true, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
+		{Pattern: "GET /auth/me/sessions", Handler: http.HandlerFunc(h.listSessions)},
+		{Pattern: "POST /auth/me/sessions/revoke-others", Handler: http.HandlerFunc(h.revokeOtherSessions)},
 		{Pattern: "POST /auth/me/session/extend", Handler: http.HandlerFunc(h.extendSession)},
 		{Pattern: "POST /auth/me/credentials", Handler: http.HandlerFunc(h.changeCredentials)},
 		{Pattern: "POST /auth/users/{id}/disable", Handler: http.HandlerFunc(h.disableUser)},
@@ -406,6 +408,46 @@ func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {
 		expiresAt = session.ExpiresAt
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active, "session_expires_at": expiresAt})
+}
+
+func (h HTTPHandler) listSessions(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	session := SessionFromContext(r.Context())
+	if user == nil || session == nil {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	items, err := h.Service.ListUserSessions(r.Context(), user.ID)
+	if err != nil {
+		writeAuthDependencyError(w, "sessions unavailable", err, http.StatusServiceUnavailable)
+		return
+	}
+	type item struct {
+		ID, UserAgent, IPAddress         string
+		CreatedAt, LastSeenAt, ExpiresAt time.Time
+		Current                          bool
+	}
+	out := make([]item, 0, len(items))
+	for _, x := range items {
+		out = append(out, item{ID: x.ID, UserAgent: x.UserAgent, IPAddress: x.IPAddress, CreatedAt: x.CreatedAt, LastSeenAt: x.LastSeenAt, ExpiresAt: x.ExpiresAt, Current: x.ID == session.ID})
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": out})
+}
+
+func (h HTTPHandler) revokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	session := SessionFromContext(r.Context())
+	if user == nil || session == nil {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Service.RevokeOtherUserSessions(r.Context(), user.ID, session.TokenHash); err != nil {
+		writeAuthDependencyError(w, "sessions could not be revoked", err, http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
 }
 
 func (h HTTPHandler) extendSession(w http.ResponseWriter, r *http.Request) {

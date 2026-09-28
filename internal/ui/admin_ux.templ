@@ -168,6 +168,24 @@ templ ImportPreview(csrf string, mappings map[string]string, valid, duplicates, 
 	</section>
 }
 
+templ DraftPreviewLinkForm(action, csrf string) {
+	<section class="studio-card" aria-labelledby="draft-preview-title">
+		<h2 id="draft-preview-title">Share draft preview</h2>
+		<p class="muted">The link expires after 24 hours and stops working when this draft changes.</p>
+		<form method="post" action={ action } hx-post={ action } hx-target="#draft-preview-result" hx-swap="innerHTML">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<button type="submit" class="button button-quiet">Create preview link</button>
+		</form>
+		<div id="draft-preview-result" aria-live="polite"></div>
+	</section>
+}
+
+templ DraftPreviewLinkResult(link, expires string) {
+	<p><a href={ link } target="_blank" rel="noopener noreferrer">Open draft preview</a></p>
+	<label>Shareable preview URL<input type="url" readonly value={ link } /></label>
+	<p class="muted">Expires { expires }</p>
+}
+
 templ NotificationCenter(items []NotificationItem, csrf string, digestEnabled bool, timezone string, digestAvailable bool) {
 	<section class="studio-card" data-notification-center>
 		<div class="studio-actions"><h2>Bildirimler</h2><form method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="read_all"/><button class="button button-quiet" type="submit">Tümünü okundu işaretle</button></form></div>

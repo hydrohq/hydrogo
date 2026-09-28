@@ -112,6 +112,25 @@ func TestLoadTreatsNilEnvironmentLookupAsEmpty(t *testing.T) {
 	}
 }
 
+func TestAutoTLSRequiresDomainAndRejectsReverseProxy(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.HTTP = HTTP{Address: "127.0.0.1:8080", AutoTLS: true}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("AutoTLS without a domain accepted")
+	}
+	cfg.HTTP = HTTP{Address: "127.0.0.1:8080", AutoTLS: true, Domain: "site.example", BehindProxy: true}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("AutoTLS behind proxy accepted")
+	}
+	cfg.HTTP = HTTP{Address: "127.0.0.1:8080", AutoTLS: true, Domain: "site.example"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid AutoTLS config: %v", err)
+	}
+}
+
 func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
 	if cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:analytics-disabled.sqlite"}), Overrides{}); err != nil || cfg.Analytics.NoCookieEnabled {
 		t.Fatalf("default analytics config=%+v err=%v", cfg.Analytics, err)

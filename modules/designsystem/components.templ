@@ -99,6 +99,13 @@ templ ContactCTA(p ContactCTAProps) {
 	</section>
 }
 
+templ Countdown(p CountdownProps) {
+	<section class="ds-countdown bg-surface text-foreground" data-countdown data-target={ p.Target } data-expired-headline={ p.ExpiredHeadline } data-expired-url={ safeLink(p.ExpiredURL) } data-timezone={ p.Timezone } aria-live="polite">
+		<div class="ds-countdown__clock" aria-label="Countdown"><span data-countdown-days>0</span> days <span data-countdown-hours>00</span> hours <span data-countdown-minutes>00</span> minutes <span data-countdown-seconds>00</span> seconds</div>
+		<div class="ds-countdown__expired" hidden><p data-countdown-headline></p><a class="ds-button ds-button--primary" data-countdown-cta href={ safeLink(p.ExpiredURL) } hidden>View details</a></div>
+	</section>
+}
+
 templ FAQAccordion(p FAQProps) {
 	<section id={ p.ID } class="ds-faq bg-background text-foreground" aria-label={ label(p.Heading, "Frequently asked questions") }>
 		if p.Heading != "" {
