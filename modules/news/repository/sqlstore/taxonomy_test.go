@@ -97,25 +97,32 @@ func TestListRelatedPublishedUsesSharedTermsAndExcludesDrafts(t *testing.T) {
 	}
 	store := Store{Dialect: database.SQLite}
 	term := v1.TaxonomyTerm{ID: "go", Slug: "go", Kind: "tag", Labels: map[string]string{"en": "Go"}}
-	if err := store.UpsertTaxonomyTerm(ctx, db, term); err != nil {
-		t.Fatal(err)
-	}
-	for _, item := range []struct {
-		id, status string
-		published  any
-	}{
-		{"source", "published", 1},
-		{"related", "published", 1},
-		{"draft", "draft", nil},
-	} {
-		if _, err := db.ExecContext(ctx, `INSERT INTO news_items (id,locale,slug,title,body,status,published_revision,created_at,updated_at) VALUES (?,?,?,?,?,?,?, ?,?)`, item.id, "en", item.id, item.id, "{}", item.status, item.published, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"); err != nil {
+	termHydro := v1.TaxonomyTerm{ID: "hydro", Slug: "hydro", Kind: "tag", Labels: map[string]string{"en": "Hydro"}}
+	for _, value := range []v1.TaxonomyTerm{term, termHydro} {
+		if err := store.UpsertTaxonomyTerm(ctx, db, value); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := store.ReplaceTaxonomy(ctx, db, "source", []v1.TaxonomyTerm{term}); err != nil {
+	for _, item := range []struct {
+		id, status, excerpt, cover string
+		published                  any
+	}{
+		{"source", "published", "", "", 1},
+		{"related", "published", "excerpt for a two minute read", "cover-1", 1},
+		{"best", "published", "", "cover-2", 1},
+		{"draft", "draft", "", "", nil},
+	} {
+		if _, err := db.ExecContext(ctx, `INSERT INTO news_items (id,locale,slug,title,body,status,published_revision,excerpt,cover_media_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, item.id, "en", item.id, item.id, "{}", item.status, item.published, item.excerpt, item.cover, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.ReplaceTaxonomy(ctx, db, "source", []v1.TaxonomyTerm{term, termHydro}); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.ReplaceTaxonomy(ctx, db, "related", []v1.TaxonomyTerm{term}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceTaxonomy(ctx, db, "best", []v1.TaxonomyTerm{term, termHydro}); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.ReplaceTaxonomy(ctx, db, "draft", []v1.TaxonomyTerm{term}); err != nil {
@@ -125,7 +132,7 @@ func TestListRelatedPublishedUsesSharedTermsAndExcludesDrafts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 || items[0].ID != "related" || items[0].Status != news.StatusPublished {
+	if len(items) != 2 || items[0].ID != "best" || items[1].ID != "related" || items[1].Status != news.StatusPublished || items[1].Excerpt != "excerpt for a two minute read" || items[1].CoverMediaID != "cover-1" {
 		t.Fatalf("related items = %#v", items)
 	}
 }

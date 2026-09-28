@@ -512,13 +512,6 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 			sidebarItems = list
 		}
 	}
-	if repository, ok := h.Service.Repository.(publishedListRepository); ok {
-		if len(sidebarItems) == 0 {
-			if list, err := repository.ListPublished(r.Context(), h.DB, locale, 6); err == nil {
-				sidebarItems = list
-			}
-		}
-	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, item.Title), locale))
@@ -547,7 +540,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if trendingHTML.Len() == 0 {
-		trendingHTML.WriteString(`<p style="color:var(--theme-muted);font-size:.88rem;margin:0;">Başka yayınlanmış haber bulunmuyor.</p>`)
+		trendingHTML.WriteString(`<p style="color:var(--theme-muted);font-size:.88rem;margin:0;">Henüz benzer içerik bulunmuyor.</p>`)
 	}
 	var relatedCards strings.Builder
 	if len(sidebarItems) > 0 {

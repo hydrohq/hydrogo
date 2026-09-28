@@ -76,6 +76,9 @@ func (s Service) ListPublished(ctx context.Context, db database.QueryExecutor, l
 }
 
 func (s Service) Related(ctx context.Context, db database.QueryExecutor, current Project, limit int) ([]Project, error) {
+	if limit > 4 {
+		limit = 4
+	}
 	if repository, ok := s.Repository.(interface {
 		ListRelatedPublished(context.Context, database.QueryExecutor, string, string, int) ([]Project, error)
 	}); ok {
