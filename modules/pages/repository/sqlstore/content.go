@@ -154,27 +154,30 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, s
 	if !ok {
 		return nil, errors.New("related page query requires row queries")
 	}
-	filter, scopeID, err := s.tenantFilter(ctx, 3)
-	if err != nil {
-		return nil, err
-	}
-	filter = strings.Replace(filter, "tenant_id", "p.tenant_id", 1)
 	var query string
 	var args []any
 	if s.Dialect == database.Postgres {
-		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM pages p JOIN page_published_tags candidate ON candidate.tenant_id=p.tenant_id AND candidate.page_id=p.id JOIN page_published_tags source ON source.tenant_id=candidate.tenant_id AND source.tag=candidate.tag AND source.page_id=$1 WHERE p.published_locale=$2 AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>$1` + filter + ` GROUP BY p.id ORDER BY COUNT(DISTINCT source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT $` + fmt.Sprint(3+btoi(filter != ""))
-		args = []any{sourceID, locale}
-		if filter != "" {
-			args = append(args, scopeID)
+		scopeID := ""
+		if s.RequireTenantScope {
+			scope, scopeErr := tenant.Require(ctx)
+			if scopeErr != nil {
+				return nil, scopeErr
+			}
+			scopeID = scope.TenantID
 		}
-		args = append(args, limit)
+		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM page_published_tags source JOIN page_published_tags candidate ON candidate.tenant_id=source.tenant_id AND candidate.tag=source.tag JOIN pages p ON p.id=candidate.page_id AND p.tenant_id=candidate.tenant_id WHERE source.page_id=$1 AND source.tenant_id=$2 AND p.tenant_id=$2 AND p.published_locale=$3 AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>$1 GROUP BY p.id ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT $4`
+		args = []any{sourceID, scopeID, locale, limit}
 	} else {
-		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM pages p JOIN page_published_tags candidate ON candidate.tenant_id=p.tenant_id AND candidate.page_id=p.id JOIN page_published_tags source ON source.tenant_id=candidate.tenant_id AND source.tag=candidate.tag AND source.page_id=? WHERE p.published_locale=? AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>?` + filter + ` GROUP BY p.id ORDER BY COUNT(DISTINCT source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ?`
-		args = []any{sourceID, locale, sourceID}
-		if filter != "" {
-			args = append(args, scopeID)
+		scopeID := ""
+		if s.RequireTenantScope {
+			scope, scopeErr := tenant.Require(ctx)
+			if scopeErr != nil {
+				return nil, scopeErr
+			}
+			scopeID = scope.TenantID
 		}
-		args = append(args, limit)
+		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM page_published_tags source CROSS JOIN page_published_tags candidate JOIN pages p ON p.id=candidate.page_id AND p.tenant_id=candidate.tenant_id WHERE candidate.tenant_id=source.tenant_id AND candidate.tag=source.tag AND source.page_id=? AND source.tenant_id=? AND p.tenant_id=? AND p.published_locale=? AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>? GROUP BY p.id ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ?`
+		args = []any{sourceID, scopeID, scopeID, locale, sourceID, limit}
 	}
 	rows, err := queryer.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -194,13 +197,6 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, s
 		items = append(items, page)
 	}
 	return items, rows.Err()
-}
-
-func btoi(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }
 
 // ListAdmin returns bounded protected Studio summaries, including unpublished
