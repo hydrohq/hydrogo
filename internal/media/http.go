@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -168,6 +169,10 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 	if asset.Visibility == VisibilityPrivate && !editorAllowed(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
+	}
+	if asset.Visibility == VisibilityPrivate && isDocumentFilename(asset.OriginalFilename) {
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeOriginalFilename(asset.OriginalFilename)}))
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 	}
 	storageKey, mimeType := asset.StorageKey, asset.MimeType
 	if kind := r.URL.Query().Get("variant"); kind != "" && h.Service.Assets != nil {

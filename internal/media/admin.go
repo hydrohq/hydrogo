@@ -99,7 +99,7 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 	for _, asset := range assets {
 		preview := `<div class="media-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><span>Dosya</span></div>`
 		if strings.HasPrefix(asset.MimeType, "image/") && asset.Status == "ready" {
-			preview = `<img src="/media/` + template.HTMLEscapeString(asset.ID) + `" alt="` + template.HTMLEscapeString(asset.OriginalFilename) + `" loading="lazy">`
+			preview = `<img class="media-focal-preview cursor-crosshair" src="/media/` + template.HTMLEscapeString(asset.ID) + `" alt="` + template.HTMLEscapeString(asset.OriginalFilename) + `" loading="lazy" style="object-position:` + template.HTMLEscapeString((FocalPoint{X: asset.FocalX, Y: asset.FocalY}).ObjectPosition()) + `">`
 		} else if strings.HasPrefix(asset.MimeType, "video/") && asset.Status == "ready" {
 			preview = `<video preload="metadata" src="/media/` + template.HTMLEscapeString(asset.ID) + `"></video>`
 		}

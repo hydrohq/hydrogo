@@ -114,6 +114,15 @@ func TestPrivateMediaIsNotServedToViewer(t *testing.T) {
 	}
 }
 
+func TestPrivateDocumentRequiresEditorAndDownloadsAsAttachment(t *testing.T) {
+	dir:=t.TempDir();if err:=os.WriteFile(filepath.Join(dir,"resume.pdf"),[]byte("%PDF-1.7"),0o600);err!=nil{t.Fatal(err)}
+	uploader,err:=NewUploader(dir,1<<20);if err!=nil{t.Fatal(err)}
+	handler:=HTTPHandler{Service:Service{Uploader:uploader,Assets:httpAssetRepo{asset:Asset{ID:"cv",StorageKey:"resume.pdf",OriginalFilename:"resume.pdf",MimeType:"application/pdf",Status:"ready",Visibility:VisibilityPrivate}}}}
+	request:=httptest.NewRequest(http.MethodGet,"/media/cv",nil);response:=httptest.NewRecorder();handler.serve(response,request);if response.Code!=http.StatusUnauthorized{t.Fatalf("anonymous document status=%d",response.Code)}
+	request=httptest.NewRequest(http.MethodGet,"/media/cv",nil);request=request.WithContext(auth.WithUser(request.Context(),&auth.User{ID:"editor",Active:true,Role:auth.RoleEditor}));response=httptest.NewRecorder();handler.serve(response,request)
+	if response.Code!=http.StatusOK||!strings.Contains(response.Header().Get("Content-Disposition"),"attachment")||response.Header().Get("X-Content-Type-Options")!="nosniff"{t.Fatalf("private document headers/status = %d %#v",response.Code,response.Header())}
+}
+
 func TestMultipartBodyLimitDoesNotOverflow(t *testing.T) {
 	const maxInt64 = int64(^uint64(0) >> 1)
 	if got := multipartBodyLimit(maxInt64 - 1); got != maxInt64 {

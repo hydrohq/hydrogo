@@ -34,6 +34,7 @@ const (
 	Number   FieldType = "number"
 	Checkbox FieldType = "checkbox"
 	Select   FieldType = "select"
+	Document FieldType = "document"
 )
 
 type Field struct {
@@ -83,6 +84,7 @@ func (f Form) Validate() error {
 	}
 	seen := make(map[string]struct{}, len(f.Fields))
 	hasEmail := false
+	documentFields := 0
 	for _, field := range f.Fields {
 		if !idPattern.MatchString(field.ID) || len(field.ID) > MaxIDLength || strings.TrimSpace(field.Label) == "" || len(field.Label) > MaxLabelLength {
 			return fmt.Errorf("invalid form field %q", field.ID)
@@ -92,7 +94,10 @@ func (f Form) Validate() error {
 		}
 		seen[field.ID] = struct{}{}
 		switch field.Type {
-		case Text, Email, Textarea, Number, Checkbox:
+		case Text, Email, Textarea, Number, Checkbox, Document:
+			if field.Type == Document {
+				documentFields++
+			}
 			if len(field.Options) != 0 {
 				return fmt.Errorf("field %q cannot have options", field.ID)
 			}
@@ -119,6 +124,9 @@ func (f Form) Validate() error {
 	}
 	if f.Autoresponder && !hasEmail {
 		return fmt.Errorf("autoresponder requires an email field")
+	}
+	if documentFields > 2 {
+		return fmt.Errorf("forms may contain at most two document fields")
 	}
 	return nil
 }
@@ -200,6 +208,9 @@ func publicInputType(kind FieldType) string {
 	}
 	if kind == Number {
 		return "number"
+	}
+	if kind == Document {
+		return "file"
 	}
 	return "text"
 }

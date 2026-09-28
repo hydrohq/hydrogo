@@ -57,4 +57,19 @@
       });
     }
   });
+
+  document.addEventListener('click', event => {
+    const preview = event.target.closest('.media-focal-preview');
+    if (!preview) return;
+    const card = preview.closest('.media-card');
+    const editor = card && card.querySelector('form[action$="/metadata"]');
+    if (!editor) return;
+    const rect = preview.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    editor.elements.focal_x.value = x.toFixed(2);
+    editor.elements.focal_y.value = y.toFixed(2);
+    preview.style.objectPosition = `${(x * 100).toFixed(2)}% ${(y * 100).toFixed(2)}%`;
+    editor.querySelector('summary').textContent = `Odak ${Math.round(x * 100)}%, ${Math.round(y * 100)}% · Klasör ve etiketler`;
+  });
 })();

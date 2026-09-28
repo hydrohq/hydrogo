@@ -76,7 +76,7 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 			default:
 				preset = HeaderPresetStrict
 			}
-			csp := fmt.Sprintf("default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self' %s; style-src-attr 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors %s; form-action 'self';", nonce, stylePolicy, frameAncestors)
+			csp := fmt.Sprintf("default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self' %s; style-src-attr 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; frame-ancestors %s; form-action 'self';", nonce, stylePolicy, frameAncestors)
 			w.Header().Set("Content-Security-Policy", csp)
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.Header().Set("X-Frame-Options", frameOptions)

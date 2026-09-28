@@ -68,6 +68,14 @@ func TestRichTextHTMLRejectsUnsafeLinkProtocols(t *testing.T) {
 	}
 }
 
+func TestRichTextEmbedsAllowlistedVideosWithoutScripts(t *testing.T) {
+	for _,input:=range []string{
+		`{"ops":[{"insert":"https://youtu.be/abc123\n"}]}`,
+		`{"ops":[{"insert":{"video":"https://vimeo.com/12345"}}]}`,
+	}{got:=RichTextHTML(input);if !strings.Contains(got,"<iframe")||!strings.Contains(got,"loading=\"lazy\"")||strings.Contains(got,"<script"){t.Fatalf("video output = %s",got)}}
+	bad:=RichTextHTML(`{"ops":[{"insert":{"video":"https://evil.test/watch/123"}}]}`);if strings.Contains(bad,"<iframe"){t.Fatalf("untrusted video rendered: %s",bad)}
+}
+
 func TestRichTextHTMLEscapesEmbeddedMarkup(t *testing.T) {
 	got := RichTextHTML(`{"ops":[{"insert":"<script>alert(1)</script>\n"}]}`)
 	if strings.Contains(got, "<script>") || !strings.Contains(got, "&lt;script&gt;") {
