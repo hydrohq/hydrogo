@@ -346,3 +346,5 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0268: SEO, performance, and public discovery runtime](0268-seo-performance-and-discovery-runtime.md)
 - [ADR-0269: Optional no-cookie daily visitor analytics](0269-optional-no-cookie-visitor-analytics.md)
 - [ADR-0270: Opt-in direct MX mail fallback](0270-direct-mx-mail-fallback.md)
+- [ADR-0271: Security hardening and recovery](0271-security-hardening-and-recovery.md)
+- [ADR-0272: Admin Studio business UX and bounded inbox](0272-admin-studio-business-ux.md)

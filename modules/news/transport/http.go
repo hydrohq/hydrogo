@@ -157,7 +157,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Haberler", "", security.NonceFromContext(r.Context()), "news"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Haberler", "", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="table-wrap">`)
@@ -175,7 +175,7 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Yeni haber", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Yeni haber", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
 	var leftFields, rightMetaFields, rightSEOFields []adminstudio.Field
@@ -231,7 +231,7 @@ func (h Handler) adminTaxonomyCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Taxonomy", "Haber sınıflandırması", security.NonceFromContext(r.Context()), "news"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Taxonomy", "Haber sınıflandırması", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><h2>Yeni terim</h2><p class="muted">Etiket ve kategorilerde çoklu dil desteği için etiketleri JSON olarak girin.</p><form class="studio-form" method="post" action="/admin/news/taxonomy"><label>ID<input name="id" required maxlength="128"></label><label>Slug<input name="slug" required maxlength="128" pattern="[a-z0-9][a-z0-9-]*"></label><label>Tür<select name="kind"><option value="category">Kategori</option><option value="tag">Etiket</option></select></label><label>Üst terim ID<input name="parent" maxlength="128"></label><label>Etiketler JSON<textarea name="labels_json" required placeholder='{"tr":"Haber","en":"News"}'></textarea></label><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))+`"><button type="submit">Terimi kaydet</button></form></section>`)
@@ -819,7 +819,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Haber düzenle", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Haber düzenle", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
 	statusBadge := fmt.Sprintf(`<span class="status">%s</span>`, template.HTMLEscapeString(string(item.Status)))

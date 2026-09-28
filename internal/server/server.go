@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
@@ -35,6 +36,7 @@ type Config struct {
 	Logger                     *slog.Logger
 	EnableHSTS                 bool
 	SecurityHeadersPreset      string
+	AdminSupport               adminstudio.SupportConfig
 	IPBlocklist                *security.IPBlocklist
 	AnomalyFilterEnabled       bool
 	AnomalyBypassPaths         []string
@@ -209,6 +211,7 @@ func NewHandler(config Config) http.Handler {
 	}
 	// Final response guard: no HTML comment is allowed into production output.
 	handler = observability.HTMLCommentMiddleware(handler)
+	handler = adminstudio.SupportConfigMiddleware(config.AdminSupport)(handler)
 
 	return handler
 }

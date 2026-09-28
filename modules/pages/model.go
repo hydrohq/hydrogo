@@ -32,3 +32,13 @@ type Page struct {
 	CreatedAt             time.Time `json:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
+
+type RevisionSnapshot struct {
+	ID        string
+	PageID    string
+	Revision  int
+	Title     string
+	Body      string
+	Blocks    []Block
+	CreatedAt time.Time
+}

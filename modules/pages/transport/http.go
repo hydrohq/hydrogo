@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,6 +18,7 @@ import (
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -46,6 +48,7 @@ type Handler struct {
 	OGRenderer        *seo.OGRenderer
 	DiscoveryProvider seo.DiscoveryProvider
 	DiscoveryCache    *seo.DiscoveryCache
+	Notifications     *adminstudiosql.Store
 }
 
 type PublicSEOSettings struct{ Brand, FontCSS string }
@@ -100,16 +103,117 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /public/pages/{locale}/{slug}/html", Handler: http.HandlerFunc(h.getPublishedHTML)},
 		{Pattern: "GET /og/{locale}/{slug}.png", Handler: http.HandlerFunc(h.openGraphImage)},
 		{Pattern: "GET /admin/pages/new", Handler: http.HandlerFunc(h.adminNewPage), Protected: true},
+		{Pattern: "GET /admin/pages/import", Handler: http.HandlerFunc(h.adminImport), Protected: true},
+		{Pattern: "POST /admin/pages/import", Handler: http.HandlerFunc(h.adminImport), Protected: true},
+		{Pattern: "POST /admin/pages/bulk", Handler: http.HandlerFunc(h.adminBulk), Protected: true},
+		{Pattern: "GET /admin/notifications", Handler: http.HandlerFunc(h.adminNotifications), Protected: true},
+		{Pattern: "POST /admin/notifications", Handler: http.HandlerFunc(h.adminNotifications), Protected: true},
 		{Pattern: "GET /admin/pages/{id}", Handler: http.HandlerFunc(h.adminPage), Protected: true},
 		{Pattern: "GET /admin/pages", Handler: http.HandlerFunc(h.adminList), Protected: true},
 		{Pattern: "POST /admin/pages", Handler: http.HandlerFunc(h.adminCreateForm), Protected: true},
 		{Pattern: "POST /admin/pages/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
+		{Pattern: "POST /admin/pages/{id}/translate", Handler: http.HandlerFunc(h.adminTranslate), Protected: true},
+		{Pattern: "POST /admin/pages/{id}/revisions/{revision}/restore", Handler: http.HandlerFunc(h.restoreRevision), Protected: true},
 	}
 	for _, route := range seo.DiscoveryRoutes(h.DiscoveryProvider, h.DiscoveryCache) {
 		routes = append(routes, Route{Pattern: route.Pattern, Handler: route.Handler})
 	}
 	return routes
+}
+
+func (h Handler) adminBulk(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "Bu işlem için yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil || (r.FormValue("action") != "export" && r.FormValue("action") != "CSV dışa aktar") {
+		http.Error(w, "Toplu işlem geçersiz.", http.StatusBadRequest)
+		return
+	}
+	ids, err := adminstudio.NormalizeBulkIDs(r.Form["ids"], 500)
+	if err != nil {
+		http.Error(w, "En fazla 500 kayıt seçin.", http.StatusBadRequest)
+		return
+	}
+	repo, ok := h.Content.Pages.(adminListRepository)
+	if !ok {
+		http.Error(w, "İşlem tamamlanamadı.", http.StatusServiceUnavailable)
+		return
+	}
+	items, err := repo.ListAdmin(r.Context(), h.DB, 5000)
+	if err != nil {
+		http.Error(w, "İşlem tamamlanamadı.", http.StatusServiceUnavailable)
+		return
+	}
+	selected := map[string]struct{}{}
+	for _, id := range ids {
+		selected[id] = struct{}{}
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="pages.csv"`)
+	out := csv.NewWriter(w)
+	_ = out.Write([]string{"locale", "slug", "title", "status"})
+	for _, item := range items {
+		if _, ok := selected[item.ID]; ok {
+			_ = out.Write([]string{item.Locale, item.Slug, item.Title, string(item.Status)})
+		}
+	}
+	out.Flush()
+}
+
+func (h Handler) adminNotifications(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || !editorAllowed(r) {
+		http.Error(w, "Bu alan için yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	if h.Notifications == nil {
+		http.Error(w, "Bildirimler şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "İşlem tamamlanamadı.", http.StatusBadRequest)
+			return
+		}
+		var err error
+		switch r.FormValue("action") {
+		case "read_all":
+			err = h.Notifications.MarkAllRead(r.Context(), h.DB, user.ID)
+		case "dismiss":
+			err = h.Notifications.Dismiss(r.Context(), h.DB, user.ID, r.FormValue("id"))
+		default:
+			http.Error(w, "İşlem geçersiz.", http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, "İşlem tamamlanamadı.", http.StatusServiceUnavailable)
+			return
+		}
+		http.Redirect(w, r, "/admin/notifications", http.StatusSeeOther)
+		return
+	}
+	queryDB, ok := h.DB.(database.QueryExecutor)
+	if !ok {
+		http.Error(w, "Bildirimler yüklenemedi.", http.StatusServiceUnavailable)
+		return
+	}
+	items, err := h.Notifications.List(r.Context(), queryDB, user.ID, 50)
+	if err != nil {
+		http.Error(w, "Bildirimler yüklenemedi.", http.StatusServiceUnavailable)
+		return
+	}
+	view := make([]ui.NotificationItem, 0, len(items))
+	for _, item := range items {
+		view = append(view, ui.NotificationItem{ID: item.ID, Title: item.Title, Message: item.Message, TargetPath: item.TargetPath, Created: item.CreatedAt.Local().Format("02.01.2006 15:04"), Read: item.Read})
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if ui.AdminStartForRequest(w, r, "Bildirimler", "", "", "dashboard") != nil {
+		return
+	}
+	_ = ui.NotificationCenter(view, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
 }
 
 type adminListRepository interface {
@@ -137,13 +241,13 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]adminstudio.Row, 0, len(items))
 	for _, item := range items {
-		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
+		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": item.Title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="table-wrap">`)
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions"><a class="button button-quiet" href="/admin/pages/import">CSV / Excel içe aktar</a></div><div class="table-wrap">`)
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 		return
@@ -152,13 +256,108 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	_ = ui.AdminEnd(w)
 }
 
+func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "Bu işlem için yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if r.Method == http.MethodGet {
+		if ui.AdminStartForRequest(w, r, "İçerik içe aktar", "", "", "pages") != nil {
+			return
+		}
+		_ = ui.ImportWizard(nil, security.CSRFTokenFromContext(r.Context()), false).Render(r.Context(), w)
+		_ = ui.AdminEnd(w)
+		return
+	}
+	if err := r.ParseMultipartForm(6 << 20); err != nil {
+		http.Error(w, "Dosya okunamadı. CSV veya Excel dosyasını yeniden seçin.", http.StatusBadRequest)
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Bir CSV veya Excel dosyası seçin.", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	rows, err := adminstudio.ParseImportFile(file, header.Filename)
+	if err != nil {
+		http.Error(w, "Dosya biçimi okunamadı. CSV veya .xlsx dosyası kullanın.", http.StatusBadRequest)
+		return
+	}
+	headers := rows[0]
+	if r.FormValue("map_title") == "" || r.FormValue("map_slug") == "" {
+		if ui.AdminStartForRequest(w, r, "Sütunları eşleştir", "", "", "pages") != nil {
+			return
+		}
+		_ = ui.ImportWizard(headers, security.CSRFTokenFromContext(r.Context()), true).Render(r.Context(), w)
+		_ = ui.AdminEnd(w)
+		return
+	}
+	columns := map[string]int{}
+	for _, field := range []string{"locale", "slug", "title", "body"} {
+		raw := r.FormValue("map_" + field)
+		if raw == "" {
+			continue
+		}
+		index, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || index < 0 || index >= len(headers) {
+			http.Error(w, "Sütun eşlemesi geçersiz. Lütfen yeniden deneyin.", http.StatusBadRequest)
+			return
+		}
+		columns[field] = index
+	}
+	if _, ok := columns["body"]; !ok {
+		http.Error(w, "İçerik metni için bir sütun seçin.", http.StatusBadRequest)
+		return
+	}
+	localeIndex, localeMapped := columns["locale"]
+	if columns["slug"] == columns["title"] || columns["slug"] == columns["body"] || columns["title"] == columns["body"] || (localeMapped && (localeIndex == columns["slug"] || localeIndex == columns["title"] || localeIndex == columns["body"])) {
+		http.Error(w, "Başlık, bağlantı adı ve metin için farklı sütunlar seçin.", http.StatusBadRequest)
+		return
+	}
+	created, skipped := 0, 0
+	for _, row := range rows[1:] {
+		value := func(name, fallback string) string {
+			if i, ok := columns[name]; ok {
+				return strings.TrimSpace(row[i])
+			}
+			return fallback
+		}
+		locale := value("locale", "tr")
+		page := pages.Page{ID: newImportID(), Locale: locale, Slug: value("slug", ""), Title: value("title", ""), Body: value("body", ""), Status: pages.StatusDraft}
+		if page.ID == "" || page.Slug == "" || page.Title == "" || page.Body == "" {
+			skipped++
+			continue
+		}
+		if err := h.Content.CreateDraft(r.Context(), page); err != nil {
+			skipped++
+			continue
+		}
+		created++
+	}
+	if ui.AdminStartForRequest(w, r, "Aktarım tamamlandı", "", "", "pages") != nil {
+		return
+	}
+	_, _ = fmt.Fprintf(w, `<section class="studio-card" role="status"><h2>Aktarım tamamlandı</h2><p>%d taslak eklendi. %d satır atlandı.</p><a href="/admin/pages">Sayfalara dön</a></section>`, created, skipped)
+	_ = ui.AdminEnd(w)
+}
+
+func newImportID() string {
+	var b [12]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return ""
+	}
+	return "page-import-" + hex.EncodeToString(b[:])
+}
+
 func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	if !editorAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Yeni sayfa", "Sayfa yönetimi", security.NonceFromContext(r.Context()), "pages"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Yeni sayfa", "Sayfa yönetimi", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages">`)
@@ -293,6 +492,9 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		designHead = head.String()
 	}
 	designHead += seoMeta
+	if editorAllowed(r) {
+		designHead += `<style nonce="` + template.HTMLEscapeString(security.NonceFromContext(r.Context())) + `">.hydro-inline-edit{position:fixed;right:18px;bottom:18px;z-index:9999;display:inline-flex;gap:7px;align-items:center;padding:10px 14px;border-radius:999px;background:#0284c7;color:#fff;text-decoration:none;font:600 14px/1.2 system-ui;box-shadow:0 4px 16px #0003}.hydro-inline-edit:hover{background:#0369a1}</style>`
+	}
 	for i, block := range renderBlocks {
 		if block.Type != "faq" {
 			continue
@@ -314,6 +516,9 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	if h.Theme != nil {
 		var content strings.Builder
 		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div></div>`, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body))
+		if editorAllowed(r) {
+			content.WriteString(renderInPlaceEditLink(r, page.ID))
+		}
 		for _, block := range renderBlocks {
 			var themed strings.Builder
 			if err := h.Theme.RenderBlock(&themed, block); err == nil {
@@ -335,7 +540,18 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body), blocks)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1>%s<div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), ui.RichTextHTML(page.Body), blocks)
+}
+
+func renderInPlaceEditLink(r *http.Request, pageID string) string {
+	if !editorAllowed(r) {
+		return ""
+	}
+	var link bytes.Buffer
+	if err := ui.InPlaceEditLink("/admin/pages/"+url.PathEscape(pageID)).Render(r.Context(), &link); err != nil {
+		return ""
+	}
+	return link.String()
 }
 
 func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, error) {
@@ -569,18 +785,168 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
+	if locale := canonical.Locale(r.URL.Query().Get("compare")); locale != "" && locale != page.Locale {
+		repository, ok := h.Content.Pages.(adminListRepository)
+		if !ok {
+			http.Error(w, "page unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		items, listErr := repository.ListAdmin(r.Context(), h.DB, 100)
+		if listErr != nil {
+			http.Error(w, "page unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		var translated pages.Page
+		for _, item := range items {
+			if item.Locale == locale && item.Slug == page.Slug {
+				translated, listErr = h.Content.Get(r.Context(), h.DB, item.ID)
+				break
+			}
+		}
+		data := ui.TranslationEditorData{SourceTitle: page.Title, SourceBody: page.Body, Locale: locale, Action: "/admin/pages/" + url.PathEscape(page.ID) + "/translate", CSRF: security.CSRFTokenFromContext(r.Context()), Exists: translated.ID != "", Outdated: translated.ID != "" && page.UpdatedAt.After(translated.UpdatedAt), Version: translated.Version}
+		data.TargetTitle, data.TargetBody = translated.Title, translated.Body
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := ui.AdminStartForRequest(w, r, "Sayfa çevirisi", "Yan yana çeviri", security.NonceFromContext(r.Context()), "pages"); err != nil {
+			return
+		}
+		_ = ui.TranslationEditor(data).Render(r.Context(), w)
+		_ = ui.AdminEnd(w)
+		return
+	}
 	var form bytes.Buffer
 	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Sayfa düzenle", "İçerik stüdyosu", security.NonceFromContext(r.Context()), "pages"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Sayfa düzenle", "İçerik stüdyosu", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
+	}
+	if history, ok := h.Content.Pages.(interface {
+		ListRevisions(context.Context, database.Executor, string, int) ([]pages.RevisionSnapshot, error)
+	}); ok {
+		revisions, historyErr := history.ListRevisions(r.Context(), h.DB, page.ID, 50)
+		if historyErr == nil && len(revisions) > 0 {
+			selected := revisions[0]
+			if requested, parseErr := strconv.Atoi(r.URL.Query().Get("revision")); parseErr == nil {
+				for _, revision := range revisions {
+					if revision.Revision == requested {
+						selected = revision
+						break
+					}
+				}
+			}
+			changes := adminstudio.CompareFields(map[string]string{"Başlık": selected.Title, "Metin": selected.Body}, map[string]string{"Başlık": page.Title, "Metin": page.Body})
+			_ = ui.RevisionDiffPanel(changes, "İçerik geçmişi", selected.CreatedAt.Format("02.01.2006 15:04"), "/admin/pages/"+url.PathEscape(page.ID)+"/revisions/"+strconv.Itoa(selected.Revision)+"/restore", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+		}
 	}
 	blockEditor := renderBlockEditor(page.Blocks, security.CSRFTokenFromContext(r.Context()))
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages/%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayınlama</h2><p class="muted">Taslağı kaydedin veya doğrudan yayına alın.</p><div class="studio-actions"><form method="post" action="/admin/pages/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form></div></section>`, template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), page.Version)
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) restoreRevision(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	current, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "page unavailable", pageReadStatus(err))
+		return
+	}
+	history, ok := h.Content.Pages.(interface {
+		ListRevisions(context.Context, database.Executor, string, int) ([]pages.RevisionSnapshot, error)
+	})
+	if !ok {
+		http.Error(w, "revision unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	revisions, err := history.ListRevisions(r.Context(), h.DB, current.ID, 50)
+	if err != nil {
+		http.Error(w, "revision unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	wanted, err := strconv.Atoi(r.PathValue("revision"))
+	if err != nil || wanted <= 0 {
+		http.Error(w, "revision unavailable", http.StatusBadRequest)
+		return
+	}
+	for _, revision := range revisions {
+		if revision.Revision != wanted {
+			continue
+		}
+		current.Title, current.Body, current.Blocks = revision.Title, revision.Body, revision.Blocks
+		if err := h.Content.UpdateDraft(r.Context(), current, current.Version); err != nil {
+			http.Error(w, pageError(err), pageStatus(err))
+			return
+		}
+		http.Redirect(w, r, "/admin/pages/"+url.PathEscape(current.ID), http.StatusSeeOther)
+		return
+	}
+	http.NotFound(w, r)
+}
+
+func (h Handler) adminTranslate(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	source, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "page unavailable", pageReadStatus(err))
+		return
+	}
+	locale := canonical.Locale(r.FormValue("locale"))
+	if locale == "" || locale == source.Locale {
+		http.Error(w, "invalid translation", http.StatusBadRequest)
+		return
+	}
+	repository, ok := h.Content.Pages.(adminListRepository)
+	if !ok {
+		http.Error(w, "page unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	items, err := repository.ListAdmin(r.Context(), h.DB, 100)
+	if err != nil {
+		http.Error(w, "page unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	target := pages.Page{}
+	for _, item := range items {
+		if item.Locale == locale && item.Slug == source.Slug {
+			target, err = h.Content.Get(r.Context(), h.DB, item.ID)
+			if err != nil {
+				http.Error(w, "page unavailable", pageReadStatus(err))
+				return
+			}
+			break
+		}
+	}
+	target.Locale, target.Slug, target.Title, target.Body = locale, source.Slug, strings.TrimSpace(r.FormValue("title")), r.FormValue("body")
+	if target.ID == "" {
+		id := make([]byte, 16)
+		if _, err := rand.Read(id); err != nil {
+			http.Error(w, "translation could not be saved", http.StatusInternalServerError)
+			return
+		}
+		target.ID = "page-" + hex.EncodeToString(id)
+		if err := h.Content.CreateDraft(r.Context(), target); err != nil {
+			http.Error(w, pageError(err), pageStatus(err))
+			return
+		}
+	} else {
+		version, parseErr := strconv.Atoi(r.FormValue("version"))
+		if parseErr != nil || version != target.Version {
+			http.Error(w, "translation changed; reload and try again", http.StatusConflict)
+			return
+		}
+		if err := h.Content.UpdateDraft(r.Context(), target, version); err != nil {
+			http.Error(w, pageError(err), pageStatus(err))
+			return
+		}
+	}
+	http.Redirect(w, r, "/admin/pages/"+url.PathEscape(target.ID), http.StatusSeeOther)
 }
 
 func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
@@ -741,8 +1107,11 @@ func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Content.Publish(r.Context(), r.PathValue("id"), version); err != nil {
-		http.Error(w, pageError(err), pageStatus(err))
+		http.Error(w, "Sayfa yayımlanamadı. İçeriği kontrol edip yeniden deneyin.", pageStatus(err))
 		return
+	}
+	if user := auth.UserFromContext(r.Context()); user != nil && h.Notifications != nil {
+		_ = h.Notifications.Add(r.Context(), h.DB, user.ID, "Sayfa yayına alındı", "Sayfanız ziyaretçilere açıldı.", "/admin/pages")
 	}
 	http.Redirect(w, r, "/admin/pages/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
 }

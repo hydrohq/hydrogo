@@ -69,6 +69,18 @@ func TestAuthIdentityTenantScope(t *testing.T) {
 	if _, err := sessions.GetByTokenHash(ctxB, "hash-a"); !errors.Is(err, auth.ErrSessionNotFound) {
 		t.Fatalf("cross-tenant session = %v", err)
 	}
+	if err := sessions.Create(ctxA, &auth.Session{ID: "s-a-other", UserID: "u-a", TokenHash: "hash-b", ExpiresAt: time.Now().UTC().Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sessions.DeleteOtherByUserID(ctxA, "u-a", "hash-a"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sessions.GetByTokenHash(ctxA, "hash-a"); err != nil {
+		t.Fatalf("current session was revoked: %v", err)
+	}
+	if _, err := sessions.GetByTokenHash(ctxA, "hash-b"); !errors.Is(err, auth.ErrSessionNotFound) {
+		t.Fatalf("other session still active: %v", err)
+	}
 }
 
 func TestAuthSecurityTenantScope(t *testing.T) {

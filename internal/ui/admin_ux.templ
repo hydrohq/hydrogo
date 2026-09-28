@@ -1,0 +1,147 @@
+package ui
+
+import "strconv"
+
+import "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+
+templ AdminUXChrome() {
+	<div id="admin-shortcuts-dialog" class="admin-ux-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-shortcuts-title" hidden>
+		<section class="admin-ux-panel">
+			<button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button>
+			<h2 id="admin-shortcuts-title">Klavye kısayolları</h2>
+			<dl><dt>?</dt><dd>Bu yardım penceresini aç</dd><dt>⌘ / Ctrl + /</dt><dd>Kısayol listesini aç</dd><dt>⌘ / Ctrl + K</dt><dd>Hızlı aramayı aç</dd><dt>⌘ / Ctrl + S</dt><dd>Formu kaydet</dd><dt>Esc</dt><dd>Pencereyi kapat</dd><dt>J / K</dt><dd>Listede ilerle / geri git</dd><dt>N</dt><dd>Yeni kayıt oluştur</dd></dl>
+		</section>
+	</div>
+	<div id="admin-password-dialog" class="admin-ux-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-password-title" hidden>
+		<section class="admin-ux-panel">
+			<button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button>
+			<h2 id="admin-password-title">Parolanı değiştir</h2>
+			<form data-quick-password-form>
+				<input type="hidden" name="_csrf" data-ux-csrf />
+				<label>Mevcut parola<input name="current_password" type="password" autocomplete="current-password" required /></label>
+				<label>Yeni parola<input name="new_password" type="password" autocomplete="new-password" minlength="8" required data-password-strength /></label>
+				<meter min="0" max="4" value="0" data-password-meter aria-label="Parola gücü"></meter>
+				<label>Yeni parola (tekrar)<input name="confirm_password" type="password" autocomplete="new-password" minlength="8" required /></label>
+				<label class="admin-ux-check"><input type="checkbox" name="invalidate_other_sessions" value="true" checked /> Diğer cihazlardaki oturumları kapat</label>
+				<p role="status" aria-live="polite" data-quick-password-status></p>
+				<button class="button button-primary" type="submit">Parolayı güncelle</button>
+			</form>
+		</section>
+	</div>
+	<div id="admin-onboarding-dialog" class="admin-ux-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-onboarding-title" hidden>
+		<section class="admin-ux-panel"><button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button><p class="eyebrow">BAŞLANGIÇ REHBERİ</p><h2 id="admin-onboarding-title">Studio’ya hoş geldin</h2><p>Sayfalarını ve haberlerini içerik menüsünden yönetebilir, değişiklikleri önizleyip yayınlayabilirsin.</p><nav><a href="/admin/pages">Sayfaları düzenle</a><a href="/admin/news">Haberleri yönet</a><a href="/admin/media">Görselleri aç</a></nav><button class="button button-quiet" type="button" data-onboarding-dismiss>Bir daha gösterme</button></section>
+	</div>
+}
+
+type TranslationEditorData struct {
+	SourceTitle string
+	SourceBody string
+	Locale string
+	TargetTitle string
+	TargetBody string
+	Action string
+	CSRF string
+	Version int
+	Exists bool
+	Outdated bool
+}
+
+templ TranslationEditor(data TranslationEditorData) {
+	<section class="studio-card" data-translation-editor>
+		<div class="studio-split-editor">
+			<article><h2>Kaynak içerik</h2><p>{ data.SourceTitle }</p><div class="translation-source" data-translation-source>{ data.SourceBody }</div></article>
+			<form method="post" action={ data.Action } class="studio-form">
+				<h2>Çeviri · { data.Locale }</h2>
+				<input type="hidden" name="_csrf" value={ data.CSRF } />
+				<input type="hidden" name="locale" value={ data.Locale } />
+				<input type="hidden" name="version" value={ strconv.Itoa(data.Version) } />
+				<label>Başlık<input name="title" value={ data.TargetTitle } required maxlength="256" /></label>
+				<label>Metin<textarea name="body" rows="16" required data-translation-target>{ data.TargetBody }</textarea></label>
+				<p role="status">
+					if data.Outdated {
+						<span>Kaynak güncellendi; çeviriyi gözden geçirin.</span>
+					} else if !data.Exists {
+						<span>Bu dil için henüz çeviri yok.</span>
+					}
+				</p>
+				<button class="button button-primary" type="submit">Çeviriyi kaydet</button>
+			</form>
+		</div>
+	</section>
+}
+
+templ InPlaceEditLink(href string) {
+	<a class="hydro-inline-edit" href={ href } aria-label="Bu sayfayı düzenle">✎ <span>Düzenle</span></a>
+}
+
+templ BusinessOwnerDashboard(enabled map[string]bool) {
+	<section class="business-home" data-business-view>
+		<p class="eyebrow">İŞLETME PANELİ</p><h2>İçeriğinizi kolayca yönetin</h2><p>Günlük işleriniz için ihtiyacınız olan alanları buradan açabilirsiniz.</p>
+		<nav aria-label="İçerik yönetimi">
+			if enabled["pages"] {
+				<a class="studio-card" href="/admin/pages"><strong>Sayfalar</strong><span>Site metinlerini ve sayfa bölümlerini düzenleyin.</span></a>
+			}
+			if enabled["news"] {
+				<a class="studio-card" href="/admin/news"><strong>Haberler</strong><span>Haberlerinizi hazırlayın ve yayınlayın.</span></a>
+			}
+			if enabled["media"] {
+				<a class="studio-card" href="/admin/media"><strong>Görseller</strong><span>Site görsellerini yönetin.</span></a>
+			}
+		</nav>
+	</section>
+}
+
+templ RevisionDiffPanel(diffs []adminstudio.FieldDiff, editor, modified string, restoreAction, csrf string) {
+	<section class="studio-card" data-revision-diff>
+		<h2>Değişiklikleri karşılaştır</h2><p>{ editor } · { modified }</p>
+		<div class="revision-diff-fields">
+			for _, diff := range diffs {
+				<article><h3>{ diff.Field }</h3><div class="revision-removed">{ diff.Before }</div><div class="revision-added">{ diff.After }</div></article>
+			}
+		</div>
+		<form method="post" action={ restoreAction } data-confirm-action="Bu sürüm geri yüklensin mi?"><input type="hidden" name="_csrf" value={ csrf }/><button class="button button-quiet" type="submit">Bu sürümü geri yükle</button></form>
+	</section>
+}
+
+templ ImportWizard(headers []string, csrf string, mapping bool) {
+	<section class="studio-card" data-import-wizard>
+		<h2>İçerik içe aktar</h2>
+		<p>CSV veya Excel dosyası yükleyin. Dosya 5 MB ve 5.000 satırla sınırlıdır.</p>
+		<form method="post" enctype="multipart/form-data" action="/admin/pages/import">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<label>Dosya<input type="file" name="file" accept=".csv,.xlsx" required /></label>
+			if mapping {
+				<h3>Sütunları eşleştirin</h3>
+				for _, field := range []string{"locale", "slug", "title", "body"} {
+					<label>{ field }
+						<select name={ "map_" + field }>
+							<option value="">Atla</option>
+							for i, header := range headers {
+								<option value={ strconv.Itoa(i) }>{ header }</option>
+							}
+						</select>
+					</label>
+				}
+			}
+			<button class="button button-primary" type="submit">
+				if mapping {
+					<span>Aktarımı başlat</span>
+				} else {
+					<span>Sütunları incele</span>
+				}
+			</button>
+		</form>
+	</section>
+}
+
+templ NotificationCenter(items []NotificationItem, csrf string) {
+	<section class="studio-card" data-notification-center>
+		<div class="studio-actions"><h2>Bildirimler</h2><form method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="read_all"/><button class="button button-quiet" type="submit">Tümünü okundu işaretle</button></form></div>
+		if len(items) == 0 {
+			<p role="status">Yeni bildiriminiz yok.</p>
+		}
+		for _, item := range items {
+			<article class="notification-item"><div><h3>{ item.Title }</h3><p>{ item.Message }</p><time>{ item.Created }</time></div><div class="studio-actions"><a href={ item.TargetPath }>Görüntüle</a><form method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="dismiss"/><input type="hidden" name="id" value={ item.ID }/><button class="button button-quiet" type="submit">Kapat</button></form></div></article>
+		}
+	</section>
+}

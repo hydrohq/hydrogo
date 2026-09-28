@@ -286,6 +286,21 @@ func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID string) 
 	return s.sessionRepo.DeleteByUserID(ctx, userID)
 }
 
+type selectiveSessionRevoker interface {
+	DeleteOtherByUserID(context.Context, string, string) error
+}
+
+func (s *AuthService) RevokeOtherUserSessions(ctx context.Context, userID, currentTokenHash string) error {
+	if s == nil || guards.IsNil(s.sessionRepo) {
+		return ErrSessionRepositoryRequired
+	}
+	revoker, ok := s.sessionRepo.(selectiveSessionRevoker)
+	if !ok {
+		return errors.New("session repository cannot retain the current session")
+	}
+	return revoker.DeleteOtherByUserID(ctx, userID, currentTokenHash)
+}
+
 // ChangeCredentials verifies the current password before changing either
 // account credential. The caller must revoke the browser session afterwards;
 // this service method keeps hashing and persistence in one place.

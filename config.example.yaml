@@ -11,6 +11,14 @@ database:
 media:
   dir: "data/media"
   min_free_bytes: 52428800
+admin_support:
+  enabled: false
+  agency_name: ""
+  email: ""
+  phone: ""
+  whatsapp_url: ""
+  sla_badge: ""
+  guide_url: ""
 seo:
   fonts_dir: "public/fonts"
 # Optional Redis/Valkey endpoint. Leave empty for Compact/local mode.

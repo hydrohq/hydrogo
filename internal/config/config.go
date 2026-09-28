@@ -29,6 +29,7 @@ type Config struct {
 	ThemeDir        string           `yaml:"theme_dir"`
 	Theme           string           `yaml:"theme"`
 	AdminExtensions AdminExtensions  `yaml:"admin_extensions"`
+	AdminSupport    AdminSupport     `yaml:"admin_support"`
 	Tenancy         Tenancy          `yaml:"tenancy"`
 	I18N            I18N             `yaml:"i18n"`
 	Security        Security         `yaml:"security"`
@@ -46,6 +47,16 @@ type Config struct {
 type AdminExtensions struct {
 	ManifestDir     string `yaml:"manifest_dir"`
 	TrustedKeysFile string `yaml:"trusted_keys_file"`
+}
+
+type AdminSupport struct {
+	Enabled     bool   `yaml:"enabled"`
+	AgencyName  string `yaml:"agency_name"`
+	Email       string `yaml:"email"`
+	Phone       string `yaml:"phone"`
+	WhatsAppURL string `yaml:"whatsapp_url"`
+	SLABadge    string `yaml:"sla_badge"`
+	GuideURL    string `yaml:"guide_url"`
 }
 
 // Tenancy maps trusted request hosts to tenant IDs. IDs come only from
@@ -523,6 +534,32 @@ func (c Config) Validate() error {
 	}
 	if len(c.Security.AnomalyBypassPaths) > 32 {
 		return errors.New("security anomaly bypass path list exceeds limit")
+	}
+	if c.AdminSupport.Enabled {
+		if strings.TrimSpace(c.AdminSupport.AgencyName) == "" || len(c.AdminSupport.AgencyName) > 120 || len(c.AdminSupport.SLABadge) > 80 {
+			return errors.New("admin support requires an agency name and bounded label")
+		}
+		if c.AdminSupport.Email != "" {
+			address, err := mail.ParseAddress(strings.TrimSpace(c.AdminSupport.Email))
+			if err != nil || address.Address != strings.TrimSpace(c.AdminSupport.Email) {
+				return errors.New("invalid admin support email")
+			}
+		}
+		if strings.ContainsAny(c.AdminSupport.Phone, "<>\"'") || len(c.AdminSupport.Phone) > 40 {
+			return errors.New("invalid admin support phone")
+		}
+		for _, raw := range []string{c.AdminSupport.WhatsAppURL, c.AdminSupport.GuideURL} {
+			if raw == "" {
+				continue
+			}
+			parsed, err := url.Parse(strings.TrimSpace(raw))
+			if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
+				return errors.New("admin support links must be valid HTTPS URLs")
+			}
+		}
+		if c.AdminSupport.Email == "" && c.AdminSupport.Phone == "" && c.AdminSupport.WhatsAppURL == "" {
+			return errors.New("admin support requires at least one contact method")
+		}
 	}
 	for _, path := range c.Security.AnomalyBypassPaths {
 		if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.ContainsAny(path, "?#\\") {
