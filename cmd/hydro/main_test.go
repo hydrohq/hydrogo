@@ -296,6 +296,42 @@ func TestSeedDemoRejectsCountOutsideBounds(t *testing.T) {
 	}
 }
 
+func TestSeedDemoTaxonomyCreatesLocalizedCategoriesAndRelations(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "seed-taxonomy.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, statement := range []string{
+		`CREATE TABLE news_items (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE news_taxonomy_terms (id TEXT PRIMARY KEY, slug TEXT NOT NULL, kind TEXT NOT NULL, parent_id TEXT, labels_json TEXT NOT NULL)`,
+		`CREATE TABLE news_taxonomy_relations (content_id TEXT NOT NULL, term_id TEXT NOT NULL, PRIMARY KEY(content_id,term_id))`,
+		`INSERT INTO news_items VALUES ('demo-news-one')`,
+	} {
+		if _, err := db.ExecContext(context.Background(), statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items := []demoNewsSeed{{id: "demo-news-one", category: "Platform", title: "Hydro"}}
+	if err := seedDemoTaxonomy(context.Background(), db, database.SQLite, items); err != nil {
+		t.Fatal(err)
+	}
+	var termID, kind, labels string
+	if err := db.QueryRow(`SELECT t.id,t.kind,t.labels_json FROM news_taxonomy_terms t JOIN news_taxonomy_relations r ON r.term_id=t.id WHERE r.content_id=?`, "demo-news-one").Scan(&termID, &kind, &labels); err != nil {
+		t.Fatal(err)
+	}
+	if termID != "demo-category-platform" || kind != "category" || !strings.Contains(labels, `"tr":"Platform"`) || !strings.Contains(labels, `"en":"Platform"`) {
+		t.Fatalf("seeded taxonomy = %q %q %q", termID, kind, labels)
+	}
+}
+
+func TestLocalizeDemoNewsCreatesEnglishSeedContent(t *testing.T) {
+	item := localizeDemoNews(demoNewsSeed{id: "demo-news-one", title: "Turkish title", category: "Ürün"}, 3)
+	if item.id != "demo-news-one" || item.slug != "demo-story-003" || item.category != "Demo updates" || !strings.Contains(item.body, "synthetic") {
+		t.Fatalf("localized demo item = %+v", item)
+	}
+}
+
 func TestSDKGenerateCommandWritesTypeScriptAndDartClients(t *testing.T) {
 	root := t.TempDir()
 	spec := filepath.Join(root, "api.json")
