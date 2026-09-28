@@ -52,7 +52,7 @@ type Handler struct {
 	WeeklyDigestEnabled bool
 }
 
-type PublicSEOSettings struct{ Brand, FontCSS string }
+type PublicSEOSettings struct{ Brand, FontCSS, AppearanceCSS, FaviconURL, SocialImageURL string }
 
 func (h Handler) defaultLocale() string {
 	if h.DefaultLocale != "" {
@@ -673,8 +673,14 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 		settings = h.PublicSEOSettings(ctx)
 	}
 	var head strings.Builder
+	if settings.AppearanceCSS != "" {
+		fmt.Fprintf(&head, `<style nonce="%s">%s</style>`, template.HTMLEscapeString(security.NonceFromContext(ctx)), settings.AppearanceCSS)
+	}
 	if validLocalFontCSS(settings.FontCSS) {
 		fmt.Fprintf(&head, `<link rel="stylesheet" href="%s">`, template.HTMLEscapeString(settings.FontCSS))
+	}
+	if site.ValidAppearanceAssetURL(settings.FaviconURL) && settings.FaviconURL != "" {
+		fmt.Fprintf(&head, `<link rel="icon" href="%s">`, template.HTMLEscapeString(settings.FaviconURL))
 	}
 	origin := strings.TrimSpace(h.SEOOrigin)
 	if origin == "" {
@@ -686,7 +692,11 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 	if err != nil {
 		return "", err
 	}
-	fmt.Fprintf(&head, `<link rel="canonical" href="%s"><meta name="description" content="%s"><meta property="og:type" content="website"><meta property="og:title" content="%s"><meta property="og:description" content="%s"><meta property="og:url" content="%s"><meta property="og:image" content="%s"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="%s">`, template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.Description), template.HTMLEscapeString(view.OGTitle), template.HTMLEscapeString(view.OGDescription), template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.OGImage), template.HTMLEscapeString(view.OGImage))
+	ogImage := view.OGImage
+	if site.ValidAppearanceAssetURL(settings.SocialImageURL) && settings.SocialImageURL != "" {
+		ogImage = strings.TrimRight(origin, "/") + settings.SocialImageURL
+	}
+	fmt.Fprintf(&head, `<link rel="canonical" href="%s"><meta name="description" content="%s"><meta property="og:type" content="website"><meta property="og:title" content="%s"><meta property="og:description" content="%s"><meta property="og:url" content="%s"><meta property="og:image" content="%s"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="%s">`, template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.Description), template.HTMLEscapeString(view.OGTitle), template.HTMLEscapeString(view.OGDescription), template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(ogImage), template.HTMLEscapeString(ogImage))
 	return head.String(), nil
 }
 

@@ -75,6 +75,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /sitemap-pages.xml", Public: true, Handler: http.HandlerFunc(h.sitemapPart)},
 		{Pattern: "GET /sitemap-articles.xml", Public: true, Handler: http.HandlerFunc(h.sitemapArticlePart)},
 		{Pattern: "POST /admin/site/settings", Handler: http.HandlerFunc(h.saveSetting)},
+		{Pattern: "GET /admin/site/appearance", Handler: http.HandlerFunc(h.appearance)},
+		{Pattern: "POST /admin/site/appearance", Handler: http.HandlerFunc(h.saveAppearance)},
 		{Pattern: "GET /admin/site/seo", Handler: http.HandlerFunc(h.seoSettings)},
 		{Pattern: "POST /admin/site/seo", Handler: http.HandlerFunc(h.saveSEOSettings)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
@@ -774,6 +776,76 @@ func (h Handler) saveSetting(w http.ResponseWriter, r *http.Request) {
 		h.InvalidateDiscovery()
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) appearance(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil || guards.IsNil(h.Store) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	settings, err := h.Store.ListPublicSettings(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "site appearance unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	value := site.AppearanceFromSettings(settings)
+	if ui.AdminStartForRequest(w, r, "Marka ve görünüm", "Renkleri ve yazı tipini sitenizin görünümüne uygulayın", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+		for _, field := range []uicomponents.InputProps{
+			{ID: "appearance-primary", Name: "primary_color", Type: "color", Label: "Ana renk (açık tema)", Value: value.PrimaryColor, Required: true},
+			{ID: "appearance-accent", Name: "accent_color", Type: "color", Label: "Vurgu rengi (açık tema)", Value: value.AccentColor, Required: true},
+			{ID: "appearance-dark-primary", Name: "dark_primary_color", Type: "color", Label: "Ana renk (koyu tema)", Value: value.DarkPrimaryColor, Required: true},
+			{ID: "appearance-dark-accent", Name: "dark_accent_color", Type: "color", Label: "Vurgu rengi (koyu tema)", Value: value.DarkAccentColor, Required: true},
+			{ID: "appearance-logo", Name: "logo_url", Type: "text", Label: "Logo medya yolu (ör. /media/logo.svg)", Value: value.LogoURL},
+			{ID: "appearance-dark-logo", Name: "dark_logo_url", Type: "text", Label: "Koyu tema logo medya yolu", Value: value.DarkLogoURL},
+			{ID: "appearance-favicon", Name: "favicon_url", Type: "text", Label: "Favicon medya yolu", Value: value.FaviconURL},
+			{ID: "appearance-social-image", Name: "social_image_url", Type: "text", Label: "Sosyal paylaşım görseli medya yolu", Value: value.SocialImageURL},
+		} {
+			if err := uicomponents.Input(field).Render(ctx, output); err != nil {
+				return err
+			}
+		}
+		if err := uicomponents.Select(uicomponents.SelectProps{ID: "appearance-font", Name: "font_family", Label: "Yazı tipi", Value: value.FontFamily, Options: []string{"system", "inter", "lato", "roboto"}}).Render(ctx, output); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(output, `<p id="appearance-contrast" role="status" aria-live="polite">Renk kontrastı denetleniyor…</p>`); err != nil {
+			return err
+		}
+		if err := uicomponents.Button(uicomponents.ButtonProps{Label: "Görünümü kaydet", Type: "submit", Variant: uicomponents.Primary}).Render(ctx, output); err != nil {
+			return err
+		}
+		_, err := io.WriteString(output, `<script nonce="`+template.HTMLEscapeString(security.NonceFromContext(ctx))+`">(()=>{const ids=['appearance-primary','appearance-accent','appearance-dark-primary','appearance-dark-accent'];const out=document.getElementById('appearance-contrast');const lum=h=>{const c=h.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]};const check=()=>{const ratios=ids.map(id=>{const x=document.getElementById(id);return 1.05/(lum(x.value)+.05)});const min=Math.min(...ratios);const low=min<4.5;out.textContent=low?'Kontrast yetersiz: beyaz metin için en az 4,5:1 gerekli.':min>=7?'WCAG AAA uyumlu: en düşük oran '+min.toFixed(2)+':1.':'WCAG AA uyumlu: en düşük oran '+min.toFixed(2)+':1.';out.dataset.state=low?'low':min>=7?'aaa':'aa'};ids.forEach(id=>document.getElementById(id)?.addEventListener('input',check));check()})()</script>`)
+		return err
+	})
+	form := uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/appearance", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: body})
+	if err := uicomponents.Card(uicomponents.CardProps{Title: "Renkler ve tipografi", Body: form}).Render(r.Context(), w); err != nil {
+		return
+	}
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveAppearance(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Görünüm ayarları geçersiz.", http.StatusBadRequest)
+		return
+	}
+	value := site.Appearance{PrimaryColor: r.FormValue("primary_color"), AccentColor: r.FormValue("accent_color"), DarkPrimaryColor: r.FormValue("dark_primary_color"), DarkAccentColor: r.FormValue("dark_accent_color"), FontFamily: r.FormValue("font_family"), LogoURL: r.FormValue("logo_url"), DarkLogoURL: r.FormValue("dark_logo_url"), FaviconURL: r.FormValue("favicon_url"), SocialImageURL: r.FormValue("social_image_url")}
+	if err := value.Normalize(); err != nil {
+		http.Error(w, "Renkler beyaz metinle en az 4,5:1 kontrast sağlamalı ve desteklenen yazı tiplerinden seçilmelidir.", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SaveAppearance(r.Context(), value); err != nil {
+		http.Error(w, "Görünüm kaydedilemedi.", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/appearance", http.StatusSeeOther)
 }
 
 func (h Handler) seoSettings(w http.ResponseWriter, r *http.Request) {

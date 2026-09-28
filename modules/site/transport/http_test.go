@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
@@ -81,6 +82,22 @@ func TestFontPickerRoutesStayAbsentWithoutPages(t *testing.T) {
 	for _, route := range (Handler{}).Routes() {
 		if strings.Contains(route.Pattern, "/admin/site/fonts") {
 			t.Fatalf("inactive Pages font picker route registered: %s", route.Pattern)
+		}
+	}
+}
+
+func TestAppearancePageOffersAccessibleLiveContrastFeedback(t *testing.T) {
+	handler := Handler{Store: fakeStore{}, Service: &site.Service{}}
+	request := httptest.NewRequest(http.MethodGet, "/admin/site/appearance", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	handler.appearance(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	for _, marker := range []string{"/admin/site/appearance", `type="color"`, `aria-live="polite"`, "4,5:1", "WCAG AAA", "appearance-contrast"} {
+		if !strings.Contains(response.Body.String(), marker) {
+			t.Errorf("appearance page missing %q", marker)
 		}
 	}
 }
