@@ -12,6 +12,10 @@ templ Head() {
 	<script src="/designsystem/static/widgets.js" defer></script>
 }
 
+templ InitialsAvatar(p InitialsAvatarProps) {
+	<span class={ "user-avatar ds-avatar " + p.Class } role="img" aria-label={ label(p.Initials, "User") }>{ label(p.Initials, "?") }</span>
+}
+
 templ HeroBlock(p HeroProps) {
 	<section class="ds-hero bg-surface text-foreground border-border" data-block="hero" data-media-asset-id={ p.MediaAssetID }>
 		if image := validMediaURL(p.MediaURL); image != "" {

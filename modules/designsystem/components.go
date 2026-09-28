@@ -4,6 +4,7 @@ package designsystem
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"net/url"
 	"regexp"
@@ -94,10 +95,48 @@ type HotspotsProps struct {
 	ID, Image, Alt, Label string
 	Points                []Hotspot
 }
-type GalleryImage struct { Src, Alt, Caption string }
-type LightboxProps struct { ID, Label string; Images []GalleryImage }
-type AudioProps struct { ID, Src, Title, TranscriptURL string }
-type ShareProps struct { URL, Title string }
+type GalleryImage struct{ Src, Alt, Caption string }
+type LightboxProps struct {
+	ID, Label string
+	Images    []GalleryImage
+}
+type AudioProps struct{ ID, Src, Title, TranscriptURL string }
+type ShareProps struct{ URL, Title string }
+type InitialsAvatarProps struct{ Initials, Class string }
+
+func Initials(identity string) string {
+	var words []string
+	var current []rune
+	for _, r := range strings.TrimSpace(identity) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			current = append(current, r)
+		} else if len(current) > 0 {
+			words = append(words, string(current))
+			current = nil
+		}
+	}
+	if len(current) > 0 {
+		words = append(words, string(current))
+	}
+	if len(words) == 0 {
+		return "?"
+	}
+	first := []rune(words[0])
+	result := strings.ToUpper(string(first[0]))
+	if len(words) > 1 {
+		second := []rune(words[1])
+		result += strings.ToUpper(string(second[0]))
+	} else if len(first) > 1 {
+		result += strings.ToUpper(string(first[1]))
+	}
+	return result
+}
+
+func InitialsAvatarClass(identity string) string {
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(strings.ToLower(strings.TrimSpace(identity))))
+	return fmt.Sprintf("ds-avatar--%d", hash.Sum32()%8)
+}
 
 var phoneDigits = regexp.MustCompile(`[^0-9+]`)
 
@@ -155,18 +194,26 @@ func validMediaURL(value string) string {
 func validShareURL(value string) string {
 	value = strings.TrimSpace(value)
 	u, err := url.Parse(value)
-	if err != nil || u.Scheme != "https" && u.Scheme != "http" || u.Host == "" || u.User != nil { return "" }
+	if err != nil || u.Scheme != "https" && u.Scheme != "http" || u.Host == "" || u.User != nil {
+		return ""
+	}
 	return u.String()
 }
 
 func shareIntentURL(provider, value, title string) string {
 	value = validShareURL(value)
-	if value == "" { return "" }
+	if value == "" {
+		return ""
+	}
 	switch provider {
-	case "linkedin": return "https://www.linkedin.com/sharing/share-offsite/?url=" + url.QueryEscape(value)
-	case "whatsapp": return "https://wa.me/?text=" + url.QueryEscape(strings.TrimSpace(title)+" "+value)
-	case "email": return "mailto:?subject=" + url.QueryEscape(title) + "&body=" + url.QueryEscape(value)
-	default: return ""
+	case "linkedin":
+		return "https://www.linkedin.com/sharing/share-offsite/?url=" + url.QueryEscape(value)
+	case "whatsapp":
+		return "https://wa.me/?text=" + url.QueryEscape(strings.TrimSpace(title)+" "+value)
+	case "email":
+		return "mailto:?subject=" + url.QueryEscape(title) + "&body=" + url.QueryEscape(value)
+	default:
+		return ""
 	}
 }
 

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bytes"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -212,6 +213,18 @@ func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
 		if strings.Contains(out.String(), forbidden) {
 			t.Fatalf("admin shell must not request third-party font host %q", forbidden)
 		}
+	}
+}
+
+func TestAdminShellShowsAuthenticatedUserInitials(t *testing.T) {
+	user := &auth.User{Email: "arda.ozyildirim@example.test", Role: auth.RoleAdmin, Active: true}
+	request := httptest.NewRequest("GET", "/admin", nil).WithContext(auth.WithUser(httptest.NewRequest("GET", "/admin", nil).Context(), user))
+	var out bytes.Buffer
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "nonce", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `aria-label="AO"`) || !strings.Contains(out.String(), `ds-avatar--`) {
+		t.Fatal("admin shell did not render the authenticated user's initials avatar")
 	}
 }
 

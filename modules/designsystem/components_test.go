@@ -41,6 +41,19 @@ func TestCoreBlocksRenderEscapedContentAndRejectUnsafeLinks(t *testing.T) {
 	}
 }
 
+func TestInitialsAvatarIsEscapedAndPaletteIsStable(t *testing.T) {
+	avatar := render(t, InitialsAvatar(InitialsAvatarProps{Initials: Initials("arda.ozyildirim"), Class: InitialsAvatarClass("arda@example.test")}))
+	if !strings.Contains(avatar, `aria-label="AO"`) || !strings.Contains(avatar, `>AO</span>`) {
+		t.Fatalf("avatar initials missing: %s", avatar)
+	}
+	if Initials("arda.ozyildirim") != "AO" || Initials("single") != "SI" || Initials(" ") != "?" {
+		t.Fatal("initials extraction did not handle multi-part, single-part, or empty values")
+	}
+	if InitialsAvatarClass("arda@example.test") != InitialsAvatarClass("ARDA@example.test") {
+		t.Fatal("avatar palette should be stable and case insensitive")
+	}
+}
+
 func TestHeadInlinesCriticalTokensAndPreloadsRemainingStyles(t *testing.T) {
 	html := render(t, Head())
 	for _, want := range []string{`--background:#fff`, `rel="preload" as="style"`, `data-hydro-late-style`, `<noscript>`, `rel="stylesheet"`, `designsystem.css`} {
