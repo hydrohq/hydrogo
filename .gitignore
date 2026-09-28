@@ -62,3 +62,5 @@ Thumbs.db
 .impeccable/live/cache/
 .impeccable/live/*.png
 # impeccable-ignore-end
+/hydro
+/hydro-issuer
