@@ -549,8 +549,20 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	if trendingHTML.Len() == 0 {
 		trendingHTML.WriteString(`<p style="color:var(--theme-muted);font-size:.88rem;margin:0;">Başka yayınlanmış haber bulunmuyor.</p>`)
 	}
+	articleHTML, tocHTML, err := ui.PrepareArticleHTML(renderParagraphs(item.Body))
+	if err != nil {
+		http.Error(w, "news unavailable", http.StatusInternalServerError)
+		return
+	}
+	var readingTools bytes.Buffer
+	if err := ui.PublicArticleTools().Render(r.Context(), &readingTools); err != nil {
+		http.Error(w, "news unavailable", http.StatusInternalServerError)
+		return
+	}
+	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
+	readingEnhancement := fmt.Sprintf(`<style nonce="%s">%s</style><script nonce="%s">%s</script>`, nonce, ui.PublicArticleCSS, nonce, ui.PublicArticleJS)
 
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s<div class="news-article-body rich-article-content">%s</div>%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go çekirdeği ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s`,
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
 		template.HTMLEscapeString(locale),
 		template.HTMLEscapeString(item.Title),
 		strings.ToUpper(template.HTMLEscapeString(locale)),
@@ -558,12 +570,15 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		newsMetaBadgesMarkup(item),
 		h.newsCoverMarkup(item),
 		newsKeyTakeawaysMarkup(item),
-		renderParagraphs(item.Body),
+		readingTools.String(),
+		template.HTML(tocHTML),
+		template.HTML(articleHTML),
 		newsTagsMarkup(item),
 		template.URLQueryEscaper(item.Title),
 		template.HTMLEscapeString(locale),
 		template.HTMLEscapeString(item.Slug),
 		trendingHTML.String(),
+		readingEnhancement,
 		localizePublicLinks(enterpriseFooterMarkup(), locale),
 	)
 }

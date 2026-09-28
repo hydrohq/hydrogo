@@ -593,6 +593,18 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		designHead = head.String()
 	}
 	designHead += seoMeta
+	articleHTML, tocHTML, err := ui.PrepareArticleHTML(ui.RichTextHTML(page.Body))
+	if err != nil {
+		http.Error(w, "page render failed", http.StatusInternalServerError)
+		return
+	}
+	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
+	designHead += `<style nonce="` + nonce + `">` + ui.PublicArticleCSS + `</style><script nonce="` + nonce + `">` + ui.PublicArticleJS + `</script>`
+	var readingTools bytes.Buffer
+	if err := ui.PublicArticleTools().Render(r.Context(), &readingTools); err != nil {
+		http.Error(w, "page render failed", http.StatusInternalServerError)
+		return
+	}
 	if editorAllowed(r) {
 		designHead += `<style nonce="` + template.HTMLEscapeString(security.NonceFromContext(r.Context())) + `">.hydro-inline-edit{position:fixed;right:18px;bottom:18px;z-index:9999;display:inline-flex;gap:7px;align-items:center;padding:10px 14px;border-radius:999px;background:#0284c7;color:#fff;text-decoration:none;font:600 14px/1.2 system-ui;box-shadow:0 4px 16px #0003}.hydro-inline-edit:hover{background:#0369a1}</style>`
 	}
@@ -616,7 +628,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.Theme != nil {
 		var content strings.Builder
-		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1><div class="content-body">%s</div></div>`, template.HTMLEscapeString(page.Title), ui.RichTextHTML(page.Body))
+		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div></div>`, template.HTMLEscapeString(page.Title), readingTools.String(), template.HTML(tocHTML), template.HTML(articleHTML))
 		if editorAllowed(r) {
 			content.WriteString(renderInPlaceEditLink(r, page.ID))
 		}
@@ -641,7 +653,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1>%s<div class="content-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), ui.RichTextHTML(page.Body), blocks)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks)
 }
 
 func renderInPlaceEditLink(r *http.Request, pageID string) string {

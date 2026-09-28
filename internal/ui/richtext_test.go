@@ -5,6 +5,45 @@ import (
 	"testing"
 )
 
+func TestPrepareArticleHTMLBuildsAccessibleNestedTOC(t *testing.T) {
+	article, toc, err := PrepareArticleHTML(`<h2>Overview</h2><p>Read</p><h3>Details &amp; care</h3><h2>Overview</h2>`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`id="overview"`, `id="details-care"`, `id="overview-2"`} {
+		if !strings.Contains(article, want) {
+			t.Errorf("article missing %q: %s", want, article)
+		}
+	}
+	for _, want := range []string{`aria-label="İçindekiler"`, `href="#overview"`, `href="#details-care"`, `Details &amp; care`} {
+		if !strings.Contains(toc, want) {
+			t.Errorf("table of contents missing %q: %s", want, toc)
+		}
+	}
+}
+
+func TestPrepareArticleHTMLWithoutHeadingsHasNoTOC(t *testing.T) {
+	article, toc, err := PrepareArticleHTML(`<p>Plain article</p>`)
+	if err != nil || toc != "" || !strings.Contains(article, "Plain article") {
+		t.Fatalf("PrepareArticleHTML = (%q, %q, %v)", article, toc, err)
+	}
+}
+
+func TestPublicArticleToolsAreAccessibleAndExposeNoRuntimeDependency(t *testing.T) {
+	var output strings.Builder
+	if err := PublicArticleTools().Render(t.Context(), &output); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`role="group"`, `aria-label="Okuma araçları"`, `data-font-size="up"`, `data-font-size="down"`, `data-print-article`} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("reading tools missing %q: %s", want, output.String())
+		}
+	}
+	if strings.Contains(PublicArticleJS, "https://") || strings.Contains(PublicArticleCSS, "javascript:") {
+		t.Fatal("reading tools include a remote runtime dependency")
+	}
+}
+
 func TestRichTextHTMLRendersDeltaAndEscapesMarkup(t *testing.T) {
 	got := RichTextHTML(`{"ops":[{"insert":"Hello","attributes":{"bold":true}},{"insert":" world\n"}]}`)
 	if !strings.Contains(got, "<strong>Hello</strong>") || !strings.Contains(got, "<p>") {
