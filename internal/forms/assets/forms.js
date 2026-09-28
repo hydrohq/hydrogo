@@ -59,6 +59,18 @@
     }
   });
 
+  document.addEventListener('click', event => {
+    const close = event.target.closest('[data-policy-close]');
+    if (close) {
+      close.closest('dialog')?.close();
+      return;
+    }
+    const trigger = event.target.closest('[data-policy-open]');
+    if (!trigger) return;
+    const dialog = document.getElementById(trigger.dataset.policyOpen);
+    if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal();
+  });
+
   document.querySelectorAll('[data-cascade-select]').forEach(select => {
     const form = select.closest('form');
     const parent = form?.elements.namedItem(select.dataset.cascadeParent);

@@ -46,6 +46,7 @@ type Field struct {
 	Type           FieldType           `json:"type"`
 	Label          string              `json:"label"`
 	Required       bool                `json:"required"`
+	PolicyText     string              `json:"policy_text,omitempty"`
 	Options        []string            `json:"options,omitempty"`
 	Step           int                 `json:"step,omitempty"`
 	DependsOn      string              `json:"depends_on,omitempty"`
@@ -147,6 +148,9 @@ func (f Form) Validate() error {
 			return fmt.Errorf("duplicate form field %q", field.ID)
 		}
 		seen[field.ID] = struct{}{}
+		if len(field.PolicyText) > 8192 || (field.PolicyText != "" && field.Type != Checkbox) {
+			return fmt.Errorf("field %q has invalid policy text", field.ID)
+		}
 		fieldTypes[field.ID] = field.Type
 		steps[publicFieldStep(field)] = struct{}{}
 		switch field.Type {

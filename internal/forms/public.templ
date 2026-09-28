@@ -57,6 +57,13 @@ templ PublicForm(p PublicFormProps) {
 					</select>
 				} else if field.Type == Checkbox {
 					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type="checkbox" value="true" required?={ field.Required } />
+					if field.PolicyText != "" {
+						<button type="button" class="hydro-form__policy-open" data-policy-open={ publicPolicyDialogID(p.Form.ID, field.ID) }>Read the policy</button>
+						<dialog class="hydro-form__policy" id={ publicPolicyDialogID(p.Form.ID, field.ID) } aria-label={ field.Label }>
+							<div class="hydro-form__policy-content">{ field.PolicyText }</div>
+							<button type="button" data-policy-close>Close</button>
+						</dialog>
+					}
 				} else {
 					<input id={ "hydro-" + p.Form.ID + "-" + field.ID } name={ field.ID } type={ publicInputType(field.Type) } required?={ field.Required } maxlength={ fmt.Sprint(MaxValueLength) } inputmode={ phoneInputMode(field.Type) } autocomplete={ phoneAutocomplete(field.Type) } data-phone-mask?={ field.Type == Phone } data-email-suggest?={ field.Type == Email } />
 					if field.Type == Email {
@@ -78,4 +85,8 @@ templ PublicForm(p PublicFormProps) {
 		<p data-submit-status role="status" aria-live="polite"></p>
 	</form>
 	}
+}
+
+func publicPolicyDialogID(formID, fieldID string) string {
+	return "hydro-policy-" + formID + "-" + fieldID
 }
