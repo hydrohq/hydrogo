@@ -4127,6 +4127,19 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	}
 
 	seedPage := func(id, slug, title, body, blocks string) error {
+		if demoLocale == "en" {
+			switch id {
+			case "demo-home":
+				title, body = "HydroGo Platform", "Manage your site pages, articles, and media from one workspace."
+				blocks = `[{"type":"hero","payload":{"title":"Manage your site in one place","subtitle":"A focused workspace for pages, news, and media.","media_asset_id":"demo-media-hero-home","button_text":"Explore the examples","button_url":"/public/pages/en/showcase/html"}},{"type":"faq","payload":{"items":[{"question":"What can I manage?","answer":"Manage pages, news, and media. Additional features depend on enabled modules."},{"question":"Is this production content?","answer":"No. This page contains demo content for evaluation."}]}}]`
+			case "demo-showcase":
+				title, body = "HydroGo Showcase", "Examples of pages and reusable content blocks."
+				blocks = `[{"type":"hero","payload":{"title":"HydroGo component examples","subtitle":"A sample gallery of reusable page blocks.","media_asset_id":"demo-media-hero-showcase","button_text":"Browse articles","button_url":"/public/news/en/html"}},{"type":"faq","payload":{"items":[{"question":"What does this page show?","answer":"It shows how reusable page blocks appear in a published theme."},{"question":"Are these commercial terms?","answer":"No. Demo content does not define prices or service commitments."}]}}]`
+			case "demo-about":
+				title, body = "About HydroGo", "A configurable application core for modular content and commerce projects."
+				blocks = `[{"type":"hero","payload":{"title":"HydroGo architecture","subtitle":"A modular foundation for content and commerce.","media_asset_id":"demo-media-hero-about","button_text":"Read the updates","button_url":"/public/news/en/html"}},{"type":"faq","payload":{"items":[{"question":"Can modules be enabled separately?","answer":"Editions choose the modules they need."},{"question":"Is this a commercial offer?","answer":"No. Demo content is illustrative only."}]}}]`
+			}
+		}
 		localePath := url.PathEscape(demoLocale)
 		blocks = strings.ReplaceAll(strings.ReplaceAll(blocks, "/public/pages/tr/", "/public/pages/"+localePath+"/"), "/public/news/tr/", "/public/news/"+localePath+"/")
 		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,$3,$4,$5,'published',1,1,1,$6,$6,$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,?3,?4,?5,'published',1,1,1,?6,?6,?7,?7)`, id, title, demoLocale, slug, body, blocks, now); err != nil {
@@ -4152,10 +4165,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("seed demo about: %w", err)
 	}
 
-	newsList := []struct {
-		id, slug, title, excerpt, takeaways, category, author, coverMediaID, tags, body string
-		featured                                                                        bool
-	}{
+	newsList := []demoNewsSeed{
 		{
 			id:           "demo-news-release-v2",
 			slug:         "hydrogo-2-0-yayinda",
@@ -4275,6 +4285,11 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 			newsList = append(newsList, item)
 		}
 	}
+	if demoLocale == "en" {
+		for i := range newsList {
+			newsList[i] = localizeDemoNews(newsList[i], i+1)
+		}
+	}
 
 	for _, item := range newsList {
 		featuredInt := 0
@@ -4287,6 +4302,9 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale=$1,slug=$2,title=$3,excerpt=$4,key_takeaways=$5,category=$6,author_name=$7,cover_media_id=$8,featured=$9,tags=$10,body=$11,status='published',published_revision=revision WHERE id=$12`, `UPDATE news_items SET locale=?1,slug=?2,title=?3,excerpt=?4,key_takeaways=?5,category=?6,author_name=?7,cover_media_id=?8,featured=?9,tags=?10,body=?11,status='published',published_revision=revision WHERE id=?12`, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredInt, item.tags, item.body, item.id); err != nil {
 			return fmt.Errorf("publish news %s: %w", item.id, err)
 		}
+	}
+	if err := seedDemoTaxonomy(ctx, db, cfg.Database.Dialect, newsList); err != nil {
+		return fmt.Errorf("seed demo categories: %w", err)
 	}
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO site_settings (key,value,is_public,updated_at) VALUES ($1,$2,1,$3) ON CONFLICT (key) DO NOTHING`, `INSERT OR IGNORE INTO site_settings (key,value,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
 		return fmt.Errorf("seed setting: %w", err)
@@ -4340,7 +4358,9 @@ func cleanDemoData(ctx context.Context, db *sql.DB, dialect database.Dialect, me
 	}
 	for _, statement := range []string{
 		`DELETE FROM page_revisions WHERE page_id LIKE 'demo-%'`,
+		`DELETE FROM news_taxonomy_relations WHERE content_id LIKE 'demo-news-%'`,
 		`DELETE FROM news_items WHERE id LIKE 'demo-news-%'`,
+		`DELETE FROM news_taxonomy_terms WHERE id LIKE 'demo-category-%'`,
 		`DELETE FROM pages WHERE id LIKE 'demo-%'`,
 		`DELETE FROM members WHERE id='demo-member-portal'`,
 		`DELETE FROM media_assets WHERE id LIKE 'demo-media-%'`,
@@ -4351,6 +4371,90 @@ func cleanDemoData(ctx context.Context, db *sql.DB, dialect database.Dialect, me
 		}
 	}
 	return nil
+}
+
+type demoNewsSeed struct {
+	id, slug, title, excerpt, takeaways, category, author, coverMediaID, tags, body string
+	featured                                                                        bool
+}
+
+func localizeDemoNews(item demoNewsSeed, number int) demoNewsSeed {
+	item.slug = fmt.Sprintf("demo-story-%03d", number)
+	item.title = fmt.Sprintf("HydroGo Demo Story %02d", number)
+	item.excerpt = "A sample article created to demonstrate the HydroGo publishing workflow."
+	item.takeaways = "- Sample content for demonstrations\n- Safe to remove with hydro seed --clean"
+	item.category = "Demo updates"
+	item.author = "HydroGo Demo Team"
+	item.tags = "demo, hydrogo, example"
+	item.body = "This sample article demonstrates publishing, categories, and search in the HydroGo demo workspace. The content is synthetic and does not describe a customer or commercial offer."
+	return item
+}
+
+func seedDemoTaxonomy(ctx context.Context, db database.Executor, dialect database.Dialect, items []demoNewsSeed) error {
+	if len(items) == 0 {
+		return nil
+	}
+	categories := make(map[string]string)
+	for _, item := range items {
+		name := strings.TrimSpace(item.category)
+		if name != "" {
+			categories[name] = "demo-category-" + demoTaxonomySlug(name)
+		}
+	}
+	names := make([]string, 0, len(categories))
+	for name := range categories {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		id := categories[name]
+		labels, err := json.Marshal(map[string]string{"tr": demoCategoryTurkish(name), "en": name})
+		if err != nil {
+			return err
+		}
+		if err := seedExec(ctx, db, dialect,
+			`INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES ($1,$2,'category',NULL,$3) ON CONFLICT(id) DO UPDATE SET slug=EXCLUDED.slug,labels_json=EXCLUDED.labels_json`,
+			`INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,'category',NULL,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,labels_json=excluded.labels_json`, id, demoTaxonomySlug(name), string(labels)); err != nil {
+			return err
+		}
+	}
+	for _, item := range items {
+		categoryID := categories[strings.TrimSpace(item.category)]
+		if categoryID == "" {
+			continue
+		}
+		if err := seedExec(ctx, db, dialect,
+			`INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES ($1,$2) ON CONFLICT(content_id,term_id) DO NOTHING`,
+			`INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES (?,?) ON CONFLICT(content_id,term_id) DO NOTHING`, item.id, categoryID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func demoCategoryTurkish(english string) string {
+	if english == "Demo updates" {
+		return "Demo Güncellemeleri"
+	}
+	return english
+}
+
+func demoTaxonomySlug(value string) string {
+	var slug strings.Builder
+	separator := false
+	for _, char := range strings.ToLower(strings.TrimSpace(value)) {
+		switch {
+		case char >= 'a' && char <= 'z', char >= '0' && char <= '9':
+			slug.WriteRune(char)
+			separator = false
+		case char == ' ' || char == '-' || char == '_' || char == '/' || char == '&':
+			if slug.Len() > 0 && !separator {
+				slug.WriteByte('-')
+				separator = true
+			}
+		}
+	}
+	return strings.Trim(slug.String(), "-")
 }
 
 func seedExec(ctx context.Context, db database.Executor, dialect database.Dialect, postgresQuery, sqliteQuery string, args ...any) error {
