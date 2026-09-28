@@ -1,7 +1,9 @@
 package transport
 
 import (
+	"bytes"
 	"context"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +14,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/media"
+	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
@@ -76,6 +80,53 @@ func TestDynamicPublicFormNormalizesAndDeduplicatesSubmission(t *testing.T) {
 	values.Set("message", "Changed")
 	if response := submitRequest(handler, values); response.Code != http.StatusConflict {
 		t.Fatalf("conflicting replay status=%d", response.Code)
+	}
+}
+
+func TestJobFormStoresOnlyValidatedPrivateDocuments(t *testing.T) {
+	handler, db := submissionHandler(t, forms.Form{ID: "contact", Title: "Job application", Fields: []forms.Field{
+		{ID: "email", Type: forms.Email, Label: "Email", Required: true},
+		{ID: "cv", Type: forms.Document, Label: "CV", Required: true},
+	}})
+	uploader, err := media.NewUploader(filepath.Join(t.TempDir(), "documents"), 20<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.Media = &media.Service{Transactions: handler.Service.Transactions, Uploader: uploader, Assets: mediastore.Store{Dialect: database.SQLite}}
+	post := func(filename, content string) *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		_ = writer.WriteField("email", "candidate@example.test")
+		_ = writer.WriteField("_submission_token", "0123456789abcdef0123456789abcdef")
+		file, err := writer.CreateFormFile("cv", filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = file.Write([]byte(content))
+		_ = writer.Close()
+		req := httptest.NewRequest(http.MethodPost, "/forms/contact/submit", &body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.SetPathValue("form", "contact")
+		res := httptest.NewRecorder()
+		handler.submitForm(res, req)
+		return res
+	}
+	if got := post("candidate.pdf", "%PDF-1.7\nresume"); got.Code != http.StatusAccepted {
+		t.Fatalf("valid document submit = %d %s", got.Code, got.Body.String())
+	}
+	assets, err := (mediastore.Store{Dialect: database.SQLite}).List(context.Background(), db, 10)
+	if err != nil || len(assets) != 1 || assets[0].Visibility != media.VisibilityPrivate || assets[0].MimeType != "application/pdf" {
+		t.Fatalf("private assets=%#v err=%v", assets, err)
+	}
+	items, err := (sitestore.Store{Dialect: database.SQLite}).ListSubmissions(context.Background(), db, "contact", 10)
+	if err != nil || len(items) != 1 || !strings.Contains(items[0].Payload, assets[0].ID) {
+		t.Fatalf("submission payload=%#v err=%v", items, err)
+	}
+	if got := post("malware.exe", "%PDF-1.7"); got.Code != http.StatusBadRequest {
+		t.Fatalf("executable upload status=%d body=%s", got.Code, got.Body.String())
+	}
+	if got := post("fake.pdf", "not a pdf"); got.Code != http.StatusBadRequest {
+		t.Fatalf("invalid PDF upload status=%d", got.Code)
 	}
 }
 

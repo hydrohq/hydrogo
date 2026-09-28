@@ -137,6 +137,33 @@ func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) 
 	if err != nil {
 		return nil, err
 	}
+	return s.storeUpload(ctx, result)
+}
+
+// UploadPrivateDocument validates and stores an employment-form attachment as
+// private media with the document-specific size cap.
+func (s Service) UploadPrivateDocument(ctx context.Context, reader io.Reader, filename string) (*UploadResult, error) {
+	if s.Uploader == nil {
+		return nil, ErrUploaderRequired
+	}
+	if guards.IsNil(s.Assets) {
+		return nil, ErrAssetRepositoryRequired
+	}
+	result, err := s.Uploader.SaveDocumentContext(ctx, reader, filename, 10<<20)
+	if err != nil {
+		return nil, err
+	}
+	stored, err := s.storeUpload(ctx, result)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.MarkReady(ctx, stored.ID, VisibilityPrivate); err != nil {
+		return nil, err
+	}
+	return stored, nil
+}
+
+func (s Service) storeUpload(ctx context.Context, result *UploadResult) (*UploadResult, error) {
 	storageKey, err := StorageKeyForContext(ctx, filepath.Base(result.StoragePath))
 	if err != nil {
 		return nil, err

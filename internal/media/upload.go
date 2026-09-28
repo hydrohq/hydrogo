@@ -133,10 +133,29 @@ func (u *Uploader) Save(r io.Reader, originalFilename string) (*UploadResult, er
 }
 
 func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilename string) (*UploadResult, error) {
+	return u.saveContext(ctx, r, originalFilename, u.MaxBytes)
+}
+
+// SaveDocumentContext applies a bounded document limit without reducing the
+// configured limit for images and video.
+func (u *Uploader) SaveDocumentContext(ctx context.Context, r io.Reader, filename string, maxBytes int64) (*UploadResult, error) {
 	if u == nil {
 		return nil, ErrUploaderRequired
 	}
-	if strings.TrimSpace(u.StorageDir) == "" || u.MaxBytes <= 0 || u.MaxPixels <= 0 {
+	if !isDocumentFilename(filename) || maxBytes <= 0 {
+		return nil, ErrInvalidDocument
+	}
+	if maxBytes > u.MaxBytes {
+		maxBytes = u.MaxBytes
+	}
+	return u.saveContext(ctx, r, filename, maxBytes)
+}
+
+func (u *Uploader) saveContext(ctx context.Context, r io.Reader, originalFilename string, maxBytes int64) (*UploadResult, error) {
+	if u == nil {
+		return nil, ErrUploaderRequired
+	}
+	if strings.TrimSpace(u.StorageDir) == "" || maxBytes <= 0 || u.MaxPixels <= 0 {
 		return nil, ErrUploaderUnavailable
 	}
 	if r == nil {
@@ -153,13 +172,13 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 	}
 	defer u.release()
 	if u.QuotaGuard != nil {
-		if err := u.QuotaGuard.Check(u.StorageDir, u.MaxBytes); err != nil {
+		if err := u.QuotaGuard.Check(u.StorageDir, maxBytes); err != nil {
 			return nil, err
 		}
 	}
 
 	// 1. Create a bounded reader
-	lr := &io.LimitedReader{R: r, N: u.MaxBytes + 1}
+	lr := &io.LimitedReader{R: r, N: maxBytes + 1}
 
 	// 2. Read initial 512 bytes for MIME detection
 	header := make([]byte, 512)
@@ -176,6 +195,12 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 	}
 
 	ext, allowed := AllowedMimeTypes[detectedMime]
+	document := isDocumentFilename(originalFilename)
+	if document {
+		detectedMime = ContentTypeForDocument(originalFilename)
+		ext = path.Ext(strings.ToLower(originalFilename))
+		allowed = true
+	}
 	if !allowed {
 		return nil, fmt.Errorf("%w: %s", ErrDisallowedMimeType, detectedMime)
 	}
@@ -205,7 +230,7 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 	}
 
 	totalSize := int64(len(header)) + written
-	if totalSize > u.MaxBytes {
+	if totalSize > maxBytes {
 		return nil, ErrFileTooLarge
 	}
 
@@ -264,12 +289,24 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 			if err != nil {
 				return nil, err
 			}
-			if totalSize > u.MaxBytes {
+			if totalSize > maxBytes {
 				return nil, ErrFileTooLarge
 			}
 			if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
 				return nil, err
 			}
+		}
+	}
+	if document {
+		if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+		payload, err := io.ReadAll(io.LimitReader(tempFile, maxBytes+1))
+		if err != nil {
+			return nil, err
+		}
+		if err := ValidateDocument(originalFilename, payload, maxBytes); err != nil {
+			return nil, err
 		}
 	}
 

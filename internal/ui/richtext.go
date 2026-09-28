@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"encoding/json"
 	"html"
 	"strings"
@@ -59,6 +60,11 @@ func renderDelta(ops []deltaOp) string {
 	flush := func(attrs map[string]interface{}) {
 		text := line.String()
 		line.Reset()
+		if source, ok := safeVideoURL(html.UnescapeString(strings.TrimSpace(text))); ok {
+			closeList()
+			out.WriteString(videoEmbedHTML(source))
+			return
+		}
 		if text == "" && (attrs == nil || attrs["list"] == nil) {
 			return
 		}
@@ -102,6 +108,13 @@ func renderDelta(ops []deltaOp) string {
 	for _, op := range ops {
 		switch ins := op.Insert.(type) {
 		case string:
+			if link, ok := op.Attrs["link"].(string); ok && strings.TrimSpace(ins) == strings.TrimSpace(link) {
+				if source, valid := safeVideoURL(link); valid {
+					flush(op.Attrs)
+					out.WriteString(videoEmbedHTML(source))
+					continue
+				}
+			}
 			parts := strings.Split(ins, "\n")
 			for i, part := range parts {
 				line.WriteString(formatDeltaText(part, op.Attrs))
@@ -121,10 +134,24 @@ func renderDelta(ops []deltaOp) string {
 					line.WriteString(`<img src="` + html.EscapeString(imageSrc) + `" alt="Görsel" loading="lazy" class="richtext-image" />`)
 				}
 			}
+			if videoSrc, ok := ins["video"].(string); ok {
+				if source, valid := safeVideoURL(videoSrc); valid {
+					flush(nil)
+					out.WriteString(videoEmbedHTML(source))
+				}
+			}
 		}
 	}
 	flush(nil)
 	closeList()
+	return out.String()
+}
+
+func videoEmbedHTML(source string) string {
+	var out strings.Builder
+	if err := videoEmbed(source, "Embedded video").Render(context.Background(), &out); err != nil {
+		return ""
+	}
 	return out.String()
 }
 

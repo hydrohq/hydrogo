@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
@@ -29,6 +30,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
+	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
@@ -47,6 +49,7 @@ type Handler struct {
 	DB                database.Executor
 	Store             site.Store
 	Service           *site.Service
+	Media             *media.Service
 	SubmissionLimiter security.RateLimiter
 	AllowedForms      map[string]struct{}
 	FormsEnabled      bool
@@ -693,18 +696,35 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 		security.WriteRateLimitedResponse(w, "too many form submissions", time.Minute)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form submission", http.StatusBadRequest)
-		return
-	}
-	if honeypotFilled(r) {
-		w.WriteHeader(http.StatusAccepted)
-		return
-	}
 	form, err := h.publicForm(r.Context(), formKey)
 	if err != nil {
 		http.Error(w, "form not found", http.StatusNotFound)
+		return
+	}
+	maxBody := int64(64 << 10)
+	hasDocuments := false
+	for _, field := range form.Fields {
+		if field.Type == forms.Document {
+			hasDocuments = true
+			maxBody = 21 << 20
+		}
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+	var parseErr error
+	if hasDocuments {
+		parseErr = r.ParseMultipartForm(1 << 20)
+	} else {
+		parseErr = r.ParseForm()
+	}
+	if parseErr != nil {
+		http.Error(w, "invalid form submission", http.StatusBadRequest)
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+	if honeypotFilled(r) {
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 	if form.TurnstileEnabled {
@@ -725,11 +745,60 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 	values := make(map[string]string, len(form.Fields))
 	for _, field := range form.Fields {
 		values[field.ID] = r.PostForm.Get(field.ID)
+		if field.Type == forms.Document {
+			var files []*multipart.FileHeader
+			if r.MultipartForm != nil {
+				files = r.MultipartForm.File[field.ID]
+			}
+			if len(files) > 1 {
+				http.Error(w, "invalid form submission", http.StatusBadRequest)
+				return
+			}
+			if len(files) == 1 && strings.TrimSpace(files[0].Filename) != "" {
+				values[field.ID] = "pending-document"
+			}
+		}
 	}
 	clean, validation, err := form.NormalizeSubmission(values)
 	if err != nil || len(validation) != 0 {
 		http.Error(w, "invalid form submission", http.StatusBadRequest)
 		return
+	}
+	for _, field := range form.Fields {
+		if field.Type != forms.Document || values[field.ID] == "" {
+			continue
+		}
+		if h.Media == nil {
+			http.Error(w, "form temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if r.MultipartForm == nil || len(r.MultipartForm.File[field.ID]) != 1 {
+			continue
+		}
+		header := r.MultipartForm.File[field.ID][0]
+		file, openErr := header.Open()
+		if openErr != nil {
+			http.Error(w, "invalid form submission", http.StatusBadRequest)
+			return
+		}
+		asset, uploadErr := h.Media.UploadPrivateDocument(r.Context(), file, header.Filename)
+		_ = file.Close()
+		if uploadErr != nil {
+			status := http.StatusBadRequest
+			if errors.Is(uploadErr, media.ErrUploaderRequired) || errors.Is(uploadErr, media.ErrAssetRepositoryRequired) {
+				status = http.StatusServiceUnavailable
+			}
+			http.Error(w, "document upload failed", status)
+			return
+		}
+		values[field.ID] = asset.ID
+	}
+	if len(form.Fields) > 0 {
+		clean, validation, err = form.NormalizeSubmission(values)
+		if err != nil || len(validation) != 0 {
+			http.Error(w, "invalid form submission", http.StatusBadRequest)
+			return
+		}
 	}
 	email := ""
 	for _, field := range form.Fields {

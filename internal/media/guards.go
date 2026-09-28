@@ -14,6 +14,14 @@ import (
 
 var ErrInvalidDocument = errors.New("invalid document upload")
 
+func isDocumentFilename(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".pdf", ".doc", ".docx":
+		return true
+	}
+	return false
+}
+
 // ValidateDocument accepts bounded PDF, legacy DOC, and DOCX payloads by
 // extension and file signature. It does not render or execute document content.
 func ValidateDocument(filename string, data []byte, maxBytes int64) error {
