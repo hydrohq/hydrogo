@@ -784,6 +784,36 @@ func TestRunSchemaDiffAlias(t *testing.T) {
 	}
 }
 
+func TestRunDBDiffReportsPendingWithoutCreatingMigrationLedger(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "pending.sqlite")
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"db", "diff", "--database-dialect", "sqlite", "--database-dsn", dsn, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("db diff: %v stderr=%s", err, stderr.String())
+	}
+	var result struct {
+		Clean   bool     `json:"clean"`
+		Pending []string `json:"pending"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode db diff output %q: %v", stdout.String(), err)
+	}
+	if result.Clean || len(result.Pending) == 0 {
+		t.Fatalf("db diff result = %#v, want pending migrations", result)
+	}
+	db, err := database.Open(context.Background(), database.SQLite, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var hasLedger bool
+	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations')`).Scan(&hasLedger); err != nil {
+		t.Fatal(err)
+	}
+	if hasLedger {
+		t.Fatal("read-only db diff created the migration ledger")
+	}
+}
+
 func TestRunPermissionsCheck(t *testing.T) {
 	root := t.TempDir()
 	specPath := filepath.Join(root, "article.yaml")

@@ -221,6 +221,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return frontendCommand(args[1:], stdout, stderr)
 	case "schema":
 		return schemaCommand(args[1:], stdout, stderr)
+	case "db":
+		return dbCommand(args[1:], stdout, stderr)
 	case "permissions":
 		return permissionsCommand(args[1:], stdout, stderr)
 	case "doctor":
@@ -505,6 +507,57 @@ func schemaCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, "schema-compatible added=%d removed=%d changed=%d\n", len(diff.Added), len(diff.Removed), len(diff.Changed))
+	return err
+}
+
+// dbCommand inspects the migration ledger without applying or creating
+// migrations. It checks source checksums and reports the currently pending
+// migration IDs using the same module selection as hydro migrate.
+func dbCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 || args[0] != "diff" {
+		return errors.New("db requires the diff subcommand")
+	}
+	flags := flag.NewFlagSet("db diff", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	jsonOutput := flags.Bool("json", false, "Emit the migration comparison as JSON")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	pending, err := database.PendingMigrations(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
+	if err != nil {
+		return err
+	}
+	sort.Strings(pending)
+	if *jsonOutput {
+		return json.NewEncoder(stdout).Encode(struct {
+			Clean   bool     `json:"clean"`
+			Pending []string `json:"pending"`
+		}{Clean: len(pending) == 0, Pending: pending})
+	}
+	if len(pending) == 0 {
+		_, err = fmt.Fprintln(stdout, "schema-diff clean")
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "schema-diff pending=%s\n", strings.Join(pending, ","))
 	return err
 }
 
