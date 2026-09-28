@@ -3,12 +3,15 @@ module: "search"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "69fc5c805a40fd91b27c62ce9b271e3816267ad4b18210d7abf488d3219a01b3"
   postgres: "69fc5c805a40fd91b27c62ce9b271e3816267ad4b18210d7abf488d3219a01b3"
+  mysql: "c2faaf8a25559289750ad72335ecf1138307ead150a0be7dc46230ac58c3705a"
 dependencies: []
 schema:
   readable_epoch: 1

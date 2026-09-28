@@ -1,0 +1,1 @@
+ALTER TABLE commerce_products ADD COLUMN media_id VARCHAR(128) NOT NULL DEFAULT '';
