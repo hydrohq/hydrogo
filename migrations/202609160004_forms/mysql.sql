@@ -1,0 +1,6 @@
+CREATE TABLE hydro_forms (
+    id VARCHAR(128) PRIMARY KEY,
+    title VARCHAR(256) NOT NULL,
+    schema_json LONGTEXT NOT NULL,
+    updated_at DATETIME(6) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -3,12 +3,15 @@ module: "site"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "38e0f49c3ff2aa76e3bbf78545c4db6f44683d299c5c8312c246c820aa92e522"
   postgres: "38e0f49c3ff2aa76e3bbf78545c4db6f44683d299c5c8312c246c820aa92e522"
+  mysql: "da37205b9d4f49b822357b92407eda6cbffc8c083dc243135a105daeea7d451c"
 dependencies:
   - "202609080009_site_edition"
 schema:

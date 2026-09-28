@@ -3,12 +3,15 @@ module: "pages"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "67e95668464db3771829ec2dffe5eed7b37cf450f0eb2f159d725d7f282f8c81"
   postgres: "67e95668464db3771829ec2dffe5eed7b37cf450f0eb2f159d725d7f282f8c81"
+  mysql: "55a9d7e85c80dcaea86f974af5cdaec9ffc90291c16ac469c6d047e99672af60"
 dependencies:
   - "202609100006_outbox_delivery"
 schema:
