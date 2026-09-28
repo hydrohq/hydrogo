@@ -37,6 +37,19 @@ database:
 	}
 }
 
+func TestLoadSentryDSNFromEnvironment(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:sentry.sqlite", "HYDRO_SENTRY_DSN": "https://public@example.test/7"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Observability.SentryDSN != "https://public@example.test/7" {
+		t.Fatalf("Sentry DSN = %q", cfg.Observability.SentryDSN)
+	}
+	if _, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:sentry.sqlite", "HYDRO_SENTRY_DSN": strings.Repeat("x", 4097)}), Overrides{}); err == nil || !strings.Contains(err.Error(), "Sentry") {
+		t.Fatalf("oversized Sentry DSN error = %v", err)
+	}
+}
+
 func TestLoadNormalizesModuleNamesBeforeRuntimeComposition(t *testing.T) {
 	path := writeConfig(t, "modules: [ Core, ' pages ', MEDIA ]\n")
 	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})

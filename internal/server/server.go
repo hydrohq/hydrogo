@@ -41,6 +41,8 @@ type Config struct {
 	AnomalyFilterEnabled       bool
 	AnomalyBypassPaths         []string
 	OnSecurityAnomaly          func(*http.Request, string)
+	OnPanic                    func(context.Context, *http.Request, string, []byte)
+	OnHTTPError                func(*http.Request, int)
 	SecureCookie               bool
 	HTTPBodyLimit              int64
 	PublicOrigin               string
@@ -173,7 +175,8 @@ func NewHandler(config Config) http.Handler {
 		Enabled: config.AnomalyFilterEnabled, MaxBodyBytes: config.HTTPBodyLimit,
 		BypassPaths: config.AnomalyBypassPaths, OnDetect: config.OnSecurityAnomaly,
 	})(handler)
-	handler = security.RecoveryMiddleware(config.Logger)(handler)
+	handler = security.RecoveryMiddlewareWithObserver(config.Logger, config.OnPanic)(handler)
+	handler = observability.HTTPErrorMiddleware(config.OnHTTPError)(handler)
 
 	// Normalize handler errors after the body limit and before the request ID
 	// middleware so even middleware-generated errors include request_id.

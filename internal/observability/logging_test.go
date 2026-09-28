@@ -15,6 +15,25 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+func TestHTTPErrorMiddlewareCapturesFiveHundredAndDeduplicatesRecovery(t *testing.T) {
+	var statuses []int
+	observer := func(_ *http.Request, status int) { statuses = append(statuses, status) }
+	normal := HTTPErrorMiddleware(observer)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "internal", http.StatusInternalServerError)
+	}))
+	normal.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+	if len(statuses) != 1 || statuses[0] != http.StatusInternalServerError {
+		t.Fatalf("statuses=%v", statuses)
+	}
+	statuses = nil
+	panicHandler := HTTPErrorMiddleware(observer)(security.RecoveryMiddlewareWithObserver(nil, func(context.Context, *http.Request, string, []byte) {})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("secret") })))
+	response := httptest.NewRecorder()
+	panicHandler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+	if len(statuses) != 0 || response.Header().Get("X-Hydro-Recovered-Panic") != "" {
+		t.Fatalf("panic was duplicated or marker leaked: statuses=%v headers=%v", statuses, response.Header())
+	}
+}
+
 func TestBoundedPathCapsLogField(t *testing.T) {
 	path := make([]byte, maxLoggedPathBytes+20)
 	for i := range path {

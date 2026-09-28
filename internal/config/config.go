@@ -37,6 +37,7 @@ type Config struct {
 	Forms           Forms            `yaml:"forms"`
 	SEO             SEO              `yaml:"seo"`
 	Analytics       Analytics        `yaml:"analytics"`
+	Observability   Observability    `yaml:"observability"`
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
@@ -141,6 +142,12 @@ type SEO struct {
 type Analytics struct {
 	NoCookieEnabled bool   `yaml:"no_cookie_enabled"`
 	HashKey         string `yaml:"hash_key"`
+}
+
+// Observability integrations are inactive by default and accept only operator
+// configured endpoints. DSNs are never returned by config summaries.
+type Observability struct {
+	SentryDSN string `yaml:"sentry_dsn"`
 }
 
 type Redis struct {
@@ -385,6 +392,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_ANALYTICS_HASH_KEY"); ok && value != "" {
 		result.Analytics.HashKey = value
+	}
+	if value, ok := lookup("HYDRO_SENTRY_DSN"); ok && value != "" {
+		result.Observability.SentryDSN = value
 	}
 	dsnSources := 0
 	if result.Database.DSN != "" {
@@ -678,6 +688,9 @@ func (c Config) Validate() error {
 	}
 	if len(c.Analytics.HashKey) > 4096 || strings.ContainsAny(c.Analytics.HashKey, "\r\n\x00") {
 		return errors.New("analytics hash key is invalid")
+	}
+	if len(c.Observability.SentryDSN) > 4096 || strings.ContainsAny(c.Observability.SentryDSN, "\r\n\x00") {
+		return errors.New("Sentry configuration is invalid")
 	}
 	if c.Analytics.NoCookieEnabled {
 		analyticsModule := false
