@@ -101,6 +101,153 @@ func PostgresSchemaDiff(ctx context.Context, live *sql.DB, migrations fs.FS, ena
 	return changes, nil
 }
 
+// MySQLSchemaDiff builds the selected migration state in a temporary database,
+// compares its catalog with the live database, and removes the temporary
+// database before returning. The configured database user needs CREATE/DROP
+// DATABASE privileges for this inspection.
+func MySQLSchemaDiff(ctx context.Context, live *sql.DB, migrations fs.FS, enabled map[string]bool) (changes []SchemaChange, resultErr error) {
+	if live == nil {
+		return nil, ErrDatabaseRequired
+	}
+	ctx = nonNilContext(ctx)
+	conn, err := live.Conn(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("open schema inspection connection: %w", err)
+	}
+	defer conn.Close()
+	var original sql.NullString
+	if err := conn.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&original); err != nil {
+		return nil, fmt.Errorf("read MySQL schema inspection database: %w", err)
+	}
+	var suffix [12]byte
+	if _, err := rand.Read(suffix[:]); err != nil {
+		return nil, fmt.Errorf("create temporary schema inspection name: %w", err)
+	}
+	schema := "hydro_diff_" + hex.EncodeToString(suffix[:])
+	if _, err := conn.ExecContext(ctx, "CREATE DATABASE "+quoteMySQLIdentifier(schema)); err != nil {
+		return nil, fmt.Errorf("create temporary schema inspection database: %w", err)
+	}
+	defer func() {
+		if original.Valid {
+			if _, err := conn.ExecContext(context.Background(), "USE "+quoteMySQLIdentifier(original.String)); err != nil {
+				resultErr = errors.Join(resultErr, fmt.Errorf("restore MySQL inspection database: %w", err))
+			}
+		}
+		if _, err := conn.ExecContext(context.Background(), "DROP DATABASE "+quoteMySQLIdentifier(schema)); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove temporary schema inspection database: %w", err))
+		}
+	}()
+	if _, err := conn.ExecContext(ctx, "USE "+quoteMySQLIdentifier(schema)); err != nil {
+		return nil, fmt.Errorf("select temporary schema inspection database: %w", err)
+	}
+	if err := applyMigrationsOnConnection(ctx, conn, MySQL, migrations, enabled, false); err != nil {
+		return nil, fmt.Errorf("build migration reference schema: %w", err)
+	}
+	want, err := mysqlCatalog(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+	if original.Valid {
+		if _, err := conn.ExecContext(ctx, "USE "+quoteMySQLIdentifier(original.String)); err != nil {
+			return nil, fmt.Errorf("restore MySQL inspection database: %w", err)
+		}
+	}
+	got, err := mysqlCatalog(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+	return compareSchemaCatalogs(want, got), nil
+}
+
+func quoteMySQLIdentifier(value string) string {
+	return "`" + strings.ReplaceAll(value, "`", "``") + "`"
+}
+
+func mysqlCatalog(ctx context.Context, db interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}) (map[string]string, error) {
+	result := make(map[string]string)
+	rows, err := db.QueryContext(ctx, `SELECT table_name,table_type FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type IN ('BASE TABLE','VIEW')`)
+	if err != nil {
+		return nil, fmt.Errorf("inspect MySQL tables: %w", err)
+	}
+	for rows.Next() {
+		var name, kind string
+		if err := rows.Scan(&name, &kind); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		result[strings.ToLower(kind)+":"+name] = kind
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	rows, err = db.QueryContext(ctx, `SELECT table_name,column_name,column_type,is_nullable,COALESCE(column_default,''),extra,ordinal_position FROM information_schema.columns WHERE table_schema=DATABASE() ORDER BY table_name,ordinal_position`)
+	if err != nil {
+		return nil, fmt.Errorf("inspect MySQL columns: %w", err)
+	}
+	for rows.Next() {
+		var table, name, columnType, nullable, defaultValue, extra string
+		var position int64
+		if err := rows.Scan(&table, &name, &columnType, &nullable, &defaultValue, &extra, &position); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		result["column:"+table+"."+name] = fmt.Sprintf("%s|%s|%s|%s|%d", strings.ToLower(columnType), nullable, defaultValue, extra, position)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	rows, err = db.QueryContext(ctx, `SELECT table_name,index_name,non_unique,seq_in_index,column_name,COALESCE(sub_part,0),index_type FROM information_schema.statistics WHERE table_schema=DATABASE() ORDER BY table_name,index_name,seq_in_index`)
+	if err != nil {
+		return nil, fmt.Errorf("inspect MySQL indexes: %w", err)
+	}
+	for rows.Next() {
+		var table, name, column, indexType string
+		var nonUnique, position, prefix int64
+		if err := rows.Scan(&table, &name, &nonUnique, &position, &column, &prefix, &indexType); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		key := "index:" + table + "." + name
+		entry := fmt.Sprintf("%d|%d|%s|%d|%s", nonUnique, position, column, prefix, strings.ToLower(indexType))
+		result[key] = result[key] + ";" + entry
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	rows, err = db.QueryContext(ctx, `SELECT k.table_name,k.constraint_name,k.column_name,k.referenced_table_name,k.referenced_column_name,k.ordinal_position,r.update_rule,r.delete_rule FROM information_schema.key_column_usage k JOIN information_schema.referential_constraints r ON r.constraint_schema=k.constraint_schema AND r.constraint_name=k.constraint_name AND r.table_name=k.table_name WHERE k.table_schema=DATABASE() AND k.referenced_table_name IS NOT NULL ORDER BY k.table_name,k.constraint_name,k.ordinal_position`)
+	if err != nil {
+		return nil, fmt.Errorf("inspect MySQL foreign keys: %w", err)
+	}
+	for rows.Next() {
+		var table, name, column, refTable, refColumn, updateRule, deleteRule string
+		var position int64
+		if err := rows.Scan(&table, &name, &column, &refTable, &refColumn, &position, &updateRule, &deleteRule); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		key := "constraint:" + table + "." + name
+		entry := fmt.Sprintf("%d|%s|%s|%s|%s|%s", position, column, refTable, refColumn, strings.ToUpper(updateRule), strings.ToUpper(deleteRule))
+		result[key] = result[key] + ";" + entry
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	return result, nil
+}
+
 func sqliteCatalog(ctx context.Context, db *sql.DB) (map[string]string, error) {
 	rows, err := db.QueryContext(ctx, `SELECT type,name,COALESCE(sql,'') FROM sqlite_master WHERE type IN ('table','index','view','trigger') AND name NOT LIKE 'sqlite_%'`)
 	if err != nil {

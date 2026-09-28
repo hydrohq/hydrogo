@@ -118,6 +118,58 @@ func TestMySQLNavigationMigrationContract(t *testing.T) {
 	}
 }
 
+func TestMySQLSchemaDiffFindsPhysicalDrift(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_MYSQL_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_MYSQL_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.MySQL, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var tableCount int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()`).Scan(&tableCount); err != nil {
+		t.Fatal(err)
+	}
+	if tableCount != 0 {
+		t.Skip("schema diff contract requires an empty dedicated MySQL database")
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE parent (id VARCHAR(64) PRIMARY KEY, name VARCHAR(64) NOT NULL) ENGINE=InnoDB`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE child (id VARCHAR(64) PRIMARY KEY, parent_id VARCHAR(64) NOT NULL) ENGINE=InnoDB`); err != nil {
+		t.Fatal(err)
+	}
+	defer db.ExecContext(context.Background(), "DROP TABLE IF EXISTS child")
+	defer db.ExecContext(context.Background(), "DROP TABLE IF EXISTS parent")
+	bundle := fstest.MapFS{
+		"001_reference/migration.yaml": &fstest.MapFile{Data: []byte("module: core\nclass:\n  mysql: expand\ntransactional:\n  mysql: false\n")},
+		"001_reference/mysql.sql":      &fstest.MapFile{Data: []byte("CREATE TABLE parent (id VARCHAR(64) PRIMARY KEY, name VARCHAR(128) NOT NULL) ENGINE=InnoDB; CREATE INDEX idx_parent_name ON parent(name); CREATE TABLE child (id VARCHAR(64) PRIMARY KEY, parent_id VARCHAR(64) NOT NULL, CONSTRAINT fk_child_parent FOREIGN KEY (parent_id) REFERENCES parent(id)) ENGINE=InnoDB")},
+	}
+	changes, err := database.MySQLSchemaDiff(ctx, db, bundle, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{
+		"definition_mismatch:column:parent.name":   false,
+		"missing:index:parent.idx_parent_name":     false,
+		"missing:constraint:child.fk_child_parent": false,
+	}
+	for _, change := range changes {
+		key := change.Kind + ":" + change.Object + ":" + change.Name
+		if _, ok := want[key]; ok {
+			want[key] = true
+		}
+	}
+	for key, found := range want {
+		if !found {
+			t.Errorf("schema diff missing %s; got %#v", key, changes)
+		}
+	}
+}
+
 func TestMySQLMigrationRunnerContract(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_MYSQL_URL")
 	if dsn == "" {
