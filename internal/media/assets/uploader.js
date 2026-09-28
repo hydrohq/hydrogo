@@ -42,6 +42,7 @@
         const data = new FormData();
         data.append('file', item.file, item.file.name);
         data.append('visibility', form.elements.visibility.value);
+        data.append('folder_id', form.elements.folder_id.value);
         data.append('_csrf', form.elements._csrf.value);
         xhr.send(data);
         function failed() {

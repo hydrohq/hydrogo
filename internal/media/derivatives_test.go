@@ -1,6 +1,7 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"image"
@@ -60,7 +61,7 @@ func TestOptimizerMarksEncoderFailure(t *testing.T) {
 		variants:  repo,
 	}
 
-	optimizer.process(Asset{ID: "asset-1", StorageKey: "asset.png", MimeType: "image/png"})
+	optimizer.process(optimizeJob{asset: Asset{ID: "asset-1", StorageKey: "asset.png", MimeType: "image/png"}})
 
 	if len(repo.created) != 1 || repo.created[0].Status != "processing" {
 		t.Fatalf("created variants = %#v, want one processing variant", repo.created)
@@ -74,7 +75,7 @@ func TestOptimizerMarksEncoderFailure(t *testing.T) {
 }
 
 func TestOptimizerQueueIsBoundedAndNonBlocking(t *testing.T) {
-	optimizer := &Optimizer{queue: make(chan Asset, variantQueueCapacity)}
+	optimizer := &Optimizer{queue: make(chan optimizeJob, variantQueueCapacity)}
 	for i := 0; i < variantQueueCapacity+3; i++ {
 		optimizer.Enqueue(Asset{ID: string(rune('a' + i))})
 	}
@@ -84,7 +85,7 @@ func TestOptimizerQueueIsBoundedAndNonBlocking(t *testing.T) {
 }
 
 func TestOptimizerCloseIsIdempotentAndRejectsLateEnqueue(t *testing.T) {
-	optimizer := &Optimizer{queue: make(chan Asset, 1)}
+	optimizer := &Optimizer{queue: make(chan optimizeJob, 1)}
 	optimizer.Close()
 	optimizer.Close()
 	optimizer.Enqueue(Asset{ID: "late"})
@@ -134,5 +135,72 @@ func TestImageTransformProducesPureGoWebP(t *testing.T) {
 	_ = out.Close()
 	if err != nil || decoded.Bounds().Dx() != 3 || decoded.Bounds().Dy() != 2 {
 		t.Fatalf("WebP output decode = %v, error %v", decoded, err)
+	}
+}
+
+func TestWatermarkedDerivativeLeavesMasterIntact(t *testing.T) {
+	dir := t.TempDir()
+	input := filepath.Join(dir, "master.png")
+	master := image.NewRGBA(image.Rect(0, 0, 160, 80))
+	for y := 0; y < 80; y++ {
+		for x := 0; x < 160; x++ {
+			master.Set(x, y, color.RGBA{R: 110, G: 120, B: 130, A: 255})
+		}
+	}
+	file, err := os.Create(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := png.Encode(file, master); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.ReadFile(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := (ffmpegTransformer{storageDir: dir}).transformImage(context.Background(), input, "plain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	marked, err := (ffmpegTransformer{storageDir: dir, watermark: &WatermarkOptions{Text: "© HydroGo", Position: "bottom-right", Opacity: .6, Margin: 8}}).transformImage(context.Background(), input, "marked")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.Key == marked.Key {
+		t.Fatal("derivative keys should be distinct")
+	}
+	if after, err := os.ReadFile(input); err != nil || !bytes.Equal(after, original) {
+		t.Fatal("watermarking changed the master image")
+	}
+	decode := func(key string) image.Image {
+		f, err := os.Open(filepath.Join(dir, key))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		img, err := webp.Decode(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return img
+	}
+	plainImage, markedImage := decode(plain.Key), decode(marked.Key)
+	different := false
+	for y := 0; y < 80 && !different; y++ {
+		for x := 0; x < 160; x++ {
+			pr, pg, pb, pa := plainImage.At(x, y).RGBA()
+			mr, mg, mb, ma := markedImage.At(x, y).RGBA()
+			if pr != mr || pg != mg || pb != mb || pa != ma {
+				different = true
+				break
+			}
+		}
+	}
+	if !different {
+		t.Fatal("watermarked derivative is identical to plain derivative")
 	}
 }

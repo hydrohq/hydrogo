@@ -3,6 +3,8 @@ package media
 import (
 	"context"
 	"errors"
+	"image"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,6 +50,24 @@ type AssetMetadata struct {
 	Focal    FocalPoint `json:"focal_point"`
 	FolderID string     `json:"folder_id,omitempty"`
 	Tags     []string   `json:"tags,omitempty"`
+}
+
+// AdminSettings are tenant-scoped controls for media derivatives and delivery.
+type AdminSettings struct {
+	HotlinkProtection   bool     `json:"hotlink_protection"`
+	AllowedRefererHosts []string `json:"allowed_referer_hosts"`
+	WatermarkEnabled    bool     `json:"watermark_enabled"`
+	WatermarkText       string   `json:"watermark_text"`
+	WatermarkPosition   string   `json:"watermark_position"`
+	WatermarkOpacity    float64  `json:"watermark_opacity"`
+	WatermarkMargin     int      `json:"watermark_margin"`
+	WatermarkLogoID     string   `json:"watermark_logo_id,omitempty"`
+	WatermarkFolders    []string `json:"watermark_folders,omitempty"`
+}
+
+type AdminSettingsRepository interface {
+	LoadAdminSettings(context.Context, database.Executor) (AdminSettings, bool, error)
+	SaveAdminSettings(context.Context, database.Executor, AdminSettings) error
 }
 
 func (s Service) SetMetadata(ctx context.Context, id string, metadata AssetMetadata) error {
@@ -121,9 +141,11 @@ type Service struct {
 	Uploader     *Uploader
 	// BlobStore is optional. When set, immutable objects are written to and
 	// served from the configured provider-neutral object store.
-	BlobStore BlobStore
-	Assets    AssetRepository
-	Optimizer *Optimizer
+	BlobStore        BlobStore
+	Assets           AssetRepository
+	Optimizer        *Optimizer
+	AdminSettings    AdminSettingsRepository
+	DefaultWatermark *WatermarkOptions
 }
 
 func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) (*UploadResult, error) {
@@ -203,15 +225,78 @@ func (s Service) MarkReady(ctx context.Context, id, visibility string) error {
 	if guards.IsNil(s.Assets) {
 		return ErrAssetRepositoryRequired
 	}
+	var asset Asset
+	var watermark *WatermarkOptions
+	if s.Optimizer != nil {
+		var err error
+		asset, err = s.Get(ctx, s.Optimizer.db, id)
+		if err != nil {
+			return err
+		}
+		watermark = s.DefaultWatermark
+		if s.AdminSettings != nil {
+			settings, found, settingsErr := s.AdminSettings.LoadAdminSettings(ctx, s.Optimizer.db)
+			if settingsErr != nil {
+				return settingsErr
+			}
+			if found {
+				watermark = nil
+				folderSelected := len(settings.WatermarkFolders) == 0
+				for _, folderID := range settings.WatermarkFolders {
+					if folderID == asset.FolderID {
+						folderSelected = true
+						break
+					}
+				}
+				if strings.HasPrefix(asset.MimeType, "image/") && settings.WatermarkEnabled && (settings.WatermarkText != "" || settings.WatermarkLogoID != "") && folderSelected {
+					opacity := settings.WatermarkOpacity
+					if opacity == 0 {
+						opacity = .6
+					}
+					watermark = &WatermarkOptions{Text: settings.WatermarkText, Position: settings.WatermarkPosition, Opacity: opacity, Margin: settings.WatermarkMargin}
+					if settings.WatermarkLogoID != "" {
+						watermark.Logo, err = s.loadWatermarkLogo(ctx, settings.WatermarkLogoID)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+	}
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		return s.Assets.MarkReady(ctx, tx, id, visibility)
 	})
 	if err == nil && s.Optimizer != nil {
-		if asset, getErr := s.Get(ctx, s.Optimizer.db, id); getErr == nil {
-			s.Optimizer.Enqueue(asset)
-		}
+		s.Optimizer.EnqueueWithWatermark(asset, watermark)
 	}
 	return err
+}
+
+func (s Service) loadWatermarkLogo(ctx context.Context, id string) (image.Image, error) {
+	asset, err := s.Get(ctx, s.Optimizer.db, id)
+	if err != nil || asset.Status != "ready" || asset.MimeType != "image/png" || asset.SizeBytes <= 0 || asset.SizeBytes > 2<<20 {
+		return nil, errors.New("configured watermark logo is unavailable")
+	}
+	var reader io.ReadCloser
+	if s.BlobStore != nil {
+		reader, err = s.BlobStore.Get(ctx, asset.StorageKey)
+	} else if s.Uploader != nil {
+		reader, err = os.Open(filepath.Join(s.Uploader.StorageDir, filepath.Base(asset.StorageKey)))
+	}
+	if err != nil || reader == nil {
+		return nil, errors.New("configured watermark logo is unavailable")
+	}
+	defer reader.Close()
+	logo, err := png.Decode(io.LimitReader(reader, 2<<20))
+	if err != nil {
+		return nil, errors.New("configured watermark logo is invalid")
+	}
+	bounds := logo.Bounds()
+	if bounds.Dx() < 1 || bounds.Dy() < 1 || int64(bounds.Dx())*int64(bounds.Dy()) > 16_000_000 {
+		return nil, errors.New("configured watermark logo dimensions exceed limit")
+	}
+	return logo, nil
 }
 
 // CompleteQuarantineUpload verifies the provider object before promoting a

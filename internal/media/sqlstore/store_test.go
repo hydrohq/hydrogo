@@ -70,6 +70,63 @@ func TestScopedMediaMetadataCannotCrossTenant(t *testing.T) {
 	}
 }
 
+func TestMediaAdminSettingsAreTenantScoped(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, "file:media-admin-settings?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	alpha, _ := tenant.NewScope("settings-a", "alpha")
+	beta, _ := tenant.NewScope("settings-b", "beta")
+	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
+	want := media.AdminSettings{HotlinkProtection: true, AllowedRefererHosts: []string{"assets.example"}, WatermarkEnabled: true, WatermarkText: "© Alpha", WatermarkOpacity: .45, WatermarkLogoID: "logo-asset", WatermarkFolders: []string{"folder-a"}}
+	if err := store.SaveAdminSettings(tenant.WithScope(ctx, alpha), db, want); err != nil {
+		t.Fatal(err)
+	}
+	got, found, err := store.LoadAdminSettings(tenant.WithScope(ctx, alpha), db)
+	if err != nil || !found || got.WatermarkText != want.WatermarkText || !got.HotlinkProtection || got.WatermarkLogoID != "logo-asset" || len(got.WatermarkFolders) != 1 || got.WatermarkFolders[0] != "folder-a" {
+		t.Fatalf("alpha settings = %+v, found=%v err=%v", got, found, err)
+	}
+	if _, found, err := store.LoadAdminSettings(tenant.WithScope(ctx, beta), db); err != nil || found {
+		t.Fatalf("beta settings found=%v err=%v", found, err)
+	}
+}
+
+func TestPendingUploadCanBeAssignedToWatermarkedFolderBeforeReady(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, "file:media-pending-folder?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Dialect: database.SQLite}
+	folder, _ := media.NewFolder("Photos", "")
+	if err := store.CreateFolder(ctx, db, folder); err != nil {
+		t.Fatal(err)
+	}
+	asset := media.Asset{ID: "pending-image", StorageKey: "sha256/master.png", OriginalFilename: "master.png", MimeType: "image/png", SizeBytes: 64}
+	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error { return store.CreatePending(ctx, tx, asset) }); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetMetadata(ctx, db, asset.ID, media.AssetMetadata{Focal: media.FocalPoint{X: .5, Y: .5}, FolderID: folder.ID}); err != nil {
+		t.Fatalf("set pending upload folder: %v", err)
+	}
+	if err := store.MarkReady(ctx, db, asset.ID, media.VisibilityPublic); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Get(ctx, db, asset.ID)
+	if err != nil || got.FolderID != folder.ID || got.StorageKey != asset.StorageKey {
+		t.Fatalf("ready upload = %+v err=%v", got, err)
+	}
+}
+
 func TestMediaStoreFailClosedWithoutTenantScope(t *testing.T) {
 	store := Store{Dialect: database.SQLite, RequireTenantScope: true}
 	if err := store.CreatePending(context.Background(), nil, media.Asset{ID: "id"}); !errors.Is(err, tenant.ErrMissingScope) {

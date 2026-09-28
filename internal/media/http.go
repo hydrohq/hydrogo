@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -23,6 +25,10 @@ type HTTPHandler struct {
 	HotlinkProtection   bool
 	CanonicalOrigin     string
 	AllowedRefererHosts []string
+	SettingsRepository  AdminSettingsRepository
+	SettingsCache       *AdminSettingsCache
+	SettingsDefaults    AdminSettings
+	RequireTenantScope  bool
 }
 
 type HTTPRoute struct {
@@ -33,11 +39,18 @@ type HTTPRoute struct {
 
 const multipartOverheadBytes int64 = 1 << 20
 
+type mediaSettingsContextKey struct{}
+
 func (h HTTPHandler) Routes() []HTTPRoute {
-	serve := http.Handler(http.HandlerFunc(h.serve))
-	if h.HotlinkProtection {
-		serve = HotlinkGuard(h.CanonicalOrigin, h.AllowedRefererHosts, serve)
-	}
+	serve := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		settings, err := h.adminSettings(r.Context())
+		if err != nil {
+			http.Error(w, "media settings unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), mediaSettingsContextKey{}, settings))
+		h.serve(w, r)
+	})
 	return []HTTPRoute{
 		{Pattern: "GET /api/media", Protected: true, Handler: http.HandlerFunc(h.list)},
 		{Pattern: "GET /api/media/folders", Protected: true, Handler: http.HandlerFunc(h.folders)},
@@ -48,6 +61,20 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /api/media/{id}/ready", Protected: true, Handler: http.HandlerFunc(h.ready)},
 		{Pattern: "GET /media/{id}", Handler: serve},
 	}
+}
+
+func (h HTTPHandler) adminSettings(ctx context.Context) (AdminSettings, error) {
+	defaults := h.SettingsDefaults
+	if !defaults.HotlinkProtection && h.HotlinkProtection {
+		defaults.HotlinkProtection = true
+	}
+	if len(defaults.AllowedRefererHosts) == 0 {
+		defaults.AllowedRefererHosts = append([]string(nil), h.AllowedRefererHosts...)
+	}
+	settings, err := h.SettingsCache.Load(ctx, h.RequireTenantScope, defaults, h.SettingsRepository, h.DB)
+	if settings.WatermarkOpacity == 0 { settings.WatermarkOpacity = .6 }
+	if settings.WatermarkPosition == "" { settings.WatermarkPosition = "bottom-right" }
+	return settings, err
 }
 
 func (h HTTPHandler) folders(w http.ResponseWriter, r *http.Request) {
@@ -170,16 +197,47 @@ func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	settings, _ := r.Context().Value(mediaSettingsContextKey{}).(AdminSettings)
+	serveAsset := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { h.serveAsset(w, r, asset, settings) }))
+	if settings.HotlinkProtection && (strings.HasPrefix(asset.MimeType, "image/") || isDocumentFilename(asset.OriginalFilename)) {
+		HotlinkGuard(h.CanonicalOrigin, settings.AllowedRefererHosts, serveAsset).ServeHTTP(w, r)
+		return
+	}
+	serveAsset.ServeHTTP(w, r)
+}
+
+func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset Asset, settings AdminSettings) {
+	watermarked := strings.HasPrefix(asset.MimeType, "image/") && settings.WatermarkEnabled && (settings.WatermarkText != "" || settings.WatermarkLogoID != "")
+	if watermarked && len(settings.WatermarkFolders) > 0 {
+		watermarked = false
+		for _, folderID := range settings.WatermarkFolders {
+			if folderID == asset.FolderID {
+				watermarked = true
+				break
+			}
+		}
+	}
 	if asset.Visibility == VisibilityPrivate && isDocumentFilename(asset.OriginalFilename) {
 		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeOriginalFilename(asset.OriginalFilename)}))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 	}
 	storageKey, mimeType := asset.StorageKey, asset.MimeType
-	if kind := r.URL.Query().Get("variant"); kind != "" && h.Service.Assets != nil {
+	kind := r.URL.Query().Get("variant")
+	if kind == "" && watermarked && !editorAllowed(r) {
+		kind = VariantCard
+	}
+	if kind != "" && h.Service.Assets != nil {
 		if repo, ok := h.Service.Assets.(DerivativeRepository); ok {
 			if variant, variantErr := repo.GetReady(r.Context(), h.DB, asset.ID, kind); variantErr == nil {
 				storageKey, mimeType = variant.StorageKey, variant.MimeType
+			} else if watermarked && !editorAllowed(r) {
+				w.Header().Set("Retry-After", "3")
+				http.Error(w, "image processing in progress", http.StatusServiceUnavailable)
+				return
 			}
+		} else if watermarked && !editorAllowed(r) {
+			http.Error(w, "image processing in progress", http.StatusServiceUnavailable)
+			return
 		}
 	}
 	if h.Service.BlobStore != nil {

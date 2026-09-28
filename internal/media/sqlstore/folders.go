@@ -129,7 +129,7 @@ func (s Store) SetMetadata(ctx context.Context, db database.Executor, id string,
 	if metadata.FolderID != "" {
 		folder = metadata.FolderID
 	}
-	q := "UPDATE media_assets SET focal_x=" + s.p(1) + ",focal_y=" + s.p(2) + ",folder_id=" + s.p(3) + ",tags_json=" + s.p(4) + ",updated_at=" + s.p(5) + " WHERE id=" + s.p(6) + " AND status='ready'"
+	q := "UPDATE media_assets SET focal_x=" + s.p(1) + ",focal_y=" + s.p(2) + ",folder_id=" + s.p(3) + ",tags_json=" + s.p(4) + ",updated_at=" + s.p(5) + " WHERE id=" + s.p(6) + " AND status IN ('pending','ready')"
 	args := []any{metadata.Focal.X, metadata.Focal.Y, folder, string(tags), time.Now().UTC().Format(time.RFC3339Nano), id}
 	if scoped {
 		q += " AND tenant_id=" + s.p(7)

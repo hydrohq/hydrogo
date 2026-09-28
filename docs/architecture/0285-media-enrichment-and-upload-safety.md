@@ -10,6 +10,8 @@ Image metadata generation uses Go image decoding and a fixed 32×32 sample grid 
 
 Virtual folders and tags are editor metadata. They never affect object keys or authorization. Folder and asset records carry tenant scope. Private media remains governed by the existing authorization and signed URL boundary. Referer filtering is an optional edge guard and treats an empty Referer as a direct visit; it is not an authorization mechanism.
 
+Admin Studio media controls persist as one private, tenant-scoped value in the existing `site_settings` store, so they require no additional schema or worker. Hotlink settings are cached per tenant in-process and take effect on the next media request. Watermark options (PNG logo asset, text, opacity, placement, margin, and selected folders) are captured when an upload is promoted to ready; generated public derivatives receive the overlay while the source master remains unchanged. A watermarked public image is served from its derivative; while generation is pending, the response asks the client to retry instead of exposing the master. Editors retain the existing authorized master access.
+
 Documents are bounded and validated by extension plus file signature before protected storage. PDF previews are not rendered by the server. Video embeds accept only HTTPS YouTube/Vimeo identifiers and use provider embed hosts; rendering adds no JavaScript.
 
 ## Compatibility and operations
@@ -20,7 +22,7 @@ SQLite and PostgreSQL use the same repository contract; MySQL migration parity i
 
 ## Validation
 
-Pure Go unit tests cover hash output, focal cropping, watermarking, filename normalization, document signature rejection, host allowlisting, and embed URL validation. SQLite migration tests cover the additive schema. PostgreSQL contract execution requires the configured database test environment.
+Pure Go unit tests cover hash output, focal cropping, watermarking, filename normalization, document signature rejection, host allowlisting, and embed URL validation. SQLite migration tests cover the additive schema. The media lifecycle contract also covers folder metadata and tenant-scoped Admin Studio settings on SQLite and PostgreSQL.
 
 ## Limits
 

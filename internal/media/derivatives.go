@@ -53,15 +53,21 @@ type transformer interface {
 // Optimizer is intentionally small and bounded. Enqueue never allocates per
 // upload and a full queue cannot block the upload or grow process memory.
 type Optimizer struct {
-	queue      chan Asset
-	workers    int
-	transform  transformer
-	variants   DerivativeRepository
-	db         database.Executor
-	storageDir string
-	wg         sync.WaitGroup
-	lifecycle  sync.RWMutex
-	closed     bool
+	queue            chan optimizeJob
+	workers          int
+	transform        transformer
+	variants         DerivativeRepository
+	db               database.Executor
+	storageDir       string
+	defaultWatermark *WatermarkOptions
+	wg               sync.WaitGroup
+	lifecycle        sync.RWMutex
+	closed           bool
+}
+
+type optimizeJob struct {
+	asset     Asset
+	watermark *WatermarkOptions
 }
 
 func NewOptimizer(storageDir string, workers int, variants DerivativeRepository, db database.Executor, ffmpegPath string) *Optimizer {
@@ -86,13 +92,14 @@ func newOptimizer(storageDir string, workers int, variants DerivativeRepository,
 			ffmpegPath = discovered
 		}
 	}
-	o := &Optimizer{queue: make(chan Asset, variantQueueCapacity), workers: workers, variants: variants, db: db, storageDir: storageDir, transform: ffmpegTransformer{path: ffmpegPath, storageDir: storageDir, watermark: watermark}}
+	o := &Optimizer{queue: make(chan optimizeJob, variantQueueCapacity), workers: workers, variants: variants, db: db, storageDir: storageDir, defaultWatermark: watermark, transform: ffmpegTransformer{path: ffmpegPath, storageDir: storageDir}}
 	for i := 0; i < workers; i++ {
 		o.wg.Add(1)
 		go o.run()
 	}
 	return o
 }
+
 func (o *Optimizer) Close() {
 	if o == nil {
 		return
@@ -108,6 +115,12 @@ func (o *Optimizer) Close() {
 	o.wg.Wait()
 }
 func (o *Optimizer) Enqueue(asset Asset) {
+	if o == nil {
+		return
+	}
+	o.EnqueueWithWatermark(asset, o.defaultWatermark)
+}
+func (o *Optimizer) EnqueueWithWatermark(asset Asset, watermark *WatermarkOptions) {
 	if o == nil || o.queue == nil {
 		return
 	}
@@ -117,17 +130,18 @@ func (o *Optimizer) Enqueue(asset Asset) {
 		return
 	}
 	select {
-	case o.queue <- asset:
+	case o.queue <- optimizeJob{asset: asset, watermark: watermark}:
 	default:
 	}
 }
 func (o *Optimizer) run() {
 	defer o.wg.Done()
-	for asset := range o.queue {
-		o.process(asset)
+	for job := range o.queue {
+		o.process(job)
 	}
 }
-func (o *Optimizer) process(asset Asset) {
+func (o *Optimizer) process(job optimizeJob) {
+	asset := job.asset
 	kind, mime := VariantCard, "image/webp"
 	if strings.HasPrefix(asset.MimeType, "video/") {
 		kind, mime = VariantVideo, "video/webm"
@@ -145,7 +159,12 @@ func (o *Optimizer) process(asset Asset) {
 	if o.variants != nil {
 		_ = o.variants.CreateProcessing(ctx, o.db, Variant{ID: id, MediaID: asset.ID, Kind: kind, MimeType: mime, Status: "processing"})
 	}
-	result, err := o.transform.Transform(ctx, asset, kind, id)
+	transformer := o.transform
+	if imageTransformer, ok := transformer.(ffmpegTransformer); ok {
+		imageTransformer.watermark = job.watermark
+		transformer = imageTransformer
+	}
+	result, err := transformer.Transform(ctx, asset, kind, id)
 	if err != nil {
 		if o.variants != nil {
 			_ = o.variants.MarkResult(ctx, o.db, id, "failed", 0, err.Error())

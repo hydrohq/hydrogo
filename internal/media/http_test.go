@@ -3,10 +3,12 @@ package media
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +20,38 @@ import (
 )
 
 type httpAssetRepo struct{ asset Asset }
+
+type adminSettingsRepoFake struct {
+	settings AdminSettings
+	found    bool
+}
+
+func (r *adminSettingsRepoFake) LoadAdminSettings(context.Context, database.Executor) (AdminSettings, bool, error) {
+	return r.settings, r.found, nil
+}
+func (r *adminSettingsRepoFake) SaveAdminSettings(_ context.Context, _ database.Executor, value AdminSettings) error {
+	r.settings, r.found = value, true
+	return nil
+}
+
+type settingsAssetRepo struct{ httpAssetRepo }
+
+func (settingsAssetRepo) CreateFolder(context.Context, database.Executor, Folder) error { return nil }
+func (settingsAssetRepo) ListFolders(context.Context, database.Executor) ([]Folder, error) {
+	return nil, nil
+}
+
+type noDerivativeAssetRepo struct{ httpAssetRepo }
+
+func (noDerivativeAssetRepo) CreateProcessing(context.Context, database.Executor, Variant) error {
+	return nil
+}
+func (noDerivativeAssetRepo) MarkResult(context.Context, database.Executor, string, string, int64, string) error {
+	return nil
+}
+func (noDerivativeAssetRepo) GetReady(context.Context, database.Executor, string, string) (Variant, error) {
+	return Variant{}, sql.ErrNoRows
+}
 
 type httpSignedBlobStore struct{ url string }
 
@@ -52,6 +86,84 @@ func TestPrivateMediaIsNotServedWithoutSession(t *testing.T) {
 	handler.serve(response, httptest.NewRequest(http.MethodGet, "/media/a1", nil))
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("private media status = %d, want 401", response.Code)
+	}
+}
+
+func TestAdminMediaSettingsPersistAndApplyHotlinkProtection(t *testing.T) {
+	repository := &adminSettingsRepoFake{}
+	handler := HTTPHandler{Service: Service{Assets: settingsAssetRepo{}, Optimizer: &Optimizer{}}, SettingsRepository: repository, SettingsCache: NewAdminSettingsCache()}
+	form := url.Values{
+		"hotlink_protection": {"on"}, "allowed_referer_hosts": {"partner.example"},
+		"watermark_enabled": {"on"}, "watermark_text": {"© HydroGo"}, "watermark_position": {"bottom-left"},
+		"watermark_opacity": {"40"}, "watermark_margin": {"16"},
+	}
+	request := httptest.NewRequest(http.MethodPost, "/admin/media/settings", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	handler.adminSaveSettings(response, request)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("save status = %d body=%s", response.Code, response.Body.String())
+	}
+	if !repository.found || !repository.settings.HotlinkProtection || repository.settings.WatermarkOpacity != .4 || repository.settings.WatermarkText != "© HydroGo" {
+		t.Fatalf("saved media settings = %+v", repository.settings)
+	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "public.png"), []byte("source-master"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	uploader, err := NewUploader(dir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.Service = Service{Uploader: uploader, Assets: noDerivativeAssetRepo{httpAssetRepo{asset: Asset{ID: "public-asset", StorageKey: "public.png", OriginalFilename: "public.png", MimeType: "image/png", Status: "ready", Visibility: VisibilityPublic}}}}
+	var serve http.Handler
+	for _, route := range handler.Routes() {
+		if route.Pattern == "GET /media/{id}" {
+			serve = route.Handler
+			break
+		}
+	}
+	if serve == nil {
+		t.Fatal("media route missing")
+	}
+	blocked := httptest.NewRecorder()
+	blockedRequest := httptest.NewRequest(http.MethodGet, "/media/public-asset", nil)
+	blockedRequest.Header.Set("Referer", "https://evil.example/article")
+	serve.ServeHTTP(blocked, blockedRequest)
+	if blocked.Code != http.StatusForbidden {
+		t.Fatalf("hotlink response = %d, want 403", blocked.Code)
+	}
+	direct := httptest.NewRecorder()
+	serve.ServeHTTP(direct, httptest.NewRequest(http.MethodGet, "/media/public-asset", nil))
+	if direct.Code != http.StatusServiceUnavailable || strings.Contains(direct.Body.String(), "source-master") {
+		t.Fatalf("watermarked public response = %d body=%q; expected processing response without exposing the master", direct.Code, direct.Body.String())
+	}
+	admin := httptest.NewRecorder()
+	adminRequest := httptest.NewRequest(http.MethodGet, "/media/public-asset", nil)
+	adminRequest = adminRequest.WithContext(auth.WithUser(adminRequest.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	serve.ServeHTTP(admin, adminRequest)
+	if admin.Code != http.StatusOK || !strings.Contains(admin.Body.String(), "source-master") {
+		t.Fatalf("authorized master response = %d body=%q", admin.Code, admin.Body.String())
+	}
+	if err := os.WriteFile(filepath.Join(dir, "video.mp4"), []byte("video"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	handler.Service.Assets = httpAssetRepo{asset: Asset{ID: "public-video", StorageKey: "video.mp4", MimeType: "video/mp4", Status: "ready", Visibility: VisibilityPublic}}
+	var mediaRoute http.Handler
+	for _, route := range handler.Routes() {
+		if route.Pattern == "GET /media/{id}" {
+			mediaRoute = route.Handler
+			break
+		}
+	}
+	video := httptest.NewRecorder()
+	videoRequest := httptest.NewRequest(http.MethodGet, "/media/public-video", nil)
+	videoRequest.Header.Set("Referer", "https://evil.example/article")
+	mediaRoute.ServeHTTP(video, videoRequest)
+	if video.Code != http.StatusOK {
+		t.Fatalf("video response under image hotlink protection = %d, want 200", video.Code)
 	}
 }
 
@@ -115,12 +227,28 @@ func TestPrivateMediaIsNotServedToViewer(t *testing.T) {
 }
 
 func TestPrivateDocumentRequiresEditorAndDownloadsAsAttachment(t *testing.T) {
-	dir:=t.TempDir();if err:=os.WriteFile(filepath.Join(dir,"resume.pdf"),[]byte("%PDF-1.7"),0o600);err!=nil{t.Fatal(err)}
-	uploader,err:=NewUploader(dir,1<<20);if err!=nil{t.Fatal(err)}
-	handler:=HTTPHandler{Service:Service{Uploader:uploader,Assets:httpAssetRepo{asset:Asset{ID:"cv",StorageKey:"resume.pdf",OriginalFilename:"resume.pdf",MimeType:"application/pdf",Status:"ready",Visibility:VisibilityPrivate}}}}
-	request:=httptest.NewRequest(http.MethodGet,"/media/cv",nil);response:=httptest.NewRecorder();handler.serve(response,request);if response.Code!=http.StatusUnauthorized{t.Fatalf("anonymous document status=%d",response.Code)}
-	request=httptest.NewRequest(http.MethodGet,"/media/cv",nil);request=request.WithContext(auth.WithUser(request.Context(),&auth.User{ID:"editor",Active:true,Role:auth.RoleEditor}));response=httptest.NewRecorder();handler.serve(response,request)
-	if response.Code!=http.StatusOK||!strings.Contains(response.Header().Get("Content-Disposition"),"attachment")||response.Header().Get("X-Content-Type-Options")!="nosniff"{t.Fatalf("private document headers/status = %d %#v",response.Code,response.Header())}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "resume.pdf"), []byte("%PDF-1.7"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	uploader, err := NewUploader(dir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := HTTPHandler{Service: Service{Uploader: uploader, Assets: httpAssetRepo{asset: Asset{ID: "cv", StorageKey: "resume.pdf", OriginalFilename: "resume.pdf", MimeType: "application/pdf", Status: "ready", Visibility: VisibilityPrivate}}}}
+	request := httptest.NewRequest(http.MethodGet, "/media/cv", nil)
+	response := httptest.NewRecorder()
+	handler.serve(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous document status=%d", response.Code)
+	}
+	request = httptest.NewRequest(http.MethodGet, "/media/cv", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
+	response = httptest.NewRecorder()
+	handler.serve(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Header().Get("Content-Disposition"), "attachment") || response.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("private document headers/status = %d %#v", response.Code, response.Header())
+	}
 }
 
 func TestMultipartBodyLimitDoesNotOverflow(t *testing.T) {

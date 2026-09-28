@@ -676,7 +676,7 @@ func (c Config) Validate() error {
 	}
 	for _, host := range c.Media.AllowedRefererHosts {
 		host = strings.TrimSpace(host)
-		if host == "" || strings.ContainsAny(host, "/\\@") {
+		if host == "" || strings.ContainsAny(host, "/\\@:") {
 			return errors.New("invalid media referer host")
 		}
 		parsed, err := url.Parse("https://" + host)
