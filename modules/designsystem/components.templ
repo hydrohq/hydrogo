@@ -1,5 +1,15 @@
 package designsystem
 
+templ ExportLinks(items []ExportLink) {
+	<nav class="flex flex-wrap gap-2" aria-label="Export data">
+		for _, item := range items {
+			if href := safeLink(item.URL); href != "" {
+				<a class="inline-flex min-h-9 items-center rounded border border-border bg-surface px-3 py-2 text-sm text-foreground" href={ href } download>{ item.Label }</a>
+			}
+		}
+	</nav>
+}
+
 templ Head() {
 	<style>
 		:root{--background:#fff;--foreground:#171923;--surface:#f7f8fa;--border:#d7dbe3;--primary:#315bd6;--primary-foreground:#fff;--radius:.6rem;color-scheme:light dark}

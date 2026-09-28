@@ -30,11 +30,12 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+	"github.com/ardaozyildirim/hydrogo/internal/xlsx"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
@@ -115,6 +116,7 @@ func (h Handler) Routes() []Route {
 			Route{Pattern: "POST /admin/site/inbox/{id}/notes", Handler: http.HandlerFunc(h.leadNoteCreate)},
 			Route{Pattern: "GET /admin/site/inbox/{id}/notes", Handler: http.HandlerFunc(h.leadNotes)},
 			Route{Pattern: "GET /admin/site/inbox/{form}/export.csv", Handler: http.HandlerFunc(h.exportInboxCSV)},
+			Route{Pattern: "GET /admin/site/inbox/{form}/export.xlsx", Handler: http.HandlerFunc(h.exportInboxXLSX)},
 			Route{Pattern: "GET /admin/site/mail", Handler: http.HandlerFunc(h.mailSpool)},
 			Route{Pattern: "POST /admin/site/mail/{id}/retry", Handler: http.HandlerFunc(h.mailSpoolRetry)},
 			Route{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
@@ -563,7 +565,10 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprintf(w, `<form method="get" action="/admin/site/inbox/%s" class="studio-form">`, template.URLQueryEscaper(r.PathValue("form")))
 	_ = uicomponents.Input(uicomponents.InputProps{ID: "inbox-search", Name: "q", Label: "Ara", Value: query, Type: "search", MaxLength: 128, HasMaxLength: true}).Render(r.Context(), w)
-	_, _ = fmt.Fprint(w, `<button class="button button-primary" type="submit">Ara</button></form><p><a class="button button-quiet" href="/admin/site/inbox/`+template.URLQueryEscaper(r.PathValue("form"))+`/export.csv">CSV indir</a></p>`)
+	formPath := template.URLQueryEscaper(r.PathValue("form"))
+	_, _ = fmt.Fprint(w, `<button class="button button-primary" type="submit">Ara</button></form><p>`)
+	_ = designsystem.ExportLinks([]designsystem.ExportLink{{Label: "CSV indir", URL: "/admin/site/inbox/" + formPath + "/export.csv"}, {Label: "Excel indir", URL: "/admin/site/inbox/" + formPath + "/export.xlsx"}}).Render(r.Context(), w)
+	_, _ = fmt.Fprint(w, `</p>`)
 	_ = uicomponents.Table(uicomponents.TableProps{Caption: "Form talepleri", Columns: []string{"E-posta", "Durum", "Lead aşaması", "Atanan kişi", "Tarih"}, Rows: rows, EmptyMessage: "Eşleşen talep yok."}).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
@@ -660,6 +665,27 @@ func (h Handler) exportInboxCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	writer.Flush()
 	if err := writer.Error(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+		return
+	}
+}
+
+func (h Handler) exportInboxXLSX(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || guards.IsNil(h.Store) || database.RequireExecutor(h.DB) != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Store.ListSubmissions(r.Context(), h.DB, r.PathValue("form"), 1000)
+	if err != nil {
+		http.Error(w, "inbox unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	rows := [][]string{{"ID", "Form", "Email", "Created at", "Inbox status", "Lead stage", "Assigned to", "Values"}}
+	for _, item := range items {
+		rows = append(rows, []string{item.ID, item.FormKey, item.Email, item.CreatedAt.UTC().Format(time.RFC3339), item.Status, item.LeadStage, item.AssignedTo, item.Payload})
+	}
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", `attachment; filename="form-inbox.xlsx"`)
+	if err := xlsx.Write(w, rows); err != nil {
 		return
 	}
 }
@@ -833,7 +859,9 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if source := formSourcePath(r.Referer()); source != "" { clean["_source_url"] = source }
+	if source := formSourcePath(r.Referer()); source != "" {
+		clean["_source_url"] = source
+	}
 	email := ""
 	for _, field := range form.Fields {
 		if field.Type == forms.Email {
@@ -965,7 +993,9 @@ func requestIP(r *http.Request) string { return requestmeta.ClientIP(r) }
 
 func formSourcePath(value string) string {
 	u, err := url.Parse(strings.TrimSpace(value))
-	if err != nil || u.User != nil || u.Path == "" || strings.HasPrefix(u.Path, "//") || strings.ContainsAny(u.Path, "\\\r\n\x00") { return "" }
+	if err != nil || u.User != nil || u.Path == "" || strings.HasPrefix(u.Path, "//") || strings.ContainsAny(u.Path, "\\\r\n\x00") {
+		return ""
+	}
 	return u.EscapedPath()
 }
 
