@@ -606,7 +606,7 @@ func (c Config) Validate() error {
 		seenOrigins[key] = struct{}{}
 	}
 	switch c.Database.Dialect {
-	case database.SQLite, database.Postgres:
+	case database.SQLite, database.Postgres, database.MySQL:
 	default:
 		return fmt.Errorf("unsupported database dialect %q", c.Database.Dialect)
 	}

@@ -30,6 +30,12 @@ func TestIsUniqueViolationRecognizesSQLiteMessage(t *testing.T) {
 	}
 }
 
+func TestIsUniqueViolationRecognizesMySQLDuplicateEntry(t *testing.T) {
+	if !IsUniqueViolation(errors.New("Error 1062 (23000): Duplicate entry 'member@example.test' for key 'members.email_unique'")) {
+		t.Fatal("MySQL duplicate entry was not classified as a unique violation")
+	}
+}
+
 func TestIsUniqueViolationRejectsUnrelatedErrors(t *testing.T) {
 	if IsUniqueViolation(errors.New("connection reset by peer")) {
 		t.Fatal("unrelated error was classified as unique violation")

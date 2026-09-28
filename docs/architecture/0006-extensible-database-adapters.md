@@ -1,6 +1,6 @@
 # ADR-0006: Initial version SQLite/PostgreSQL and extensible DB adapters
 
-- **Status:** Accepted
+- **Status:** Accepted; MySQL deferral partially superseded by [ADR-0283](0283-mysql-mariadb-adapter.md)
 - **Date:** 2026-09-05
 - **Supersedes:** [ADR-0002](0002-database-portability.md)
 

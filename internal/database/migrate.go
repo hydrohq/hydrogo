@@ -77,13 +77,21 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 			}
 		}
 	}
-	if dialect == Postgres && lock {
-		if err := acquireMigrationLock(ctx, conn); err != nil {
-			return err
+	if lock {
+		switch dialect {
+		case Postgres:
+			if err := acquireMigrationLock(ctx, conn); err != nil {
+				return err
+			}
+			defer releaseMigrationLock(context.Background(), conn)
+		case MySQL:
+			if err := acquireMySQLMigrationLock(ctx, conn); err != nil {
+				return err
+			}
+			defer releaseMySQLMigrationLock(context.Background(), conn)
 		}
-		defer releaseMigrationLock(context.Background(), conn)
 	}
-	if err := ensureMigrationLedger(ctx, conn); err != nil {
+	if err := ensureMigrationLedger(ctx, conn, dialect); err != nil {
 		return err
 	}
 	known := make(map[string]struct{}, len(allMigrations))
@@ -160,8 +168,10 @@ func PendingMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrati
 	hasLedger := false
 	if dialect == SQLite {
 		err = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations')`).Scan(&hasLedger)
-	} else {
+	} else if dialect == Postgres {
 		err = db.QueryRowContext(ctx, `SELECT to_regclass('public.schema_migrations') IS NOT NULL`).Scan(&hasLedger)
+	} else {
+		err = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='schema_migrations')`).Scan(&hasLedger)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("inspect migration ledger: %w", err)
@@ -250,12 +260,24 @@ func withinMigrationTransaction(ctx context.Context, starter migrationTransactio
 	return tx.Commit()
 }
 
-func ensureMigrationLedger(ctx context.Context, db migrationTransactionStarter) error {
-	return withinMigrationTransaction(ctx, db, func(tx Executor) error {
-		_, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+func ensureMigrationLedger(ctx context.Context, db interface {
+	migrationTransactionStarter
+	Executor
+}, dialect Dialect) error {
+	statement := `CREATE TABLE IF NOT EXISTS schema_migrations (
             id TEXT PRIMARY KEY,
             checksum TEXT NOT NULL
-        )`)
+	)`
+	if dialect == MySQL {
+		statement = `CREATE TABLE IF NOT EXISTS schema_migrations (
+				id VARCHAR(255) PRIMARY KEY,
+				checksum CHAR(64) NOT NULL
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+		_, err := db.ExecContext(ctx, statement)
+		return err
+	}
+	return withinMigrationTransaction(ctx, db, func(tx Executor) error {
+		_, err := tx.ExecContext(ctx, statement)
 		return err
 	})
 }
@@ -310,6 +332,22 @@ func acquireMigrationLock(ctx context.Context, conn *sql.Conn) error {
 func releaseMigrationLock(ctx context.Context, conn *sql.Conn) {
 	var ignored any
 	_ = conn.QueryRowContext(ctx, "SELECT pg_advisory_unlock($1)", migrationAdvisoryLockKey).Scan(&ignored)
+}
+
+func acquireMySQLMigrationLock(ctx context.Context, conn *sql.Conn) error {
+	var acquired sql.NullInt64
+	if err := conn.QueryRowContext(ctx, "SELECT GET_LOCK(CONCAT(DATABASE(), ':hydrogo:migrate'), 30)").Scan(&acquired); err != nil {
+		return fmt.Errorf("acquire MySQL migration lock: %w", err)
+	}
+	if !acquired.Valid || acquired.Int64 != 1 {
+		return errors.New("acquire MySQL migration lock: timed out")
+	}
+	return nil
+}
+
+func releaseMySQLMigrationLock(ctx context.Context, conn *sql.Conn) {
+	var ignored sql.NullInt64
+	_ = conn.QueryRowContext(ctx, "SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':hydrogo:migrate'))").Scan(&ignored)
 }
 
 func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dialect) (bool, error) {
@@ -474,7 +512,7 @@ func rejectUnknownMigrations(ctx context.Context, queryer migrationQueryer, know
 }
 
 func validateMigrationDialect(dialect Dialect) error {
-	if dialect != SQLite && dialect != Postgres {
+	if dialect != SQLite && dialect != Postgres && dialect != MySQL {
 		return fmt.Errorf("unsupported database dialect %q", dialect)
 	}
 	return nil
