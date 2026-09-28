@@ -4296,17 +4296,21 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		if item.featured {
 			featuredInt = 1
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'published',1,1,1,0,$13,$13) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,'published',1,1,1,0,?13,?13)`, item.id, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredInt, item.tags, item.body, now); err != nil {
+		var featuredValue any = featuredInt
+		if cfg.Database.Dialect == database.Postgres {
+			featuredValue = item.featured
+		}
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'published',1,1,1,0,$13,$13) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,'published',1,1,1,0,?13,?13)`, item.id, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, now); err != nil {
 			return fmt.Errorf("seed news %s: %w", item.id, err)
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale=$1,slug=$2,title=$3,excerpt=$4,key_takeaways=$5,category=$6,author_name=$7,cover_media_id=$8,featured=$9,tags=$10,body=$11,status='published',published_revision=revision WHERE id=$12`, `UPDATE news_items SET locale=?1,slug=?2,title=?3,excerpt=?4,key_takeaways=?5,category=?6,author_name=?7,cover_media_id=?8,featured=?9,tags=?10,body=?11,status='published',published_revision=revision WHERE id=?12`, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredInt, item.tags, item.body, item.id); err != nil {
+		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale=$1,slug=$2,title=$3,excerpt=$4,key_takeaways=$5,category=$6,author_name=$7,cover_media_id=$8,featured=$9,tags=$10,body=$11,status='published',published_revision=revision WHERE id=$12`, `UPDATE news_items SET locale=?1,slug=?2,title=?3,excerpt=?4,key_takeaways=?5,category=?6,author_name=?7,cover_media_id=?8,featured=?9,tags=?10,body=?11,status='published',published_revision=revision WHERE id=?12`, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, item.id); err != nil {
 			return fmt.Errorf("publish news %s: %w", item.id, err)
 		}
 	}
 	if err := seedDemoTaxonomy(ctx, db, cfg.Database.Dialect, newsList); err != nil {
 		return fmt.Errorf("seed demo categories: %w", err)
 	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO site_settings (key,value,is_public,updated_at) VALUES ($1,$2,1,$3) ON CONFLICT (key) DO NOTHING`, `INSERT OR IGNORE INTO site_settings (key,value,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
+	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO site_settings (key,value,is_public,updated_at) VALUES ($1,$2,TRUE,$3) ON CONFLICT (tenant_id,key) DO NOTHING`, `INSERT OR IGNORE INTO site_settings (key,value,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
 		return fmt.Errorf("seed setting: %w", err)
 	}
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `DELETE FROM navigation_items WHERE id LIKE $1`, `DELETE FROM navigation_items WHERE id LIKE ?`, "demo-nav-%"); err != nil {
