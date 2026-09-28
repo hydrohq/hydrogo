@@ -3,14 +3,17 @@ module: "pages"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Up to 50 current and 50 published tag rows per page, with bounded lookup indexes."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "88c5bb3819c187e5514f5bedc34df0bd4b8d598bf44b95573b5c220221cc8b80"
   postgres: "88e584de983a162ee864bad20421ab8ee833cc19b3ab2efdf4dca0aafc420131"
+  mysql: "5929d7462c266871a44999781ba08bd80bad6217140b21333f2aec3111f44aa3"
 schema:
   readable_epoch: 1
   writable_epoch: 1

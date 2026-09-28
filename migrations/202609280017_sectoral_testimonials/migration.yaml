@@ -3,14 +3,17 @@ module: "testimonials"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "7522db3d3fe304da2ce66db8f43476cb28f31bd4fa71144301b5be75d142130f"
   postgres: "1685843326baa3366a45201aaeb92906064347441733b81b67acbcade72d98c6"
+  mysql: "f08c2a55ee9a4a821dcd2e7c86134bda8474cd775ffc6ef8cf9b9b34efe769f3"
 schema:
   readable_epoch: 1
   writable_epoch: 1

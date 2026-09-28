@@ -5,15 +5,18 @@ requires_modules:
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 dependencies:
   - "202609200001_auth_identity_tenant_scope"
   - "202609200003_postgres_tenant_rls"
 checksum_sha256:
   sqlite: "82c753c1a189c93356a1db3b932a0a8eeb8b86de490e492068d7755030269d24"
   postgres: "98c7557fdddb60fcfe165fd05ab10b414c9835fdc8d1b50a04daf35adf11fd63"
+  mysql: "d8207e36defa213700dad37442576e3026e1978345ec5589fa35f200fd9a115a"
 schema:
   readable_epoch: 1
   writable_epoch: 1

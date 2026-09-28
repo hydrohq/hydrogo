@@ -3,14 +3,17 @@ module: "events"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "01e9f4d8a03af0e624ce7e6d5b18b93d5938cca1af034472d773b0a5751fbe59"
   postgres: "7c3bcd7ee1e31a4b5f1f069e314f6b92e18b9267d9430a27451d5ab43ec4b26a"
+  mysql: "355c451f59b028a2deb4794860eab5e90c6a664b7051e3ffe48929435650da24"
 schema:
   readable_epoch: 1
   writable_epoch: 1

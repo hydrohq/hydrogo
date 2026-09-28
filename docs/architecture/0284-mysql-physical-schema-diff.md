@@ -28,16 +28,18 @@ the permission failure. The operation adds no persistent worker, connection,
 or data. A scratch database is bounded to one per invocation and uses the
 embedded migration bundle.
 
-The MySQL adapter remains experimental under ADR-0283 until every migration
-has a reviewed MySQL script and the full test matrix passes on MySQL 8 and
-MariaDB 10.5+. Consequently, the MySQL diff is also in progress until that
-matrix is complete. Catalog comparison covers logical object definitions; it
-does not inspect data, grants, storage configuration, or query plans.
+MySQL physical inspection is implemented and contract-tested independently
+from adapter certification. The adapter remains experimental under ADR-0283
+until its repository, backup/recovery, and supported-version test matrix is
+complete. Catalog comparison covers logical object definitions; it does not
+inspect data, grants, storage configuration, or query plans.
 
 ## Verification
 
-The MySQL integration contract compares a migration-built reference with an
-empty dedicated live database containing a changed column type and missing
-index/foreign key. It requires `HYDRO_TEST_MYSQL_URL` and a test account with
-the scratch database privileges described above. MySQL 8 and MariaDB minimum
-version coverage remain release gates under ADR-0283.
+The MySQL integration contract applies all 87 migration bundles, compares a
+migration-built reference with an empty dedicated live database containing a
+changed column type and missing index/foreign key, and verifies scratch
+schemas are removed. The suite passed against MariaDB 13.0.2. It requires
+`HYDRO_TEST_MYSQL_URL` and a test account with the scratch database privileges
+described above. MySQL 8 and MariaDB minimum version coverage remain adapter
+release gates under ADR-0283.

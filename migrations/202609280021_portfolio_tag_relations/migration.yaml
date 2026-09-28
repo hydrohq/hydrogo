@@ -3,14 +3,17 @@ module: "portfolio"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "One bounded row per normalized project tag plus a lookup index."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "70bba930d8e4d21845ceb575f05661422e8d2b190dc238ac1e656ead84a60076"
   postgres: "73eb70ee44be215ffea9c4b6e6b9bb947c37ade00d33fe1774e76f2f411727e3"
+  mysql: "ca6d91d9dee0d36013d99563940d8eb650229433ddff5ed7714f5a5785da4a99"
 schema:
   readable_epoch: 1
   writable_epoch: 1

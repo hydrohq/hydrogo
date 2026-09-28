@@ -3,14 +3,17 @@ module: "certificates"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "f8410b097e265d1eae97c4e4116c0fc30e57573eddb1b269b9bc80fe24921c57"
   postgres: "1e290b0b614ade6133c1da3f74b9eca3d387a2dfd3f82dbc083e2a5751d69e31"
+  mysql: "363a94841add2285032e99685bcc4b54231be341770b368f6d3311244488cd3e"
 schema:
   readable_epoch: 1
   writable_epoch: 1

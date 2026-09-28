@@ -3,14 +3,17 @@ module: "pricing"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "0a3dec5c3b36e4e0c2a29b3a96b7c1509f65b6d34e65c1d7a55bbbba5b8bb120"
   postgres: "0c055e058e1d15b67744c6eb6fe2aebc87ce489c7a5906da5ff883c10f3d02f9"
+  mysql: "55f0c2f9634b03d285e31e52b4dd13e7b3ac5258c0ecdd379b33c7565ac80ba4"
 schema:
   readable_epoch: 1
   writable_epoch: 1
