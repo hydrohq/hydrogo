@@ -54,6 +54,10 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		"202609190010_commerce_catalog_tenant_scope", "202609190011_commerce_checkout_tenant_scope",
 		"202609190012_forms_tenant_scope", "202609200001_auth_identity_tenant_scope",
 		"202609200002_auth_security_tenant_scope", "202609200003_admin_user_permissions", "202609200003_postgres_tenant_rls",
+		"202609210001_tenant_registry_and_bootstrap", "202609210002_outbox_dead_letters", "202609220001_analytics_content_views",
+		"202609270001_forms_mail_crm", "202609280001_seo_redirect_rules", "202609280002_analytics_privacy_stats",
+		"202609280003_security_ip_bans", "202609280004_immutable_audit_log", "202609280005_admin_notifications",
+		"202609280006_admin_weekly_digest",
 	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
@@ -88,11 +92,16 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO page_redirects (source_path,target_path,status,created_at) VALUES ('/old','/new',301,CURRENT_TIMESTAMP(6))`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO audit_events (id,action,target_id) VALUES ('immutable1','test','subject1')`); err != nil {
+		t.Fatal(err)
+	}
 	if err := database.ApplyMigrations(ctx, db, database.MySQL, bundle); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		for _, table := range []string{
+			"admin_digest_preferences", "admin_notifications", "security_ip_bans", "analytics_daily_visitors", "analytics_daily_stats",
+			"seo_redirect_rules", "mail_spool", "form_lead_notes", "analytics_content_daily", "outbox_dead_letters", "tenant_system_audit", "tenants",
 			"admin_user_permissions", "auth_invites", "member_mobile_device_sessions", "mobile_device_sessions", "analytics_daily", "analytics_consent",
 			"hydro_forms", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
 			"news_taxonomy_relations", "news_taxonomy_terms", "hydro_search_documents", "member_sessions", "members",
@@ -260,6 +269,45 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO form_inbox (id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash) VALUES ('submission-key2','contact','sender@example.test','{}','', 'new',?,'key1',REPEAT('e',64))`, now); err == nil {
 		t.Fatal("accepted duplicate non-empty form idempotency key")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) VALUES ('note1','','submission-empty-0','u1','Follow-up',?)`, now); err != nil {
+		t.Fatalf("lead note insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) VALUES ('note-cross','tenant-two','submission-empty-0','u1','Cross tenant',?)`, now); err == nil {
+		t.Fatal("accepted cross-tenant lead note")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO mail_spool (id,event_key,recipient,subject,body,html_body,next_attempt_at,created_at,updated_at) VALUES ('mail1','contact-receipt','sender@example.test','Received','Text','<p>Received</p>',?,?,?)`, now, now, now); err != nil {
+		t.Fatalf("mail spool insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO outbox_dead_letters (id,topic,aggregate_id,payload_version,attempts,last_error,failed_at) VALUES ('dead1','mail','aggregate1',1,5,'delivery failed',?)`, now); err != nil {
+		t.Fatalf("outbox dead letter insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO seo_redirect_rules (tenant_id,id,pattern,match_kind,target_path,status,created_at) VALUES ('tenant-one','r1','/legacy','exact','/home',301,?)`, now); err != nil {
+		t.Fatalf("SEO redirect rule insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO analytics_daily_stats (day,tenant_id,metric,dimension,event_count) VALUES ('2026-09-28','tenant-one','page','/home',1)`); err != nil {
+		t.Fatalf("analytics privacy stats insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO analytics_daily_visitors (day,tenant_id,visitor_key) VALUES ('2026-09-28','tenant-one',REPEAT('a',64))`); err != nil {
+		t.Fatalf("analytics visitor insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,purpose_version,view_count) VALUES ('2026-09-28','tenant-one','page','page1','v1',1)`); err != nil {
+		t.Fatalf("analytics content view insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO security_ip_bans (address,expires_at,created_at) VALUES ('192.0.2.1',?,?)`, now.Add(time.Hour), now); err != nil {
+		t.Fatalf("security IP ban insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE audit_events SET action='changed' WHERE id='immutable1'`); err == nil {
+		t.Fatal("updated immutable audit record")
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM audit_events WHERE id='immutable1'`); err == nil {
+		t.Fatal("deleted immutable audit record")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO admin_notifications (id,tenant_id,user_id,title,message,created_at) VALUES ('notice1','tenant-one','u1','Update','Content updated',?)`, now); err != nil {
+		t.Fatalf("admin notification insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO admin_digest_preferences (tenant_id,user_id,enabled,timezone) VALUES ('tenant-one','u1',1,'Europe/Istanbul')`); err != nil {
+		t.Fatalf("admin digest preference insert: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO mobile_device_sessions (id,user_id,device_id,family_id,refresh_token_hash,access_token_hash,access_expires_at,refresh_expires_at,created_at,last_used_at) VALUES ('mobile1','u2','device1','family1',REPEAT('f',64),REPEAT('0',64),?,?,?,?)`, now.Add(time.Hour), now.Add(24*time.Hour), now, now); err != nil {
 		t.Fatalf("mobile session insert: %v", err)
