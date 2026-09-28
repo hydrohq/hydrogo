@@ -1,0 +1,26 @@
+id: "202609280024_audit_trigger_dump_compat"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "b4e0497804e46e0a0b0b8c31975b062152d551bac49c3c2e80932567b4085dcd"
+  postgres: "b4e0497804e46e0a0b0b8c31975b062152d551bac49c3c2e80932567b4085dcd"
+  mysql: "a5b7e0d3b0c62d4419eec93da6eef375ecc55fec9fd6aeb122d2b543ed74658d"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+dependencies:
+  - "202609280004_immutable_audit_log"
+lock_timeout: "Bounded by the migration runner lock timeout"
+disk_estimate: "No table or index growth; replaces two existing triggers."
+compatibility: "Recreates immutable audit triggers with a compound body so MySQL-family dumps can restore them with DELIMITER handling."
+smoke:
+  - "Audit event insert remains available"
+  - "Audit event update and delete remain rejected"
+rollback: "Recreate the original single-statement triggers; no audit rows are changed."
