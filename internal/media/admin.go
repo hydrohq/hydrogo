@@ -20,6 +20,7 @@ func (h HTTPHandler) AdminRoutes() []HTTPRoute {
 		{Pattern: "POST /admin/media", Protected: true, Handler: http.HandlerFunc(h.adminUpload)},
 		{Pattern: "POST /admin/media/{id}/metadata", Protected: true, Handler: http.HandlerFunc(h.adminMetadata)},
 		{Pattern: "POST /admin/media/folders", Protected: true, Handler: http.HandlerFunc(h.adminCreateFolder)},
+		{Pattern: "POST /admin/media/settings", Protected: true, Handler: http.HandlerFunc(h.adminSaveSettings)},
 		{Pattern: "POST /admin/media/{id}/visibility", Protected: true, Handler: http.HandlerFunc(h.adminVisibility)},
 	}
 }
@@ -29,11 +30,12 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	assets, err := h.Service.List(r.Context(), h.DB, 100)
+	assets, err := h.Service.List(r.Context(), h.DB, 200)
 	if err != nil {
 		http.Error(w, "media library unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	allAssets := append([]Asset(nil), assets...)
 	folders, folderErr := h.Service.ListFolders(r.Context(), h.DB)
 	if folderErr != nil {
 		http.Error(w, "media folders unavailable", http.StatusServiceUnavailable)
@@ -90,6 +92,9 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
 
 	_, _ = fmt.Fprintf(w, `<section class="media-overview"><div class="media-dropzone-card"><div class="media-dropzone-wrap" id="media-dropzone"><div class="media-dropzone-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div><div class="media-dropzone-text"><strong>Yeni Medya Yükle</strong><small>Dosyaları sürükleyip bırakın veya aşağıdan seçin (JPEG, PNG, WebP, MP4, WebM)</small></div><form class="media-upload-form" id="media-upload-form" method="post" action="/admin/media" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="%s"><input type="file" id="media-file-input" name="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple><select name="visibility" aria-label="Görünürlük"><option value="public" selected>Herkese açık</option><option value="private">Özel</option></select><button class="button" type="submit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Yükle</span></button></form><div id="media-upload-progress" aria-live="polite"></div></div></div><div class="media-toolbar-card"><div class="table-toolbar" style="margin-bottom:0;flex:1;"><div class="search-wrap" style="max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="search" id="media-search" placeholder="Dosya adı veya ID ile ara..." autocomplete="off"></div><span class="status-badge" id="media-count-badge">%d asset</span></div></div></section>`, csrf, len(assets))
+	if err := ui.MediaUploadFolderField(selectedFolder).Render(r.Context(), w); err != nil {
+		return
+	}
 	folderItems := mediaFolderTree(folders)
 	if err := ui.MediaFolderTree(folderItems, selectedFolder).Render(r.Context(), w); err != nil {
 		return
@@ -98,6 +103,28 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := ui.MediaTagFilter(selectedTag, selectedFolder, selectedColor).Render(r.Context(), w); err != nil {
+		return
+	}
+	settings, settingsErr := h.adminSettings(r.Context())
+	if settingsErr != nil {
+		http.Error(w, "media settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	watermarkFolders := make([]string, 0, len(settings.WatermarkFolders))
+	for _, folder := range settings.WatermarkFolders {
+		watermarkFolders = append(watermarkFolders, folder)
+	}
+	formFolders := make([]ui.MediaFolderItem, 0, len(folderItems))
+	for _, folder := range folderItems {
+		formFolders = append(formFolders, ui.MediaFolderItem{ID: folder.ID, Name: folder.Name, Depth: folder.Depth})
+	}
+	logos := make([]ui.MediaLogoItem, 0)
+	for _, asset := range allAssets {
+		if asset.Status == "ready" && asset.MimeType == "image/png" {
+			logos = append(logos, ui.MediaLogoItem{ID: asset.ID, Name: asset.OriginalFilename})
+		}
+	}
+	if err := ui.MediaSettingsForm(ui.MediaSettingsFormProps{CSRF: csrf, HotlinkProtection: settings.HotlinkProtection, AllowedRefererHosts: strings.Join(settings.AllowedRefererHosts, ", "), WatermarkEnabled: settings.WatermarkEnabled, WatermarkText: settings.WatermarkText, WatermarkPosition: settings.WatermarkPosition, WatermarkOpacity: strconv.Itoa(int(settings.WatermarkOpacity * 100)), WatermarkMargin: strconv.Itoa(settings.WatermarkMargin), WatermarkLogoID: settings.WatermarkLogoID, WatermarkFolders: formFolders, WatermarkFoldersSelected: watermarkFolders, WatermarkLogos: logos}).Render(r.Context(), w); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<div class="media-grid" id="media-grid">`)
@@ -248,6 +275,92 @@ func splitMediaTags(raw string) []string {
 	return tags
 }
 
+func (h HTTPHandler) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.SettingsRepository == nil {
+		http.Error(w, "media settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid media settings", http.StatusBadRequest)
+		return
+	}
+	settings := AdminSettings{HotlinkProtection: r.FormValue("hotlink_protection") == "on", WatermarkEnabled: r.FormValue("watermark_enabled") == "on", WatermarkText: strings.TrimSpace(r.FormValue("watermark_text")), WatermarkPosition: r.FormValue("watermark_position"), WatermarkLogoID: strings.TrimSpace(r.FormValue("watermark_logo_id"))}
+	if settings.WatermarkEnabled && h.Service.Optimizer == nil {
+		http.Error(w, "image watermark processing is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if len(settings.WatermarkText) > 128 {
+		http.Error(w, "invalid media settings", http.StatusBadRequest)
+		return
+	}
+	if settings.WatermarkPosition == "" {
+		settings.WatermarkPosition = "bottom-right"
+	}
+	opacity, errOpacity := strconv.Atoi(r.FormValue("watermark_opacity"))
+	margin, errMargin := strconv.Atoi(r.FormValue("watermark_margin"))
+	if errOpacity != nil || opacity < 10 || opacity > 100 || errMargin != nil || margin < 0 || margin > 1000 || !validWatermarkPosition(settings.WatermarkPosition) || settings.WatermarkEnabled && settings.WatermarkText == "" && settings.WatermarkLogoID == "" {
+		http.Error(w, "invalid media settings", http.StatusBadRequest)
+		return
+	}
+	if settings.WatermarkLogoID != "" {
+		logo, err := h.Service.Get(r.Context(), h.DB, settings.WatermarkLogoID)
+		if err != nil || logo.Status != "ready" || logo.MimeType != "image/png" || logo.SizeBytes > 2<<20 {
+			http.Error(w, "select a ready PNG logo smaller than 2 MB", http.StatusBadRequest)
+			return
+		}
+	}
+	folders, err := h.Service.ListFolders(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "media settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	knownFolders := make(map[string]bool, len(folders))
+	for _, folder := range folders {
+		knownFolders[folder.ID] = true
+	}
+	for _, folderID := range r.Form["watermark_folders"] {
+		if !knownFolders[folderID] || len(settings.WatermarkFolders) >= 32 {
+			http.Error(w, "invalid media settings", http.StatusBadRequest)
+			return
+		}
+		settings.WatermarkFolders = append(settings.WatermarkFolders, folderID)
+	}
+	settings.WatermarkOpacity, settings.WatermarkMargin = float64(opacity)/100, margin
+	for _, host := range splitMediaTags(r.FormValue("allowed_referer_hosts")) {
+		if !validRefererHost(host) || len(settings.AllowedRefererHosts) >= 32 {
+			http.Error(w, "invalid media settings", http.StatusBadRequest)
+			return
+		}
+		settings.AllowedRefererHosts = append(settings.AllowedRefererHosts, strings.ToLower(host))
+	}
+	if err := h.SettingsRepository.SaveAdminSettings(r.Context(), h.DB, settings); err != nil {
+		http.Error(w, "media settings could not be saved", http.StatusServiceUnavailable)
+		return
+	}
+	if err := h.SettingsCache.Store(r.Context(), h.RequireTenantScope, settings); err != nil {
+		http.Error(w, "media settings could not be saved", http.StatusServiceUnavailable)
+		return
+	}
+	http.Redirect(w, r, "/admin/media", http.StatusSeeOther)
+}
+
+func validWatermarkPosition(value string) bool {
+	return value == "bottom-right" || value == "bottom-left" || value == "top-right" || value == "center"
+}
+
+func validRefererHost(host string) bool {
+	if host == "" || strings.ContainsAny(host, "/\\:@") {
+		return false
+	}
+	parsed, err := url.Parse("https://" + host)
+	return err == nil && parsed.Hostname() != "" && parsed.Host == host
+}
+
 func (h HTTPHandler) adminMetadata(w http.ResponseWriter, r *http.Request) {
 	if !editorAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -327,6 +440,11 @@ func (h HTTPHandler) adminUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 	result, err := h.Service.Upload(r.Context(), file, header.Filename)
+	if err == nil {
+		if folderID := strings.TrimSpace(r.FormValue("folder_id")); folderID != "" {
+			err = h.Service.SetMetadata(r.Context(), result.ID, AssetMetadata{Focal: FocalPoint{X: .5, Y: .5}, FolderID: folderID})
+		}
+	}
 	if err == nil {
 		visibility := r.FormValue("visibility")
 		if visibility == "" {

@@ -48,4 +48,17 @@ func TestMediaAdminComponentsEscapeAndExposeControls(t *testing.T) {
 	if !strings.Contains(out.String(), `name="focal_x"`) || !strings.Contains(out.String(), `name="tags"`) || !strings.Contains(out.String(), `name="_csrf"`) {
 		t.Fatalf("metadata controls missing: %s", out.String())
 	}
+	out.Reset()
+	settings := MediaSettingsForm(MediaSettingsFormProps{CSRF: "token", HotlinkProtection: true, WatermarkEnabled: true, WatermarkText: "© Brand", WatermarkPosition: "bottom-right", WatermarkOpacity: "60", WatermarkMargin: "12", WatermarkFolders: items, WatermarkFoldersSelected: []string{"f1"}, WatermarkLogos: []MediaLogoItem{{ID: "logo1", Name: "brand.png"}}, WatermarkLogoID: "logo1"})
+	if err := settings.Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"hotlink_protection", "allowed_referer_hosts", "watermark_enabled", "watermark_logo_id", "watermark_folders", "watermark_opacity", "watermark_margin"} {
+		if !strings.Contains(out.String(), `name="`+name+`"`) {
+			t.Fatalf("settings control %q missing: %s", name, out.String())
+		}
+	}
+	if !strings.Contains(out.String(), `value="logo1" selected>`) || !strings.Contains(out.String(), `value="f1" selected>`) {
+		t.Fatalf("saved logo or folder selection was not retained: %s", out.String())
+	}
 }

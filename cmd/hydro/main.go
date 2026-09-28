@@ -1537,6 +1537,17 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	mediaStore := mediastore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	var mediaService media.Service
+	var configuredWatermark *media.WatermarkOptions
+	if cfg.Media.WatermarkText != "" {
+		position, opacity := cfg.Media.WatermarkPosition, cfg.Media.WatermarkOpacity
+		if position == "" {
+			position = "bottom-right"
+		}
+		if opacity == 0 {
+			opacity = .6
+		}
+		configuredWatermark = &media.WatermarkOptions{Text: cfg.Media.WatermarkText, Position: position, Opacity: opacity, Margin: cfg.Media.WatermarkMargin}
+	}
 	if modules["media"] {
 		uploader, err := media.NewUploaderWithConcurrency(cfg.Media.Dir, budget.MediaMaxBytes, budget.WorkerConcurrency)
 		if err != nil {
@@ -1545,15 +1556,8 @@ func serve(args []string, stderr io.Writer) error {
 		uploader.QuotaGuard = storage.QuotaGuard{MinFreeBytes: cfg.Media.MinFreeBytes}
 		var mediaOptimizer *media.Optimizer
 		if !*cgiMode {
-			if cfg.Media.WatermarkText != "" {
-				position, opacity := cfg.Media.WatermarkPosition, cfg.Media.WatermarkOpacity
-				if position == "" {
-					position = "bottom-right"
-				}
-				if opacity == 0 {
-					opacity = .6
-				}
-				mediaOptimizer = media.NewOptimizerWithWatermark(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"), media.WatermarkOptions{Text: cfg.Media.WatermarkText, Position: position, Opacity: opacity, Margin: cfg.Media.WatermarkMargin})
+			if configuredWatermark != nil {
+				mediaOptimizer = media.NewOptimizerWithWatermark(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"), *configuredWatermark)
 			} else {
 				mediaOptimizer = media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
 			}
@@ -1565,12 +1569,12 @@ func serve(args []string, stderr io.Writer) error {
 				return fmt.Errorf("configure media object storage: %w", err)
 			}
 		}
-		mediaService = media.Service{Transactions: transactioner, Uploader: uploader, BlobStore: blobStore, Assets: mediaStore, Optimizer: mediaOptimizer}
+		mediaService = media.Service{Transactions: transactioner, Uploader: uploader, BlobStore: blobStore, Assets: mediaStore, Optimizer: mediaOptimizer, AdminSettings: mediaStore, DefaultWatermark: configuredWatermark}
 		if mediaOptimizer != nil {
 			go func() { <-ctx.Done(); mediaOptimizer.Close() }()
 		}
 	}
-	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db, HotlinkProtection: cfg.Media.HotlinkProtection, CanonicalOrigin: cfg.HTTP.PublicOrigin, AllowedRefererHosts: cfg.Media.AllowedRefererHosts}
+	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db, HotlinkProtection: cfg.Media.HotlinkProtection, CanonicalOrigin: cfg.HTTP.PublicOrigin, AllowedRefererHosts: cfg.Media.AllowedRefererHosts, SettingsRepository: mediaStore, SettingsCache: media.NewAdminSettingsCache(), SettingsDefaults: media.AdminSettings{HotlinkProtection: cfg.Media.HotlinkProtection, AllowedRefererHosts: cfg.Media.AllowedRefererHosts, WatermarkEnabled: configuredWatermark != nil, WatermarkText: cfg.Media.WatermarkText, WatermarkPosition: cfg.Media.WatermarkPosition, WatermarkOpacity: cfg.Media.WatermarkOpacity, WatermarkMargin: cfg.Media.WatermarkMargin}, RequireTenantScope: requireTenantScope}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	newsRouteStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}

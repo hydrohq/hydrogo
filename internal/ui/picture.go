@@ -24,6 +24,16 @@ type MediaMetadataFormProps struct {
 	Action, CSRF, ReturnFolder, FolderID, Tags, FocalX, FocalY string
 	Folders                                                    []MediaFolderItem
 }
+type MediaSettingsFormProps struct {
+	CSRF                                                                   string
+	HotlinkProtection, WatermarkEnabled                                    bool
+	AllowedRefererHosts, WatermarkText, WatermarkPosition, WatermarkLogoID string
+	WatermarkOpacity, WatermarkMargin                                      string
+	WatermarkFolders                                                       []MediaFolderItem
+	WatermarkFoldersSelected                                               []string
+	WatermarkLogos                                                         []MediaLogoItem
+}
+type MediaLogoItem struct{ ID, Name string }
 
 func mediaFolderClass(active bool) string {
 	if active {
@@ -45,6 +55,14 @@ func mediaFolderIndent(depth int) string {
 		depth = 12
 	}
 	return fmt.Sprintf("padding-inline-start: %dem", depth+1)
+}
+func mediaFolderSelected(folders []string, id string) bool {
+	for _, folder := range folders {
+		if folder == id {
+			return true
+		}
+	}
+	return false
 }
 
 func PictureVideoEmbed(raw, title string) templ.Component {

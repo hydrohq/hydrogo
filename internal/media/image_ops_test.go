@@ -1,10 +1,13 @@
 package media
 
 import (
+	"context"
 	"image"
 	"image/color"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -34,6 +37,21 @@ func TestImageHelpers(t *testing.T) {
 	}
 	if got := (FocalPoint{X: 1.2, Y: -.1}).ObjectPosition(); got != "100.00% 0.00%" {
 		t.Fatalf("position = %q", got)
+	}
+}
+
+func TestWatermarkPNGLogoLoadsFromReadyMedia(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "logo.png"), createTestPNG(3, 2), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service := Service{Optimizer: &Optimizer{}, Uploader: &Uploader{StorageDir: dir}, Assets: httpAssetRepo{asset: Asset{ID: "logo", StorageKey: "logo.png", MimeType: "image/png", SizeBytes: int64(len(createTestPNG(3, 2))), Status: "ready"}}}
+	logo, err := service.loadWatermarkLogo(context.Background(), "logo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if logo == nil || logo.Bounds().Dx() != 3 || logo.Bounds().Dy() != 2 {
+		t.Fatalf("decoded logo bounds = %v", logo)
 	}
 }
 

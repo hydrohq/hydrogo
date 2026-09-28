@@ -21,6 +21,10 @@ templ MediaFolderTree(items []MediaFolderItem, selected string) {
 	</nav>
 }
 
+templ MediaUploadFolderField(folderID string) {
+	<input type="hidden" name="folder_id" value={ folderID } form="media-upload-form" />
+}
+
 templ MediaTagFilter(tag, folder, color string) {
 	<form method="get" action="/admin/media" class="my-3 flex items-end gap-2">
 		<input type="hidden" name="folder" value={ folder } />
@@ -32,6 +36,33 @@ templ MediaTagFilter(tag, folder, color string) {
 		</label>
 		<button type="submit" class="rounded bg-slate-900 px-3 py-2 text-white">Uygula</button>
 	</form>
+}
+
+templ MediaSettingsForm(p MediaSettingsFormProps) {
+	<details class="my-3 rounded-lg border border-slate-200 p-3">
+		<summary class="cursor-pointer font-medium">Medya güvenliği ve filigran ayarları</summary>
+		<form method="post" action="/admin/media/settings" class="mt-3 grid gap-3 md:grid-cols-2">
+			<input type="hidden" name="_csrf" value={ p.CSRF } />
+			<label class="flex items-center gap-2"><input type="checkbox" name="hotlink_protection" checked?={ p.HotlinkProtection } /> Harici siteden gömmeyi engelle</label>
+			<label>İzin verilen alan adları (virgülle ayırın)<textarea name="allowed_referer_hosts" maxlength="2048" class="block w-full rounded border px-2 py-1">{ p.AllowedRefererHosts }</textarea></label>
+			<label class="flex items-center gap-2"><input type="checkbox" name="watermark_enabled" checked?={ p.WatermarkEnabled } /> Yeni yüklenen görselleri filigranla</label>
+			<label>Filigran metni<input name="watermark_text" value={ p.WatermarkText } maxlength="128" class="block w-full rounded border px-2 py-1" /></label>
+			<label>PNG logo<select name="watermark_logo_id" class="block w-full rounded border px-2 py-1"><option value="">Logo kullanma</option>
+				for _, logo := range p.WatermarkLogos {
+					<option value={ logo.ID } selected?={ logo.ID == p.WatermarkLogoID }>{ logo.Name }</option>
+				}
+			</select></label>
+			<label>Filigran klasörleri (boş seçim tüm klasörler)<select name="watermark_folders" multiple class="block w-full rounded border px-2 py-1">
+				for _, folder := range p.WatermarkFolders {
+					<option value={ folder.ID } selected?={ mediaFolderSelected(p.WatermarkFoldersSelected, folder.ID) }>{ folder.Name }</option>
+				}
+			</select></label>
+			<label>Konum<select name="watermark_position" class="block rounded border px-2 py-1"><option value="bottom-right" selected?={ p.WatermarkPosition == "bottom-right" }>Sağ alt</option><option value="bottom-left" selected?={ p.WatermarkPosition == "bottom-left" }>Sol alt</option><option value="top-right" selected?={ p.WatermarkPosition == "top-right" }>Sağ üst</option><option value="center" selected?={ p.WatermarkPosition == "center" }>Orta</option></select></label>
+			<label>Opaklık (%)<input type="number" name="watermark_opacity" min="10" max="100" value={ p.WatermarkOpacity } class="block w-full rounded border px-2 py-1" /></label>
+			<label>Kenar boşluğu (px)<input type="number" name="watermark_margin" min="0" max="1000" value={ p.WatermarkMargin } class="block w-full rounded border px-2 py-1" /></label>
+			<button type="submit" class="w-fit rounded bg-slate-900 px-3 py-2 text-white">Ayarları kaydet</button>
+		</form>
+	</details>
 }
 
 templ MediaAssetMetadataForm(p MediaMetadataFormProps) {
