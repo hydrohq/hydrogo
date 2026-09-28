@@ -365,3 +365,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0288: Optional unified push dispatcher](0288-unified-push-dispatcher.md)
 - [ADR-0289: Verified administrative email ownership](0289-verified-admin-email.md)
 - [ADR-0290: Final design, form, and discovery capabilities](0290-final-design-form-and-discovery-capabilities.md)
+- [ADR-0291: SQLite graceful shutdown checkpoint](0291-sqlite-graceful-shutdown-checkpoint.md)
