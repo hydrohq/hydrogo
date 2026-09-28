@@ -50,6 +50,10 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		"202609170002_commerce_order_idempotency_hash", "202609190001_mobile_device_sessions",
 		"202609190002_member_mobile_device_sessions", "202609190003_outbox_tenant_scope",
 		"202609190004_audit_tenant_scope", "202609190005_media_tenant_scope", "202609190006_pages_tenant_scope",
+		"202609190007_news_tenant_scope", "202609190008_site_tenant_scope", "202609190009_members_tenant_scope",
+		"202609190010_commerce_catalog_tenant_scope", "202609190011_commerce_checkout_tenant_scope",
+		"202609190012_forms_tenant_scope", "202609200001_auth_identity_tenant_scope",
+		"202609200002_auth_security_tenant_scope", "202609200003_admin_user_permissions", "202609200003_postgres_tenant_rls",
 	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
@@ -75,12 +79,21 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO outbox_events (id,topic,aggregate_id,payload_version) VALUES ('outbox1','test','aggregate1',1)`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO site_settings (`key`,`value`,updated_at) VALUES ('legacy.title','Legacy title',CURRENT_TIMESTAMP(6))"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO navigation_items (id,locale,label,href,position,updated_at) VALUES ('legacy-nav','en','Legacy','/legacy',1,CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO page_redirects (source_path,target_path,status,created_at) VALUES ('/old','/new',301,CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatal(err)
+	}
 	if err := database.ApplyMigrations(ctx, db, database.MySQL, bundle); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		for _, table := range []string{
-			"auth_invites", "member_mobile_device_sessions", "mobile_device_sessions", "analytics_daily", "analytics_consent",
+			"admin_user_permissions", "auth_invites", "member_mobile_device_sessions", "mobile_device_sessions", "analytics_daily", "analytics_consent",
 			"hydro_forms", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
 			"news_taxonomy_relations", "news_taxonomy_terms", "hydro_search_documents", "member_sessions", "members",
 			"media_variants", "commerce_payment_webhook_events", "commerce_payment_transactions", "commerce_order_items", "commerce_cart_items",
@@ -95,6 +108,30 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		}
 	}()
 	now := time.Now().UTC()
+	for _, tenantID := range []string{"tenant-one", "tenant-two"} {
+		if _, err := db.ExecContext(ctx, "INSERT INTO site_settings (tenant_id,`key`,`value`,is_public,updated_at) VALUES (?, 'site.title', ?, 1, ?)", tenantID, tenantID, now); err != nil {
+			t.Fatalf("tenant site setting insert for %s: %v", tenantID, err)
+		}
+		if _, err := db.ExecContext(ctx, `INSERT INTO navigation_items (tenant_id,id,locale,label,href,position,updated_at) VALUES (?, ?, 'en', 'Home', '/', 1, ?)`, tenantID, tenantID+"-home", now); err != nil {
+			t.Fatalf("tenant navigation insert for %s: %v", tenantID, err)
+		}
+		if _, err := db.ExecContext(ctx, `INSERT INTO page_redirects (tenant_id,source_path,target_path,status,created_at) VALUES (?, '/same-old', '/same-new', 301, ?)`, tenantID, now); err != nil {
+			t.Fatalf("tenant redirect insert for %s: %v", tenantID, err)
+		}
+	}
+	var legacySetting, legacyNavigation, legacyRedirect string
+	if err := db.QueryRowContext(ctx, "SELECT `value` FROM site_settings WHERE tenant_id='' AND `key`='legacy.title'").Scan(&legacySetting); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT id FROM navigation_items WHERE tenant_id='' AND id='legacy-nav'`).Scan(&legacyNavigation); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT target_path FROM page_redirects WHERE tenant_id='' AND source_path='/old'`).Scan(&legacyRedirect); err != nil {
+		t.Fatal(err)
+	}
+	if legacySetting != "Legacy title" || legacyNavigation != "legacy-nav" || legacyRedirect != "/new" {
+		t.Fatalf("legacy tenant backfill = %q, %q, %q", legacySetting, legacyNavigation, legacyRedirect)
+	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO users (id,email,password_hash,role,created_at,updated_at) VALUES ('u1','one@example.test','hash','owner',?,?)`, now, now); err != nil {
 		t.Fatal(err)
 	}
@@ -107,6 +144,9 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO user_mfa (user_id,secret_ciphertext,enabled,created_at,updated_at) VALUES ('u1',X'010203',1,CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
 		t.Fatalf("MFA insert with parent key: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO admin_user_permissions (user_id,permission,allowed,created_at,updated_at) VALUES ('u1','pages.publish',1,?,?)`, now, now); err != nil {
+		t.Fatalf("admin permission insert with parent key: %v", err)
+	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO mfa_recovery_codes (id,user_id,code_hash) VALUES ('rc1','u1',REPEAT('b',64))`); err != nil {
 		t.Fatalf("MFA recovery insert with parent key: %v", err)
 	}
@@ -116,7 +156,7 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `DELETE FROM users WHERE id='u1'`); err != nil {
 		t.Fatalf("delete user with dependent records: %v", err)
 	}
-	for _, table := range []string{"sessions", "user_mfa", "mfa_recovery_codes", "auth_recovery_tokens"} {
+	for _, table := range []string{"sessions", "user_mfa", "mfa_recovery_codes", "auth_recovery_tokens", "admin_user_permissions"} {
 		var count int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
 			t.Fatal(err)

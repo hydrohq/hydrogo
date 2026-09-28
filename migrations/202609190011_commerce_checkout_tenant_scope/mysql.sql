@@ -1,0 +1,12 @@
+ALTER TABLE commerce_orders ADD COLUMN tenant_id VARCHAR(128) NOT NULL DEFAULT '';
+ALTER TABLE commerce_order_items ADD COLUMN tenant_id VARCHAR(128) NOT NULL DEFAULT '';
+ALTER TABLE commerce_carts ADD COLUMN tenant_id VARCHAR(128) NOT NULL DEFAULT '';
+ALTER TABLE commerce_cart_items ADD COLUMN tenant_id VARCHAR(128) NOT NULL DEFAULT '';
+ALTER TABLE commerce_payment_transactions ADD COLUMN tenant_id VARCHAR(128) NOT NULL DEFAULT '';
+ALTER TABLE commerce_payment_webhook_events ADD COLUMN tenant_id VARCHAR(128) NOT NULL DEFAULT '';
+CREATE INDEX idx_commerce_orders_tenant_user_created ON commerce_orders(tenant_id, user_id, created_at, id);
+CREATE INDEX idx_commerce_order_items_tenant_order ON commerce_order_items(tenant_id, order_id, id);
+CREATE INDEX idx_commerce_carts_tenant_user ON commerce_carts(tenant_id, user_id, id);
+CREATE INDEX idx_commerce_cart_items_tenant_cart ON commerce_cart_items(tenant_id, cart_id, id);
+CREATE INDEX idx_commerce_payments_tenant_order ON commerce_payment_transactions(tenant_id, order_id, created_at);
+CREATE INDEX idx_commerce_webhooks_tenant_event ON commerce_payment_webhook_events(tenant_id, provider, provider_event_id);

@@ -3,12 +3,15 @@ module: "forms"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "aab5b874ae9ce79423267278b80dc93fb283106214d8a172152c7d2f3cbe00c5"
   postgres: "aab5b874ae9ce79423267278b80dc93fb283106214d8a172152c7d2f3cbe00c5"
+  mysql: "c4b55c19c1d653815deb092f7f0469e746abfad7e1153b99436eede8b1a449d1"
 dependencies:
   - "202609170001_form_idempotency"
 schema:
