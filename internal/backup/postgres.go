@@ -63,7 +63,13 @@ type PostgresTools struct {
 // SnapshotPostgres creates a custom-format database dump and copies immutable
 // media into the same manifest root. The destination must not already exist.
 func SnapshotPostgres(ctx context.Context, tools PostgresTools, dsn, mediaDir, destination string) (Manifest, error) {
-	ctx, span := observability.StartComponentSpan(ctx, "backup", "snapshot.postgres")
+	return snapshotDatabase(ctx, tools, "postgres", dsn, mediaDir, destination)
+}
+
+func snapshotDatabase(ctx context.Context, tools interface {
+	Dump(context.Context, string, string) error
+}, dialect, dsn, mediaDir, destination string) (Manifest, error) {
+	ctx, span := observability.StartComponentSpan(ctx, "backup", "snapshot."+dialect)
 	defer span.End()
 	if strings.TrimSpace(destination) == "" || strings.TrimSpace(mediaDir) == "" {
 		return Manifest{}, errors.New("media directory and destination are required")
@@ -128,6 +134,14 @@ func SnapshotPostgres(ctx context.Context, tools PostgresTools, dsn, mediaDir, d
 // staging root. Activation remains the caller's responsibility after applying
 // restore controls and running smoke checks.
 func RestorePostgresToStaging(ctx context.Context, tools PostgresTools, dsn, source, destination string, manifest Manifest, controls RestoreControls) error {
+	return restoreDatabaseToStaging(ctx, tools, "postgres", dsn, source, destination, manifest, controls)
+}
+
+func restoreDatabaseToStaging(ctx context.Context, tools interface {
+	Restore(context.Context, string, string) error
+}, dialect, dsn, source, destination string, manifest Manifest, controls RestoreControls) error {
+	ctx, span := observability.StartComponentSpan(ctx, "backup", "restore."+dialect)
+	defer span.End()
 	if !controls.SessionsRevoked || !controls.EgressQuarantined || !controls.OldWritesBlocked {
 		return errors.New("restore controls are incomplete")
 	}
