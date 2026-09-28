@@ -62,7 +62,7 @@ type Handler struct {
 
 type PublicSEOSettings struct {
 	Brand, FontCSS, AppearanceCSS, FaviconURL, SocialImageURL string
-	BusinessProfile *site.BusinessProfile
+	BusinessProfile                                           *site.BusinessProfile
 }
 
 func (h Handler) defaultLocale() string {
@@ -337,7 +337,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions"><a class="button button-quiet" href="/admin/pages/import">CSV / Excel içe aktar</a></div><div class="table-wrap">`)
-	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -758,7 +758,9 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 		fmt.Fprintf(&head, `<link rel="icon" href="%s">`, template.HTMLEscapeString(settings.FaviconURL))
 	}
 	if settings.BusinessProfile != nil {
-		if jsonLD, err := site.BusinessJSONLD(*settings.BusinessProfile); err == nil { fmt.Fprintf(&head, `<script type="application/ld+json">%s</script>`, jsonLD) }
+		if jsonLD, err := site.BusinessJSONLD(*settings.BusinessProfile); err == nil {
+			fmt.Fprintf(&head, `<script type="application/ld+json">%s</script>`, jsonLD)
+		}
 	}
 	origin := strings.TrimSpace(h.SEOOrigin)
 	if origin == "" {

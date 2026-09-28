@@ -40,6 +40,21 @@ func TestRenderListUsesTypedStatusPillsAndScheduleTime(t *testing.T) {
 	}
 }
 
+func TestRenderListAppliesStatusFilterWithoutMutatingRows(t *testing.T) {
+	collection := Collection{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}, {ID: "status", Label: "Status", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Edit", Href: "/admin/pages/edit"}}}
+	rows := []Row{{Values: map[string]string{"title": "Published page", "status": "published"}}, {Values: map[string]string{"title": "Draft page", "status": "draft"}}}
+	var out strings.Builder
+	if err := RenderList(&out, ListData{Collection: collection, Rows: rows, StatusFilter: " DRAFT "}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "Published page") || !strings.Contains(out.String(), "Draft page") {
+		t.Fatalf("status filter mismatch: %s", out.String())
+	}
+	if len(rows) != 2 {
+		t.Fatalf("RenderList mutated input rows: %d", len(rows))
+	}
+}
+
 func TestRenderListCopyActionEscapesURLAndUsesTypedButton(t *testing.T) {
 	collection := Collection{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Edit", Href: "/admin/pages/p1"}}}
 	var out strings.Builder

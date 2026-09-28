@@ -84,19 +84,19 @@ type transactionStarter interface {
 }
 
 type input struct {
-	Locale         string `json:"locale"`
-	Slug           string `json:"slug"`
-	Title          string `json:"title"`
-	Body           string `json:"body"`
-	CoverMediaID   string `json:"cover_media_id"`
-	Excerpt        string `json:"excerpt"`
-	KeyTakeaways   string `json:"key_takeaways"`
-	Category       string `json:"category"`
-	AuthorName     string `json:"author_name"`
-	Featured       bool   `json:"featured"`
-	Tags           string `json:"tags"`
-	SEOTitle       string `json:"seo_title"`
-	SEODescription string `json:"seo_description"`
+	Locale         string     `json:"locale"`
+	Slug           string     `json:"slug"`
+	Title          string     `json:"title"`
+	Body           string     `json:"body"`
+	CoverMediaID   string     `json:"cover_media_id"`
+	Excerpt        string     `json:"excerpt"`
+	KeyTakeaways   string     `json:"key_takeaways"`
+	Category       string     `json:"category"`
+	AuthorName     string     `json:"author_name"`
+	Featured       bool       `json:"featured"`
+	Tags           string     `json:"tags"`
+	SEOTitle       string     `json:"seo_title"`
+	SEODescription string     `json:"seo_description"`
 	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
 }
 
@@ -178,7 +178,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Query().Get("fragment") == "table" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
+		if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
 			http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		}
 		return
@@ -188,7 +188,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="table-wrap">`)
-	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows}); err != nil {
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -216,7 +216,9 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 			rightSEOFields = append(rightSEOFields, f)
 		}
 	}
-	if !hasAdminField(rightMetaFields, "expires_at") { rightMetaFields = append(rightMetaFields, adminstudio.Field{ID: "expires_at", Label: "Otomatik yayından kalkma", Kind: adminstudio.FieldDate, Widget: "datetime-local"}) }
+	if !hasAdminField(rightMetaFields, "expires_at") {
+		rightMetaFields = append(rightMetaFields, adminstudio.Field{ID: "expires_at", Label: "Otomatik yayından kalkma", Kind: adminstudio.FieldDate, Widget: "datetime-local"})
+	}
 	values := map[string]string{"locale": h.defaultLocale(), "expires_at": ""}
 	csrf := security.CSRFTokenFromContext(r.Context())
 	nonce := security.NonceFromContext(r.Context())
@@ -335,7 +337,10 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 		locale = h.defaultLocale()
 	}
 	expiresAt, err := parseExpiresAt(r.FormValue("expires_at"))
-	if err != nil { http.Error(w, "invalid expiry date", http.StatusBadRequest); return }
+	if err != nil {
+		http.Error(w, "invalid expiry date", http.StatusBadRequest)
+		return
+	}
 	item := news.Item{ID: id, Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Excerpt: r.FormValue("excerpt"), KeyTakeaways: r.FormValue("key_takeaways"), Category: r.FormValue("category"), AuthorName: r.FormValue("author_name"), Featured: r.FormValue("featured") == "on", Tags: r.FormValue("tags"), SEOTitle: r.FormValue("seo_title"), SEODescription: r.FormValue("seo_description"), ExpiresAt: expiresAt, Status: news.StatusDraft}
 	if err := h.validateNewsMedia(r.Context(), item); err != nil {
 		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
@@ -847,9 +852,13 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 			rightSEOFields = append(rightSEOFields, f)
 		}
 	}
-	if !hasAdminField(rightMetaFields, "expires_at") { rightMetaFields = append(rightMetaFields, adminstudio.Field{ID: "expires_at", Label: "Otomatik yayından kalkma", Kind: adminstudio.FieldDate, Widget: "datetime-local"}) }
+	if !hasAdminField(rightMetaFields, "expires_at") {
+		rightMetaFields = append(rightMetaFields, adminstudio.Field{ID: "expires_at", Label: "Otomatik yayından kalkma", Kind: adminstudio.FieldDate, Widget: "datetime-local"})
+	}
 	expiresValue := ""
-	if item.ExpiresAt != nil { expiresValue = item.ExpiresAt.UTC().Format("2006-01-02T15:04") }
+	if item.ExpiresAt != nil {
+		expiresValue = item.ExpiresAt.UTC().Format("2006-01-02T15:04")
+	}
 	values := map[string]string{
 		"locale":          item.Locale,
 		"slug":            item.Slug,
@@ -864,7 +873,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		"tags":            item.Tags,
 		"seo_title":       item.SEOTitle,
 		"seo_description": item.SEODescription,
-		"expires_at": expiresValue,
+		"expires_at":      expiresValue,
 	}
 	csrf := security.CSRFTokenFromContext(r.Context())
 	nonce := security.NonceFromContext(r.Context())
@@ -927,11 +936,22 @@ func boolText(value bool) string {
 	return ""
 }
 
-func hasAdminField(fields []adminstudio.Field, id string) bool { for _, field := range fields { if field.ID == id { return true } }; return false }
+func hasAdminField(fields []adminstudio.Field, id string) bool {
+	for _, field := range fields {
+		if field.ID == id {
+			return true
+		}
+	}
+	return false
+}
 func parseExpiresAt(value string) (*time.Time, error) {
-	if strings.TrimSpace(value) == "" { return nil, nil }
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
 	parsed, err := time.ParseInLocation("2006-01-02T15:04", value, time.UTC)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	parsed = parsed.UTC()
 	return &parsed, nil
 }
@@ -974,7 +994,10 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		locale = h.defaultLocale()
 	}
 	expiresAt, err := parseExpiresAt(r.FormValue("expires_at"))
-	if err != nil { http.Error(w, "invalid expiry date", http.StatusBadRequest); return }
+	if err != nil {
+		http.Error(w, "invalid expiry date", http.StatusBadRequest)
+		return
+	}
 	item := news.Item{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Excerpt: r.FormValue("excerpt"), KeyTakeaways: r.FormValue("key_takeaways"), Category: r.FormValue("category"), AuthorName: r.FormValue("author_name"), Featured: r.FormValue("featured") == "on", Tags: r.FormValue("tags"), SEOTitle: r.FormValue("seo_title"), SEODescription: r.FormValue("seo_description"), ExpiresAt: expiresAt, Status: news.StatusDraft}
 	if err := h.validateNewsMedia(r.Context(), item); err != nil {
 		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
