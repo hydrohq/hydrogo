@@ -41,3 +41,18 @@ func TestPageSEOOnlyEmitsGeneratedLocalFontStylesheets(t *testing.T) {
 		}
 	}
 }
+
+func TestPageHeadIncludesValidatedAppearanceTokens(t *testing.T) {
+	handler := Handler{SEOOrigin: "https://hydro.invalid", PublicSEOSettings: func(context.Context) PublicSEOSettings {
+		return PublicSEOSettings{AppearanceCSS: `:root{--brand:#155EEF;--accent:#155EEF}`, FaviconURL: "/media/favicon.svg", SocialImageURL: "/media/share.webp"}
+	}}
+	meta, err := handler.pageSEOMeta(context.Background(), pages.Page{Locale: "en", Slug: "home", Title: "Home"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`<style nonce="">:root{--brand:#155EEF;--accent:#155EEF}</style>`, `rel="icon" href="/media/favicon.svg"`, `og:image" content="https://hydro.invalid/media/share.webp`} {
+		if !strings.Contains(meta, marker) {
+			t.Errorf("appearance head missing %q: %s", marker, meta)
+		}
+	}
+}

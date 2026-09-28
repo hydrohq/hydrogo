@@ -114,6 +114,11 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 			<div>
 				<h3 style="font-size:0.92rem;font-weight:700;margin:0 0 10px;color:var(--ink);">Yayın Yüzeyleri &amp; Form Kutuları</h3>
 				<div class="collection-grid">
+					<a class="collection-tile" href="/admin/site/appearance">
+						<span class="tile-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v18M3 12h18"></path></svg></span>
+						<span><strong>Marka ve Görünüm</strong><small>Renk paleti, kontrast ve yazı tipi ayarları</small></span>
+						<span class="arrow">→</span>
+					</a>
 					<a class="collection-tile" href="/site/settings" target="_blank">
 						<span class="tile-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></span>
 						<span>

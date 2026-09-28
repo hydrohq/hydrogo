@@ -132,6 +132,35 @@ func (s Service) SaveSetting(ctx context.Context, value Setting) error {
 	})
 }
 
+// SaveAppearance validates and persists all brand tokens atomically.
+func (s Service) SaveAppearance(ctx context.Context, value Appearance) error {
+	if err := value.Normalize(); err != nil {
+		return err
+	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
+	settings := []Setting{
+		{Key: "appearance.primary_color", Value: value.PrimaryColor, Public: true},
+		{Key: "appearance.accent_color", Value: value.AccentColor, Public: true},
+		{Key: "appearance.dark_primary_color", Value: value.DarkPrimaryColor, Public: true},
+		{Key: "appearance.dark_accent_color", Value: value.DarkAccentColor, Public: true},
+		{Key: "appearance.font_family", Value: value.FontFamily, Public: true},
+		{Key: "appearance.logo_url", Value: value.LogoURL, Public: true},
+		{Key: "appearance.dark_logo_url", Value: value.DarkLogoURL, Public: true},
+		{Key: "appearance.favicon_url", Value: value.FaviconURL, Public: true},
+		{Key: "appearance.social_image_url", Value: value.SocialImageURL, Public: true},
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		for _, setting := range settings {
+			if err := s.Store.UpsertSetting(ctx, tx, setting); err != nil {
+				return err
+			}
+		}
+		return s.audit(ctx, tx, "site.appearance.updated", "theme tokens")
+	})
+}
+
 func (s Service) SaveNavigation(ctx context.Context, locale string, items []NavigationItem) error {
 	locale, items, err := normalizeNavigation(locale, items)
 	if err != nil {

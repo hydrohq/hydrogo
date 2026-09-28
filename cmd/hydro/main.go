@@ -1718,6 +1718,12 @@ func serve(args []string, stderr io.Writer) error {
 					result.FontCSS = setting.Value
 				}
 			}
+			appearance := site.AppearanceFromSettings(settings)
+			if css, err := appearance.CSS(); err == nil {
+				result.AppearanceCSS = css
+			}
+			result.FaviconURL = appearance.FaviconURL
+			result.SocialImageURL = appearance.SocialImageURL
 			return result
 		}}
 		pageHTTP.DiscoveryProvider = func(providerCtx context.Context) (seo.Discovery, error) {
