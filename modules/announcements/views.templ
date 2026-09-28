@@ -1,0 +1,16 @@
+package announcements
+import "github.com/ardaozyildirim/hydrogo/internal/sectoral"
+
+templ Collection(items []Announcement) {
+<section class="sectoral-announcements bg-surface text-foreground" data-module="announcements" aria-label="Duyurular">
+ for _, item := range items {
+  if item.Status == "published" {
+   <article><strong>{ item.Title }</strong><p>{ item.Body }</p>
+   if item.LinkURL != "" {
+	<a href={ templ.SafeURL(sectoral.SanitizeWebURL(item.LinkURL)) }>Detaylar</a>
+   }
+   </article>
+  }
+ }
+</section>
+}

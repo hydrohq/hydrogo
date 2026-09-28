@@ -1,0 +1,26 @@
+package pricing
+import "github.com/ardaozyildirim/hydrogo/internal/sectoral"
+import "fmt"
+templ Collection(items []Plan) {
+<section class="sectoral-pricing bg-background text-foreground" data-module="pricing">
+ <div class="pricing-period-toggle" role="group" aria-label="Faturalama dönemi" data-pricing-toggle>
+  <button type="button" aria-pressed="true" data-pricing-period="monthly">Aylık</button>
+  <button type="button" aria-pressed="false" data-pricing-period="yearly">Yıllık</button>
+ </div>
+ for _, item := range items {
+  if item.Status == "published" {
+   <article class="sectoral-card bg-surface border-border" data-pricing-card data-price-interval={ item.Interval }><h2>{ item.Title }</h2>
+   <p>{ fmt.Sprintf("%s %.2f / %s", item.Currency, float64(item.PriceCents)/100, item.Interval) }</p>
+   <ul>
+    for _, feature := range item.Features {
+     <li>{ feature }</li>
+    }
+   </ul>
+   if item.CTAURL != "" {
+	<a class="button button-primary" href={ templ.SafeURL(sectoral.SanitizeWebURL(item.CTAURL)) }>Paketi seç</a>
+   }
+   </article>
+  }
+ }
+</section>
+}

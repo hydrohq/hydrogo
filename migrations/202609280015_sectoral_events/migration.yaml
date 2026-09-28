@@ -1,0 +1,24 @@
+id: "202609280015_sectoral_events"
+module: "events"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "01e9f4d8a03af0e624ce7e6d5b18b93d5938cca1af034472d773b0a5751fbe59"
+  postgres: "7c3bcd7ee1e31a4b5f1f069e314f6b92e18b9267d9430a27451d5ab43ec4b26a"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The events module is enabled for this Edition"
+compatibility: "Adds the optional events collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped events entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."

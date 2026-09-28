@@ -1,0 +1,24 @@
+id: "202609280017_sectoral_testimonials"
+module: "testimonials"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "7522db3d3fe304da2ce66db8f43476cb28f31bd4fa71144301b5be75d142130f"
+  postgres: "1685843326baa3366a45201aaeb92906064347441733b81b67acbcade72d98c6"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The testimonials module is enabled for this Edition"
+compatibility: "Adds the optional testimonials collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped testimonials entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."

@@ -1,0 +1,24 @@
+id: "202609280008_sectoral_locations"
+module: "locations"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "1607de3a93d03ddb11ad68dc81350ffd397972e40b937034c5ebe86292e0fff8"
+  postgres: "c9554d8b488868917bfd64d5756903d44d1f9a1b5ba9271490b57f17032cd97c"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The locations module is enabled for this Edition"
+compatibility: "Adds the optional locations collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped locations entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."

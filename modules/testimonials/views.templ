@@ -1,0 +1,20 @@
+package testimonials
+import (
+ "fmt"
+ "strings"
+)
+templ Collection(items []Testimonial) {
+<section class="sectoral-testimonials bg-background text-foreground" data-module="testimonials">
+ for _, item := range items {
+  if item.Status == "published" {
+   <article class="sectoral-card bg-surface border-border"><h2>{ item.Title }</h2>
+   <blockquote><p>{ item.Quote }</p><footer>{ item.Author }
+   if item.Organization != "" {
+    <span> · { item.Organization }</span>
+   }
+   </footer><span aria-label={ fmt.Sprintf("%d / 5 yıldız", item.Rating) }>{ strings.Repeat("★", item.Rating) }</span></blockquote>
+   </article>
+  }
+ }
+</section>
+}

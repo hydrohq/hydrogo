@@ -1,0 +1,24 @@
+id: "202609280014_sectoral_pricing"
+module: "pricing"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "0a3dec5c3b36e4e0c2a29b3a96b7c1509f65b6d34e65c1d7a55bbbba5b8bb120"
+  postgres: "0c055e058e1d15b67744c6eb6fe2aebc87ce489c7a5906da5ff883c10f3d02f9"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The pricing module is enabled for this Edition"
+compatibility: "Adds the optional pricing collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped pricing entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."

@@ -1,0 +1,24 @@
+id: "202609280012_sectoral_portfolio"
+module: "portfolio"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "f47bb4a5637805e76edc73d05b67793ce2c881ef5bc7136dd98e13e97128539e"
+  postgres: "24e06ee018c529dd6e21dacaa66d9871da76c037bde67867d038fd2a4a2ead33"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The portfolio module is enabled for this Edition"
+compatibility: "Adds the optional portfolio collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped portfolio entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."

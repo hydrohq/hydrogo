@@ -153,6 +153,43 @@ func TestSQLiteNewsModuleFilteringIncludesTaxonomySchema(t *testing.T) {
 	}
 }
 
+func TestSQLiteSectoralModulesCreateSchemaOnlyWhenEnabled(t *testing.T) {
+	ctx := context.Background()
+	modules := []string{"locations", "team", "partners", "announcements", "portfolio", "certificates", "pricing", "events", "downloads", "testimonials", "faq", "legal"}
+	for _, active := range [][]string{{"locations"}, modules} {
+		db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "sectoral.sqlite"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		enabled := map[string]bool{}
+		for _, module := range active {
+			enabled[module] = true
+		}
+		if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
+			db.Close()
+			t.Fatalf("enabled %v: %v", active, err)
+		}
+		for _, module := range modules {
+			var count int
+			table := "sectoral_" + module
+			if err := db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count); err != nil {
+				db.Close()
+				t.Fatal(err)
+			}
+			want := enabled[module]
+			if (count == 1) != want {
+				db.Close()
+				t.Fatalf("module %s table exists=%v want %v with enabled=%v", module, count == 1, want, active)
+			}
+		}
+		if err := database.CheckCompatibilityForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
+			db.Close()
+			t.Fatalf("compatibility enabled %v: %v", active, err)
+		}
+		db.Close()
+	}
+}
+
 func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-only.sqlite"))

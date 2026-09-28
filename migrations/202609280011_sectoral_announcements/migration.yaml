@@ -1,0 +1,24 @@
+id: "202609280011_sectoral_announcements"
+module: "announcements"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "8de671df773f621b481a736c42a3f3cde186fb3b6cb92ad02bc15e9f5bb45ce3"
+  postgres: "25c58bd05a51df78711b690e10479d7564e7ca48b54e7122c8858ce99366afe8"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The announcements module is enabled for this Edition"
+compatibility: "Adds the optional announcements collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped announcements entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."

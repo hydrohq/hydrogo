@@ -1,0 +1,23 @@
+package locations
+import "github.com/ardaozyildirim/hydrogo/internal/sectoral"
+
+templ Collection(items []Location) {
+<section class="sectoral-collection bg-background text-foreground" data-module="locations">
+ for _, item := range items {
+  if item.Status == "published" {
+   <article class="sectoral-card bg-surface border-border"><h2>{ item.Title }</h2>
+   if item.Summary != "" {
+	<p>{ item.Summary }</p>
+   }
+   <address>{ item.Address }</address>
+   if item.Phone != "" {
+	<a href={ "tel:" + item.Phone }>{ item.Phone }</a>
+   }
+   if item.MapURL != "" {
+	<a href={ templ.SafeURL(sectoral.SanitizeWebURL(item.MapURL)) } rel="noopener noreferrer">Haritada görüntüle</a>
+   }
+   </article>
+  }
+ }
+</section>
+}

@@ -6,6 +6,8 @@ class:
 transactional:
   sqlite: true
   postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
 dependencies: []
 checksum_sha256:
   sqlite: "298e4853138d400c399665b59ba04c14d34366b119340be1f7b9471de7cc1712"
