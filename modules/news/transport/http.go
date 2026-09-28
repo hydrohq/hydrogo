@@ -168,7 +168,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Status: adminstudio.StatusInfo{Value: string(item.Status), ScheduledAt: item.ScheduledAt}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
 	}
 	if r.URL.Query().Get("fragment") == "table" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
