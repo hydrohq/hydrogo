@@ -806,6 +806,11 @@ func (h Handler) appearance(w http.ResponseWriter, r *http.Request) {
 			if err := uicomponents.Input(field).Render(ctx, output); err != nil {
 				return err
 			}
+			if strings.HasSuffix(field.Name, "_url") {
+				if _, err := fmt.Fprintf(output, `<button type="button" class="button button-quiet media-picker-open" data-media-target="%s">Medyadan seç</button>`, template.HTMLEscapeString(field.ID)); err != nil {
+					return err
+				}
+			}
 		}
 		if err := uicomponents.Select(uicomponents.SelectProps{ID: "appearance-font", Name: "font_family", Label: "Yazı tipi", Value: value.FontFamily, Options: []string{"system", "inter", "lato", "roboto"}}).Render(ctx, output); err != nil {
 			return err
@@ -813,10 +818,13 @@ func (h Handler) appearance(w http.ResponseWriter, r *http.Request) {
 		if _, err := io.WriteString(output, `<p id="appearance-contrast" role="status" aria-live="polite">Renk kontrastı denetleniyor…</p>`); err != nil {
 			return err
 		}
+		if _, err := io.WriteString(output, `<section id="appearance-preview" aria-label="Canlı site görünümü önizlemesi" style="padding:24px;border-radius:12px;background:var(--appearance-primary,#334155);color:white;font-family:var(--appearance-font,system-ui)"><p>Site görünümü önizlemesi</p><img id="appearance-preview-logo" alt="Logo önizlemesi" hidden style="max-width:180px;max-height:72px;object-fit:contain"><h2>İşinizi büyütmeye hazır mısınız?</h2><button type="button" style="background:var(--appearance-accent,#0f766e);color:white;border:0;border-radius:6px;padding:10px 16px">İletişime geçin</button><p id="appearance-preview-font">Örnek metin • Aa 123</p></section>`); err != nil {
+			return err
+		}
 		if err := uicomponents.Button(uicomponents.ButtonProps{Label: "Görünümü kaydet", Type: "submit", Variant: uicomponents.Primary}).Render(ctx, output); err != nil {
 			return err
 		}
-		_, err := io.WriteString(output, `<script nonce="`+template.HTMLEscapeString(security.NonceFromContext(ctx))+`">(()=>{const ids=['appearance-primary','appearance-accent','appearance-dark-primary','appearance-dark-accent'];const out=document.getElementById('appearance-contrast');const lum=h=>{const c=h.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]};const check=()=>{const ratios=ids.map(id=>{const x=document.getElementById(id);return 1.05/(lum(x.value)+.05)});const min=Math.min(...ratios);const low=min<4.5;out.textContent=low?'Kontrast yetersiz: beyaz metin için en az 4,5:1 gerekli.':min>=7?'WCAG AAA uyumlu: en düşük oran '+min.toFixed(2)+':1.':'WCAG AA uyumlu: en düşük oran '+min.toFixed(2)+':1.';out.dataset.state=low?'low':min>=7?'aaa':'aa'};ids.forEach(id=>document.getElementById(id)?.addEventListener('input',check));check()})()</script>`)
+		_, err := io.WriteString(output, `<script nonce="`+template.HTMLEscapeString(security.NonceFromContext(ctx))+`">(()=>{const ids=['appearance-primary','appearance-accent','appearance-dark-primary','appearance-dark-accent'];const out=document.getElementById('appearance-contrast');const preview=document.getElementById('appearance-preview');const lum=h=>{const c=h.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]};const update=()=>{const ratios=ids.map(id=>{const x=document.getElementById(id);return 1.05/(lum(x.value)+.05)});const min=Math.min(...ratios);const low=min<4.5;out.textContent=low?'Kontrast yetersiz: beyaz metin için en az 4,5:1 gerekli.':min>=7?'WCAG AAA uyumlu: en düşük oran '+min.toFixed(2)+':1.':'WCAG AA uyumlu: en düşük oran '+min.toFixed(2)+':1.';out.dataset.state=low?'low':min>=7?'aaa':'aa';preview.style.setProperty('--appearance-primary',document.getElementById(ids[0]).value);preview.style.setProperty('--appearance-accent',document.getElementById(ids[1]).value);preview.style.fontFamily=document.getElementById('appearance-font').value+', system-ui'};ids.forEach(id=>document.getElementById(id)?.addEventListener('input',update));document.getElementById('appearance-font')?.addEventListener('change',update);['appearance-logo','appearance-dark-logo'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{const img=document.getElementById('appearance-preview-logo');const path=document.getElementById(id).value;img.src=path;img.hidden=!path}));update()})()</script>`)
 		return err
 	})
 	form := uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/appearance", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: body})
