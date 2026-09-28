@@ -72,6 +72,7 @@ type statusRecorder struct {
 	status      int
 	wroteHeader bool
 	bytes       int
+	onStatus    func(int)
 }
 
 func (r *statusRecorder) WriteHeader(status int) {
@@ -80,6 +81,9 @@ func (r *statusRecorder) WriteHeader(status int) {
 	}
 	r.status = status
 	r.wroteHeader = true
+	if r.onStatus != nil {
+		r.onStatus(status)
+	}
 	r.ResponseWriter.WriteHeader(status)
 }
 
@@ -102,3 +106,32 @@ func (r *statusRecorder) Flush() {
 }
 
 func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
+
+// HTTPErrorMiddleware reports generic 5xx responses without buffering bodies.
+// The private recovery marker deduplicates panics, which are reported with a
+// stack by the recovery observer instead.
+func HTTPErrorMiddleware(observe func(*http.Request, int)) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		if observe == nil {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			recoveredPanic := false
+			recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+			recorder.onStatus = func(status int) {
+				if recorder.Header().Get("X-Hydro-Recovered-Panic") == "true" {
+					recorder.Header().Del("X-Hydro-Recovered-Panic")
+					recoveredPanic = true
+					return
+				}
+				if status >= http.StatusInternalServerError {
+					observe(r, status)
+				}
+			}
+			next.ServeHTTP(recorder, r)
+			if recorder.status >= http.StatusInternalServerError && !recoveredPanic && !recorder.wroteHeader {
+				observe(r, recorder.status)
+			}
+		})
+	}
+}

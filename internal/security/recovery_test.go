@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +42,20 @@ func TestRecoveryMiddlewareHandlesUncomparablePanicValues(t *testing.T) {
 	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/", nil))
 	if res.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestRecoveryMiddlewareObserverReceivesPanicTypeWithoutPanicValue(t *testing.T) {
+	var observedType string
+	var observedStack []byte
+	handler := RecoveryMiddlewareWithObserver(nil, func(_ context.Context, _ *http.Request, panicType string, stack []byte) {
+		observedType = panicType
+		observedStack = append([]byte(nil), stack...)
+	})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("private secret") }))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+	if response.Code != http.StatusInternalServerError || observedType != "string" || !strings.Contains(string(observedStack), "TestRecoveryMiddlewareObserver") || strings.Contains(string(observedStack), "private secret") {
+		t.Fatalf("status=%d type=%q stack=%q", response.Code, observedType, observedStack)
 	}
 }
 

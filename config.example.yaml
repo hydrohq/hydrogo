@@ -30,6 +30,10 @@ redis:
 analytics:
   no_cookie_enabled: false
   hash_key: ""
+# Optional Sentry/GlitchTip DSN. Keep the key in a protected environment
+# variable (HYDRO_SENTRY_DSN) in deployed environments.
+observability:
+  sentry_dsn: ""
 theme_dir: "themes"
 theme: "corporate"
 # Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,

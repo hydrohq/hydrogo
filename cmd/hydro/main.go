@@ -2412,12 +2412,30 @@ func serve(args []string, stderr io.Writer) error {
 		logWriter = io.Discard
 	}
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	var panicReporter *observability.SentryReporter
+	if cfg.Observability.SentryDSN != "" {
+		panicReporter, err = observability.NewSentryReporter(cfg.Observability.SentryDSN, nil, 64)
+		if err != nil {
+			return fmt.Errorf("Sentry configuration: %w", err)
+		}
+		defer panicReporter.Close()
+	}
 	serverConfig := server.Config{
-		Address:               cfg.HTTP.Address,
-		ShutdownTimeout:       budget.ShutdownTimeout,
-		AuthSvc:               authSvc,
-		Metrics:               metrics,
-		Logger:                logger,
+		Address:         cfg.HTTP.Address,
+		ShutdownTimeout: budget.ShutdownTimeout,
+		AuthSvc:         authSvc,
+		Metrics:         metrics,
+		Logger:          logger,
+		OnPanic: func(ctx context.Context, request *http.Request, panicType string, stack []byte) {
+			if panicReporter != nil {
+				panicReporter.CapturePanic(ctx, request, panicType, stack)
+			}
+		},
+		OnHTTPError: func(request *http.Request, status int) {
+			if panicReporter != nil {
+				panicReporter.CaptureHTTPError(request, status)
+			}
+		},
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
 		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL},
