@@ -125,6 +125,29 @@
     if (!form) return;
     if (!lock(form)) { event.preventDefault(); return; }
     form.dataset.htmxPending = form.matches('[hx-post], [hx-get]') ? 'true' : '';
+    if (!form.matches('[hx-post], [hx-get]') && form.hasAttribute('data-reset-on-success') && window.fetch) {
+      event.preventDefault();
+      const status = form.querySelector('[data-submit-status]');
+      fetch(form.action, { method: form.method || 'POST', body: new FormData(form), credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(response => {
+          if (!response.ok) throw new Error('submission rejected');
+          form.reset();
+          form.querySelectorAll('[data-character-counter]').forEach(input => {
+            const counter = input.closest('.hydro-form__field')?.querySelector('[data-character-count]');
+            if (counter) counter.textContent = `0 / ${input.maxLength}`;
+          });
+          form.dispatchEvent(new Event('hydro:reset-step'));
+          form.dataset.success = 'true';
+          if (status) status.textContent = 'Sent successfully.';
+        })
+        .catch(() => { if (status) status.textContent = 'We could not send your message. Please try again.'; })
+        .finally(() => {
+          form.dataset.submitting = '';
+          const button = form.querySelector('[data-form-submit]');
+          if (button) { button.disabled = false; button.removeAttribute('aria-busy'); }
+          form.querySelector('[data-submit-spinner]')?.setAttribute('hidden', '');
+        });
+    }
   }, true);
   document.addEventListener('htmx:beforeRequest', event => {
     const form = event.detail?.elt?.closest?.('[data-public-form]');

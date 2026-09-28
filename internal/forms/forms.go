@@ -30,25 +30,25 @@ var metaPixelEventPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,63}$`)
 type FieldType string
 
 const (
-	Text     FieldType = "text"
-	Email    FieldType = "email"
-	Textarea FieldType = "textarea"
-	Number   FieldType = "number"
-	Checkbox FieldType = "checkbox"
-	Select   FieldType = "select"
-	Document FieldType = "document"
-	Phone FieldType = "phone"
+	Text            FieldType = "text"
+	Email           FieldType = "email"
+	Textarea        FieldType = "textarea"
+	Number          FieldType = "number"
+	Checkbox        FieldType = "checkbox"
+	Select          FieldType = "select"
+	Document        FieldType = "document"
+	Phone           FieldType = "phone"
 	CascadingSelect FieldType = "cascading_select"
 )
 
 type Field struct {
-	ID       string    `json:"id"`
-	Type     FieldType `json:"type"`
-	Label    string    `json:"label"`
-	Required bool      `json:"required"`
-	Options  []string  `json:"options,omitempty"`
-	Step int `json:"step,omitempty"`
-	DependsOn string `json:"depends_on,omitempty"`
+	ID             string              `json:"id"`
+	Type           FieldType           `json:"type"`
+	Label          string              `json:"label"`
+	Required       bool                `json:"required"`
+	Options        []string            `json:"options,omitempty"`
+	Step           int                 `json:"step,omitempty"`
+	DependsOn      string              `json:"depends_on,omitempty"`
 	CascadeOptions map[string][]string `json:"cascade_options,omitempty"`
 }
 
@@ -86,7 +86,7 @@ type Form struct {
 	GoogleAdsConversionLabel string        `json:"google_ads_conversion_label,omitempty"`
 	MetaPixelEventName       string        `json:"meta_pixel_event_name,omitempty"`
 	WorkingHours             *WorkingHours `json:"working_hours,omitempty"`
-	MultiStep bool `json:"multi_step,omitempty"`
+	MultiStep                bool          `json:"multi_step,omitempty"`
 }
 
 func (f Form) AfterHoursNotice(now time.Time) (string, bool, error) {
@@ -137,7 +137,9 @@ func (f Form) Validate() error {
 	hasEmail := false
 	documentFields := 0
 	for _, field := range f.Fields {
-		if field.Step < 0 || field.Step > 12 { return fmt.Errorf("invalid form step") }
+		if field.Step < 0 || field.Step > 12 {
+			return fmt.Errorf("invalid form step")
+		}
 		if !idPattern.MatchString(field.ID) || len(field.ID) > MaxIDLength || strings.TrimSpace(field.Label) == "" || len(field.Label) > MaxLabelLength {
 			return fmt.Errorf("invalid form field %q", field.ID)
 		}
@@ -145,7 +147,7 @@ func (f Form) Validate() error {
 			return fmt.Errorf("duplicate form field %q", field.ID)
 		}
 		seen[field.ID] = struct{}{}
-	fieldTypes[field.ID] = field.Type
+		fieldTypes[field.ID] = field.Type
 		steps[publicFieldStep(field)] = struct{}{}
 		switch field.Type {
 		case Text, Email, Textarea, Number, Checkbox, Document, Phone:
@@ -156,7 +158,11 @@ func (f Form) Validate() error {
 				return fmt.Errorf("field %q cannot have options", field.ID)
 			}
 		case Select, CascadingSelect:
-			if len(field.Options) == 0 || len(field.Options) > MaxOptions {
+			optionLimit := MaxOptions
+			if field.Type == CascadingSelect {
+				optionLimit = 1000
+			}
+			if len(field.Options) == 0 || len(field.Options) > optionLimit {
 				return fmt.Errorf("field %q has invalid options", field.ID)
 			}
 			optionSeen := map[string]struct{}{}
@@ -170,12 +176,22 @@ func (f Form) Validate() error {
 				optionSeen[option] = struct{}{}
 			}
 			if field.Type == CascadingSelect {
-				if !idPattern.MatchString(field.DependsOn) || len(field.CascadeOptions) > MaxOptions { return fmt.Errorf("field %q has invalid cascade rules", field.ID) }
-				for parent, options := range field.CascadeOptions {
-					if parent == "" || len(parent) > MaxLabelLength || len(options) == 0 || len(options) > MaxOptions { return fmt.Errorf("field %q has invalid cascade options", field.ID) }
-					for _, option := range options { if strings.TrimSpace(option) == "" || len(option) > MaxLabelLength { return fmt.Errorf("field %q has invalid cascade option", field.ID) } }
+				if !idPattern.MatchString(field.DependsOn) || len(field.CascadeOptions) > MaxOptions {
+					return fmt.Errorf("field %q has invalid cascade rules", field.ID)
 				}
-			} else if field.DependsOn != "" || len(field.CascadeOptions) != 0 { return fmt.Errorf("field %q cannot have cascade rules", field.ID) }
+				for parent, options := range field.CascadeOptions {
+					if parent == "" || len(parent) > MaxLabelLength || len(options) == 0 || len(options) > MaxOptions {
+						return fmt.Errorf("field %q has invalid cascade options", field.ID)
+					}
+					for _, option := range options {
+						if strings.TrimSpace(option) == "" || len(option) > MaxLabelLength {
+							return fmt.Errorf("field %q has invalid cascade option", field.ID)
+						}
+					}
+				}
+			} else if field.DependsOn != "" || len(field.CascadeOptions) != 0 {
+				return fmt.Errorf("field %q cannot have cascade rules", field.ID)
+			}
 		default:
 			return fmt.Errorf("field %q has unsupported type", field.ID)
 		}
@@ -184,14 +200,28 @@ func (f Form) Validate() error {
 		}
 	}
 	if f.MultiStep {
-		for step := 1; step <= maximumFormStep(f); step++ { if _, ok := steps[step]; !ok { return fmt.Errorf("form steps must be contiguous") } }
+		for step := 1; step <= maximumFormStep(f); step++ {
+			if _, ok := steps[step]; !ok {
+				return fmt.Errorf("form steps must be contiguous")
+			}
+		}
 	}
 	for _, field := range f.Fields {
-		if field.Type != CascadingSelect { continue }
-		if fieldTypes[field.DependsOn] != Select && fieldTypes[field.DependsOn] != CascadingSelect { return fmt.Errorf("field %q has an invalid cascade parent", field.ID) }
+		if field.Type != CascadingSelect {
+			continue
+		}
+		if fieldTypes[field.DependsOn] != Select && fieldTypes[field.DependsOn] != CascadingSelect {
+			return fmt.Errorf("field %q has an invalid cascade parent", field.ID)
+		}
 		parentOptions := map[string]struct{}{}
-		for _, option := range optionValues(f.Fields, field.DependsOn) { parentOptions[option] = struct{}{} }
-		for parent := range field.CascadeOptions { if _, ok := parentOptions[parent]; !ok { return fmt.Errorf("field %q has an unknown cascade parent option", field.ID) } }
+		for _, option := range optionValues(f.Fields, field.DependsOn) {
+			parentOptions[option] = struct{}{}
+		}
+		for parent := range field.CascadeOptions {
+			if _, ok := parentOptions[parent]; !ok {
+				return fmt.Errorf("field %q has an unknown cascade parent option", field.ID)
+			}
+		}
 	}
 	if f.Autoresponder && !hasEmail {
 		return fmt.Errorf("autoresponder requires an email field")
@@ -229,7 +259,10 @@ func (f Form) NormalizeSubmission(values map[string]string) (map[string]string, 
 			errors[key] = "invalid-option"
 			continue
 		}
-		if field.Type == Phone && value != "" && !validPhone(value) { errors[key] = "invalid-phone"; continue }
+		if field.Type == Phone && value != "" && !validPhone(value) {
+			errors[key] = "invalid-phone"
+			continue
+		}
 		if field.Type == Email && value != "" {
 			parsed, err := mail.ParseAddress(value)
 			if err != nil || parsed.Address != value {
@@ -239,7 +272,10 @@ func (f Form) NormalizeSubmission(values map[string]string) (map[string]string, 
 		}
 		if field.Type == CascadingSelect && value != "" {
 			parent := strings.TrimSpace(values[field.DependsOn])
-			if !contains(field.CascadeOptions[parent], value) { errors[key] = "invalid-option"; continue }
+			if !contains(field.CascadeOptions[parent], value) {
+				errors[key] = "invalid-option"
+				continue
+			}
 		}
 		clean[key] = value
 	}
@@ -266,15 +302,30 @@ func contains(values []string, value string) bool {
 func validPhone(value string) bool {
 	digits, plus := 0, false
 	for i, r := range value {
-		if r >= '0' && r <= '9' { digits++; continue }
-		if r == '+' && i == 0 && !plus { plus = true; continue }
-		if r == ' ' || r == '(' || r == ')' || r == '-' || r == '.' { continue }
+		if r >= '0' && r <= '9' {
+			digits++
+			continue
+		}
+		if r == '+' && i == 0 && !plus {
+			plus = true
+			continue
+		}
+		if r == ' ' || r == '(' || r == ')' || r == '-' || r == '.' {
+			continue
+		}
 		return false
 	}
 	return digits >= 7 && digits <= 15
 }
 
-func optionValues(fields []Field, id string) []string { for _, field := range fields { if field.ID == id { return field.Options } }; return nil }
+func optionValues(fields []Field, id string) []string {
+	for _, field := range fields {
+		if field.ID == id {
+			return field.Options
+		}
+	}
+	return nil
+}
 
 // StableFields returns a copy sorted by field ID for generated manifests.
 func StableFields(fields []Field) []Field {
@@ -301,7 +352,9 @@ func publicInputType(kind FieldType) string {
 	if kind == Document {
 		return "file"
 	}
-	if kind == Phone { return "tel" }
+	if kind == Phone {
+		return "tel"
+	}
 	return "text"
 }
 
@@ -323,11 +376,37 @@ func publicMetaPixelEvent(f Form) string {
 }
 
 func publicFormHasSteps(f Form) bool { return f.MultiStep && maximumFormStep(f) > 1 }
-func maximumFormStep(f Form) int { maxStep := 1; for _, field := range f.Fields { if field.Step > maxStep { maxStep = field.Step } }; return maxStep }
-func publicFieldStep(field Field) int { if field.Step < 1 { return 1 }; return field.Step }
-func publicCascadeOptions(field Field) string { data, _ := json.Marshal(field.CascadeOptions); return string(data) }
-func phoneInputMode(kind FieldType) string { if kind == Phone { return "tel" }; return "text" }
-func phoneAutocomplete(kind FieldType) string { if kind == Phone { return "tel" }; return "off" }
+func maximumFormStep(f Form) int {
+	maxStep := 1
+	for _, field := range f.Fields {
+		if field.Step > maxStep {
+			maxStep = field.Step
+		}
+	}
+	return maxStep
+}
+func publicFieldStep(field Field) int {
+	if field.Step < 1 {
+		return 1
+	}
+	return field.Step
+}
+func publicCascadeOptions(field Field) string {
+	data, _ := json.Marshal(field.CascadeOptions)
+	return string(data)
+}
+func phoneInputMode(kind FieldType) string {
+	if kind == Phone {
+		return "tel"
+	}
+	return "text"
+}
+func phoneAutocomplete(kind FieldType) string {
+	if kind == Phone {
+		return "tel"
+	}
+	return "off"
+}
 
 func safeFormAction(action, formID string) string {
 	action = strings.TrimSpace(action)

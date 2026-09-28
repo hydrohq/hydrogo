@@ -482,6 +482,12 @@ The remaining improvement work is executed in small, independently verifiable
 stages. Each stage must leave the repository green, update the affected ADR or
 validation record, and be committed and pushed before the next stage starts.
 
+The final design/form/discovery sweep is recorded in
+[ADR-0290](architecture/0290-final-design-form-and-discovery-capabilities.md):
+typed design blocks, bounded progressive form enhancements, SQLite FTS5,
+nullable news expiry, LocalBusiness JSON-LD, and optional-media stale-temp
+cleanup. These capabilities do not add runtime services to inactive modules.
+
 1. **Resource and data bounds (implemented):** add pagination/maximum limits to public and
    administrative list projections, query timeouts, and regression tests for
    bounded memory use.
