@@ -57,7 +57,12 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		"202609210001_tenant_registry_and_bootstrap", "202609210002_outbox_dead_letters", "202609220001_analytics_content_views",
 		"202609270001_forms_mail_crm", "202609280001_seo_redirect_rules", "202609280002_analytics_privacy_stats",
 		"202609280003_security_ip_bans", "202609280004_immutable_audit_log", "202609280005_admin_notifications",
-		"202609280006_admin_weekly_digest",
+		"202609280006_admin_weekly_digest", "202609280007_page_revision_actor", "202609280008_sectoral_locations",
+		"202609280009_sectoral_team", "202609280010_sectoral_partners", "202609280011_sectoral_announcements",
+		"202609280012_sectoral_portfolio", "202609280013_sectoral_certificates", "202609280014_sectoral_pricing",
+		"202609280015_sectoral_events", "202609280016_sectoral_downloads", "202609280017_sectoral_testimonials",
+		"202609280018_sectoral_faq", "202609280019_sectoral_legal", "202609280020_social_oauth_identities",
+		"202609280021_portfolio_tag_relations", "202609280022_pages_related_terms",
 	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
@@ -95,11 +100,35 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO audit_events (id,action,target_id) VALUES ('immutable1','test','subject1')`); err != nil {
 		t.Fatal(err)
 	}
+	portfolioIndex := -1
+	for i, id := range ids {
+		if id == "202609280012_sectoral_portfolio" {
+			portfolioIndex = i
+			break
+		}
+	}
+	if portfolioIndex < 0 {
+		t.Fatal("portfolio migration missing from contract chain")
+	}
+	beforePortfolioTags := fstest.MapFS{}
+	for _, id := range ids[:portfolioIndex+1] {
+		beforePortfolioTags[id+"/migration.yaml"] = bundle[id+"/migration.yaml"]
+		beforePortfolioTags[id+"/mysql.sql"] = bundle[id+"/mysql.sql"]
+	}
+	if err := database.ApplyMigrations(ctx, db, database.MySQL, beforePortfolioTags); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO sectoral_portfolio (id,tenant_id,locale,slug,title,status,payload,updated_at) VALUES ('portfolio1','tenant-one','en','case-one','Case One','published','{"tags":["Design"],"industry":"Retail"}',CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatalf("portfolio pre-backfill insert: %v", err)
+	}
 	if err := database.ApplyMigrations(ctx, db, database.MySQL, bundle); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		for _, table := range []string{
+			"page_published_tags", "page_tags", "sectoral_portfolio_tags", "auth_oauth_identities",
+			"sectoral_locations", "sectoral_team", "sectoral_partners", "sectoral_announcements", "sectoral_portfolio",
+			"sectoral_certificates", "sectoral_pricing", "sectoral_events", "sectoral_downloads", "sectoral_testimonials", "sectoral_faq", "sectoral_legal",
 			"admin_digest_preferences", "admin_notifications", "security_ip_bans", "analytics_daily_visitors", "analytics_daily_stats",
 			"seo_redirect_rules", "mail_spool", "form_lead_notes", "analytics_content_daily", "outbox_dead_letters", "tenant_system_audit", "tenants",
 			"admin_user_permissions", "auth_invites", "member_mobile_device_sessions", "mobile_device_sessions", "analytics_daily", "analytics_consent",
@@ -305,6 +334,25 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO admin_notifications (id,tenant_id,user_id,title,message,created_at) VALUES ('notice1','tenant-one','u1','Update','Content updated',?)`, now); err != nil {
 		t.Fatalf("admin notification insert: %v", err)
+	}
+	var portfolioTags int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sectoral_portfolio_tags WHERE content_id='portfolio1'`).Scan(&portfolioTags); err != nil {
+		t.Fatal(err)
+	}
+	if portfolioTags != 2 {
+		t.Fatalf("portfolio tag backfill count = %d, want 2", portfolioTags)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO auth_oauth_identities (provider,subject,user_id,created_at) VALUES ('github','gh-subject','u2',?)`, now); err != nil {
+		t.Fatalf("OAuth identity insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO page_tags (tenant_id,page_id,tag) VALUES ('tenant-one','p1','guide')`); err != nil {
+		t.Fatalf("page tag insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO page_published_tags (tenant_id,page_id,tag) VALUES ('tenant-one','p1','guide')`); err != nil {
+		t.Fatalf("published page tag insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO sectoral_locations (id,tenant_id,locale,slug,title,payload,updated_at) VALUES ('location1','tenant-one','en','istanbul','Istanbul','{}',?)`, now); err != nil {
+		t.Fatalf("sectoral location insert: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO admin_digest_preferences (tenant_id,user_id,enabled,timezone) VALUES ('tenant-one','u1',1,'Europe/Istanbul')`); err != nil {
 		t.Fatalf("admin digest preference insert: %v", err)

@@ -62,7 +62,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0279](0279-indexed-related-pages.md) | Indexed related-page recommendations | Accepted |
 | [0282](0282-postgres-physical-schema-diff.md) | PostgreSQL physical schema diff | Accepted |
 | [0283](0283-mysql-mariadb-adapter.md) | MySQL/MariaDB adapter certification | Accepted; implementation in progress |
-| [0284](0284-mysql-physical-schema-diff.md) | MySQL physical schema diff | Accepted; implementation in progress |
+| [0284](0284-mysql-physical-schema-diff.md) | MySQL physical schema diff | Accepted |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |

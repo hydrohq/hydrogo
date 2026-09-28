@@ -3,9 +3,11 @@ module: "pages"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
 lock_timeout: "Bounded by the migration runner lock timeout"
 dependencies:
@@ -13,6 +15,7 @@ dependencies:
 checksum_sha256:
   sqlite: "c223b7d5ea5340d663186dbed84b6b4d1e8210f79fde3a2416940ac5e47e0701"
   postgres: "c223b7d5ea5340d663186dbed84b6b4d1e8210f79fde3a2416940ac5e47e0701"
+  mysql: "276ad28978194f2582f5ec75db34ed16e940b6984470e5cab47f0ba6d5cc924e"
 schema:
   readable_epoch: 1
   writable_epoch: 1

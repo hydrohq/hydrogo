@@ -3,14 +3,17 @@ module: "team"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "6c2c5f8cb60b9528c874e10c5b7d4ce85a48ad0b9cc0c2e7e69af4923d7d4122"
   postgres: "8ecb6cca068c245cac8d9662ae1c3705dcf29204383a0a2d68ae55053d7ece73"
+  mysql: "771f3d60d172b4a1774c557498e9d6a6a2529b07d84db8d4553467b157960bfc"
 schema:
   readable_epoch: 1
   writable_epoch: 1

@@ -3,14 +3,17 @@ module: "downloads"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
 lock_timeout: "Bounded by the migration runner lock timeout"
 checksum_sha256:
   sqlite: "69d38c5cb4b0445f92a76b581ef5bc4d148228665798ac5a3f00ab48b24fbfa4"
   postgres: "168ce6d4cb439d76b456153b9d3c689df9f55a1d476491445fbbe5b718851ed8"
+  mysql: "8a7fa74acb3ce2c3a691a1487e02b16c6b9d70bf13f73edccc866f55f95a74ec"
 schema:
   readable_epoch: 1
   writable_epoch: 1
