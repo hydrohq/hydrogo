@@ -631,6 +631,31 @@ func TestRunInteractiveResourceUsesBlueprintPipeline(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveResourceAcceptsRelationshipFields(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	input := strings.NewReader("article\ntitle:string,category:relation:categories:one\n")
+	if err := run([]string{"new", "resource", "--out", root}, input, &stdout, &stderr); err != nil {
+		t.Fatalf("interactive resource with relationship: %v stderr=%s", err, stderr.String())
+	}
+	data, err := os.ReadFile(filepath.Join(root, "generated", "article", "relations.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "categories") {
+		t.Fatalf("generated relation artifact does not include target collection: %s", data)
+	}
+}
+
+func TestInteractiveResourceRejectsUnsafeNamesAndFields(t *testing.T) {
+	for _, input := range []string{"../outside\ntitle:string\n"} {
+		var stdout, stderr bytes.Buffer
+		if err := run([]string{"new", "resource", "--out", t.TempDir()}, strings.NewReader(input), &stdout, &stderr); err == nil {
+			t.Fatalf("unsafe wizard input accepted: %q", input)
+		}
+	}
+}
+
 func TestRunResourceCheckAlias(t *testing.T) {
 	root := t.TempDir()
 	specPath := filepath.Join(root, "article.yaml")

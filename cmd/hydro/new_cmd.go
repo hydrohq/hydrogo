@@ -8,11 +8,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
 )
+
+var resourceFieldPart = regexp.MustCompile(`^[a-z][a-z0-9_]{1,62}$`)
 
 // projectCommand is the SDK-oriented namespace for project lifecycle
 // commands. Keep `hydro new` as a backwards-compatible alias while exposing
@@ -55,22 +58,37 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 	if err != nil {
 		return err
 	}
-	fields, err := read("Fields (name:type[:required], comma-separated): ")
+	fields, err := read("Fields (name:type[:required], comma-separated; relation: name:relation:collection[:one|many]): ")
 	if err != nil {
 		return err
 	}
-	if name == "" || fields == "" {
+	if !resourceFieldPart.MatchString(strings.ToLower(name)) || fields == "" {
 		return errors.New("resource name and fields are required")
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "name: %s\nfields:\n", name)
 	for _, raw := range strings.Split(fields, ",") {
 		parts := strings.Split(strings.TrimSpace(raw), ":")
-		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		if len(parts) < 2 || len(parts) > 4 || !resourceFieldPart.MatchString(parts[0]) || !resourceFieldPart.MatchString(strings.ToLower(parts[1])) {
 			return fmt.Errorf("invalid field %q", raw)
 		}
 		fmt.Fprintf(&b, "  - name: %s\n    type: %s\n", parts[0], parts[1])
-		if len(parts) > 2 && strings.EqualFold(parts[2], "required") {
+		if strings.EqualFold(parts[1], "relation") || strings.EqualFold(parts[1], "reference") {
+			if len(parts) < 3 || !resourceFieldPart.MatchString(parts[2]) {
+				return fmt.Errorf("relation field %q requires a target collection", parts[0])
+			}
+			cardinality := "one"
+			if len(parts) == 4 {
+				cardinality = strings.ToLower(parts[3])
+			}
+			if cardinality != "one" && cardinality != "many" {
+				return fmt.Errorf("relation field %q cardinality must be one or many", parts[0])
+			}
+			fmt.Fprintf(&b, "    relation:\n      collection: %s\n      cardinality: %s\n", parts[2], cardinality)
+			if cardinality == "many" {
+				b.WriteString("      max_items: 50\n")
+			}
+		} else if len(parts) > 2 && strings.EqualFold(parts[2], "required") {
 			b.WriteString("    required: true\n")
 		}
 	}
