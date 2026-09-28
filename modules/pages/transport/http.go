@@ -695,7 +695,12 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		for _, block := range renderBlocks {
 			var themed strings.Builder
 			if err := h.Theme.RenderBlock(&themed, block); err == nil {
-				content.WriteString(themed.String())
+				styled, styleErr := blockrender.StyleBlockHTML(block, themed.String())
+				if styleErr != nil {
+					http.Error(w, "page render failed", http.StatusInternalServerError)
+					return
+				}
+				content.WriteString(styled)
 			} else if errors.Is(err, themev1.ErrThemeBlockUnavailable) {
 				fallback, fallbackErr := blockrender.Blocks([]pages.Block{block})
 				if fallbackErr != nil {
@@ -1332,17 +1337,23 @@ func renderBlockEditor(blocks []pages.Block, csrf string) string {
 	out.WriteString(`<input type="hidden" name="block_count" value="` + strconv.Itoa(count) + `"><div data-block-editor>`)
 	for i := 0; i < count; i++ {
 		blockType, title, subtitle, buttonText, buttonURL, mediaAssetID, items := "", "", "", "", "", "", "[]"
+		background, padding := "", ""
 		payload := "{}"
 		if i < len(blocks) {
 			blockType, title, subtitle, buttonText, buttonURL, mediaAssetID, items = blockEditorValues(blocks[i])
+			background, padding = blockStyleEditorValues(blocks[i])
 			payload = string(blocks[i].Payload)
+		}
+		var styleFields bytes.Buffer
+		if err := ui.BlockPresetFields(ui.BlockStyleFieldsProps{Index: i, Background: background, Padding: padding}).Render(context.Background(), &styleFields); err != nil {
+			return ""
 		}
 		fmt.Fprintf(&out, `<div class="block-editor-row" data-block-row data-block-type="%s"><strong data-block-number>Block %d</strong><div class="block-editor-order"><button type="button" data-block-up aria-label="Move block %d up">↑</button><button type="button" data-block-down aria-label="Move block %d down">↓</button></div>`, template.HTMLEscapeString(blockType), i+1, i+1, i+1)
 		fmt.Fprintf(&out, `<label class="block-field block-field-type" data-block-field="type">Blok türü<select name="block_type_%d"><option value="">Remove</option>`, i)
 		for _, option := range []struct{ typ, label string }{{"hero", "Hero"}, {"faq", "FAQ"}, {"cta", "CTA"}, {"pricing_table", "Pricing table"}, {"testimonials", "Testimonials"}, {"before_after", "Before / after"}, {"stats", "Statistics"}, {"contact_cta", "Call / WhatsApp"}, {"video", "Video"}, {"masonry", "Masonry gallery"}, {"hotspots", "Image hotspots"}, {"callout", "Callout"}, {"action_card", "Quick action card"}, {"carousel", "Image carousel"}, {"columns", "Columns"}, {"feature_list", "Feature list"}, {"video_hero", "Video hero"}, {"trust_bar", "Trust badges"}, {"figure", "Image with caption"}, {"business_status", "Business status"}} {
 			fmt.Fprintf(&out, `<option value="%s" %s>%s</option>`, option.typ, selected(blockType, option.typ), option.label)
 		}
-		fmt.Fprintf(&out, `</select></label><label class="block-field" data-block-field="title">Başlık<input name="block_title_%d" value="%s" placeholder="Başlık"></label><label class="block-field" data-block-field="subtitle">Alt başlık<input name="block_subtitle_%d" value="%s" placeholder="Alt başlık"></label><div class="block-field media-field" data-block-field="media"><label>Medya asset ID<input id="block_media_asset_id_%d" name="block_media_asset_id_%d" value="%s" placeholder="Medyadan seçin"></label><button class="button button-quiet media-picker-open" type="button" data-media-target="block_media_asset_id_%d">Medyadan seç</button></div><label class="block-field" data-block-field="buttonText">Buton metni<input name="block_button_text_%d" value="%s" placeholder="Buton metni"></label><label class="block-field" data-block-field="buttonURL">Buton URL<input name="block_button_url_%d" value="%s" placeholder="/shop"></label><label class="block-field" data-block-field="items">Items JSON<textarea name="block_items_%d">%s</textarea></label><label class="block-field" data-block-field="payload">Block data JSON<textarea name="block_payload_%d" spellcheck="false">%s</textarea></label><input type="hidden" name="block_csrf_%d" value="%s"></div>`, i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, i, template.HTMLEscapeString(mediaAssetID), i, i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), i, template.HTMLEscapeString(payload), i, template.HTMLEscapeString(csrf))
+		fmt.Fprintf(&out, `</select></label><label class="block-field" data-block-field="title">Başlık<input name="block_title_%d" value="%s" placeholder="Başlık"></label><label class="block-field" data-block-field="subtitle">Alt başlık<input name="block_subtitle_%d" value="%s" placeholder="Alt başlık"></label><div class="block-field media-field" data-block-field="media"><label>Medya asset ID<input id="block_media_asset_id_%d" name="block_media_asset_id_%d" value="%s" placeholder="Medyadan seçin"></label><button class="button button-quiet media-picker-open" type="button" data-media-target="block_media_asset_id_%d">Medyadan seç</button></div><label class="block-field" data-block-field="buttonText">Buton metni<input name="block_button_text_%d" value="%s" placeholder="Buton metni"></label><label class="block-field" data-block-field="buttonURL">Buton URL<input name="block_button_url_%d" value="%s" placeholder="/shop"></label><label class="block-field" data-block-field="items">Items JSON<textarea name="block_items_%d">%s</textarea></label>%s<label class="block-field" data-block-field="payload">Block data JSON<textarea name="block_payload_%d" spellcheck="false">%s</textarea></label><input type="hidden" name="block_csrf_%d" value="%s"></div>`, i, template.HTMLEscapeString(title), i, template.HTMLEscapeString(subtitle), i, i, template.HTMLEscapeString(mediaAssetID), i, i, template.HTMLEscapeString(buttonText), i, template.HTMLEscapeString(buttonURL), i, template.HTMLEscapeString(items), template.HTML(styleFields.String()), i, template.HTMLEscapeString(payload), i, template.HTMLEscapeString(csrf))
 	}
 	fmt.Fprintf(&out, `<button type="button" data-block-add %s>Add block</button><p role="status" aria-live="polite" data-block-status></p></div>`, map[bool]string{true: `disabled aria-disabled="true"`}[count >= pages.MaxBlocks])
 	return out.String()
@@ -1371,6 +1382,17 @@ func blockEditorValues(block pages.Block) (string, string, string, string, strin
 		items = string(raw)
 	}
 	return block.Type, get("title"), get("subtitle"), get("button_text"), get("button_url"), get("media_asset_id"), items
+}
+
+func blockStyleEditorValues(block pages.Block) (string, string) {
+	var data map[string]json.RawMessage
+	if json.Unmarshal(block.Payload, &data) != nil {
+		return "", ""
+	}
+	var background, padding string
+	_ = json.Unmarshal(data["bg_color"], &background)
+	_ = json.Unmarshal(data["padding_y"], &padding)
+	return background, padding
 }
 
 func parseBlockForm(r *http.Request) ([]pages.Block, error) {
@@ -1409,6 +1431,12 @@ func parseBlockForm(r *http.Request) ([]pages.Block, error) {
 			payload["subtitle"] = r.FormValue("block_subtitle_" + strconv.Itoa(i))
 			payload["button_text"] = r.FormValue("block_button_text_" + strconv.Itoa(i))
 			payload["button_url"] = r.FormValue("block_button_url_" + strconv.Itoa(i))
+		}
+		if background := r.FormValue("block_bg_color_" + strconv.Itoa(i)); background != "" && background != "default" {
+			payload["bg_color"] = background
+		}
+		if padding := r.FormValue("block_padding_y_" + strconv.Itoa(i)); padding != "" && padding != "normal" {
+			payload["padding_y"] = padding
 		}
 		raw, err := json.Marshal(payload)
 		if err != nil {

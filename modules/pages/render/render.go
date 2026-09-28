@@ -30,9 +30,30 @@ func Blocks(blocks []pages.Block) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		out.WriteString(html)
+		styled, err := StyleBlockHTML(block, html)
+		if err != nil {
+			return "", err
+		}
+		out.WriteString(styled)
 	}
 	return out.String(), nil
+}
+
+// StyleBlockHTML applies validated block presets around safe HTML produced by
+// this renderer or by a trusted Client Edition theme template.
+func StyleBlockHTML(block pages.Block, html string) (string, error) {
+	var payload struct {
+		Background string `json:"bg_color"`
+		Padding    string `json:"padding_y"`
+	}
+	if err := json.Unmarshal(block.Payload, &payload); err != nil {
+		return "", ErrInvalidBlock
+	}
+	if payload.Background == "" && payload.Padding == "" {
+		return html, nil
+	}
+	ctx := templ.WithChildren(context.Background(), templ.Raw(html))
+	return renderComponentWithContext(designsystem.BlockStyleFrame(designsystem.BlockStyleProps{Background: payload.Background, Padding: payload.Padding}), ctx)
 }
 
 func blockHTML(block pages.Block) (string, error) {
@@ -194,6 +215,10 @@ func blockHTML(block pages.Block) (string, error) {
 }
 
 func renderComponent(component templ.Component) (string, error) {
+	return renderComponentWithContext(component, context.Background())
+}
+
+func renderComponentWithContext(component templ.Component, ctx context.Context) (string, error) {
 	out := componentBufferPool.Get().(*bytes.Buffer)
 	out.Reset()
 	defer func() {
@@ -202,7 +227,7 @@ func renderComponent(component templ.Component) (string, error) {
 			componentBufferPool.Put(out)
 		}
 	}()
-	if err := component.Render(context.Background(), out); err != nil {
+	if err := component.Render(ctx, out); err != nil {
 		return "", err
 	}
 	return string(out.Bytes()), nil

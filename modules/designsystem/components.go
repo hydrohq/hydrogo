@@ -103,6 +103,7 @@ type LightboxProps struct {
 type AudioProps struct{ ID, Src, Title, TranscriptURL string }
 type ShareProps struct{ URL, Title string }
 type InitialsAvatarProps struct{ Initials, Class string }
+type BlockStyleProps struct{ Background, Padding string }
 
 func Initials(identity string) string {
 	var words []string
@@ -136,6 +137,12 @@ func InitialsAvatarClass(identity string) string {
 	hash := fnv.New32a()
 	_, _ = hash.Write([]byte(strings.ToLower(strings.TrimSpace(identity))))
 	return fmt.Sprintf("ds-avatar--%d", hash.Sum32()%8)
+}
+
+func blockStyleClass(p BlockStyleProps) string {
+	background := map[string]string{"muted": "ds-block-frame--muted", "primary_tint": "ds-block-frame--primary", "dark": "ds-block-frame--dark"}[p.Background]
+	padding := map[string]string{"compact": "ds-block-frame--compact", "spacious": "ds-block-frame--spacious"}[p.Padding]
+	return strings.TrimSpace(background + " " + padding)
 }
 
 var phoneDigits = regexp.MustCompile(`[^0-9+]`)

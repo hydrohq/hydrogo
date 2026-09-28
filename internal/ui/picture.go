@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -15,6 +16,13 @@ type PictureProps struct {
 	Src, Alt, BlurHash, Class string
 	FocalX, FocalY            float64
 }
+
+type BlockStyleFieldsProps struct {
+	Index               int
+	Background, Padding string
+}
+
+func blockPresetFieldName(prefix string, index int) string { return prefix + strconv.Itoa(index) }
 
 type MediaFolderItem struct {
 	ID, Name, Href string

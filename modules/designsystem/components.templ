@@ -12,6 +12,12 @@ templ Head() {
 	<script src="/designsystem/static/widgets.js" defer></script>
 }
 
+templ BlockStyleFrame(p BlockStyleProps) {
+	<section class={ "ds-block-frame " + blockStyleClass(p) }>
+		{ children... }
+	</section>
+}
+
 templ InitialsAvatar(p InitialsAvatarProps) {
 	<span class={ "user-avatar ds-avatar " + p.Class } role="img" aria-label={ label(p.Initials, "User") }>{ label(p.Initials, "?") }</span>
 }

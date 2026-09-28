@@ -19,6 +19,18 @@ func TestBlocksEscapesTextAndRendersKnownTypes(t *testing.T) {
 	}
 }
 
+func TestBlockStylePresetUsesAllowlistedDesignTokens(t *testing.T) {
+	html, err := Blocks([]pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","bg_color":"dark","padding_y":"compact"}`)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`ds-block-frame--dark`, `ds-block-frame--compact`, `data-block="hero"`} {
+		if !strings.Contains(html, marker) {
+			t.Errorf("styled block missing %q: %s", marker, html)
+		}
+	}
+}
+
 func BenchmarkBlocks(b *testing.B) {
 	blocks := []pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","subtitle":"A fast page"}`)}}
 	b.ReportAllocs()
