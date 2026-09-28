@@ -58,8 +58,9 @@ type Field struct {
 }
 
 type Action struct {
-	Label string `json:"label"`
-	Href  string `json:"href"`
+	Label    string `json:"label"`
+	Href     string `json:"href,omitempty"`
+	CopyText string `json:"copy_text,omitempty"`
 }
 
 // Collection is presentation metadata only. Mutations must still go through

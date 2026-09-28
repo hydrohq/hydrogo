@@ -44,6 +44,7 @@ type Handler struct {
 	}
 	AdminCollection    adminstudio.Collection
 	DefaultLocale      string
+	PublicOrigin       string
 	NavigationProvider func(context.Context, string) ([]v1.ThemeNavigationItem, error)
 }
 
@@ -168,7 +169,12 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Status: adminstudio.StatusInfo{Value: string(item.Status), ScheduledAt: item.ScheduledAt}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}})
+		actions := []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}
+		if item.Status == news.StatusPublished {
+			publicPath := "/public/news/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
+			actions = append(actions, adminstudio.Action{Label: "Copy live URL", CopyText: strings.TrimRight(strings.TrimSpace(h.PublicOrigin), "/") + publicPath})
+		}
+		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Status: adminstudio.StatusInfo{Value: string(item.Status), ScheduledAt: item.ScheduledAt}, Actions: actions})
 	}
 	if r.URL.Query().Get("fragment") == "table" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
