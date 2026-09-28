@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"html"
 	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 // RichTextHTML renders the supported Quill Delta subset. Plain text and
@@ -94,7 +96,11 @@ func renderDelta(ops []deltaOp) string {
 				return
 			}
 			if _, ok := attrs["code-block"]; ok {
-				out.WriteString("<pre><code>" + text + "</code></pre>")
+				language, _ := attrs["language"].(string)
+				if language == "" {
+					language, _ = attrs["code-language"].(string)
+				}
+				out.WriteString(renderCodeBlock(html.UnescapeString(text), language))
 				return
 			}
 		} else {
@@ -144,6 +150,14 @@ func renderDelta(ops []deltaOp) string {
 	}
 	flush(nil)
 	closeList()
+	return out.String()
+}
+
+func renderCodeBlock(code, language string) string {
+	var out strings.Builder
+	if err := designsystem.CodeBlock(designsystem.CodeBlockProps{Code: code, Language: language}).Render(context.Background(), &out); err != nil {
+		return "<pre><code>" + html.EscapeString(code) + "</code></pre>"
+	}
 	return out.String()
 }
 

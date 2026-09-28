@@ -69,11 +69,19 @@ func TestRichTextHTMLRejectsUnsafeLinkProtocols(t *testing.T) {
 }
 
 func TestRichTextEmbedsAllowlistedVideosWithoutScripts(t *testing.T) {
-	for _,input:=range []string{
+	for _, input := range []string{
 		`{"ops":[{"insert":"https://youtu.be/abc123\n"}]}`,
 		`{"ops":[{"insert":{"video":"https://vimeo.com/12345"}}]}`,
-	}{got:=RichTextHTML(input);if !strings.Contains(got,"<iframe")||!strings.Contains(got,"loading=\"lazy\"")||strings.Contains(got,"<script"){t.Fatalf("video output = %s",got)}}
-	bad:=RichTextHTML(`{"ops":[{"insert":{"video":"https://evil.test/watch/123"}}]}`);if strings.Contains(bad,"<iframe"){t.Fatalf("untrusted video rendered: %s",bad)}
+	} {
+		got := RichTextHTML(input)
+		if !strings.Contains(got, "<iframe") || !strings.Contains(got, "loading=\"lazy\"") || strings.Contains(got, "<script") {
+			t.Fatalf("video output = %s", got)
+		}
+	}
+	bad := RichTextHTML(`{"ops":[{"insert":{"video":"https://evil.test/watch/123"}}]}`)
+	if strings.Contains(bad, "<iframe") {
+		t.Fatalf("untrusted video rendered: %s", bad)
+	}
 }
 
 func TestRichTextHTMLEscapesEmbeddedMarkup(t *testing.T) {
@@ -93,6 +101,27 @@ func TestRichTextHTMLRendersListsAndImages(t *testing.T) {
 	}
 	if !strings.Contains(got, "<code> ornegi</code>") {
 		t.Fatalf("expected inline code rendering, got: %s", got)
+	}
+}
+
+func TestRichTextCodeBlocksUseAccessibleCopyComponent(t *testing.T) {
+	input := `{"ops":[{"insert":"func main() {\n\tprintln(\"safe <code>\")\n}\n","attributes":{"code-block":true,"language":"go"}}]}`
+	got := RichTextHTML(input)
+	for _, want := range []string{`class="ds-code-block"`, `language-go`, `data-copy-code`, `role="status"`, `code-token-keyword`, `safe &lt;code&gt;`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("code block missing %q: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "<code>safe <code>") {
+		t.Fatalf("unescaped code rendered: %s", got)
+	}
+}
+
+func TestPublicArticleCopyScriptSupportsClipboardAndFallback(t *testing.T) {
+	for _, want := range []string{"[data-copy-code]", "navigator.clipboard.writeText(value)", "document.execCommand('copy')", "Kopyalandı", "Kopyalanamadı"} {
+		if !strings.Contains(PublicArticleJS, want) {
+			t.Fatalf("public article script missing %q", want)
+		}
 	}
 }
 
