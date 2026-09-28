@@ -36,12 +36,13 @@ func (s OAuthIdentityStore) ResolveOAuth(ctx context.Context, identity auth.OAut
 	}
 	var user *auth.User
 	err := database.NewTenantTransactor(s.DB, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
-		query := `SELECT u.id,u.email,u.password_hash,u.role,u.active,u.created_at,u.updated_at FROM auth_oauth_identities i JOIN users u ON u.id=i.user_id WHERE i.provider=$1 AND i.subject=$2 AND i.tenant_id=$3 AND u.tenant_id=$3`
-		if s.Dialect == database.SQLite {
-			query = `SELECT u.id,u.email,u.password_hash,u.role,u.active,u.created_at,u.updated_at FROM auth_oauth_identities i JOIN users u ON u.id=i.user_id WHERE i.provider=?1 AND i.subject=?2 AND i.tenant_id=?3 AND u.tenant_id=?3`
-		}
+		query := `SELECT u.id,u.email,u.password_hash,u.role,u.active,u.created_at,u.updated_at FROM auth_oauth_identities i JOIN users u ON u.id=i.user_id WHERE i.provider=` + s.bind(1) + ` AND i.subject=` + s.bind(2) + ` AND i.tenant_id=` + s.bind(3) + ` AND u.tenant_id=` + s.bind(3)
 		var err error
-		user, err = scanOAuthUser(tx.QueryRowContext(ctx, query, identity.Provider, identity.Subject, tenantID))
+		identityArgs := []any{identity.Provider, identity.Subject, tenantID}
+		if s.Dialect == database.MySQL {
+			identityArgs = append(identityArgs, tenantID)
+		}
+		user, err = scanOAuthUser(tx.QueryRowContext(ctx, query, identityArgs...))
 		if err == nil {
 			if !user.Active {
 				return auth.ErrUserInactive
@@ -51,10 +52,7 @@ func (s OAuthIdentityStore) ResolveOAuth(ctx context.Context, identity auth.OAut
 		if !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		query = `SELECT id,email,password_hash,role,active,created_at,updated_at FROM users WHERE lower(email)=lower($1) AND tenant_id=$2`
-		if s.Dialect == database.SQLite {
-			query = `SELECT id,email,password_hash,role,active,created_at,updated_at FROM users WHERE lower(email)=lower(?1) AND tenant_id=?2`
-		}
+		query = `SELECT id,email,password_hash,role,active,created_at,updated_at FROM users WHERE lower(email)=lower(` + s.bind(1) + `) AND tenant_id=` + s.bind(2)
 		user, err = scanOAuthUser(tx.QueryRowContext(ctx, query, identity.Email, tenantID))
 		if errors.Is(err, sql.ErrNoRows) {
 			return auth.ErrUserNotFound
@@ -65,10 +63,7 @@ func (s OAuthIdentityStore) ResolveOAuth(ctx context.Context, identity auth.OAut
 		if !user.Active {
 			return auth.ErrUserInactive
 		}
-		query = `INSERT INTO auth_oauth_identities (provider,subject,user_id,tenant_id,created_at) VALUES ($1,$2,$3,$4,CURRENT_TIMESTAMP)`
-		if s.Dialect == database.SQLite {
-			query = `INSERT INTO auth_oauth_identities (provider,subject,user_id,tenant_id,created_at) VALUES (?1,?2,?3,?4,CURRENT_TIMESTAMP)`
-		}
+		query = `INSERT INTO auth_oauth_identities (provider,subject,user_id,tenant_id,created_at) VALUES (` + s.bind(1) + `,` + s.bind(2) + `,` + s.bind(3) + `,` + s.bind(4) + `,CURRENT_TIMESTAMP)`
 		if _, err := tx.ExecContext(ctx, query, identity.Provider, identity.Subject, user.ID, tenantID); err != nil {
 			return fmt.Errorf("link social account: %w", err)
 		}
@@ -78,6 +73,17 @@ func (s OAuthIdentityStore) ResolveOAuth(ctx context.Context, identity auth.OAut
 		return nil, err
 	}
 	return user, nil
+}
+
+func (s OAuthIdentityStore) bind(position int) string {
+	switch s.Dialect {
+	case database.Postgres:
+		return fmt.Sprintf("$%d", position)
+	case database.SQLite:
+		return fmt.Sprintf("?%d", position)
+	default:
+		return "?"
+	}
 }
 
 type rowScanner interface{ Scan(...any) error }

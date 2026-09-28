@@ -10,6 +10,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
@@ -118,5 +119,62 @@ func TestSpoolTenantScopesSameEventKeys(t *testing.T) {
 	items, err = store.List(tenant.WithScope(ctx, beta), "", 10)
 	if err != nil || len(items) != 1 || items[0].Message.Body != "B" {
 		t.Fatalf("beta spool entries=%#v err=%v", items, err)
+	}
+}
+
+func TestSpoolMySQLTenantDeliveryAndRetryContract(t *testing.T) {
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	ctx := context.Background()
+	tx := database.NewTenantTransactor(db, database.MySQL, true)
+	store := Spool{DB: db, Tx: tx, Dialect: database.MySQL, RequireTenantScope: true, MaxPending: 4}
+	alpha, _ := tenant.NewScope("mysql-mail-a", "a")
+	beta, _ := tenant.NewScope("mysql-mail-b", "b")
+	alphaCtx, betaCtx := tenant.WithScope(ctx, alpha), tenant.WithScope(ctx, beta)
+	messageA := site.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: "A"}
+	messageB := site.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: "B"}
+	for _, pair := range []struct {
+		ctx context.Context
+		msg site.EmailNotification
+	}{{alphaCtx, messageA}, {alphaCtx, messageA}, {betaCtx, messageB}} {
+		if err := tx.Within(pair.ctx, func(exec database.Executor) error { return store.Enqueue(pair.ctx, exec, pair.msg) }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items, err := store.List(alphaCtx, mailer.SpoolPending, 10)
+	if err != nil || len(items) != 1 || items[0].Message.Body != "A" {
+		t.Fatalf("tenant A spool=%+v err=%v", items, err)
+	}
+	now := time.Now().UTC().Add(time.Second).Truncate(time.Second)
+	first, token, ok, err := store.Claim(alphaCtx, "worker-a", now, time.Minute)
+	if err != nil || !ok || first.Attempts != 1 {
+		t.Fatalf("claim=%+v ok=%v err=%v", first, ok, err)
+	}
+	if _, _, ok, err := store.Claim(alphaCtx, "worker-b", now, time.Minute); err != nil || ok {
+		t.Fatalf("double claim ok=%v err=%v", ok, err)
+	}
+	if err := store.Retry(alphaCtx, first.ID, "worker-a", token, now.Add(5*time.Minute), "offline"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok, err := store.Claim(alphaCtx, "worker-b", now.Add(4*time.Minute), time.Minute); err != nil || ok {
+		t.Fatalf("early retry ok=%v err=%v", ok, err)
+	}
+	second, token2, ok, err := store.Claim(alphaCtx, "worker-b", now.Add(5*time.Minute), time.Minute)
+	if err != nil || !ok || second.Attempts != 2 {
+		t.Fatalf("retry claim=%+v ok=%v err=%v", second, ok, err)
+	}
+	if err := store.FailPermanent(alphaCtx, second.ID, "worker-b", token2, "rejected"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RetryNow(alphaCtx, second.ID); err != nil {
+		t.Fatal(err)
+	}
+	items, err = store.List(alphaCtx, mailer.SpoolPending, 10)
+	if err != nil || len(items) != 1 || items[0].Attempts != 0 {
+		t.Fatalf("manual retry spool=%+v err=%v", items, err)
+	}
+	items, err = store.List(betaCtx, mailer.SpoolPending, 10)
+	if err != nil || len(items) != 1 || items[0].Message.Body != "B" {
+		t.Fatalf("tenant B spool=%+v err=%v", items, err)
 	}
 }

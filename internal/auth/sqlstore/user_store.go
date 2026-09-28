@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -62,36 +63,17 @@ func (s *UserStore) Create(ctx context.Context, u *auth.User) error {
 		u.UpdatedAt = now
 	}
 
-	query := `INSERT INTO users (id, email, password_hash, role, active, created_at, updated_at`
-	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), u.Active, u.CreatedAt, u.UpdatedAt}
+	active := any(u.Active)
+	if s.dialect != database.Postgres {
+		active = boolToSQLite(u.Active)
+	}
+	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, s.dbTime(u.CreatedAt), s.dbTime(u.UpdatedAt)}
+	columns := `id, email, password_hash, role, active, created_at, updated_at`
 	if s.RequireTenantScope {
-		query += `, tenant_id`
+		columns += `, tenant_id`
 		args = append(args, tenantID)
 	}
-	query += `) VALUES (`
-	for i := range args {
-		if i > 0 {
-			query += `, `
-		}
-		query += fmt.Sprintf("$%d", i+1)
-	}
-	query += `)`
-	if s.dialect == database.SQLite {
-		query = `INSERT INTO users (id, email, password_hash, role, active, created_at, updated_at`
-		args = []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), boolToSQLite(u.Active), u.CreatedAt.Format(time.RFC3339Nano), u.UpdatedAt.Format(time.RFC3339Nano)}
-		if s.RequireTenantScope {
-			query += `, tenant_id`
-			args = append(args, tenantID)
-		}
-		query += `) VALUES (`
-		for i := range args {
-			if i > 0 {
-				query += `, `
-			}
-			query += `?`
-		}
-		query += `)`
-	}
+	query := `INSERT INTO users (` + columns + `) VALUES (` + s.bindList(len(args)) + `)`
 
 	return s.within(ctx, func(exec database.Executor) error {
 		_, execErr := exec.ExecContext(ctx, query, args...)
@@ -123,40 +105,17 @@ func (s *UserStore) CreateUserTx(ctx context.Context, tx database.Executor, u *a
 	if u.UpdatedAt.IsZero() {
 		u.UpdatedAt = now
 	}
-	query := `INSERT INTO users (id, email, password_hash, role, active, created_at, updated_at`
-	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), u.Active, u.CreatedAt, u.UpdatedAt}
+	active := any(u.Active)
+	if s.dialect != database.Postgres {
+		active = boolToSQLite(u.Active)
+	}
+	args := []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, s.dbTime(u.CreatedAt), s.dbTime(u.UpdatedAt)}
+	columns := `id, email, password_hash, role, active, created_at, updated_at`
 	if s.RequireTenantScope {
-		query += `, tenant_id`
+		columns += `, tenant_id`
 		args = append(args, tenantID)
 	}
-	query += `) VALUES (`
-	for i := range args {
-		if i > 0 {
-			query += `,`
-		}
-		query += fmt.Sprintf("$%d", i+1)
-	}
-	query += `)`
-	if s.dialect == database.SQLite {
-		query = `INSERT INTO users (id, email, password_hash, role, active, created_at, updated_at`
-		active := 0
-		if u.Active {
-			active = 1
-		}
-		args = []any{u.ID, auth.NormalizeEmail(u.Email), u.PasswordHash, string(u.Role), active, u.CreatedAt.Format(time.RFC3339Nano), u.UpdatedAt.Format(time.RFC3339Nano)}
-		if s.RequireTenantScope {
-			query += `, tenant_id`
-			args = append(args, tenantID)
-		}
-		query += `) VALUES (`
-		for i := range args {
-			if i > 0 {
-				query += `,`
-			}
-			query += `?`
-		}
-		query += `)`
-	}
+	query := `INSERT INTO users (` + columns + `) VALUES (` + s.bindList(len(args)) + `)`
 	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
@@ -169,17 +128,11 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) 
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = $1`
+	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = ` + s.bind(1)
 	args := []any{id}
 	if s.RequireTenantScope {
-		query += ` AND tenant_id = $2`
+		query += ` AND tenant_id = ` + s.bind(2)
 		args = append(args, tenantID)
-	}
-	if s.dialect == database.SQLite {
-		query = `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = ?`
-		if s.RequireTenantScope {
-			query += ` AND tenant_id = ?`
-		}
 	}
 
 	var u auth.User
@@ -213,17 +166,11 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE email = $1`
+	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE email = ` + s.bind(1)
 	args := []any{auth.NormalizeEmail(email)}
 	if s.RequireTenantScope {
-		query += ` AND tenant_id = $2`
+		query += ` AND tenant_id = ` + s.bind(2)
 		args = append(args, tenantID)
-	}
-	if s.dialect == database.SQLite {
-		query = `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE email = ?`
-		if s.RequireTenantScope {
-			query += ` AND tenant_id = ?`
-		}
 	}
 
 	var u auth.User
@@ -260,11 +207,8 @@ func (s *UserStore) Count(ctx context.Context) (int64, error) {
 	query := "SELECT COUNT(*) FROM users"
 	args := []any{}
 	if s.RequireTenantScope {
-		query += " WHERE tenant_id = $1"
+		query += " WHERE tenant_id = " + s.bind(1)
 		args = append(args, tenantID)
-		if s.dialect == database.SQLite {
-			query = "SELECT COUNT(*) FROM users WHERE tenant_id = ?"
-		}
 	}
 	var count int64
 	err = s.within(ctx, func(exec database.Executor) error {
@@ -284,19 +228,15 @@ func (s *UserStore) SetActive(ctx context.Context, id string, active bool) error
 	if err != nil {
 		return err
 	}
-	query := `UPDATE users SET active = $1, updated_at = $2 WHERE id = $3`
-	args := []any{active, time.Now().UTC(), id}
-	if s.RequireTenantScope {
-		query += ` AND tenant_id = $4`
-		args = append(args, tenantID)
+	activeArg := any(active)
+	if s.dialect != database.Postgres {
+		activeArg = boolToSQLite(active)
 	}
-	if s.dialect == database.SQLite {
-		query = `UPDATE users SET active = ?, updated_at = ? WHERE id = ?`
-		args = []any{boolToSQLite(active), time.Now().UTC().Format(time.RFC3339Nano), id}
-		if s.RequireTenantScope {
-			query += ` AND tenant_id = ?`
-			args = append(args, tenantID)
-		}
+	query := `UPDATE users SET active = ` + s.bind(1) + `, updated_at = ` + s.bind(2) + ` WHERE id = ` + s.bind(3)
+	args := []any{activeArg, s.dbTime(time.Now().UTC()), id}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = ` + s.bind(4)
+		args = append(args, tenantID)
 	}
 	var result sql.Result
 	err = s.within(ctx, func(exec database.Executor) error {
@@ -322,6 +262,29 @@ func boolToSQLite(value bool) int {
 		return 1
 	}
 	return 0
+}
+
+func (s *UserStore) bind(position int) string {
+	if s.dialect == database.Postgres {
+		return fmt.Sprintf("$%d", position)
+	}
+	return "?"
+}
+
+func (s *UserStore) bindList(count int) string {
+	values := make([]string, count)
+	for i := range values {
+		values[i] = s.bind(i + 1)
+	}
+	return strings.Join(values, ",")
+}
+
+func (s *UserStore) dbTime(value time.Time) any {
+	value = value.UTC()
+	if s.dialect == database.SQLite {
+		return value.Format(time.RFC3339Nano)
+	}
+	return value
 }
 
 func parseActive(v any) bool {

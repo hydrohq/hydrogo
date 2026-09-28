@@ -26,8 +26,16 @@ func ApplyRestoreControls(ctx context.Context, db *sql.DB, dialect database.Dial
 		if _, err := tx.ExecContext(ctx, "DELETE FROM sessions"); err != nil {
 			return err
 		}
-		now := time.Now().UTC().Format(time.RFC3339Nano)
-		query := "INSERT INTO restore_controls (id, sessions_revoked, egress_quarantined, old_writes_blocked, activated_at) VALUES (" + p(dialect, 1) + ", 1, 1, 1, " + p(dialect, 2) + ") ON CONFLICT(id) DO UPDATE SET sessions_revoked = 1, egress_quarantined = 1, old_writes_blocked = 1, activated_at = excluded.activated_at"
+		var now any = time.Now().UTC().Format(time.RFC3339Nano)
+		if dialect == database.MySQL {
+			now = time.Now().UTC()
+		}
+		query := "INSERT INTO restore_controls (id, sessions_revoked, egress_quarantined, old_writes_blocked, activated_at) VALUES (" + p(dialect, 1) + ", 1, 1, 1, " + p(dialect, 2) + ")"
+		if dialect == database.MySQL {
+			query += " ON DUPLICATE KEY UPDATE sessions_revoked = 1, egress_quarantined = 1, old_writes_blocked = 1, activated_at = VALUES(activated_at)"
+		} else {
+			query += " ON CONFLICT(id) DO UPDATE SET sessions_revoked = 1, egress_quarantined = 1, old_writes_blocked = 1, activated_at = excluded.activated_at"
+		}
 		_, err := tx.ExecContext(ctx, query, 1, now)
 		return err
 	})
@@ -94,7 +102,7 @@ func RestoreWritesBlocked(ctx context.Context, db database.Executor, dialect dat
 }
 
 func validateDialect(dialect database.Dialect) error {
-	if dialect != database.SQLite && dialect != database.Postgres {
+	if dialect != database.SQLite && dialect != database.Postgres && dialect != database.MySQL {
 		return fmt.Errorf("unsupported database dialect %q", dialect)
 	}
 	return nil

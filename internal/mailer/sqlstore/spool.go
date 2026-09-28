@@ -33,10 +33,10 @@ type Spool struct {
 }
 
 func (s Spool) p(n int) string {
-	if s.Dialect == database.SQLite {
-		return "?"
+	if s.Dialect == database.Postgres {
+		return fmt.Sprintf("$%d", n)
 	}
-	return fmt.Sprintf("$%d", n)
+	return "?"
 }
 
 func (s Spool) tenant(ctx context.Context) (string, error) {
@@ -94,6 +94,9 @@ func (s Spool) Enqueue(ctx context.Context, tx database.Executor, notification s
 	}
 	now := time.Now().UTC()
 	query := `INSERT INTO mail_spool (id,tenant_id,event_key,recipient,subject,body,html_body,status,attempts,next_attempt_at,last_error,created_at,updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,'pending',0,` + s.p(8) + `,'',` + s.p(9) + `,` + s.p(10) + `) ON CONFLICT (tenant_id,event_key) DO NOTHING`
+	if s.Dialect == database.MySQL {
+		query = `INSERT INTO mail_spool (id,tenant_id,event_key,recipient,subject,body,html_body,status,attempts,next_attempt_at,last_error,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'pending',0,?,'',?,?) ON DUPLICATE KEY UPDATE id=id`
+	}
 	result, err := tx.ExecContext(ctx, query, id, tenantID, notification.EventKey, recipient, notification.Subject, notification.Body, notification.HTMLBody, spoolTime(s.Dialect, now), spoolTime(s.Dialect, now), spoolTime(s.Dialect, now))
 	if err != nil {
 		return err
@@ -140,6 +143,9 @@ func (s Spool) Claim(ctx context.Context, worker string, now time.Time, lease ti
 			query = `SELECT id,event_key,recipient,subject,body,html_body,status,attempts,next_attempt_at,created_at,updated_at,COALESCE(last_error,'') FROM mail_spool WHERE tenant_id=$1 AND ((status='pending' AND next_attempt_at <= $2) OR (status='sending' AND lease_until <= $3)) ORDER BY next_attempt_at,id LIMIT 1 FOR UPDATE SKIP LOCKED`
 		} else {
 			query = `SELECT id,event_key,recipient,subject,body,html_body,status,attempts,next_attempt_at,created_at,updated_at,COALESCE(last_error,'') FROM mail_spool WHERE tenant_id=? AND ((status='pending' AND next_attempt_at <= ?) OR (status='sending' AND lease_until <= ?)) ORDER BY next_attempt_at,id LIMIT 1`
+			if s.Dialect == database.MySQL {
+				query += ` FOR UPDATE`
+			}
 		}
 		var next, created, updated any
 		err = tx.QueryRowContext(ctx, query, args...).Scan(&result.ID, &result.EventKey, &result.Message.To, &result.Message.Subject, &result.Message.Body, &result.Message.HTMLBody, &result.Status, &result.Attempts, &next, &created, &updated, &result.LastError)

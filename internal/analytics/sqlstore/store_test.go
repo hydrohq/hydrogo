@@ -14,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
@@ -27,6 +28,12 @@ func TestSQLiteNoCookieDailyStatsContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	runNoCookieStatsContract(t, db, database.SQLite)
+}
+
+func TestMySQLNoCookieDailyStatsContract(t *testing.T) {
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	runNoCookieStatsContract(t, db, database.MySQL)
 }
 
 func TestPostgresNoCookieDailyStatsContract(t *testing.T) {

@@ -352,11 +352,19 @@ func parseStoredTime(value any) time.Time {
 	}
 }
 
+func (s Store) storedTime(value time.Time) any {
+	value = value.UTC()
+	if s.Dialect == database.SQLite {
+		return value.Format(time.RFC3339Nano)
+	}
+	return value
+}
+
 func (s Store) CreateDraftContent(ctx context.Context, tx database.Executor, page pages.Page) error {
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := s.storedTime(time.Now().UTC())
 	scopeID := ""
 	if s.RequireTenantScope {
 		scope, scopeErr := tenant.Require(ctx)
@@ -408,7 +416,7 @@ func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, pag
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := s.storedTime(time.Now().UTC())
 	scopeID := ""
 	if s.RequireTenantScope {
 		scope, scopeErr := tenant.Require(ctx)
@@ -463,7 +471,7 @@ func (s Store) Publish(ctx context.Context, tx database.Executor, pageID string,
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := s.storedTime(time.Now().UTC())
 	filter, scopeID, err := s.tenantFilter(ctx, 4)
 	if err != nil {
 		return err

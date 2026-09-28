@@ -59,7 +59,7 @@ func (s Store) validate() error {
 	if err := database.RequireExecutor(s.Executor); err != nil {
 		return err
 	}
-	if s.Dialect != database.SQLite && s.Dialect != database.Postgres {
+	if s.Dialect != database.SQLite && s.Dialect != database.Postgres && s.Dialect != database.MySQL {
 		return fmt.Errorf("unsupported analytics dialect %q", s.Dialect)
 	}
 	return nil
@@ -83,6 +83,11 @@ func (s Store) SaveConsent(ctx context.Context, consentID string, consent v1.Ana
 	if s.Dialect == database.Postgres {
 		_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_consent (consent_id,decision,purpose_version,decided_at,revoked_at) VALUES ($1,$2,$3,$4,$5)
 			ON CONFLICT (consent_id) DO UPDATE SET decision=EXCLUDED.decision,purpose_version=EXCLUDED.purpose_version,decided_at=EXCLUDED.decided_at,revoked_at=EXCLUDED.revoked_at`, consentID, consent.Decision, consent.PurposeVersion, consent.DecidedAt.UTC(), nullableTime(consent.RevokedAt))
+		return err
+	}
+	if s.Dialect == database.MySQL {
+		_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_consent (consent_id,decision,purpose_version,decided_at,revoked_at) VALUES (?,?,?,?,?)
+			ON DUPLICATE KEY UPDATE decision=VALUES(decision),purpose_version=VALUES(purpose_version),decided_at=VALUES(decided_at),revoked_at=VALUES(revoked_at)`, consentID, consent.Decision, consent.PurposeVersion, consent.DecidedAt.UTC(), nullableTime(consent.RevokedAt))
 		return err
 	}
 	_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_consent (consent_id,decision,purpose_version,decided_at,revoked_at) VALUES (?,?,?,?,?)
@@ -119,6 +124,11 @@ func (s Store) RecordEvent(ctx context.Context, consentID, purposeVersion string
 			ON CONFLICT (day,event_type,country,purpose_version) DO UPDATE SET event_count=analytics_daily.event_count+1,duration_seconds=analytics_daily.duration_seconds+EXCLUDED.duration_seconds`, event.Day, event.Type, event.Country, purposeVersion, event.DurationSeconds)
 		return err
 	}
+	if s.Dialect == database.MySQL {
+		_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_daily (day,event_type,country,purpose_version,event_count,duration_seconds) VALUES (?,?,?,?,1,?)
+			ON DUPLICATE KEY UPDATE event_count=event_count+1,duration_seconds=duration_seconds+VALUES(duration_seconds)`, event.Day, event.Type, event.Country, purposeVersion, event.DurationSeconds)
+		return err
+	}
 	_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_daily (day,event_type,country,purpose_version,event_count,duration_seconds) VALUES (?,?,?,?,1,?)
 		ON CONFLICT(day,event_type,country,purpose_version) DO UPDATE SET event_count=event_count+1,duration_seconds=duration_seconds+excluded.duration_seconds`, event.Day, event.Type, event.Country, purposeVersion, event.DurationSeconds)
 	return err
@@ -151,6 +161,11 @@ func (s Store) RecordContentView(ctx context.Context, consentID, purposeVersion 
 	if s.Dialect == database.Postgres {
 		_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES ($1,$2,$3,$4,$5,$6,1)
 			ON CONFLICT (day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=analytics_content_daily.view_count+1`, event.Day, event.TenantID, event.ContentType, event.ContentID, event.Locale, purposeVersion)
+		return err
+	}
+	if s.Dialect == database.MySQL {
+		_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
+			ON DUPLICATE KEY UPDATE view_count=view_count+1`, event.Day, event.TenantID, event.ContentType, event.ContentID, event.Locale, purposeVersion)
 		return err
 	}
 	_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
@@ -246,6 +261,9 @@ func (s Store) RecordNoCookieVisit(ctx context.Context, visit analytics.NoCookie
 	}
 	defer tx.Rollback()
 	visitorQuery := `INSERT INTO analytics_daily_visitors(day,tenant_id,visitor_key) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `) ON CONFLICT(day,tenant_id,visitor_key) DO NOTHING`
+	if s.Dialect == database.MySQL {
+		visitorQuery = `INSERT IGNORE INTO analytics_daily_visitors(day,tenant_id,visitor_key) VALUES (?,?,?)`
+	}
 	inserted, err := tx.ExecContext(ctx, visitorQuery, visit.Day, visit.TenantID, visit.VisitorKey)
 	if err != nil {
 		return false, err
@@ -269,6 +287,8 @@ func (s Store) RecordNoCookieVisit(ctx context.Context, visit analytics.NoCookie
 	query := `INSERT INTO analytics_daily_stats(day,tenant_id,metric,dimension,event_count) VALUES ` + strings.Join(values, ",") + ` ON CONFLICT(day,tenant_id,metric,dimension) DO UPDATE SET event_count=analytics_daily_stats.event_count+EXCLUDED.event_count`
 	if s.Dialect == database.SQLite {
 		query = `INSERT INTO analytics_daily_stats(day,tenant_id,metric,dimension,event_count) VALUES ` + strings.Join(values, ",") + ` ON CONFLICT(day,tenant_id,metric,dimension) DO UPDATE SET event_count=event_count+excluded.event_count`
+	} else if s.Dialect == database.MySQL {
+		query = `INSERT INTO analytics_daily_stats(day,tenant_id,metric,dimension,event_count) VALUES ` + strings.Join(values, ",") + ` ON DUPLICATE KEY UPDATE event_count=event_count+VALUES(event_count)`
 	}
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return false, err

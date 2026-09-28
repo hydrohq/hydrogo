@@ -12,6 +12,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
@@ -112,12 +113,47 @@ func TestSQLiteRepositoryCRUDOrderingAndTenantScope(t *testing.T) {
 	}
 }
 
+func TestMySQLRepositoryCRUDOrderingAndTenantScope(t *testing.T) {
+	ctx := context.Background()
+	db := testmysql.Open(t)
+	testmysql.MigrateAll(t, db)
+	store := Store[testItem]{Dialect: database.MySQL, Table: "sectoral_locations"}
+	alpha, _ := tenant.NewScope("mysql-tenant-a", "alpha")
+	beta, _ := tenant.NewScope("mysql-tenant-b", "beta")
+	alphaCtx, betaCtx := tenant.WithScope(ctx, alpha), tenant.WithScope(ctx, beta)
+	item := testItem{Base: Base{ID: "mysql-location-1", Locale: "EN", Slug: "branch", Title: "Central", Status: "published", Featured: true, SortOrder: 1, Tags: []string{"Store", "store"}}, Detail: "Address"}
+	if err := store.Create(alphaCtx, db, item); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Create(betaCtx, db, testItem{Base: Base{ID: "mysql-location-2", Locale: "en", Slug: "branch", Title: "Other", Status: "published"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(betaCtx, db, item.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-tenant read: %v", err)
+	}
+	got, err := store.Get(alphaCtx, db, item.ID)
+	if err != nil || got.Detail != "Address" {
+		t.Fatalf("Get()=%+v err=%v", got, err)
+	}
+	got.Title, got.Version = "Renamed", got.Version+1
+	if err := store.Update(alphaCtx, db, got); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := store.ListPublished(alphaCtx, db, "en", 50)
+	if err != nil || len(listed) != 1 || listed[0].Title != "Renamed" || !listed[0].Featured {
+		t.Fatalf("ListPublished()=%+v err=%v", listed, err)
+	}
+	if err := store.Delete(alphaCtx, db, item.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestStoreRejectsUnsafeTableAndUnsupportedDialect(t *testing.T) {
 	ctx := context.Background()
 	if err := (Store[testItem]{Dialect: database.SQLite, Table: "records;DROP TABLE users"}).Create(ctx, nil, testItem{}); err == nil {
 		t.Fatal("unsafe table name accepted")
 	}
-	if err := (Store[testItem]{Dialect: database.Dialect("mysql"), Table: "safe_table"}).Create(ctx, nil, testItem{}); err == nil {
+	if err := (Store[testItem]{Dialect: database.Dialect("oracle"), Table: "safe_table"}).Create(ctx, nil, testItem{}); err == nil {
 		t.Fatal("unsupported dialect accepted")
 	}
 }
