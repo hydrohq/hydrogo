@@ -42,7 +42,10 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		"202609090020_job_capacity_lock", "202609100001_page_blocks", "202609100002_commerce_core",
 		"202609100003_commerce_payments", "202609100004_commerce_carts", "202609100005_commerce_variants",
 		"202609100006_outbox_delivery", "202609100007_commerce_order_customer", "202609100008_commerce_order_client_ip",
-		"202609100009_commerce_product_description", "202609110001_news_cover_media",
+		"202609100009_commerce_product_description", "202609110001_news_cover_media", "202609110002_commerce_product_media",
+		"202609110003_news_editorial_metadata", "202609110004_news_key_takeaways", "202609110005_members",
+		"202609110006_members_metadata", "202609120001_media_variants", "202609140001_pages_list_indexes",
+		"202609140002_news_list_indexes", "202609160001_news_taxonomy", "202609160002_search_index",
 	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
@@ -74,7 +77,8 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	defer func() {
 		for _, table := range []string{
 			"auth_invites", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
-			"commerce_payment_webhook_events", "commerce_payment_transactions", "commerce_order_items", "commerce_cart_items",
+			"news_taxonomy_relations", "news_taxonomy_terms", "hydro_search_documents", "member_sessions", "members",
+			"media_variants", "commerce_payment_webhook_events", "commerce_payment_transactions", "commerce_order_items", "commerce_cart_items",
 			"commerce_product_variants", "commerce_carts", "commerce_orders", "commerce_products", "job_queue_capacity_lock",
 			"restore_controls", "jobs", "news_items", "auth_invites", "form_inbox",
 			"page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens", "mfa_recovery_codes",
@@ -146,6 +150,41 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO news_items (id,locale,slug,title,body,status,created_at,updated_at) VALUES ('n1','en','news','News','body','draft',?,?)`, now, now); err != nil {
 		t.Fatalf("news insert: %v", err)
+	}
+	var excerpt, tags, keyTakeaways string
+	if err := db.QueryRowContext(ctx, `SELECT excerpt,tags,key_takeaways FROM news_items WHERE id='n1'`).Scan(&excerpt, &tags, &keyTakeaways); err != nil {
+		t.Fatal(err)
+	}
+	if excerpt != "" || tags != "" || keyTakeaways != "" {
+		t.Fatalf("legacy news defaults = (%q,%q,%q)", excerpt, tags, keyTakeaways)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO members (id,email,password_hash,created_at,updated_at) VALUES ('member1','member@example.test','hash',?,?)`, now, now); err != nil {
+		t.Fatalf("member insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO member_sessions (id,member_id,token_hash,expires_at,created_at,last_seen_at) VALUES ('member-session1','member1',REPEAT('d',64),?,?,?)`, now.Add(time.Hour), now, now); err != nil {
+		t.Fatalf("member session insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM members WHERE id='member1'`); err != nil {
+		t.Fatalf("member cascade delete: %v", err)
+	}
+	var memberSessionCount int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM member_sessions`).Scan(&memberSessionCount); err != nil {
+		t.Fatal(err)
+	}
+	if memberSessionCount != 0 {
+		t.Fatalf("member sessions after delete = %d, want 0", memberSessionCount)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO media_variants (id,media_id,kind,storage_key,mime_type,size_bytes,created_at,updated_at) VALUES ('variant-media1','m1','thumbnail','private/m1/thumb','image/webp',3,?,?)`, now, now); err != nil {
+		t.Fatalf("media variant insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO news_taxonomy_terms (id,slug,kind,labels_json) VALUES ('term1','updates','category','{}')`); err != nil {
+		t.Fatalf("taxonomy term insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES ('n1','term1')`); err != nil {
+		t.Fatalf("taxonomy relation insert: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO hydro_search_documents (id,locale,title,body) VALUES ('search1','en','Search','document')`); err != nil {
+		t.Fatalf("search document insert: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO jobs (id,type,payload,available_at,created_at) VALUES ('j1','test','{}',?,?)`, now, now); err != nil {
 		t.Fatalf("job insert: %v", err)

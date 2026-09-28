@@ -3,12 +3,15 @@ module: "news"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "21e8e43108d4a980b853145c0c4e094503388cface855da4558f63ad62c3b284"
   postgres: "21e8e43108d4a980b853145c0c4e094503388cface855da4558f63ad62c3b284"
+  mysql: "7f6493cf266bbda7cb04fe172226d8776920e3124072ee5d63d9707226651b6f"
 dependencies:
   - "202609080012_news_items"
 schema:

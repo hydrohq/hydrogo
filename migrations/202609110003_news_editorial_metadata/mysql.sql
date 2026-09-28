@@ -1,0 +1,15 @@
+ALTER TABLE news_items ADD COLUMN excerpt LONGTEXT NULL;
+ALTER TABLE news_items ADD COLUMN category VARCHAR(128) NOT NULL DEFAULT '';
+ALTER TABLE news_items ADD COLUMN author_name VARCHAR(256) NOT NULL DEFAULT '';
+ALTER TABLE news_items ADD COLUMN featured TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE news_items ADD COLUMN tags LONGTEXT NULL;
+ALTER TABLE news_items ADD COLUMN seo_title VARCHAR(256) NOT NULL DEFAULT '';
+ALTER TABLE news_items ADD COLUMN seo_description VARCHAR(1000) NOT NULL DEFAULT '';
+UPDATE news_items SET excerpt = '' WHERE excerpt IS NULL;
+UPDATE news_items SET tags = '' WHERE tags IS NULL;
+
+CREATE TRIGGER news_editorial_defaults BEFORE INSERT ON news_items FOR EACH ROW
+BEGIN
+    IF NEW.excerpt IS NULL THEN SET NEW.excerpt = ''; END IF;
+    IF NEW.tags IS NULL THEN SET NEW.tags = ''; END IF;
+END;

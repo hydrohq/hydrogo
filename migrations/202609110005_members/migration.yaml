@@ -3,13 +3,16 @@ module: "members"
 class:
   sqlite: "maintenance"
   postgres: "online"
+  mysql: "online"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 dependencies: []
 checksum_sha256:
   sqlite: "93de2de5ca1d0a61aba9cb50377a8113c78a27fabecea2d0336ad5979fa7c200"
   postgres: "b627db98213b9f0b465640fda3c009f82e3dd91efb0cf2aa46f079dda2cdc8db"
+  mysql: "f4f62f3e0d0c7b765415a3848994b5dafccdefcbb9cd7762f581c970bd88511d"
 schema:
   readable_epoch: 1
   writable_epoch: 1

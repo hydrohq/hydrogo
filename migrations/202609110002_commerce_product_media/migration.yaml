@@ -3,12 +3,15 @@ module: "commerce"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "e150ca1f619e98be0c03826212de58ab42ec111fd2b86c0b5f3466658bb61be4"
   postgres: "e150ca1f619e98be0c03826212de58ab42ec111fd2b86c0b5f3466658bb61be4"
+  mysql: "86e77eda58b40ace5a5075f7be96b54a5c196bf295504d50afd877f56f8f4d77"
 dependencies:
   - "202609100009_commerce_product_description"
 schema:
