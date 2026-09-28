@@ -1383,7 +1383,7 @@ func restoreCommand(args []string, stdout, stderr io.Writer) error {
 	}
 }
 
-func serve(args []string, stderr io.Writer) error {
+func serve(args []string, stderr io.Writer) (serveErr error) {
 	if stderr == nil {
 		stderr = io.Discard
 	}
@@ -1480,7 +1480,19 @@ func serve(args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() {
+		stop()
+		if cfg.Database.Dialect == database.SQLite && !*cgiMode {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), budget.ShutdownTimeout)
+			defer cancel()
+			if err := database.CheckpointSQLite(shutdownCtx, db); err != nil {
+				serveErr = errors.Join(serveErr, fmt.Errorf("SQLite shutdown checkpoint: %w", err))
+			}
+		}
+		if err := db.Close(); err != nil {
+			serveErr = errors.Join(serveErr, fmt.Errorf("close database: %w", err))
+		}
+	}()
 	if cfg.Database.Dialect == database.SQLite {
 		if err := database.RecoverSQLite(ctx, db); err != nil {
 			return fmt.Errorf("SQLite startup recovery failed: %w", err)

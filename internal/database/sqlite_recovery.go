@@ -34,3 +34,23 @@ func RecoverSQLite(ctx context.Context, db *sql.DB) error {
 	}
 	return nil
 }
+
+// CheckpointSQLite flushes committed WAL frames into the database and truncates
+// the WAL. Call it only after application workers and request handlers have
+// stopped using the database.
+func CheckpointSQLite(ctx context.Context, db *sql.DB) error {
+	if db == nil {
+		return ErrDatabaseRequired
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var busy, logFrames, checkpointed int
+	if err := db.QueryRowContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)").Scan(&busy, &logFrames, &checkpointed); err != nil {
+		return fmt.Errorf("sqlite WAL shutdown checkpoint: %w", err)
+	}
+	if busy != 0 {
+		return fmt.Errorf("sqlite WAL shutdown checkpoint is busy (log frames %d, checkpointed %d)", logFrames, checkpointed)
+	}
+	return nil
+}
