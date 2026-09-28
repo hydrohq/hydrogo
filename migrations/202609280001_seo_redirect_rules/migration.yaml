@@ -3,12 +3,15 @@ module: "site"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "bbf6e7f83e6570729175c90b09d23c67529e489ddf07bab7f5377385f0442a52"
   postgres: "bd3006dcbd44997610d7a9e2151294b394793c1ec89a5c23909d3b7b92512874"
+  mysql: "d54683fe527681b470bb0d2246ee6e0e3f5fb5a1a64a6030161bad93a446bc34"
 dependencies:
   - "202609190008_site_tenant_scope"
 schema:

@@ -3,12 +3,15 @@ module: "core"
 class:
   sqlite: "expand"
   postgres: "expand"
+  mysql: "expand"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "f518cde83af80ea23be82cf4e5673e65c05307e26f19848a8cb23dcd6ac72e5b"
   postgres: "f518cde83af80ea23be82cf4e5673e65c05307e26f19848a8cb23dcd6ac72e5b"
+  mysql: "ab3353d0f1c4c61be4e653af6c40491533da9e46e740fbb7fdbd70be3dd9f458"
 dependencies:
   - "202609100006_outbox_delivery"
 schema:
