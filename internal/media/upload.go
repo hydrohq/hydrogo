@@ -39,15 +39,21 @@ const (
 )
 
 type Asset struct {
-	ID               string `json:"id"`
-	StorageKey       string `json:"storage_key"`
-	OriginalFilename string `json:"original_filename"`
-	MimeType         string `json:"mime_type"`
-	SizeBytes        int64  `json:"size_bytes"`
-	Width            int    `json:"width"`
-	Height           int    `json:"height"`
-	Visibility       string `json:"visibility"`
-	Status           string `json:"status"`
+	ID               string   `json:"id"`
+	StorageKey       string   `json:"storage_key"`
+	OriginalFilename string   `json:"original_filename"`
+	MimeType         string   `json:"mime_type"`
+	SizeBytes        int64    `json:"size_bytes"`
+	Width            int      `json:"width"`
+	Height           int      `json:"height"`
+	Visibility       string   `json:"visibility"`
+	Status           string   `json:"status"`
+	BlurHash         string   `json:"blur_hash,omitempty"`
+	FocalX           float64  `json:"focal_x"`
+	FocalY           float64  `json:"focal_y"`
+	DominantColors   []string `json:"dominant_colors,omitempty"`
+	FolderID         string   `json:"folder_id,omitempty"`
+	Tags             []string `json:"tags,omitempty"`
 }
 
 var AllowedMimeTypes = map[string]string{
@@ -60,13 +66,17 @@ var AllowedMimeTypes = map[string]string{
 }
 
 type UploadResult struct {
-	ID          string `json:"id"`
-	Filename    string `json:"filename"`
-	StoragePath string `json:"storage_path"`
-	MimeType    string `json:"mime_type"`
-	SizeBytes   int64  `json:"size_bytes"`
-	Width       int    `json:"width,omitempty"`
-	Height      int    `json:"height,omitempty"`
+	ID             string   `json:"id"`
+	Filename       string   `json:"filename"`
+	StoragePath    string   `json:"storage_path"`
+	MimeType       string   `json:"mime_type"`
+	SizeBytes      int64    `json:"size_bytes"`
+	Width          int      `json:"width,omitempty"`
+	Height         int      `json:"height,omitempty"`
+	BlurHash       string   `json:"blur_hash,omitempty"`
+	DominantColors []string `json:"dominant_colors,omitempty"`
+	FolderID       string   `json:"folder_id,omitempty"`
+	Tags           []string `json:"tags,omitempty"`
 }
 
 type Uploader struct {
@@ -201,6 +211,8 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 
 	// 4. Verify image dimensions if image
 	var width, height int
+	var blurHash string
+	var dominantColors []string
 	if strings.HasPrefix(detectedMime, "image/") {
 		if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
 			return nil, err
@@ -227,6 +239,8 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 		if bounds.Dx() != width || bounds.Dy() != height {
 			return nil, ErrInvalidImageData
 		}
+		blurHash, _ = BlurHash(decoded, 4, 3)
+		dominantColors = DominantColors(decoded, 5)
 		sanitizedPath, changed, err := stripImageMetadata(tempFile.Name(), u.StorageDir, detectedMime)
 		if err != nil {
 			return nil, fmt.Errorf("sanitize image metadata: %w", err)
@@ -287,13 +301,15 @@ func (u *Uploader) SaveContext(ctx context.Context, r io.Reader, originalFilenam
 	}
 
 	return &UploadResult{
-		ID:          hashHex,
-		Filename:    safeOriginalFilename(originalFilename),
-		StoragePath: finalPath,
-		MimeType:    detectedMime,
-		SizeBytes:   totalSize,
-		Width:       width,
-		Height:      height,
+		ID:             hashHex,
+		Filename:       safeOriginalFilename(originalFilename),
+		StoragePath:    finalPath,
+		MimeType:       detectedMime,
+		SizeBytes:      totalSize,
+		Width:          width,
+		Height:         height,
+		BlurHash:       blurHash,
+		DominantColors: dominantColors,
 	}, nil
 }
 
@@ -309,13 +325,7 @@ func safeOriginalFilename(value string) string {
 	if name == "." || name == "/" || name == "" {
 		return "unnamed"
 	}
-	name = strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune(" ._-()", r) {
-			return r
-		}
-		return '-'
-	}, name)
-	return name
+	return NormalizeFilename(name)
 }
 
 func validateUploadFilename(value string) error {

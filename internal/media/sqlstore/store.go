@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -137,18 +138,24 @@ func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.
 	}
 	var asset media.Asset
 	var visibility, status string
-	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status FROM media_assets WHERE id = " + s.p(1)
+	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json FROM media_assets WHERE id = " + s.p(1)
 	args := []any{id}
 	if scoped {
 		query += " AND tenant_id=" + s.p(2)
 		args = append(args, scope.TenantID)
 	}
-	err = db.QueryRowContext(ctx, query, args...).Scan(&asset.ID, &asset.StorageKey, &asset.OriginalFilename, &asset.MimeType, &asset.SizeBytes, &asset.Width, &asset.Height, &visibility, &status)
+	var blurHash, colors, tags sql.NullString
+	var folder sql.NullString
+	err = db.QueryRowContext(ctx, query, args...).Scan(&asset.ID, &asset.StorageKey, &asset.OriginalFilename, &asset.MimeType, &asset.SizeBytes, &asset.Width, &asset.Height, &visibility, &status, &blurHash, &asset.FocalX, &asset.FocalY, &colors, &folder, &tags)
 	if err != nil {
 		return media.Asset{}, err
 	}
 	asset.Visibility = visibility
 	asset.Status = status
+	asset.BlurHash = blurHash.String
+	_ = json.Unmarshal([]byte(colors.String), &asset.DominantColors)
+	_ = json.Unmarshal([]byte(tags.String), &asset.Tags)
+	asset.FolderID = folder.String
 	return asset, nil
 }
 
@@ -172,7 +179,7 @@ func (s Store) List(ctx context.Context, db database.Executor, limit int) ([]med
 	if limit < 1 || limit > 200 {
 		return nil, fmt.Errorf("media list limit must be between 1 and 200")
 	}
-	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status FROM media_assets"
+	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json FROM media_assets"
 	args := []any{}
 	if scoped {
 		query += " WHERE tenant_id=" + s.p(1)
@@ -188,9 +195,15 @@ func (s Store) List(ctx context.Context, db database.Executor, limit int) ([]med
 	assets := make([]media.Asset, 0, limit)
 	for rows.Next() {
 		var asset media.Asset
-		if err := rows.Scan(&asset.ID, &asset.StorageKey, &asset.OriginalFilename, &asset.MimeType, &asset.SizeBytes, &asset.Width, &asset.Height, &asset.Visibility, &asset.Status); err != nil {
+		var blurHash, colors, tags sql.NullString
+		var folder sql.NullString
+		if err := rows.Scan(&asset.ID, &asset.StorageKey, &asset.OriginalFilename, &asset.MimeType, &asset.SizeBytes, &asset.Width, &asset.Height, &asset.Visibility, &asset.Status, &blurHash, &asset.FocalX, &asset.FocalY, &colors, &folder, &tags); err != nil {
 			return nil, err
 		}
+		asset.BlurHash = blurHash.String
+		_ = json.Unmarshal([]byte(colors.String), &asset.DominantColors)
+		_ = json.Unmarshal([]byte(tags.String), &asset.Tags)
+		asset.FolderID = folder.String
 		assets = append(assets, asset)
 	}
 	if err := rows.Err(); err != nil {
@@ -208,15 +221,27 @@ func (s Store) CreatePending(ctx context.Context, tx database.Executor, asset me
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	colors, err := json.Marshal(asset.DominantColors)
+	if err != nil {
+		return err
+	}
+	tags, err := json.Marshal(asset.Tags)
+	if err != nil {
+		return err
+	}
+	var folder any
+	if asset.FolderID != "" {
+		folder = asset.FolderID
+	}
 	query := `INSERT INTO media_assets
-        (id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, created_at, updated_at)
-        VALUES (` + s.p(1) + `, ` + s.p(2) + `, ` + s.p(3) + `, ` + s.p(4) + `, ` + s.p(5) + `, ` + s.p(6) + `, ` + s.p(7) + `, 'private', 'pending', ` + s.p(8) + `, ` + s.p(9) + `)`
-	args := []any{asset.ID, asset.StorageKey, asset.OriginalFilename, asset.MimeType, asset.SizeBytes, asset.Width, asset.Height, now, now}
+		(id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, created_at, updated_at, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json)
+		VALUES (` + s.p(1) + `, ` + s.p(2) + `, ` + s.p(3) + `, ` + s.p(4) + `, ` + s.p(5) + `, ` + s.p(6) + `, ` + s.p(7) + `, 'private', 'pending', ` + s.p(8) + `, ` + s.p(9) + `, ` + s.p(10) + `, ` + s.p(11) + `, ` + s.p(12) + `, ` + s.p(13) + `, ` + s.p(14) + `, ` + s.p(15) + `)`
+	args := []any{asset.ID, asset.StorageKey, asset.OriginalFilename, asset.MimeType, asset.SizeBytes, asset.Width, asset.Height, now, now, asset.BlurHash, asset.FocalX, asset.FocalY, string(colors), folder, string(tags)}
 	if scoped {
 		query = `INSERT INTO media_assets
-        (id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, created_at, updated_at, tenant_id)
-        VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `, 'private', 'pending', ` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
-		args = append(args, scope.TenantID)
+			(id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, created_at, updated_at, tenant_id, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json)
+			VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `, 'private', 'pending', ` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `)`
+		args = []any{asset.ID, asset.StorageKey, asset.OriginalFilename, asset.MimeType, asset.SizeBytes, asset.Width, asset.Height, now, now, scope.TenantID, asset.BlurHash, asset.FocalX, asset.FocalY, string(colors), folder, string(tags)}
 	}
 	_, err = tx.ExecContext(ctx, query, args...)
 	return err

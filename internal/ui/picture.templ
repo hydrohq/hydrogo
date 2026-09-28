@@ -1,0 +1,70 @@
+package ui
+
+templ Picture(p PictureProps) {
+	<img src={ p.Src } alt={ p.Alt } loading="lazy" decoding="async" class={ "block h-full w-full object-cover " + p.Class } style={ pictureStyle(p) } data-blurhash={ p.BlurHash } />
+}
+
+templ videoEmbed(src, title string) {
+	<div class="aspect-video w-full overflow-hidden rounded-lg">
+		<iframe src={ src } title={ title } loading="lazy" class="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+	</div>
+}
+
+templ MediaFolderTree(items []MediaFolderItem, selected string) {
+	<nav aria-label="Medya klasörleri" class="rounded-lg border border-slate-200 p-3">
+		<a href="/admin/media" class={ mediaFolderClass(selected == "") }>Tüm medya</a>
+		<ul class="mt-2 space-y-1">
+			for _, item := range items {
+				<li><a href={ item.Href } aria-current={ mediaFolderCurrent(selected, item.ID) } class={ mediaFolderClass(selected == item.ID) } style={ mediaFolderIndent(item.Depth) }>{ item.Name }</a></li>
+			}
+		</ul>
+	</nav>
+}
+
+templ MediaTagFilter(tag, folder, color string) {
+	<form method="get" action="/admin/media" class="my-3 flex items-end gap-2">
+		<input type="hidden" name="folder" value={ folder } />
+		<label class="text-sm text-slate-700">Etiketle filtrele
+			<input type="search" name="tag" value={ tag } maxlength="64" class="block rounded border border-slate-300 px-3 py-2" />
+		</label>
+		<label class="text-sm text-slate-700">Dominant renk
+			<input type="text" name="color" value={ color } placeholder="#1e3a8a" maxlength="7" class="block w-28 rounded border border-slate-300 px-3 py-2" />
+		</label>
+		<button type="submit" class="rounded bg-slate-900 px-3 py-2 text-white">Uygula</button>
+	</form>
+}
+
+templ MediaAssetMetadataForm(p MediaMetadataFormProps) {
+	<details class="mt-2 rounded border border-slate-200 p-2">
+		<summary class="cursor-pointer text-sm">Odak, klasör ve etiketler</summary>
+		<form method="post" action={ p.Action } class="mt-2 grid gap-2">
+			<input type="hidden" name="_csrf" value={ p.CSRF } />
+			<input type="hidden" name="return_folder" value={ p.ReturnFolder } />
+			<label class="text-xs">Odak X (0–1)<input name="focal_x" type="number" min="0" max="1" step="0.01" value={ p.FocalX } class="block w-full rounded border px-2 py-1" /></label>
+			<label class="text-xs">Odak Y (0–1)<input name="focal_y" type="number" min="0" max="1" step="0.01" value={ p.FocalY } class="block w-full rounded border px-2 py-1" /></label>
+			<label class="text-xs">Klasör<select name="folder_id" class="block w-full rounded border px-2 py-1"><option value="">Tüm medya</option>
+				for _, folder := range p.Folders {
+					<option value={ folder.ID } selected?={ folder.ID == p.FolderID }>{ folder.Name }</option>
+				}
+			</select></label>
+			<label class="text-xs">Etiketler (virgülle ayırın)<input name="tags" maxlength="2048" value={ p.Tags } class="block w-full rounded border px-2 py-1" /></label>
+			<button type="submit" class="rounded bg-slate-900 px-3 py-2 text-white">Kaydet</button>
+		</form>
+	</details>
+}
+
+templ MediaCreateFolderForm(folders []MediaFolderItem, csrf, selected string) {
+	<details class="my-3 rounded-lg border border-slate-200 p-3">
+		<summary class="cursor-pointer font-medium">Klasör oluştur</summary>
+		<form method="post" action="/admin/media/folders" class="mt-2 flex flex-wrap items-end gap-2">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<label class="text-sm">Ad<input name="name" maxlength="128" required class="block rounded border px-3 py-2" /></label>
+			<label class="text-sm">Üst klasör<select name="parent_id" class="block rounded border px-3 py-2"><option value="">Kök klasör</option>
+				for _, folder := range folders {
+					<option value={ folder.ID } selected?={ folder.ID == selected }>{ folder.Name }</option>
+				}
+			</select></label>
+			<button type="submit" class="rounded bg-slate-900 px-3 py-2 text-white">Oluştur</button>
+		</form>
+	</details>
+}

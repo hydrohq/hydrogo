@@ -1,0 +1,32 @@
+id: "202609290001_media_enrichment"
+module: "media"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "1eb85d654b94c358d3ce093f18ec565de1fcc00f851990e1a7e5c79ea45c344b"
+  postgres: "fcb399563c2cf79eb5bf31ac7450bcaac97edffd8da54bb46c4e6ea19954bd7b"
+  mysql: "ed25150afc075dab8b89ce95eb4b86ba065e5d52e3942ca66f97a79c32ecb0dc"
+dependencies:
+  - "202609190005_media_tenant_scope"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Media tenant scope migration is applied"
+lock_timeout: "Bounded by the migration runner lock timeout"
+disk_estimate: "Per-asset placeholder and palette metadata plus editor-managed folder rows and indexes"
+compatibility: "Expand-only additive metadata; old binaries do not read new columns and continue operating. New binaries require this migration before media metadata writes."
+smoke:
+  - "Existing media remains readable with default focal point and empty metadata"
+  - "New image metadata and virtual folder rows are tenant scoped"
+rollback: "Forward migration only. Restore or forward-fix; dropping folder and image metadata discards editor organization and crop preferences."
+capacity:
+  compact: "Metadata processing samples a fixed 32x32 image grid. Folder indexes are dormant without media admin usage; no worker is added."
+  standard: "Image metadata CPU cost is bounded by sample count and upload concurrency."
+  distributed: "Metadata uses the existing tenant-scoped media table and storage contract; no new shared service."

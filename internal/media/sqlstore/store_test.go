@@ -47,9 +47,26 @@ func TestScopedMediaMetadataCannotCrossTenant(t *testing.T) {
 	if err := store.MarkReady(alphaCtx, db, asset.ID, media.VisibilityPublic); err != nil {
 		t.Fatal(err)
 	}
+	folder, err := media.NewFolder("Editorial", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateFolder(alphaCtx, db, folder); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateFolder(tenant.WithScope(ctx, beta), db, media.Folder{ID: "wrong-tenant-child", Name: "Child", ParentID: folder.ID}); !errors.Is(err, media.ErrInvalidFolder) {
+		t.Fatalf("cross-tenant folder parent = %v", err)
+	}
+	if err := store.SetMetadata(alphaCtx, db, asset.ID, media.AssetMetadata{Focal: media.FocalPoint{X: .25, Y: .75}, FolderID: folder.ID, Tags: []string{"hero", "header"}}); err != nil {
+		t.Fatal(err)
+	}
 	got, err := store.Get(alphaCtx, db, asset.ID)
-	if err != nil || got.ID != asset.ID || got.Visibility != media.VisibilityPublic {
+	if err != nil || got.ID != asset.ID || got.Visibility != media.VisibilityPublic || got.FocalX != .25 || got.FolderID != folder.ID || len(got.Tags) != 2 {
 		t.Fatalf("scoped media read = %#v err=%v", got, err)
+	}
+	folders, err := store.ListFolders(alphaCtx, db)
+	if err != nil || len(folders) != 1 || folders[0].ID != folder.ID {
+		t.Fatalf("folder list = %#v err=%v", folders, err)
 	}
 }
 
