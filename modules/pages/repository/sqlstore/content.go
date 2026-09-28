@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -140,6 +141,68 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	return result, rows.Err()
 }
 
+// ListRelatedPublished returns a bounded set of published pages ranked by
+// shared taxonomy tags. The lookup joins the tenant/tag index and never reads
+// draft relations.
+func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, sourceID, locale string, limit int) ([]pages.Page, error) {
+	if limit < 1 || limit > 10 {
+		return nil, ErrInvalidListLimit
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("related page query requires row queries")
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return nil, err
+	}
+	filter = strings.Replace(filter, "tenant_id", "p.tenant_id", 1)
+	var query string
+	var args []any
+	if s.Dialect == database.Postgres {
+		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM pages p JOIN page_published_tags candidate ON candidate.tenant_id=p.tenant_id AND candidate.page_id=p.id JOIN page_published_tags source ON source.tenant_id=candidate.tenant_id AND source.tag=candidate.tag AND source.page_id=$1 WHERE p.published_locale=$2 AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>$1` + filter + ` GROUP BY p.id ORDER BY COUNT(DISTINCT source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT $` + fmt.Sprint(3+btoi(filter != ""))
+		args = []any{sourceID, locale}
+		if filter != "" {
+			args = append(args, scopeID)
+		}
+		args = append(args, limit)
+	} else {
+		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM pages p JOIN page_published_tags candidate ON candidate.tenant_id=p.tenant_id AND candidate.page_id=p.id JOIN page_published_tags source ON source.tenant_id=candidate.tenant_id AND source.tag=candidate.tag AND source.page_id=? WHERE p.published_locale=? AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>?` + filter + ` GROUP BY p.id ORDER BY COUNT(DISTINCT source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ?`
+		args = []any{sourceID, locale, sourceID}
+		if filter != "" {
+			args = append(args, scopeID)
+		}
+		args = append(args, limit)
+	}
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]pages.Page, 0, limit)
+	for rows.Next() {
+		var page pages.Page
+		var status string
+		var updated any
+		if err := rows.Scan(&page.ID, &page.Locale, &page.Slug, &page.Title, &status, &page.Revision, &page.PublicationGeneration, &updated); err != nil {
+			return nil, err
+		}
+		page.Status = pages.Status(status)
+		page.UpdatedAt = parseStoredTime(updated)
+		items = append(items, page)
+	}
+	return items, rows.Err()
+}
+
+func btoi(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
 // ListAdmin returns bounded protected Studio summaries, including unpublished
 // records, without selecting body or block payloads.
 func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) ([]pages.Page, error) {
@@ -214,6 +277,10 @@ func (s Store) GetContent(ctx context.Context, db database.Executor, pageID stri
 	if err != nil {
 		return pages.Page{}, err
 	}
+	page.Tags, err = s.listPageTags(ctx, db, page.ID, "page_tags")
+	if err != nil {
+		return pages.Page{}, err
+	}
 	if published != nil {
 		var value int
 		switch v := published.(type) {
@@ -252,6 +319,10 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 	}
 	page.Status = pages.Status(status)
 	page.Blocks, err = pages.DecodeBlocksForStore(blocks)
+	if err != nil {
+		return pages.Page{}, err
+	}
+	page.Tags, err = s.listPageTags(ctx, db, page.ID, "page_published_tags")
 	if err != nil {
 		return pages.Page{}, err
 	}
@@ -316,6 +387,9 @@ func (s Store) CreateDraftContent(ctx context.Context, tx database.Executor, pag
 	if err != nil {
 		return err
 	}
+	if err := s.replacePageTags(ctx, tx, page.ID, page.Tags, "page_tags"); err != nil {
+		return err
+	}
 	revisionQuery := `INSERT INTO page_revisions
 		(id, page_id, revision, locale, slug, title, body, blocks, actor_id, created_at`
 	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, 1, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9)
@@ -368,6 +442,9 @@ func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, pag
 	if changed != 1 {
 		return pages.ErrConflict
 	}
+	if err := s.replacePageTags(ctx, tx, page.ID, page.Tags, "page_tags"); err != nil {
+		return err
+	}
 	revisionQuery := `INSERT INTO page_revisions
 		(id, page_id, revision, locale, slug, title, body, blocks, actor_id, created_at`
 	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `, ` + s.placeholder(10)
@@ -413,5 +490,95 @@ func (s Store) Publish(ctx context.Context, tx database.Executor, pageID string,
 	if changed != 1 {
 		return pages.ErrConflict
 	}
+	tagFilter, tagScope, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return err
+	}
+	deleteArgs := []any{pageID}
+	if tagFilter != "" {
+		deleteArgs = append(deleteArgs, tagScope)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM page_published_tags WHERE page_id = `+s.placeholder(1)+tagFilter, deleteArgs...); err != nil {
+		return err
+	}
+	copyQuery := `INSERT INTO page_published_tags (tenant_id,page_id,tag) SELECT tenant_id,page_id,tag FROM page_tags WHERE page_id=` + s.placeholder(1)
+	copyArgs := []any{pageID}
+	if filter != "" {
+		copyQuery += ` AND tenant_id=` + s.placeholder(2)
+		copyArgs = append(copyArgs, scopeID)
+	}
+	if _, err := tx.ExecContext(ctx, copyQuery, copyArgs...); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (s Store) replacePageTags(ctx context.Context, tx database.Executor, pageID string, tags []string, relation string) error {
+	if relation != "page_tags" && relation != "page_published_tags" {
+		return errors.New("invalid page tag relation")
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return err
+	}
+	args := []any{pageID}
+	query := `DELETE FROM ` + relation + ` WHERE page_id=` + s.placeholder(1) + filter
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return err
+	}
+	seen := make(map[string]struct{}, len(tags))
+	for _, tag := range tags {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" || len(tag) > 64 {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		insert := `INSERT INTO ` + relation + ` (tenant_id,page_id,tag) VALUES (` + s.placeholder(1) + `,` + s.placeholder(2) + `,` + s.placeholder(3) + `)`
+		_, err := tx.ExecContext(ctx, insert, scopeID, pageID, tag)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s Store) listPageTags(ctx context.Context, db database.Executor, pageID, relation string) ([]string, error) {
+	if relation != "page_tags" && relation != "page_published_tags" {
+		return nil, errors.New("invalid page tag relation")
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("page tag lookup requires row queries")
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT tag FROM ` + relation + ` WHERE page_id=` + s.placeholder(1) + filter + ` ORDER BY tag`
+	args := []any{pageID}
+	if filter != "" {
+		args = append(args, scopeID)
+	}
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	tags := make([]string, 0, 8)
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+	return tags, rows.Err()
 }
