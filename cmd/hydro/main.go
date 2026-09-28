@@ -3035,6 +3035,7 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
 	jsonOutput := flags.Bool("json", false, "Print machine-readable diagnostics")
+	fix := flags.Bool("fix", false, "Repair safe local issues and report actions")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -3059,11 +3060,38 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	if err := db.PingContext(ctx); err != nil {
 		return fmt.Errorf("database ping: %w", err)
 	}
+	fixes := make([]string, 0, 2)
+	if *fix && cfg.Database.Dialect == database.SQLite {
+		var integrity string
+		if err := db.QueryRowContext(ctx, "PRAGMA integrity_check").Scan(&integrity); err != nil {
+			return fmt.Errorf("database integrity check: %w", err)
+		}
+		if integrity != "ok" {
+			return fmt.Errorf("database integrity check found an issue")
+		}
+		var busy, logFrames, checkpointed int
+		if err := db.QueryRowContext(ctx, "PRAGMA wal_checkpoint(PASSIVE)").Scan(&busy, &logFrames, &checkpointed); err != nil {
+			return fmt.Errorf("database WAL checkpoint: %w", err)
+		}
+		fixes = append(fixes, "sqlite_wal_checkpoint_passive")
+	}
 	if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
 		return fmt.Errorf("schema compatibility: %w", err)
 	}
 	if err := os.MkdirAll(cfg.Media.Dir, 0o750); err != nil {
 		return fmt.Errorf("media directory: %w", err)
+	}
+	if *fix {
+		info, err := os.Stat(cfg.Media.Dir)
+		if err != nil {
+			return fmt.Errorf("media directory: %w", err)
+		}
+		if info.Mode().Perm() != 0o750 {
+			if err := os.Chmod(cfg.Media.Dir, 0o750); err != nil {
+				return fmt.Errorf("media directory permissions: %w", err)
+			}
+			fixes = append(fixes, "media_directory_mode_0750")
+		}
 	}
 	if err := checkDirectoryWritable(cfg.Media.Dir); err != nil {
 		return fmt.Errorf("media directory is not writable: %w", err)
@@ -3089,29 +3117,30 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		data, err := json.Marshal(struct {
-			Version           string `json:"version"`
-			Commit            string `json:"commit"`
-			BuildTime         string `json:"build_time"`
-			SchemaMigration   string `json:"schema_migration"`
-			Profile           string `json:"profile"`
-			Database          string `json:"database"`
-			BackupTools       string `json:"backup_tools"`
-			CacheEntries      int    `json:"cache_entries"`
-			QueueEntries      int    `json:"queue_entries"`
-			WorkerConcurrency int    `json:"worker_concurrency"`
-			DeadLetteredJobs  int64  `json:"dead_lettered_jobs"`
-			MediaMaxBytes     int64  `json:"media_max_bytes"`
-			MediaWritable     bool   `json:"media_writable"`
-			SecureCookies     bool   `json:"secure_cookies"`
-			HSTS              bool   `json:"hsts"`
-		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS})
+			Version           string   `json:"version"`
+			Commit            string   `json:"commit"`
+			BuildTime         string   `json:"build_time"`
+			SchemaMigration   string   `json:"schema_migration"`
+			Profile           string   `json:"profile"`
+			Database          string   `json:"database"`
+			BackupTools       string   `json:"backup_tools"`
+			CacheEntries      int      `json:"cache_entries"`
+			QueueEntries      int      `json:"queue_entries"`
+			WorkerConcurrency int      `json:"worker_concurrency"`
+			DeadLetteredJobs  int64    `json:"dead_lettered_jobs"`
+			MediaMaxBytes     int64    `json:"media_max_bytes"`
+			MediaWritable     bool     `json:"media_writable"`
+			SecureCookies     bool     `json:"secure_cookies"`
+			HSTS              bool     `json:"hsts"`
+			Fixes             []string `json:"fixes,omitempty"`
+		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS, Fixes: fixes})
 		if err != nil {
 			return err
 		}
 		_, err = fmt.Fprintln(stdout, string(data))
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "profile=%s database=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d\n", cfg.Profile, cfg.Database.Dialect, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes)
+	_, err = fmt.Fprintf(stdout, "profile=%s database=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d fixes=%s\n", cfg.Profile, cfg.Database.Dialect, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes, strings.Join(fixes, ","))
 	return err
 }
 
@@ -5283,7 +5312,7 @@ Usage:
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
   hydro clean --demo [--target demo|staging|production] [--force-prod] [runtime flags]
-  hydro doctor [--json] [runtime flags]
+  hydro doctor [--json] [--fix] [runtime flags]
   hydro validate [--json] [runtime flags]
   hydro validate generator --spec SPEC --root OUTPUT
   hydro validate api --baseline OPENAPI.json --current OPENAPI.json

@@ -1350,6 +1350,30 @@ func TestRunDoctorJSON(t *testing.T) {
 	if report.Version != version || report.SchemaMigration == "" || report.Database != "sqlite" || !report.MediaWritable || report.BackupTools != "sqlite" || report.WorkerConcurrency != 1 || report.DeadLetteredJobs != 0 {
 		t.Fatalf("unexpected doctor report: %+v", report)
 	}
+	mediaDir := filepath.Join(root, "media")
+	if err := os.Chmod(mediaDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	if err := run([]string{"doctor", "--config", configPath, "--json", "--fix"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("doctor --fix failed: %v", err)
+	}
+	var fixed struct {
+		Fixes []string `json:"fixes"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &fixed); err != nil {
+		t.Fatal(err)
+	}
+	if len(fixed.Fixes) == 0 || fixed.Fixes[0] != "sqlite_wal_checkpoint_passive" {
+		t.Fatalf("doctor fixes = %#v", fixed.Fixes)
+	}
+	info, err := os.Stat(mediaDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o750 {
+		t.Fatalf("media directory mode = %v", info.Mode().Perm())
+	}
 }
 
 func TestRunBackupPruneRequiresPreviewAndConfirmation(t *testing.T) {
