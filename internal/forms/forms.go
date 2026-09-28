@@ -48,8 +48,22 @@ type Field struct {
 
 // AutoresponderBodyFor adds the configured response-time notice without
 // changing the normal-hours response.
-func(f Form)AutoresponderBodyFor(now time.Time)(string,error){
-	body:=f.AutoresponderBody;if f.WorkingHours==nil{return body,nil};notice,after,err:=f.WorkingHours.AfterHoursNotice(now);if err!=nil{return "",err};if after{if body!=""{body+="\n\n"};body+=notice};return body,nil
+func (f Form) AutoresponderBodyFor(now time.Time) (string, error) {
+	body := f.AutoresponderBody
+	if f.WorkingHours == nil {
+		return body, nil
+	}
+	notice, after, err := f.WorkingHours.AfterHoursNotice(now)
+	if err != nil {
+		return "", err
+	}
+	if after {
+		if body != "" {
+			body += "\n\n"
+		}
+		body += notice
+	}
+	return body, nil
 }
 
 type Form struct {
@@ -66,6 +80,21 @@ type Form struct {
 	GoogleAdsConversionLabel string        `json:"google_ads_conversion_label,omitempty"`
 	MetaPixelEventName       string        `json:"meta_pixel_event_name,omitempty"`
 	WorkingHours             *WorkingHours `json:"working_hours,omitempty"`
+}
+
+func (f Form) AfterHoursNotice(now time.Time) (string, bool, error) {
+	if f.WorkingHours == nil {
+		return "", false, nil
+	}
+	return f.WorkingHours.AfterHoursNotice(now)
+}
+
+func (f Form) PublicWorkingHoursNotice(now time.Time) string {
+	notice, after, err := f.AfterHoursNotice(now)
+	if err != nil || !after {
+		return ""
+	}
+	return notice
 }
 
 func (f Form) Validate() error {

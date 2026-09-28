@@ -1,0 +1,17 @@
+package ui
+
+templ EmailTestPreviewForm(csrf string) {
+	<section class="studio-card">
+		<h1>Test email preview</h1>
+		<p>Send the current HydroGo email layout with sample account, reset-link and verification-code values to your signed-in address.</p>
+		<form method="post" action="/admin/api/mailer/test-preview" hx-post="/admin/api/mailer/test-preview" hx-target="#email-test-result" hx-swap="innerHTML">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<button type="submit" class="button button-primary">Send test email to my inbox</button>
+		</form>
+		<div id="email-test-result" aria-live="polite"></div>
+	</section>
+}
+
+templ EmailTestPreviewResult(message string) {
+	<p role="status">{ message }</p>
+}

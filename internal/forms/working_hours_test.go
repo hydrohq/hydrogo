@@ -48,3 +48,14 @@ func TestFormAutoresponderAddsNoticeOnlyAfterHours(t *testing.T) {
 		t.Fatalf("outside=%q err=%v", outside, err)
 	}
 }
+
+func TestPublicWorkingHoursNoticeIsContextAware(t *testing.T) {
+	var days [7]DailyHours
+	days[time.Monday] = DailyHours{Open: "09:00", Close: "17:00"}
+	form := Form{WorkingHours: &WorkingHours{Timezone: "UTC", Days: days, Notice: "We reopen {weekday} at {time}."}}
+	inside := form.PublicWorkingHoursNotice(time.Date(2026, 9, 28, 10, 0, 0, 0, time.UTC))
+	outside := form.PublicWorkingHoursNotice(time.Date(2026, 9, 28, 18, 0, 0, 0, time.UTC))
+	if inside != "" || outside != "We reopen Monday at 09:00." {
+		t.Fatalf("inside=%q outside=%q", inside, outside)
+	}
+}

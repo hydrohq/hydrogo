@@ -236,6 +236,38 @@ func (s *SessionStore) DeleteOtherByUserID(ctx context.Context, userID, currentT
 	})
 }
 
+func (s *SessionStore) DeleteByIDAndUserID(ctx context.Context, userID, sessionID string) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	query := `DELETE FROM sessions WHERE user_id = $1 AND id = $2`
+	args := []any{userID, sessionID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $3`
+		args = append(args, tenantID)
+	}
+	if s.dialect == database.SQLite {
+		query = `DELETE FROM sessions WHERE user_id = ? AND id = ?`
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
+	}
+	return s.within(ctx, func(exec database.Executor) error {
+		result, err := exec.ExecContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+			return auth.ErrSessionNotFound
+		}
+		return nil
+	})
+}
+
 func (s *SessionStore) ListByUserID(ctx context.Context, userID string, now time.Time) ([]auth.Session, error) {
 	if err := requireSessionStore(s); err != nil {
 		return nil, err

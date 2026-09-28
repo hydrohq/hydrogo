@@ -1,0 +1,27 @@
+id: "202609290002_dynamic_collections"
+module: "collections"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "3a3d35cd6ee0f108e1cc06e7912d9c7586a7a32eaf1b0994c467b3238455967e"
+  postgres: "3a3d35cd6ee0f108e1cc06e7912d9c7586a7a32eaf1b0994c467b3238455967e"
+  mysql: "58f0b1c7f3dc5b15cc4ec4a85eba9a0a8d8d18164d7b186aba5a13141ab55fb3"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Core transaction and schema-migration contracts are installed"
+lock_timeout: "bounded by the migration runner deadline"
+disk_estimate: "Four static definition, record, unique-value, and relation tables; record JSON is bounded by the application contract"
+compatibility: "Adds static tables for the optional collections module; collection creation stores validated metadata and never executes DDL"
+smoke:
+  - "Tenant keys scope collection schemas, records, unique values, and relations"
+  - "Unique-value and relation foreign keys reject conflicting writes across SQLite, PostgreSQL, and MySQL adapters"
+restart: "Safe to rerun; the migration ledger verifies checksums before no-op"
+rollback: "No production down migration; disable the module only after exporting its records, or restore/forward migrate"

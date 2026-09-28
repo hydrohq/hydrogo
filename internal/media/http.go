@@ -21,6 +21,7 @@ import (
 
 type HTTPHandler struct {
 	Service             Service
+	Garbage             *GarbageCollector
 	DB                  database.Executor
 	HotlinkProtection   bool
 	CanonicalOrigin     string
@@ -72,8 +73,12 @@ func (h HTTPHandler) adminSettings(ctx context.Context) (AdminSettings, error) {
 		defaults.AllowedRefererHosts = append([]string(nil), h.AllowedRefererHosts...)
 	}
 	settings, err := h.SettingsCache.Load(ctx, h.RequireTenantScope, defaults, h.SettingsRepository, h.DB)
-	if settings.WatermarkOpacity == 0 { settings.WatermarkOpacity = .6 }
-	if settings.WatermarkPosition == "" { settings.WatermarkPosition = "bottom-right" }
+	if settings.WatermarkOpacity == 0 {
+		settings.WatermarkOpacity = .6
+	}
+	if settings.WatermarkPosition == "" {
+		settings.WatermarkPosition = "bottom-right"
+	}
 	return settings, err
 }
 

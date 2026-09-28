@@ -1,0 +1,19 @@
+package ui
+
+templ WorkingHoursEditor(formID, timezone, notice, csrf string, days []WorkingHoursDay) {
+	<section class="studio-card">
+		<h2>Working hours and response notice</h2>
+		<p>When a visitor submits outside these hours, the auto-reply includes the next opening time.</p>
+		<form method="post" action={ "/admin/site/forms/" + formID + "/working-hours" } class="studio-form">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<label>Timezone<input name="timezone" value={ timezone } placeholder="Europe/Istanbul" required /></label>
+			<fieldset><legend>Weekly schedule</legend>
+				for _, day := range days {
+					<div class="studio-actions"><strong>{ day.Label }</strong><label>Open<input type="time" name={ "open_" + day.ID } value={ day.Open } /></label><label>Close<input type="time" name={ "close_" + day.ID } value={ day.Close } /></label></div>
+				}
+			</fieldset>
+			<label>After-hours notice<textarea name="notice" maxlength="500" placeholder="We reopen {weekday} at {time}.">{ notice }</textarea></label>
+			<button type="submit" class="button button-primary">Save working hours</button>
+		</form>
+	</section>
+}

@@ -906,6 +906,10 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page := pages.Page{ID: id, Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks, Tags: input.Tags}
+	if err := h.validatePageMedia(r.Context(), page); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
@@ -1025,6 +1029,10 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page := pages.Page{ID: r.PathValue("id"), Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks, Tags: input.Tags}
+	if err := h.validatePageMedia(r.Context(), page); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := h.Content.UpdateDraft(r.Context(), page, input.Version); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
@@ -1291,6 +1299,10 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		locale = h.defaultLocale()
 	}
 	page := pages.Page{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), Blocks: blocks, Tags: strings.Split(r.FormValue("tags"), ",")}
+	if err := h.validatePageMedia(r.Context(), page); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := h.Content.UpdateDraft(r.Context(), page, version); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
