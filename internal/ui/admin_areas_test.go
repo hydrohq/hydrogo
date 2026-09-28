@@ -120,6 +120,22 @@ func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 	}
 }
 
+func TestAdminShellUsesDistinctBundledFavicon(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Admin", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	markup := out.String()
+	headEnd := strings.Index(markup, "</head>")
+	icon := strings.Index(markup, `rel="icon" href="data:image/svg+xml,`)
+	if headEnd < 0 || icon < 0 || icon > headEnd {
+		t.Fatalf("admin favicon was not emitted in the document head: %s", markup[:min(len(markup), 1200)])
+	}
+	if !strings.Contains(markup[icon:headEnd], "%23ef4444") {
+		t.Fatal("admin favicon has no distinct badge mark")
+	}
+}
+
 func TestAdminShellIncludesSessionExpiryWarning(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Session", "", "nonce-test", ""); err != nil {
