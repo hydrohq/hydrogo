@@ -57,14 +57,16 @@ type Handler struct {
 		List(context.Context, string, int) ([]mailer.SpoolEntry, error)
 		RetryNow(context.Context, string) error
 	}
-	Redirects           *site.RedirectRegistry
-	SitemapOrigin       string
-	SitemapProvider     func(context.Context) ([]site.SitemapEntry, error)
-	SitemapStream       site.SitemapStream
-	SitemapCategories   []string
-	InvalidateDiscovery func()
-	FontsDir            string
-	FontsEnabled        bool
+	Redirects             *site.RedirectRegistry
+	SitemapOrigin         string
+	SitemapProvider       func(context.Context) ([]site.SitemapEntry, error)
+	SitemapStream         site.SitemapStream
+	SitemapCategories     []string
+	InvalidateDiscovery   func()
+	FontsDir              string
+	FontsEnabled          bool
+	NavigationLocales     []string
+	NavigationSuggestions func(context.Context, string) ([]site.NavigationSuggestion, error)
 }
 
 func (h Handler) Routes() []Route {
@@ -88,6 +90,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/redirect-rules/import", Handler: http.HandlerFunc(h.importRedirectRules)},
 		{Pattern: "POST /admin/site/redirect-rules/{id}/delete", Handler: http.HandlerFunc(h.deleteRedirectRule)},
 		{Pattern: "POST /admin/site/navigation/{locale}", Handler: http.HandlerFunc(h.saveNavigation)},
+		{Pattern: "GET /admin/site/navigation/editor", Handler: http.HandlerFunc(h.navigationEditor)},
+		{Pattern: "POST /admin/site/navigation/editor", Handler: http.HandlerFunc(h.saveNavigationEditor)},
 		{Pattern: "GET /{path...}", Public: true, Handler: http.HandlerFunc(h.redirectFallback)},
 	}
 	if h.FontsEnabled {

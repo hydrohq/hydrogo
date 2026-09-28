@@ -116,14 +116,17 @@ func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, loca
 		return err
 	}
 	for _, item := range items {
-		query := `INSERT INTO navigation_items (tenant_id,id,locale,label,href,position,is_visible,updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `)`
-		args := []any{scopeID, item.ID, locale, item.Label, item.Href, item.Position, item.Visible, item.UpdatedAt.UTC().Format(time.RFC3339Nano)}
+		if item.Target == "" {
+			item.Target = "_self"
+		}
+		query := `INSERT INTO navigation_items (tenant_id,id,locale,label,href,parent_id,target,position,is_visible,updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
+		args := []any{scopeID, item.ID, locale, item.Label, item.Href, item.ParentID, item.Target, item.Position, item.Visible, item.UpdatedAt.UTC().Format(time.RFC3339Nano)}
 		if item.UpdatedAt.IsZero() {
-			args[7] = time.Now().UTC().Format(time.RFC3339Nano)
+			args[9] = time.Now().UTC().Format(time.RFC3339Nano)
 		}
 		if s.Dialect == database.SQLite {
-			query = `INSERT INTO navigation_items (tenant_id,id,locale,label,href,position,is_visible,updated_at) VALUES (?,?,?,?,?,?,?,?)`
-			args[6] = boolInt(item.Visible)
+			query = `INSERT INTO navigation_items (tenant_id,id,locale,label,href,parent_id,target,position,is_visible,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`
+			args[8] = boolInt(item.Visible)
 		}
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 			return err
@@ -133,13 +136,23 @@ func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, loca
 }
 
 func (s Store) ListNavigation(ctx context.Context, db database.Executor, locale string) ([]site.NavigationItem, error) {
+	return s.listNavigation(ctx, db, locale, true)
+}
+
+func (s Store) ListAdminNavigation(ctx context.Context, db database.Executor, locale string) ([]site.NavigationItem, error) {
+	return s.listNavigation(ctx, db, locale, false)
+}
+
+func (s Store) listNavigation(ctx context.Context, db database.Executor, locale string, visibleOnly bool) ([]site.NavigationItem, error) {
 	filter, scopeID, err := s.tenantFilter(ctx, 2)
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = $1 AND is_visible = TRUE` + filter + ` ORDER BY position,id LIMIT 500`
+	query := `SELECT id,locale,label,href,parent_id,target,position,is_visible,updated_at FROM navigation_items WHERE locale = $1`
+	query += filter + ` ORDER BY position,id LIMIT 500`
 	if s.Dialect == database.SQLite {
-		query = `SELECT id,locale,label,href,position,is_visible,updated_at FROM navigation_items WHERE locale = ? AND is_visible = 1` + filter + ` ORDER BY position,id LIMIT 500`
+		query = `SELECT id,locale,label,href,parent_id,target,position,is_visible,updated_at FROM navigation_items WHERE locale = ?`
+		query += filter + ` ORDER BY position,id LIMIT 500`
 	}
 	args := []any{locale}
 	if filter != "" {
@@ -155,14 +168,49 @@ func (s Store) ListNavigation(ctx context.Context, db database.Executor, locale 
 		var item site.NavigationItem
 		var visible any
 		var updated any
-		if err := rows.Scan(&item.ID, &item.Locale, &item.Label, &item.Href, &item.Position, &visible, &updated); err != nil {
+		if err := rows.Scan(&item.ID, &item.Locale, &item.Label, &item.Href, &item.ParentID, &item.Target, &item.Position, &visible, &updated); err != nil {
 			return nil, err
 		}
 		item.Visible = parseBool(visible)
 		item.UpdatedAt = parseTime(updated)
 		result = append(result, item)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if !visibleOnly {
+		return result, nil
+	}
+	byID := make(map[string]site.NavigationItem, len(result))
+	for _, item := range result {
+		byID[item.ID] = item
+	}
+	public := make([]site.NavigationItem, 0, len(result))
+	for _, item := range result {
+		if !item.Visible {
+			continue
+		}
+		parentID := item.ParentID
+		seen := map[string]struct{}{item.ID: {}}
+		visibleTree := true
+		for parentID != "" {
+			parent, exists := byID[parentID]
+			if !exists || !parent.Visible {
+				visibleTree = false
+				break
+			}
+			if _, cycle := seen[parentID]; cycle {
+				visibleTree = false
+				break
+			}
+			seen[parentID] = struct{}{}
+			parentID = parent.ParentID
+		}
+		if visibleTree {
+			public = append(public, item)
+		}
+	}
+	return public, nil
 }
 
 func (s Store) PutRedirect(ctx context.Context, tx database.Executor, value site.Redirect) error {

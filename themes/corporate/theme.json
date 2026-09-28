@@ -2,6 +2,6 @@
   "name": "corporate",
   "version": "1.0.0",
   "tokens": {"primary": "#155eef", "surface": "#ffffff"},
-  "slots": ["header", "content", "footer"],
+  "slots": ["header", "content", "footer", "navigation"],
   "assets": ["static/theme.css", "static/theme.js"]
 }

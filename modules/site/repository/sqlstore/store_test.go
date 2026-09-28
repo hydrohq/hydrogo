@@ -163,13 +163,20 @@ func runVisibilityContract(t *testing.T, db database.Executor, dialect database.
 	}
 	if err := store.ReplaceNavigation(ctx, db, "tr", []site.NavigationItem{
 		{ID: "visible", Label: "Visible", Href: "/visible", Position: 1, Visible: true, UpdatedAt: now},
-		{ID: "hidden", Label: "Hidden", Href: "/hidden", Position: 2, Visible: false, UpdatedAt: now},
+		{ID: "child", ParentID: "visible", Target: "_blank", Label: "Child", Href: "/child", Position: 2, Visible: true, UpdatedAt: now},
+		{ID: "hidden", Label: "Hidden", Href: "/hidden", Position: 3, Visible: false, UpdatedAt: now},
+		{ID: "hidden-parent", Label: "Hidden parent", Href: "/hidden-parent", Position: 4, Visible: false, UpdatedAt: now},
+		{ID: "orphaned-child", ParentID: "hidden-parent", Label: "Orphaned child", Href: "/orphaned-child", Position: 5, Visible: true, UpdatedAt: now},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	navigation, err := store.ListNavigation(ctx, db, "tr")
-	if err != nil || len(navigation) != 1 || navigation[0].ID != "visible" || !navigation[0].Visible {
+	if err != nil || len(navigation) != 2 || navigation[0].ID != "visible" || !navigation[0].Visible || navigation[1].ParentID != "visible" || navigation[1].Target != "_blank" {
 		t.Fatalf("visible navigation = %#v/%v", navigation, err)
+	}
+	adminNavigation, err := store.ListAdminNavigation(ctx, db, "tr")
+	if err != nil || len(adminNavigation) != 5 {
+		t.Fatalf("admin navigation = %#v/%v", adminNavigation, err)
 	}
 }
 

@@ -74,12 +74,13 @@ type ThemeBundle struct {
 }
 
 type PageTemplateData struct {
-	Title     string
-	Slug      string
-	Locale    string
-	Direction string
-	Content   template.HTML
-	Slots     map[string]template.HTML
+	Title      string
+	Slug       string
+	Locale     string
+	Direction  string
+	Content    template.HTML
+	Navigation []ThemeNavigationItem
+	Slots      map[string]template.HTML
 }
 
 func LoadTheme(root, name string) (ThemeBundle, error) {

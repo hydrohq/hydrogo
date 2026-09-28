@@ -57,14 +57,23 @@ func TestThemeRenderCorporateShowcaseAndBlocks(t *testing.T) {
 		}
 		content.Write(themed.Bytes())
 	}
+	navigation := []themev1.ThemeNavigationItem{
+		{ID: "services", Label: "Hizmetler", Href: "/tr/services", Position: 0},
+		{ID: "consulting", ParentID: "services", Label: "Danışmanlık", Href: "/tr/consulting", Target: "_blank", Position: 1},
+	}
+	navigationHTML, err := themev1.RenderThemeNavigation(navigation)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	rec := httptest.NewRecorder()
 	if err := bundle.RenderPage(rec, themev1.PageTemplateData{
-		Title:   page.Title,
-		Slug:    page.Slug,
-		Locale:  page.Locale,
-		Content: htmltemplate.HTML(content.String()),
-		Slots:   map[string]htmltemplate.HTML{"content": htmltemplate.HTML(content.String())},
+		Title:      page.Title,
+		Slug:       page.Slug,
+		Locale:     page.Locale,
+		Content:    htmltemplate.HTML(content.String()),
+		Navigation: navigation,
+		Slots:      map[string]htmltemplate.HTML{"content": htmltemplate.HTML(content.String()), "navigation": navigationHTML},
 	}); err != nil {
 		t.Fatalf("render page: %v", err)
 	}
@@ -78,6 +87,9 @@ func TestThemeRenderCorporateShowcaseAndBlocks(t *testing.T) {
 	}
 	if !bytes.Contains([]byte(body), []byte("pricing-card")) {
 		t.Fatalf("page output missing pricing-card: %s", body)
+	}
+	if !strings.Contains(body, `class="site-navigation-child-list"`) || !strings.Contains(body, `rel="noopener noreferrer"`) || !strings.Contains(body, "Danışmanlık") {
+		t.Fatalf("page output missing nested localized navigation: %s", body)
 	}
 }
 
