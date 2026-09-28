@@ -25,3 +25,43 @@ func TestResolveCatalogLocaleAndValidation(t *testing.T) {
 		t.Fatal("locale validation did not enforce catalog allowlist")
 	}
 }
+
+func TestTenantOverridesAreBoundedAndFallBackToPrimaryCatalog(t *testing.T) {
+	const tenantID = "catalog-test-tenant"
+	defer ReplaceOverrides(tenantID, nil)
+	if got := TForTenant(tenantID, "en", "admin.pages"); got != "Pages" {
+		t.Fatalf("initial locale value = %q", got)
+	}
+	if !SetOverride(tenantID, "en", "admin.pages", "Editorial pages") {
+		t.Fatal("valid override was rejected")
+	}
+	if got := TForTenant(tenantID, "en", "admin.pages"); got != "Editorial pages" {
+		t.Fatalf("tenant override = %q", got)
+	}
+	if got := TForTenant("another-tenant", "en", "admin.pages"); got != "Pages" {
+		t.Fatalf("override leaked across tenants: %q", got)
+	}
+	if got := TForTenant(tenantID, "xx", "admin.language.tr"); got != "Türkçe" {
+		t.Fatalf("missing locale fallback = %q", got)
+	}
+	if SetOverride(tenantID, "en", "unknown.key", "value") || SetOverride(tenantID, "en", "admin.pages", "bad\nvalue") {
+		t.Fatal("invalid override was accepted")
+	}
+	rows := CatalogRows(tenantID, "en")
+	for _, row := range rows {
+		if row.Key == "admin.pages" && (row.Missing || row.Translation != "Editorial pages") {
+			t.Fatalf("override row = %#v", row)
+		}
+	}
+}
+
+func TestOverrideSettingsOnlyAcceptKnownCatalogEntries(t *testing.T) {
+	got := OverrideSettings(map[string]string{
+		OverrideSettingKey("en", "admin.pages"): "Pages (custom)",
+		"i18n.override.xx.admin.pages":          "unsupported locale",
+		"i18n.override.en.unknown":              "unknown key",
+	})
+	if got["en"]["admin.pages"] != "Pages (custom)" || len(got["en"]) != 1 {
+		t.Fatalf("parsed overrides = %#v", got)
+	}
+}

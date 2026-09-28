@@ -1583,6 +1583,15 @@ func serve(args []string, stderr io.Writer) error {
 			if requireTenantScope {
 				redirectCtx = tenant.WithScope(redirectCtx, scope)
 			}
+			settings, settingsErr := siteStore.ListPublicSettings(redirectCtx, db)
+			if settingsErr != nil {
+				return fmt.Errorf("load site translation overrides: %w", settingsErr)
+			}
+			translationSettings := make(map[string]string, len(settings))
+			for _, setting := range settings {
+				translationSettings[setting.Key] = setting.Value
+			}
+			i18n.ReplaceOverrides(scope.TenantID, i18n.OverrideSettings(translationSettings))
 			rules, loadErr := siteService.ListRedirectRules(redirectCtx, 1000)
 			if loadErr != nil {
 				return fmt.Errorf("load site redirects: %w", loadErr)
@@ -2200,7 +2209,8 @@ func serve(args []string, stderr io.Writer) error {
 		if active == "control" {
 			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
-			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), LocaleSaved: r.URL.Query().Get("locale_saved") == "1", FontToolsEnabled: modules["pages"], Permissions: authSvc.AvailablePermissions()}
+			scope, _ := tenant.FromContext(r.Context())
+			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", FontToolsEnabled: modules["pages"], Permissions: authSvc.AvailablePermissions()}
 			if active == "users" {
 				if repo, ok := any(userStore).(auth.UserAdminRepository); ok {
 					areaData.Users, err = repo.List(r.Context())

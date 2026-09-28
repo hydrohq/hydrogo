@@ -27,6 +27,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -75,6 +76,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /sitemap-pages.xml", Public: true, Handler: http.HandlerFunc(h.sitemapPart)},
 		{Pattern: "GET /sitemap-articles.xml", Public: true, Handler: http.HandlerFunc(h.sitemapArticlePart)},
 		{Pattern: "POST /admin/site/settings", Handler: http.HandlerFunc(h.saveSetting)},
+		{Pattern: "GET /admin/translations", Handler: http.HandlerFunc(h.translations)},
+		{Pattern: "POST /admin/translations", Handler: http.HandlerFunc(h.saveTranslation)},
 		{Pattern: "GET /admin/site/appearance", Handler: http.HandlerFunc(h.appearance)},
 		{Pattern: "POST /admin/site/appearance", Handler: http.HandlerFunc(h.saveAppearance)},
 		{Pattern: "GET /admin/site/seo", Handler: http.HandlerFunc(h.seoSettings)},
@@ -110,6 +113,98 @@ func (h Handler) Routes() []Route {
 		)
 	}
 	return routes
+}
+
+func (h Handler) translations(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil || guards.IsNil(h.Store) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	scope, _ := tenant.FromContext(r.Context())
+	localizedRows := make(map[string]map[string]i18n.TranslationRow)
+	for _, cellLocale := range i18n.SupportedCatalogLocales() {
+		localizedRows[cellLocale] = make(map[string]i18n.TranslationRow)
+		for _, row := range i18n.CatalogRows(scope.TenantID, cellLocale) {
+			localizedRows[cellLocale][row.Key] = row
+		}
+	}
+	if ui.AdminStartForRequest(w, r, "Çeviri düzenleyici", "Sabit arayüz metinlerini düzenleyin", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	_, _ = io.WriteString(w, `<main class="studio-card"><label for="translation-search">Çevirilerde ara</label><input id="translation-search" type="search" autocomplete="off" aria-controls="translation-matrix"><p>Eksik çeviriler sarı renkle işaretlenir. Boş bırakılan değerler Türkçe metne geri döner.</p><div class="studio-table-wrap"><table id="translation-matrix"><thead><tr><th scope="col">Anahtar</th><th scope="col">Türkçe (TR)</th><th scope="col">English (EN)</th></tr></thead><tbody>`)
+	for _, row := range i18n.CatalogRows(scope.TenantID, "tr") {
+		searchText := row.Key + " " + row.Default
+		for _, cellLocale := range i18n.SupportedCatalogLocales() {
+			searchText += " " + localizedRows[cellLocale][row.Key].Translation
+		}
+		_, _ = io.WriteString(w, `<tr data-translation-row data-search="`+template.HTMLEscapeString(strings.ToLower(searchText))+`"><th scope="row"><code>`+template.HTMLEscapeString(row.Key)+`</code><small>`+template.HTMLEscapeString(row.Default)+`</small></th>`)
+		for _, cellLocale := range i18n.SupportedCatalogLocales() {
+			localized := localizedRows[cellLocale][row.Key]
+			if err := renderTranslationCell(r.Context(), w, row.Key, cellLocale, localized.Translation, localized.Missing, security.CSRFTokenFromContext(r.Context())); err != nil {
+				return
+			}
+		}
+		_, _ = io.WriteString(w, `</tr>`)
+	}
+	_, _ = io.WriteString(w, `</tbody></table></div></main><style nonce="`+template.HTMLEscapeString(security.NonceFromContext(r.Context()))+`">.translation-missing{background:#fef3c7}.translation-missing input{border-color:#d97706}#translation-matrix small{display:block;color:var(--muted);font-weight:400}#translation-matrix form{display:flex;gap:6px;align-items:center}#translation-matrix input:not([type=hidden]){min-width:180px;width:100%}</style><script nonce="`+template.HTMLEscapeString(security.NonceFromContext(r.Context()))+`">(()=>{const input=document.getElementById('translation-search');input?.addEventListener('input',()=>{const query=input.value.trim().toLocaleLowerCase();document.querySelectorAll('[data-translation-row]').forEach(row=>{row.hidden=!row.dataset.search.includes(query)})})})()</script>`)
+	_ = ui.AdminEnd(w)
+}
+
+func renderTranslationCell(ctx context.Context, output io.Writer, key, locale, value string, missing bool, csrf string) error {
+	if _, err := io.WriteString(output, `<td`); err != nil {
+		return err
+	}
+	if missing {
+		if _, err := io.WriteString(output, ` class="translation-missing"`); err != nil {
+			return err
+		}
+	}
+	id := "translation-" + locale + "-" + strings.ReplaceAll(key, ".", "-")
+	if _, err := io.WriteString(output, `><form method="post" action="/admin/translations"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(csrf)+`"><input type="hidden" name="key" value="`+template.HTMLEscapeString(key)+`"><input type="hidden" name="locale" value="`+template.HTMLEscapeString(locale)+`">`); err != nil {
+		return err
+	}
+	if err := uicomponents.Input(uicomponents.InputProps{ID: id, Name: "value", Type: "text", Label: locale + " " + key, Value: value, HasMaxLength: true, MaxLength: 1000}).Render(ctx, output); err != nil {
+		return err
+	}
+	if err := uicomponents.Button(uicomponents.ButtonProps{Label: "Kaydet", Type: "submit", Variant: uicomponents.Quiet}).Render(ctx, output); err != nil {
+		return err
+	}
+	_, err := io.WriteString(output, `</form></td>`)
+	return err
+}
+
+func (h Handler) saveTranslation(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid translation", http.StatusBadRequest)
+		return
+	}
+	requestedLocale := strings.TrimSpace(r.FormValue("locale"))
+	if !i18n.IsSupportedCatalogLocale(requestedLocale) {
+		http.Error(w, "invalid translation locale", http.StatusBadRequest)
+		return
+	}
+	locale := i18n.ResolveCatalogLocale(requestedLocale)
+	key, value := strings.TrimSpace(r.FormValue("key")), strings.TrimSpace(r.FormValue("value"))
+	if !i18n.IsCatalogKey(key) || len(value) > 1000 || strings.ContainsAny(value, "\x00\r\n") {
+		http.Error(w, "invalid translation", http.StatusBadRequest)
+		return
+	}
+	settingKey := i18n.OverrideSettingKey(locale, key)
+	if err := h.Service.SaveSetting(r.Context(), site.Setting{Key: settingKey, Value: value, Public: true}); err != nil {
+		http.Error(w, "translation could not be saved", siteStatus(err))
+		return
+	}
+	scope, _ := tenant.FromContext(r.Context())
+	if !i18n.SetOverride(scope.TenantID, locale, key, value) {
+		http.Error(w, "translation could not be saved", http.StatusBadRequest)
+		return
+	}
+	http.Redirect(w, r, "/admin/translations?locale="+url.QueryEscape(locale)+"&saved=1", http.StatusSeeOther)
 }
 
 func (h Handler) redirectFallback(w http.ResponseWriter, r *http.Request) {
