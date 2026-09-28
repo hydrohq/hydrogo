@@ -94,6 +94,10 @@ type HotspotsProps struct {
 	ID, Image, Alt, Label string
 	Points                []Hotspot
 }
+type GalleryImage struct { Src, Alt, Caption string }
+type LightboxProps struct { ID, Label string; Images []GalleryImage }
+type AudioProps struct { ID, Src, Title, TranscriptURL string }
+type ShareProps struct { URL, Title string }
 
 var phoneDigits = regexp.MustCompile(`[^0-9+]`)
 
@@ -146,6 +150,24 @@ func validMediaURL(value string) string {
 		return ""
 	}
 	return value
+}
+
+func validShareURL(value string) string {
+	value = strings.TrimSpace(value)
+	u, err := url.Parse(value)
+	if err != nil || u.Scheme != "https" && u.Scheme != "http" || u.Host == "" || u.User != nil { return "" }
+	return u.String()
+}
+
+func shareIntentURL(provider, value, title string) string {
+	value = validShareURL(value)
+	if value == "" { return "" }
+	switch provider {
+	case "linkedin": return "https://www.linkedin.com/sharing/share-offsite/?url=" + url.QueryEscape(value)
+	case "whatsapp": return "https://wa.me/?text=" + url.QueryEscape(strings.TrimSpace(title)+" "+value)
+	case "email": return "mailto:?subject=" + url.QueryEscape(title) + "&body=" + url.QueryEscape(value)
+	default: return ""
+	}
 }
 
 func validPosition(value int) int { return max(0, min(100, value)) }

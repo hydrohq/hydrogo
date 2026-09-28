@@ -109,7 +109,33 @@
   document.addEventListener('change', event => {
     const speed = event.target.closest('[data-video-speed]');
     if (speed) speed.closest('[data-video-player]').querySelector('video').playbackRate = Number(speed.value);
+    const audioSpeed = event.target.closest('[data-audio-speed]');
+    if (audioSpeed) audioSpeed.closest('[data-audio-player]').querySelector('audio').playbackRate = Number(audioSpeed.value);
   });
+
+  const initLightboxes = root => each('[data-lightbox-gallery]', gallery => {
+    if (gallery.dataset.ready) return;
+    gallery.dataset.ready = 'true';
+    const dialog = gallery.querySelector('[data-lightbox]');
+    const items = [...gallery.querySelectorAll('[data-lightbox-open]')];
+    const image = dialog?.querySelector('[data-lightbox-image]');
+    const caption = dialog?.querySelector('[data-lightbox-caption]');
+    let active = 0, startX = 0;
+    const show = index => {
+      if (!items.length) return;
+      active = (index + items.length) % items.length;
+      const button = items[active], thumb = button.querySelector('img');
+      image.src = thumb.currentSrc || thumb.src; image.alt = thumb.alt;
+      caption.textContent = button.querySelector('span')?.textContent || thumb.alt;
+    };
+    items.forEach((button, index) => button.addEventListener('click', () => { show(index); dialog?.showModal(); }));
+    dialog?.querySelector('[data-lightbox-close]')?.addEventListener('click', () => dialog.close());
+    dialog?.querySelector('[data-lightbox-previous]')?.addEventListener('click', () => show(active - 1));
+    dialog?.querySelector('[data-lightbox-next]')?.addEventListener('click', () => show(active + 1));
+    dialog?.addEventListener('keydown', event => { if (event.key === 'ArrowLeft') show(active - 1); if (event.key === 'ArrowRight') show(active + 1); });
+    dialog?.addEventListener('touchstart', event => { startX = event.changedTouches[0].clientX; }, { passive: true });
+    dialog?.addEventListener('touchend', event => { const delta = event.changedTouches[0].clientX - startX; if (Math.abs(delta) > 48) show(active + (delta < 0 ? 1 : -1)); }, { passive: true });
+  }, root);
 
   document.addEventListener('submit', event => {
     const form = event.target.closest('[data-cookie-notice] form');
@@ -203,7 +229,7 @@
     }
   });
 
-  const init = root => { animateCounters(root); initVideos(root); initSticky(root); initCountdowns(root); initBackToTop(); };
+  const init = root => { animateCounters(root); initVideos(root); initSticky(root); initCountdowns(root); initBackToTop(); initLightboxes(root); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => init(document)); else init(document);
   document.addEventListener('htmx:afterSettle', event => init(event.target));
 })();
