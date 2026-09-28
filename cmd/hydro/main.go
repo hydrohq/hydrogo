@@ -547,12 +547,15 @@ func dbCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	var schemaChanges []database.SchemaChange
-	physicalInspection := cfg.Database.Dialect == database.SQLite
-	if physicalInspection {
+	physicalInspection := cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres
+	switch cfg.Database.Dialect {
+	case database.SQLite:
 		schemaChanges, err = database.SQLiteSchemaDiff(ctx, db, migrations.FS, enabledModuleSet(cfg.Modules))
-		if err != nil {
-			return err
-		}
+	case database.Postgres:
+		schemaChanges, err = database.PostgresSchemaDiff(ctx, db, migrations.FS, enabledModuleSet(cfg.Modules))
+	}
+	if err != nil {
+		return err
 	}
 	sort.Strings(pending)
 	if *jsonOutput {

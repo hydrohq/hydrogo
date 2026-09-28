@@ -1,6 +1,6 @@
 # ADR-0277: Read-only SQLite physical schema diff
 
-- **Status:** Accepted for SQLite; PostgreSQL and MySQL catalog adapters remain open
+- **Status:** Accepted for SQLite; PostgreSQL scope completed by [ADR-0282](0282-postgres-physical-schema-diff.md); MySQL remains open
 - **Date:** 2026-09-28
 - **Supersedes:** The SQLite scope of the physical-catalog deferral in [ADR-0275](0275-live-migration-ledger-diff.md)
 - **Related:** [ADR-0006](0006-extensible-database-adapters.md)
@@ -20,10 +20,10 @@ It reports missing objects, unexpected objects, and changed definitions for
 tables, indexes, views, and triggers. The configured database is only queried;
 the inspector never creates or changes its migration ledger.
 
-PostgreSQL catalog normalization is not certified by this decision. MySQL is
-not a certified HydroGo dialect under ADR-0006. Neither is reported as having a
+PostgreSQL catalog normalization is specified by ADR-0282. MySQL is not a
+certified HydroGo dialect under ADR-0006 and is not reported as having a
 physical schema match. The existing ledger comparison remains available for
-those supported database paths.
+that unsupported database path.
 
 ## Verification and operational impact
 
@@ -37,6 +37,6 @@ the temporary catalog exists only for this one-shot CLI command.
 SQLite stores the executed DDL in `sqlite_master`, so exact logical object
 definitions are comparable against a reference created by the same SQLite
 engine. This does not claim semantic analysis of data, query plans, collations,
-or database pragmas. PostgreSQL and MySQL support require their own catalog
-normalization and certified contract suites before physical drift can be
-reported for those engines.
+or database pragmas. PostgreSQL uses the catalog normalization and scratch
+schema contract in ADR-0282. MySQL still requires its own certified adapter and
+catalog contract before physical drift can be reported.
