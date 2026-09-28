@@ -204,6 +204,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return createAdmin(args[1:], stdin, stdout, stderr)
 	case "seed-demo":
 		return seedDemo(args[1:], stdout, stderr)
+	case "seed":
+		return seedDemo(args[1:], stdout, stderr)
+	case "sdk":
+		return sdkCommand(args[1:], stdout, stderr)
 	case "generate":
 		return generateCommand(args[1:], stdout, stderr)
 	case "module":
@@ -1347,7 +1351,12 @@ func serve(args []string, stderr io.Writer) error {
 	newRateLimiter := func(limit int, window time.Duration) security.RateLimiter {
 		return newRuntimeRateLimiter(redisClient, cfg.Redis.KeyPrefix, limit, window, requireTenantScope)
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db}
+	auditRecorder := newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)
+	socialOAuth, err := configuredSocialOAuth(db, cfg.Database.Dialect, authSvc, auditRecorder, cfg.Security.SecureCookies, requireTenantScope)
+	if err != nil {
+		return fmt.Errorf("configure social sign-in: %w", err)
+	}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, SocialOAuth: socialOAuth}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -2536,41 +2545,67 @@ func runAdminWeeklyDigestOnce(ctx context.Context, now time.Time, db database.Qu
 		after := ""
 		for {
 			preferences, err := store.DigestPreferencesAfter(jobCtx, db, after, 500)
-			if err != nil { return queued, err }
-			if len(preferences) == 0 { break }
+			if err != nil {
+				return queued, err
+			}
+			if len(preferences) == 0 {
+				break
+			}
 			after = preferences[len(preferences)-1].UserID
 			duePreferences := make([]adminstudio.DigestPreference, 0, len(preferences))
 			digestUsers := make([]adminstudio.DigestUser, 0, len(preferences))
 			for _, preference := range preferences {
 				_, _, key, due, err := adminstudio.WeeklyDigestWindow(now, preference.Timezone)
-				if err != nil { return queued, err }
-				if !due || preference.LastSentWeek == key { continue }
+				if err != nil {
+					return queued, err
+				}
+				if !due || preference.LastSentWeek == key {
+					continue
+				}
 				account, err := users.GetByID(jobCtx, preference.UserID)
-				if errors.Is(err, auth.ErrUserNotFound) { continue }
-				if err != nil { return queued, err }
-				if account.Role != auth.RoleAdmin && account.Role != auth.RoleEditor { continue }
+				if errors.Is(err, auth.ErrUserNotFound) {
+					continue
+				}
+				if err != nil {
+					return queued, err
+				}
+				if account.Role != auth.RoleAdmin && account.Role != auth.RoleEditor {
+					continue
+				}
 				duePreferences = append(duePreferences, preference)
 				digestUsers = append(digestUsers, adminstudio.DigestUser{ID: account.ID, Email: account.Email, Active: account.Active})
 			}
 			if len(duePreferences) > 0 {
 				err = adminstudio.DeliverDueDigests(jobCtx, now, duePreferences, digestUsers, func(statsCtx context.Context, start, end time.Time) (adminstudio.WeeklyDigestStats, error) {
 					key := start.UTC().Format(time.RFC3339Nano) + "/" + end.UTC().Format(time.RFC3339Nano)
-					if stats, ok := statsByWindow[key]; ok { return stats, nil }
+					if stats, ok := statsByWindow[key]; ok {
+						return stats, nil
+					}
 					stats, err := store.WeeklyDigestStats(statsCtx, db, start, end, analyticsEnabled)
-					if err == nil { statsByWindow[key] = stats }
+					if err == nil {
+						statsByWindow[key] = stats
+					}
 					return stats, err
 				}, func(deliveryCtx context.Context, account adminstudio.DigestUser, week, body, htmlBody string) error {
 					return tx.Within(deliveryCtx, func(exec database.Executor) error {
 						claimed, err := store.ClaimDigestWeek(deliveryCtx, exec, account.ID, week)
-						if err != nil || !claimed { return err }
-						if err := spool.Enqueue(deliveryCtx, exec, site.EmailNotification{EventKey: "admin-weekly:" + account.ID + ":" + week, To: account.Email, Subject: "Haftalık site özeti", Body: body, HTMLBody: htmlBody}); err != nil { return err }
+						if err != nil || !claimed {
+							return err
+						}
+						if err := spool.Enqueue(deliveryCtx, exec, site.EmailNotification{EventKey: "admin-weekly:" + account.ID + ":" + week, To: account.Email, Subject: "Haftalık site özeti", Body: body, HTMLBody: htmlBody}); err != nil {
+							return err
+						}
 						queued++
 						return nil
 					})
 				})
-				if err != nil { return queued, err }
+				if err != nil {
+					return queued, err
+				}
 			}
-			if len(preferences) < 500 { break }
+			if len(preferences) < 500 {
+				break
+			}
 		}
 	}
 	return queued, nil
@@ -3861,12 +3896,19 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("seed-demo", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	confirmDemo := flags.Bool("confirm-demo", false, "Confirm that this database is a local demo target")
+	forceProd := flags.Bool("force-prod", false, "Allow demo writes when the deployment environment is production")
+	count := flags.Int("count", 20, "Number of demo news records to create (1-200)")
+	locale := flags.String("locale", "", "Demo content locale: tr or en (defaults to configured locale)")
+	clean := flags.Bool("clean", false, "Remove HydroGo demo records before seeding")
 	values := addRuntimeFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if !*confirmDemo {
-		return errors.New("seed-demo requires --confirm-demo; use only on a disposable local database")
+		return errors.New("seed requires --confirm-demo; use only on a disposable local database")
+	}
+	if *count < 1 || *count > 200 {
+		return errors.New("--count must be between 1 and 200")
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
@@ -3879,6 +3921,15 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	if demoLocale == "" {
 		demoLocale = "tr"
 	}
+	if *locale != "" {
+		demoLocale = strings.ToLower(strings.TrimSpace(*locale))
+	}
+	if demoLocale != "tr" && demoLocale != "en" {
+		return errors.New("--locale must be tr or en")
+	}
+	if isProductionEnvironment() && !*forceProd {
+		return errors.New("seed is disabled in production; pass --force-prod only for an intentional demo deployment")
+	}
 	budget, err := capacity.Defaults(cfg.Profile)
 	if err != nil {
 		return err
@@ -3889,6 +3940,11 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer db.Close()
+	if *clean {
+		if err := cleanDemoData(ctx, db, cfg.Database.Dialect, cfg.Media.Dir); err != nil {
+			return fmt.Errorf("clean demo data: %w", err)
+		}
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 
 	// Demo member data is deliberately isolated from admin users. It gives the
@@ -4201,6 +4257,20 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 			body:         `{"ops":[{"insert":"Güvenilir ve Esnek E-Ticaret Altyapısı\n","attributes":{"header":1}},{"insert":"Commerce modülü modern e-ticaret operasyonlarının tüm ihtiyaçlarını karşılar. Müşteriler sepete ürün ekleyebilir, varyant seçebilir ve güvenli ödeme adımlarını tamamlayabilir.\n"}]}`,
 		},
 	}
+	if *count < len(newsList) {
+		newsList = newsList[:*count]
+	} else {
+		baseCount := len(newsList)
+		for i := baseCount; i < *count; i++ {
+			item := newsList[(i-baseCount)%baseCount]
+			item.id = fmt.Sprintf("demo-news-generated-%03d", i+1)
+			item.slug = fmt.Sprintf("demo-article-%03d", i+1)
+			item.title = fmt.Sprintf("%s · Örnek %02d", item.title, i+1)
+			item.excerpt = fmt.Sprintf("%s Bu içerik demo kataloğunu göstermek için üretildi.", item.excerpt)
+			item.featured = false
+			newsList = append(newsList, item)
+		}
+	}
 
 	for _, item := range newsList {
 		featuredInt := 0
@@ -4220,8 +4290,63 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	if err := seedExec(ctx, db, cfg.Database.Dialect, `DELETE FROM navigation_items WHERE id LIKE $1`, `DELETE FROM navigation_items WHERE id LIKE ?`, "demo-nav-%"); err != nil {
 		return fmt.Errorf("remove legacy demo navigation: %w", err)
 	}
-	_, err = fmt.Fprintf(stdout, "demo-seeded pages=%d news=%d media=%d navigation=0\n", 3, len(newsList), len(mediaFixtures))
+	_, err = fmt.Fprintf(stdout, "demo-seeded pages=%d news=%d media=%d locale=%s navigation=0\n", 3, len(newsList), len(mediaFixtures), demoLocale)
 	return err
+}
+
+func isProductionEnvironment() bool {
+	for _, key := range []string{"HYDRO_ENV", "APP_ENV", "GO_ENV"} {
+		if strings.EqualFold(strings.TrimSpace(os.Getenv(key)), "production") || strings.EqualFold(strings.TrimSpace(os.Getenv(key)), "prod") {
+			return true
+		}
+	}
+	return false
+}
+
+func cleanDemoData(ctx context.Context, db *sql.DB, dialect database.Dialect, mediaDir string) error {
+	if db == nil {
+		return errors.New("database is required")
+	}
+	query := `SELECT storage_key FROM media_assets WHERE id LIKE 'demo-media-%'`
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return err
+	}
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			rows.Close()
+			return err
+		}
+		keys = append(keys, key)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	for _, key := range keys {
+		if filepath.Base(key) != key {
+			return errors.New("unsafe demo media storage key")
+		}
+		if err := os.Remove(filepath.Join(mediaDir, key)); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	for _, statement := range []string{
+		`DELETE FROM page_revisions WHERE page_id LIKE 'demo-%'`,
+		`DELETE FROM news_items WHERE id LIKE 'demo-news-%'`,
+		`DELETE FROM pages WHERE id LIKE 'demo-%'`,
+		`DELETE FROM members WHERE id='demo-member-portal'`,
+		`DELETE FROM media_assets WHERE id LIKE 'demo-media-%'`,
+		`DELETE FROM navigation_items WHERE id LIKE 'demo-nav-%'`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func seedExec(ctx context.Context, db database.Executor, dialect database.Dialect, postgresQuery, sqliteQuery string, args ...any) error {
@@ -4503,6 +4628,34 @@ func loadRuntimeConfig(flags *flag.FlagSet, values runtimeFlags) (config.Config,
 	return config.Load(*values.configPath, os.LookupEnv, overrides)
 }
 
+func configuredSocialOAuth(db *sql.DB, dialect database.Dialect, service *auth.AuthService, audit auth.AuditRecorder, secure, requireTenantScope bool) (*auth.SocialOAuthHandler, error) {
+	providers := make(map[string]auth.OAuthProviderConfig)
+	for _, name := range []string{"google", "github", "apple"} {
+		prefix := "HYDRO_OAUTH_" + strings.ToUpper(name) + "_"
+		clientID, secret, redirect := os.Getenv(prefix+"CLIENT_ID"), os.Getenv(prefix+"CLIENT_SECRET"), os.Getenv(prefix+"REDIRECT_URL")
+		if clientID == "" && secret == "" && redirect == "" {
+			continue
+		}
+		if clientID == "" || secret == "" || redirect == "" {
+			return nil, fmt.Errorf("%s requires CLIENT_ID, CLIENT_SECRET and REDIRECT_URL", prefix)
+		}
+		provider, err := auth.DefaultOAuthProvider(name, clientID, secret, redirect)
+		if err != nil {
+			return nil, err
+		}
+		providers[name] = provider
+	}
+	if len(providers) == 0 {
+		return nil, nil
+	}
+	key := []byte(os.Getenv("HYDRO_OAUTH_STATE_KEY"))
+	if len(key) < 32 {
+		return nil, errors.New("HYDRO_OAUTH_STATE_KEY must contain at least 32 bytes when a provider is enabled")
+	}
+	resolver := authstore.OAuthIdentityStore{DB: db, Dialect: dialect, RequireTenantScope: requireTenantScope}
+	return &auth.SocialOAuthHandler{Providers: providers, Resolver: resolver, Service: service, Audit: audit, StateKey: key, Secure: secure}, nil
+}
+
 func printUsage(w io.Writer) {
 	fmt.Fprint(w, `HydroGo development CLI
 
@@ -4514,7 +4667,7 @@ Usage:
 	  hydro dev [same options]  (backward-compatible alias for hydro run)
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
-  hydro seed-demo --confirm-demo [runtime flags]
+  hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
   hydro doctor [--json] [runtime flags]
   hydro validate [--json] [runtime flags]
   hydro validate generator --spec SPEC --root OUTPUT

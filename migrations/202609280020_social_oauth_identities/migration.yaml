@@ -1,0 +1,26 @@
+id: "202609280020_social_oauth_identities"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies:
+  - "202609200001_auth_identity_tenant_scope"
+  - "202609200003_postgres_tenant_rls"
+checksum_sha256:
+  sqlite: "82c753c1a189c93356a1db3b932a0a8eeb8b86de490e492068d7755030269d24"
+  postgres: "98c7557fdddb60fcfe165fd05ab10b414c9835fdc8d1b50a04daf35adf11fd63"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The auth users table includes tenant_id"
+disk_estimate: "One identity mapping row and index per linked social account"
+lock_timeout: "Bounded by the migration runner lock timeout"
+compatibility: "Adds optional provider subject mappings; existing Hydro accounts and sessions are unchanged."
+smoke:
+  - "A verified provider identity links to an existing active account within the same tenant"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Back up linked identity mappings before dropping the table; users and passwords are unaffected."

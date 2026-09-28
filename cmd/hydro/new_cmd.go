@@ -156,6 +156,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	flags.SetOutput(stderr)
 
 	preset := flags.String("preset", "", "Preset: news, editorial, commerce, membership, dashboard, erp, compact-site, corporate, portal or headless")
+	starter := flags.String("starter", "", "Starter kit: agency, corporate or saas")
 	profile := flags.String("profile", "compact", "Capacity profile: compact, standard or distributed")
 	database := flags.String("database", "sqlite", "Database dialect: sqlite or postgres")
 	presentation := flags.String("presentation", "integrated", "Presentation: integrated or headless")
@@ -176,6 +177,12 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	if err := flags.Parse(parseArgs); err != nil {
 		return err
 	}
+	if strings.TrimSpace(*starter) != "" {
+		if *preset != "" {
+			return errors.New("use either --starter or --preset")
+		}
+		*preset = strings.ToLower(strings.TrimSpace(*starter))
+	}
 
 	if projectName == "" && flags.NArg() == 1 {
 		projectName = flags.Arg(0)
@@ -194,7 +201,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 			projectName = inputName
 		}
 
-		fmt.Fprint(stdout, "Preset [news/editorial/commerce/membership/dashboard/erp/compact-site/corporate/portal/headless] (varsayılan: news): ")
+		fmt.Fprint(stdout, "Preset [news/editorial/commerce/membership/dashboard/erp/compact-site/agency/corporate/saas/portal/headless] (varsayılan: news): ")
 		inputPreset, _ := reader.ReadString('\n')
 		inputPreset = strings.TrimSpace(inputPreset)
 		if inputPreset == "" {

@@ -277,6 +277,58 @@ func TestSeedDemoRequiresExplicitConfirmation(t *testing.T) {
 	}
 }
 
+func TestSeedDemoRequiresForceFlagInProduction(t *testing.T) {
+	t.Setenv("HYDRO_ENV", "production")
+	t.Setenv("APP_ENV", "")
+	t.Setenv("GO_ENV", "")
+	var stdout, stderr bytes.Buffer
+	err := seedDemo([]string{"--confirm-demo", "--database-dsn", "ignored"}, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "--force-prod") {
+		t.Fatalf("production seed error = %v", err)
+	}
+}
+
+func TestSeedDemoRejectsCountOutsideBounds(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	err := seedDemo([]string{"--confirm-demo", "--count=201"}, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "between 1 and 200") {
+		t.Fatalf("out-of-bounds seed error = %v", err)
+	}
+}
+
+func TestSDKGenerateCommandWritesTypeScriptAndDartClients(t *testing.T) {
+	root := t.TempDir()
+	spec := filepath.Join(root, "api.json")
+	if err := os.WriteFile(spec, []byte(`{"openapi":"3.1.0","info":{"version":"1"},"paths":{"/pages":{"get":{"operationId":"listPages"}}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(root, "sdk")
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"sdk", "generate", "--out=" + out, "--openapi=" + spec}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("sdk generate: %v (%s)", err, stderr.String())
+	}
+	for _, path := range []string{filepath.Join(out, "typescript", "client.ts"), filepath.Join(out, "dart", "lib", "hydro_client.dart")} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("generated client %q: %v", path, err)
+		}
+	}
+}
+
+func TestNewProjectStarterFlagSelectsAgencyPreset(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	root := t.TempDir()
+	if err := run([]string{"new", "agency-site", "--root", root, "--starter", "agency", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("new starter: %v (%s)", err, stderr.String())
+	}
+	data, err := os.ReadFile(filepath.Join(root, "agency-site", "hydrogo.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"preset": "agency"`) {
+		t.Fatalf("starter preset not recorded: %s", data)
+	}
+}
+
 func TestLoginPageDoesNotExposeTransportOrServerErrors(t *testing.T) {
 	source, err := os.ReadFile("main.go")
 	if err != nil {
