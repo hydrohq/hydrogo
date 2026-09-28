@@ -1,14 +1,24 @@
 package adminstudio
 
 import (
+	"context"
 	"html/template"
 	"io"
+	"strings"
+	"time"
 )
 
 type Row struct {
-	ID      string
-	Values  map[string]string
-	Actions []Action
+	ID         string
+	Values     map[string]string
+	Status     StatusInfo
+	StatusHTML template.HTML
+	Actions    []Action
+}
+
+type StatusInfo struct {
+	Value       string
+	ScheduledAt *time.Time
 }
 
 type ListData struct {
@@ -39,7 +49,7 @@ func (d ListData) ResolvedEmptyMessage() string {
 	return "Bu koleksiyonda henüz kayıt bulunmuyor."
 }
 
-var listTemplate = template.Must(template.New("admin-list").Parse(`<table><caption class="visually-hidden">{{.Collection.Label}} listesi</caption><thead><tr>{{if .Collection.BulkActions}}<th scope="col"><span class="visually-hidden">Seç</span><input type="checkbox" aria-label="Tümünü seç" data-bulk-select-all></th>{{end}}{{range .Collection.Fields}}{{if .VisibleInList}}<th scope="col">{{.Label}}</th>{{end}}{{end}}<th scope="col" style="text-align:right">İşlemler</th></tr></thead><tbody>{{if .Rows}}{{range .Rows}}{{$row := .}}<tr>{{if $.Collection.BulkActions}}<td><input type="checkbox" value="{{$row.ID}}" aria-label="{{$.Collection.Label}} kaydını seç" data-bulk-select></td>{{end}}{{range $.Collection.Fields}}{{if .VisibleInList}}<td>{{index $row.Values .ID}}</td>{{end}}{{end}}<td style="text-align:right">{{range .Actions}}<a href="{{.Href}}">{{.Label}}</a> {{end}}</td></tr>{{end}}{{else}}<tr><td colspan="{{.ColumnCount}}" class="empty-state"><p role="status">{{.ResolvedEmptyMessage}}</p></td></tr>{{end}}</tbody></table>{{if .Collection.BulkActions}}<div class="studio-bulk-actions" role="group" aria-label="Toplu işlemler">{{range .Collection.BulkActions}}<a href="{{.Href}}" data-bulk-action="{{.Label}}">{{.Label}}</a>{{end}}</div>{{end}}`))
+var listTemplate = template.Must(template.New("admin-list").Parse(`<table><caption class="visually-hidden">{{.Collection.Label}} listesi</caption><thead><tr>{{if .Collection.BulkActions}}<th scope="col"><span class="visually-hidden">Seç</span><input type="checkbox" aria-label="Tümünü seç" data-bulk-select-all></th>{{end}}{{range .Collection.Fields}}{{if .VisibleInList}}<th scope="col">{{.Label}}</th>{{end}}{{end}}<th scope="col" style="text-align:right">İşlemler</th></tr></thead><tbody>{{if .Rows}}{{range .Rows}}{{$row := .}}<tr{{if $row.Status.Value}} data-status-row="{{$row.Status.Value}}"{{end}}>{{if $.Collection.BulkActions}}<td><input type="checkbox" value="{{$row.ID}}" aria-label="{{$.Collection.Label}} kaydını seç" data-bulk-select></td>{{end}}{{range $.Collection.Fields}}{{if .VisibleInList}}<td>{{if and (eq .ID "status") $row.StatusHTML}}{{$row.StatusHTML}}{{else}}{{index $row.Values .ID}}{{end}}</td>{{end}}{{end}}<td style="text-align:right">{{range .Actions}}<a href="{{.Href}}">{{.Label}}</a> {{end}}</td></tr>{{end}}{{else}}<tr><td colspan="{{.ColumnCount}}" class="empty-state"><p role="status">{{.ResolvedEmptyMessage}}</p></td></tr>{{end}}</tbody></table>{{if .Collection.BulkActions}}<div class="studio-bulk-actions" role="group" aria-label="Toplu işlemler">{{range .Collection.BulkActions}}<a href="{{.Href}}" data-bulk-action="{{.Label}}">{{.Label}}</a>{{end}}</div>{{end}}`))
 
 // RenderList renders read-only collection rows. Action URLs are constrained by
 // the collection registry, while record mutations remain module-owned routes.
@@ -55,6 +65,20 @@ func RenderList(w io.Writer, data ListData) error {
 			if action.Label == "" || action.Href == "" || action.Href[0] != '/' || (len(action.Href) > 1 && action.Href[1] == '/') {
 				return ErrInvalidForm
 			}
+		}
+	}
+	for index := range data.Rows {
+		row := &data.Rows[index]
+		if row.Status.Value == "" {
+			row.Status.Value = row.Values["status"]
+		}
+		row.Status.Value = strings.ToLower(strings.TrimSpace(row.Status.Value))
+		if row.Status.Value != "" {
+			var markup strings.Builder
+			if err := StatusPill(row.Status).Render(context.Background(), &markup); err != nil {
+				return err
+			}
+			row.StatusHTML = template.HTML(markup.String())
 		}
 	}
 	return listTemplate.Execute(w, data)

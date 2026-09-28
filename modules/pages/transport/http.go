@@ -325,7 +325,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
+		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Status: adminstudio.StatusInfo{Value: string(item.Status)}, Actions: []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStartForRequest(w, r, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
