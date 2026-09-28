@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 )
 
 // AdminRoutes expose one reusable asset library for every Studio collection.
 func (h HTTPHandler) AdminRoutes() []HTTPRoute {
-	return []HTTPRoute{
+	routes := []HTTPRoute{
 		{Pattern: "GET /admin/media", Protected: true, Handler: http.HandlerFunc(h.adminList)},
 		{Pattern: "GET /admin/media/static/uploader.js", Protected: true, Handler: http.HandlerFunc(uploaderAsset)},
 		{Pattern: "POST /admin/media", Protected: true, Handler: http.HandlerFunc(h.adminUpload)},
@@ -23,6 +24,64 @@ func (h HTTPHandler) AdminRoutes() []HTTPRoute {
 		{Pattern: "POST /admin/media/settings", Protected: true, Handler: http.HandlerFunc(h.adminSaveSettings)},
 		{Pattern: "POST /admin/media/{id}/visibility", Protected: true, Handler: http.HandlerFunc(h.adminVisibility)},
 	}
+	if h.Garbage != nil {
+		routes = append(routes, HTTPRoute{Pattern: "GET /admin/media/cleanup", Protected: true, Handler: http.HandlerFunc(h.adminCleanup)}, HTTPRoute{Pattern: "POST /admin/media/cleanup/delete", Protected: true, Handler: http.HandlerFunc(h.adminDeleteUnused)})
+	}
+	return routes
+}
+
+func (h HTTPHandler) adminCleanup(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.Garbage == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Garbage.Plan(r.Context())
+	if err != nil {
+		http.Error(w, "media cleanup unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	view := make([]ui.MediaGarbageItem, 0, len(items))
+	var size int64
+	for _, item := range items {
+		view = append(view, ui.MediaGarbageItem{ID: item.ID, Filename: item.Filename, SizeBytes: item.SizeBytes, CreatedAt: item.CreatedAt.UTC().Format("2006-01-02 15:04 UTC")})
+		size += item.SizeBytes
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStartForRequest(w, r, "Unused media cleanup", "Media maintenance", security.NonceFromContext(r.Context()), "media"); err != nil {
+		return
+	}
+	if err := ui.MediaCleanupPage(view, size, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
+		http.Error(w, "media cleanup unavailable", http.StatusInternalServerError)
+		return
+	}
+	_ = ui.AdminEnd(w)
+}
+
+func (h HTTPHandler) adminDeleteUnused(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.Garbage == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil || r.FormValue("confirm") != "yes" {
+		http.Error(w, "confirm the selected media cleanup", http.StatusBadRequest)
+		return
+	}
+	ids := r.Form["asset_id"]
+	deleted, err := h.Garbage.Delete(r.Context(), ids)
+	if err != nil {
+		http.Error(w, "media cleanup could not be completed", http.StatusServiceUnavailable)
+		return
+	}
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = ui.MediaCleanupResult(fmt.Sprintf("Deleted %d unused assets.", deleted)).Render(r.Context(), w)
+		return
+	}
+	http.Redirect(w, r, "/admin/media/cleanup", http.StatusSeeOther)
 }
 
 func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
@@ -104,6 +163,11 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := ui.MediaTagFilter(selectedTag, selectedFolder, selectedColor).Render(r.Context(), w); err != nil {
 		return
+	}
+	if user := auth.UserFromContext(r.Context()); user != nil && user.Role == auth.RoleAdmin && h.Garbage != nil {
+		if err := ui.MediaCleanupLink().Render(r.Context(), w); err != nil {
+			return
+		}
 	}
 	settings, settingsErr := h.adminSettings(r.Context())
 	if settingsErr != nil {

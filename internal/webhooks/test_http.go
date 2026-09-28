@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
 )
 
 type TestHandler struct {
@@ -16,6 +18,27 @@ type TestHandler struct {
 }
 
 func (h TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		items := make([]ui.WebhookTestEndpoint, 0, len(h.Endpoints))
+		for _, endpoint := range h.Endpoints {
+			items = append(items, ui.WebhookTestEndpoint{ID: endpoint.ID})
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := ui.AdminStartForRequest(w, r, "Webhook test sandbox", "Developer tools", security.NonceFromContext(r.Context()), "developer"); err != nil {
+			return
+		}
+		if err := ui.WebhookTestPage(items, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
+			http.Error(w, "webhook test page unavailable", http.StatusInternalServerError)
+			return
+		}
+		_ = ui.AdminEnd(w)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -48,6 +71,15 @@ func (h TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	event := Event{ID: fmt.Sprintf("test-%s-%d", time.Now().UTC().Format("20060102T150405"), time.Now().UnixNano()), Topic: topic, PayloadVersion: 1, Data: map[string]string{"message": "HydroGo webhook delivery test", "initiated_by": user.ID}}
 	result, err := h.Dispatcher.Test(r.Context(), *endpoint, event)
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		status := "Accepted"
+		if err != nil {
+			status = "Delivery failed"
+		}
+		_ = ui.WebhookTestResult(status, result.Body, result.Signature, result.Status, result.Latency.Milliseconds(), result.Response).Render(r.Context(), w)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)

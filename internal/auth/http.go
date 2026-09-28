@@ -447,6 +447,10 @@ func (h HTTPHandler) revokeOtherSessions(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
+	if r.FormValue("_csrf") != "" {
+		http.Redirect(w, r, "/auth/me/sessions/manage", http.StatusSeeOther)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
 }
 

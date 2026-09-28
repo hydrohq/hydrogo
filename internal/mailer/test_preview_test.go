@@ -35,3 +35,14 @@ func TestTestPreviewRejectsEditor(t *testing.T) {
 		t.Fatalf("status=%d", rec.Code)
 	}
 }
+
+func TestTestPreviewRendersAdminPage(t *testing.T) {
+	handler := TestPreviewHandler{Sender: &previewSender{}}
+	ctx := auth.WithUser(context.Background(), &auth.User{ID: "a", Role: auth.RoleAdmin, Active: true, Email: "admin@example.test"})
+	req := httptest.NewRequest("GET", "/admin/mailer/test-preview", nil).WithContext(ctx)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Send test email to my inbox") || !strings.Contains(rec.Body.String(), `hx-post="/admin/api/mailer/test-preview"`) {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}

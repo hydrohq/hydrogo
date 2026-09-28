@@ -1,0 +1,112 @@
+package ui
+
+import "github.com/ardaozyildirim/hydrogo/internal/collections"
+
+templ CollectionStudio(schemas []collections.Schema, csrf string) {
+	<section class="studio-card">
+		<h1>Collections and schemas</h1>
+		<p>Define fields and validation rules. Collection definitions use the shared versioned storage contract.</p>
+		<h2>Create collection</h2>
+		<form method="post" action="/admin/collections" class="studio-form">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<label>Collection ID<input name="id" pattern="[a-z][a-z0-9_]{0,62}" required /></label>
+			<label>Name<input name="label" maxlength="128" required /></label>
+			<label>Description<textarea name="description" maxlength="1000"></textarea></label>
+			<fieldset><legend>Fields</legend>
+				for index := 0; index < 8; index++ {
+					<div class="studio-actions">
+						<label>Field ID<input name={ collectionFieldName("id", index) } pattern="[a-z][a-z0-9_]{0,62}" /></label>
+						<label>Label<input name={ collectionFieldName("label", index) } maxlength="128" /></label>
+						<label>Type<select name={ collectionFieldName("kind", index) }>
+							<option value="text">Text</option><option value="richtext">Rich text</option><option value="number">Number</option><option value="boolean">Boolean</option><option value="datetime">Date and time</option><option value="select">Single select</option><option value="multi_select">Multi select</option><option value="media">Media</option><option value="relation">Relation</option><option value="relation_many">Multiple relation</option>
+						</select></label>
+						<label>Options / relation ID<input name={ collectionFieldName("options", index) } placeholder="For selects: one,two; for relations: collection_id" /></label>
+						<label><input type="checkbox" name={ collectionFieldName("required", index) } value="true" /> Required</label>
+						<label><input type="checkbox" name={ collectionFieldName("unique", index) } value="true" /> Unique</label>
+					</div>
+				}
+			</fieldset>
+			<button class="button button-primary" type="submit">Create collection</button>
+		</form>
+	</section>
+	<section class="studio-card">
+		<h2>Available collections</h2>
+		if len(schemas) == 0 {
+			<p>No collections have been created.</p>
+		}
+		<ul>
+			for _, schema := range schemas {
+				<li><a href={ "/admin/collections/" + schema.ID }>{ schema.Label }</a> <span class="muted">{ schema.ID } · { collectionFieldCount(schema.Fields) } fields</span></li>
+			}
+		</ul>
+	</section>
+}
+
+templ CollectionRecordsPage(schema collections.Schema, records []collections.Record, csrf string, fields []CollectionRecordField, action string) {
+	<section class="studio-card">
+		<p><a href="/admin/collections">Collections</a></p>
+		<h1>{ schema.Label }</h1>
+		<p>{ schema.Description }</p>
+		<h2>Create record</h2>
+		@CollectionRecordForm(schema, fields, action, csrf, "")
+	</section>
+	<section class="studio-card">
+		<h2>Records</h2>
+		if len(records) == 0 {
+			<p>No records are stored in this collection.</p>
+		}
+		<div class="table-responsive"><table><thead><tr><th>ID</th><th>Values</th><th>Actions</th></tr></thead><tbody>
+			for _, record := range records {
+				<tr><td><code>{ record.ID }</code></td><td>{ collectionRecordSummary(record.Data) }</td><td><a href={ action + "/" + record.ID } aria-label={ "Edit " + record.ID }>Edit</a></td></tr>
+			}
+		</tbody></table></div>
+	</section>
+}
+
+templ CollectionRecordForm(schema collections.Schema, fields []CollectionRecordField, action, csrf, recordID string) {
+	<form method="post" action={ action } class="studio-form">
+		<input type="hidden" name="_csrf" value={ csrf } />
+		if recordID != "" {
+			<input type="hidden" name="record_id" value={ recordID } />
+		}
+		for _, editor := range fields {
+			<label>{ editor.Field.Label }
+				if editor.Field.Kind == collections.Boolean {
+					<input type="checkbox" name={ editor.Field.ID } value="true" checked?={ editor.Checked } required?={ editor.Field.Required } />
+				} else if editor.Field.Kind == collections.RichText {
+					<textarea name={ editor.Field.ID } required?={ editor.Field.Required }>{ editor.Value }</textarea>
+				} else if editor.Field.Kind == collections.Select {
+					<select name={ editor.Field.ID } required?={ editor.Field.Required }><option value="">Choose one</option>
+						for _, option := range editor.Field.Options {
+							<option value={ option } selected?={ editor.Value == option }>{ option }</option>
+						}
+					</select>
+				} else if editor.Field.Kind == collections.MultiSelect {
+					<select name={ editor.Field.ID } multiple>
+						for _, option := range editor.Field.Options {
+							<option value={ option } selected?={ editor.Selected[option] }>{ option }</option>
+						}
+					</select>
+				} else if editor.Field.Kind == collections.Number {
+					<input type="number" step="any" name={ editor.Field.ID } value={ editor.Value } required?={ editor.Field.Required } />
+				} else if editor.Field.Kind == collections.DateTime {
+					<input type="datetime-local" name={ editor.Field.ID } value={ editor.Value } required?={ editor.Field.Required } />
+				} else if editor.Field.Kind == collections.RelationMany {
+					<input name={ editor.Field.ID } value={ editor.Value } placeholder="Comma separated record IDs" required?={ editor.Field.Required } />
+				} else {
+					<input type="text" name={ editor.Field.ID } value={ editor.Value } required?={ editor.Field.Required } />
+				}
+			</label>
+		}
+		<button class="button button-primary" type="submit">Save record</button>
+	</form>
+}
+
+templ CollectionRecordEdit(schema collections.Schema, record collections.Record, fields []CollectionRecordField, action, csrf string) {
+	<section class="studio-card">
+		<p><a href={ "/admin/collections/" + schema.ID }>Back to { schema.Label }</a></p>
+		<h1>Edit record</h1><p><code>{ record.ID }</code></p>
+		@CollectionRecordForm(schema, fields, action, csrf, record.ID)
+		<form method="post" action={ action + "/delete" }><input type="hidden" name="_csrf" value={ csrf } /><button class="button button-danger" type="submit">Delete record</button></form>
+	</section>
+}

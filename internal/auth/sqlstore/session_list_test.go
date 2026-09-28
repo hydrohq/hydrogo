@@ -34,4 +34,14 @@ func TestListByUserIDReturnsOnlyActiveSessionsWithoutSecretProjection(t *testing
 	if len(items) != 1 || items[0].ID != "current" || items[0].TokenHash != "hash-current" {
 		t.Fatalf("sessions=%+v", items)
 	}
+	if err := store.DeleteByIDAndUserID(context.Background(), "u", "other"); err == nil {
+		t.Fatal("cross-user session ID should not be deleted")
+	}
+	if err := store.DeleteByIDAndUserID(context.Background(), "u", "current"); err != nil {
+		t.Fatal(err)
+	}
+	items, err = store.ListByUserID(context.Background(), "u", now)
+	if err != nil || len(items) != 0 {
+		t.Fatalf("session revoke items=%+v err=%v", items, err)
+	}
 }

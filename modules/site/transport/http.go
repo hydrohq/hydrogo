@@ -108,6 +108,7 @@ func (h Handler) Routes() []Route {
 			Route{Pattern: "GET /admin/site/inbox/{form}", Handler: http.HandlerFunc(h.inbox)},
 			Route{Pattern: "GET /admin/site/forms", Handler: http.HandlerFunc(h.forms)},
 			Route{Pattern: "POST /admin/site/forms", Handler: http.HandlerFunc(h.saveForm)},
+			Route{Pattern: "POST /admin/site/forms/{id}/working-hours", Handler: http.HandlerFunc(h.saveFormWorkingHours)},
 			Route{Pattern: "POST /admin/site/forms/{id}/delete", Handler: http.HandlerFunc(h.deleteForm)},
 			Route{Pattern: "POST /admin/site/inbox/{id}/status", Handler: http.HandlerFunc(h.inboxStatus)},
 			Route{Pattern: "POST /admin/site/inbox/{id}/lead", Handler: http.HandlerFunc(h.leadUpdate)},
@@ -460,7 +461,39 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprint(w, `</div></section>`)
 	_ = adminstudio.RenderFormBuilder(w, adminstudio.FormBuilderData{Form: selected, Action: "/admin/site/forms", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context())})
+	workingHours := forms.WorkingHours{Timezone: "UTC"}
+	if selected.WorkingHours != nil {
+		workingHours = *selected.WorkingHours
+	}
+	_ = ui.WorkingHoursEditor(selected.ID, workingHours.Timezone, workingHours.Notice, security.CSRFTokenFromContext(r.Context()), ui.WorkingHoursDays(workingHours)).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveFormWorkingHours(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil || h.Service.Forms == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid working-hours settings", http.StatusBadRequest)
+		return
+	}
+	form, err := h.Service.Forms.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "form unavailable", http.StatusNotFound)
+		return
+	}
+	workingHours := forms.WorkingHours{Timezone: strings.TrimSpace(r.FormValue("timezone")), Notice: strings.TrimSpace(r.FormValue("notice"))}
+	for day := range workingHours.Days {
+		workingHours.Days[day] = forms.DailyHours{Open: r.FormValue(fmt.Sprintf("open_%d", day)), Close: r.FormValue(fmt.Sprintf("close_%d", day))}
+	}
+	form.WorkingHours = &workingHours
+	if err := h.Service.SaveForm(r.Context(), form); err != nil {
+		http.Error(w, "working-hours settings are invalid", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/forms?id="+url.QueryEscape(form.ID), http.StatusSeeOther)
 }
 
 func (h Handler) saveForm(w http.ResponseWriter, r *http.Request) {
@@ -870,6 +903,10 @@ func honeypotFilled(r *http.Request) bool {
 }
 
 func formNotifications(form forms.Form, values map[string]string, submissionID string) []site.EmailNotification {
+	return formNotificationsAt(form, values, submissionID, time.Now().UTC())
+}
+
+func formNotificationsAt(form forms.Form, values map[string]string, submissionID string, now time.Time) []site.EmailNotification {
 	if len(form.NotificationRecipients) == 0 && !form.Autoresponder {
 		return nil
 	}
@@ -899,7 +936,10 @@ func formNotifications(form forms.Form, values map[string]string, submissionID s
 		if subject == "" {
 			subject = "We received your message"
 		}
-		body := form.AutoresponderBody
+		body, err := form.AutoresponderBodyFor(now)
+		if err != nil {
+			return result
+		}
 		if body == "" {
 			body = "Thank you for contacting us. We have received your message. Your reference is {{ticket_code}}."
 		}

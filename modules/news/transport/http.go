@@ -327,6 +327,10 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 		locale = h.defaultLocale()
 	}
 	item := news.Item{ID: id, Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Excerpt: r.FormValue("excerpt"), KeyTakeaways: r.FormValue("key_takeaways"), Category: r.FormValue("category"), AuthorName: r.FormValue("author_name"), Featured: r.FormValue("featured") == "on", Tags: r.FormValue("tags"), SEOTitle: r.FormValue("seo_title"), SEODescription: r.FormValue("seo_description"), Status: news.StatusDraft}
+	if err := h.validateNewsMedia(r.Context(), item); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -381,6 +385,10 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item := news.Item{ID: id, Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Excerpt: value.Excerpt, KeyTakeaways: value.KeyTakeaways, Category: value.Category, AuthorName: value.AuthorName, Featured: value.Featured, Tags: value.Tags, SEOTitle: value.SEOTitle, SEODescription: value.SEODescription, Status: news.StatusDraft}
+	if err := h.validateNewsMedia(r.Context(), item); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
 		writeError(w, err)
 		return
@@ -400,6 +408,10 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item := news.Item{ID: r.PathValue("id"), Locale: value.Locale, Slug: value.Slug, Title: value.Title, Body: value.Body, CoverMediaID: value.CoverMediaID, Excerpt: value.Excerpt, KeyTakeaways: value.KeyTakeaways, Category: value.Category, AuthorName: value.AuthorName, Featured: value.Featured, Tags: value.Tags, SEOTitle: value.SEOTitle, SEODescription: value.SEODescription, Status: news.StatusDraft}
+	if err := h.validateNewsMedia(r.Context(), item); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := h.Service.UpdateDraft(r.Context(), item, value.Version); err != nil {
 		writeError(w, err)
 		return
@@ -939,6 +951,10 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		locale = h.defaultLocale()
 	}
 	item := news.Item{ID: r.PathValue("id"), Locale: locale, Slug: r.FormValue("slug"), Title: r.FormValue("title"), Body: r.FormValue("body"), CoverMediaID: r.FormValue("cover_media_id"), Excerpt: r.FormValue("excerpt"), KeyTakeaways: r.FormValue("key_takeaways"), Category: r.FormValue("category"), AuthorName: r.FormValue("author_name"), Featured: r.FormValue("featured") == "on", Tags: r.FormValue("tags"), SEOTitle: r.FormValue("seo_title"), SEODescription: r.FormValue("seo_description"), Status: news.StatusDraft}
+	if err := h.validateNewsMedia(r.Context(), item); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := h.Service.UpdateDraft(r.Context(), item, version); err != nil {
 		writeError(w, err)
 		return

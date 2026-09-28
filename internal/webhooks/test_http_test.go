@@ -41,3 +41,13 @@ func TestTestHandlerRejectsNonAdmin(t *testing.T) {
 		t.Fatalf("non-admin status=%d", rec.Code)
 	}
 }
+
+func TestTestHandlerRendersAdminSandbox(t *testing.T) {
+	handler := TestHandler{Endpoints: []Endpoint{{ID: "billing", URL: "https://receiver.test", Secret: "never-show-this", Topics: map[string]struct{}{"page.published": {}}}}}
+	req := httptest.NewRequest("GET", "/admin/webhooks/test", nil).WithContext(auth.WithUser(context.Background(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Webhook test sandbox") || !strings.Contains(rec.Body.String(), `value="billing"`) || strings.Contains(rec.Body.String(), "never-show-this") {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}

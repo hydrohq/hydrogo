@@ -1,0 +1,26 @@
+package ui
+
+templ ActiveSessionsPage(items []ActiveSessionItem, csrf string) {
+	<section class="studio-card">
+		<h1>Active sessions</h1>
+		<p>Review recent account sessions and sign out other devices.</p>
+		<div class="table-responsive"><table><thead><tr><th>Device and browser</th><th>IP address</th><th>Last activity</th><th>Status</th></tr></thead><tbody>
+		for _, item := range items {
+			<tr><td>{ item.UserAgent }</td><td>{ item.IPAddress }</td><td>{ item.LastSeen }</td><td>
+				if item.Current {
+					<span class="status-badge">Current device</span>
+				} else {
+					<form method="post" action={ "/auth/me/sessions/manage/" + item.ID + "/revoke" }>
+						<input type="hidden" name="_csrf" value={ csrf } />
+						<button type="submit" class="button button-quiet">Sign out this device</button>
+					</form>
+				}
+			</td></tr>
+		}
+		</tbody></table></div>
+		<form method="post" action="/auth/me/sessions/manage/revoke-others">
+			<input type="hidden" name="_csrf" value={ csrf } />
+			<button type="submit" class="button button-danger">Log out other devices</button>
+		</form>
+	</section>
+}

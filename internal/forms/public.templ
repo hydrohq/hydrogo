@@ -1,6 +1,9 @@
 package forms
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type PublicFormProps struct {
 	Form              Form
@@ -23,6 +26,9 @@ templ PublicForm(p PublicFormProps) {
 		<input type="hidden" name="_submission_token" value={ publicSubmissionToken(p.SubmissionToken) } />
 		<div class="hydro-form__honeypot" aria-hidden="true"><label for="hydro-website-url">Leave this field empty</label><input id="hydro-website-url" name="website_url" type="text" tabindex="-1" autocomplete="off" /></div>
 		<h2>{ p.Form.Title }</h2>
+		if notice := p.Form.PublicWorkingHoursNotice(time.Now()); notice != "" {
+			<p class="hydro-form__hours-notice" role="note">{ notice }</p>
+		}
 		for _, field := range p.Form.Fields {
 			<div class="hydro-form__field">
 				<label for={ "hydro-" + p.Form.ID + "-" + field.ID }>{ field.Label }

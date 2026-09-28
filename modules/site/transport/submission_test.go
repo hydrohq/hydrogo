@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
@@ -157,5 +158,17 @@ func TestTurnstileIsRequiredOnlyWhenConfiguredOnForm(t *testing.T) {
 	verifier.valid = true
 	if response := submitRequest(handler, values); response.Code != http.StatusAccepted {
 		t.Fatalf("verified submit status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestAfterHoursNoticeFlowsIntoRealAutoresponderNotification(t *testing.T) {
+	var days [7]forms.DailyHours
+	for day := time.Monday; day <= time.Friday; day++ {
+		days[day] = forms.DailyHours{Open: "09:00", Close: "17:00"}
+	}
+	form := forms.Form{ID: "contact", Title: "Contact", Autoresponder: true, AutoresponderSubject: "Thanks {{name}}", AutoresponderBody: "We received your request.", WorkingHours: &forms.WorkingHours{Timezone: "UTC", Days: days, Notice: "We reopen {weekday} at {time}."}, Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}, {ID: "name", Type: forms.Text, Label: "Name"}}}
+	notifications := formNotificationsAt(form, map[string]string{"email": "visitor@example.test", "name": "Sam"}, "form-ABC", time.Date(2026, 9, 28, 18, 0, 0, 0, time.UTC))
+	if len(notifications) != 1 || notifications[0].To != "visitor@example.test" || notifications[0].Subject != "Thanks Sam" || notifications[0].Body != "We received your request.\n\nWe reopen Tuesday at 09:00." || notifications[0].HTMLBody == "" {
+		t.Fatalf("notifications=%+v", notifications)
 	}
 }

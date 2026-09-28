@@ -51,6 +51,9 @@ import (
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
+	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	collectionstore "github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
+	collectiontransport "github.com/ardaozyildirim/hydrogo/internal/collections/transport"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	formsruntime "github.com/ardaozyildirim/hydrogo/internal/forms"
@@ -1643,6 +1646,9 @@ func serve(args []string, stderr io.Writer) error {
 		}
 	}
 	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db, HotlinkProtection: cfg.Media.HotlinkProtection, CanonicalOrigin: cfg.HTTP.PublicOrigin, AllowedRefererHosts: cfg.Media.AllowedRefererHosts, SettingsRepository: mediaStore, SettingsCache: media.NewAdminSettingsCache(), SettingsDefaults: media.AdminSettings{HotlinkProtection: cfg.Media.HotlinkProtection, AllowedRefererHosts: cfg.Media.AllowedRefererHosts, WatermarkEnabled: configuredWatermark != nil, WatermarkText: cfg.Media.WatermarkText, WatermarkPosition: cfg.Media.WatermarkPosition, WatermarkOpacity: cfg.Media.WatermarkOpacity, WatermarkMargin: cfg.Media.WatermarkMargin}, RequireTenantScope: requireTenantScope}
+	if modules["media"] {
+		mediaHTTP.Garbage = &media.GarbageCollector{DB: db, Repository: mediaStore, References: mediastore.MediaReferences{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Pages: modules["pages"], News: modules["news"], Site: modules["site"], Forms: modules["forms"]}, BlobStore: mediaService.BlobStore, StorageDir: cfg.Media.Dir, Retention: 7 * 24 * time.Hour}
+	}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	newsRouteStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -1943,6 +1949,13 @@ func serve(args []string, stderr io.Writer) error {
 		}}
 	}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
+	if modules["collections"] {
+		collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+		collectionService := collections.Service{Repository: collectionDB}
+		routes = append(routes, (collectiontransport.Handler{Service: collectionService}).Routes()...)
+	}
+	sessionPage := server.SessionPageHandler{Service: authSvc}
+	routes = append(routes, router.Route{Pattern: "GET /auth/me/sessions/manage", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/revoke-others", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/{id}/revoke", Access: router.Protected, Handler: sessionPage})
 	if modules["search"] {
 		routes = append(routes, router.Route{Pattern: "GET /api/v1/search/autocomplete", Access: router.Public, Handler: adminsearch.AutocompleteHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Modules: modules}})
 	}
@@ -2618,7 +2631,7 @@ func serve(args []string, stderr io.Writer) error {
 		webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
 	}
 	if len(webhookEndpoints) > 0 {
-		routes = append(routes, router.Route{Pattern: "POST /admin/api/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}})
+		routes = append(routes, router.Route{Pattern: "GET /admin/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}}, router.Route{Pattern: "POST /admin/api/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}})
 	}
 	if !*cgiMode && (modules["pages"] || modules["news"] || modules["commerce"]) {
 		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
@@ -2737,7 +2750,7 @@ func serve(args []string, stderr io.Writer) error {
 		return server.ServeCGI(handler)
 	}
 	if smtpSender != nil {
-		routes = append(routes, router.Route{Pattern: "POST /admin/api/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}})
+		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}}, router.Route{Pattern: "POST /admin/api/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}})
 	}
 	if *fastCGIMode {
 		return server.ServeFastCGI(ctx, "tcp", *fastCGIAddress, serverConfig)

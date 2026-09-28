@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -288,6 +289,21 @@ func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID string) 
 
 type selectiveSessionRevoker interface {
 	DeleteOtherByUserID(context.Context, string, string) error
+}
+
+type sessionIDRevoker interface {
+	DeleteByIDAndUserID(context.Context, string, string) error
+}
+
+func (s *AuthService) RevokeUserSession(ctx context.Context, userID, sessionID, currentSessionID string) error {
+	if strings.TrimSpace(userID) == "" || strings.TrimSpace(sessionID) == "" || sessionID == currentSessionID {
+		return ErrSessionNotFound
+	}
+	revoker, ok := s.sessionRepo.(sessionIDRevoker)
+	if !ok {
+		return ErrSessionRepositoryRequired
+	}
+	return revoker.DeleteByIDAndUserID(ctx, userID, sessionID)
 }
 
 type sessionLister interface {
