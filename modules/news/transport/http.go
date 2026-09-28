@@ -508,7 +508,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	// Fetch popular/recent news items for the sticky sidebar
 	var sidebarItems []news.Item
 	if repository, ok := h.Service.Repository.(relatedListRepository); ok {
-		if list, err := repository.ListRelatedPublished(r.Context(), h.DB, item.ID, locale, 6); err == nil {
+		if list, err := repository.ListRelatedPublished(r.Context(), h.DB, item.ID, locale, 4); err == nil {
 			sidebarItems = list
 		}
 	}

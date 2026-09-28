@@ -1,0 +1,22 @@
+id: "202609290001_portfolio_tag_relations"
+module: "portfolio"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "One bounded row per normalized project tag plus a lookup index."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "70bba930d8e4d21845ceb575f05661422e8d2b190dc238ac1e656ead84a60076"
+  postgres: "73eb70ee44be215ffea9c4b6e6b9bb947c37ade00d33fe1774e76f2f411727e3"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The portfolio module and its collection table are enabled for this Edition"
+compatibility: "Adds a module-owned tag lookup table; existing project payloads remain readable and tags are backfilled on write."
+smoke:
+  - "A project tag or industry lookup is tenant-scoped and uses sectoral_portfolio_tags_lookup_idx"
+rollback: "Back up the portfolio module, then drop sectoral_portfolio_tags and its index; payload tags remain the source of truth."

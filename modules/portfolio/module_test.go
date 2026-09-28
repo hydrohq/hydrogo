@@ -23,6 +23,13 @@ func TestModelValidationCloneAndTemplRendering(t *testing.T) {
 	if !strings.Contains(output.String(), "Üretim") {
 		t.Fatalf("rendered collection omitted %q: %s", "Üretim", output.String())
 	}
+	output.Reset()
+	if err := Related(item.ID, []Project{item, {Base: sectoral.Base{ID: "related-1", Locale: "en", Slug: "related", Title: "Related project", Status: "published", Tags: []string{"go"}}, Industry: "Technology"}}).Render(context.Background(), &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), `aria-label="İlgili projeler"`) || !strings.Contains(output.String(), "Related project") || strings.Contains(output.String(), "Portfolio entry") {
+		t.Fatalf("related project rendering = %s", output.String())
+	}
 	copy := item.Clone("copy-1", "sample-entry-copy")
 	if copy.ID != "copy-1" || copy.Status != "draft" || copy.Featured || copy.Slug != "sample-entry-copy" {
 		t.Fatalf("clone = %+v", copy.Base)
@@ -41,7 +48,7 @@ func TestModelRejectsInvalidIdentity(t *testing.T) {
 
 func TestExtensionManifestDeclaresOnlyOwnedMigration(t *testing.T) {
 	manifest := (Extension{}).ModuleManifest()
-	if manifest.ID != "portfolio" || len(manifest.Migrations) != 1 || manifest.Routes != nil || manifest.Workers != nil {
+	if manifest.ID != "portfolio" || len(manifest.Migrations) != 2 || manifest.Migrations[1] != "202609280021_portfolio_tag_relations" || manifest.Routes != nil || manifest.Workers != nil {
 		t.Fatalf("manifest = %+v", manifest)
 	}
 }

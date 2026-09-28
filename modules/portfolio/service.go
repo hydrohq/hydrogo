@@ -74,6 +74,15 @@ func (s Service) ListPublished(ctx context.Context, db database.QueryExecutor, l
 	}
 	return s.Repository.ListPublished(ctx, db, locale, limit)
 }
+
+func (s Service) Related(ctx context.Context, db database.QueryExecutor, current Project, limit int) ([]Project, error) {
+	if repository, ok := s.Repository.(interface {
+		ListRelatedPublished(context.Context, database.QueryExecutor, string, string, int) ([]Project, error)
+	}); ok {
+		return repository.ListRelatedPublished(ctx, db, current.ID, current.Locale, limit)
+	}
+	return nil, sectoral.ErrInvalid
+}
 func (s Service) Delete(ctx context.Context, id string) error {
 	if s.Repository == nil {
 		return sectoral.ErrInvalid

@@ -27,6 +27,7 @@ Core capabilities and must not add work to Editions that do not enable them.
   legal advice or compliance text.
 - Related design helpers are passive typed components and do not activate a
   module or register runtime resources.
+- Portfolio taxonomy recommendations follow [ADR-0278](0278-indexed-related-content.md): the enabled module owns an indexed tag relation table and queries are tenant-scoped and bounded.
 
 ## Database contract
 

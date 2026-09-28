@@ -1,7 +1,7 @@
 # ADR-0277: Read-only SQLite physical schema diff
 
 - **Status:** Accepted for SQLite; PostgreSQL and MySQL catalog adapters remain open
-- **Date:** 2026-09-29
+- **Date:** 2026-09-28
 - **Supersedes:** The SQLite scope of the physical-catalog deferral in [ADR-0275](0275-live-migration-ledger-diff.md)
 - **Related:** [ADR-0006](0006-extensible-database-adapters.md)
 
