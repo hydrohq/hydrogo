@@ -350,3 +350,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0272: Admin Studio business UX and bounded inbox](0272-admin-studio-business-ux.md)
 - [ADR-0273: Optional sectoral content modules](0273-sectoral-content-modules.md)
 - [ADR-0274: Optional social OAuth sign-in](0274-optional-social-oauth-sign-in.md)
+- [ADR-0275: Read-only live migration ledger diff](0275-live-migration-ledger-diff.md)
