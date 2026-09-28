@@ -14,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/push"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -30,6 +31,7 @@ type Handler struct {
 	Orders        customerorders.Reader
 	DB            database.Executor
 	DefaultLocale string
+	Push          *push.Dispatcher
 }
 
 // memberResponseWriter removes legacy client-side member state persistence
@@ -71,7 +73,7 @@ func (h Handler) defaultLocale() string {
 }
 
 func (h Handler) Routes() []router.Route {
-	return []router.Route{
+	routes := []router.Route{
 		// Consumer/mobile authentication is intentionally separate from the
 		// browser-session and staff mobile surfaces. These routes authenticate
 		// with member bearer tokens and never read or write browser cookies.
@@ -102,6 +104,13 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "POST /admin/members/{id}/sessions/{session_id}/revoke", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeSession)},
 		{Pattern: "POST /admin/members/{id}/sessions/revoke-all", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeAllSessions)},
 	}
+	if h.Push != nil {
+		routes = append(routes,
+			router.Route{Pattern: "POST /api/v1/mobile/member/push/subscription", Access: router.Public, Handler: http.HandlerFunc(h.mobilePushSubscribe)},
+			router.Route{Pattern: "DELETE /api/v1/mobile/member/push/subscription", Access: router.Public, Handler: http.HandlerFunc(h.mobilePushUnsubscribe)},
+		)
+	}
+	return routes
 }
 
 func (h Handler) memberOrders(w http.ResponseWriter, r *http.Request) {

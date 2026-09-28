@@ -41,7 +41,7 @@ func TestAuthIdentityTenantScope(t *testing.T) {
 	}
 	defer db.Close()
 	for _, statement := range []string{
-		`CREATE TABLE users (id TEXT PRIMARY KEY,email TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL,active INTEGER NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,tenant_id TEXT NOT NULL)`,
+		`CREATE TABLE users (id TEXT PRIMARY KEY,email TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL,active INTEGER NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,email_verified_at TEXT,tenant_id TEXT NOT NULL)`,
 		`CREATE TABLE sessions (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,token_hash TEXT NOT NULL,expires_at TEXT NOT NULL,created_at TEXT NOT NULL,last_seen_at TEXT NOT NULL,user_agent TEXT NOT NULL,ip_address TEXT NOT NULL,tenant_id TEXT NOT NULL)`,
 	} {
 		if _, err := db.Exec(statement); err != nil {

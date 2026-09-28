@@ -58,6 +58,23 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if u.Email != "admin@hydrogo.io" {
 		t.Fatalf("expected normalized lowercase email, got: %s", u.Email)
 	}
+	verification := auth.EmailVerificationService{Users: userStore, Tokens: userStore}
+	var verificationToken string
+	verificationTx := database.NewTenantTransactor(db, dialect, false)
+	if err := verificationTx.Within(ctx, func(tx database.Executor) error {
+		_, token, err := verification.Issue(ctx, tx, u, time.Hour)
+		verificationToken = token
+		return err
+	}); err != nil || verificationToken == "" {
+		t.Fatalf("issue verified-email token: token=%t err=%v", verificationToken != "", err)
+	}
+	if err := verificationTx.Within(ctx, func(tx database.Executor) error { return verification.Verify(ctx, tx, verificationToken) }); err != nil {
+		t.Fatalf("verify admin email: %v", err)
+	}
+	verifiedUser, err := userStore.GetByID(ctx, u.ID)
+	if err != nil || verifiedUser.EmailVerifiedAt == nil {
+		t.Fatalf("verified admin user=%+v err=%v", verifiedUser, err)
+	}
 
 	// 2. Duplicate email rejected
 	if _, err := authSvc.CreateUser(ctx, "admin@hydrogo.io", "pass", auth.RoleEditor); err != auth.ErrUserAlreadyExists {
@@ -208,6 +225,9 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if err != nil || invited.Role != auth.RoleEditor {
 		t.Fatalf("accept invitation = %#v/%v", invited, err)
 	}
+	if invited.EmailVerifiedAt == nil {
+		t.Fatal("accepted email invitation did not verify the invited address")
+	}
 	if _, err := authSvc.Authenticate(ctx, invited.Email, "InvitedStrongPassword123!"); err != nil {
 		t.Fatalf("invited user authentication failed: %v", err)
 	}
@@ -216,5 +236,25 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 		return inner
 	}); !errors.Is(err, auth.ErrInviteInvalid) {
 		t.Fatalf("second invitation acceptance = %v, want invalid invitation", err)
+	}
+	unverified := &auth.User{ID: "change-email-user", Email: "before@example.test", PasswordHash: "unused", Role: auth.RoleAdmin, Active: true}
+	if err := userStore.Create(ctx, unverified); err != nil {
+		t.Fatal(err)
+	}
+	var pendingToken string
+	if err := verificationTx.Within(ctx, func(tx database.Executor) error {
+		_, token, issueErr := verification.Issue(ctx, tx, unverified, time.Hour)
+		pendingToken = token
+		return issueErr
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := verificationTx.Within(ctx, func(tx database.Executor) error {
+		return userStore.UpdateEmail(ctx, tx, unverified.ID, "after@example.test")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := verificationTx.Within(ctx, func(tx database.Executor) error { return verification.Verify(ctx, tx, pendingToken) }); !errors.Is(err, auth.ErrEmailVerificationInvalid) {
+		t.Fatalf("old address verification token = %v, want invalid", err)
 	}
 }

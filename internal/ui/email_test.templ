@@ -1,13 +1,24 @@
 package ui
 
-templ EmailTestPreviewForm(csrf string) {
+templ EmailTestPreviewForm(csrf string, verified, verificationSent bool) {
 	<section class="studio-card">
 		<h1>Test email preview</h1>
-		<p>Send the current HydroGo email layout with sample account, reset-link and verification-code values to your signed-in address.</p>
-		<form method="post" action="/admin/api/mailer/test-preview" hx-post="/admin/api/mailer/test-preview" hx-target="#email-test-result" hx-swap="innerHTML">
-			<input type="hidden" name="_csrf" value={ csrf } />
-			<button type="submit" class="button button-primary">Send test email to my inbox</button>
-		</form>
+		if verified {
+			<p>Send the current HydroGo email layout with sample account, reset-link and verification-code values to your verified address.</p>
+			<form method="post" action="/admin/api/mailer/test-preview" hx-post="/admin/api/mailer/test-preview" hx-target="#email-test-result" hx-swap="innerHTML">
+				<input type="hidden" name="_csrf" value={ csrf } />
+				<button type="submit" class="button button-primary">Send test email to my inbox</button>
+			</form>
+		} else {
+			<p>Confirm your address before sending a test message.</p>
+			if verificationSent {
+				<p role="status">A confirmation link was sent to your account address.</p>
+			}
+			<form method="post" action="/auth/me/email/verification">
+				<input type="hidden" name="_csrf" value={ csrf } />
+				<button type="submit" class="button button-primary">Send confirmation link</button>
+			</form>
+		}
 		<div id="email-test-result" aria-live="polite"></div>
 	</section>
 }

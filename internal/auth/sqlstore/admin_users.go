@@ -18,13 +18,13 @@ func (s *UserStore) List(ctx context.Context) ([]*auth.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users ORDER BY email`
+	query := `SELECT id, email, password_hash, role, active, created_at, updated_at, email_verified_at FROM users ORDER BY email`
 	args := []any{}
 	if s.RequireTenantScope {
-		query = `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE tenant_id = $1 ORDER BY email`
+		query = `SELECT id, email, password_hash, role, active, created_at, updated_at, email_verified_at FROM users WHERE tenant_id = $1 ORDER BY email`
 		args = append(args, tenantID)
 		if s.dialect == database.SQLite {
-			query = `SELECT id, email, password_hash, role, active, created_at, updated_at FROM users WHERE tenant_id = ? ORDER BY email`
+			query = `SELECT id, email, password_hash, role, active, created_at, updated_at, email_verified_at FROM users WHERE tenant_id = ? ORDER BY email`
 		}
 	}
 	var users []*auth.User
@@ -42,14 +42,15 @@ func (s *UserStore) List(ctx context.Context) ([]*auth.User, error) {
 			u := &auth.User{}
 			var role string
 			var active any
-			var created, updated any
-			if scanErr := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &role, &active, &created, &updated); scanErr != nil {
+			var created, updated, verified any
+			if scanErr := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &role, &active, &created, &updated, &verified); scanErr != nil {
 				return scanErr
 			}
 			u.Role = auth.Role(role)
 			u.Active = parseActive(active)
 			u.CreatedAt = parseTime(created)
 			u.UpdatedAt = parseTime(updated)
+			u.EmailVerifiedAt = parseOptionalTime(verified)
 			users = append(users, u)
 		}
 		return rows.Err()

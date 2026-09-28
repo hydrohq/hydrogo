@@ -2,6 +2,7 @@
 package mailer
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -199,4 +200,15 @@ func formatMessage(from string, message Message) string {
 	writeQuotedPart("text/html; charset=utf-8", message.HTMLBody)
 	_ = writer.Close()
 	return body.String()
+}
+
+func (n NotificationSender) SendEmailVerification(ctx context.Context, email, link string) error {
+	if guards.IsNil(n.Sender) {
+		return ErrSenderRequired
+	}
+	var html bytes.Buffer
+	if err := EmailVerificationEmail(link).Render(ctx, &html); err != nil {
+		return err
+	}
+	return n.Sender.Send(ctx, Message{To: email, Subject: "Confirm your HydroGo email address", Body: "Confirm your email address using this one-time link:\n" + link, HTMLBody: html.String()})
 }

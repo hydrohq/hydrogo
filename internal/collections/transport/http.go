@@ -1,6 +1,7 @@
 package transport
 
 import (
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,11 +20,16 @@ import (
 
 type Handler struct{ Service collections.Service }
 
+//go:embed assets/schema-builder.js
+var schemaBuilderJS []byte
+
 func (h Handler) Routes() []router.Route {
 	admin := router.Protected
 	return []router.Route{
 		{Pattern: "GET /admin/collections", Access: admin, Handler: http.HandlerFunc(h.adminIndex)},
 		{Pattern: "POST /admin/collections", Access: admin, Handler: http.HandlerFunc(h.adminCreateSchema)},
+		{Pattern: "GET /admin/collections/schema-builder.js", Access: admin, Handler: http.HandlerFunc(serveSchemaBuilder)},
+		{Pattern: "POST /admin/collections/{collection}/delete", Access: admin, Handler: http.HandlerFunc(h.adminDeleteSchema)},
 		{Pattern: "GET /admin/collections/{collection}", Access: admin, Handler: http.HandlerFunc(h.adminRecords)},
 		{Pattern: "POST /admin/collections/{collection}/records", Access: admin, Handler: http.HandlerFunc(h.adminCreateRecord)},
 		{Pattern: "GET /admin/collections/{collection}/records/{id}", Access: admin, Handler: http.HandlerFunc(h.adminEditRecord)},
@@ -31,6 +37,7 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "POST /admin/collections/{collection}/records/{id}/delete", Access: admin, Handler: http.HandlerFunc(h.adminDeleteRecord)},
 		{Pattern: "GET /api/v1/collections", Access: admin, Handler: http.HandlerFunc(h.apiSchemas)},
 		{Pattern: "GET /api/v1/collections/{collection}", Access: admin, Handler: http.HandlerFunc(h.apiSchema)},
+		{Pattern: "DELETE /api/v1/collections/{collection}", Access: admin, Handler: http.HandlerFunc(h.apiDeleteSchema)},
 		{Pattern: "GET /api/v1/collections/{collection}/records", Access: admin, Handler: http.HandlerFunc(h.apiRecords)},
 		{Pattern: "POST /api/v1/collections/{collection}/records", Access: admin, Handler: http.HandlerFunc(h.apiCreateRecord)},
 		{Pattern: "GET /api/v1/collections/{collection}/records/{id}", Access: admin, Handler: http.HandlerFunc(h.apiGetRecord)},
@@ -72,7 +79,7 @@ func (h Handler) adminCreateSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	schema := collections.Schema{ID: strings.TrimSpace(r.FormValue("id")), Label: strings.TrimSpace(r.FormValue("label")), Description: strings.TrimSpace(r.FormValue("description"))}
-	for i := 0; i < 8; i++ {
+	for i := 0; i < collections.MaxFields; i++ {
 		id := strings.TrimSpace(r.FormValue(field("id", i)))
 		label := strings.TrimSpace(r.FormValue(field("label", i)))
 		if id == "" && label == "" {
@@ -81,6 +88,17 @@ func (h Handler) adminCreateSchema(w http.ResponseWriter, r *http.Request) {
 		kind := collections.FieldKind(r.FormValue(field("kind", i)))
 		setting := strings.TrimSpace(r.FormValue(field("options", i)))
 		entry := collections.Field{ID: id, Label: label, Kind: kind, Required: r.FormValue(field("required", i)) == "true", Unique: r.FormValue(field("unique", i)) == "true"}
+		var err error
+		entry.Min, err = parseOptionalBound(r.FormValue(field("min", i)))
+		if err != nil {
+			http.Error(w, "invalid field limits", http.StatusBadRequest)
+			return
+		}
+		entry.Max, err = parseOptionalBound(r.FormValue(field("max", i)))
+		if err != nil {
+			http.Error(w, "invalid field limits", http.StatusBadRequest)
+			return
+		}
 		if kind == collections.Select || kind == collections.MultiSelect {
 			for _, option := range strings.Split(setting, ",") {
 				if option = strings.TrimSpace(option); option != "" {
@@ -97,6 +115,61 @@ func (h Handler) adminCreateSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/collections/"+url.PathEscape(schema.ID), http.StatusSeeOther)
+}
+
+func parseOptionalBound(value string) (*float64, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+	n, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return nil, err
+	}
+	return &n, nil
+}
+
+func serveSchemaBuilder(w http.ResponseWriter, r *http.Request) {
+	if !admin(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_, _ = w.Write(schemaBuilderJS)
+}
+
+func (h Handler) adminDeleteSchema(w http.ResponseWriter, r *http.Request) {
+	if !admin(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid confirmation", http.StatusBadRequest)
+		return
+	}
+	id := r.PathValue("collection")
+	if r.FormValue("confirm_schema") != id {
+		http.Error(w, "schema deletion must be confirmed", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.DeleteSchema(r.Context(), id); err != nil {
+		http.Error(w, "schema could not be deleted", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, "/admin/collections", http.StatusSeeOther)
+}
+
+func (h Handler) apiDeleteSchema(w http.ResponseWriter, r *http.Request) {
+	if !admin(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := h.Service.DeleteSchema(r.Context(), r.PathValue("collection")); err != nil {
+		apiError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handler) adminRecords(w http.ResponseWriter, r *http.Request) {
@@ -385,6 +458,13 @@ func apiError(w http.ResponseWriter, err error) {
 	if errors.Is(err, collections.ErrUniqueValue) {
 		status = http.StatusConflict
 	}
-	writeJSON(w, status, map[string]string{"error": err.Error()})
+	message := "collection request could not be completed"
+	if status == http.StatusNotFound {
+		message = "collection or record not found"
+	}
+	if status == http.StatusConflict {
+		message = "a field value conflicts with an existing record"
+	}
+	writeJSON(w, status, map[string]string{"error": message})
 }
 func _unused(v any) string { return fmt.Sprint(v) }

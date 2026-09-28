@@ -1,0 +1,27 @@
+id: "202609290003_push"
+module: "push"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "f16cc22bbcc683b11e3c527179d19dcf468f8ac5a33f1dfe03961f85949d4dc7"
+  postgres: "65968bb5c3f1b70553d4f034025fbd0a34836e8c881a53c4a2375f2793af6872"
+  mysql: "e7102b160b1820d90c5670df7d2a8241730a018d49fa2081f6579aa241bd7234"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Core migration ledger and tenant contract are installed"
+lock_timeout: "bounded by migration runner deadline"
+disk_estimate: "One subscription table with tenant, platform and active broadcast index"
+compatibility: "Optional push module; web and FCM subscriptions share a fixed versioned table"
+smoke:
+  - "Subscription replacement is scoped by tenant and authenticated owner"
+  - "Only active devices in the current tenant are broadcast targets"
+restart: "Safe to rerun; checksums are verified by migration runner"
+rollback: "Disable push module after removing subscriptions or export device registrations first"

@@ -61,14 +61,14 @@ func (s *UserStore) UpdateEmail(ctx context.Context, tx database.Executor, userI
 	if err != nil {
 		return err
 	}
-	query := `UPDATE users SET email = $1, updated_at = $2 WHERE id = $3`
+	query := `UPDATE users SET email = $1, email_verified_at = NULL, updated_at = $2 WHERE id = $3`
 	args := []any{auth.NormalizeEmail(email), time.Now().UTC(), userID}
 	if s.RequireTenantScope {
 		query += ` AND tenant_id = $4`
 		args = append(args, tenantID)
 	}
 	if s.dialect == database.SQLite {
-		query = `UPDATE users SET email = ?, updated_at = ? WHERE id = ?`
+		query = `UPDATE users SET email = ?, email_verified_at = NULL, updated_at = ? WHERE id = ?`
 		args = []any{auth.NormalizeEmail(email), time.Now().UTC().Format(time.RFC3339Nano), userID}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -85,6 +85,15 @@ func (s *UserStore) UpdateEmail(ctx context.Context, tx database.Executor, userI
 	}
 	if changed != 1 {
 		return auth.ErrUserNotFound
+	}
+	deleteTokens := `DELETE FROM auth_recovery_tokens WHERE user_id = ` + s.bind(1) + ` AND purpose = ` + s.bind(2)
+	deleteArgs := []any{userID, auth.EmailVerificationPurpose}
+	if s.RequireTenantScope {
+		deleteTokens += ` AND tenant_id = ` + s.bind(3)
+		deleteArgs = append(deleteArgs, tenantID)
+	}
+	if _, err := tx.ExecContext(ctx, deleteTokens, deleteArgs...); err != nil {
+		return err
 	}
 	return nil
 }
@@ -189,6 +198,30 @@ func (s *UserStore) ConsumeRecoveryToken(ctx context.Context, tx database.Execut
 	changed, err := result.RowsAffected()
 	if err != nil || changed != 1 {
 		return "", fmt.Errorf("consume recovery token: %w", auth.ErrRecoveryTokenInvalid)
+	}
+	return userID, nil
+}
+
+func (s *UserStore) FindEmailVerificationOwnerTx(ctx context.Context, tx database.Executor, tokenHash string, now time.Time) (string, error) {
+	if err := requireUserStore(s); err != nil {
+		return "", err
+	}
+	if err := requireAuthExecutor(tx); err != nil {
+		return "", err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return "", err
+	}
+	query := `SELECT user_id FROM auth_recovery_tokens WHERE purpose=` + s.bind(1) + ` AND token_hash=` + s.bind(2) + ` AND consumed_at IS NULL AND expires_at>` + s.bind(3)
+	args := []any{auth.EmailVerificationPurpose, tokenHash, s.dbTime(now)}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id=` + s.bind(4)
+		args = append(args, tenantID)
+	}
+	var userID string
+	if err := tx.QueryRowContext(ctx, query, args...).Scan(&userID); err != nil {
+		return "", auth.ErrEmailVerificationInvalid
 	}
 	return userID, nil
 }
