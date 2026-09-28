@@ -187,7 +187,10 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStartForRequest(w, r, "Haberler", "", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="table-wrap">`)
+	if err := ui.ListViewSwitcher("admin-content-list", "hydro-view-content").Render(r.Context(), w); err != nil {
+		return
+	}
+	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="table-wrap" id="admin-content-list" data-view-mode="table">`)
 	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		return
