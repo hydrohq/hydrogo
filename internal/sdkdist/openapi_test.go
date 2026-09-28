@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -43,6 +44,15 @@ func TestGenerateOpenAPISDKCreatesBothClientsDeterministically(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, "typescript/package.json")); err != nil {
 		t.Fatalf("TypeScript package metadata missing: %v", err)
+	}
+	tsconfig, err := os.ReadFile(filepath.Join(out, "typescript/tsconfig.json"))
+	if err != nil {
+		t.Fatalf("TypeScript compiler config missing: %v", err)
+	}
+	for _, option := range []string{`"strict": true`, `"exactOptionalPropertyTypes": true`, `"noUncheckedIndexedAccess": true`, `"noEmit": true`} {
+		if !strings.Contains(string(tsconfig), option) {
+			t.Errorf("TypeScript compiler config missing %q: %s", option, tsconfig)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(out, "dart/pubspec.yaml")); err != nil {
 		t.Fatalf("Dart package metadata missing: %v", err)
@@ -92,19 +102,93 @@ func TestRepositoryPublicOpenAPIContractGeneratesTypedResponses(t *testing.T) {
 	}
 }
 
+func TestRepositoryMobileOpenAPIContractsGenerateTypedClients(t *testing.T) {
+	for _, name := range []string{"mobile-v1.openapi.json", "member-mobile-v1.openapi.json"} {
+		t.Run(name, func(t *testing.T) {
+			spec := filepath.Join("..", "..", "docs", "api", name)
+			out := t.TempDir()
+			if _, err := GenerateOpenAPISDK(spec, out, SDKAll); err != nil {
+				t.Fatal(err)
+			}
+			for _, generated := range []string{"typescript/client.ts", "dart/lib/hydro_client.dart"} {
+				generatedPath := filepath.Join(out, generated)
+				if info, err := os.Stat(generatedPath); err != nil || info.Size() == 0 {
+					t.Errorf("generated %s missing or empty: %v", generated, err)
+					continue
+				}
+				code, err := os.ReadFile(generatedPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.HasSuffix(generated, ".ts") && regexp.MustCompile(`\bany\b`).Match(code) {
+					t.Error("generated TypeScript contains any")
+				}
+				if strings.HasSuffix(generated, ".dart") && regexp.MustCompile(`\bdynamic\b`).Match(code) {
+					t.Error("generated Dart contains dynamic")
+				}
+			}
+		})
+	}
+}
+
+func TestOpenAPIDocumentRejectsUnresolvedAndExternalReferences(t *testing.T) {
+	tests := []struct {
+		name string
+		spec string
+	}{
+		{name: "unresolved", spec: `{"openapi":"3.1.0","info":{"title":"API","version":"1"},"paths":{"/items":{"get":{"responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Missing"}}}}}}}},"components":{"schemas":{}}}`},
+		{name: "external", spec: `{"openapi":"3.1.0","info":{"title":"API","version":"1"},"paths":{"/items":{"get":{"responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"$ref":"https://example.test/schema.json"}}}}}}}}}`},
+		{name: "missing-info", spec: `{"openapi":"3.1.0","paths":{"/items":{"get":{"responses":{"200":{"description":"ok"}}}}}}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "openapi.json")
+			if err := os.WriteFile(path, []byte(test.spec), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := GenerateOpenAPISDK(path, filepath.Join(t.TempDir(), "sdk"), SDKAll); err == nil {
+				t.Fatal("invalid OpenAPI document accepted")
+			}
+		})
+	}
+}
+
 func TestSDKOperationsRecognizesNoContentResponses(t *testing.T) {
-	responses := map[string]struct {
-		Content map[string]struct {
-			Schema json.RawMessage `json:"schema"`
-		} `json:"content"`
-	}{"204": {}}
-	operations := sdkOperations(map[string]openAPIPathItem{"/items/{id}": {Delete: openAPIOperation{OperationID: "deleteItem", Responses: responses}}})
+	responses := map[string]openAPIResponse{"204": {}}
+	operations, err := sdkOperations(openAPIDocument{Paths: map[string]openAPIPathItem{"/items/{id}": {Delete: openAPIOperation{OperationID: "deleteItem", Responses: responses}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(operations) != 1 || !operations[0].NoContent {
 		t.Fatalf("no-content operation = %+v", operations)
 	}
 	data := buildSDKTemplateData(openAPIDocument{}, operations)
 	if data.Operations[0].TSReturnType != "void" || data.Operations[0].DartReturnType != "void" {
 		t.Fatalf("no-content generated types = %+v", data.Operations[0])
+	}
+}
+
+func TestSDKOperationsResolvesReusableRequestBodiesAndResponses(t *testing.T) {
+	doc := openAPIDocument{
+		Info: struct {
+			Title   string `json:"title"`
+			Version string `json:"version"`
+		}{Title: "API", Version: "1.0.0"},
+		Paths: map[string]openAPIPathItem{"/items": {Post: openAPIOperation{
+			OperationID: "createItem",
+			RequestBody: openAPIRequestBody{Ref: "#/components/requestBodies/CreateItem"},
+			Responses:   map[string]openAPIResponse{"201": {Ref: "#/components/responses/CreatedItem"}},
+		}}},
+	}
+	doc.Components.Schemas = map[string]json.RawMessage{"Item": json.RawMessage(`{"type":"object","properties":{"id":{"type":"string"}}}`)}
+	doc.Components.RequestBodies = map[string]openAPIRequestBody{"CreateItem": {Required: true, Content: map[string]openAPIMediaType{"application/json": {Schema: json.RawMessage(`{"$ref":"#/components/schemas/Item"}`)}}}}
+	doc.Components.Responses = map[string]openAPIResponse{"CreatedItem": {Content: map[string]openAPIMediaType{"application/json": {Schema: json.RawMessage(`{"$ref":"#/components/schemas/Item"}`)}}}}
+	operations, err := sdkOperations(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(operations) != 1 || !operations[0].BodyRequired || string(operations[0].BodySchema) != `{"$ref":"#/components/schemas/Item"}` || string(operations[0].ReturnSchema) != string(operations[0].BodySchema) {
+		t.Fatalf("resolved operation = %+v", operations)
 	}
 }
 

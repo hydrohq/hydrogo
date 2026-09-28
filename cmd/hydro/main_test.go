@@ -445,7 +445,7 @@ func TestSeedDemoPostgresIntegration(t *testing.T) {
 func TestSDKGenerateCommandWritesTypeScriptAndDartClients(t *testing.T) {
 	root := t.TempDir()
 	spec := filepath.Join(root, "api.json")
-	if err := os.WriteFile(spec, []byte(`{"openapi":"3.1.0","info":{"version":"1"},"paths":{"/pages":{"get":{"operationId":"listPages"}}}}`), 0o600); err != nil {
+	if err := os.WriteFile(spec, []byte(`{"openapi":"3.1.0","info":{"title":"API","version":"1"},"paths":{"/pages":{"get":{"operationId":"listPages","responses":{"200":{"description":"OK"}}}}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out := filepath.Join(root, "sdk")
