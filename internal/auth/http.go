@@ -78,10 +78,11 @@ type HTTPHandler struct {
 	Invitation             *InvitationService
 	InviteDB               database.Executor
 	InviteNotice           InviteNotifier
+	SocialOAuth            *SocialOAuthHandler
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
-	return []HTTPRoute{
+	routes := []HTTPRoute{
 		{Pattern: "POST /auth/login", Public: true, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
@@ -96,6 +97,12 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /admin/auth/invites", Handler: http.HandlerFunc(h.issueInvite)},
 		{Pattern: "POST /auth/invites/accept", Public: true, Handler: http.HandlerFunc(h.acceptInvite)},
 	}
+	if h.SocialOAuth != nil {
+		social := *h.SocialOAuth
+		social.Secure = h.Secure
+		routes = append(routes, social.Routes()...)
+	}
+	return routes
 }
 
 func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {

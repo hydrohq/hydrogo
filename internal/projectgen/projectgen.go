@@ -151,7 +151,7 @@ func Generate(opts Options) (string, error) {
 	// generated lockfile cannot disagree about mixed-case CLI input.
 	opts.Preset = strings.ToLower(strings.TrimSpace(opts.Preset))
 	if !isPreset(opts.Preset) {
-		return "", fmt.Errorf("%w: %q (supported: news, editorial, membership, dashboard, erp, compact-site, corporate, portal, headless)", ErrUnsupportedPreset, opts.Preset)
+		return "", fmt.Errorf("%w: %q (supported: news, editorial, membership, dashboard, erp, compact-site, corporate, agency, saas, portal, headless)", ErrUnsupportedPreset, opts.Preset)
 	}
 	if opts.Profile == "" {
 		opts.Profile = "compact"
@@ -246,24 +246,27 @@ func Generate(opts Options) (string, error) {
 	}
 
 	files := map[string]string{
-		"config.yaml":           configTemplate(opts, lock, themeName),
-		"hydrogo.lock":          mustJSON(lock),
-		"README.md":             readmeTemplate(opts, lock),
-		"PROJECT_STATUS.md":     projectStatusTemplate(opts),
-		"TASKS.md":              tasksTemplate(opts),
-		"LICENSE":               licenseDraftTemplate(opts),
-		"NOTICE":                noticeTemplate(),
-		"docs/ARCHITECTURE.md":  architectureDocTemplate(opts, lock),
-		"docs/OPERATIONS.md":    operationsDocTemplate(opts),
-		"docs/SDK.md":           sdkDocTemplate(opts, lock),
-		"docs/E2E_GUIDE.md":     e2eDocTemplate(opts),
-		"UPGRADE.md":            upgradeGuideTemplate(opts, lock),
-		"e2e/manifest.json":     e2eManifestJSON,
-		"frontend/starter.json": starterManifest(opts, lock),
-		"frontend/README.md":    frontendStarterReadme(opts),
-		"frontend/contracts.ts": frontendContractsTemplate(),
-		"custom/README.md":      "# Custom Business Logic\n\nPlace client-specific handlers, extension hooks, and integrations here.\nHydroGo Core remains external and is not modified in this project.\n",
-		"migrations/README.md":  "# Project Migrations\n\nPlace project-specific SQL migrations here. HydroGo Core migrations are applied automatically by the licensed runtime.\n",
+		"config.yaml":                configTemplate(opts, lock, themeName),
+		"hydrogo.lock":               mustJSON(lock),
+		"README.md":                  readmeTemplate(opts, lock),
+		"PROJECT_STATUS.md":          projectStatusTemplate(opts),
+		"TASKS.md":                   tasksTemplate(opts),
+		"LICENSE":                    licenseDraftTemplate(opts),
+		"NOTICE":                     noticeTemplate(),
+		"docs/ARCHITECTURE.md":       architectureDocTemplate(opts, lock),
+		"docs/OPERATIONS.md":         operationsDocTemplate(opts),
+		"docs/SDK.md":                sdkDocTemplate(opts, lock),
+		"docs/E2E_GUIDE.md":          e2eDocTemplate(opts),
+		"UPGRADE.md":                 upgradeGuideTemplate(opts, lock),
+		"e2e/manifest.json":          e2eManifestJSON,
+		"frontend/starter.json":      starterManifest(opts, lock),
+		"frontend/README.md":         frontendStarterReadme(opts),
+		"frontend/next/package.json": frontendNextPackage(opts),
+		"frontend/next/app/page.tsx": frontendNextPage(opts),
+		"frontend/next/README.md":    frontendNextReadme(opts),
+		"frontend/contracts.ts":      frontendContractsTemplate(),
+		"custom/README.md":           "# Custom Business Logic\n\nPlace client-specific handlers, extension hooks, and integrations here.\nHydroGo Core remains external and is not modified in this project.\n",
+		"migrations/README.md":       "# Project Migrations\n\nPlace project-specific SQL migrations here. HydroGo Core migrations are applied automatically by the licensed runtime.\n",
 	}
 
 	// Preset theme files
@@ -373,9 +376,35 @@ export type AnalyticsEvent = { type: 'page_view' | 'session_duration' | 'country
 `
 }
 
+func frontendNextPackage(opts Options) string {
+	data, _ := json.MarshalIndent(map[string]any{
+		"name":            strings.ToLower(strings.ReplaceAll(opts.Name, "_", "-")) + "-web",
+		"private":         true,
+		"scripts":         map[string]string{"dev": "next dev", "build": "next build", "start": "next start"},
+		"dependencies":    map[string]string{"next": "^15.0.0", "react": "^19.0.0", "react-dom": "^19.0.0"},
+		"devDependencies": map[string]string{"typescript": "^5.0.0", "@types/node": "^22.0.0", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0"},
+	}, "", "  ")
+	return string(data) + "\n"
+}
+
+func frontendNextPage(opts Options) string {
+	return `import type { Metadata } from 'next';
+
+export const metadata: Metadata = { title: '` + strings.ReplaceAll(opts.Name, "'", "") + `' };
+
+export default function Home() {
+  return <main><h1>` + strings.ReplaceAll(opts.Name, "<", "") + `</h1><p>Connect this App Router frontend to HydroGo using the generated TypeScript SDK.</p></main>;
+}
+`
+}
+
+func frontendNextReadme(opts Options) string {
+	return "# Next.js App Router blueprint\n\nThis optional frontend runs separately from the HydroGo server. Install its declared development dependencies, then generate the typed client with `hydro sdk generate --lang=typescript --out=src/sdk` from the project root. Set the API base URL in the frontend deployment environment; never embed server credentials in browser code. The `" + opts.Preset + "` preset remains the backend configuration.\n"
+}
+
 func isPreset(value string) bool {
 	switch strings.ToLower(value) {
-	case "news", "editorial", "membership", "dashboard", "erp", "compact-site", "corporate", "portal", "headless":
+	case "news", "editorial", "membership", "dashboard", "erp", "compact-site", "corporate", "agency", "saas", "portal", "headless":
 		return true
 	default:
 		return false
@@ -386,7 +415,7 @@ func presetTheme(preset string) string {
 	switch strings.ToLower(preset) {
 	case "news", "editorial":
 		return "newsroom"
-	case "membership":
+	case "membership", "saas":
 		return "portal"
 	case "dashboard", "erp":
 		return "portal"
@@ -413,6 +442,10 @@ func presetFeatures(preset string) []string {
 		return []string{"pages", "news", "media", "members", "site"}
 	case "headless":
 		return []string{"pages", "news", "media", "members"}
+	case "agency":
+		return []string{"pages", "news", "media", "site", "forms", "locations", "team", "portfolio", "testimonials"}
+	case "saas":
+		return []string{"pages", "members", "media", "site", "forms", "jobs"}
 	default:
 		return []string{"pages", "media", "site"}
 	}
