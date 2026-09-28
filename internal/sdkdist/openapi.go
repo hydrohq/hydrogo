@@ -52,9 +52,10 @@ type openAPIOperation struct {
 }
 
 type openAPIParameter struct {
-	Name     string `json:"name"`
-	In       string `json:"in"`
-	Required bool   `json:"required"`
+	Name     string          `json:"name"`
+	In       string          `json:"in"`
+	Required bool            `json:"required"`
+	Schema   json.RawMessage `json:"schema"`
 }
 type openAPIPathItem struct {
 	Parameters []openAPIParameter `json:"parameters"`
@@ -63,6 +64,9 @@ type openAPIPathItem struct {
 	Put        openAPIOperation   `json:"put"`
 	Patch      openAPIOperation   `json:"patch"`
 	Delete     openAPIOperation   `json:"delete"`
+	Head       openAPIOperation   `json:"head"`
+	Options    openAPIOperation   `json:"options"`
+	Trace      openAPIOperation   `json:"trace"`
 }
 
 type sdkOperation struct {
@@ -73,6 +77,7 @@ type sdkOperation struct {
 	BodySchema   json.RawMessage
 	BodyRequired bool
 	ReturnSchema json.RawMessage
+	NoContent    bool
 }
 
 type sdkParameter struct {
@@ -80,6 +85,7 @@ type sdkParameter struct {
 	WireName string
 	In       string
 	Required bool
+	Schema   json.RawMessage
 }
 
 var sdkIdentifier = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
@@ -120,6 +126,20 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 		}
 		files["dart/lib/hydro_client.dart"] = body
 	}
+	if language == SDKAll || language == SDKTypeScript {
+		packageJSON, _ := json.MarshalIndent(struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+			Type    string `json:"type"`
+			Exports string `json:"exports"`
+		}{Name: "hydro-sdk-client", Version: sdkPackageVersion(doc.Info.Version), Type: "module", Exports: "./client.ts"}, "", "  ")
+		files["typescript/package.json"] = append(packageJSON, '\n')
+		files["typescript/tsconfig.json"] = []byte("{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"NodeNext\",\n    \"moduleResolution\": \"NodeNext\",\n    \"strict\": true,\n    \"lib\": [\"ES2022\", \"DOM\"]\n  },\n  \"include\": [\"client.ts\"]\n}\n")
+	}
+	if language == SDKAll || language == SDKDart {
+		files["dart/pubspec.yaml"] = []byte("name: hydro_sdk_client\nversion: " + sdkPackageVersion(doc.Info.Version) + "\nenvironment:\n  sdk: '>=3.2.0 <4.0.0'\n\n# Uses dart:io and the Dart standard library; no package dependencies.\n")
+	}
+	files["README.md"] = []byte("# HydroGo generated SDKs\n\nClients generated from an OpenAPI 3.1 JSON document. TypeScript uses the Fetch API; Dart includes a standard-library `dart:io` transport for Flutter native and Dart server applications. Both allow a custom transport.\n\n- TypeScript: `typescript/client.ts`\n- Dart: `dart/lib/hydro_client.dart`\n- Source contract: supplied with `--openapi`\n\nGenerated files are deterministic for a given contract and generator version.\n")
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return nil, err
 	}
@@ -138,6 +158,15 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 	return written, nil
 }
 
+var sdkSemver = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$`)
+
+func sdkPackageVersion(value string) string {
+	if sdkSemver.MatchString(value) {
+		return value
+	}
+	return "0.0.0"
+}
+
 func writeSDKFile(path string, body []byte) error {
 	if err := os.WriteFile(path, body, 0o644); err != nil {
 		return err
@@ -148,7 +177,7 @@ func writeSDKFile(path string, body []byte) error {
 func sdkOperations(paths map[string]openAPIPathItem) []sdkOperation {
 	var result []sdkOperation
 	for path, pathItem := range paths {
-		methods := map[string]openAPIOperation{"get": pathItem.Get, "post": pathItem.Post, "put": pathItem.Put, "patch": pathItem.Patch, "delete": pathItem.Delete}
+		methods := map[string]openAPIOperation{"get": pathItem.Get, "post": pathItem.Post, "put": pathItem.Put, "patch": pathItem.Patch, "delete": pathItem.Delete, "head": pathItem.Head, "options": pathItem.Options, "trace": pathItem.Trace}
 		for method, operation := range methods {
 			if operation.OperationID == "" && len(operation.Parameters) == 0 && len(operation.Responses) == 0 && len(operation.RequestBody.Content) == 0 {
 				continue
@@ -163,7 +192,7 @@ func sdkOperations(paths map[string]openAPIPathItem) []sdkOperation {
 			params := make([]sdkParameter, 0, len(allParams))
 			for _, p := range allParams {
 				if p.In == "query" || p.In == "path" {
-					params = append(params, sdkParameter{Name: safeIdentifier(p.Name, "arg_"), WireName: p.Name, In: p.In, Required: p.Required || p.In == "path"})
+					params = append(params, sdkParameter{Name: safeIdentifier(p.Name, "arg_"), WireName: p.Name, In: p.In, Required: p.Required || p.In == "path", Schema: p.Schema})
 				}
 			}
 			sort.Slice(params, func(i, j int) bool {
@@ -175,6 +204,7 @@ func sdkOperations(paths map[string]openAPIPathItem) []sdkOperation {
 			item := sdkOperation{Name: name, Method: strings.ToUpper(method), Path: path, Parameters: params, BodyRequired: operation.RequestBody.Required}
 			item.BodySchema = mediaSchema(operation.RequestBody.Content)
 			item.ReturnSchema = successSchema(operation.Responses)
+			item.NoContent = operationHasOnlyNoContentResponses(operation.Responses)
 			result = append(result, item)
 		}
 	}
@@ -185,6 +215,24 @@ func sdkOperations(paths map[string]openAPIPathItem) []sdkOperation {
 		return result[i].Method < result[j].Method
 	})
 	return result
+}
+
+func operationHasOnlyNoContentResponses(responses map[string]struct {
+	Content map[string]struct {
+		Schema json.RawMessage `json:"schema"`
+	} `json:"content"`
+}) bool {
+	hasSuccess := false
+	for code, response := range responses {
+		if len(code) != 3 || code[0] != '2' {
+			continue
+		}
+		hasSuccess = true
+		if len(response.Content) > 0 {
+			return false
+		}
+	}
+	return hasSuccess
 }
 
 func safeIdentifier(value, fallback string) string {
@@ -247,7 +295,9 @@ export class FetchTransport implements HydroTransport {
     if (this.token) headers.set("Authorization", "Bearer " + this.token);
     const response = await fetch(this.baseUrl + path, { ...init, headers });
     if (!response.ok) throw new Error("Hydro API request failed: " + response.status);
-    return await response.json() as T;
+    const text = await response.text();
+    if (!text) return undefined as T;
+    return (response.headers.get("content-type")?.includes("json") ? JSON.parse(text) : text) as T;
   }
 }
 {{range .Schemas}}
@@ -258,7 +308,7 @@ export class HydroClient {
 {{range .Operations}}
   {{.Name}}({{.TSArgs}}): Promise<{{.TSReturnType}}> {
     const params = new URLSearchParams();
-{{range .QueryParameters}}    if ({{.Name}} !== undefined) params.set({{.TSWireName}}, {{.Name}});
+{{range .QueryParameters}}    if ({{.Name}} !== undefined) params.set({{.TSWireName}}, String({{.Name}}));
 {{end}}    const base = {{.TSPath}};
     const path = base + (params.size ? "?" + params.toString() : "");
     const init: RequestInit = { method: "{{.Method}}" };
@@ -275,9 +325,35 @@ export class HydroClient {
 func renderDart(doc openAPIDocument, operations []sdkOperation) ([]byte, error) {
 	const source = `// Generated from OpenAPI {{.Version}}. Do not edit.
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 abstract interface class HydroTransport {
   Future<T> request<T>(String path, {String method = 'GET', Object? body, required T Function(Object?) decode});
+}
+class HydroIOTransport implements HydroTransport {
+  HydroIOTransport(this.baseUrl, {this.token, HttpClient? client}) : client = client ?? HttpClient();
+  final String baseUrl;
+  final String? token;
+  final HttpClient client;
+  @override
+  Future<T> request<T>(String path, {String method = 'GET', Object? body, required T Function(Object?) decode}) async {
+    final request = await client.openUrl(method, Uri.parse(baseUrl).resolve(path));
+    request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+    if (token != null && token!.isNotEmpty) request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    if (body != null) {
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode(body));
+    }
+    final response = await request.close();
+    final text = await utf8.decoder.bind(response).join();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException('Hydro API request failed: ${response.statusCode}', uri: response.request.uri);
+    }
+    if (text.isEmpty) return decode(null);
+    final isJson = response.headers.contentType?.mimeType.toLowerCase().contains('json') ?? false;
+    return decode(isJson ? jsonDecode(text) : text);
+  }
 }
 {{range .Schemas}}
 class {{.Name}} {
@@ -285,8 +361,8 @@ class {{.Name}} {
     {{.DartConstructor}}
   });
 {{range .DartFields}}  final {{.Type}} {{.Name}};
-{{end}}{{range .DartFields}}
-{{end}}  factory {{.Name}}.fromJson(Map<String, Object?> json) => {{.Name}}({{.DartDecodeFields}});
+{{end}}  Map<String, Object?> toJson() => { {{.DartEncodeFields}} };
+  factory {{.Name}}.fromJson(Map<String, Object?> json) => {{.Name}}({{.DartDecodeFields}});
 }
 {{end}}
 
@@ -298,8 +374,8 @@ class HydroClient {
     {{.DartArgs}}
   }) {
     final query = <String, String>{};
-{{range .QueryParameters}}    {{if .Required}}query[{{.DartWireName}}] = {{.Name}};
-{{else}}if ({{.Name}} != null) query[{{.DartWireName}}] = {{.Name}};
+{{range .QueryParameters}}    {{if and .Required (not .Nullable)}}query[{{.DartWireName}}] = {{.Name}}.toString();
+{{else}}if ({{.Name}} != null) query[{{.DartWireName}}] = {{.Name}}.toString();
 {{end}}{{end}}    final suffix = query.isEmpty ? '' : '?' + Uri(queryParameters: query).query;
     return transport.request<{{.DartReturnType}}>({{.DartPath}} + suffix, method: '{{.Method}}'{{if .HasBody}}, body: body{{end}}, decode: {{.DartDecode}});
   }
@@ -310,8 +386,8 @@ class HydroClient {
 }
 
 type sdkSchema struct {
-	Name, Body, DartConstructor, DartDecodeFields string
-	DartFields                                    []sdkDartField
+	Name, Body, DartConstructor, DartDecodeFields, DartEncodeFields string
+	DartFields                                                      []sdkDartField
 }
 type sdkDartField struct {
 	Name, Type string
@@ -325,13 +401,16 @@ type sdkTemplateData struct {
 type sdkOperationData struct {
 	Name, Method, TSPath, DartPath                                       string
 	TSArgs, DartArgs, TSReturnType, DartReturnType, DartDecode, BodyName string
+	DartBodyType                                                         string
 	Parameters, QueryParameters                                          []sdkParameterData
 	HasBody                                                              bool
+	NoContent                                                            bool
 }
 type sdkParameterData struct {
 	Name, WireName, In       string
 	TSWireName, DartWireName string
-	Required                 bool
+	TSType, DartType         string
+	Required, Nullable       bool
 }
 
 func buildSDKTemplateData(doc openAPIDocument, operations []sdkOperation) sdkTemplateData {
@@ -343,27 +422,50 @@ func buildSDKTemplateData(doc openAPIDocument, operations []sdkOperation) sdkTem
 	sort.Strings(schemaNames)
 	for _, name := range schemaNames {
 		schemaName := typeName(name)
-		data.Schemas = append(data.Schemas, sdkSchema{Name: schemaName, Body: typescriptSchema(doc.Components.Schemas[name]), DartConstructor: dartConstructor(doc.Components.Schemas[name]), DartFields: dartFields(doc.Components.Schemas[name]), DartDecodeFields: dartDecodeFields(doc.Components.Schemas[name])})
+		data.Schemas = append(data.Schemas, sdkSchema{Name: schemaName, Body: typescriptSchema(doc.Components.Schemas[name]), DartConstructor: dartConstructor(doc.Components.Schemas[name]), DartFields: dartFields(doc.Components.Schemas[name]), DartDecodeFields: dartDecodeFields(doc.Components.Schemas[name]), DartEncodeFields: dartEncodeFields(doc.Components.Schemas[name])})
 	}
 	for _, operation := range operations {
-		item := sdkOperationData{Name: operation.Name, Method: operation.Method, TSReturnType: schemaTypeScript(operation.ReturnSchema), DartReturnType: schemaDart(operation.ReturnSchema), DartDecode: schemaDartDecode(operation.ReturnSchema)}
+		item := sdkOperationData{Name: operation.Name, Method: operation.Method, TSReturnType: schemaTypeScript(operation.ReturnSchema), DartReturnType: schemaDart(operation.ReturnSchema), DartDecode: schemaDartDecode(operation.ReturnSchema), NoContent: operation.NoContent}
+		if operation.NoContent {
+			item.TSReturnType = "void"
+			item.DartReturnType = "void"
+			item.DartDecode = "(value) => null"
+		}
 		item.TSPath, item.DartPath = clientPath(operation.Path, operation.Parameters)
 		item.HasBody = len(operation.BodySchema) > 0
 		if item.HasBody {
 			item.BodyName = "body"
+			item.DartBodyType = schemaDart(operation.BodySchema)
+			if !operation.BodyRequired && !schemaAllowsNull(operation.BodySchema) {
+				item.DartBodyType = strings.TrimSuffix(item.DartBodyType, "?") + "?"
+			}
 		}
+		requiredTSArgs := make([]string, 0, len(operation.Parameters)+1)
+		optionalTSArgs := make([]string, 0, len(operation.Parameters)+1)
 		for _, p := range operation.Parameters {
-			arg := sdkParameterData{Name: p.Name, WireName: p.WireName, In: p.In, Required: p.Required, TSWireName: strconv.Quote(p.WireName), DartWireName: strconv.Quote(p.WireName)}
+			tsType := "string"
+			dartParamType := "String"
+			if len(p.Schema) > 0 {
+				tsType = typescriptSchema(p.Schema)
+				dartParamType = strings.TrimSuffix(dartType(p.Schema), "?")
+				if !p.Required || schemaAllowsNull(p.Schema) {
+					dartParamType += "?"
+				}
+			} else if !p.Required {
+				dartParamType += "?"
+			}
+			arg := sdkParameterData{Name: p.Name, WireName: p.WireName, In: p.In, Required: p.Required, Nullable: schemaAllowsNull(p.Schema), TSWireName: strconv.Quote(p.WireName), DartWireName: strconv.Quote(p.WireName), TSType: tsType, DartType: dartParamType}
 			item.Parameters = append(item.Parameters, arg)
-			sepTS := ", "
-			if item.TSArgs == "" {
-				sepTS = ""
-			}
-			item.TSArgs += sepTS + p.Name
+			tsArg := p.Name
 			if !p.Required {
-				item.TSArgs += "?"
+				tsArg += "?"
 			}
-			item.TSArgs += ": string"
+			tsArg += ": " + tsType
+			if p.Required {
+				requiredTSArgs = append(requiredTSArgs, tsArg)
+			} else {
+				optionalTSArgs = append(optionalTSArgs, tsArg)
+			}
 			sepDart := ", "
 			if item.DartArgs == "" {
 				sepDart = ""
@@ -372,10 +474,7 @@ func buildSDKTemplateData(doc openAPIDocument, operations []sdkOperation) sdkTem
 			if p.Required {
 				item.DartArgs += "required "
 			}
-			item.DartArgs += "String"
-			if !p.Required {
-				item.DartArgs += "?"
-			}
+			item.DartArgs += dartParamType
 			item.DartArgs += " " + p.Name
 			if p.In == "query" {
 				item.QueryParameters = append(item.QueryParameters, arg)
@@ -385,49 +484,44 @@ func buildSDKTemplateData(doc openAPIDocument, operations []sdkOperation) sdkTem
 			}
 		}
 		if item.HasBody {
-			if item.TSArgs != "" {
-				item.TSArgs += ", "
-			}
-			item.TSArgs += "body"
+			bodyArg := "body"
 			if !operation.BodyRequired {
-				item.TSArgs += "?"
+				bodyArg += "?"
 			}
-			item.TSArgs += ": " + schemaTypeScript(operation.BodySchema)
+			bodyArg += ": " + schemaTypeScript(operation.BodySchema)
+			if operation.BodyRequired {
+				requiredTSArgs = append(requiredTSArgs, bodyArg)
+			} else {
+				optionalTSArgs = append(optionalTSArgs, bodyArg)
+			}
 			if item.DartArgs != "" {
 				item.DartArgs += ", "
 			}
 			if operation.BodyRequired {
 				item.DartArgs += "required "
 			}
-			item.DartArgs += "Object? body"
+			item.DartArgs += item.DartBodyType + " body"
 		}
+		item.TSArgs = strings.Join(append(requiredTSArgs, optionalTSArgs...), ", ")
 		data.Operations = append(data.Operations, item)
 	}
 	return data
 }
 
 func dartFields(raw json.RawMessage) []sdkDartField {
-	var schema struct {
-		Type       string                     `json:"type"`
-		Properties map[string]json.RawMessage `json:"properties"`
-		Required   []string                   `json:"required"`
-	}
-	if json.Unmarshal(raw, &schema) != nil || schema.Type != "object" {
+	properties, required := dartObjectShape(raw)
+	if len(properties) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(schema.Properties))
-	for key := range schema.Properties {
+	keys := make([]string, 0, len(properties))
+	for key := range properties {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	fields := make([]sdkDartField, 0, len(keys))
-	required := make(map[string]bool, len(schema.Required))
-	for _, key := range schema.Required {
-		required[key] = true
-	}
 	for _, key := range keys {
-		typeName := strings.TrimSuffix(dartType(schema.Properties[key]), "?")
-		if !required[key] {
+		typeName := strings.TrimSuffix(dartType(properties[key]), "?")
+		if !required[key] || schemaAllowsNull(properties[key]) {
 			typeName += "?"
 		}
 		fields = append(fields, sdkDartField{Name: safeIdentifier(key, "field_"), Type: typeName, Required: required[key]})
@@ -449,27 +543,68 @@ func dartConstructor(raw json.RawMessage) string {
 }
 
 func dartDecodeFields(raw json.RawMessage) string {
-	var schema struct {
-		Properties map[string]json.RawMessage `json:"properties"`
-	}
-	if json.Unmarshal(raw, &schema) != nil {
-		return ""
-	}
-	keys := make([]string, 0, len(schema.Properties))
-	for key := range schema.Properties {
+	properties, required := dartObjectShape(raw)
+	keys := make([]string, 0, len(properties))
+	for key := range properties {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	values := make([]string, 0, len(keys))
 	for _, key := range keys {
-		values = append(values, safeIdentifier(key, "field_")+": "+dartDecodeValue(schema.Properties[key], "json["+strconv.Quote(key)+"]"))
+		values = append(values, safeIdentifier(key, "field_")+": "+dartDecodeValue(properties[key], "json["+strconv.Quote(key)+"]", required[key]))
 	}
 	return strings.Join(values, ", ")
 }
 
-func dartDecodeValue(raw json.RawMessage, value string) string {
+func dartEncodeFields(raw json.RawMessage) string {
+	properties, _ := dartObjectShape(raw)
+	keys := make([]string, 0, len(properties))
+	for key := range properties {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	fields := make([]string, 0, len(keys))
+	for _, key := range keys {
+		fields = append(fields, strconv.Quote(key)+": "+safeIdentifier(key, "field_"))
+	}
+	return strings.Join(fields, ", ")
+}
+
+func dartObjectShape(raw json.RawMessage) (map[string]json.RawMessage, map[string]bool) {
+	properties := make(map[string]json.RawMessage)
+	required := make(map[string]bool)
+	var collect func(json.RawMessage) bool
+	collect = func(document json.RawMessage) bool {
+		var schema struct {
+			Type       string                     `json:"type"`
+			Properties map[string]json.RawMessage `json:"properties"`
+			Required   []string                   `json:"required"`
+			AllOf      []json.RawMessage          `json:"allOf"`
+		}
+		if json.Unmarshal(document, &schema) != nil {
+			return false
+		}
+		isObject := schema.Type == "object" || len(schema.Properties) > 0
+		for key, value := range schema.Properties {
+			properties[key] = value
+		}
+		for _, key := range schema.Required {
+			required[key] = true
+		}
+		for _, part := range schema.AllOf {
+			isObject = collect(part) || isObject
+		}
+		return isObject
+	}
+	if !collect(raw) {
+		return nil, nil
+	}
+	return properties, required
+}
+
+func dartDecodeValue(raw json.RawMessage, value string, required bool) string {
 	var schema struct {
-		Type  string          `json:"type"`
+		Type  json.RawMessage `json:"type"`
 		Ref   string          `json:"$ref"`
 		Items json.RawMessage `json:"items"`
 	}
@@ -477,19 +612,43 @@ func dartDecodeValue(raw json.RawMessage, value string) string {
 		return value
 	}
 	if schema.Ref != "" {
-		return typeName(strings.TrimPrefix(schema.Ref, "#/components/schemas/")) + ".fromJson(Map<String, Object?>.from(" + value + " as Map))"
+		call := typeName(strings.TrimPrefix(schema.Ref, "#/components/schemas/")) + ".fromJson(Map<String, Object?>.from(" + value + " as Map))"
+		if schemaAllowsNull(raw) {
+			return value + " == null ? null : " + call
+		}
+		return call
 	}
-	switch schema.Type {
+	types, _ := jsonSchemaTypes(schema.Type)
+	if len(types) != 1 {
+		return value
+	}
+	nonNullable := required && !schemaAllowsNull(raw)
+	switch types[0] {
 	case "string":
+		if nonNullable {
+			return value + " as String"
+		}
 		return value + " as String?"
 	case "integer":
+		if nonNullable {
+			return "(" + value + " as num).toInt()"
+		}
 		return "(" + value + " as num?)?.toInt()"
 	case "number":
+		if nonNullable {
+			return "(" + value + " as num).toDouble()"
+		}
 		return "(" + value + " as num?)?.toDouble()"
 	case "boolean":
+		if nonNullable {
+			return value + " as bool"
+		}
 		return value + " as bool?"
 	case "array":
-		return "(" + value + " as List?)?.map((item) => " + dartDecodeValue(schema.Items, "item") + ").toList()"
+		if nonNullable {
+			return "(" + value + " as List).map((item) => " + dartDecodeValue(schema.Items, "item", false) + ").toList()"
+		}
+		return "(" + value + " as List?)?.map((item) => " + dartDecodeValue(schema.Items, "item", false) + ").toList()"
 	case "object":
 		return "Map<String, Object?>.from(" + value + " as Map)"
 	default:
@@ -577,9 +736,11 @@ func clientPath(path string, params []sdkParameter) (string, string) {
 
 func dartType(raw json.RawMessage) string {
 	var schema struct {
-		Type  string          `json:"type"`
-		Ref   string          `json:"$ref"`
-		Items json.RawMessage `json:"items"`
+		Type  json.RawMessage   `json:"type"`
+		Ref   string            `json:"$ref"`
+		Items json.RawMessage   `json:"items"`
+		AnyOf []json.RawMessage `json:"anyOf"`
+		OneOf []json.RawMessage `json:"oneOf"`
 	}
 	if json.Unmarshal(raw, &schema) != nil {
 		return "Object?"
@@ -587,22 +748,65 @@ func dartType(raw json.RawMessage) string {
 	if schema.Ref != "" {
 		return typeName(strings.TrimPrefix(schema.Ref, "#/components/schemas/"))
 	}
-	switch schema.Type {
+	composition := schema.AnyOf
+	if len(composition) == 0 {
+		composition = schema.OneOf
+	}
+	if len(composition) > 0 {
+		return "Object?"
+	}
+	types, nullable := jsonSchemaTypes(schema.Type)
+	if len(types) != 1 {
+		return "Object?"
+	}
+	var result string
+	switch types[0] {
 	case "string":
-		return "String?"
+		result = "String"
 	case "integer":
-		return "int?"
+		result = "int"
 	case "number":
-		return "double?"
+		result = "double"
 	case "boolean":
-		return "bool?"
+		result = "bool"
 	case "array":
-		return "List<" + strings.TrimSuffix(dartType(schema.Items), "?") + ">?"
+		result = "List<" + strings.TrimSuffix(dartType(schema.Items), "?") + ">"
 	case "object":
-		return "Map<String, Object?>?"
+		result = "Map<String, Object?>"
 	default:
 		return "Object?"
 	}
+	if nullable {
+		result += "?"
+	}
+	return result
+}
+
+func schemaAllowsNull(raw json.RawMessage) bool {
+	var schema struct {
+		Type     json.RawMessage   `json:"type"`
+		Nullable bool              `json:"nullable"`
+		AnyOf    []json.RawMessage `json:"anyOf"`
+		OneOf    []json.RawMessage `json:"oneOf"`
+	}
+	if json.Unmarshal(raw, &schema) != nil {
+		return false
+	}
+	_, nullable := jsonSchemaTypes(schema.Type)
+	if nullable || schema.Nullable {
+		return true
+	}
+	for _, variants := range [][]json.RawMessage{schema.AnyOf, schema.OneOf} {
+		for _, variant := range variants {
+			if types, _ := jsonSchemaTypes(variant); len(types) == 0 {
+				var value any
+				if json.Unmarshal(variant, &value) == nil && value == nil {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func executeTemplate(name, source string, data any) ([]byte, error) {
@@ -634,18 +838,40 @@ func typeName(value string) string {
 
 func typescriptSchema(raw json.RawMessage) string {
 	var schema struct {
-		Type       string                     `json:"type"`
+		Type       json.RawMessage            `json:"type"`
 		Properties map[string]json.RawMessage `json:"properties"`
 		Required   []string                   `json:"required"`
 		Items      json.RawMessage            `json:"items"`
 		Enum       []json.RawMessage          `json:"enum"`
 		Ref        string                     `json:"$ref"`
+		AnyOf      []json.RawMessage          `json:"anyOf"`
+		OneOf      []json.RawMessage          `json:"oneOf"`
+		AllOf      []json.RawMessage          `json:"allOf"`
+		Additional json.RawMessage            `json:"additionalProperties"`
 	}
 	if json.Unmarshal(raw, &schema) != nil {
 		return "{ [key: string]: JsonValue }"
 	}
 	if schema.Ref != "" {
 		return typeName(strings.TrimPrefix(schema.Ref, "#/components/schemas/"))
+	}
+	composition := schema.AnyOf
+	if len(composition) == 0 {
+		composition = schema.OneOf
+	}
+	if len(composition) > 0 {
+		parts := make([]string, 0, len(composition))
+		for _, part := range composition {
+			parts = append(parts, typescriptSchema(part))
+		}
+		return strings.Join(parts, " | ")
+	}
+	if len(schema.AllOf) > 0 {
+		parts := make([]string, 0, len(schema.AllOf))
+		for _, part := range schema.AllOf {
+			parts = append(parts, typescriptSchema(part))
+		}
+		return strings.Join(parts, " & ")
 	}
 	if len(schema.Enum) > 0 {
 		values := make([]string, 0, len(schema.Enum))
@@ -654,16 +880,29 @@ func typescriptSchema(raw json.RawMessage) string {
 		}
 		return strings.Join(values, " | ")
 	}
-	switch schema.Type {
-	case "string":
-		return "string"
-	case "integer", "number":
-		return "number"
-	case "boolean":
-		return "boolean"
-	case "array":
-		return typescriptSchema(schema.Items) + "[]"
-	case "object":
+	types, includesNull := jsonSchemaTypes(schema.Type)
+	var result string
+	switch {
+	case len(types) > 1:
+		parts := make([]string, 0, len(types))
+		for _, typ := range types {
+			if typ == "null" {
+				continue
+			}
+			parts = append(parts, typescriptSchema(json.RawMessage(strconv.Quote(typ))))
+		}
+		result = strings.Join(parts, " | ")
+	case len(types) == 0:
+		return "JsonValue"
+	case types[0] == "string":
+		result = "string"
+	case types[0] == "integer" || types[0] == "number":
+		result = "number"
+	case types[0] == "boolean":
+		result = "boolean"
+	case types[0] == "array":
+		result = typescriptSchema(schema.Items) + "[]"
+	case types[0] == "object":
 		keys := make([]string, 0, len(schema.Properties))
 		for key := range schema.Properties {
 			keys = append(keys, key)
@@ -673,16 +912,51 @@ func typescriptSchema(raw json.RawMessage) string {
 		for _, key := range schema.Required {
 			required[key] = true
 		}
+		if len(keys) == 0 {
+			if len(schema.Additional) == 0 || string(schema.Additional) == "true" {
+				result = "{ [key: string]: JsonValue }"
+			} else if string(schema.Additional) == "false" {
+				result = "Record<string, never>"
+			} else {
+				result = "{ [key: string]: " + typescriptSchema(schema.Additional) + " }"
+			}
+			break
+		}
 		var b strings.Builder
 		b.WriteString("{\n")
 		for _, key := range keys {
 			fmt.Fprintf(&b, "  %q%s: %s;\n", key, map[bool]string{true: "", false: "?"}[required[key]], typescriptSchema(schema.Properties[key]))
 		}
 		b.WriteString("}")
-		return b.String()
+		result = b.String()
 	default:
 		return "JsonValue"
 	}
+	if includesNull {
+		result += " | null"
+	}
+	return result
+}
+
+func jsonSchemaTypes(raw json.RawMessage) ([]string, bool) {
+	var single string
+	if json.Unmarshal(raw, &single) == nil {
+		return []string{single}, false
+	}
+	var values []string
+	if json.Unmarshal(raw, &values) != nil {
+		return nil, false
+	}
+	result := make([]string, 0, len(values))
+	nullable := false
+	for _, value := range values {
+		if value == "null" {
+			nullable = true
+			continue
+		}
+		result = append(result, value)
+	}
+	return result, nullable
 }
 
 // Ensure the template output remains valid UTF-8 source and that a destination

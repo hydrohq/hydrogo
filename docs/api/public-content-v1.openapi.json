@@ -6,37 +6,55 @@
     "/api/v1/pages": {
       "get": {
         "operationId": "listPublishedPages",
-        "parameters": [{ "name": "locale", "in": "query", "required": false }, { "name": "limit", "in": "query", "required": false }],
-        "responses": { "200": { "description": "Published page summaries." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "503": { "$ref": "#/components/responses/Unavailable" } }
+        "parameters": [{ "name": "locale", "in": "query", "required": false, "schema": { "type": "string" } }, { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }],
+        "responses": { "200": { "description": "Published page summaries.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/PageSummary" } } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "503": { "$ref": "#/components/responses/Unavailable" } }
       }
     },
     "/api/v1/pages/by-slug": {
       "get": {
         "operationId": "getPublishedPageBySlug",
-        "parameters": [{ "name": "locale", "in": "query", "required": true }, { "name": "slug", "in": "query", "required": true }],
-        "responses": { "200": { "description": "Published page." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+        "parameters": [{ "name": "locale", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "slug", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Published page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Page" } } } }, "404": { "$ref": "#/components/responses/NotFound" }, "503": { "$ref": "#/components/responses/Unavailable" } }
       }
     },
     "/api/v1/news": {
       "get": {
         "operationId": "listPublishedNews",
-        "parameters": [{ "name": "locale", "in": "query", "required": false }, { "name": "limit", "in": "query", "required": false }],
-        "responses": { "200": { "description": "Published news summaries." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "503": { "$ref": "#/components/responses/Unavailable" } }
+        "parameters": [{ "name": "locale", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }],
+        "responses": { "200": { "description": "Published news summaries.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/NewsItem" } } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "503": { "$ref": "#/components/responses/Unavailable" } }
       }
     },
     "/api/v1/news/by-slug": {
       "get": {
         "operationId": "getPublishedNewsBySlug",
-        "parameters": [{ "name": "locale", "in": "query", "required": true }, { "name": "slug", "in": "query", "required": true }],
-        "responses": { "200": { "description": "Published news item." }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+        "parameters": [{ "name": "locale", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "slug", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Published news item.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NewsItem" } } } }, "404": { "$ref": "#/components/responses/NotFound" }, "503": { "$ref": "#/components/responses/Unavailable" } }
       }
     }
   },
   "components": {
     "responses": {
-      "InvalidRequest": { "description": "Invalid request." },
-      "NotFound": { "description": "Published resource not found." },
-      "Unavailable": { "description": "Content is temporarily unavailable." }
+      "InvalidRequest": { "description": "Invalid request.", "content": { "text/plain": { "schema": { "type": "string" } } } },
+      "NotFound": { "description": "Published resource not found.", "content": { "text/plain": { "schema": { "type": "string" } } } },
+      "Unavailable": { "description": "Content is temporarily unavailable.", "content": { "text/plain": { "schema": { "type": "string" } } } }
+    },
+    "schemas": {
+      "PageSummary": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "locale", "slug", "title", "revision", "publication_generation", "updated_at"],
+        "properties": {"id": {"type": "string"}, "locale": {"type": "string"}, "slug": {"type": "string"}, "title": {"type": "string"}, "revision": {"type": "integer"}, "publication_generation": {"type": "integer", "format": "int64"}, "updated_at": {"type": "string", "format": "date-time"}}
+      },
+      "Page": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "locale", "slug", "title", "body", "blocks", "status", "version", "revision", "publication_generation", "created_at", "updated_at"],
+        "properties": {"id": {"type": "string"}, "locale": {"type": "string"}, "slug": {"type": "string"}, "title": {"type": "string"}, "body": {"type": "string"}, "blocks": {"type": "array", "items": {"$ref": "#/components/schemas/PageBlock"}}, "status": {"type": "string", "enum": ["published"]}, "version": {"type": "integer"}, "revision": {"type": "integer"}, "published_revision": {"type": "integer"}, "publication_generation": {"type": "integer", "format": "int64"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}
+      },
+      "PageBlock": {"type": "object", "additionalProperties": false, "required": ["type", "payload"], "properties": {"type": {"type": "string"}, "payload": {"type": "object", "additionalProperties": true}}},
+      "NewsItem": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "locale", "slug", "title", "body", "featured", "status", "version", "revision", "schedule_generation", "created_at", "updated_at"],
+        "properties": {"id": {"type": "string"}, "locale": {"type": "string"}, "slug": {"type": "string"}, "title": {"type": "string"}, "body": {"type": "string"}, "cover_media_id": {"type": "string"}, "excerpt": {"type": "string"}, "key_takeaways": {"type": "string"}, "category": {"type": "string"}, "author_name": {"type": "string"}, "featured": {"type": "boolean"}, "tags": {"type": "string"}, "seo_title": {"type": "string"}, "seo_description": {"type": "string"}, "status": {"type": "string", "enum": ["published"]}, "version": {"type": "integer"}, "revision": {"type": "integer"}, "published_revision": {"type": "integer"}, "schedule_generation": {"type": "integer", "format": "int64"}, "scheduled_at": {"type": "string", "format": "date-time"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}
+      }
     }
   }
 }
