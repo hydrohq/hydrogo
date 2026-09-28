@@ -3,12 +3,15 @@ module: "members"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "2eb6212a489f919943564d806e433a396a7d73c416462aae643b1fec7e042445"
   postgres: "2eb6212a489f919943564d806e433a396a7d73c416462aae643b1fec7e042445"
+  mysql: "cff319720cac325b4c02292c82e44589447e22cfd39c1bdce72ad8abdfa96925"
 dependencies:
   - "202609190002_member_mobile_device_sessions"
 schema:

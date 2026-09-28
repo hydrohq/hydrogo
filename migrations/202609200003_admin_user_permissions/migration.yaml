@@ -3,12 +3,15 @@ module: "auth"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "5a29c25e4131fccc0894cb4ebf6e6cc64f50e95674faed30ed8254a5e3d2617e"
   postgres: "16fb8100e0f3150aaa8ef601aeb996c57bdbbe6ccb126445b2c977f115fe4762"
+  mysql: "20476704f8284d91866bec8c19db8a6f52ea6f723f45da26a8fbdb029854ef30"
 dependencies:
   - "202609200002_auth_security_tenant_scope"
 schema:
