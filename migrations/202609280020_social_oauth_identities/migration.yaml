@@ -1,5 +1,7 @@
 id: "202609280020_social_oauth_identities"
 module: "core"
+requires_modules:
+  - "auth"
 class:
   sqlite: "expand"
   postgres: "expand"

@@ -3,7 +3,7 @@
 The Site module exposes `/admin/translations` with a key search, TR/EN
 side-by-side editor, per-cell save forms, and a visible marker for missing
 locale entries. The editor accepts only keys from the embedded catalogs and
-bounded values. A blank value removes the local override and returns to the
+bounded values. A blank value clears the active override and returns to the
 embedded locale fallback.
 
 Overrides persist in `site_settings` under the dedicated
