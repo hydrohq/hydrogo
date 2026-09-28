@@ -1,0 +1,18 @@
+CREATE TABLE pages (
+    id VARCHAR(128) PRIMARY KEY,
+    title TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE audit_events (
+    id VARCHAR(128) PRIMARY KEY,
+    action VARCHAR(128) NOT NULL,
+    target_id VARCHAR(128) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE outbox_events (
+    id VARCHAR(128) PRIMARY KEY,
+    topic VARCHAR(128) NOT NULL,
+    aggregate_id VARCHAR(128) NOT NULL,
+    payload_version INTEGER NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

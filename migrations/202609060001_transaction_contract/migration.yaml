@@ -3,12 +3,15 @@ module: "pages"
 class:
   sqlite: "maintenance"
   postgres: "online"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "6a5e1842e505d74c59c7532c819c687d5f1ad84c00dd704c452a372f201d31c1"
   postgres: "6a5e1842e505d74c59c7532c819c687d5f1ad84c00dd704c452a372f201d31c1"
+  mysql: "192d1d7b24923056fe94bc2aff06ee7f575e2ac0d804bce5351c97fee7d16ce8"
 dependencies: []
 schema:
   readable_epoch: 1
