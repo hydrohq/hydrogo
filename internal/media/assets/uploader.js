@@ -72,4 +72,20 @@
     preview.style.objectPosition = `${(x * 100).toFixed(2)}% ${(y * 100).toFixed(2)}%`;
     editor.querySelector('summary').textContent = `Odak ${Math.round(x * 100)}%, ${Math.round(y * 100)}% · Klasör ve etiketler`;
   });
+
+  document.querySelectorAll('.media-card').forEach(card => {
+    card.draggable = true;
+    card.addEventListener('dragstart', event => event.dataTransfer.setData('text/media-id', card.dataset.id || ''));
+  });
+  document.querySelectorAll('[data-media-folder-drop]').forEach(folder => {
+    folder.addEventListener('dragover', event => event.preventDefault());
+    folder.addEventListener('drop', event => {
+      event.preventDefault();
+      const card = [...document.querySelectorAll('.media-card')].find(item => item.dataset.id === event.dataTransfer.getData('text/media-id'));
+      const editor = card && card.querySelector('.media-metadata-form');
+      if (!editor) return;
+      editor.elements.folder_id.value = folder.dataset.mediaFolderDrop;
+      editor.requestSubmit();
+    });
+  });
 })();

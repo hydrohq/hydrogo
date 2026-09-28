@@ -52,4 +52,18 @@ func runMediaAssetLifecycle(t *testing.T, dialect database.Dialect, dsn string) 
 	if status != "ready" || visibility != media.VisibilityPublic {
 		t.Fatalf("asset state = %s/%s, want ready/public", status, visibility)
 	}
+	folder, err := media.NewFolder("Editorial", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateFolder(ctx, db, folder); err != nil {
+		t.Fatalf("create folder: %v", err)
+	}
+	if err := store.SetMetadata(ctx, db, asset.ID, media.AssetMetadata{Focal: media.FocalPoint{X: .25, Y: .75}, FolderID: folder.ID, Tags: []string{"hero", "header"}}); err != nil {
+		t.Fatalf("move/tag asset: %v", err)
+	}
+	stored, err := store.Get(ctx, db, asset.ID)
+	if err != nil || stored.FolderID != folder.ID || stored.FocalX != .25 || len(stored.Tags) != 2 {
+		t.Fatalf("metadata = %+v, err=%v", stored, err)
+	}
 }

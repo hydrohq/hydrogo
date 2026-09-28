@@ -40,6 +40,7 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	selectedFolder, selectedTag, selectedColor := r.URL.Query().Get("folder"), strings.TrimSpace(r.URL.Query().Get("tag")), strings.TrimSpace(r.URL.Query().Get("color"))
+	selectedTags := splitMediaTags(selectedTag)
 	if selectedColor != "" && !validHexColor(selectedColor) {
 		http.Error(w, "invalid color filter", http.StatusBadRequest)
 		return
@@ -49,15 +50,20 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 		if selectedFolder != "" && asset.FolderID != selectedFolder {
 			continue
 		}
-		if selectedTag != "" {
-			found := false
+		if len(selectedTags) > 0 {
+			assetTags := make(map[string]struct{}, len(asset.Tags))
 			for _, tag := range asset.Tags {
-				if strings.EqualFold(tag, selectedTag) {
-					found = true
+				assetTags[strings.ToLower(tag)] = struct{}{}
+			}
+			// Every requested tag must match.
+			matched := true
+			for _, tag := range selectedTags {
+				if _, ok := assetTags[strings.ToLower(tag)]; !ok {
+					matched = false
 					break
 				}
 			}
-			if !found {
+			if !matched {
 				continue
 			}
 		}
@@ -230,6 +236,16 @@ if (dropzone && fileInput) {
 })();</script>`, nonce)
 	_, _ = fmt.Fprint(w, `<script src="/admin/media/static/uploader.js" defer></script>`)
 	_ = ui.AdminEnd(w)
+}
+
+func splitMediaTags(raw string) []string {
+	var tags []string
+	for _, tag := range strings.Split(raw, ",") {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			tags = append(tags, tag)
+		}
+	}
+	return tags
 }
 
 func (h HTTPHandler) adminMetadata(w http.ResponseWriter, r *http.Request) {

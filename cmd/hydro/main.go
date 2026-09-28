@@ -1545,7 +1545,18 @@ func serve(args []string, stderr io.Writer) error {
 		uploader.QuotaGuard = storage.QuotaGuard{MinFreeBytes: cfg.Media.MinFreeBytes}
 		var mediaOptimizer *media.Optimizer
 		if !*cgiMode {
-			mediaOptimizer = media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
+			if cfg.Media.WatermarkText != "" {
+				position, opacity := cfg.Media.WatermarkPosition, cfg.Media.WatermarkOpacity
+				if position == "" {
+					position = "bottom-right"
+				}
+				if opacity == 0 {
+					opacity = .6
+				}
+				mediaOptimizer = media.NewOptimizerWithWatermark(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"), media.WatermarkOptions{Text: cfg.Media.WatermarkText, Position: position, Opacity: opacity, Margin: cfg.Media.WatermarkMargin})
+			} else {
+				mediaOptimizer = media.NewOptimizer(cfg.Media.Dir, minInt(budget.WorkerConcurrency, 2), mediaStore, db, os.Getenv("HYDRO_MEDIA_FFMPEG"))
+			}
 		}
 		var blobStore media.BlobStore
 		if cfg.Media.StorageDriver == "s3" {
@@ -1559,7 +1570,7 @@ func serve(args []string, stderr io.Writer) error {
 			go func() { <-ctx.Done(); mediaOptimizer.Close() }()
 		}
 	}
-	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db}
+	mediaHTTP := media.HTTPHandler{Service: mediaService, DB: db, HotlinkProtection: cfg.Media.HotlinkProtection, CanonicalOrigin: cfg.HTTP.PublicOrigin, AllowedRefererHosts: cfg.Media.AllowedRefererHosts}
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	newsRouteStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -1840,7 +1851,7 @@ func serve(args []string, stderr io.Writer) error {
 				}
 			}
 		}
-		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
+		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, MediaLookup: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
 			if !moduleEnabled(cfg.Modules, "site") {
 				return nil, nil
 			}

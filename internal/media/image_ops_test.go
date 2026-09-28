@@ -62,9 +62,13 @@ func TestDocumentValidationAndHotlinkGuard(t *testing.T) {
 }
 
 func TestMissingReferences(t *testing.T) {
-	got := MissingReferences(`<img src="/media/asset-valid-001"> {"media_id":"asset-missing-1"} /media/asset-missing-1`, map[string]struct{}{"asset-valid-001": {}})
-	if len(got) != 1 || got[0] != "asset-missing-1" {
+	got := MissingReferences(`<img src="/media/asset-valid-001"> {"media_asset_id":"asset-missing-1","cover_media_id":"asset-missing-2"} /media/asset-missing-1`, map[string]struct{}{"asset-valid-001": {}})
+	if len(got) != 2 || got[0] != "asset-missing-1" || got[1] != "asset-missing-2" {
 		t.Fatalf("missing references = %v", got)
+	}
+	all := MissingReferences(`{"before_image_asset_id":"asset-old-0001","after_image_asset_id":"asset-old-0002"}`, nil)
+	if len(all) != 2 {
+		t.Fatalf("block references = %v", all)
 	}
 }
 

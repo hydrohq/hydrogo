@@ -331,7 +331,7 @@ func MediaTagFilter(tag, folder, color string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\"> <label class=\"text-sm text-slate-700\">Etiketle filtrele <input type=\"search\" name=\"tag\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\"> <label class=\"text-sm text-slate-700\">Etiketleri filtrele <input type=\"search\" name=\"tag\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -344,7 +344,7 @@ func MediaTagFilter(tag, folder, color string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\" maxlength=\"64\" class=\"block rounded border border-slate-300 px-3 py-2\"></label> <label class=\"text-sm text-slate-700\">Dominant renk <input type=\"text\" name=\"color\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\" placeholder=\"logo, hero\" maxlength=\"512\" class=\"block rounded border border-slate-300 px-3 py-2\"></label> <label class=\"text-sm text-slate-700\">Dominant renk <input type=\"text\" name=\"color\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

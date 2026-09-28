@@ -88,17 +88,23 @@ type Database struct {
 }
 
 type Media struct {
-	Dir              string `yaml:"dir"`
-	MinFreeBytes     uint64 `yaml:"min_free_bytes"`
-	StorageDriver    string `yaml:"storage_driver"`
-	S3Endpoint       string `yaml:"s3_endpoint"`
-	S3Bucket         string `yaml:"s3_bucket"`
-	S3Region         string `yaml:"s3_region"`
-	S3AccessKey      string `yaml:"s3_access_key"`
-	S3SecretKey      string `yaml:"s3_secret_key"`
-	S3UseSSL         bool   `yaml:"s3_use_ssl"`
-	S3ForcePathStyle bool   `yaml:"s3_force_path_style"`
-	CDNBaseURL       string `yaml:"cdn_base_url"`
+	Dir                 string   `yaml:"dir"`
+	MinFreeBytes        uint64   `yaml:"min_free_bytes"`
+	StorageDriver       string   `yaml:"storage_driver"`
+	S3Endpoint          string   `yaml:"s3_endpoint"`
+	S3Bucket            string   `yaml:"s3_bucket"`
+	S3Region            string   `yaml:"s3_region"`
+	S3AccessKey         string   `yaml:"s3_access_key"`
+	S3SecretKey         string   `yaml:"s3_secret_key"`
+	S3UseSSL            bool     `yaml:"s3_use_ssl"`
+	S3ForcePathStyle    bool     `yaml:"s3_force_path_style"`
+	CDNBaseURL          string   `yaml:"cdn_base_url"`
+	HotlinkProtection   bool     `yaml:"hotlink_protection"`
+	AllowedRefererHosts []string `yaml:"allowed_referer_hosts"`
+	WatermarkText       string   `yaml:"watermark_text"`
+	WatermarkPosition   string   `yaml:"watermark_position"`
+	WatermarkOpacity    float64  `yaml:"watermark_opacity"`
+	WatermarkMargin     int      `yaml:"watermark_margin"`
 }
 
 type Security struct {
@@ -247,6 +253,40 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_MEDIA_CDN_BASE_URL"); ok && value != "" {
 		result.Media.CDNBaseURL = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_HOTLINK_PROTECTION"); ok && value != "" {
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_MEDIA_HOTLINK_PROTECTION: %w", err)
+		}
+		result.Media.HotlinkProtection = enabled
+	}
+	if value, ok := lookup("HYDRO_MEDIA_ALLOWED_REFERER_HOSTS"); ok {
+		for _, host := range strings.Split(value, ",") {
+			if host = strings.TrimSpace(host); host != "" {
+				result.Media.AllowedRefererHosts = append(result.Media.AllowedRefererHosts, host)
+			}
+		}
+	}
+	if value, ok := lookup("HYDRO_MEDIA_WATERMARK_TEXT"); ok {
+		result.Media.WatermarkText = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_WATERMARK_POSITION"); ok && value != "" {
+		result.Media.WatermarkPosition = value
+	}
+	if value, ok := lookup("HYDRO_MEDIA_WATERMARK_OPACITY"); ok && value != "" {
+		opacity, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_MEDIA_WATERMARK_OPACITY: %w", err)
+		}
+		result.Media.WatermarkOpacity = opacity
+	}
+	if value, ok := lookup("HYDRO_MEDIA_WATERMARK_MARGIN"); ok && value != "" {
+		margin, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_MEDIA_WATERMARK_MARGIN: %w", err)
+		}
+		result.Media.WatermarkMargin = margin
 	}
 	if value, ok := lookup("HYDRO_THEME_DIR"); ok && value != "" {
 		result.ThemeDir = value
@@ -621,6 +661,28 @@ func (c Config) Validate() error {
 	}
 	if c.Media.MinFreeBytes > 1<<50 {
 		return errors.New("media minimum free space exceeds limit")
+	}
+	if c.Media.WatermarkText != "" {
+		position := c.Media.WatermarkPosition
+		if position != "" && position != "bottom-right" && position != "bottom-left" && position != "top-right" && position != "center" {
+			return errors.New("invalid media watermark position")
+		}
+		if c.Media.WatermarkOpacity != 0 && (c.Media.WatermarkOpacity < .1 || c.Media.WatermarkOpacity > 1) {
+			return errors.New("media watermark opacity must be between 0.1 and 1")
+		}
+		if c.Media.WatermarkMargin < 0 || c.Media.WatermarkMargin > 1000 {
+			return errors.New("invalid media watermark margin")
+		}
+	}
+	for _, host := range c.Media.AllowedRefererHosts {
+		host = strings.TrimSpace(host)
+		if host == "" || strings.ContainsAny(host, "/\\@") {
+			return errors.New("invalid media referer host")
+		}
+		parsed, err := url.Parse("https://" + host)
+		if err != nil || parsed.Hostname() == "" || parsed.Host != host {
+			return errors.New("invalid media referer host")
+		}
 	}
 	if c.Media.StorageDriver == "" {
 		c.Media.StorageDriver = "local"

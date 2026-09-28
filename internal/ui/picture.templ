@@ -24,8 +24,8 @@ templ MediaFolderTree(items []MediaFolderItem, selected string) {
 templ MediaTagFilter(tag, folder, color string) {
 	<form method="get" action="/admin/media" class="my-3 flex items-end gap-2">
 		<input type="hidden" name="folder" value={ folder } />
-		<label class="text-sm text-slate-700">Etiketle filtrele
-			<input type="search" name="tag" value={ tag } maxlength="64" class="block rounded border border-slate-300 px-3 py-2" />
+		<label class="text-sm text-slate-700">Etiketleri filtrele
+			<input type="search" name="tag" value={ tag } placeholder="logo, hero" maxlength="512" class="block rounded border border-slate-300 px-3 py-2" />
 		</label>
 		<label class="text-sm text-slate-700">Dominant renk
 			<input type="text" name="color" value={ color } placeholder="#1e3a8a" maxlength="7" class="block w-28 rounded border border-slate-300 px-3 py-2" />
