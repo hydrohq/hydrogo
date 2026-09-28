@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -120,6 +121,24 @@ func ValidateBlocks(blocks []Block) error {
 			phone, whatsapp := rawString(object, "phone"), rawString(object, "whatsapp")
 			if phone == "" && whatsapp == "" || phone != "" && !validPhoneNumber(phone) || whatsapp != "" && !validWhatsAppNumber(whatsapp) {
 				return ErrInvalidBlocks
+			}
+		case "countdown":
+			var payload struct {
+				Target   string `json:"target_datetime"`
+				Zone     string `json:"timezone"`
+				Headline string `json:"expired_headline"`
+				URL      string `json:"expired_cta_url"`
+			}
+			if json.Unmarshal(block.Payload, &payload) != nil || strings.TrimSpace(payload.Headline) == "" || len(payload.Headline) > 200 || len(payload.Zone) > 64 || len(payload.URL) > 2048 || payload.URL != "" && !safeBlockURL(payload.URL) {
+				return ErrInvalidBlocks
+			}
+			if _, err := time.Parse(time.RFC3339, payload.Target); err != nil {
+				return ErrInvalidBlocks
+			}
+			if payload.Zone != "" {
+				if _, err := time.LoadLocation(payload.Zone); err != nil {
+					return ErrInvalidBlocks
+				}
 			}
 		case "video":
 			if requireSafeStringURL(object, "src") != nil {

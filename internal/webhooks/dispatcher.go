@@ -46,6 +46,64 @@ type Dispatcher struct {
 	Sleep       func(context.Context, time.Duration) error
 }
 
+type TestResult struct {
+	Body      string        `json:"body"`
+	Signature string        `json:"signature"`
+	Status    int           `json:"status"`
+	Latency   time.Duration `json:"latency"`
+	Response  string        `json:"response"`
+}
+
+// Test sends exactly one signed request and deliberately bypasses the durable event queue and retry loop.
+func (d Dispatcher) Test(ctx context.Context, endpoint Endpoint, event Event) (TestResult, error) {
+	if !endpoint.matches(event.Topic) {
+		return TestResult{}, errors.New("endpoint does not subscribe to this topic")
+	}
+	if err := validateEndpoint(endpoint); err != nil {
+		return TestResult{}, err
+	}
+	if event.ID == "" || event.PayloadVersion < 1 {
+		return TestResult{}, errors.New("invalid test event")
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		return TestResult{}, err
+	}
+	sig := signature(body, endpoint.Secret)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.URL, bytes.NewReader(body))
+	if err != nil {
+		return TestResult{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "HydroGo-Webhook/1")
+	req.Header.Set("Idempotency-Key", event.ID)
+	req.Header.Set("X-Hydro-Event", event.Topic)
+	req.Header.Set("X-Hydro-Signature", sig)
+	client := d.Client
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
+	start := time.Now()
+	response, err := safeClient(client).Do(req)
+	latency := time.Since(start)
+	if err != nil {
+		return TestResult{Body: string(body), Signature: sig, Latency: latency}, err
+	}
+	defer response.Body.Close()
+	preview, readErr := io.ReadAll(io.LimitReader(response.Body, 2049))
+	if readErr != nil {
+		return TestResult{Body: string(body), Signature: sig, Status: response.StatusCode, Latency: latency}, readErr
+	}
+	if len(preview) > 2048 {
+		preview = preview[:2048]
+	}
+	result := TestResult{Body: string(body), Signature: sig, Status: response.StatusCode, Latency: latency, Response: string(preview)}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return result, fmt.Errorf("webhook returned status %d", response.StatusCode)
+	}
+	return result, nil
+}
+
 func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	if strings.TrimSpace(event.ID) == "" || strings.TrimSpace(event.Topic) == "" || event.PayloadVersion < 1 {
 		return errors.New("invalid webhook event")

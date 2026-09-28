@@ -64,6 +64,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0283](0283-mysql-mariadb-adapter.md) | MySQL/MariaDB adapter certification | Accepted; certified on MySQL 8.0.46 and MariaDB 10.5.29 |
 | [0284](0284-mysql-physical-schema-diff.md) | MySQL physical schema diff | Accepted |
 | [0285](0285-media-enrichment-and-upload-safety.md) | Pure Go media enrichment and upload safety | Accepted |
+| [0286](0286-dalga4-bounded-platform-capabilities.md) | Bounded Dalga 4 platform capabilities | Accepted for bounded scope |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |

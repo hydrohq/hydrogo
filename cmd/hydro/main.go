@@ -67,7 +67,9 @@ import (
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
+	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/sdkdist"
@@ -207,6 +209,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return seedDemo(args[1:], stdout, stderr)
 	case "seed":
 		return seedDemo(args[1:], stdout, stderr)
+	case "clean":
+		return cleanDemoCommand(args[1:], stdout, stderr)
 	case "sdk":
 		return sdkCommand(args[1:], stdout, stderr)
 	case "generate":
@@ -1320,6 +1324,8 @@ func serve(args []string, stderr io.Writer) error {
 	cgiMode := flags.Bool("cgi", false, "handle one request from a CGI web server")
 	fastCGIMode := flags.Bool("fastcgi", false, "serve FastCGI requests on a listener")
 	fastCGIAddress := flags.String("fastcgi-address", "127.0.0.1:9001", "FastCGI listener address (loopback by default)")
+	sslMode := flags.String("ssl", "", "enable standalone HTTPS with --ssl=auto")
+	sslDomain := flags.String("domain", "", "hostname for standalone HTTPS")
 	values := addRuntimeFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -1334,6 +1340,29 @@ func serve(args []string, stderr io.Writer) error {
 	cfg, err := loadRuntimeConfig(flags, values)
 	if err != nil {
 		return err
+	}
+	if *sslMode != "" {
+		if *sslMode != "auto" || strings.TrimSpace(*sslDomain) == "" {
+			return errors.New("--ssl=auto requires --domain")
+		}
+		if cfg.HTTP.BehindProxy {
+			return errors.New("standalone automatic TLS cannot run behind a reverse proxy")
+		}
+		cfg.HTTP.AutoTLS, cfg.HTTP.Domain = true, strings.TrimSpace(*sslDomain)
+		if cfg.HTTP.PublicOrigin == "" {
+			cfg.HTTP.PublicOrigin = "https://" + cfg.HTTP.Domain
+		}
+		cfg.Security.EnableHSTS = true
+		cfg.Security.SecureCookies = true
+	}
+	if cfg.HTTP.AutoTLS {
+		if cfg.HTTP.PublicOrigin == "" {
+			cfg.HTTP.PublicOrigin = "https://" + cfg.HTTP.Domain
+		}
+		cfg.Security.EnableHSTS, cfg.Security.SecureCookies = true, true
+		if err := cfg.Validate(); err != nil {
+			return err
+		}
 	}
 	extensionRegistry, err := adminstudio.LoadSignedAdminExtensions(cfg.AdminExtensions.ManifestDir, cfg.AdminExtensions.TrustedKeysFile)
 	if err != nil {
@@ -1431,6 +1460,10 @@ func serve(args []string, stderr io.Writer) error {
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	modules := enabledModuleSet(cfg.Modules)
+	var realtimeHub *realtime.Hub
+	if modules["realtime"] {
+		realtimeHub = &realtime.Hub{RequireTenantScope: requireTenantScope}
+	}
 	var analyticsStore analyticsstore.Store
 	var contentViewQueue *analytics.ContentViewQueue
 	var noCookieQueue *analytics.NoCookieQueue
@@ -1495,6 +1528,7 @@ func serve(args []string, stderr io.Writer) error {
 		Audit:        auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		PublicCache:  publicPageCache,
+		Realtime:     realtimeHub,
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
 	var sqliteCacheConn *sql.Conn
@@ -1521,6 +1555,40 @@ func serve(args []string, stderr io.Writer) error {
 				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor stopped: %v\n", monitorErr)
 			}
 		}()
+	}
+	if cfg.Backup.Enabled && !*cgiMode && !*fastCGIMode {
+		dispatcher, backupErr := backupstore.NewS3Dispatcher(backupstore.S3Config{Endpoint: cfg.Media.S3Endpoint, Bucket: cfg.Media.S3Bucket, Region: cfg.Media.S3Region, AccessKey: cfg.Media.S3AccessKey, SecretKey: cfg.Media.S3SecretKey, Prefix: cfg.Backup.Prefix, Secure: cfg.Media.S3UseSSL, ForcePathStyle: cfg.Media.S3ForcePathStyle})
+		if backupErr != nil {
+			return fmt.Errorf("configure scheduled cloud backup: %w", backupErr)
+		}
+		go backupstore.RunDaily(ctx, cfg.Backup.HourUTC, func(backupCtx context.Context) error {
+			root, err := os.MkdirTemp("", "hydrogo-backup-")
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(root)
+			snapshot := filepath.Join(root, "snapshot")
+			if cfg.Database.Dialect == database.SQLite {
+				_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, snapshot)
+			} else if cfg.Database.Dialect == database.Postgres {
+				var tools backupstore.PostgresTools
+				tools, err = backupstore.LocatePostgresTools()
+				if err == nil {
+					_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshot)
+				}
+			} else {
+				err = errors.New("scheduled cloud backups support SQLite and PostgreSQL")
+			}
+			if err != nil {
+				return err
+			}
+			name := fmt.Sprintf("hydrogo-%s.tar.gz", time.Now().UTC().Format("20060102T150405Z"))
+			if err = dispatcher.UploadSnapshot(backupCtx, snapshot, name); err != nil {
+				return err
+			}
+			_, err = dispatcher.Prune(backupCtx, time.Duration(cfg.Backup.RetentionDays)*24*time.Hour, time.Now().UTC())
+			return err
+		}, func(err error) { slog.Error("scheduled cloud backup failed", "error", err) })
 	}
 	var selectedTheme *themev1.ThemeBundle
 	themeName := cfg.Theme
@@ -1710,7 +1778,7 @@ func serve(args []string, stderr io.Writer) error {
 	var newsService newsservice.Service
 	var newsWorker newsservice.Worker
 	if moduleEnabled(cfg.Modules, "news") {
-		newsService = newsservice.Service{Transactions: transactioner, Repository: newsRouteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
+		newsService = newsservice.Service{Transactions: transactioner, Repository: newsRouteStore, Realtime: realtimeHub, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
 			if user := auth.UserFromContext(ctx); user != nil {
 				return string(user.Role)
 			}
@@ -1737,6 +1805,10 @@ func serve(args []string, stderr io.Writer) error {
 		return adminstudio.FilterActiveCollections(studioRegistry.Collections(), enabledModuleSet(cfg.Modules))
 	}
 	var pageHTTP pagetransport.Handler
+	var previewSigner *preview.Signer
+	if len(cfg.Security.PreviewSigningKey) >= 32 {
+		previewSigner = &preview.Signer{Key: []byte(cfg.Security.PreviewSigningKey)}
+	}
 	var pageLLMSCache *seo.DiscoveryCache
 	if moduleEnabled(cfg.Modules, "pages") {
 		pageCollection, ok := studioRegistry.Collection("pages")
@@ -1759,7 +1831,7 @@ func serve(args []string, stderr io.Writer) error {
 		pageCollection.BulkActions = []adminstudio.Action{{Label: "CSV dışa aktar", Href: "/admin/pages/bulk"}}
 		pageLLMSCache = &seo.DiscoveryCache{}
 		notificationStore := adminstudiosql.Store{Dialect: cfg.Database.Dialect}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
 			if !modules["site"] {
 				return nil, nil
 			}
@@ -1871,6 +1943,9 @@ func serve(args []string, stderr io.Writer) error {
 		}}
 	}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
+	if modules["search"] {
+		routes = append(routes, router.Route{Pattern: "GET /api/v1/search/autocomplete", Access: router.Public, Handler: adminsearch.AutocompleteHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Modules: modules}})
+	}
 	routes = append(routes, mobileAuthHTTP.RouterRoutes()...)
 	if modules["pages"] {
 		pageRoutes := pageRouterRoutes(pageHTTP.Routes())
@@ -2542,6 +2617,9 @@ func serve(args []string, stderr io.Writer) error {
 		}
 		webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
 	}
+	if len(webhookEndpoints) > 0 {
+		routes = append(routes, router.Route{Pattern: "POST /admin/api/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}})
+	}
 	if !*cgiMode && (modules["pages"] || modules["news"] || modules["commerce"]) {
 		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
 	}
@@ -2560,6 +2638,10 @@ func serve(args []string, stderr io.Writer) error {
 	}
 	serverConfig := server.Config{
 		Address:         cfg.HTTP.Address,
+		AutoTLS:         cfg.HTTP.AutoTLS,
+		TLSHost:         cfg.HTTP.Domain,
+		TLSCacheDir:     filepath.Join(filepath.Dir(cfg.Media.Dir), "certs"),
+		RealtimeHub:     realtimeHub,
 		ShutdownTimeout: budget.ShutdownTimeout,
 		AuthSvc:         authSvc,
 		Metrics:         metrics,
@@ -2653,6 +2735,9 @@ func serve(args []string, stderr io.Writer) error {
 			}
 		})
 		return server.ServeCGI(handler)
+	}
+	if smtpSender != nil {
+		routes = append(routes, router.Route{Pattern: "POST /admin/api/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}})
 	}
 	if *fastCGIMode {
 		return server.ServeFastCGI(ctx, "tcp", *fastCGIAddress, serverConfig)
@@ -4476,6 +4561,51 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	return err
 }
 
+func cleanDemoCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("clean", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	demo := flags.Bool("demo", false, "Remove only HydroGo demo records")
+	forceProd := flags.Bool("force-prod", false, "Allow demo cleanup in production")
+	values := addRuntimeFlags(flags)
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	if !*demo {
+		return errors.New("clean requires --demo; no other data is removed")
+	}
+	if isProductionEnvironment() && !*forceProd {
+		return errors.New("demo cleanup is disabled in production; pass --force-prod only for an intentional cleanup")
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := db.PingContext(ctx); err != nil {
+		return err
+	}
+	if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
+		return err
+	}
+	if err := cleanDemoData(ctx, db, cfg.Database.Dialect, cfg.Media.Dir); err != nil {
+		return fmt.Errorf("clean demo data: %w", err)
+	}
+	_, err = fmt.Fprintln(stdout, "demo-data-cleaned")
+	return err
+}
+
 func isProductionEnvironment() bool {
 	for _, key := range []string{"HYDRO_ENV", "APP_ENV", "GO_ENV"} {
 		if strings.EqualFold(strings.TrimSpace(os.Getenv(key)), "production") || strings.EqualFold(strings.TrimSpace(os.Getenv(key)), "prod") {
@@ -4936,6 +5066,7 @@ Usage:
   hydro upgrade check [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
+  hydro clean --demo [--target demo|staging|production] [--force-prod] [runtime flags]
   hydro doctor [--json] [runtime flags]
   hydro validate [--json] [runtime flags]
   hydro validate generator --spec SPEC --root OUTPUT

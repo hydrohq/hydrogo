@@ -1,0 +1,20 @@
+package ui
+
+import "strconv"
+
+type SearchSuggestion struct { Title, Category, URL string }
+
+templ PublicSearchBox() {
+	<form class="relative" role="search" action="/search" method="get">
+		<label class="sr-only" for="hydro-public-search">Search this site</label>
+		<input id="hydro-public-search" type="search" name="q" autocomplete="off" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-autocomplete="list" aria-controls="hydro-search-results" hx-get="/api/v1/search/autocomplete" hx-trigger="keyup changed delay:250ms" hx-target="#hydro-search-results" hx-swap="innerHTML" placeholder="Search…" />
+		<ul id="hydro-search-results" role="listbox" aria-label="Search suggestions"></ul>
+	</form>
+	<script src="/vendor/htmx/htmx.min.js" defer></script>
+}
+
+templ SearchSuggestions(items []SearchSuggestion) {
+	for i, item := range items {
+		<li role="option" aria-selected="false" id={ "hydro-search-option-" + strconv.Itoa(i) }><a href={ item.URL } tabindex="-1"><span>{ item.Title }</span><small>{ item.Category }</small></a></li>
+	}
+}

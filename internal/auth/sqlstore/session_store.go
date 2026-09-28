@@ -236,6 +236,55 @@ func (s *SessionStore) DeleteOtherByUserID(ctx context.Context, userID, currentT
 	})
 }
 
+func (s *SessionStore) ListByUserID(ctx context.Context, userID string, now time.Time) ([]auth.Session, error) {
+	if err := requireSessionStore(s); err != nil {
+		return nil, err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+	placeholder := "$"
+	if s.dialect == database.SQLite {
+		placeholder = "?"
+	}
+	args := []any{userID, now.UTC()}
+	if s.dialect == database.SQLite {
+		args[1] = now.UTC().Format(time.RFC3339Nano)
+	}
+	q := "SELECT id,user_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM sessions WHERE user_id=" + placeholder + "1 AND expires_at>=" + placeholder + "2"
+	if s.RequireTenantScope {
+		q += " AND tenant_id=" + placeholder + "3"
+		args = append(args, tenantID)
+	}
+	q += " ORDER BY last_seen_at DESC,id ASC LIMIT 100"
+	var sessions []auth.Session
+	err = s.within(ctx, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("session query is unsupported")
+		}
+		rows, e := queryer.QueryContext(ctx, q, args...)
+		if e != nil {
+			return e
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var x auth.Session
+			var expires, created, last any
+			if e := rows.Scan(&x.ID, &x.UserID, &x.TokenHash, &expires, &created, &last, &x.UserAgent, &x.IPAddress); e != nil {
+				return e
+			}
+			x.ExpiresAt = parseTime(expires)
+			x.CreatedAt = parseTime(created)
+			x.LastSeenAt = parseTime(last)
+			sessions = append(sessions, x)
+		}
+		return rows.Err()
+	})
+	return sessions, err
+}
+
 func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executor, userID string) error {
 	if err := requireSessionStore(s); err != nil {
 		return err

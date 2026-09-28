@@ -61,3 +61,20 @@ func TestBlocksRenderPricingAndTestimonialsSafely(t *testing.T) {
 		t.Fatalf("block render = %s, %v", html, err)
 	}
 }
+
+func TestCountdownBlockRendersValidatedTargetAndExpiredState(t *testing.T) {
+	blocks := []pages.Block{{Type: "countdown", Payload: json.RawMessage(`{"target_datetime":"2027-01-01T12:00:00+03:00","timezone":"Europe/Istanbul","expired_headline":"Registration is open","expired_cta_url":"/register"}`)}}
+	html, err := Blocks(blocks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"data-countdown", "2027-01-01T12:00:00+03:00", "Registration is open", "/register", "data-countdown-seconds"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("countdown missing %q: %s", want, html)
+		}
+	}
+	blocks[0].Payload = json.RawMessage(`{"target_datetime":"not-a-date","expired_headline":"Expired"}`)
+	if err := pages.ValidateBlocks(blocks); err == nil {
+		t.Fatal("invalid countdown target accepted")
+	}
+}

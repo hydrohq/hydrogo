@@ -3,6 +3,7 @@ package news
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 )
 
 type Repository interface {
@@ -44,6 +46,9 @@ type Service struct {
 	DefaultLocale    string
 	Workflow         v1.EditorialWorkflow
 	WorkflowRole     func(context.Context) string
+	Realtime         interface {
+		Publish(context.Context, realtime.Event) error
+	}
 }
 
 var ErrInvalidWorkflowTransition = errors.New("invalid editorial workflow transition")
@@ -141,12 +146,16 @@ func (s Service) CreateDraft(ctx context.Context, item Item) error {
 	if err := s.requireRepository(); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Repository.CreateDraft(ctx, tx, item); err != nil {
 			return err
 		}
 		return s.events(ctx, tx, "news.created", item.ID, 1)
 	})
+	if err == nil {
+		s.publishLive(ctx, "news:created", item.ID, 1)
+	}
+	return err
 }
 
 func (s Service) UpdateDraft(ctx context.Context, item Item, expectedVersion int) error {
@@ -171,6 +180,9 @@ func (s Service) UpdateDraft(ctx context.Context, item Item, expectedVersion int
 	if errors.Is(err, ErrConflict) {
 		return ErrConflict
 	}
+	if err == nil {
+		s.publishLive(ctx, "news:updated", item.ID, expectedVersion+1)
+	}
 	return err
 }
 
@@ -181,7 +193,7 @@ func (s Service) Schedule(ctx context.Context, id string, expectedVersion int, a
 	if err := s.requireRepository(); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.validateTransition(ctx, tx, id, v1.EditorialScheduled); err != nil {
 			return err
 		}
@@ -191,6 +203,10 @@ func (s Service) Schedule(ctx context.Context, id string, expectedVersion int, a
 		}
 		return s.events(ctx, tx, "news.scheduled", id, int(generation))
 	})
+	if err == nil {
+		s.publishLive(ctx, "news:scheduled", id, expectedVersion+1)
+	}
+	return err
 }
 
 func (s Service) RunScheduled(ctx context.Context, id string, generation int64, now time.Time) error {
@@ -200,7 +216,7 @@ func (s Service) RunScheduled(ctx context.Context, id string, generation int64, 
 	if err := s.requireRepository(); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.validateTransition(ctx, tx, id, v1.EditorialPublished); err != nil {
 			return err
 		}
@@ -209,13 +225,17 @@ func (s Service) RunScheduled(ctx context.Context, id string, generation int64, 
 		}
 		return s.events(ctx, tx, "news.published", id, int(generation))
 	})
+	if err == nil {
+		s.publishLive(ctx, "news:published", id, int(generation))
+	}
+	return err
 }
 
 func (s Service) Publish(ctx context.Context, id string, expectedVersion int) error {
 	if err := s.requireRepository(); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.validateTransition(ctx, tx, id, v1.EditorialPublished); err != nil {
 			return err
 		}
@@ -224,13 +244,17 @@ func (s Service) Publish(ctx context.Context, id string, expectedVersion int) er
 		}
 		return s.events(ctx, tx, "news.published", id, expectedVersion)
 	})
+	if err == nil {
+		s.publishLive(ctx, "news:published", id, expectedVersion)
+	}
+	return err
 }
 
 func (s Service) Retract(ctx context.Context, id string, expectedVersion int) error {
 	if err := s.requireRepository(); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.validateTransition(ctx, tx, id, v1.EditorialRetracted); err != nil {
 			return err
 		}
@@ -239,6 +263,21 @@ func (s Service) Retract(ctx context.Context, id string, expectedVersion int) er
 		}
 		return s.events(ctx, tx, "news.retracted", id, expectedVersion)
 	})
+	if err == nil {
+		s.publishLive(ctx, "news:retracted", id, expectedVersion)
+	}
+	return err
+}
+
+func (s Service) publishLive(ctx context.Context, topic, id string, version int) {
+	if s.Realtime == nil {
+		return
+	}
+	data, _ := json.Marshal(struct {
+		ID      string `json:"id"`
+		Version int    `json:"version"`
+	}{id, version})
+	_ = s.Realtime.Publish(ctx, realtime.Event{ID: fmt.Sprintf("%s:%s:%d", topic, id, version), Topic: topic, Data: data})
 }
 
 func (s Service) events(ctx context.Context, tx database.Executor, action, id string, version int) error {

@@ -24,7 +24,9 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
+	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
@@ -52,6 +54,10 @@ type Handler struct {
 	DiscoveryCache      *seo.DiscoveryCache
 	Notifications       *adminstudiosql.Store
 	WeeklyDigestEnabled bool
+	PreviewSigner       *preview.Signer
+	PreviewOrigin       string
+	RequireTenantScope  bool
+	SearchEnabled       bool
 }
 
 type PublicSEOSettings struct{ Brand, FontCSS, AppearanceCSS, FaviconURL, SocialImageURL string }
@@ -121,6 +127,9 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/translate", Handler: http.HandlerFunc(h.adminTranslate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/revisions/{revision}/restore", Handler: http.HandlerFunc(h.restoreRevision), Protected: true},
+	}
+	if h.PreviewSigner != nil {
+		routes = append(routes, Route{Pattern: "POST /admin/pages/{id}/preview-link", Handler: http.HandlerFunc(h.createPreviewLink), Protected: true}, Route{Pattern: "GET /preview/pages/{id}", Handler: http.HandlerFunc(h.publicDraftPreview)})
 	}
 	for _, route := range seo.DiscoveryRoutes(h.DiscoveryProvider, h.DiscoveryCache) {
 		routes = append(routes, Route{Pattern: route.Pattern, Handler: route.Handler})
@@ -615,6 +624,15 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		designHead = head.String()
 	}
+	searchMarkup := ""
+	if h.SearchEnabled {
+		var search bytes.Buffer
+		if err := ui.PublicSearchBox().Render(r.Context(), &search); err != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+			return
+		}
+		searchMarkup = search.String()
+	}
 	designHead += seoMeta
 	articleHTML, tocHTML, err := ui.PrepareArticleHTML(ui.RichTextHTML(page.Body))
 	if err != nil {
@@ -658,6 +676,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.Theme != nil {
 		var content strings.Builder
+		content.WriteString(searchMarkup)
 		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div></div>`, template.HTMLEscapeString(page.Title), readingTools.String(), template.HTML(tocHTML), template.HTML(articleHTML))
 		if editorAllowed(r) {
 			content.WriteString(renderInPlaceEditLink(r, page.ID))
@@ -695,12 +714,13 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
 			return
 		}
+		navigationHTML = template.HTML(string(navigationHTML) + searchMarkup)
 		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(content.String()), Navigation: navigation, Slots: map[string]template.HTML{"content": template.HTML(content.String()), "head": template.HTML(designHead), "navigation": navigationHTML}}); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body><main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup)
 }
 
 func renderInPlaceEditLink(r *http.Request, pageID string) string {
@@ -902,6 +922,90 @@ func (h Handler) preview(w http.ResponseWriter, r *http.Request) {
 	h.writePage(w, r, r.PathValue("id"))
 }
 
+func (h Handler) createPreviewLink(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) || h.PreviewSigner == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil || page.Status != pages.StatusDraft {
+		http.Error(w, "draft unavailable", http.StatusNotFound)
+		return
+	}
+	tenantID := ""
+	if h.RequireTenantScope {
+		scope, e := tenant.Require(r.Context())
+		if e != nil {
+			http.Error(w, "preview unavailable", http.StatusForbidden)
+			return
+		}
+		tenantID = scope.TenantID
+	}
+	now := time.Now().UTC()
+	token, err := h.PreviewSigner.Issue(preview.Claims{PageID: page.ID, TenantID: tenantID, Revision: page.Revision}, now, 24*time.Hour)
+	if err != nil {
+		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	target := "/preview/pages/" + url.PathEscape(page.ID) + "?token=" + url.QueryEscape(token)
+	if h.PreviewOrigin != "" {
+		target = strings.TrimRight(h.PreviewOrigin, "/") + target
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = ui.DraftPreviewLinkResult(target, now.Add(24*time.Hour).Format(time.RFC3339)).Render(r.Context(), w)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"url": target, "expires_at": now.Add(24 * time.Hour)})
+}
+
+func (h Handler) publicDraftPreview(w http.ResponseWriter, r *http.Request) {
+	if h.PreviewSigner == nil {
+		http.NotFound(w, r)
+		return
+	}
+	claims, err := h.PreviewSigner.Verify(r.URL.Query().Get("token"), time.Now().UTC())
+	if err != nil || claims.PageID != r.PathValue("id") {
+		http.NotFound(w, r)
+		return
+	}
+	if h.RequireTenantScope {
+		scope, e := tenant.Require(r.Context())
+		if e != nil || scope.TenantID != claims.TenantID {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	page, err := h.Content.Get(r.Context(), h.DB, claims.PageID)
+	if err != nil || page.Status != pages.StatusDraft || page.Revision != claims.Revision {
+		http.NotFound(w, r)
+		return
+	}
+	blocks, err := blockrender.Blocks(page.Blocks)
+	if err != nil {
+		http.Error(w, "draft preview unavailable", http.StatusInternalServerError)
+		return
+	}
+	article, _, err := ui.PrepareArticleHTML(ui.RichTextHTML(page.Body))
+	if err != nil {
+		http.Error(w, "draft preview unavailable", http.StatusInternalServerError)
+		return
+	}
+	body := `<main><h1>` + template.HTMLEscapeString(page.Title) + `</h1><div class="content-body article-reading-body">` + article + `</div>` + blocks + `</main>`
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if h.Theme != nil {
+		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(body), Slots: map[string]template.HTML{"content": template.HTML(body)}}); err != nil {
+			return
+		}
+		return
+	}
+	_, _ = fmt.Fprintf(w, "<!doctype html><html lang=\"%s\"><head><meta charset=\"utf-8\"><meta name=\"robots\" content=\"noindex,nofollow\"><title>%s</title></head><body>%s</body></html>", template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), body)
+}
+
 func (h Handler) writePage(w http.ResponseWriter, r *http.Request, id string) {
 	page, err := h.Content.Get(r.Context(), h.DB, id)
 	if err != nil {
@@ -995,6 +1099,9 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStartForRequest(w, r, "Sayfa düzenle", "İçerik stüdyosu", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
+	}
+	if h.PreviewSigner != nil {
+		_ = ui.DraftPreviewLinkForm("/admin/pages/"+url.PathEscape(page.ID)+"/preview-link", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 	}
 	if history, ok := h.Content.Pages.(interface {
 		ListRevisions(context.Context, database.Executor, string, int) ([]pages.RevisionSnapshot, error)

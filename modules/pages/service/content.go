@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -85,6 +87,9 @@ type ContentService struct {
 	// behavior for deployments that do not configure i18n.
 	SupportedLocales []string
 	DefaultLocale    string
+	Realtime         interface {
+		Publish(context.Context, realtime.Event) error
+	}
 }
 
 func (s ContentService) GetPublished(ctx context.Context, db database.Executor, locale, slug string) (pages.Page, error) {
@@ -143,7 +148,7 @@ func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error 
 	if err := s.requireMutationDependencies(); err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if err := s.Pages.CreateDraftContent(ctx, tx, page); err != nil {
 			return err
 		}
@@ -152,6 +157,10 @@ func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error 
 		}
 		return s.Outbox.Enqueue(ctx, tx, "outbox-"+page.ID, "page.created", page.ID, 1)
 	})
+	if err == nil {
+		s.publishEvent(ctx, page.ID, "created", 1)
+	}
+	return err
 }
 
 func (s ContentService) UpdateDraft(ctx context.Context, page pages.Page, expectedVersion int) error {
@@ -178,6 +187,9 @@ func (s ContentService) UpdateDraft(ctx context.Context, page pages.Page, expect
 	})
 	if errors.Is(err, pages.ErrConflict) {
 		return ErrConflict
+	}
+	if err == nil {
+		s.publishEvent(ctx, page.ID, "updated", expectedVersion+1)
 	}
 	return err
 }
@@ -206,7 +218,21 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 		// inside the transaction can create a refill race for rolled-back data.
 		s.PublicCache.Clear()
 	}
+	if err == nil {
+		s.publishEvent(ctx, pageID, "published", expectedVersion+1)
+	}
 	return err
+}
+
+func (s ContentService) publishEvent(ctx context.Context, id, action string, version int) {
+	if s.Realtime == nil {
+		return
+	}
+	data, _ := json.Marshal(struct {
+		ID      string `json:"id"`
+		Version int    `json:"version"`
+	}{id, version})
+	_ = s.Realtime.Publish(ctx, realtime.Event{ID: "page:" + id + ":" + action + ":" + fmt.Sprint(version), Topic: "pages:" + action, Data: data})
 }
 
 func (s ContentService) requireMutationDependencies() error {

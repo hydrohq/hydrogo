@@ -290,6 +290,21 @@ type selectiveSessionRevoker interface {
 	DeleteOtherByUserID(context.Context, string, string) error
 }
 
+type sessionLister interface {
+	ListByUserID(context.Context, string, time.Time) ([]Session, error)
+}
+
+func (s *AuthService) ListUserSessions(ctx context.Context, userID string) ([]Session, error) {
+	if s == nil || guards.IsNil(s.sessionRepo) {
+		return nil, ErrSessionRepositoryRequired
+	}
+	lister, ok := s.sessionRepo.(sessionLister)
+	if !ok {
+		return nil, errors.New("session repository cannot list sessions")
+	}
+	return lister.ListByUserID(ctx, userID, time.Now().UTC())
+}
+
 func (s *AuthService) RevokeOtherUserSessions(ctx context.Context, userID, currentTokenHash string) error {
 	if s == nil || guards.IsNil(s.sessionRepo) {
 		return ErrSessionRepositoryRequired

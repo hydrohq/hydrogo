@@ -41,6 +41,12 @@ func blockHTML(block pages.Block) (string, error) {
 		return "", ErrInvalidBlock
 	}
 	switch block.Type {
+	case "countdown":
+		var p designsystem.CountdownProps
+		if err := json.Unmarshal(block.Payload, &p); err != nil {
+			return "", ErrInvalidBlock
+		}
+		return renderComponent(designsystem.Countdown(p))
 	case "hero":
 		var p struct {
 			Title        string `json:"title"`

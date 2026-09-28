@@ -11,6 +11,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -27,6 +28,9 @@ func nonNilContext(ctx context.Context) context.Context {
 
 type Config struct {
 	Address                    string
+	AutoTLS                    bool
+	TLSHost                    string
+	TLSCacheDir                string
 	ShutdownTimeout            time.Duration
 	Ready                      func(context.Context) error
 	AuthSvc                    *auth.AuthService
@@ -50,10 +54,14 @@ type Config struct {
 	TenantResolver             *tenant.HostResolver
 	TenantAdmission            *security.TenantAdmission
 	DistributedTenantAdmission *security.RedisTenantAdmission
+	RealtimeHub                *realtime.Hub
 }
 
 func Serve(ctx context.Context, config Config) error {
 	ctx = nonNilContext(ctx)
+	if config.AutoTLS {
+		return serveAutoTLS(ctx, config)
+	}
 	listener, err := net.Listen("tcp", config.Address)
 	if err != nil {
 		return err
@@ -130,6 +138,9 @@ func NewHandler(config Config) http.Handler {
 		{Pattern: "POST /csp-report", Access: router.Public, Handler: http.HandlerFunc(security.CSPReportHandler)},
 	}
 	routes = append(routes, config.Routes...)
+	if config.RealtimeHub != nil {
+		routes = append(routes, router.Route{Pattern: "GET /api/v1/realtime/subscriptions", Access: router.Protected, Handler: config.RealtimeHub})
+	}
 
 	authorizer := config.Authorizer
 	if authorizer == nil && config.AuthSvc != nil {

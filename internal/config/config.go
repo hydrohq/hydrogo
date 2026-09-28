@@ -41,6 +41,14 @@ type Config struct {
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
+	Backup          Backup           `yaml:"backup"`
+}
+
+type Backup struct {
+	Enabled       bool   `yaml:"enabled"`
+	Prefix        string `yaml:"prefix"`
+	RetentionDays int    `yaml:"retention_days"`
+	HourUTC       int    `yaml:"hour_utc"`
 }
 
 // AdminExtensions configures signed, externally hosted Admin Studio surfaces.
@@ -79,6 +87,9 @@ type Webhook struct {
 type HTTP struct {
 	Address      string `yaml:"address"`
 	PublicOrigin string `yaml:"public_origin"`
+	AutoTLS      bool   `yaml:"auto_tls"`
+	Domain       string `yaml:"domain"`
+	BehindProxy  bool   `yaml:"behind_proxy"`
 }
 
 type Database struct {
@@ -116,6 +127,7 @@ type Security struct {
 	EnableAnomalyFilter bool     `yaml:"enable_anomaly_filter"`
 	AnomalyBypassPaths  []string `yaml:"anomaly_bypass_paths"`
 	MFARequiredRoles    []string `yaml:"mfa_required_roles"`
+	PreviewSigningKey   string   `yaml:"preview_signing_key" json:"-"`
 }
 
 type I18N struct {
@@ -182,7 +194,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, ThemeDir: "themes", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ThemeDir: "themes", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true}}
 	result.License.File = "hydro.lic"
 	if path != "" {
 		file, err := os.Open(path)
@@ -343,6 +355,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if value, ok := lookup("HYDRO_MFA_MASTER_KEY"); ok && value != "" {
 		result.Security.MFAMasterKey = value
 	}
+	if value, ok := lookup("HYDRO_PREVIEW_SIGNING_KEY"); ok && value != "" {
+		result.Security.PreviewSigningKey = value
+	}
 	if value, ok := lookup("HYDRO_SECURE_COOKIES"); ok && value != "" {
 		secureCookies, err := strconv.ParseBool(value)
 		if err != nil {
@@ -481,6 +496,23 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 }
 
 func (c Config) Validate() error {
+	if c.Security.PreviewSigningKey != "" && len(c.Security.PreviewSigningKey) < 32 {
+		return errors.New("preview signing key must contain at least 32 bytes")
+	}
+	if c.Backup.Enabled && (c.Media.S3Endpoint == "" || c.Media.S3Bucket == "" || c.Media.S3AccessKey == "" || c.Media.S3SecretKey == "") {
+		return errors.New("scheduled cloud backup requires configured S3-compatible storage credentials")
+	}
+	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
+		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
+	}
+	if c.HTTP.AutoTLS {
+		if c.HTTP.BehindProxy {
+			return errors.New("automatic TLS cannot run behind a reverse proxy")
+		}
+		if strings.TrimSpace(c.HTTP.Domain) == "" || strings.ContainsAny(c.HTTP.Domain, "/:* ") {
+			return errors.New("automatic TLS requires one valid domain")
+		}
+	}
 	if err := c.Profile.Validate(); err != nil {
 		return err
 	}

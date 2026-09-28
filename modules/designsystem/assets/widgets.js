@@ -23,6 +23,21 @@
     }
   });
 
+  document.addEventListener('keydown', event => {
+    const input = event.target.closest('[role="combobox"][aria-controls]'); if (!input) return;
+    const list = document.getElementById(input.getAttribute('aria-controls')); const options = [...(list?.querySelectorAll('[role="option"]') || [])];
+    if (event.key === 'Escape') { input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); if (list) list.replaceChildren(); return; }
+    if (!options.length || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+    if (event.key === 'Enter') { const active = options.find(option => option.id === input.getAttribute('aria-activedescendant')); const link = active?.querySelector('a[href]'); if (link) { event.preventDefault(); location.assign(link.href); } return; }
+    event.preventDefault(); const current = options.findIndex(option => option.id === input.getAttribute('aria-activedescendant')); const next = (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+    options.forEach((option, index) => { const selected = index === next; option.setAttribute('aria-selected', String(selected)); }); input.setAttribute('aria-activedescendant', options[next].id); input.setAttribute('aria-expanded', 'true');
+  });
+
+  document.addEventListener('htmx:afterSwap', event => {
+    const list = event.detail?.target; if (!list?.matches('[role="listbox"]')) return;
+    const input = document.querySelector(`[aria-controls="${CSS.escape(list.id)}"]`); if (input) { input.setAttribute('aria-expanded', String(Boolean(list.querySelector('[role="option"]')))); input.removeAttribute('aria-activedescendant'); }
+  });
+
   const animateCounters = root => {
     if (reduceMotion || !('IntersectionObserver' in window)) return;
     const observer = new IntersectionObserver(entries => entries.forEach(entry => {
@@ -138,6 +153,23 @@
     window.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
   }, root);
 
+  const initCountdowns = root => each('[data-countdown]', block => {
+    if (block.dataset.countdownReady) return;
+    const target = Date.parse(block.dataset.target || '');
+    if (!Number.isFinite(target)) return;
+    block.dataset.countdownReady = 'true';
+    const clock = block.querySelector('.ds-countdown__clock'); const expired = block.querySelector('.ds-countdown__expired');
+    const update = () => {
+      const seconds = Math.max(0, Math.floor((target - Date.now()) / 1000));
+      if (!seconds) { clock.hidden = true; expired.hidden = false; block.querySelector('[data-countdown-headline]').textContent = block.dataset.expiredHeadline || ''; const cta = block.querySelector('[data-countdown-cta]'); cta.hidden = !block.dataset.expiredUrl; return false; }
+      block.querySelector('[data-countdown-days]').textContent = String(Math.floor(seconds / 86400));
+      block.querySelector('[data-countdown-hours]').textContent = String(Math.floor(seconds % 86400 / 3600)).padStart(2, '0');
+      block.querySelector('[data-countdown-minutes]').textContent = String(Math.floor(seconds % 3600 / 60)).padStart(2, '0');
+      block.querySelector('[data-countdown-seconds]').textContent = String(seconds % 60).padStart(2, '0'); return true;
+    };
+    if (update()) { const timer = window.setInterval(() => { if (!update()) window.clearInterval(timer); }, 1000); }
+  }, root);
+
   const celebrate = target => {
     if (reduceMotion || !target) return;
     const host = target.matches('[data-confetti-success]') ? target : target.querySelector('[data-confetti-success]');
@@ -162,7 +194,7 @@
     }
   });
 
-  const init = root => { animateCounters(root); initVideos(root); initSticky(root); };
+  const init = root => { animateCounters(root); initVideos(root); initSticky(root); initCountdowns(root); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => init(document)); else init(document);
   document.addEventListener('htmx:afterSettle', event => init(event.target));
 })();

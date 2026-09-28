@@ -278,6 +278,17 @@ func TestSeedDemoRequiresExplicitConfirmation(t *testing.T) {
 	}
 }
 
+func TestCleanDemoRequiresTargetAndProductionOptIn(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := cleanDemoCommand(nil, &stdout, &stderr); err == nil || !strings.Contains(err.Error(), "--demo") {
+		t.Fatalf("untargeted clean error=%v", err)
+	}
+	t.Setenv("HYDRO_ENV", "production")
+	if err := cleanDemoCommand([]string{"--demo"}, &stdout, &stderr); err == nil || !strings.Contains(err.Error(), "--force-prod") {
+		t.Fatalf("production clean error=%v", err)
+	}
+}
+
 func TestSeedDemoRequiresForceFlagInProduction(t *testing.T) {
 	t.Setenv("HYDRO_ENV", "production")
 	t.Setenv("APP_ENV", "")
