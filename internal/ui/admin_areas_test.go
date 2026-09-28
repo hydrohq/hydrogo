@@ -56,7 +56,7 @@ func TestAdminSiteAreaLinksToSEOAndRedirectTools(t *testing.T) {
 	if err := RenderAdminArea(&out, AdminAreaData{Area: "site", FontToolsEnabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{`href="/admin/site/seo"`, `href="/admin/site/redirect-rules"`, `href="/admin/site/fonts"`, "SEO ayarları", "Yönlendirmeler", "Yazı tipi"} {
+	for _, marker := range []string{`href="/admin/site/seo"`, `href="/admin/site/redirect-rules"`, `href="/admin/translations"`, `href="/admin/site/fonts"`, "SEO ayarları", "Yönlendirmeler", "Çeviriler", "Yazı tipi"} {
 		if !strings.Contains(out.String(), marker) {
 			t.Errorf("site admin area missing %q", marker)
 		}

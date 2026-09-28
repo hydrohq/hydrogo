@@ -145,9 +145,21 @@ func runVisibilityContract(t *testing.T, db database.Executor, dialect database.
 	if err := store.UpsertSetting(ctx, db, site.Setting{Key: "private", Value: "no", Public: false, UpdatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.UpsertSetting(ctx, db, site.Setting{Key: "i18n.override.en.admin.language", Value: "Interface language", Public: true, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
 	settings, err := store.ListPublicSettings(ctx, db)
-	if err != nil || len(settings) != 1 || settings[0].Key != "public" || !settings[0].Public {
+	if err != nil || len(settings) != 2 || !settings[0].Public || !settings[1].Public {
 		t.Fatalf("public settings = %#v/%v", settings, err)
+	}
+	foundOverride := false
+	for _, setting := range settings {
+		if setting.Key == "i18n.override.en.admin.language" && setting.Value == "Interface language" {
+			foundOverride = true
+		}
+	}
+	if !foundOverride {
+		t.Fatal("persisted translation override missing from public settings projection")
 	}
 	if err := store.ReplaceNavigation(ctx, db, "tr", []site.NavigationItem{
 		{ID: "visible", Label: "Visible", Href: "/visible", Position: 1, Visible: true, UpdatedAt: now},

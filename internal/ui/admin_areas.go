@@ -21,6 +21,7 @@ type AdminAreaData struct {
 	CSRF             string
 	Area             string
 	Locale           string
+	TenantID         string
 	LocaleSaved      bool
 	FontToolsEnabled bool
 	Users            []*auth.User
@@ -228,7 +229,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 	switch data.Area {
 	case "site":
 		body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
-			links := []uicomponents.LinkProps{{Href: "/admin/site/seo", Label: "SEO ayarları", Class: "button button-primary"}, {Href: "/admin/site/redirect-rules", Label: "Yönlendirmeler", Class: "button button-quiet"}}
+			links := []uicomponents.LinkProps{{Href: "/admin/site/seo", Label: "SEO ayarları", Class: "button button-primary"}, {Href: "/admin/site/redirect-rules", Label: "Yönlendirmeler", Class: "button button-quiet"}, {Href: "/admin/translations", Label: "Çeviriler", Class: "button button-quiet"}}
 			if data.FontToolsEnabled {
 				links = append(links, uicomponents.LinkProps{Href: "/admin/site/fonts", Label: "Yazı tipi", Class: "button button-quiet"})
 			}
@@ -705,7 +706,7 @@ function testGraphQL(btn){
 		}
 		languageSaved := ""
 		if data.LocaleSaved {
-			languageSaved = `<p class="studio-kit-summary" role="status">` + template.HTMLEscapeString(i18n.T(data.Locale, "admin.language.saved")) + `</p>`
+			languageSaved = `<p class="studio-kit-summary" role="status">` + template.HTMLEscapeString(i18n.TForTenant(data.TenantID, data.Locale, "admin.language.saved")) + `</p>`
 		}
 		_, _ = fmt.Fprintf(w, `<div class="acc-grid">
   <div class="acc-card">
@@ -753,7 +754,7 @@ function testGraphQL(btn){
       <button class="button" type="submit">%s</button>
     </form>
   </div>
-</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.T(data.Locale, "admin.language"), i18n.T(data.Locale, "admin.language"), languageSaved, csrf, i18n.T(data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.T(data.Locale, "admin.language.save"))
+</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"))
 
 	default:
 		_, _ = fmt.Fprintf(w, `<div class="studio-card"><p>Yönetim alanı yükleniyor...</p></div>`)
