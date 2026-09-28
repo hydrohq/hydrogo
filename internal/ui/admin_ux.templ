@@ -5,6 +5,7 @@ import "strconv"
 import "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 
 templ AdminUXChrome() {
+	@EditorStats()
 	<div id="admin-shortcuts-dialog" class="admin-ux-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-shortcuts-title" hidden>
 		<section class="admin-ux-panel">
 			<button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button>
