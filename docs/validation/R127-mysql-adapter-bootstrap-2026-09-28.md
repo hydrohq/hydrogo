@@ -8,16 +8,13 @@ parameters and an InnoDB-compatible migration ledger.
 All 87 embedded migration bundles now include MySQL scripts and metadata. The
 complete migration chain, tenant-scoped legacy data backfill, representative
 foreign keys and constraints, portfolio tag backfill, pool limits, rollback,
-migration runner, schema diff, and scratch database cleanup passed against
-MariaDB 13.0.2:
+migration runner, schema diff, and scratch database cleanup passed against MySQL 8.0.46, MariaDB 10.5, and MariaDB 13.0.2. The MySQL
+integration contracts passed on each version, and the full `go test ./...`
+suite passed with `HYDRO_TEST_MYSQL_URL` configured for MySQL 8.0.46 and
+MariaDB 10.5. `go run ./tools/migrationguard` also passes.
 
-```text
-HYDRO_TEST_MYSQL_URL=... go test ./internal/database -run '^TestMySQL' -count=1 -v
-PASS
-```
-
-`go test ./...` and `go run ./tools/migrationguard` also pass. This remains
-implementation evidence rather than full adapter certification. The complete
-repository contract suite, backup/restore, tenant isolation across repository
-families, MySQL 8.0+, and MariaDB 10.5+ matrix still need certification before
-production support is promised. Keep issue #127 open until those gates pass.
+The adapter is still experimental pending the complete repository contract
+suite running its database behavior on MySQL (the existing package tests still
+primarily exercise SQLite/PostgreSQL), backup/restore contracts, and tenant
+isolation across repository families. Keep issue #127 open until those gates
+pass.

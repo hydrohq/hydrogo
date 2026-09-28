@@ -9,7 +9,7 @@ schemas/databases and remove them before returning.
 Verification:
 
 - `go test ./...` passed.
-- `HYDRO_TEST_MYSQL_URL=... go test ./internal/database -run '^TestMySQL' -count=1 -v` passed against MariaDB 13.0.2.
+- `HYDRO_TEST_MYSQL_URL=... go test ./internal/database -run '^TestMySQL' -count=1 -v` passed against MySQL 8.0.46, MariaDB 10.5, and MariaDB 13.0.2.
 - SQLite and PostgreSQL schema drift contract tests are included in `go test ./...`; PostgreSQL tests run when `HYDRO_TEST_POSTGRES_URL` is configured.
 
 MySQL physical inspection needs `CREATE` and `DROP DATABASE` privileges for its
