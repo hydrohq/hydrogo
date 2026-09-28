@@ -88,6 +88,23 @@ func TestPublicFormUsesNativeAccessibleControlsAndSpamFields(t *testing.T) {
 	}
 }
 
+func TestPolicyConsentRendersEscapedModalAndValidatesFieldContract(t *testing.T) {
+	form := Form{ID: "contact", Title: "Contact", Fields: []Field{{ID: "terms", Type: Checkbox, Label: "I agree", Required: true, PolicyText: "Terms & conditions"}}}
+	var output bytes.Buffer
+	if err := PublicForm(PublicFormProps{Form: form}).Render(context.Background(), &output); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-policy-open="hydro-policy-contact-terms"`, `<dialog`, `Terms &amp; conditions`, `data-policy-close`} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("policy consent omitted %q: %s", want, output.String())
+		}
+	}
+	form.Fields[0].Type = Text
+	if err := form.Validate(); err == nil {
+		t.Fatal("policy text on a non-consent field was accepted")
+	}
+}
+
 func TestPublicFormOptInConversionMetadataAndRejectsMalformedSettings(t *testing.T) {
 	form := Form{ID: "contact", Title: "Contact", ConversionTracking: true, GoogleAdsConversionID: "AW-12345", GoogleAdsConversionLabel: "contact-lead", Fields: []Field{{ID: "email", Type: Email, Label: "Email"}}}
 	var output bytes.Buffer
