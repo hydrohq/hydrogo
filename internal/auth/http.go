@@ -437,14 +437,23 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 		writeAuthDependencyError(w, "account update failed", err, http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.RevokeAllUserSessions(r.Context(), user.ID); err != nil {
-		writeAuthDependencyError(w, "account update failed", err, http.StatusInternalServerError)
-		return
+	if r.FormValue("invalidate_other_sessions") == "true" {
+		if err := h.Service.RevokeOtherUserSessions(r.Context(), user.ID, HashSessionToken(sessionToken(r))); err != nil {
+			writeAuthDependencyError(w, "account update failed", err, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if err := h.Service.RevokeAllUserSessions(r.Context(), user.ID); err != nil {
+			writeAuthDependencyError(w, "account update failed", err, http.StatusInternalServerError)
+			return
+		}
 	}
 	if h.Audit != nil {
 		h.recordAuthEvent(r, "auth.credentials_changed", user.ID)
 	}
-	ClearSessionCookie(w, h.Secure)
+	if r.FormValue("invalidate_other_sessions") != "true" {
+		ClearSessionCookie(w, h.Secure)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

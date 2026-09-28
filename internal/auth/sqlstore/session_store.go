@@ -210,6 +210,32 @@ func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error 
 	})
 }
 
+func (s *SessionStore) DeleteOtherByUserID(ctx context.Context, userID, currentTokenHash string) error {
+	if err := requireSessionStore(s); err != nil {
+		return err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	query := `DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2`
+	args := []any{userID, currentTokenHash}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $3`
+		args = append(args, tenantID)
+	}
+	if s.dialect == database.SQLite {
+		query = `DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?`
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
+	}
+	return s.within(ctx, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, query, args...)
+		return err
+	})
+}
+
 func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executor, userID string) error {
 	if err := requireSessionStore(s); err != nil {
 		return err

@@ -237,3 +237,15 @@ nssm start HydroGo
       }
   }
   ```
+
+## 5. Admin Studio kapasite notları
+
+- `admin_support` kapalıyken destek kartı yapılandırması herhangi bir worker
+  veya ek servis başlatmaz. Açmak için `admin_support.enabled` değerini ve en
+  az bir iletişim yolunu yapılandırın.
+- Sayfa içe aktarma tek istekte en fazla 5 MiB, 5.000 satır ve 100 sütun işler.
+- Bildirimler mevcut veritabanına yazılır; yeni worker veya ayrı cache gerekmez.
+  İçerik modülü kapalıysa bildirim migration'ı uygulanmaz. Yüksek hacimli
+  bildirim üreticileri açılmadan önce saklama süresi tanımlanmalıdır.
+- Haftalık özet e-postası bu sürümde etkin değildir; ek worker veya mail
+  hacmi oluşturmaz.

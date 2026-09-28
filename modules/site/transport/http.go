@@ -166,7 +166,7 @@ func (h Handler) redirectRules(w http.ResponseWriter, r *http.Request) {
 		rowActions = append(rowActions, []uicomponents.TableAction{{Label: "Kaldır", Action: "/admin/site/redirect-rules/" + url.PathEscape(item.ID) + "/delete", CSRF: security.CSRFTokenFromContext(r.Context()), Variant: uicomponents.Danger}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStart(w, "Yönlendirmeler", "Eski bağlantıları güncel sayfalara yönetin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Yönlendirmeler", "Eski bağlantıları güncel sayfalara yönetin", security.NonceFromContext(r.Context()), "site") != nil {
 		return
 	}
 	newRuleBody := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
@@ -347,7 +347,7 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Formlar", "Schema yönetimi", security.NonceFromContext(r.Context()), "site"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Formlar", "Schema yönetimi", security.NonceFromContext(r.Context()), "site"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><p class="muted">Kayıtlı formlar</p><div class="studio-actions">`)
@@ -421,7 +421,7 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, []string{item.Email, item.Status, item.LeadStage, item.AssignedTo, item.CreatedAt.UTC().Format(time.RFC3339)})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStart(w, "Gelen talepler", "Form gelen kutusu", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Gelen talepler", "Form gelen kutusu", security.NonceFromContext(r.Context()), "site") != nil {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<form method="get" action="/admin/site/inbox/%s" class="studio-form">`, template.URLQueryEscaper(r.PathValue("form")))
@@ -793,7 +793,7 @@ func (h Handler) seoSettings(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	if ui.AdminStart(w, "SEO ayarları", "Yayınlanmış içeriklerin arama ve keşif görünümü", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "SEO ayarları", "Yayınlanmış içeriklerin arama ve keşif görünümü", security.NonceFromContext(r.Context()), "site") != nil {
 		return
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
@@ -874,7 +874,7 @@ func (h Handler) fontPicker(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	if ui.AdminStart(w, "Yerel yazı tipi", "Kendi siteniz için yerel bir yazı tipi seçin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Yerel yazı tipi", "Kendi siteniz için yerel bir yazı tipi seçin", security.NonceFromContext(r.Context()), "site") != nil {
 		return
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {

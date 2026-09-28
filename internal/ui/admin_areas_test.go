@@ -130,6 +130,21 @@ func TestAdminShellIncludesMobileNavigationContract(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesAccessibleUXDialogsAndQuickActions(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Studio", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := AdminEnd(&out); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`data-shortcuts-open`, `data-notifications-open`, `data-password-open`, `admin-shortcuts-dialog`, `admin-password-dialog`, `admin-onboarding-dialog`, `data-quick-password-form`} {
+		if !strings.Contains(out.String(), marker) {
+			t.Errorf("Admin Studio shell is missing %q", marker)
+		}
+	}
+}
+
 func TestAdminShellWriterPreservesInputLengthAfterRewrite(t *testing.T) {
 	var out bytes.Buffer
 	writer := adminShellWriter{Writer: &out}

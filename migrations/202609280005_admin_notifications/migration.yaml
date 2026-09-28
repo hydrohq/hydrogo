@@ -1,0 +1,24 @@
+id: "202609280005_admin_notifications"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies:
+  - "202609080003_pages_content"
+checksum_sha256:
+  sqlite: "09d110eb909195882bd747dc3ea8ba94046a1dc17c1b875cf1bae0159abc50bf"
+  postgres: "399914291ffa9d9af86b5773f9bf0f730ce68eb321c940c6145b62e8de364fc3"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Pages capability is enabled"
+compatibility: "Adds a bounded per-user notification inbox; existing content rows are unchanged."
+smoke:
+  - "Notifications can be inserted and listed for one user and tenant"
+  - "Mark-read updates only the selected user notification"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward migration only; dropping the inbox discards notification history."

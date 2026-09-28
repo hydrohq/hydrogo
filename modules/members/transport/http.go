@@ -397,7 +397,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Üyeler", "", security.NonceFromContext(r.Context()), "members"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Üyeler", "", security.NonceFromContext(r.Context()), "members"); err != nil {
 		return
 	}
 
@@ -512,7 +512,7 @@ func (h Handler) adminDetail(w http.ResponseWriter, r *http.Request) {
 
 	csrf := security.CSRFTokenFromContext(r.Context())
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Üye Detayı", "", security.NonceFromContext(r.Context()), "members"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Üye Detayı", "", security.NonceFromContext(r.Context()), "members"); err != nil {
 		return
 	}
 

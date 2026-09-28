@@ -42,6 +42,7 @@ import (
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	analyticsstore "github.com/ardaozyildirim/hydrogo/internal/analytics/sqlstore"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
@@ -1632,8 +1633,10 @@ func serve(args []string, stderr io.Writer) error {
 				}
 			}
 		}
+		pageCollection.BulkActions = []adminstudio.Action{{Label: "CSV dışa aktar", Href: "/admin/pages/bulk"}}
 		pageLLMSCache = &seo.DiscoveryCache{}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
+		notificationStore := adminstudiosql.Store{Dialect: cfg.Database.Dialect}
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
 			var result pagetransport.PublicSEOSettings
 			if !modules["site"] {
 				return result
@@ -1867,8 +1870,18 @@ func serve(args []string, stderr io.Writer) error {
 	var runtimeMetrics *observability.Metrics
 	adminDashboardHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
-		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
-			http.Error(w, "forbidden", http.StatusForbidden)
+		if user == nil || !user.Active {
+			http.Error(w, "Bu alana erişmek için giriş yapın.", http.StatusUnauthorized)
+			return
+		}
+		if user.Role == auth.RoleEditor && r.URL.Path == "/admin" {
+			if err := ui.RenderBusinessOwnerDashboard(w, r, enabledModuleSet(cfg.Modules)); err != nil {
+				http.Error(w, "Bu sayfa şu anda açılamıyor.", http.StatusInternalServerError)
+			}
+			return
+		}
+		if user.Role != auth.RoleAdmin {
+			http.Error(w, "Bu alana erişim yetkiniz yok.", http.StatusForbidden)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -2388,6 +2401,7 @@ func serve(args []string, stderr io.Writer) error {
 		Logger:                logger,
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
+		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL},
 		IPBlocklist:           ipBlocklist,
 		AnomalyFilterEnabled:  cfg.Security.EnableAnomalyFilter,
 		AnomalyBypassPaths:    cfg.Security.AnomalyBypassPaths,
