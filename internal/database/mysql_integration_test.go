@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -31,7 +32,11 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 	if tableCount != 0 {
 		t.Skip("initial migration contract requires an empty dedicated MySQL database")
 	}
-	ids := []string{"202609060001_transaction_contract", "202609060002_auth_security", "202609080003_pages_content"}
+	ids := []string{
+		"202609060001_transaction_contract", "202609060002_auth_security", "202609080003_pages_content",
+		"202609080004_media_assets", "202609080005_published_route_index", "202609080006_published_projection",
+		"202609080007_mfa", "202609080008_recovery_tokens", "202609080009_site_edition", "202609080010_auth_invites",
+	}
 	bundle := fstest.MapFS{}
 	for _, id := range ids {
 		for _, name := range []string{"migration.yaml", "mysql.sql"} {
@@ -46,21 +51,47 @@ func TestMySQLInitialMigrationChainContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		for _, table := range []string{"page_revisions", "sessions", "users", "pages", "audit_events", "outbox_events", "schema_migrations"} {
+		for _, table := range []string{
+			"auth_invites", "form_inbox", "page_redirects", "navigation_items", "site_settings", "auth_recovery_tokens",
+			"mfa_recovery_codes", "user_mfa", "page_revisions", "sessions", "users", "media_assets", "pages",
+			"audit_events", "outbox_events", "schema_migrations",
+		} {
 			if _, err := db.ExecContext(context.Background(), "DROP TABLE IF EXISTS "+table); err != nil {
 				t.Errorf("drop %s: %v", table, err)
 			}
 		}
 	}()
-	if _, err := db.ExecContext(ctx, `INSERT INTO users (id,email,password_hash,role,created_at,updated_at) VALUES ('u1','one@example.test','hash','owner',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+	now := time.Now().UTC()
+	if _, err := db.ExecContext(ctx, `INSERT INTO users (id,email,password_hash,role,created_at,updated_at) VALUES ('u1','one@example.test','hash','owner',?,?)`, now, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO sessions (id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES ('s1','u1',REPEAT('a',64),CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO sessions (id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES ('s1','u1',REPEAT('a',64),?,?,?)`, now.Add(time.Hour), now, now); err != nil {
 		t.Fatalf("session insert with parent key: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO user_mfa (user_id,secret_ciphertext,enabled,created_at,updated_at) VALUES ('u1',X'010203',1,CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatalf("MFA insert with parent key: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO mfa_recovery_codes (id,user_id,code_hash) VALUES ('rc1','u1',REPEAT('b',64))`); err != nil {
+		t.Fatalf("MFA recovery insert with parent key: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO auth_recovery_tokens (id,user_id,purpose,token_hash,expires_at,created_at) VALUES ('rt1','u1','password',REPEAT('c',64),CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
+		t.Fatalf("auth recovery insert with parent key: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM users WHERE id='u1'`); err != nil {
+		t.Fatalf("delete user with dependent records: %v", err)
+	}
+	for _, table := range []string{"sessions", "user_mfa", "mfa_recovery_codes", "auth_recovery_tokens"} {
+		var count int
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Errorf("%s rows after parent delete = %d, want 0", table, count)
+		}
+	}
 	for _, id := range []string{"p1", "p2"} {
-		if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES (?, 'Draft','en','', '', 'draft',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`, id); err != nil {
-			t.Fatalf("insert blank-slug page %s: %v", id, err)
+		if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES (?, 'Draft','en','same-draft-route', '', 'draft',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`, id); err != nil {
+			t.Fatalf("insert duplicate draft route %s: %v", id, err)
 		}
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,created_at,updated_at) VALUES ('p3','Published','en','about','body','published',CURRENT_TIMESTAMP(6),CURRENT_TIMESTAMP(6))`); err != nil {
