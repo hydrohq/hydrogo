@@ -3,12 +3,15 @@ module: "media"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"
+  mysql: "maintenance"
 transactional:
   sqlite: true
   postgres: true
+  mysql: false
 checksum_sha256:
   sqlite: "973d21bd3268230420ee82db5f9ca878f8b821c147178e64543d6108bc61c0d4"
   postgres: "6f0edf9372fb4dc7b47f9b3ad9b94d712d5901acd1c760c290bb16b7c9cb9e80"
+  mysql: "5c3c753d516fe30ec0566da4d93e292913cbdf069edeec4a1109541fd8748999"
 dependencies:
   - "202609080003_pages_content"
 schema:
