@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/telemetry"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -19,6 +20,7 @@ type Dialect string
 const (
 	SQLite   Dialect = "sqlite"
 	Postgres Dialect = "postgres"
+	MySQL    Dialect = "mysql"
 )
 
 type OpenOptions struct {
@@ -194,6 +196,13 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 		}
 	case Postgres:
 		driver = "pgx"
+	case MySQL:
+		driver = "mysql"
+		var err error
+		dsn, err = prepareMySQLDSN(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("invalid MySQL DSN: %w", err)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported database dialect %q", dialect)
 	}
@@ -228,6 +237,9 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 		db.Close()
 		return nil, err
 	}
+	if dialect == MySQL {
+		db.SetConnMaxLifetime(3 * time.Minute)
+	}
 	return db, nil
 }
 
@@ -241,6 +253,8 @@ func ValidateDialectAvailable(dialect Dialect) error {
 		driver = "sqlite"
 	case Postgres:
 		driver = "pgx"
+	case MySQL:
+		driver = "mysql"
 	default:
 		return fmt.Errorf("unsupported database dialect %q", dialect)
 	}
