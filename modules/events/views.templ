@@ -1,0 +1,21 @@
+package events
+import "github.com/ardaozyildirim/hydrogo/internal/sectoral"
+import "time"
+templ Collection(items []Event) {
+<section class="sectoral-events bg-background text-foreground" data-module="events">
+ for _, item := range items {
+  if item.Status == "published" {
+   <article class="sectoral-card bg-surface border-border"><h2>{ item.Title }</h2>
+   <time datetime={ item.StartsAt.Format(time.RFC3339) }>{ item.StartsAt.Format("02.01.2006 15:04") }</time>
+   if item.Venue != "" {
+	<p>{ item.Venue }</p>
+   }
+   if item.RegistrationURL != "" {
+	<a href={ templ.SafeURL(sectoral.SanitizeWebURL(item.RegistrationURL)) }>Kayıt ol</a>
+   }
+   <a href={ "/events/" + item.Slug + ".ics" }>Takvime ekle</a>
+   </article>
+  }
+ }
+</section>
+}

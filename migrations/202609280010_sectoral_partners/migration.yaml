@@ -1,0 +1,24 @@
+id: "202609280010_sectoral_partners"
+module: "partners"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "a35f14396b87d8497ef5f8ffaddb6ab216f15945381db7acc23dcb80f03ae81e"
+  postgres: "8608932e9110dc7c795166a15151d592d79be0d7e96141414c8700e8c22e372c"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The partners module is enabled for this Edition"
+compatibility: "Adds the optional partners collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped partners entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."

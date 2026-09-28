@@ -14,6 +14,13 @@
       if (video.duration) video.currentTime = video.duration * Number(event.target.value) / 1000;
     }
     if (player && event.target.matches('[data-video-volume]')) player.querySelector('video').volume = Number(event.target.value);
+    const faqSearch = event.target.closest('[data-faq-search]');
+    if (faqSearch) {
+      const query = faqSearch.value.trim().toLocaleLowerCase();
+      faqSearch.closest('[data-module="faq"]')?.querySelectorAll('[data-faq-item]').forEach(item => {
+        item.hidden = query !== '' && !item.textContent.toLocaleLowerCase().includes(query);
+      });
+    }
   });
 
   const animateCounters = root => {
@@ -39,6 +46,13 @@
   };
 
   document.addEventListener('click', async event => {
+    const pricingPeriod = event.target.closest('[data-pricing-period]');
+    if (pricingPeriod) {
+      const period = pricingPeriod.dataset.pricingPeriod;
+      const section = pricingPeriod.closest('[data-pricing-toggle]')?.parentElement;
+      section?.querySelectorAll('[data-pricing-period]').forEach(button => button.setAttribute('aria-pressed', String(button === pricingPeriod)));
+      section?.querySelectorAll('[data-pricing-card]').forEach(card => { card.hidden = card.dataset.priceInterval !== period && card.dataset.priceInterval !== 'one_time'; });
+    }
     const copy = event.target.closest('[data-copy-text]');
     if (copy) {
       const value = copy.dataset.copyText || '';
@@ -72,6 +86,18 @@
     const speed = event.target.closest('[data-video-speed]');
     if (speed) speed.closest('[data-video-player]').querySelector('video').playbackRate = Number(speed.value);
   });
+
+  document.addEventListener('submit', event => {
+    const form = event.target.closest('[data-cookie-notice] form');
+    if (!form) return;
+    const choice = event.submitter?.value;
+    if (choice === 'accepted' || choice === 'rejected') {
+      try { localStorage.setItem('hydro-cookie-consent', choice); } catch (_) {}
+    }
+  });
+  try {
+    if (localStorage.getItem('hydro-cookie-consent')) each('[data-cookie-notice]', notice => { notice.hidden = true; });
+  } catch (_) {}
 
   const initVideos = root => each('[data-video-player]', player => {
     if (player.dataset.videoReady) return;

@@ -1,0 +1,13 @@
+package legal
+import "time"
+templ Collection(items []Document) {
+<section class="sectoral-legal bg-background text-foreground" data-module="legal">
+ for _, item := range items {
+  if item.Status == "published" {
+   <article class="sectoral-card"><h2>{ item.Title }</h2><p>{ item.DocumentType } · { item.DocumentVersion }</p>
+   <time datetime={ item.EffectiveAt.Format(time.RFC3339) }>{ item.EffectiveAt.Format("02.01.2006") }</time><div>{ item.Body }</div>
+   </article>
+  }
+ }
+</section>
+}

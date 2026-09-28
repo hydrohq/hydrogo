@@ -1,0 +1,24 @@
+id: "202609280019_sectoral_legal"
+module: "legal"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+disk_estimate: "Small bounded metadata table/index; grows with operator-managed records."
+lock_timeout: "Bounded by the migration runner lock timeout"
+checksum_sha256:
+  sqlite: "901df4802dce8e3a94ad5a44cea22e8aea02a6e85c623bb4178efca2689b1209"
+  postgres: "33d6d47e058961b84a219d688b6d53563f696cd4306b439257001d2330eeb473"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The legal module is enabled for this Edition"
+compatibility: "Adds the optional legal collection table; no existing records or core schema are modified."
+smoke:
+  - "Create, read, update, and delete a tenant-scoped legal entry"
+  - "Published entries can be listed by locale in stable order"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only by default; restore a pre-migration backup to remove the optional table without data loss."
