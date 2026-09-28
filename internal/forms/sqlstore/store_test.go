@@ -26,12 +26,12 @@ func newFormStore(t *testing.T) Store {
 
 func TestFormStoreRoundTripListAndDelete(t *testing.T) {
 	s := newFormStore(t)
-	form := forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}}}
+	form := forms.Form{ID: "contact", Title: "Contact", ConversionTracking: true, GoogleAdsConversionID: "AW-123", GoogleAdsConversionLabel: "lead", MetaPixelEventName: "Lead", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}}}
 	if err := s.Upsert(context.Background(), form); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.Get(context.Background(), "contact")
-	if err != nil || got.ID != form.ID || got.Fields[0].Type != forms.Email {
+	if err != nil || got.ID != form.ID || got.Fields[0].Type != forms.Email || !got.ConversionTracking || got.GoogleAdsConversionID != form.GoogleAdsConversionID || got.GoogleAdsConversionLabel != form.GoogleAdsConversionLabel || got.MetaPixelEventName != form.MetaPixelEventName {
 		t.Fatalf("get=%#v err=%v", got, err)
 	}
 	list, err := s.List(context.Background())

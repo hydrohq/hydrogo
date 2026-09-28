@@ -18,7 +18,7 @@ templ Head() {
 
 templ PublicForm(p PublicFormProps) {
 	if p.Form.Validate() == nil {
-	<form class="hydro-form" method="post" action={ safeFormAction(p.Action, p.Form.ID) } data-public-form>
+	<form class="hydro-form" method="post" action={ safeFormAction(p.Action, p.Form.ID) } data-public-form data-conversion-enabled?={ p.Form.ConversionTracking } data-google-ads-conversion-id={ p.Form.GoogleAdsConversionID } data-google-ads-conversion-label={ p.Form.GoogleAdsConversionLabel } data-meta-pixel-event={ publicMetaPixelEvent(p.Form) }>
 		<input type="hidden" name="_csrf" value={ p.CSRFToken } />
 		<input type="hidden" name="_submission_token" value={ publicSubmissionToken(p.SubmissionToken) } />
 		<div class="hydro-form__honeypot" aria-hidden="true"><label for="hydro-website-url">Leave this field empty</label><input id="hydro-website-url" name="website_url" type="text" tabindex="-1" autocomplete="off" /></div>

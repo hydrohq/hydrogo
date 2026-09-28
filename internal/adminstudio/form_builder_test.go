@@ -14,7 +14,7 @@ func TestRenderFormBuilderEscapesSchemaAndProvidesCSPEditor(t *testing.T) {
 		t.Fatal(err)
 	}
 	value := out.String()
-	for _, marker := range []string{"data-form-builder", "data-form-field", `nonce="nonce"`, "csrf&amp;", "A &lt;form&gt;", "data-form-add-field"} {
+	for _, marker := range []string{"data-form-builder", "data-form-field", `nonce="nonce"`, "csrf&amp;", "A &lt;form&gt;", "data-form-add-field", `name="conversion_tracking"`, `name="google_ads_conversion_id"`, `name="meta_pixel_event_name"`, "mevcut etiketler"} {
 		if !strings.Contains(value, marker) {
 			t.Fatalf("missing %q in %s", marker, value)
 		}

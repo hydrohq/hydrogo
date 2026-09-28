@@ -70,6 +70,18 @@
   document.addEventListener('htmx:afterRequest', event => {
     const form = event.detail?.elt?.closest?.('[data-public-form]');
     if (!form) return;
+    const statusCode = Number(event.detail?.xhr?.status || 0);
+    const succeeded = event.detail?.successful === true || (statusCode >= 200 && statusCode < 300);
+    if (succeeded && form.hasAttribute('data-conversion-enabled') && form.dataset.conversionSent !== 'true') {
+      form.dataset.conversionSent = 'true';
+      const conversionID = form.dataset.googleAdsConversionId;
+      if (conversionID && typeof window.gtag === 'function') {
+        const label = form.dataset.googleAdsConversionLabel;
+        window.gtag('event', 'conversion', { send_to: label ? `${conversionID}/${label}` : conversionID });
+      }
+      const eventName = form.dataset.metaPixelEvent;
+      if (eventName && typeof window.fbq === 'function') window.fbq('track', eventName);
+    }
     window.setTimeout(() => {
       form.dataset.submitting = '';
       const button = form.querySelector('[data-form-submit]');
