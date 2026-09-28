@@ -71,6 +71,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/sdkdist"
+	adminsearch "github.com/ardaozyildirim/hydrogo/internal/search"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -1784,6 +1785,9 @@ func serve(args []string, stderr io.Writer) error {
 	if modules["analytics"] {
 		routes = append(routes, router.Route{Pattern: "POST /analytics/consent", Access: router.Public, Handler: analytics.ConsentHandler(analyticsStore, cfg.Security.SecureCookies)})
 		routes = append(routes, router.Route{Pattern: "POST /analytics/contact", Access: router.Public, Handler: analytics.ContactClickHandler(analyticsStore)})
+	}
+	if modules["pages"] || modules["news"] || modules["members"] || modules["media"] || modules["site"] {
+		routes = append(routes, router.Route{Pattern: "GET /admin/api/search", Access: router.Protected, Handler: adminsearch.AdminSearchHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Modules: modules}})
 	}
 	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())

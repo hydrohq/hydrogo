@@ -94,6 +94,14 @@ func TestAdminShellSPARouterAdoptsFragmentAssetsWithDocumentNonce(t *testing.T) 
 	}
 }
 
+func TestAdminShellSpotlightFetchesProtectedCategorizedResults(t *testing.T) {
+	for _, want := range []string{"/admin/api/search?q=", "new AbortController()", "İçerik ve kayıtlar", "item.badge", "item.href", "ArrowDown", "ArrowUp", "searchGlobalBound"} {
+		if !strings.Contains(AdminSPARouterJS, want) {
+			t.Fatalf("AdminSPARouterJS missing Spotlight behavior %q", want)
+		}
+	}
+}
+
 func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Güvenli bağlantılar", "", "nonce-test", ""); err != nil {
