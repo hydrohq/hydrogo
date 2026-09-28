@@ -229,7 +229,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 	switch data.Area {
 	case "site":
 		body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
-			links := []uicomponents.LinkProps{{Href: "/admin/site/seo", Label: "SEO ayarları", Class: "button button-primary"}, {Href: "/admin/site/redirect-rules", Label: "Yönlendirmeler", Class: "button button-quiet"}, {Href: "/admin/translations", Label: "Çeviriler", Class: "button button-quiet"}}
+			links := []uicomponents.LinkProps{{Href: "/admin/site/seo", Label: "SEO ayarları", Class: "button button-primary"}, {Href: "/admin/site/redirect-rules", Label: "Yönlendirmeler", Class: "button button-quiet"}, {Href: "/admin/site/navigation/editor", Label: "Menüler", Class: "button button-quiet"}, {Href: "/admin/translations", Label: "Çeviriler", Class: "button button-quiet"}}
 			if data.FontToolsEnabled {
 				links = append(links, uicomponents.LinkProps{Href: "/admin/site/fonts", Label: "Yazı tipi", Class: "button button-quiet"})
 			}

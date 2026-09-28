@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{.Title}} · HydroGo Platform</title>
-    <link rel="stylesheet" href="/theme/static/theme.css?v=d986ae3d">
+    <link rel="stylesheet" href="/theme/static/theme.css?v=e0fcce17">
     {{slot "head"}}
   </head>
   <body class="theme-corporate-body">
@@ -29,11 +29,15 @@
           <span class="hamburger-bar"></span>
         </button>
         <nav id="primary-nav" class="news-nav" aria-label="Ana navigasyon">
+          {{if .Navigation}}
+          {{slot "navigation"}}
+          {{else}}
           <a href="/" class="nav-item">Ana Sayfa</a>
           <a href="/public/pages/tr/showcase/html" class="nav-item">Showcase</a>
           <a href="/public/pages/tr/about/html" class="nav-item">Hakkında</a>
           <a href="/public/news/tr/html" class="nav-item">Haberler</a>
           <a href="/shop" class="nav-item">Mağaza</a>
+          {{end}}
           <a href="/member/login" class="nav-item nav-login-link">Giriş</a>
           <button class="nav-search-trigger" type="button" data-open-search aria-label="Hızlı Ara (Ctrl+K)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>

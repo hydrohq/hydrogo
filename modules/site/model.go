@@ -61,9 +61,16 @@ type NavigationItem struct {
 	Locale    string
 	Label     string
 	Href      string
+	ParentID  string `json:"parent_id,omitempty"`
+	Target    string `json:"target,omitempty"`
 	Position  int
 	Visible   bool
 	UpdatedAt time.Time
+}
+
+type NavigationSuggestion struct {
+	Label string
+	Href  string
 }
 
 type Redirect struct {
@@ -142,7 +149,7 @@ func ValidateSetting(value Setting) error {
 func ValidateNavigation(value NavigationItem) error {
 	href := strings.TrimSpace(value.Href)
 	label := strings.TrimSpace(value.Label)
-	if value.ID == "" || len(value.ID) > 128 || value.Locale == "" || len(value.Locale) > 16 || label == "" || len(label) > 256 || value.Position < 0 || href == "" || len(href) > 2048 {
+	if value.ID == "" || strings.TrimSpace(value.ID) != value.ID || strings.ContainsAny(value.ID, "\x00\r\n\t") || len(value.ID) > 128 || len(value.ParentID) > 128 || strings.ContainsAny(value.ParentID, "\x00\r\n\t") || value.ID == value.ParentID || value.Locale == "" || len(value.Locale) > 16 || label == "" || len(label) > 256 || value.Position < 0 || href == "" || len(href) > 2048 || (value.Target != "" && value.Target != "_self" && value.Target != "_blank") {
 		return ErrInvalidNavigation
 	}
 	parsed, err := url.Parse(href)
@@ -179,13 +186,23 @@ func ValidateRedirectRule(value RedirectRule) error {
 	}
 	switch value.Kind {
 	case "exact":
-		if strings.ContainsAny(pattern, "*[](){}") || normalizePath(pattern) != pattern { return ErrInvalidRedirect }
+		if strings.ContainsAny(pattern, "*[](){}") || normalizePath(pattern) != pattern {
+			return ErrInvalidRedirect
+		}
 	case "wildcard":
-		if strings.Count(pattern, "*") != 1 || strings.ContainsAny(pattern, "[](){}") { return ErrInvalidRedirect }
-		if strings.Count(target, "*") > 1 { return ErrInvalidRedirect }
+		if strings.Count(pattern, "*") != 1 || strings.ContainsAny(pattern, "[](){}") {
+			return ErrInvalidRedirect
+		}
+		if strings.Count(target, "*") > 1 {
+			return ErrInvalidRedirect
+		}
 	case "regex":
-		if len(pattern) > 256 { return ErrInvalidRedirect }
-		if _, err := regexp.Compile(pattern); err != nil { return ErrInvalidRedirect }
+		if len(pattern) > 256 {
+			return ErrInvalidRedirect
+		}
+		if _, err := regexp.Compile(pattern); err != nil {
+			return ErrInvalidRedirect
+		}
 	default:
 		return ErrInvalidRedirect
 	}

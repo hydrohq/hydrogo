@@ -33,6 +33,10 @@ type RedirectRuleStore interface {
 	ListRedirectRules(context.Context, database.QueryExecutor, int) ([]RedirectRule, error)
 }
 
+type AdminNavigationStore interface {
+	ListAdminNavigation(context.Context, database.Executor, string) ([]NavigationItem, error)
+}
+
 // IdempotentSubmissionStore is an optional extension implemented by durable stores.
 // Keeping it separate preserves compatibility for lightweight module fakes.
 type IdempotentSubmissionStore interface {
@@ -177,6 +181,23 @@ func (s Service) SaveNavigation(ctx context.Context, locale string, items []Navi
 	})
 }
 
+func (s Service) ListAdminNavigation(ctx context.Context, locale string) ([]NavigationItem, error) {
+	if err := s.requireStore(); err != nil {
+		return nil, err
+	}
+	store, ok := s.Store.(AdminNavigationStore)
+	if !ok {
+		return nil, ErrStoreRequired
+	}
+	var items []NavigationItem
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var queryErr error
+		items, queryErr = store.ListAdminNavigation(ctx, tx, canonical.Locale(locale))
+		return queryErr
+	})
+	return items, err
+}
+
 func normalizeNavigation(locale string, items []NavigationItem) (string, []NavigationItem, error) {
 	locale = canonical.Locale(locale)
 	if locale == "" {
@@ -186,15 +207,43 @@ func normalizeNavigation(locale string, items []NavigationItem) (string, []Navig
 		return "", nil, ErrInvalidNavigation
 	}
 	seen := make(map[int]struct{}, len(items))
+	byID := make(map[string]NavigationItem, len(items))
 	for i := range items {
 		items[i].Locale = locale
+		items[i].ParentID = strings.TrimSpace(items[i].ParentID)
+		if items[i].Target == "" {
+			items[i].Target = "_self"
+		}
 		if err := ValidateNavigation(items[i]); err != nil {
 			return "", nil, err
 		}
+		if _, exists := byID[items[i].ID]; exists {
+			return "", nil, ErrInvalidNavigation
+		}
+		byID[items[i].ID] = items[i]
 		if _, ok := seen[items[i].Position]; ok {
 			return "", nil, ErrInvalidNavigation
 		}
 		seen[items[i].Position] = struct{}{}
+	}
+	for _, item := range items {
+		if item.ParentID == "" {
+			continue
+		}
+		if _, exists := byID[item.ParentID]; !exists {
+			return "", nil, ErrInvalidNavigation
+		}
+		visited := map[string]struct{}{item.ID: {}}
+		parentID := item.ParentID
+		depth := 1
+		for parentID != "" {
+			if _, cycle := visited[parentID]; cycle || depth > 8 {
+				return "", nil, ErrInvalidNavigation
+			}
+			visited[parentID] = struct{}{}
+			parentID = byID[parentID].ParentID
+			depth++
+		}
 	}
 	return locale, items, nil
 }

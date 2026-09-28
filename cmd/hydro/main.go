@@ -1623,6 +1623,27 @@ func serve(args []string, stderr io.Writer) error {
 			}
 			return entries, nil
 		}}
+		siteHTTP.NavigationLocales = cfg.I18N.Locales
+		if moduleEnabled(cfg.Modules, "pages") {
+			siteHTTP.NavigationSuggestions = func(suggestionCtx context.Context, locale string) ([]site.NavigationSuggestion, error) {
+				suggestions := make([]site.NavigationSuggestion, 0, 200)
+				limitReached := errors.New("navigation suggestion limit reached")
+				err := pageStore.StreamPublishedRoutes(suggestionCtx, db, func(page pages.Page) error {
+					if page.Locale != locale {
+						return nil
+					}
+					suggestions = append(suggestions, site.NavigationSuggestion{Label: page.Title, Href: "/public/pages/" + url.PathEscape(page.Locale) + "/" + url.PathEscape(page.Slug) + "/html"})
+					if len(suggestions) == cap(suggestions) {
+						return limitReached
+					}
+					return nil
+				})
+				if errors.Is(err, limitReached) {
+					return suggestions, nil
+				}
+				return suggestions, err
+			}
+		}
 		siteHTTP.SitemapCategories = []string{}
 		if moduleEnabled(cfg.Modules, "pages") {
 			siteHTTP.SitemapCategories = append(siteHTTP.SitemapCategories, "pages")
@@ -1718,7 +1739,12 @@ func serve(args []string, stderr io.Writer) error {
 		pageCollection.BulkActions = []adminstudio.Action{{Label: "CSV dışa aktar", Href: "/admin/pages/bulk"}}
 		pageLLMSCache = &seo.DiscoveryCache{}
 		notificationStore := adminstudiosql.Store{Dialect: cfg.Database.Dialect}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
+			if !modules["site"] {
+				return nil, nil
+			}
+			return siteStore.ListNavigation(navCtx, db, locale)
+		}, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
 			var result pagetransport.PublicSEOSettings
 			if !modules["site"] {
 				return result
@@ -1809,7 +1835,20 @@ func serve(args []string, stderr io.Writer) error {
 				}
 			}
 		}
-		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale}
+		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
+			if !moduleEnabled(cfg.Modules, "site") {
+				return nil, nil
+			}
+			items, err := siteStore.ListNavigation(navCtx, db, locale)
+			if err != nil {
+				return nil, err
+			}
+			navigation := make([]themev1.ThemeNavigationItem, 0, len(items))
+			for _, item := range items {
+				navigation = append(navigation, themev1.ThemeNavigationItem{ID: item.ID, ParentID: item.ParentID, Label: item.Label, Href: item.Href, Target: item.Target, Position: item.Position})
+			}
+			return navigation, nil
+		}}
 	}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
 	routes = append(routes, mobileAuthHTTP.RouterRoutes()...)

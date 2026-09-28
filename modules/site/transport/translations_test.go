@@ -92,3 +92,58 @@ func TestTranslationEditorListsSearchableLocaleMatrix(t *testing.T) {
 		}
 	}
 }
+
+func TestNavigationEditorRoundTripsNestedLocalizedMenu(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "navigation-editor.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"site": true}); err != nil {
+		t.Fatal(err)
+	}
+	scope, _ := tenant.NewScope("navigation-tenant", "navigation")
+	requestCtx := tenant.WithScope(ctx, scope)
+	store := sqlstore.Store{Dialect: database.SQLite, RequireTenantScope: true}
+	service := site.Service{Transactions: database.NewTenantTransactor(db, database.SQLite, true), Store: store}
+	if err := service.SaveNavigation(requestCtx, "en", []site.NavigationItem{
+		{ID: "root", Label: "Services", Href: "/services", Position: 0, Visible: true},
+		{ID: "child", ParentID: "root", Target: "_blank", Label: "Consulting", Href: "/consulting", Position: 1, Visible: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	handler := Handler{DB: db, Store: store, Service: &service, NavigationLocales: []string{"en", "fr"}, NavigationSuggestions: func(_ context.Context, locale string) ([]site.NavigationSuggestion, error) {
+		if locale != "en" {
+			t.Fatalf("suggestion locale = %q", locale)
+		}
+		return []site.NavigationSuggestion{{Label: "Contact", Href: "/public/pages/en/contact/html"}}, nil
+	}}
+	adminCtx := auth.WithUser(requestCtx, &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true})
+	get := httptest.NewRequest(http.MethodGet, "/admin/site/navigation/editor?locale=en", nil).WithContext(adminCtx)
+	page := httptest.NewRecorder()
+	handler.navigationEditor(page, get)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="parent_id"`) || !strings.Contains(page.Body.String(), `data-move-up`) || !strings.Contains(page.Body.String(), `draggable="true"`) || !strings.Contains(page.Body.String(), `value="/public/pages/en/contact/html"`) || !strings.Contains(page.Body.String(), `locale=fr`) {
+		t.Fatalf("editor response status=%d body=%s", page.Code, page.Body.String())
+	}
+	form := url.Values{
+		"locale":    {"en"},
+		"id":        {"root", "child"},
+		"label":     {"Services", "Consulting"},
+		"href":      {"/services", "/consulting"},
+		"parent_id": {"", "root"},
+		"target":    {"_self", "_blank"},
+		"visible":   {"true", "true"},
+	}
+	post := httptest.NewRequest(http.MethodPost, "/admin/site/navigation/editor", strings.NewReader(form.Encode())).WithContext(adminCtx)
+	post.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	saved := httptest.NewRecorder()
+	handler.saveNavigationEditor(saved, post)
+	if saved.Code != http.StatusSeeOther {
+		t.Fatalf("save status=%d body=%s", saved.Code, saved.Body.String())
+	}
+	items, err := store.ListNavigation(requestCtx, db, "en")
+	if err != nil || len(items) != 2 || items[1].ParentID != "root" || items[1].Target != "_blank" {
+		t.Fatalf("saved navigation = %#v, err=%v", items, err)
+	}
+}

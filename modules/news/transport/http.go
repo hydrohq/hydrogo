@@ -35,11 +35,12 @@ type Route struct {
 }
 
 type Handler struct {
-	Service         news.Service
-	DB              database.Executor
-	Media           publicMediaURLProvider
-	AdminCollection adminstudio.Collection
-	DefaultLocale   string
+	Service            news.Service
+	DB                 database.Executor
+	Media              publicMediaURLProvider
+	AdminCollection    adminstudio.Collection
+	DefaultLocale      string
+	NavigationProvider func(context.Context, string) ([]v1.ThemeNavigationItem, error)
 }
 
 type publicMediaURLProvider interface {
@@ -514,7 +515,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, item.Title), locale))
+	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, item.Title, h.themeNavigation(r.Context(), locale)), locale))
 
 	var trendingHTML strings.Builder
 	itemIndex := 1
@@ -609,7 +610,7 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, "Haberler & Duyurular"), locale))
+	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, "Haberler & Duyurular", h.themeNavigation(r.Context(), locale)), locale))
 	_, _ = fmt.Fprintf(w, `<main data-testid="public-news" class="news-portal"><section class="news-hero-banner"><div class="news-hero-content"><div class="news-tag-badge">HYDROGO YAYIN MERKEZİ</div><h1>Haberler, Duyurular ve Güncellemeler</h1><p>Panelden yönetilen tüm editoryal içerikler, ürün notları ve sistem duyuruları anlık olarak burada listelenir.</p><div class="news-hero-actions"><a class="btn-primary" href="/shop">Mağazayı Keşfet →</a><a class="btn-secondary" href="/admin/news">Admin Panelinde Düzenle ↗</a></div></div></section>`)
 	if len(items) == 0 {
 		_, _ = fmt.Fprint(w, `<section class="news-empty-state"><div class="empty-icon">📰</div><h2>Henüz yayınlanmış bir haber bulunmuyor</h2><p>Admin panelinden yeni bir haber oluşturup yayınlayarak burada görüntüleyebilirsiniz.</p><a class="btn-primary" href="/admin/news">Yeni Haber Ekle</a></section>`)
@@ -651,8 +652,27 @@ func localizePublicLinks(markup, locale string) string {
 	return strings.ReplaceAll(markup, "/public/news/tr/", "/public/news/"+locale+"/")
 }
 
-func newsDocumentStart(locale, title string) string {
-	return fmt.Sprintf(`<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo Newsroom</title><link rel="stylesheet" href="/theme/static/theme.css?v=d986ae3d"></head><body class="theme-corporate-body"><header class="news-header"><div class="header-container"><a class="news-logo" href="/" aria-label="HydroGo Ana Sayfa"><div class="logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDROGO</span></div></a><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Menüyü aç"><span class="hamburger-bar"></span><span class="hamburger-bar"></span><span class="hamburger-bar"></span></button><nav id="primary-nav" class="news-nav" aria-label="Ana navigasyon"><a href="/" class="nav-item">Ana Sayfa</a><a href="/public/pages/tr/showcase/html" class="nav-item">Showcase</a><a href="/public/pages/tr/about/html" class="nav-item">Hakkında</a><a href="/public/news/tr/html" class="nav-item is-active">Haberler</a><a href="/shop" class="nav-item">Mağaza</a><a href="/member/login" class="nav-item nav-login-link">Giriş</a><a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a></nav></div></header>`, template.HTMLEscapeString(locale), canonical.Direction(locale), template.HTMLEscapeString(title))
+func newsDocumentStart(locale, title string, navigation template.HTML) string {
+	navigationHTML := string(navigation)
+	if navigationHTML == "" {
+		navigationHTML = `<a href="/" class="nav-item">Ana Sayfa</a><a href="/public/pages/tr/showcase/html" class="nav-item">Showcase</a><a href="/public/pages/tr/about/html" class="nav-item">Hakkında</a><a href="/public/news/tr/html" class="nav-item is-active">Haberler</a><a href="/shop" class="nav-item">Mağaza</a>`
+	}
+	return fmt.Sprintf(`<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo Newsroom</title><link rel="stylesheet" href="/theme/static/theme.css?v=e0fcce17"></head><body class="theme-corporate-body"><header class="news-header"><div class="header-container"><a class="news-logo" href="/" aria-label="HydroGo Ana Sayfa"><div class="logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDROGO</span></div></a><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Menüyü aç"><span class="hamburger-bar"></span><span class="hamburger-bar"></span><span class="hamburger-bar"></span></button><nav id="primary-nav" class="news-nav" aria-label="Ana navigasyon">%s<a href="/member/login" class="nav-item nav-login-link">Giriş</a><a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a></nav></div></header>`, template.HTMLEscapeString(locale), canonical.Direction(locale), template.HTMLEscapeString(title), navigationHTML)
+}
+
+func (h Handler) themeNavigation(ctx context.Context, locale string) template.HTML {
+	if h.NavigationProvider == nil {
+		return ""
+	}
+	items, err := h.NavigationProvider(ctx, locale)
+	if err != nil {
+		return ""
+	}
+	markup, err := v1.RenderThemeNavigation(items)
+	if err != nil {
+		return ""
+	}
+	return markup
 }
 
 func enterpriseFooterMarkup() string {

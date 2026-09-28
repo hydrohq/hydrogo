@@ -46,6 +46,7 @@ type Handler struct {
 	AllowDemoFrontend   bool
 	SEOOrigin           string
 	PublicSEOSettings   func(context.Context) PublicSEOSettings
+	NavigationProvider  func(context.Context, string) ([]site.NavigationItem, error)
 	OGRenderer          *seo.OGRenderer
 	DiscoveryProvider   seo.DiscoveryProvider
 	DiscoveryCache      *seo.DiscoveryCache
@@ -662,7 +663,23 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		content.WriteString(string(relatedMarkup))
-		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(content.String()), Slots: map[string]template.HTML{"content": template.HTML(content.String()), "head": template.HTML(designHead)}}); err != nil {
+		navigation := make([]themev1.ThemeNavigationItem, 0)
+		if h.NavigationProvider != nil {
+			items, navErr := h.NavigationProvider(r.Context(), page.Locale)
+			if navErr != nil {
+				http.Error(w, "page render failed", http.StatusInternalServerError)
+				return
+			}
+			for _, item := range items {
+				navigation = append(navigation, themev1.ThemeNavigationItem{ID: item.ID, ParentID: item.ParentID, Label: item.Label, Href: item.Href, Target: item.Target, Position: item.Position})
+			}
+		}
+		navigationHTML, navErr := themev1.RenderThemeNavigation(navigation)
+		if navErr != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+			return
+		}
+		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(content.String()), Navigation: navigation, Slots: map[string]template.HTML{"content": template.HTML(content.String()), "head": template.HTML(designHead), "navigation": navigationHTML}}); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
 		}
 		return

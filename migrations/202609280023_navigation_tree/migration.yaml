@@ -1,0 +1,22 @@
+id: "202609280023_navigation_tree"
+module: "site"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+checksum_sha256:
+  sqlite: "9f3a45d8fa42d160513df4a7781786c20a48eabd54e1e86b6f7772947a468b34"
+  postgres: "9f3a45d8fa42d160513df4a7781786c20a48eabd54e1e86b6f7772947a468b34"
+schema:
+  readable_epoch: 1
+  writable_epoch: 2
+preconditions:
+  - "The Site module and tenant-scoped navigation_items table are enabled"
+disk_estimate: "Two bounded metadata columns per existing navigation row; no new index or table."
+lock_timeout: "Bounded by the migration runner lock timeout"
+compatibility: "Existing flat menus remain root-level and use same-tab navigation. Old binaries ignore the added columns."
+smoke:
+  - "Insert, list, and update a localized child item with target _blank"
+rollback: "Back up navigation_items, then drop parent_id and target. Existing labels, URLs, order, and visibility remain available."
