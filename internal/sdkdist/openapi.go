@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -23,6 +25,8 @@ const (
 	SDKAll        SDKLanguage = "all"
 )
 
+const maxOpenAPIDocumentBytes = 32 << 20
+
 type openAPIDocument struct {
 	OpenAPI string `json:"openapi"`
 	Info    struct {
@@ -30,25 +34,35 @@ type openAPIDocument struct {
 		Version string `json:"version"`
 	} `json:"info"`
 	Paths      map[string]openAPIPathItem `json:"paths"`
-	Components struct {
-		Schemas map[string]json.RawMessage `json:"schemas"`
-	} `json:"components"`
+	Components openAPIComponents          `json:"components"`
+}
+
+type openAPIComponents struct {
+	Schemas       map[string]json.RawMessage    `json:"schemas"`
+	Responses     map[string]openAPIResponse    `json:"responses"`
+	RequestBodies map[string]openAPIRequestBody `json:"requestBodies"`
+}
+
+type openAPIMediaType struct {
+	Schema json.RawMessage `json:"schema"`
+}
+
+type openAPIRequestBody struct {
+	Ref      string                      `json:"$ref"`
+	Required bool                        `json:"required"`
+	Content  map[string]openAPIMediaType `json:"content"`
+}
+
+type openAPIResponse struct {
+	Ref     string                      `json:"$ref"`
+	Content map[string]openAPIMediaType `json:"content"`
 }
 
 type openAPIOperation struct {
-	OperationID string             `json:"operationId"`
-	Parameters  []openAPIParameter `json:"parameters"`
-	RequestBody struct {
-		Required bool `json:"required"`
-		Content  map[string]struct {
-			Schema json.RawMessage `json:"schema"`
-		} `json:"content"`
-	} `json:"requestBody"`
-	Responses map[string]struct {
-		Content map[string]struct {
-			Schema json.RawMessage `json:"schema"`
-		} `json:"content"`
-	} `json:"responses"`
+	OperationID string                     `json:"operationId"`
+	Parameters  []openAPIParameter         `json:"parameters"`
+	RequestBody openAPIRequestBody         `json:"requestBody"`
+	Responses   map[string]openAPIResponse `json:"responses"`
 }
 
 type openAPIParameter struct {
@@ -99,18 +113,36 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 	if strings.TrimSpace(specPath) == "" || strings.TrimSpace(out) == "" {
 		return nil, errors.New("OpenAPI input and output directory are required")
 	}
-	data, err := os.ReadFile(specPath)
+	file, err := os.Open(specPath)
 	if err != nil {
 		return nil, fmt.Errorf("read OpenAPI document: %w", err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("stat OpenAPI document: %w", err)
+	}
+	if info.Size() <= 0 || info.Size() > maxOpenAPIDocumentBytes {
+		return nil, fmt.Errorf("OpenAPI document must be between 1 and %d bytes", maxOpenAPIDocumentBytes)
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxOpenAPIDocumentBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read OpenAPI document: %w", err)
+	}
+	if len(data) == 0 || len(data) > maxOpenAPIDocumentBytes {
+		return nil, fmt.Errorf("OpenAPI document must be between 1 and %d bytes", maxOpenAPIDocumentBytes)
 	}
 	var doc openAPIDocument
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("parse OpenAPI document: %w", err)
 	}
-	if !strings.HasPrefix(doc.OpenAPI, "3.1.") || len(doc.Paths) == 0 {
-		return nil, errors.New("an OpenAPI 3.1 document with at least one path is required")
+	if err := validateOpenAPIDocument(data, doc); err != nil {
+		return nil, err
 	}
-	operations := sdkOperations(doc.Paths)
+	operations, err := sdkOperations(doc)
+	if err != nil {
+		return nil, err
+	}
 	files := map[string][]byte{}
 	if language == SDKAll || language == SDKTypeScript {
 		body, err := renderTypeScript(doc, operations)
@@ -134,7 +166,7 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 			Exports string `json:"exports"`
 		}{Name: "hydro-sdk-client", Version: sdkPackageVersion(doc.Info.Version), Type: "module", Exports: "./client.ts"}, "", "  ")
 		files["typescript/package.json"] = append(packageJSON, '\n')
-		files["typescript/tsconfig.json"] = []byte("{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"NodeNext\",\n    \"moduleResolution\": \"NodeNext\",\n    \"strict\": true,\n    \"lib\": [\"ES2022\", \"DOM\"]\n  },\n  \"include\": [\"client.ts\"]\n}\n")
+		files["typescript/tsconfig.json"] = []byte("{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"NodeNext\",\n    \"moduleResolution\": \"NodeNext\",\n    \"strict\": true,\n    \"exactOptionalPropertyTypes\": true,\n    \"noUncheckedIndexedAccess\": true,\n    \"noEmit\": true,\n    \"lib\": [\"ES2022\", \"DOM\"]\n  },\n  \"include\": [\"client.ts\"]\n}\n")
 	}
 	if language == SDKAll || language == SDKDart {
 		files["dart/pubspec.yaml"] = []byte("name: hydro_sdk_client\nversion: " + sdkPackageVersion(doc.Info.Version) + "\nenvironment:\n  sdk: '>=3.2.0 <4.0.0'\n\n# Uses dart:io and the Dart standard library; no package dependencies.\n")
@@ -158,6 +190,104 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 	return written, nil
 }
 
+func validateOpenAPIDocument(raw []byte, doc openAPIDocument) error {
+	if !strings.HasPrefix(doc.OpenAPI, "3.1.") || strings.TrimSpace(doc.Info.Title) == "" || strings.TrimSpace(doc.Info.Version) == "" || len(doc.Paths) == 0 {
+		return errors.New("an OpenAPI 3.1 document with info and at least one path is required")
+	}
+	for path := range doc.Paths {
+		if !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "?#") {
+			return fmt.Errorf("invalid OpenAPI path %q", path)
+		}
+	}
+	var root any
+	if err := json.Unmarshal(raw, &root); err != nil {
+		return fmt.Errorf("parse OpenAPI document: %w", err)
+	}
+	rootObject, _ := root.(map[string]any)
+	pathItems, _ := rootObject["paths"].(map[string]any)
+	for path, rawItem := range pathItems {
+		item, _ := rawItem.(map[string]any)
+		for _, method := range []string{"get", "put", "post", "delete", "options", "head", "patch", "trace"} {
+			rawOperation, exists := item[method]
+			if !exists {
+				continue
+			}
+			operation, _ := rawOperation.(map[string]any)
+			if responses, ok := operation["responses"].(map[string]any); !ok || len(responses) == 0 {
+				return fmt.Errorf("OpenAPI operation %s %s must declare responses", strings.ToUpper(method), path)
+			}
+		}
+	}
+	var validateRefs func(any) error
+	validateRefs = func(value any) error {
+		switch value := value.(type) {
+		case map[string]any:
+			if ref, ok := value["$ref"].(string); ok {
+				if err := validateOpenAPIRef(root, ref); err != nil {
+					return err
+				}
+			}
+			for _, child := range value {
+				if err := validateRefs(child); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for _, child := range value {
+				if err := validateRefs(child); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	return validateRefs(root)
+}
+
+func validateOpenAPIRef(root any, reference string) error {
+	if !strings.HasPrefix(reference, "#/") {
+		return fmt.Errorf("unsupported external OpenAPI reference %q", reference)
+	}
+	fragment, err := url.PathUnescape(strings.TrimPrefix(reference, "#"))
+	if err != nil {
+		return fmt.Errorf("invalid OpenAPI reference %q", reference)
+	}
+	parts := strings.Split(strings.TrimPrefix(fragment, "/"), "/")
+	if len(parts) < 3 || parts[0] != "components" {
+		return fmt.Errorf("unsupported OpenAPI reference %q", reference)
+	}
+	for index, part := range parts {
+		parts[index] = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
+	}
+	if _, ok := lookupJSONPointer(root, parts); !ok {
+		return fmt.Errorf("unresolved OpenAPI reference %q", reference)
+	}
+	return nil
+}
+
+func lookupJSONPointer(root any, parts []string) (any, bool) {
+	value := root
+	for _, part := range parts {
+		switch current := value.(type) {
+		case map[string]any:
+			next, ok := current[part]
+			if !ok {
+				return nil, false
+			}
+			value = next
+		case []any:
+			index, err := strconv.Atoi(part)
+			if err != nil || index < 0 || index >= len(current) {
+				return nil, false
+			}
+			value = current[index]
+		default:
+			return nil, false
+		}
+	}
+	return value, true
+}
+
 var sdkSemver = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$`)
 
 func sdkPackageVersion(value string) string {
@@ -174,9 +304,9 @@ func writeSDKFile(path string, body []byte) error {
 	return nil
 }
 
-func sdkOperations(paths map[string]openAPIPathItem) []sdkOperation {
+func sdkOperations(doc openAPIDocument) ([]sdkOperation, error) {
 	var result []sdkOperation
-	for path, pathItem := range paths {
+	for path, pathItem := range doc.Paths {
 		methods := map[string]openAPIOperation{"get": pathItem.Get, "post": pathItem.Post, "put": pathItem.Put, "patch": pathItem.Patch, "delete": pathItem.Delete, "head": pathItem.Head, "options": pathItem.Options, "trace": pathItem.Trace}
 		for method, operation := range methods {
 			if operation.OperationID == "" && len(operation.Parameters) == 0 && len(operation.Responses) == 0 && len(operation.RequestBody.Content) == 0 {
@@ -202,9 +332,22 @@ func sdkOperations(paths map[string]openAPIPathItem) []sdkOperation {
 				return params[i].Name < params[j].Name
 			})
 			item := sdkOperation{Name: name, Method: strings.ToUpper(method), Path: path, Parameters: params, BodyRequired: operation.RequestBody.Required}
-			item.BodySchema = mediaSchema(operation.RequestBody.Content)
-			item.ReturnSchema = successSchema(operation.Responses)
-			item.NoContent = operationHasOnlyNoContentResponses(operation.Responses)
+			requestBody, err := resolveRequestBody(operation.RequestBody, doc.Components.RequestBodies)
+			if err != nil {
+				return nil, err
+			}
+			item.BodyRequired = requestBody.Required
+			item.BodySchema = mediaSchema(requestBody.Content)
+			responses := make(map[string]openAPIResponse, len(operation.Responses))
+			for code, response := range operation.Responses {
+				resolved, resolveErr := resolveResponse(response, doc.Components.Responses)
+				if resolveErr != nil {
+					return nil, resolveErr
+				}
+				responses[code] = resolved
+			}
+			item.ReturnSchema = successSchema(responses)
+			item.NoContent = operationHasOnlyNoContentResponses(responses)
 			result = append(result, item)
 		}
 	}
@@ -214,14 +357,59 @@ func sdkOperations(paths map[string]openAPIPathItem) []sdkOperation {
 		}
 		return result[i].Method < result[j].Method
 	})
-	return result
+	return result, nil
 }
 
-func operationHasOnlyNoContentResponses(responses map[string]struct {
-	Content map[string]struct {
-		Schema json.RawMessage `json:"schema"`
-	} `json:"content"`
-}) bool {
+func resolveRequestBody(body openAPIRequestBody, components map[string]openAPIRequestBody) (openAPIRequestBody, error) {
+	for depth := 0; body.Ref != ""; depth++ {
+		if depth >= 16 {
+			return openAPIRequestBody{}, errors.New("OpenAPI request body reference depth exceeded")
+		}
+		name, ok := componentReferenceName(body.Ref, "requestBodies")
+		if !ok {
+			return openAPIRequestBody{}, fmt.Errorf("unsupported OpenAPI request body reference %q", body.Ref)
+		}
+		resolved, ok := components[name]
+		if !ok {
+			return openAPIRequestBody{}, fmt.Errorf("unresolved OpenAPI request body reference %q", body.Ref)
+		}
+		body = resolved
+	}
+	return body, nil
+}
+
+func resolveResponse(response openAPIResponse, components map[string]openAPIResponse) (openAPIResponse, error) {
+	for depth := 0; response.Ref != ""; depth++ {
+		if depth >= 16 {
+			return openAPIResponse{}, errors.New("OpenAPI response reference depth exceeded")
+		}
+		name, ok := componentReferenceName(response.Ref, "responses")
+		if !ok {
+			return openAPIResponse{}, fmt.Errorf("unsupported OpenAPI response reference %q", response.Ref)
+		}
+		resolved, ok := components[name]
+		if !ok {
+			return openAPIResponse{}, fmt.Errorf("unresolved OpenAPI response reference %q", response.Ref)
+		}
+		response = resolved
+	}
+	return response, nil
+}
+
+func componentReferenceName(reference, componentType string) (string, bool) {
+	prefix := "#/components/" + componentType + "/"
+	if !strings.HasPrefix(reference, prefix) {
+		return "", false
+	}
+	name, err := url.PathUnescape(strings.TrimPrefix(reference, prefix))
+	if err != nil || name == "" || strings.Contains(name, "/") {
+		return "", false
+	}
+	name = strings.ReplaceAll(strings.ReplaceAll(name, "~1", "/"), "~0", "~")
+	return name, true
+}
+
+func operationHasOnlyNoContentResponses(responses map[string]openAPIResponse) bool {
 	hasSuccess := false
 	for code, response := range responses {
 		if len(code) != 3 || code[0] != '2' {
@@ -247,9 +435,7 @@ func safeIdentifier(value, fallback string) string {
 	return value
 }
 
-func mediaSchema(content map[string]struct {
-	Schema json.RawMessage `json:"schema"`
-}) json.RawMessage {
+func mediaSchema(content map[string]openAPIMediaType) json.RawMessage {
 	if item, ok := content["application/json"]; ok {
 		return item.Schema
 	}
@@ -264,11 +450,7 @@ func mediaSchema(content map[string]struct {
 	return nil
 }
 
-func successSchema(responses map[string]struct {
-	Content map[string]struct {
-		Schema json.RawMessage `json:"schema"`
-	} `json:"content"`
-}) json.RawMessage {
+func successSchema(responses map[string]openAPIResponse) json.RawMessage {
 	codes := make([]string, 0, len(responses))
 	for code := range responses {
 		if len(code) == 3 && code[0] == '2' {
