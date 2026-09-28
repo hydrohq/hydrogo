@@ -1,131 +1,153 @@
-# HydroGo — Workspace & Engine for Client Editions
+# HydroGo — The Modern Go Workspace & Product Engine
 
-HydroGo is a Go-based **product factory and high-performance CMS/BaaS engine**, not a single customer-specific web app. It transforms versioned blueprints, modular contracts, and domain policies into deployable, production-ready **Client Editions** for corporate websites, editorial publications, portals, SaaS backends, and transaction-heavy business products.
+> **Fluid as water. Resilient as rock. Control always remains with you.**
 
-The Core remains generic and versioned; specific customer workflows, authorization rules, and presentation layers live strictly within an Edition's `custom/` boundary.
+HydroGo is an industrial-grade **Go Workspace, Code Generator, and Product Engine** engineered to produce high-performance **Client Editions** — enterprise corporate platforms, editorial publications, SaaS backends, customer portals, and transaction-heavy web applications.
 
----
-
-## ⚡ Why HydroGo? The Paradigm Shift
-
-Traditional CMS and BaaS stacks force painful trade-offs:
-- **WordPress / PHP:** Requires 150+ disk reads per request, consumes 50–100MB RAM per worker, suffers from plugin vulnerabilities, and exposes all plain-text PHP source code to anyone with FTP access.
-- **Node.js / PayloadCMS / Strapi:** Demands high-memory VPS/containers ($15–30/month), suffers 1.5–3s cold-starts, requires heavy JavaScript builds, and cannot run on affordable shared hosting.
-- **Laravel / Filament:** Heavy dependency tree, high memory footprint, requires persistent PHP-FPM daemons.
-- **PocketBase:** Excellent SQLite BaaS, but lacks a server-rendered (SSR) typed Templ design system, agency client-handover UI, and native CGI shared-hosting deployment.
-
-**HydroGo bridges this gap:** A single compiled binary (~12–16MB) running with **2–4ms cold-start and 8–15MB RAM**, fully dynamic SSR with type-safe Go/Templ, and native CGI support for **$10–15/year cPanel/Plesk shared hosting**, while preserving complete intellectual property code secrecy.
+HydroGo is not a customer-specific CMS or another heavy monolithic framework. It provides a versioned, immutable **Core Engine** alongside a generative **Product Factory** that cleanly separates machine-generated contracts (`generated/`) from human-owned business policies, workflows, and integrations (`custom/`).
 
 ---
 
-## 📊 Feature Comparison Matrix
+## ⚡ The HydroGo Philosophy & Vision
 
-| Feature / Capability | WordPress | PayloadCMS | Laravel Filament | PocketBase | **HydroGo** |
+Modern web development is burdened by two extremes:
+1. **Fragile Monoliths (WordPress, Drupal, Laravel):** Heavy PHP interpreter overhead, high memory footprint (50–150MB/worker), constant plugin security vulnerabilities, and plain-text source code exposed to server operators.
+2. **JavaScript Framework Sprawl (Node.js, PayloadCMS, Strapi, Next.js):** 1.5–3s cold-starts, bloated `node_modules` trees, complex build pipelines, heavy container memory requirements ($20–50/mo minimums), and fragile runtime dependencies.
+
+### The HydroGo Paradigm Shift:
+- **Pure Go Velocity & Efficiency:** A single stripped binary (~12–16MB) executing with **2–4ms cold-start and 8–15MB RAM**, delivering sub-10ms server-rendered HTML at thousands of requests per second.
+- **Type-Safe Full-Stack SSR:** Powered by **Go + Templ + HTMX**, eliminating frontend JavaScript runtime fatigue while maintaining instant reactive UI with zero layout shifts.
+- **Pure Go Media & Assets:** Zero external runtime dependencies (no Chromium, Node.js, FFmpeg, or Python). BlurHash, WebP conversion, focal-point smart cropping, watermarking, and dynamic OpenGraph social card generation are all handled in pure Go.
+- **Dual-Brain Architecture (`generated/` vs `custom/`):** Code generators produce typed models, repositories, and route scaffolding. Developers write custom policy and integrations in human-owned boundaries. Upgrading Core never destroys your custom business logic.
+- **True Data Sovereignty & Portability:** You own your binaries, builds, and data. Certified across **SQLite, PostgreSQL, and MySQL/MariaDB** with automated migrations and single-command rollback.
+- **Zero Technical Noise for Business Clients:** An executive Admin Studio designed around strict information hierarchy rules (`docs/INFORMATION_HIERARCHY.md`) — no UUIDs, internal error codes, or technical clutter exposed to end users.
+- **Deploy Anywhere Across the Spectrum:** Seamlessly scales from enterprise container clusters and bare-metal VPS down to native CGI edge environments.
+
+---
+
+## 📊 Competitive Architecture Matrix
+
+| Capability / Metric | WordPress | PayloadCMS / Strapi | Laravel Filament | PocketBase | **HydroGo** |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Runtime Language** | PHP (Interpreted) | TypeScript / Node.js | PHP (Interpreted) | Go (Compiled) | **Pure Go (Compiled)** |
-| **$10/yr cPanel / Shared Hosting** | ⚠️ Slow / Heavy | ❌ Impossible | ⚠️ High Memory | ❌ No native CGI | **✅ Native CGI / FastCGI** |
-| **Cold Start / Response Time (TTFB)** | 150ms – 600ms | 800ms – 2500ms | 100ms – 350ms | 5ms – 20ms | **2ms – 10ms (0ms Static Cache)** |
-| **Memory Footprint (Per Request)** | 40MB – 120MB | 120MB – 300MB | 30MB – 80MB | 15MB – 30MB | **8MB – 15MB (Compact Profile)** |
-| **Code Secrecy & IP Protection** | ❌ Plaintext PHP | ❌ Plaintext JS | ❌ Plaintext PHP | ✅ Compiled Binary | **✅ Stripped Machine Code ELF** |
-| **External Dependencies** | MySQL, Apache | Node.js, MongoDB/PG | PHP-FPM, MySQL | None (SQLite) | **Zero (In-Process SQLite)** |
-| **Frontend SSR Architecture** | PHP Spaghetti / Theme | React / Next.js SPA | Blade / Livewire | Client-Side SPA / API | **Type-Safe Templ + HTMX** |
-| **AI SEO (`/llms.txt` & OG Generator)**| ❌ Requires Plugin | ❌ Custom Code | ❌ Custom Code | ❌ None | **✅ Built-in Pure Go Engine** |
-| **SMTP Crash Shield (Mail Spool)**| ❌ Lost Emails | ❌ None | ⚠️ Redis Queue | ❌ None | **✅ SQLite Spool + MX Fallback** |
-| **Client Handoff UX (Zero-Jargon)** | ❌ Technical Clutter | ⚠️ Dev-Centric | ⚠️ Admin-Centric | ⚠️ DB-Viewer Centric | **✅ Business Owner Studio** |
+| **Core Runtime** | PHP (Interpreted) | Node.js (V8) | PHP (Interpreted) | Go (Compiled) | **Pure Go (Compiled)** |
+| **Response Latency (TTFB)** | 150ms – 600ms | 800ms – 2500ms | 100ms – 350ms | 5ms – 20ms | **2ms – 10ms (0ms with Disk Cache)** |
+| **Memory Footprint** | 50MB – 150MB | 150MB – 400MB | 40MB – 100MB | 15MB – 30MB | **8MB – 15MB (Compact Profile)** |
+| **Frontend SSR Engine** | PHP / Classic Theme | React / Next.js SPA | Blade / Livewire | Client-Side SPA / API | **Type-Safe Templ + HTMX** |
+| **Source Code & IP Protection** | ❌ Plaintext PHP | ❌ Plaintext JS | ❌ Plaintext PHP | ✅ Compiled Binary | **✅ Stripped Machine Code Binary** |
+| **External Heavy Tools** | Node, Apache, MySQL | Node.js, Chromium, PG | PHP-FPM, Redis, MySQL | None (SQLite) | **Zero (In-Process Pure Go)** |
+| **OG Image & Social Generation** | ❌ Requires Heavy Plugins | ❌ Node/Puppeteer Required | ❌ PHP GD / Extension | ❌ None | **✅ Built-in Pure Go Engine** |
+| **LLM / AI Search Indexing** | ❌ Plugin-reliant | ❌ Custom code required | ❌ Custom code required | ❌ None | **✅ Built-in `/llms.txt` Engine** |
+| **Email Spool & Crash Protection** | ❌ Lost on SMTP failure | ❌ None | ⚠️ Redis Queue Required | ❌ None | **✅ SQLite Spool + MX Direct Fallback** |
+| **Client-Facing Admin UX** | ❌ Cluttered / Technical | ⚠️ Dev/Schema-Centric | ⚠️ Admin-Centric | ⚠️ Database-Viewer Centric | **✅ Zero-Jargon Business Studio** |
+| **Multi-Database Parity** | ❌ MySQL only | ⚠️ Mongo / PG | ⚠️ MySQL / PG | ❌ SQLite only | **✅ SQLite, PostgreSQL, MySQL Certified** |
 
 ---
 
-## 🏛️ Architecture at a Glance
+## 🏛️ Dual-Brain Architecture
 
 ```text
-Blueprint / Edition Manifest / Module Contracts
-                         │
-                         ▼
-                 generated/ Artifacts
-                         │      custom/ Policy + Workflow
-                         └──────────────┐
-                                        ▼
-HTTP/JSON/Templ → Application Service → Repository Contract → SQLite / Postgres / MySQL
-                                        │
-                         Audit · Jobs · Cache · Media · Observability
+               Blueprint Manifest & Domain Declarations
+                                  │
+                                  ▼
+                   Code Generators (`internal/generator`)
+                                  │
+         ┌────────────────────────┴────────────────────────┐
+         ▼                                                 ▼
+generated/ Machine-Owned                           custom/ Human-Owned
+├── models.go (Typed Domain Entities)              ├── policies.go (Business Rules & ACL)
+├── repository/ (Certified SQL Store)              ├── workflows.go (Custom Domain Logic)
+└── transport/ (HTTP / JSON / Templ)               └── extensions.go (3rd-Party Integrations)
+         │                                                 │
+         └────────────────────────┬────────────────────────┘
+                                  ▼
+         Application Services & Provider Contracts
+                                  │
+     ┌────────────────────────────┼────────────────────────────┐
+     ▼                            ▼                            ▼
+SQLite Engine             PostgreSQL Adapter           MySQL / MariaDB
+(Single-File / Zero-Ops)   (Enterprise High-Scale)      (Certified Cloud SQL)
 ```
 
 ---
 
-## 🚀 Key Modules & Capabilities
+## 💎 Core Engine Capabilities
 
-### 1. 🌐 Hosting & Runtime Revolution ($10/Year Shared Hosting)
-- **Native CGI & FastCGI (`net/http/cgi` & `net/http/fcgi`):** Runs on the cheapest cPanel/Plesk shared hosting plans as a single binary with zero VPS maintenance overhead.
-- **Automatic Static HTML Disk Caching (`.htaccess` Passthrough):** Public pages rendered for unauthenticated visitors are cached to disk; subsequent requests are served directly by Apache (**0ms TTFB / 0 CPU cycles**).
-- **Lazy Web Cron:** Runs background maintenance (session grooming, news unpublishing, webhook delivery) at the tail of incoming HTTP requests when persistent cron daemons are unavailable.
-- **Adaptive SQLite Profiles:** Ultra-light *Compact Profile* (2MB cache) for shared hosting, high-throughput *VPS Profile* (64MB cache, mmap) for dedicated instances.
+### 1. 🎨 Type-Safe Design System & Blocks (`modules/designsystem`)
+- **Modern Bento Grid Engine:** Responsive, asymmetric block layouts designed for high-conversion corporate showcases.
+- **Interactive UI Components:** FAQ Accordion (with automated `Schema.org FAQPage` JSON-LD), Before/After Comparison Slider, Lightbox, Image Hotspots, and Animated Number Counters (`IntersectionObserver`).
+- **Zero-JS Micro-Interactions:** Smart Sticky Header (auto-hides on scroll down, reveals on scroll up), Copy-to-Clipboard (`ui.CopyButton`), Confetti celebrations, and pure CSS Masonry galleries.
 
-### 2. 🎨 Type-Safe Templ Design System (`modules/designsystem`)
-- **Bento Grid & Block Layout Engine:** Modern asymmetric block arrangements inspired by Apple and Linear.
-- **Interactive Components:** FAQ Accordion (with automated `Schema.org FAQPage` JSON-LD), Before/After Image Comparison Slider, Lightweight Video Player, Image Hotspots, Animated Number Counters (`IntersectionObserver`).
-- **Micro-Interactions:** Copy-to-Clipboard (`ui.CopyButton`), Form Success Confetti, Smart Sticky Header (auto-hide on scroll down, reveal on scroll up), Pure CSS Masonry Gallery.
+### 2. 📝 Form Engine, Lead CRM & Resilient Mailer (`modules/forms` & `internal/mailer`)
+- **Dynamic Form Builder & Inbox:** Custom field schema, automated honeypots, and Cloudflare Turnstile bot protection.
+- **Idempotent Submission Lock:** Prevents accidental double submissions during transient network delays.
+- **Automated Client Autoresponders:** Rich HTML transactional emails with dynamic tags (`{{name}}`, `{{ticket_code}}`).
+- **Typo-Correction UX:** Real-time domain correction suggestions (`@gmai.com` -> `@gmail.com`).
+- **Durable SQLite Mail Spooler:** Outgoing email queue with exponential backoff (`5m`, `15m`, `1h`, `6h`, `24h`) guaranteeing zero lead loss during SMTP provider outages.
+- **Emergency DNS MX Fallback:** Directly queries recipient MX records and delivers mail even if third-party SMTP services fail entirely.
 
-### 3. 📝 Form Engine, Lead CRM & Resilient Mailer (`modules/forms` & `modules/mailer`)
-- **Form Builder & Inbox:** Dynamic field definitions, honeypots, and Cloudflare Turnstile bot deterrence.
-- **Double-Submission Lock (Idempotency):** Prevents duplicate form submissions during network stutter.
-- **Automatic Autoresponders:** HTML confirmation emails with dynamic tags (`{{name}}`, `{{ticket_code}}`).
-- **Email Typo Suggestion:** Live micro-UX catching common domain mistakes (`@gmai.com`, `@hotmial.com`).
-- **Durable SQLite Mail Spooler:** Spools outgoing emails with exponential backoff (`5m`, `15m`, `1h`, `6h`, `24h`) so no customer inquiry is ever lost when an SMTP server is unreachable.
-- **Zero-Config MX Fallback:** Directly delivers critical emails to destination DNS MX records if SMTP credentials are omitted.
+### 3. 🖼️ Pure Go Media Pipeline (`internal/media`)
+- **Zero-Dependency Image Processing:** On-the-fly resizing, WebP conversion, and compression using standard Go libraries.
+- **BlurHash & LQIP:** Automatic low-quality image placeholder generation for instant progressive image loading.
+- **Focal-Point Smart Cropping:** Intelligent coordinate-based cropping preserving critical subjects across all viewports.
+- **Automated PWA Icon Pack:** Generates multi-resolution icons (`192px`, `512px`, `apple-touch-icon.png`, `favicon.ico`) and `manifest.webmanifest` automatically from a single uploaded logo.
+- **Asset Watermarking & Upload Guards:** Tenant-scoped watermarking, SVG script sanitization, and MIME verification.
 
-### 4. 📈 SEO, AI Search & Privacy-First Analytics (`modules/seo` & `modules/analytics`)
-- **Pure Go Dynamic OpenGraph (OG) Generator:** Generates branded 1200x630 social share cards on-the-fly without Chromium or Node.js (`image/draw` + embedded fonts).
-- **AI Crawler Index (`/llms.txt` & `/llms-full.txt`):** Markdown sitemap tailored for LLMs like ChatGPT, Claude, and Perplexity.
-- **Zero-Cookie GDPR Analytics:** Privacy-compliant, cookie-free server-side pageview, visitor, and referrer analytics.
-- **Dynamic Sitemap Splitter:** Handles 50,000+ URLs with automated `sitemap-index.xml` and section chunking.
-- **Performance Middleware:** ETag 304 Not Modified, Pure Go Brotli & Gzip compression, `sync.Pool` zero-allocation rendering buffers.
+### 4. 📈 AI SEO, Discovery & Privacy-First Analytics (`modules/seo` & `internal/analytics`)
+- **Pure Go Dynamic OpenGraph (OG) Generator:** Instant 1200x630 branded social cards generated via `image/draw` and embedded fonts without Chromium or Node.js.
+- **AI Crawler Indexes (`/llms.txt` & `/llms-full.txt`):** Structured markdown documentation designed specifically for ChatGPT, Claude, and Perplexity ingestion.
+- **Zero-Cookie Server Analytics:** GDPR/KVKK-compliant, cookieless telemetry tracking pageviews, referrers, and user journeys.
+- **Dynamic 50,000+ URL Sitemap Splitter:** Automated category chunking and `sitemap-index.xml` generation.
+- **LocalBusiness & Article JSON-LD:** Rich snippet metadata dynamically injected into page heads for maximum search engine visibility.
 
-### 5. 🛡️ Bulletproof Security & Resilience (`internal/security`)
-- **Tarpit Progressive Sleep:** Progressively delays failed login attempts (1s -> 2s -> 4s -> 8s) to stall brute-force attackers without consuming server CPU.
-- **TOTP Two-Factor Authentication (2FA):** Google Authenticator / 1Password compatible RFC 6238 QR-code verification.
-- **Instant IP / CIDR Ban (`hydro ban`):** Memory- and database-backed immediate 403 Forbidden firewall.
-- **SQLite Startup WAL Recovery:** Automatically heals orphaned `.db-wal` locks after unexpected system crashes.
-- **Disk Quota Guard:** Safely throttles uploads when disk usage exceeds 90% to prevent database corruption.
-- **Single-Command Rollback (`hydro rollback`):** Reverts to the snapshot taken immediately before the last migration.
-- **Immutable Audit Log:** Tamper-evident record of all administrative mutations and logins.
+### 5. 🛡️ Bulletproof Security & Self-Healing Runtime (`internal/security`)
+- **Tarpit Progressive Sleep:** Exponentially stalls brute-force login attacks (1s -> 2s -> 4s -> 8s) without burning server CPU.
+- **TOTP Two-Factor Authentication (2FA):** Standard RFC 6238 QR-code verification compatible with Google Authenticator and 1Password.
+- **Instant IP & CIDR Firewall (`hydro ban`):** Memory- and database-backed immediate 403 Forbidden blocking.
+- **Startup WAL Self-Healing:** Automatically cleans and recovers orphaned `.db-wal` locks after ungraceful server terminations.
+- **Disk Quota Guard:** Gracefully halts file uploads when storage hits 90% capacity, safeguarding database integrity.
+- **Single-Command Rollback (`hydro rollback`):** Instantly reverts to the pre-migration snapshot in disaster recovery scenarios.
 
 ### 6. 💼 Business Owner Admin Studio (`internal/adminstudio`)
-- **Zero Technical Jargon:** Clean client-facing UI that hides internal database identifiers and technical stack traces (`docs/INFORMATION_HIERARCHY.md`).
-- **Visual Translation Matrix (i18n):** Search, preview, and update system and custom translations in real time.
-- **Live Visual Diff:** Color-coded green/red comparison across content revisions.
-- **Floating Bulk Action Toolbar:** Multi-select table actions for batch export, marking as read, or deletion.
-- **CSV / XLSX Import Wizard:** Automated column mapping and validation for customer data migration.
-- **Monday Executive Digest:** Weekly summary email delivered to stakeholders every Monday at 09:00.
-- **Agency Support Card & Video Guide Tab:** In-panel agency contact card and embedded video tutorials for seamless client onboarding.
+- **Zero Technical Jargon:** Executive-friendly workspace hiding internal database IDs, technical stack traces, and developer noise (`docs/INFORMATION_HIERARCHY.md`).
+- **Visual Translation Matrix (i18n):** Real-time search, inline translation editing, and database-backed localization overrides.
+- **Live Visual Revision Diff:** Side-by-side green/red visual diff tracking every change across document revisions.
+- **Floating Bulk Action Toolbar:** Multi-select table operations for instant Excel export, status updates, and batch archiving.
+- **Monday Morning Executive Digest:** Automated weekly KPI and form submission digest delivered to business stakeholders every Monday at 09:00.
+- **Agency Support Card & Video Guide Tab:** In-app agency communication box and embedded video training player for smooth client handoff.
+
+### 7. 🌐 Adaptive Deployment Spectrum
+- **High-Performance Daemons:** Standalone HTTP/HTTPS server with automatic ACME Let's Encrypt certificates.
+- **Container & Cloud:** Production-ready Docker Compose, Caddy, and Kubernetes deployment configurations.
+- **Zero-Ops Shared Hosting:** Optional native CGI / FastCGI compatibility (`net/http/cgi`) running dynamic Go apps on standard cPanel/Plesk shared hosting with 0ms static disk caching.
 
 ---
 
 ## 🛠️ Unified Cross-Platform CLI
 
-HydroGo commands use the **exact same syntax** on Linux, macOS, and Windows:
+HydroGo provides a universal CLI that behaves identically on Linux, macOS, and Windows:
 
 ```bash
-# Global Installation
+# Install the HydroGo CLI globally
 go install ./cmd/hydro
 
-# Create a New Project (Presets: corporate, news, agency, saas, minimal)
-hydro new my-client-site --preset=corporate
-cd my-client-site
+# Scaffold a new Client Edition (Presets: corporate, news, agency, saas, minimal)
+hydro new my-client-edition --preset=corporate
+cd my-client-edition
 hydro project check
 
-# Development Mode (Hot-Reloading Server)
+# Start Development Server with Hot-Reloading
 hydro dev
 
-# Database & Diagnostics
-hydro migrate                         # Apply pending migrations
-hydro doctor                          # Inspect system health
-hydro doctor --fix                    # Repair SQLite permissions and locks
+# Database Management & Diagnostics
+hydro migrate                         # Apply pending certified migrations
+hydro doctor                          # Inspect runtime and schema health
+hydro doctor --fix                    # Repair SQLite permissions, WAL locks, and schema
 hydro rollback                        # Roll back to pre-migration snapshot
 
-# Production Server
-hydro serve                           # Standalone HTTP server
-hydro serve --cgi                     # cPanel / Plesk CGI mode
-hydro ban 198.51.100.4                # Block malicious IP
+# Production Server Execution
+hydro serve                           # Run standalone high-performance HTTP server
+hydro serve --acme                    # Run with automated Let's Encrypt SSL
+hydro ban 198.51.100.4                # Block malicious IP or CIDR block
 hydro clean --demo                    # Purge mock/demo dataset
 ```
 
@@ -133,35 +155,36 @@ hydro clean --demo                    # Purge mock/demo dataset
 
 ## 📦 Deployment Options
 
-### 1. Shared Hosting (cPanel / Plesk — $10/Year)
-```bash
-make build-cgi
-```
-Upload the compiled `hydro.cgi` binary and `deploy/hosting/.htaccess` file to `public_html/` via FTP/SFTP. **Your dynamic site and management studio are live instantly!**
-
-### 2. Standalone VPS / Container (Docker / Caddy)
+### 1. Standalone VPS / Container (Docker / Caddy)
 ```bash
 docker compose -f deploy/docker-compose.prod.yml up -d
 ```
+
+### 2. Standard Shared Hosting (cPanel / Plesk)
+```bash
+make build-cgi
+```
+Deploy the compiled `hydro.cgi` and `deploy/hosting/.htaccess` file to `public_html/`. The entire dynamic platform and Admin Studio run out-of-the-box with zero VPS management overhead.
 
 ---
 
 ## 🧪 Testing & Verification
 
-Run the full uncached test suite:
+HydroGo adheres to strict verification discipline across all supported database adapters:
 
 ```bash
+# Run full unit and integration test suite
 go test ./...
-```
 
-Run race detector:
+# Run uncached tests
+go test -count=1 ./...
 
-```bash
+# Run concurrency and race detection
 go test -race ./...
 ```
 
 ---
 
-## 📄 License & Intellectual Property
+## 📄 License & Commercial Terms
 
-HydroGo is proprietary software. Licensing and commercial usage terms are defined in [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md) and [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md).
+HydroGo is proprietary software. Commercial licensing terms, distribution rights, and client edition permissions are detailed in [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md) and [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md).
