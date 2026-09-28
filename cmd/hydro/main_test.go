@@ -825,6 +825,43 @@ func TestRunDBDiffReportsPendingWithoutCreatingMigrationLedger(t *testing.T) {
 	}
 }
 
+func TestRunDBReindexReportsElapsedTimeAndRebuildsFTS(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "reindex.sqlite")
+	db, err := database.Open(context.Background(), database.SQLite, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`CREATE TABLE hydro_search_documents (rowid INTEGER PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL)`,
+		`CREATE VIRTUAL TABLE hydro_search_fts USING fts5(title, body, content='hydro_search_documents', content_rowid='rowid')`,
+		`INSERT INTO hydro_search_documents(title, body) VALUES ('HydroGo', 'database search')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			_ = db.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"db", "reindex", "--database-dialect", "sqlite", "--database-dsn", dsn}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("db reindex: %v stderr=%s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "database reindex completed in") {
+		t.Fatalf("db reindex output = %q", stdout.String())
+	}
+	db, err = database.Open(context.Background(), database.SQLite, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var matches int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM hydro_search_fts WHERE hydro_search_fts MATCH 'HydroGo'`).Scan(&matches); err != nil || matches != 1 {
+		t.Fatalf("FTS matches=%d err=%v", matches, err)
+	}
+}
+
 func TestRunPermissionsCheck(t *testing.T) {
 	root := t.TempDir()
 	specPath := filepath.Join(root, "article.yaml")

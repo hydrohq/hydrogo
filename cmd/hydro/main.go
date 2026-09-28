@@ -544,12 +544,16 @@ func schemaCommand(args []string, stdout, stderr io.Writer) error {
 	return err
 }
 
-// dbCommand inspects the migration ledger without applying or creating
-// migrations. It checks source checksums and reports the currently pending
-// migration IDs using the same module selection as hydro migrate.
+// dbCommand dispatches read-only schema comparison and explicit maintenance.
 func dbCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "diff" {
-		return errors.New("db requires the diff subcommand")
+	if len(args) == 0 {
+		return errors.New("db requires the diff or reindex subcommand")
+	}
+	if args[0] == "reindex" {
+		return dbReindexCommand(args[1:], stdout, stderr)
+	}
+	if args[0] != "diff" {
+		return errors.New("db requires the diff or reindex subcommand")
 	}
 	flags := flag.NewFlagSet("db diff", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -607,6 +611,40 @@ func dbCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, "schema-diff pending=%s drift=%d physical-inspection=%t\n", strings.Join(pending, ","), len(schemaChanges), physicalInspection)
+	return err
+}
+
+func dbReindexCommand(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("db reindex", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected arguments: %v", flags.Args())
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	budget, err := capacity.Defaults(cfg.Profile)
+	if err != nil {
+		return err
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+	if err != nil {
+		return err
+	}
+	started := time.Now()
+	reindexErr := database.Reindex(ctx, db, cfg.Database.Dialect)
+	closeErr := db.Close()
+	if err := errors.Join(reindexErr, closeErr); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "database reindex completed in %s\n", time.Since(started).Round(time.Millisecond))
 	return err
 }
 
