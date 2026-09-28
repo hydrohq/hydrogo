@@ -548,17 +548,17 @@ func (c Config) Validate() error {
 		if strings.ContainsAny(c.AdminSupport.Phone, "<>\"'") || len(c.AdminSupport.Phone) > 40 {
 			return errors.New("invalid admin support phone")
 		}
-		for _, raw := range []string{c.AdminSupport.WhatsAppURL, c.AdminSupport.GuideURL} {
-			if raw == "" {
-				continue
-			}
-			parsed, err := url.Parse(strings.TrimSpace(raw))
-			if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
-				return errors.New("admin support links must be valid HTTPS URLs")
-			}
-		}
 		if c.AdminSupport.Email == "" && c.AdminSupport.Phone == "" && c.AdminSupport.WhatsAppURL == "" {
 			return errors.New("admin support requires at least one contact method")
+		}
+	}
+	for _, raw := range []string{c.AdminSupport.WhatsAppURL, c.AdminSupport.GuideURL} {
+		if raw == "" {
+			continue
+		}
+		parsed, err := url.Parse(strings.TrimSpace(raw))
+		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
+			return errors.New("admin support links must be valid HTTPS URLs")
 		}
 	}
 	for _, path := range c.Security.AnomalyBypassPaths {

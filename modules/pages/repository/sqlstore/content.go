@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
@@ -316,12 +317,16 @@ func (s Store) CreateDraftContent(ctx context.Context, tx database.Executor, pag
 		return err
 	}
 	revisionQuery := `INSERT INTO page_revisions
-		(id, page_id, revision, locale, slug, title, body, blocks, created_at`
-	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, 1, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8)
-	revisionArgs := []any{page.ID + "-revision-1", page.ID, page.Locale, page.Slug, page.Title, page.Body, blocks, now}
+		(id, page_id, revision, locale, slug, title, body, blocks, actor_id, created_at`
+	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, 1, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9)
+	revisionActor := ""
+	if actor := auth.UserFromContext(ctx); actor != nil {
+		revisionActor = actor.ID
+	}
+	revisionArgs := []any{page.ID + "-revision-1", page.ID, page.Locale, page.Slug, page.Title, page.Body, blocks, revisionActor, now}
 	if s.RequireTenantScope {
 		revisionQuery += `, tenant_id`
-		revisionValues += `, ` + s.placeholder(9)
+		revisionValues += `, ` + s.placeholder(10)
 		revisionArgs = append(revisionArgs, scopeID)
 	}
 	revisionQuery += `) ` + revisionValues + `)`
@@ -364,12 +369,16 @@ func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, pag
 		return pages.ErrConflict
 	}
 	revisionQuery := `INSERT INTO page_revisions
-		(id, page_id, revision, locale, slug, title, body, blocks, created_at`
-	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9)
-	revisionArgs := []any{fmt.Sprintf("%s-revision-%d", page.ID, expectedVersion+1), page.ID, expectedVersion + 1, page.Locale, page.Slug, page.Title, page.Body, blocks, now}
+		(id, page_id, revision, locale, slug, title, body, blocks, actor_id, created_at`
+	revisionValues := `VALUES (` + s.placeholder(1) + `, ` + s.placeholder(2) + `, ` + s.placeholder(3) + `, ` + s.placeholder(4) + `, ` + s.placeholder(5) + `, ` + s.placeholder(6) + `, ` + s.placeholder(7) + `, ` + s.placeholder(8) + `, ` + s.placeholder(9) + `, ` + s.placeholder(10)
+	revisionActor := ""
+	if actor := auth.UserFromContext(ctx); actor != nil {
+		revisionActor = actor.ID
+	}
+	revisionArgs := []any{fmt.Sprintf("%s-revision-%d", page.ID, expectedVersion+1), page.ID, expectedVersion + 1, page.Locale, page.Slug, page.Title, page.Body, blocks, revisionActor, now}
 	if s.RequireTenantScope {
 		revisionQuery += `, tenant_id`
-		revisionValues += `, ` + s.placeholder(10)
+		revisionValues += `, ` + s.placeholder(11)
 		revisionArgs = append(revisionArgs, scopeID)
 	}
 	revisionQuery += `) ` + revisionValues + `)`

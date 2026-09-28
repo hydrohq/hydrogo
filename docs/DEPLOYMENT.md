@@ -244,8 +244,10 @@ nssm start HydroGo
   veya ek servis başlatmaz. Açmak için `admin_support.enabled` değerini ve en
   az bir iletişim yolunu yapılandırın.
 - Sayfa içe aktarma tek istekte en fazla 5 MiB, 5.000 satır ve 100 sütun işler.
-- Bildirimler mevcut veritabanına yazılır; yeni worker veya ayrı cache gerekmez.
+- Bildirimler ve özet tercihleri mevcut veritabanında tutulur; ayrı bir cache gerekmez.
   İçerik modülü kapalıysa bildirim migration'ı uygulanmaz. Yüksek hacimli
   bildirim üreticileri açılmadan önce saklama süresi tanımlanmalıdır.
-- Haftalık özet e-postası bu sürümde etkin değildir; ek worker veya mail
-  hacmi oluşturmaz.
+- Pazartesi özeti varsayılan olarak kapalıdır. Kullanıcı tercihinden açılır;
+  Forms, Pages ve SMTP etkin olduğunda mevcut mail-spool worker'ı zamanlar.
+  Özet gönderimleri aynı SQLite mail kuyruğuna yazılır ve yeniden denemeleri
+  mevcut kuyruk davranışını kullanır.

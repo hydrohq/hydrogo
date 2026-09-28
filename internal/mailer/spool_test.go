@@ -78,3 +78,18 @@ func TestSpoolWorkerSendsImmediatelyAndCompletes(t *testing.T) {
 		t.Fatalf("run = %v/%v completed=%v", worked, err, store.completed)
 	}
 }
+
+func TestSpoolWorkerRunsBoundedScheduledTaskWithoutAnotherWorker(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	called := make(chan time.Time, 1)
+	worker := SpoolWorker{Store: &spoolFake{}, Sender: senderFake{}, WorkerID: "worker-1", OnSchedule: func(_ context.Context, now time.Time) error { called <- now; cancel(); return nil }}
+	worker.Run(ctx, time.Millisecond)
+	select {
+	case now := <-called:
+		if now.IsZero() {
+			t.Fatal("scheduled callback received zero time")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("scheduled callback did not run")
+	}
+}

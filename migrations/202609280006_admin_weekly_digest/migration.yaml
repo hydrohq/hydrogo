@@ -1,0 +1,24 @@
+id: "202609280006_admin_weekly_digest"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+dependencies:
+  - "202609280005_admin_notifications"
+checksum_sha256:
+  sqlite: "dc6c84bcd05eb8ccb6a0f92712de14f5fd2f711c5f87cefe6e38006df70c1710"
+  postgres: "cf721288be2b9b76ebecafc4fc612401d23fd858e4566b5135203bfb30222356"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Pages capability is enabled"
+compatibility: "Adds an opt-in per-user weekly email preference without changing user records."
+smoke:
+  - "Digest opt-in and timezone can be saved for a user"
+  - "A reporting week can be claimed only once per user and tenant"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward migration only; dropping this table resets opt-in preferences."

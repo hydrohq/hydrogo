@@ -54,6 +54,7 @@ type SpoolWorker struct {
 	Now          func() time.Time
 	TenantScopes []tenant.Scope
 	OnError      func(error)
+	OnSchedule   func(context.Context, time.Time) error
 }
 
 func RetryDelay(failedAttempts int) time.Duration {
@@ -118,9 +119,23 @@ func (w SpoolWorker) Run(ctx context.Context, idle time.Duration) {
 	if idle <= 0 {
 		idle = 500 * time.Millisecond
 	}
+	nextSchedule := time.Time{}
 	for {
 		if ctx.Err() != nil {
 			return
+		}
+		now := time.Now().UTC()
+		if w.Now != nil {
+			now = w.Now().UTC()
+		}
+		if w.OnSchedule != nil && (nextSchedule.IsZero() || !now.Before(nextSchedule)) {
+			scheduleCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			err := w.OnSchedule(scheduleCtx, now)
+			cancel()
+			if err != nil && w.OnError != nil && ctx.Err() == nil {
+				w.OnError(err)
+			}
+			nextSchedule = now.Add(time.Minute)
 		}
 		worked, err := w.RunOnce(ctx)
 		if err != nil && w.OnError != nil && ctx.Err() == nil {

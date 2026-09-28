@@ -34,11 +34,13 @@ type Page struct {
 }
 
 type RevisionSnapshot struct {
-	ID        string
-	PageID    string
-	Revision  int
-	Title     string
-	Body      string
-	Blocks    []Block
-	CreatedAt time.Time
+	ID         string
+	PageID     string
+	Revision   int
+	Title      string
+	Body       string
+	Blocks     []Block
+	CreatedAt  time.Time
+	ActorID    string
+	ActorEmail string
 }

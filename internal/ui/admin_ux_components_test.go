@@ -18,12 +18,21 @@ func TestAdminUXTemplComponentsRenderAccessibleBoundedFlows(t *testing.T) {
 		{"import", func(out *bytes.Buffer) error {
 			return ImportWizard([]string{"Başlık", "Metin"}, "csrf", true).Render(context.Background(), out)
 		}, []string{".xlsx", "Sütunları eşleştirin", "map_title", "5.000 satır"}},
+		{"import preview", func(out *bytes.Buffer) error {
+			return ImportPreview("csrf", map[string]string{"slug": "0", "title": "1", "body": "2"}, 3, 1, 2).Render(context.Background(), out)
+		}, []string{"data-import-preview", "3 yeni taslak", "1 yinelenen", `name="action" value="import"`, `name="map_slug" value="0"`}},
 		{"notifications", func(out *bytes.Buffer) error {
-			return NotificationCenter([]NotificationItem{{ID: "internal-id", Title: "İçerik hazır", Message: "Sayfa yayında", TargetPath: "/admin/pages"}}, "csrf").Render(context.Background(), out)
+			return NotificationCenter([]NotificationItem{{ID: "internal-id", Title: "İçerik hazır", Message: "Sayfa yayında", TargetPath: "/admin/pages"}}, "csrf", false, "UTC", true).Render(context.Background(), out)
 		}, []string{"Bildirimler", "İçerik hazır", "/admin/pages", "_csrf"}},
 		{"translation", func(out *bytes.Buffer) error {
 			return TranslationEditor(TranslationEditorData{SourceTitle: "Kaynak", SourceBody: "Metin", Locale: "en", Action: "/admin/pages/p/translate", CSRF: "csrf"}).Render(context.Background(), out)
 		}, []string{"data-translation-source", "data-translation-target", "Kaynak içerik", "Çeviriyi kaydet"}},
+		{"visual revision", func(out *bytes.Buffer) error {
+			return VisualRevisionCompare("<h1>Eski</h1>", "<h1>Yeni</h1>", "Sürüm 1", "Geçerli taslak").Render(context.Background(), out)
+		}, []string{"data-visual-revision", `sandbox=""`, "Sürüm 1", "Geçerli taslak"}},
+		{"guide tabs", func(out *bytes.Buffer) error {
+			return GuideCenter("https://video.example.test/guide").Render(context.Background(), out)
+		}, []string{`role="tablist"`, `data-guide-tab="video"`, `https://video.example.test/guide`, `rel="noopener noreferrer"`}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -59,7 +60,7 @@ func validateImportRows(rows [][]string) ([][]string, error) {
 			return nil, ErrInvalidImportFile
 		}
 		for _, value := range row {
-			if len(value) > 16<<10 {
+			if len(value) > 16<<10 || !utf8.ValidString(value) {
 				return nil, ErrInvalidImportFile
 			}
 		}
@@ -99,10 +100,10 @@ func parseXLSX(raw []byte) ([][]string, error) {
 	files := map[string]*zip.File{}
 	totalExpanded := uint64(0)
 	for _, f := range zr.File {
-		totalExpanded += f.UncompressedSize64
-		if totalExpanded > ImportMaxBytes || f.UncompressedSize64 > ImportMaxBytes {
+		if totalExpanded > ImportMaxBytes || f.UncompressedSize64 > uint64(ImportMaxBytes)-totalExpanded {
 			return nil, ErrInvalidImportFile
 		}
+		totalExpanded += f.UncompressedSize64
 		files[f.Name] = f
 	}
 	read := func(name string, dst any) error {
