@@ -1,22 +1,23 @@
-# R127 — MySQL adapter bootstrap
+# R127 — MySQL adapter implementation status
 
-The non-Compact binary now registers `go-sql-driver/mysql`, opens the MySQL
-driver through `database/sql`, applies the existing bounded pool defaults, and
-sets a three-minute connection lifetime. Compact builds omit the driver and
-fail closed if MySQL is selected. MySQL uses positional `?` parameters, and
-the migration ledger uses InnoDB-compatible `VARCHAR`/`CHAR` key columns and
-does not wrap its creation in a transaction.
+The regular build registers `go-sql-driver/mysql` through `database/sql`, applies
+bounded pool defaults, and gives connections a bounded lifetime. Compact builds
+omit the driver and fail closed if MySQL is selected. MySQL uses positional `?`
+parameters and an InnoDB-compatible migration ledger.
 
-The pool, rollback, migration ledger, migration lock, and multiple-statement
-migration contracts passed against local MariaDB 13.0.2:
+All 87 embedded migration bundles now include MySQL scripts and metadata. The
+complete migration chain, tenant-scoped legacy data backfill, representative
+foreign keys and constraints, portfolio tag backfill, pool limits, rollback,
+migration runner, schema diff, and scratch database cleanup passed against
+MariaDB 13.0.2:
 
 ```text
-HYDRO_TEST_MYSQL_URL=user:password@tcp(127.0.0.1:3306)/hydro_test go test ./internal/database -run 'TestMySQL' -count=1 -v
+HYDRO_TEST_MYSQL_URL=... go test ./internal/database -run '^TestMySQL' -count=1 -v
 PASS
 ```
 
-This is bootstrap evidence only, not the adapter certification required by
-ADR-0283 or issue #127. The 87 existing migration bundles do not yet contain
-MySQL scripts, and repository SQL, backup/recovery, tenant isolation, and the
-full contract suite have not been certified on MySQL 8 or MariaDB 10.5+. Do not
-enable MySQL for a production Edition until those gates pass.
+`go test ./...` and `go run ./tools/migrationguard` also pass. This remains
+implementation evidence rather than full adapter certification. The complete
+repository contract suite, backup/restore, tenant isolation across repository
+families, MySQL 8.0+, and MariaDB 10.5+ matrix still need certification before
+production support is promised. Keep issue #127 open until those gates pass.
