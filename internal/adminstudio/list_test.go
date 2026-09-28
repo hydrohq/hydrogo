@@ -40,6 +40,19 @@ func TestRenderListUsesTypedStatusPillsAndScheduleTime(t *testing.T) {
 	}
 }
 
+func TestRenderListCopyActionEscapesURLAndUsesTypedButton(t *testing.T) {
+	collection := Collection{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Edit", Href: "/admin/pages/p1"}}}
+	var out strings.Builder
+	if err := RenderList(&out, ListData{Collection: collection, Rows: []Row{{Values: map[string]string{"title": "Home"}, Actions: []Action{{Label: "Copy live URL", CopyText: `https://site.example/path?q="x"`}}}}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-copy-text="https://site.example/path?q=&#34;x&#34;"`, `aria-label="Copy live URL"`, `data-copy-status`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("copy action omitted %q: %s", want, out.String())
+		}
+	}
+}
+
 func TestRenderListProvidesAccessibleEmptyState(t *testing.T) {
 	collection := Collection{ID: "products", Label: "Products", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Yeni", Href: "/admin/products/new"}}}
 	var out bytes.Buffer

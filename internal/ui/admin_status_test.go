@@ -12,7 +12,7 @@ func TestAdminShellLoadsAccessibleStatusFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 	markup := output.String()
-	for _, want := range []string{".status-pill--published", "data-status-filter", "data-status-row", "aria-live", "data-status-filter-clear"} {
+	for _, want := range []string{".status-pill--published", "data-status-filter", "data-status-row", "aria-live", "data-status-filter-clear", "data-copy-text", "clipboard.writeText"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("admin shell omitted status filtering support %q", want)
 		}

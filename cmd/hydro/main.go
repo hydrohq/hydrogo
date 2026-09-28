@@ -1990,7 +1990,7 @@ func serve(args []string, stderr io.Writer) error {
 				}
 			}
 		}
-		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, MediaLookup: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
+		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, MediaLookup: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
 			if !moduleEnabled(cfg.Modules, "site") {
 				return nil, nil
 			}
