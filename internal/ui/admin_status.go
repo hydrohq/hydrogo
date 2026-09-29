@@ -1,25 +1,48 @@
 package ui
 
-const AdminStatusFilterCSS = `.status-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .55rem;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font:600 .75rem/1.3 system-ui,sans-serif;cursor:pointer}.status-pill:hover,.status-pill[aria-pressed=true]{box-shadow:0 0 0 2px color-mix(in srgb,currentColor 18%,transparent)}.status-pill--published{color:var(--green,#15803d);background:var(--green-subtle,#f0fdf4);border-color:color-mix(in srgb,var(--green,#15803d) 30%,transparent)}.status-pill--draft{color:var(--amber,#a16207);background:var(--amber-subtle,#fffbeb);border-color:color-mix(in srgb,var(--amber,#a16207) 30%,transparent)}.status-pill--scheduled{color:var(--blue,#1d4ed8);background:var(--blue-subtle,#eff6ff);border-color:color-mix(in srgb,var(--blue,#1d4ed8) 30%,transparent)}.status-pill--archived{color:var(--muted);background:var(--bg-subtle);border-color:var(--line)}.status-filter-status{display:flex;align-items:center;gap:.75rem;margin:0 0 .6rem;color:var(--muted);font-size:.8rem}.status-filter-status button{border:0;background:none;color:var(--link);text-decoration:underline;cursor:pointer}`
+const AdminStatusFilterCSS = `.status-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .55rem;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font:600 .75rem/1.3 system-ui,sans-serif;cursor:pointer}.status-pill:hover,.status-pill[aria-pressed=true]{box-shadow:0 0 0 2px color-mix(in srgb,currentColor 18%,transparent)}.status-pill--published{color:var(--green,#15803d);background:var(--green-subtle,#f0fdf4);border-color:color-mix(in srgb,var(--green,#15803d) 30%,transparent)}.status-pill--draft{color:var(--amber,#a16207);background:var(--amber-subtle,#fffbeb);border-color:color-mix(in srgb,var(--amber,#a16207) 30%,transparent)}.status-pill--scheduled{color:var(--blue,#1d4ed8);background:var(--blue-subtle,#eff6ff);border-color:color-mix(in srgb,var(--blue,#1d4ed8) 30%,transparent)}.status-pill--archived{color:var(--muted);background:var(--bg-subtle);border-color:var(--line)}.status-filter-status[hidden],[data-status-filter-panel][hidden]{display:none!important}.status-filter-status{display:inline-flex;align-items:center;gap:.75rem;margin:0 0 .75rem;padding:.4rem .85rem;background:var(--bg-subtle);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--ink-secondary);font-size:.78rem}.status-filter-status [data-status-filter-message]{font-weight:600}.status-filter-status button{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--muted);font-size:.74rem;font-weight:600;cursor:pointer;transition:var(--transition);text-decoration:none}.status-filter-status button:hover{color:var(--ink);border-color:var(--line-light);background:var(--surface-hover)}`
 
 const AdminStatusFilterJS = `(()=>{
   const table = () => document.querySelector('table[data-admin-list-state]');
+  const labels = {
+    published: 'Yayında',
+    draft: 'Taslak',
+    scheduled: 'Zamanlanmış',
+    archived: 'Arşivlenmiş',
+    retracted: 'Geri Çekilmiş'
+  };
   const apply = (active, syncURL) => {
     const currentTable = table(); if (!currentTable) return;
-    const parent = currentTable.parentElement;
+    const host = currentTable.closest('.table-wrap') || currentTable;
+    const parent = host.parentElement || currentTable.parentElement;
     let panel = parent.querySelector('[data-status-filter-panel]');
+    if (!active) {
+      if (panel) {
+        panel.hidden = true;
+        panel.style.display = 'none';
+      }
+      currentTable.dataset.activeStatus = '';
+      currentTable.querySelectorAll('tbody tr[data-status-row]').forEach(row => { row.hidden = false; });
+      currentTable.querySelectorAll('[data-status-filter]').forEach(button => button.setAttribute('aria-pressed', 'false'));
+      if (syncURL) { const url = new URL(location.href); url.searchParams.delete('status'); history.replaceState(history.state, '', url); }
+      return;
+    }
     if (!panel) {
       panel = document.createElement('div'); panel.className = 'status-filter-status'; panel.dataset.statusFilterPanel = '';
       const message = document.createElement('span'); message.setAttribute('role', 'status'); message.setAttribute('aria-live', 'polite'); message.dataset.statusFilterMessage = '';
-      const clear = document.createElement('button'); clear.type = 'button'; clear.dataset.statusFilterClear = ''; clear.textContent = 'Clear filter'; clear.hidden = true;
-      panel.append(message, clear); parent.insertBefore(panel, currentTable);
+      const clear = document.createElement('button'); clear.type = 'button'; clear.dataset.statusFilterClear = ''; clear.textContent = '✕ Filtreyi Temizle'; clear.hidden = false;
+      panel.append(message, clear);
+      parent.insertBefore(panel, host);
     }
     currentTable.dataset.activeStatus = active;
-    currentTable.querySelectorAll('tbody tr[data-status-row]').forEach(row => { row.hidden = !!active && row.dataset.statusRow !== active; });
-    currentTable.querySelectorAll('[data-status-filter]').forEach(button => button.setAttribute('aria-pressed', String(!!active && button.dataset.statusFilter === active)));
-    panel.querySelector('[data-status-filter-message]').textContent = active ? 'Filtered to ' + active : 'Showing all statuses';
-    panel.querySelector('[data-status-filter-clear]').hidden = !active;
-    if (syncURL) { const url = new URL(location.href); if (active) url.searchParams.set('status', active); else url.searchParams.delete('status'); history.replaceState(history.state, '', url); }
+    currentTable.querySelectorAll('tbody tr[data-status-row]').forEach(row => { row.hidden = row.dataset.statusRow !== active; });
+    currentTable.querySelectorAll('[data-status-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.statusFilter === active)));
+    const displayLabel = labels[active] || active;
+    panel.querySelector('[data-status-filter-message]').textContent = 'Duruma göre filtrelendi: ' + displayLabel;
+    panel.querySelector('[data-status-filter-clear]').hidden = false;
+    panel.hidden = false;
+    panel.style.display = 'inline-flex';
+    if (syncURL) { const url = new URL(location.href); url.searchParams.set('status', active); history.replaceState(history.state, '', url); }
   };
   const initialize = () => apply(new URL(location.href).searchParams.get('status') || '', false);
   document.addEventListener('click', event => {
