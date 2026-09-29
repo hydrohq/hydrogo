@@ -66,7 +66,16 @@ test.describe("Critical User Journeys (P1)", () => {
     // 1. Verify sitemap.xml
     const sitemapRes = await request.get(`${baseURL}/sitemap.xml`);
     expect(sitemapRes.status()).toBe(200);
-    const xmlText = await sitemapRes.text();
+    let xmlText = await sitemapRes.text();
+    if (xmlText.includes("<sitemapindex")) {
+      // The 50k-URL splitter publishes category sitemaps behind the index;
+      // resilience means the index references children that serve urlsets.
+      const childUrl = xmlText.match(/<loc>([^<]+)<\/loc>/)?.[1];
+      expect(childUrl, "sitemap index must reference a child sitemap").toBeTruthy();
+      const childRes = await request.get(childUrl);
+      expect(childRes.status()).toBe(200);
+      xmlText = await childRes.text();
+    }
     expect(xmlText).toContain("<urlset");
 
     // 2. Verify robots.txt

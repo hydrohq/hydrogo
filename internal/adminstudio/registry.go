@@ -159,7 +159,7 @@ func validateCollection(collection Collection) error {
 
 func supportedWidget(widget string) bool {
 	switch widget {
-	case "text", "textarea", "number", "boolean", "date", "datetime", "select", "media", "richtext", "block-editor", "relation", "array", "blocks", "currency", "checkbox", "hidden", "list":
+	case "text", "textarea", "number", "boolean", "date", "datetime", "datetime-local", "select", "media", "richtext", "block-editor", "relation", "array", "blocks", "currency", "checkbox", "hidden", "list":
 		return true
 	default:
 		return false
