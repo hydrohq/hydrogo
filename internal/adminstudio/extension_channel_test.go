@@ -58,3 +58,4 @@ func TestChannelChallengeEqualRejectsDifferentLengthAndContent(t *testing.T) {
 		t.Fatal("different challenge accepted")
 	}
 }
+

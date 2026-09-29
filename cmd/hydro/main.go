@@ -2399,7 +2399,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
 			principal.TenantID = scope.TenantID
 		}
-		extensionRegistry.ServeExtensionSurface(w, r, r.PathValue("extension_id"), r.PathValue("surface_id"), cfg.I18N.DefaultLocale, principal)
+		extensionRegistry.ServeExtensionSurface(w, r, r.PathValue("extension_id"), r.PathValue("surface_id"), cfg.I18N.DefaultLocale, principal, func(p string) bool { return auth.Can(user, p) })
 	})})
 	routes = append(routes, router.Route{Pattern: "POST /admin/extensions/channels/bind", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, session := auth.UserFromContext(r.Context()), auth.SessionFromContext(r.Context())

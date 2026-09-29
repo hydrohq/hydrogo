@@ -14,7 +14,7 @@ import (
 // ServeExtensionSurface renders the isolated host shell for one validated
 // external surface. It intentionally sends only non-secret bootstrap context;
 // session cookies and bearer tokens never cross into the iframe.
-func (r ExtensionRegistry) ServeExtensionSurface(w http.ResponseWriter, req *http.Request, extensionID, surfaceID, locale string, principal ChannelPrincipal) {
+func (r ExtensionRegistry) ServeExtensionSurface(w http.ResponseWriter, req *http.Request, extensionID, surfaceID, locale string, principal ChannelPrincipal, authorizer func(string) bool) {
 	manifest, ok := r.Manifest(extensionID)
 	if !ok {
 		http.NotFound(w, req)
@@ -44,7 +44,15 @@ func (r ExtensionRegistry) ServeExtensionSurface(w http.ResponseWriter, req *htt
 	permissions := []string(nil)
 	for _, surface := range manifest.Surfaces {
 		if surface.ID == surfaceID {
-			permissions = append(permissions, surface.Permissions...)
+			for _, p := range surface.Permissions {
+
+				if authorizer != nil && authorizer(p) {
+
+					permissions = append(permissions, p)
+
+				}
+
+			}
 			break
 		}
 	}
