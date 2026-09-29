@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	storagesqlite "github.com/ardaozyildirim/hydrogo/internal/storage/sqlite"
 	"gopkg.in/yaml.v3"
 )
 
@@ -210,8 +211,10 @@ func PendingMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrati
 		if err != nil {
 			return nil, fmt.Errorf("missing migration script %s: %w", id, err)
 		}
-		digest := sha256.Sum256(content)
-		checksum := hex.EncodeToString(digest[:])
+		checksum, err := migrationChecksum(migrationFS, id, dialect, content)
+		if err != nil {
+			return nil, err
+		}
 		if prior, ok := applied[id]; ok {
 			if prior != checksum {
 				return nil, fmt.Errorf("migration %s checksum mismatch", id)
@@ -288,8 +291,10 @@ func applyMigration(ctx context.Context, executor Executor, dialect Dialect, mig
 	if err != nil {
 		return fmt.Errorf("missing migration script %s: %w", path, err)
 	}
-	digest := sha256.Sum256(content)
-	checksum := hex.EncodeToString(digest[:])
+	checksum, err := migrationChecksum(migrationFS, migrationID, dialect, content)
+	if err != nil {
+		return err
+	}
 	var existing string
 	err = executor.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE id = "+placeholder(dialect, 1), migrationID).Scan(&existing)
 	switch {
@@ -313,6 +318,41 @@ func applyMigration(ctx context.Context, executor Executor, dialect Dialect, mig
 }
 
 func applyNonTransactionalMigration(ctx context.Context, db Executor, dialect Dialect, migrationFS fs.FS, migrationID string) error {
+	if dialect == SQLite {
+		manifest, err := readSQLiteShadowManifest(migrationFS, migrationID)
+		if err != nil {
+			return err
+		}
+		if manifest != nil {
+			content, err := fs.ReadFile(migrationFS, migrationID+"/sqlite.sql")
+			if err != nil {
+				return err
+			}
+			checksum, err := migrationChecksum(migrationFS, migrationID, dialect, content)
+			if err != nil {
+				return err
+			}
+			var existing string
+			err = db.QueryRowContext(ctx, `SELECT checksum FROM schema_migrations WHERE id = ?`, migrationID).Scan(&existing)
+			if err == nil {
+				if existing != checksum {
+					return fmt.Errorf("migration %s checksum mismatch", migrationID)
+				}
+				return nil
+			}
+			if !isNoRows(err) {
+				return err
+			}
+			conn, ok := db.(*sql.Conn)
+			if !ok {
+				return errors.New("SQLite shadow migration requires a dedicated connection")
+			}
+			return storagesqlite.RebuildTable(ctx, conn, migrationID, manifest.spec(), func(recordCtx context.Context, recordConn *sql.Conn) error {
+				_, err := recordConn.ExecContext(recordCtx, `INSERT INTO schema_migrations (id, checksum) VALUES (?, ?)`, migrationID, checksum)
+				return err
+			})
+		}
+	}
 	if err := applyMigration(ctx, db, dialect, migrationFS, migrationID); err != nil {
 		return err
 	}
@@ -351,6 +391,15 @@ func releaseMySQLMigrationLock(ctx context.Context, conn *sql.Conn) {
 }
 
 func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dialect) (bool, error) {
+	if dialect == SQLite {
+		manifest, err := readSQLiteShadowManifest(migrationFS, migrationID)
+		if err != nil {
+			return false, err
+		}
+		if manifest != nil {
+			return false, nil
+		}
+	}
 	data, err := fs.ReadFile(migrationFS, migrationID+"/migration.yaml")
 	if errors.Is(err, fs.ErrNotExist) {
 		return true, nil
@@ -406,8 +455,10 @@ func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Diale
 		if err != nil {
 			return fmt.Errorf("missing migration script %s: %w", path, err)
 		}
-		digest := sha256.Sum256(content)
-		want := hex.EncodeToString(digest[:])
+		want, err := migrationChecksum(migrationFS, migrationID, dialect, content)
+		if err != nil {
+			return err
+		}
 
 		var got string
 		if err := db.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE id = "+placeholder(dialect, 1), migrationID).Scan(&got); err != nil {
@@ -431,6 +482,62 @@ func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Diale
 type migrationMetadata struct {
 	Module          string   `yaml:"module"`
 	RequiresModules []string `yaml:"requires_modules"`
+}
+
+type sqliteShadowMetadata struct {
+	Table     string                       `yaml:"table"`
+	CreateSQL string                       `yaml:"create_sql"`
+	Columns   []storagesqlite.ShadowColumn `yaml:"columns"`
+	BatchSize int                          `yaml:"batch_size"`
+	AfterSwap []string                     `yaml:"after_swap"`
+	Checksum  string                       `yaml:"checksum_sha256"`
+}
+
+func (m sqliteShadowMetadata) spec() storagesqlite.ShadowMigration {
+	return storagesqlite.ShadowMigration{Table: m.Table, CreateSQL: m.CreateSQL, Columns: m.Columns, BatchSize: m.BatchSize, AfterSwap: m.AfterSwap}
+}
+
+func readSQLiteShadowManifest(migrationFS fs.FS, migrationID string) (*sqliteShadowMetadata, error) {
+	data, err := fs.ReadFile(migrationFS, migrationID+"/migration.yaml")
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var manifest struct {
+		SQLiteShadow *sqliteShadowMetadata `yaml:"sqlite_shadow"`
+	}
+	if err := yaml.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("parse SQLite shadow metadata %s: %w", migrationID, err)
+	}
+	if manifest.SQLiteShadow == nil {
+		return nil, nil
+	}
+	actual, err := storagesqlite.Checksum(manifest.SQLiteShadow.spec())
+	if err != nil {
+		return nil, fmt.Errorf("checksum SQLite shadow metadata %s: %w", migrationID, err)
+	}
+	if strings.TrimSpace(manifest.SQLiteShadow.Checksum) == "" || !strings.EqualFold(manifest.SQLiteShadow.Checksum, actual) {
+		return nil, fmt.Errorf("SQLite shadow metadata checksum mismatch for migration %s", migrationID)
+	}
+	return manifest.SQLiteShadow, nil
+}
+
+func migrationChecksum(migrationFS fs.FS, migrationID string, dialect Dialect, script []byte) (string, error) {
+	digest := sha256.Sum256(script)
+	scriptChecksum := hex.EncodeToString(digest[:])
+	if dialect != SQLite {
+		return scriptChecksum, nil
+	}
+	manifest, err := readSQLiteShadowManifest(migrationFS, migrationID)
+	if err != nil || manifest == nil {
+		return scriptChecksum, err
+	}
+	combined := append(append([]byte(nil), script...), 0)
+	combined = append(combined, manifest.Checksum...)
+	digest = sha256.Sum256(combined)
+	return hex.EncodeToString(digest[:]), nil
 }
 
 func readMigrationMetadata(migrationFS fs.FS, migrationID string) (migrationMetadata, error) {
