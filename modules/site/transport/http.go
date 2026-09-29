@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -1264,6 +1265,8 @@ func (h Handler) appearance(w http.ResponseWriter, r *http.Request) {
 			{ID: "appearance-dark-logo", Name: "dark_logo_url", Type: "text", Label: "Koyu tema logo medya yolu", Value: value.DarkLogoURL},
 			{ID: "appearance-favicon", Name: "favicon_url", Type: "text", Label: "Favicon medya yolu", Value: value.FaviconURL},
 			{ID: "appearance-social-image", Name: "social_image_url", Type: "text", Label: "Sosyal paylaşım görseli medya yolu", Value: value.SocialImageURL},
+			{ID: "appearance-login-background", Name: "login_background_url", Type: "text", Label: "Giriş ekranı arka plan görseli", Value: value.LoginBackgroundURL},
+			{ID: "appearance-login-overlay", Name: "login_overlay_opacity", Type: "range", Label: "Giriş görseli karartma oranı (0–80%)", Value: strconv.Itoa(int(math.Round(value.LoginOverlayOpacity * 100)))},
 		} {
 			if err := uicomponents.Input(field).Render(ctx, output); err != nil {
 				return err
@@ -1306,7 +1309,13 @@ func (h Handler) saveAppearance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Görünüm ayarları geçersiz.", http.StatusBadRequest)
 		return
 	}
-	value := site.Appearance{PrimaryColor: r.FormValue("primary_color"), AccentColor: r.FormValue("accent_color"), DarkPrimaryColor: r.FormValue("dark_primary_color"), DarkAccentColor: r.FormValue("dark_accent_color"), FontFamily: r.FormValue("font_family"), LogoURL: r.FormValue("logo_url"), DarkLogoURL: r.FormValue("dark_logo_url"), FaviconURL: r.FormValue("favicon_url"), SocialImageURL: r.FormValue("social_image_url")}
+	opacityPercent, opacityErr := strconv.Atoi(r.FormValue("login_overlay_opacity"))
+	if opacityErr != nil || opacityPercent < 0 || opacityPercent > 80 {
+		http.Error(w, "Karartma oranı 0 ile 0,8 arasında olmalıdır.", http.StatusBadRequest)
+		return
+	}
+	opacity := float64(opacityPercent) / 100
+	value := site.Appearance{PrimaryColor: r.FormValue("primary_color"), AccentColor: r.FormValue("accent_color"), DarkPrimaryColor: r.FormValue("dark_primary_color"), DarkAccentColor: r.FormValue("dark_accent_color"), FontFamily: r.FormValue("font_family"), LogoURL: r.FormValue("logo_url"), DarkLogoURL: r.FormValue("dark_logo_url"), FaviconURL: r.FormValue("favicon_url"), SocialImageURL: r.FormValue("social_image_url"), LoginBackgroundURL: r.FormValue("login_background_url"), LoginOverlayOpacity: opacity}
 	if err := value.Normalize(); err != nil {
 		http.Error(w, "Renkler beyaz metinle en az 4,5:1 kontrast sağlamalı ve desteklenen yazı tiplerinden seçilmelidir.", http.StatusBadRequest)
 		return

@@ -2355,7 +2355,13 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		// Safe fallback: "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin." is rendered via ui.RenderAdminLogin
-		if err := ui.RenderAdminLogin(w, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context()), returnTo); err != nil {
+		appearance := site.Appearance{LoginOverlayOpacity: .4}
+		if modules["site"] {
+			if settings, settingsErr := siteStore.ListPublicSettings(r.Context(), db); settingsErr == nil {
+				appearance = site.AppearanceFromSettings(settings)
+			}
+		}
+		if err := ui.RenderAdminLoginWithAppearance(w, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context()), returnTo, appearance); err != nil {
 			http.Error(w, "admin login unavailable", http.StatusInternalServerError)
 		}
 	})})

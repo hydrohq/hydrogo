@@ -23,7 +23,7 @@ func TestSaveAppearancePersistsPublicTokensTogether(t *testing.T) {
 	}
 	store := sqlstore.Store{Dialect: database.SQLite}
 	service := site.Service{Transactions: database.NewTransactor(db), Store: store}
-	want := site.Appearance{PrimaryColor: "#155EEF", AccentColor: "#155EEF", DarkPrimaryColor: "#155EEF", DarkAccentColor: "#155EEF", FontFamily: "inter", LogoURL: "/media/logo.svg", DarkLogoURL: "/media/logo-dark.svg", FaviconURL: "/media/favicon.svg", SocialImageURL: "/media/social.webp"}
+	want := site.Appearance{PrimaryColor: "#155EEF", AccentColor: "#155EEF", DarkPrimaryColor: "#155EEF", DarkAccentColor: "#155EEF", FontFamily: "inter", LogoURL: "/media/logo.svg", DarkLogoURL: "/media/logo-dark.svg", FaviconURL: "/media/favicon.svg", SocialImageURL: "/media/social.webp", LoginBackgroundURL: "/media/login.webp", LoginOverlayOpacity: .4}
 	if err := service.SaveAppearance(ctx, want); err != nil {
 		t.Fatal(err)
 	}

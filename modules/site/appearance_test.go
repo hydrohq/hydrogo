@@ -46,3 +46,19 @@ func TestAppearanceFromSettingsFallsBackOnInvalidStoredValues(t *testing.T) {
 		t.Fatalf("appearance fallback = %#v", got)
 	}
 }
+
+func TestLoginAppearanceIsValidatedAndLoaded(t *testing.T) {
+	a := AppearanceFromSettings([]Setting{{Key: "appearance.login_background_url", Value: "/media/login.webp", Public: true}, {Key: "appearance.login_overlay_opacity", Value: "0.25", Public: true}})
+	if a.LoginBackgroundURL != "/media/login.webp" || a.LoginOverlayOpacity != .25 {
+		t.Fatalf("login appearance = %#v", a)
+	}
+	a.LoginBackgroundURL = "https://tracker.example/image"
+	if a.Normalize() == nil {
+		t.Fatal("external login background was accepted")
+	}
+	a.LoginBackgroundURL = "/media/login.webp"
+	a.LoginOverlayOpacity = .9
+	if a.Normalize() == nil {
+		t.Fatal("out of range overlay was accepted")
+	}
+}

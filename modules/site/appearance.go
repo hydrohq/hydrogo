@@ -18,15 +18,17 @@ var (
 // Appearance contains the small set of public brand tokens that Core can
 // apply without depending on a theme-specific CSS framework.
 type Appearance struct {
-	PrimaryColor     string
-	AccentColor      string
-	DarkPrimaryColor string
-	DarkAccentColor  string
-	FontFamily       string
-	LogoURL          string
-	DarkLogoURL      string
-	FaviconURL       string
-	SocialImageURL   string
+	PrimaryColor        string
+	AccentColor         string
+	DarkPrimaryColor    string
+	DarkAccentColor     string
+	FontFamily          string
+	LogoURL             string
+	DarkLogoURL         string
+	FaviconURL          string
+	SocialImageURL      string
+	LoginBackgroundURL  string
+	LoginOverlayOpacity float64
 }
 
 var appearanceFonts = map[string]string{
@@ -49,6 +51,10 @@ func (a *Appearance) Normalize() error {
 	a.DarkLogoURL = strings.TrimSpace(a.DarkLogoURL)
 	a.FaviconURL = strings.TrimSpace(a.FaviconURL)
 	a.SocialImageURL = strings.TrimSpace(a.SocialImageURL)
+	a.LoginBackgroundURL = strings.TrimSpace(a.LoginBackgroundURL)
+	if a.LoginOverlayOpacity < 0 || a.LoginOverlayOpacity > .8 || math.IsNaN(a.LoginOverlayOpacity) || math.IsInf(a.LoginOverlayOpacity, 0) {
+		return ErrInvalidAppearance
+	}
 	if a.PrimaryColor == "" {
 		a.PrimaryColor = "#155EEF"
 	}
@@ -70,7 +76,7 @@ func (a *Appearance) Normalize() error {
 	if _, ok := appearanceFonts[a.FontFamily]; !ok || !hexColorPattern.MatchString(a.PrimaryColor) || !hexColorPattern.MatchString(a.AccentColor) || !hexColorPattern.MatchString(a.DarkPrimaryColor) || !hexColorPattern.MatchString(a.DarkAccentColor) {
 		return ErrInvalidAppearance
 	}
-	for _, asset := range []string{a.LogoURL, a.DarkLogoURL, a.FaviconURL, a.SocialImageURL} {
+	for _, asset := range []string{a.LogoURL, a.DarkLogoURL, a.FaviconURL, a.SocialImageURL, a.LoginBackgroundURL} {
 		if !ValidAppearanceAssetURL(asset) {
 			return ErrInvalidAppearance
 		}
@@ -156,7 +162,7 @@ func (a Appearance) CSS() (string, error) {
 // AppearanceFromSettings extracts public site appearance fields, ignoring
 // unrelated keys and falling back to the product defaults.
 func AppearanceFromSettings(settings []Setting) Appearance {
-	a := Appearance{FontFamily: "system"}
+	a := Appearance{FontFamily: "system", LoginOverlayOpacity: .4}
 	for _, item := range settings {
 		switch item.Key {
 		case "appearance.primary_color":
@@ -177,10 +183,16 @@ func AppearanceFromSettings(settings []Setting) Appearance {
 			a.FaviconURL = item.Value
 		case "appearance.social_image_url":
 			a.SocialImageURL = item.Value
+		case "appearance.login_background_url":
+			a.LoginBackgroundURL = item.Value
+		case "appearance.login_overlay_opacity":
+			if parsed, err := strconv.ParseFloat(item.Value, 64); err == nil {
+				a.LoginOverlayOpacity = parsed
+			}
 		}
 	}
 	if a.Normalize() != nil {
-		return Appearance{PrimaryColor: "#155EEF", AccentColor: "#155EEF", DarkPrimaryColor: "#155EEF", DarkAccentColor: "#155EEF", FontFamily: "system"}
+		return Appearance{PrimaryColor: "#155EEF", AccentColor: "#155EEF", DarkPrimaryColor: "#155EEF", DarkAccentColor: "#155EEF", FontFamily: "system", LoginOverlayOpacity: .4}
 	}
 	return a
 }
