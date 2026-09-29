@@ -56,6 +56,7 @@ type Config struct {
 	DistributedTenantAdmission *security.RedisTenantAdmission
 	RealtimeHub                *realtime.Hub
 	PublicErrorPage            func(context.Context, int) ([]byte, bool)
+	Maintenance                MaintenanceConfig
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -205,6 +206,10 @@ func NewHandler(config Config) http.Handler {
 
 	// Apply CSRF protection
 	handler = security.CSRFMiddleware(config.SecureCookie)(handler)
+
+	if config.Maintenance.Enabled != nil {
+		handler = MaintenanceMiddleware(config.Maintenance)(handler)
+	}
 
 	// Apply Auth session context injection
 	if config.AuthSvc != nil {
