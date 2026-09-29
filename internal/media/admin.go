@@ -567,6 +567,11 @@ func (h HTTPHandler) adminVisibility(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid media visibility", http.StatusBadRequest)
+		return
+	}
 	if err := h.Service.SetVisibility(r.Context(), r.PathValue("id"), r.FormValue("visibility")); err != nil {
 		http.Error(w, "media visibility update failed", mediaStatus(err))
 		return
