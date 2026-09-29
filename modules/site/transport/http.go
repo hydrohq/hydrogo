@@ -116,6 +116,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/error-pages/{status}", Handler: http.HandlerFunc(h.saveErrorPage)},
 		{Pattern: "GET /admin/site/maintenance", Handler: http.HandlerFunc(h.maintenanceSettings)},
 		{Pattern: "POST /admin/site/maintenance", Handler: http.HandlerFunc(h.saveMaintenanceSettings)},
+		{Pattern: "GET /admin/site/broadcast", Handler: http.HandlerFunc(h.staffBroadcastNotice)},
+		{Pattern: "POST /admin/site/broadcast", Handler: http.HandlerFunc(h.saveStaffBroadcastNotice)},
 		{Pattern: "GET /admin/site/link-check", Handler: http.HandlerFunc(h.linkCheckPage)},
 		{Pattern: "POST /admin/site/link-check", Handler: http.HandlerFunc(h.runLinkCheck)},
 		{Pattern: "GET /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.contactWidget)},
@@ -301,6 +303,52 @@ func maintenanceFormTime(value string) string {
 		return ""
 	}
 	return parsed.UTC().Format("2006-01-02T15:04")
+}
+
+func (h Handler) staffBroadcastNotice(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "Bu sayfaya erişim yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	notice := site.StaffBroadcastNotice{Severity: "info", ExpiresAt: time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)}
+	if reader, ok := h.Store.(privateSettingReader); ok {
+		if setting, found, err := reader.GetSetting(r.Context(), h.DB, site.StaffNoticeSettingKey); err == nil && found {
+			notice = site.StaffBroadcastNoticeFromSetting(setting)
+		}
+	}
+	if err := ui.AdminStartForRequest(w, r, "Staff notice", "Internal announcement for the team", security.NonceFromContext(r.Context()), "site"); err != nil {
+		return
+	}
+	_ = designsystem.StaffBroadcastNoticeEditor(notice.Active, notice.Severity, notice.Message, maintenanceFormTime(notice.ExpiresAt), security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveStaffBroadcastNotice(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "Bu sayfaya erişim yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Duyuru kaydedilemedi.", http.StatusBadRequest)
+		return
+	}
+	expires, err := time.ParseInLocation("2006-01-02T15:04", r.FormValue("expires_at"), time.UTC)
+	if err != nil {
+		http.Error(w, "Duyuru bitiş zamanını kontrol edin.", http.StatusBadRequest)
+		return
+	}
+	notice := site.StaffBroadcastNotice{Active: r.FormValue("active") == "true", Severity: strings.TrimSpace(r.FormValue("severity")), Message: strings.TrimSpace(r.FormValue("message")), ExpiresAt: expires.Format(time.RFC3339)}
+	setting, err := notice.Setting()
+	if err != nil {
+		http.Error(w, "Duyuru mesajını ve önem derecesini kontrol edin.", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SaveSetting(r.Context(), setting); err != nil {
+		http.Error(w, "Duyuru kaydedilemedi.", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/broadcast?saved=1", http.StatusSeeOther)
 }
 
 func (h Handler) socialLinks(w http.ResponseWriter, r *http.Request) {

@@ -3057,10 +3057,24 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		},
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
-		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode},
-		IPBlocklist:           ipBlocklist,
-		AnomalyFilterEnabled:  cfg.Security.EnableAnomalyFilter,
-		AnomalyBypassPaths:    cfg.Security.AnomalyBypassPaths,
+		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"]},
+		AdminSupportResolver: func(r *http.Request) adminstudio.SupportConfig {
+			if !modules["site"] {
+				return adminstudio.SupportConfig{}
+			}
+			setting, found, err := siteStore.GetSetting(r.Context(), db, site.StaffNoticeSettingKey)
+			if err != nil || !found {
+				return adminstudio.SupportConfig{}
+			}
+			notice := site.StaffBroadcastNoticeFromSetting(setting)
+			if !notice.ActiveAt(time.Now().UTC()) {
+				return adminstudio.SupportConfig{}
+			}
+			return adminstudio.SupportConfig{StaffNoticeActive: true, StaffNoticeMessage: notice.Message, StaffNoticeSeverity: notice.Severity, StaffNoticeDismissKey: notice.DismissKey()}
+		},
+		IPBlocklist:          ipBlocklist,
+		AnomalyFilterEnabled: cfg.Security.EnableAnomalyFilter,
+		AnomalyBypassPaths:   cfg.Security.AnomalyBypassPaths,
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {
 				target := rule + " from " + r.RemoteAddr
