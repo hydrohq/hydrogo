@@ -12,7 +12,7 @@ func TestEditorStatsPanelUsesAccessibleTypedMarkup(t *testing.T) {
 	if err := EditorStats().Render(context.Background(), &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-editor-stats`, `aria-live="polite"`, `data-editor-words`, `data-editor-characters`, `data-editor-reading-time`, `data-editor-keyword-density`, `data-seo-audit`, `data-seo-title`, `data-seo-description`, `data-seo-heading`, `data-seo-alt`, `data-seo-readability`} {
+	for _, want := range []string{`data-editor-stats`, `aria-live="polite"`, `data-editor-words`, `data-editor-characters`, `data-editor-reading-time`, `data-editor-keyword-density`, `data-seo-audit`, `data-seo-score`, `data-seo-title`, `data-seo-description`, `data-seo-heading`, `data-seo-alt`, `data-seo-readability`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("stats panel missing %q: %s", want, out.String())
 		}
