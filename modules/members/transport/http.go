@@ -894,7 +894,11 @@ func (h Handler) adminRevokeSession(w http.ResponseWriter, r *http.Request) {
 	}
 	memberID := r.PathValue("id")
 	sessionID := r.PathValue("session_id")
-	if err := h.Service.RevokeSessionByID(r.Context(), sessionID); err != nil {
+	if err := h.Service.RevokeSessionByID(r.Context(), memberID, sessionID); err != nil {
+		if errors.Is(err, members.ErrMemberNotFound) {
+			http.Error(w, "session not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "session revoke failed", 400)
 		return
 	}

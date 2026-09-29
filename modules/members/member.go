@@ -188,11 +188,20 @@ func (s Service) Revoke(ctx context.Context, raw string) error {
 	return s.Sessions.DeleteByTokenHash(ctx, auth.HashSessionToken(raw))
 }
 
-func (s Service) RevokeSessionByID(ctx context.Context, sessionID string) error {
+func (s Service) RevokeSessionByID(ctx context.Context, memberID, sessionID string) error {
 	if guards.IsNil(s.Sessions) {
 		return ErrMemberSessionAbsent
 	}
-	return s.Sessions.DeleteByID(ctx, sessionID)
+	sessions, err := s.Sessions.ListByMemberID(ctx, memberID)
+	if err != nil {
+		return err
+	}
+	for _, session := range sessions {
+		if session.ID == sessionID {
+			return s.Sessions.DeleteByID(ctx, sessionID)
+		}
+	}
+	return ErrMemberNotFound
 }
 
 func (s Service) RevokeAllSessions(ctx context.Context, memberID string) error {
