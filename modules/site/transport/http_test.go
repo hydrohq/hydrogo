@@ -124,7 +124,7 @@ func TestAppearancePageOffersAccessibleLiveContrastFeedback(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
-	for _, marker := range []string{"/admin/site/appearance", `type="color"`, `aria-live="polite"`, "4,5:1", "WCAG AAA", "appearance-contrast", "Canlı site görünümü önizlemesi", "appearance-preview-logo", "media-picker-open", "data-media-target=\"appearance-logo\""} {
+	for _, marker := range []string{"/admin/site/appearance", `type="color"`, `aria-live="polite"`, "4,5:1", "WCAG AAA", "appearance-contrast", "Canlı site görünümü önizlemesi", "appearance-preview-logo", "media-picker-open", "data-media-target=\"appearance-logo\"", "appearance-login-background", "appearance-login-overlay", `type="range"`} {
 		if !strings.Contains(response.Body.String(), marker) {
 			t.Errorf("appearance page missing %q", marker)
 		}

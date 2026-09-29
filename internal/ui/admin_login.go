@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"strconv"
+
+	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 // AdminLoginCSS contains refined dark and light mode styling for the HydroGo login screen.
@@ -514,6 +517,19 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 
 // RenderAdminLogin renders the clean high-performance login screen for HydroGo.
 func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
+	return RenderAdminLoginWithAppearance(w, csrfToken, nonce, returnTo, site.Appearance{})
+}
+
+// RenderAdminLoginWithAppearance applies validated site appearance to the public admin login screen.
+func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo string, appearance site.Appearance) error {
+	if appearance.Normalize() != nil {
+		appearance = site.Appearance{LoginOverlayOpacity: .4}
+	}
+	loginCSS := AdminLoginCSS
+	if appearance.LoginBackgroundURL != "" {
+		opacity := strconv.FormatFloat(appearance.LoginOverlayOpacity, 'f', 2, 64)
+		loginCSS += fmt.Sprintf(`\n.login-hero-pane{background-image:linear-gradient(rgba(9,10,15,%s),rgba(9,10,15,%s)),url("%s");background-position:center;background-size:cover}`, opacity, opacity, appearance.LoginBackgroundURL)
+	}
 	_, err := fmt.Fprintf(w, `<!doctype html>
 <html lang="tr" data-theme="dark">
 <head>
@@ -722,7 +738,7 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 </html>`,
 		template.HTMLEscapeString(nonce),
 		template.HTMLEscapeString(nonce),
-		template.CSS(AdminLoginCSS),
+		template.CSS(loginCSS),
 		template.HTMLEscapeString(csrfToken),
 		template.HTMLEscapeString(nonce),
 		template.HTMLEscapeString(returnTo),

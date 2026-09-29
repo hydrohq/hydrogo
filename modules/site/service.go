@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -198,6 +199,8 @@ func (s Service) SaveAppearance(ctx context.Context, value Appearance) error {
 		{Key: "appearance.dark_logo_url", Value: value.DarkLogoURL, Public: true},
 		{Key: "appearance.favicon_url", Value: value.FaviconURL, Public: true},
 		{Key: "appearance.social_image_url", Value: value.SocialImageURL, Public: true},
+		{Key: "appearance.login_background_url", Value: value.LoginBackgroundURL, Public: true},
+		{Key: "appearance.login_overlay_opacity", Value: strconv.FormatFloat(value.LoginOverlayOpacity, 'f', 2, 64), Public: true},
 	}
 	return s.Transactions.Within(ctx, func(tx database.Executor) error {
 		for _, setting := range settings {
