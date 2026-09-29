@@ -20,10 +20,12 @@ import (
 const defaultBodyLimit = 2 << 20
 
 type Finding struct {
-	SourcePage string `json:"source_page"`
-	URL        string `json:"url"`
-	Status     int    `json:"status"`
-	AnchorText string `json:"anchor_text,omitempty"`
+	SourcePage  string `json:"source_page"`
+	SourceTitle string `json:"source_title,omitempty"`
+	URL         string `json:"url"`
+	Status      int    `json:"status"`
+	AnchorText  string `json:"anchor_text,omitempty"`
+	Suggestion  string `json:"suggestion,omitempty"`
 }
 
 type Options struct {
@@ -33,6 +35,7 @@ type Options struct {
 	MaxFindings         int
 	Concurrency         int
 	RequestDelay        time.Duration
+	Retention           time.Duration
 	Client              *http.Client
 	AllowPrivateTargets bool
 }
@@ -112,7 +115,7 @@ func Crawl(ctx context.Context, options Options) ([]Finding, error) {
 		}}
 	}
 
-	type crawlTarget struct{ url, source, anchor string }
+	type crawlTarget struct{ url, source, sourceTitle, anchor string }
 	queue := []crawlTarget{{url: start.String(), source: start.String()}}
 	queued := map[string]bool{start.String(): true}
 	checked := map[string]bool{start.String(): true}
@@ -127,7 +130,7 @@ func Crawl(ctx context.Context, options Options) ([]Finding, error) {
 		}
 		lock.Unlock()
 	}
-	fetch := func(raw, source, anchor string, readHTML bool) (*http.Response, []byte, error) {
+	fetch := func(raw, source, sourceTitle, anchor string, readHTML bool) (*http.Response, []byte, error) {
 		lock.Lock()
 		now := time.Now()
 		wait := time.Duration(0)
@@ -145,20 +148,50 @@ func Crawl(ctx context.Context, options Options) ([]Finding, error) {
 			case <-timer.C:
 			}
 		}
-		request, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
+		var response *http.Response
+		var reqErr error
+		for attempt := 0; attempt < 2; attempt++ {
+			request, requestErr := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
+			if requestErr != nil {
+				return nil, nil, requestErr
+			}
+			request.Header.Set("User-Agent", "HydroGo-LinkCheck/1.0 (+operator initiated)")
+			response, reqErr = client.Do(request)
+			transientResponse := response != nil && (response.StatusCode == http.StatusTooManyRequests || response.StatusCode >= 500)
+			if response != nil && transientResponse {
+				_ = response.Body.Close()
+			}
+			if reqErr == nil && !transientResponse {
+				break
+			}
+			if attempt == 0 {
+				timer := time.NewTimer(250 * time.Millisecond)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return nil, nil, ctx.Err()
+				case <-timer.C:
+				}
+			}
+		}
 		if reqErr != nil {
-			addFinding(Finding{SourcePage: source, URL: raw, Status: 0, AnchorText: strings.TrimSpace(anchor)})
+			addFinding(Finding{SourcePage: source, SourceTitle: sourceTitle, URL: raw, Status: 0, AnchorText: strings.TrimSpace(anchor), Suggestion: "Retry later or check that the destination site is available."})
 			return nil, nil, reqErr
 		}
-		request.Header.Set("User-Agent", "HydroGo-LinkCheck/1.0 (+operator initiated)")
-		response, reqErr := client.Do(request)
-		if reqErr != nil {
-			addFinding(Finding{SourcePage: source, URL: raw, Status: 0, AnchorText: strings.TrimSpace(anchor)})
-			return nil, nil, reqErr
+		if response == nil {
+			return nil, nil, fmt.Errorf("link check returned no response")
+		}
+		if response.Body == nil {
+			return response, nil, nil
+		}
+		if response.StatusCode >= 500 || response.StatusCode == http.StatusTooManyRequests {
+			addFinding(Finding{SourcePage: source, SourceTitle: sourceTitle, URL: raw, Status: response.StatusCode, AnchorText: strings.TrimSpace(anchor), Suggestion: "Retry later; the destination may be temporarily unavailable."})
+			_ = response.Body.Close()
+			return response, nil, nil
 		}
 		if response.StatusCode >= 400 {
 			_ = response.Body.Close()
-			addFinding(Finding{SourcePage: source, URL: raw, Status: response.StatusCode, AnchorText: strings.TrimSpace(anchor)})
+			addFinding(Finding{SourcePage: source, SourceTitle: sourceTitle, URL: raw, Status: response.StatusCode, AnchorText: strings.TrimSpace(anchor), Suggestion: suggestionForStatus(response.StatusCode)})
 			return response, nil, nil
 		}
 		if !readHTML || !strings.Contains(strings.ToLower(response.Header.Get("Content-Type")), "html") {
@@ -188,14 +221,14 @@ func Crawl(ctx context.Context, options Options) ([]Finding, error) {
 			defer workers.Done()
 			for item := range jobs {
 				pageURL := item.url
-				response, body, fetchErr := fetch(pageURL, item.source, item.anchor, true)
+				response, body, fetchErr := fetch(pageURL, item.source, item.sourceTitle, item.anchor, true)
 				if fetchErr != nil {
 					continue
 				}
 				if response.StatusCode < 200 || response.StatusCode >= 300 || !strings.Contains(strings.ToLower(response.Header.Get("Content-Type")), "html") {
 					continue
 				}
-				links := parseLinks(body)
+				sourceTitle, links := parseDocument(body)
 				for _, link := range links {
 					target, parseErr := url.Parse(link.href)
 					if parseErr != nil {
@@ -216,7 +249,7 @@ func Crawl(ctx context.Context, options Options) ([]Finding, error) {
 						if !queued[canonical] && !visited[canonical] && !checked[canonical] && len(checked) < options.MaxTargets && len(queued) < options.MaxPages {
 							queued[canonical] = true
 							checked[canonical] = true
-							queue = append(queue, crawlTarget{url: canonical, source: pageURL, anchor: link.text})
+							queue = append(queue, crawlTarget{url: canonical, source: pageURL, sourceTitle: sourceTitle, anchor: link.text})
 						}
 						lock.Unlock()
 					} else {
@@ -228,7 +261,7 @@ func Crawl(ctx context.Context, options Options) ([]Finding, error) {
 						}
 						lock.Unlock()
 						if shouldCheck {
-							_, _, _ = fetch(key, pageURL, link.text, false)
+							_, _, _ = fetch(key, pageURL, sourceTitle, link.text, false)
 						}
 					}
 				}
@@ -278,11 +311,17 @@ type pageLink struct {
 }
 
 func parseLinks(body []byte) []pageLink {
+	_, links := parseDocument(body)
+	return links
+}
+
+func parseDocument(body []byte) (string, []pageLink) {
 	doc, err := html.Parse(strings.NewReader(string(body)))
 	if err != nil {
-		return nil
+		return "", nil
 	}
 	var result []pageLink
+	title := ""
 	var textContent func(*html.Node) string
 	textContent = func(node *html.Node) string {
 		if node.Type == html.TextNode {
@@ -297,6 +336,9 @@ func parseLinks(body []byte) []pageLink {
 	var visit func(*html.Node)
 	visit = func(node *html.Node) {
 		if node.Type == html.ElementNode {
+			if node.Data == "title" && title == "" {
+				title = strings.TrimSpace(textContent(node))
+			}
 			attrs := make(map[string]string, len(node.Attr))
 			for _, attr := range node.Attr {
 				attrs[strings.ToLower(attr.Key)] = strings.TrimSpace(attr.Val)
@@ -334,5 +376,16 @@ func parseLinks(body []byte) []pageLink {
 		}
 	}
 	visit(doc)
-	return result
+	return title, result
+}
+
+func suggestionForStatus(status int) string {
+	switch status {
+	case http.StatusNotFound, http.StatusGone:
+		return "Update the address to the destination's current page or remove the link."
+	case http.StatusTooManyRequests, http.StatusServiceUnavailable, http.StatusBadGateway, http.StatusGatewayTimeout:
+		return "Retry later; the destination may be temporarily unavailable."
+	default:
+		return "Check the destination response and replace the link if it has moved."
+	}
 }

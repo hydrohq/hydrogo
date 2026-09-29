@@ -16,7 +16,7 @@ func TestAdminCanStartAndReviewTenantLinkScan(t *testing.T) {
 	publicSite := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			w.Header().Set("Content-Type", "text/html")
-			_, _ = w.Write([]byte(`<a href="/missing">Missing page</a>`))
+			_, _ = w.Write([]byte(`<title>Home</title><a href="/missing">Missing page</a>`))
 			return
 		}
 		http.NotFound(w, r)
@@ -60,7 +60,7 @@ func TestAdminCanStartAndReviewTenantLinkScan(t *testing.T) {
 	get := httptest.NewRequest(http.MethodGet, response.Header().Get("Location"), nil).WithContext(auth.WithUser(httptest.NewRequest(http.MethodGet, "/", nil).Context(), &auth.User{ID: "admin-1", Role: auth.RoleAdmin, Active: true}))
 	page := httptest.NewRecorder()
 	handler.linkCheckPage(page, get)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "/missing") || !strings.Contains(page.Body.String(), "Missing page") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "/missing") || !strings.Contains(page.Body.String(), "Missing page") || !strings.Contains(page.Body.String(), "Home") || !strings.Contains(page.Body.String(), "Suggested action") {
 		t.Fatalf("report page status=%d body=%s", page.Code, page.Body.String())
 	}
 }

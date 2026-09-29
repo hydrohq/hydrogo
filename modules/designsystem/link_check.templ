@@ -5,9 +5,11 @@ import "fmt"
 // LinkCheckFindingView is the safe presentation projection for link scan results.
 type LinkCheckFindingView struct {
 	SourcePage string
+	SourceTitle string
 	URL string
 	Status string
 	AnchorText string
+	Suggestion string
 }
 
 templ LinkCheckNavLink() {
@@ -35,10 +37,10 @@ templ LinkCheckAudit(csrf, jobID string, findings []LinkCheckFindingView, runnin
 			<p class="mt-4 rounded border border-amber-500 p-3" role="status">{ fmt.Sprintf("%d unavailable links or assets found.", len(findings)) }</p>
 			<div class="mt-4 overflow-x-auto">
 				<table class="w-full text-left">
-					<thead><tr><th>Source page</th><th>Broken URL</th><th>Status</th><th>Link text</th></tr></thead>
+					<thead><tr><th>Source page</th><th>Page title</th><th>Broken URL</th><th>Status</th><th>Link text</th><th>Suggested action</th></tr></thead>
 					<tbody>
 						for _, finding := range findings {
-							<tr><td class="p-2">{ finding.SourcePage }</td><td class="p-2 break-all">{ finding.URL }</td><td class="p-2">{ finding.Status }</td><td class="p-2">{ finding.AnchorText }</td></tr>
+							<tr><td class="p-2">{ finding.SourcePage }</td><td class="p-2">{ finding.SourceTitle }</td><td class="p-2 break-all">{ finding.URL }</td><td class="p-2">{ finding.Status }</td><td class="p-2">{ finding.AnchorText }</td><td class="p-2">{ finding.Suggestion }</td></tr>
 						}
 					</tbody>
 				</table>
