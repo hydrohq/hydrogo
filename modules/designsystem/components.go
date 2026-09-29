@@ -53,6 +53,8 @@ type ConfettiProps struct {
 type ContactCTAProps struct{ Phone, WhatsApp, Message, PhoneLabel, WhatsAppLabel string }
 type ExportLink struct{ Label, URL string }
 type SoundAlertPreferenceProps struct{ Title, Label, Description string }
+type ContentViewSortProps struct{ Path, Status, Selected string }
+type ViewCountBadgeProps struct{ Count int64 }
 type CountdownProps struct {
 	Target          string `json:"target_datetime"`
 	Timezone        string `json:"timezone"`
@@ -305,6 +307,27 @@ func safeLink(value string) string {
 		return value
 	}
 	return ""
+}
+
+func contentViewSortURL(path, status, direction string) string {
+	u, err := url.Parse(path)
+	if err != nil || u.IsAbs() || strings.HasPrefix(path, "//") || (u.Path != "/admin/pages" && u.Path != "/admin/news") {
+		return ""
+	}
+	query := u.Query()
+	if status != "" {
+		query.Set("status", status)
+	}
+	query.Set("sort", direction)
+	u.RawQuery = query.Encode()
+	return safeLink(u.String())
+}
+
+func compactViewCount(count int64) string {
+	if count >= 1000 {
+		return fmt.Sprintf("%.1fk", float64(count)/1000)
+	}
+	return strconv.FormatInt(max(0, count), 10)
 }
 
 func faqJSONLD(items []FAQItem) json.RawMessage {

@@ -1,0 +1,28 @@
+id: "202609290007_analytics_view_totals"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+dependencies:
+  - "202609220001_analytics_content_views"
+checksum_sha256:
+  sqlite: "505a1fe8fea202017d094681a530c3b98743b7fb058497a5274db1e480706013"
+  postgres: "505a1fe8fea202017d094681a530c3b98743b7fb058497a5274db1e480706013"
+  mysql: "505a1fe8fea202017d094681a530c3b98743b7fb058497a5274db1e480706013"
+schema:
+  readable_epoch: 2
+  writable_epoch: 2
+preconditions:
+  - "Analytics capability and analytics_content_daily are installed"
+lock_timeout: "Migration runner deadline applies"
+disk_estimate: "One secondary index over tenant-scoped daily content aggregates"
+compatibility: "Additive index; old and new binaries read the same aggregate rows"
+smoke:
+  - "Tenant/type/content count query uses idx_analytics_view_totals"
+restart: "Safe online-compatible additive index build; database engine locking applies"
+rollback: "Drop idx_analytics_view_totals; no data changes"

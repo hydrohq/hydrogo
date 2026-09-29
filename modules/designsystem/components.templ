@@ -1,5 +1,7 @@
 package designsystem
 
+import "fmt"
+
 templ ExportLinks(items []ExportLink) {
 	<nav class="flex flex-wrap gap-2" aria-label="Export data">
 		for _, item := range items {
@@ -19,6 +21,26 @@ templ SoundAlertPreference(p SoundAlertPreferenceProps) {
 			<span>{ p.Label }</span>
 		</label>
 	</section>
+}
+
+templ ContentViewSort(p ContentViewSortProps) {
+	<nav class="my-3 flex flex-wrap items-center gap-2 text-sm" aria-label="Sort content by views">
+		<span class="text-foreground">Views:</span>
+		if p.Selected == "-views" {
+			<a class="rounded border border-primary bg-surface px-3 py-2 font-semibold text-foreground" href={ contentViewSortURL(p.Path, p.Status, "-views") } aria-current="page">{ "Most viewed" }</a>
+		} else {
+			<a class="rounded border border-border bg-surface px-3 py-2 text-foreground" href={ contentViewSortURL(p.Path, p.Status, "-views") }>{ "Most viewed" }</a>
+		}
+		if p.Selected == "views" {
+			<a class="rounded border border-primary bg-surface px-3 py-2 font-semibold text-foreground" href={ contentViewSortURL(p.Path, p.Status, "views") } aria-current="page">{ "Least viewed" }</a>
+		} else {
+			<a class="rounded border border-border bg-surface px-3 py-2 text-foreground" href={ contentViewSortURL(p.Path, p.Status, "views") }>{ "Least viewed" }</a>
+		}
+	</nav>
+}
+
+templ ViewCountBadge(p ViewCountBadgeProps) {
+	<span class="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-1 text-xs text-foreground" aria-label={ fmt.Sprintf("%d views", p.Count) }>{ "👁 " + compactViewCount(p.Count) }</span>
 }
 
 templ Head() {
