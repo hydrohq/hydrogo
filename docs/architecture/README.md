@@ -378,3 +378,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0301: Curated page layout template registry](0301-page-layout-template-registry.md)
 - [ADR-0302: Admin resend for staff email verification](0302-admin-email-verification-resend.md)
 - [ADR-0303: Admin-generated password reset links](0303-admin-password-reset-link.md)
+- [ADR-0304: Admin local draft recovery](0304-admin-local-draft-recovery.md)

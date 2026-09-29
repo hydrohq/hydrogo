@@ -314,6 +314,9 @@ func TestAdminShellShowsAuthenticatedUserInitials(t *testing.T) {
 	if !strings.Contains(out.String(), `aria-label="AO"`) || !strings.Contains(out.String(), `ds-avatar--`) {
 		t.Fatal("admin shell did not render the authenticated user's initials avatar")
 	}
+	if !strings.Contains(out.String(), `data-studio-user-scope="`) {
+		t.Fatal("admin shell did not provide a user scoped draft recovery key")
+	}
 }
 
 func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {

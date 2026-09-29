@@ -74,6 +74,17 @@ func TestAdminPasswordResetCopyUsesProtectedNoStoreEndpoint(t *testing.T) {
 	}
 }
 
+func TestAdminDraftAutosaveIsUserScopedAndRecoversOnlyEditableFields(t *testing.T) {
+	for _, want := range []string{"studioUserScope", "hydro-draft:", "data-autosave-resource", "localStorage.setItem", "localStorage.removeItem", "Taslağı geri yükle", "Sil", "block_csrf_", "3*1024*1024", "30*24*60*60*1000"} {
+		if !strings.Contains(AdminDraftAutosaveJS, want) {
+			t.Fatalf("autosave behavior missing %q", want)
+		}
+	}
+	if !strings.Contains(AdminDraftAutosaveJS, "'password','file'") {
+		t.Fatal("autosave must exclude password controls")
+	}
+}
+
 func TestRevisionDiffEscapesUntrustedFieldValues(t *testing.T) {
 	var out bytes.Buffer
 	if err := RevisionDiffPanel([]adminstudio.FieldDiff{{Field: "title", Before: "<script>bad</script>", After: "Yeni"}}, "Editor", "bugün", "/admin/pages/p/revisions/1/restore", "csrf").Render(context.Background(), &out); err != nil {
