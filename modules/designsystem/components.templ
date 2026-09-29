@@ -259,7 +259,7 @@ templ FAQAccordion(p FAQProps) {
 		if p.Heading != "" {
 			<h2>{ p.Heading }</h2>
 		}
-		@FAQItems(p.Items)
+		@FAQItems(p)
 		@FAQSchema(p.ID, p.Items)
 	</section>
 }
@@ -269,13 +269,16 @@ templ FAQList(p FAQProps) {
 		if p.Heading != "" {
 			<h2>{ p.Heading }</h2>
 		}
-		@FAQItems(p.Items)
+		@FAQItems(p)
 	</section>
 }
 
-templ FAQItems(items []FAQItem) {
-	for _, item := range items {
+templ FAQItems(p FAQProps) {
+	for index, item := range p.Items {
 		<details class="ds-faq__item"><summary>{ item.Question }</summary><div class="ds-faq__answer">{ item.Answer }</div></details>
+		if p.FeedbackEnabled {
+			@HelpfulFeedback(faqFeedbackProps(p, item, index))
+		}
 	}
 }
 

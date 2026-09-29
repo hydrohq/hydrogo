@@ -54,6 +54,11 @@ type Handler struct {
 	ContentViews       interface {
 		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
 	}
+	Feedback interface {
+		FeedbackTotals(context.Context, string, string, string) (analytics.FeedbackTotals, error)
+		FeedbackCounts(context.Context, string, string, []string) (map[string]analytics.FeedbackTotals, error)
+	}
+	RequireTenantScope    bool
 	AnalyticsEnabled      bool
 	PublicSupport         adminstudio.SupportConfig
 	PublicContactSettings func(context.Context) ([]site.Setting, error)
@@ -181,6 +186,25 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if viewsAvailable {
 		sortNewsByViews(items, viewCounts, r.URL.Query().Get("sort"))
 	}
+	feedbackCounts := map[string]analytics.FeedbackTotals{}
+	feedbackAvailable := h.Feedback != nil && len(items) > 0
+	if feedbackAvailable {
+		ids := make([]string, 0, len(items))
+		for _, item := range items {
+			ids = append(ids, item.ID)
+		}
+		tenantID := "default"
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			tenantID = scope.TenantID
+		} else if h.RequireTenantScope {
+			feedbackAvailable = false
+		}
+		if feedbackAvailable {
+			var countsErr error
+			feedbackCounts, countsErr = h.Feedback.FeedbackCounts(r.Context(), tenantID, "news", ids)
+			feedbackAvailable = countsErr == nil
+		}
+	}
 	rows := make([]adminstudio.Row, 0, len(items))
 	for _, item := range items {
 		title := item.Title
@@ -203,11 +227,16 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 			publicPath := "/public/news/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
 			actions = append(actions, adminstudio.Action{Label: "Copy live URL", CopyText: strings.TrimRight(strings.TrimSpace(h.PublicOrigin), "/") + publicPath})
 		}
-		rows = append(rows, adminstudio.Row{Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10)}, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status), ScheduledAt: item.ScheduledAt}, Actions: actions})
+		counts := feedbackCounts[item.ID]
+		values := map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10), "helpful": strconv.FormatInt(counts.Up, 10), "not_helpful": strconv.FormatInt(counts.Down, 10)}
+		rows = append(rows, adminstudio.Row{Values: values, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status), ScheduledAt: item.ScheduledAt}, Actions: actions})
 	}
 	collection := h.AdminCollection
 	if viewsAvailable {
 		collection.Fields = append(append([]adminstudio.Field(nil), collection.Fields...), adminstudio.Field{ID: "views", Label: "Views", Kind: adminstudio.FieldText, VisibleInList: true})
+	}
+	if feedbackAvailable {
+		collection.Fields = append(collection.Fields, adminstudio.Field{ID: "helpful", Label: "Helpful", Kind: adminstudio.FieldText, VisibleInList: true}, adminstudio.Field{ID: "not_helpful", Label: "Not helpful", Kind: adminstudio.FieldText, VisibleInList: true})
 	}
 	if r.URL.Query().Get("fragment") == "table" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -632,7 +661,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Vary", "Cookie")
 	}
 	documentStart := newsDocumentStart(locale, item.Title, h.themeNavigation(r.Context(), locale))
-	if consentNotice != "" || h.PublicSupport.Enabled || h.PublicContactSettings != nil {
+	if consentNotice != "" || h.PublicSupport.Enabled || h.PublicContactSettings != nil || h.Feedback != nil {
 		documentStart = strings.Replace(documentStart, `</head>`, `<link rel="stylesheet" href="/designsystem/static/designsystem.css"></head>`, 1)
 	}
 	_, _ = fmt.Fprint(w, localizePublicLinks(documentStart, locale))
@@ -686,12 +715,26 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
 	readingEnhancement := fmt.Sprintf(`<style nonce="%s">%s</style><script nonce="%s">%s</script>`, nonce, ui.PublicArticleCSS, nonce, ui.PublicArticleJS)
+	var helpfulFeedback bytes.Buffer
+	if h.Feedback != nil {
+		scope, scopeErr := tenant.FromContext(r.Context())
+		if scopeErr == nil || !h.RequireTenantScope {
+			tenantID := "default"
+			if scopeErr == nil {
+				tenantID = scope.TenantID
+			}
+			totals, _ := h.Feedback.FeedbackTotals(r.Context(), tenantID, "news", item.ID)
+			if err := designsystem.HelpfulFeedback(designsystem.HelpfulFeedbackProps{ContentType: "news", ContentID: item.ID, ElementID: "article-feedback", CSRF: security.CSRFTokenFromContext(r.Context()), Nonce: nonce, Up: totals.Up, Down: totals.Down, LoadHTMX: true}).Render(r.Context(), &helpfulFeedback); err != nil {
+				helpfulFeedback.Reset()
+			}
+		}
+	}
 	footer := localizePublicLinks(enterpriseFooterMarkup(), locale)
 	if consentNotice != "" || h.PublicSupport.Enabled || h.PublicContactSettings != nil {
 		footer = strings.Replace(footer, `</body>`, consentNotice+h.socialLinksMarkup(r.Context())+h.floatingContact(r.Context(), locale)+`</body>`, 1)
 	}
 
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
+	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s%s%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
 		template.HTMLEscapeString(locale),
 		template.HTMLEscapeString(item.Title),
 		strings.ToUpper(template.HTMLEscapeString(locale)),
@@ -703,6 +746,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		template.HTML(tocHTML),
 		template.HTML(articleHTML),
 		newsTagsMarkup(item),
+		helpfulFeedback.String(),
 		template.HTML(relatedCards.String()),
 		template.URLQueryEscaper(item.Title),
 		template.HTMLEscapeString(locale),
