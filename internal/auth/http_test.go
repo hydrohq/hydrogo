@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -314,8 +315,9 @@ func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
 	service := &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params}
 	var notified string
 	handler := HTTPHandler{
-		Invitation: service,
-		InviteDB:   httpExecutor{},
+		Invitation:   service,
+		InviteDB:     httpExecutor{},
+		PublicOrigin: "https://hydro.example.test",
 		InviteNotice: InviteNotifierFunc(func(_ context.Context, email, token string) error {
 			notified = email + ":" + token
 			return nil
@@ -329,6 +331,13 @@ func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
 	handler(res, req)
 	if res.Code != http.StatusAccepted || !strings.HasPrefix(notified, "new@example.com:") {
 		t.Fatalf("invite request = %d, notification=%q", res.Code, notified)
+	}
+	var response map[string]string
+	if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["email"] != "new@example.com" || !strings.Contains(response["url"], "https://hydro.example.test/auth/invites/accept?token=") || res.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("share response = %#v, headers=%v", response, res.Header())
 	}
 }
 

@@ -159,7 +159,7 @@ func (h HTTPHandler) adminPasswordResetLink(w http.ResponseWriter, r *http.Reque
 }
 
 func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
-	if !h.adminUser(r) || h.Invitation == nil || database.RequireExecutor(h.InviteDB) != nil || guards.IsNil(h.InviteNotice) {
+	if !h.adminUser(r) || h.Invitation == nil || database.RequireExecutor(h.InviteDB) != nil || guards.IsNil(h.InviteNotice) || strings.TrimSpace(h.PublicOrigin) == "" {
 		http.Error(w, "invitation unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -182,7 +182,13 @@ func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invitation delivery failed", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"email": NormalizeEmail(r.FormValue("email")),
+		"url":   strings.TrimRight(h.PublicOrigin, "/") + "/auth/invites/accept?token=" + url.QueryEscape(token),
+	})
 }
 
 func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
