@@ -55,6 +55,7 @@ type Config struct {
 	TenantAdmission            *security.TenantAdmission
 	DistributedTenantAdmission *security.RedisTenantAdmission
 	RealtimeHub                *realtime.Hub
+	PublicErrorPage            func(context.Context, int) ([]byte, bool)
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -192,6 +193,7 @@ func NewHandler(config Config) http.Handler {
 	// Normalize handler errors after the body limit and before the request ID
 	// middleware so even middleware-generated errors include request_id.
 	handler = security.ErrorMiddleware(handler)
+	handler = PublicErrorPageMiddleware(config.PublicErrorPage)(handler)
 	handler = observability.LoggingMiddleware(config.Logger)(handler)
 	// Trace context is optional/no-op until an operator configures an exporter.
 	// It is wrapped before RequestID below so the request correlation ID is

@@ -390,3 +390,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0313: Configurable admin login background](0313-login-background-appearance.md)
 - [ADR-0315: Tenant-scoped site search insights](0315-tenant-scoped-search-insights.md)
 - [ADR-0316: Scheduled database maintenance](0316-scheduled-database-maintenance.md)
+- [ADR-0317: Custom public 404 and 500 pages](0317-custom-public-error-pages.md)
