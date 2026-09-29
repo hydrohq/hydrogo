@@ -200,9 +200,10 @@ func (h Handler) customCodePage(w http.ResponseWriter, r *http.Request) {
 			code = site.CustomCodeFromSetting(setting)
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "Custom site integrations", "Manage verified tracking and support integrations", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Custom code", "Site geneli özel HTML ve izleme kodları", security.NonceFromContext(r.Context()), "developer") != nil {
 		return
 	}
+	_, _ = io.WriteString(w, ui.RenderDeveloperTabs("custom-code"))
 	_ = designsystem.CustomCodeEditor(code.Head, code.Body, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
@@ -259,9 +260,10 @@ func (h Handler) linkCheckPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "Bağlantı denetimi", "Yayınlanmış sayfa, bağlantı ve medya adreslerini kontrol edin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Bağlantı denetimi", "Yayınlanmış sayfa, bağlantı ve medya adreslerini kontrol edin", security.NonceFromContext(r.Context()), "developer") != nil {
 		return
 	}
+	_, _ = io.WriteString(w, ui.RenderDeveloperTabs("link-check"))
 	_ = designsystem.LinkCheckAudit(security.CSRFTokenFromContext(r.Context()), jobID, findings, running, scanned, message).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
@@ -380,9 +382,10 @@ func (h Handler) staffBroadcastNotice(w http.ResponseWriter, r *http.Request) {
 			notice = site.StaffBroadcastNoticeFromSetting(setting)
 		}
 	}
-	if err := ui.AdminStartForRequest(w, r, "Staff notice", "Internal announcement for the team", security.NonceFromContext(r.Context()), "site"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Staff notice", "Internal announcement for the team", security.NonceFromContext(r.Context()), "developer"); err != nil {
 		return
 	}
+	_, _ = io.WriteString(w, ui.RenderDeveloperTabs("broadcast"))
 	_ = designsystem.StaffBroadcastNoticeEditor(notice.Active, notice.Severity, notice.Message, maintenanceFormTime(notice.ExpiresAt), security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }

@@ -108,7 +108,7 @@ type adminResourceUsageView struct {
 	StartedAt string
 }
 
-func renderDeveloperTabs(activeTab string) string {
+func RenderDeveloperTabs(activeTab string) string {
 	tabs := []struct {
 		ID    string
 		Label string
@@ -117,6 +117,9 @@ func renderDeveloperTabs(activeTab string) string {
 	}{
 		{ID: "console", Label: "API & Entegrasyon", Href: "/admin/developer", Icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m8 9-3 3 3 3"></path><path d="m16 9 3 3-3 3"></path><path d="m14 5-4 14"></path></svg>`},
 		{ID: "resources", Label: "Sistem Kaynakları", Href: "/admin/developer/resources", Icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>`},
+		{ID: "link-check", Label: "Bağlantı Denetimi", Href: "/admin/site/link-check", Icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`},
+		{ID: "broadcast", Label: "Staff Notice", Href: "/admin/site/broadcast", Icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>`},
+		{ID: "custom-code", Label: "Custom Code", Href: "/admin/site/custom-code", Icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`},
 		{ID: "control", Label: "Yönetim Araçları", Href: "/admin/control", Icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 21v-7"></path><path d="M4 10V3"></path><path d="M12 21v-9"></path><path d="M12 8V3"></path><path d="M20 21v-5"></path><path d="M20 12V3"></path><path d="M1 14h6"></path><path d="M9 8h6"></path><path d="M17 16h6"></path></svg>`},
 		{ID: "security", Label: "Güvenlik & Yetkiler", Href: "/admin/security", Icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg>`},
 	}
@@ -131,6 +134,10 @@ func renderDeveloperTabs(activeTab string) string {
 	}
 	sb.WriteString(`</nav>`)
 	return sb.String()
+}
+
+func renderDeveloperTabs(activeTab string) string {
+	return RenderDeveloperTabs(activeTab)
 }
 
 func RenderAdminResourceUsage(w io.Writer, data AdminResourceUsageData) error {

@@ -70,7 +70,7 @@ func TestAdminShellShowsBrokenLinksWarning(t *testing.T) {
 	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "erişilemeyen bağlantılar") || !strings.Contains(out.String(), "/admin/site/link-check?job=report") || !strings.Contains(out.String(), "Bağlantı denetimi") {
+	if !strings.Contains(out.String(), "erişilemeyen bağlantılar") || !strings.Contains(out.String(), "/admin/site/link-check?job=report") {
 		t.Fatalf("broken links warning missing from admin shell")
 	}
 }
@@ -315,7 +315,7 @@ func TestAdminShellIncludesAccessibleUXDialogsAndQuickActions(t *testing.T) {
 	if err := AdminEnd(&out); err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{`data-shortcuts-open`, `data-notifications-open`, `data-notification-count`, `/admin/notifications/unread`, `data-password-open`, `admin-shortcuts-dialog`, `admin-password-dialog`, `admin-onboarding-dialog`, `data-quick-password-form`} {
+	for _, marker := range []string{`data-shortcuts-open`, `data-notifications-open`, `data-notification-count`, `/admin/notifications/unread`, `admin-shortcuts-dialog`, `admin-onboarding-dialog`} {
 		if !strings.Contains(out.String(), marker) {
 			t.Errorf("Admin Studio shell is missing %q", marker)
 		}

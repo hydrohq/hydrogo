@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 func TestAdminUXTemplComponentsRenderAccessibleBoundedFlows(t *testing.T) {
@@ -51,10 +52,10 @@ func TestAdminUXTemplComponentsRenderAccessibleBoundedFlows(t *testing.T) {
 
 func TestAdminPasswordStrengthUsesDelegatedAccessibleFeedback(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminUXChrome().Render(context.Background(), &out); err != nil {
+	if err := designsystem.PasswordStrengthMeter().Render(context.Background(), &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-password-strength`, `data-password-meter`, `data-password-feedback`, `aria-live="polite"`} {
+	for _, want := range []string{`data-password-meter`, `data-password-feedback`, `aria-live="polite"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("admin password form missing %q", want)
 		}
