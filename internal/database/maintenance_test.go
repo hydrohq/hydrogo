@@ -44,6 +44,7 @@ func TestMaintainSQLitePreservesReadersAndReclaimsSpace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer tx.Rollback()
 	for i := 0; i < 512; i++ {
 		if _, err := tx.ExecContext(ctx, "INSERT INTO maintenance_test(value) VALUES (?)", payload); err != nil {
 			t.Fatal(err)
@@ -62,6 +63,7 @@ func TestMaintainSQLitePreservesReadersAndReclaimsSpace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer reader.Rollback()
 	var count int
 	if err := reader.QueryRowContext(ctx, `SELECT COUNT(*) FROM maintenance_test`).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("reader count=%d err=%v", count, err)

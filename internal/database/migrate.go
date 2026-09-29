@@ -102,6 +102,36 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 	if err := rejectUnknownMigrations(ctx, conn, known); err != nil {
 		return err
 	}
+	existingMap := make(map[string]string)
+	rows, err := conn.QueryContext(ctx, "SELECT id, checksum FROM schema_migrations")
+	if err == nil {
+		for rows.Next() {
+			var id, checksum string
+			if err := rows.Scan(&id, &checksum); err == nil {
+				existingMap[id] = checksum
+			}
+		}
+		rows.Close()
+	}
+	var pending []string
+	for _, migrationID := range migrations {
+		content, err := fs.ReadFile(migrationFS, fmt.Sprintf("%s/%s.sql", migrationID, dialect))
+		if err != nil {
+			return fmt.Errorf("missing migration script %s/%s.sql: %w", migrationID, dialect, err)
+		}
+		checksum, err := migrationChecksum(migrationFS, migrationID, dialect, content)
+		if err != nil {
+			return err
+		}
+		if existingChecksum, ok := existingMap[migrationID]; ok {
+			if existingChecksum != checksum {
+				return fmt.Errorf("migration %s checksum mismatch", migrationID)
+			}
+			continue
+		}
+		pending = append(pending, migrationID)
+	}
+	migrations = pending
 	for index := 0; index < len(migrations); {
 		transactional, err := migrationIsTransactional(migrationFS, migrations[index], dialect)
 		if err != nil {
@@ -293,16 +323,6 @@ func applyMigration(ctx context.Context, executor Executor, dialect Dialect, mig
 	}
 	checksum, err := migrationChecksum(migrationFS, migrationID, dialect, content)
 	if err != nil {
-		return err
-	}
-	var existing string
-	err = executor.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE id = "+placeholder(dialect, 1), migrationID).Scan(&existing)
-	switch {
-	case err == nil && existing != checksum:
-		return fmt.Errorf("migration %s checksum mismatch", migrationID)
-	case err == nil:
-		return nil
-	case !isNoRows(err):
 		return err
 	}
 	if _, err := executor.ExecContext(ctx, string(content)); err != nil {
