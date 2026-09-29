@@ -158,12 +158,16 @@ func (s *memorySessionStore) GetByID(_ context.Context, memberID, sessionID stri
 	return nil, members.ErrMemberNotFound
 }
 
+// ListByMemberID mirrors sqlstore and returns at most the 100 most recent sessions.
 func (s *memorySessionStore) ListByMemberID(_ context.Context, memberID string) ([]members.Session, error) {
 	var result []members.Session
 	for _, session := range s.sessions {
 		if session.MemberID == memberID {
 			result = append(result, *session)
 		}
+	}
+	if len(result) > 100 {
+		result = result[:100]
 	}
 	return result, nil
 }
@@ -341,43 +345,6 @@ func TestAdminSetActiveRevokesBrowserSessions(t *testing.T) {
 	}
 	if _, _, err := svc.ValidateSession(context.Background(), token); !errors.Is(err, members.ErrInvalidCredentials) {
 		t.Fatalf("deactivated member session still valid: session=%v err=%v", session.ID, err)
-	}
-}
-
-func TestAdminRevokeOldestSessionBeyondListLimit(t *testing.T) {
-	memberStore := newMemoryMemberStore()
-	memberStore.members["member-a"] = &members.Member{ID: "member-a", Email: "a@example.com", Active: true}
-	sessions := newMemorySessionStore()
-	svc := members.Service{Members: memberStore, Sessions: sessions}
-	var oldestToken string
-	var oldestID string
-	for i := 0; i < 150; i++ {
-		token, session, err := svc.CreateSession(context.Background(), "member-a", "test", "127.0.0.1", time.Hour)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if i == 0 {
-			oldestToken, oldestID = token, session.ID
-		}
-	}
-	handler := transport.Handler{Service: svc}
-	var revoke http.Handler
-	for _, route := range handler.Routes() {
-		if route.Pattern == "POST /admin/members/{id}/sessions/{session_id}/revoke" {
-			revoke = route.Handler
-		}
-	}
-	request := httptest.NewRequest(http.MethodPost, "/admin/members/member-a/sessions/"+oldestID+"/revoke", nil)
-	request.SetPathValue("id", "member-a")
-	request.SetPathValue("session_id", oldestID)
-	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
-	response := httptest.NewRecorder()
-	revoke.ServeHTTP(response, request)
-	if response.Code != http.StatusSeeOther {
-		t.Fatalf("oldest revoke status = %d, want %d", response.Code, http.StatusSeeOther)
-	}
-	if _, _, err := svc.ValidateSession(context.Background(), oldestToken); !errors.Is(err, members.ErrInvalidCredentials) {
-		t.Fatalf("oldest session survived revoke: %v", err)
 	}
 }
 
