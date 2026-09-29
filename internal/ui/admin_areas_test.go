@@ -424,6 +424,11 @@ func TestDeveloperTabsRendered(t *testing.T) {
 	if err := RenderAdminControl(&ctrlOut, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Active: "control"}); err != nil {
 		t.Fatalf("RenderAdminControl error = %v", err)
 	}
+	for _, want := range []string{`data-invite-share-dialog`, `data-invite-share-message`, `data-invite-share-copy`, `dialog.showModal()`, `clipboard.writeText`} {
+		if !strings.Contains(ctrlOut.String(), want) {
+			t.Fatalf("admin invite share UI missing %q", want)
+		}
+	}
 	if !strings.Contains(ctrlOut.String(), "studio-tabs-nav") || !strings.Contains(ctrlOut.String(), `href="/admin/control" class="studio-tab-item is-active"`) {
 		t.Fatal("control page missing active developer tabs navigation")
 	}

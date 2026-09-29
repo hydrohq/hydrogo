@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"html/template"
 	"io"
 )
@@ -380,13 +381,29 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 				const errText = await res.text();
 				throw new Error(errText || 'HTTP ' + res.status);
 			}
-			notify('Davet e-postası başarıyla gönderildi.', 'success', 'Davet Gönderildi');
+			const result = await res.json();
+			const dialog = document.querySelector('[data-invite-share-dialog]');
+			const message = document.querySelector('[data-invite-share-message]');
+			if (dialog && message) {
+				message.value = 'Merhaba, Admin Studio davetiniz hazır.\nGiriş adresi: ' + location.origin + '/admin\nDavet bağlantısı: ' + result.url + '\nE-posta: ' + result.email;
+				dialog.showModal();
+			}
+			notify('Davet e-postası gönderildi. Paylaşım mesajı hazır.', 'success', 'Davet Gönderildi');
 			form.reset();
 		} catch (err) {
 			notify('Davet gönderilemedi.', 'error', 'İşlem Başarısız');
 		} finally {
 			if (btn) btn.classList.remove('is-loading');
 		}
+	});
+	const inviteDialog = document.querySelector('[data-invite-share-dialog]');
+	inviteDialog?.querySelector('[data-invite-share-close]')?.addEventListener('click', () => { inviteDialog.querySelector('[data-invite-share-message]').value = ''; inviteDialog.close(); });
+	inviteDialog?.addEventListener('close', () => { inviteDialog.querySelector('[data-invite-share-message]').value = ''; });
+	inviteDialog?.querySelector('[data-invite-share-copy]')?.addEventListener('click', async () => {
+		const text = inviteDialog.querySelector('[data-invite-share-message]');
+		const status = inviteDialog.querySelector('[data-invite-share-status]');
+		try { await navigator.clipboard.writeText(text.value); status.textContent = 'Mesaj panoya kopyalandı.'; }
+		catch { text.focus(); text.select(); status.textContent = 'Mesaj seçildi. Kopyalamak için Ctrl+C veya ⌘C kullanın.'; }
 	});
 })();
 </script>`))
@@ -399,6 +416,9 @@ func RenderAdminControl(w io.Writer, data AdminControlData) error {
 		return err
 	}
 	if err := adminControlTemplate.Execute(w, data); err != nil {
+		return err
+	}
+	if err := AdminInviteShareDialog().Render(context.Background(), w); err != nil {
 		return err
 	}
 	return AdminEnd(w)
