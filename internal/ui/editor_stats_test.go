@@ -23,3 +23,20 @@ func TestEditorStatsPanelUsesAccessibleTypedMarkup(t *testing.T) {
 		}
 	}
 }
+
+func TestPageWeightInspectorUsesBoundedLocalAssetMeasurements(t *testing.T) {
+	var out bytes.Buffer
+	if err := PageWeightInspector().Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`data-page-weight`, `aria-live="polite"`, `data-page-weight-assets`, `data-page-weight-large-assets`} {
+		if !strings.Contains(out.String(), marker) {
+			t.Errorf("page weight inspector missing %q", marker)
+		}
+	}
+	for _, marker := range []string{"AbortController", "bounded(assets,4,size)", "content-length", "3*1048576", "/admin/media?asset="} {
+		if !strings.Contains(AdminPageWeightJS, marker) {
+			t.Errorf("page weight calculator missing %q", marker)
+		}
+	}
+}
