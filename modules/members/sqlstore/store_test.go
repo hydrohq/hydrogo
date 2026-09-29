@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -242,5 +243,37 @@ func TestSQLiteMemberCreateMapsUniqueEmailViolation(t *testing.T) {
 	duplicate.ID = "m-2"
 	if err := store.Create(context.Background(), &duplicate); !errors.Is(err, members.ErrMemberExists) {
 		t.Fatalf("expected ErrMemberExists, got %v", err)
+	}
+}
+
+func TestSessionGetByIDFindsOldestBeyondListLimitAndScopesTenant(t *testing.T) {
+	db := setupTestDB(t)
+	store := sqlstore.SessionStore{DB: db, Dialect: database.SQLite, RequireTenantScope: true}
+	alpha, _ := tenant.NewScope("alpha", "alpha")
+	beta, _ := tenant.NewScope("beta", "beta")
+	ctxA := tenant.WithScope(context.Background(), alpha)
+	ctxB := tenant.WithScope(context.Background(), beta)
+	base := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	oldest := "session-000"
+	for i := 0; i < 150; i++ {
+		id := fmt.Sprintf("session-%03d", i)
+		session := &members.Session{ID: id, MemberID: "member-a", TokenHash: "hash-" + id, ExpiresAt: base.Add(24 * time.Hour), CreatedAt: base.Add(time.Duration(i) * time.Minute), LastSeenAt: base.Add(time.Duration(i) * time.Minute), UserAgent: "test", IPAddress: "127.0.0.1"}
+		if err := store.Create(ctxA, session); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := store.GetByID(ctxA, "member-a", oldest)
+	if err != nil || got == nil || got.ID != oldest {
+		t.Fatalf("oldest lookup = %#v, err=%v", got, err)
+	}
+	service := members.Service{Sessions: store}
+	if err := service.RevokeSessionByID(ctxA, "member-a", oldest); err != nil {
+		t.Fatalf("oldest revoke = %v", err)
+	}
+	if _, err := store.GetByID(ctxA, "member-a", oldest); !errors.Is(err, members.ErrMemberNotFound) {
+		t.Fatalf("deleted lookup err=%v", err)
+	}
+	if _, err := store.GetByID(ctxB, "member-a", "session-001"); !errors.Is(err, members.ErrMemberNotFound) {
+		t.Fatalf("cross-tenant lookup err=%v", err)
 	}
 }
