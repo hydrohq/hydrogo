@@ -74,6 +74,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0325](0325-editor-presence.md) | Bounded tenant-scoped content-editor presence | Accepted |
 | [0326](0326-form-conversion-analytics.md) | Privacy-safe form view and conversion reporting | Accepted |
 | [0327](0327-audit-explorer.md) | Bounded Admin audit explorer | Accepted |
+| [0328](0328-pure-go-quote-pdf.md) | Pure Go branded quote PDF rendering | Accepted |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |
