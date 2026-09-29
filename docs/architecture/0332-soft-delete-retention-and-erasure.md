@@ -13,7 +13,8 @@ retention. Permanent deletion is an erasure operation and must first record an
 intent through the established erasure boundary. Restoring trash never
 reverses an erasure intent.
 
-Trash access is tenant-scoped and permission-checked. Media bytes and
+Trash access is tenant-scoped and permission-checked. Move/restore mutations
+and their non-sensitive audit event commit in one transaction. Media bytes and
 derivatives remain present while the asset is recoverable; unused-media GC
 skips trashed rows. Hard deletion is a terminal retention/erasure operation,
 not an ordinary admin delete.

@@ -104,16 +104,24 @@ func (s Store) List(ctx context.Context, limit int) ([]trash.Entry, error) {
 }
 
 func (s Store) Move(ctx context.Context, kind trash.Kind, id string, now time.Time) error {
-	return s.update(ctx, kind, id, `deleted_at=`+s.p(1), now)
+	return s.update(ctx, s.DB, kind, id, `deleted_at=`+s.p(1), now)
 }
 
 func (s Store) Restore(ctx context.Context, kind trash.Kind, id string, cutoff time.Time) error {
-	return s.update(ctx, kind, id, `deleted_at=NULL`, cutoff)
+	return s.update(ctx, s.DB, kind, id, `deleted_at=NULL`, cutoff)
 }
 
-func (s Store) update(ctx context.Context, kind trash.Kind, id, assignment string, stamp time.Time) error {
-	if s.DB == nil {
-		return database.ErrDatabaseRequired
+func (s Store) MoveWithin(ctx context.Context, tx database.Executor, kind trash.Kind, id string, now time.Time) error {
+	return s.update(ctx, tx, kind, id, `deleted_at=`+s.p(1), now)
+}
+
+func (s Store) RestoreWithin(ctx context.Context, tx database.Executor, kind trash.Kind, id string, cutoff time.Time) error {
+	return s.update(ctx, tx, kind, id, `deleted_at=NULL`, cutoff)
+}
+
+func (s Store) update(ctx context.Context, db database.Executor, kind trash.Kind, id, assignment string, stamp time.Time) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
 	}
 	table, ok := tableFor(kind)
 	if !ok || !s.Enabled[kind] {
@@ -152,7 +160,7 @@ func (s Store) update(ctx context.Context, kind trash.Kind, id, assignment strin
 		query += " AND tenant_id=" + s.p(len(args)+1)
 		args = append(args, tenantID)
 	}
-	result, err := s.DB.ExecContext(ctx, query, args...)
+	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
