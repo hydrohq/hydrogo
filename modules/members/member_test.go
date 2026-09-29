@@ -126,6 +126,15 @@ func (s *memorySessionStore) DeleteByID(_ context.Context, sessionID string) err
 	return nil
 }
 
+func (s *memorySessionStore) GetByID(_ context.Context, memberID, sessionID string) (*members.Session, error) {
+	for _, session := range s.sessions {
+		if session.MemberID == memberID && session.ID == sessionID {
+			return session, nil
+		}
+	}
+	return nil, members.ErrMemberNotFound
+}
+
 func (s *memorySessionStore) DeleteByMemberID(_ context.Context, memberID string) error {
 	for k, v := range s.sessions {
 		if v.MemberID == memberID {

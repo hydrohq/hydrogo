@@ -88,6 +88,7 @@ type SessionRepository interface {
 	DeleteByID(context.Context, string) error
 	DeleteByMemberID(context.Context, string) error
 	ListByMemberID(context.Context, string) ([]Session, error)
+	GetByID(context.Context, string, string) (*Session, error)
 	Touch(context.Context, string, time.Time) error
 }
 
@@ -192,16 +193,13 @@ func (s Service) RevokeSessionByID(ctx context.Context, memberID, sessionID stri
 	if guards.IsNil(s.Sessions) {
 		return ErrMemberSessionAbsent
 	}
-	sessions, err := s.Sessions.ListByMemberID(ctx, memberID)
-	if err != nil {
+	if _, err := s.Sessions.GetByID(ctx, memberID, sessionID); err != nil {
+		if errors.Is(err, ErrMemberNotFound) {
+			return ErrMemberNotFound
+		}
 		return err
 	}
-	for _, session := range sessions {
-		if session.ID == sessionID {
-			return s.Sessions.DeleteByID(ctx, sessionID)
-		}
-	}
-	return ErrMemberNotFound
+	return s.Sessions.DeleteByID(ctx, sessionID)
 }
 
 func (s Service) RevokeAllSessions(ctx context.Context, memberID string) error {

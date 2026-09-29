@@ -427,6 +427,31 @@ func (s SessionStore) DeleteByMemberID(ctx context.Context, memberID string) err
 	return err
 }
 
+func (s SessionStore) GetByID(ctx context.Context, memberID, sessionID string) (*members.Session, error) {
+	clause, scopeID, err := s.tenantClause(ctx, 3)
+	if err != nil {
+		return nil, err
+	}
+	args := []any{sessionID, memberID}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	var v members.Session
+	var expires, created, lastSeen any
+	query := "SELECT id,member_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM member_sessions WHERE id = " + s.ph(1) + " AND member_id = " + s.ph(2) + clause + " LIMIT 1"
+	err = Store(s).scanRow(ctx, query, args, func(row *sql.Row) error {
+		return row.Scan(&v.ID, &v.MemberID, &v.TokenHash, &expires, &created, &lastSeen, &v.UserAgent, &v.IPAddress)
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, members.ErrMemberNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	v.ExpiresAt, v.CreatedAt, v.LastSeenAt = parseTime(expires), parseTime(created), parseTime(lastSeen)
+	return &v, nil
+}
+
 func (s SessionStore) ListByMemberID(ctx context.Context, memberID string) ([]members.Session, error) {
 	clause, scopeID, err := s.tenantClause(ctx, 2)
 	if err != nil {
