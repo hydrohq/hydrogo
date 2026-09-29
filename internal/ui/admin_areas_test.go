@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
@@ -50,6 +51,33 @@ func TestAdminUserPermissionEditorUsesEditionCatalog(t *testing.T) {
 	}
 	if strings.Contains(html, `name="perm_admin.users.manage"`) {
 		t.Fatal("editor rendered a permission that the active Edition did not declare")
+	}
+}
+
+func TestAdminUsersShowVerificationStateAndResendOnlyForUnverified(t *testing.T) {
+	now := time.Now().UTC()
+	var out bytes.Buffer
+	err := RenderAdminArea(&out, AdminAreaData{Area: "users", CSRF: "csrf", EmailVerificationEnabled: true, Users: []*auth.User{
+		{ID: "pending-user", Email: "pending@example.test", Role: auth.RoleEditor, Active: true},
+		{ID: "verified-user", Email: "verified@example.test", Role: auth.RoleAdmin, Active: true, EmailVerifiedAt: &now},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := out.String()
+	if !strings.Contains(html, "Doğrulama bekliyor") || !strings.Contains(html, "/auth/users/pending-user/email/verification/resend") || !strings.Contains(html, "Doğrulanmış") {
+		t.Fatalf("verification state or resend action missing: %s", html)
+	}
+	verifiedRowStart := strings.Index(html, "verified@example.test")
+	if verifiedRowStart < 0 || strings.Contains(html[verifiedRowStart:], "/auth/users/verified-user/email/verification/resend") {
+		t.Fatalf("verified account offered a resend action: %s", html)
+	}
+	var disabled bytes.Buffer
+	if err := RenderAdminArea(&disabled, AdminAreaData{Area: "users", Users: []*auth.User{{ID: "pending-user", Email: "pending@example.test"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(disabled.String(), "/email/verification/resend") {
+		t.Fatal("resend action displayed without mail delivery")
 	}
 }
 
