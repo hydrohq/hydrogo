@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
@@ -32,6 +33,7 @@ func TestMySQLSiteRepositoryContracts(t *testing.T) {
 	testmysql.MigrateAll(t, db)
 	runVisibilityContract(t, db, database.MySQL)
 	runRedirectRuleContract(t, db, database.MySQL)
+	runNotFoundPathContract(t, db, database.MySQL)
 	runIdempotencyContract(t, db, database.MySQL)
 }
 
@@ -95,6 +97,69 @@ func TestSQLiteRedirectRuleContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	runRedirectRuleContract(t, db, database.SQLite)
+	runNotFoundPathContract(t, db, database.SQLite)
+}
+
+func runNotFoundPathContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	alpha, _ := tenant.NewScope("miss-alpha", "alpha")
+	beta, _ := tenant.NewScope("miss-beta", "beta")
+	store := Store{Dialect: dialect, RequireTenantScope: true}
+	sqldb, ok := db.(*sql.DB)
+	if !ok {
+		t.Fatal("database executor is not a SQL database")
+	}
+	transactions := database.NewTenantTransactor(sqldb, dialect, true)
+	at := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+	record := func(scope tenant.Scope) error {
+		scoped := tenant.WithScope(ctx, scope)
+		return transactions.Within(scoped, func(exec database.Executor) error { return store.RecordNotFound(scoped, exec, "/missing-page", at) })
+	}
+	for _, scope := range []tenant.Scope{alpha, beta} {
+		scoped := tenant.WithScope(ctx, scope)
+		if err := transactions.Within(scoped, func(exec database.Executor) error { return store.DeleteNotFound(scoped, exec, "/missing-page") }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for range 2 {
+		if err := record(alpha); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := record(beta); err != nil {
+		t.Fatal(err)
+	}
+	var items []site.NotFoundPath
+	alphaCtx := tenant.WithScope(ctx, alpha)
+	err := transactions.WithinQuery(alphaCtx, func(query database.QueryExecutor) error {
+		var err error
+		items, err = store.ListNotFound(alphaCtx, query, 10)
+		return err
+	})
+	if err != nil || len(items) != 1 || items[0].Hits != 2 || items[0].Path != "/missing-page" {
+		t.Fatalf("alpha misses=%+v err=%v", items, err)
+	}
+	betaCtx := tenant.WithScope(ctx, beta)
+	err = transactions.WithinQuery(betaCtx, func(query database.QueryExecutor) error {
+		var err error
+		items, err = store.ListNotFound(betaCtx, query, 10)
+		return err
+	})
+	if err != nil || len(items) != 1 || items[0].Hits != 1 {
+		t.Fatalf("beta misses=%+v err=%v", items, err)
+	}
+	if err := transactions.Within(alphaCtx, func(exec database.Executor) error { return store.DeleteNotFound(alphaCtx, exec, "/missing-page") }); err != nil {
+		t.Fatal(err)
+	}
+	err = transactions.WithinQuery(alphaCtx, func(query database.QueryExecutor) error {
+		var err error
+		items, err = store.ListNotFound(alphaCtx, query, 10)
+		return err
+	})
+	if err != nil || len(items) != 0 {
+		t.Fatalf("deleted misses=%+v err=%v", items, err)
+	}
 }
 
 func TestPostgresRedirectRuleContract(t *testing.T) {
@@ -111,6 +176,7 @@ func TestPostgresRedirectRuleContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	runRedirectRuleContract(t, db, database.Postgres)
+	runNotFoundPathContract(t, db, database.Postgres)
 }
 
 func runRedirectRuleContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {

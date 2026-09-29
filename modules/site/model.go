@@ -233,6 +233,12 @@ type RedirectRule struct {
 	CreatedAt  time.Time
 }
 
+type NotFoundPath struct {
+	Path                string
+	Hits                int64
+	FirstSeen, LastSeen time.Time
+}
+
 type Submission struct {
 	ID                  string
 	FormKey             string
@@ -331,7 +337,7 @@ func ValidateRedirectRule(value RedirectRule) error {
 	}
 	switch value.Kind {
 	case "exact":
-		if strings.ContainsAny(pattern, "*[](){}") || normalizePath(pattern) != pattern {
+		if strings.ContainsAny(pattern, "*[](){}") || normalizePath(pattern) != pattern || pattern == target {
 			return ErrInvalidRedirect
 		}
 	case "wildcard":

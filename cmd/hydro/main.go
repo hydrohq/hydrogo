@@ -1792,9 +1792,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
+	var redirectRegistry *site.RedirectRegistry
 	if modules["site"] {
 		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
-		redirectRegistry := &site.RedirectRegistry{RequireTenantScope: requireTenantScope}
+		redirectRegistry = &site.RedirectRegistry{RequireTenantScope: requireTenantScope}
 		redirectScopes := tenantScopes
 		if !requireTenantScope {
 			redirectScopes = []tenant.Scope{{}}
@@ -1980,7 +1981,40 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		pageCollection.BulkActions = []adminstudio.Action{{Label: "CSV dışa aktar", Href: "/admin/pages/bulk"}}
 		pageLLMSCache = &seo.DiscoveryCache{}
 		notificationStore := adminstudiosql.Store{Dialect: cfg.Database.Dialect}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], ContentViews: analyticsStore, AnalyticsEnabled: modules["analytics"], PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
+		var recordSlugRedirect func(context.Context, string, string, string) error
+		var recordNotFound func(context.Context, string) error
+		if modules["site"] {
+			recordSlugRedirect = func(redirectCtx context.Context, locale, oldSlug, newSlug string) error {
+				tenantID := ""
+				if requireTenantScope {
+					scope, scopeErr := tenant.Require(redirectCtx)
+					if scopeErr != nil {
+						return scopeErr
+					}
+					tenantID = scope.TenantID
+				}
+				source, target := "/"+oldSlug, "/"+newSlug
+				fingerprint := sha256.Sum256([]byte(tenantID + "\x00" + locale + "\x00" + source))
+				rule := site.RedirectRule{ID: "slug-" + hex.EncodeToString(fingerprint[:16]), TenantID: tenantID, Pattern: source, Kind: "exact", TargetPath: target, Status: http.StatusMovedPermanently, CreatedAt: time.Now().UTC()}
+				candidate := &site.RedirectRegistry{RequireTenantScope: requireTenantScope}
+				if err := candidate.Replace(tenantID, redirectRegistry.List(tenantID)); err != nil {
+					return err
+				}
+				if err := candidate.Upsert(rule); err != nil {
+					return err
+				}
+				if err := siteService.SaveRedirectRule(redirectCtx, rule); err != nil {
+					return err
+				}
+				return redirectRegistry.Upsert(rule)
+			}
+		}
+		if modules["site"] {
+			recordNotFound = func(missCtx context.Context, path string) error {
+				return siteService.RecordNotFound(missCtx, path, time.Now().UTC())
+			}
+		}
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], ContentViews: analyticsStore, AnalyticsEnabled: modules["analytics"], RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
 			if !modules["site"] {
 				return nil, nil
 			}
