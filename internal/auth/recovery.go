@@ -50,6 +50,19 @@ func (r PasswordRecovery) Issue(ctx context.Context, tx database.Executor, email
 	if err != nil {
 		return "", err
 	}
+	return r.IssueForUser(ctx, tx, user, ttl)
+}
+
+func (r PasswordRecovery) IssueForUser(ctx context.Context, tx database.Executor, user *User, ttl time.Duration) (string, error) {
+	if guards.IsNil(r.Users) || guards.IsNil(r.Tokens) {
+		return "", ErrRecoveryDependencyRequired
+	}
+	if err := database.RequireExecutor(tx); err != nil {
+		return "", err
+	}
+	if user == nil || !ValidateEmail(user.Email) {
+		return "", ErrRecoveryTokenInvalid
+	}
 	if !user.Active {
 		return "", ErrUserInactive
 	}

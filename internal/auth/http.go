@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -77,6 +78,7 @@ type HTTPHandler struct {
 	Notifier               RecoveryNotifier
 	Invitation             *InvitationService
 	InviteDB               database.Executor
+	PublicOrigin           string
 	InviteNotice           InviteNotifier
 	SocialOAuth            *SocialOAuthHandler
 }
@@ -97,6 +99,7 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/me/mfa/enable", Handler: http.HandlerFunc(h.enableMFA)},
 		{Pattern: "POST /auth/password-reset/request", Public: true, Handler: http.HandlerFunc(h.requestPasswordReset)},
 		{Pattern: "POST /auth/password-reset/confirm", Public: true, Handler: http.HandlerFunc(h.confirmPasswordReset)},
+		{Pattern: "POST /auth/users/{id}/password-reset-link", Handler: http.HandlerFunc(h.adminPasswordResetLink)},
 		{Pattern: "POST /admin/auth/invites", Handler: http.HandlerFunc(h.issueInvite)},
 		{Pattern: "POST /auth/invites/accept", Public: true, Handler: http.HandlerFunc(h.acceptInvite)},
 	}
@@ -106,6 +109,53 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		routes = append(routes, social.Routes()...)
 	}
 	return routes
+}
+
+func (h HTTPHandler) adminPasswordResetLink(w http.ResponseWriter, r *http.Request) {
+	admin := UserFromContext(r.Context())
+	if admin == nil || !admin.Active || admin.Role != RoleAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Recovery == nil || guards.IsNil(h.Recovery.Users) || guards.IsNil(h.Recovery.Tokens) || guards.IsNil(h.Transactions) {
+		http.Error(w, "password reset is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	origin, err := url.Parse(strings.TrimRight(strings.TrimSpace(h.PublicOrigin), "/"))
+	if err != nil || !origin.IsAbs() || origin.Host == "" || origin.User != nil || origin.EscapedPath() != "" || origin.Scheme != "https" && origin.Scheme != "http" {
+		http.Error(w, "password reset is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	targetID := strings.TrimSpace(r.PathValue("id"))
+	if targetID == "" || len(targetID) > 128 {
+		http.Error(w, "user unavailable", http.StatusNotFound)
+		return
+	}
+	if h.RecoveryConfirmLimiter != nil && !security.AllowForRequest(h.RecoveryConfirmLimiter, r.Context(), "admin-reset-link:"+admin.ID+":"+targetID) {
+		security.WriteRateLimitedResponse(w, "password reset link is temporarily unavailable", time.Hour)
+		return
+	}
+	user, err := h.Recovery.Users.GetByID(r.Context(), targetID)
+	if err != nil || user == nil || !user.Active {
+		http.Error(w, "user unavailable", http.StatusNotFound)
+		return
+	}
+	var token string
+	err = h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		var issueErr error
+		token, issueErr = h.Recovery.IssueForUser(r.Context(), tx, user, time.Hour)
+		return issueErr
+	})
+	if err != nil || token == "" {
+		http.Error(w, "password reset link could not be created", http.StatusServiceUnavailable)
+		return
+	}
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), "auth.password_reset_link.generated", user.ID)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]string{"url": strings.TrimRight(h.PublicOrigin, "/") + "/password-reset?token=" + url.QueryEscape(token)})
 }
 
 func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {

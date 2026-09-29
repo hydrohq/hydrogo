@@ -66,6 +66,14 @@ func TestAdminPasswordStrengthUsesDelegatedAccessibleFeedback(t *testing.T) {
 	}
 }
 
+func TestAdminPasswordResetCopyUsesProtectedNoStoreEndpoint(t *testing.T) {
+	for _, want := range []string{"[data-password-reset-link]", "X-CSRF-Token", "credentials:'same-origin'", "navigator.clipboard.writeText", "expires in one hour"} {
+		if !strings.Contains(AdminResetLinkJS, want) {
+			t.Fatalf("reset link behavior missing %q", want)
+		}
+	}
+}
+
 func TestRevisionDiffEscapesUntrustedFieldValues(t *testing.T) {
 	var out bytes.Buffer
 	if err := RevisionDiffPanel([]adminstudio.FieldDiff{{Field: "title", Before: "<script>bad</script>", After: "Yeni"}}, "Editor", "bugün", "/admin/pages/p/revisions/1/restore", "csrf").Render(context.Background(), &out); err != nil {
