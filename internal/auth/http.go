@@ -617,6 +617,7 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "authentication unavailable", http.StatusUnauthorized)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthFormBytes)
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid account update", http.StatusBadRequest)
 		return
@@ -721,6 +722,11 @@ func (h HTTPHandler) updateUserRole(w http.ResponseWriter, r *http.Request) {
 	targetID := r.PathValue("id")
 	if targetID == "" || targetID == actor.ID {
 		http.Error(w, "administrator role cannot be changed here", http.StatusConflict)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthFormBytes)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid role update", http.StatusBadRequest)
 		return
 	}
 	if err := h.Service.UpdateUserRole(r.Context(), targetID, Role(strings.TrimSpace(r.FormValue("role")))); err != nil {
