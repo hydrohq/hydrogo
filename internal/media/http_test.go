@@ -497,3 +497,29 @@ func TestMediaReadyRejectsOversizedFormBody(t *testing.T) {
 	assertReadyStatus("visibility=public", http.StatusOK)
 	assertReadyStatus("visibility=public&pad="+strings.Repeat("x", 16384), http.StatusBadRequest)
 }
+
+func TestAdminVisibilityRejectsOversizedFormBody(t *testing.T) {
+	uploader, err := NewUploader(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := database.Open(context.Background(), database.SQLite, "file:media-visibility-bound?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	handler := HTTPHandler{Service: Service{Uploader: uploader, Assets: visibilityAssetRepo{httpAssetRepo{asset: Asset{ID: "a1", Status: "ready"}}}, Transactions: database.NewTransactor(db)}}
+	assertVisibilityStatus := func(body string, want int) {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/media/a1/visibility", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Active: true, Role: auth.RoleAdmin}))
+		response := httptest.NewRecorder()
+		handler.adminVisibility(response, request)
+		if response.Code != want {
+			t.Fatalf("admin visibility status = %d, want %d", response.Code, want)
+		}
+	}
+	assertVisibilityStatus("visibility=public", http.StatusSeeOther)
+	assertVisibilityStatus("visibility=public&pad="+strings.Repeat("x", 16384), http.StatusBadRequest)
+}
