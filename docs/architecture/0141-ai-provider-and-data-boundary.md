@@ -1,7 +1,7 @@
 # ADR-0141: AI is opt-in and provider-neutral
 
 - **Status:** Accepted (contract); no default provider or data egress
-- **Implementation status:** Opt-in page-draft suggestions and an OpenAI-compatible HTTP adapter are available behind the `ai` module and explicit environment enablement. Translation, submission summarization, production provider/legal approval, and dedicated prompt-injection review remain outside this implementation.
+- **Implementation status:** Opt-in page-draft refinement, text-focused SEO suggestions, summarization, tone adjustment, and translation with configured locale choices are available through an OpenAI-compatible HTTP adapter behind the `ai` module and explicit environment enablement. Dedicated SEO metadata fields, submission summarization, production provider/legal approval, and prompt-injection review remain release gates.
 
 ## Decision
 

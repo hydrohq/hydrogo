@@ -11,10 +11,10 @@ import (
 
 func TestAIAssistantComponentsExplainConsentAndKeepApplyInDraft(t *testing.T) {
 	var request bytes.Buffer
-	if err := AIAssistantRequest("/admin/pages/page1/ai-suggest", "csrf-token").Render(context.Background(), &request); err != nil {
+	if err := AIAssistantRequest("/admin/pages/page1/ai-suggest", "csrf-token", []string{"en", "tr"}).Render(context.Background(), &request); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"name=\"consent\"", "name=\"_csrf\"", "kaydedilmez veya yayımlanmaz", "required"} {
+	for _, want := range []string{"name=\"consent\"", "name=\"_csrf\"", "name=\"target_locale\"", "value=\"tr\"", "Başka dile çevir", "kaydedilmez veya yayımlanmaz", "required"} {
 		if !strings.Contains(request.String(), want) {
 			t.Fatalf("request component lacks %q", want)
 		}

@@ -53,6 +53,7 @@ type Handler struct {
 	AdminCollection     adminstudio.Collection
 	LayoutTemplates     []pages.LayoutTemplate
 	DefaultLocale       string
+	SupportedLocales    []string
 	AllowDemoFrontend   bool
 	SEOOrigin           string
 	PublicSEOSettings   func(context.Context) PublicSEOSettings
@@ -1451,7 +1452,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages/%s" data-local-autosave data-autosave-resource="page:%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayınlama</h2><p class="muted">Taslağı kaydedin veya doğrudan yayına alın.</p><div class="studio-actions"><form method="post" action="/admin/pages/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form></div></section>`, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), page.Version)
 	if h.assistantEnabled() {
-		_ = designsystem.AIAssistantRequest("/admin/pages/"+url.PathEscape(page.ID)+"/ai-suggest", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+		_ = designsystem.AIAssistantRequest("/admin/pages/"+url.PathEscape(page.ID)+"/ai-suggest", security.CSRFTokenFromContext(r.Context()), h.SupportedLocales).Render(r.Context(), w)
 		if suggestion, ok := r.Context().Value(pageSuggestionKey{}).(pageSuggestion); ok {
 			_ = designsystem.AIAssistantSuggestion(suggestion.BeforeTitle, suggestion.BeforeBody, suggestion.Result, "/admin/pages/"+url.PathEscape(page.ID)+"/ai-applied", security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context())).Render(r.Context(), w)
 		}
@@ -1478,7 +1479,8 @@ func (h Handler) adminAISuggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	operation := ai.Operation(strings.TrimSpace(r.FormValue("operation")))
-	if r.FormValue("consent") != "yes" || (operation != ai.Refine && operation != ai.SEO && operation != ai.Summary) {
+	targetLocale := strings.TrimSpace(r.FormValue("target_locale"))
+	if r.FormValue("consent") != "yes" || (operation != ai.Refine && operation != ai.SEO && operation != ai.Summary && operation != ai.Translate) || (operation == ai.Translate && !hasLocale(h.SupportedLocales, targetLocale)) {
 		http.Error(w, "Öneri için bir işlem seçin ve içerik paylaşımını onaylayın.", http.StatusBadRequest)
 		return
 	}
@@ -1504,11 +1506,13 @@ func (h Handler) adminAISuggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.Assistant.Suggest(r.Context(), ai.Request{
-		Operation: operation,
-		Locale:    page.Locale,
-		Title:     page.Title,
-		Body:      page.Body,
-		Consent:   r.FormValue("consent") == "yes",
+		Operation:    operation,
+		Locale:       page.Locale,
+		TargetLocale: targetLocale,
+		Tone:         r.FormValue("tone"),
+		Title:        page.Title,
+		Body:         page.Body,
+		Consent:      r.FormValue("consent") == "yes",
 	})
 	if err != nil {
 		status := http.StatusServiceUnavailable
@@ -1520,6 +1524,15 @@ func (h Handler) adminAISuggest(w http.ResponseWriter, r *http.Request) {
 	}
 	suggestionContext := context.WithValue(r.Context(), pageSuggestionKey{}, pageSuggestion{BeforeTitle: page.Title, BeforeBody: page.Body, Result: result})
 	h.adminPage(w, r.WithContext(suggestionContext))
+}
+
+func hasLocale(locales []string, target string) bool {
+	for _, locale := range locales {
+		if strings.EqualFold(strings.ReplaceAll(strings.TrimSpace(locale), "_", "-"), strings.ReplaceAll(strings.TrimSpace(target), "_", "-")) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h Handler) adminAIApplied(w http.ResponseWriter, r *http.Request) {
