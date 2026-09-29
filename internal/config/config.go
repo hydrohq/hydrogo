@@ -141,6 +141,7 @@ type Mail struct {
 	Host         string `yaml:"host"`
 	Port         int    `yaml:"port"`
 	From         string `yaml:"from"`
+	DKIMSelector string `yaml:"dkim_selector"`
 	Username     string `yaml:"username"`
 	Password     string `yaml:"password"`
 	StartTLS     bool   `yaml:"starttls"`
@@ -414,6 +415,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_SMTP_FROM"); ok && value != "" {
 		result.Mail.From = value
+	}
+	if value, ok := lookup("HYDRO_SMTP_DKIM_SELECTOR"); ok && value != "" {
+		result.Mail.DKIMSelector = value
 	}
 	if value, ok := lookup("HYDRO_SMTP_USERNAME"); ok && value != "" {
 		result.Mail.Username = value

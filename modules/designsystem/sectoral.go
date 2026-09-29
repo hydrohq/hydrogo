@@ -25,6 +25,11 @@ type CookieNoticeProps struct {
 	Heading, Message, AcceptLabel, RejectLabel, Action, CSRF, Variant, ReturnTo string
 }
 
+type EmailDNSCheck struct {
+	Name, Detail, Guidance string
+	OK                     bool
+}
+
 type DataTableProps struct {
 	Caption string
 	Columns []string
