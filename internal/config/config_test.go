@@ -150,6 +150,25 @@ func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
 	}
 }
 
+func TestGeoIPConfigurationBoundsTrustedProxyRanges(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:geoip.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.GeoIP = GeoIP{TrustedProxyCIDRs: []string{"192.0.2.0/24"}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid GeoIP config: %v", err)
+	}
+	cfg.GeoIP.TrustedProxyCIDRs = []string{"not-a-cidr"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("invalid trusted proxy CIDR accepted")
+	}
+	cfg.GeoIP = GeoIP{DatabasePath: strings.Repeat("x", 4097)}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("unbounded GeoIP database path accepted")
+	}
+}
+
 func TestLoadWebhookRequiresPublishedTopicAndExplicitPIIOptIn(t *testing.T) {
 	base := "webhooks:\n  - id: consumer\n    url: https://consumer.example.test/hooks\n    topics: [%s]\n"
 	for _, topic := range []string{"unknown.event", "user.invited"} {
