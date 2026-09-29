@@ -318,3 +318,12 @@ func TestAssetsExposeOnlyAllowlistedFiles(t *testing.T) {
 		t.Fatalf("unexpected asset path status %d", recorder.Code)
 	}
 }
+
+func TestEmailVerificationResendFormCarriesCSRFAndAction(t *testing.T) {
+	got := render(t, EmailVerificationResendForm("/admin/members/member-1/resend-verification", "csrf-token"))
+	for _, want := range []string{`method="post"`, `name="_csrf" value="csrf-token"`, `/admin/members/member-1/resend-verification`, "Doğrulama bağlantısı gönder"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("verification resend form missing %q: %s", want, got)
+		}
+	}
+}

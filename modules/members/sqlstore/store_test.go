@@ -35,7 +35,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 		email_verified_at TEXT,
 		last_login_at TEXT,
 		created_at TEXT NOT NULL,
-		updated_at TEXT NOT NULL
+		updated_at TEXT NOT NULL,
+		tenant_id TEXT NOT NULL DEFAULT ''
 	);
 	CREATE TABLE member_sessions (
 		id TEXT PRIMARY KEY,
@@ -45,13 +46,84 @@ func setupTestDB(t *testing.T) *sql.DB {
 		created_at TEXT NOT NULL,
 		last_seen_at TEXT NOT NULL,
 		user_agent TEXT NOT NULL,
-		ip_address TEXT NOT NULL
+		ip_address TEXT NOT NULL,
+		tenant_id TEXT NOT NULL DEFAULT ''
+	);
+	CREATE TABLE member_email_verification_tokens (
+		id TEXT PRIMARY KEY,
+		member_id TEXT NOT NULL,
+		token_hash TEXT NOT NULL UNIQUE,
+		expires_at TEXT NOT NULL,
+		consumed_at TEXT,
+		created_at TEXT NOT NULL,
+		tenant_id TEXT NOT NULL DEFAULT ''
 	);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("failed to create schema: %v", err)
 	}
 	return db
+}
+
+func TestMemberEmailVerificationTokenIsExpiringAndOneUse(t *testing.T) {
+	db := setupTestDB(t)
+	store := sqlstore.Store{DB: db, Dialect: database.SQLite}
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if err := store.Create(ctx, &members.Member{ID: "verify-member", Email: "verify@example.test", PasswordHash: "hash", Active: true, CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	service := members.EmailVerificationService{Tokens: store}
+	tx := database.NewTenantTransactor(db, database.SQLite, false)
+	var token string
+	if err := tx.Within(ctx, func(exec database.Executor) error {
+		var err error
+		token, err = service.Issue(ctx, exec, &members.Member{ID: "verify-member", Email: "verify@example.test", Active: true}, time.Hour)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(token) != 64 {
+		t.Fatalf("issued token length = %d", len(token))
+	}
+	if err := tx.Within(ctx, func(exec database.Executor) error { return service.Verify(ctx, exec, token) }); err != nil {
+		t.Fatal(err)
+	}
+	member, err := store.GetByID(ctx, "verify-member")
+	if err != nil || member.EmailVerifiedAt == nil {
+		t.Fatalf("verification state = %#v, err=%v", member, err)
+	}
+	if err := tx.Within(ctx, func(exec database.Executor) error { return service.Verify(ctx, exec, token) }); !errors.Is(err, members.ErrEmailVerificationInvalid) {
+		t.Fatalf("replay verification error = %v", err)
+	}
+}
+
+func TestMemberEmailVerificationTokenCannotCrossTenant(t *testing.T) {
+	db := setupTestDB(t)
+	store := sqlstore.Store{DB: db, Dialect: database.SQLite, RequireTenantScope: true}
+	alpha, _ := tenant.NewScope("alpha", "alpha")
+	beta, _ := tenant.NewScope("beta", "beta")
+	ctxA, ctxB := tenant.WithScope(context.Background(), alpha), tenant.WithScope(context.Background(), beta)
+	now := time.Now().UTC()
+	if err := store.Create(ctxA, &members.Member{ID: "tenant-member", Email: "tenant@example.test", PasswordHash: "hash", Active: true, CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	service := members.EmailVerificationService{Tokens: store}
+	tx := database.NewTenantTransactor(db, database.SQLite, true)
+	var token string
+	if err := tx.Within(ctxA, func(exec database.Executor) error {
+		var err error
+		token, err = service.Issue(ctxA, exec, &members.Member{ID: "tenant-member", Email: "tenant@example.test", Active: true}, time.Hour)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Within(ctxB, func(exec database.Executor) error { return service.Verify(ctxB, exec, token) }); !errors.Is(err, members.ErrEmailVerificationInvalid) {
+		t.Fatalf("cross-tenant verify error = %v", err)
+	}
+	if err := tx.Within(ctxA, func(exec database.Executor) error { return service.Verify(ctxA, exec, token) }); err != nil {
+		t.Fatalf("owner-tenant verify error = %v", err)
+	}
 }
 
 func TestSQLiteMemberAndSessionStore(t *testing.T) {
@@ -143,9 +215,6 @@ func TestSQLiteMemberAndSessionStore(t *testing.T) {
 
 func TestTenantScopedMemberStoreFailsClosed(t *testing.T) {
 	db := setupTestDB(t)
-	if _, err := db.Exec(`ALTER TABLE members ADD COLUMN tenant_id TEXT NOT NULL DEFAULT ''; ALTER TABLE member_sessions ADD COLUMN tenant_id TEXT NOT NULL DEFAULT '';`); err != nil {
-		t.Fatal(err)
-	}
 	store := sqlstore.Store{DB: db, Dialect: database.SQLite, RequireTenantScope: true}
 	alpha, _ := tenant.NewScope("tenant-a", "alpha")
 	now := time.Now().UTC()

@@ -380,3 +380,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0303: Admin-generated password reset links](0303-admin-password-reset-link.md)
 - [ADR-0304: Admin local draft recovery](0304-admin-local-draft-recovery.md)
 - [ADR-0305: Staff invitation share message](0305-staff-invitation-share-message.md)
+- [ADR-0306: Member email verification links](0306-member-email-verification.md)

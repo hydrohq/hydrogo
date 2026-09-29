@@ -1631,6 +1631,14 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		authHTTP.Notifier = notifier
 		authHTTP.InviteNotice = notifier
 	}
+	if modules["members"] && smtpSender != nil && strings.TrimSpace(cfg.HTTP.PublicOrigin) != "" {
+		memberHTTP.Verification = members.EmailVerificationService{Tokens: memberStore}
+		memberHTTP.VerificationTx = transactioner
+		memberHTTP.VerificationNotifier = mailer.NotificationSender{Sender: smtpSender}
+		memberHTTP.VerificationLimiter = newRateLimiter(3, time.Hour)
+		memberHTTP.PublicOrigin = cfg.HTTP.PublicOrigin
+		memberHTTP.VerificationEnabled = true
+	}
 	publicPageCache, err := newPageCache(modules["pages"], budget, redisClient, cfg.Redis.KeyPrefix)
 	if err != nil {
 		return fmt.Errorf("configure redis page cache: %w", err)

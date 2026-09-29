@@ -1,0 +1,31 @@
+id: "202609290005_member_email_verification_tokens"
+module: "members"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "ea672a2e5edc16a33f98c58fb645cc97ed75a852878fd8bfea55c7598e8d8d13"
+  postgres: "e748152dbaf3d32183150e27b6bd2f0e3b5bca1b6bafb128540249d62a3b4416"
+  mysql: "d91ca277a77d4acb8f224d6c9f151803ca09d98bc4b89ec93c1eb1a9f1c635d3"
+dependencies:
+  - "202609110006_members_metadata"
+  - "202609190009_members_tenant_scope"
+  - "202609200003_postgres_tenant_rls"
+schema:
+  readable_epoch: 3
+  writable_epoch: 3
+preconditions:
+  - "Members and member metadata tables are present"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "One small token row per recent email verification request"
+compatibility: "Additive, tenant-scoped storage for one-use expiring verification tokens"
+smoke:
+  - "Members can verify email without creating staff auth users"
+  - "Verification tokens are consumed once and cannot cross tenant boundaries"
+restart: "Safe to rerun through the migration ledger"
+rollback: "No production down migration; restore or use forward-only recovery"

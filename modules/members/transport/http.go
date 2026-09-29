@@ -28,15 +28,21 @@ import (
 )
 
 type Handler struct {
-	Service       members.Service
-	Mobile        *members.MobileAuthService
-	Secure        bool
-	Limiter       security.RateLimiter
-	Audit         auth.AuditRecorder
-	Orders        customerorders.Reader
-	DB            database.Executor
-	DefaultLocale string
-	Push          *push.Dispatcher
+	Service              members.Service
+	Mobile               *members.MobileAuthService
+	Secure               bool
+	Limiter              security.RateLimiter
+	Audit                auth.AuditRecorder
+	Orders               customerorders.Reader
+	DB                   database.Executor
+	DefaultLocale        string
+	Push                 *push.Dispatcher
+	Verification         members.EmailVerificationService
+	VerificationTx       database.Transactor
+	VerificationNotifier auth.EmailVerificationNotifier
+	VerificationLimiter  security.RateLimiter
+	PublicOrigin         string
+	VerificationEnabled  bool
 }
 
 // memberResponseWriter removes legacy client-side member state persistence
@@ -108,6 +114,8 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "POST /admin/members/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
 		{Pattern: "POST /admin/members/{id}/active", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
 		{Pattern: "POST /admin/members/{id}/verify-email", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetEmailVerified)},
+		{Pattern: "POST /admin/members/{id}/resend-verification", Access: router.Protected, Handler: http.HandlerFunc(h.adminResendVerification)},
+		{Pattern: "GET /member/email/verify", Access: router.Public, Handler: http.HandlerFunc(h.verifyMemberEmail)},
 		{Pattern: "POST /admin/members/{id}/sessions/{session_id}/revoke", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeSession)},
 		{Pattern: "POST /admin/members/{id}/sessions/revoke-all", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeAllSessions)},
 	}
@@ -494,11 +502,18 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 			if member.EmailVerifiedAt != nil {
 				verifyBadge = fmt.Sprintf(`<span style="color:var(--green);font-weight:600;font-size:0.8rem;" title="%s">✓ Doğrulanmış</span>`, member.EmailVerifiedAt.Format("2006-01-02 15:04"))
 			}
+			actions := fmt.Sprintf(`<a href="/admin/members/%s" class="button button-quiet" style="min-height:28px;padding:4px 12px;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;">Detay</a>`, template.HTMLEscapeString(member.ID))
+			if h.VerificationEnabled && member.EmailVerifiedAt == nil {
+				var resend bytes.Buffer
+				if err := designsystem.EmailVerificationResendForm("/admin/members/"+url.PathEscape(member.ID)+"/resend-verification", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), &resend); err == nil {
+					actions += resend.String()
+				}
+			}
 			lastLoginText := `<span style="color:var(--muted);font-size:0.8rem;">—</span>`
 			if member.LastLoginAt != nil {
 				lastLoginText = fmt.Sprintf(`<span style="font-size:0.84rem;font-family:var(--font-mono);">%s</span>`, member.LastLoginAt.Format("2006-01-02 15:04"))
 			}
-			fmt.Fprintf(&body, `<tr><td><strong><a href="/admin/members/%s" style="color:var(--ink);text-decoration:none;">%s</a></strong></td><td><span class="%s">%s</span></td><td>%s</td><td>%s</td><td style="font-family:var(--font-mono);font-size:0.84rem;">%s</td><td><div style="display:inline-flex;gap:6px;"><a href="/admin/members/%s" class="button button-quiet" style="min-height:28px;padding:4px 12px;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;">Detay</a></div></td></tr>`,
+			fmt.Fprintf(&body, `<tr><td><strong><a href="/admin/members/%s" style="color:var(--ink);text-decoration:none;">%s</a></strong></td><td><span class="%s">%s</span></td><td>%s</td><td>%s</td><td style="font-family:var(--font-mono);font-size:0.84rem;">%s</td><td><div style="display:inline-flex;gap:6px;">%s</div></td></tr>`,
 				template.HTMLEscapeString(member.ID),
 				template.HTMLEscapeString(member.Email),
 				statusClass,
@@ -506,7 +521,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 				verifyBadge,
 				lastLoginText,
 				member.CreatedAt.Format("2006-01-02"),
-				template.HTMLEscapeString(member.ID),
+				actions,
 			)
 		}
 	}
@@ -785,6 +800,72 @@ func (h Handler) adminSetEmailVerified(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/members/"+url.PathEscape(id), http.StatusSeeOther)
+}
+
+func (h Handler) adminResendVerification(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	admin := auth.UserFromContext(r.Context())
+	targetID := strings.TrimSpace(r.PathValue("id"))
+	if !h.VerificationEnabled || h.VerificationNotifier == nil || strings.TrimSpace(h.PublicOrigin) == "" || h.DB == nil {
+		http.Error(w, "verification email is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if targetID == "" || len(targetID) > 128 {
+		http.Error(w, "member not found", http.StatusNotFound)
+		return
+	}
+	if h.VerificationLimiter != nil && !security.AllowForRequest(h.VerificationLimiter, r.Context(), "member-verification:"+admin.ID+":"+targetID) {
+		security.WriteRateLimitedResponse(w, "verification email temporarily unavailable", time.Hour)
+		return
+	}
+	member, err := h.Service.Members.GetByID(r.Context(), targetID)
+	if err != nil || member == nil {
+		http.Error(w, "member not found", http.StatusNotFound)
+		return
+	}
+	if member.EmailVerifiedAt != nil {
+		http.Redirect(w, r, "/admin/members?email_verified=1", http.StatusSeeOther)
+		return
+	}
+	var token string
+	err = h.VerificationTx.Within(r.Context(), func(tx database.Executor) error {
+		var issueErr error
+		token, issueErr = h.Verification.Issue(r.Context(), tx, member, 24*time.Hour)
+		return issueErr
+	})
+	if err != nil || token == "" {
+		http.Error(w, "verification email could not be sent", http.StatusServiceUnavailable)
+		return
+	}
+	link := strings.TrimRight(h.PublicOrigin, "/") + "/member/email/verify?token=" + url.QueryEscape(token)
+	if err := h.VerificationNotifier.SendEmailVerification(r.Context(), member.Email, link); err != nil {
+		http.Error(w, "verification email could not be sent", http.StatusServiceUnavailable)
+		return
+	}
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), "member.email_verification.resent", member.ID)
+	}
+	http.Redirect(w, r, "/admin/members?verification_sent=1", http.StatusSeeOther)
+}
+
+func (h Handler) verifyMemberEmail(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	if h.DB == nil {
+		http.Error(w, "Doğrulama şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	token := r.URL.Query().Get("token")
+	err := h.VerificationTx.Within(r.Context(), func(tx database.Executor) error {
+		return h.Verification.Verify(r.Context(), tx, token)
+	})
+	if err != nil {
+		http.Error(w, "Doğrulama bağlantısı geçersiz veya süresi dolmuş. Yeni bağlantı için destek ekibiyle iletişime geçin.", http.StatusBadRequest)
+		return
+	}
+	http.Redirect(w, r, "/member/login?email_verified=1", http.StatusSeeOther)
 }
 
 func (h Handler) adminRevokeSession(w http.ResponseWriter, r *http.Request) {
