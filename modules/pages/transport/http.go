@@ -1185,6 +1185,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.PreviewSigner != nil {
+		_ = designsystem.DeviceViewportPreview(designsystem.DeviceViewportPreviewProps{Endpoint: "/admin/pages/" + url.PathEscape(page.ID) + "/preview-link", CSRF: security.CSRFTokenFromContext(r.Context())}).Render(r.Context(), w)
 		_ = ui.DraftPreviewLinkForm("/admin/pages/"+url.PathEscape(page.ID)+"/preview-link", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 	}
 	if history, ok := h.Content.Pages.(interface {

@@ -61,6 +61,18 @@ func TestContentViewSortOffersAccessibleSortLinks(t *testing.T) {
 	}
 }
 
+func TestDeviceViewportPreviewIsAccessibleAndSandboxed(t *testing.T) {
+	got := render(t, DeviceViewportPreview(DeviceViewportPreviewProps{Endpoint: "/admin/pages/one%2Ftwo/preview-link", CSRF: "token<&"}))
+	for _, want := range []string{`data-device-preview-open`, `data-device-preview-dialog`, `aria-labelledby=`, `data-device-size="mobile"`, `aria-pressed="true"`, `375 px`, `Masaüstü`, `sandbox=""`, `referrerpolicy="no-referrer"`, `data-device-preview-frame`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("device preview missing %q: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "allow-same-origin") || strings.Contains(got, `csrf="token<&"`) {
+		t.Fatalf("device preview must keep the iframe sandboxed and escape attributes: %s", got)
+	}
+}
+
 func TestViewCountBadgeFormatsAndLabelsCount(t *testing.T) {
 	got := render(t, ViewCountBadge(ViewCountBadgeProps{Count: 1249}))
 	if !strings.Contains(got, `aria-label="1249 views"`) || !strings.Contains(got, "1.2k") || !strings.Contains(got, "👁") {
