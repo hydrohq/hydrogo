@@ -1,6 +1,9 @@
 package site
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestResolvePublicHomePath(t *testing.T) {
 	fallback := "/public/pages/en/demo/html"
@@ -46,5 +49,31 @@ func TestValidateIdempotencyKey(t *testing.T) {
 		if err := ValidateIdempotencyKey(key); err != ErrInvalidIdempotencyKey {
 			t.Fatalf("key %q error = %v", key, err)
 		}
+	}
+}
+
+func TestValidateSubmissionLocationMetadata(t *testing.T) {
+	base := Submission{ID: "submission-1", FormKey: "contact", Email: "visitor@example.test", SourceIPHash: "hash", Payload: `{}`}
+	for _, tc := range []struct {
+		name  string
+		code  string
+		city  string
+		local bool
+		valid bool
+	}{
+		{name: "country and city", code: "TR", city: "Istanbul", valid: true},
+		{name: "local network", local: true, valid: true},
+		{name: "lowercase code", code: "tr"},
+		{name: "local with country", code: "TR", local: true},
+		{name: "city too long", code: "TR", city: strings.Repeat("x", 129)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			value := base
+			value.LocationCountryCode, value.LocationCity, value.LocationLocal = tc.code, tc.city, tc.local
+			err := ValidateSubmission(value)
+			if (err == nil) != tc.valid {
+				t.Fatalf("ValidateSubmission() error=%v valid=%v", err, tc.valid)
+			}
+		})
 	}
 }
