@@ -426,3 +426,35 @@ CREATE TABLE member_email_verification_tokens (id TEXT PRIMARY KEY,member_id TEX
 		t.Fatalf("verification replay status=%d, want 400", replay.Code)
 	}
 }
+
+func TestMemberRegisterRejectsOversizedForm(t *testing.T) {
+	svc := members.Service{
+		Members:     newMemoryMemberStore(),
+		Sessions:    newMemorySessionStore(),
+		ArgonParams: auth.DefaultArgon2Params,
+	}
+	handler := transport.Handler{Service: svc}
+
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+
+	padding := strings.Repeat("a", 256<<10)
+	form := url.Values{
+		"email":    {"oversize@example.com"},
+		"password": {"Amber-River7!Cedar"},
+		"padding":  {padding},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/member/register", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.ContentLength = int64(len(form.Encode()))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	if rr.Code == http.StatusOK {
+		t.Fatalf("POST /member/register accepted oversized form (%d padding bytes)", len(padding))
+	}
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("POST /member/register status=%d, want 413", rr.Code)
+	}
+}
