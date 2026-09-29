@@ -1991,7 +1991,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		siteHTTP.SitemapStream = func(providerCtx context.Context, category string, visit func(site.SitemapEntry) error) error {
 			switch category {
 			case "pages":
-				if !moduleEnabled(cfg.Modules, "pages") {
+				if !modules["pages"] {
 					return nil
 				}
 				return pageStore.StreamPublishedRoutes(providerCtx, db, func(page pages.Page) error {
@@ -2002,7 +2002,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 					return visit(site.SitemapEntry{URL: seoView.CanonicalURL, LastModified: page.UpdatedAt, Category: "pages"})
 				})
 			case "articles":
-				if !moduleEnabled(cfg.Modules, "news") {
+				if !modules["news"] {
 					return nil
 				}
 				return newsRouteStore.StreamPublishedRoutes(providerCtx, db, func(item newsservice.Item) error {
@@ -2051,7 +2051,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		return fmt.Errorf("admin studio registry: %w", err)
 	}
 	activeStudioCollections := func() []adminstudio.Collection {
-		return adminstudio.FilterActiveCollections(studioRegistry.Collections(), enabledModuleSet(cfg.Modules))
+		return adminstudio.FilterActiveCollections(studioRegistry.Collections(), modules)
 	}
 	var pageHTTP pagetransport.Handler
 	var previewSigner *preview.Signer
@@ -2218,7 +2218,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 		}
 		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, MediaLookup: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, ContentViews: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: editPresence, RequireTenantScope: requireTenantScope, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
-			if !moduleEnabled(cfg.Modules, "site") {
+			if !modules["site"] {
 				return nil, nil
 			}
 			items, err := siteStore.ListNavigation(navCtx, db, locale)
@@ -2511,7 +2511,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			if securityNotice.PreviousLoginAt != nil {
 				previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
 			}
-			if err := ui.RenderBusinessOwnerDashboardWithSecurityNotice(w, r, enabledModuleSet(cfg.Modules), previousLogin, securityNotice.PreviousLoginIP, securityNotice.FailedAttempts); err != nil {
+			if err := ui.RenderBusinessOwnerDashboardWithSecurityNotice(w, r, modules, previousLogin, securityNotice.PreviousLoginIP, securityNotice.FailedAttempts); err != nil {
 				http.Error(w, "Bu sayfa şu anda açılamıyor.", http.StatusInternalServerError)
 			}
 			return
