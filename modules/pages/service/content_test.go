@@ -174,3 +174,28 @@ func TestUpdateDraftPropagatesOptimisticLockConflict(t *testing.T) {
 		t.Fatalf("error = %v, want optimistic-lock conflict", err)
 	}
 }
+
+type publishPageRepository struct{ countingPublicRepository }
+
+func (r *publishPageRepository) GetContent(context.Context, database.Executor, string) (pages.Page, error) {
+	return pages.Page{ID: "page-1", Locale: "tr", Slug: "new-slug", PublishedRevision: func() *int { value := 2; return &value }()}, nil
+}
+func (*publishPageRepository) GetRevisionSlug(context.Context, database.Executor, string, int) (string, string, error) {
+	return "en", "old-slug", nil
+}
+
+func TestPublishPurgesOldAndNewPublicRoutesAfterCommit(t *testing.T) {
+	var purged []string
+	repo := &publishPageRepository{}
+	service := ContentService{
+		Transactions: testTransactions{}, Pages: repo, Audit: testAudit{}, Outbox: testOutbox{},
+		PublicCache:      cache.New[pages.Page](4, time.Minute),
+		PublicRoutePurge: func(locale, slug string) { purged = append(purged, locale+"/"+slug) },
+	}
+	if err := service.Publish(context.Background(), "page-1", 3); err != nil {
+		t.Fatal(err)
+	}
+	if len(purged) != 2 || purged[0] != "en/old-slug" || purged[1] != "tr/new-slug" {
+		t.Fatalf("purged public routes = %#v", purged)
+	}
+}
