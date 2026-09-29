@@ -709,7 +709,7 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 			showMsg(attempts > 0 ? 'warning' : 'success', message);
 			setTimeout(function() {
 				window.location.href = '%s';
-			}, 250);
+			}, (notice.previous_login_at || attempts > 0) ? 1800 : 250);
 		} catch (_) {
 			showMsg('error', 'Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin.');
 			btn.disabled = false;
