@@ -2,14 +2,24 @@ package designsystem
 
 import "github.com/ardaozyildirim/hydrogo/internal/ai"
 
-templ AIAssistantRequest(action, csrf string) {
+templ AIAssistantRequest(action, csrf string, locales []string) {
 	<section class="studio-card mt-4" data-ai-assistant>
 		<h2>Taslak yardımcısı</h2>
 		<p>Öneri almak için içerik, yapılandırılmış yapay zekâ sağlayıcısına gönderilir. Öneri incelenmeden kaydedilmez veya yayımlanmaz.</p>
 		<form method="post" action={ action } class="mt-3 flex flex-wrap items-end gap-3">
 			<input type="hidden" name="_csrf" value={ csrf } />
 			<label class="grid gap-1">Yardım türü
-				<select name="operation"><option value="refine">Metni iyileştir</option><option value="seo">Başlık ve metni SEO için düzenle</option><option value="summary">Metni kısalt</option></select>
+				<select name="operation"><option value="refine">Metni iyileştir</option><option value="seo">Başlık ve metni SEO için düzenle</option><option value="summary">Metni kısalt</option><option value="translate">Başka dile çevir</option></select>
+			</label>
+			<label class="grid gap-1">Hedef dil
+				<select name="target_locale"><option value="">Seçin</option>
+					for _, locale := range locales {
+						<option value={ locale }>{ locale }</option>
+					}
+				</select>
+			</label>
+			<label class="grid gap-1">Üslup
+				<select name="tone"><option value="professional">Profesyonel</option><option value="concise">Öz</option><option value="friendly">Samimi</option></select>
 			</label>
 			<label class="flex max-w-xl items-start gap-2 text-sm"><input type="checkbox" name="consent" value="yes" required />Bu işlemde taslak içeriğin sağlayıcıya gönderilmesini onaylıyorum.</label>
 			<button type="submit" class="rounded bg-primary px-3 py-2 text-primary-foreground">Öneri oluştur</button>

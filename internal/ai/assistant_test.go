@@ -64,6 +64,29 @@ func TestAssistantRedactsBoundsAndReturnsGenericProviderErrors(t *testing.T) {
 	}
 }
 
+func TestAssistantTranslationRequiresDistinctWellFormedTargetLocale(t *testing.T) {
+	var received Request
+	assistant := Assistant{Enabled: true, Provider: providerFunc(func(_ context.Context, request Request) (Suggestion, error) {
+		received = request
+		return Suggestion{Title: "Title", Body: "Body"}, nil
+	})}
+	request := Request{Operation: Translate, Locale: "tr-TR", TargetLocale: "en-US", Tone: "friendly", Body: "Metin", Consent: true}
+	if _, err := assistant.Suggest(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if received.TargetLocale != "en-us" || received.Tone != "friendly" {
+		t.Fatalf("provider request=%+v", received)
+	}
+	request.TargetLocale = "tr-tr"
+	if _, err := assistant.Suggest(context.Background(), request); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("same-locale translation error=%v", err)
+	}
+	request.TargetLocale = "en/../../secret"
+	if _, err := assistant.Suggest(context.Background(), request); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("malformed-locale translation error=%v", err)
+	}
+}
+
 func TestOpenAICompatibleUsesRedactedRequestAndCapsResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" || r.Header.Get("Authorization") != "Bearer private-token" {

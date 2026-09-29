@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/ardaozyildirim/hydrogo/internal/ai"
 
-func AIAssistantRequest(action, csrf string) templ.Component {
+func AIAssistantRequest(action, csrf string, locales []string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -57,7 +57,43 @@ func AIAssistantRequest(action, csrf string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"> <label class=\"grid gap-1\">Yardım türü <select name=\"operation\"><option value=\"refine\">Metni iyileştir</option><option value=\"seo\">Başlık ve metni SEO için düzenle</option><option value=\"summary\">Metni kısalt</option></select></label> <label class=\"flex max-w-xl items-start gap-2 text-sm\"><input type=\"checkbox\" name=\"consent\" value=\"yes\" required>Bu işlemde taslak içeriğin sağlayıcıya gönderilmesini onaylıyorum.</label> <button type=\"submit\" class=\"rounded bg-primary px-3 py-2 text-primary-foreground\">Öneri oluştur</button></form></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"> <label class=\"grid gap-1\">Yardım türü <select name=\"operation\"><option value=\"refine\">Metni iyileştir</option><option value=\"seo\">Başlık ve metni SEO için düzenle</option><option value=\"summary\">Metni kısalt</option><option value=\"translate\">Başka dile çevir</option></select></label> <label class=\"grid gap-1\">Hedef dil <select name=\"target_locale\"><option value=\"\">Seçin</option> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, locale := range locales {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<option value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(locale)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 17, Col: 28}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(locale)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 17, Col: 39}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</option>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</select></label> <label class=\"grid gap-1\">Üslup <select name=\"tone\"><option value=\"professional\">Profesyonel</option><option value=\"concise\">Öz</option><option value=\"friendly\">Samimi</option></select></label> <label class=\"flex max-w-xl items-start gap-2 text-sm\"><input type=\"checkbox\" name=\"consent\" value=\"yes\" required>Bu işlemde taslak içeriğin sağlayıcıya gönderilmesini onaylıyorum.</label> <button type=\"submit\" class=\"rounded bg-primary px-3 py-2 text-primary-foreground\">Öneri oluştur</button></form></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -81,103 +117,103 @@ func AIAssistantSuggestion(beforeTitle, beforeBody string, suggestion ai.Suggest
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<section class=\"studio-card mt-4\" data-ai-suggestion><h2>Yapay zekâ önerisi</h2><p>Bu içerik yalnızca taslak düzenleyiciye aktarılır. Kaydetme ve yayımlama işlemleri size aittir.</p><div class=\"mt-3 grid gap-3 md:grid-cols-2\"><article class=\"rounded border border-border p-3\"><h3 class=\"font-semibold\">Mevcut taslak</h3><p>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(beforeTitle)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 25, Col: 113}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><pre class=\"whitespace-pre-wrap\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(beforeBody)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 25, Col: 164}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</pre></article><article class=\"rounded border border-border p-3\"><h3 class=\"font-semibold\">Öneri</h3><p data-ai-title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<section class=\"studio-card mt-4\" data-ai-suggestion><h2>Yapay zekâ önerisi</h2><p>Bu içerik yalnızca taslak düzenleyiciye aktarılır. Kaydetme ve yayımlama işlemleri size aittir.</p><div class=\"mt-3 grid gap-3 md:grid-cols-2\"><article class=\"rounded border border-border p-3\"><h3 class=\"font-semibold\">Mevcut taslak</h3><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(suggestion.Title)
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(beforeTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 26, Col: 125}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 35, Col: 113}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><pre class=\"whitespace-pre-wrap\" data-ai-body>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</p><pre class=\"whitespace-pre-wrap\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(suggestion.Body)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(beforeBody)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 26, Col: 194}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 35, Col: 164}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</pre></article></div><button type=\"button\" class=\"mt-3 rounded bg-primary px-3 py-2 text-primary-foreground\" data-ai-apply data-audit-action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</pre></article><article class=\"rounded border border-border p-3\"><h3 class=\"font-semibold\">Öneri</h3><p data-ai-title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(auditAction)
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(suggestion.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 28, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 36, Col: 125}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" data-csrf=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</p><pre class=\"whitespace-pre-wrap\" data-ai-body>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(suggestion.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 28, Col: 154}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 36, Col: 194}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">Öneriyi taslağa aktar</button><p class=\"mt-2\" role=\"status\" aria-live=\"polite\" data-ai-apply-status></p><script nonce=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</pre></article></div><button type=\"button\" class=\"mt-3 rounded bg-primary px-3 py-2 text-primary-foreground\" data-ai-apply data-audit-action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(nonce)
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(auditAction)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 30, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 38, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">\n\t\t\tdocument.querySelectorAll('[data-ai-apply]').forEach(function(button){\n\t\t\t\tbutton.addEventListener('click', function(){\n\t\t\t\t\tvar panel=button.closest('[data-ai-suggestion]');\n\t\t\t\t\tvar title=document.querySelector('input[name=\"title\"]');\n\t\t\t\t\tvar body=document.querySelector('[data-richtext] .richtext-value');\n\t\t\t\t\tvar editor=document.querySelector('[data-richtext] .richtext-editor');\n\t\t\t\t\tvar nextTitle=panel.querySelector('[data-ai-title]').textContent;\n\t\t\t\t\tvar nextBody=panel.querySelector('[data-ai-body]').textContent;\n\t\t\t\t\tif(title && nextTitle) { title.value=nextTitle; title.dispatchEvent(new Event('input',{bubbles:true})); }\n\t\t\t\t\tif(editor && editor.__quill) { editor.__quill.setText(nextBody); }\n\t\t\t\t\telse if(body) { body.value=nextBody; body.dispatchEvent(new Event('input',{bubbles:true})); }\n\t\t\t\t\tbutton.textContent='Taslak düzenleyici güncellendi';\n\t\t\t\t\tfetch(button.dataset.auditAction,{method:'POST',headers:{'X-CSRF-Token':button.dataset.csrf}}).then(function(response){\n\t\t\t\t\t\tif(!response.ok) throw new Error();\n\t\t\t\t\t}).catch(function(){\n\t\t\t\t\t\tpanel.querySelector('[data-ai-apply-status]').textContent='Taslak güncellendi ancak işlem denetim kaydı tamamlanamadı.';\n\t\t\t\t\t});\n\t\t\t\t});\n\t\t\t});\n\t\t</script></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" data-csrf=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var12 string
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 38, Col: 154}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">Öneriyi taslağa aktar</button><p class=\"mt-2\" role=\"status\" aria-live=\"polite\" data-ai-apply-status></p><script nonce=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var13 string
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(nonce)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/ai_assistant.templ`, Line: 40, Col: 23}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">\n\t\t\tdocument.querySelectorAll('[data-ai-apply]').forEach(function(button){\n\t\t\t\tbutton.addEventListener('click', function(){\n\t\t\t\t\tvar panel=button.closest('[data-ai-suggestion]');\n\t\t\t\t\tvar title=document.querySelector('input[name=\"title\"]');\n\t\t\t\t\tvar body=document.querySelector('[data-richtext] .richtext-value');\n\t\t\t\t\tvar editor=document.querySelector('[data-richtext] .richtext-editor');\n\t\t\t\t\tvar nextTitle=panel.querySelector('[data-ai-title]').textContent;\n\t\t\t\t\tvar nextBody=panel.querySelector('[data-ai-body]').textContent;\n\t\t\t\t\tif(title && nextTitle) { title.value=nextTitle; title.dispatchEvent(new Event('input',{bubbles:true})); }\n\t\t\t\t\tif(editor && editor.__quill) { editor.__quill.setText(nextBody); }\n\t\t\t\t\telse if(body) { body.value=nextBody; body.dispatchEvent(new Event('input',{bubbles:true})); }\n\t\t\t\t\tbutton.textContent='Taslak düzenleyici güncellendi';\n\t\t\t\t\tfetch(button.dataset.auditAction,{method:'POST',headers:{'X-CSRF-Token':button.dataset.csrf}}).then(function(response){\n\t\t\t\t\t\tif(!response.ok) throw new Error();\n\t\t\t\t\t}).catch(function(){\n\t\t\t\t\t\tpanel.querySelector('[data-ai-apply-status]').textContent='Taslak güncellendi ancak işlem denetim kaydı tamamlanamadı.';\n\t\t\t\t\t});\n\t\t\t\t});\n\t\t\t});\n\t\t</script></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
