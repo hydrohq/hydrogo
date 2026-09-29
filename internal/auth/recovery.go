@@ -66,7 +66,7 @@ func (r PasswordRecovery) IssueForUser(ctx context.Context, tx database.Executor
 	if !user.Active {
 		return "", ErrUserInactive
 	}
-	if ttl <= 0 || ttl > time.Hour {
+	if ttl <= 0 || ttl > 24*time.Hour {
 		ttl = 30 * time.Minute
 	}
 	bytes := make([]byte, 32)

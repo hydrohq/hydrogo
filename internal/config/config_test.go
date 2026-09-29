@@ -37,6 +37,24 @@ database:
 	}
 }
 
+func TestSecurityTokenLifetimeChoices(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:token-ttl.sqlite", "HYDRO_PASSWORD_RESET_TTL": "24h", "HYDRO_INVITATION_TTL": "168h"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PasswordResetDuration().Hours() != 24 || cfg.InvitationDuration().Hours() != 168 {
+		t.Fatalf("unexpected TTLs: reset=%s invite=%s", cfg.PasswordResetDuration(), cfg.InvitationDuration())
+	}
+	for _, env := range []map[string]string{
+		{"HYDRO_DATABASE_DSN": "file:bad-reset.sqlite", "HYDRO_PASSWORD_RESET_TTL": "2h"},
+		{"HYDRO_DATABASE_DSN": "file:bad-invite.sqlite", "HYDRO_INVITATION_TTL": "48h"},
+	} {
+		if _, err := Load("", lookup(env), Overrides{}); err == nil {
+			t.Errorf("unsupported token lifetime accepted: %#v", env)
+		}
+	}
+}
+
 func TestLoadSentryDSNFromEnvironment(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:sentry.sqlite", "HYDRO_SENTRY_DSN": "https://public@example.test/7"}), Overrides{})
 	if err != nil {

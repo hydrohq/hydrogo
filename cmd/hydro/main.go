@@ -1549,7 +1549,9 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if err != nil {
 		return fmt.Errorf("configure social sign-in: %w", err)
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, PublicOrigin: cfg.HTTP.PublicOrigin, SocialOAuth: socialOAuth, LoginSecurity: userStore}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, PublicOrigin: cfg.HTTP.PublicOrigin, SocialOAuth: socialOAuth, LoginSecurity: userStore, TokenLifetimeSettings: authstore.TokenLifetimeStore{DB: db, Dialect: cfg.Database.Dialect}}
+	authHTTP.PasswordResetTTL = cfg.PasswordResetDuration()
+	authHTTP.InvitationTTL = cfg.InvitationDuration()
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -2139,6 +2141,17 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 	}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
+	if modules["auth"] {
+		tokenSettingsHandler := adminTokenLifetimeSettingsHandler{
+			Settings: authHTTP.TokenLifetimeSettings,
+			Defaults: auth.TokenLifetimes{PasswordReset: cfg.PasswordResetDuration(), Invitation: cfg.InvitationDuration()},
+			Audit: auditRecorder,
+		}
+		routes = append(routes,
+			router.Route{Pattern: "GET /admin/security/token-lifetimes", Access: router.Protected, Handler: tokenSettingsHandler},
+			router.Route{Pattern: "POST /admin/security/token-lifetimes", Access: router.Protected, Handler: tokenSettingsHandler},
+		)
+	}
 	if modules["collections"] {
 		collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		collectionService := collections.Service{Repository: collectionDB}

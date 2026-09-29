@@ -448,6 +448,9 @@ function testGraphQL(btn){
 		if _, err := io.WriteString(w, renderDeveloperTabs("security")); err != nil {
 			return err
 		}
+		if err := designsystem.TokenLifetimeLink().Render(context.Background(), w); err != nil {
+			return err
+		}
 		_, _ = fmt.Fprintf(w, `<div class="sec-grid" data-testid="security-area">
   <div class="sec-kpis">
     <div class="sec-kpi"><small>KİMLİK KORUMASI</small><strong>Güçlü Şifreleme</strong><span>Endüstri standardı hash &amp; salt koruması</span></div>

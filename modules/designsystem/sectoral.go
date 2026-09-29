@@ -30,6 +30,11 @@ type EmailDNSCheck struct {
 	OK                     bool
 }
 
+type TokenLifetimeFormProps struct {
+	CSRF, Reset, Invitation string
+	Saved                   bool
+}
+
 type DataTableProps struct {
 	Caption string
 	Columns []string
