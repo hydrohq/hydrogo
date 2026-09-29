@@ -1,0 +1,11 @@
+package designsystem
+
+templ EditPresence(resource, endpoint, csrf, nonce string) {
+	<div class="mb-4 hidden rounded-md border border-amber-500 bg-amber-50 px-4 py-3 text-amber-950" role="status" aria-live="polite" data-edit-presence data-endpoint={ endpoint } data-resource={ resource } data-csrf={ csrf }>
+		<strong>Bu içerik üzerinde başka bir editör çalışıyor.</strong>
+		<ul class="mt-1 list-disc pl-5" data-edit-presence-list></ul>
+	</div>
+	<script nonce={ nonce }>
+		(()=>{const box=document.querySelector('[data-edit-presence]');if(!box)return;const endpoint=box.dataset.endpoint,csrf=box.dataset.csrf,list=box.querySelector('[data-edit-presence-list]');let stopped=false;const refresh=async()=>{if(stopped)return;try{await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});const response=await fetch(endpoint,{credentials:'same-origin',headers:{'Accept':'application/json'}});if(!response.ok)return;const editors=await response.json();list.replaceChildren();for(const editor of editors){const item=document.createElement('li');item.textContent=editor.name+' (son etkinlik '+editor.active_seconds+' sn önce)';list.append(item)}box.classList.toggle('hidden',editors.length===0)}catch(_){}};refresh();const timer=setInterval(refresh,15000);window.addEventListener('pagehide',()=>{stopped=true;clearInterval(timer)},{once:true})})();
+	</script>
+}

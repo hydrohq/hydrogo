@@ -27,6 +27,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
@@ -57,6 +58,7 @@ type Handler struct {
 	DiscoveryProvider   seo.DiscoveryProvider
 	DiscoveryCache      *seo.DiscoveryCache
 	Notifications       *adminstudiosql.Store
+	Presence            *realtime.Presence
 	WeeklyDigestEnabled bool
 	PreviewSigner       *preview.Signer
 	PreviewOrigin       string
@@ -172,6 +174,12 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/pages/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/translate", Handler: http.HandlerFunc(h.adminTranslate), Protected: true},
 		{Pattern: "POST /admin/pages/{id}/revisions/{revision}/restore", Handler: http.HandlerFunc(h.restoreRevision), Protected: true},
+	}
+	if h.Presence != nil {
+		routes = append(routes,
+			Route{Pattern: "POST /admin/pages/{id}/presence", Handler: http.HandlerFunc(h.editPresenceHeartbeat), Protected: true},
+			Route{Pattern: "GET /admin/pages/{id}/presence", Handler: http.HandlerFunc(h.editPresenceList), Protected: true},
+		)
 	}
 	if h.PreviewSigner != nil {
 		routes = append(routes, Route{Pattern: "POST /admin/pages/{id}/preview-link", Handler: http.HandlerFunc(h.createPreviewLink), Protected: true}, Route{Pattern: "GET /preview/pages/{id}", Handler: http.HandlerFunc(h.publicDraftPreview)})
@@ -1380,6 +1388,10 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStartForRequest(w, r, "Sayfa düzenle", "İçerik stüdyosu", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
 	}
+	if h.Presence != nil {
+		endpoint := "/admin/pages/" + url.PathEscape(page.ID) + "/presence"
+		_ = designsystem.EditPresence(page.ID, endpoint, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context())).Render(r.Context(), w)
+	}
 	if h.PreviewSigner != nil {
 		_ = designsystem.DeviceViewportPreview(designsystem.DeviceViewportPreviewProps{Endpoint: "/admin/pages/" + url.PathEscape(page.ID) + "/preview-link", CSRF: security.CSRFTokenFromContext(r.Context())}).Render(r.Context(), w)
 		_ = ui.DraftPreviewLinkForm("/admin/pages/"+url.PathEscape(page.ID)+"/preview-link", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
@@ -1424,6 +1436,52 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages/%s" data-local-autosave data-autosave-resource="page:%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayınlama</h2><p class="muted">Taslağı kaydedin veya doğrudan yayına alın.</p><div class="studio-actions"><form method="post" action="/admin/pages/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form></div></section>`, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), page.Version)
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) editPresenceHeartbeat(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if h.Presence == nil || !editorAllowed(r) || user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if len(r.PathValue("id")) > 128 || strings.ContainsAny(r.PathValue("id"), "\x00\r\n") {
+		http.Error(w, "invalid resource", http.StatusBadRequest)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	} else if h.RequireTenantScope {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	name := strings.TrimSpace(strings.SplitN(user.Email, "@", 2)[0])
+	if name == "" {
+		name = "Editor"
+	}
+	err := h.Presence.Heartbeat(realtime.PresenceSession{TenantID: tenantID, Resource: "page:" + r.PathValue("id"), UserID: user.ID, Name: name})
+	if err != nil {
+		http.Error(w, "presence unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) editPresenceList(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if h.Presence == nil || !editorAllowed(r) || user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	} else if h.RequireTenantScope {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, h.Presence.Active(tenantID, "page:"+r.PathValue("id"), user.ID))
 }
 
 func (h Handler) faqFeedbackMetrics(r *http.Request, blocks []pages.Block) []designsystem.FAQFeedbackMetric {

@@ -71,6 +71,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0321](0321-scheduled-maintenance-preview.md) | Scheduled maintenance windows and secret preview access | Accepted; partially supersedes 0318 |
 | [0322](0322-staff-broadcast-notices.md) | Tenant-scoped, expiring Admin Studio staff notices | Accepted |
 | [0324](0324-custom-site-integrations.md) | Validated tenant-scoped analytics and support snippets | Accepted |
+| [0325](0325-editor-presence.md) | Bounded tenant-scoped content-editor presence | Accepted |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |
