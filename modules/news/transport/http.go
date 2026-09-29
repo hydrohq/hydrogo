@@ -20,6 +20,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -623,7 +624,15 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprint(w, localizePublicLinks(newsDocumentStart(locale, item.Title, h.themeNavigation(r.Context(), locale)), locale))
+	consentNotice := h.analyticsConsentNotice(r, locale)
+	if h.AnalyticsEnabled {
+		w.Header().Set("Vary", "Cookie")
+	}
+	documentStart := newsDocumentStart(locale, item.Title, h.themeNavigation(r.Context(), locale))
+	if consentNotice != "" {
+		documentStart = strings.Replace(documentStart, `</head>`, `<link rel="stylesheet" href="/designsystem/static/designsystem.css"></head>`, 1)
+	}
+	_, _ = fmt.Fprint(w, localizePublicLinks(documentStart, locale))
 
 	var trendingHTML strings.Builder
 	itemIndex := 1
@@ -674,6 +683,10 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
 	readingEnhancement := fmt.Sprintf(`<style nonce="%s">%s</style><script nonce="%s">%s</script>`, nonce, ui.PublicArticleCSS, nonce, ui.PublicArticleJS)
+	footer := localizePublicLinks(enterpriseFooterMarkup(), locale)
+	if consentNotice != "" {
+		footer = strings.Replace(footer, `</body>`, consentNotice+`</body>`, 1)
+	}
 
 	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
 		template.HTMLEscapeString(locale),
@@ -693,8 +706,28 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		template.HTMLEscapeString(item.Slug),
 		trendingHTML.String(),
 		readingEnhancement,
-		localizePublicLinks(enterpriseFooterMarkup(), locale),
+		footer,
 	)
+}
+
+func (h Handler) analyticsConsentNotice(r *http.Request, locale string) string {
+	if !h.AnalyticsEnabled {
+		return ""
+	}
+	if cookie, err := r.Cookie(analytics.ConsentCookie); err == nil && strings.TrimSpace(cookie.Value) != "" {
+		return ""
+	}
+	props := designsystem.CookieNoticeProps{Action: "/analytics/consent", CSRF: security.CSRFTokenFromContext(r.Context()), ReturnTo: r.URL.Path, Variant: "bar"}
+	if strings.HasPrefix(canonical.Locale(locale), "en") {
+		props.Heading, props.Message, props.AcceptLabel, props.RejectLabel = "Privacy choices", "Allow anonymous, daily page-view totals? HydroGo does not use advertising cookies.", "Allow analytics", "Decline"
+	} else {
+		props.Heading, props.Message, props.AcceptLabel, props.RejectLabel = "Gizlilik tercihiniz", "Anonim günlük sayfa görüntülenme toplamlarına izin verilsin mi? HydroGo reklam çerezi kullanmaz.", "Analitiğe izin ver", "Reddet"
+	}
+	var notice strings.Builder
+	if designsystem.CookieNotice(props).Render(r.Context(), &notice) != nil {
+		return ""
+	}
+	return notice.String()
 }
 
 func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {

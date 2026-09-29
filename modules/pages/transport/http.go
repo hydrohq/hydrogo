@@ -20,6 +20,7 @@ import (
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -682,7 +683,11 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	designHead := ""
-	if pageHasDesignSystemBlocks(page.Blocks) {
+	showConsentNotice := h.AnalyticsEnabled && !hasAnalyticsConsent(r)
+	if h.AnalyticsEnabled {
+		w.Header().Set("Vary", "Cookie")
+	}
+	if pageHasDesignSystemBlocks(page.Blocks) || showConsentNotice {
 		var head bytes.Buffer
 		if err := ui.DesignSystemHead().Render(r.Context(), &head); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
@@ -714,6 +719,21 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	if editorAllowed(r) {
 		designHead += `<style nonce="` + template.HTMLEscapeString(security.NonceFromContext(r.Context())) + `">.hydro-inline-edit{position:fixed;right:18px;bottom:18px;z-index:9999;display:inline-flex;gap:7px;align-items:center;padding:10px 14px;border-radius:999px;background:#0284c7;color:#fff;text-decoration:none;font:600 14px/1.2 system-ui;box-shadow:0 4px 16px #0003}.hydro-inline-edit:hover{background:#0369a1}</style>`
+	}
+	consentMarkup := ""
+	if showConsentNotice {
+		var notice bytes.Buffer
+		props := designsystem.CookieNoticeProps{Action: "/analytics/consent", CSRF: security.CSRFTokenFromContext(r.Context()), ReturnTo: r.URL.Path, Variant: "bar"}
+		if strings.HasPrefix(canonical.Locale(page.Locale), "en") {
+			props.Heading, props.Message, props.AcceptLabel, props.RejectLabel = "Privacy choices", "Allow anonymous, daily page-view totals? HydroGo does not use advertising cookies.", "Allow analytics", "Decline"
+		} else {
+			props.Heading, props.Message, props.AcceptLabel, props.RejectLabel = "Gizlilik tercihiniz", "Anonim günlük sayfa görüntülenme toplamlarına izin verilsin mi? HydroGo reklam çerezi kullanmaz.", "Analitiğe izin ver", "Reddet"
+		}
+		if err := designsystem.CookieNotice(props).Render(r.Context(), &notice); err != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+			return
+		}
+		consentMarkup = notice.String()
 	}
 	for i, block := range renderBlocks {
 		if block.Type != "faq" {
@@ -769,6 +789,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		content.WriteString(string(relatedMarkup))
+		content.WriteString(consentMarkup)
 		navigation := make([]themev1.ThemeNavigationItem, 0)
 		if h.NavigationProvider != nil {
 			items, navErr := h.NavigationProvider(r.Context(), page.Locale)
@@ -791,7 +812,12 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main></body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup)
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main>%s</body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup, template.HTML(consentMarkup))
+}
+
+func hasAnalyticsConsent(r *http.Request) bool {
+	cookie, err := r.Cookie(analytics.ConsentCookie)
+	return err == nil && strings.TrimSpace(cookie.Value) != ""
 }
 
 func renderInPlaceEditLink(r *http.Request, pageID string) string {
