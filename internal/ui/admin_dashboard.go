@@ -13,27 +13,28 @@ import (
 )
 
 type AdminDashboardData struct {
-	Email               string
-	Collections         []adminstudio.Collection
-	Nonce               string
-	Active              string
-	Metrics             *observability.Metrics
-	MemberStats         members.MemberStats
-	DataTime            string
-	DataSource          string
-	DateFilter          string
-	DateFrom            string
-	DateTo              string
-	Locale              string
-	ContentViews        []ContentViewReportRow
-	AnalyticsEnabled    bool
-	NoCookieStats       []NoCookieAnalyticsRow
-	UniqueVisitors      int64
-	PushEnabled         bool
-	EmailPreviewEnabled bool
-	PreviousLogin       string
-	PreviousLoginIP     string
-	FailedLoginAttempts int
+	SearchInsightsEnabled bool
+	Email                 string
+	Collections           []adminstudio.Collection
+	Nonce                 string
+	Active                string
+	Metrics               *observability.Metrics
+	MemberStats           members.MemberStats
+	DataTime              string
+	DataSource            string
+	DateFilter            string
+	DateFrom              string
+	DateTo                string
+	Locale                string
+	ContentViews          []ContentViewReportRow
+	AnalyticsEnabled      bool
+	NoCookieStats         []NoCookieAnalyticsRow
+	UniqueVisitors        int64
+	PushEnabled           bool
+	EmailPreviewEnabled   bool
+	PreviousLogin         string
+	PreviousLoginIP       string
+	FailedLoginAttempts   int
 }
 
 type ContentViewReportRow struct {
@@ -82,6 +83,11 @@ func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 	}
 	if err := designsystem.AnalyticsDateRange(designsystem.AnalyticsDateRangeProps{From: data.DateFrom, To: data.DateTo}).Render(context.Background(), w); err != nil {
 		return err
+	}
+	if data.SearchInsightsEnabled {
+		if err := designsystem.SearchInsightsLink().Render(context.Background(), w); err != nil {
+			return err
+		}
 	}
 	if err := adminReportsPathTemplate.Execute(w, data); err != nil {
 		return err

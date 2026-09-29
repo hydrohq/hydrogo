@@ -388,3 +388,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0311: Security token lifetime settings](0311-security-token-lifetime-settings.md)
 - [ADR-0312: Global email branding and legal footer](0312-email-branding-and-legal-footer.md)
 - [ADR-0313: Configurable admin login background](0313-login-background-appearance.md)
+- [ADR-0315: Tenant-scoped site search insights](0315-tenant-scoped-search-insights.md)

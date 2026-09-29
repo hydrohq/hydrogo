@@ -1,0 +1,56 @@
+package designsystem
+
+templ PublicSearchResultsPage(p PublicSearchResultsProps) {
+	<!doctype html>
+	<html lang="tr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Arama sonuçları</title><link rel="stylesheet" href="/designsystem/static/designsystem.css"/></head><body class="bg-background text-foreground">@PublicSearchResults(p)</body></html>
+}
+
+templ PublicSearchResults(p PublicSearchResultsProps) {
+	<main class="mx-auto grid w-full max-w-4xl gap-5 px-4 py-8 text-foreground">
+		<h1 class="text-2xl font-bold">Arama sonuçları</h1>
+		<p><strong>{ p.Term }</strong> için { len(p.Results) } sonuç</p>
+		if len(p.Results) == 0 {
+			<p class="rounded-lg border border-border bg-surface p-5">Aramanızla eşleşen içerik bulunamadı. Farklı kelimeler deneyin.</p>
+		} else {
+			<ul class="grid gap-4">
+				for _, result := range p.Results {
+					<li class="rounded-lg border border-border bg-surface p-4"><p class="text-sm text-muted-foreground">{ result.Category }</p><h2 class="text-lg font-semibold"><a href={ templ.SafeURL(result.URL) }>{ result.Title }</a></h2></li>
+				}
+			</ul>
+		}
+		<a href="/" class="text-primary underline">Ana sayfaya dön</a>
+	</main>
+}
+
+templ SearchInsightsTable(p SearchInsightsProps) {
+	<section class="studio-card" aria-labelledby="search-insights-title">
+		<h1 id="search-insights-title">Site arama içgörüleri</h1>
+		<p>Son { p.RangeDays } gündeki gönderilmiş aramalar. Kişi veya cihaz bilgisi tutulmaz.</p>
+		<nav class="flex gap-2" aria-label="Arama raporu dönemi"><a href="?days=7">7 gün</a><a href="?days=30">30 gün</a></nav>
+		if len(p.Items) == 0 {
+			<p>Bu dönemde kaydedilmiş arama yok.</p>
+		} else {
+			<div class="overflow-x-auto"><table><thead><tr><th scope="col">Arama kelimesi</th><th scope="col">Dil</th><th scope="col">Arama sayısı</th><th scope="col">Sonuçsuz</th></tr></thead><tbody>
+				for _, item := range p.Items {
+					<tr><th scope="row">{ item.Term }</th><td>{ item.Locale }</td><td>{ item.SearchCount }</td><td>{ item.ZeroResultCount }</td></tr>
+				}
+			</tbody></table></div>
+		}
+	</section>
+	<section class="studio-card" aria-labelledby="search-zero-title">
+		<h2 id="search-zero-title">Kaçırılan fırsatlar: sonuçsuz aramalar</h2>
+		if len(p.ZeroResultItems) == 0 {
+			<p>Sonuç bulunamayan arama yok.</p>
+		} else {
+			<div class="overflow-x-auto"><table><thead><tr><th scope="col">Arama kelimesi</th><th scope="col">Dil</th><th scope="col">Sonuçsuz arama</th></tr></thead><tbody>
+				for _, item := range p.ZeroResultItems {
+					<tr><th scope="row">{ item.Term }</th><td>{ item.Locale }</td><td>{ item.ZeroResultCount }</td></tr>
+				}
+			</tbody></table></div>
+		}
+	</section>
+}
+
+templ SearchInsightsLink() {
+	<p><a class="button button-quiet" href="/admin/search-insights">Arama kelimesi içgörüleri</a></p>
+}
