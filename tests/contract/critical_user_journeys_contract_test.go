@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
@@ -164,7 +165,7 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 		PublicCache:  cache.New[pages.Page](10, time.Minute),
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
-	pagesHandler := pagestransport.Handler{DB: sqlDB, Content: contentSvc, AllowDemoFrontend: true}
+	pagesHandler := pagestransport.Handler{DB: sqlDB, Content: contentSvc, AllowDemoFrontend: true, AnalyticsEnabled: true}
 
 	// 1. Create Draft
 	draftPage := pages.Page{
@@ -220,12 +221,34 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 	htmlRec := httptest.NewRecorder()
 	for _, r := range pagesHandler.Routes() {
 		if strings.Contains(r.Pattern, "/public/pages/{locale}/{slug}/html") {
-			r.Handler.ServeHTTP(htmlRec, htmlReq)
+			security.CSRFMiddleware(false)(r.Handler).ServeHTTP(htmlRec, htmlReq)
 			break
 		}
 	}
 	if htmlRec.Code != http.StatusOK || !strings.Contains(htmlRec.Body.String(), "Journey Launch Title") {
 		t.Fatalf("public html route failed: code=%d, body=%s", htmlRec.Code, htmlRec.Body.String())
+	}
+	if htmlRec.Header().Get("Vary") != "Cookie" {
+		t.Fatalf("consent-dependent page response vary=%q, want Cookie", htmlRec.Header().Get("Vary"))
+	}
+	for _, marker := range []string{`action="/analytics/consent"`, `name="decision" value="granted"`, `name="decision" value="rejected"`, `name="_csrf" value="`} {
+		if !strings.Contains(htmlRec.Body.String(), marker) {
+			t.Errorf("public consent notice missing %q", marker)
+		}
+	}
+	consentedReq := httptest.NewRequest(http.MethodGet, "/public/pages/tr/journey-launch/html", nil)
+	consentedReq.SetPathValue("locale", "tr")
+	consentedReq.SetPathValue("slug", "journey-launch")
+	consentedReq.AddCookie(&http.Cookie{Name: analytics.ConsentCookie, Value: "opaque-consent"})
+	consentedRec := httptest.NewRecorder()
+	for _, r := range pagesHandler.Routes() {
+		if strings.Contains(r.Pattern, "/public/pages/{locale}/{slug}/html") {
+			r.Handler.ServeHTTP(consentedRec, consentedReq)
+			break
+		}
+	}
+	if strings.Contains(consentedRec.Body.String(), `data-cookie-notice`) {
+		t.Fatal("consented visitor still sees the analytics choice notice")
 	}
 
 	_ = rawToken

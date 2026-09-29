@@ -22,7 +22,7 @@ func formatReadingTime(minutes int) string {
 }
 
 type CookieNoticeProps struct {
-	Heading, Message, AcceptLabel, RejectLabel, Action, CSRF, Variant string
+	Heading, Message, AcceptLabel, RejectLabel, Action, CSRF, Variant, ReturnTo string
 }
 
 type DataTableProps struct {

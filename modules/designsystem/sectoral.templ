@@ -5,8 +5,9 @@ templ CookieNotice(p CookieNoticeProps) {
 		<div><h2>{ label(p.Heading, "Gizlilik tercihleriniz") }</h2><p>{ p.Message }</p></div>
 		<form method="post" action={ safeConsentAction(p.Action) }>
 			<input type="hidden" name="_csrf" value={ p.CSRF }/>
-			<button class="ds-button ds-button--primary" type="submit" name="choice" value="accepted" data-cookie-choice="accepted">{ label(p.AcceptLabel, "Kabul et") }</button>
-			<button class="ds-button ds-button--secondary" type="submit" name="choice" value="rejected" data-cookie-choice="rejected">{ label(p.RejectLabel, "Reddet") }</button>
+			<input type="hidden" name="return_to" value={ safeConsentAction(p.ReturnTo) }/>
+			<button class="ds-button ds-button--primary" type="submit" name="decision" value="granted" data-cookie-choice="granted">{ label(p.AcceptLabel, "Kabul et") }</button>
+			<button class="ds-button ds-button--secondary" type="submit" name="decision" value="rejected" data-cookie-choice="rejected">{ label(p.RejectLabel, "Reddet") }</button>
 		</form>
 	</section>
 }

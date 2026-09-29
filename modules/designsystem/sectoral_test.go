@@ -22,8 +22,8 @@ func TestSectoralHelpersHandleEscapingBoundsAndVariants(t *testing.T) {
 	if !strings.Contains(got, "<td></td>") || !strings.Contains(got, "scope=\"col\"") {
 		t.Fatalf("responsive table did not pad or label cells: %s", got)
 	}
-	got = render(t, CookieNotice(CookieNoticeProps{Heading: "Privacy", Variant: "pill", Action: "/consent", CSRF: "token"}))
-	if !strings.Contains(got, "ds-cookie-notice--pill") || !strings.Contains(got, "value=\"rejected\"") || !strings.Contains(got, "/consent") {
+	got = render(t, CookieNotice(CookieNoticeProps{Heading: "Privacy", Variant: "pill", Action: "/consent", CSRF: "token", ReturnTo: "/about"}))
+	if !strings.Contains(got, "ds-cookie-notice--pill") || !strings.Contains(got, `name="decision" value="rejected"`) || !strings.Contains(got, `name="decision" value="granted"`) || !strings.Contains(got, `name="return_to" value="/about"`) || !strings.Contains(got, "/consent") {
 		t.Fatalf("cookie notice = %s", got)
 	}
 	got = render(t, SocialPhotoGrid(SocialPhotoGridProps{Label: "Community", Photos: []SocialPhoto{{Image: "javascript:alert(1)", Alt: "bad"}, {Image: "/safe.webp", Alt: "safe"}}}))

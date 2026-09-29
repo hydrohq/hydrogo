@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -113,13 +112,30 @@ func ConsentHandler(store ConsentStore, secure bool) http.Handler {
 			consent.RevokedAt = &now
 		}
 		if err := store.SaveConsent(r.Context(), id, consent); err != nil {
-			http.Error(w, fmt.Sprintf("consent unavailable: %v", err), 500)
+			http.Error(w, "consent unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		w.Header().Set("Cache-Control", "private, no-store")
 		http.SetCookie(w, &http.Cookie{Name: ConsentCookie, Value: id, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
 		http.SetCookie(w, &http.Cookie{Name: PurposeCookie, Value: DefaultPurpose, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
+		if returnTo := safeConsentReturnPath(r.FormValue("return_to")); returnTo != "" {
+			http.Redirect(w, r, returnTo, http.StatusSeeOther)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+}
+
+func safeConsentReturnPath(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\\\r\n\x00") {
+		return ""
+	}
+	u, err := url.ParseRequestURI(value)
+	if err != nil || u.IsAbs() || u.Host != "" || u.Path == "" || !strings.HasPrefix(u.Path, "/") {
+		return ""
+	}
+	return u.RequestURI()
 }
 
 type AggregateEventStore interface {
