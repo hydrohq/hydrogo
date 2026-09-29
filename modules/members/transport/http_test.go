@@ -149,8 +149,14 @@ func (s *memorySessionStore) DeleteByMemberID(_ context.Context, memberID string
 	return nil
 }
 
-func (s *memorySessionStore) ListByMemberID(_ context.Context, _ string) ([]members.Session, error) {
-	return nil, nil
+func (s *memorySessionStore) ListByMemberID(_ context.Context, memberID string) ([]members.Session, error) {
+	var result []members.Session
+	for _, session := range s.sessions {
+		if session.MemberID == memberID {
+			result = append(result, *session)
+		}
+	}
+	return result, nil
 }
 
 func (s *memorySessionStore) Touch(_ context.Context, hash string, t time.Time) error {
@@ -326,6 +332,53 @@ func TestAdminSetActiveRevokesBrowserSessions(t *testing.T) {
 	}
 	if _, _, err := svc.ValidateSession(context.Background(), token); !errors.Is(err, members.ErrInvalidCredentials) {
 		t.Fatalf("deactivated member session still valid: session=%v err=%v", session.ID, err)
+	}
+}
+
+func TestAdminRevokeSessionBindsSessionToMember(t *testing.T) {
+	memberStore := newMemoryMemberStore()
+	memberStore.members["member-a"] = &members.Member{ID: "member-a", Email: "a@example.com", Active: true}
+	memberStore.members["member-b"] = &members.Member{ID: "member-b", Email: "b@example.com", Active: true}
+	sessions := newMemorySessionStore()
+	svc := members.Service{Members: memberStore, Sessions: sessions}
+	tokenA, sessionA, err := svc.CreateSession(context.Background(), "member-a", "test", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenB, sessionB, err := svc.CreateSession(context.Background(), "member-b", "test", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := transport.Handler{Service: svc}
+	var revoke http.Handler
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/members/{id}/sessions/{session_id}/revoke" {
+			revoke = route.Handler
+		}
+	}
+	request := httptest.NewRequest(http.MethodPost, "/admin/members/member-a/sessions/"+sessionB.ID+"/revoke", nil)
+	request.SetPathValue("id", "member-a")
+	request.SetPathValue("session_id", sessionB.ID)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	revoke.ServeHTTP(response, request)
+	if _, _, err := svc.ValidateSession(context.Background(), tokenB); err != nil {
+		t.Fatalf("member B session was revoked: %v", err)
+	}
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("cross-member revoke status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+	request = httptest.NewRequest(http.MethodPost, "/admin/members/member-a/sessions/"+sessionA.ID+"/revoke", nil)
+	request.SetPathValue("id", "member-a")
+	request.SetPathValue("session_id", sessionA.ID)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response = httptest.NewRecorder()
+	revoke.ServeHTTP(response, request)
+	if _, _, err := svc.ValidateSession(context.Background(), tokenA); !errors.Is(err, members.ErrInvalidCredentials) {
+		t.Fatalf("member A session survived own revoke: %v", err)
+	}
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("own revoke status = %d, want %d", response.Code, http.StatusSeeOther)
 	}
 }
 
