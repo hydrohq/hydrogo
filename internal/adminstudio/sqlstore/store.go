@@ -21,7 +21,7 @@ type Notification struct {
 	Read                           bool
 }
 
-func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor, start, end time.Time, analyticsEnabled bool) (adminstudio.WeeklyDigestStats, error) {
+func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor, start, end time.Time, analyticsEnabled bool, membersEnabled ...bool) (adminstudio.WeeklyDigestStats, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return adminstudio.WeeklyDigestStats{}, err
 	}
@@ -38,6 +38,32 @@ func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor,
 		return stats, err
 	}
 	if analyticsEnabled {
+		fromDay, toDay := start.UTC().Format("2006-01-02"), end.UTC().Format("2006-01-02")
+		for _, metric := range []struct {
+			name   string
+			target *int64
+		}{{"page", &stats.TotalVisits}, {"unique_visitors", &stats.UniqueVisitors}} {
+			if err := db.QueryRowContext(ctx, "SELECT COALESCE(SUM(event_count),0) FROM analytics_daily_stats WHERE tenant_id="+s.p(1)+" AND metric="+s.p(2)+" AND day>="+s.p(3)+" AND day<"+s.p(4), tenantID, metric.name, fromDay, toDay).Scan(metric.target); err != nil {
+				return stats, err
+			}
+		}
+		pages, err := db.QueryContext(ctx, "SELECT dimension,SUM(event_count) FROM analytics_daily_stats WHERE tenant_id="+s.p(1)+" AND metric='page' AND day>="+s.p(2)+" AND day<"+s.p(3)+" GROUP BY dimension ORDER BY SUM(event_count) DESC,dimension LIMIT 3", tenantID, fromDay, toDay)
+		if err != nil {
+			return stats, err
+		}
+		for pages.Next() {
+			var item adminstudio.PageCount
+			if err := pages.Scan(&item.Path, &item.Count); err != nil {
+				pages.Close()
+				return stats, err
+			}
+			stats.TopPages = append(stats.TopPages, item)
+		}
+		if err := pages.Err(); err != nil {
+			pages.Close()
+			return stats, err
+		}
+		pages.Close()
 		rows, err := db.QueryContext(ctx, "SELECT dimension,SUM(event_count) FROM analytics_daily_stats WHERE tenant_id="+s.p(1)+" AND metric='referrer' AND day>="+s.p(2)+" AND day<"+s.p(3)+" GROUP BY dimension ORDER BY SUM(event_count) DESC,dimension LIMIT 5", tenantID, start.Format("2006-01-02"), end.Format("2006-01-02"))
 		if err != nil {
 			return stats, err
@@ -51,6 +77,11 @@ func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor,
 			stats.TopReferrers = append(stats.TopReferrers, item)
 		}
 		if err := rows.Err(); err != nil {
+			return stats, err
+		}
+	}
+	if len(membersEnabled) > 0 && membersEnabled[0] {
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM members WHERE tenant_id="+s.p(1)+" AND created_at>="+s.p(2)+" AND created_at<"+s.p(3), tenantID, start.UTC().Format(time.RFC3339Nano), end.UTC().Format(time.RFC3339Nano)).Scan(&stats.NewMembers); err != nil {
 			return stats, err
 		}
 	}
@@ -179,6 +210,10 @@ func (s Store) UnreadCount(ctx context.Context, db database.Executor, userID str
 }
 
 func (s Store) SetDigestPreference(ctx context.Context, db database.Executor, userID, timezone string, enabled bool) error {
+	return s.SetDigestPreferenceWithFrequency(ctx, db, userID, timezone, string(adminstudio.DigestWeekly), enabled)
+}
+
+func (s Store) SetDigestPreferenceWithFrequency(ctx context.Context, db database.Executor, userID, timezone, frequency string, enabled bool) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -188,12 +223,18 @@ func (s Store) SetDigestPreference(ctx context.Context, db database.Executor, us
 	if _, err := time.LoadLocation(timezone); err != nil {
 		return ErrInvalid
 	}
+	if frequency != string(adminstudio.DigestWeekly) && frequency != string(adminstudio.DigestMonthly) {
+		return ErrInvalid
+	}
 	tenantID := ""
 	if scope, err := tenant.FromContext(ctx); err == nil {
 		tenantID = scope.TenantID
 	}
-	query := "INSERT INTO admin_digest_preferences (tenant_id,user_id,enabled,timezone) VALUES (" + s.p(1) + "," + s.p(2) + "," + s.p(3) + "," + s.p(4) + ") ON CONFLICT (tenant_id,user_id) DO UPDATE SET enabled=excluded.enabled,timezone=excluded.timezone,updated_at=" + s.p(5)
-	_, err := db.ExecContext(ctx, query, tenantID, userID, enabled, timezone, time.Now().UTC())
+	query := "INSERT INTO admin_digest_preferences (tenant_id,user_id,enabled,timezone,frequency) VALUES (" + s.p(1) + "," + s.p(2) + "," + s.p(3) + "," + s.p(4) + "," + s.p(5) + ") ON CONFLICT (tenant_id,user_id) DO UPDATE SET enabled=excluded.enabled,timezone=excluded.timezone,frequency=excluded.frequency,updated_at=" + s.p(6)
+	if s.Dialect == database.MySQL {
+		query = "INSERT INTO admin_digest_preferences (tenant_id,user_id,enabled,timezone,frequency) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),timezone=VALUES(timezone),frequency=VALUES(frequency),updated_at=CURRENT_TIMESTAMP(6)"
+	}
+	_, err := db.ExecContext(ctx, query, tenantID, userID, enabled, timezone, frequency, time.Now().UTC())
 	return err
 }
 
@@ -205,31 +246,52 @@ func (s Store) DigestPreferencesAfter(ctx context.Context, db database.QueryExec
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
-	if limit < 1 || limit > 500 { return nil, ErrInvalid }
-	query := "SELECT user_id,timezone,last_sent_week FROM admin_digest_preferences WHERE enabled="
+	if limit < 1 || limit > 500 {
+		return nil, ErrInvalid
+	}
+	query := "SELECT user_id,timezone,frequency,last_sent_week FROM admin_digest_preferences WHERE enabled="
 	if s.Dialect == database.Postgres {
 		query += "TRUE"
 	} else {
 		query += "1"
 	}
-	args := make([]any,0,3)
+	args := make([]any, 0, 3)
 	if scope, err := tenant.FromContext(ctx); err == nil {
-		args=append(args,scope.TenantID)
+		args = append(args, scope.TenantID)
 		query += " AND tenant_id=" + s.p(len(args))
 	}
-	if _,err:=tenant.FromContext(ctx);err!=nil { query += " AND tenant_id=''" }
-	args=append(args,after)
-	query += " AND user_id>"+s.p(len(args))+" ORDER BY user_id LIMIT "+s.p(len(args)+1)
-	args=append(args,limit)
-	rows,err:=db.QueryContext(ctx,query,args...);if err!=nil{return nil,err};defer rows.Close()
-	items:=make([]adminstudio.DigestPreference,0,limit)
-	for rows.Next(){var item adminstudio.DigestPreference;if err:=rows.Scan(&item.UserID,&item.Timezone,&item.LastSentWeek);err!=nil{return nil,err};if _,err:=time.LoadLocation(item.Timezone);err==nil{items=append(items,item)}}
-	return items,rows.Err()
+	if _, err := tenant.FromContext(ctx); err != nil {
+		query += " AND tenant_id=''"
+	}
+	args = append(args, after)
+	query += " AND user_id>" + s.p(len(args)) + " ORDER BY user_id LIMIT " + s.p(len(args)+1)
+	args = append(args, limit)
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]adminstudio.DigestPreference, 0, limit)
+	for rows.Next() {
+		var item adminstudio.DigestPreference
+		if err := rows.Scan(&item.UserID, &item.Timezone, &item.Frequency, &item.LastSentPeriod); err != nil {
+			return nil, err
+		}
+		if _, err := time.LoadLocation(item.Timezone); err == nil {
+			items = append(items, item)
+		}
+	}
+	return items, rows.Err()
 }
 
 func (s Store) DigestPreferenceFor(ctx context.Context, db database.Executor, userID string) (bool, string, error) {
+	enabled, timezone, _, err := s.DigestPreferenceDetailsFor(ctx, db, userID)
+	return enabled, timezone, err
+}
+
+func (s Store) DigestPreferenceDetailsFor(ctx context.Context, db database.Executor, userID string) (bool, string, string, error) {
 	if err := database.RequireExecutor(db); err != nil {
-		return false, "UTC", err
+		return false, "UTC", string(adminstudio.DigestMonthly), err
 	}
 	tenantID := ""
 	if scope, err := tenant.FromContext(ctx); err == nil {
@@ -237,11 +299,12 @@ func (s Store) DigestPreferenceFor(ctx context.Context, db database.Executor, us
 	}
 	var enabled bool
 	var timezone string
-	err := db.QueryRowContext(ctx, "SELECT enabled,timezone FROM admin_digest_preferences WHERE tenant_id="+s.p(1)+" AND user_id="+s.p(2), tenantID, userID).Scan(&enabled, &timezone)
+	frequency := string(adminstudio.DigestMonthly)
+	err := db.QueryRowContext(ctx, "SELECT enabled,timezone,frequency FROM admin_digest_preferences WHERE tenant_id="+s.p(1)+" AND user_id="+s.p(2), tenantID, userID).Scan(&enabled, &timezone, &frequency)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, "UTC", nil
+		return false, "UTC", string(adminstudio.DigestMonthly), nil
 	}
-	return enabled, timezone, err
+	return enabled, timezone, frequency, err
 }
 
 // ClaimDigestWeek must run in the same transaction as mail-spool insertion.
@@ -250,7 +313,7 @@ func (s Store) ClaimDigestWeek(ctx context.Context, tx database.Executor, userID
 	if err := database.RequireExecutor(tx); err != nil {
 		return false, err
 	}
-	if userID == "" || len(week) != 10 {
+	if userID == "" || (len(week) != 10 && len(week) != 7) {
 		return false, ErrInvalid
 	}
 	tenantID := ""

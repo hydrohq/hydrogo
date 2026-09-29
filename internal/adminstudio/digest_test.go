@@ -24,6 +24,33 @@ func TestWeeklyDigestWindowUsesLocalMondayNineAndCalendarWeek(t *testing.T) {
 	}
 }
 
+func TestMonthlyDigestWindowUsesLocalFirstAtNine(t *testing.T) {
+	before := time.Date(2026, 3, 1, 8, 59, 0, 0, time.UTC)
+	start, end, key, due, err := MonthlyDigestWindow(before, "UTC")
+	if err != nil || due || key != "2026-02" || start.Format("2006-01-02") != "2026-02-01" || end.Format("2006-01-02") != "2026-03-01" {
+		t.Fatalf("before: %s %s %s due=%v err=%v", start, end, key, due, err)
+	}
+	after := before.Add(time.Minute)
+	_, _, key, due, err = MonthlyDigestWindow(after, "UTC")
+	if err != nil || !due || key != "2026-02" {
+		t.Fatalf("after key=%s due=%v err=%v", key, due, err)
+	}
+}
+
+func TestMonthlyDigestIncludesMetricsAndEscapesPagePaths(t *testing.T) {
+	stats := DigestStats{NewLeads: 2, TotalVisits: 30, UniqueVisitors: 20, NewMembers: 4, TopPages: []PageCount{{Path: "/\"><script>", Count: 8}}}
+	body := BuildDigestText(stats, time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), DigestMonthly)
+	html := BuildDigestHTML(stats, time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), DigestMonthly)
+	for _, want := range []string{"Toplam ziyaret: 30", "Tekil ziyaretçi: 20", "Yeni üye: 4", "/\"><script>: 8"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("text lacks %q: %s", want, body)
+		}
+	}
+	if strings.Contains(html, "<script>") || !strings.Contains(html, "&lt;script&gt;") || strings.Count(html, "<ul>") != strings.Count(html, "</ul>") {
+		t.Fatalf("invalid or unsafe HTML: %s", html)
+	}
+}
+
 func TestWeeklyDigestHTMLEscapesReferrers(t *testing.T) {
 	html := BuildWeeklyDigestHTML(WeeklyDigestStats{NewLeads: 2, TopReferrers: []ReferrerCount{{Host: "<script>bad</script>", Count: 3}}}, time.Now(), time.Now())
 	if strings.Contains(html, "<script>bad") || !strings.Contains(html, "&lt;script&gt;") {

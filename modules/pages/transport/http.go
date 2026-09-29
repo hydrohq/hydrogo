@@ -216,7 +216,7 @@ func (h Handler) adminNotifications(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "E-posta özeti şu anda kullanılamıyor.", http.StatusServiceUnavailable)
 				return
 			}
-			err = h.Notifications.SetDigestPreference(r.Context(), h.DB, user.ID, r.FormValue("timezone"), r.FormValue("enabled") == "true")
+			err = h.Notifications.SetDigestPreferenceWithFrequency(r.Context(), h.DB, user.ID, r.FormValue("timezone"), r.FormValue("frequency"), r.FormValue("enabled") == "true")
 		default:
 			http.Error(w, "İşlem geçersiz.", http.StatusBadRequest)
 			return
@@ -246,7 +246,7 @@ func (h Handler) adminNotifications(w http.ResponseWriter, r *http.Request) {
 	for _, item := range items {
 		view = append(view, ui.NotificationItem{ID: item.ID, Title: item.Title, Message: item.Message, TargetPath: item.TargetPath, Created: item.CreatedAt.Local().Format("02.01.2006 15:04"), Read: item.Read})
 	}
-	digestEnabled, timezone, err := h.Notifications.DigestPreferenceFor(r.Context(), h.DB, user.ID)
+	digestEnabled, timezone, frequency, err := h.Notifications.DigestPreferenceDetailsFor(r.Context(), h.DB, user.ID)
 	if err != nil {
 		http.Error(w, "Tercihler yüklenemedi.", http.StatusServiceUnavailable)
 		return
@@ -255,7 +255,7 @@ func (h Handler) adminNotifications(w http.ResponseWriter, r *http.Request) {
 	if ui.AdminStartForRequest(w, r, "Bildirimler", "", "", "dashboard") != nil {
 		return
 	}
-	_ = ui.NotificationCenter(view, security.CSRFTokenFromContext(r.Context()), digestEnabled, timezone, h.WeeklyDigestEnabled).Render(r.Context(), w)
+	_ = ui.NotificationCenter(view, security.CSRFTokenFromContext(r.Context()), digestEnabled, timezone, frequency, h.WeeklyDigestEnabled).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
 

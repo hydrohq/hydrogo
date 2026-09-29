@@ -946,7 +946,7 @@ func DraftPreviewLinkResult(link, expires string) templ.Component {
 	})
 }
 
-func NotificationCenter(items []NotificationItem, csrf string, digestEnabled bool, timezone string, digestAvailable bool) templ.Component {
+func NotificationCenter(items []NotificationItem, csrf string, digestEnabled bool, timezone, frequency string, digestAvailable bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1008,59 +1008,79 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "> Pazartesi özeti e-postasını al</label><label>Saat dilimi<select name=\"timezone\"><option value=\"UTC\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "> Site özeti e-postasını al</label><label>Sıklık<select name=\"frequency\"><option value=\"monthly\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if timezone == "UTC" {
+			if frequency == "monthly" {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, ">UTC</option><option value=\"Europe/Istanbul\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, ">Aylık yönetici özeti</option><option value=\"weekly\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if timezone == "Europe/Istanbul" {
+			if frequency == "weekly" {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, ">İstanbul</option><option value=\"Europe/London\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, ">Haftalık özet</option></select></label><label>Saat dilimi<select name=\"timezone\"><option value=\"UTC\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if timezone == "Europe/London" {
+			if timezone == "UTC" {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, ">Londra</option><option value=\"America/New_York\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, ">UTC</option><option value=\"Europe/Istanbul\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if timezone == "America/New_York" {
+			if timezone == "Europe/Istanbul" {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, ">New York</option></select></label><button class=\"button button-quiet\" type=\"submit\">Tercihi kaydet</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, ">İstanbul</option><option value=\"Europe/London\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if timezone == "Europe/London" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, ">Londra</option><option value=\"America/New_York\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if timezone == "America/New_York" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, ">New York</option></select></label><button class=\"button button-quiet\" type=\"submit\">Tercihi kaydet</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if len(items) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<p role=\"status\">Yeni bildiriminiz yok.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<p role=\"status\">Yeni bildiriminiz yok.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		for _, item := range items {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<article class=\"notification-item\"><div><h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "<article class=\"notification-item\"><div><h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1073,7 +1093,7 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</h3><p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</h3><p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1086,7 +1106,7 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</p><time>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "</p><time>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1099,7 +1119,7 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</time></div><div class=\"studio-actions\"><a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</time></div><div class=\"studio-actions\"><a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1112,7 +1132,7 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\">Görüntüle</a><form method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\">Görüntüle</a><form method=\"post\" action=\"/admin/notifications\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1125,7 +1145,7 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"><input type=\"hidden\" name=\"action\" value=\"dismiss\"><input type=\"hidden\" name=\"id\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\"><input type=\"hidden\" name=\"action\" value=\"dismiss\"><input type=\"hidden\" name=\"id\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1138,12 +1158,12 @@ func NotificationCenter(items []NotificationItem, csrf string, digestEnabled boo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\"><button class=\"button button-quiet\" type=\"submit\">Kapat</button></form></div></article>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\"><button class=\"button button-quiet\" type=\"submit\">Kapat</button></form></div></article>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1172,12 +1192,12 @@ func GuideCenter(videoURL string) templ.Component {
 			templ_7745c5c3_Var60 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<section class=\"studio-card\" data-guide-center><h2>Yardım ve rehberler</h2><div role=\"tablist\" aria-label=\"Rehber sekmeleri\"><button type=\"button\" role=\"tab\" aria-selected=\"true\" aria-controls=\"guide-start\" id=\"guide-tab-start\" data-guide-tab=\"start\">Başlangıç</button> <button type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"guide-video\" id=\"guide-tab-video\" data-guide-tab=\"video\">Video rehberi</button></div><section role=\"tabpanel\" id=\"guide-start\" aria-labelledby=\"guide-tab-start\" data-guide-panel=\"start\"><h3>Studio’da çalışmaya başlayın</h3><p>İçerik alanından sayfa ve haberlerinizi düzenleyin. Değişiklikleri önizleyip hazır olduğunda yayınlayın.</p><nav><a href=\"/admin/pages\">Sayfaları aç</a><a href=\"/admin/news\">Haberleri aç</a></nav></section><section role=\"tabpanel\" id=\"guide-video\" aria-labelledby=\"guide-tab-video\" data-guide-panel=\"video\" hidden><h3>Video rehberi</h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<section class=\"studio-card\" data-guide-center><h2>Yardım ve rehberler</h2><div role=\"tablist\" aria-label=\"Rehber sekmeleri\"><button type=\"button\" role=\"tab\" aria-selected=\"true\" aria-controls=\"guide-start\" id=\"guide-tab-start\" data-guide-tab=\"start\">Başlangıç</button> <button type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"guide-video\" id=\"guide-tab-video\" data-guide-tab=\"video\">Video rehberi</button></div><section role=\"tabpanel\" id=\"guide-start\" aria-labelledby=\"guide-tab-start\" data-guide-panel=\"start\"><h3>Studio’da çalışmaya başlayın</h3><p>İçerik alanından sayfa ve haberlerinizi düzenleyin. Değişiklikleri önizleyip hazır olduğunda yayınlayın.</p><nav><a href=\"/admin/pages\">Sayfaları aç</a><a href=\"/admin/news\">Haberleri aç</a></nav></section><section role=\"tabpanel\" id=\"guide-video\" aria-labelledby=\"guide-tab-video\" data-guide-panel=\"video\" hidden><h3>Video rehberi</h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if videoURL != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<p>Studio’nun temel adımlarını videoda izleyin.</p><a class=\"button button-primary\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<p>Studio’nun temel adımlarını videoda izleyin.</p><a class=\"button button-primary\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1190,17 +1210,17 @@ func GuideCenter(videoURL string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" target=\"_blank\" rel=\"noopener noreferrer\">Videoyu aç</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "\" target=\"_blank\" rel=\"noopener noreferrer\">Videoyu aç</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<p>Video rehberi henüz yapılandırılmadı.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<p>Video rehberi henüz yapılandırılmadı.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "</section></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "</section></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
