@@ -284,7 +284,7 @@ func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid password recovery request", http.StatusBadRequest)
 		return
 	}
-	if h.RecoveryLimiter != nil && !security.AllowForRequest(h.RecoveryLimiter, r.Context(), clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
+	if h.RecoveryLimiter != nil && !security.AllowForRequest(h.RecoveryLimiter, r.Context(), clientIP(r)) {
 		security.WriteRateLimitedResponse(w, "too many password recovery requests", time.Minute)
 		return
 	}
@@ -377,7 +377,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid login request", http.StatusBadRequest)
 		return
 	}
-	if h.LoginLimiter != nil && !security.AllowForRequest(h.LoginLimiter, r.Context(), clientIP(r)+":"+NormalizeEmail(r.FormValue("email"))) {
+	if h.LoginLimiter != nil && !security.AllowForRequest(h.LoginLimiter, r.Context(), clientIP(r)) {
 		security.WriteRateLimitedResponse(w, "too many authentication attempts", time.Minute)
 		return
 	}

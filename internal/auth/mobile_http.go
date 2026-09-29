@@ -88,7 +88,7 @@ func (h MobileHTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	if !decodeMobileJSON(w, r, &input) {
 		return
 	}
-	if h.LoginLimiter != nil && !security.AllowForRequest(h.LoginLimiter, r.Context(), clientIP(r)+":"+NormalizeEmail(input.Email)) {
+	if h.LoginLimiter != nil && !security.AllowForRequest(h.LoginLimiter, r.Context(), clientIP(r)) {
 		writeMobileError(w, http.StatusTooManyRequests, "RATE_LIMITED", "Too many authentication attempts.")
 		return
 	}

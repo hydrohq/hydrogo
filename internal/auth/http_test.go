@@ -481,3 +481,38 @@ func TestAdminPermissionEndpointBoundsFormBody(t *testing.T) {
 		t.Fatalf("oversized permission form status=%d, want %d", rec.Code, http.StatusBadRequest)
 	}
 }
+
+func TestLoginRateLimitBypassByChangingEmail(t *testing.T) {
+	service := &AuthService{userRepo: httpUserRepo{}}
+	handler := HTTPHandler{
+		Service:       service,
+		LoginLimiter:  security.NewAttemptLimiter(1, 1, time.Minute),
+	}.login
+
+	makeRequest := func(email string) *httptest.ResponseRecorder {
+		form := url.Values{"email": {email}, "password": {"wrong"}}
+		req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.RemoteAddr = "192.168.1.1:1234"
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec
+	}
+
+	first := makeRequest("user1@example.com")
+	if first.Code != http.StatusUnauthorized {
+		t.Fatalf("Expected 401, got %d", first.Code)
+	}
+
+	second := makeRequest("user1@example.com")
+	if second.Code != http.StatusTooManyRequests {
+		t.Fatalf("Expected 429, got %d", second.Code)
+	}
+
+	third := makeRequest("user2@example.com")
+	if third.Code == http.StatusUnauthorized {
+		t.Fatalf("VULNERABILITY: Rate limit bypassed by changing email! Expected 429, got 401")
+	} else if third.Code != http.StatusTooManyRequests {
+		t.Fatalf("Expected 429, got %d", third.Code)
+	}
+}
