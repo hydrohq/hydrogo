@@ -6,7 +6,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"go.opentelemetry.io/otel/trace"
@@ -41,12 +40,6 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 			}
 			if scope, err := tenant.FromContext(r.Context()); err == nil {
 				attrs = append(attrs, slog.String("tenant_id", scope.TenantID))
-			}
-			if user := auth.UserFromContext(r.Context()); user != nil && user.ID != "" {
-				attrs = append(attrs, slog.String("actor_id", user.ID), slog.String("user_id", user.ID))
-			}
-			if session := auth.SessionFromContext(r.Context()); session != nil && session.ID != "" {
-				attrs = append(attrs, slog.String("session_id", session.ID))
 			}
 			if jobID := security.JobIDFromContext(r.Context()); jobID != "" {
 				attrs = append(attrs, slog.String("job_id", jobID))
