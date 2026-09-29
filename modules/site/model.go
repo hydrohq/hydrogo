@@ -33,6 +33,86 @@ type Setting struct {
 	UpdatedAt time.Time
 }
 
+type ContactWidget struct {
+	Enabled        bool
+	Phone          string
+	WhatsAppNumber string
+	Message        string
+	Position       string
+	MobileOnly     bool
+}
+
+func ContactWidgetFromSettings(settings []Setting) ContactWidget {
+	values := make(map[string]string, len(settings))
+	for _, setting := range settings {
+		values[setting.Key] = setting.Value
+	}
+	position := values["contact_widget.position"]
+	if position == "" {
+		position = "bottom-right"
+	}
+	return ContactWidget{
+		Enabled: values["contact_widget.enabled"] == "true", Phone: values["contact_widget.phone"],
+		WhatsAppNumber: values["contact_widget.whatsapp_number"], Message: values["contact_widget.message"],
+		Position: position, MobileOnly: values["contact_widget.mobile_only"] == "true",
+	}
+}
+
+func ContactWidgetConfigured(settings []Setting) bool {
+	for _, setting := range settings {
+		if setting.Key == "contact_widget.enabled" {
+			return true
+		}
+	}
+	return false
+}
+
+func (value ContactWidget) Settings() []Setting {
+	boolString := func(value bool) string {
+		if value {
+			return "true"
+		}
+		return "false"
+	}
+	return []Setting{
+		{Key: "contact_widget.enabled", Value: boolString(value.Enabled), Public: true},
+		{Key: "contact_widget.phone", Value: strings.TrimSpace(value.Phone), Public: true},
+		{Key: "contact_widget.whatsapp_number", Value: strings.TrimSpace(value.WhatsAppNumber), Public: true},
+		{Key: "contact_widget.message", Value: strings.TrimSpace(value.Message), Public: true},
+		{Key: "contact_widget.position", Value: strings.TrimSpace(value.Position), Public: true},
+		{Key: "contact_widget.mobile_only", Value: boolString(value.MobileOnly), Public: true},
+	}
+}
+
+func (value ContactWidget) Validate() error {
+	validPhone := func(raw string) bool {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return true
+		}
+		if len(raw) < 7 || len(raw) > 40 {
+			return false
+		}
+		for i, r := range raw {
+			if r == '+' && i == 0 || r >= '0' && r <= '9' || strings.ContainsRune(" ()-.", r) {
+				continue
+			}
+			return false
+		}
+		digits := 0
+		for _, r := range raw {
+			if r >= '0' && r <= '9' {
+				digits++
+			}
+		}
+		return digits >= 7 && digits <= 15
+	}
+	if value.Enabled && !validPhone(value.Phone) || value.Enabled && !validPhone(value.WhatsAppNumber) || len(value.Message) > 500 || value.Position != "bottom-right" && value.Position != "bottom-left" || value.Enabled && strings.TrimSpace(value.Phone) == "" && strings.TrimSpace(value.WhatsAppNumber) == "" || strings.ContainsAny(value.Message, "\x00") {
+		return ErrInvalidSetting
+	}
+	return nil
+}
+
 // ResolvePublicHomePath returns a configured internal home path when the
 // setting is public and safe. Invalid or missing settings deliberately fall
 // back to the caller-provided path so a bad editorial value cannot create an

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
@@ -15,6 +16,17 @@ import (
 type publicMediaURLStub struct {
 	URL string
 	Err error
+}
+
+func TestFloatingContactUsesConfiguredSupportOnly(t *testing.T) {
+	handler := Handler{PublicSupport: adminstudio.SupportConfig{Enabled: true, Phone: "+1 415 555 0132", WhatsAppURL: "https://wa.me/14155550132"}}
+	got := handler.floatingContact(context.Background(), "en")
+	if !strings.Contains(got, `aria-label="Contact options"`) || !strings.Contains(got, `href="tel:+14155550132"`) {
+		t.Fatalf("configured public contact missing: %s", got)
+	}
+	if got := (Handler{}).floatingContact(context.Background(), "tr"); got != "" {
+		t.Fatalf("disabled support rendered: %s", got)
+	}
 }
 
 func (s publicMediaURLStub) PublicURL(string) (string, error) { return s.URL, s.Err }

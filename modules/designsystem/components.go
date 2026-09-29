@@ -51,6 +51,37 @@ type ConfettiProps struct {
 	Label   string
 }
 type ContactCTAProps struct{ Phone, WhatsApp, Message, PhoneLabel, WhatsAppLabel string }
+type FloatingContactProps struct {
+	Phone, WhatsAppURL, WhatsAppNumber, Message    string
+	AriaLabel, PhoneLabel, WhatsAppLabel, Position string
+	MobileOnly                                     bool
+}
+type ContactWidgetSettingsProps struct {
+	CSRF, Phone, WhatsAppNumber, Message, Position string
+	Enabled, MobileOnly                            bool
+}
+
+func floatingPhone(p FloatingContactProps) string { return validPhone(p.Phone) }
+func floatingWhatsApp(p FloatingContactProps) string {
+	url := p.WhatsAppURL
+	if p.WhatsAppNumber != "" {
+		url = WhatsAppURL(p.WhatsAppNumber, p.Message)
+	}
+	return safeWhatsAppURL(url)
+}
+func floatingPosition(p FloatingContactProps) string {
+	if p.Position == "bottom-left" {
+		return "ds-floating-contact--left"
+	}
+	return "ds-floating-contact--right"
+}
+func floatingVisibility(p FloatingContactProps) string {
+	if p.MobileOnly {
+		return "ds-floating-contact--mobile"
+	}
+	return ""
+}
+
 type ExportLink struct{ Label, URL string }
 type SoundAlertPreferenceProps struct{ Title, Label, Description string }
 type ContentViewSortProps struct{ Path, Status, Selected string }
@@ -211,6 +242,20 @@ func validShareURL(value string) string {
 		return ""
 	}
 	return u.String()
+}
+
+func safeWhatsAppURL(value string) string {
+	value = strings.TrimSpace(value)
+	u, err := url.Parse(value)
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Fragment != "" || u.Port() != "" {
+		return ""
+	}
+	switch strings.ToLower(u.Hostname()) {
+	case "wa.me", "api.whatsapp.com", "web.whatsapp.com":
+		return u.String()
+	default:
+		return ""
+	}
 }
 
 func shareIntentURL(provider, value, title string) string {

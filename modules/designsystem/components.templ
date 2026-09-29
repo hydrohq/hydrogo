@@ -167,6 +167,32 @@ templ ContactCTA(p ContactCTAProps) {
 	</section>
 }
 
+templ FloatingContact(p FloatingContactProps) {
+	if floatingPhone(p) != "" || floatingWhatsApp(p) != "" {
+		<nav class={ "ds-floating-contact " + floatingPosition(p) + " " + floatingVisibility(p) } aria-label={ label(p.AriaLabel, "Contact options") } data-floating-contact>
+			if phone := floatingPhone(p); phone != "" {
+				<a class="ds-button ds-button--primary" href={ "tel:" + phone } data-contact-action="call">{ label(p.PhoneLabel, "Call") }</a>
+			}
+			if whatsapp := floatingWhatsApp(p); whatsapp != "" {
+				<a class="ds-button ds-button--secondary" href={ templ.SafeURL(whatsapp) } target="_blank" rel="noopener noreferrer" data-contact-action="whatsapp">{ label(p.WhatsAppLabel, "WhatsApp") }</a>
+			}
+		</nav>
+	}
+}
+
+templ ContactWidgetSettings(p ContactWidgetSettingsProps) {
+	<form class="studio-card grid gap-4" method="post" action="/admin/appearance/contact-widget">
+		<input type="hidden" name="_csrf" value={ p.CSRF } />
+		<label class="flex items-center gap-2"><input type="checkbox" name="enabled" value="true" checked?={ p.Enabled } /> Enable floating contact widget</label>
+		<label class="grid gap-1">WhatsApp number with country code<input class="rounded border border-border bg-surface p-2" name="whatsapp_number" type="tel" maxlength="40" value={ p.WhatsAppNumber } placeholder="+90 555 123 4567" /></label>
+		<label class="grid gap-1">Direct call number<input class="rounded border border-border bg-surface p-2" name="phone" type="tel" maxlength="40" value={ p.Phone } placeholder="+90 212 555 0100" /></label>
+		<label class="grid gap-1">WhatsApp welcome message<textarea class="rounded border border-border bg-surface p-2" name="message" maxlength="500">{ p.Message }</textarea></label>
+		<label class="grid gap-1">Position<select class="rounded border border-border bg-surface p-2" name="position"><option value="bottom-right" selected?={ p.Position == "bottom-right" }>Bottom right</option><option value="bottom-left" selected?={ p.Position == "bottom-left" }>Bottom left</option></select></label>
+		<label class="flex items-center gap-2"><input type="checkbox" name="mobile_only" value="true" checked?={ p.MobileOnly } /> Show only on mobile devices</label>
+		<button class="ds-button ds-button--primary" type="submit">Save contact widget</button>
+	</form>
+}
+
 templ Countdown(p CountdownProps) {
 	<section class="ds-countdown bg-surface text-foreground" data-countdown data-target={ p.Target } data-expired-headline={ p.ExpiredHeadline } data-expired-url={ safeLink(p.ExpiredURL) } data-timezone={ p.Timezone } aria-live="polite">
 		<div class="ds-countdown__clock" aria-label="Countdown"><span data-countdown-days>0</span> days <span data-countdown-hours>00</span> hours <span data-countdown-minutes>00</span> minutes <span data-countdown-seconds>00</span> seconds</div>

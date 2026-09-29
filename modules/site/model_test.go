@@ -52,6 +52,33 @@ func TestValidateIdempotencyKey(t *testing.T) {
 	}
 }
 
+func TestContactWidgetSettingsRoundTripAndValidation(t *testing.T) {
+	widget := ContactWidget{Enabled: true, Phone: "+90 212 555 0100", WhatsAppNumber: "+90 555 123 4567", Message: "Merhaba", Position: "bottom-left", MobileOnly: true}
+	settings := widget.Settings()
+	if !ContactWidgetConfigured(settings) {
+		t.Fatal("saved widget should be considered configured")
+	}
+	if got := ContactWidgetFromSettings(settings); got != widget {
+		t.Fatalf("round trip = %#v, want %#v", got, widget)
+	}
+	if err := widget.Validate(); err != nil {
+		t.Fatalf("valid widget rejected: %v", err)
+	}
+	if ContactWidgetConfigured(nil) {
+		t.Fatal("missing settings should allow legacy fallback")
+	}
+	for _, invalid := range []ContactWidget{
+		{Enabled: true, Position: "bottom-right"},
+		{Enabled: true, Phone: "javascript:alert(1)", Position: "bottom-right"},
+		{Position: "center", Phone: "+90 212 555 0100"},
+		{Message: strings.Repeat("x", 501), Position: "bottom-right"},
+	} {
+		if err := invalid.Validate(); err != ErrInvalidSetting {
+			t.Fatalf("invalid widget %#v error = %v", invalid, err)
+		}
+	}
+}
+
 func TestValidateSubmissionLocationMetadata(t *testing.T) {
 	base := Submission{ID: "submission-1", FormKey: "contact", Email: "visitor@example.test", SourceIPHash: "hash", Payload: `{}`}
 	for _, tc := range []struct {

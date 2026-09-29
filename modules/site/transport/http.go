@@ -108,6 +108,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/translations", Handler: http.HandlerFunc(h.saveTranslation)},
 		{Pattern: "GET /admin/site/appearance", Handler: http.HandlerFunc(h.appearance)},
 		{Pattern: "POST /admin/site/appearance", Handler: http.HandlerFunc(h.saveAppearance)},
+		{Pattern: "GET /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.contactWidget)},
+		{Pattern: "POST /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.saveContactWidget)},
 		{Pattern: "GET /admin/site/seo", Handler: http.HandlerFunc(h.seoSettings)},
 		{Pattern: "POST /admin/site/seo", Handler: http.HandlerFunc(h.saveSEOSettings)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
@@ -145,6 +147,45 @@ func (h Handler) Routes() []Route {
 		)
 	}
 	return routes
+}
+
+func (h Handler) contactWidget(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil || guards.IsNil(h.Store) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	settings, err := h.Store.ListPublicSettings(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "contact settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	value := site.ContactWidgetFromSettings(settings)
+	if err := ui.AdminStartForRequest(w, r, "İletişim bileşeni", "Arama ve WhatsApp seçeneklerini yönetin", security.NonceFromContext(r.Context()), "site"); err != nil {
+		return
+	}
+	_ = designsystem.ContactWidgetSettings(designsystem.ContactWidgetSettingsProps{CSRF: security.CSRFTokenFromContext(r.Context()), Enabled: value.Enabled, Phone: value.Phone, WhatsAppNumber: value.WhatsAppNumber, Message: value.Message, Position: value.Position, MobileOnly: value.MobileOnly}).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveContactWidget(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid contact settings", http.StatusBadRequest)
+		return
+	}
+	value := site.ContactWidget{Enabled: r.FormValue("enabled") == "true", Phone: r.FormValue("phone"), WhatsAppNumber: r.FormValue("whatsapp_number"), Message: r.FormValue("message"), Position: r.FormValue("position"), MobileOnly: r.FormValue("mobile_only") == "true"}
+	if value.Position == "" {
+		value.Position = "bottom-right"
+	}
+	if err := h.Service.SaveContactWidget(r.Context(), value); err != nil {
+		http.Error(w, "invalid contact settings", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/appearance/contact-widget?saved=1", http.StatusSeeOther)
 }
 
 func (h Handler) translations(w http.ResponseWriter, r *http.Request) {
