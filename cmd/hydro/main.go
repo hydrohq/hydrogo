@@ -1614,13 +1614,23 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		memberHTTP = membertransport.Handler{Service: memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale, Push: pushDispatcher}
 	}
 	var smtpSender mailer.Sender
+	var emailBrandingSettings mailer.EmailBrandingProvider
+	if modules["auth"] {
+		emailBrandingSettings = mailstore.EmailBrandingStore{DB: db, Dialect: cfg.Database.Dialect}
+	}
+	decorateEmailSender := func(sender mailer.Sender) mailer.Sender {
+		if emailBrandingSettings == nil {
+			return sender
+		}
+		return mailer.BrandedSender{Next: sender, Settings: emailBrandingSettings, PublicOrigin: cfg.HTTP.PublicOrigin}
+	}
 	if cfg.Mail.Host != "" {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS, MaxPerSecond: cfg.Mail.MaxPerSecond, MaxPerHour: cfg.Mail.MaxPerHour})
 		if err != nil {
 			return err
 		}
-		smtpSender = sender
-		notifier := mailer.NotificationSender{Sender: sender}
+		smtpSender = decorateEmailSender(sender)
+		notifier := mailer.NotificationSender{Sender: smtpSender}
 		authHTTP.Notifier = notifier
 		authHTTP.InviteNotice = notifier
 	} else if cfg.Mail.From != "" {
@@ -1628,8 +1638,8 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		// direct STARTTLS delivery to recipient MX servers. Unavailable direct
 		// delivery remains in the durable mail spool for retry.
 		sender := mailer.MXSender{From: cfg.Mail.From}
-		smtpSender = sender
-		notifier := mailer.NotificationSender{Sender: sender}
+		smtpSender = decorateEmailSender(sender)
+		notifier := mailer.NotificationSender{Sender: smtpSender}
 		authHTTP.Notifier = notifier
 		authHTTP.InviteNotice = notifier
 	}
@@ -2145,7 +2155,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		tokenSettingsHandler := adminTokenLifetimeSettingsHandler{
 			Settings: authHTTP.TokenLifetimeSettings,
 			Defaults: auth.TokenLifetimes{PasswordReset: cfg.PasswordResetDuration(), Invitation: cfg.InvitationDuration()},
-			Audit: auditRecorder,
+			Audit:    auditRecorder,
 		}
 		routes = append(routes,
 			router.Route{Pattern: "GET /admin/security/token-lifetimes", Access: router.Protected, Handler: tokenSettingsHandler},
@@ -3033,6 +3043,8 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	if smtpSender != nil && modules["auth"] {
 		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}}, router.Route{Pattern: "POST /admin/api/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}})
+		brandingHandler := mailer.EmailBrandingHandler{Settings: mailstore.EmailBrandingStore{DB: db, Dialect: cfg.Database.Dialect}, Audit: auditRecorder}
+		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/branding", Access: router.Protected, Handler: brandingHandler}, router.Route{Pattern: "POST /admin/mailer/branding", Access: router.Protected, Handler: brandingHandler})
 		verifyNotifier := auth.EmailVerificationNotifierFunc(func(notifyCtx context.Context, email, link string) error {
 			return (mailer.NotificationSender{Sender: smtpSender}).SendEmailVerification(notifyCtx, email, link)
 		})

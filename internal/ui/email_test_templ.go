@@ -99,7 +99,7 @@ func EmailTestPreviewForm(csrf string, verified, verificationSent, pingEnabled b
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div id=\"email-test-result\" aria-live=\"polite\"></div><p><a href=\"/admin/mailer/dns-diagnostics\">Check sender-domain DNS records</a></p></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div id=\"email-test-result\" aria-live=\"polite\"></div><p><a href=\"/admin/mailer/dns-diagnostics\">Check sender-domain DNS records</a></p><p><a href=\"/admin/mailer/branding\">Configure email identity and legal footer</a></p></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -135,7 +135,7 @@ func EmailTestPreviewResult(message string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/email_test.templ`, Line: 36, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/email_test.templ`, Line: 37, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
