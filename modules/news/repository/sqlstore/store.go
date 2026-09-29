@@ -335,7 +335,7 @@ func (s Store) StreamPublishedRoutes(ctx context.Context, db database.QueryExecu
 	if err != nil {
 		return err
 	}
-	query := `SELECT id,locale,slug,title,seo_description,updated_at FROM news_items WHERE status='published' AND published_revision IS NOT NULL AND deleted_at IS NULL` + filter + ` ORDER BY locale,slug,id`
+	query := `SELECT id,locale,slug,title,seo_description,updated_at FROM news_items WHERE status='published' AND published_revision IS NOT NULL AND deleted_at IS NULL` + s.expiryFilter() + filter + ` ORDER BY locale,slug,id`
 	args := []any{}
 	if filter != "" {
 		args = append(args, scopeID)
