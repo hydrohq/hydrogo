@@ -1,0 +1,31 @@
+id: "202609291001_audit_explorer_fields"
+module: "core"
+requires_modules:
+  - "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "58ab599ce860387e11e46d6e842ac6eb002288425a79ca2be5509957c36fe9d2"
+  postgres: "58ab599ce860387e11e46d6e842ac6eb002288425a79ca2be5509957c36fe9d2"
+  mysql: "791a300ccdb009cfd0e372a1c17752fec05da32afb697a9b40cb12378dd58434"
+dependencies:
+  - "202609280004_immutable_audit_log"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Audit tenant scope and immutable audit log migrations are applied"
+lock_timeout: "Migration runner deadline; metadata columns and index only"
+disk_estimate: "Five bounded audit metadata columns and one tenant-time index"
+compatibility: "Existing events retain empty actor/resource, epoch timestamp, and empty JSON details; new writes populate metadata"
+smoke:
+  - "New audit rows include actor, resource, timestamp, and JSON detail columns"
+  - "Audit rows remain append-only"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward-only; preserve audit history and restore or apply a corrective migration rather than deleting columns"

@@ -188,12 +188,26 @@ type AuditWriter interface {
 	Record(context.Context, database.Executor, string, string, string) error
 }
 
+type AuditChangeWriter interface {
+	RecordChange(context.Context, database.Executor, string, string, string, []byte, []byte) error
+}
+
 func RecordAudit(ctx context.Context, tx database.Executor, writer AuditWriter, module, action, entityID string, version int) error {
 	if writer == nil {
 		return ErrAuditRequired
 	}
 	digest := sha256.Sum256([]byte(module + "\x00" + action + "\x00" + entityID + "\x00" + fmt.Sprint(version)))
-	return writer.Record(ctx, tx, "sectoral-"+hex.EncodeToString(digest[:]), module+"."+action, entityID)
+	id, fullAction := "sectoral-"+hex.EncodeToString(digest[:]), module+"."+action
+	if detailed, ok := writer.(AuditChangeWriter); ok {
+		after, err := json.Marshal(struct {
+			Version int `json:"version"`
+		}{version})
+		if err != nil {
+			return err
+		}
+		return detailed.RecordChange(ctx, tx, id, fullAction, entityID, []byte("{}"), after)
+	}
+	return writer.Record(ctx, tx, id, fullAction, entityID)
 }
 
 type Repository[T Entity] interface {

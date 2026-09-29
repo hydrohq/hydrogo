@@ -1,0 +1,81 @@
+package designsystem
+
+type AdminAuditEntry struct {
+	At, Actor, Action, Resource, Target, RequestID string
+	BeforeJSON, AfterJSON string
+	Legacy bool
+}
+
+type AdminAuditPageProps struct {
+	Actor, Action, Resource, Target, From, Until string
+	Entries []AdminAuditEntry
+	Total, Offset, Limit int
+}
+
+templ AdminAuditPage(p AdminAuditPageProps) {
+	<section class="mx-auto max-w-6xl space-y-5 p-4 text-foreground">
+		<header>
+			<h1 class="text-2xl font-semibold">Activity and audit history</h1>
+			<p class="mt-2 text-sm">Review administrative events and the change details available for each record.</p>
+		</header>
+		<form class="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-6" method="get" action="/admin/audit" aria-label="Filter audit history">
+			<label class="grid gap-1 text-sm">Actor <input class="min-h-9 rounded border border-border bg-background px-2" name="actor" value={ p.Actor } autocomplete="off"/></label>
+			<label class="grid gap-1 text-sm">Action <input class="min-h-9 rounded border border-border bg-background px-2" name="action" value={ p.Action } autocomplete="off"/></label>
+			<label class="grid gap-1 text-sm">Resource <input class="min-h-9 rounded border border-border bg-background px-2" name="resource" value={ p.Resource } autocomplete="off"/></label>
+			<label class="grid gap-1 text-sm">Record <input class="min-h-9 rounded border border-border bg-background px-2" name="target" value={ p.Target } autocomplete="off"/></label>
+			<label class="grid gap-1 text-sm">From <input class="min-h-9 rounded border border-border bg-background px-2" type="date" name="from" value={ p.From }/></label>
+			<label class="grid gap-1 text-sm">Through <input class="min-h-9 rounded border border-border bg-background px-2" type="date" name="until" value={ p.Until }/></label>
+			<div class="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-6">
+				<button class="button button-primary" type="submit">Apply filters</button>
+				<a class="button button-quiet" href="/admin/audit">Clear filters</a>
+				<p class="text-sm" role="status">{ p.Total } events</p>
+			</div>
+		</form>
+		if len(p.Entries) == 0 {
+			<p class="rounded-lg border border-border p-5 text-sm">No audit events match these filters.</p>
+		} else {
+			<div class="overflow-x-auto rounded-lg border border-border">
+				<table class="w-full border-collapse text-left text-sm">
+					<thead class="bg-surface"><tr><th class="p-3">When</th><th class="p-3">Actor</th><th class="p-3">Action</th><th class="p-3">Resource</th><th class="p-3">Record</th><th class="p-3">Details</th></tr></thead>
+					<tbody>
+						for _, event := range p.Entries {
+							<tr class="border-t border-border align-top">
+								<td class="whitespace-nowrap p-3">{ event.At }</td>
+								<td class="p-3">{ event.Actor }</td>
+								<td class="p-3">{ event.Action }</td>
+								<td class="p-3">{ event.Resource }</td>
+								<td class="max-w-48 break-all p-3">{ event.Target }</td>
+								<td class="min-w-56 p-3">
+									<details>
+										<summary class="cursor-pointer underline">View details</summary>
+										if event.Legacy {
+											<p class="mt-2 text-xs">This older event predates detailed actor and change metadata.</p>
+										} else {
+											<div class="mt-2 grid gap-2 xl:grid-cols-2">
+												<div><h3 class="text-xs font-semibold">Before</h3><pre class="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-border p-2">{ event.BeforeJSON }</pre></div>
+												<div><h3 class="text-xs font-semibold">After</h3><pre class="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-border p-2">{ event.AfterJSON }</pre></div>
+											</div>
+												if event.RequestID != "" {
+													<p class="mt-2 break-all text-xs">Request: { event.RequestID }</p>
+													}
+											}
+										</details>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<nav class="flex items-center justify-between gap-3" aria-label="Audit result pages">
+				if p.Offset > 0 {
+					<a class="button button-quiet" href={ adminAuditPageURL(p, max(0, p.Offset-p.Limit)) }>Previous</a>
+				} else {
+					<span></span>
+				}
+				if p.Offset+p.Limit < p.Total {
+					<a class="button button-quiet" href={ adminAuditPageURL(p, p.Offset+p.Limit) }>Next</a>
+				}
+			</nav>
+		}
+	</section>
+}
