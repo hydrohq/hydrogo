@@ -2327,7 +2327,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = io.WriteString(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled(), security.NonceFromContext(r.Context())))
-	})}, router.Route{Pattern: "GET /", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})}, router.Route{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			if localeEnabled {
 				selected, manual := requestedLocale(r, cfg.I18N.Locales, cfg.I18N.DefaultLocale)
