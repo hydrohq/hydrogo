@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -52,6 +53,7 @@ type Backup struct {
 	Prefix        string `yaml:"prefix"`
 	RetentionDays int    `yaml:"retention_days"`
 	HourUTC       int    `yaml:"hour_utc"`
+	SigningSeed   string `yaml:"-" json:"-"`
 }
 
 // AdminExtensions configures signed, externally hosted Admin Studio surfaces.
@@ -334,6 +336,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if value, ok := lookup("HYDRO_THEME"); ok && value != "" {
 		result.Theme = value
 	}
+	if value, ok := lookup("HYDRO_BACKUP_SIGNING_SEED"); ok && value != "" {
+		result.Backup.SigningSeed = value
+	}
 	if value, ok := lookup("HYDRO_ADMIN_EXTENSION_MANIFEST_DIR"); ok && value != "" {
 		result.AdminExtensions.ManifestDir = value
 	}
@@ -567,6 +572,12 @@ func (c Config) Validate() error {
 	}
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
+	}
+	if c.Backup.SigningSeed != "" {
+		seed, err := hex.DecodeString(strings.TrimSpace(c.Backup.SigningSeed))
+		if err != nil || len(seed) != 32 {
+			return errors.New("backup signing seed must be 64 hexadecimal characters")
+		}
 	}
 	if c.HTTP.AutoTLS {
 		if c.HTTP.BehindProxy {

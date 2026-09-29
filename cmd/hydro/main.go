@@ -1285,9 +1285,34 @@ func parsePinnedNames(value string) map[string]struct{} {
 
 func restoreCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("restore command requires a subcommand (verify, stage, postgres or activate-media)")
+		return errors.New("restore command requires a subcommand (unpack, verify, stage, postgres or activate-media)")
 	}
 	switch args[0] {
+	case "unpack":
+		flags := flag.NewFlagSet("restore unpack", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		archivePath := flags.String("archive", "", "Downloaded .tar.gz snapshot")
+		destination := flags.String("destination", "", "New empty snapshot directory")
+		maxBytes := flags.Int64("max-bytes", backupstore.DefaultArchiveExtractLimit, "Maximum uncompressed archive size")
+		publicKey := flags.String("public-key", "", "Trusted Ed25519 public key in hexadecimal")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 {
+			return fmt.Errorf("unexpected arguments: %v", flags.Args())
+		}
+		if *maxBytes < 1 || *maxBytes > 1<<40 {
+			return errors.New("--max-bytes must be between 1 byte and 1 TiB")
+		}
+		trusted, err := backupstore.ParseSigningPublicKey(*publicKey)
+		if err != nil {
+			return err
+		}
+		if err := backupstore.ExtractSignedSnapshotArchive(context.Background(), *archivePath, *destination, *maxBytes, trusted); err != nil {
+			return fmt.Errorf("unpack backup archive: %w", err)
+		}
+		_, err = fmt.Fprintf(stdout, "restore-unpacked destination=%s\n", *destination)
+		return err
 	case "verify":
 		flags := flag.NewFlagSet("restore verify", flag.ContinueOnError)
 		flags.SetOutput(stderr)
@@ -2505,6 +2530,107 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	})
 	routes = append(routes, router.Route{Pattern: "GET /admin", Access: router.Protected, Handler: adminDashboardHandler})
 	routes = append(routes, router.Route{Pattern: "GET /admin/reports", Access: router.Protected, Handler: adminDashboardHandler})
+	backupConfirmationLimiter := newRateLimiter(3, time.Minute)
+	adminBackupHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := auth.UserFromContext(r.Context())
+		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if r.Method == http.MethodGet {
+			recent := make([]designsystem.AdminBackupItem, 0, 12)
+			publicKey := ""
+			if signingKey, err := backupstore.ParseSigningSeed(cfg.Backup.SigningSeed); err == nil {
+				publicKey = hex.EncodeToString(signingKey[32:])
+			}
+			if cfg.Backup.Enabled {
+				var snapshots []backupstore.SnapshotSummary
+				dispatcher, err := backupstore.NewS3Dispatcher(backupstore.S3Config{Endpoint: cfg.Media.S3Endpoint, Bucket: cfg.Media.S3Bucket, Region: cfg.Media.S3Region, AccessKey: cfg.Media.S3AccessKey, SecretKey: cfg.Media.S3SecretKey, Prefix: cfg.Backup.Prefix, Secure: cfg.Media.S3UseSSL, ForcePathStyle: cfg.Media.S3ForcePathStyle})
+				if err == nil {
+					listCtx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+					snapshots, err = dispatcher.ListRecent(listCtx, 12)
+					cancel()
+				}
+				if err != nil {
+					slog.Error("admin backup history unavailable", "error", err)
+				} else {
+					for _, snapshot := range snapshots {
+						recent = append(recent, designsystem.AdminBackupItem{Name: snapshot.Name, Created: snapshot.CreatedAt.Local().Format("02 Jan 2006 15:04 MST"), Size: fmt.Sprintf("%.1f MB", float64(snapshot.Bytes)/(1024*1024))})
+					}
+				}
+			}
+			if err := ui.RenderAdminBackup(w, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context()), adminLocaleFromRequest(r), recent, cfg.Backup.Enabled, publicKey); err != nil {
+				http.Error(w, "backup page unavailable", http.StatusInternalServerError)
+			}
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+		if !security.AllowForRequest(backupConfirmationLimiter, r.Context(), "admin-backup:"+user.ID) {
+			http.Error(w, "Please wait before trying again.", http.StatusTooManyRequests)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid backup request", http.StatusBadRequest)
+			return
+		}
+		signingKey, err := backupstore.ParseSigningSeed(cfg.Backup.SigningSeed)
+		if err != nil {
+			http.Error(w, "Backup signing is not configured.", http.StatusServiceUnavailable)
+			return
+		}
+		confirmed, err := authSvc.Authenticate(r.Context(), user.Email, r.FormValue("password"))
+		if err != nil || confirmed.ID != user.ID || confirmed.Role != auth.RoleAdmin {
+			http.Error(w, "Password confirmation failed.", http.StatusForbidden)
+			return
+		}
+		workDir, err := os.MkdirTemp("", "hydrogo-admin-backup-")
+		if err != nil {
+			http.Error(w, "Backup is temporarily unavailable.", http.StatusInternalServerError)
+			return
+		}
+		defer os.RemoveAll(workDir)
+		snapshotDir := filepath.Join(workDir, "snapshot")
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
+		defer cancel()
+		switch cfg.Database.Dialect {
+		case database.SQLite:
+			_, err = backupstore.SnapshotSQLite(ctx, db, cfg.Media.Dir, snapshotDir)
+		case database.Postgres:
+			var tools backupstore.PostgresTools
+			tools, err = backupstore.LocatePostgresTools()
+			if err == nil {
+				_, err = backupstore.SnapshotPostgres(ctx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshotDir)
+			}
+		case database.MySQL:
+			var tools backupstore.MySQLTools
+			tools, err = backupstore.LocateMySQLTools()
+			if err == nil {
+				_, err = backupstore.SnapshotMySQL(ctx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshotDir)
+			}
+		default:
+			err = errors.New("unsupported backup database")
+		}
+		if err != nil {
+			slog.Error("admin backup snapshot failed", "error", err)
+			http.Error(w, "Backup could not be created.", http.StatusInternalServerError)
+			return
+		}
+		if auditRecorder != nil {
+			if err := auditRecorder.Record(r.Context(), "backup.downloaded", user.ID); err != nil {
+				slog.Error("admin backup audit failed", "error", err)
+				http.Error(w, "Backup could not be created.", http.StatusInternalServerError)
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "application/gzip")
+		w.Header().Set("Content-Disposition", `attachment; filename="hydrogo-backup-`+time.Now().UTC().Format("20060102T150405Z")+`.tar.gz"`)
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if err := backupstore.WriteSignedSnapshotArchive(ctx, w, snapshotDir, signingKey); err != nil {
+			slog.Error("admin backup archive stream failed", "error", err)
+		}
+	})
+	routes = append(routes, router.Route{Pattern: "GET /admin/backup", Access: router.Protected, Handler: adminBackupHandler}, router.Route{Pattern: "POST /admin/backup", Access: router.Protected, Handler: adminBackupHandler})
 	routes = append(routes, router.Route{Pattern: "POST /admin/account/locale", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
@@ -5722,6 +5848,7 @@ Usage:
   hydro backup postgres --destination PATH [--media-dir PATH] [runtime flags]
   hydro backup prune --root PATH --keep N --dry-run|--confirm [--pinned NAME,...]
   hydro restore verify --snapshot PATH
+  hydro restore unpack --archive FILE.tar.gz --destination NEW_DIRECTORY --public-key HEX [--max-bytes N]
   hydro restore stage --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked
   hydro restore postgres --snapshot PATH --destination PATH --sessions-revoked --egress-quarantined --old-writes-blocked [runtime flags]
   hydro restore activate-media --staging PATH --active PATH --rollback PATH

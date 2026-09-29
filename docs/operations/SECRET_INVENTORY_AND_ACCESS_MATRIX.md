@@ -14,6 +14,7 @@
 | `HYDRO_DATABASE_URL` | PostgreSQL application user credentials | URI with credentials | Docker / K8s secret volume | 90 days | Rotate password in DB, update secret, restart app pods |
 | `HYDRO_REDIS_URL` | Valkey / Redis cluster authentication | URI with password | Docker / K8s secret volume | 90 days | Multi-pass AUTH update without cache eviction |
 | `HYDRO_S3_SECRET_KEY` | Media asset bucket IAM access | AWS Secret Key string | IAM Role / Assumed Role (IRSA) | 90 days | IAM credential rotation |
+| `HYDRO_BACKUP_SIGNING_SEED` | Signs Admin Studio backup manifests | 64-char Hex (32-byte Ed25519 seed) | Secret manager -> process environment | On compromise or operator key rotation | Retain the matching public key until all archives signed by this seed expire; distribute the trusted public key separately from each archive |
 | `HYDRO_MAILER_SMTP_PASS`| Transactional email delivery | API key token | Secrets Manager | 180 days | API key regenerated on provider |
 | `HYDRO_FORMS_TURNSTILE_SECRET_KEY` | Verifies optional public-form challenges | Provider secret | Secrets Manager | Provider policy | Rotate alongside site key and redeploy both values together |
 | `HYDRO_METRICS_TOKEN` | Prometheus metrics scrape authentication | High-entropy Bearer token | Secret Manager | 180 days | Updated in Prometheus scrape config + App |

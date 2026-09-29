@@ -23,4 +23,7 @@ func (*S3Dispatcher) UploadSnapshot(context.Context, string, string) error {
 func (*S3Dispatcher) Prune(context.Context, time.Duration, time.Time) (int, error) {
 	return 0, errors.New("S3 support is disabled in this build")
 }
+func (*S3Dispatcher) ListRecent(context.Context, int) ([]SnapshotSummary, error) {
+	return nil, errors.New("S3 support is disabled in this build")
+}
 func RunDaily(ctx context.Context, _ int, _ func(context.Context) error, _ func(error)) { <-ctx.Done() }
