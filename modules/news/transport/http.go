@@ -315,14 +315,23 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStartForRequest(w, r, "Yeni haber", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
-	var leftFields, rightMetaFields, rightSEOFields []adminstudio.Field
+	fieldMap := make(map[string]adminstudio.Field)
 	for _, f := range h.AdminCollection.Fields {
-		switch f.ID {
-		case "title", "slug", "cover_media_id", "excerpt", "key_takeaways", "body":
+		fieldMap[f.ID] = f
+	}
+	var leftFields, rightMetaFields, rightSEOFields []adminstudio.Field
+	for _, id := range []string{"title", "slug", "cover_media_id", "excerpt", "key_takeaways", "body"} {
+		if f, ok := fieldMap[id]; ok {
 			leftFields = append(leftFields, f)
-		case "featured", "category", "author_name", "tags", "expires_at":
+		}
+	}
+	for _, id := range []string{"featured", "author_name", "category", "tags", "expires_at"} {
+		if f, ok := fieldMap[id]; ok {
 			rightMetaFields = append(rightMetaFields, f)
-		case "seo_title", "seo_description":
+		}
+	}
+	for _, id := range []string{"seo_title", "seo_description"} {
+		if f, ok := fieldMap[id]; ok {
 			rightSEOFields = append(rightSEOFields, f)
 		}
 	}
@@ -1057,14 +1066,23 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
-	var leftFields, rightMetaFields, rightSEOFields []adminstudio.Field
+	fieldMap := make(map[string]adminstudio.Field)
 	for _, f := range h.AdminCollection.Fields {
-		switch f.ID {
-		case "title", "slug", "cover_media_id", "excerpt", "key_takeaways", "body":
+		fieldMap[f.ID] = f
+	}
+	var leftFields, rightMetaFields, rightSEOFields []adminstudio.Field
+	for _, id := range []string{"title", "slug", "cover_media_id", "excerpt", "key_takeaways", "body"} {
+		if f, ok := fieldMap[id]; ok {
 			leftFields = append(leftFields, f)
-		case "featured", "category", "author_name", "tags", "expires_at":
+		}
+	}
+	for _, id := range []string{"featured", "author_name", "category", "tags", "expires_at"} {
+		if f, ok := fieldMap[id]; ok {
 			rightMetaFields = append(rightMetaFields, f)
-		case "seo_title", "seo_description":
+		}
+	}
+	for _, id := range []string{"seo_title", "seo_description"} {
+		if f, ok := fieldMap[id]; ok {
 			rightSEOFields = append(rightSEOFields, f)
 		}
 	}

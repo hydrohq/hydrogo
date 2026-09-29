@@ -3,10 +3,10 @@ package designsystem
 import "fmt"
 
 templ ExportLinks(items []ExportLink) {
-	<nav class="flex flex-wrap gap-2" aria-label="Export data">
+	<nav class="export-links" style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 10px;" aria-label="Export data">
 		for _, item := range items {
 			if href := safeLink(item.URL); href != "" {
-				<a class="inline-flex min-h-9 items-center rounded border border-border bg-surface px-3 py-2 text-sm text-foreground" href={ href } download>{ item.Label }</a>
+				<a class="button button-quiet button-sm" href={ href } download style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span>{ item.Label }</span></a>
 			}
 		}
 	</nav>

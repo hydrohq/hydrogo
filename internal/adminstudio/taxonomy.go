@@ -48,6 +48,9 @@ func RenderTaxonomyEditor(w io.Writer, opts TaxonomyEditorOptions) error {
 }
 
 func termLabel(term v1.TaxonomyTerm) string {
+	if tr, ok := term.Labels["tr"]; ok && tr != "" {
+		return tr
+	}
 	locales := make([]string, 0, len(term.Labels))
 	for locale := range term.Labels {
 		locales = append(locales, locale)

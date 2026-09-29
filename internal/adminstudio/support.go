@@ -13,6 +13,7 @@ type SupportConfig struct {
 	BrokenLinksJobID      string
 	SafeModeActive        bool
 	SiteModuleEnabled     bool
+	CommerceModuleEnabled bool
 	StaffNoticeActive     bool
 	StaffNoticeMessage    string
 	StaffNoticeSeverity   string

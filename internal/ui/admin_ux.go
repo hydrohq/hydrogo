@@ -56,13 +56,113 @@ const AdminDevicePreviewJS = `(()=>{const dialog=document.querySelector('[data-d
 
 const AdminRealtimeChimeJS = `(()=>{if(!location.pathname.startsWith('/admin'))return;const key='hydro-inquiry-sound-v1',preference=document.querySelector('[data-sound-alert-preference]');const enabled=()=>{try{return localStorage.getItem(key)==='1'}catch(_){return false}};let audio=null,source=null,errors=0;const unlock=()=>{if(!enabled())return;try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;if(!audio)audio=new Audio();if(audio.state==='suspended')audio.resume().catch(()=>{})}catch(_){}};const play=()=>{if(!enabled())return;unlock();if(!audio||audio.state!=='running')return;const start=audio.currentTime;[880,1174].forEach((frequency,index)=>{const oscillator=audio.createOscillator(),gain=audio.createGain(),time=start+index*.12;oscillator.type='sine';oscillator.frequency.setValueAtTime(frequency,time);gain.gain.setValueAtTime(.0001,time);gain.gain.exponentialRampToValueAtTime(.08,time+.02);gain.gain.exponentialRampToValueAtTime(.0001,time+.22);oscillator.connect(gain);gain.connect(audio.destination);oscillator.start(time);oscillator.stop(time+.23)})};if(preference){preference.checked=enabled();preference.addEventListener('change',()=>{try{localStorage.setItem(key,preference.checked?'1':'0')}catch(_){}if(preference.checked)unlock()})}if(enabled()){document.addEventListener('pointerdown',unlock,{once:true});document.addEventListener('keydown',unlock,{once:true});try{source=new EventSource('/api/v1/realtime/subscriptions?topics=forms%3Asubmission_created');source.addEventListener('forms:submission_created',play);source.onopen=()=>{errors=0};source.onerror=()=>{if(++errors>=3||source.readyState===EventSource.CLOSED)source.close()}}catch(_){}}})();`
 
-const AdminTourJS = `(function(){const role=document.body.dataset.studioRole||'admin',key='hydro-onboarding-dismissed:'+role,tour=document.querySelector('[data-onboarding-tour]');if(!tour)return;const dialog=tour.closest('.admin-ux-dialog'),steps=[...tour.querySelectorAll('[data-tour-step]')],prev=tour.querySelector('[data-tour-prev]'),next=tour.querySelector('[data-tour-next]');let index=0;function show(){steps.forEach((step,i)=>step.hidden=i!==index);prev.disabled=index===0;next.textContent=index===steps.length-1?'Tamam':'İleri'}document.addEventListener('click',e=>{if(e.target.closest('[data-onboarding-dismiss]'))localStorage.setItem(key,'1');if(e.target.closest('[data-tour-next]')){if(index<steps.length-1){index++;show()}else dialog.hidden=true}if(e.target.closest('[data-tour-prev]')&&index>0){index--;show()}});if(localStorage.getItem(key)){dialog.hidden=true}else if(!sessionStorage.getItem('hydro-tour-seen:'+role)){sessionStorage.setItem('hydro-tour-seen:'+role,'1');show();setTimeout(()=>dialog.hidden=false,500)}})();`
+const AdminTourJS = `(function(){
+	const role = document.body.dataset.studioRole || 'admin';
+	const dismissedKey = 'hydro-onboarding-dismissed';
+	const seenKey = 'hydro-tour-seen:' + role;
+
+	function initTour() {
+		const tour = document.querySelector('[data-onboarding-tour]');
+		if (!tour) return;
+		const dialog = tour.closest('.admin-ux-dialog');
+		if (!dialog) return;
+
+		const steps = [...tour.querySelectorAll('[data-tour-step]')];
+		if (!steps.length) return;
+
+		const prev = tour.querySelector('[data-tour-prev]');
+		const next = tour.querySelector('[data-tour-next]');
+		const counter = tour.querySelector('[data-tour-counter]');
+		const dots = [...tour.querySelectorAll('[data-tour-dots] .onboarding-dot')];
+		let index = 0;
+
+		const titles = [
+			'Studio’ya Hoş Geldiniz',
+			'İçerik & Yayın Yönetimi',
+			'Geliştirici & Sistem Araçları',
+			'Kısayollar & Başarı'
+		];
+
+		function show(i) {
+			index = Math.max(0, Math.min(steps.length - 1, i));
+			steps.forEach((step, idx) => {
+				step.hidden = idx !== index;
+			});
+			dots.forEach((dot, idx) => {
+				dot.classList.toggle('is-active', idx === index);
+			});
+			if (prev) prev.disabled = index === 0;
+			if (next) {
+				next.textContent = index === steps.length - 1 ? 'Rehberi Tamamla ✓' : 'İleri →';
+				next.classList.toggle('button-success', index === steps.length - 1);
+				next.classList.toggle('button-primary', index !== steps.length - 1);
+			}
+			if (counter) counter.textContent = 'Adım ' + (index + 1) + ' / ' + steps.length;
+			const titleEl = tour.querySelector('[data-tour-title]');
+			if (titleEl && titles[index]) titleEl.textContent = titles[index];
+		}
+
+		function dismiss() {
+			try {
+				localStorage.setItem(dismissedKey, '1');
+				localStorage.setItem(dismissedKey + ':' + role, '1');
+			} catch (_) {}
+			dialog.hidden = true;
+		}
+
+		tour.addEventListener('click', e => {
+			if (e.target.closest('[data-tour-next]')) {
+				if (index < steps.length - 1) {
+					show(index + 1);
+				} else {
+					dismiss();
+				}
+				return;
+			}
+			if (e.target.closest('[data-tour-prev]') && index > 0) {
+				show(index - 1);
+				return;
+			}
+			if (e.target.closest('[data-onboarding-dismiss]')) {
+				dismiss();
+				return;
+			}
+		});
+
+		dialog.addEventListener('click', e => {
+			if (e.target === dialog || e.target.closest('[data-ux-close]')) {
+				dismiss();
+			}
+		});
+
+		show(0);
+
+		try {
+			const isDismissed = localStorage.getItem(dismissedKey) === '1' || localStorage.getItem(dismissedKey + ':' + role) === '1';
+			if (isDismissed) {
+				dialog.hidden = true;
+			} else if (!sessionStorage.getItem(seenKey)) {
+				sessionStorage.setItem(seenKey, '1');
+				setTimeout(() => { dialog.hidden = false; }, 400);
+			}
+		} catch (_) {
+			dialog.hidden = true;
+		}
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initTour, { once: true });
+	} else {
+		initTour();
+	}
+	document.addEventListener('hydro:admin-navigated', initTour);
+})();`
 
 const AdminGuideJS = `document.addEventListener('click',e=>{const tab=e.target.closest('[data-guide-tab]');if(!tab)return;const root=tab.closest('[data-guide-center]');if(!root)return;root.querySelectorAll('[data-guide-tab]').forEach(button=>button.setAttribute('aria-selected',String(button===tab)));root.querySelectorAll('[data-guide-panel]').forEach(panel=>panel.hidden=panel.dataset.guidePanel!==tab.dataset.guideTab)});`
 
-const AdminUXCSS = `body[data-studio-role="editor"] [data-admin-only]{display:none!important}.studio-ux-trigger{position:relative;display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);color:var(--ink);cursor:pointer}.studio-ux-trigger{position:relative;display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);color:var(--ink);cursor:pointer}.admin-ux-dialog{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:16px;background:rgba(2,6,23,.62)}.admin-ux-dialog[hidden]{display:none}.admin-ux-panel{position:relative;width:min(520px,100%);max-height:90vh;overflow:auto;padding:24px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg)}.admin-ux-panel h2{margin:0 32px 16px 0;font-size:1.2rem}.admin-ux-panel form{display:grid;gap:12px}.admin-ux-panel label{display:grid;gap:5px}.admin-ux-panel input:not([type=checkbox]){width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-subtle);color:var(--ink)}.admin-ux-panel meter{width:100%}.admin-ux-close{position:absolute;right:16px;top:12px;border:0;background:transparent;color:var(--muted);font-size:24px;cursor:pointer}.admin-ux-panel dl{display:grid;grid-template-columns:max-content 1fr;gap:10px 18px}.admin-ux-panel dt{font-weight:700}.admin-ux-panel dd{margin:0;color:var(--muted)}.admin-ux-panel nav{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.studio-bulk-floating{position:fixed;z-index:9000;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--shadow-lg)}.studio-bulk-floating[hidden]{display:none}.studio-split-editor{display:grid;grid-template-columns:1fr 1fr;gap:16px}.translation-source{white-space:pre-wrap;max-height:70vh;overflow:auto;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm)}.revision-diff-fields{display:grid;gap:10px}.revision-diff-fields article{padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm)}.revision-removed,.revision-added{padding:8px;white-space:pre-wrap;overflow-wrap:anywhere}.revision-removed{background:var(--red-subtle);color:var(--red);text-decoration:line-through}.revision-added{background:var(--green-subtle);color:var(--green)}@media(max-width:760px){.studio-split-editor{grid-template-columns:1fr}}`
+const AdminUXCSS = `body[data-studio-role="editor"] [data-admin-only]{display:none!important}.studio-ux-trigger{position:relative;display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);color:var(--ink);cursor:pointer}.admin-ux-dialog{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:16px;background:rgba(2,6,23,.62)}.admin-ux-dialog[hidden]{display:none}.admin-ux-panel{position:relative;width:min(520px,100%);max-height:90vh;overflow:auto;padding:24px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg)}.admin-ux-panel h2{margin:0 32px 16px 0;font-size:1.2rem}.admin-ux-panel form{display:grid;gap:12px}.admin-ux-panel label{display:grid;gap:5px}.admin-ux-panel input:not([type=checkbox]){width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-subtle);color:var(--ink)}.admin-ux-panel meter{width:100%}.admin-ux-close{position:absolute;right:16px;top:12px;border:0;background:transparent;color:var(--muted);font-size:24px;cursor:pointer}.admin-ux-panel dl{display:grid;grid-template-columns:max-content 1fr;gap:10px 18px}.admin-ux-panel dt{font-weight:700}.admin-ux-panel dd{margin:0;color:var(--muted)}.admin-ux-panel nav{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.studio-bulk-floating{position:fixed;z-index:9000;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--shadow-lg)}.studio-bulk-floating[hidden]{display:none}.studio-split-editor{display:grid;grid-template-columns:1fr 1fr;gap:16px}.translation-source{white-space:pre-wrap;max-height:70vh;overflow:auto;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm)}.revision-diff-fields{display:grid;gap:10px}.revision-diff-fields article{padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm)}.revision-removed,.revision-added{padding:8px;white-space:pre-wrap;overflow-wrap:anywhere}.revision-removed{background:var(--red-subtle);color:var(--red);text-decoration:line-through}.revision-added{background:var(--green-subtle);color:var(--green)}.onboarding-card{width:min(540px,100%)!important;padding:24px 28px!important}.onboarding-header{margin-bottom:12px}.onboarding-badge-wrap{display:flex;align-items:center;justify-content:space-between;gap:8px}.onboarding-step-counter{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--brand-subtle);color:var(--brand-light);font-family:var(--font-mono)}.onboarding-progress-dots{display:flex;gap:6px;align-items:center;margin:10px 0 16px}.onboarding-dot{width:8px;height:8px;border-radius:50%;background:var(--line);transition:var(--transition)}.onboarding-dot.is-active{width:22px;border-radius:4px;background:var(--brand)}.onboarding-body article{display:grid;gap:8px}.onboarding-body p{margin:0;line-height:1.5;font-size:.86rem;color:var(--ink)}.onboarding-body p.muted{color:var(--muted);font-size:.8rem}.onboarding-body code{font-size:.78rem;padding:2px 5px;background:var(--bg-subtle);border:1px solid var(--line);border-radius:var(--radius-xs)}.onboarding-links{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}.onboarding-footer{display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:14px;border-top:1px solid var(--line);gap:10px;flex-wrap:wrap}.onboarding-footer-right{display:flex;align-items:center;gap:8px}@media(max-width:760px){.studio-split-editor{grid-template-columns:1fr}}`
 
-const AdminUXJS = `(function(){const qs=(s,r=document)=>r.querySelector(s),qsa=(s,r=document)=>[...r.querySelectorAll(s)],dialogs=[...qsa('.admin-ux-dialog')];function open(id){const d=document.getElementById(id);if(d){d.hidden=false;d.querySelector('button,input')?.focus()}}function close(d){if(d)d.hidden=true}document.addEventListener('click',e=>{if(e.target.closest('[data-shortcuts-open]'))open('admin-shortcuts-dialog');if(e.target.closest('[data-password-open]'))open('admin-password-dialog');if(e.target.closest('[data-ux-close]')||e.target.classList.contains('admin-ux-dialog'))close(e.target.closest('.admin-ux-dialog')||e.target);if(e.target.closest('[data-onboarding-dismiss]')){localStorage.setItem('hydro-onboarding-dismissed','1');close(e.target.closest('.admin-ux-dialog'))}});document.addEventListener('keydown',e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)||document.activeElement?.isContentEditable;if(e.key==='Escape'){dialogs.forEach(d=>{if(!d.hidden)close(d)});return}if((e.key==='?'||(e.key==='/'&&(e.metaKey||e.ctrlKey)))&&!typing){e.preventDefault();open('admin-shortcuts-dialog')}});document.addEventListener('submit',e=>{const form=e.target.closest('[data-confirm-action]');if(form&&!confirm(form.dataset.confirmAction))e.preventDefault()});const source=qs('[data-translation-source]'),target=qs('[data-translation-target]');if(source&&target){let syncing=false;for(const [a,b] of [[source,target],[target,source]])a.addEventListener('scroll',()=>{if(syncing)return;syncing=true;b.scrollTop=a.scrollTop/(a.scrollHeight-a.clientHeight||1)*(b.scrollHeight-b.clientHeight);requestAnimationFrame(()=>syncing=false)})}const form=qs('[data-quick-password-form]');if(form){const csrf=decodeURIComponent((document.cookie.match(/(?:^|; )hydro_csrf=([^;]+)/)||[])[1]||'');qs('[data-ux-csrf]',form).value=csrf;const pass=qs('[data-password-strength]',form),meter=qs('[data-password-meter]',form);pass.addEventListener('input',()=>{const v=pass.value;meter.value=Math.min(4,(v.length>=12?1:0)+(/[A-Z]/.test(v)?1:0)+(/[0-9]/.test(v)?1:0)+(/[^A-Za-z0-9]/.test(v)?1:0))});form.addEventListener('submit',async e=>{e.preventDefault();const status=qs('[data-quick-password-status]',form);if(form.elements.new_password.value!==form.elements.confirm_password.value){status.textContent='Yeni parolalar eşleşmiyor.';return}status.textContent='Parolan güncelleniyor…';try{const response=await fetch('/auth/me/credentials',{method:'POST',body:new FormData(form),headers:{'X-CSRF-Token':csrf}});if(!response.ok)throw new Error();if(form.elements.invalidate_other_sessions.checked){status.textContent='Parolan güncellendi; diğer cihazlardaki oturumlar kapatıldı.';form.reset();setTimeout(()=>close(qs('#admin-password-dialog')),1300)}else{status.textContent='Parolan güncellendi. Yeniden giriş yapman gerekiyor.';setTimeout(()=>location.assign('/login'),700)}}catch(_){status.textContent='Parola güncellenemedi. Bilgilerini kontrol edip tekrar dene.'}})}const boxes=()=>qsa('[data-bulk-select]');let last=null;function update(){const selected=boxes().filter(b=>b.checked);let bar=qs('[data-bulk-floating]');if(!bar&&selected.length){bar=document.createElement('div');bar.className='studio-bulk-floating';bar.dataset.bulkFloating='';bar.setAttribute('role','toolbar');bar.setAttribute('aria-label','Toplu işlemler');bar.innerHTML='<strong data-bulk-count></strong><button type="button" data-bulk-run>Uygula</button><button type="button" data-bulk-clear>Seçimi kaldır</button>';document.body.append(bar)}if(bar){bar.hidden=!selected.length;qs('[data-bulk-count]',bar).textContent=selected.length+' kayıt seçildi'}}document.addEventListener('click',e=>{const box=e.target.closest('[data-bulk-select]');if(box&&e.shiftKey&&last){const all=boxes(),a=all.indexOf(last),b=all.indexOf(box);all.slice(Math.min(a,b),Math.max(a,b)+1).forEach(x=>x.checked=box.checked)}if(box)last=box;if(e.target.closest('[data-bulk-select-all]'))boxes().forEach(x=>x.checked=e.target.checked);if(e.target.closest('[data-bulk-clear]'))boxes().forEach(x=>x.checked=false);if(e.target.closest('[data-bulk-run]')){const action=qs('[data-bulk-action]'),selected=boxes().filter(x=>x.checked);if(!action||!selected.length||!confirm('Bu işlem seçili '+selected.length+' kayıt için uygulansın mı?'))return;const f=document.createElement('form');f.method='post';f.action=action.getAttribute('href');const csrf=decodeURIComponent((document.cookie.match(/(?:^|; )hydro_csrf=([^;]+)/)||[])[1]||'');[['action',action.dataset.bulkAction],['_csrf',csrf],...selected.map(x=>['ids',x.value])].forEach(([name,value])=>{const i=document.createElement('input');i.type='hidden';i.name=name;i.value=value;f.append(i)});document.body.append(f);f.submit()}if(e.target.closest('[data-bulk-action]')){e.preventDefault();qs('[data-bulk-run]')?.click()}if(e.target.closest('[data-notifications-open]'))location.assign('/admin/notifications')});document.addEventListener('change',e=>{if(e.target.matches('[data-bulk-select],[data-bulk-select-all]'))update()});if(!localStorage.getItem('hydro-onboarding-dismissed')&&!sessionStorage.getItem('hydro-onboarding-seen')){sessionStorage.setItem('hydro-onboarding-seen','1');setTimeout(()=>open('admin-onboarding-dialog'),500)}})();`
+const AdminUXJS = `(function(){const qs=(s,r=document)=>r.querySelector(s),qsa=(s,r=document)=>[...r.querySelectorAll(s)],dialogs=[...qsa('.admin-ux-dialog')];function open(id){const d=document.getElementById(id);if(d){d.hidden=false;d.querySelector('button,input')?.focus()}}function close(d){if(d)d.hidden=true}document.addEventListener('click',e=>{if(e.target.closest('[data-shortcuts-open]'))open('admin-shortcuts-dialog');if(e.target.closest('[data-ux-close]')||e.target.classList.contains('admin-ux-dialog'))close(e.target.closest('.admin-ux-dialog')||e.target);if(e.target.closest('[data-notifications-open]')){if(window.studioNavigate)window.studioNavigate('/admin/notifications',true);else location.assign('/admin/notifications');}});document.addEventListener('keydown',e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)||document.activeElement?.isContentEditable;if(e.key==='Escape'){dialogs.forEach(d=>{if(!d.hidden)close(d)});return}if((e.key==='?'||(e.key==='/'&&(e.metaKey||e.ctrlKey)))&&!typing){e.preventDefault();open('admin-shortcuts-dialog')}});document.addEventListener('submit',e=>{const form=e.target.closest('[data-confirm-action]');if(form&&!confirm(form.dataset.confirmAction))e.preventDefault()});const source=qs('[data-translation-source]'),target=qs('[data-translation-target]');if(source&&target){let syncing=false;for(const [a,b] of [[source,target],[target,source]])a.addEventListener('scroll',()=>{if(syncing)return;syncing=true;b.scrollTop=a.scrollTop/(a.scrollHeight-a.clientHeight||1)*(b.scrollHeight-b.clientHeight);requestAnimationFrame(()=>syncing=false)})}const boxes=()=>qsa('[data-bulk-select]');let last=null;function update(){const selected=boxes().filter(b=>b.checked);let bar=qs('[data-bulk-floating]');if(!bar&&selected.length){bar=document.createElement('div');bar.className='studio-bulk-floating';bar.dataset.bulkFloating='';bar.setAttribute('role','toolbar');bar.setAttribute('aria-label','Toplu işlemler');bar.innerHTML='<strong data-bulk-count></strong><button type="button" data-bulk-run>Uygula</button><button type="button" data-bulk-clear>Seçimi kaldır</button>';document.body.append(bar)}if(bar){bar.hidden=!selected.length;qs('[data-bulk-count]',bar).textContent=selected.length+' kayıt seçildi'}}document.addEventListener('click',e=>{const box=e.target.closest('[data-bulk-select]');if(box&&e.shiftKey&&last){const all=boxes(),a=all.indexOf(last),b=all.indexOf(box);all.slice(Math.min(a,b),Math.max(a,b)+1).forEach(x=>x.checked=box.checked)}if(box)last=box;if(e.target.closest('[data-bulk-select-all]'))boxes().forEach(x=>x.checked=e.target.checked);if(e.target.closest('[data-bulk-clear]'))boxes().forEach(x=>x.checked=false);if(e.target.closest('[data-bulk-run]')){const action=qs('[data-bulk-action]'),selected=boxes().filter(x=>x.checked);if(!action||!selected.length||!confirm('Bu işlem seçili '+selected.length+' kayıt için uygulansın mı?'))return;const f=document.createElement('form');f.method='post';f.action=action.getAttribute('href');const csrf=decodeURIComponent((document.cookie.match(/(?:^|; )hydro_csrf=([^;]+)/)||[])[1]||'');[['action',action.dataset.bulkAction],['_csrf',csrf],...selected.map(x=>['ids',x.value])].forEach(([name,value])=>{const i=document.createElement('input');i.type='hidden';i.name=name;i.value=value;f.append(i)});document.body.append(f);f.submit()}if(e.target.closest('[data-bulk-action]')){e.preventDefault();qs('[data-bulk-run]')?.click()}});document.addEventListener('change',e=>{if(e.target.matches('[data-bulk-select],[data-bulk-select-all]'))update()});})();`
 
 const AdminResetLinkJS = `document.addEventListener('click',async event=>{const button=event.target.closest('[data-password-reset-link]');if(!button)return;const status=button.parentElement.querySelector('[data-password-reset-status]');const cookie=document.cookie.split('; ').find(value=>value.startsWith('hydro_csrf='));const csrf=cookie?decodeURIComponent(cookie.slice('hydro_csrf='.length)):'';button.disabled=true;if(status)status.textContent='Generating a secure link…';try{const endpoint=button.dataset.passwordResetLink;if(!endpoint.startsWith('/auth/users/')||!endpoint.endsWith('/password-reset-link'))throw new Error('endpoint');const response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf,'Accept':'application/json'}});if(!response.ok)throw new Error('request');const result=await response.json();const resetURL=new URL(result.url);if(resetURL.protocol!=='https:'&&resetURL.protocol!=='http:'||resetURL.pathname!=='/password-reset'||resetURL.searchParams.get('token')?.length!==64)throw new Error('response');let copied=false;if(navigator.clipboard&&window.isSecureContext){try{await navigator.clipboard.writeText(result.url);copied=true}catch(_){}}if(status)status.textContent=copied?'Reset link copied. It expires in one hour.':result.url}catch(_){if(status)status.textContent='Could not create the reset link. Try again.'}finally{button.disabled=false}});`
 

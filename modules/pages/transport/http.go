@@ -308,7 +308,7 @@ func (h Handler) adminNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Bildirimler", "", "", "dashboard") != nil {
+	if ui.AdminStartForRequest(w, r, "Bildirimler", "Sistem bildirimleri", security.NonceFromContext(r.Context()), "dashboard") != nil {
 		return
 	}
 	_ = ui.NotificationCenter(view, security.CSRFTokenFromContext(r.Context()), digestEnabled, timezone, frequency, h.WeeklyDigestEnabled).Render(r.Context(), w)
@@ -494,7 +494,7 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 	}
 	headers := rows[0]
 	if r.FormValue("map_title") == "" || r.FormValue("map_slug") == "" {
-		if ui.AdminStartForRequest(w, r, "Sütunları eşleştir", "", "", "pages") != nil {
+		if ui.AdminStartForRequest(w, r, "Sütunları eşleştir", "İçe aktarma sihirbazı", security.NonceFromContext(r.Context()), "pages") != nil {
 			return
 		}
 		_ = ui.ImportWizard(headers, security.CSRFTokenFromContext(r.Context()), true).Render(r.Context(), w)
@@ -543,7 +543,7 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 	}
 	valid, duplicates, invalid := planImport(rows[1:], columns, seen)
 	if r.FormValue("action") != "import" {
-		if ui.AdminStartForRequest(w, r, "Aktarım önizlemesi", "", "", "pages") != nil {
+		if ui.AdminStartForRequest(w, r, "Aktarım önizlemesi", "İçe aktarma önizlemesi", security.NonceFromContext(r.Context()), "pages") != nil {
 			return
 		}
 		_ = ui.ImportPreview(security.CSRFTokenFromContext(r.Context()), mapValues, len(valid), duplicates, invalid).Render(r.Context(), w)
@@ -559,7 +559,7 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 		}
 		created++
 	}
-	if ui.AdminStartForRequest(w, r, "Aktarım tamamlandı", "", "", "pages") != nil {
+	if ui.AdminStartForRequest(w, r, "Aktarım tamamlandı", "İçe aktarma sonucu", security.NonceFromContext(r.Context()), "pages") != nil {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card" role="status"><h2>Aktarım tamamlandı</h2><p>%d taslak eklendi. %d satır atlandı.</p><a href="/admin/pages">Sayfalara dön</a></section>`, created, skipped)

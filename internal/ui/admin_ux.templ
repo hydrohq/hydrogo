@@ -3,7 +3,6 @@ package ui
 import "strconv"
 
 import "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-import "github.com/ardaozyildirim/hydrogo/modules/designsystem"
 
 templ AdminUXChrome() {
 	@EditorStats()
@@ -14,31 +13,51 @@ templ AdminUXChrome() {
 			<dl><dt>?</dt><dd>Bu yardım penceresini aç</dd><dt>⌘ / Ctrl + /</dt><dd>Kısayol listesini aç</dd><dt>⌘ / Ctrl + K</dt><dd>Hızlı aramayı aç</dd><dt>⌘ / Ctrl + S</dt><dd>Formu kaydet</dd><dt>Esc</dt><dd>Pencereyi kapat</dd><dt>J / K</dt><dd>Listede ilerle / geri git</dd><dt>N</dt><dd>Yeni kayıt oluştur</dd></dl>
 		</section>
 	</div>
-	<div id="admin-password-dialog" class="admin-ux-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-password-title" hidden>
-		<section class="admin-ux-panel">
-			<button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button>
-			<h2 id="admin-password-title">Parolanı değiştir</h2>
-			<form data-quick-password-form>
-				<input type="hidden" name="_csrf" data-ux-csrf />
-				<label>Mevcut parola<input name="current_password" type="password" autocomplete="current-password" required /></label>
-				<label>Yeni parola<input name="new_password" type="password" autocomplete="new-password" minlength="8" required data-password-strength /></label>
-				@designsystem.PasswordStrengthMeter()
-				<label>Yeni parola (tekrar)<input name="confirm_password" type="password" autocomplete="new-password" minlength="8" required /></label>
-				<label class="admin-ux-check"><input type="checkbox" name="invalidate_other_sessions" value="true" checked /> Diğer cihazlardaki oturumları kapat</label>
-				<p role="status" aria-live="polite" data-quick-password-status></p>
-				<button class="button button-primary" type="submit">Parolayı güncelle</button>
-			</form>
-		</section>
-	</div>
 	<div id="admin-onboarding-dialog" class="admin-ux-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-onboarding-title" hidden>
-		<section class="admin-ux-panel" data-onboarding-tour>
+		<section class="admin-ux-panel onboarding-card" data-onboarding-tour>
 			<button class="admin-ux-close" type="button" data-ux-close aria-label="Kapat">×</button>
-			<p class="eyebrow">BAŞLANGIÇ REHBERİ</p><h2 id="admin-onboarding-title">Studio’ya hoş geldin</h2>
-			<article data-tour-step="0"><p>İçerik alanından site sayfalarını, haberleri ve görselleri yönetebilirsin.</p><nav><a href="/admin/pages">Sayfaları aç</a><a href="/admin/news">Haberleri aç</a></nav></article>
-			<article data-tour-step="1" hidden><p>Değişikliklerin taslak olarak kaydedilir. Önizleyip hazır olduğunda yayına alabilirsin.</p></article>
-			<article data-tour-step="2" hidden><p>Bu rehbere her zaman ulaşabilir ve hesabını üst çubuktan yönetebilirsin.</p><a href="/admin/guide">Yardım ve video rehberi</a></article>
-			<div class="studio-actions"><button class="button button-quiet" type="button" data-tour-prev disabled>Geri</button><button class="button button-primary" type="button" data-tour-next>İleri</button></div>
-			<button class="button button-quiet" type="button" data-onboarding-dismiss>Bu rehberi bir daha gösterme</button>
+			<div class="onboarding-header">
+				<div class="onboarding-badge-wrap">
+					<span class="eyebrow" style="margin:0;">BAŞLANGIÇ REHBERİ</span>
+					<span class="onboarding-step-counter" data-tour-counter>Adım 1 / 4</span>
+				</div>
+				<h2 id="admin-onboarding-title" data-tour-title style="margin:6px 0 0;font-size:1.25rem;">Studio’ya Hoş Geldiniz</h2>
+			</div>
+			<div class="onboarding-progress-dots" data-tour-dots>
+				<span class="onboarding-dot is-active"></span>
+				<span class="onboarding-dot"></span>
+				<span class="onboarding-dot"></span>
+				<span class="onboarding-dot"></span>
+			</div>
+			<div class="onboarding-body">
+				<article data-tour-step="0">
+					<p>HydroGo Studio ile içeriklerinizi, sayfalarınızı ve medyalarınızı tek bir merkezi kontrol panelinden kolayca yönetebilirsiniz.</p>
+					<p class="muted">Sol menü üzerinden tüm bölümlere ulaşabilir, üst kısımdaki arama kutusu veya <code>⌘K</code> ile hızlı komutlar çalıştırabilirsiniz.</p>
+					<nav class="onboarding-links"><a class="button button-quiet button-sm" href="/admin">Dashboard'u İncele</a><a class="button button-quiet button-sm" href="/admin/reports">Raporlara Bak</a></nav>
+				</article>
+				<article data-tour-step="1" hidden>
+					<p>Haber ve sayfalarınızı hazırlarken otomatik yerel taslak kurtarma ve anlık SEO analizi her an devrededir.</p>
+					<p class="muted">Gelişmiş zengin metin editörü ile görsel ekleyebilir, etiket belirleyebilir ve hazır olduğunda tek tıkla yayına alabilirsiniz.</p>
+					<nav class="onboarding-links"><a class="button button-quiet button-sm" href="/admin/news/new">Yeni Haber Yaz</a><a class="button button-quiet button-sm" href="/admin/pages">Sayfaları Yönet</a></nav>
+				</article>
+				<article data-tour-step="2" hidden>
+					<p>Geliştirici sekmesinden sistem telemetrisi, REST API rotaları, bağlantı denetimi ve özel kodları yönetebilirsiniz.</p>
+					<p class="muted">Sistem kaynaklarını canlı izleyebilir, kırık linkleri tespit edebilir ve site genelinde özel HTML veya izleme scriptleri tanımlayabilirsiniz.</p>
+					<nav class="onboarding-links"><a class="button button-quiet button-sm" href="/admin/developer">Geliştirici &amp; API</a><a class="button button-quiet button-sm" href="/admin/security">Güvenlik &amp; Yetkiler</a></nav>
+				</article>
+				<article data-tour-step="3" hidden>
+					<p>Tebrikler! HydroGo Studio ile çalışmaya hazırsınız.</p>
+					<p class="muted">Klavye kısayolları için dilediğiniz an <code>?</code> tuşuna basabilir, detaylı rehber ve video dökümanlarına dilediğiniz zaman erişebilirsiniz.</p>
+					<nav class="onboarding-links"><a class="button button-quiet button-sm" href="/admin/guide">Yardım ve Rehber Merkezi</a></nav>
+				</article>
+			</div>
+			<div class="onboarding-footer">
+				<button class="button button-quiet" type="button" data-tour-prev disabled>← Geri</button>
+				<div class="onboarding-footer-right">
+					<button class="button button-quiet" type="button" data-onboarding-dismiss>Bir daha gösterme</button>
+					<button class="button button-primary" type="button" data-tour-next>İleri →</button>
+				</div>
+			</div>
 		</section>
 	</div>
 }

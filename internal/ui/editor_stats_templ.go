@@ -31,7 +31,7 @@ func EditorStats() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<output class=\"studio-card editor-stats\" data-editor-stats hidden aria-live=\"polite\"><span><strong data-editor-words>0</strong> words</span> <span><strong data-editor-characters>0</strong> characters</span> <span><strong data-editor-reading-time>1</strong> min read</span> <span data-editor-keyword-wrap hidden>Keyword density: <strong data-editor-keyword-density>0%</strong></span></output>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<output class=\"studio-card editor-stats\" data-editor-stats hidden aria-live=\"polite\"><span><strong data-editor-words>0</strong> kelime</span> <span><strong data-editor-characters>0</strong> karakter</span> <span>~<strong data-editor-reading-time>1</strong> dk okuma</span> <span data-editor-keyword-wrap hidden>Anahtar kelime yoğunluğu: <strong data-editor-keyword-density>0%</strong></span></output>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
