@@ -1590,12 +1590,17 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	var analyticsStore analyticsstore.Store
 	var contentViewQueue *analytics.ContentViewQueue
+	var searchQueryQueue *analytics.SearchQueryQueue
 	var noCookieQueue *analytics.NoCookieQueue
 	var noCookieHasher *analytics.VisitorHasher
 	if modules["analytics"] {
 		analyticsStore = analyticsstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
 		contentViewQueue = analytics.NewContentViewQueue(analyticsStore, 256, 1)
 		defer contentViewQueue.Close()
+		if modules["search"] {
+			searchQueryQueue = analytics.NewSearchQueryQueue(analyticsStore, 256, 1)
+			defer searchQueryQueue.Close()
+		}
 		if cfg.Analytics.NoCookieEnabled {
 			noCookieHasher, err = analytics.NewVisitorHasher([]byte(cfg.Analytics.HashKey))
 			if err != nil {
@@ -2177,6 +2182,11 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	routes = append(routes, router.Route{Pattern: "GET /auth/me/sessions/manage", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/revoke-others", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/{id}/revoke", Access: router.Protected, Handler: sessionPage})
 	if modules["search"] {
 		routes = append(routes, router.Route{Pattern: "GET /api/v1/search/autocomplete", Access: router.Public, Handler: adminsearch.AutocompleteHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Modules: modules}})
+		autocomplete := adminsearch.AutocompleteHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Modules: modules}
+		routes = append(routes, router.Route{Pattern: "GET /search", Access: router.Public, Handler: adminsearch.PublicSearchHandler{Autocomplete: autocomplete, Recorder: searchQueryQueue}})
+		if modules["analytics"] {
+			routes = append(routes, router.Route{Pattern: "GET /admin/search-insights", Access: router.Protected, Handler: adminsearch.SearchInsightsHandler(analyticsStore, requireTenantScope)})
+		}
 	}
 	routes = append(routes, mobileAuthHTTP.RouterRoutes()...)
 	if modules["pages"] {
@@ -2428,22 +2438,23 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				contentViewRows = append(contentViewRows, ui.ContentViewReportRow{Day: row.Day, TenantID: row.TenantID, ContentType: row.ContentType, ContentID: row.ContentID, Locale: row.Locale, ViewCount: row.ViewCount})
 			}
 			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
-				Email:            user.Email,
-				Collections:      activeStudioCollections(),
-				Nonce:            security.NonceFromContext(r.Context()),
-				Active:           "reports",
-				Metrics:          runtimeMetrics,
-				MemberStats:      stats,
-				DataTime:         dataTime,
-				DataSource:       "Proses İçi Bellek Telemetrisi",
-				DateFilter:       dateRange,
-				DateFrom:         dateFrom,
-				DateTo:           dateTo,
-				Locale:           adminLocaleFromRequest(r),
-				ContentViews:     contentViewRows,
-				AnalyticsEnabled: modules["analytics"] && cfg.Analytics.NoCookieEnabled,
-				NoCookieStats:    noCookieStats,
-				UniqueVisitors:   uniqueVisitors,
+				Email:                 user.Email,
+				Collections:           activeStudioCollections(),
+				Nonce:                 security.NonceFromContext(r.Context()),
+				Active:                "reports",
+				Metrics:               runtimeMetrics,
+				MemberStats:           stats,
+				DataTime:              dataTime,
+				DataSource:            "Proses İçi Bellek Telemetrisi",
+				DateFilter:            dateRange,
+				DateFrom:              dateFrom,
+				DateTo:                dateTo,
+				Locale:                adminLocaleFromRequest(r),
+				ContentViews:          contentViewRows,
+				AnalyticsEnabled:      modules["analytics"] && cfg.Analytics.NoCookieEnabled,
+				SearchInsightsEnabled: modules["search"] && modules["analytics"],
+				NoCookieStats:         noCookieStats,
+				UniqueVisitors:        uniqueVisitors,
 			}); err != nil {
 				http.Error(w, "admin reports unavailable", http.StatusInternalServerError)
 			}

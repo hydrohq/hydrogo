@@ -41,6 +41,7 @@ func TestSQLiteFeedbackUsesTenantScopedDailyAggregates(t *testing.T) {
 		t.Fatal(err)
 	}
 	runFeedbackContract(t, db, database.SQLite)
+	runSearchInsightsContract(t, db, database.SQLite)
 }
 
 func runFeedbackContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
@@ -83,6 +84,7 @@ func TestMySQLNoCookieDailyStatsContract(t *testing.T) {
 	db := testmysql.Open(t)
 	testmysql.MigrateAll(t, db)
 	runFeedbackContract(t, db, database.MySQL)
+	runSearchInsightsContract(t, db, database.MySQL)
 	runNoCookieStatsContract(t, db, database.MySQL)
 }
 
@@ -100,7 +102,43 @@ func TestPostgresNoCookieDailyStatsContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	runFeedbackContract(t, db, database.Postgres)
+	runSearchInsightsContract(t, db, database.Postgres)
 	runNoCookieStatsContract(t, db, database.Postgres)
+}
+
+func runSearchInsightsContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	store := Store{Executor: db, Dialect: dialect}
+	tenantA := fmt.Sprintf("search-a-%d", time.Now().UnixNano())
+	tenantB := tenantA + "-b"
+	for _, event := range []analytics.SearchQueryEvent{{Day: "2026-09-29", TenantID: tenantA, Term: "Hydro", Locale: "tr", ResultCount: 0}, {Day: "2026-09-29", TenantID: tenantA, Term: "hydro", Locale: "tr", ResultCount: 2}, {Day: "2026-09-29", TenantID: tenantB, Term: "hydro", Locale: "tr", ResultCount: 0}} {
+		if err := store.RecordSearchQuery(ctx, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := store.ListSearchInsights(ctx, tenantA, "2026-09-29", "2026-09-29", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Term != "hydro" || rows[0].Locale != "tr" || rows[0].SearchCount != 2 || rows[0].ZeroResultCount != 1 {
+		t.Fatalf("tenant-a rows=%+v", rows)
+	}
+	zeroRows, err := store.ListZeroResultInsights(ctx, tenantA, "2026-09-29", "2026-09-29", 10)
+	if err != nil || len(zeroRows) != 1 || zeroRows[0].ZeroResultCount != 1 {
+		t.Fatalf("zero result rows=%+v err=%v", zeroRows, err)
+	}
+	rows, err = store.ListSearchInsights(ctx, tenantB, "2026-09-29", "2026-09-29", 10)
+	if err != nil || len(rows) != 1 || rows[0].SearchCount != 1 || rows[0].ZeroResultCount != 1 {
+		t.Fatalf("tenant-b rows=%+v err=%v", rows, err)
+	}
+	if err := store.PurgeBefore(ctx, time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = store.ListSearchInsights(ctx, tenantA, "2026-09-29", "2026-09-29", 10)
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("retained rows=%+v err=%v", rows, err)
+	}
 }
 
 func runNoCookieStatsContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {

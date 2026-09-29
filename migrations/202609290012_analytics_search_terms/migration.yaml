@@ -1,0 +1,28 @@
+id: "202609290012_analytics_search_terms"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+dependencies:
+  - "202609280002_analytics_privacy_stats"
+checksum_sha256:
+  sqlite: "3cb83122019493c43a030502f1a702caba6be7693d28fed5b4d329089a5720b0"
+  postgres: "0dc5e1a14f1fca2e22b747408e42d7adaffe0525b7f616ec75ab0d453189541c"
+  mysql: "e3209165b2fc9fe0e57fc002662d1cacc28215ccf9f16882a1ea1d10133b42c1"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Analytics module is enabled"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "One aggregate row per tenant, day, and normalized search term"
+compatibility: "Additive table; old binaries ignore search analytics"
+smoke:
+  - "Search totals and zero-result counts aggregate on all supported database adapters"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Drop analytics_search_daily; search insight history is lost"
