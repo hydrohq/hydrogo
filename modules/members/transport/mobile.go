@@ -273,6 +273,10 @@ func (h Handler) mobilePushSubscribe(w http.ResponseWriter, r *http.Request) {
 	if !decodeMemberMobileJSON(w, r, &input) {
 		return
 	}
+	if len(input.Token) == 0 || len(input.Token) > 2048 {
+		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be registered.")
+		return
+	}
 	if err := h.Push.Subscribe(r.Context(), push.Subscription{UserID: memberID, Platform: push.PlatformMobile, Endpoint: input.Token}); err != nil {
 		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be registered.")
 		return
@@ -289,6 +293,10 @@ func (h Handler) mobilePushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 	}
 	if !decodeMemberMobileJSON(w, r, &input) {
+		return
+	}
+	if len(input.Token) == 0 || len(input.Token) > 2048 {
+		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be removed.")
 		return
 	}
 	if err := h.Push.Unsubscribe(r.Context(), memberID, push.PlatformMobile, input.Token); err != nil {

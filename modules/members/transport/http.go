@@ -436,13 +436,20 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(q) > 200 {
+		q = q[:200]
+	}
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
-	if status == "" {
+	allowedStatus := map[string]bool{"all": true, "active": true, "inactive": true, "verified": true, "unverified": true}
+	if !allowedStatus[status] {
 		status = "all"
 	}
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
+	}
+	if page > 10000 {
+		page = 10000
 	}
 	limit := 20
 	offset := (page - 1) * limit
