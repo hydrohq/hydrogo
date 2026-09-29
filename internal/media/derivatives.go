@@ -9,7 +9,7 @@ import (
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
-	_ "image/png"
+	"image/png"
 	"io"
 	"os"
 	"os/exec"
@@ -20,11 +20,13 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	webp "github.com/deepteams/webp"
+	pdfviewer "github.com/tucats/pdf-viewer"
 	xdraw "golang.org/x/image/draw"
 )
 
 const (
 	VariantCard          = "card"
+	VariantPDFCover      = "pdf-cover"
 	VariantVideo         = "video"
 	variantQueueCapacity = 8
 )
@@ -59,6 +61,7 @@ type Optimizer struct {
 	variants         DerivativeRepository
 	db               database.Executor
 	storageDir       string
+	blobStore        BlobStore
 	defaultWatermark *WatermarkOptions
 	wg               sync.WaitGroup
 	lifecycle        sync.RWMutex
@@ -114,6 +117,14 @@ func (o *Optimizer) Close() {
 	o.lifecycle.Unlock()
 	o.wg.Wait()
 }
+
+// SetBlobStore enables copying generated derivatives to the configured object
+// store. It must be called before uploads are enqueued.
+func (o *Optimizer) SetBlobStore(store BlobStore) {
+	if o != nil {
+		o.blobStore = store
+	}
+}
 func (o *Optimizer) Enqueue(asset Asset) {
 	if o == nil {
 		return
@@ -145,6 +156,8 @@ func (o *Optimizer) process(job optimizeJob) {
 	kind, mime := VariantCard, "image/webp"
 	if strings.HasPrefix(asset.MimeType, "video/") {
 		kind, mime = VariantVideo, "video/webm"
+	} else if asset.MimeType == "application/pdf" {
+		kind, mime = VariantPDFCover, "image/png"
 	} else if !strings.HasPrefix(asset.MimeType, "image/") {
 		return
 	}
@@ -164,16 +177,101 @@ func (o *Optimizer) process(job optimizeJob) {
 		imageTransformer.watermark = job.watermark
 		transformer = imageTransformer
 	}
-	result, err := transformer.Transform(ctx, asset, kind, id)
+	var result transformResult
+	if asset.MimeType == "application/pdf" {
+		result, err = renderPDFCover(ctx, filepath.Join(o.storageDir, filepath.Base(asset.StorageKey)), id)
+	} else {
+		result, err = transformer.Transform(ctx, asset, kind, id)
+	}
 	if err != nil {
 		if o.variants != nil {
 			_ = o.variants.MarkResult(ctx, o.db, id, "failed", 0, err.Error())
 		}
 		return
 	}
+	if o.blobStore != nil {
+		key, keyErr := StorageKeyForContext(ctx, result.Key)
+		file, openErr := os.Open(filepath.Join(o.storageDir, filepath.Base(result.Key)))
+		if keyErr == nil && openErr == nil {
+			putErr := o.blobStore.Put(ctx, key, file, result.Size, result.Mime)
+			_ = file.Close()
+			if putErr != nil {
+				err = putErr
+			}
+		} else {
+			if file != nil {
+				_ = file.Close()
+			}
+			err = errors.Join(keyErr, openErr)
+		}
+		if err != nil {
+			if o.variants != nil {
+				_ = o.variants.MarkResult(ctx, o.db, id, "failed", 0, err.Error())
+			}
+			return
+		}
+	}
 	if o.variants != nil {
 		_ = o.variants.MarkResult(ctx, o.db, id, "ready", result.Size, result.Key)
 	}
+}
+
+func renderPDFCover(ctx context.Context, input, id string) (result transformResult, err error) {
+	defer func() {
+		if recover() != nil {
+			result = transformResult{}
+			err = errors.New("PDF renderer rejected malformed input")
+		}
+	}()
+	file, err := os.Open(input)
+	if err != nil {
+		return transformResult{}, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > 10<<20 {
+		return transformResult{}, errors.New("PDF is outside the thumbnail size limit")
+	}
+	document, err := pdfviewer.Open(file, info.Size())
+	if err != nil {
+		return transformResult{}, fmt.Errorf("open PDF for cover rendering: %w", err)
+	}
+	defer document.Close()
+	if document.PageCount() < 1 {
+		return transformResult{}, errors.New("PDF has no pages")
+	}
+	page, err := document.Page(0)
+	if err != nil {
+		return transformResult{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	cover, err := page.Thumbnail(ctx, pdfviewer.ThumbnailOptions{MaxDimension: 320})
+	if err != nil {
+		return transformResult{}, fmt.Errorf("render PDF cover: %w", err)
+	}
+	out := filepath.Join(filepath.Dir(input), id+".png")
+	tmp, err := os.CreateTemp(filepath.Dir(input), id+"-*.tmp")
+	if err != nil {
+		return transformResult{}, err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := png.Encode(tmp, cover); err != nil {
+		_ = tmp.Close()
+		return transformResult{}, err
+	}
+	if err := tmp.Close(); err != nil {
+		return transformResult{}, err
+	}
+	if err := os.Rename(tmpName, out); err != nil {
+		return transformResult{}, err
+	}
+	resultInfo, err := os.Stat(out)
+	if err != nil {
+		return transformResult{}, err
+	}
+	return transformResult{Key: filepath.Base(out), Mime: "image/png", Size: resultInfo.Size()}, nil
 }
 
 type ffmpegTransformer struct {

@@ -4,6 +4,19 @@ templ Picture(p PictureProps) {
 	<img src={ p.Src } alt={ p.Alt } loading="lazy" decoding="async" class={ "block h-full w-full object-cover " + p.Class } style={ pictureStyle(p) } data-blurhash={ p.BlurHash } />
 }
 
+templ MediaPDFCoverPreview(p MediaPDFCoverProps) {
+	<div data-pdf-cover-preview>
+		<button type="button" data-pdf-cover-open aria-label={ "Önizle: " + p.Filename } class="h-full w-full cursor-zoom-in">
+			<img src={ "/media/" + p.AssetID + "?variant=pdf-cover" } alt={ p.Filename + " PDF kapağı" } loading="lazy" decoding="async" class="h-full w-full object-cover" />
+		</button>
+		<dialog aria-label={ p.Filename + " PDF önizlemesi" } class="w-[min(90vw,36rem)] rounded-xl border border-border bg-surface p-4 text-foreground shadow-xl">
+			<div class="mb-3 flex items-center justify-between gap-3"><strong>{ p.Filename }</strong><button type="button" data-pdf-cover-close class="rounded border border-border px-3 py-1">Kapat</button></div>
+			<img src={ "/media/" + p.AssetID + "?variant=pdf-cover" } alt={ p.Filename + " PDF kapağı" } class="mx-auto max-h-[70vh] max-w-full object-contain" />
+			<a href={ "/media/" + p.AssetID } class="mt-3 inline-flex rounded bg-primary px-3 py-2 text-primary-foreground" download>PDF dosyasını indir</a>
+		</dialog>
+	</div>
+}
+
 templ videoEmbed(src, title string) {
 	<div class="aspect-video w-full overflow-hidden rounded-lg">
 		<iframe src={ src } title={ title } loading="lazy" class="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>

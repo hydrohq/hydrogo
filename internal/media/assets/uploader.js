@@ -60,6 +60,16 @@
   });
 
   document.addEventListener('click', event => {
+    const opener = event.target.closest('[data-pdf-cover-open]');
+    if (opener) {
+      opener.closest('[data-pdf-cover-preview]')?.querySelector('dialog')?.showModal();
+      return;
+    }
+    const close = event.target.closest('[data-pdf-cover-close]');
+    if (close) {
+      close.closest('dialog')?.close();
+      return;
+    }
     const preview = event.target.closest('.media-focal-preview');
     if (!preview) return;
     const card = preview.closest('.media-card');

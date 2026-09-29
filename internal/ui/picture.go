@@ -42,6 +42,7 @@ type MediaSettingsFormProps struct {
 	WatermarkLogos                                                         []MediaLogoItem
 }
 type MediaLogoItem struct{ ID, Name string }
+type MediaPDFCoverProps struct{ AssetID, Filename string }
 
 func mediaFolderClass(active bool) string {
 	if active {

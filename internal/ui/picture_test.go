@@ -33,6 +33,15 @@ func TestPictureAndVideoEmbedRendering(t *testing.T) {
 
 func TestMediaAdminComponentsEscapeAndExposeControls(t *testing.T) {
 	var out bytes.Buffer
+	if err := MediaPDFCoverPreview(MediaPDFCoverProps{AssetID: "asset-1", Filename: "Resume.pdf"}).Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"data-pdf-cover-open", "data-pdf-cover-close", "<dialog", "/media/asset-1?variant=pdf-cover", "Resume.pdf PDF kapağı"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("PDF cover modal lacks %q: %s", want, out.String())
+		}
+	}
+	out.Reset()
 	items := []MediaFolderItem{{ID: "f1", Name: "News", Href: "/admin/media?folder=f1", Depth: 1}}
 	if err := MediaFolderTree(items, "f1").Render(context.Background(), &out); err != nil {
 		t.Fatal(err)

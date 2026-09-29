@@ -1823,6 +1823,9 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				return fmt.Errorf("configure media object storage: %w", err)
 			}
 		}
+		if mediaOptimizer != nil {
+			mediaOptimizer.SetBlobStore(blobStore)
+		}
 		mediaService = media.Service{Transactions: transactioner, Uploader: uploader, BlobStore: blobStore, Assets: mediaStore, Optimizer: mediaOptimizer, AdminSettings: mediaStore, DefaultWatermark: configuredWatermark}
 		if mediaOptimizer != nil {
 			go func() { <-ctx.Done(); mediaOptimizer.Close() }()

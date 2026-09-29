@@ -39,6 +39,23 @@ func TestModelRejectsInvalidIdentity(t *testing.T) {
 	}
 }
 
+func TestPDFCoverURLOnlyAcceptsLocalMediaPDFs(t *testing.T) {
+	cases := []struct {
+		fileURL, contentType, want string
+	}{
+		{"/media/asset_123", "application/pdf", "/media/asset_123?variant=pdf-cover"},
+		{"https://elsewhere.test/media/asset", "application/pdf", ""},
+		{"/media/asset?download=1", "application/pdf", ""},
+		{"/media/asset/extra", "application/pdf", ""},
+		{"/media/asset", "application/msword", ""},
+	}
+	for _, tc := range cases {
+		if got := PDFCoverURL(tc.fileURL, tc.contentType); got != tc.want {
+			t.Errorf("PDFCoverURL(%q, %q) = %q, want %q", tc.fileURL, tc.contentType, got, tc.want)
+		}
+	}
+}
+
 func TestExtensionManifestDeclaresOnlyOwnedMigration(t *testing.T) {
 	manifest := (Extension{}).ModuleManifest()
 	if manifest.ID != "downloads" || len(manifest.Migrations) != 1 || manifest.Routes != nil || manifest.Workers != nil {
