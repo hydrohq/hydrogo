@@ -3,20 +3,42 @@ package adminstudio
 import (
 	"context"
 	"net/http"
+	"strings"
 )
 
 type SupportConfig struct {
-	Enabled           bool
-	MaintenanceActive bool
-	BrokenLinksActive bool
-	BrokenLinksJobID  string
-	SafeModeActive    bool
-	AgencyName        string
-	Email             string
-	Phone             string
-	WhatsAppURL       string
-	SLABadge          string
-	GuideURL          string
+	Enabled               bool
+	MaintenanceActive     bool
+	BrokenLinksActive     bool
+	BrokenLinksJobID      string
+	SafeModeActive        bool
+	SiteModuleEnabled     bool
+	StaffNoticeActive     bool
+	StaffNoticeMessage    string
+	StaffNoticeSeverity   string
+	StaffNoticeDismissKey string
+	AgencyName            string
+	Email                 string
+	Phone                 string
+	WhatsAppURL           string
+	SLABadge              string
+	GuideURL              string
+}
+
+func SupportConfigResolverMiddleware(config SupportConfig, resolve func(*http.Request) SupportConfig) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			current := config
+			if resolve != nil && r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/admin") && strings.Contains(r.Header.Get("Accept"), "text/html") {
+				resolved := resolve(r)
+				current.StaffNoticeActive = resolved.StaffNoticeActive
+				current.StaffNoticeMessage = resolved.StaffNoticeMessage
+				current.StaffNoticeSeverity = resolved.StaffNoticeSeverity
+				current.StaffNoticeDismissKey = resolved.StaffNoticeDismissKey
+			}
+			next.ServeHTTP(w, r.WithContext(WithSupportConfig(r.Context(), current)))
+		})
+	}
 }
 
 type supportContextKey struct{}
@@ -34,9 +56,5 @@ func SupportConfigFromContext(ctx context.Context) SupportConfig {
 }
 
 func SupportConfigMiddleware(config SupportConfig) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r.WithContext(WithSupportConfig(r.Context(), config)))
-		})
-	}
+	return SupportConfigResolverMiddleware(config, nil)
 }

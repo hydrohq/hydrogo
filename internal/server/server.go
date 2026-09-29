@@ -41,6 +41,7 @@ type Config struct {
 	EnableHSTS                 bool
 	SecurityHeadersPreset      string
 	AdminSupport               adminstudio.SupportConfig
+	AdminSupportResolver       func(*http.Request) adminstudio.SupportConfig
 	IPBlocklist                *security.IPBlocklist
 	AnomalyFilterEnabled       bool
 	AnomalyBypassPaths         []string
@@ -232,7 +233,7 @@ func NewHandler(config Config) http.Handler {
 	}
 	// Final response guard: no HTML comment is allowed into production output.
 	handler = observability.HTMLCommentMiddleware(handler)
-	handler = adminstudio.SupportConfigMiddleware(config.AdminSupport)(handler)
+	handler = adminstudio.SupportConfigResolverMiddleware(config.AdminSupport, config.AdminSupportResolver)(handler)
 
 	return handler
 }

@@ -69,6 +69,20 @@ func TestAdminShellShowsSafeModeWarning(t *testing.T) {
 	}
 }
 
+func TestAdminShellShowsDismissibleStaffNoticeAsEscapedTypedContent(t *testing.T) {
+	request := httptest.NewRequest("GET", "/admin", nil)
+	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{StaffNoticeActive: true, StaffNoticeMessage: "<urgent> update", StaffNoticeSeverity: "critical", StaffNoticeDismissKey: "notice-key"}))
+	var out bytes.Buffer
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{"&lt;urgent&gt; update", `data-staff-notice="notice-key"`, `data-staff-notice-dismiss`, "hydro-staff-notice-dismissed"} {
+		if !strings.Contains(out.String(), marker) {
+			t.Errorf("staff notice shell missing %q", marker)
+		}
+	}
+}
+
 func TestAdminUserPermissionEditorUsesEditionCatalog(t *testing.T) {
 	var out bytes.Buffer
 	err := RenderAdminArea(&out, AdminAreaData{
