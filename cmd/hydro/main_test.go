@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,6 +39,23 @@ func TestModuleHelpersCanonicalizeNames(t *testing.T) {
 	set := enabledModuleSet(configured)
 	if !set["pages"] || !set["news"] || len(set) != 2 {
 		t.Fatalf("enabledModuleSet = %#v", set)
+	}
+}
+
+func TestSafeModeCommandFlagOverridesEnvironment(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "hydro.yaml")
+	if err := os.WriteFile(configPath, []byte("database:\n  dialect: sqlite\n  dsn: ':memory:'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HYDRO_SAFE_MODE", "false")
+	flags := flag.NewFlagSet("hydro", flag.ContinueOnError)
+	values := addRuntimeFlags(flags)
+	if err := flags.Parse([]string{"--config=" + configPath, "--safe-mode"}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := loadRuntimeConfig(flags, values)
+	if err != nil || !cfg.SafeMode {
+		t.Fatalf("safe mode from flag = %v, error = %v", cfg.SafeMode, err)
 	}
 }
 

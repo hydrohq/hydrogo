@@ -1548,9 +1548,12 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		return newRuntimeRateLimiter(redisClient, cfg.Redis.KeyPrefix, limit, window, requireTenantScope)
 	}
 	auditRecorder := newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)
-	socialOAuth, err := configuredSocialOAuth(db, cfg.Database.Dialect, authSvc, auditRecorder, cfg.Security.SecureCookies, requireTenantScope)
-	if err != nil {
-		return fmt.Errorf("configure social sign-in: %w", err)
+	var socialOAuth *auth.SocialOAuthHandler
+	if !cfg.SafeMode {
+		socialOAuth, err = configuredSocialOAuth(db, cfg.Database.Dialect, authSvc, auditRecorder, cfg.Security.SecureCookies, requireTenantScope)
+		if err != nil {
+			return fmt.Errorf("configure social sign-in: %w", err)
+		}
 	}
 	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, PublicOrigin: cfg.HTTP.PublicOrigin, SocialOAuth: socialOAuth, LoginSecurity: userStore, TokenLifetimeSettings: authstore.TokenLifetimeStore{DB: db, Dialect: cfg.Database.Dialect}}
 	authHTTP.PasswordResetTTL = cfg.PasswordResetDuration()
@@ -1561,7 +1564,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	modules := enabledModuleSet(cfg.Modules)
 	var pushDispatcher *pushservice.Dispatcher
-	if modules["push"] {
+	if modules["push"] && !cfg.SafeMode {
 		repository := pushstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		dispatcher := &pushservice.Dispatcher{Repository: repository}
 		vapidPublic, vapidPrivate, vapidSubject := os.Getenv("HYDRO_PUSH_VAPID_PUBLIC_KEY"), os.Getenv("HYDRO_PUSH_VAPID_PRIVATE_KEY"), os.Getenv("HYDRO_PUSH_VAPID_SUBJECT")
@@ -1632,7 +1635,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		return mailer.BrandedSender{Next: sender, Settings: emailBrandingSettings, PublicOrigin: cfg.HTTP.PublicOrigin}
 	}
-	if cfg.Mail.Host != "" {
+	if cfg.Mail.Host != "" && !cfg.SafeMode {
 		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS, MaxPerSecond: cfg.Mail.MaxPerSecond, MaxPerHour: cfg.Mail.MaxPerHour})
 		if err != nil {
 			return err
@@ -1641,7 +1644,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		notifier := mailer.NotificationSender{Sender: smtpSender}
 		authHTTP.Notifier = notifier
 		authHTTP.InviteNotice = notifier
-	} else if cfg.Mail.From != "" {
+	} else if cfg.Mail.From != "" && !cfg.SafeMode {
 		// Without a submission provider, the configured sender address opts into
 		// direct STARTTLS delivery to recipient MX servers. Unavailable direct
 		// delivery remains in the durable mail spool for retry.
@@ -1706,7 +1709,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 		}()
 	}
-	if cfg.Backup.Enabled && !*cgiMode && !*fastCGIMode {
+	if cfg.Backup.Enabled && !cfg.SafeMode && !*cgiMode && !*fastCGIMode {
 		dispatcher, backupErr := backupstore.NewS3Dispatcher(backupstore.S3Config{Endpoint: cfg.Media.S3Endpoint, Bucket: cfg.Media.S3Bucket, Region: cfg.Media.S3Region, AccessKey: cfg.Media.S3AccessKey, SecretKey: cfg.Media.S3SecretKey, Prefix: cfg.Backup.Prefix, Secure: cfg.Media.S3UseSSL, ForcePathStyle: cfg.Media.S3ForcePathStyle})
 		if backupErr != nil {
 			return fmt.Errorf("configure scheduled cloud backup: %w", backupErr)
@@ -2941,7 +2944,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if modules["media"] && !*cgiMode {
 		go runStaleMediaTempSweeper(ctx, cfg.Media.Dir, stderr)
 	}
-	if modules["forms"] && smtpSender != nil && !*cgiMode {
+	if modules["forms"] && smtpSender != nil && !*cgiMode && !cfg.SafeMode {
 		if modules["pages"] {
 			mailWorker.OnSchedule = func(jobCtx context.Context, now time.Time) error {
 				_, err := runAdminWeeklyDigestOnce(jobCtx, now, db, transactioner, adminstudiosql.Store{Dialect: cfg.Database.Dialect}, userStore, spoolStore, tenantScopes, requireTenantScope, modules["analytics"], modules["members"])
@@ -2950,21 +2953,23 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		go mailWorker.Run(ctx, 500*time.Millisecond)
 	}
-	if modules["news"] && !*cgiMode {
+	if modules["news"] && !*cgiMode && !cfg.SafeMode {
 		go runNewsWorker(ctx, db, newsWorker, metrics, stderr, budget.WorkerConcurrency)
 	}
 	webhookEndpoints := make([]webhooks.Endpoint, 0, len(cfg.Webhooks))
-	for _, configured := range cfg.Webhooks {
-		topics := make(map[string]struct{}, len(configured.Topics))
-		for _, topic := range configured.Topics {
-			topics[strings.TrimSpace(topic)] = struct{}{}
+	if !cfg.SafeMode {
+		for _, configured := range cfg.Webhooks {
+			topics := make(map[string]struct{}, len(configured.Topics))
+			for _, topic := range configured.Topics {
+				topics[strings.TrimSpace(topic)] = struct{}{}
+			}
+			webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
 		}
-		webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
 	}
 	if len(webhookEndpoints) > 0 {
 		routes = append(routes, router.Route{Pattern: "GET /admin/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}}, router.Route{Pattern: "POST /admin/api/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}})
 	}
-	if !*cgiMode && (modules["pages"] || modules["news"] || modules["commerce"]) {
+	if !cfg.SafeMode && !*cgiMode && (modules["pages"] || modules["news"] || modules["commerce"]) {
 		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
 	}
 	logWriter := stderr
@@ -2972,7 +2977,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		logWriter = io.Discard
 	}
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	if !*cgiMode && modules["site"] && linkScanManager != nil && linkScanOrigin != "" {
+	if !cfg.SafeMode && !*cgiMode && modules["site"] && linkScanManager != nil && linkScanOrigin != "" {
 		tenantKeys := []string{"default"}
 		if requireTenantScope {
 			tenantKeys = make([]string, 0, len(tenantScopes))
@@ -3052,7 +3057,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		},
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
-		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL},
+		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode},
 		IPBlocklist:           ipBlocklist,
 		AnomalyFilterEnabled:  cfg.Security.EnableAnomalyFilter,
 		AnomalyBypassPaths:    cfg.Security.AnomalyBypassPaths,
@@ -3133,7 +3138,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			defer cancel()
 
 			// A. Scheduled news publications
-			if modules["news"] {
+			if modules["news"] && !cfg.SafeMode {
 				published := false
 				if err := newsWorker.EnqueueDue(cronCtx, db, time.Now().UTC()); err == nil {
 					for i := 0; i < 4; i++ {
@@ -3155,7 +3160,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 
 			// C. Outbox webhook dispatch
-			if len(webhookEndpoints) > 0 {
+			if !cfg.SafeMode && len(webhookEndpoints) > 0 {
 				outboxWorker := webhooks.Worker{
 					DB:           db,
 					Store:        outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
@@ -3167,7 +3172,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				}
 				_, _ = outboxWorker.RunOnce(cronCtx, time.Now().UTC())
 			}
-			if modules["forms"] && modules["pages"] && smtpSender != nil {
+			if !cfg.SafeMode && modules["forms"] && modules["pages"] && smtpSender != nil {
 				_, _ = runAdminWeeklyDigestOnce(cronCtx, time.Now(), db, transactioner, adminstudiosql.Store{Dialect: cfg.Database.Dialect}, userStore, spoolStore, tenantScopes, requireTenantScope, modules["analytics"], modules["members"])
 				_, _ = mailWorker.RunOnce(cronCtx)
 			}
@@ -5576,6 +5581,7 @@ type runtimeFlags struct {
 	address         *string
 	databaseDialect *string
 	databaseDSN     *string
+	safeMode        *bool
 }
 
 func addRuntimeFlags(flags *flag.FlagSet) runtimeFlags {
@@ -5585,6 +5591,7 @@ func addRuntimeFlags(flags *flag.FlagSet) runtimeFlags {
 		address:         flags.String("address", "", "HTTP listen address"),
 		databaseDialect: flags.String("database-dialect", "", "sqlite or postgres"),
 		databaseDSN:     flags.String("database-dsn", "", "database connection string"),
+		safeMode:        flags.Bool("safe-mode", false, "suppress external integrations and non-essential workers"),
 	}
 }
 
@@ -5603,6 +5610,9 @@ func loadRuntimeConfig(flags *flag.FlagSet, values runtimeFlags) (config.Config,
 	}
 	if set["database-dsn"] {
 		overrides.DatabaseDSN = values.databaseDSN
+	}
+	if set["safe-mode"] {
+		overrides.SafeMode = values.safeMode
 	}
 	return config.Load(*values.configPath, os.LookupEnv, overrides)
 }

@@ -22,6 +22,7 @@ import (
 var localePattern = regexp.MustCompile(`^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?$`)
 
 type Config struct {
+	SafeMode        bool             `yaml:"safe_mode"`
 	Profile         capacity.Profile `yaml:"profile"`
 	Modules         []string         `yaml:"modules"`
 	HTTP            HTTP             `yaml:"http"`
@@ -199,6 +200,7 @@ type Overrides struct {
 	HTTPAddress     *string
 	DatabaseDialect *string
 	DatabaseDSN     *string
+	SafeMode        *bool
 }
 
 type LookupEnv func(string) (string, bool)
@@ -230,6 +232,13 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 
 	if value, ok := lookup("HYDRO_HTTP_ADDRESS"); ok {
 		result.HTTP.Address = value
+	}
+	if value, ok := lookup("HYDRO_SAFE_MODE"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_SAFE_MODE: %w", err)
+		}
+		result.SafeMode = parsed
 	}
 	if value, ok := lookup("HYDRO_CAPACITY_PROFILE"); ok && value != "" {
 		result.Profile = capacity.Profile(value)
@@ -509,6 +518,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if overrides.DatabaseDSN != nil && *overrides.DatabaseDSN != "" {
 		dsnSources++
 		result.Database.DSN = *overrides.DatabaseDSN
+	}
+	if overrides.SafeMode != nil {
+		result.SafeMode = *overrides.SafeMode
 	}
 	if dsnSources > 1 {
 		return Config{}, errors.New("database DSN is defined by multiple secret sources")
