@@ -53,3 +53,13 @@ func TestAdminTaxonomyRejectsOversizedForm(t *testing.T) {
 		t.Fatalf("oversized taxonomy form status=%d body=%s", response.Code, response.Body.String())
 	}
 }
+
+func TestAdminScheduleRejectsOversizedForm(t *testing.T) {
+	h := Handler{}
+	request, response := editorPost("/admin/news/n-1/schedule", "version=1&scheduled_at=&pad="+strings.Repeat("x", 16<<10))
+	request.SetPathValue("id", "n-1")
+	h.adminSchedule(response, request)
+	if response.Code != http.StatusBadRequest || response.Body.String() != "invalid form\n" {
+		t.Fatalf("oversized schedule form status=%d body=%s", response.Code, response.Body.String())
+	}
+}
