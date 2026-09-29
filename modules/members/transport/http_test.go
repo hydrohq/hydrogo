@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -85,7 +86,10 @@ func (m *memoryMemberStore) Search(_ context.Context, _ members.MemberFilter) (m
 	return members.MemberListResult{}, nil
 }
 
-func (m *memoryMemberStore) SetActive(_ context.Context, _ string, _ bool) error {
+func (m *memoryMemberStore) SetActive(_ context.Context, id string, active bool) error {
+	if member, ok := m.members[id]; ok {
+		member.Active = active
+	}
 	return nil
 }
 
@@ -295,6 +299,33 @@ func TestAdminMemberXLSXExportIsProtectedAndValid(t *testing.T) {
 	routes["GET /admin/members/export.csv"].ServeHTTP(csvResponse, csvRequest)
 	if csvResponse.Code != http.StatusOK || !strings.Contains(csvResponse.Body.String(), "İstanbul@example.test") || !strings.Contains(csvResponse.Body.String(), "'=SUM(A1:A2)") {
 		t.Fatalf("CSV export status=%d body=%q", csvResponse.Code, csvResponse.Body.String())
+	}
+}
+
+func TestAdminSetActiveRevokesBrowserSessions(t *testing.T) {
+	memberStore := newMemoryMemberStore()
+	memberStore.members["member-1"] = &members.Member{ID: "member-1", Email: "member@example.com", Active: true}
+	sessions := newMemorySessionStore()
+	svc := members.Service{Members: memberStore, Sessions: sessions}
+	token, session, err := svc.CreateSession(context.Background(), "member-1", "test", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := transport.Handler{Service: svc}
+	request := httptest.NewRequest(http.MethodPost, "/admin/members/member-1/active", strings.NewReader("active=false"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusSeeOther)
+	}
+	if _, _, err := svc.ValidateSession(context.Background(), token); !errors.Is(err, members.ErrInvalidCredentials) {
+		t.Fatalf("deactivated member session still valid: session=%v err=%v", session.ID, err)
 	}
 }
 

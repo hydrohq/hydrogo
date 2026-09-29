@@ -781,10 +781,16 @@ func (h Handler) adminSetActive(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "member update failed", 400)
 		return
 	}
-	if !active && h.Mobile != nil {
-		if err := h.Mobile.RevokeAll(r.Context(), id); err != nil {
+	if !active {
+		if err := h.Service.RevokeAllSessions(r.Context(), id); err != nil {
 			http.Error(w, "member session update failed", http.StatusServiceUnavailable)
 			return
+		}
+		if h.Mobile != nil {
+			if err := h.Mobile.RevokeAll(r.Context(), id); err != nil {
+				http.Error(w, "member session update failed", http.StatusServiceUnavailable)
+				return
+			}
 		}
 	}
 	ref := r.Header.Get("Referer")
