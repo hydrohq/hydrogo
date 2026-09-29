@@ -70,6 +70,12 @@ type publicMediaURLProvider interface {
 	PublicURL(string) (string, error)
 }
 
+const (
+	maxNewsTaxonomyFormBytes = 16 << 10
+	maxNewsItemFormBytes     = 256 << 10
+	maxNewsWorkflowFormBytes = 4 << 10
+)
+
 func (h Handler) defaultLocale() string {
 	if h.DefaultLocale != "" {
 		return h.DefaultLocale
@@ -383,6 +389,7 @@ func (h Handler) adminTaxonomyTerm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxNewsTaxonomyFormBytes)
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
