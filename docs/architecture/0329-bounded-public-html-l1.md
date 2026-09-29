@@ -29,6 +29,12 @@ Page publish purges its route and site configuration mutations purge both
 content tags. News mutation routes purge the news tag. Generation checks prevent
 a local render started before invalidation from repopulating the cache.
 
+When the optional SQLite external-write watcher is enabled, a detected
+`data_version` change clears both the page data cache and this HTML cache. The
+watcher is a bounded polling safety net, not an instant or durable cross-node
+invalidation protocol; PostgreSQL writes and missed process notifications still
+require a future shared generation/outbox reconciler.
+
 This is **process-local only**. It does not claim cross-process fan-out, durable
 invalidation, edge/browser recall, or zero stale content. Those guarantees
 require the generation/outbox reconciliation protocol from ADR-0011 and remain

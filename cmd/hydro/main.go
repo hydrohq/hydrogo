@@ -118,6 +118,15 @@ type pageCache interface {
 	Stats() cache.Stats
 }
 
+func clearPublicCaches(page pageCache, html *server.PublicHTMLCache) {
+	if page != nil {
+		page.Clear()
+	}
+	if html != nil {
+		html.Clear()
+	}
+}
+
 const version = "0.0.0-dev"
 
 var (
@@ -1736,7 +1745,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 	}
 	var sqliteCacheConn *sql.Conn
-	if !*cgiMode && cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && publicPageCache != nil {
+	if !*cgiMode && cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && (publicPageCache != nil || publicHTMLCache != nil) {
 		sqliteCacheConn, err = db.Conn(ctx)
 		if err != nil {
 			return fmt.Errorf("open sqlite cache monitor connection: %w", err)
@@ -1748,7 +1757,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			err := sqliteCacheConn.QueryRowContext(readCtx, "PRAGMA data_version").Scan(&version)
 			return version, err
 		}
-		monitor.OnChange = publicPageCache.Clear
+		monitor.OnChange = func() { clearPublicCaches(publicPageCache, publicHTMLCache) }
 		monitor.OnError = func(monitorErr error) {
 			if stderr != nil {
 				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor: %v\n", monitorErr)
