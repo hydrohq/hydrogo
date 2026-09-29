@@ -3,15 +3,13 @@
 package backup
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -66,7 +64,7 @@ func (d *S3Dispatcher) UploadSnapshot(ctx context.Context, snapshotDir, objectNa
 	}
 	reader, writer := io.Pipe()
 	key := d.prefix + objectName
-	go func() { err := writeSnapshotArchive(ctx, writer, snapshotDir); _ = writer.CloseWithError(err) }()
+	go func() { err := WriteSnapshotArchive(ctx, writer, snapshotDir); _ = writer.CloseWithError(err) }()
 	_, err := d.client.PutObject(ctx, d.bucket, key, reader, -1, minio.PutObjectOptions{ContentType: "application/gzip", ServerSideEncryption: encrypt.NewSSE()})
 	_ = reader.Close()
 	if err != nil {
@@ -75,58 +73,7 @@ func (d *S3Dispatcher) UploadSnapshot(ctx context.Context, snapshotDir, objectNa
 	return nil
 }
 
-func writeSnapshotArchive(ctx context.Context, dst io.Writer, root string) error {
-	gz := gzip.NewWriter(dst)
-	tarWriter := tar.NewWriter(gz)
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return errors.New("backup snapshot contains a symlink")
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		header, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return err
-		}
-		header.Name = filepath.ToSlash(rel)
-		if err = tarWriter.WriteHeader(header); err != nil {
-			return err
-		}
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		_, copyErr := io.Copy(tarWriter, file)
-		closeErr := file.Close()
-		if copyErr != nil {
-			return copyErr
-		}
-		return closeErr
-	})
-	if closeErr := tarWriter.Close(); err == nil {
-		err = closeErr
-	}
-	if closeErr := gz.Close(); err == nil {
-		err = closeErr
-	}
-	return err
-}
-
+// WriteSnapshotArchive streams a verified snapshot directory as gzip-compressed tar.
 func (d *S3Dispatcher) Prune(ctx context.Context, retention time.Duration, now time.Time) (int, error) {
 	if d == nil || d.client == nil {
 		return 0, errors.New("backup S3 dispatcher unavailable")
@@ -152,6 +99,31 @@ func (d *S3Dispatcher) Prune(ctx context.Context, retention time.Duration, now t
 		removed++
 	}
 	return removed, nil
+}
+
+// ListRecent returns a bounded newest-first view of scheduled cloud snapshots.
+func (d *S3Dispatcher) ListRecent(ctx context.Context, limit int) ([]SnapshotSummary, error) {
+	if d == nil || d.client == nil {
+		return nil, errors.New("backup S3 dispatcher unavailable")
+	}
+	if limit < 1 || limit > 100 {
+		return nil, errors.New("backup listing limit is out of range")
+	}
+	items := make([]SnapshotSummary, 0, limit)
+	for object := range d.client.ListObjects(ctx, d.bucket, minio.ListObjectsOptions{Prefix: d.prefix, Recursive: true}) {
+		if object.Err != nil {
+			return nil, object.Err
+		}
+		if !strings.HasSuffix(object.Key, ".tar.gz") || object.LastModified.IsZero() {
+			continue
+		}
+		items = append(items, SnapshotSummary{Name: filepath.Base(object.Key), CreatedAt: object.LastModified.UTC(), Bytes: object.Size})
+		sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.After(items[j].CreatedAt) })
+		if len(items) > limit {
+			items = items[:limit]
+		}
+	}
+	return items, nil
 }
 
 func RunDaily(ctx context.Context, hourUTC int, run func(context.Context) error, onError func(error)) {

@@ -55,6 +55,13 @@ For snapshot retention, first inspect candidates with `hydro backup prune --root
 
 `internal/ops.Evaluate` converts last backup age, available disk space, migration/readiness failures, SMTP delivery failures, and dead-letter queue metrics into deterministic alarm codes. `backup_stale`, `disk_low`, `migration_failed`, and `readiness_failed` are critical; `smtp_delivery` and `jobs_dead_lettered` are warning level. The evaluator does not replace an alerting notification system; production notifiers and external key recovery drills must be verified separately.
 
+Admin Studio's `/admin/backup` download requires an operator-managed `HYDRO_BACKUP_SIGNING_SEED` (64 hexadecimal characters) supplied through the deployment secret store. The page shows the matching public verification key. Store that public key with each downloaded archive; do not rotate away old public keys until their archives expire. Verify and unpack a downloaded archive before staging it:
+
+```sh
+hydro restore unpack --archive hydrogo-backup.tar.gz --destination /secure/restore/snapshot --public-key PUBLIC_KEY_HEX
+hydro restore verify --snapshot /secure/restore/snapshot
+```
+
 News worker concurrency is derived from the active capacity profile: Compact uses 1 worker, Standard uses 4, Distributed uses 16 bounded worker IDs. Profile concurrency should not be overridden without measuring lease durations and queue backpressure.
 
 Dead-letter jobs should first be inspected with `hydro jobs dead-letter list`. Job payloads are omitted from CLI outputs. Operators re-queue jobs only with explicit confirmation after verified fixes: `hydro jobs dead-letter requeue --id ID --confirm`; attempt counters and error diagnostics are preserved.

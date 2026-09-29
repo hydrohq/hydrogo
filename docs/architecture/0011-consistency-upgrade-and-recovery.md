@@ -71,6 +71,8 @@ Backup (disaster recovery to the same DB), export (portable logical data), and b
 - PITR support is offered only with a media retention and key recovery model compatible with the DB history. Having only DB PITR does not guarantee the same RPO for the entire product.
 - Restored outbox/jobs can resend old emails/webhooks. A restore is initially started isolated, with worker and external egress closed; side effects are explicitly enabled after being reconciled.
 - Restored sessions are revoked by default; signature/preview/API secret versions and the shutdown of the old active deployment are in the runbook. Secret recovery is on a separate secure channel, public keys are not kept next to the backup.
+- Admin downloads use the same manifest-bearing snapshot flow, stage a temporary local snapshot, and stream a gzip tar response without buffering the archive in memory. The POST requires an active administrator, CSRF protection, password confirmation, a rate limit, and an audit event. The snapshot includes the database and media; its temporary disk use is therefore proportional to their combined size and must be covered by the deployment's free-space budget.
+- Admin download archives sign the exact checksum-manifest bytes with an Ed25519 key supplied only as `HYDRO_BACKUP_SIGNING_SEED`. Restore unpack requires the trusted public key, verifies the signature and every manifest checksum, and refuses path traversal, links, duplicate names, unsupported entries, or oversized extraction. Public keys must be retained for the lifetime of archives signed by their corresponding seed.
 
 ## Alternatives and validation
 

@@ -1,5 +1,3 @@
-//go:build !hydro_no_s3
-
 package backup
 
 import (
@@ -22,7 +20,7 @@ func TestWriteSnapshotArchiveStreamsContentsAndRejectsSymlinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = writeSnapshotArchive(context.Background(), out, root); err != nil {
+	if err = WriteSnapshotArchive(context.Background(), out, root); err != nil {
 		t.Fatal(err)
 	}
 	if err = out.Close(); err != nil {
@@ -48,7 +46,7 @@ func TestWriteSnapshotArchiveStreamsContentsAndRejectsSymlinks(t *testing.T) {
 	if err := os.Symlink(filepath.Join(root, "state.db"), filepath.Join(root, "link")); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if err := writeSnapshotArchive(context.Background(), io.Discard, root); err == nil {
+	if err := WriteSnapshotArchive(context.Background(), io.Discard, root); err == nil {
 		t.Fatal("symlink in backup snapshot accepted")
 	}
 }

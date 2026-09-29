@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -81,6 +82,27 @@ func TestLoadSentryDSNFromEnvironment(t *testing.T) {
 	}
 	if _, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:sentry.sqlite", "HYDRO_SENTRY_DSN": strings.Repeat("x", 4097)}), Overrides{}); err == nil || !strings.Contains(err.Error(), "Sentry") {
 		t.Fatalf("oversized Sentry DSN error = %v", err)
+	}
+}
+
+func TestBackupSigningSeedIsEnvironmentOnlyAndValidated(t *testing.T) {
+	seed := strings.Repeat("ab", 32)
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:backup-signing.sqlite", "HYDRO_BACKUP_SIGNING_SEED": seed}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Backup.SigningSeed != seed {
+		t.Fatal("backup signing seed was not loaded from its environment source")
+	}
+	if _, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:backup-signing-bad.sqlite", "HYDRO_BACKUP_SIGNING_SEED": "not-a-seed"}), Overrides{}); err == nil {
+		t.Fatal("invalid backup signing seed accepted")
+	}
+	encoded, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), seed) {
+		t.Fatal("backup signing seed leaked through config JSON")
 	}
 }
 
