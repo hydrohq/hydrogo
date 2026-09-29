@@ -389,3 +389,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0312: Global email branding and legal footer](0312-email-branding-and-legal-footer.md)
 - [ADR-0313: Configurable admin login background](0313-login-background-appearance.md)
 - [ADR-0315: Tenant-scoped site search insights](0315-tenant-scoped-search-insights.md)
+- [ADR-0316: Scheduled database maintenance](0316-scheduled-database-maintenance.md)
