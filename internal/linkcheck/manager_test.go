@@ -11,7 +11,7 @@ func TestManagerRunsBoundedTenantScopedScan(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			w.Header().Set("Content-Type", "text/html")
-			_, _ = w.Write([]byte(`<a href="/missing">missing</a>`))
+			_, _ = w.Write([]byte(`<title>Home</title><a href="/missing">missing</a>`))
 			return
 		}
 		http.NotFound(w, r)
@@ -32,7 +32,7 @@ func TestManagerRunsBoundedTenantScopedScan(t *testing.T) {
 			t.Fatal("scan disappeared")
 		}
 		if !current.Running {
-			if current.Failed || len(current.Findings) != 1 || current.Findings[0].AnchorText != "missing" {
+			if current.Failed || len(current.Findings) != 1 || current.Findings[0].AnchorText != "missing" || current.Findings[0].SourceTitle != "Home" {
 				t.Fatalf("result=%#v", current)
 			}
 			return

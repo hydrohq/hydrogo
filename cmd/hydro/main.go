@@ -1813,6 +1813,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
 	var linkScanManager *linkcheck.Manager
+	var linkScanOrigin string
 	var redirectRegistry *site.RedirectRegistry
 	if modules["site"] {
 		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
@@ -1851,7 +1852,8 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if sitemapOrigin == "" && cfg.HTTP.Address != "" {
 			sitemapOrigin = "http://" + cfg.HTTP.Address
 		}
-		linkScanManager = linkcheck.NewManager(linkcheck.Options{MaxPages: 500, MaxTargets: 5000, MaxFindings: 1000, Concurrency: 4, RequestDelay: 100 * time.Millisecond})
+		linkScanOrigin = cfg.HTTP.PublicOrigin
+		linkScanManager = linkcheck.NewManager(linkcheck.Options{MaxPages: 500, MaxTargets: 5000, MaxFindings: 1000, Concurrency: 4, RequestDelay: 100 * time.Millisecond, Retention: 35 * 24 * time.Hour})
 		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Media: &mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormsEnabled: modules["forms"], Realtime: realtimeHub, SitemapOrigin: sitemapOrigin, LinkScanManager: linkScanManager, LinkScanLimiter: newRateLimiter(1, time.Minute), SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
@@ -2970,6 +2972,18 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		logWriter = io.Discard
 	}
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	if !*cgiMode && modules["site"] && linkScanManager != nil && linkScanOrigin != "" {
+		tenantKeys := []string{"default"}
+		if requireTenantScope {
+			tenantKeys = make([]string, 0, len(tenantScopes))
+			for _, scope := range tenantScopes {
+				tenantKeys = append(tenantKeys, scope.TenantID)
+			}
+		}
+		if len(tenantKeys) > 0 {
+			go linkcheck.RunMonthly(ctx, linkScanManager, tenantKeys, linkScanOrigin, func(err error) { logger.WarnContext(ctx, "scheduled link audit could not start", "error", err) })
+		}
+	}
 	if !*cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
 		go database.RunWeeklyMaintenance(ctx, func(maintenanceCtx context.Context) {
 			maintenanceCtx, cancel := context.WithTimeout(maintenanceCtx, 30*time.Minute)

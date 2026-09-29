@@ -34,7 +34,7 @@ func scanLinksCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	writer := csv.NewWriter(stdout)
-	if err := writer.Write([]string{"source_page", "broken_url", "http_status", "anchor_text"}); err != nil {
+	if err := writer.Write([]string{"source_page", "source_title", "broken_url", "http_status", "anchor_text", "suggested_action"}); err != nil {
 		return err
 	}
 	for _, finding := range findings {
@@ -42,7 +42,7 @@ func scanLinksCommand(args []string, stdout, stderr io.Writer) error {
 		if finding.Status == 0 {
 			status = "unreachable"
 		}
-		if err := writer.Write([]string{finding.SourcePage, finding.URL, status, finding.AnchorText}); err != nil {
+		if err := writer.Write([]string{finding.SourcePage, finding.SourceTitle, finding.URL, status, finding.AnchorText, finding.Suggestion}); err != nil {
 			return err
 		}
 	}

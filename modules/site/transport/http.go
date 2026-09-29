@@ -189,7 +189,7 @@ func (h Handler) linkCheckPage(w http.ResponseWriter, r *http.Request) {
 				if finding.Status == 0 {
 					status = "Unavailable"
 				}
-				findings = append(findings, designsystem.LinkCheckFindingView{SourcePage: finding.SourcePage, URL: finding.URL, Status: status, AnchorText: finding.AnchorText})
+				findings = append(findings, designsystem.LinkCheckFindingView{SourcePage: finding.SourcePage, SourceTitle: finding.SourceTitle, URL: finding.URL, Status: status, AnchorText: finding.AnchorText, Suggestion: finding.Suggestion})
 			}
 		}
 	}

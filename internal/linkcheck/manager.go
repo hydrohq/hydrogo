@@ -11,7 +11,7 @@ import (
 
 var ErrScanInProgress = errors.New("link scan already in progress")
 
-const maxStoredScans = 32
+const maxStoredScans = 128
 
 type Job struct {
 	ID         string
@@ -117,8 +117,12 @@ func (m *Manager) Latest(tenantKey string) (Job, bool) {
 }
 
 func (m *Manager) pruneLocked(now time.Time) {
+	retention := m.options.Retention
+	if retention <= 0 {
+		retention = time.Hour
+	}
 	for id, job := range m.jobs {
-		if !job.Running && now.Sub(job.FinishedAt) > time.Hour {
+		if !job.Running && now.Sub(job.FinishedAt) > retention {
 			delete(m.jobs, id)
 		}
 	}
