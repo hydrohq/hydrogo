@@ -61,4 +61,45 @@ func TestEmailVerificationHandlerOneUseAndOwnerBound(t *testing.T) {
 	if again.Code != http.StatusBadRequest {
 		t.Fatalf("verification token was reusable: status=%d", again.Code)
 	}
+	target := &auth.User{ID: "unverified-editor", Email: "editor@example.test", PasswordHash: "unused", Role: auth.RoleEditor, Active: true, CreatedAt: now, UpdatedAt: now}
+	if err := users.Create(ctx, target); err != nil {
+		t.Fatal(err)
+	}
+	handler.AdminUsers = users
+	var resendRoute http.Handler
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /auth/users/{id}/email/verification/resend" {
+			resendRoute = route.Handler
+		}
+	}
+	if resendRoute == nil {
+		t.Fatal("admin resend route missing")
+	}
+	forbiddenRequest := httptest.NewRequest("POST", "/auth/users/unverified-editor/email/verification/resend", nil)
+	forbiddenRequest.SetPathValue("id", target.ID)
+	forbiddenRequest = forbiddenRequest.WithContext(auth.WithUser(ctx, target))
+	forbiddenResponse := httptest.NewRecorder()
+	resendRoute.ServeHTTP(forbiddenResponse, forbiddenRequest)
+	if forbiddenResponse.Code != http.StatusForbidden {
+		t.Fatalf("non-admin resend status=%d", forbiddenResponse.Code)
+	}
+	resendRequest := httptest.NewRequest("POST", "/auth/users/unverified-editor/email/verification/resend", nil)
+	resendRequest.SetPathValue("id", target.ID)
+	resendRequest = resendRequest.WithContext(auth.WithUser(ctx, user))
+	resendResponse := httptest.NewRecorder()
+	resendRoute.ServeHTTP(resendResponse, resendRequest)
+	if resendResponse.Code != http.StatusSeeOther || sentTo != target.Email {
+		t.Fatalf("admin resend status=%d email=%q", resendResponse.Code, sentTo)
+	}
+	resendURL, err := url.Parse(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resendVerify := httptest.NewRequest("GET", "/auth/email/verify?token="+url.QueryEscape(resendURL.Query().Get("token")), nil)
+	verifiedResponse := httptest.NewRecorder()
+	handler.Routes()[1].Handler.ServeHTTP(verifiedResponse, resendVerify)
+	loadedTarget, err := users.GetByID(ctx, target.ID)
+	if verifiedResponse.Code != http.StatusSeeOther || err != nil || loadedTarget.EmailVerifiedAt == nil {
+		t.Fatalf("resent token status=%d user=%+v err=%v", verifiedResponse.Code, loadedTarget, err)
+	}
 }

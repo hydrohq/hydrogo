@@ -18,18 +18,19 @@ import (
 )
 
 type AdminAreaData struct {
-	Email              string
-	Nonce              string
-	CSRF               string
-	Area               string
-	Locale             string
-	TenantID           string
-	LocaleSaved        bool
-	SoundAlertsEnabled bool
-	FontToolsEnabled   bool
-	Users              []*auth.User
-	Permissions        []string
-	IPBans             []SecurityBanRow
+	Email                    string
+	Nonce                    string
+	CSRF                     string
+	Area                     string
+	Locale                   string
+	TenantID                 string
+	LocaleSaved              bool
+	SoundAlertsEnabled       bool
+	FontToolsEnabled         bool
+	Users                    []*auth.User
+	EmailVerificationEnabled bool
+	Permissions              []string
+	IPBans                   []SecurityBanRow
 }
 
 type SecurityBanRow struct{ Address, Expires string }
@@ -687,7 +688,22 @@ function testGraphQL(btn){
 			if data.Locale == "tr" && !u.Active {
 				status = "Pasif"
 			}
-			_, _ = fmt.Fprintf(w, `<tr><td><strong>%s</strong></td><td><form method="post" action="/auth/users/%s/role" class="inline-form"><input type="hidden" name="_csrf" value="%s">%s <button class="button button-quiet" type="submit">%s</button></form></td><td>%s</td><td>%s<details style="margin-top:8px;"><summary>Custom permissions</summary><form method="post" action="/auth/users/%s/permissions" class="studio-form" style="margin-top:8px;"><input type="hidden" name="_csrf" value="%s">%s<button class="button button-quiet" type="submit">%s</button></form></details></td></tr>`, template.HTMLEscapeString(u.Email), template.HTMLEscapeString(u.ID), csrf, roleOptions, saveLabel, status, func() string {
+			verificationLabel, verifiedLabel := "Doğrulama bekliyor", "Doğrulanmış"
+			if data.Locale == "en" {
+				verificationLabel, verifiedLabel = "Unverified", "Verified"
+			}
+			verification := `<span class="status-pill status-pill--draft">` + verificationLabel + `</span>`
+			resend := ""
+			if u.EmailVerifiedAt != nil {
+				verification = `<span class="status-pill status-pill--published">` + verifiedLabel + `</span>`
+			} else if u.ID != "" && data.EmailVerificationEnabled {
+				label := "Doğrulama e-postasını yeniden gönder"
+				if data.Locale == "en" {
+					label = "Resend verification email"
+				}
+				resend = fmt.Sprintf(`<form method="post" action="/auth/users/%s/email/verification/resend"><input type="hidden" name="_csrf" value="%s"><button class="button button-quiet" type="submit">%s</button></form>`, template.HTMLEscapeString(u.ID), csrf, label)
+			}
+			_, _ = fmt.Fprintf(w, `<tr><td><strong>%s</strong><div>%s</div></td><td><form method="post" action="/auth/users/%s/role" class="inline-form"><input type="hidden" name="_csrf" value="%s">%s <button class="button button-quiet" type="submit">%s</button></form></td><td>%s</td><td>%s%s<details style="margin-top:8px;"><summary>Custom permissions</summary><form method="post" action="/auth/users/%s/permissions" class="studio-form" style="margin-top:8px;"><input type="hidden" name="_csrf" value="%s">%s<button class="button button-quiet" type="submit">%s</button></form></details></td></tr>`, template.HTMLEscapeString(u.Email), verification, template.HTMLEscapeString(u.ID), csrf, roleOptions, saveLabel, status, resend, func() string {
 				if u.ID == "" {
 					return ""
 				}
