@@ -11,6 +11,7 @@ func TestExtensionRegistryValidatesAndSortsDeclarativeManifests(t *testing.T) {
 	base := extensionv1.AdminExtensionManifest{ID: "reports", Name: "Reports", Version: "1.0.0", EntrypointURL: "https://reports.example/admin", Surfaces: []extensionv1.AdminSurface{{ID: "home", Label: "Home", Path: "/", Placement: "reports"}}}
 	other := base
 	other.ID, other.Name = "billing", "Billing"
+	other.Surfaces = []extensionv1.AdminSurface{{ID: "home", Label: "Home", Path: "/billing", Placement: "billing"}}
 	registry, err := NewExtensionRegistry([]extensionv1.AdminExtensionManifest{base, other})
 	if err != nil {
 		t.Fatal(err)
@@ -30,3 +31,4 @@ func TestExtensionRegistryRejectsDuplicateOrInvalidManifest(t *testing.T) {
 		t.Fatalf("invalid error = %v", err)
 	}
 }
+

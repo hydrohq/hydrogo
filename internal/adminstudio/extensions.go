@@ -19,6 +19,7 @@ type ExtensionRegistry struct {
 func NewExtensionRegistry(manifests []extensionv1.AdminExtensionManifest) (ExtensionRegistry, error) {
 	copyManifests := extensionv1.SortAdminExtensions(manifests)
 	seen := make(map[string]struct{}, len(copyManifests))
+	seenPaths := make(map[string]struct{})
 	for _, manifest := range copyManifests {
 		if err := manifest.Validate(); err != nil {
 			return ExtensionRegistry{}, ErrInvalidAdminExtensionRegistry
@@ -27,6 +28,17 @@ func NewExtensionRegistry(manifests []extensionv1.AdminExtensionManifest) (Exten
 			return ExtensionRegistry{}, ErrInvalidAdminExtensionRegistry
 		}
 		seen[manifest.ID] = struct{}{}
+		for _, surface := range manifest.Surfaces {
+
+			if _, ok := seenPaths[surface.Path]; ok {
+
+				return ExtensionRegistry{}, ErrInvalidAdminExtensionRegistry
+
+			}
+
+			seenPaths[surface.Path] = struct{}{}
+
+		}
 	}
 	return ExtensionRegistry{manifests: copyManifests, channels: NewChannelManager()}, nil
 }

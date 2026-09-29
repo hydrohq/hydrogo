@@ -16,7 +16,7 @@ func TestServeExtensionSurfaceDoesNotExposeSecrets(t *testing.T) {
 	}
 	req := httptest.NewRequest("GET", "/admin/extensions/reports/home", nil)
 	recorder := httptest.NewRecorder()
-	registry.ServeExtensionSurface(recorder, req, "reports", "home", "tr-TR", ChannelPrincipal{SessionID: "s1", UserID: "u1"})
+	registry.ServeExtensionSurface(recorder, req, "reports", "home", "tr-TR", ChannelPrincipal{SessionID: "s1", UserID: "u1"}, func(p string) bool { return true })
 	body := recorder.Body.String()
 	if recorder.Code != 200 || !strings.Contains(body, "https://reports.example/") || !strings.Contains(body, "sandbox=\"allow-scripts allow-same-origin allow-forms allow-popups\"") || !strings.Contains(body, "MessageChannel") || !strings.Contains(body, "event.source!==frame.contentWindow") || !strings.Contains(body, "/admin/extensions/channels/bind") || !strings.Contains(body, "/admin/extensions/channels/revoke") || !strings.Contains(body, "keepalive:true") || strings.Contains(body, "Authorization") || strings.Contains(body, "hydro_session") {
 		t.Fatalf("unexpected extension shell: status=%d body=%s", recorder.Code, body)
@@ -34,7 +34,7 @@ func TestServeExtensionSurfaceRejectsHostCollision(t *testing.T) {
 	}
 	req := httptest.NewRequest("GET", "https://admin.example.test/admin/extensions/same-origin/home", nil)
 	recorder := httptest.NewRecorder()
-	registry.ServeExtensionSurface(recorder, req, "same-origin", "home", "en", ChannelPrincipal{SessionID: "s1", UserID: "u1"})
+	registry.ServeExtensionSurface(recorder, req, "same-origin", "home", "en", ChannelPrincipal{SessionID: "s1", UserID: "u1"}, func(p string) bool { return true })
 	if recorder.Code != 404 {
 		t.Fatalf("same-origin extension status=%d, want 404", recorder.Code)
 	}
