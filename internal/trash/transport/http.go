@@ -11,6 +11,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/trash"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 type Handler struct {
@@ -40,7 +41,7 @@ func (h Handler) list(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStartForRequestWithTrash(w, r, "Çöp kutusu", "İçerik", security.NonceFromContext(r.Context()), "trash"); err != nil {
 		return
 	}
-	if err := ui.TrashPage(items, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
+	if err := designsystem.TrashPage(items, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
 		return
 	}
 	_ = ui.AdminEnd(w)

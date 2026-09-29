@@ -43,6 +43,7 @@ import (
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
+	aicore "github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	analyticsstore "github.com/ardaozyildirim/hydrogo/internal/analytics/sqlstore"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
@@ -2120,6 +2121,18 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 			return result
 		}}
+		if modules["ai"] && strings.EqualFold(strings.TrimSpace(os.Getenv("HYDRO_AI_ENABLED")), "true") {
+			endpoint, apiKey, model := strings.TrimSpace(os.Getenv("HYDRO_AI_ENDPOINT")), os.Getenv("HYDRO_AI_API_KEY"), strings.TrimSpace(os.Getenv("HYDRO_AI_MODEL"))
+			if endpoint == "" || strings.TrimSpace(apiKey) == "" || model == "" {
+				return errors.New("AI assistance requires HYDRO_AI_ENDPOINT, HYDRO_AI_API_KEY, and HYDRO_AI_MODEL")
+			}
+			provider := aicore.OpenAICompatible{Endpoint: endpoint, APIKey: apiKey, Model: model}
+			if provider.Validate() != nil {
+				return errors.New("AI assistance provider configuration is invalid")
+			}
+			pageHTTP.Assistant = aicore.Assistant{Enabled: true, Provider: provider, Timeout: 15 * time.Second}
+			pageHTTP.AIAudit = auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+		}
 		if modules["site"] {
 			pageHTTP.PublicContactSettings = func(contactCtx context.Context) ([]site.Setting, error) {
 				return siteStore.ListPublicSettings(contactCtx, db)
