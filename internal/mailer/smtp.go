@@ -17,6 +17,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
@@ -57,17 +58,20 @@ func (n NotificationSender) SendInvite(ctx context.Context, email, token string)
 }
 
 type SMTPConfig struct {
-	Host     string
-	Port     int
-	From     string
-	Username string
-	Password string
-	StartTLS bool
-	Timeout  time.Duration
+	Host         string
+	Port         int
+	From         string
+	Username     string
+	Password     string
+	StartTLS     bool
+	Timeout      time.Duration
+	MaxPerSecond int
+	MaxPerHour   int
 }
 
 type SMTP struct {
-	config SMTPConfig
+	config      SMTPConfig
+	sendLimiter sendLimiter
 }
 
 type PingResult struct {
@@ -93,7 +97,19 @@ func NewSMTP(config SMTPConfig) (*SMTP, error) {
 	if config.Username != "" && !config.StartTLS {
 		return nil, errors.New("SMTP AUTH requires STARTTLS")
 	}
-	return &SMTP{config: config}, nil
+	if config.MaxPerSecond < 0 || config.MaxPerSecond > 3600 || config.MaxPerHour < 0 || config.MaxPerHour > 100_000 {
+		return nil, errors.New("SMTP rate limits are invalid")
+	}
+	if config.MaxPerSecond == 0 {
+		config.MaxPerSecond = 5
+	}
+	if config.MaxPerHour == 0 {
+		config.MaxPerHour = 100
+	}
+	return &SMTP{config: config, sendLimiter: sendLimiter{
+		perSecond: newTokenBucket(float64(config.MaxPerSecond), float64(config.MaxPerSecond)),
+		perHour:   newTokenBucket(float64(config.MaxPerHour)/3600, 1),
+	}}, nil
 }
 
 // Ping checks SMTP greeting, configured TLS, and credentials without sending mail.
@@ -214,6 +230,9 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 	if err := validateMessage(message); err != nil {
 		return err
 	}
+	if err := s.sendLimiter.Wait(ctx); err != nil {
+		return err
+	}
 	timeout := s.config.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -271,6 +290,68 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 		return fmt.Errorf("SMTP quit: %w", err)
 	}
 	return nil
+}
+
+type tokenBucket struct {
+	mu       sync.Mutex
+	capacity float64
+	rate     float64
+	tokens   float64
+	updated  time.Time
+}
+
+func newTokenBucket(rate, capacity float64) tokenBucket {
+	return tokenBucket{capacity: capacity, rate: rate, tokens: capacity}
+}
+
+func (b *tokenBucket) reserve(now time.Time) time.Duration {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.updated.IsZero() {
+		b.updated = now
+	}
+	if now.After(b.updated) {
+		b.tokens += now.Sub(b.updated).Seconds() * b.rate
+		if b.tokens > b.capacity {
+			b.tokens = b.capacity
+		}
+		b.updated = now
+	}
+	if b.tokens >= 1 {
+		b.tokens--
+		return 0
+	}
+	wait := time.Duration((1 - b.tokens) / b.rate * float64(time.Second))
+	b.tokens = 0
+	b.updated = b.updated.Add(wait)
+	if delay := b.updated.Sub(now); delay > 0 {
+		return delay
+	}
+	return wait
+}
+
+type sendLimiter struct {
+	perSecond tokenBucket
+	perHour   tokenBucket
+}
+
+func (l *sendLimiter) Wait(ctx context.Context) error {
+	now := time.Now()
+	delay := l.perSecond.reserve(now)
+	if hourDelay := l.perHour.reserve(now); hourDelay > delay {
+		delay = hourDelay
+	}
+	if delay <= 0 {
+		return ctx.Err()
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return ctx.Err()
+	}
 }
 
 func validateMessage(message Message) error {

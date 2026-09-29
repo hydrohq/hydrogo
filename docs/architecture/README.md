@@ -368,3 +368,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0291: SQLite graceful shutdown checkpoint](0291-sqlite-graceful-shutdown-checkpoint.md)
 - [ADR-0292: Validated page block style presets](0292-page-block-style-presets.md)
 - [ADR-0293: Browser locale routing](0293-browser-locale-routing.md)
+- [ADR-0294: Bounded SMTP send rate](0294-smtp-send-throttling.md)
