@@ -17,6 +17,7 @@ import (
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
@@ -25,6 +26,13 @@ import (
 type verifierStub struct {
 	valid bool
 	seen  string
+}
+
+type realtimeRecorder struct{ events []realtime.Event }
+
+func (r *realtimeRecorder) Publish(_ context.Context, event realtime.Event) error {
+	r.events = append(r.events, event)
+	return nil
 }
 
 func (v *verifierStub) Verify(_ context.Context, token, _ string) (bool, error) {
@@ -66,12 +74,17 @@ func TestDynamicPublicFormNormalizesAndDeduplicatesSubmission(t *testing.T) {
 		{ID: "email", Type: forms.Email, Label: "Email", Required: true},
 		{ID: "message", Type: forms.Textarea, Label: "Message", Required: true},
 	}})
+	var events realtimeRecorder
+	handler.Realtime = &events
 	values := url.Values{"email": {" visitor@example.test "}, "message": {"Hello"}, "_submission_token": {"0123456789abcdef0123456789abcdef"}}
 	if response := submitRequest(handler, values); response.Code != http.StatusAccepted {
 		t.Fatalf("submit status=%d body=%s", response.Code, response.Body.String())
 	}
 	if response := submitRequest(handler, values); response.Code != http.StatusAccepted {
 		t.Fatalf("replay status=%d body=%s", response.Code, response.Body.String())
+	}
+	if len(events.events) != 1 || events.events[0].Topic != "forms:submission_created" || strings.Contains(string(events.events[0].Data), "visitor@example.test") {
+		t.Fatalf("submission realtime events=%+v", events.events)
 	}
 	store := sitestore.Store{Dialect: database.SQLite}
 	items, err := store.ListSubmissions(context.Background(), db, "contact", 10)

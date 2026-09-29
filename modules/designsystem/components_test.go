@@ -48,6 +48,18 @@ func TestExportLinksRenderSafeTypedDownloads(t *testing.T) {
 	}
 }
 
+func TestSoundAlertPreferenceIsOptInAndAccessible(t *testing.T) {
+	got := render(t, SoundAlertPreference(SoundAlertPreferenceProps{Title: "Notifications", Label: "Play a sound for new inquiries", Description: "This setting is stored in this browser."}))
+	for _, want := range []string{`data-sound-alert-settings`, `data-sound-alert-preference`, `type="checkbox"`, "Play a sound for new inquiries"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("sound preference missing %q: %s", want, got)
+		}
+	}
+	if strings.Contains(got, " checked") {
+		t.Fatalf("sound alerts must default to off: %s", got)
+	}
+}
+
 func TestInitialsAvatarIsEscapedAndPaletteIsStable(t *testing.T) {
 	avatar := render(t, InitialsAvatar(InitialsAvatarProps{Initials: Initials("arda.ozyildirim"), Class: InitialsAvatarClass("arda@example.test")}))
 	if !strings.Contains(avatar, `aria-label="AO"`) || !strings.Contains(avatar, `>AO</span>`) {

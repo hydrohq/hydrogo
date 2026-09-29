@@ -77,13 +77,21 @@ func TestAdminPermissionCatalogEscapesEditionNames(t *testing.T) {
 
 func TestRenderAdminAccountEnglishLocaleSelector(t *testing.T) {
 	var out bytes.Buffer
-	if err := RenderAdminArea(&out, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account", Locale: "en"}); err != nil {
+	if err := RenderAdminArea(&out, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account", Locale: "en", SoundAlertsEnabled: true}); err != nil {
 		t.Fatalf("RenderAdminArea(account) error = %v", err)
 	}
 	markup := out.String()
-	for _, want := range []string{`lang="en"`, "The operation could not be completed.", "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`, `data-password-strength`, `data-password-meter`, `data-password-feedback`} {
+	for _, want := range []string{`lang="en"`, "The operation could not be completed.", "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`, `data-password-strength`, `data-password-meter`, `data-password-feedback`, `data-sound-alert-preference`, "Play a sound for new inquiries"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("English account markup missing %q", want)
+		}
+	}
+}
+
+func TestAdminRealtimeChimeUsesOptInSettingAndFormEvent(t *testing.T) {
+	for _, want := range []string{"hydro-inquiry-sound-v1", "forms%3Asubmission_created", `source.addEventListener('forms:submission_created',play)`, `window.AudioContext||window.webkitAudioContext`, `preference.checked=enabled()`} {
+		if !strings.Contains(AdminRealtimeChimeJS, want) {
+			t.Fatalf("realtime chime script missing %q", want)
 		}
 	}
 }

@@ -1806,7 +1806,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if sitemapOrigin == "" && cfg.HTTP.Address != "" {
 			sitemapOrigin = "http://" + cfg.HTTP.Address
 		}
-		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Media: &mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormsEnabled: modules["forms"], SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Media: &mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormsEnabled: modules["forms"], Realtime: realtimeHub, SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err
@@ -2488,7 +2488,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
 			scope, _ := tenant.FromContext(r.Context())
-			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", FontToolsEnabled: modules["pages"], Permissions: authSvc.AvailablePermissions()}
+			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], Permissions: authSvc.AvailablePermissions()}
 			if active == "users" {
 				if repo, ok := any(userStore).(auth.UserAdminRepository); ok {
 					areaData.Users, err = repo.List(r.Context())

@@ -10,6 +10,17 @@ templ ExportLinks(items []ExportLink) {
 	</nav>
 }
 
+templ SoundAlertPreference(p SoundAlertPreferenceProps) {
+	<section class="mt-4 rounded-lg border border-border bg-surface p-4 text-foreground" data-sound-alert-settings>
+		<h2 class="text-base font-semibold">{ p.Title }</h2>
+		<p class="mb-3 text-sm">{ p.Description }</p>
+		<label class="inline-flex items-center gap-2 text-sm">
+			<input type="checkbox" data-sound-alert-preference />
+			<span>{ p.Label }</span>
+		</label>
+	</section>
+}
+
 templ Head() {
 	<style>
 		:root{--background:#fff;--foreground:#171923;--surface:#f7f8fa;--border:#d7dbe3;--primary:#315bd6;--primary-foreground:#fff;--radius:.6rem;color-scheme:light dark}
