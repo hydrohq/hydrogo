@@ -1,0 +1,48 @@
+package designsystem
+
+import "fmt"
+
+// LinkCheckFindingView is the safe presentation projection for link scan results.
+type LinkCheckFindingView struct {
+	SourcePage string
+	URL string
+	Status string
+	AnchorText string
+}
+
+templ LinkCheckNavLink() {
+	<a class="nav-item" href="/admin/site/link-check"><span class="nav-icon" aria-hidden="true">↗</span><span>Bağlantı denetimi</span></a>
+}
+
+templ LinkCheckAudit(csrf, jobID string, findings []LinkCheckFindingView, running, scanned bool, errorMessage string) {
+	<section class="studio-card">
+		<h1>Link and asset audit</h1>
+		<p>Check published pages, linked websites, and image assets for unavailable links.</p>
+		<form method="post" action="/admin/site/link-check">
+			<input type="hidden" name="_csrf" value={ csrf }/>
+			<button class="button button-primary" type="submit">Scan public site</button>
+		</form>
+		if errorMessage != "" {
+			<p role="alert" class="mt-4 rounded border border-destructive p-3">{ errorMessage }</p>
+		}
+		if running {
+			<p class="mt-4 rounded border border-border p-3" role="status">A scan is running. <a class="underline" href={ "/admin/site/link-check?job=" + jobID }>Refresh results</a></p>
+		}
+		if scanned && len(findings) == 0 {
+			<p class="mt-4 rounded border border-border p-3" role="status">No broken links found in this scan.</p>
+		}
+		if len(findings) > 0 {
+			<p class="mt-4 rounded border border-amber-500 p-3" role="status">{ fmt.Sprintf("%d unavailable links or assets found.", len(findings)) }</p>
+			<div class="mt-4 overflow-x-auto">
+				<table class="w-full text-left">
+					<thead><tr><th>Source page</th><th>Broken URL</th><th>Status</th><th>Link text</th></tr></thead>
+					<tbody>
+						for _, finding := range findings {
+							<tr><td class="p-2">{ finding.SourcePage }</td><td class="p-2 break-all">{ finding.URL }</td><td class="p-2">{ finding.Status }</td><td class="p-2">{ finding.AnchorText }</td></tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</section>
+}

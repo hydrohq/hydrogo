@@ -30,6 +30,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/geolocation"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
+	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
@@ -80,6 +81,8 @@ type Handler struct {
 	Realtime              interface {
 		Publish(context.Context, realtime.Event) error
 	}
+	LinkScanManager *linkcheck.Manager
+	LinkScanLimiter security.RateLimiter
 }
 
 func submissionLocation(item site.Submission) string {
@@ -113,6 +116,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/error-pages/{status}", Handler: http.HandlerFunc(h.saveErrorPage)},
 		{Pattern: "GET /admin/site/maintenance", Handler: http.HandlerFunc(h.maintenanceSettings)},
 		{Pattern: "POST /admin/site/maintenance", Handler: http.HandlerFunc(h.saveMaintenanceSettings)},
+		{Pattern: "GET /admin/site/link-check", Handler: http.HandlerFunc(h.linkCheckPage)},
+		{Pattern: "POST /admin/site/link-check", Handler: http.HandlerFunc(h.runLinkCheck)},
 		{Pattern: "GET /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.contactWidget)},
 		{Pattern: "POST /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.saveContactWidget)},
 		{Pattern: "GET /admin/site/social-links", Handler: http.HandlerFunc(h.socialLinks)},
@@ -160,6 +165,65 @@ func (h Handler) Routes() []Route {
 
 type privateSettingReader interface {
 	GetSetting(context.Context, database.Executor, string) (site.Setting, bool, error)
+}
+
+func (h Handler) linkCheckPage(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) {
+		http.Error(w, "Bu sayfaya erişim yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	jobID := r.URL.Query().Get("job")
+	var findings []designsystem.LinkCheckFindingView
+	running, scanned, message := false, false, ""
+	if jobID != "" {
+		job, ok := h.LinkScanManager.Get(linkScanTenantKey(r), jobID)
+		if !ok {
+			message = "Denetim bulunamadı veya süresi doldu."
+		} else if job.Failed {
+			scanned = true
+			message = "Denetim tamamlanamadı."
+		} else {
+			running, scanned = job.Running, !job.Running
+			for _, finding := range job.Findings {
+				status := strconv.Itoa(finding.Status)
+				if finding.Status == 0 {
+					status = "Unavailable"
+				}
+				findings = append(findings, designsystem.LinkCheckFindingView{SourcePage: finding.SourcePage, URL: finding.URL, Status: status, AnchorText: finding.AnchorText})
+			}
+		}
+	}
+	if ui.AdminStartForRequest(w, r, "Bağlantı denetimi", "Yayınlanmış sayfa, bağlantı ve medya adreslerini kontrol edin", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	_ = designsystem.LinkCheckAudit(security.CSRFTokenFromContext(r.Context()), jobID, findings, running, scanned, message).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) runLinkCheck(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !h.admin(r) || h.LinkScanManager == nil || strings.TrimSpace(h.SitemapOrigin) == "" {
+		http.Error(w, "Bu denetim şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	if user != nil && h.LinkScanLimiter != nil && !security.AllowForRequest(h.LinkScanLimiter, r.Context(), user.ID) {
+		security.WriteRateLimitedResponse(w, "Bağlantı denetimi kısa süre önce çalıştırıldı.", time.Minute)
+		return
+	}
+	job, err := h.LinkScanManager.Start(linkScanTenantKey(r), h.SitemapOrigin)
+	if err != nil {
+		http.Error(w, "Bağlantı denetimi başlatılamadı. Devam eden denetimin bitmesini bekleyin.", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, "/admin/site/link-check?job="+url.QueryEscape(job.ID), http.StatusSeeOther)
+}
+
+func linkScanTenantKey(r *http.Request) string {
+	scope, err := tenant.FromContext(r.Context())
+	if err == nil {
+		return scope.TenantID
+	}
+	return "default"
 }
 
 func (h Handler) maintenanceSettings(w http.ResponseWriter, r *http.Request) {

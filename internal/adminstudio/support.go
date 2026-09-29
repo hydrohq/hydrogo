@@ -8,6 +8,8 @@ import (
 type SupportConfig struct {
 	Enabled           bool
 	MaintenanceActive bool
+	BrokenLinksActive bool
+	BrokenLinksJobID  string
 	AgencyName        string
 	Email             string
 	Phone             string
