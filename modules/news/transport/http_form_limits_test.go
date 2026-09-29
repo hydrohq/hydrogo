@@ -34,3 +34,13 @@ func TestAdminCreateRejectsOversizedForm(t *testing.T) {
 		t.Fatalf("oversized create form status=%d body=%s", response.Code, response.Body.String())
 	}
 }
+
+func TestAdminUpdateRejectsOversizedForm(t *testing.T) {
+	h := Handler{}
+	request, response := editorPost("/admin/news/n-1", "version=1&slug=upd&body="+strings.Repeat("x", 512<<10))
+	request.SetPathValue("id", "n-1")
+	h.adminUpdate(response, request)
+	if response.Code != http.StatusBadRequest || response.Body.String() != "invalid form\n" {
+		t.Fatalf("oversized update form status=%d body=%s", response.Code, response.Body.String())
+	}
+}
