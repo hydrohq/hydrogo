@@ -3,7 +3,9 @@ package geolocation
 import (
 	"net/http/httptest"
 	"net/netip"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 type databaseStub struct{ location Location }
@@ -18,6 +20,14 @@ func TestResolveClassifiesPrivateAndNormalizesDatabaseResults(t *testing.T) {
 	}
 	if got := resolver.Resolve(netip.MustParseAddr("8.8.8.8")); got.CountryCode != "TR" || got.City != "Istanbul" {
 		t.Fatalf("database location = %+v", got)
+	}
+}
+
+func TestResolveBoundsCityWithoutBreakingUTF8(t *testing.T) {
+	resolver := Resolver{Database: databaseStub{location: Location{CountryCode: "TR", City: strings.Repeat("İ", 129)}}}
+	got := resolver.Resolve(netip.MustParseAddr("8.8.8.8"))
+	if len([]rune(got.City)) != 128 || !utf8.ValidString(got.City) {
+		t.Fatalf("city length or UTF-8 invalid: runes=%d city=%q", len([]rune(got.City)), got.City)
 	}
 }
 

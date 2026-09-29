@@ -61,8 +61,9 @@ func (r Resolver) Resolve(ip netip.Addr) Location {
 	}
 	location.CountryCode = normalizeCountryCode(location.CountryCode)
 	location.City = strings.TrimSpace(location.City)
-	if len(location.City) > 128 {
-		location.City = location.City[:128]
+	cityRunes := []rune(location.City)
+	if len(cityRunes) > 128 {
+		location.City = string(cityRunes[:128])
 	}
 	if location.Local || location.CountryCode == "" {
 		return Location{}
