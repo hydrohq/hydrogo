@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
@@ -29,6 +30,18 @@ func TestRenderAdminResourceUsage(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("rendered resource page missing %q", want)
 		}
+	}
+}
+
+func TestAdminShellShowsMaintenanceBanner(t *testing.T) {
+	request := httptest.NewRequest("GET", "/admin", nil)
+	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{MaintenanceActive: true}))
+	var out bytes.Buffer
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Site bakım modunda") || !strings.Contains(out.String(), "/admin/site/maintenance") {
+		t.Fatalf("maintenance banner missing from admin shell")
 	}
 }
 

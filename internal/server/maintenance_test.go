@@ -9,7 +9,7 @@ import (
 )
 
 func TestMaintenanceMiddleware(t *testing.T) {
-	mw := MaintenanceMiddleware(MaintenanceConfig{Enabled: func(*http.Request) bool { return true }, Render: func(*http.Request) ([]byte, error) { return []byte("maintenance page"), nil }, Allowlist: []string{"192.0.2.0/24"}})
+	mw := MaintenanceMiddleware(MaintenanceConfig{Enabled: func(*http.Request) bool { return true }, Render: func(*http.Request) ([]byte, error) { return []byte("maintenance page"), nil }, Allowlist: func(*http.Request) []string { return []string{"192.0.2.0/24"} }})
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	handler := mw(next)
 	cases := []struct {

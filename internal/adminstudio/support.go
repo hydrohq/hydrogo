@@ -6,13 +6,14 @@ import (
 )
 
 type SupportConfig struct {
-	Enabled     bool
-	AgencyName  string
-	Email       string
-	Phone       string
-	WhatsAppURL string
-	SLABadge    string
-	GuideURL    string
+	Enabled           bool
+	MaintenanceActive bool
+	AgencyName        string
+	Email             string
+	Phone             string
+	WhatsAppURL       string
+	SLABadge          string
+	GuideURL          string
 }
 
 type supportContextKey struct{}

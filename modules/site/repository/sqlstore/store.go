@@ -216,6 +216,39 @@ func (s Store) ListPublicSettings(ctx context.Context, db database.Executor) ([]
 	return result, rows.Err()
 }
 
+// GetSetting reads a single setting, including private settings, within the
+// current tenant scope. Callers must not expose private values publicly.
+func (s Store) GetSetting(ctx context.Context, db database.Executor, key string) (site.Setting, bool, error) {
+	_, scopeID, err := s.tenantFilter(ctx, 1)
+	if err != nil {
+		return site.Setting{}, false, err
+	}
+	keyColumn := "key"
+	if s.Dialect == database.MySQL {
+		keyColumn = "`key`"
+	}
+	args := []any{key, scopeID}
+	query := `SELECT ` + keyColumn + `,value,is_public,updated_at FROM site_settings WHERE ` + keyColumn + `=` + s.p(1) + ` AND tenant_id=` + s.p(2)
+	var rows *sql.Rows
+	rows, err = queryContext(ctx, db, query, args...)
+	if err != nil {
+		return site.Setting{}, false, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return site.Setting{}, false, rows.Err()
+	}
+	var value site.Setting
+	var isPublic any
+	var updated any
+	if err := rows.Scan(&value.Key, &value.Value, &isPublic, &updated); err != nil {
+		return site.Setting{}, false, err
+	}
+	value.Public = parseBool(isPublic)
+	value.UpdatedAt = parseTime(updated)
+	return value, true, nil
+}
+
 func (s Store) ReplaceNavigation(ctx context.Context, tx database.Executor, locale string, items []site.NavigationItem) error {
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
