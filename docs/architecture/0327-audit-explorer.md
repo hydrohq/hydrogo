@@ -25,9 +25,10 @@ The initial migration adds actor/resource/time and before/after JSON metadata
 with backward-compatible defaults. It is additive and forward-only; recovery
 preserves the audit log and uses a corrective migration rather than deleting
 history. New audit writers may attach only explicitly selected, bounded
-metadata. The sectoral writer currently records the entity version as its
-after-state; other event writers retain empty state objects until they provide
-safe domain-specific details.
+metadata. Page and news create/update/publish writers record only the old and
+new entity version; sectoral writes the resulting entity version. Other event
+writers retain empty state objects until they provide safe domain-specific
+details. No content fields are captured in this initial implementation.
 
 ## Alternatives
 
@@ -47,7 +48,8 @@ safe domain-specific details.
 ### Costs and risks
 
 - Older rows have only compatibility defaults and cannot show historical diffs.
-- Detailed diffs require each domain writer to select safe fields explicitly.
+- Detailed field diffs require each domain writer to select safe fields
+  explicitly; the current diff view shows version transitions for page/news.
 
 ## Scale impact
 
