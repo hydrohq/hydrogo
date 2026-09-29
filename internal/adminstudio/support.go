@@ -10,6 +10,7 @@ type SupportConfig struct {
 	MaintenanceActive bool
 	BrokenLinksActive bool
 	BrokenLinksJobID  string
+	SafeModeActive    bool
 	AgencyName        string
 	Email             string
 	Phone             string

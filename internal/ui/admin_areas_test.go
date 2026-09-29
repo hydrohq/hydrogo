@@ -57,6 +57,18 @@ func TestAdminShellShowsBrokenLinksWarning(t *testing.T) {
 	}
 }
 
+func TestAdminShellShowsSafeModeWarning(t *testing.T) {
+	request := httptest.NewRequest("GET", "/admin", nil)
+	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{SafeModeActive: true}))
+	var out bytes.Buffer
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "System is operating in Safe Mode") {
+		t.Fatalf("safe mode warning missing: %s", out.String())
+	}
+}
+
 func TestAdminUserPermissionEditorUsesEditionCatalog(t *testing.T) {
 	var out bytes.Buffer
 	err := RenderAdminArea(&out, AdminAreaData{

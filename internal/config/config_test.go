@@ -37,6 +37,22 @@ database:
 	}
 }
 
+func TestSafeModeConfigPrecedenceAndValidation(t *testing.T) {
+	path := writeConfig(t, "safe_mode: true\n")
+	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:safe.sqlite", "HYDRO_SAFE_MODE": "false"}), Overrides{})
+	if err != nil || cfg.SafeMode {
+		t.Fatalf("environment safe mode = %v, error = %v", cfg.SafeMode, err)
+	}
+	enabled := true
+	cfg, err = Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:safe.sqlite", "HYDRO_SAFE_MODE": "false"}), Overrides{SafeMode: &enabled})
+	if err != nil || !cfg.SafeMode {
+		t.Fatalf("flag safe mode = %v, error = %v", cfg.SafeMode, err)
+	}
+	if _, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:safe.sqlite", "HYDRO_SAFE_MODE": "enabled"}), Overrides{}); err == nil || !strings.Contains(err.Error(), "HYDRO_SAFE_MODE") {
+		t.Fatalf("invalid safe mode error = %v", err)
+	}
+}
+
 func TestSecurityTokenLifetimeChoices(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:token-ttl.sqlite", "HYDRO_PASSWORD_RESET_TTL": "24h", "HYDRO_INVITATION_TTL": "168h"}), Overrides{})
 	if err != nil {

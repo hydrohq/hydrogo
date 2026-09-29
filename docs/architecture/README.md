@@ -67,6 +67,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0286](0286-dalga4-bounded-platform-capabilities.md) | Bounded Dalga 4 platform capabilities | Accepted for bounded scope |
 | [0318](0318-maintenance-mode-request-gate.md) | Opt-in maintenance mode request gate | Accepted for bounded contract |
 | [0319](0319-bounded-link-audit.md) | Bounded public link and asset audit | Accepted for operator-initiated scans |
+| [0320](0320-safe-mode-runtime.md) | Incident Safe Mode runtime and external work suppression | Accepted |
 | [0017](0017-commerce-consistency-and-payments.md) | Commerce consistency and payment providers | Superseded by ADR-0199 |
 | [0018](0018-filesystem-theme-bundles.md) | File-based theme bundles and secure slot renderer | Accepted |
 | [0019](0019-external-webhook-delivery.md) | Signed external webhook delivery | Accepted |
