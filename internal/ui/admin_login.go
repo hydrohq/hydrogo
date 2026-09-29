@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"io"
 	"strconv"
 
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
@@ -522,6 +525,10 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 
 // RenderAdminLoginWithAppearance applies validated site appearance to the public admin login screen.
 func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo string, appearance site.Appearance) error {
+	var mfaChallenge bytes.Buffer
+	if err := designsystem.AuthenticatorChallenge().Render(context.Background(), &mfaChallenge); err != nil {
+		return err
+	}
 	if appearance.Normalize() != nil {
 		appearance = site.Appearance{LoginOverlayOpacity: .4}
 	}
@@ -583,6 +590,7 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 
 			<form id="login-form" class="auth-form" method="post">
 				<input type="hidden" name="_csrf" value="%s">
+				%s
 
 				<div class="input-group">
 					<label class="input-label" for="login-email">E-posta Adresi</label>
@@ -690,7 +698,7 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 		btn.innerHTML = '<span>Giriş yapılıyor…</span>';
 		status.style.display = 'none';
 
-		try {
+	try {
 			var response = await fetch('/auth/login', {
 				method: 'POST',
 				headers: {
@@ -700,9 +708,43 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 				},
 				body: new URLSearchParams(new FormData(form))
 			});
+			var loginResult = {};
+			try { loginResult = await response.json(); } catch (_) {}
 
 			if (!response.ok) {
-				if (response.status === 401) {
+				if (response.status === 401 && loginResult.error === 'mfa_code_required') {
+					var challenge = document.getElementById('mfa-challenge');
+					var code = document.getElementById('login-mfa-code');
+					var countdown = document.querySelector('[data-mfa-countdown]');
+					var nextCode = document.querySelector('[data-mfa-next]');
+					challenge.hidden = false;
+					code.disabled = false;
+					code.required = true;
+					var period = Math.max(1, Number(loginResult.totp_period_seconds) || 30);
+					var serverOffset = Number(loginResult.server_time_unix) * 1000 - Date.now();
+					var initialSlot = Math.floor(Number(loginResult.server_time_unix) / period);
+					var tick = function() {
+						var serverNow = Date.now() + serverOffset;
+						var slot = Math.floor(serverNow / 1000 / period);
+						var remaining = period - (Math.floor(serverNow / 1000) %% period);
+						countdown.textContent = 'Kodun süresi ' + String(Math.floor(remaining / 60)).padStart(2, '0') + ':' + String(remaining %% 60).padStart(2, '0') + ' sonra dolacak.';
+						nextCode.disabled = slot <= initialSlot;
+					};
+				tick();
+					if (!challenge.dataset.timerStarted) {
+						challenge.dataset.timerStarted = 'true';
+						window.setInterval(tick, 250);
+						nextCode.addEventListener('click', function() {
+							code.value = '';
+							code.focus();
+							status.textContent = 'Authenticator uygulamanızdan yeni kodu girin.';
+						});
+					}
+					showMsg('warning', 'Parola doğru. İki adımlı doğrulama kodunuzu girin.');
+					code.focus();
+				} else if (response.status === 401 && !document.getElementById('mfa-challenge').hidden) {
+					showMsg('error', 'Kod doğrulanamadı. Authenticator uygulamanızdaki güncel kodu deneyin.');
+				} else if (response.status === 401) {
 					showMsg('error', 'E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.');
 				} else if (response.status === 429) {
 					showMsg('error', 'Çok fazla başarısız deneme yapıldı. Lütfen biraz bekleyin.');
@@ -716,8 +758,6 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 				return;
 			}
 
-			var loginResult = {};
-			try { loginResult = await response.json(); } catch (_) {}
 			var notice = loginResult.security_notice || {}, attempts = Number(notice.failed_attempts || 0);
 			var message = 'Giriş başarılı! Yönetim paneline aktarılıyorsunuz…';
 			if (notice.previous_login_at) { message = 'Önceki başarılı giriş: ' + new Date(notice.previous_login_at).toLocaleString() + '. ' + attempts + ' başarısız deneme.'; }
@@ -740,6 +780,7 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 		template.HTMLEscapeString(nonce),
 		template.CSS(loginCSS),
 		template.HTMLEscapeString(csrfToken),
+		mfaChallenge.String(),
 		template.HTMLEscapeString(nonce),
 		template.HTMLEscapeString(returnTo),
 	)
