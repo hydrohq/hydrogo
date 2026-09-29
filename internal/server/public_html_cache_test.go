@@ -276,3 +276,22 @@ func BenchmarkPublicHTMLCacheHit(b *testing.B) {
 		handler.ServeHTTP(httptest.NewRecorder(), request)
 	}
 }
+
+func BenchmarkPublicHTMLCacheHitParallel(b *testing.B) {
+	cache := NewPublicHTMLCache(PublicHTMLCacheOptions{})
+	request := httptest.NewRequest(http.MethodGet, "http://example.test/public/pages/en/home/html", nil)
+	cache.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<main>cached page</main>"))
+	})).ServeHTTP(httptest.NewRecorder(), request)
+	handler := cache.Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		b.Error("cache hit unexpectedly rendered the page")
+	}))
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			handler.ServeHTTP(httptest.NewRecorder(), request)
+		}
+	})
+}
