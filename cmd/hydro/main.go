@@ -2530,6 +2530,78 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	})
 	routes = append(routes, router.Route{Pattern: "GET /admin", Access: router.Protected, Handler: adminDashboardHandler})
 	routes = append(routes, router.Route{Pattern: "GET /admin/reports", Access: router.Protected, Handler: adminDashboardHandler})
+	if modules["pages"] {
+		auditExplorer := auditstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+		routes = append(routes, router.Route{Pattern: "GET /admin/audit", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user := auth.UserFromContext(r.Context())
+			if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			query := r.URL.Query()
+			filter := auditstore.ExplorerFilter{Actor: query.Get("actor"), Action: query.Get("action"), Resource: query.Get("resource"), Target: query.Get("target"), Limit: 50}
+			if raw := query.Get("offset"); raw != "" {
+				var err error
+				filter.Offset, err = strconv.Atoi(raw)
+				if err != nil || filter.Offset < 0 || filter.Offset > 1_000_000 {
+					http.Error(w, "invalid audit page", http.StatusBadRequest)
+					return
+				}
+			}
+			for _, value := range []string{filter.Actor, filter.Action, filter.Resource, filter.Target} {
+				if len(value) > 256 {
+					http.Error(w, "invalid audit filter", http.StatusBadRequest)
+					return
+				}
+			}
+			for _, pair := range []struct{ input string; exclusive bool }{{"from", false}, {"until", true}} {
+				if raw := query.Get(pair.input); raw != "" {
+					day, err := time.Parse("2006-01-02", raw)
+					if err != nil {
+						http.Error(w, "invalid date filter", http.StatusBadRequest)
+						return
+					}
+					if pair.exclusive {
+						filter.Until = day.AddDate(0, 0, 1).UTC().Format("2006-01-02T15:04:05.000000000Z")
+					} else {
+						filter.From = day.UTC().Format("2006-01-02T15:04:05.000000000Z")
+					}
+				}
+			}
+			result, err := auditExplorer.Explore(r.Context(), filter)
+			if err != nil {
+				slog.Error("admin audit explorer unavailable", "error", err)
+				http.Error(w, "Audit history is temporarily unavailable.", http.StatusInternalServerError)
+				return
+			}
+			page := designsystem.AdminAuditPageProps{Actor: filter.Actor, Action: filter.Action, Resource: filter.Resource, Target: filter.Target, From: query.Get("from"), Until: query.Get("until"), Total: result.Total, Offset: filter.Offset, Limit: filter.Limit, Entries: make([]designsystem.AdminAuditEntry, 0, len(result.Events))}
+			for _, event := range result.Events {
+				at := event.CreatedAt
+				legacy := at == "1970-01-01T00:00:00.000000000Z"
+				if timestamp, parseErr := time.Parse("2006-01-02T15:04:05.000000000Z", at); parseErr == nil && !legacy {
+					at = timestamp.Local().Format("02 Jan 2006 15:04:05 MST")
+				} else if legacy {
+					at = "Older event"
+				}
+				actor := event.ActorEmail
+				if actor == "" {
+					actor = "System"
+					if event.ActorID != "" && !legacy {
+						actor = "Unavailable user"
+					}
+				}
+				targetLabel := ""
+				if event.TargetID != "" {
+					targetLabel = "Record"
+				}
+				page.Entries = append(page.Entries, designsystem.AdminAuditEntry{At: at, Actor: actor, Action: event.Action, Resource: event.ResourceType, Target: targetLabel, RequestID: event.RequestID, BeforeJSON: event.BeforeJSON, AfterJSON: event.AfterJSON, Legacy: legacy})
+			}
+			if err := ui.RenderAdminAudit(w, security.NonceFromContext(r.Context()), adminLocaleFromRequest(r), page); err != nil {
+				slog.Error("admin audit page render failed", "error", err)
+				http.Error(w, "Audit history is temporarily unavailable.", http.StatusInternalServerError)
+			}
+		})})
+	}
 	backupConfirmationLimiter := newRateLimiter(3, time.Minute)
 	adminBackupHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
