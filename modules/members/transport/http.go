@@ -354,12 +354,18 @@ func (h Handler) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) login(w http.ResponseWriter, r *http.Request) {
-	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(r.FormValue("email"))) {
-		http.Error(w, "too many requests", 429)
+	r.Body = http.MaxBytesReader(w, r.Body, maxMemberFormBytes)
+	if err := r.ParseForm(); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		http.Error(w, "invalid request", 400)
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid request", 400)
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(r.FormValue("email"))) {
+		http.Error(w, "too many requests", 429)
 		return
 	}
 	m, err := h.Service.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
