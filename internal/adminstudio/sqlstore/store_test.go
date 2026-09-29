@@ -70,9 +70,22 @@ func TestDigestPreferenceOptInAndClaimAreIdempotent(t *testing.T) {
 	if err := store.SetDigestPreference(ctx, db, "admin-a", "Europe/Istanbul", true); err != nil {
 		t.Fatal(err)
 	}
-	enabled, zone, err := store.DigestPreferenceFor(ctx, db, "admin-a")
-	if err != nil || !enabled || zone != "Europe/Istanbul" {
-		t.Fatalf("preference=%v %q err=%v", enabled, zone, err)
+	enabled, zone, frequency, err := store.DigestPreferenceDetailsFor(ctx, db, "admin-a")
+	if err != nil || !enabled || zone != "Europe/Istanbul" || frequency != "weekly" {
+		t.Fatalf("preference=%v %q %q err=%v", enabled, zone, frequency, err)
+	}
+	if err := store.SetDigestPreferenceWithFrequency(ctx, db, "admin-a", "Europe/Istanbul", "monthly", true); err != nil {
+		t.Fatal(err)
+	}
+	_, _, frequency, err = store.DigestPreferenceDetailsFor(ctx, db, "admin-a")
+	if err != nil || frequency != "monthly" {
+		t.Fatalf("monthly frequency=%q err=%v", frequency, err)
+	}
+	if err := store.SetDigestPreferenceWithFrequency(ctx, db, "admin-a", "Europe/Istanbul", "daily", true); err == nil {
+		t.Fatal("unsupported frequency accepted")
+	}
+	if _, err := store.DigestPreferences(ctx, db); err != nil {
+		t.Fatal(err)
 	}
 	items, err := store.DigestPreferences(ctx, db)
 	if err != nil || len(items) != 1 || items[0].UserID != "admin-a" {
@@ -134,11 +147,22 @@ func TestWeeklyDigestStatsReportsLeadsOpenItemsAndReferrers(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	stats, err := (Store{Dialect: database.SQLite}).WeeklyDigestStats(ctx, db, start, end, true)
+	for _, item := range []struct {
+		day, metric, dimension string
+		count                  int
+	}{{"2026-09-22", "page", "/home", 10}, {"2026-09-22", "page", "/about", 4}, {"2026-09-23", "page", "/home", 3}, {"2026-09-22", "unique_visitors", "", 11}} {
+		if _, err := db.ExecContext(ctx, "INSERT INTO analytics_daily_stats (day,tenant_id,metric,dimension,event_count) VALUES (?,?,?,?,?)", item.day, "", item.metric, item.dimension, item.count); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO members (id,email,password_hash,active,created_at,updated_at,tenant_id) VALUES (?,?,?,?,?,?,?)", "member-1", "digest-member@example.test", "hash", 1, start.Add(time.Hour).Format(time.RFC3339Nano), start.Add(time.Hour).Format(time.RFC3339Nano), ""); err != nil {
+		t.Fatal(err)
+	}
+	stats, err := (Store{Dialect: database.SQLite}).WeeklyDigestStats(ctx, db, start, end, true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stats.NewLeads != 3 || stats.UnresolvedLeads != 2 || len(stats.TopReferrers) != 2 || stats.TopReferrers[0].Host != "search.example" || stats.TopReferrers[0].Count != 17 || stats.TopReferrers[1].Host != "social.example" {
+	if stats.NewLeads != 3 || stats.UnresolvedLeads != 2 || len(stats.TopReferrers) != 2 || stats.TopReferrers[0].Host != "search.example" || stats.TopReferrers[0].Count != 17 || stats.TopReferrers[1].Host != "social.example" || stats.TotalVisits != 17 || stats.UniqueVisitors != 11 || len(stats.TopPages) != 2 || stats.TopPages[0].Path != "/home" || stats.NewMembers != 1 {
 		t.Fatalf("stats=%+v", stats)
 	}
 }

@@ -188,11 +188,11 @@ templ DraftPreviewLinkResult(link, expires string) {
 	<p class="muted">Expires { expires }</p>
 }
 
-templ NotificationCenter(items []NotificationItem, csrf string, digestEnabled bool, timezone string, digestAvailable bool) {
+templ NotificationCenter(items []NotificationItem, csrf string, digestEnabled bool, timezone, frequency string, digestAvailable bool) {
 	<section class="studio-card" data-notification-center>
 		<div class="studio-actions"><h2>Bildirimler</h2><form method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="read_all"/><button class="button button-quiet" type="submit">Tümünü okundu işaretle</button></form></div>
 		if digestAvailable {
-			<form class="studio-actions" method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="digest"/><label><input type="checkbox" name="enabled" value="true" checked?={ digestEnabled }/> Pazartesi özeti e-postasını al</label><label>Saat dilimi<select name="timezone"><option value="UTC" selected?={ timezone == "UTC" }>UTC</option><option value="Europe/Istanbul" selected?={ timezone == "Europe/Istanbul" }>İstanbul</option><option value="Europe/London" selected?={ timezone == "Europe/London" }>Londra</option><option value="America/New_York" selected?={ timezone == "America/New_York" }>New York</option></select></label><button class="button button-quiet" type="submit">Tercihi kaydet</button></form>
+			<form class="studio-actions" method="post" action="/admin/notifications"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="action" value="digest"/><label><input type="checkbox" name="enabled" value="true" checked?={ digestEnabled }/> Site özeti e-postasını al</label><label>Sıklık<select name="frequency"><option value="monthly" selected?={ frequency == "monthly" }>Aylık yönetici özeti</option><option value="weekly" selected?={ frequency == "weekly" }>Haftalık özet</option></select></label><label>Saat dilimi<select name="timezone"><option value="UTC" selected?={ timezone == "UTC" }>UTC</option><option value="Europe/Istanbul" selected?={ timezone == "Europe/Istanbul" }>İstanbul</option><option value="Europe/London" selected?={ timezone == "Europe/London" }>Londra</option><option value="America/New_York" selected?={ timezone == "America/New_York" }>New York</option></select></label><button class="button button-quiet" type="submit">Tercihi kaydet</button></form>
 		}
 		if len(items) == 0 {
 			<p role="status">Yeni bildiriminiz yok.</p>

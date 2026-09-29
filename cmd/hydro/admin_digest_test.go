@@ -35,11 +35,11 @@ func TestWeeklyDigestQueuesOneOptedInAdminMail(t *testing.T) {
 	tx := database.NewTenantTransactor(db, database.SQLite, false)
 	spool := mailstore.Spool{DB: db, Tx: tx, Dialect: database.SQLite, MaxPending: 10}
 	now := time.Date(2026, 9, 28, 6, 0, 0, 0, time.UTC)
-	queued, err := runAdminWeeklyDigestOnce(ctx, now, db, tx, adminStore, users, spool, nil, false, false)
+	queued, err := runAdminWeeklyDigestOnce(ctx, now, db, tx, adminStore, users, spool, nil, false, false, false)
 	if err != nil || queued != 1 {
 		t.Fatalf("queued=%d err=%v", queued, err)
 	}
-	queued, err = runAdminWeeklyDigestOnce(ctx, now, db, tx, adminStore, users, spool, nil, false, false)
+	queued, err = runAdminWeeklyDigestOnce(ctx, now, db, tx, adminStore, users, spool, nil, false, false, false)
 	if err != nil || queued != 0 {
 		t.Fatalf("duplicate run queued=%d err=%v", queued, err)
 	}

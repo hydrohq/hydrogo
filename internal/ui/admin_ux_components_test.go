@@ -22,7 +22,7 @@ func TestAdminUXTemplComponentsRenderAccessibleBoundedFlows(t *testing.T) {
 			return ImportPreview("csrf", map[string]string{"slug": "0", "title": "1", "body": "2"}, 3, 1, 2).Render(context.Background(), out)
 		}, []string{"data-import-preview", "3 yeni taslak", "1 yinelenen", `name="action" value="import"`, `name="map_slug" value="0"`}},
 		{"notifications", func(out *bytes.Buffer) error {
-			return NotificationCenter([]NotificationItem{{ID: "internal-id", Title: "İçerik hazır", Message: "Sayfa yayında", TargetPath: "/admin/pages"}}, "csrf", false, "UTC", true).Render(context.Background(), out)
+			return NotificationCenter([]NotificationItem{{ID: "internal-id", Title: "İçerik hazır", Message: "Sayfa yayında", TargetPath: "/admin/pages"}}, "csrf", false, "UTC", "monthly", true).Render(context.Background(), out)
 		}, []string{"Bildirimler", "İçerik hazır", "/admin/pages", "_csrf"}},
 		{"translation", func(out *bytes.Buffer) error {
 			return TranslationEditor(TranslationEditorData{SourceTitle: "Kaynak", SourceBody: "Metin", Locale: "en", Action: "/admin/pages/p/translate", CSRF: "csrf"}).Render(context.Background(), out)

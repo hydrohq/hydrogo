@@ -1,0 +1,29 @@
+id: "202609290006_admin_digest_frequency"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "da0eb92959306022fa4e3acc96792f6dee20db2c96c211816d6869b260ace63a"
+  postgres: "da0eb92959306022fa4e3acc96792f6dee20db2c96c211816d6869b260ace63a"
+  mysql: "d65f48c2faf0cddb6ea0e82079d220928b1784d5c19128866a91744956302b5f"
+dependencies:
+  - "202609280006_admin_weekly_digest"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Pages capability and admin digest preference table are present"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "One small frequency value per opted-in administrator"
+compatibility: "Adds a digest cadence setting; existing preferences remain weekly until changed"
+smoke:
+  - "Digest preferences can select weekly or monthly cadence"
+  - "Existing weekly delivery claims remain idempotent"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward migration only; restore or rebuild preferences if rolling back"
