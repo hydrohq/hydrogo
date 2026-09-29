@@ -3036,7 +3036,19 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		defer panicReporter.Close()
 	}
 	serverConfig := server.Config{
-		Address:         cfg.HTTP.Address,
+		Address:  cfg.HTTP.Address,
+		SafeMode: cfg.SafeMode,
+		CustomCodeProvider: func(r *http.Request) (string, string) {
+			if !modules["site"] || cfg.SafeMode {
+				return "", ""
+			}
+			setting, found, settingErr := siteStore.GetSetting(r.Context(), db, site.CustomCodeSettingKey)
+			if settingErr != nil || !found {
+				return "", ""
+			}
+			code := site.CustomCodeFromSetting(setting)
+			return code.Head, code.Body
+		},
 		AutoTLS:         cfg.HTTP.AutoTLS,
 		TLSHost:         cfg.HTTP.Domain,
 		TLSCacheDir:     filepath.Join(filepath.Dir(cfg.Media.Dir), "certs"),

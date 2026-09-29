@@ -118,6 +118,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/maintenance", Handler: http.HandlerFunc(h.saveMaintenanceSettings)},
 		{Pattern: "GET /admin/site/broadcast", Handler: http.HandlerFunc(h.staffBroadcastNotice)},
 		{Pattern: "POST /admin/site/broadcast", Handler: http.HandlerFunc(h.saveStaffBroadcastNotice)},
+		{Pattern: "GET /admin/site/custom-code", Handler: http.HandlerFunc(h.customCodePage)},
+		{Pattern: "POST /admin/site/custom-code", Handler: http.HandlerFunc(h.saveCustomCode)},
 		{Pattern: "GET /admin/site/link-check", Handler: http.HandlerFunc(h.linkCheckPage)},
 		{Pattern: "POST /admin/site/link-check", Handler: http.HandlerFunc(h.runLinkCheck)},
 		{Pattern: "GET /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.contactWidget)},
@@ -163,6 +165,51 @@ func (h Handler) Routes() []Route {
 		)
 	}
 	return routes
+}
+
+func (h Handler) customCodeAdmin(r *http.Request) bool {
+	user := auth.UserFromContext(r.Context())
+	return user != nil && user.Active && user.Role == auth.RoleAdmin
+}
+
+func (h Handler) customCodePage(w http.ResponseWriter, r *http.Request) {
+	if !h.customCodeAdmin(r) || h.Service == nil {
+		http.Error(w, "Bu sayfaya erişim yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	var code site.CustomCode
+	if reader, ok := h.Store.(privateSettingReader); ok {
+		if setting, found, err := reader.GetSetting(r.Context(), h.DB, site.CustomCodeSettingKey); err == nil && found {
+			code = site.CustomCodeFromSetting(setting)
+		}
+	}
+	if ui.AdminStartForRequest(w, r, "Custom site integrations", "Manage verified tracking and support integrations", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	_ = designsystem.CustomCodeEditor(code.Head, code.Body, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveCustomCode(w http.ResponseWriter, r *http.Request) {
+	if !h.customCodeAdmin(r) || h.Service == nil {
+		http.Error(w, "Bu sayfaya erişim yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 40<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Kod kaydedilemedi. İçeriği ve boyutunu kontrol edin.", http.StatusBadRequest)
+		return
+	}
+	setting, err := (site.CustomCode{Head: r.FormValue("custom_head_code"), Body: r.FormValue("custom_body_end_code")}).Setting()
+	if err != nil {
+		http.Error(w, "Kod, desteklenen sağlayıcı kaynaklarıyla sınırlı olmalı.", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SaveSetting(r.Context(), setting); err != nil {
+		http.Error(w, "Kod kaydedilemedi.", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/custom-code?saved=1", http.StatusSeeOther)
 }
 
 type privateSettingReader interface {

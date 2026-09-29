@@ -58,6 +58,8 @@ type Config struct {
 	RealtimeHub                *realtime.Hub
 	PublicErrorPage            func(context.Context, int) ([]byte, bool)
 	Maintenance                MaintenanceConfig
+	CustomCodeProvider         func(*http.Request) (head, body string)
+	SafeMode                   bool
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -159,6 +161,9 @@ func NewHandler(config Config) http.Handler {
 	}
 
 	var handler http.Handler = routerHandler
+	if config.CustomCodeProvider != nil && !config.SafeMode {
+		handler = CustomCodeMiddleware(config.CustomCodeProvider)(handler)
+	}
 	handler = CompressionMiddleware(handler)
 	handler = ETagMiddleware(handler)
 	hostMiddleware, err := security.NewHostMiddleware(config.PublicOrigin)
