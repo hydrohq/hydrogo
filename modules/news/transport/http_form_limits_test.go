@@ -63,3 +63,13 @@ func TestAdminScheduleRejectsOversizedForm(t *testing.T) {
 		t.Fatalf("oversized schedule form status=%d body=%s", response.Code, response.Body.String())
 	}
 }
+
+func TestAdminTransitionRejectsOversizedForm(t *testing.T) {
+	h := Handler{}
+	request, response := editorPost("/admin/news/n-1/publish", "version=1&pad="+strings.Repeat("x", 16<<10))
+	request.SetPathValue("id", "n-1")
+	h.adminTransition(response, request, "publish")
+	if response.Code != http.StatusBadRequest || response.Body.String() != "invalid form\n" {
+		t.Fatalf("oversized transition form status=%d body=%s", response.Code, response.Body.String())
+	}
+}
