@@ -688,7 +688,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	readingEnhancement := fmt.Sprintf(`<style nonce="%s">%s</style><script nonce="%s">%s</script>`, nonce, ui.PublicArticleCSS, nonce, ui.PublicArticleJS)
 	footer := localizePublicLinks(enterpriseFooterMarkup(), locale)
 	if consentNotice != "" || h.PublicSupport.Enabled || h.PublicContactSettings != nil {
-		footer = strings.Replace(footer, `</body>`, consentNotice+h.floatingContact(r.Context(), locale)+`</body>`, 1)
+		footer = strings.Replace(footer, `</body>`, consentNotice+h.socialLinksMarkup(r.Context())+h.floatingContact(r.Context(), locale)+`</body>`, 1)
 	}
 
 	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
@@ -790,9 +790,29 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	footer := localizePublicLinks(enterpriseFooterMarkup(), locale)
 	if h.PublicSupport.Enabled || h.PublicContactSettings != nil {
-		footer = strings.Replace(footer, `</body>`, h.floatingContact(r.Context(), locale)+`</body>`, 1)
+		footer = strings.Replace(footer, `</body>`, h.socialLinksMarkup(r.Context())+h.floatingContact(r.Context(), locale)+`</body>`, 1)
 	}
 	_, _ = fmt.Fprintf(w, `</main>%s`, footer)
+}
+
+func (h Handler) socialLinksMarkup(ctx context.Context) string {
+	if h.PublicContactSettings == nil {
+		return ""
+	}
+	settings, err := h.PublicContactSettings(ctx)
+	if err != nil {
+		return ""
+	}
+	profiles := site.SocialProfilesFromSettings(settings)
+	links := make([]designsystem.SocialLink, 0, len(profiles))
+	for _, profile := range profiles {
+		links = append(links, designsystem.SocialLink{Platform: profile.Platform, URL: profile.URL})
+	}
+	var output bytes.Buffer
+	if designsystem.SocialLinks(designsystem.SocialLinksProps{Links: links}).Render(ctx, &output) != nil {
+		return ""
+	}
+	return output.String()
 }
 
 func (h Handler) floatingContact(ctx context.Context, locale string) string {

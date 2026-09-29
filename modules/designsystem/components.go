@@ -60,6 +60,20 @@ type ContactWidgetSettingsProps struct {
 	CSRF, Phone, WhatsAppNumber, Message, Position string
 	Enabled, MobileOnly                            bool
 }
+type SocialLink struct{ Platform, URL string }
+type SocialLinksProps struct{ Links []SocialLink }
+type SocialAccountsProps struct {
+	CSRF string
+	URLs map[string]string
+}
+
+func SocialAccountPlatforms() []string {
+	return []string{"instagram", "linkedin", "youtube", "twitter_x", "tiktok", "facebook", "github"}
+}
+func socialPlatformLabel(platform string) string {
+	labels := map[string]string{"instagram": "Instagram", "linkedin": "LinkedIn", "youtube": "YouTube", "twitter_x": "X / Twitter", "tiktok": "TikTok", "facebook": "Facebook", "github": "GitHub"}
+	return labels[platform]
+}
 
 func floatingPhone(p FloatingContactProps) string { return validPhone(p.Phone) }
 func floatingWhatsApp(p FloatingContactProps) string {

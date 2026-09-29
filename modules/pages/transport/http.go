@@ -697,7 +697,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		designHead = head.String()
 	}
-	supportMarkup := h.floatingContact(r.Context(), page.Locale)
+	supportMarkup := h.socialLinksMarkup(r.Context()) + h.floatingContact(r.Context(), page.Locale)
 	searchMarkup := ""
 	if h.SearchEnabled {
 		var search bytes.Buffer
@@ -817,6 +817,26 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main>%s%s</body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup, template.HTML(consentMarkup), template.HTML(supportMarkup))
+}
+
+func (h Handler) socialLinksMarkup(ctx context.Context) string {
+	if h.PublicContactSettings == nil {
+		return ""
+	}
+	settings, err := h.PublicContactSettings(ctx)
+	if err != nil {
+		return ""
+	}
+	profiles := site.SocialProfilesFromSettings(settings)
+	links := make([]designsystem.SocialLink, 0, len(profiles))
+	for _, profile := range profiles {
+		links = append(links, designsystem.SocialLink{Platform: profile.Platform, URL: profile.URL})
+	}
+	var output bytes.Buffer
+	if designsystem.SocialLinks(designsystem.SocialLinksProps{Links: links}).Render(ctx, &output) != nil {
+		return ""
+	}
+	return output.String()
 }
 
 func (h Handler) floatingContact(ctx context.Context, locale string) string {

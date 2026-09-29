@@ -3,6 +3,7 @@ package site_test
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -43,5 +44,26 @@ func TestSaveContactWidgetPersistsPublicConfiguration(t *testing.T) {
 	}
 	if got := site.ContactWidgetFromSettings(settings); got != want {
 		t.Fatalf("invalid update changed saved widget: %#v", got)
+	}
+	wantProfiles := []site.SocialProfile{{Platform: "instagram", URL: "https://instagram.com/hydrogo"}, {Platform: "github", URL: "https://github.com/hydrogo"}}
+	if err := service.SaveSocialProfiles(ctx, wantProfiles); err != nil {
+		t.Fatal(err)
+	}
+	settings, err = store.ListPublicSettings(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := site.SocialProfilesFromSettings(settings); !reflect.DeepEqual(got, wantProfiles) {
+		t.Fatalf("saved profiles = %#v, want %#v", got, wantProfiles)
+	}
+	if err := service.SaveSocialProfiles(ctx, []site.SocialProfile{{Platform: "instagram", URL: "https://attacker.test"}}); err == nil {
+		t.Fatal("invalid social profile was saved")
+	}
+	settings, err = store.ListPublicSettings(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := site.SocialProfilesFromSettings(settings); !reflect.DeepEqual(got, wantProfiles) {
+		t.Fatalf("invalid update changed profiles: %#v", got)
 	}
 }

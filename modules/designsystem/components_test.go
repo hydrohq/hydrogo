@@ -82,6 +82,18 @@ func TestAnalyticsDateRangeUsesBoundedTypedGETForm(t *testing.T) {
 	}
 }
 
+func TestSocialLinksUseAccessibleSafeExternalAnchors(t *testing.T) {
+	got := render(t, SocialLinks(SocialLinksProps{Links: []SocialLink{{Platform: "github", URL: "https://github.com/hydrogo"}}}))
+	for _, want := range []string{`aria-label="Social profiles"`, `aria-label="GitHub"`, `target="_blank"`, `rel="noopener noreferrer"`, `<svg aria-hidden="true"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("social links missing %q: %s", want, got)
+		}
+	}
+	if unsafe := render(t, SocialLinks(SocialLinksProps{Links: []SocialLink{{Platform: "github", URL: "javascript:alert(1)"}}})); strings.Contains(unsafe, "javascript:") || strings.Contains(unsafe, "<a ") {
+		t.Fatalf("unsafe social link rendered: %s", unsafe)
+	}
+}
+
 func TestViewCountBadgeFormatsAndLabelsCount(t *testing.T) {
 	got := render(t, ViewCountBadge(ViewCountBadgeProps{Count: 1249}))
 	if !strings.Contains(got, `aria-label="1249 views"`) || !strings.Contains(got, "1.2k") || !strings.Contains(got, "👁") {

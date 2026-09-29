@@ -193,6 +193,31 @@ templ ContactWidgetSettings(p ContactWidgetSettingsProps) {
 	</form>
 }
 
+templ SocialLinks(p SocialLinksProps) {
+	if len(p.Links) > 0 {
+		<nav class="ds-social-links flex flex-wrap gap-3" aria-label="Social profiles">
+			for _, link := range p.Links {
+			if socialPlatformLabel(link.Platform) != "" && safeLink(link.URL) != "" {
+					<a class="ds-social-link inline-flex items-center gap-2 rounded border border-border p-2 text-foreground" href={ safeLink(link.URL) } target="_blank" rel="noopener noreferrer" aria-label={ socialPlatformLabel(link.Platform) }>
+						<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/></svg>
+						<span>{ socialPlatformLabel(link.Platform) }</span>
+					</a>
+				}
+			}
+		</nav>
+	}
+}
+
+templ SocialAccounts(p SocialAccountsProps) {
+	<form class="studio-card grid gap-4" method="post" action="/admin/site/social-links">
+		<input type="hidden" name="_csrf" value={ p.CSRF } />
+		for _, platform := range SocialAccountPlatforms() {
+			<label class="grid gap-1">{ socialPlatformLabel(platform) }<input class="rounded border border-border bg-surface p-2" type="url" name={ "social_" + platform } maxlength="2048" value={ p.URLs[platform] } placeholder={ "https://" + platform + ".com/your-profile" } /></label>
+		}
+		<button class="ds-button ds-button--primary" type="submit">Save social profiles</button>
+	</form>
+}
+
 templ Countdown(p CountdownProps) {
 	<section class="ds-countdown bg-surface text-foreground" data-countdown data-target={ p.Target } data-expired-headline={ p.ExpiredHeadline } data-expired-url={ safeLink(p.ExpiredURL) } data-timezone={ p.Timezone } aria-live="polite">
 		<div class="ds-countdown__clock" aria-label="Countdown"><span data-countdown-days>0</span> days <span data-countdown-hours>00</span> hours <span data-countdown-minutes>00</span> minutes <span data-countdown-seconds>00</span> seconds</div>
