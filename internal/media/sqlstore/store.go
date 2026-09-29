@@ -138,7 +138,7 @@ func (s Store) Get(ctx context.Context, db database.Executor, id string) (media.
 	}
 	var asset media.Asset
 	var visibility, status string
-	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json FROM media_assets WHERE id = " + s.p(1)
+	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json FROM media_assets WHERE id = " + s.p(1) + " AND deleted_at IS NULL"
 	args := []any{id}
 	if scoped {
 		query += " AND tenant_id=" + s.p(2)
@@ -179,10 +179,10 @@ func (s Store) List(ctx context.Context, db database.Executor, limit int) ([]med
 	if limit < 1 || limit > 200 {
 		return nil, fmt.Errorf("media list limit must be between 1 and 200")
 	}
-	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json FROM media_assets"
+	query := "SELECT id, storage_key, original_filename, mime_type, size_bytes, width, height, visibility, status, blur_hash, focal_x, focal_y, dominant_colors, folder_id, tags_json FROM media_assets WHERE deleted_at IS NULL"
 	args := []any{}
 	if scoped {
-		query += " WHERE tenant_id=" + s.p(1)
+		query += " AND tenant_id=" + s.p(1)
 		args = append(args, scope.TenantID)
 	}
 	query += " ORDER BY updated_at DESC, id ASC LIMIT " + s.p(len(args)+1)

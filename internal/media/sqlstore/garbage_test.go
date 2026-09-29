@@ -18,7 +18,7 @@ func TestGarbageRepositoryClaimsAndListsDerivedObjects(t *testing.T) {
 	}
 	defer db.Close()
 	for _, statement := range []string{
-		`CREATE TABLE media_assets(id TEXT PRIMARY KEY,storage_key TEXT,original_filename TEXT,size_bytes INTEGER,created_at TEXT,updated_at TEXT,status TEXT,tenant_id TEXT)`,
+		`CREATE TABLE media_assets(id TEXT PRIMARY KEY,storage_key TEXT,original_filename TEXT,size_bytes INTEGER,created_at TEXT,updated_at TEXT,status TEXT,tenant_id TEXT,deleted_at TEXT)`,
 		`CREATE TABLE media_variants(id TEXT,media_id TEXT,storage_key TEXT,tenant_id TEXT)`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
@@ -26,7 +26,11 @@ func TestGarbageRepositoryClaimsAndListsDerivedObjects(t *testing.T) {
 		}
 	}
 	created := time.Now().UTC().Add(-10 * 24 * time.Hour).Format(time.RFC3339Nano)
-	_, err = db.Exec(`INSERT INTO media_assets VALUES('old','master.png','old.png',200,?,?,'ready','')`, created, created)
+	_, err = db.Exec(`INSERT INTO media_assets(id,storage_key,original_filename,size_bytes,created_at,updated_at,status,tenant_id) VALUES('old','master.png','old.png',200,?,?,'ready','')`, created, created)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO media_assets(id,storage_key,original_filename,size_bytes,created_at,updated_at,status,tenant_id,deleted_at) VALUES('trashed','trash.png','trash.png',200,?,?,'ready','',?)`, created, created, time.Now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		t.Fatal(err)
 	}

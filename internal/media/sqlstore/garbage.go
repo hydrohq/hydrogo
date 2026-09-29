@@ -24,10 +24,10 @@ func (s Store) ListGarbageCandidates(ctx context.Context, db database.Executor, 
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
-	query := `SELECT id, original_filename, size_bytes+COALESCE((SELECT SUM(size_bytes) FROM media_variants WHERE media_id=media_assets.id),0), created_at, status FROM media_assets WHERE (status='ready' AND created_at<=` + s.p(1) + `) OR status='deleting'`
+	query := `SELECT id, original_filename, size_bytes+COALESCE((SELECT SUM(size_bytes) FROM media_variants WHERE media_id=media_assets.id),0), created_at, status FROM media_assets WHERE deleted_at IS NULL AND ((status='ready' AND created_at<=` + s.p(1) + `) OR status='deleting')`
 	args := []any{before.UTC().Format(time.RFC3339Nano)}
 	if scoped {
-		query = `SELECT id, original_filename, size_bytes+COALESCE((SELECT SUM(size_bytes) FROM media_variants WHERE media_id=media_assets.id AND tenant_id=media_assets.tenant_id),0), created_at, status FROM media_assets WHERE ((status='ready' AND created_at<=` + s.p(1) + `) OR status='deleting') AND tenant_id=` + s.p(2)
+		query = `SELECT id, original_filename, size_bytes+COALESCE((SELECT SUM(size_bytes) FROM media_variants WHERE media_id=media_assets.id AND tenant_id=media_assets.tenant_id),0), created_at, status FROM media_assets WHERE deleted_at IS NULL AND ((status='ready' AND created_at<=` + s.p(1) + `) OR status='deleting') AND tenant_id=` + s.p(2)
 		args = append(args, scope.TenantID)
 	}
 	query += ` ORDER BY created_at ASC, id ASC LIMIT ` + s.p(len(args)+1)

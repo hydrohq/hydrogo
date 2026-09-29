@@ -139,6 +139,9 @@ func TestWeeklyDigestStatsReportsLeadsOpenItemsAndReferrers(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if _, err := db.ExecContext(ctx, "UPDATE form_inbox SET deleted_at=? WHERE id=?", start.Format(time.RFC3339Nano), "digest-lead-0"); err != nil {
+		t.Fatal(err)
+	}
 	for _, item := range []struct {
 		day, host string
 		count     int
@@ -162,7 +165,7 @@ func TestWeeklyDigestStatsReportsLeadsOpenItemsAndReferrers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stats.NewLeads != 3 || stats.UnresolvedLeads != 2 || len(stats.TopReferrers) != 2 || stats.TopReferrers[0].Host != "search.example" || stats.TopReferrers[0].Count != 17 || stats.TopReferrers[1].Host != "social.example" || stats.TotalVisits != 17 || stats.UniqueVisitors != 11 || len(stats.TopPages) != 2 || stats.TopPages[0].Path != "/home" || stats.NewMembers != 1 {
+	if stats.NewLeads != 2 || stats.UnresolvedLeads != 1 || len(stats.TopReferrers) != 2 || stats.TopReferrers[0].Host != "search.example" || stats.TopReferrers[0].Count != 17 || stats.TopReferrers[1].Host != "social.example" || stats.TotalVisits != 17 || stats.UniqueVisitors != 11 || len(stats.TopPages) != 2 || stats.TopPages[0].Path != "/home" || stats.NewMembers != 1 {
 		t.Fatalf("stats=%+v", stats)
 	}
 }

@@ -177,6 +177,24 @@ func (c *PublicHTMLCache) PurgeTag(tag string) {
 	}
 }
 
+// Clear invalidates every cached response and any render currently in flight.
+func (c *PublicHTMLCache) Clear() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for tag := range c.generation {
+		c.generation[tag]++
+	}
+	c.generation["pages"]++
+	c.generation["news"]++
+	for key, entry := range c.entries {
+		c.generation[entry.tag]++
+		delete(c.entries, key)
+	}
+}
+
 func (c *PublicHTMLCache) get(key string) (publicHTMLCacheEntry, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

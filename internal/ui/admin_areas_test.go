@@ -33,6 +33,24 @@ func TestRenderAdminResourceUsage(t *testing.T) {
 	}
 }
 
+func TestAdminShellAddsTrashNavigationOnlyWhenEnabled(t *testing.T) {
+	request := httptest.NewRequest("GET", "/admin/trash", nil)
+	var enabled bytes.Buffer
+	if err := AdminStartForRequestWithTrash(&enabled, request, "Çöp kutusu", "", "", "trash"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(enabled.String(), `href="/admin/trash" aria-current="page"`) {
+		t.Fatal("trash navigation link is missing")
+	}
+	var disabled bytes.Buffer
+	if err := AdminStartForRequest(&disabled, request, "Dashboard", "", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(disabled.String(), `href="/admin/trash"`) {
+		t.Fatal("trash navigation link appeared without the optional route")
+	}
+}
+
 func TestAdminShellShowsMaintenanceBanner(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{MaintenanceActive: true}))

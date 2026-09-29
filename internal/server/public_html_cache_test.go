@@ -80,6 +80,26 @@ func TestPublicHTMLCacheInvalidationAndPrivateBypass(t *testing.T) {
 	}
 }
 
+func TestPublicHTMLCacheClearInvalidatesEntries(t *testing.T) {
+	cache := NewPublicHTMLCache(PublicHTMLCacheOptions{})
+	calls := 0
+	handler := cache.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("page"))
+	}))
+	req := func() {
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.test/public/pages/en/home/html", nil))
+	}
+	req()
+	req()
+	cache.Clear()
+	req()
+	if calls != 2 {
+		t.Fatalf("clear failed to invalidate cache, renders=%d", calls)
+	}
+}
+
 func TestPublicHTMLCacheDoesNotCacheUnsafeResponses(t *testing.T) {
 	cache := NewPublicHTMLCache(PublicHTMLCacheOptions{})
 	calls := 0

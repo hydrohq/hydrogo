@@ -89,7 +89,7 @@ func (h AutocompleteHandler) suggest(ctx context.Context, term, locale, tenantID
 			break
 		}
 		args := []any{locale, pattern}
-		stmt := "SELECT id,locale,title,slug FROM " + source.table + " WHERE status='published' AND locale=" + h.ph(1) + " AND title LIKE " + h.ph(2) + " ESCAPE '\\'"
+		stmt := "SELECT id,locale,title,slug FROM " + source.table + " WHERE status='published' AND deleted_at IS NULL AND locale=" + h.ph(1) + " AND title LIKE " + h.ph(2) + " ESCAPE '\\'"
 		if source.table == "news_items" {
 			stmt += " AND status='published'"
 		}

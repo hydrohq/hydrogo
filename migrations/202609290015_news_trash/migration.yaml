@@ -1,0 +1,25 @@
+id: "202609290015_news_trash"
+module: "news"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "35fd9e4e0222729f314bfae0705d4fd03b1d94f08a51a93c5429546970aff070"
+  postgres: "7878f4c89c4b5a3a6eabceaba3372b40db438d2d67da3cd6508778d9bf53247b"
+  mysql: "6e79ce477a13627cb37e83033d742d93ea1ef3f0a26464e44fee6e53419b5707"
+dependencies:
+  - "202609080012_news_items"
+schema: {readable_epoch: 3, writable_epoch: 3}
+preconditions:
+  - "News module is active"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "Nullable timestamp and one compact index"
+compatibility: "Additive deleted_at column; old versions ignore it"
+smoke: ["Existing news remains visible before any delete"]
+restart: "Transactional expand migration; safe to rerun"
+rollback: "Binary rollback only; retain nullable column and deleted rows"

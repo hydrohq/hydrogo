@@ -628,9 +628,9 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = $1` + filter + ` ORDER BY created_at DESC LIMIT $2`
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = $1 AND deleted_at IS NULL` + filter + ` ORDER BY created_at DESC LIMIT $2`
 	if s.Dialect != database.Postgres {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = ?` + filter + ` ORDER BY created_at DESC LIMIT ?`
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = ? AND deleted_at IS NULL` + filter + ` ORDER BY created_at DESC LIMIT ?`
 	}
 	args := []any{formKey, limit}
 	if filter != "" {
@@ -666,9 +666,9 @@ func (s Store) UpdateLead(ctx context.Context, tx database.Executor, id, stage, 
 	if err != nil {
 		return err
 	}
-	query := `UPDATE form_inbox SET lead_status = $1, assigned_to = $2 WHERE id = $3` + filter
+	query := `UPDATE form_inbox SET lead_status = $1, assigned_to = $2 WHERE id = $3 AND deleted_at IS NULL` + filter
 	if s.Dialect != database.Postgres {
-		query = `UPDATE form_inbox SET lead_status = ?, assigned_to = ? WHERE id = ?` + filter
+		query = `UPDATE form_inbox SET lead_status = ?, assigned_to = ? WHERE id = ? AND deleted_at IS NULL` + filter
 	}
 	args := []any{stage, assignedTo, id}
 	if filter != "" {
@@ -703,7 +703,7 @@ func (s Store) CreateLeadNote(ctx context.Context, tx database.Executor, note si
 	if note.CreatedAt.IsZero() {
 		note.CreatedAt = time.Now().UTC()
 	}
-	query := `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) SELECT $1,$2,$3,$4,$5,$6 WHERE EXISTS (SELECT 1 FROM form_inbox WHERE id = $3 AND tenant_id = $2)`
+	query := `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) SELECT $1,$2,$3,$4,$5,$6 WHERE EXISTS (SELECT 1 FROM form_inbox WHERE id = $3 AND tenant_id = $2 AND deleted_at IS NULL)`
 	createdAt := note.CreatedAt.UTC()
 	var createdArg any = createdAt
 	if s.Dialect == database.SQLite {
@@ -711,7 +711,7 @@ func (s Store) CreateLeadNote(ctx context.Context, tx database.Executor, note si
 	}
 	args := []any{note.ID, tenantID, note.SubmissionID, note.AuthorID, strings.TrimSpace(note.Note), createdArg}
 	if s.Dialect != database.Postgres {
-		query = `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM form_inbox WHERE id = ? AND tenant_id = ?)`
+		query = `INSERT INTO form_lead_notes (id,tenant_id,submission_id,author_id,note,created_at) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM form_inbox WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL)`
 		args = []any{note.ID, tenantID, note.SubmissionID, note.AuthorID, strings.TrimSpace(note.Note), createdArg, note.SubmissionID, tenantID}
 	}
 	result, err := tx.ExecContext(ctx, query, args...)
@@ -774,9 +774,9 @@ func (s Store) UpdateSubmissionStatus(ctx context.Context, tx database.Executor,
 	if err != nil {
 		return err
 	}
-	query := `UPDATE form_inbox SET status = $1 WHERE id = $2` + filter
+	query := `UPDATE form_inbox SET status = $1 WHERE id = $2 AND deleted_at IS NULL` + filter
 	if s.Dialect != database.Postgres {
-		query = `UPDATE form_inbox SET status = ? WHERE id = ?` + filter
+		query = `UPDATE form_inbox SET status = ? WHERE id = ? AND deleted_at IS NULL` + filter
 	}
 	args := []any{status, id}
 	if filter != "" {

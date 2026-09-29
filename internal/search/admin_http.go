@@ -165,6 +165,7 @@ func (h AdminSearchHandler) readSource(ctx context.Context, source adminSearchSo
 	query += " FROM " + source.table + " WHERE 1=1"
 	args := []any{}
 	if source.table == "pages" || source.table == "news_items" {
+		query += " AND deleted_at IS NULL"
 		if source.table == "news_items" {
 			query += " AND status!='retracted'"
 		}
@@ -180,7 +181,7 @@ func (h AdminSearchHandler) readSource(ctx context.Context, source adminSearchSo
 			query += "1"
 		}
 	} else if source.table == "media_assets" {
-		query += " AND visibility='public' AND status='ready'"
+		query += " AND deleted_at IS NULL AND visibility='public' AND status='ready'"
 	}
 	if tenantID != "" || h.RequireTenantScope {
 		query += " AND tenant_id=" + h.placeholder(len(args)+1)

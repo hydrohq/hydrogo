@@ -1,0 +1,25 @@
+id: "202609290014_pages_trash"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "d738a92df49a46d6961b7bbc5100ea60094d42e7e5ed345f7d84483207b10806"
+  postgres: "76d8f9dc92b555de8f1e654942dc76c184983f62782dc9f5154c7ee064ccd158"
+  mysql: "819e86185091cfc31ce2dff23d8e24880b995c81f31e9b15d5018739361ebaee"
+dependencies:
+  - "202609080003_pages_content"
+schema: {readable_epoch: 3, writable_epoch: 3}
+preconditions:
+  - "Pages content module is active"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "Nullable timestamp and one compact index"
+compatibility: "Additive deleted_at column; old versions ignore it"
+smoke: ["Existing pages remain visible before any delete"]
+restart: "Transactional expand migration; safe to rerun"
+rollback: "Binary rollback only; retain nullable column and deleted rows"

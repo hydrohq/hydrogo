@@ -31,10 +31,10 @@ func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor,
 	}
 	stats := adminstudio.WeeklyDigestStats{}
 	startValue, endValue := start.UTC().Format(time.RFC3339Nano), end.UTC().Format(time.RFC3339Nano)
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM form_inbox WHERE tenant_id="+s.p(1)+" AND created_at>="+s.p(2)+" AND created_at<"+s.p(3), tenantID, startValue, endValue).Scan(&stats.NewLeads); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM form_inbox WHERE tenant_id="+s.p(1)+" AND deleted_at IS NULL AND created_at>="+s.p(2)+" AND created_at<"+s.p(3), tenantID, startValue, endValue).Scan(&stats.NewLeads); err != nil {
 		return stats, err
 	}
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM form_inbox WHERE tenant_id="+s.p(1)+" AND lead_status IN ('new','contacted')", tenantID).Scan(&stats.UnresolvedLeads); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM form_inbox WHERE tenant_id="+s.p(1)+" AND deleted_at IS NULL AND lead_status IN ('new','contacted')", tenantID).Scan(&stats.UnresolvedLeads); err != nil {
 		return stats, err
 	}
 	if analyticsEnabled {
