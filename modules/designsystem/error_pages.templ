@@ -1,0 +1,45 @@
+package designsystem
+
+import "fmt"
+
+templ PublicErrorPage(p PublicErrorPageProps) {
+	<!doctype html>
+	<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{ p.Headline }</title><link rel="stylesheet" href="/designsystem/static/designsystem.css"/></head>
+	<body class="min-h-screen bg-background text-foreground"><main class="mx-auto grid min-h-screen max-w-2xl content-center justify-items-center gap-5 px-6 py-12 text-center">
+		<p class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{ fmt.Sprint(p.Status) }</p>
+		if p.ImageURL != "" {
+			<img class="max-h-64 max-w-full rounded-xl object-contain" src={ templ.SafeURL(p.ImageURL) } alt=""/>
+		}
+		<h1 class="text-4xl font-bold">{ p.Headline }</h1><p class="max-w-prose text-lg text-muted-foreground">{ p.Message }</p>
+		if p.ActionLabel != "" {
+			<a class="rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground" href={ templ.SafeURL(p.ActionURL) }>{ p.ActionLabel }</a>
+		}
+		if len(p.Links) > 0 {
+			<nav aria-label="Helpful pages"><ul class="flex flex-wrap justify-center gap-4">
+				for _, link := range p.Links {
+					<li><a class="text-primary underline" href={ templ.SafeURL(link.URL) }>{ link.Label }</a></li>
+				}
+			</ul></nav>
+		}
+	</main></body></html>
+}
+
+templ ErrorPageEditor(p ErrorPageEditorProps) {
+	<section class="studio-card"><h1>Custom error pages</h1><p>Visitors see these friendly pages when content cannot be found or the service is unavailable.</p>
+		@ErrorPageForm("404", "Not found page", p.NotFound, p.CSRF)
+		@ErrorPageForm("500", "Service error page", p.ServerError, p.CSRF)
+	</section>
+}
+
+templ ErrorPageForm(status, title string, p PublicErrorPageProps, csrf string) {
+	<form class="studio-form mt-6 grid gap-4" method="post" action={ "/admin/site/error-pages/" + status }>
+		<h2>{ title }</h2><input type="hidden" name="_csrf" value={ csrf }/>
+		<label class="grid gap-1">Headline<input class="rounded border border-border bg-surface p-2" name="headline" maxlength="120" required value={ p.Headline }/></label>
+		<label class="grid gap-1">Friendly message<textarea class="rounded border border-border bg-surface p-2" name="message" maxlength="500" required>{ p.Message }</textarea></label>
+		<label class="grid gap-1">Illustration path<input class="rounded border border-border bg-surface p-2" name="image_url" maxlength="2048" placeholder="/media/error-illustration.png" value={ p.ImageURL }/></label>
+		<label class="grid gap-1">Button label<input class="rounded border border-border bg-surface p-2" name="action_label" maxlength="80" value={ p.ActionLabel }/></label>
+		<label class="grid gap-1">Button path<input class="rounded border border-border bg-surface p-2" name="action_url" maxlength="2048" placeholder="/" value={ p.ActionURL }/></label>
+		<label class="grid gap-1">Helpful links (one per line: label | /path)<textarea class="rounded border border-border bg-surface p-2" name="links" rows="4">{ errorPageLinksText(p.Links) }</textarea></label>
+		<button class="button button-primary" type="submit">Save { status } page</button>
+	</form>
+}

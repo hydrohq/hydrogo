@@ -3,6 +3,7 @@ package site
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/mail"
 	"net/url"
 	"regexp"
@@ -33,6 +34,67 @@ type Setting struct {
 	Value     string
 	Public    bool
 	UpdatedAt time.Time
+}
+
+type ErrorPageLink struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
+type PublicErrorPage struct {
+	Headline    string          `json:"headline"`
+	Message     string          `json:"message"`
+	ImageURL    string          `json:"image_url"`
+	ActionLabel string          `json:"action_label"`
+	ActionURL   string          `json:"action_url"`
+	Links       []ErrorPageLink `json:"links,omitempty"`
+}
+
+func ErrorPageFromSettings(settings []Setting, status int) PublicErrorPage {
+	key := fmt.Sprintf("site.error_page.%d", status)
+	for _, setting := range settings {
+		if setting.Key != key || !setting.Public {
+			continue
+		}
+		var value PublicErrorPage
+		if json.Unmarshal([]byte(setting.Value), &value) == nil && value.Validate() == nil {
+			return value
+		}
+	}
+	if status == 500 {
+		return PublicErrorPage{Headline: "We hit a snag", Message: "This page is temporarily unavailable. Please try again shortly.", ActionLabel: "Go to homepage", ActionURL: "/"}
+	}
+	return PublicErrorPage{Headline: "We couldn’t find that page", Message: "The link may have changed or the page may have moved.", ActionLabel: "Go to homepage", ActionURL: "/"}
+}
+
+func (value PublicErrorPage) Validate() error {
+	if strings.TrimSpace(value.Headline) == "" || len(value.Headline) > 120 || strings.TrimSpace(value.Message) == "" || len(value.Message) > 500 || len(value.ImageURL) > 2048 || len(value.ActionLabel) > 80 || len(value.Links) > 8 {
+		return ErrInvalidSetting
+	}
+	if value.ImageURL != "" && !safeErrorPageURL(value.ImageURL, true) {
+		return ErrInvalidSetting
+	}
+	if (value.ActionLabel == "") != (value.ActionURL == "") || value.ActionURL != "" && !safeErrorPageURL(value.ActionURL, false) {
+		return ErrInvalidSetting
+	}
+	for _, link := range value.Links {
+		if strings.TrimSpace(link.Label) == "" || len(link.Label) > 80 || !safeErrorPageURL(link.URL, false) {
+			return ErrInvalidSetting
+		}
+	}
+	return nil
+}
+
+func safeErrorPageURL(value string, mediaOnly bool) bool {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\\\x00\r\n") {
+		return false
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" {
+		return false
+	}
+	return !mediaOnly || strings.HasPrefix(parsed.Path, "/media/")
 }
 
 type ContactWidget struct {

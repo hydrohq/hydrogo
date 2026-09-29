@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"encoding/json"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
@@ -29,12 +30,20 @@ func TestNotFoundTrackingAndRedirectConversion(t *testing.T) {
 	store := sitesql.Store{Dialect: database.SQLite}
 	service := &site.Service{Transactions: database.NewTenantTransactor(db, database.SQLite, false), Store: store}
 	registry := &site.RedirectRegistry{}
-	handler := Handler{DB: db, Service: service, Redirects: registry}
+	handler := Handler{DB: db, Store: store, Service: service, Redirects: registry}
 	request := httptest.NewRequest("GET", "https://example.test/missing?private=value", nil)
+	custom := site.PublicErrorPage{Headline: "Friendly miss", Message: "The page moved.", ActionLabel: "Homepage", ActionURL: "/"}
+	encoded, err := json.Marshal(custom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.SaveSetting(ctx, site.Setting{Key: "site.error_page.404", Value: string(encoded), Public: true}); err != nil {
+		t.Fatal(err)
+	}
 	response := httptest.NewRecorder()
 	handler.redirectFallback(response, request)
-	if response.Code != 404 {
-		t.Fatalf("missing path status=%d", response.Code)
+	if response.Code != 404 || !strings.Contains(response.Body.String(), "Friendly miss") || strings.Contains(response.Body.String(), "private=value") {
+		t.Fatalf("missing path status=%d body=%s", response.Code, response.Body.String())
 	}
 	items, err := service.ListNotFound(ctx, 10)
 	if err != nil || len(items) != 1 || items[0].Path != "/missing" || items[0].Hits != 1 {
@@ -55,6 +64,32 @@ func TestNotFoundTrackingAndRedirectConversion(t *testing.T) {
 	items, err = service.ListNotFound(ctx, 10)
 	if err != nil || len(items) != 0 {
 		t.Fatalf("converted report=%+v err=%v", items, err)
+	}
+}
+
+func TestPublic500ErrorPageUsesConfiguredFriendlyCopy(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "custom-error.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTenantTransactor(db, database.SQLite, false), Store: store}
+	encoded, err := json.Marshal(site.PublicErrorPage{Headline: "Back soon", Message: "Please try again later.", ActionLabel: "Home", ActionURL: "/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.SaveSetting(ctx, site.Setting{Key: "site.error_page.500", Value: string(encoded), Public: true}); err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	(Handler{DB: db, Store: store}).renderPublicErrorPage(response, httptest.NewRequest("GET", "/", nil), 500)
+	if response.Code != 500 || !strings.Contains(response.Body.String(), "Back soon") || strings.Contains(response.Body.String(), "SQL") {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
 }
 

@@ -3036,8 +3036,28 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		HTTPBodyLimit:    budget.HTTPBodyBytes,
 		PublicOrigin:     cfg.HTTP.PublicOrigin,
 		PublicAPIOrigins: cfg.Security.PublicAPIOrigins,
-		TenantResolver:   tenantResolver,
-		Routes:           routes,
+		PublicErrorPage: func(errorCtx context.Context, status int) ([]byte, bool) {
+			if !modules["site"] {
+				return nil, false
+			}
+			settings, settingsErr := siteStore.ListPublicSettings(errorCtx, db)
+			if settingsErr != nil {
+				settings = nil
+			}
+			page := site.ErrorPageFromSettings(settings, status)
+			links := make([]designsystem.PublicErrorLink, 0, len(page.Links))
+			for _, link := range page.Links {
+				links = append(links, designsystem.PublicErrorLink{Label: link.Label, URL: link.URL})
+			}
+			var body bytes.Buffer
+			props := designsystem.PublicErrorPageProps{Status: status, Headline: page.Headline, Message: page.Message, ImageURL: page.ImageURL, ActionLabel: page.ActionLabel, ActionURL: page.ActionURL, Links: links}
+			if err := designsystem.PublicErrorPage(props).Render(errorCtx, &body); err != nil {
+				return nil, false
+			}
+			return body.Bytes(), true
+		},
+		TenantResolver: tenantResolver,
+		Routes:         routes,
 		Ready: func(checkCtx context.Context) error {
 			if err := db.PingContext(checkCtx); err != nil {
 				return err

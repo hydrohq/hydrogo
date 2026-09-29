@@ -1,6 +1,7 @@
 package site
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -121,5 +122,40 @@ func TestValidateSubmissionLocationMetadata(t *testing.T) {
 				t.Fatalf("ValidateSubmission() error=%v valid=%v", err, tc.valid)
 			}
 		})
+	}
+}
+
+func TestPublicErrorPageSettingsValidateInternalLinks(t *testing.T) {
+	page := PublicErrorPage{Headline: "Not found", Message: "Try one of these pages.", ImageURL: "/media/lost.png", ActionLabel: "Home", ActionURL: "/", Links: []ErrorPageLink{{Label: "Contact", URL: "/contact"}}}
+	if err := page.Validate(); err != nil {
+		t.Fatalf("valid error page: %v", err)
+	}
+	for _, mutate := range []func(*PublicErrorPage){
+		func(p *PublicErrorPage) { p.ActionURL = "//attacker.test" },
+		func(p *PublicErrorPage) { p.ImageURL = "https://attacker.test/image.png" },
+		func(p *PublicErrorPage) { p.Links = []ErrorPageLink{{Label: "Contact", URL: "javascript:alert(1)"}} },
+		func(p *PublicErrorPage) { p.Headline = " " },
+	} {
+		invalid := page
+		mutate(&invalid)
+		if err := invalid.Validate(); err != ErrInvalidSetting {
+			t.Errorf("invalid error page accepted: %+v", invalid)
+		}
+	}
+}
+
+func TestErrorPageFromSettingsUsesDefaultsForInvalidData(t *testing.T) {
+	custom := PublicErrorPage{Headline: "Friendly miss", Message: "We moved it.", ActionLabel: "Home", ActionURL: "/"}
+	encoded, err := json.Marshal(custom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := ErrorPageFromSettings([]Setting{{Key: "site.error_page.404", Value: string(encoded), Public: true}}, 404)
+	if got.Headline != custom.Headline {
+		t.Fatalf("custom page = %+v", got)
+	}
+	got = ErrorPageFromSettings([]Setting{{Key: "site.error_page.404", Value: `{"headline":"bad","message":"bad","action_label":"go","action_url":"//evil"}`, Public: true}}, 404)
+	if got.Headline == "bad" {
+		t.Fatalf("invalid stored URL was rendered: %+v", got)
 	}
 }
