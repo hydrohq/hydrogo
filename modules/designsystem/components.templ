@@ -218,6 +218,21 @@ templ SocialAccounts(p SocialAccountsProps) {
 	</form>
 }
 
+templ PageLayoutPicker(p PageLayoutPickerProps) {
+	<fieldset class="ds-layout-picker grid gap-3" aria-label="Choose a page layout">
+		<legend class="text-lg font-semibold">Page layout</legend>
+		<div class="grid gap-3 md:grid-cols-2">
+			for _, option := range p.Options {
+				<label class="ds-layout-option flex cursor-pointer items-start gap-3 rounded border border-border bg-surface p-3">
+					<input type="radio" name="layout_template" value={ option.ID } checked?={ option.ID == "blank" } />
+					<span class="ds-layout-option__preview" aria-hidden="true"><i></i><i></i><i></i></span>
+					<span><strong>{ option.Name }</strong><small class="block text-muted-foreground">{ option.Description }</small></span>
+				</label>
+			}
+		</div>
+	</fieldset>
+}
+
 templ Countdown(p CountdownProps) {
 	<section class="ds-countdown bg-surface text-foreground" data-countdown data-target={ p.Target } data-expired-headline={ p.ExpiredHeadline } data-expired-url={ safeLink(p.ExpiredURL) } data-timezone={ p.Timezone } aria-live="polite">
 		<div class="ds-countdown__clock" aria-label="Countdown"><span data-countdown-days>0</span> days <span data-countdown-hours>00</span> hours <span data-countdown-minutes>00</span> minutes <span data-countdown-seconds>00</span> seconds</div>

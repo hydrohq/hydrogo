@@ -66,6 +66,8 @@ type SocialAccountsProps struct {
 	CSRF string
 	URLs map[string]string
 }
+type PageLayoutOption struct{ ID, Name, Description string }
+type PageLayoutPickerProps struct{ Options []PageLayoutOption }
 
 func SocialAccountPlatforms() []string {
 	return []string{"instagram", "linkedin", "youtube", "twitter_x", "tiktok", "facebook", "github"}
