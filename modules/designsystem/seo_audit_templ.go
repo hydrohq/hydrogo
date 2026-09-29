@@ -29,7 +29,7 @@ func SEOAudit() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"studio-card seo-audit\" data-seo-audit hidden aria-label=\"SEO içerik denetimi\" aria-live=\"polite\"><h2>SEO içerik denetimi</h2><ul><li data-seo-title>Başlık uzunluğu: denetleniyor</li><li data-seo-description>Arama açıklaması: denetleniyor</li><li data-seo-heading>Başlık yapısı: denetleniyor</li><li data-seo-alt>Görsel açıklamaları: denetleniyor</li><li data-seo-readability>Okunabilirlik: denetleniyor</li></ul></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"studio-card seo-audit\" data-seo-audit hidden aria-label=\"SEO içerik denetimi\" aria-live=\"polite\"><h2>SEO içerik denetimi</h2><p>İçerik puanı: <strong data-seo-score>0/5</strong></p><ul><li data-seo-title>Başlık uzunluğu: denetleniyor</li><li data-seo-description>Arama açıklaması: denetleniyor</li><li data-seo-heading>Başlık yapısı: denetleniyor</li><li data-seo-alt>Görsel açıklamaları: denetleniyor</li><li data-seo-readability>Okunabilirlik: denetleniyor</li></ul></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
