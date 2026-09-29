@@ -375,3 +375,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0298: Public analytics consent choice](0298-public-analytics-consent-choice.md)
 - [ADR-0299: Optional form geolocation](0299-optional-form-geolocation.md)
 - [ADR-0300: Central social profile settings](0300-central-social-profile-settings.md)
+- [ADR-0301: Curated page layout template registry](0301-page-layout-template-registry.md)

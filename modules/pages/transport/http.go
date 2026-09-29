@@ -47,6 +47,7 @@ type Handler struct {
 		Get(context.Context, database.Executor, string) (media.Asset, error)
 	}
 	AdminCollection     adminstudio.Collection
+	LayoutTemplates     []pages.LayoutTemplate
 	DefaultLocale       string
 	AllowDemoFrontend   bool
 	SEOOrigin           string
@@ -554,11 +555,23 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	layouts := append(pages.BuiltinLayoutTemplates(), h.LayoutTemplates...)
+	if err := pages.ValidateLayoutTemplates(layouts); err != nil {
+		http.Error(w, "page templates unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStartForRequest(w, r, "Yeni sayfa", "Sayfa yönetimi", security.NonceFromContext(r.Context()), "pages"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages">`)
+	options := make([]designsystem.PageLayoutOption, 0, len(layouts))
+	for _, layout := range layouts {
+		options = append(options, designsystem.PageLayoutOption{ID: layout.ID, Name: layout.Name, Description: layout.Description})
+	}
+	if err := designsystem.PageLayoutPicker(designsystem.PageLayoutPickerProps{Options: options}).Render(r.Context(), w); err != nil {
+		return
+	}
 	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{
 		Collection:  h.AdminCollection,
 		Action:      "/admin/pages",
@@ -585,6 +598,15 @@ func (h Handler) adminCreateForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
+	templateID := r.FormValue("layout_template")
+	if templateID == "" {
+		templateID = "blank"
+	}
+	blocks, err := pages.ResolveLayoutTemplate(templateID, h.LayoutTemplates)
+	if err != nil {
+		http.Error(w, "invalid page layout", http.StatusBadRequest)
+		return
+	}
 	id, err := newID()
 	if err != nil {
 		http.Error(w, "page service unavailable", http.StatusServiceUnavailable)
@@ -600,8 +622,13 @@ func (h Handler) adminCreateForm(w http.ResponseWriter, r *http.Request) {
 		Slug:   r.FormValue("slug"),
 		Title:  r.FormValue("title"),
 		Body:   r.FormValue("body"),
+		Blocks: blocks,
 		Tags:   strings.Split(r.FormValue("tags"), ","),
 		Status: pages.StatusDraft,
+	}
+	if err := h.validatePageMedia(r.Context(), page); err != nil {
+		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
+		return
 	}
 	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))

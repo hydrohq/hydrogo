@@ -94,6 +94,15 @@ func TestSocialLinksUseAccessibleSafeExternalAnchors(t *testing.T) {
 	}
 }
 
+func TestPageLayoutPickerShowsTypedTemplateOptions(t *testing.T) {
+	got := render(t, PageLayoutPicker(PageLayoutPickerProps{Options: []PageLayoutOption{{ID: "service_showcase", Name: "Service showcase", Description: "Benefits"}, {ID: "blank", Name: "Blank canvas", Description: "Start empty"}}}))
+	for _, want := range []string{`type="radio" name="layout_template" value="service_showcase"`, "Service showcase", "Benefits", `value="blank" checked`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("layout picker missing %q: %s", want, got)
+		}
+	}
+}
+
 func TestViewCountBadgeFormatsAndLabelsCount(t *testing.T) {
 	got := render(t, ViewCountBadge(ViewCountBadgeProps{Count: 1249}))
 	if !strings.Contains(got, `aria-label="1249 views"`) || !strings.Contains(got, "1.2k") || !strings.Contains(got, "👁") {
