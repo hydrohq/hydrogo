@@ -3097,7 +3097,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 					return false
 				}
 				setting, found, err := siteStore.GetSetting(r.Context(), db, site.MaintenanceSettingKey)
-				return err == nil && found && site.MaintenanceFromSetting(setting).Enabled
+				return err == nil && found && site.MaintenanceFromSetting(setting).ActiveAt(time.Now().UTC())
 			},
 			Allowlist: func(r *http.Request) []string {
 				if !modules["site"] {
@@ -3109,9 +3109,27 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				}
 				return site.MaintenanceFromSetting(setting).Allowlist
 			},
+			PreviewKey: func(r *http.Request, key string) bool {
+				if !modules["site"] || len(key) < 16 || len(key) > 128 {
+					return false
+				}
+				setting, found, err := siteStore.GetSetting(r.Context(), db, site.MaintenanceSettingKey)
+				return err == nil && found && site.MaintenanceFromSetting(setting).AllowsPreviewKey(key)
+			},
+			SecureCookie: cfg.Security.SecureCookies,
 			Render: func(r *http.Request) ([]byte, error) {
+				headline, message := "We’ll be back soon", "We’re making a few improvements. Please try again shortly."
+				if setting, found, err := siteStore.GetSetting(r.Context(), db, site.MaintenanceSettingKey); err == nil && found {
+					settings := site.MaintenanceFromSetting(setting)
+					if settings.Headline != "" {
+						headline = settings.Headline
+					}
+					if settings.Message != "" {
+						message = settings.Message
+					}
+				}
 				var body bytes.Buffer
-				err := designsystem.MaintenancePage("We’ll be back soon", "We’re making a few improvements. Please try again shortly.").Render(r.Context(), &body)
+				err := designsystem.MaintenancePage(headline, message).Render(r.Context(), &body)
 				return body.Bytes(), err
 			},
 		},

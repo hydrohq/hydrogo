@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -12,10 +13,14 @@ import (
 // MaintenanceConfig keeps maintenance mode opt-in and lets the owning module
 // provide tenant-aware state and the typed public page.
 type MaintenanceConfig struct {
-	Enabled   func(*http.Request) bool
-	Render    func(*http.Request) ([]byte, error)
-	Allowlist func(*http.Request) []string
+	Enabled      func(*http.Request) bool
+	Render       func(*http.Request) ([]byte, error)
+	Allowlist    func(*http.Request) []string
+	PreviewKey   func(*http.Request, string) bool
+	SecureCookie bool
 }
+
+const maintenancePreviewCookie = "hydro_maintenance_preview"
 
 func MaintenanceMiddleware(config MaintenanceConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -40,6 +45,23 @@ func MaintenanceMiddleware(config MaintenanceConfig) func(http.Handler) http.Han
 				}
 			}
 			enabled := config.Enabled != nil && config.Enabled(r)
+			if enabled && config.PreviewKey != nil {
+				key := r.URL.Query().Get("preview_key")
+				if config.PreviewKey(r, key) && key != "" {
+					http.SetCookie(w, &http.Cookie{Name: maintenancePreviewCookie, Value: key, Path: "/", HttpOnly: true, Secure: config.SecureCookie, SameSite: http.SameSiteStrictMode, Expires: time.Now().Add(4 * time.Hour), MaxAge: 4 * 60 * 60})
+					cleanURL := *r.URL
+					query := cleanURL.Query()
+					query.Del("preview_key")
+					cleanURL.RawQuery = query.Encode()
+					w.Header().Set("Cache-Control", "no-store")
+					http.Redirect(w, r, cleanURL.String(), http.StatusSeeOther)
+					return
+				}
+				if cookie, err := r.Cookie(maintenancePreviewCookie); err == nil && config.PreviewKey(r, cookie.Value) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 			if enabled && maintenanceStaff(r) {
 				support := adminstudio.SupportConfigFromContext(r.Context())
 				support.MaintenanceActive = true

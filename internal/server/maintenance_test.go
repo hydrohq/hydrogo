@@ -48,3 +48,30 @@ func TestMaintenanceMiddlewareAllowsActiveStaffOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestMaintenancePreviewKeySetsShortLivedCookieAndRemovesQuery(t *testing.T) {
+	const key = "long-enough-preview-key"
+	config := MaintenanceConfig{
+		Enabled:      func(*http.Request) bool { return true },
+		SecureCookie: true,
+		PreviewKey:   func(_ *http.Request, value string) bool { return value == key },
+	}
+	handler := MaintenanceMiddleware(config)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+	request := httptest.NewRequest(http.MethodGet, "/catalog?preview_key="+key+"&page=2", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, request)
+	if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/catalog?page=2" {
+		t.Fatalf("preview response status=%d location=%q", w.Code, w.Header().Get("Location"))
+	}
+	cookies := w.Result().Cookies()
+	if len(cookies) != 1 || !cookies[0].HttpOnly || !cookies[0].Secure || cookies[0].MaxAge != 4*60*60 {
+		t.Fatalf("preview cookie=%+v", cookies)
+	}
+	request = httptest.NewRequest(http.MethodGet, "/catalog", nil)
+	request.AddCookie(cookies[0])
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, request)
+	if w.Code != http.StatusOK {
+		t.Fatalf("preview cookie status=%d body=%s", w.Code, w.Body.String())
+	}
+}
