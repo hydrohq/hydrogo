@@ -187,11 +187,9 @@ func (c *PublicHTMLCache) Clear() {
 	for tag := range c.generation {
 		c.generation[tag]++
 	}
-	c.generation["pages"]++
-	c.generation["news"]++
 	for key, entry := range c.entries {
 		c.generation[entry.tag]++
-		delete(c.entries, key)
+		c.removeLocked(key)
 	}
 }
 

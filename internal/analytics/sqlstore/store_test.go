@@ -273,6 +273,31 @@ func TestStoreRecordAndListContentViews(t *testing.T) {
 	}
 }
 
+func TestListContentViewsRequiresTenantScope(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE analytics_content_daily (day TEXT NOT NULL, tenant_id TEXT NOT NULL, content_type TEXT NOT NULL, content_id TEXT NOT NULL, locale TEXT NOT NULL, purpose_version TEXT NOT NULL, view_count INTEGER NOT NULL, PRIMARY KEY(day,tenant_id,content_type,content_id,locale,purpose_version)); INSERT INTO analytics_content_daily VALUES ('2026-09-01','tenant-a','page','p1','en','v1',3),('2026-09-01','tenant-b','page','p1','en','v1',100)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Executor: db, Dialect: database.SQLite}
+	if _, err := store.ListContentViews(context.Background(), ContentViewFilter{ContentType: "page"}); err == nil {
+		t.Fatal("expected an error when the content view report has no tenant scope")
+	}
+	rows, err := store.ListContentViews(context.Background(), ContentViewFilter{TenantID: "tenant-a", ContentType: "page"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.TenantID != "tenant-a" {
+			t.Fatalf("cross-tenant row leaked into the report: %#v", row)
+		}
+	}
+}
+
 func TestContentViewCountsAreBoundedToTenantAndType(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {

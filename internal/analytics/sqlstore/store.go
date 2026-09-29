@@ -450,6 +450,9 @@ func (s Store) ListContentViews(ctx context.Context, filter ContentViewFilter) (
 	if !ok {
 		return nil, errors.New("analytics content report requires query executor")
 	}
+	if strings.TrimSpace(filter.TenantID) == "" || len(filter.TenantID) > 128 {
+		return nil, errors.New("invalid analytics tenant scope")
+	}
 	if filter.Limit <= 0 || filter.Limit > 500 {
 		filter.Limit = 100
 	}
