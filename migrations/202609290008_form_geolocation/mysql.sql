@@ -1,0 +1,3 @@
+ALTER TABLE form_inbox ADD COLUMN location_country_code VARCHAR(2) NOT NULL DEFAULT '';
+ALTER TABLE form_inbox ADD COLUMN location_city VARCHAR(128) NOT NULL DEFAULT '';
+ALTER TABLE form_inbox ADD COLUMN location_local TINYINT(1) NOT NULL DEFAULT 0;

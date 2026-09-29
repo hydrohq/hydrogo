@@ -15,6 +15,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/geolocation"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
@@ -29,6 +30,10 @@ type verifierStub struct {
 }
 
 type realtimeRecorder struct{ events []realtime.Event }
+
+type geoResolverStub struct{ location geolocation.Location }
+
+func (s geoResolverStub) ResolveRequest(*http.Request) geolocation.Location { return s.location }
 
 func (r *realtimeRecorder) Publish(_ context.Context, event realtime.Event) error {
 	r.events = append(r.events, event)
@@ -94,6 +99,19 @@ func TestDynamicPublicFormNormalizesAndDeduplicatesSubmission(t *testing.T) {
 	values.Set("message", "Changed")
 	if response := submitRequest(handler, values); response.Code != http.StatusConflict {
 		t.Fatalf("conflicting replay status=%d", response.Code)
+	}
+}
+
+func TestFormSubmissionPersistsResolvedLocation(t *testing.T) {
+	handler, db := submissionHandler(t, forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}}})
+	handler.GeoResolver = geoResolverStub{location: geolocation.Location{CountryCode: "TR", City: "Istanbul"}}
+	values := url.Values{"email": {"visitor@example.test"}, "_submission_token": {"geo-location-token-123456"}}
+	if response := submitRequest(handler, values); response.Code != http.StatusAccepted {
+		t.Fatalf("submit status=%d body=%s", response.Code, response.Body.String())
+	}
+	items, err := (sitestore.Store{Dialect: database.SQLite}).ListSubmissions(context.Background(), db, "contact", 10)
+	if err != nil || len(items) != 1 || items[0].LocationCountryCode != "TR" || items[0].LocationCity != "Istanbul" {
+		t.Fatalf("location metadata=%#v err=%v", items, err)
 	}
 }
 

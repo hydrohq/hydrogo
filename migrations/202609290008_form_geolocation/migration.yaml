@@ -1,0 +1,29 @@
+id: "202609290008_form_geolocation"
+module: "forms"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+dependencies:
+  - "202609270001_forms_mail_crm"
+checksum_sha256:
+  sqlite: "ba8870dbb9d49f5d36d14999049eb5b3268de3de68f6a5e00739a273eedf66ec"
+  postgres: "232bddbd7c674505160f382f122a6936d179aaafa6626c23adf0f800c33b1848"
+  mysql: "5d8b6bc5df2b4ef50862e44c78d490206da3b715aaac37bd6c69d8a5b3e1f5d3"
+schema:
+  readable_epoch: 5
+  writable_epoch: 5
+preconditions:
+  - "Forms module is active and form_inbox exists"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Three defaulted metadata columns; proportional to form_inbox row count"
+compatibility: "Additive nullable-safe metadata defaults; old binaries ignore the new columns"
+smoke:
+  - "Legacy inbox rows read with empty country/city and local=false"
+  - "New submissions retain ISO country, bounded city, and local-network marker"
+restart: "Online-compatible expand migration; SQLite ALTER TABLE lock time is proportional to schema operation"
+rollback: "Roll back the binary; preserve added columns and captured metadata. Restore a pre-migration backup only when removal of location data is required."

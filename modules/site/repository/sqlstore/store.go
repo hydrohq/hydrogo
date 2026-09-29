@@ -429,7 +429,7 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	query := `INSERT INTO form_inbox (tenant_id,id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `)`
+	query := `INSERT INTO form_inbox (tenant_id,id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `)`
 	createdAt := value.CreatedAt.UTC()
 	if createdAt.IsZero() {
 		createdAt = time.Now().UTC()
@@ -454,7 +454,7 @@ func (s Store) CreateSubmission(ctx context.Context, tx database.Executor, value
 		}
 		scopeID = scope.TenantID
 	}
-	args := []any{scopeID, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created, value.IdempotencyKey, value.RequestHash, leadStage, value.AssignedTo}
+	args := []any{scopeID, value.ID, value.FormKey, value.Email, value.Payload, value.SourceIPHash, status, created, value.IdempotencyKey, value.RequestHash, leadStage, value.AssignedTo, value.LocationCountryCode, value.LocationCity, value.LocationLocal}
 	_, err := tx.ExecContext(ctx, query, args...)
 	return err
 }
@@ -467,9 +467,9 @@ func (s Store) FindSubmissionByIdempotency(ctx context.Context, db database.Exec
 	if err != nil {
 		return site.Submission{}, false, err
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = $1 AND idempotency_key = $2` + filter + ` LIMIT 1`
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = $1 AND idempotency_key = $2` + filter + ` LIMIT 1`
 	if s.Dialect != database.Postgres {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = ? AND idempotency_key = ?` + filter + ` LIMIT 1`
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = ? AND idempotency_key = ?` + filter + ` LIMIT 1`
 	}
 	var value site.Submission
 	var created any
@@ -477,7 +477,7 @@ func (s Store) FindSubmissionByIdempotency(ctx context.Context, db database.Exec
 	if filter != "" {
 		args = append(args, scopeID)
 	}
-	err = db.QueryRowContext(ctx, query, args...).Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash, &value.LeadStage, &value.AssignedTo)
+	err = db.QueryRowContext(ctx, query, args...).Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash, &value.LeadStage, &value.AssignedTo, &value.LocationCountryCode, &value.LocationCity, &value.LocationLocal)
 	if errors.Is(err, sql.ErrNoRows) {
 		return site.Submission{}, false, nil
 	}
@@ -493,9 +493,9 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = $1` + filter + ` ORDER BY created_at DESC LIMIT $2`
+	query := `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = $1` + filter + ` ORDER BY created_at DESC LIMIT $2`
 	if s.Dialect != database.Postgres {
-		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to FROM form_inbox WHERE form_key = ?` + filter + ` ORDER BY created_at DESC LIMIT ?`
+		query = `SELECT id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local FROM form_inbox WHERE form_key = ?` + filter + ` ORDER BY created_at DESC LIMIT ?`
 	}
 	args := []any{formKey, limit}
 	if filter != "" {
@@ -514,7 +514,7 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	for rows.Next() {
 		var value site.Submission
 		var created any
-		if err := rows.Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash, &value.LeadStage, &value.AssignedTo); err != nil {
+		if err := rows.Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash, &value.LeadStage, &value.AssignedTo, &value.LocationCountryCode, &value.LocationCity, &value.LocationLocal); err != nil {
 			return nil, err
 		}
 		value.CreatedAt = parseTime(created)

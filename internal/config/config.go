@@ -37,6 +37,7 @@ type Config struct {
 	Forms           Forms            `yaml:"forms"`
 	SEO             SEO              `yaml:"seo"`
 	Analytics       Analytics        `yaml:"analytics"`
+	GeoIP           GeoIP            `yaml:"geoip"`
 	Observability   Observability    `yaml:"observability"`
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
@@ -162,6 +163,12 @@ type SEO struct {
 type Analytics struct {
 	NoCookieEnabled bool   `yaml:"no_cookie_enabled"`
 	HashKey         string `yaml:"hash_key"`
+}
+
+// GeoIP is opt-in and only used while the Forms module is active.
+type GeoIP struct {
+	DatabasePath      string   `yaml:"database_path"`
+	TrustedProxyCIDRs []string `yaml:"trusted_proxy_cidrs"`
 }
 
 // Observability integrations are inactive by default and accept only operator
@@ -510,6 +517,14 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 }
 
 func (c Config) Validate() error {
+	if len(c.GeoIP.TrustedProxyCIDRs) > 256 || strings.ContainsAny(c.GeoIP.DatabasePath, "\x00\r\n") || len(c.GeoIP.DatabasePath) > 4096 {
+		return errors.New("invalid GeoIP configuration")
+	}
+	for _, value := range c.GeoIP.TrustedProxyCIDRs {
+		if _, _, err := net.ParseCIDR(strings.TrimSpace(value)); err != nil {
+			return errors.New("invalid GeoIP trusted proxy CIDR")
+		}
+	}
 	if c.Security.PreviewSigningKey != "" && len(c.Security.PreviewSigningKey) < 32 {
 		return errors.New("preview signing key must contain at least 32 bytes")
 	}

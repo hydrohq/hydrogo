@@ -30,6 +30,11 @@ redis:
 analytics:
   no_cookie_enabled: false
   hash_key: ""
+# Optional Forms geolocation. Supply an operator-managed offline MMDB and
+# explicit proxy CIDRs before trusting Cloudflare location headers.
+geoip:
+  database_path: ""
+  trusted_proxy_cidrs: []
 # Optional Sentry/GlitchTip DSN. Keep the key in a protected environment
 # variable (HYDRO_SENTRY_DSN) in deployed environments.
 observability:

@@ -92,18 +92,21 @@ type RedirectRule struct {
 }
 
 type Submission struct {
-	ID             string
-	FormKey        string
-	Email          string
-	Payload        string
-	SourceIPHash   string
-	Status         string
-	CreatedAt      time.Time
-	IdempotencyKey string
-	RequestHash    string
-	LeadStage      string
-	AssignedTo     string
-	Notifications  []EmailNotification `json:"-"`
+	ID                  string
+	FormKey             string
+	Email               string
+	Payload             string
+	SourceIPHash        string
+	Status              string
+	CreatedAt           time.Time
+	IdempotencyKey      string
+	RequestHash         string
+	LeadStage           string
+	AssignedTo          string
+	LocationCountryCode string              `json:"location_country_code,omitempty"`
+	LocationCity        string              `json:"location_city,omitempty"`
+	LocationLocal       bool                `json:"location_local,omitempty"`
+	Notifications       []EmailNotification `json:"-"`
 }
 
 type EmailNotification struct {
@@ -211,6 +214,10 @@ func ValidateRedirectRule(value RedirectRule) error {
 
 func ValidateSubmission(value Submission) error {
 	if value.ID == "" || strings.TrimSpace(value.FormKey) == "" || len(value.Payload) > 64<<10 || strings.TrimSpace(value.SourceIPHash) == "" {
+		return ErrInvalidSubmission
+	}
+	code := strings.TrimSpace(value.LocationCountryCode)
+	if code != "" && (len(code) != 2 || code[0] < 'A' || code[0] > 'Z' || code[1] < 'A' || code[1] > 'Z') || len(value.LocationCity) > 128 || value.LocationLocal && (code != "" || strings.TrimSpace(value.LocationCity) != "") {
 		return ErrInvalidSubmission
 	}
 	if _, err := mail.ParseAddress(value.Email); err != nil || len(value.Email) > 320 {
