@@ -101,6 +101,21 @@ type httpExecutor struct{}
 func (httpExecutor) ExecContext(context.Context, string, ...any) (sql.Result, error) { return nil, nil }
 func (httpExecutor) QueryRowContext(context.Context, string, ...any) *sql.Row        { return nil }
 
+type loginMFAStore struct{}
+
+func (loginMFAStore) PutFactor(context.Context, database.Executor, string, []byte, bool) error {
+	return nil
+}
+func (loginMFAStore) GetFactor(context.Context, database.Executor, string) ([]byte, bool, error) {
+	return []byte("encrypted-factor"), true, nil
+}
+func (loginMFAStore) PutRecoveryCode(context.Context, database.Executor, string, string, string) error {
+	return nil
+}
+func (loginMFAStore) ConsumeRecoveryCode(context.Context, database.Executor, string, string, time.Time) error {
+	return nil
+}
+
 func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	hash, err := HashPassword("secret", TestArgon2Params)
 	if err != nil {
@@ -140,6 +155,34 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	handler(badResponse, badRequest)
 	if badResponse.Code != http.StatusUnauthorized || tracker.failures != 1 {
 		t.Fatalf("failed login status=%d tracked=%d", badResponse.Code, tracker.failures)
+	}
+}
+
+func TestHTTPLoginRequestsAuthenticatorCodeWithServerClock(t *testing.T) {
+	hash, err := HashPassword("secret", TestArgon2Params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewAuthService(httpUserRepo{user: &User{ID: "mfa-user", Email: "admin@example.com", PasswordHash: hash, Role: RoleAdmin, Active: true}}, &httpSessionRepo{}, nil, TestArgon2Params)
+	handler := HTTPHandler{Service: service, MFA: &MFAService{Store: loginMFAStore{}}, MFADB: httpExecutor{}}.login
+	form := url.Values{"email": {"admin@example.com"}, "password": {"secret"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	res := httptest.NewRecorder()
+	handler(res, req)
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("challenge status=%d body=%s", res.Code, res.Body.String())
+	}
+	var response struct {
+		Error      string `json:"error"`
+		Period     int64  `json:"totp_period_seconds"`
+		ServerTime int64  `json:"server_time_unix"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Error != "mfa_code_required" || response.Period != 30 || response.ServerTime == 0 {
+		t.Fatalf("unexpected MFA challenge response: %+v", response)
 	}
 }
 

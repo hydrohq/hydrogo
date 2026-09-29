@@ -410,13 +410,17 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if enabled {
-			if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
-				security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
-				return
-			}
 			code := strings.TrimSpace(r.FormValue("mfa_code"))
 			if code == "" {
-				http.Error(w, "MFA code required", http.StatusUnauthorized)
+				writeJSON(w, http.StatusUnauthorized, map[string]any{
+					"error":               "mfa_code_required",
+					"totp_period_seconds": 30,
+					"server_time_unix":    time.Now().UTC().Unix(),
+				})
+				return
+			}
+			if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
+				security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
 				return
 			}
 			if err := h.MFA.Verify(r.Context(), h.MFADB, user.ID, code); err != nil {
