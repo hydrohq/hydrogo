@@ -146,3 +146,14 @@ func TestThemeBundleServesDeclaredStaticAssetOnly(t *testing.T) {
 		t.Fatalf("undeclared asset response = %d", res.Code)
 	}
 }
+
+func TestThemeManifestUnboundedVersion(t *testing.T) {
+	hugeString := string(make([]byte, 10*1024*1024))
+	manifest := ThemeManifest{
+		Name:    "acme-theme",
+		Version: hugeString,
+	}
+	if err := manifest.Validate(); err == nil {
+		t.Fatalf("VULNERABILITY: ThemeManifest allows unbounded string size in Version!")
+	}
+}

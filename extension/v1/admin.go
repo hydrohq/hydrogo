@@ -100,7 +100,7 @@ func ParseSignedAdminExtensionManifest(data []byte, trustedKeys map[string]ed255
 // Only HTTPS entrypoints are accepted; every surface is constrained to that
 // same origin and to a normalized path.
 func (m AdminExtensionManifest) Validate() error {
-	if !validIdentifier(m.ID) || strings.TrimSpace(m.Name) == "" || strings.TrimSpace(m.Version) == "" || len(m.Surfaces) == 0 {
+	if !validIdentifier(m.ID) || strings.TrimSpace(m.Name) == "" || len(m.Name) > 128 || strings.TrimSpace(m.Version) == "" || len(m.Version) > 64 || len(m.Surfaces) == 0 {
 		return ErrInvalidAdminExtension
 	}
 	entrypoint, err := url.Parse(strings.TrimSpace(m.EntrypointURL))
@@ -109,7 +109,7 @@ func (m AdminExtensionManifest) Validate() error {
 	}
 	seen := make(map[string]struct{}, len(m.Surfaces))
 	for _, surface := range m.Surfaces {
-		if !validIdentifier(surface.ID) || strings.TrimSpace(surface.Label) == "" || strings.TrimSpace(surface.Placement) == "" || !validPath(surface.Path) {
+		if !validIdentifier(surface.ID) || strings.TrimSpace(surface.Label) == "" || len(surface.Label) > 128 || strings.TrimSpace(surface.Placement) == "" || len(surface.Placement) > 64 || !validPath(surface.Path) {
 			return ErrInvalidAdminExtension
 		}
 		if _, ok := seen[surface.ID]; ok {

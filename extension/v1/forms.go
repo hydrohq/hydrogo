@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"strconv"
 )
 
 const (
@@ -103,6 +104,12 @@ func (f FormDefinition) NormalizeFormSubmission(values map[string]string) (map[s
 			continue
 		}
 		value = strings.TrimSpace(value)
+		if field.Type == FormNumber {
+			if _, parseErr := strconv.ParseFloat(value, 64); parseErr != nil {
+				problems[key] = "invalid-number"
+				continue
+			}
+		}
 		if len(value) > MaxFormValueLength {
 			problems[key] = "value-too-large"
 			continue
