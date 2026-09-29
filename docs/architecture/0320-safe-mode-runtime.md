@@ -21,8 +21,9 @@ delivery, or scheduled S3 backups. It does not start mail, news publication,
 webhook outbox, or monthly outbound link audit workers and does not dispatch
 those jobs in CGI lazy cron. Durable queued records remain stored for later
 delivery. Password login, MFA, local session cleanup, IP blocklist refresh,
-content routes, and recovery editing remain active. No custom script injector
-exists in this runtime yet; when one is added it must consult the same flag.
+content routes, and recovery editing remain active. The custom site integration
+injector in ADR-0324 consults this same flag and returns no snippets in Safe
+Mode.
 
 ## Compatibility, capacity, and recovery
 

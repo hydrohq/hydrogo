@@ -98,6 +98,47 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
+			if extra := strings.TrimSpace(w.Header().Get("X-Hydro-Custom-CSP")); extra != "" {
+				w.Header().Del("X-Hydro-Custom-CSP")
+				w.Header().Set("Content-Security-Policy", mergeCSP(w.Header().Get("Content-Security-Policy"), extra))
+			}
 		})
 	}
+}
+
+func mergeCSP(policy, extra string) string {
+	directives := strings.Split(policy, ";")
+	for _, addition := range strings.Split(extra, ";") {
+		addition = strings.TrimSpace(addition)
+		if addition == "" {
+			continue
+		}
+		parts := strings.Fields(addition)
+		if len(parts) < 2 {
+			continue
+		}
+		merged := false
+		for i, current := range directives {
+			fields := strings.Fields(current)
+			if len(fields) == 0 || fields[0] != parts[0] {
+				continue
+			}
+			seen := make(map[string]struct{}, len(fields))
+			for _, field := range fields[1:] {
+				seen[field] = struct{}{}
+			}
+			for _, source := range parts[1:] {
+				if _, ok := seen[source]; !ok {
+					fields = append(fields, source)
+				}
+			}
+			directives[i] = " " + strings.Join(fields, " ")
+			merged = true
+			break
+		}
+		if !merged {
+			directives = append(directives, " "+addition)
+		}
+	}
+	return strings.TrimSpace(strings.Join(directives, ";")) + ";"
 }
