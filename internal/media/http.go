@@ -318,6 +318,11 @@ func (h HTTPHandler) ready(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid media state", http.StatusBadRequest)
+		return
+	}
 	visibility := r.FormValue("visibility")
 	if visibility == "" {
 		visibility = VisibilityPrivate

@@ -465,3 +465,35 @@ func TestReadMultipartUploadStreamsFileToTempAndValidatesHeader(t *testing.T) {
 		t.Fatalf("failed upload left temp files: entries=%v err=%v", entries, err)
 	}
 }
+
+type visibilityAssetRepo struct{ httpAssetRepo }
+
+func (visibilityAssetRepo) SetVisibility(context.Context, database.Executor, string, string) error {
+	return nil
+}
+
+func TestMediaReadyRejectsOversizedFormBody(t *testing.T) {
+	uploader, err := NewUploader(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := database.Open(context.Background(), database.SQLite, "file:media-ready-bound?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	handler := HTTPHandler{Service: Service{Uploader: uploader, Assets: visibilityAssetRepo{httpAssetRepo{asset: Asset{ID: "a1", Status: "pending"}}}, Transactions: database.NewTransactor(db)}}
+	assertReadyStatus := func(body string, want int) {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/api/media/a1/ready", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
+		response := httptest.NewRecorder()
+		handler.ready(response, request)
+		if response.Code != want {
+			t.Fatalf("ready status = %d, want %d", response.Code, want)
+		}
+	}
+	assertReadyStatus("visibility=public", http.StatusOK)
+	assertReadyStatus("visibility=public&pad="+strings.Repeat("x", 16384), http.StatusBadRequest)
+}
