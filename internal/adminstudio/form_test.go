@@ -145,3 +145,14 @@ func TestRenderCreateFormRendersRelationOptions(t *testing.T) {
 		t.Fatalf("relation options missing or unsafe: %s", html)
 	}
 }
+
+func TestRenderCreateFormAcceptsDatetimeLocalWidget(t *testing.T) {
+	collection := Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: []Field{{ID: "expires_at", Label: "Otomatik yayından kalkma", Kind: FieldDate, Widget: "datetime-local"}}, Actions: []Action{{Label: "Haberler", Href: "/admin/news"}}}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/news", CSRFToken: "csrf", Values: map[string]string{"expires_at": ""}}); err != nil {
+		t.Fatalf("datetime-local widget rejected by the registry: %v", err)
+	}
+	if !strings.Contains(out.String(), `<input name="expires_at" type="datetime-local"`) {
+		t.Fatalf("datetime-local input missing: %s", out.String())
+	}
+}

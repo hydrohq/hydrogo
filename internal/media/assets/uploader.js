@@ -11,11 +11,23 @@
     progress.replaceChildren();
     const queue = files.map(file => ({ file, retries: 0 }));
     let active = 0;
+    let successes = 0;
+    let failures = 0;
     const run = () => {
       while (active < 3 && queue.length) {
         const item = queue.shift();
         active++;
-        upload(item).finally(() => { active--; run(); });
+        upload(item).finally(() => {
+          active--;
+          // The XHR follows the 303 redirect, so a finished upload is already
+          // committed server-side; reload so the new card appears without a
+          // manual refresh. Failed uploads keep their inline retry buttons.
+          if (!active && !queue.length && successes && !failures) {
+            window.location.reload();
+            return;
+          }
+          run();
+        });
       }
     };
     run();
@@ -35,7 +47,7 @@
         xhr.open('POST', form.action);
         xhr.upload.onprogress = event => { if (event.lengthComputable) bar.value = Math.round(event.loaded / event.total * 100); };
         xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 400) { bar.value = 100; status.textContent = ' Tamamlandı'; resolve(); return; }
+          if (xhr.status >= 200 && xhr.status < 400) { successes++; bar.value = 100; status.textContent = ' Tamamlandı'; resolve(); return; }
           failed();
         };
         xhr.onerror = failed;
@@ -46,11 +58,12 @@
         data.append('_csrf', form.elements._csrf.value);
         xhr.send(data);
         function failed() {
+          failures++;
           status.textContent = ' Yükleme başarısız';
           if (item.retries < 1) {
             const retry = document.createElement('button');
             retry.type = 'button'; retry.textContent = 'Yeniden dene';
-            retry.addEventListener('click', () => { retry.remove(); item.retries++; upload(item); });
+            retry.addEventListener('click', () => { retry.remove(); item.retries++; failures--; upload(item); });
             row.append(retry);
           }
           resolve();

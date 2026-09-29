@@ -14,6 +14,14 @@ await page.locator('input[name="email"]').fill(email);
 await page.locator('input[name="password"]').fill(password);
 await page.getByRole("button", { name: "Giriş yap" }).click();
 await page.waitForURL(/\/admin(?:$|\?)/);
+// Persist the onboarding-tour dismissal so admin journeys interact with the
+// editor instead of the first-run dialog — same as a returning admin who
+// clicked "Bu rehberi bir daha gösterme" (plain key + role-scoped key).
+await page.evaluate(() => {
+  localStorage.setItem("hydro-onboarding-dismissed", "1");
+  const role = document.body?.dataset?.studioRole || "admin";
+  localStorage.setItem(`hydro-onboarding-dismissed:${role}`, "1");
+});
 await context.storageState({ path: output });
 await browser.close();
 console.log(`wrote ${output}`);
