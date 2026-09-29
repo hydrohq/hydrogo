@@ -64,3 +64,9 @@ Thumbs.db
 # impeccable-ignore-end
 /hydro
 /hydro-issuer
+.temp_files/
+
+.wrongstack/
+!/.wrongstack/
+/.wrongstack/*
+!/.wrongstack/project.json
