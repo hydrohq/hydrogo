@@ -50,6 +50,50 @@ type ContentViewAggregate struct {
 	ViewCount   int64
 }
 
+// ContentViewCounts returns bounded lifetime totals for the selected content
+// IDs. The count remains consent-gated because only analytics aggregates are
+// read here.
+func (s Store) ContentViewCounts(ctx context.Context, tenantID, contentType string, contentIDs []string) (map[string]int64, error) {
+	if len(contentIDs) == 0 || len(contentIDs) > 100 || strings.TrimSpace(tenantID) == "" || len(tenantID) > 128 || strings.TrimSpace(contentType) == "" || len(contentType) > 32 {
+		return nil, errors.New("invalid content view count query")
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.validate(); err != nil {
+		return nil, err
+	}
+	queryExecutor, ok := s.Executor.(database.QueryExecutor)
+	if !ok {
+		return nil, errors.New("analytics content counts require query executor")
+	}
+	args := []any{tenantID, contentType}
+	placeholders := make([]string, 0, len(contentIDs))
+	for _, id := range contentIDs {
+		if strings.TrimSpace(id) == "" || len(id) > 128 {
+			return nil, errors.New("invalid content view content ID")
+		}
+		args = append(args, id)
+		placeholders = append(placeholders, placeholder(s.Dialect, len(args)))
+	}
+	query := "SELECT content_id,SUM(view_count) FROM analytics_content_daily WHERE tenant_id=" + placeholder(s.Dialect, 1) + " AND content_type=" + placeholder(s.Dialect, 2) + " AND content_id IN (" + strings.Join(placeholders, ",") + ") GROUP BY content_id"
+	rows, err := queryExecutor.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := make(map[string]int64, len(contentIDs))
+	for rows.Next() {
+		var id string
+		var count int64
+		if err := rows.Scan(&id, &count); err != nil {
+			return nil, err
+		}
+		counts[id] = count
+	}
+	return counts, rows.Err()
+}
+
 type DailyStat struct {
 	Day, TenantID, Metric, Dimension string
 	EventCount                       int64

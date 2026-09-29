@@ -48,6 +48,26 @@ func TestExportLinksRenderSafeTypedDownloads(t *testing.T) {
 	}
 }
 
+func TestContentViewSortOffersAccessibleSortLinks(t *testing.T) {
+	got := render(t, ContentViewSort(ContentViewSortProps{Path: "/admin/pages", Status: "published", Selected: "-views"}))
+	for _, want := range []string{`aria-label="Sort content by views"`, `href="/admin/pages?sort=-views&amp;status=published"`, `href="/admin/pages?sort=views&amp;status=published"`, `aria-current="page"`, "Most viewed", "Least viewed"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("sort control missing %q: %s", want, got)
+		}
+	}
+	unsafe := render(t, ContentViewSort(ContentViewSortProps{Path: "//evil.test"}))
+	if strings.Contains(unsafe, "evil.test") {
+		t.Fatalf("unsafe sort target rendered: %s", unsafe)
+	}
+}
+
+func TestViewCountBadgeFormatsAndLabelsCount(t *testing.T) {
+	got := render(t, ViewCountBadge(ViewCountBadgeProps{Count: 1249}))
+	if !strings.Contains(got, `aria-label="1249 views"`) || !strings.Contains(got, "1.2k") || !strings.Contains(got, "👁") {
+		t.Fatalf("view count badge = %s", got)
+	}
+}
+
 func TestSoundAlertPreferenceIsOptInAndAccessible(t *testing.T) {
 	got := render(t, SoundAlertPreference(SoundAlertPreferenceProps{Title: "Notifications", Label: "Play a sound for new inquiries", Description: "This setting is stored in this browser."}))
 	for _, want := range []string{`data-sound-alert-settings`, `data-sound-alert-preference`, `type="checkbox"`, "Play a sound for new inquiries"} {

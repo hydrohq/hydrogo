@@ -12,6 +12,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	blockrender "github.com/ardaozyildirim/hydrogo/modules/pages/render"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
@@ -58,6 +60,10 @@ type Handler struct {
 	PreviewOrigin       string
 	RequireTenantScope  bool
 	SearchEnabled       bool
+	ContentViews        interface {
+		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
+	}
+	AnalyticsEnabled bool
 }
 
 type PublicSEOSettings struct {
@@ -307,6 +313,24 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	viewCounts := map[string]int64{}
+	viewsAvailable := h.ContentViews != nil && h.AnalyticsEnabled
+	if viewsAvailable && len(items) > 0 {
+		ids := make([]string, 0, len(items))
+		for _, item := range items {
+			ids = append(ids, item.ID)
+		}
+		tenantID := "default"
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			tenantID = scope.TenantID
+		}
+		var countsErr error
+		viewCounts, countsErr = h.ContentViews.ContentViewCounts(r.Context(), tenantID, "page", ids)
+		viewsAvailable = countsErr == nil
+	}
+	if viewsAvailable {
+		sortPagesByViews(items, viewCounts, r.URL.Query().Get("sort"))
+	}
 	rows := make([]adminstudio.Row, 0, len(items))
 	for _, item := range items {
 		title := item.Title
@@ -330,7 +354,11 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 			publicPath := "/public/pages/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
 			actions = append(actions, adminstudio.Action{Label: "Canlı URL'yi kopyala", CopyText: strings.TrimRight(strings.TrimSpace(h.SEOOrigin), "/") + publicPath})
 		}
-		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status)}, Status: adminstudio.StatusInfo{Value: string(item.Status)}, Actions: actions})
+		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10)}, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status)}, Actions: actions})
+	}
+	collection := h.AdminCollection
+	if viewsAvailable {
+		collection.Fields = append(append([]adminstudio.Field(nil), collection.Fields...), adminstudio.Field{ID: "views", Label: "Views", Kind: adminstudio.FieldText, VisibleInList: true})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStartForRequest(w, r, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
@@ -340,12 +368,39 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions"><a class="button button-quiet" href="/admin/pages/import">CSV / Excel içe aktar</a></div><div class="table-wrap" id="admin-content-list" data-view-mode="table">`)
-	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: h.AdminCollection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
+	if viewsAvailable {
+		_ = designsystem.ContentViewSort(designsystem.ContentViewSortProps{Path: "/admin/pages", Status: r.URL.Query().Get("status"), Selected: r.URL.Query().Get("sort")}).Render(r.Context(), w)
+	}
+	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: collection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 		return
 	}
 	_, _ = fmt.Fprint(w, `</div></section>`)
 	_ = ui.AdminEnd(w)
+}
+
+func sortPagesByViews(items []pages.Page, counts map[string]int64, direction string) {
+	if direction != "views" && direction != "-views" {
+		return
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := counts[items[i].ID], counts[items[j].ID]
+		if a == b {
+			return items[i].ID < items[j].ID
+		}
+		if direction == "views" {
+			return a < b
+		}
+		return a > b
+	})
+}
+
+func renderViewCountBadge(ctx context.Context, count int64) template.HTML {
+	var out strings.Builder
+	if err := designsystem.ViewCountBadge(designsystem.ViewCountBadgeProps{Count: count}).Render(ctx, &out); err != nil {
+		return ""
+	}
+	return template.HTML(out.String())
 }
 
 func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {

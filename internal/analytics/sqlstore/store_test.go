@@ -133,6 +133,29 @@ func TestStoreRecordAndListContentViews(t *testing.T) {
 	}
 }
 
+func TestContentViewCountsAreBoundedToTenantAndType(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE analytics_content_daily (day TEXT NOT NULL, tenant_id TEXT NOT NULL, content_type TEXT NOT NULL, content_id TEXT NOT NULL, locale TEXT NOT NULL, purpose_version TEXT NOT NULL, view_count INTEGER NOT NULL, PRIMARY KEY(day,tenant_id,content_type,content_id,locale,purpose_version)); INSERT INTO analytics_content_daily VALUES ('2026-09-01','tenant-a','page','p1','en','v1',3),('2026-09-02','tenant-a','page','p1','tr','v1',4),('2026-09-01','tenant-a','page','p2','en','v1',8),('2026-09-01','tenant-b','page','p1','en','v1',100),('2026-09-01','tenant-a','news','p1','en','v1',200)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Executor: db, Dialect: database.SQLite}
+	counts, err := store.ContentViewCounts(context.Background(), "tenant-a", "page", []string{"p1", "p2", "missing"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["p1"] != 7 || counts["p2"] != 8 || counts["missing"] != 0 || len(counts) != 2 {
+		t.Fatalf("view counts = %#v", counts)
+	}
+	if _, err := store.ContentViewCounts(context.Background(), "tenant-a", "page", make([]string, 101)); err == nil {
+		t.Fatal("accepted an unbounded view count query")
+	}
+}
+
 func TestStoreRequiresCurrentGrantedConsentAndAggregates(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()

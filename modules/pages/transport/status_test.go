@@ -92,3 +92,23 @@ func TestNewIDProducesUniqueNonEmptyIDs(t *testing.T) {
 		seen[id] = struct{}{}
 	}
 }
+
+func TestSortPagesByViewsHonorsDirectionAndStableTies(t *testing.T) {
+	items := []pages.Page{{ID: "c"}, {ID: "a"}, {ID: "b"}}
+	counts := map[string]int64{"a": 5, "b": 5, "c": 2}
+	sortPagesByViews(items, counts, "-views")
+	if items[0].ID != "a" || items[1].ID != "b" || items[2].ID != "c" {
+		t.Fatalf("descending view sort = %#v", items)
+	}
+	sortPagesByViews(items, counts, "views")
+	if items[0].ID != "c" || items[1].ID != "a" || items[2].ID != "b" {
+		t.Fatalf("ascending view sort = %#v", items)
+	}
+	before := append([]pages.Page(nil), items...)
+	sortPagesByViews(items, counts, "unsupported")
+	for i := range before {
+		if before[i].ID != items[i].ID {
+			t.Fatalf("unsupported sort changed list: %#v", items)
+		}
+	}
+}

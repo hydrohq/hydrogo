@@ -370,3 +370,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0293: Browser locale routing](0293-browser-locale-routing.md)
 - [ADR-0294: Bounded SMTP send rate](0294-smtp-send-throttling.md)
 - [ADR-0295: Opt-in form inquiry chime](0295-opt-in-inquiry-chime.md)
+- [ADR-0296: Tenant-scoped content view totals in Admin Studio](0296-content-view-admin-metrics.md)
