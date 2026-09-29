@@ -58,4 +58,5 @@
 ## Execution state
 
 - **#219 closed:** bounded Pure Go first-page PNG variant, PDF upload validation, private-source behavior, media library cover, download-card cover, and accessible media-library preview dialog implemented. HydroGo tests pass; renderer runtime packages pass. The separate upstream `tools/genfixtures` test fails because four checked-in fixture files differ from generator output; this non-runtime upstream tooling failure is retained as a dependency risk.
-- **#256, #152, #71, #48, #28:** not yet implemented in this sweep.
+- **#256 in progress:** WAL-only, batched SQLite shadow rebuild, durable backfill checkpoint, source write-mirroring triggers, atomic cutover/ledger, descriptor validation, and focused contract tests implemented. Final full suite, docs/metadata guard, and cutover/restart test review remain before issue closure.
+- **#152, #71, #48, #28:** not yet implemented in this sweep. #152's original local mirroring requirement is subject to provider terms; the compliant re-scope is documented in Wave 6.

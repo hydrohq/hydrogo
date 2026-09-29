@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	storagesqlite "github.com/ardaozyildirim/hydrogo/internal/storage/sqlite"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,6 +22,20 @@ type metadata struct {
 	DiskEstimate  string            `yaml:"disk_estimate"`
 	Compatibility string            `yaml:"compatibility"`
 	Rollback      string            `yaml:"rollback"`
+	SQLiteShadow  *shadowMetadata   `yaml:"sqlite_shadow"`
+}
+
+type shadowMetadata struct {
+	Table     string                       `yaml:"table"`
+	CreateSQL string                       `yaml:"create_sql"`
+	Columns   []storagesqlite.ShadowColumn `yaml:"columns"`
+	BatchSize int                          `yaml:"batch_size"`
+	AfterSwap []string                     `yaml:"after_swap"`
+	Checksum  string                       `yaml:"checksum_sha256"`
+}
+
+func (m shadowMetadata) spec() storagesqlite.ShadowMigration {
+	return storagesqlite.ShadowMigration{Table: m.Table, CreateSQL: m.CreateSQL, Columns: m.Columns, BatchSize: m.BatchSize, AfterSwap: m.AfterSwap}
 }
 
 func main() {
@@ -56,6 +71,15 @@ func main() {
 		}
 		if m.Checksums["sqlite"] == "" || m.Checksums["postgres"] == "" {
 			failures = append(failures, fmt.Sprintf("%s: sqlite/postgres checksums are required", id))
+		}
+		if m.SQLiteShadow != nil {
+			shadowChecksum, checksumErr := storagesqlite.Checksum(m.SQLiteShadow.spec())
+			if checksumErr != nil || !strings.EqualFold(shadowChecksum, m.SQLiteShadow.Checksum) {
+				failures = append(failures, fmt.Sprintf("%s: SQLite shadow descriptor checksum mismatch", id))
+			}
+			if transactional, ok := m.Transactional["sqlite"]; !ok || transactional {
+				failures = append(failures, fmt.Sprintf("%s: SQLite shadow migration must be nontransactional", id))
+			}
 		}
 		if _, ok := m.Transactional["sqlite"]; !ok {
 			failures = append(failures, fmt.Sprintf("%s: transactional.sqlite is required", id))
