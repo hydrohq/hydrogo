@@ -1582,6 +1582,20 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	modules := enabledModuleSet(cfg.Modules)
+	var contentAssistant aicore.Assistant
+	var contentAIAudit auditstore.Store
+	if modules["ai"] && strings.EqualFold(strings.TrimSpace(os.Getenv("HYDRO_AI_ENABLED")), "true") {
+		endpoint, apiKey, model := strings.TrimSpace(os.Getenv("HYDRO_AI_ENDPOINT")), os.Getenv("HYDRO_AI_API_KEY"), strings.TrimSpace(os.Getenv("HYDRO_AI_MODEL"))
+		if endpoint == "" || strings.TrimSpace(apiKey) == "" || model == "" {
+			return errors.New("AI assistance requires HYDRO_AI_ENDPOINT, HYDRO_AI_API_KEY, and HYDRO_AI_MODEL")
+		}
+		provider := aicore.OpenAICompatible{Endpoint: endpoint, APIKey: apiKey, Model: model}
+		if provider.Validate() != nil {
+			return errors.New("AI assistance provider configuration is invalid")
+		}
+		contentAssistant = aicore.Assistant{Enabled: true, Provider: provider, Timeout: 15 * time.Second}
+		contentAIAudit = auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
+	}
 	var pushDispatcher *pushservice.Dispatcher
 	if modules["push"] && !cfg.SafeMode {
 		repository := pushstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -1917,6 +1931,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 			return entries, nil
 		}}
+		if contentAssistant.Enabled {
+			siteHTTP.Assistant = contentAssistant
+			siteHTTP.AIAudit = contentAIAudit
+		}
 		siteHTTP.NavigationLocales = cfg.I18N.Locales
 		if modules["forms"] {
 			proxyRanges, geoErr := geolocation.ParseTrustedProxyRanges(cfg.GeoIP.TrustedProxyCIDRs)
@@ -2086,7 +2104,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				return siteService.RecordNotFound(missCtx, path, time.Now().UTC())
 			}
 		}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], ContentViews: analyticsStore, Feedback: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: editPresence, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, Assistant: contentAssistant, AIAudit: contentAIAudit, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], ContentViews: analyticsStore, Feedback: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: editPresence, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
 			if !modules["site"] {
 				return nil, nil
 			}
@@ -2121,18 +2139,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 			return result
 		}}
-		if modules["ai"] && strings.EqualFold(strings.TrimSpace(os.Getenv("HYDRO_AI_ENABLED")), "true") {
-			endpoint, apiKey, model := strings.TrimSpace(os.Getenv("HYDRO_AI_ENDPOINT")), os.Getenv("HYDRO_AI_API_KEY"), strings.TrimSpace(os.Getenv("HYDRO_AI_MODEL"))
-			if endpoint == "" || strings.TrimSpace(apiKey) == "" || model == "" {
-				return errors.New("AI assistance requires HYDRO_AI_ENDPOINT, HYDRO_AI_API_KEY, and HYDRO_AI_MODEL")
-			}
-			provider := aicore.OpenAICompatible{Endpoint: endpoint, APIKey: apiKey, Model: model}
-			if provider.Validate() != nil {
-				return errors.New("AI assistance provider configuration is invalid")
-			}
-			pageHTTP.Assistant = aicore.Assistant{Enabled: true, Provider: provider, Timeout: 15 * time.Second}
-			pageHTTP.AIAudit = auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-		}
 		if modules["site"] {
 			pageHTTP.PublicContactSettings = func(contactCtx context.Context) ([]site.Setting, error) {
 				return siteStore.ListPublicSettings(contactCtx, db)

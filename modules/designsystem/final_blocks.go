@@ -75,6 +75,8 @@ func businessStatusLabel(p BusinessStatusProps) string {
 	return label(p.ClosedLabel, "Şu anda kapalıyız")
 }
 func featureListClass(checklist bool) string {
-	if checklist { return "ds-feature-list__items ds-feature-list__items--check" }
+	if checklist {
+		return "ds-feature-list__items ds-feature-list__items--check"
+	}
 	return "ds-feature-list__items"
 }
