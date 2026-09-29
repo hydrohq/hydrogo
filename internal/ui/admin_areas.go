@@ -29,6 +29,7 @@ type AdminAreaData struct {
 	FontToolsEnabled         bool
 	Users                    []*auth.User
 	EmailVerificationEnabled bool
+	PasswordResetLinkEnabled bool
 	Permissions              []string
 	IPBans                   []SecurityBanRow
 }
@@ -703,7 +704,15 @@ function testGraphQL(btn){
 				}
 				resend = fmt.Sprintf(`<form method="post" action="/auth/users/%s/email/verification/resend"><input type="hidden" name="_csrf" value="%s"><button class="button button-quiet" type="submit">%s</button></form>`, template.HTMLEscapeString(u.ID), csrf, label)
 			}
-			_, _ = fmt.Fprintf(w, `<tr><td><strong>%s</strong><div>%s</div></td><td><form method="post" action="/auth/users/%s/role" class="inline-form"><input type="hidden" name="_csrf" value="%s">%s <button class="button button-quiet" type="submit">%s</button></form></td><td>%s</td><td>%s%s<details style="margin-top:8px;"><summary>Custom permissions</summary><form method="post" action="/auth/users/%s/permissions" class="studio-form" style="margin-top:8px;"><input type="hidden" name="_csrf" value="%s">%s<button class="button button-quiet" type="submit">%s</button></form></details></td></tr>`, template.HTMLEscapeString(u.Email), verification, template.HTMLEscapeString(u.ID), csrf, roleOptions, saveLabel, status, resend, func() string {
+			resetLink := ""
+			if data.PasswordResetLinkEnabled && u.Active && u.ID != "" {
+				buttonLabel := "Parola sıfırlama bağlantısını kopyala"
+				if data.Locale == "en" {
+					buttonLabel = "Copy password reset link"
+				}
+				resetLink = fmt.Sprintf(`<button class="button button-quiet" type="button" data-password-reset-link="/auth/users/%s/password-reset-link">%s</button><span role="status" aria-live="polite" data-password-reset-status></span>`, template.HTMLEscapeString(u.ID), buttonLabel)
+			}
+			_, _ = fmt.Fprintf(w, `<tr><td><strong>%s</strong><div>%s</div></td><td><form method="post" action="/auth/users/%s/role" class="inline-form"><input type="hidden" name="_csrf" value="%s">%s <button class="button button-quiet" type="submit">%s</button></form></td><td>%s</td><td>%s%s%s<details style="margin-top:8px;"><summary>Custom permissions</summary><form method="post" action="/auth/users/%s/permissions" class="studio-form" style="margin-top:8px;"><input type="hidden" name="_csrf" value="%s">%s<button class="button button-quiet" type="submit">%s</button></form></details></td></tr>`, template.HTMLEscapeString(u.Email), verification, template.HTMLEscapeString(u.ID), csrf, roleOptions, saveLabel, status, resend, resetLink, func() string {
 				if u.ID == "" {
 					return ""
 				}

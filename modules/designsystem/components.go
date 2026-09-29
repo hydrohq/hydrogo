@@ -68,6 +68,7 @@ type SocialAccountsProps struct {
 }
 type PageLayoutOption struct{ ID, Name, Description string }
 type PageLayoutPickerProps struct{ Options []PageLayoutOption }
+type PasswordResetFormProps struct{ Token, CSRF, Nonce string }
 
 func SocialAccountPlatforms() []string {
 	return []string{"instagram", "linkedin", "youtube", "twitter_x", "tiktok", "facebook", "github"}

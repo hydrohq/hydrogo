@@ -81,6 +81,25 @@ func TestAdminUsersShowVerificationStateAndResendOnlyForUnverified(t *testing.T)
 	}
 }
 
+func TestAdminUsersOfferPasswordResetLinkOnlyWhenConfigured(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminArea(&out, AdminAreaData{Area: "users", PasswordResetLinkEnabled: true, Users: []*auth.User{{ID: "active-user", Email: "active@example.test", Role: auth.RoleAdmin, Active: true}, {ID: "inactive-user", Email: "inactive@example.test", Active: false}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := out.String()
+	if !strings.Contains(html, `data-password-reset-link="/auth/users/active-user/password-reset-link"`) || strings.Contains(html, `data-password-reset-link="/auth/users/inactive-user/password-reset-link"`) {
+		t.Fatalf("reset-link controls incorrect: %s", html)
+	}
+	var disabled bytes.Buffer
+	if err := RenderAdminArea(&disabled, AdminAreaData{Area: "users", Users: []*auth.User{{ID: "active-user", Active: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(disabled.String(), `data-password-reset-link="/auth/users/active-user/password-reset-link"`) {
+		t.Fatal("reset link exposed without recovery configuration")
+	}
+}
+
 func TestAdminSiteAreaLinksToSEOAndRedirectTools(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderAdminArea(&out, AdminAreaData{Area: "site", FontToolsEnabled: true}); err != nil {

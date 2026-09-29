@@ -103,6 +103,15 @@ func TestPageLayoutPickerShowsTypedTemplateOptions(t *testing.T) {
 	}
 }
 
+func TestPasswordResetFormKeepsTokenInPostBody(t *testing.T) {
+	got := render(t, PasswordResetForm(PasswordResetFormProps{Token: "reset-token", CSRF: "csrf-token"}))
+	for _, want := range []string{`action="/auth/password-reset/confirm"`, `name="_csrf" value="csrf-token"`, `name="token" value="reset-token"`, `autocomplete="new-password"`, `name="password"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("reset form missing %q: %s", want, got)
+		}
+	}
+}
+
 func TestViewCountBadgeFormatsAndLabelsCount(t *testing.T) {
 	got := render(t, ViewCountBadge(ViewCountBadgeProps{Count: 1249}))
 	if !strings.Contains(got, `aria-label="1249 views"`) || !strings.Contains(got, "1.2k") || !strings.Contains(got, "👁") {
