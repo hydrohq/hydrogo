@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
@@ -14,6 +15,17 @@ type alternatePagesStub struct{ translations []pages.Page }
 
 func (alternatePagesStub) GetContent(context.Context, database.Executor, string) (pages.Page, error) {
 	return pages.Page{}, nil
+}
+
+func TestFloatingContactUsesConfiguredSupportOnly(t *testing.T) {
+	handler := Handler{PublicSupport: adminstudio.SupportConfig{Enabled: true, Phone: "+1 415 555 0132", WhatsAppURL: "https://wa.me/14155550132"}}
+	got := handler.floatingContact(context.Background(), "en")
+	if !strings.Contains(got, `aria-label="Contact options"`) || !strings.Contains(got, `href="tel:+14155550132"`) || !strings.Contains(got, `https://wa.me/14155550132`) {
+		t.Fatalf("configured public contact missing: %s", got)
+	}
+	if got := (Handler{}).floatingContact(context.Background(), "tr"); got != "" {
+		t.Fatalf("disabled support rendered: %s", got)
+	}
 }
 func (alternatePagesStub) GetPublishedByRoute(context.Context, database.Executor, string, string) (pages.Page, error) {
 	return pages.Page{}, nil

@@ -136,6 +136,23 @@ func (s Service) SaveSetting(ctx context.Context, value Setting) error {
 	})
 }
 
+func (s Service) SaveContactWidget(ctx context.Context, value ContactWidget) error {
+	if err := value.Validate(); err != nil {
+		return err
+	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		for _, setting := range value.Settings() {
+			if err := s.Store.UpsertSetting(ctx, tx, setting); err != nil {
+				return err
+			}
+		}
+		return s.audit(ctx, tx, "site.contact_widget.updated", "contact widget")
+	})
+}
+
 // SaveAppearance validates and persists all brand tokens atomically.
 func (s Service) SaveAppearance(ctx context.Context, value Appearance) error {
 	if err := value.Normalize(); err != nil {

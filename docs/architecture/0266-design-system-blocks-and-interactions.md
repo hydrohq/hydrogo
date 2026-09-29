@@ -42,6 +42,11 @@ document head. Contact call/WhatsApp clicks emit daily aggregate event types
 only when the visitor has granted the existing analytics purpose. The event
 contract stores no page URL, phone number, account, IP, or visitor identifier.
 
+When operator-configured Admin Support is enabled, Pages and News may render a
+typed floating call/WhatsApp contact component. Destinations are validated in
+the Design System; the widget adds no database state or client-side runtime and
+is absent when support or the corresponding content module is disabled.
+
 ## Data and deployment compatibility
 
 No database migration is needed: the new typed payloads use the existing

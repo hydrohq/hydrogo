@@ -202,6 +202,19 @@ func TestContactCTARendersSafePhoneAndWhatsAppLinks(t *testing.T) {
 	}
 }
 
+func TestFloatingContactUsesOnlySafeConfiguredDestinations(t *testing.T) {
+	got := render(t, FloatingContact(FloatingContactProps{Phone: "+1 (415) 555-0132", WhatsAppURL: "https://wa.me/14155550132"}))
+	for _, want := range []string{`data-floating-contact`, `href="tel:+14155550132"`, `href="https://wa.me/14155550132"`, `rel="noopener noreferrer"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("floating contact missing %q: %s", want, got)
+		}
+	}
+	unsafe := render(t, FloatingContact(FloatingContactProps{WhatsAppURL: "https://evil.example/"}))
+	if strings.Contains(unsafe, `data-floating-contact`) || strings.Contains(unsafe, `evil.example`) {
+		t.Fatalf("unsafe WhatsApp destination rendered: %s", unsafe)
+	}
+}
+
 func TestFAQAccordionRendersAccessibleDetailsAndSchema(t *testing.T) {
 	got := render(t, FAQAccordion(FAQProps{ID: "help", Heading: "Help", Items: []FAQItem{{Question: "Where?", Answer: `At <home> </script>`}}}))
 	for _, want := range []string{`<details`, `<summary>Where?</summary>`, `application/ld+json`, `"@type":"FAQPage"`, `&lt;home&gt;`, `\u003c/script\u003e`} {

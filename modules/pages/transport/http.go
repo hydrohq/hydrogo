@@ -64,7 +64,9 @@ type Handler struct {
 	ContentViews        interface {
 		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
 	}
-	AnalyticsEnabled bool
+	AnalyticsEnabled      bool
+	PublicSupport         adminstudio.SupportConfig
+	PublicContactSettings func(context.Context) ([]site.Setting, error)
 }
 
 type PublicSEOSettings struct {
@@ -687,7 +689,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	if h.AnalyticsEnabled {
 		w.Header().Set("Vary", "Cookie")
 	}
-	if pageHasDesignSystemBlocks(page.Blocks) || showConsentNotice {
+	if pageHasDesignSystemBlocks(page.Blocks) || showConsentNotice || h.PublicSupport.Enabled || h.PublicContactSettings != nil {
 		var head bytes.Buffer
 		if err := ui.DesignSystemHead().Render(r.Context(), &head); err != nil {
 			http.Error(w, "page render failed", http.StatusInternalServerError)
@@ -695,6 +697,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		designHead = head.String()
 	}
+	supportMarkup := h.floatingContact(r.Context(), page.Locale)
 	searchMarkup := ""
 	if h.SearchEnabled {
 		var search bytes.Buffer
@@ -790,6 +793,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		content.WriteString(string(relatedMarkup))
 		content.WriteString(consentMarkup)
+		content.WriteString(supportMarkup)
 		navigation := make([]themev1.ThemeNavigationItem, 0)
 		if h.NavigationProvider != nil {
 			items, navErr := h.NavigationProvider(r.Context(), page.Locale)
@@ -812,7 +816,36 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main>%s</body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup, template.HTML(consentMarkup))
+	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main>%s%s</body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup, template.HTML(consentMarkup), template.HTML(supportMarkup))
+}
+
+func (h Handler) floatingContact(ctx context.Context, locale string) string {
+	props := designsystem.FloatingContactProps{Phone: h.PublicSupport.Phone, WhatsAppURL: h.PublicSupport.WhatsAppURL, AriaLabel: "İletişim seçenekleri", PhoneLabel: "Ara", WhatsAppLabel: "WhatsApp", Position: "bottom-right"}
+	enabled := h.PublicSupport.Enabled
+	if h.PublicContactSettings != nil {
+		settings, err := h.PublicContactSettings(ctx)
+		if err != nil {
+			return ""
+		}
+		if site.ContactWidgetConfigured(settings) {
+			value := site.ContactWidgetFromSettings(settings)
+			enabled = value.Enabled
+			props.Phone, props.WhatsAppNumber, props.Message = value.Phone, value.WhatsAppNumber, value.Message
+			props.Position, props.MobileOnly = value.Position, value.MobileOnly
+			props.WhatsAppURL = ""
+		}
+	}
+	if !enabled {
+		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(locale), "en") {
+		props.AriaLabel, props.PhoneLabel = "Contact options", "Call"
+	}
+	var output bytes.Buffer
+	if err := designsystem.FloatingContact(props).Render(ctx, &output); err != nil {
+		return ""
+	}
+	return output.String()
 }
 
 func hasAnalyticsConsent(r *http.Request) bool {
