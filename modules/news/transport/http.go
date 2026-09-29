@@ -26,6 +26,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
@@ -61,6 +62,7 @@ type Handler struct {
 	RequireTenantScope    bool
 	AnalyticsEnabled      bool
 	PublicSupport         adminstudio.SupportConfig
+	Presence              *realtime.Presence
 	PublicContactSettings func(context.Context) ([]site.Setting, error)
 }
 
@@ -122,7 +124,7 @@ type updateInput struct {
 }
 
 func (h Handler) Routes() []Route {
-	return []Route{
+	routes := []Route{
 		{Pattern: "POST /api/news", Protected: true, Handler: http.HandlerFunc(h.create)},
 		{Pattern: "GET /api/news/{id}", Protected: true, Handler: http.HandlerFunc(h.get)},
 		{Pattern: "PUT /api/news/{id}", Protected: true, Handler: http.HandlerFunc(h.update)},
@@ -147,6 +149,13 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /public/news/{locale}/html", Handler: http.HandlerFunc(h.publicListHTML)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
 	}
+	if h.Presence != nil {
+		routes = append(routes,
+			Route{Pattern: "POST /admin/news/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceHeartbeat)},
+			Route{Pattern: "GET /admin/news/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceList)},
+		)
+	}
+	return routes
 }
 
 func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
@@ -1119,6 +1128,10 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStartForRequest(w, r, "Haber düzenle", "Yayın merkezi", security.NonceFromContext(r.Context()), "news"); err != nil {
 		return
 	}
+	if h.Presence != nil {
+		endpoint := "/admin/news/" + url.PathEscape(item.ID) + "/presence"
+		_ = designsystem.EditPresence(item.ID, endpoint, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context())).Render(r.Context(), w)
+	}
 	statusBadge := fmt.Sprintf(`<span class="status">%s</span>`, template.HTMLEscapeString(string(item.Status)))
 	titleDisplay := item.Title
 	if strings.TrimSpace(titleDisplay) == "" {
@@ -1389,6 +1402,48 @@ func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
 func editorAllowed(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
 	return auth.Can(user, auth.PermissionContentWrite)
+}
+
+func (h Handler) editPresenceHeartbeat(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	resource := r.PathValue("id")
+	if h.Presence == nil || !editorAllowed(r) || user == nil || !user.Active || len(resource) > 128 || strings.ContainsAny(resource, "\x00\r\n") {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	} else if h.RequireTenantScope {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	name := strings.TrimSpace(strings.SplitN(user.Email, "@", 2)[0])
+	if name == "" {
+		name = "Editor"
+	}
+	if err := h.Presence.Heartbeat(realtime.PresenceSession{TenantID: tenantID, Resource: "news:" + resource, UserID: user.ID, Name: name}); err != nil {
+		http.Error(w, "presence unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) editPresenceList(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if h.Presence == nil || !editorAllowed(r) || user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	} else if h.RequireTenantScope {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, h.Presence.Active(tenantID, "news:"+r.PathValue("id"), user.ID))
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
