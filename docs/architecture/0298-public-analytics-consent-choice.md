@@ -25,6 +25,11 @@ schema, worker, or migration. Content-view events continue to require a current
 granted purpose in the analytics store. Optional no-cookie aggregates remain
 governed by ADR-0269 and their explicit installation configuration.
 
+Admin reports support a custom inclusive date range in addition to the
+existing seven- and thirty-day presets. The range is parsed as ISO dates,
+rejects future or reversed dates, and is limited to one year before it reaches
+the query layer. Custom filters use the existing indexed date projection.
+
 ## Operations and verification
 
 The feature is inert when Analytics is inactive. It adds no memory-resident
@@ -32,5 +37,6 @@ state and relies on the existing consent store and request CSRF middleware.
 SQLite analytics tests verify that recording requires current consent; page and
 news tests verify the notice is shown before a decision, hidden after a
 decision, and responses vary on cookies. Return destinations reject external
-origins and protocol-relative paths. No migration or rollback data step is
-required.
+origins and protocol-relative paths. Date-range tests cover valid, reversed,
+malformed, future, and over-one-year inputs. No migration or rollback data step
+is required.

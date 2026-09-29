@@ -143,6 +143,18 @@ func TestPageCacheConstructionFollowsModuleActivation(t *testing.T) {
 	}
 }
 
+func TestCustomAnalyticsDateRangeIsValidAndBounded(t *testing.T) {
+	from, to, ok := customAnalyticsDateRange("2026-09-01", "2026-09-29")
+	if !ok || from != "2026-09-01" || to != "2026-09-29" {
+		t.Fatalf("customAnalyticsDateRange valid = %q %q %v", from, to, ok)
+	}
+	for _, value := range [][2]string{{"2026-09-30", "2026-09-29"}, {"not-a-date", "2026-09-29"}, {"2025-01-01", "2026-09-29"}, {"2026-09-01", "2999-01-01"}} {
+		if _, _, ok := customAnalyticsDateRange(value[0], value[1]); ok {
+			t.Errorf("accepted invalid range %q–%q", value[0], value[1])
+		}
+	}
+}
+
 func TestRunVersion(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if err := run([]string{"version"}, strings.NewReader(""), &stdout, &stderr); err != nil {

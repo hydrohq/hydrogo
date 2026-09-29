@@ -73,6 +73,15 @@ func TestDeviceViewportPreviewIsAccessibleAndSandboxed(t *testing.T) {
 	}
 }
 
+func TestAnalyticsDateRangeUsesBoundedTypedGETForm(t *testing.T) {
+	got := render(t, AnalyticsDateRange(AnalyticsDateRangeProps{From: "2026-09-01", To: "2026-09-29"}))
+	for _, want := range []string{`method="get"`, `action="/admin/reports"`, `name="range" value="custom"`, `name="from" value="2026-09-01"`, `name="to" value="2026-09-29"`, `type="date"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("analytics date range missing %q: %s", want, got)
+		}
+	}
+}
+
 func TestViewCountBadgeFormatsAndLabelsCount(t *testing.T) {
 	got := render(t, ViewCountBadge(ViewCountBadgeProps{Count: 1249}))
 	if !strings.Contains(got, `aria-label="1249 views"`) || !strings.Contains(got, "1.2k") || !strings.Contains(got, "👁") {

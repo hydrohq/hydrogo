@@ -925,8 +925,22 @@ func contentViewFilterFromRequest(r *http.Request, limit int) analyticsstore.Con
 		}
 		filter.FromDay = time.Now().UTC().AddDate(0, 0, -days+1).Format("2006-01-02")
 		filter.ToDay = time.Now().UTC().Format("2006-01-02")
+	case "custom":
+		if from, to, ok := customAnalyticsDateRange(q.Get("from"), q.Get("to")); ok {
+			filter.FromDay, filter.ToDay = from, to
+		}
 	}
 	return filter
+}
+
+func customAnalyticsDateRange(from, to string) (string, string, bool) {
+	start, startErr := time.Parse("2006-01-02", from)
+	end, endErr := time.Parse("2006-01-02", to)
+	today, _ := time.Parse("2006-01-02", time.Now().UTC().Format("2006-01-02"))
+	if startErr != nil || endErr != nil || end.Before(start) || end.After(today) || end.Sub(start) > 365*24*time.Hour {
+		return "", "", false
+	}
+	return start.Format("2006-01-02"), end.Format("2006-01-02"), true
 }
 
 func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, tenantID, day string) ([]ui.NoCookieAnalyticsRow, int64, error) {
@@ -2261,6 +2275,15 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 			dataTime := time.Now().Format("02.01.2006 15:04:05")
 			dateRange := r.URL.Query().Get("range")
+			dateFrom, dateTo := "", ""
+			if dateRange == "custom" {
+				var valid bool
+				dateFrom, dateTo, valid = customAnalyticsDateRange(r.URL.Query().Get("from"), r.URL.Query().Get("to"))
+				if !valid {
+					http.Error(w, "Choose a valid date range within the past year.", http.StatusBadRequest)
+					return
+				}
+			}
 			contentViews := []analyticsstore.ContentViewAggregate(nil)
 			var noCookieStats []ui.NoCookieAnalyticsRow
 			var uniqueVisitors int64
@@ -2286,6 +2309,8 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				DataTime:         dataTime,
 				DataSource:       "Proses İçi Bellek Telemetrisi",
 				DateFilter:       dateRange,
+				DateFrom:         dateFrom,
+				DateTo:           dateTo,
 				Locale:           adminLocaleFromRequest(r),
 				ContentViews:     contentViewRows,
 				AnalyticsEnabled: modules["analytics"] && cfg.Analytics.NoCookieEnabled,
@@ -2322,6 +2347,12 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
+		}
+		if r.URL.Query().Get("range") == "custom" {
+			if _, _, valid := customAnalyticsDateRange(r.URL.Query().Get("from"), r.URL.Query().Get("to")); !valid {
+				http.Error(w, "Choose a valid date range within the past year.", http.StatusBadRequest)
+				return
+			}
 		}
 		format := r.URL.Query().Get("format")
 		if format == "" {

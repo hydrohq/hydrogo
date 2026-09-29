@@ -1,0 +1,13 @@
+package designsystem
+
+templ AnalyticsDateRange(p AnalyticsDateRangeProps) {
+	<form class="studio-card" method="get" action="/admin/reports" aria-label="Custom analytics date range">
+		<fieldset class="studio-form-row">
+			<legend>Custom date range</legend>
+			<input type="hidden" name="range" value="custom"/>
+			<label>From <input type="date" name="from" value={ p.From } required/></label>
+			<label>To <input type="date" name="to" value={ p.To } required/></label>
+			<button class="button button-primary" type="submit">Apply dates</button>
+		</fieldset>
+	</form>
+}
