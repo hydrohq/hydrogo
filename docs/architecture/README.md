@@ -384,3 +384,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0307: Monthly executive digest](0307-monthly-executive-digest.md)
 - [ADR-0308: Admin login security notice](0308-admin-login-security-notice.md)
 - [ADR-0309: Site not-found tracking and published slug redirects](0309-site-not-found-tracking-and-slug-redirects.md)
+- [ADR-0310: Mail sender DNS diagnostics](0310-mail-dns-diagnostics.md)
