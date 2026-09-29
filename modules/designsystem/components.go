@@ -56,6 +56,7 @@ type SoundAlertPreferenceProps struct{ Title, Label, Description string }
 type ContentViewSortProps struct{ Path, Status, Selected string }
 type ViewCountBadgeProps struct{ Count int64 }
 type DeviceViewportPreviewProps struct{ Endpoint, CSRF string }
+type AnalyticsDateRangeProps struct{ From, To string }
 type CountdownProps struct {
 	Target          string `json:"target_datetime"`
 	Timezone        string `json:"timezone"`

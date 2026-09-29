@@ -1,12 +1,14 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
@@ -20,6 +22,8 @@ type AdminDashboardData struct {
 	DataTime            string
 	DataSource          string
 	DateFilter          string
+	DateFrom            string
+	DateTo              string
 	Locale              string
 	ContentViews        []ContentViewReportRow
 	AnalyticsEnabled    bool
@@ -68,6 +72,9 @@ func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 		return err
 	}
 	if err := adminReportsKPIsTemplate.Execute(w, data); err != nil {
+		return err
+	}
+	if err := designsystem.AnalyticsDateRange(designsystem.AnalyticsDateRangeProps{From: data.DateFrom, To: data.DateTo}).Render(context.Background(), w); err != nil {
 		return err
 	}
 	if err := adminReportsPathTemplate.Execute(w, data); err != nil {
@@ -154,10 +161,11 @@ var adminReportsKPIsTemplate = template.Must(template.New("admin-reports-kpis").
 }).Parse(`<div class="reports-header-bar">
 	<div class="reports-filter-group">
 		<label for="reports-date-filter"><strong>Zaman Aralığı:</strong></label>
-		<select id="reports-date-filter" class="reports-select" onchange="if(window.studioNavigate){window.studioNavigate('/admin/reports?range='+this.value,true)}else{window.location.search='?range='+this.value}">
+		<select id="reports-date-filter" class="reports-select" onchange="if(this.value==='custom')return;if(window.studioNavigate){window.studioNavigate('/admin/reports?range='+this.value,true)}else{window.location.search='?range='+this.value}">
 			<option value="today"{{if or (eq .DateFilter "today") (not .DateFilter)}} selected{{end}}>Canlı Proses (Çalışma Süresi)</option>
 			<option value="7d"{{if eq .DateFilter "7d"}} selected{{end}}>Son 7 Gün (Kalıcı Veri [!] Gerektirir)</option>
 			<option value="30d"{{if eq .DateFilter "30d"}} selected{{end}}>Son 30 Gün (Kalıcı Veri [!] Gerektirir)</option>
+			<option value="custom"{{if eq .DateFilter "custom"}} selected{{end}}>Özel tarih aralığı</option>
 			<option value="all"{{if eq .DateFilter "all"}} selected{{end}}>Tüm Zamanlar (Canlı Proses Boyunca)</option>
 		</select>
 		<span class="reports-source-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> {{if .DataSource}}{{.DataSource}}{{else}}Proses İçi Bellek Telemetrisi{{end}}</span>
