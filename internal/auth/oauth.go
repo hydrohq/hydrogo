@@ -164,7 +164,7 @@ func (h SocialOAuthHandler) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	clearOAuthCookie(w, h.Secure)
 	pending, err := h.decodeState(cookie.Value)
-	if err != nil || pending.State != state || pending.Expires < h.now().Unix() {
+	if err != nil || subtle.ConstantTimeCompare([]byte(pending.State), []byte(state)) != 1 || pending.Expires < h.now().Unix() {
 		http.Error(w, "social login expired; please try again", http.StatusBadRequest)
 		return
 	}
