@@ -100,3 +100,35 @@ func TestExpiredNewsIsHiddenPubliclyAndRetainedForAdmin(t *testing.T) {
 		t.Fatalf("admin list did not retain expired news: %#v", adminItems)
 	}
 }
+
+func TestStreamPublishedRoutesExcludesExpiredItems(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "news-routes-expiry.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	for _, row := range []struct {
+		id, slug string
+		expires  any
+	}{
+		{id: "route-expired", slug: "expired", expires: now.Add(-time.Minute).Format(time.RFC3339Nano)},
+		{id: "route-active", slug: "active", expires: nil},
+	} {
+		if _, err := db.ExecContext(ctx, `INSERT INTO news_items (id,locale,slug,title,body,status,version,revision,published_revision,schedule_generation,expires_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, row.id, "en", row.slug, row.slug, row.slug, "published", 1, 1, 1, 0, row.expires, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var got []news.Item
+	store := Store{Dialect: database.SQLite}
+	if err := store.StreamPublishedRoutes(ctx, db, func(item news.Item) error { got = append(got, item); return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].ID != "route-active" {
+		t.Fatalf("route stream included an expired item: %#v", got)
+	}
+}

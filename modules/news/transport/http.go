@@ -1232,7 +1232,10 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 					selected = append(selected, term)
 				}
 			}
-			_ = replaceTaxonomyAtomically(r.Context(), h.DB, repository, item.ID, selected)
+			if err := replaceTaxonomyAtomically(r.Context(), h.DB, repository, item.ID, selected); err != nil {
+				writeError(w, err)
+				return
+			}
 		}
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(item.ID)+"?saved=1", http.StatusSeeOther)
