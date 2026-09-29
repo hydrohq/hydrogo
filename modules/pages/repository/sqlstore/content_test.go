@@ -14,5 +14,8 @@ func TestListRejectsUnboundedLimitsBeforeDatabaseAccess(t *testing.T) {
 		if _, err := store.ListAdmin(context.Background(), nil, limit); err != ErrInvalidListLimit {
 			t.Fatalf("admin limit %d error = %v", limit, err)
 		}
+		if _, err := store.ListPublishedTranslations(context.Background(), nil, "slug", limit); err != ErrInvalidListLimit {
+			t.Fatalf("translation limit %d error = %v", limit, err)
+		}
 	}
 }

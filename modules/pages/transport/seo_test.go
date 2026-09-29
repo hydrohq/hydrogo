@@ -5,8 +5,32 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 )
+
+type alternatePagesStub struct{ translations []pages.Page }
+
+func (alternatePagesStub) GetContent(context.Context, database.Executor, string) (pages.Page, error) {
+	return pages.Page{}, nil
+}
+func (alternatePagesStub) GetPublishedByRoute(context.Context, database.Executor, string, string) (pages.Page, error) {
+	return pages.Page{}, nil
+}
+func (alternatePagesStub) ListPublished(context.Context, database.Executor, string, int) ([]pages.Page, error) {
+	return nil, nil
+}
+func (alternatePagesStub) CreateDraftContent(context.Context, database.Executor, pages.Page) error {
+	return nil
+}
+func (alternatePagesStub) UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error {
+	return nil
+}
+func (alternatePagesStub) Publish(context.Context, database.Executor, string, int) error { return nil }
+func (s alternatePagesStub) ListPublishedTranslations(context.Context, database.Executor, string, int) ([]pages.Page, error) {
+	return s.translations, nil
+}
 
 func TestPageSEOMetadataIncludesBrandAndVersionedOGImage(t *testing.T) {
 	handler := Handler{SEOOrigin: "https://client.example", PublicSEOSettings: func(context.Context) PublicSEOSettings {
@@ -25,6 +49,27 @@ func TestPageSEOMetadataIncludesBrandAndVersionedOGImage(t *testing.T) {
 	second := handler.pageOGInput(page, handler.publicSEOSettings(context.Background()))
 	if first.Brand == second.Brand {
 		t.Fatal("brand metadata callback was ignored")
+	}
+}
+
+func TestPageSEOMetadataLinksOnlyPublishedLocaleAlternates(t *testing.T) {
+	repository := alternatePagesStub{translations: []pages.Page{
+		{Locale: "tr", Slug: "about"},
+		{Locale: "en", Slug: "about"},
+		{Locale: "fr", Slug: "different"},
+	}}
+	handler := Handler{SEOOrigin: "https://client.example", Content: service.ContentService{Pages: repository}}
+	meta, err := handler.pageSEOMeta(context.Background(), pages.Page{Locale: "tr", Slug: "about", Title: "Hakkımızda"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`hreflang="tr" href="https://client.example/public/pages/tr/about/html"`, `hreflang="en" href="https://client.example/public/pages/en/about/html"`} {
+		if !strings.Contains(meta, want) {
+			t.Errorf("alternate metadata missing %q: %s", want, meta)
+		}
+	}
+	if strings.Contains(meta, `hreflang="fr"`) {
+		t.Fatalf("different-slug page was linked as translation: %s", meta)
 	}
 }
 

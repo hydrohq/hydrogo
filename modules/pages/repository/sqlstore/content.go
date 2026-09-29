@@ -141,6 +141,51 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	return result, rows.Err()
 }
 
+// ListPublishedTranslations returns only live routes sharing a published slug.
+// Draft translations are deliberately invisible to SEO alternate links.
+func (s Store) ListPublishedTranslations(ctx context.Context, db database.Executor, slug string, limit int) ([]pages.Page, error) {
+	slug = strings.TrimSpace(slug)
+	if slug == "" || len(slug) > 240 || limit < 1 || limit > 100 {
+		return nil, ErrInvalidListLimit
+	}
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("published translation list requires a query-capable executor")
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 3)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT id, published_locale, published_slug FROM pages WHERE published_slug = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL` + filter + ` ORDER BY published_locale ASC LIMIT ` + s.placeholder(2)
+	args := []any{slug, limit}
+	if filter != "" {
+		if s.Dialect == database.Postgres {
+			args = append(args, scopeID)
+		} else {
+			args = []any{slug, scopeID, limit}
+		}
+	}
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]pages.Page, 0)
+	for rows.Next() {
+		var page pages.Page
+		if err := rows.Scan(&page.ID, &page.Locale, &page.Slug); err != nil {
+			return nil, err
+		}
+		result = append(result, page)
+	}
+	return result, rows.Err()
+}
+
 // ListRelatedPublished returns a bounded set of published pages ranked by
 // shared taxonomy tags. The lookup joins the tenant/tag index and never reads
 // draft relations.

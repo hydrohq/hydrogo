@@ -36,6 +36,14 @@ func TestScopedPublishedPagesCannotCrossTenant(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	for _, row := range []struct{ id, tenant string }{{"page-a-en", "tenant-a"}, {"page-b-en", "tenant-b"}} {
+		if _, err := db.ExecContext(ctx, `INSERT INTO pages
+			(id, title, locale, slug, body, status, published_locale, published_slug, published_title, published_revision, tenant_id, created_at, updated_at)
+			VALUES (?, ?, 'en', 'page-a', '{}', 'published', 'en', 'page-a', ?, 1, ?, ?, ?)`,
+			row.id, row.id, row.id, row.tenant, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"); err != nil {
+			t.Fatal(err)
+		}
+	}
 	alpha, _ := tenant.NewScope("tenant-a", "alpha")
 	items, err := (Store{Dialect: database.SQLite, RequireTenantScope: true}).ListPublished(tenant.WithScope(ctx, alpha), db, "tr", 20)
 	if err != nil || len(items) != 1 || items[0].ID != "page-a" {
@@ -44,13 +52,29 @@ func TestScopedPublishedPagesCannotCrossTenant(t *testing.T) {
 	if _, err := (Store{Dialect: database.SQLite, RequireTenantScope: true}).ListPublished(ctx, db, "tr", 20); !errors.Is(err, tenant.ErrMissingScope) {
 		t.Fatalf("missing scope error = %v", err)
 	}
+	translations, err := (Store{Dialect: database.SQLite, RequireTenantScope: true}).ListPublishedTranslations(tenant.WithScope(ctx, alpha), db, "page-a", 20)
+	if err != nil || len(translations) != 2 || translations[0].ID != "page-a-en" || translations[1].ID != "page-a" {
+		t.Fatalf("tenant scoped translations = %#v err=%v", translations, err)
+	}
+	if _, err := (Store{Dialect: database.SQLite, RequireTenantScope: true}).ListPublishedTranslations(ctx, db, "page-a", 20); !errors.Is(err, tenant.ErrMissingScope) {
+		t.Fatalf("missing translation scope error = %v", err)
+	}
 	var streamed []string
 	if err := (Store{Dialect: database.SQLite, RequireTenantScope: true}).StreamPublishedRoutes(tenant.WithScope(ctx, alpha), db, func(page pages.Page) error {
 		streamed = append(streamed, page.ID)
 		return nil
-	}); err != nil || len(streamed) != 1 || streamed[0] != "page-a" {
+	}); err != nil || len(streamed) != 2 || !containsPageID(streamed, "page-a") || !containsPageID(streamed, "page-a-en") {
 		t.Fatalf("streamed routes = %v, err=%v", streamed, err)
 	}
+}
+
+func containsPageID(ids []string, target string) bool {
+	for _, id := range ids {
+		if id == target {
+			return true
+		}
+	}
+	return false
 }
 
 func (db *countingQueryDB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
@@ -85,5 +109,39 @@ func TestListPublishedUsesOneBoundedQueryWithoutNPlusOne(t *testing.T) {
 	}
 	if queryDB.queries != 1 {
 		t.Fatalf("published list queries = %d, want exactly 1 bounded query", queryDB.queries)
+	}
+}
+
+func TestListPublishedTranslationsReturnsOnlyLiveSameSlugRoutes(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "page-translations.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range []struct {
+		id, locale, slug, status string
+		revision                 any
+	}{
+		{"tr-page", "tr", "about", "published", 1},
+		{"en-page", "en", "about", "published", 1},
+		{"fr-draft", "fr", "about", "draft", nil},
+		{"other-page", "de", "contact", "published", 1},
+	} {
+		_, err := db.ExecContext(ctx, `INSERT INTO pages (id,title,locale,slug,body,status,published_locale,published_slug,published_title,published_revision,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, row.id, row.id, row.locale, row.slug, "{}", row.status, row.locale, row.slug, row.id, row.revision, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	queryDB := &countingQueryDB{DB: db}
+	items, err := (Store{Dialect: database.SQLite}).ListPublishedTranslations(ctx, queryDB, "about", 20)
+	if err != nil || len(items) != 2 || items[0].Locale != "en" || items[1].Locale != "tr" {
+		t.Fatalf("published translations = %#v err=%v", items, err)
+	}
+	if queryDB.queries != 1 {
+		t.Fatalf("translation lookup queries=%d, want one", queryDB.queries)
 	}
 }
