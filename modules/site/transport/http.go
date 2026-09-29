@@ -240,7 +240,7 @@ func (h Handler) maintenanceSettings(w http.ResponseWriter, r *http.Request) {
 	if ui.AdminStartForRequest(w, r, "Bakım modu", "Site ziyaretçileri için geçici bilgilendirme", security.NonceFromContext(r.Context()), "site") != nil {
 		return
 	}
-	_ = designsystem.MaintenanceEditor(settings.Enabled, strings.Join(settings.Allowlist, "\n"), security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+	_ = designsystem.MaintenanceEditor(settings.Enabled, strings.Join(settings.Allowlist, "\n"), maintenanceFormTime(settings.StartsAt), maintenanceFormTime(settings.EndsAt), settings.Headline, settings.Message, security.CSRFTokenFromContext(r.Context()), settings.PreviewKeyHash != "").Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
 
@@ -255,7 +255,34 @@ func (h Handler) saveMaintenanceSettings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	entries := strings.FieldsFunc(r.FormValue("allowlist"), func(ch rune) bool { return ch == '\n' || ch == '\r' || ch == ',' || ch == ' ' || ch == '\t' })
-	settings := site.MaintenanceSettings{Enabled: r.FormValue("enabled") == "true", Allowlist: entries}
+	settings := site.MaintenanceSettings{Enabled: r.FormValue("enabled") == "true", Allowlist: entries, Headline: strings.TrimSpace(r.FormValue("headline")), Message: strings.TrimSpace(r.FormValue("message"))}
+	for field, target := range map[string]*string{"starts_at": &settings.StartsAt, "ends_at": &settings.EndsAt} {
+		value := strings.TrimSpace(r.FormValue(field))
+		if value == "" {
+			continue
+		}
+		parsed, parseErr := time.ParseInLocation("2006-01-02T15:04", value, time.UTC)
+		if parseErr != nil {
+			http.Error(w, "Bakım başlangıç ve bitiş saatlerini kontrol edin.", http.StatusBadRequest)
+			return
+		}
+		*target = parsed.Format(time.RFC3339)
+	}
+	if reader, ok := h.Store.(privateSettingReader); ok {
+		if current, found, err := reader.GetSetting(r.Context(), h.DB, site.MaintenanceSettingKey); err == nil && found {
+			settings.PreviewKeyHash = site.MaintenanceFromSetting(current).PreviewKeyHash
+		}
+	}
+	if r.FormValue("clear_preview_key") == "true" {
+		settings.PreviewKeyHash = ""
+	}
+	if key := r.FormValue("preview_key"); key != "" {
+		settings.PreviewKeyHash = site.MaintenancePreviewKeyHash(key)
+		if settings.PreviewKeyHash == "" {
+			http.Error(w, "Önizleme anahtarı 16 ile 128 karakter arasında olmalıdır.", http.StatusBadRequest)
+			return
+		}
+	}
 	setting, err := settings.Setting()
 	if err != nil {
 		http.Error(w, "IP adreslerini veya ağları kontrol edin.", http.StatusBadRequest)
@@ -266,6 +293,14 @@ func (h Handler) saveMaintenanceSettings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	http.Redirect(w, r, "/admin/site/maintenance?saved=1", http.StatusSeeOther)
+}
+
+func maintenanceFormTime(value string) string {
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return ""
+	}
+	return parsed.UTC().Format("2006-01-02T15:04")
 }
 
 func (h Handler) socialLinks(w http.ResponseWriter, r *http.Request) {
