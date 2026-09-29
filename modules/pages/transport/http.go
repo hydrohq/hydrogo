@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -20,7 +21,9 @@ import (
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -76,6 +79,8 @@ type Handler struct {
 	RecordNotFound        func(context.Context, string) error
 	PublicSupport         adminstudio.SupportConfig
 	PublicContactSettings func(context.Context) ([]site.Setting, error)
+	Assistant             ai.Assistant
+	AIAudit               audit.Writer
 }
 
 type PublicSEOSettings struct {
@@ -187,7 +192,17 @@ func (h Handler) Routes() []Route {
 	for _, route := range seo.DiscoveryRoutes(h.DiscoveryProvider, h.DiscoveryCache) {
 		routes = append(routes, Route{Pattern: route.Pattern, Handler: route.Handler})
 	}
+	if h.assistantEnabled() {
+		routes = append(routes,
+			Route{Pattern: "POST /admin/pages/{id}/ai-suggest", Handler: http.HandlerFunc(h.adminAISuggest), Protected: true},
+			Route{Pattern: "POST /admin/pages/{id}/ai-applied", Handler: http.HandlerFunc(h.adminAIApplied), Protected: true},
+		)
+	}
 	return routes
+}
+
+func (h Handler) assistantEnabled() bool {
+	return h.Assistant.Enabled && h.Assistant.Provider != nil && h.AIAudit != nil
 }
 
 func (h Handler) adminBulk(w http.ResponseWriter, r *http.Request) {
@@ -1435,7 +1450,101 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages/%s" data-local-autosave data-autosave-resource="page:%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayınlama</h2><p class="muted">Taslağı kaydedin veya doğrudan yayına alın.</p><div class="studio-actions"><form method="post" action="/admin/pages/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form></div></section>`, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), page.Version)
+	if h.assistantEnabled() {
+		_ = designsystem.AIAssistantRequest("/admin/pages/"+url.PathEscape(page.ID)+"/ai-suggest", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+		if suggestion, ok := r.Context().Value(pageSuggestionKey{}).(pageSuggestion); ok {
+			_ = designsystem.AIAssistantSuggestion(suggestion.BeforeTitle, suggestion.BeforeBody, suggestion.Result, "/admin/pages/"+url.PathEscape(page.ID)+"/ai-applied", security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context())).Render(r.Context(), w)
+		}
+	}
 	_ = ui.AdminEnd(w)
+}
+
+type pageSuggestionKey struct{}
+
+type pageSuggestion struct {
+	BeforeTitle string
+	BeforeBody  string
+	Result      ai.Suggestion
+}
+
+func (h Handler) adminAISuggest(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) || !h.assistantEnabled() {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	operation := ai.Operation(strings.TrimSpace(r.FormValue("operation")))
+	if r.FormValue("consent") != "yes" || (operation != ai.Refine && operation != ai.SEO && operation != ai.Summary) {
+		http.Error(w, "Öneri için bir işlem seçin ve içerik paylaşımını onaylayın.", http.StatusBadRequest)
+		return
+	}
+	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "page unavailable", pageReadStatus(err))
+		return
+	}
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Content.Transactions == nil {
+		http.Error(w, "Öneri hizmeti şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	auditID := "ai-request-" + fmt.Sprintf("%x", sha256.Sum256([]byte(page.ID+"\x00"+user.ID+"\x00"+time.Now().UTC().Format(time.RFC3339Nano))))[:32]
+	if err := h.Content.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		return h.AIAudit.Record(r.Context(), tx, auditID, "ai.suggestion.requested", page.ID)
+	}); err != nil {
+		http.Error(w, "Öneri hizmeti şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	result, err := h.Assistant.Suggest(r.Context(), ai.Request{
+		Operation: operation,
+		Locale:    page.Locale,
+		Title:     page.Title,
+		Body:      page.Body,
+		Consent:   r.FormValue("consent") == "yes",
+	})
+	if err != nil {
+		status := http.StatusServiceUnavailable
+		if errors.Is(err, ai.ErrConsent) || errors.Is(err, ai.ErrInvalidRequest) {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, "Öneri üretilemedi. İçeriğiniz değiştirilmedi.", status)
+		return
+	}
+	suggestionContext := context.WithValue(r.Context(), pageSuggestionKey{}, pageSuggestion{BeforeTitle: page.Title, BeforeBody: page.Body, Result: result})
+	h.adminPage(w, r.WithContext(suggestionContext))
+}
+
+func (h Handler) adminAIApplied(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !editorAllowed(r) || !h.assistantEnabled() || user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	pageID := r.PathValue("id")
+	if _, err := h.Content.Get(r.Context(), h.DB, pageID); err != nil {
+		http.Error(w, "page unavailable", pageReadStatus(err))
+		return
+	}
+	if h.Content.Transactions == nil {
+		http.Error(w, "Öneri hizmeti şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	auditID := "ai-applied-" + fmt.Sprintf("%x", sha256.Sum256([]byte(pageID+"\x00"+user.ID+"\x00"+time.Now().UTC().Format(time.RFC3339Nano))))[:32]
+	if err := h.Content.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		return h.AIAudit.Record(r.Context(), tx, auditID, "ai.suggestion.applied", pageID)
+	}); err != nil {
+		http.Error(w, "Öneri denetim kaydı tamamlanamadı.", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handler) editPresenceHeartbeat(w http.ResponseWriter, r *http.Request) {
