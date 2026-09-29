@@ -30,6 +30,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -71,6 +72,9 @@ type Handler struct {
 	FontsEnabled          bool
 	NavigationLocales     []string
 	NavigationSuggestions func(context.Context, string) ([]site.NavigationSuggestion, error)
+	Realtime              interface {
+		Publish(context.Context, realtime.Event) error
+	}
 }
 
 func (h Handler) Routes() []Route {
@@ -899,9 +903,14 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 	requestHash := sha256.Sum256(requestBytes)
 	submission := site.Submission{ID: "form-" + hex.EncodeToString(idBytes), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:]), IdempotencyKey: idempotencyKey, RequestHash: hex.EncodeToString(requestHash[:])}
 	submission.Notifications = formNotifications(form, clean, submission.ID)
-	if _, err := h.Service.SubmitIdempotent(r.Context(), submission); err != nil {
+	replayed, err := h.Service.SubmitIdempotent(r.Context(), submission)
+	if err != nil {
 		http.Error(w, "form submission failed", siteStatus(err))
 		return
+	}
+	if !replayed && h.Realtime != nil {
+		data, _ := json.Marshal(map[string]string{"form_key": formKey})
+		_ = h.Realtime.Publish(r.Context(), realtime.Event{ID: submission.ID, Topic: "forms:submission_created", Time: time.Now().UTC(), Data: data})
 	}
 	w.WriteHeader(http.StatusAccepted)
 }

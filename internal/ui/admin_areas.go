@@ -18,17 +18,18 @@ import (
 )
 
 type AdminAreaData struct {
-	Email            string
-	Nonce            string
-	CSRF             string
-	Area             string
-	Locale           string
-	TenantID         string
-	LocaleSaved      bool
-	FontToolsEnabled bool
-	Users            []*auth.User
-	Permissions      []string
-	IPBans           []SecurityBanRow
+	Email              string
+	Nonce              string
+	CSRF               string
+	Area               string
+	Locale             string
+	TenantID           string
+	LocaleSaved        bool
+	SoundAlertsEnabled bool
+	FontToolsEnabled   bool
+	Users              []*auth.User
+	Permissions        []string
+	IPBans             []SecurityBanRow
 }
 
 type SecurityBanRow struct{ Address, Expires string }
@@ -769,7 +770,14 @@ function testGraphQL(btn){
       <button class="button" type="submit">%s</button>
     </form>
   </div>
-</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"))
+		</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"))
+		soundTitle, soundLabel, soundDescription := "Bildirim sesleri", "Yeni taleplerde sesli uyarı ver", "Bu tercih yalnızca bu tarayıcıda saklanır ve varsayılan olarak kapalıdır."
+		if data.Locale == "en" {
+			soundTitle, soundLabel, soundDescription = "Notification sounds", "Play a sound for new inquiries", "This preference is stored in this browser and is off by default."
+		}
+		if data.SoundAlertsEnabled {
+			_ = designsystem.SoundAlertPreference(designsystem.SoundAlertPreferenceProps{Title: soundTitle, Label: soundLabel, Description: soundDescription}).Render(context.Background(), w)
+		}
 
 	default:
 		_, _ = fmt.Fprintf(w, `<div class="studio-card"><p>Yönetim alanı yükleniyor...</p></div>`)
