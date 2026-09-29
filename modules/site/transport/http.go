@@ -23,6 +23,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -56,6 +57,9 @@ type Handler struct {
 	Service           *site.Service
 	Media             *media.Service
 	SubmissionLimiter security.RateLimiter
+	FormViewLimiter   security.RateLimiter
+	FormMetrics       analytics.FormMetrics
+	VisitorHasher     *analytics.VisitorHasher
 	AllowedForms      map[string]struct{}
 	FormsEnabled      bool
 	Turnstile         interface {
@@ -81,8 +85,9 @@ type Handler struct {
 	Realtime              interface {
 		Publish(context.Context, realtime.Event) error
 	}
-	LinkScanManager *linkcheck.Manager
-	LinkScanLimiter security.RateLimiter
+	LinkScanManager    *linkcheck.Manager
+	LinkScanLimiter    security.RateLimiter
+	RequireTenantScope bool
 }
 
 func submissionLocation(item site.Submission) string {
@@ -162,6 +167,7 @@ func (h Handler) Routes() []Route {
 			Route{Pattern: "GET /admin/site/mail", Handler: http.HandlerFunc(h.mailSpool)},
 			Route{Pattern: "POST /admin/site/mail/{id}/retry", Handler: http.HandlerFunc(h.mailSpoolRetry)},
 			Route{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
+			Route{Pattern: "POST /forms/{form}/view", Public: true, Handler: http.HandlerFunc(h.recordFormView)},
 		)
 	}
 	return routes
@@ -996,6 +1002,36 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forms unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	var formMetrics []designsystem.FormConversionMetric
+	if h.FormMetrics != nil && h.VisitorHasher != nil {
+		tenantID := "default"
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			tenantID = scope.TenantID
+		}
+		to := time.Now().UTC()
+		from := to.AddDate(0, 0, -29)
+		daily, metricsErr := h.FormMetrics.ListFormDaily(r.Context(), tenantID, "", from.Format("2006-01-02"), to.Format("2006-01-02"))
+		if metricsErr == nil {
+			formMetrics = make([]designsystem.FormConversionMetric, 0, len(items))
+			byForm := make(map[string][]analytics.FormDailyMetric)
+			for _, metric := range daily {
+				byForm[metric.FormID] = append(byForm[metric.FormID], metric)
+			}
+			for _, item := range items {
+				var row designsystem.FormConversionMetric
+				row.FormID, row.Title = item.ID, item.Title
+				for _, metric := range byForm[item.ID] {
+					row.Views += metric.Views
+					row.Submissions += metric.Submissions
+					row.Trend = append(row.Trend, designsystem.FormConversionDay{Day: metric.Day, Submissions: metric.Submissions})
+				}
+				if row.Views > 0 {
+					row.ConversionPercent = float64(row.Submissions) * 100 / float64(row.Views)
+				}
+				formMetrics = append(formMetrics, row)
+			}
+		}
+	}
 	selected := forms.Form{ID: "contact", Title: "İletişim", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "E-posta", Required: true}, {ID: "message", Type: forms.Textarea, Label: "Mesaj", Required: true}}}
 	for _, item := range items {
 		if item.ID == r.URL.Query().Get("id") || (r.URL.Query().Get("id") == "" && selected.ID == "contact") {
@@ -1014,6 +1050,9 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, `<a class="button button-quiet" href="/admin/site/forms?id=%s">%s</a>`, template.URLQueryEscaper(item.ID), template.HTMLEscapeString(item.Title))
 	}
 	_, _ = fmt.Fprint(w, `</div></section>`)
+	if len(formMetrics) > 0 {
+		_ = designsystem.FormConversionMetrics(formMetrics).Render(r.Context(), w)
+	}
 	_ = adminstudio.RenderFormBuilder(w, adminstudio.FormBuilderData{Form: selected, Action: "/admin/site/forms", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context())})
 	workingHours := forms.WorkingHours{Timezone: "UTC"}
 	if selected.WorkingHours != nil {
@@ -1021,6 +1060,36 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = ui.WorkingHoursEditor(selected.ID, workingHours.Timezone, workingHours.Notice, security.CSRFTokenFromContext(r.Context()), ui.WorkingHoursDays(workingHours)).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) recordFormView(w http.ResponseWriter, r *http.Request) {
+	if h.FormMetrics == nil || h.VisitorHasher == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	formID := r.PathValue("form")
+	if _, err := h.publicForm(r.Context(), formID); err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	} else if h.RequireTenantScope {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if h.FormViewLimiter != nil && !h.FormViewLimiter.Allow(tenantID+":"+formID+":"+requestIP(r)) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	now := time.Now().UTC()
+	day := now.Format("2006-01-02")
+	visitor := h.VisitorHasher.Hash(day, tenantID, requestIP(r), r.UserAgent())
+	if visitor != "" {
+		_, _ = h.FormMetrics.RecordFormView(r.Context(), tenantID, formID, visitor, now)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handler) saveFormWorkingHours(w http.ResponseWriter, r *http.Request) {

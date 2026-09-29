@@ -421,6 +421,10 @@ func safeFormAction(action, formID string) string {
 	return "/forms/" + formID + "/submit"
 }
 
+func publicFormViewEndpoint(formID string) string {
+	return "/forms/" + url.PathEscape(formID) + "/view"
+}
+
 func publicSubmissionToken(token string) string {
 	if ValidateIdempotencyToken(token) == nil {
 		return token

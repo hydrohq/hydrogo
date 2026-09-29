@@ -1819,11 +1819,16 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
+	var formViewLimiter security.RateLimiter
 	var linkScanManager *linkcheck.Manager
 	var linkScanOrigin string
 	var redirectRegistry *site.RedirectRegistry
 	if modules["site"] {
-		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
+		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, RequireTenantScope: requireTenantScope}
+		if modules["forms"] && noCookieHasher != nil {
+			siteService.FormMetrics = analyticsStore
+			formViewLimiter = newRateLimiter(120, time.Minute)
+		}
 		redirectRegistry = &site.RedirectRegistry{RequireTenantScope: requireTenantScope}
 		redirectScopes := tenantScopes
 		if !requireTenantScope {
@@ -1861,7 +1866,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		linkScanOrigin = cfg.HTTP.PublicOrigin
 		linkScanManager = linkcheck.NewManager(linkcheck.Options{MaxPages: 500, MaxTargets: 5000, MaxFindings: 1000, Concurrency: 4, RequestDelay: 100 * time.Millisecond, Retention: 35 * 24 * time.Hour})
-		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Media: &mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormsEnabled: modules["forms"], Realtime: realtimeHub, SitemapOrigin: sitemapOrigin, LinkScanManager: linkScanManager, LinkScanLimiter: newRateLimiter(1, time.Minute), SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Media: &mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormViewLimiter: formViewLimiter, FormMetrics: analyticsStore, VisitorHasher: noCookieHasher, RequireTenantScope: requireTenantScope, FormsEnabled: modules["forms"], Realtime: realtimeHub, SitemapOrigin: sitemapOrigin, LinkScanManager: linkScanManager, LinkScanLimiter: newRateLimiter(1, time.Minute), SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err

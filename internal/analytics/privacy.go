@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -22,6 +23,20 @@ import (
 type NoCookieVisit struct {
 	Day, TenantID, Page, Referrer, Device, Browser, OS string
 	VisitorKey                                         string
+}
+
+type FormDailyMetric struct {
+	Day         string
+	TenantID    string
+	FormID      string
+	Views       int64
+	Submissions int64
+}
+
+type FormMetrics interface {
+	RecordFormView(context.Context, string, string, string, time.Time) (bool, error)
+	RecordFormSubmission(context.Context, database.Executor, string, string, time.Time) error
+	ListFormDaily(context.Context, string, string, string, string) ([]FormDailyMetric, error)
 }
 
 type NoCookieSink interface {
@@ -158,7 +173,6 @@ func (q *NoCookieQueue) worker() {
 			q.purgeExpired(context.Background(), now.UTC())
 		case event := <-q.jobs:
 			ctx, span := observability.StartComponentSpan(context.Background(), "analytics", "no_cookie.persist")
-			q.purgeExpired(ctx, time.Now().UTC())
 			if _, err := q.sink.RecordNoCookieVisit(ctx, event); err != nil {
 				q.failed.Add(1)
 			}
