@@ -333,7 +333,7 @@ func RevisionDiffPanel(diffs []adminstudio.FieldDiff, editor, modified string, r
 			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<section class=\"studio-card\" data-revision-diff><h2>Değişiklikleri karşılaştır</h2><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<details class=\"studio-card studio-revision-toggle\" data-revision-diff><summary class=\"revision-summary-header\"><span class=\"revision-summary-title\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path></svg><strong>Değişiklikleri karşılaştır</strong><span class=\"revision-summary-meta\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -359,7 +359,7 @@ func RevisionDiffPanel(diffs []adminstudio.FieldDiff, editor, modified string, r
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</p><div class=\"revision-diff-fields\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span></span><span class=\"revision-toggle-btn\">Farkları İncele ▾</span></summary><div class=\"revision-diff-fields\" style=\"margin-top:14px;\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -421,7 +421,7 @@ func RevisionDiffPanel(diffs []adminstudio.FieldDiff, editor, modified string, r
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\" data-confirm-action=\"Bu sürüm geri yüklensin mi?\"><input type=\"hidden\" name=\"_csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\" data-confirm-action=\"Bu sürüm geri yüklensin mi?\" style=\"margin-top:14px;\"><input type=\"hidden\" name=\"_csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -434,7 +434,7 @@ func RevisionDiffPanel(diffs []adminstudio.FieldDiff, editor, modified string, r
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"><button class=\"button button-quiet\" type=\"submit\">Bu sürümü geri yükle</button></form></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"><button class=\"button button-quiet\" type=\"submit\">Bu sürümü geri yükle</button></form></details>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -463,7 +463,7 @@ func VisualRevisionCompare(before, after string, beforeLabel, afterLabel string)
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<section class=\"studio-card\" data-visual-revision><h2>Görsel sürüm karşılaştırması</h2><div class=\"studio-split-editor\"><article><h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<details class=\"studio-card studio-revision-toggle\" data-visual-revision><summary class=\"revision-summary-header\"><span class=\"revision-summary-title\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 8v4l3 3\"></path><circle cx=\"12\" cy=\"12\" r=\"9\"></circle></svg><strong>Görsel sürüm karşılaştırması</strong></span><span class=\"revision-toggle-btn\">Görsel Önizlemeyi Göster ▾</span></summary><div class=\"studio-split-editor\" style=\"margin-top:16px;\"><article><h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -541,7 +541,7 @@ func VisualRevisionCompare(before, after string, beforeLabel, afterLabel string)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\"></iframe></article></div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\"></iframe></article></div></details>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
