@@ -21,6 +21,7 @@ import (
 	"time"
 
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
+	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -28,8 +29,45 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
+
+type pageCacheSpy struct{ cleared int }
+
+func (p *pageCacheSpy) GetOrLoad(string, func() (pages.Page, error)) (pages.Page, error) {
+	return pages.Page{}, nil
+}
+func (p *pageCacheSpy) GetOrLoadAtGeneration(string, uint64, func() (pages.Page, error)) (pages.Page, error) {
+	return pages.Page{}, nil
+}
+func (p *pageCacheSpy) Clear()             { p.cleared++ }
+func (p *pageCacheSpy) Stats() cache.Stats { return cache.Stats{} }
+
+func TestSQLiteExternalWriteInvalidationClearsBothPublicCaches(t *testing.T) {
+	page := &pageCacheSpy{}
+	html := server.NewPublicHTMLCache(server.PublicHTMLCacheOptions{})
+	var renders int
+	handler := html.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		renders++
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, "<main>public</main>")
+	}))
+	request := httptest.NewRequest(http.MethodGet, "https://example.test/public/pages/en/home/html", nil)
+	for range 2 {
+		handler.ServeHTTP(httptest.NewRecorder(), request)
+	}
+	if renders != 1 {
+		t.Fatalf("initial HTML cache renders = %d, want 1", renders)
+	}
+
+	clearPublicCaches(page, html)
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+	if page.cleared != 1 || renders != 2 {
+		t.Fatalf("invalidated page cache %d times and rendered HTML %d times, want 1 and 2", page.cleared, renders)
+	}
+}
 
 func TestModuleHelpersCanonicalizeNames(t *testing.T) {
 	configured := []string{" Pages ", "NEWS"}
