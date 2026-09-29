@@ -386,3 +386,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0309: Site not-found tracking and published slug redirects](0309-site-not-found-tracking-and-slug-redirects.md)
 - [ADR-0310: Mail sender DNS diagnostics](0310-mail-dns-diagnostics.md)
 - [ADR-0311: Security token lifetime settings](0311-security-token-lifetime-settings.md)
+- [ADR-0312: Global email branding and legal footer](0312-email-branding-and-legal-footer.md)

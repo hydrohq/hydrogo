@@ -1,0 +1,26 @@
+id: "202609290010_mail_branding_settings"
+module: "auth"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "dae7b36f8a5d1d7ab83798482eeca2ad1373f6d336d9e6bcbba54c17a32e9466"
+  postgres: "f0ebee0866e593087785d956d91a396e57d2563213191d30b5f8fc97938300a4"
+  mysql: "d3f99ef062cfb82c467087e677e42676ea2ca96310c3c0c85b44868486133748"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Auth module migrations are applied"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "One small global branding settings row"
+compatibility: "New email settings are used by new sends; existing spool messages remain deliverable"
+smoke:
+  - "Settings are read back after an administrative update"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Drop the singleton settings table; defaults return and stored customization is lost"

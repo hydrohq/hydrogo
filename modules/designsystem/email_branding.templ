@@ -1,0 +1,27 @@
+package designsystem
+
+templ EmailBrandingForm(p EmailBrandingFormProps) {
+	<section class="studio-card">
+		<h1>Email identity and legal footer</h1>
+		<p>Changes are applied when the next message is delivered.</p>
+		<form method="post" action="/admin/mailer/branding" class="studio-form">
+			<input type="hidden" name="_csrf" value={ p.CSRF }/>
+			<label>Company legal name <input name="legal_name" maxlength="256" value={ p.LegalName }/></label>
+			<label>Physical address <textarea name="physical_address" maxlength="512">{ p.PhysicalAddress }</textarea></label>
+			<label>Privacy policy URL <input name="privacy_policy_url" type="url" value={ p.PrivacyPolicyURL }/></label>
+			<label>Legal footer notice <textarea name="footer_notice" maxlength="1024">{ p.FooterNotice }</textarea></label>
+			<label>Email footer text <textarea name="footer_text" maxlength="1024">{ p.FooterText }</textarea></label>
+			<label for="email-brand-logo-id">Email header logo</label>
+			<div class="media-select-field">
+				<input id="email-brand-logo-id" name="logo_asset_id" maxlength="128" value={ p.LogoAssetID } aria-describedby="email-logo-help"/>
+				<button type="button" class="button button-quiet media-picker-open" data-media-target="email-brand-logo-id">Choose logo</button>
+			</div>
+			<p id="email-logo-help">Choose a ready image in the <a href="/admin/media">Media Library</a>.</p>
+			<label>Accent color <input name="primary_color" type="color" value={ p.PrimaryColor }/></label>
+			<button class="button button-primary" type="submit">Save email settings</button>
+		</form>
+		if p.Saved {
+			<p role="status">Email settings saved.</p>
+		}
+	</section>
+}

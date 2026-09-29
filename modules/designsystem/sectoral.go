@@ -35,6 +35,12 @@ type TokenLifetimeFormProps struct {
 	Saved                   bool
 }
 
+type EmailBrandingFormProps struct {
+	CSRF, LegalName, PhysicalAddress, PrivacyPolicyURL  string
+	FooterNotice, FooterText, LogoAssetID, PrimaryColor string
+	Saved                                               bool
+}
+
 type DataTableProps struct {
 	Caption string
 	Columns []string
