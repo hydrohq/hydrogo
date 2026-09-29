@@ -21,3 +21,19 @@ func TestStableFormFieldsCopiesInput(t *testing.T) {
 		t.Fatalf("unexpected sort/input: %#v %#v", got, input)
 	}
 }
+
+func TestFormNumberIsParsedAsNumber(t *testing.T) {
+	def := FormDefinition{
+		ID:     "f-1",
+		Title:  "Form",
+		Fields: []FormField{{ID: "age", Type: FormNumber, Label: "Age"}},
+	}
+	
+	_, problems, err := def.NormalizeFormSubmission(map[string]string{"age": "not-a-number"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if problems["age"] == "" {
+		t.Fatalf("VULNERABILITY: FormNumber field accepts non-numeric strings without parsing them!")
+	}
+}

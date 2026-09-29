@@ -94,3 +94,25 @@ func TestSignedAdminExtensionManifestVerifiesAgainstConfiguredKey(t *testing.T) 
 		t.Fatalf("unknown key error = %v", err)
 	}
 }
+
+func TestAdminManifestUnboundedStrings(t *testing.T) {
+	hugeString := string(make([]byte, 10*1024*1024)) // 10MB string
+	manifest := AdminExtensionManifest{
+		ID:            "valid-id",
+		Name:          hugeString, // unbounded!
+		Version:       hugeString, // unbounded!
+		EntrypointURL: "https://example.com",
+		Surfaces: []AdminSurface{
+			{
+				ID:        "surf-1",
+				Label:     hugeString, // unbounded!
+				Placement: hugeString, // unbounded!
+				Path:      "/valid",
+			},
+		},
+	}
+	
+	if err := manifest.Validate(); err == nil {
+		t.Fatalf("VULNERABILITY: AdminExtensionManifest allows unbounded string sizes in Name, Version, Label, and Placement! This causes memory DoS.")
+	}
+}

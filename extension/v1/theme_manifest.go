@@ -24,7 +24,7 @@ var ErrInvalidThemeManifest = errors.New("invalid theme manifest")
 var themeName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
 func (m ThemeManifest) Validate() error {
-	if !themeName.MatchString(m.Name) || strings.TrimSpace(m.Version) == "" {
+	if !themeName.MatchString(m.Name) || strings.TrimSpace(m.Version) == "" || len(m.Version) > 64 {
 		return ErrInvalidThemeManifest
 	}
 	if m.DesignSystem != "" && (!themeName.MatchString(m.DesignSystem) || len(m.DesignSystem) > 64) {
