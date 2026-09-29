@@ -2235,7 +2235,11 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	trashKinds := map[trash.Kind]bool{trash.Pages: modules["pages"], trash.News: modules["news"], trash.Submissions: modules["site"], trash.Media: modules["media"]}
 	if trashKinds[trash.Pages] || trashKinds[trash.News] || trashKinds[trash.Submissions] || trashKinds[trash.Media] {
 		trashRepository := trashstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Enabled: trashKinds}
-		trashHandler := trashtransport.Handler{Service: trash.Service{Repository: trashRepository}}
+		trashHandler := trashtransport.Handler{Service: trash.Service{
+			Repository:   trashRepository,
+			Transactions: transactioner,
+			Audit:        auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
+		}}
 		trashHandler.AfterMutation = func(_ context.Context, kind trash.Kind, _ string) {
 			if kind == trash.Pages || kind == trash.News {
 				if publicPageCache != nil {

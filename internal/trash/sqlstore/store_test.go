@@ -2,10 +2,12 @@ package sqlstore
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/trash"
@@ -87,4 +89,39 @@ func TestTrashListMoveRestoreAndRetentionAreTenantScoped(t *testing.T) {
 	if err := service.Move(ctx, trash.Kind("users"), "some-id", now); err != trash.ErrNotFound {
 		t.Fatalf("unrecognized kind error = %v", err)
 	}
+	if _, err := db.Exec(`CREATE TABLE test_audit (id TEXT PRIMARY KEY, action TEXT, target TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	service.Transactions = database.NewTenantTransactor(db, database.SQLite, true)
+	service.Audit = recordingAudit{}
+	if err := service.Move(ctx, trash.Pages, "page-a", now); err != nil {
+		t.Fatal(err)
+	}
+	var deletedAt string
+	var auditCount int
+	if err := db.QueryRow(`SELECT deleted_at FROM pages WHERE id='page-a'`).Scan(&deletedAt); err != nil || deletedAt == "" {
+		t.Fatalf("transactional move deleted_at=%q err=%v", deletedAt, err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM test_audit`).Scan(&auditCount); err != nil || auditCount != 1 {
+		t.Fatalf("audit count=%d err=%v", auditCount, err)
+	}
+	service.Audit = recordingAudit{err: errors.New("audit unavailable")}
+	if err := service.Restore(ctx, trash.Pages, "page-a", now); err == nil {
+		t.Fatal("restore succeeded after audit failure")
+	}
+	if err := db.QueryRow(`SELECT deleted_at FROM pages WHERE id='page-a'`).Scan(&deletedAt); err != nil || deletedAt == "" {
+		t.Fatalf("failed audited restore was not rolled back: deleted_at=%q err=%v", deletedAt, err)
+	}
+}
+
+type recordingAudit struct{ err error }
+
+var _ audit.Writer = recordingAudit{}
+
+func (a recordingAudit) Record(_ context.Context, tx database.Executor, id, action, target string) error {
+	if a.err != nil {
+		return a.err
+	}
+	_, err := tx.ExecContext(context.Background(), `INSERT INTO test_audit VALUES(?,?,?)`, id, action, target)
+	return err
 }
