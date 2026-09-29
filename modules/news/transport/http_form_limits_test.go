@@ -44,3 +44,12 @@ func TestAdminUpdateRejectsOversizedForm(t *testing.T) {
 		t.Fatalf("oversized update form status=%d body=%s", response.Code, response.Body.String())
 	}
 }
+
+func TestAdminTaxonomyRejectsOversizedForm(t *testing.T) {
+	h := Handler{}
+	request, response := editorPost("/admin/news/taxonomy", "action=list&labels_json="+strings.Repeat("x", 32<<10))
+	h.adminTaxonomy(response, request)
+	if response.Code != http.StatusBadRequest || response.Body.String() != "invalid form\n" {
+		t.Fatalf("oversized taxonomy form status=%d body=%s", response.Code, response.Body.String())
+	}
+}
