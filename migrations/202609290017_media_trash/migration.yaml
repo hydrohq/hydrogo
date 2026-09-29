@@ -1,0 +1,25 @@
+id: "202609290017_media_trash"
+module: "media"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "82ef74185d7b06cdf3508e4b6eb00bde51c09b60b27f7660639dcee1fd6cf86c"
+  postgres: "131a0b5943f0900a104136fc6d4932b04995592886af64af64eace57b5deff22"
+  mysql: "e5b4bce297ff556e60bfb94e4ea7f1866695df49ad451d23cbfa8d95136649f5"
+dependencies:
+  - "202609080004_media_assets"
+schema: {readable_epoch: 3, writable_epoch: 3}
+preconditions:
+  - "Media module is active"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "Nullable timestamp and one compact index"
+compatibility: "Additive deleted_at column; old versions ignore it"
+smoke: ["Existing assets remain visible before any delete"]
+restart: "Transactional expand migration; safe to rerun"
+rollback: "Binary rollback only; retain nullable column and deleted assets"

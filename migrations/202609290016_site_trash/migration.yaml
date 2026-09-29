@@ -1,0 +1,25 @@
+id: "202609290016_site_trash"
+module: "site"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "024ad69212f66bb89d4d484f57e301b9dcd6e802c9b69db876ee9c77219c4539"
+  postgres: "3f5d8700ded6dda4728d588b33383e79cdc035fb9cc3228bc43fe2a6d0c9b6b2"
+  mysql: "8129e9cbf3e8da17a61d9dbd495336c494e5530c26d6458e722fafff963d2c68"
+dependencies:
+  - "202609080009_site_edition"
+schema: {readable_epoch: 3, writable_epoch: 3}
+preconditions:
+  - "Site Edition and form inbox tables are active"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "Nullable timestamp and one compact index"
+compatibility: "Additive deleted_at column; old versions ignore it"
+smoke: ["Existing submissions remain visible before any delete"]
+restart: "Transactional expand migration; safe to rerun"
+rollback: "Binary rollback only; retain nullable column and deleted rows"

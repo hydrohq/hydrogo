@@ -20,15 +20,15 @@ func TestAdminSearchReturnsCategorizedContentWithoutSettingsValues(t *testing.T)
 	}
 	defer db.Close()
 	for _, statement := range []string{
-		`CREATE TABLE pages (id TEXT PRIMARY KEY, locale TEXT, title TEXT, body TEXT, status TEXT, tenant_id TEXT)`,
-		`CREATE TABLE news_items (id TEXT PRIMARY KEY, locale TEXT, title TEXT, excerpt TEXT, status TEXT, tenant_id TEXT)`,
+		`CREATE TABLE pages (id TEXT PRIMARY KEY, locale TEXT, title TEXT, body TEXT, status TEXT, tenant_id TEXT, deleted_at TEXT)`,
+		`CREATE TABLE news_items (id TEXT PRIMARY KEY, locale TEXT, title TEXT, excerpt TEXT, status TEXT, tenant_id TEXT, deleted_at TEXT)`,
 		`CREATE TABLE members (id TEXT PRIMARY KEY, email TEXT, active INTEGER, tenant_id TEXT)`,
-		`CREATE TABLE media_assets (id TEXT PRIMARY KEY, original_filename TEXT, mime_type TEXT, visibility TEXT, status TEXT, tenant_id TEXT)`,
+		`CREATE TABLE media_assets (id TEXT PRIMARY KEY, original_filename TEXT, mime_type TEXT, visibility TEXT, status TEXT, tenant_id TEXT, deleted_at TEXT)`,
 		`CREATE TABLE site_settings (key TEXT PRIMARY KEY, value TEXT, tenant_id TEXT)`,
-		`INSERT INTO pages VALUES ('p1','tr','HydroGo Rehberi','Go tabanlı içerik','draft','')`,
-		`INSERT INTO news_items VALUES ('n1','tr','HydroGo Duyurusu','Platform güncellemesi','published','')`,
+		`INSERT INTO pages(id,locale,title,body,status,tenant_id) VALUES ('p1','tr','HydroGo Rehberi','Go tabanlı içerik','draft','')`,
+		`INSERT INTO news_items(id,locale,title,excerpt,status,tenant_id) VALUES ('n1','tr','HydroGo Duyurusu','Platform güncellemesi','published','')`,
 		`INSERT INTO members VALUES ('m1','hydro@example.test',1,'')`,
-		`INSERT INTO media_assets VALUES ('a1','hydro-logo.png','image/png','public','ready','')`,
+		`INSERT INTO media_assets(id,original_filename,mime_type,visibility,status,tenant_id) VALUES ('a1','hydro-logo.png','image/png','public','ready','')`,
 		`INSERT INTO site_settings VALUES ('site.title','PRIVATE SETTING VALUE','')`,
 	} {
 		if _, err := db.ExecContext(context.Background(), statement); err != nil {

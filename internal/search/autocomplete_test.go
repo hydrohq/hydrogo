@@ -19,7 +19,7 @@ func TestPublicAutocompleteReturnsOnlyPublishedTenantContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	for _, q := range []string{`CREATE TABLE pages(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT)`, `CREATE TABLE news_items(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT)`, `INSERT INTO pages VALUES('pub','tr','Hydro Public','hydro-public','published','a')`, `INSERT INTO pages VALUES('draft','tr','Hydro Secret','hydro-secret','draft','a')`, `INSERT INTO pages VALUES('foreign','tr','Hydro Foreign','hydro-foreign','published','b')`} {
+	for _, q := range []string{`CREATE TABLE pages(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT,deleted_at TEXT)`, `CREATE TABLE news_items(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT,deleted_at TEXT)`, `INSERT INTO pages(id,locale,title,slug,status,tenant_id) VALUES('pub','tr','Hydro Public','hydro-public','published','a')`, `INSERT INTO pages(id,locale,title,slug,status,tenant_id) VALUES('draft','tr','Hydro Secret','hydro-secret','draft','a')`, `INSERT INTO pages(id,locale,title,slug,status,tenant_id) VALUES('foreign','tr','Hydro Foreign','hydro-foreign','published','b')`} {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
 		}
@@ -46,7 +46,7 @@ func TestPublicSearchRecordsOnlyNormalizedAggregate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	for _, q := range []string{`CREATE TABLE pages(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT)`, `CREATE TABLE news_items(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT)`, `INSERT INTO pages VALUES('pub','tr','Hydro Public','hydro-public','published','a')`} {
+	for _, q := range []string{`CREATE TABLE pages(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT,deleted_at TEXT)`, `CREATE TABLE news_items(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT,deleted_at TEXT)`, `INSERT INTO pages(id,locale,title,slug,status,tenant_id) VALUES('pub','tr','Hydro Public','hydro-public','published','a')`} {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
 		}

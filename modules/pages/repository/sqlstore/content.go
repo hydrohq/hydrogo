@@ -29,7 +29,7 @@ func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Pag
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL` + filter + ` ORDER BY published_locale, published_slug, id LIMIT ` + fmt.Sprint(maxSitemapRoutes)
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL AND deleted_at IS NULL` + filter + ` ORDER BY published_locale, published_slug, id LIMIT ` + fmt.Sprint(maxSitemapRoutes)
 	args := []any{}
 	if filter != "" {
 		args = append(args, scopeID)
@@ -67,7 +67,7 @@ func (s Store) StreamPublishedRoutes(ctx context.Context, db database.QueryExecu
 	if err != nil {
 		return err
 	}
-	query := `SELECT id,published_locale,published_slug,published_title,status,revision,publication_generation,updated_at FROM pages WHERE published_revision IS NOT NULL` + filter + ` ORDER BY published_locale,published_slug,id`
+	query := `SELECT id,published_locale,published_slug,published_title,status,revision,publication_generation,updated_at FROM pages WHERE published_revision IS NOT NULL AND deleted_at IS NULL` + filter + ` ORDER BY published_locale,published_slug,id`
 	args := []any{}
 	if filter != "" {
 		args = append(args, scopeID)
@@ -112,7 +112,7 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(2)
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL AND deleted_at IS NULL` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(2)
 	args := []any{locale, limit}
 	if filter != "" {
 		if s.Dialect == database.Postgres {
@@ -161,7 +161,7 @@ func (s Store) ListPublishedTranslations(ctx context.Context, db database.Execut
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, published_locale, published_slug FROM pages WHERE published_slug = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL` + filter + ` ORDER BY published_locale ASC LIMIT ` + s.placeholder(2)
+	query := `SELECT id, published_locale, published_slug FROM pages WHERE published_slug = ` + s.placeholder(1) + ` AND published_revision IS NOT NULL AND deleted_at IS NULL` + filter + ` ORDER BY published_locale ASC LIMIT ` + s.placeholder(2)
 	args := []any{slug, limit}
 	if filter != "" {
 		if s.Dialect == database.Postgres {
@@ -210,7 +210,7 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, s
 			}
 			scopeID = scope.TenantID
 		}
-		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM page_published_tags source JOIN page_published_tags candidate ON candidate.tenant_id=source.tenant_id AND candidate.tag=source.tag JOIN pages p ON p.id=candidate.page_id AND p.tenant_id=candidate.tenant_id WHERE source.page_id=$1 AND source.tenant_id=$2 AND p.tenant_id=$2 AND p.published_locale=$3 AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>$1 GROUP BY p.id ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT $4`
+		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM page_published_tags source JOIN page_published_tags candidate ON candidate.tenant_id=source.tenant_id AND candidate.tag=source.tag JOIN pages p ON p.id=candidate.page_id AND p.tenant_id=candidate.tenant_id WHERE source.page_id=$1 AND source.tenant_id=$2 AND p.tenant_id=$2 AND p.published_locale=$3 AND p.status='published' AND p.published_revision IS NOT NULL AND p.deleted_at IS NULL AND p.id<>$1 GROUP BY p.id ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT $4`
 		args = []any{sourceID, scopeID, locale, limit}
 	} else {
 		scopeID := ""
@@ -221,7 +221,7 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, s
 			}
 			scopeID = scope.TenantID
 		}
-		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM page_published_tags source CROSS JOIN page_published_tags candidate JOIN pages p ON p.id=candidate.page_id AND p.tenant_id=candidate.tenant_id WHERE candidate.tenant_id=source.tenant_id AND candidate.tag=source.tag AND source.page_id=? AND source.tenant_id=? AND p.tenant_id=? AND p.published_locale=? AND p.status='published' AND p.published_revision IS NOT NULL AND p.id<>? GROUP BY p.id ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ?`
+		query = `SELECT p.id,p.published_locale,p.published_slug,p.published_title,p.status,p.revision,p.publication_generation,p.updated_at FROM page_published_tags source CROSS JOIN page_published_tags candidate JOIN pages p ON p.id=candidate.page_id AND p.tenant_id=candidate.tenant_id WHERE candidate.tenant_id=source.tenant_id AND candidate.tag=source.tag AND source.page_id=? AND source.tenant_id=? AND p.tenant_id=? AND p.published_locale=? AND p.status='published' AND p.published_revision IS NOT NULL AND p.deleted_at IS NULL AND p.id<>? GROUP BY p.id ORDER BY COUNT(source.tag) DESC,p.updated_at DESC,p.id ASC LIMIT ?`
 		args = []any{sourceID, scopeID, scopeID, locale, sourceID, limit}
 	}
 	rows, err := queryer.QueryContext(ctx, query, args...)
@@ -263,7 +263,7 @@ func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) (
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, locale, slug, title, status, version, revision, updated_at FROM pages WHERE 1=1` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(1)
+	query := `SELECT id, locale, slug, title, status, version, revision, updated_at FROM pages WHERE deleted_at IS NULL` + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.placeholder(1)
 	args := []any{limit}
 	if filter != "" {
 		if s.Dialect == database.Postgres {
@@ -304,7 +304,7 @@ func (s Store) GetContent(ctx context.Context, db database.Executor, pageID stri
 	if err != nil {
 		return pages.Page{}, err
 	}
-	query := `SELECT id, locale, slug, title, body, blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE id = ` + s.placeholder(1) + filter
+	query := `SELECT id, locale, slug, title, body, blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE id = ` + s.placeholder(1) + ` AND deleted_at IS NULL` + filter
 	args := []any{pageID}
 	if filter != "" {
 		args = append(args, scopeID)
@@ -349,7 +349,7 @@ func (s Store) GetPublishedByRoute(ctx context.Context, db database.Executor, lo
 	if err != nil {
 		return pages.Page{}, err
 	}
-	query := `SELECT id, published_locale, published_slug, published_title, published_body, published_blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_slug = ` + s.placeholder(2) + ` AND published_revision IS NOT NULL` + filter
+	query := `SELECT id, published_locale, published_slug, published_title, published_body, published_blocks, status, version, revision, published_revision, publication_generation, created_at, updated_at FROM pages WHERE published_locale = ` + s.placeholder(1) + ` AND published_slug = ` + s.placeholder(2) + ` AND published_revision IS NOT NULL AND deleted_at IS NULL` + filter
 	args := []any{locale, slug}
 	if filter != "" {
 		args = append(args, scopeID)
@@ -480,7 +480,7 @@ func (s Store) UpdateDraftContent(ctx context.Context, tx database.Executor, pag
 		filter = ` AND tenant_id = ` + s.placeholder(9)
 		args = append(args, scopeID)
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE pages SET title = `+s.placeholder(1)+`, slug = `+s.placeholder(2)+`, body = `+s.placeholder(3)+`, blocks = `+s.placeholder(4)+`, locale = `+s.placeholder(5)+`, revision = revision + 1, version = version + 1, status = 'draft', updated_at = `+s.placeholder(6)+` WHERE id = `+s.placeholder(7)+` AND version = `+s.placeholder(8)+filter, args...)
+	result, err := tx.ExecContext(ctx, `UPDATE pages SET title = `+s.placeholder(1)+`, slug = `+s.placeholder(2)+`, body = `+s.placeholder(3)+`, blocks = `+s.placeholder(4)+`, locale = `+s.placeholder(5)+`, revision = revision + 1, version = version + 1, status = 'draft', updated_at = `+s.placeholder(6)+` WHERE id = `+s.placeholder(7)+` AND version = `+s.placeholder(8)+` AND deleted_at IS NULL`+filter, args...)
 	if err != nil {
 		return err
 	}
@@ -525,7 +525,7 @@ func (s Store) Publish(ctx context.Context, tx database.Executor, pageID string,
 	if filter != "" {
 		args = append(args, scopeID)
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE pages SET status = 'published', published_revision = revision, published_locale = locale, published_slug = slug, published_title = title, published_body = body, published_blocks = blocks, publication_generation = publication_generation + 1, version = version + 1, updated_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND version = `+s.placeholder(3)+` AND status IN ('draft', 'published')`+filter, args...)
+	result, err := tx.ExecContext(ctx, `UPDATE pages SET status = 'published', published_revision = revision, published_locale = locale, published_slug = slug, published_title = title, published_body = body, published_blocks = blocks, publication_generation = publication_generation + 1, version = version + 1, updated_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND version = `+s.placeholder(3)+` AND status IN ('draft', 'published') AND deleted_at IS NULL`+filter, args...)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			return pages.ErrRouteConflict

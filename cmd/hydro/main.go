@@ -86,6 +86,9 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/storage"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/ardaozyildirim/hydrogo/internal/trash"
+	trashstore "github.com/ardaozyildirim/hydrogo/internal/trash/sqlstore"
+	trashtransport "github.com/ardaozyildirim/hydrogo/internal/trash/transport"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -2228,6 +2231,27 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	if modules["push"] {
 		routes = append(routes, (pushservice.Handler{Dispatcher: *pushDispatcher, Limiter: newRateLimiter(3, time.Minute), Audit: auditRecorder}).Routes()...)
+	}
+	trashKinds := map[trash.Kind]bool{trash.Pages: modules["pages"], trash.News: modules["news"], trash.Submissions: modules["site"], trash.Media: modules["media"]}
+	if trashKinds[trash.Pages] || trashKinds[trash.News] || trashKinds[trash.Submissions] || trashKinds[trash.Media] {
+		trashRepository := trashstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Enabled: trashKinds}
+		trashHandler := trashtransport.Handler{Service: trash.Service{Repository: trashRepository}}
+		trashHandler.AfterMutation = func(_ context.Context, kind trash.Kind, _ string) {
+			if kind == trash.Pages || kind == trash.News {
+				if publicPageCache != nil {
+					publicPageCache.Clear()
+				}
+				if publicHTMLCache != nil {
+					publicHTMLCache.Clear()
+				}
+				if staticCacheDir != "" {
+					if err := server.PurgeStaticDiskCache(staticCacheDir); err != nil {
+						slog.Warn("trash cache invalidation failed", "error", err)
+					}
+				}
+			}
+		}
+		routes = append(routes, trashHandler.Routes()...)
 	}
 	sessionPage := server.SessionPageHandler{Service: authSvc}
 	routes = append(routes, router.Route{Pattern: "GET /auth/me/sessions/manage", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/revoke-others", Access: router.Protected, Handler: sessionPage}, router.Route{Pattern: "POST /auth/me/sessions/manage/{id}/revoke", Access: router.Protected, Handler: sessionPage})
