@@ -80,6 +80,41 @@ func TestPublicHTMLCacheInvalidationAndPrivateBypass(t *testing.T) {
 	}
 }
 
+func TestPublicHTMLCacheClearKeepsBytesAccounting(t *testing.T) {
+	// Regression: Clear() once deleted entries without draining c.bytes, so a
+	// full cache stayed "full" after a Clear and refused to cache from then on.
+	cache := NewPublicHTMLCache(PublicHTMLCacheOptions{MaxBytes: 8})
+	calls := 0
+	handler := cache.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("page"))
+	}))
+	request := func(path string) {
+		t.Helper()
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.test"+path, nil))
+	}
+	pathA := "/public/pages/en/a/html"
+	pathB := "/public/pages/en/b/html"
+	request(pathA)
+	request(pathB)
+	if cache.bytes != 8 || len(cache.entries) != 2 {
+		t.Fatalf("setup: bytes=%d entries=%d", cache.bytes, len(cache.entries))
+	}
+	cache.Clear()
+	if cache.bytes != 0 {
+		t.Fatalf("after Clear bytes=%d, want 0", cache.bytes)
+	}
+	request(pathA)
+	request(pathA)
+	if calls != 3 {
+		t.Fatalf("cache disabled after Clear: renders=%d, want 3", calls)
+	}
+	if cache.bytes != 4 || len(cache.entries) != 1 {
+		t.Fatalf("post-Clear accounting: bytes=%d entries=%d", cache.bytes, len(cache.entries))
+	}
+}
+
 func TestPublicHTMLCacheClearInvalidatesEntries(t *testing.T) {
 	cache := NewPublicHTMLCache(PublicHTMLCacheOptions{})
 	calls := 0
