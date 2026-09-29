@@ -245,7 +245,6 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 	}
 	if asset.Visibility == VisibilityPrivate && isDocumentFilename(asset.OriginalFilename) && !servedVariant {
 		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeOriginalFilename(asset.OriginalFilename)}))
-		w.Header().Set("X-Content-Type-Options", "nosniff")
 	}
 	if h.Service.BlobStore != nil {
 		object, getErr := h.Service.BlobStore.Get(r.Context(), storageKey)
@@ -254,6 +253,7 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 			return
 		}
 		defer object.Close()
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Type", mimeType)
 		io.Copy(w, object)
 		return
@@ -264,6 +264,7 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 		http.NotFound(w, r)
 		return
 	}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", mimeType)
 	http.ServeFile(w, r, path)
 }

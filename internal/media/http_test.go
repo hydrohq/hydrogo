@@ -523,3 +523,28 @@ func TestAdminVisibilityRejectsOversizedFormBody(t *testing.T) {
 	assertVisibilityStatus("visibility=public", http.StatusSeeOther)
 	assertVisibilityStatus("visibility=public&pad="+strings.Repeat("x", 16384), http.StatusBadRequest)
 }
+
+func TestAssetServingIncludesNosniffHeader(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test.pdf"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	uploader, _ := NewUploader(dir, 1<<20)
+	service := Service{
+		Assets:   &httpAssetRepo{asset: Asset{ID: "abc", StorageKey: "test.pdf", Visibility: VisibilityPublic, OriginalFilename: "test.pdf", MimeType: "application/pdf", Status: "ready"}},
+		Uploader: uploader,
+	}
+	handler := HTTPHandler{Service: service, DB: nil}
+	
+	req := httptest.NewRequest(http.MethodGet, "/media/abc", nil)
+	req.SetPathValue("id", "abc")
+	rec := httptest.NewRecorder()
+	handler.serve(rec, req)
+	
+	if rec.Code != 200 {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("VULNERABILITY: Missing X-Content-Type-Options: nosniff header on public asset. Can lead to MIME sniffing XSS.")
+	}
+}
