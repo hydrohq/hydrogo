@@ -3020,12 +3020,14 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	if smtpSender != nil && modules["auth"] {
 		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}}, router.Route{Pattern: "POST /admin/api/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}})
-		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/dns-diagnostics", Access: router.Protected, Handler: mailer.DNSDiagnosticsHandler{From: cfg.Mail.From, Selector: cfg.Mail.DKIMSelector}})
 		verifyNotifier := auth.EmailVerificationNotifierFunc(func(notifyCtx context.Context, email, link string) error {
 			return (mailer.NotificationSender{Sender: smtpSender}).SendEmailVerification(notifyCtx, email, link)
 		})
 		verificationHandler := auth.EmailVerificationHandler{Service: auth.EmailVerificationService{Users: userStore, Tokens: userStore}, Transactions: transactioner, Notifier: verifyNotifier, PublicOrigin: cfg.HTTP.PublicOrigin, Limiter: newRateLimiter(3, time.Hour), AdminUsers: userStore, Audit: auditRecorder}
 		routes = append(routes, verificationHandler.Routes()...)
+	}
+	if modules["auth"] && strings.TrimSpace(cfg.Mail.From) != "" {
+		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/dns-diagnostics", Access: router.Protected, Handler: mailer.DNSDiagnosticsHandler{From: cfg.Mail.From, Selector: cfg.Mail.DKIMSelector}})
 	}
 	if *fastCGIMode {
 		return server.ServeFastCGI(ctx, "tcp", *fastCGIAddress, serverConfig)
