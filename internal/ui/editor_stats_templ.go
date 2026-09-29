@@ -8,6 +8,8 @@ package ui
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/ardaozyildirim/hydrogo/modules/designsystem"
+
 func EditorStats() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -30,6 +32,10 @@ func EditorStats() templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<output class=\"studio-card editor-stats\" data-editor-stats hidden aria-live=\"polite\"><span><strong data-editor-words>0</strong> words</span> <span><strong data-editor-characters>0</strong> characters</span> <span><strong data-editor-reading-time>1</strong> min read</span> <span data-editor-keyword-wrap hidden>Keyword density: <strong data-editor-keyword-density>0%</strong></span></output>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = designsystem.SEOAudit().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
