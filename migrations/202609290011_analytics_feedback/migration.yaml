@@ -1,0 +1,28 @@
+id: "202609290011_analytics_feedback"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+dependencies:
+  - "202609290007_analytics_view_totals"
+checksum_sha256:
+  sqlite: "784efd3d507c53a0dbc7d887a7cd4c69ff07fe35359f70df119043b9a0a9ce4a"
+  postgres: "6797a20a274c28b8ab71d0e1c0c68c9ff112f2c2fd50a8179ec131d821f65d3a"
+  mysql: "9eaaf10843c4cd81aa828279ed69549f8c910116c4a6ea37173e99b18d3b034a"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Analytics module is enabled"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "One compact row per content item, day, and reaction"
+compatibility: "Additive aggregate table; older binaries ignore it"
+smoke:
+  - "Aggregate feedback upsert succeeds for SQLite and PostgreSQL adapters"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Drop analytics_feedback_daily; accumulated reaction totals are lost"

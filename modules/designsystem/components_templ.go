@@ -2145,7 +2145,7 @@ func FAQAccordion(p FAQProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = FAQItems(p.Items).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = FAQItems(p).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2231,7 +2231,7 @@ func FAQList(p FAQProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = FAQItems(p.Items).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = FAQItems(p).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2243,7 +2243,7 @@ func FAQList(p FAQProps) templ.Component {
 	})
 }
 
-func FAQItems(items []FAQItem) templ.Component {
+func FAQItems(p FAQProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -2264,7 +2264,7 @@ func FAQItems(items []FAQItem) templ.Component {
 			templ_7745c5c3_Var122 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		for _, item := range items {
+		for index, item := range p.Items {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "<details class=\"ds-faq__item\"><summary>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2291,9 +2291,15 @@ func FAQItems(items []FAQItem) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "</div></details>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "</div></details> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
+			}
+			if p.FeedbackEnabled {
+				templ_7745c5c3_Err = HelpfulFeedback(faqFeedbackProps(p, item, index)).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
 		}
 		return nil
@@ -2357,7 +2363,7 @@ func CopyButton(p CopyButtonProps) templ.Component {
 		var templ_7745c5c3_Var127 string
 		templ_7745c5c3_Var127, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.Text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 287, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 290, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var127)
 		if templ_7745c5c3_Err != nil {
@@ -2370,7 +2376,7 @@ func CopyButton(p CopyButtonProps) templ.Component {
 		var templ_7745c5c3_Var128 string
 		templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.ResolveAttributeValue(label(p.Label, "Copy to clipboard"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 287, Col: 113}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 290, Col: 113}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var128)
 		if templ_7745c5c3_Err != nil {
@@ -2393,7 +2399,7 @@ func CopyButton(p CopyButtonProps) templ.Component {
 			var templ_7745c5c3_Var129 string
 			templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.JoinStringErrs(label(p.Label, "Copy"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 291, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 294, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var129))
 			if templ_7745c5c3_Err != nil {
@@ -2411,7 +2417,7 @@ func CopyButton(p CopyButtonProps) templ.Component {
 		var templ_7745c5c3_Var130 string
 		templ_7745c5c3_Var130, templ_7745c5c3_Err = templ.JoinStringErrs(label(p.CopiedLabel, "Copied"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 293, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 296, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var130))
 		if templ_7745c5c3_Err != nil {
@@ -2453,7 +2459,7 @@ func StickyHeader(p StickyHeaderProps) templ.Component {
 		var templ_7745c5c3_Var132 string
 		templ_7745c5c3_Var132, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 298, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 301, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var132)
 		if templ_7745c5c3_Err != nil {
@@ -2466,7 +2472,7 @@ func StickyHeader(p StickyHeaderProps) templ.Component {
 		var templ_7745c5c3_Var133 string
 		templ_7745c5c3_Var133, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmtInteger(p.Threshold))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 298, Col: 105}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 301, Col: 105}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var133)
 		if templ_7745c5c3_Err != nil {
@@ -2516,7 +2522,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var135 string
 		templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 304, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 307, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var135)
 		if templ_7745c5c3_Err != nil {
@@ -2529,7 +2535,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var136 string
 		templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.ResolveAttributeValue(label(p.Label, "Video player"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 304, Col: 136}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 307, Col: 136}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var136)
 		if templ_7745c5c3_Err != nil {
@@ -2542,7 +2548,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var137 string
 		templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.ResolveAttributeValue(validMediaURL(p.Poster))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 305, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 308, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var137)
 		if templ_7745c5c3_Err != nil {
@@ -2555,7 +2561,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var138 string
 		templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.ResolveAttributeValue(validMediaURL(p.Src))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 306, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 309, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var138)
 		if templ_7745c5c3_Err != nil {
@@ -2568,7 +2574,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var139 string
 		templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.ResolveAttributeValue(videoType(p.Type))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 306, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 309, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var139)
 		if templ_7745c5c3_Err != nil {
@@ -2587,7 +2593,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 				var templ_7745c5c3_Var140 string
 				templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.ResolveAttributeValue(validMediaURL(track.Src))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 309, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 312, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var140)
 				if templ_7745c5c3_Err != nil {
@@ -2600,7 +2606,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 				var templ_7745c5c3_Var141 string
 				templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.ResolveAttributeValue(track.Language)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 309, Col: 85}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 312, Col: 85}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var141)
 				if templ_7745c5c3_Err != nil {
@@ -2613,7 +2619,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 				var templ_7745c5c3_Var142 string
 				templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.ResolveAttributeValue(track.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 309, Col: 107}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 312, Col: 107}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var142)
 				if templ_7745c5c3_Err != nil {
@@ -2642,7 +2648,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var143 string
 		templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID + "-seek")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 316, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 319, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var143)
 		if templ_7745c5c3_Err != nil {
@@ -2655,7 +2661,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var144 string
 		templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID + "-seek")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 316, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 319, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var144)
 		if templ_7745c5c3_Err != nil {
@@ -2668,7 +2674,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var145 string
 		templ_7745c5c3_Var145, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID + "-volume")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 318, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 321, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var145)
 		if templ_7745c5c3_Err != nil {
@@ -2681,7 +2687,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var146 string
 		templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID + "-volume")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 318, Col: 96}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 321, Col: 96}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var146)
 		if templ_7745c5c3_Err != nil {
@@ -2694,7 +2700,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var147 string
 		templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID + "-speed")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 319, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 322, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var147)
 		if templ_7745c5c3_Err != nil {
@@ -2707,7 +2713,7 @@ func VideoPlayer(p VideoProps) templ.Component {
 		var templ_7745c5c3_Var148 string
 		templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID + "-speed")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 319, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 322, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var148)
 		if templ_7745c5c3_Err != nil {
@@ -2749,7 +2755,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 		var templ_7745c5c3_Var150 string
 		templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 328, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 331, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var150)
 		if templ_7745c5c3_Err != nil {
@@ -2762,7 +2768,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 		var templ_7745c5c3_Var151 string
 		templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.ResolveAttributeValue(label(p.Label, "Image gallery"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 328, Col: 115}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 331, Col: 115}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var151)
 		if templ_7745c5c3_Err != nil {
@@ -2775,7 +2781,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 		var templ_7745c5c3_Var152 string
 		templ_7745c5c3_Var152, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("--ds-columns: " + fmtPosition(clampColumns(p.Columns)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 328, Col: 181}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 331, Col: 181}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
 		if templ_7745c5c3_Err != nil {
@@ -2798,7 +2804,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 				var templ_7745c5c3_Var153 templ.SafeURL
 				templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinURLErrs(href)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 332, Col: 19}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 335, Col: 19}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 				if templ_7745c5c3_Err != nil {
@@ -2811,7 +2817,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 				var templ_7745c5c3_Var154 string
 				templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.ResolveAttributeValue(validMediaURL(item.Image))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 332, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 335, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var154)
 				if templ_7745c5c3_Err != nil {
@@ -2824,7 +2830,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 				var templ_7745c5c3_Var155 string
 				templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.Alt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 332, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 335, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var155)
 				if templ_7745c5c3_Err != nil {
@@ -2842,7 +2848,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 				var templ_7745c5c3_Var156 string
 				templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.ResolveAttributeValue(validMediaURL(item.Image))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 334, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 337, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var156)
 				if templ_7745c5c3_Err != nil {
@@ -2855,7 +2861,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 				var templ_7745c5c3_Var157 string
 				templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.Alt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 334, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 337, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var157)
 				if templ_7745c5c3_Err != nil {
@@ -2874,7 +2880,7 @@ func MasonryGrid(p MasonryProps) templ.Component {
 				var templ_7745c5c3_Var158 string
 				templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.JoinStringErrs(item.Caption)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 337, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 340, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var158))
 				if templ_7745c5c3_Err != nil {
@@ -2926,7 +2932,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 		var templ_7745c5c3_Var160 string
 		templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 345, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 348, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var160)
 		if templ_7745c5c3_Err != nil {
@@ -2939,7 +2945,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 		var templ_7745c5c3_Var161 string
 		templ_7745c5c3_Var161, templ_7745c5c3_Err = templ.ResolveAttributeValue(label(p.Label, "Image details"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 345, Col: 116}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 348, Col: 116}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var161)
 		if templ_7745c5c3_Err != nil {
@@ -2952,7 +2958,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 		var templ_7745c5c3_Var162 string
 		templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.ResolveAttributeValue(validMediaURL(p.Image))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 346, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 349, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var162)
 		if templ_7745c5c3_Err != nil {
@@ -2965,7 +2971,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 		var templ_7745c5c3_Var163 string
 		templ_7745c5c3_Var163, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.Alt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 346, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 349, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var163)
 		if templ_7745c5c3_Err != nil {
@@ -2983,7 +2989,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 			var templ_7745c5c3_Var164 string
 			templ_7745c5c3_Var164, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hotspotStyle(point))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 348, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 351, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var164))
 			if templ_7745c5c3_Err != nil {
@@ -2996,7 +3002,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 			var templ_7745c5c3_Var165 string
 			templ_7745c5c3_Var165, templ_7745c5c3_Err = templ.ResolveAttributeValue("Show details: " + point.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 349, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 352, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var165)
 			if templ_7745c5c3_Err != nil {
@@ -3009,7 +3015,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 			var templ_7745c5c3_Var166 string
 			templ_7745c5c3_Var166, templ_7745c5c3_Err = templ.JoinStringErrs(fmtPosition(i + 1))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 349, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 352, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var166))
 			if templ_7745c5c3_Err != nil {
@@ -3022,7 +3028,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 			var templ_7745c5c3_Var167 string
 			templ_7745c5c3_Var167, templ_7745c5c3_Err = templ.JoinStringErrs(point.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 350, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 353, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var167))
 			if templ_7745c5c3_Err != nil {
@@ -3035,7 +3041,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 			var templ_7745c5c3_Var168 string
 			templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.JoinStringErrs(point.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 350, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 353, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var168))
 			if templ_7745c5c3_Err != nil {
@@ -3053,7 +3059,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 				var templ_7745c5c3_Var169 templ.SafeURL
 				templ_7745c5c3_Var169, templ_7745c5c3_Err = templ.JoinURLErrs(href)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 352, Col: 21}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 355, Col: 21}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var169))
 				if templ_7745c5c3_Err != nil {
@@ -3066,7 +3072,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 				var templ_7745c5c3_Var170 string
 				templ_7745c5c3_Var170, templ_7745c5c3_Err = templ.JoinStringErrs(label(point.LinkLabel, "Learn more"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 352, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 355, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var170))
 				if templ_7745c5c3_Err != nil {
@@ -3094,7 +3100,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 			var templ_7745c5c3_Var171 string
 			templ_7745c5c3_Var171, templ_7745c5c3_Err = templ.JoinStringErrs(point.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 360, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 363, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var171))
 			if templ_7745c5c3_Err != nil {
@@ -3107,7 +3113,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 			var templ_7745c5c3_Var172 string
 			templ_7745c5c3_Var172, templ_7745c5c3_Err = templ.JoinStringErrs(point.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 360, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 363, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var172))
 			if templ_7745c5c3_Err != nil {
@@ -3125,7 +3131,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 				var templ_7745c5c3_Var173 templ.SafeURL
 				templ_7745c5c3_Var173, templ_7745c5c3_Err = templ.JoinURLErrs(href)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 362, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 365, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var173))
 				if templ_7745c5c3_Err != nil {
@@ -3138,7 +3144,7 @@ func ImageHotspots(p HotspotsProps) templ.Component {
 				var templ_7745c5c3_Var174 string
 				templ_7745c5c3_Var174, templ_7745c5c3_Err = templ.JoinStringErrs(label(point.LinkLabel, "Learn more"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 362, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/components.templ`, Line: 365, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var174))
 				if templ_7745c5c3_Err != nil {

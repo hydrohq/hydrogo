@@ -65,6 +65,10 @@ type Handler struct {
 	ContentViews        interface {
 		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
 	}
+	Feedback interface {
+		FeedbackTotals(context.Context, string, string, string) (analytics.FeedbackTotals, error)
+		FeedbackCounts(context.Context, string, string, []string) (map[string]analytics.FeedbackTotals, error)
+	}
 	AnalyticsEnabled      bool
 	RecordSlugRedirect    func(context.Context, string, string, string) error
 	RecordNotFound        func(context.Context, string) error
@@ -86,6 +90,32 @@ func (h Handler) defaultLocale() string {
 
 func (h Handler) publicPageAllowed(page pages.Page) bool {
 	return h.AllowDemoFrontend || !strings.HasPrefix(page.ID, "demo-")
+}
+
+func (h Handler) feedbackRenderOptions(r *http.Request) blockrender.RenderOptions {
+	options := blockrender.RenderOptions{CSRF: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context())}
+	if !h.AnalyticsEnabled || h.Feedback == nil {
+		return options
+	}
+	options.FeedbackEnabled = true
+	options.FeedbackCounts = func(contentIDs []string) map[string][2]int64 {
+		tenantID := "default"
+		if scope, err := tenant.FromContext(r.Context()); err == nil {
+			tenantID = scope.TenantID
+		} else if h.RequireTenantScope {
+			return map[string][2]int64{}
+		}
+		totals, err := h.Feedback.FeedbackCounts(r.Context(), tenantID, "faq", contentIDs)
+		if err != nil {
+			return map[string][2]int64{}
+		}
+		counts := make(map[string][2]int64, len(totals))
+		for id, value := range totals {
+			counts[id] = [2]int64{value.Up, value.Down}
+		}
+		return counts
+	}
+	return options
 }
 
 type pageInput struct {
@@ -708,7 +738,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	blocks, err := blockrender.Blocks(renderBlocks)
+	blocks, err := blockrender.BlocksWithOptions(renderBlocks, h.feedbackRenderOptions(r))
 	if err != nil {
 		http.Error(w, "page render failed", http.StatusInternalServerError)
 		return
@@ -815,7 +845,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 				}
 				content.WriteString(styled)
 			} else if errors.Is(err, themev1.ErrThemeBlockUnavailable) {
-				fallback, fallbackErr := blockrender.Blocks([]pages.Block{block})
+				fallback, fallbackErr := blockrender.BlocksWithOptions([]pages.Block{block}, h.feedbackRenderOptions(r))
 				if fallbackErr != nil {
 					http.Error(w, "page render failed", http.StatusInternalServerError)
 					return
@@ -1386,8 +1416,51 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	blockEditor := renderBlockEditor(page.Blocks, security.CSRFTokenFromContext(r.Context()))
+	if metrics := h.faqFeedbackMetrics(r, page.Blocks); len(metrics) > 0 {
+		if err := designsystem.FAQFeedbackReport(metrics).Render(r.Context(), w); err != nil {
+			http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
+			return
+		}
+	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages/%s" data-local-autosave data-autosave-resource="page:%s">%s<div class="block-editor"><div class="block-editor-heading"><div><h3>İçerik blokları</h3><p>Sayfanın görsel bölümlerini ve sıralamasını yönetin.</p></div><span>%d blok</span></div><fieldset>%s</fieldset></div><input type="hidden" name="version" value="%d"><button type="submit">Taslağı kaydet</button></form></section><section class="studio-card"><h2>Yayınlama</h2><p class="muted">Taslağı kaydedin veya doğrudan yayına alın.</p><div class="studio-actions"><form method="post" action="/admin/pages/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form></div></section>`, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(page.ID), form.String(), len(page.Blocks), blockEditor, page.Version, template.HTMLEscapeString(page.ID), template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context())), page.Version)
 	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) faqFeedbackMetrics(r *http.Request, blocks []pages.Block) []designsystem.FAQFeedbackMetric {
+	if !h.AnalyticsEnabled || h.Feedback == nil {
+		return nil
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	} else if h.RequireTenantScope {
+		return nil
+	}
+	var result []designsystem.FAQFeedbackMetric
+	for _, block := range blocks {
+		if block.Type != "faq" {
+			continue
+		}
+		var payload struct {
+			Items []designsystem.FAQItem `json:"items"`
+		}
+		if json.Unmarshal(block.Payload, &payload) != nil || len(payload.Items) == 0 {
+			continue
+		}
+		ids := make([]string, 0, len(payload.Items))
+		for index, item := range payload.Items {
+			ids = append(ids, designsystem.FAQFeedbackID(item, index))
+		}
+		counts, err := h.Feedback.FeedbackCounts(r.Context(), tenantID, "faq", ids)
+		if err != nil {
+			continue
+		}
+		for index, item := range payload.Items {
+			value := counts[ids[index]]
+			result = append(result, designsystem.FAQFeedbackMetric{Question: item.Question, Up: value.Up, Down: value.Down})
+		}
+	}
+	return result
 }
 
 func (h Handler) revisionPreview(ctx context.Context, title, body string, blocks []pages.Block) (string, error) {

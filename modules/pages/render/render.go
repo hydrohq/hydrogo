@@ -15,18 +15,28 @@ import (
 
 var ErrInvalidBlock = errors.New("cannot render invalid block")
 
+type RenderOptions struct {
+	FeedbackEnabled bool
+	CSRF, Nonce     string
+	FeedbackCounts  func(contentIDs []string) map[string][2]int64
+}
+
 var componentBufferPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 
 // Blocks returns HTML generated only from validated, allowlisted block data.
 // The returned string is safe to pass to a trusted template component; it is
 // never copied from a client-provided HTML field.
 func Blocks(blocks []pages.Block) (string, error) {
+	return BlocksWithOptions(blocks, RenderOptions{})
+}
+
+func BlocksWithOptions(blocks []pages.Block, options RenderOptions) (string, error) {
 	if err := pages.ValidateBlocksForRender(blocks); err != nil {
 		return "", ErrInvalidBlock
 	}
 	var out strings.Builder
 	for _, block := range blocks {
-		html, err := blockHTML(block)
+		html, err := blockHTML(block, options)
 		if err != nil {
 			return "", err
 		}
@@ -56,7 +66,7 @@ func StyleBlockHTML(block pages.Block, html string) (string, error) {
 	return renderComponentWithContext(designsystem.BlockStyleFrame(designsystem.BlockStyleProps{Background: payload.Background, Padding: payload.Padding}), ctx)
 }
 
-func blockHTML(block pages.Block) (string, error) {
+func blockHTML(block pages.Block, options RenderOptions) (string, error) {
 	var data map[string]json.RawMessage
 	if err := json.Unmarshal(block.Payload, &data); err != nil {
 		return "", ErrInvalidBlock
@@ -93,7 +103,15 @@ func blockHTML(block pages.Block) (string, error) {
 		if err := json.Unmarshal(data["items"], &items); err != nil {
 			return "", ErrInvalidBlock
 		}
-		return renderComponent(designsystem.FAQList(designsystem.FAQProps{Heading: "Frequently asked questions", Items: items}))
+		counts := make(map[string][2]int64)
+		if options.FeedbackEnabled && options.FeedbackCounts != nil {
+			ids := make([]string, 0, len(items))
+			for index, item := range items {
+				ids = append(ids, designsystem.FAQFeedbackID(item, index))
+			}
+			counts = options.FeedbackCounts(ids)
+		}
+		return renderComponent(designsystem.FAQList(designsystem.FAQProps{Heading: "Frequently asked questions", Items: items, FeedbackEnabled: options.FeedbackEnabled, CSRF: options.CSRF, Nonce: options.Nonce, FeedbackCounts: counts}))
 	case "before_after":
 		var p struct {
 			BeforeID    string `json:"before_image_asset_id"`

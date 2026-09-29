@@ -31,6 +31,26 @@ func TestBlockStylePresetUsesAllowlistedDesignTokens(t *testing.T) {
 	}
 }
 
+func TestFAQBlockFeedbackUsesOptionalRenderContract(t *testing.T) {
+	payload := json.RawMessage(`{"items":[{"question":"When?","answer":"Tomorrow"}]}`)
+	without, err := Blocks([]pages.Block{{Type: "faq", Payload: payload}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(without, "data-feedback-type") {
+		t.Fatal("feedback rendered without analytics option")
+	}
+	with, err := BlocksWithOptions([]pages.Block{{Type: "faq", Payload: payload}}, RenderOptions{FeedbackEnabled: true, CSRF: "csrf", Nonce: "nonce", FeedbackCounts: func(ids []string) map[string][2]int64 { return map[string][2]int64{ids[0]: {2, 1}} }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{`data-feedback-type="faq"`, `hx-post="/api/v1/feedback"`, `2 kişi faydalı buldu · 1 kişi faydalı bulmadı`, `name="_csrf" value="csrf"`} {
+		if !strings.Contains(with, marker) {
+			t.Errorf("FAQ feedback output missing %q", marker)
+		}
+	}
+}
+
 func BenchmarkBlocks(b *testing.B) {
 	blocks := []pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Welcome","subtitle":"A fast page"}`)}}
 	b.ReportAllocs()

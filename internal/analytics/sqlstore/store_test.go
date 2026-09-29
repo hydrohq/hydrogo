@@ -30,9 +30,59 @@ func TestSQLiteNoCookieDailyStatsContract(t *testing.T) {
 	runNoCookieStatsContract(t, db, database.SQLite)
 }
 
+func TestSQLiteFeedbackUsesTenantScopedDailyAggregates(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "feedback.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	runFeedbackContract(t, db, database.SQLite)
+}
+
+func runFeedbackContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	store := Store{Executor: db, Dialect: dialect}
+	day := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+	for _, reaction := range []string{"up", "up", "down"} {
+		if err := store.RecordFeedback(ctx, "tenant-a", "news", "article-a", reaction, day); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.RecordFeedback(ctx, "tenant-b", "news", "article-a", "up", day); err != nil {
+		t.Fatal(err)
+	}
+	totals, err := store.FeedbackTotals(ctx, "tenant-a", "news", "article-a")
+	if err != nil || totals.Up != 2 || totals.Down != 1 {
+		t.Fatalf("totals=%+v err=%v", totals, err)
+	}
+	counts, err := store.FeedbackCounts(ctx, "tenant-b", "news", []string{"article-a", "other"})
+	if err != nil || counts["article-a"].Up != 1 || counts["article-a"].Down != 0 {
+		t.Fatalf("counts=%+v err=%v", counts, err)
+	}
+	if err := store.RecordFeedback(ctx, "tenant-a", "news", "article-a", "maybe", day); err == nil {
+		t.Fatal("invalid reaction accepted")
+	}
+	if err := store.RecordFeedback(ctx, "tenant-a", "news", "article-a", "up", day.AddDate(0, 0, 2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PurgeBefore(ctx, day.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	totals, err = store.FeedbackTotals(ctx, "tenant-a", "news", "article-a")
+	if err != nil || totals.Up != 1 || totals.Down != 0 {
+		t.Fatalf("retained totals=%+v err=%v", totals, err)
+	}
+}
+
 func TestMySQLNoCookieDailyStatsContract(t *testing.T) {
 	db := testmysql.Open(t)
 	testmysql.MigrateAll(t, db)
+	runFeedbackContract(t, db, database.MySQL)
 	runNoCookieStatsContract(t, db, database.MySQL)
 }
 
@@ -49,6 +99,7 @@ func TestPostgresNoCookieDailyStatsContract(t *testing.T) {
 	if err := database.ApplyMigrations(context.Background(), db, database.Postgres, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
+	runFeedbackContract(t, db, database.Postgres)
 	runNoCookieStatsContract(t, db, database.Postgres)
 }
 

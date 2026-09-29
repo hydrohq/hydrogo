@@ -114,10 +114,14 @@ type CountdownProps struct {
 type FAQItem struct {
 	Question string `json:"question"`
 	Answer   string `json:"answer"`
+	ID       string `json:"id,omitempty"`
 }
 type FAQProps struct {
-	ID, Heading string
-	Items       []FAQItem
+	ID, Heading     string
+	Items           []FAQItem
+	FeedbackEnabled bool
+	CSRF, Nonce     string
+	FeedbackCounts  map[string][2]int64
 }
 type CopyButtonProps struct {
 	Text, Label, CopiedLabel string
