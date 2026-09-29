@@ -81,6 +81,7 @@ type HTTPHandler struct {
 	PublicOrigin           string
 	InviteNotice           InviteNotifier
 	SocialOAuth            *SocialOAuthHandler
+	LoginSecurity          LoginSecurityTracker
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -329,6 +330,9 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 	user, err := h.Service.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
+			if h.LoginSecurity != nil {
+				_ = h.LoginSecurity.RecordFailedLogin(r.Context(), r.FormValue("email"))
+			}
 			h.recordAuthFailure(r, r.FormValue("email"))
 			if h.LoginTarpit != nil {
 				if err := h.LoginTarpit.Wait(r.Context(), loginAttemptKey(r)); err != nil {
@@ -395,16 +399,25 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		writeAuthDependencyError(w, "authentication failed", err, http.StatusInternalServerError)
 		return
 	}
-	SetSessionCookie(w, token, session.ExpiresAt, h.Secure)
 	if h.Audit != nil {
 		if err := h.Audit.Record(r.Context(), "auth.login", user.ID); err != nil {
 			_ = h.Service.RevokeSession(r.Context(), token)
-			ClearSessionCookie(w, h.Secure)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role})
+	notice := LoginSecurityNotice{}
+	if h.LoginSecurity != nil {
+		var trackingErr error
+		notice, trackingErr = h.LoginSecurity.RecordSuccessfulLogin(r.Context(), user.ID, clientIP(r), time.Now().UTC())
+		if trackingErr != nil {
+			_ = h.Service.RevokeSession(r.Context(), token)
+			writeAuthDependencyError(w, "authentication failed", trackingErr, http.StatusInternalServerError)
+			return
+		}
+	}
+	SetSessionCookie(w, token, session.ExpiresAt, h.Secure)
+	writeJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role, "security_notice": notice})
 }
 
 func (h HTTPHandler) requiresMFA(role Role) bool {

@@ -1,0 +1,6 @@
+ALTER TABLE users ADD COLUMN last_login_at DATETIME(6) NULL;
+ALTER TABLE users ADD COLUMN last_login_ip VARCHAR(64) NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN previous_login_at DATETIME(6) NULL;
+ALTER TABLE users ADD COLUMN previous_login_ip VARCHAR(64) NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN failed_login_attempts INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN failed_attempts_since_last_login INT NOT NULL DEFAULT 0;

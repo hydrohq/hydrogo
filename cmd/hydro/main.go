@@ -1549,7 +1549,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if err != nil {
 		return fmt.Errorf("configure social sign-in: %w", err)
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, PublicOrigin: cfg.HTTP.PublicOrigin, SocialOAuth: socialOAuth}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, PublicOrigin: cfg.HTTP.PublicOrigin, SocialOAuth: socialOAuth, LoginSecurity: userStore}
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	memberStore := memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -2310,7 +2310,16 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			return
 		}
 		if user.Role == auth.RoleEditor && r.URL.Path == "/admin" {
-			if err := ui.RenderBusinessOwnerDashboard(w, r, enabledModuleSet(cfg.Modules)); err != nil {
+			securityNotice, noticeErr := userStore.LoginSecuritySummary(r.Context(), user.ID)
+			if noticeErr != nil {
+				http.Error(w, "Yönetim özeti şu anda açılamıyor.", http.StatusInternalServerError)
+				return
+			}
+			previousLogin := ""
+			if securityNotice.PreviousLoginAt != nil {
+				previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
+			}
+			if err := ui.RenderBusinessOwnerDashboardWithSecurityNotice(w, r, enabledModuleSet(cfg.Modules), previousLogin, securityNotice.PreviousLoginIP, securityNotice.FailedAttempts); err != nil {
 				http.Error(w, "Bu sayfa şu anda açılamıyor.", http.StatusInternalServerError)
 			}
 			return
@@ -2373,7 +2382,16 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 			return
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil}); err != nil {
+		securityNotice, noticeErr := userStore.LoginSecuritySummary(r.Context(), user.ID)
+		if noticeErr != nil {
+			http.Error(w, "Yönetim özeti şu anda açılamıyor.", http.StatusInternalServerError)
+			return
+		}
+		previousLogin := ""
+		if securityNotice.PreviousLoginAt != nil {
+			previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
+		}
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})

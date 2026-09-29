@@ -12,11 +12,11 @@ func TestBusinessOwnerDashboardKeepsDeveloperDetailsOut(t *testing.T) {
 	req := httptest.NewRequest("GET", "/admin", nil)
 	req = req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: "user", Role: auth.RoleEditor, Active: true}))
 	response := httptest.NewRecorder()
-	if err := RenderBusinessOwnerDashboard(response, req, map[string]bool{"pages": true, "news": true}); err != nil {
+	if err := RenderBusinessOwnerDashboardWithSecurityNotice(response, req, map[string]bool{"pages": true, "news": true}, "28 Sep 2026 12:15 UTC", "192.0.2.4", 1); err != nil {
 		t.Fatal(err)
 	}
 	got := response.Body.String()
-	for _, text := range []string{`data-business-view`, `href="/admin/pages"`, `href="/admin/news"`, `data-studio-role="editor"`} {
+	for _, text := range []string{`data-business-view`, `href="/admin/pages"`, `href="/admin/news"`, `data-studio-role="editor"`, `data-login-security-notice`, `1 başarısız giriş denemesi`} {
 		if !strings.Contains(got, text) {
 			t.Errorf("business dashboard missing %q", text)
 		}

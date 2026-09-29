@@ -32,6 +32,9 @@ type User struct {
 	CreatedAt           time.Time       `json:"created_at"`
 	UpdatedAt           time.Time       `json:"updated_at"`
 	EmailVerifiedAt     *time.Time      `json:"email_verified_at,omitempty"`
+	LastLoginAt         *time.Time      `json:"last_login_at,omitempty"`
+	LastLoginIP         string          `json:"-"`
+	FailedLoginAttempts int             `json:"-"`
 	PermissionOverrides map[string]bool `json:"-"`
 }
 
@@ -42,6 +45,19 @@ type UserAdminRepository interface {
 	List(ctx context.Context) ([]*User, error)
 	UpdateEmail(ctx context.Context, tx database.Executor, userID, email string) error
 	UpdateRole(ctx context.Context, userID string, role Role) error
+}
+
+type LoginSecurityNotice struct {
+	PreviousLoginAt *time.Time `json:"previous_login_at,omitempty"`
+	PreviousLoginIP string     `json:"previous_login_ip,omitempty"`
+	FailedAttempts  int        `json:"failed_attempts"`
+}
+
+// LoginSecurityTracker records successful and unsuccessful staff sign-in
+// outcomes and returns only the previous-session summary for the new session.
+type LoginSecurityTracker interface {
+	RecordFailedLogin(context.Context, string) error
+	RecordSuccessfulLogin(context.Context, string, string, time.Time) (LoginSecurityNotice, error)
 }
 
 func NormalizeEmail(email string) string {

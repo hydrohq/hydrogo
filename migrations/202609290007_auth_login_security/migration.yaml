@@ -1,0 +1,29 @@
+id: "202609290007_auth_login_security"
+module: "auth"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "f81231c0981077b1bf4e27e00d3982c585a2cea7e08bbe121e7d99027c2141fc"
+  postgres: "46a5f192095cc19950872c1d729ce2f60c7cb70a426922373fda8b15fd362c2c"
+  mysql: "94fa388cbc504c8ff29e37eb341656918b53ffc82a7ca7c0e83af93aac91bb81"
+dependencies:
+  - "202609290004_admin_email_verification"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Auth users table is present"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "Three small login security columns per user account"
+compatibility: "Adds nullable previous login time and bounded attempt metadata for existing accounts"
+smoke:
+  - "Successful sign-in snapshots the previous login and resets failed attempts"
+  - "Failed sign-in increments attempts only for a matching tenant account"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward migration only; prior binaries ignore the additional columns"

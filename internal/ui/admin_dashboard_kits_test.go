@@ -21,6 +21,18 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	}
 }
 
+func TestAdminLoginSecurityNoticeShowsPreviousSessionAndFailures(t *testing.T) {
+	var out bytes.Buffer
+	if err := RenderAdminDashboard(&out, AdminDashboardData{Active: "dashboard", PreviousLogin: "28 Sep 2026 12:15 UTC", PreviousLoginIP: "192.0.2.4", FailedLoginAttempts: 2}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"data-login-security-notice", "28 Sep 2026 12:15 UTC", "192.0.2.4", "2 başarısız giriş denemesi"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("dashboard missing %q", want)
+		}
+	}
+}
+
 func TestRenderAdminDashboardUsesCollectionActionRoute(t *testing.T) {
 	var out bytes.Buffer
 	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "commerce", Label: "Products", Description: "Catalog", Actions: []adminstudio.Action{{Label: "Catalog", Href: "/admin/commerce/products"}}, Fields: []adminstudio.Field{{ID: "title", Label: "Title", Kind: adminstudio.FieldText}}}}, Active: "dashboard"})
