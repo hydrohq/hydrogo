@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -171,7 +172,7 @@ func (s ContentService) CreateDraft(ctx context.Context, page pages.Page) error 
 		if err := s.Pages.CreateDraftContent(ctx, tx, page); err != nil {
 			return err
 		}
-		if err := s.Audit.Record(ctx, tx, "audit-"+page.ID, "page.created", page.ID); err != nil {
+		if err := audit.RecordVersion(ctx, tx, s.Audit, "audit-"+page.ID, "page.created", page.ID, 0, 1); err != nil {
 			return err
 		}
 		return s.Outbox.Enqueue(ctx, tx, "outbox-"+page.ID, "page.created", page.ID, 1)
@@ -199,7 +200,7 @@ func (s ContentService) UpdateDraft(ctx context.Context, page pages.Page, expect
 		if err := s.Pages.UpdateDraftContent(ctx, tx, page, expectedVersion); err != nil {
 			return err
 		}
-		if err := s.Audit.Record(ctx, tx, "audit-update-"+page.ID+"-"+fmt.Sprint(expectedVersion+1), "page.updated", page.ID); err != nil {
+		if err := audit.RecordVersion(ctx, tx, s.Audit, "audit-update-"+page.ID+"-"+fmt.Sprint(expectedVersion+1), "page.updated", page.ID, expectedVersion, expectedVersion+1); err != nil {
 			return err
 		}
 		return s.Outbox.Enqueue(ctx, tx, "outbox-update-"+page.ID+"-"+fmt.Sprint(expectedVersion+1), "page.updated", page.ID, 1)
@@ -224,7 +225,7 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 		if err := s.Pages.Publish(ctx, tx, pageID, expectedVersion); err != nil {
 			return err
 		}
-		if err := s.Audit.Record(ctx, tx, "audit-publish-"+pageID+"-"+fmt.Sprint(expectedVersion+1), "page.published", pageID); err != nil {
+		if err := audit.RecordVersion(ctx, tx, s.Audit, "audit-publish-"+pageID+"-"+fmt.Sprint(expectedVersion+1), "page.published", pageID, expectedVersion, expectedVersion+1); err != nil {
 			return err
 		}
 		if err := s.Outbox.Enqueue(ctx, tx, "outbox-publish-"+pageID+"-"+fmt.Sprint(expectedVersion+1), "page.published", pageID, 1); err != nil {

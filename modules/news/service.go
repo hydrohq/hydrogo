@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"github.com/ardaozyildirim/hydrogo/internal/content"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
@@ -282,7 +283,11 @@ func (s Service) publishLive(ctx context.Context, topic, id string, version int)
 
 func (s Service) events(ctx context.Context, tx database.Executor, action, id string, version int) error {
 	if s.Audit != nil {
-		if err := s.Audit.Record(ctx, tx, fmt.Sprintf("news-audit-%s-%s-%d", action, id, version), action, id); err != nil {
+		before := version - 1
+		if before < 0 {
+			before = 0
+		}
+		if err := audit.RecordVersion(ctx, tx, s.Audit, fmt.Sprintf("news-audit-%s-%s-%d", action, id, version), action, id, before, version); err != nil {
 			return err
 		}
 	}

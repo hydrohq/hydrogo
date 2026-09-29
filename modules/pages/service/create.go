@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
@@ -38,7 +39,7 @@ func (s CreateDraft) Execute(ctx context.Context, id, title string) error {
 		if err := s.Pages.InsertDraft(ctx, tx, id, title); err != nil {
 			return err
 		}
-		if err := s.Audit.Record(ctx, tx, "audit-"+id, "page.created", id); err != nil {
+		if err := audit.RecordVersion(ctx, tx, s.Audit, "audit-"+id, "page.created", id, 0, 1); err != nil {
 			return err
 		}
 		return s.Outbox.Enqueue(ctx, tx, "outbox-"+id, "page.created", id, 1)
