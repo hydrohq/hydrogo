@@ -64,6 +64,52 @@ func TestPublicSearchRecordsOnlyNormalizedAggregate(t *testing.T) {
 	}
 }
 
+func TestAutocompleteTenantScopeCases(t *testing.T) {
+	cases := []struct {
+		name          string
+		requireTenant bool
+		tenantID      string
+		wantCount     int
+		wantErr       bool
+	}{
+		{name: "public without scope searches all tenants", requireTenant: false, wantCount: 2},
+		{name: "required scope without tenant fails", requireTenant: true, wantErr: true},
+		{name: "scoped searches selected tenant", requireTenant: true, tenantID: "a", wantCount: 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "autocomplete.sqlite"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			for _, q := range []string{
+				`CREATE TABLE pages(id TEXT,locale TEXT,title TEXT,slug TEXT,status TEXT,tenant_id TEXT,deleted_at TEXT)`,
+				`INSERT INTO pages(id,locale,title,slug,status,tenant_id) VALUES('a','tr','Hydro A','a','published','a')`,
+				`INSERT INTO pages(id,locale,title,slug,status,tenant_id) VALUES('b','tr','Hydro B','b','published','b')`,
+			} {
+				if _, err := db.Exec(q); err != nil {
+					t.Fatal(err)
+				}
+			}
+			h := AutocompleteHandler{DB: db, Dialect: database.SQLite, RequireTenantScope: tc.requireTenant, Modules: map[string]bool{"pages": true}}
+			items, err := h.suggest(context.Background(), "Hydro", "tr", tc.tenantID)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected missing tenant scope error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(items) != tc.wantCount {
+				t.Fatalf("got %d items, want %d: %+v", len(items), tc.wantCount, items)
+			}
+		})
+	}
+}
+
 func TestAutocompleteBoundsQuery(t *testing.T) {
 	h := AutocompleteHandler{}
 	rec := httptest.NewRecorder()

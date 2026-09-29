@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -50,9 +51,20 @@ func TestNotificationInboxIsUserScopedAndMutable(t *testing.T) {
 }
 
 func TestNotificationRejectsUnsafeTarget(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "notification-target.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
 	store := Store{Dialect: database.SQLite}
-	if err := store.Add(context.Background(), nil, "u", "t", "m", "//outside.example"); err == nil {
-		t.Fatal("unsafe target accepted")
+	for _, target := range []string{"//outside.example", "/\\outside.example"} {
+		if err := store.Add(ctx, db, "user-a", "Page published", "Message", target); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("unsafe target %q accepted, err=%v", target, err)
+		}
 	}
 }
 
