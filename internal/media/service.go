@@ -155,7 +155,17 @@ func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) 
 	if guards.IsNil(s.Assets) {
 		return nil, ErrAssetRepositoryRequired
 	}
-	result, err := s.Uploader.SaveContext(ctx, reader, filename)
+	var result *UploadResult
+	var err error
+	if strings.EqualFold(filepath.Ext(filename), ".pdf") {
+		maxBytes := s.Uploader.MaxBytes
+		if maxBytes <= 0 || maxBytes > 10<<20 {
+			maxBytes = 10 << 20
+		}
+		result, err = s.Uploader.SaveDocumentContext(ctx, reader, filename, maxBytes)
+	} else {
+		result, err = s.Uploader.SaveContext(ctx, reader, filename)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -222,11 +222,8 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 			}
 		}
 	}
-	if asset.Visibility == VisibilityPrivate && isDocumentFilename(asset.OriginalFilename) {
-		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeOriginalFilename(asset.OriginalFilename)}))
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-	}
 	storageKey, mimeType := asset.StorageKey, asset.MimeType
+	servedVariant := false
 	kind := r.URL.Query().Get("variant")
 	if kind == "" && watermarked && !editorAllowed(r) {
 		kind = VariantCard
@@ -235,6 +232,7 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 		if repo, ok := h.Service.Assets.(DerivativeRepository); ok {
 			if variant, variantErr := repo.GetReady(r.Context(), h.DB, asset.ID, kind); variantErr == nil {
 				storageKey, mimeType = variant.StorageKey, variant.MimeType
+				servedVariant = true
 			} else if watermarked && !editorAllowed(r) {
 				w.Header().Set("Retry-After", "3")
 				http.Error(w, "image processing in progress", http.StatusServiceUnavailable)
@@ -244,6 +242,10 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 			http.Error(w, "image processing in progress", http.StatusServiceUnavailable)
 			return
 		}
+	}
+	if asset.Visibility == VisibilityPrivate && isDocumentFilename(asset.OriginalFilename) && !servedVariant {
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeOriginalFilename(asset.OriginalFilename)}))
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 	}
 	if h.Service.BlobStore != nil {
 		object, getErr := h.Service.BlobStore.Get(r.Context(), storageKey)

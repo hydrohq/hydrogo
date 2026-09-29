@@ -8,6 +8,9 @@ templ Collection(items []Download) {
  for _, item := range items {
   if item.Status == "published" {
    <article class="sectoral-card bg-surface border-border"><h2>{ item.Title }</h2>
+   if cover := PDFCoverURL(item.FileURL, item.ContentType); cover != "" {
+	<img src={ templ.SafeURL(cover) } alt={ item.Title + " PDF kapağı" } loading="lazy" decoding="async" class="mb-3 aspect-[3/4] w-full rounded object-cover" />
+   }
    if item.Summary != "" {
 	<p>{ item.Summary }</p>
    }

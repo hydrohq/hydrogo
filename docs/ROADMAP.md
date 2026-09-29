@@ -9,6 +9,9 @@ see the [Gerçek dünya production hazırlık roadmap'i](REAL_WORLD_PRODUCTION_R
 That document is the current release-readiness view; this file remains the
 detailed historical phase and experiment ledger.
 
+Current remaining GitHub issue execution order and closure gates are tracked
+in the [remaining issue plan](validation/remaining-open-issues-plan-2026-09-29.md).
+
 ## 2026-09-10 reliability and security hardening progress
 
 - Added a bounded failure counter and a real-time `hydro_readiness_state` gauge metric for readiness; validated state-based alarm recovery contract.

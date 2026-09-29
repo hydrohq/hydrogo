@@ -1,6 +1,10 @@
 package downloads
 
 import (
+	"net/url"
+	"strings"
+	"unicode"
+
 	"github.com/ardaozyildirim/hydrogo/internal/sectoral"
 )
 
@@ -29,4 +33,26 @@ func (v *Download) Validate() error {
 func (v Download) Clone(id, slug string) Download {
 	v.Base = sectoral.CloneBase(v.Base, id, slug)
 	return v
+}
+
+// PDFCoverURL returns the derivative route only for a same-origin media asset
+// URL with a safe, single-segment ID.
+func PDFCoverURL(fileURL, contentType string) string {
+	if !strings.EqualFold(strings.TrimSpace(contentType), "application/pdf") {
+		return ""
+	}
+	parsed, err := url.Parse(fileURL)
+	if err != nil || parsed.IsAbs() || parsed.RawQuery != "" || parsed.Fragment != "" || !strings.HasPrefix(parsed.Path, "/media/") {
+		return ""
+	}
+	id, err := url.PathUnescape(strings.TrimPrefix(parsed.EscapedPath(), "/media/"))
+	if err != nil || id == "" || len(id) > 128 {
+		return ""
+	}
+	for _, r := range id {
+		if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_') {
+			return ""
+		}
+	}
+	return "/media/" + url.PathEscape(id) + "?variant=pdf-cover"
 }
