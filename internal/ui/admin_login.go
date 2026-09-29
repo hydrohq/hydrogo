@@ -482,6 +482,7 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 	border: 1px solid rgba(16, 185, 129, 0.3);
 	color: var(--color-success);
 }
+.form-alert.alert-warning { border-color:rgba(217,119,6,.4);background:rgba(245,158,11,.12);color:#92400e }
 
 .form-pane-footer {
 	text-align: center;
@@ -699,7 +700,13 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 				return;
 			}
 
-			showMsg('success', 'Giriş başarılı! Yönetim paneline aktarılıyorsunuz…');
+			var loginResult = {};
+			try { loginResult = await response.json(); } catch (_) {}
+			var notice = loginResult.security_notice || {}, attempts = Number(notice.failed_attempts || 0);
+			var message = 'Giriş başarılı! Yönetim paneline aktarılıyorsunuz…';
+			if (notice.previous_login_at) { message = 'Önceki başarılı giriş: ' + new Date(notice.previous_login_at).toLocaleString() + '. ' + attempts + ' başarısız deneme.'; }
+			else if (attempts > 0) { message = 'İlk başarılı girişiniz. Önceki oturumdan bu yana ' + attempts + ' başarısız deneme kaydedildi.'; }
+			showMsg(attempts > 0 ? 'warning' : 'success', message);
 			setTimeout(function() {
 				window.location.href = '%s';
 			}, 250);

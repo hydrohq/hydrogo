@@ -67,6 +67,19 @@ func (a *httpAudit) Record(_ context.Context, action, _ string) error {
 	return nil
 }
 
+type loginSecurityTrackerStub struct {
+	failures int
+	previous time.Time
+}
+
+func (s *loginSecurityTrackerStub) RecordFailedLogin(context.Context, string) error {
+	s.failures++
+	return nil
+}
+func (s *loginSecurityTrackerStub) RecordSuccessfulLogin(context.Context, string, string, time.Time) (LoginSecurityNotice, error) {
+	return LoginSecurityNotice{PreviousLoginAt: &s.previous, FailedAttempts: 2}, nil
+}
+
 type httpRecoveryStore struct{}
 
 func (httpRecoveryStore) CreateRecoveryToken(context.Context, database.Executor, string, string, string, string, time.Time, time.Time) error {
@@ -95,8 +108,9 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 	sessions := &httpSessionRepo{}
 	audit := &httpAudit{}
+	tracker := &loginSecurityTrackerStub{previous: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)}
 	service := NewAuthService(httpUserRepo{user: &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Role: RoleAdmin, Active: true}}, sessions, nil, TestArgon2Params)
-	handler := HTTPHandler{Service: service, Audit: audit, Secure: true}.login
+	handler := HTTPHandler{Service: service, Audit: audit, Secure: true, LoginSecurity: tracker}.login
 
 	form := url.Values{"email": {"admin@example.com"}, "password": {"secret"}}
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
@@ -112,6 +126,20 @@ func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	}
 	if len(audit.actions) != 1 || audit.actions[0] != "auth.login" {
 		t.Fatalf("unexpected audit actions: %v", audit.actions)
+	}
+	var response struct {
+		SecurityNotice LoginSecurityNotice `json:"security_notice"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil || response.SecurityNotice.FailedAttempts != 2 || response.SecurityNotice.PreviousLoginAt == nil {
+		t.Fatalf("login security notice=%+v err=%v", response, err)
+	}
+	badForm := url.Values{"email": {"admin@example.com"}, "password": {"wrong"}}
+	badRequest := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(badForm.Encode()))
+	badRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	badResponse := httptest.NewRecorder()
+	handler(badResponse, badRequest)
+	if badResponse.Code != http.StatusUnauthorized || tracker.failures != 1 {
+		t.Fatalf("failed login status=%d tracked=%d", badResponse.Code, tracker.failures)
 	}
 }
 

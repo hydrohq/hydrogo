@@ -206,6 +206,101 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 	return &u, nil
 }
 
+// RecordFailedLogin increments the account counter only when the normalized
+// address belongs to a real account; unknown addresses remain indistinguishable.
+func (s *UserStore) RecordFailedLogin(ctx context.Context, email string) error {
+	if err := requireUserDB(s); err != nil {
+		return err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE users SET failed_login_attempts=failed_login_attempts+1 WHERE email=` + s.bind(1)
+	args := []any{auth.NormalizeEmail(email)}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id=` + s.bind(2)
+		args = append(args, tenantID)
+	}
+	return s.within(ctx, func(exec database.Executor) error { _, err := exec.ExecContext(ctx, query, args...); return err })
+}
+
+// RecordSuccessfulLogin snapshots the previous login and accumulated failed
+// attempts before resetting the counter for this new authenticated session.
+func (s *UserStore) RecordSuccessfulLogin(ctx context.Context, userID, ip string, now time.Time) (auth.LoginSecurityNotice, error) {
+	if err := requireUserDB(s); err != nil {
+		return auth.LoginSecurityNotice{}, err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return auth.LoginSecurityNotice{}, err
+	}
+	query := `SELECT last_login_at,last_login_ip,failed_login_attempts FROM users WHERE id=` + s.bind(1)
+	args := []any{userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id=` + s.bind(2)
+		args = append(args, tenantID)
+	}
+	if s.dialect == database.Postgres || s.dialect == database.MySQL {
+		query += ` FOR UPDATE`
+	}
+	var notice auth.LoginSecurityNotice
+	err = s.within(ctx, func(exec database.Executor) error {
+		var last any
+		var lastIP string
+		if err := exec.QueryRowContext(ctx, query, args...).Scan(&last, &lastIP, &notice.FailedAttempts); err != nil {
+			return err
+		}
+		if last != nil {
+			value := parseTime(last)
+			if !value.IsZero() {
+				notice.PreviousLoginAt = &value
+			}
+		}
+		notice.PreviousLoginIP = lastIP
+		update := `UPDATE users SET previous_login_at=last_login_at,previous_login_ip=last_login_ip,failed_attempts_since_last_login=failed_login_attempts,last_login_at=` + s.bind(1) + `,last_login_ip=` + s.bind(2) + `,failed_login_attempts=0 WHERE id=` + s.bind(3)
+		updateArgs := []any{s.dbTime(now.UTC()), ip, userID}
+		if s.RequireTenantScope {
+			update += ` AND tenant_id=` + s.bind(4)
+			updateArgs = append(updateArgs, tenantID)
+		}
+		_, err := exec.ExecContext(ctx, update, updateArgs...)
+		return err
+	})
+	return notice, err
+}
+
+func (s *UserStore) LoginSecuritySummary(ctx context.Context, userID string) (auth.LoginSecurityNotice, error) {
+	if err := requireUserDB(s); err != nil {
+		return auth.LoginSecurityNotice{}, err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return auth.LoginSecurityNotice{}, err
+	}
+	query := `SELECT previous_login_at,previous_login_ip,failed_attempts_since_last_login FROM users WHERE id=` + s.bind(1)
+	args := []any{userID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id=` + s.bind(2)
+		args = append(args, tenantID)
+	}
+	var notice auth.LoginSecurityNotice
+	var previous any
+	err = s.within(ctx, func(exec database.Executor) error {
+		return exec.QueryRowContext(ctx, query, args...).Scan(&previous, &notice.PreviousLoginIP, &notice.FailedAttempts)
+	})
+	if err != nil {
+		return notice, err
+	}
+	if previous != nil {
+		at := parseTime(previous)
+		if !at.IsZero() {
+			notice.PreviousLoginAt = &at
+		}
+	}
+	return notice, nil
+}
+
 func (s *UserStore) Count(ctx context.Context) (int64, error) {
 	if err := requireUserDB(s); err != nil {
 		return 0, err

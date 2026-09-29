@@ -31,6 +31,9 @@ type AdminDashboardData struct {
 	UniqueVisitors      int64
 	PushEnabled         bool
 	EmailPreviewEnabled bool
+	PreviousLogin       string
+	PreviousLoginIP     string
+	FailedLoginAttempts int
 }
 
 type ContentViewReportRow struct {
@@ -45,6 +48,9 @@ type NoCookieAnalyticsRow struct {
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	if err := AdminStartLocale(w, "Dashboard", "", data.Nonce, data.Active, data.Locale); err != nil {
+		return err
+	}
+	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
 		return err
 	}
 	if err := adminWorkbenchDashboardTemplate.Execute(w, data); err != nil {

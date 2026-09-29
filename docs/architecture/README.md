@@ -382,3 +382,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0305: Staff invitation share message](0305-staff-invitation-share-message.md)
 - [ADR-0306: Member email verification links](0306-member-email-verification.md)
 - [ADR-0307: Monthly executive digest](0307-monthly-executive-digest.md)
+- [ADR-0308: Admin login security notice](0308-admin-login-security-notice.md)
