@@ -1,0 +1,11 @@
+package ui
+
+templ PageWeightInspector() {
+	<section class="studio-card page-weight-inspector" data-page-weight hidden aria-live="polite" aria-label="Estimated page weight">
+		<div class="card-title-group"><div><p class="eyebrow">PAGE PERFORMANCE</p><h2>Estimated page weight</h2></div><strong data-page-weight-total>—</strong></div>
+		<p data-page-weight-state>Calculating the current editor content.</p>
+		<ul class="grid gap-1 text-sm"><li>HTML <strong data-page-weight-html>—</strong></li><li>Stylesheets <strong data-page-weight-css>—</strong></li><li>Media assets <strong data-page-weight-assets>—</strong></li></ul>
+		<p class="text-sm text-muted-foreground">Estimate uses same-origin asset sizes and may exclude remote resources.</p>
+		<ul data-page-weight-large-assets class="grid gap-1 text-sm"></ul>
+	</section>
+}
