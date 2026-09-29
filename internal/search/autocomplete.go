@@ -70,6 +70,9 @@ func (h AutocompleteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h AutocompleteHandler) suggest(ctx context.Context, term, locale, tenantID string) ([]publicSuggestion, error) {
+	if h.RequireTenantScope && tenantID == "" {
+		return nil, errors.New("missing tenant scope")
+	}
 	if err := database.RequireExecutor(h.DB); err != nil {
 		return nil, err
 	}

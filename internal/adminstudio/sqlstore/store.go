@@ -347,5 +347,5 @@ func (s Store) p(n int) string {
 	return "?"
 }
 func safeTarget(value string) bool {
-	return len(value) > 0 && value[0] == '/' && (len(value) == 1 || value[1] != '/')
+	return len(value) > 0 && value[0] == '/' && (len(value) == 1 || (value[1] != '/' && value[1] != '\\'))
 }

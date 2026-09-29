@@ -28,7 +28,8 @@ func (h Handler) Routes() []router.Route {
 }
 
 func (h Handler) list(w http.ResponseWriter, r *http.Request) {
-	if !trashEditor(r) {
+	user := auth.UserFromContext(r.Context())
+	if !auth.Can(user, auth.PermissionContentWrite) {
 		http.Error(w, "You do not have permission to view deleted items.", http.StatusForbidden)
 		return
 	}
@@ -36,6 +37,15 @@ func (h Handler) list(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Trash is temporarily unavailable.", http.StatusServiceUnavailable)
 		return
+	}
+	if !auth.Can(user, auth.PermissionSiteManage) {
+		filtered := items[:0]
+		for _, item := range items {
+			if item.Kind != trash.Submissions {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := ui.AdminStartForRequestWithTrash(w, r, "Çöp kutusu", "İçerik", security.NonceFromContext(r.Context()), "trash"); err != nil {
@@ -48,11 +58,11 @@ func (h Handler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) move(w http.ResponseWriter, r *http.Request) {
-	if !trashEditor(r) {
+	kind, id := trash.Kind(r.PathValue("kind")), r.PathValue("id")
+	if !trashEditor(r, kind) {
 		http.Error(w, "Bu öğeyi çöp kutusuna taşıma yetkiniz yok.", http.StatusForbidden)
 		return
 	}
-	kind, id := trash.Kind(r.PathValue("kind")), r.PathValue("id")
 	err := h.Service.Move(r.Context(), kind, id, time.Now())
 	if errors.Is(err, trash.ErrNotFound) {
 		http.Error(w, "Bu öğe bulunamadı.", http.StatusNotFound)
@@ -69,11 +79,11 @@ func (h Handler) move(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) restore(w http.ResponseWriter, r *http.Request) {
-	if !trashEditor(r) {
+	kind, id := trash.Kind(r.PathValue("kind")), r.PathValue("id")
+	if !trashEditor(r, kind) {
 		http.Error(w, "You do not have permission to restore this item.", http.StatusForbidden)
 		return
 	}
-	kind, id := trash.Kind(r.PathValue("kind")), r.PathValue("id")
 	err := h.Service.Restore(r.Context(), kind, id, time.Now())
 	if errors.Is(err, trash.ErrNotFound) {
 		http.Error(w, "This item is no longer available to restore.", http.StatusNotFound)
@@ -89,6 +99,12 @@ func (h Handler) restore(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/trash", http.StatusSeeOther)
 }
 
-func trashEditor(r *http.Request) bool {
-	return auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentWrite)
+// trashEditor gates trash mutations per kind: form submissions hold personal
+// data collected by site forms, so they require site-level management rights.
+func trashEditor(r *http.Request, kind trash.Kind) bool {
+	user := auth.UserFromContext(r.Context())
+	if kind == trash.Submissions {
+		return auth.Can(user, auth.PermissionSiteManage)
+	}
+	return auth.Can(user, auth.PermissionContentWrite)
 }
