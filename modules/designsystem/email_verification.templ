@@ -1,0 +1,8 @@
+package designsystem
+
+templ EmailVerificationResendForm(action, csrf string) {
+	<form method="post" action={ action }>
+		<input type="hidden" name="_csrf" value={ csrf } />
+		<button type="submit" class="button button-quiet">Doğrulama bağlantısı gönder</button>
+	</form>
+}

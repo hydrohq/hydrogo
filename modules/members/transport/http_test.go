@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"database/sql"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,8 +14,11 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
+	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/modules/members/transport"
+	_ "modernc.org/sqlite"
 )
 
 type memoryMemberStore struct {
@@ -25,6 +29,13 @@ type memoryMemberStore struct {
 type fixedMemberStore struct {
 	*memoryMemberStore
 	rows []members.Member
+}
+
+type verificationNotifier struct{ email, link string }
+
+func (n *verificationNotifier) SendEmailVerification(_ context.Context, email, link string) error {
+	n.email, n.link = email, link
+	return nil
 }
 
 func (s fixedMemberStore) Search(_ context.Context, filter members.MemberFilter) (members.MemberListResult, error) {
@@ -331,5 +342,87 @@ func TestAdminMemberDetailEnforcesAccessAndHandlesMissingSessionStore(t *testing
 	}
 	if !strings.Contains(response.Body.String(), "member@example.com") {
 		t.Fatal("authorized admin detail did not render member identity")
+	}
+}
+
+func TestMemberListOffersVerificationResendOnlyForUnverifiedAccounts(t *testing.T) {
+	rows := []members.Member{{ID: "pending", Email: "pending@example.test", Active: true}, {ID: "verified", Email: "verified@example.test", Active: true, EmailVerifiedAt: func() *time.Time { now := time.Now(); return &now }()}}
+	store := fixedMemberStore{memoryMemberStore: newMemoryMemberStore(), rows: rows}
+	handler := transport.Handler{Service: members.Service{Members: store}, VerificationEnabled: true}
+	request := httptest.NewRequest(http.MethodGet, "/admin/members", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Active: true, Role: auth.RoleAdmin}))
+	response := httptest.NewRecorder()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "GET /admin/members" {
+			route.Handler.ServeHTTP(response, request)
+			break
+		}
+	}
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "/admin/members/pending/resend-verification") || strings.Contains(body, "/admin/members/verified/resend-verification") {
+		t.Fatalf("member list status=%d, unexpected resend controls in body", response.Code)
+	}
+}
+
+func TestAdminResendsAndConsumesOneUseMemberVerificationLink(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(`CREATE TABLE members (id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL,active INTEGER NOT NULL,email_verified_at TEXT,last_login_at TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE member_email_verification_tokens (id TEXT PRIMARY KEY,member_id TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,expires_at TEXT NOT NULL,consumed_at TEXT,created_at TEXT NOT NULL,tenant_id TEXT NOT NULL DEFAULT '');`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := memberstore.Store{DB: db, Dialect: database.SQLite}
+	now := time.Now().UTC()
+	if err := store.Create(context.Background(), &members.Member{ID: "member-1", Email: "member@example.test", PasswordHash: "hash", Active: true, CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	notifier := &verificationNotifier{}
+	service := members.EmailVerificationService{Tokens: store}
+	handler := transport.Handler{
+		Service: members.Service{Members: store}, DB: db,
+		Verification: service, VerificationTx: database.NewTenantTransactor(db, database.SQLite, false),
+		VerificationNotifier: notifier, PublicOrigin: "https://hydro.example.test", VerificationEnabled: true,
+	}
+	var resend http.Handler
+	var verify http.Handler
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/members/{id}/resend-verification" {
+			resend = route.Handler
+		}
+		if route.Pattern == "GET /member/email/verify" {
+			verify = route.Handler
+		}
+	}
+	request := httptest.NewRequest(http.MethodPost, "/admin/members/member-1/resend-verification", nil)
+	request.SetPathValue("id", "member-1")
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	resend.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther || notifier.email != "member@example.test" || !strings.HasPrefix(notifier.link, "https://hydro.example.test/member/email/verify?token=") {
+		t.Fatalf("resend status=%d notification=%+v body=%s", response.Code, notifier, response.Body.String())
+	}
+	parsed, err := url.Parse(notifier.link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifyRequest := httptest.NewRequest(http.MethodGet, "/member/email/verify?token="+url.QueryEscape(parsed.Query().Get("token")), nil)
+	verifyResponse := httptest.NewRecorder()
+	verify.ServeHTTP(verifyResponse, verifyRequest)
+	if verifyResponse.Code != http.StatusSeeOther || verifyResponse.Header().Get("Location") != "/member/login?email_verified=1" {
+		t.Fatalf("verify status=%d location=%q", verifyResponse.Code, verifyResponse.Header().Get("Location"))
+	}
+	member, err := store.GetByID(context.Background(), "member-1")
+	if err != nil || member.EmailVerifiedAt == nil {
+		t.Fatalf("member verification state=%+v err=%v", member, err)
+	}
+	replay := httptest.NewRecorder()
+	verify.ServeHTTP(replay, verifyRequest)
+	if replay.Code != http.StatusBadRequest {
+		t.Fatalf("verification replay status=%d, want 400", replay.Code)
 	}
 }
