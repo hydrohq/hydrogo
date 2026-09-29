@@ -66,6 +66,8 @@ type Handler struct {
 		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
 	}
 	AnalyticsEnabled      bool
+	RecordSlugRedirect    func(context.Context, string, string, string) error
+	RecordNotFound        func(context.Context, string) error
 	PublicSupport         adminstudio.SupportConfig
 	PublicContactSettings func(context.Context) ([]site.Setting, error)
 }
@@ -672,6 +674,9 @@ func summarizePages(items []pages.Page) []pageSummary {
 func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {
 	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
 	if err != nil {
+		if pageStatus(err) == http.StatusNotFound {
+			h.recordNotFound(r)
+		}
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
@@ -685,6 +690,9 @@ func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {
 func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
 	if err != nil {
+		if pageStatus(err) == http.StatusNotFound {
+			h.recordNotFound(r)
+		}
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
@@ -844,6 +852,12 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main>%s%s</body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup, template.HTML(consentMarkup), template.HTML(supportMarkup))
+}
+
+func (h Handler) recordNotFound(r *http.Request) {
+	if h.RecordNotFound != nil && len(r.URL.Path) <= 2048 {
+		_ = h.RecordNotFound(r.Context(), r.URL.Path)
+	}
 }
 
 func (h Handler) socialLinksMarkup(ctx context.Context) string {
@@ -1238,6 +1252,23 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 	h.writePage(w, r, page.ID)
 }
 
+func (h Handler) recordPublishedSlugChange(ctx context.Context, previous pages.Page, locale, slug string) error {
+	if h.RecordSlugRedirect == nil || previous.Status != pages.StatusPublished || previous.Slug == slug {
+		return nil
+	}
+	if locale != previous.Locale {
+		return nil
+	}
+	if h.DefaultLocale != "" && previous.Locale != h.DefaultLocale {
+		return nil
+	}
+	return h.RecordSlugRedirect(ctx, previous.Locale, previous.Slug, slug)
+}
+
+func (h Handler) recordPreviousPublishedSlug(ctx context.Context, oldLocale, oldSlug string, page pages.Page) error {
+	return h.recordPublishedSlugChange(ctx, pages.Page{Locale: oldLocale, Slug: oldSlug, Status: pages.StatusPublished}, page.Locale, page.Slug)
+}
+
 func (h Handler) publish(w http.ResponseWriter, r *http.Request) {
 	if !editorAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -1248,9 +1279,22 @@ func (h Handler) publish(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "version query parameter is required", http.StatusBadRequest)
 		return
 	}
+	oldLocale, oldSlug, err := h.Content.PublishedSlug(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "page publication unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if err := h.Content.Publish(r.Context(), r.PathValue("id"), expectedVersion); err != nil {
 		http.Error(w, pageError(err), pageStatus(err))
 		return
+	}
+	if oldSlug != "" {
+		if page, getErr := h.Content.Get(r.Context(), h.DB, r.PathValue("id")); getErr == nil {
+			if err := h.recordPreviousPublishedSlug(r.Context(), oldLocale, oldSlug, page); err != nil {
+				http.Error(w, "page published, but its old link could not be redirected", http.StatusServiceUnavailable)
+				return
+			}
+		}
 	}
 	h.writePage(w, r, r.PathValue("id"))
 }
@@ -1650,9 +1694,25 @@ func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "version is required", http.StatusBadRequest)
 		return
 	}
+	oldLocale, oldSlug, oldErr := h.Content.PublishedSlug(r.Context(), h.DB, r.PathValue("id"))
+	if oldErr != nil {
+		http.Error(w, "Yayımlanan eski bağlantı alınamadı.", http.StatusServiceUnavailable)
+		return
+	}
+	page, pageErr := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
+	if pageErr != nil {
+		http.Error(w, "Sayfa bilgisi alınamadı.", http.StatusServiceUnavailable)
+		return
+	}
 	if err := h.Content.Publish(r.Context(), r.PathValue("id"), version); err != nil {
 		http.Error(w, "Sayfa yayımlanamadı. İçeriği kontrol edip yeniden deneyin.", pageStatus(err))
 		return
+	}
+	if oldSlug != "" {
+		if err := h.recordPreviousPublishedSlug(r.Context(), oldLocale, oldSlug, page); err != nil {
+			http.Error(w, "Sayfa yayımlandı ancak eski bağlantısı yönlendirilemedi.", http.StatusServiceUnavailable)
+			return
+		}
 	}
 	if user := auth.UserFromContext(r.Context()); user != nil && h.Notifications != nil {
 		_ = h.Notifications.Add(r.Context(), h.DB, user.ID, "Sayfa yayına alındı", "Sayfanız ziyaretçilere açıldı.", "/admin/pages")

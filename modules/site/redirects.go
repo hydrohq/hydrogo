@@ -27,11 +27,17 @@ type RedirectRegistry struct {
 }
 
 func (r *RedirectRegistry) Replace(tenantID string, rules []RedirectRule) error {
-	compiled := make([]*compiledRedirect, 0, len(rules))
+	scopedRules := make([]RedirectRule, 0, len(rules))
 	for _, rule := range rules {
-		if rule.TenantID != "" && rule.TenantID != tenantID {
-			continue
+		if rule.TenantID == "" || rule.TenantID == tenantID {
+			scopedRules = append(scopedRules, rule)
 		}
+	}
+	if redirectRulesCycle(scopedRules) {
+		return ErrInvalidRedirect
+	}
+	compiled := make([]*compiledRedirect, 0, len(scopedRules))
+	for _, rule := range scopedRules {
 		if err := ValidateRedirectRule(rule); err != nil {
 			return err
 		}
@@ -61,6 +67,55 @@ func (r *RedirectRegistry) Replace(tenantID string, rules []RedirectRule) error 
 	r.byTenant[tenantID] = compiled
 	r.mu.Unlock()
 	return nil
+}
+
+func redirectRulesCycle(rules []RedirectRule) bool {
+	probes := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		switch rule.Kind {
+		case "exact":
+			probes = append(probes, rule.Pattern)
+		case "wildcard":
+			probes = append(probes, strings.Replace(rule.Pattern, "*", "__hydro_probe__", 1))
+		}
+	}
+	for _, start := range probes {
+		seen, path := map[string]bool{}, start
+		for range len(rules) + 1 {
+			if seen[path] {
+				return true
+			}
+			seen[path] = true
+			next, ok := redirectTarget(rules, path)
+			if !ok {
+				break
+			}
+			path = next
+		}
+	}
+	return false
+}
+
+func redirectTarget(rules []RedirectRule, path string) (string, bool) {
+	for _, rule := range rules {
+		switch rule.Kind {
+		case "exact":
+			if path == rule.Pattern {
+				return rule.TargetPath, true
+			}
+		case "wildcard":
+			parts := strings.SplitN(rule.Pattern, "*", 2)
+			if len(parts) == 2 && strings.HasPrefix(path, parts[0]) && strings.HasSuffix(path, parts[1]) {
+				value := strings.TrimSuffix(strings.TrimPrefix(path, parts[0]), parts[1])
+				return strings.Replace(rule.TargetPath, "*", value, 1), true
+			}
+		case "regex":
+			if re, err := regexp.Compile("^(?:" + rule.Pattern + ")$"); err == nil && re.MatchString(path) {
+				return re.ReplaceAllString(path, rule.TargetPath), true
+			}
+		}
+	}
+	return "", false
 }
 
 func (r *RedirectRegistry) Upsert(rule RedirectRule) error {

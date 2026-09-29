@@ -34,6 +34,12 @@ type RedirectRuleStore interface {
 	ListRedirectRules(context.Context, database.QueryExecutor, int) ([]RedirectRule, error)
 }
 
+type NotFoundPathStore interface {
+	RecordNotFound(context.Context, database.Executor, string, time.Time) error
+	ListNotFound(context.Context, database.QueryExecutor, int) ([]NotFoundPath, error)
+	DeleteNotFound(context.Context, database.Executor, string) error
+}
+
 type AdminNavigationStore interface {
 	ListAdminNavigation(context.Context, database.Executor, string) ([]NavigationItem, error)
 }
@@ -372,6 +378,39 @@ func (s Service) ListRedirectRules(ctx context.Context, limit int) ([]RedirectRu
 		return err
 	})
 	return result, err
+}
+
+func (s Service) RecordNotFound(ctx context.Context, path string, now time.Time) error {
+	store, ok := s.Store.(NotFoundPathStore)
+	if !ok {
+		return ErrRedirectStoreRequired
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error { return store.RecordNotFound(ctx, tx, path, now) })
+}
+
+func (s Service) ListNotFound(ctx context.Context, limit int) ([]NotFoundPath, error) {
+	store, ok := s.Store.(NotFoundPathStore)
+	if !ok {
+		return nil, ErrRedirectStoreRequired
+	}
+	var result []NotFoundPath
+	if limit < 1 || limit > 500 {
+		limit = 100
+	}
+	err := s.Transactions.WithinQuery(ctx, func(query database.QueryExecutor) error {
+		var err error
+		result, err = store.ListNotFound(ctx, query, limit)
+		return err
+	})
+	return result, err
+}
+
+func (s Service) DeleteNotFound(ctx context.Context, path string) error {
+	store, ok := s.Store.(NotFoundPathStore)
+	if !ok {
+		return ErrRedirectStoreRequired
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error { return store.DeleteNotFound(ctx, tx, path) })
 }
 
 func (s Service) Submit(ctx context.Context, value Submission) error {

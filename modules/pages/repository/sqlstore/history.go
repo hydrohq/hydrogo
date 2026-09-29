@@ -52,3 +52,25 @@ func (s Store) ListRevisions(ctx context.Context, db database.Executor, pageID s
 	}
 	return result, rows.Err()
 }
+
+func (s Store) GetRevisionSlug(ctx context.Context, db database.Executor, pageID string, revision int) (string, string, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return "", "", err
+	}
+	if pageID == "" || revision < 1 {
+		return "", "", errors.New("invalid published revision")
+	}
+	query := `SELECT locale,slug FROM page_revisions WHERE page_id=` + s.placeholder(1) + ` AND revision=` + s.placeholder(2)
+	args := []any{pageID, revision}
+	if s.RequireTenantScope {
+		scope, err := tenant.Require(ctx)
+		if err != nil {
+			return "", "", err
+		}
+		query += ` AND tenant_id=` + s.placeholder(3)
+		args = append(args, scope.TenantID)
+	}
+	var locale, slug string
+	err := db.QueryRowContext(ctx, query, args...).Scan(&locale, &slug)
+	return locale, slug, err
+}

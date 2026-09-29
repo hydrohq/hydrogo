@@ -1,0 +1,30 @@
+id: "202609290008_site_not_found_hits"
+module: "site"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "1037327b3df0cc52788c99de30df3524ab17a9d6b3732c58b7677b31de80a646"
+  postgres: "3bd38593fd08c2c38a7946e46bbdb2b4af1811ca0b37d3c73203905afb522cda"
+  mysql: "900b1da335701daaf341ef8d71da6c095f266af10c580e1d1f7cd5936d7e44ef"
+dependencies:
+  - "202609190008_site_tenant_scope"
+  - "202609280001_seo_redirect_rules"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Tenant-scoped site and SEO redirect schemas are installed"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "One row per unique missing path and tenant; operator can clear resolved paths"
+compatibility: "Adds aggregate missing-path observations without collecting query strings or visitor identities"
+smoke:
+  - "Repeated misses increment one tenant-scoped path counter"
+  - "Redirect conversion removes the selected missing-path row"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward migration only; dropping the table discards accumulated missing-path counts"

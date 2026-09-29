@@ -1,6 +1,7 @@
 package site
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -62,5 +63,19 @@ func TestRedirectRegistryExpandsRegexCapture(t *testing.T) {
 	got, ok := registry.Match(tenant.Scope{}, "/legacy/story")
 	if !ok || got.TargetPath != "/articles/story" {
 		t.Fatalf("regex redirect = %#v, %v", got, ok)
+	}
+}
+
+func TestRedirectRegistryRejectsCircularExactAndWildcardChains(t *testing.T) {
+	cases := map[string][]RedirectRule{
+		"exact":    {{ID: "one", Pattern: "/one", Kind: "exact", TargetPath: "/two", Status: 301}, {ID: "two", Pattern: "/two", Kind: "exact", TargetPath: "/one", Status: 301}},
+		"wildcard": {{ID: "one", Pattern: "/old/*", Kind: "wildcard", TargetPath: "/new/*", Status: 301}, {ID: "two", Pattern: "/new/*", Kind: "wildcard", TargetPath: "/old/*", Status: 301}},
+	}
+	for name, rules := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := (&RedirectRegistry{}).Replace("", rules); !errors.Is(err, ErrInvalidRedirect) {
+				t.Fatalf("cycle error=%v", err)
+			}
+		})
 	}
 }

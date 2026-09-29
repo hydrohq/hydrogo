@@ -1,0 +1,25 @@
+package ui
+
+type NotFoundPathRow struct {
+	Path string
+	Hits string
+	LastSeen string
+}
+
+templ NotFoundPaths(rows []NotFoundPathRow, csrf string) {
+	<section class="studio-card" data-not-found-paths>
+		<h2>Bulunamayan bağlantılar</h2>
+		<p>Sık karşılaşılan eksik sayfaları yeni bir adrese yönlendirin. Sorgu parametreleri ve ziyaretçi kimlikleri kaydedilmez.</p>
+		if len(rows) == 0 {
+			<p role="status">Henüz eksik bağlantı kaydı yok.</p>
+		} else {
+			<div class="table-wrap"><table><thead><tr><th>Eski yol</th><th>Görüntülenme</th><th>Son görülme</th><th>Yeni adres</th></tr></thead><tbody>
+				for _, row := range rows {
+					<tr><th scope="row">{ row.Path }</th><td>{ row.Hits }</td><td>{ row.LastSeen }</td><td>
+						<form method="post" action="/admin/redirects/convert"><input type="hidden" name="_csrf" value={ csrf }/><input type="hidden" name="source" value={ row.Path }/><label>Yeni adres<input type="text" name="target" placeholder="/yeni-adres" required maxlength="2048"/></label><button class="button button-primary" type="submit">301 yönlendirmesi oluştur</button></form>
+					</td></tr>
+				}
+			</tbody></table></div>
+		}
+	</section>
+}

@@ -70,6 +70,25 @@ func (s ContentService) Get(ctx context.Context, db database.Executor, pageID st
 	return s.Pages.GetContent(ctx, db, pageID)
 }
 
+// PublishedSlug returns the route that was last published, even when the
+// current draft has changed its locale or slug.
+func (s ContentService) PublishedSlug(ctx context.Context, db database.Executor, pageID string) (string, string, error) {
+	page, err := s.Get(ctx, db, pageID)
+	if err != nil {
+		return "", "", err
+	}
+	if page.PublishedRevision == nil {
+		return "", "", nil
+	}
+	reader, ok := s.Pages.(interface {
+		GetRevisionSlug(context.Context, database.Executor, string, int) (string, string, error)
+	})
+	if !ok {
+		return "", "", ErrDependencyRequired
+	}
+	return reader.GetRevisionSlug(ctx, db, pageID, *page.PublishedRevision)
+}
+
 type ContentService struct {
 	Transactions Transactions
 	Pages        ContentRepository
@@ -245,7 +264,9 @@ func (s ContentService) requireMutationDependencies() error {
 func validatePage(page *pages.Page) error {
 	page.Locale = canonical.Locale(page.Locale)
 	page.Slug = canonical.Slugify(page.Slug)
-	if page.Slug == "" { page.Slug = canonical.Slugify(page.Title) }
+	if page.Slug == "" {
+		page.Slug = canonical.Slugify(page.Title)
+	}
 	page.Title = strings.TrimSpace(page.Title)
 	page.Tags = normalizePageTags(page.Tags)
 	if page.ID == "" || len(page.ID) > 128 || page.Locale == "" || len(page.Locale) > 16 || page.Slug == "" || len(page.Slug) > 256 || page.Title == "" || len(page.Title) > 256 || len(page.Body) > 1<<20 {

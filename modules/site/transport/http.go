@@ -116,6 +116,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/seo", Handler: http.HandlerFunc(h.saveSEOSettings)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
 		{Pattern: "GET /admin/site/redirect-rules", Handler: http.HandlerFunc(h.redirectRules)},
+		{Pattern: "GET /admin/redirects", Handler: http.HandlerFunc(h.notFoundPaths)},
+		{Pattern: "POST /admin/redirects/convert", Handler: http.HandlerFunc(h.convertNotFoundPath)},
 		{Pattern: "POST /admin/site/redirect-rules", Handler: http.HandlerFunc(h.saveRedirectRule)},
 		{Pattern: "POST /admin/site/redirect-rules/import", Handler: http.HandlerFunc(h.importRedirectRules)},
 		{Pattern: "POST /admin/site/redirect-rules/{id}/delete", Handler: http.HandlerFunc(h.deleteRedirectRule)},
@@ -325,17 +327,25 @@ func (h Handler) saveTranslation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) redirectFallback(w http.ResponseWriter, r *http.Request) {
+	trackMiss := func() {
+		if h.Service != nil && trackableNotFoundPath(r.URL.Path) {
+			_ = h.Service.RecordNotFound(r.Context(), r.URL.Path, time.Now().UTC())
+		}
+	}
 	if h.Redirects == nil {
+		trackMiss()
 		http.NotFound(w, r)
 		return
 	}
 	scope, err := tenant.FromContext(r.Context())
 	if err != nil && h.Redirects.RequireTenantScope {
+		trackMiss()
 		http.NotFound(w, r)
 		return
 	}
 	rule, ok := h.Redirects.Match(scope, r.URL.Path)
 	if !ok {
+		trackMiss()
 		http.NotFound(w, r)
 		return
 	}
@@ -344,6 +354,101 @@ func (h Handler) redirectFallback(w http.ResponseWriter, r *http.Request) {
 		target += "?" + r.URL.RawQuery
 	}
 	http.Redirect(w, r, target, rule.Status)
+}
+
+func trackableNotFoundPath(path string) bool {
+	if path == "" || len(path) > 2048 {
+		return false
+	}
+	for _, prefix := range []string{"/admin", "/api", "/auth", "/health", "/metrics", "/ready", "/live", "/.well-known", "/password-reset", "/invite", "/verify-email"} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return false
+		}
+	}
+	return true
+}
+
+func (h Handler) notFoundPaths(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	items, err := h.Service.ListNotFound(r.Context(), 100)
+	if err != nil {
+		http.Error(w, "redirect report unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	rows := make([]ui.NotFoundPathRow, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, ui.NotFoundPathRow{Path: item.Path, Hits: strconv.FormatInt(item.Hits, 10), LastSeen: item.LastSeen.Local().Format("02 Jan 2006 15:04")})
+	}
+	if ui.AdminStartForRequest(w, r, "404 izleyici", "Sık ziyaret edilen eksik bağlantıları yönlendirin", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	if err := ui.NotFoundPaths(rows, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
+		return
+	}
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) convertNotFoundPath(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil || h.Redirects == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+	source, err := canonical.Path(r.FormValue("source"))
+	if err != nil || source == "" || len(source) > 2048 {
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+	source = "/" + source
+	target, err := canonical.Path(r.FormValue("target"))
+	if err != nil || target == "" || len(target) > 2048 {
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+	target = "/" + target
+	id, err := randomID("not-found-")
+	if err != nil {
+		http.Error(w, "redirect could not be saved", http.StatusServiceUnavailable)
+		return
+	}
+	rule := site.RedirectRule{ID: id, Pattern: source, Kind: "exact", TargetPath: target, Status: http.StatusMovedPermanently, CreatedAt: time.Now().UTC()}
+	if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+		rule.TenantID = scope.TenantID
+	}
+	if err := site.ValidateRedirectRule(rule); err != nil {
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+	probe := &site.RedirectRegistry{RequireTenantScope: h.Redirects.RequireTenantScope}
+	tenantID := rule.TenantID
+	if err := probe.Replace(tenantID, h.Redirects.List(tenantID)); err != nil {
+		http.Error(w, "redirect unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := probe.Upsert(rule); err != nil {
+		http.Error(w, "redirect would create a loop", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SaveRedirectRule(r.Context(), rule); err != nil {
+		http.Error(w, "redirect could not be saved", siteStatus(err))
+		return
+	}
+	if err := h.Redirects.Upsert(rule); err != nil {
+		http.Error(w, "redirect unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if err := h.Service.DeleteNotFound(r.Context(), source); err != nil {
+		http.Error(w, "redirect saved; report cleanup unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	http.Redirect(w, r, "/admin/redirects", http.StatusSeeOther)
 }
 
 func (h Handler) redirectRules(w http.ResponseWriter, r *http.Request) {
@@ -383,6 +488,7 @@ func (h Handler) redirectRules(w http.ResponseWriter, r *http.Request) {
 	if ui.AdminStartForRequest(w, r, "Yönlendirmeler", "Eski bağlantıları güncel sayfalara yönetin", security.NonceFromContext(r.Context()), "site") != nil {
 		return
 	}
+	_, _ = io.WriteString(w, `<p><a href="/admin/redirects">Bulunamayan bağlantı raporunu aç</a></p>`)
 	newRuleBody := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
 		for _, component := range []templ.Component{
 			uicomponents.Input(uicomponents.InputProps{ID: "redirect-pattern", Name: "pattern", Label: "Eski yol", Placeholder: "/old-page", Required: true, MaxLength: 512, HasMaxLength: true}),
