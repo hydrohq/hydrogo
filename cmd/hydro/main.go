@@ -59,6 +59,7 @@ import (
 	formsruntime "github.com/ardaozyildirim/hydrogo/internal/forms"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/generator"
+	"github.com/ardaozyildirim/hydrogo/internal/geolocation"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
@@ -1836,6 +1837,22 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			return entries, nil
 		}}
 		siteHTTP.NavigationLocales = cfg.I18N.Locales
+		if modules["forms"] {
+			proxyRanges, geoErr := geolocation.ParseTrustedProxyRanges(cfg.GeoIP.TrustedProxyCIDRs)
+			if geoErr != nil {
+				return fmt.Errorf("configure form geolocation: %w", geoErr)
+			}
+			resolver := geolocation.Resolver{TrustedProxyRanges: proxyRanges}
+			if cfg.GeoIP.DatabasePath != "" {
+				db, openErr := geolocation.OpenMaxMind(cfg.GeoIP.DatabasePath)
+				if openErr != nil {
+					return fmt.Errorf("open form geolocation database: %w", openErr)
+				}
+				defer db.Close()
+				resolver.Database = db
+			}
+			siteHTTP.GeoResolver = resolver
+		}
 		if moduleEnabled(cfg.Modules, "pages") {
 			siteHTTP.NavigationSuggestions = func(suggestionCtx context.Context, locale string) ([]site.NavigationSuggestion, error) {
 				suggestions := make([]site.NavigationSuggestion, 0, 200)

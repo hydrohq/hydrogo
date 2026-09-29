@@ -1,0 +1,3 @@
+ALTER TABLE form_inbox ADD COLUMN location_country_code TEXT NOT NULL DEFAULT '';
+ALTER TABLE form_inbox ADD COLUMN location_city TEXT NOT NULL DEFAULT '';
+ALTER TABLE form_inbox ADD COLUMN location_local BOOLEAN NOT NULL DEFAULT FALSE;

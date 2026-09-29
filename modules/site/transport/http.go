@@ -26,6 +26,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
+	"github.com/ardaozyildirim/hydrogo/internal/geolocation"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
@@ -58,6 +59,9 @@ type Handler struct {
 	Turnstile         interface {
 		Verify(context.Context, string, string) (bool, error)
 	}
+	GeoResolver interface {
+		ResolveRequest(*http.Request) geolocation.Location
+	}
 	MailSpool interface {
 		List(context.Context, string, int) ([]mailer.SpoolEntry, error)
 		RetryNow(context.Context, string) error
@@ -75,6 +79,20 @@ type Handler struct {
 	Realtime              interface {
 		Publish(context.Context, realtime.Event) error
 	}
+}
+
+func submissionLocation(item site.Submission) string {
+	if item.LocationLocal {
+		return "Yerel ağ"
+	}
+	if item.LocationCountryCode == "" {
+		return "—"
+	}
+	label := geolocation.CountryFlag(item.LocationCountryCode) + " " + item.LocationCountryCode
+	if item.LocationCity != "" {
+		label = geolocation.CountryFlag(item.LocationCountryCode) + " " + item.LocationCity
+	}
+	return label
 }
 
 func (h Handler) Routes() []Route {
@@ -561,7 +579,7 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 		if query != "" && !strings.Contains(strings.ToLower(item.Email+" "+item.Payload+" "+item.ID), query) {
 			continue
 		}
-		rows = append(rows, []string{item.Email, item.Status, item.LeadStage, item.AssignedTo, item.CreatedAt.UTC().Format(time.RFC3339)})
+		rows = append(rows, []string{item.Email, item.Status, item.LeadStage, item.AssignedTo, submissionLocation(item), item.CreatedAt.UTC().Format(time.RFC3339)})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if ui.AdminStartForRequest(w, r, "Gelen talepler", "Form gelen kutusu", security.NonceFromContext(r.Context()), "site") != nil {
@@ -573,7 +591,7 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprint(w, `<button class="button button-primary" type="submit">Ara</button></form><p>`)
 	_ = designsystem.ExportLinks([]designsystem.ExportLink{{Label: "CSV indir", URL: "/admin/site/inbox/" + formPath + "/export.csv"}, {Label: "Excel indir", URL: "/admin/site/inbox/" + formPath + "/export.xlsx"}}).Render(r.Context(), w)
 	_, _ = fmt.Fprint(w, `</p>`)
-	_ = uicomponents.Table(uicomponents.TableProps{Caption: "Form talepleri", Columns: []string{"E-posta", "Durum", "Lead aşaması", "Atanan kişi", "Tarih"}, Rows: rows, EmptyMessage: "Eşleşen talep yok."}).Render(r.Context(), w)
+	_ = uicomponents.Table(uicomponents.TableProps{Caption: "Form talepleri", Columns: []string{"E-posta", "Durum", "Lead aşaması", "Atanan kişi", "Konum", "Tarih"}, Rows: rows, EmptyMessage: "Eşleşen talep yok."}).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
 
@@ -662,10 +680,10 @@ func (h Handler) exportInboxCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="form-inbox.csv"`)
 	writer := csv.NewWriter(w)
-	_ = writer.Write([]string{"ID", "Form", "Email", "Created at", "Inbox status", "Lead stage", "Assigned to", "Values"})
+	_ = writer.Write([]string{"ID", "Form", "Email", "Country", "City", "Local network", "Created at", "Inbox status", "Lead stage", "Assigned to", "Values"})
 	for _, item := range items {
 		created := item.CreatedAt.UTC().Format(time.RFC3339)
-		_ = writer.Write([]string{csvSafe(item.ID), csvSafe(item.FormKey), csvSafe(item.Email), created, csvSafe(item.Status), csvSafe(item.LeadStage), csvSafe(item.AssignedTo), csvSafe(item.Payload)})
+		_ = writer.Write([]string{csvSafe(item.ID), csvSafe(item.FormKey), csvSafe(item.Email), item.LocationCountryCode, csvSafe(item.LocationCity), strconv.FormatBool(item.LocationLocal), created, csvSafe(item.Status), csvSafe(item.LeadStage), csvSafe(item.AssignedTo), csvSafe(item.Payload)})
 	}
 	writer.Flush()
 	if err := writer.Error(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
@@ -683,9 +701,9 @@ func (h Handler) exportInboxXLSX(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "inbox unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	rows := [][]string{{"ID", "Form", "Email", "Created at", "Inbox status", "Lead stage", "Assigned to", "Values"}}
+	rows := [][]string{{"ID", "Form", "Email", "Country", "City", "Local network", "Created at", "Inbox status", "Lead stage", "Assigned to", "Values"}}
 	for _, item := range items {
-		rows = append(rows, []string{item.ID, item.FormKey, item.Email, item.CreatedAt.UTC().Format(time.RFC3339), item.Status, item.LeadStage, item.AssignedTo, item.Payload})
+		rows = append(rows, []string{item.ID, item.FormKey, item.Email, item.LocationCountryCode, item.LocationCity, strconv.FormatBool(item.LocationLocal), item.CreatedAt.UTC().Format(time.RFC3339), item.Status, item.LeadStage, item.AssignedTo, item.Payload})
 	}
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", `attachment; filename="form-inbox.xlsx"`)
@@ -902,6 +920,10 @@ func (h Handler) submitForm(w http.ResponseWriter, r *http.Request) {
 	}{Form: formKey, Values: clean})
 	requestHash := sha256.Sum256(requestBytes)
 	submission := site.Submission{ID: "form-" + hex.EncodeToString(idBytes), FormKey: formKey, Email: email, Payload: string(payload), SourceIPHash: hex.EncodeToString(digest[:]), IdempotencyKey: idempotencyKey, RequestHash: hex.EncodeToString(requestHash[:])}
+	if h.GeoResolver != nil {
+		location := h.GeoResolver.ResolveRequest(r)
+		submission.LocationCountryCode, submission.LocationCity, submission.LocationLocal = location.CountryCode, location.City, location.Local
+	}
 	submission.Notifications = formNotifications(form, clean, submission.ID)
 	replayed, err := h.Service.SubmitIdempotent(r.Context(), submission)
 	if err != nil {

@@ -373,3 +373,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0296: Tenant-scoped content view totals in Admin Studio](0296-content-view-admin-metrics.md)
 - [ADR-0297: Published translation hreflang links](0297-published-translation-hreflang.md)
 - [ADR-0298: Public analytics consent choice](0298-public-analytics-consent-choice.md)
+- [ADR-0299: Optional form geolocation](0299-optional-form-geolocation.md)
