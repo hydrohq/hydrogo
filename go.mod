@@ -7,7 +7,7 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/andybalholm/brotli v1.2.5
 	github.com/deepteams/webp v1.2.8
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/graphql-go/graphql v0.8.1
 	github.com/jackc/pgx/v5 v5.11.0
