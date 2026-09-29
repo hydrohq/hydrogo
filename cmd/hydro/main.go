@@ -1685,6 +1685,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if err != nil {
 		return fmt.Errorf("configure redis page cache: %w", err)
 	}
+	var publicHTMLCache *server.PublicHTMLCache
+	if modules["pages"] || modules["news"] {
+		publicHTMLCache = server.NewPublicHTMLCache(server.PublicHTMLCacheOptions{})
+	}
 	staticCacheDir := ""
 	if *cgiMode && (modules["pages"] || modules["news"]) {
 		if documentRoot := strings.TrimSpace(os.Getenv("DOCUMENT_ROOT")); documentRoot != "" {
@@ -1700,11 +1704,16 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		Realtime:     realtimeHub,
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
 	}
-	if staticCacheDir != "" {
+	if staticCacheDir != "" || publicHTMLCache != nil {
 		contentService.PublicRoutePurge = func(locale, slug string) {
 			path := "/public/pages/" + url.PathEscape(locale) + "/" + url.PathEscape(slug) + "/html"
-			if err := server.PurgeStaticDiskCachePath(staticCacheDir, path); err != nil {
-				slog.Warn("published page cache invalidation failed", "error", err)
+			if publicHTMLCache != nil {
+				publicHTMLCache.PurgePath(path)
+			}
+			if staticCacheDir != "" {
+				if err := server.PurgeStaticDiskCachePath(staticCacheDir, path); err != nil {
+					slog.Warn("published page cache invalidation failed", "error", err)
+				}
 			}
 		}
 	}
@@ -2987,7 +2996,23 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
 	}
 	if modules["site"] {
-		routes = append(routes, siteRouterRoutes(siteHTTP.Routes())...)
+		siteRoutes := siteRouterRoutes(siteHTTP.Routes())
+		for i := range siteRoutes {
+			if !strings.HasPrefix(siteRoutes[i].Pattern, "GET ") {
+				original := siteRoutes[i].Handler
+				siteRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					original.ServeHTTP(w, r)
+					if publicHTMLCache != nil {
+						publicHTMLCache.PurgeTag("pages")
+						publicHTMLCache.PurgeTag("news")
+					}
+					if staticCacheDir != "" {
+						_ = server.PurgeStaticDiskCache(staticCacheDir)
+					}
+				})
+			}
+		}
+		routes = append(routes, siteRoutes...)
 	}
 	if modules["news"] {
 		newsRoutes := newsRouterRoutes(newsHTTP.Routes())
@@ -3004,6 +3029,9 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 					}
 					if staticCacheDir != "" {
 						defer server.PurgeStaticDiskCache(staticCacheDir)
+					}
+					if publicHTMLCache != nil {
+						defer publicHTMLCache.PurgeTag("news")
 					}
 					original.ServeHTTP(w, r)
 				})
@@ -3255,6 +3283,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		TLSHost:         cfg.HTTP.Domain,
 		TLSCacheDir:     filepath.Join(filepath.Dir(cfg.Media.Dir), "certs"),
 		RealtimeHub:     realtimeHub,
+		PublicHTMLCache: publicHTMLCache,
 		ShutdownTimeout: budget.ShutdownTimeout,
 		AuthSvc:         authSvc,
 		Metrics:         metrics,
