@@ -1340,6 +1340,9 @@ func TestRunDoctorJSON(t *testing.T) {
 		SchemaMigration   string `json:"schema_migration"`
 		Database          string `json:"database"`
 		MediaWritable     bool   `json:"media_writable"`
+		SQLiteJournalMode string `json:"sqlite_journal_mode"`
+		ForeignKeyIssues  int    `json:"sqlite_foreign_key_violations"`
+		MediaMode         string `json:"media_mode"`
 		BackupTools       string `json:"backup_tools"`
 		WorkerConcurrency int    `json:"worker_concurrency"`
 		DeadLetteredJobs  int64  `json:"dead_lettered_jobs"`
@@ -1347,7 +1350,7 @@ func TestRunDoctorJSON(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if report.Version != version || report.SchemaMigration == "" || report.Database != "sqlite" || !report.MediaWritable || report.BackupTools != "sqlite" || report.WorkerConcurrency != 1 || report.DeadLetteredJobs != 0 {
+	if report.Version != version || report.SchemaMigration == "" || report.Database != "sqlite" || !report.MediaWritable || report.SQLiteJournalMode == "" || report.ForeignKeyIssues != 0 || report.MediaMode != "0750" || report.BackupTools != "sqlite" || report.WorkerConcurrency != 1 || report.DeadLetteredJobs != 0 {
 		t.Fatalf("unexpected doctor report: %+v", report)
 	}
 	mediaDir := filepath.Join(root, "media")

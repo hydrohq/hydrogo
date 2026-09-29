@@ -3061,19 +3061,47 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("database ping: %w", err)
 	}
 	fixes := make([]string, 0, 2)
-	if *fix && cfg.Database.Dialect == database.SQLite {
-		var integrity string
-		if err := db.QueryRowContext(ctx, "PRAGMA integrity_check").Scan(&integrity); err != nil {
-			return fmt.Errorf("database integrity check: %w", err)
+	sqliteJournalMode := ""
+	sqliteForeignKeyViolations := 0
+	if cfg.Database.Dialect == database.SQLite {
+		if err := db.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&sqliteJournalMode); err != nil {
+			return fmt.Errorf("database journal mode check: %w", err)
 		}
-		if integrity != "ok" {
-			return fmt.Errorf("database integrity check found an issue")
+		rows, err := db.QueryContext(ctx, "PRAGMA foreign_key_check")
+		if err != nil {
+			return fmt.Errorf("database foreign key check: %w", err)
 		}
-		var busy, logFrames, checkpointed int
-		if err := db.QueryRowContext(ctx, "PRAGMA wal_checkpoint(PASSIVE)").Scan(&busy, &logFrames, &checkpointed); err != nil {
-			return fmt.Errorf("database WAL checkpoint: %w", err)
+		for rows.Next() {
+			sqliteForeignKeyViolations++
+			if sqliteForeignKeyViolations > 1000 {
+				break
+			}
 		}
-		fixes = append(fixes, "sqlite_wal_checkpoint_passive")
+		rowsErr := rows.Err()
+		_ = rows.Close()
+		if rowsErr != nil {
+			return fmt.Errorf("database foreign key check: %w", rowsErr)
+		}
+		if sqliteForeignKeyViolations != 0 {
+			return fmt.Errorf("database foreign key check found violations")
+		}
+		if *fix {
+			var integrity string
+			if err := db.QueryRowContext(ctx, "PRAGMA integrity_check").Scan(&integrity); err != nil {
+				return fmt.Errorf("database integrity check: %w", err)
+			}
+			if integrity != "ok" {
+				return fmt.Errorf("database integrity check found an issue")
+			}
+			var busy, logFrames, checkpointed int
+			if err := db.QueryRowContext(ctx, "PRAGMA wal_checkpoint(PASSIVE)").Scan(&busy, &logFrames, &checkpointed); err != nil {
+				return fmt.Errorf("database WAL checkpoint: %w", err)
+			}
+			if busy != 0 {
+				return fmt.Errorf("database WAL checkpoint is busy")
+			}
+			fixes = append(fixes, "sqlite_wal_checkpoint_passive")
+		}
 	}
 	if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
 		return fmt.Errorf("schema compatibility: %w", err)
@@ -3081,16 +3109,19 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	if err := os.MkdirAll(cfg.Media.Dir, 0o750); err != nil {
 		return fmt.Errorf("media directory: %w", err)
 	}
+	mediaMode := ""
+	info, err := os.Stat(cfg.Media.Dir)
+	if err != nil {
+		return fmt.Errorf("media directory: %w", err)
+	}
+	mediaMode = fmt.Sprintf("%04o", info.Mode().Perm())
 	if *fix {
-		info, err := os.Stat(cfg.Media.Dir)
-		if err != nil {
-			return fmt.Errorf("media directory: %w", err)
-		}
 		if info.Mode().Perm() != 0o750 {
 			if err := os.Chmod(cfg.Media.Dir, 0o750); err != nil {
 				return fmt.Errorf("media directory permissions: %w", err)
 			}
 			fixes = append(fixes, "media_directory_mode_0750")
+			mediaMode = "0750"
 		}
 	}
 	if err := checkDirectoryWritable(cfg.Media.Dir); err != nil {
@@ -3117,30 +3148,33 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		data, err := json.Marshal(struct {
-			Version           string   `json:"version"`
-			Commit            string   `json:"commit"`
-			BuildTime         string   `json:"build_time"`
-			SchemaMigration   string   `json:"schema_migration"`
-			Profile           string   `json:"profile"`
-			Database          string   `json:"database"`
-			BackupTools       string   `json:"backup_tools"`
-			CacheEntries      int      `json:"cache_entries"`
-			QueueEntries      int      `json:"queue_entries"`
-			WorkerConcurrency int      `json:"worker_concurrency"`
-			DeadLetteredJobs  int64    `json:"dead_lettered_jobs"`
-			MediaMaxBytes     int64    `json:"media_max_bytes"`
-			MediaWritable     bool     `json:"media_writable"`
-			SecureCookies     bool     `json:"secure_cookies"`
-			HSTS              bool     `json:"hsts"`
-			Fixes             []string `json:"fixes,omitempty"`
-		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS, Fixes: fixes})
+			Version                    string   `json:"version"`
+			Commit                     string   `json:"commit"`
+			BuildTime                  string   `json:"build_time"`
+			SchemaMigration            string   `json:"schema_migration"`
+			Profile                    string   `json:"profile"`
+			Database                   string   `json:"database"`
+			BackupTools                string   `json:"backup_tools"`
+			CacheEntries               int      `json:"cache_entries"`
+			QueueEntries               int      `json:"queue_entries"`
+			WorkerConcurrency          int      `json:"worker_concurrency"`
+			DeadLetteredJobs           int64    `json:"dead_lettered_jobs"`
+			MediaMaxBytes              int64    `json:"media_max_bytes"`
+			MediaWritable              bool     `json:"media_writable"`
+			SecureCookies              bool     `json:"secure_cookies"`
+			HSTS                       bool     `json:"hsts"`
+			Fixes                      []string `json:"fixes,omitempty"`
+			SQLiteJournalMode          string   `json:"sqlite_journal_mode,omitempty"`
+			SQLiteForeignKeyViolations int      `json:"sqlite_foreign_key_violations,omitempty"`
+			MediaMode                  string   `json:"media_mode"`
+		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS, Fixes: fixes, SQLiteJournalMode: sqliteJournalMode, SQLiteForeignKeyViolations: sqliteForeignKeyViolations, MediaMode: mediaMode})
 		if err != nil {
 			return err
 		}
 		_, err = fmt.Fprintln(stdout, string(data))
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "profile=%s database=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d fixes=%s\n", cfg.Profile, cfg.Database.Dialect, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes, strings.Join(fixes, ","))
+	_, err = fmt.Fprintf(stdout, "profile=%s database=%s sqlite_journal_mode=%s sqlite_foreign_key_violations=%d media_mode=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d fixes=%s\n", cfg.Profile, cfg.Database.Dialect, sqliteJournalMode, sqliteForeignKeyViolations, mediaMode, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes, strings.Join(fixes, ","))
 	return err
 }
 
