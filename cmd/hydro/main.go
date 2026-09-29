@@ -114,16 +114,6 @@ type pageCache interface {
 	Stats() cache.Stats
 }
 
-type pageCacheWithStaticInvalidation struct {
-	pageCache
-	staticCacheDir string
-}
-
-func (c pageCacheWithStaticInvalidation) Clear() {
-	c.pageCache.Clear()
-	_ = server.PurgeStaticDiskCache(c.staticCacheDir)
-}
-
 const version = "0.0.0-dev"
 
 var (
@@ -1700,9 +1690,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if documentRoot := strings.TrimSpace(os.Getenv("DOCUMENT_ROOT")); documentRoot != "" {
 			staticCacheDir = filepath.Join(documentRoot, "static_cache")
 		}
-		if publicPageCache != nil {
-			publicPageCache = pageCacheWithStaticInvalidation{pageCache: publicPageCache, staticCacheDir: staticCacheDir}
-		}
 	}
 	contentService := pageservice.ContentService{
 		Transactions: transactioner,
@@ -1712,6 +1699,14 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		PublicCache:  publicPageCache,
 		Realtime:     realtimeHub,
 		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
+	}
+	if staticCacheDir != "" {
+		contentService.PublicRoutePurge = func(locale, slug string) {
+			path := "/public/pages/" + url.PathEscape(locale) + "/" + url.PathEscape(slug) + "/html"
+			if err := server.PurgeStaticDiskCachePath(staticCacheDir, path); err != nil {
+				slog.Warn("published page cache invalidation failed", "error", err)
+			}
+		}
 	}
 	var sqliteCacheConn *sql.Conn
 	if !*cgiMode && cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && publicPageCache != nil {
@@ -2246,9 +2241,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 					if pageLLMSCache != nil {
 						defer pageLLMSCache.Invalidate()
 					}
-					if staticCacheDir != "" {
-						defer server.PurgeStaticDiskCache(staticCacheDir)
-					}
 					original.ServeHTTP(w, r)
 				})
 			}
@@ -2554,7 +2546,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 					return
 				}
 			}
-			for _, pair := range []struct{ input string; exclusive bool }{{"from", false}, {"until", true}} {
+			for _, pair := range []struct {
+				input     string
+				exclusive bool
+			}{{"from", false}, {"until", true}} {
 				if raw := query.Get(pair.input); raw != "" {
 					day, err := time.Parse("2006-01-02", raw)
 					if err != nil {

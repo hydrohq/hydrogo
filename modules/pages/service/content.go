@@ -101,7 +101,8 @@ type ContentService struct {
 		Clear()
 		Stats() cache.Stats
 	}
-	Sanitize func(string) string
+	PublicRoutePurge func(locale, slug string)
+	Sanitize         func(string) string
 	// SupportedLocales and DefaultLocale enable an opt-in, deterministic
 	// public lookup fallback. An empty SupportedLocales preserves exact-only
 	// behavior for deployments that do not configure i18n.
@@ -221,7 +222,23 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 	if err := s.requireMutationDependencies(); err != nil {
 		return err
 	}
+	oldLocale, oldSlug, newLocale, newSlug := "", "", "", ""
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		page, err := s.Pages.GetContent(ctx, tx, pageID)
+		if err != nil {
+			return err
+		}
+		newLocale, newSlug = page.Locale, page.Slug
+		if page.PublishedRevision != nil {
+			if reader, ok := s.Pages.(interface {
+				GetRevisionSlug(context.Context, database.Executor, string, int) (string, string, error)
+			}); ok {
+				oldLocale, oldSlug, err = reader.GetRevisionSlug(ctx, tx, pageID, *page.PublishedRevision)
+				if err != nil {
+					return err
+				}
+			}
+		}
 		if err := s.Pages.Publish(ctx, tx, pageID, expectedVersion); err != nil {
 			return err
 		}
@@ -237,6 +254,13 @@ func (s ContentService) Publish(ctx context.Context, pageID string, expectedVers
 		// Invalidate only after the publication transaction commits. Clearing
 		// inside the transaction can create a refill race for rolled-back data.
 		s.PublicCache.Clear()
+	}
+	if err == nil && s.PublicRoutePurge != nil {
+		for _, route := range [][2]string{{oldLocale, oldSlug}, {newLocale, newSlug}} {
+			if route[0] != "" && route[1] != "" {
+				s.PublicRoutePurge(route[0], route[1])
+			}
+		}
 	}
 	if err == nil {
 		s.publishEvent(ctx, pageID, "published", expectedVersion+1)

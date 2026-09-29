@@ -182,11 +182,30 @@ func PurgeStaticDiskCachePath(baseDir, urlPath string) error {
 	if baseDir == "" {
 		return nil
 	}
-	targetFile, err := staticCachePathForHost(baseDir, "localhost", urlPath)
+	if !staticCacheURLPath(urlPath) {
+		return errors.New("unsupported static HTML cache path")
+	}
+	hosts, err := os.ReadDir(baseDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	return os.Remove(targetFile)
+	var firstErr error
+	for _, host := range hosts {
+		if !host.IsDir() || !staticCacheHostSegment.MatchString(host.Name()) {
+			continue
+		}
+		targetFile, err := staticCachePathForHost(baseDir, host.Name(), urlPath)
+		if err == nil {
+			err = os.Remove(targetFile)
+		}
+		if err != nil && !errors.Is(err, os.ErrNotExist) && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 func staticHTMLRequestAllowed(r *http.Request, sessionCookie string, excluded []string) bool {

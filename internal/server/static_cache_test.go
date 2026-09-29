@@ -31,6 +31,27 @@ func TestStaticDiskCacheMiddleware(t *testing.T) {
 	}
 }
 
+func TestPurgeStaticDiskCachePathRemovesEveryHostVariant(t *testing.T) {
+	root := t.TempDir()
+	for _, host := range []string{"localhost", "example.test"} {
+		if err := writeCachedFileForHostLimit(root, host, publicPagePath, []byte("cached"), 10, 1<<20); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := PurgeStaticDiskCachePath(root, publicPagePath); err != nil {
+		t.Fatal(err)
+	}
+	for _, host := range []string{"localhost", "example.test"} {
+		path, err := staticCachePathForHost(root, host, publicPagePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("host cache %q remains: %v", host, err)
+		}
+	}
+}
+
 func TestStaticDiskCacheRejectsUnsafeOrVariantRequests(t *testing.T) {
 	root := t.TempDir()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
