@@ -1,4 +1,4 @@
-# ADR-0287: Maintenance mode request gate
+# ADR-0318: Maintenance mode request gate
 
 - **Status:** Accepted for the opt-in request-gate contract
 - **Date:** 2026-09-29

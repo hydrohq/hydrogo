@@ -45,6 +45,18 @@ func TestAdminShellShowsMaintenanceBanner(t *testing.T) {
 	}
 }
 
+func TestAdminShellShowsBrokenLinksWarning(t *testing.T) {
+	request := httptest.NewRequest("GET", "/admin", nil)
+	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{BrokenLinksActive: true, BrokenLinksJobID: "report"}))
+	var out bytes.Buffer
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "erişilemeyen bağlantılar") || !strings.Contains(out.String(), "/admin/site/link-check?job=report") || !strings.Contains(out.String(), "Bağlantı denetimi") {
+		t.Fatalf("broken links warning missing from admin shell")
+	}
+}
+
 func TestAdminUserPermissionEditorUsesEditionCatalog(t *testing.T) {
 	var out bytes.Buffer
 	err := RenderAdminArea(&out, AdminAreaData{

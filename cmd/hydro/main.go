@@ -63,6 +63,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
+	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	mailstore "github.com/ardaozyildirim/hydrogo/internal/mailer/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
@@ -276,6 +277,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return eventsCommand(args[1:], stdout)
 	case "fonts":
 		return fontsCommand(args[1:], stdout)
+	case "scan-links":
+		return scanLinksCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -1809,6 +1812,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	var siteService site.Service
 	var siteHTTP sitetransport.Handler
+	var linkScanManager *linkcheck.Manager
 	var redirectRegistry *site.RedirectRegistry
 	if modules["site"] {
 		siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
@@ -1847,7 +1851,8 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if sitemapOrigin == "" && cfg.HTTP.Address != "" {
 			sitemapOrigin = "http://" + cfg.HTTP.Address
 		}
-		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Media: &mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormsEnabled: modules["forms"], Realtime: realtimeHub, SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+		linkScanManager = linkcheck.NewManager(linkcheck.Options{MaxPages: 500, MaxTargets: 5000, MaxFindings: 1000, Concurrency: 4, RequestDelay: 100 * time.Millisecond})
+		siteHTTP = sitetransport.Handler{DB: db, Store: siteStore, Service: &siteService, Media: &mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormsEnabled: modules["forms"], Realtime: realtimeHub, SitemapOrigin: sitemapOrigin, LinkScanManager: linkScanManager, LinkScanLimiter: newRateLimiter(1, time.Minute), SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 			published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 			if err != nil {
 				return nil, err
@@ -2385,6 +2390,17 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if user == nil || !user.Active {
 			http.Error(w, "Bu alana erişmek için giriş yapın.", http.StatusUnauthorized)
 			return
+		}
+		if linkScanManager != nil {
+			tenantKey := "default"
+			if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+				tenantKey = scope.TenantID
+			}
+			if job, ok := linkScanManager.Latest(tenantKey); ok && len(job.Findings) > 0 {
+				support := adminstudio.SupportConfigFromContext(r.Context())
+				support.BrokenLinksActive, support.BrokenLinksJobID = true, job.ID
+				r = r.WithContext(adminstudio.WithSupportConfig(r.Context(), support))
+			}
 		}
 		if user.Role == auth.RoleEditor && r.URL.Path == "/admin" {
 			securityNotice, noticeErr := userStore.LoginSecuritySummary(r.Context(), user.ID)
@@ -5654,6 +5670,7 @@ Usage:
   hydro tenant list [runtime flags]
   hydro events catalog
   hydro fonts add FAMILY [--out public/fonts]
+  hydro scan-links --url https://example.test [--max-pages 500] [--concurrency 4] [--delay 100ms]
   hydro module create --spec SPEC --out OUTPUT
   hydro module new --spec SPEC --out OUTPUT
   hydro resource create --spec SPEC --out OUTPUT
