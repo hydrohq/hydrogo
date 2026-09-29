@@ -65,6 +65,18 @@ func TestFormBuilderRoutesArePresent(t *testing.T) {
 	}
 }
 
+func TestSocialLinkEditorRoutesArePresent(t *testing.T) {
+	got := map[string]bool{}
+	for _, route := range (Handler{}).Routes() {
+		got[route.Pattern] = true
+	}
+	for _, pattern := range []string{"GET /admin/site/social-links", "POST /admin/site/social-links"} {
+		if !got[pattern] {
+			t.Errorf("missing social profile route %q", pattern)
+		}
+	}
+}
+
 func TestInboxXLSXExportIsAvailableToSiteAdmins(t *testing.T) {
 	handler := Handler{Store: fakeStore{}, DB: fakeExecutor{}}
 	request := httptest.NewRequest(http.MethodGet, "/admin/site/inbox/contact/export.xlsx", nil)

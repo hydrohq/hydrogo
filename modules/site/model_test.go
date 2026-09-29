@@ -79,6 +79,25 @@ func TestContactWidgetSettingsRoundTripAndValidation(t *testing.T) {
 	}
 }
 
+func TestNormalizeSocialProfilesAcceptsOnlyPlatformHosts(t *testing.T) {
+	profiles, err := NormalizeSocialProfiles([]SocialProfile{{Platform: "instagram", URL: "https://www.instagram.com/hydrogo"}, {Platform: "github", URL: "https://github.com/hydrogo"}})
+	if err != nil || len(profiles) != 2 {
+		t.Fatalf("valid profiles = %#v, error=%v", profiles, err)
+	}
+	for _, invalid := range [][]SocialProfile{
+		{{Platform: "instagram", URL: "https://instagram.attacker.test/hydrogo"}},
+		{{Platform: "youtube", URL: "http://youtube.com/hydrogo"}},
+		{{Platform: "github", URL: "https://user:secret@github.com/hydrogo"}},
+		{{Platform: "github", URL: "https://github.com:444/hydrogo"}},
+		{{Platform: "myspace", URL: "https://myspace.com/hydrogo"}},
+		{{Platform: "github", URL: "https://github.com/a"}, {Platform: "github", URL: "https://github.com/b"}},
+	} {
+		if _, err := NormalizeSocialProfiles(invalid); err != ErrInvalidSetting {
+			t.Fatalf("invalid profiles %#v error=%v", invalid, err)
+		}
+	}
+}
+
 func TestValidateSubmissionLocationMetadata(t *testing.T) {
 	base := Submission{ID: "submission-1", FormKey: "contact", Email: "visitor@example.test", SourceIPHash: "hash", Payload: `{}`}
 	for _, tc := range []struct {

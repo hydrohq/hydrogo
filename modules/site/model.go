@@ -1,10 +1,12 @@
 package site
 
 import (
+	"encoding/json"
 	"errors"
 	"net/mail"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -40,6 +42,66 @@ type ContactWidget struct {
 	Message        string
 	Position       string
 	MobileOnly     bool
+}
+
+type SocialProfile struct{ Platform, URL string }
+
+var socialPlatforms = []string{"instagram", "linkedin", "youtube", "twitter_x", "tiktok", "facebook", "github"}
+
+func NormalizeSocialProfiles(profiles []SocialProfile) ([]SocialProfile, error) {
+	values := make(map[string]string, len(profiles))
+	for _, profile := range profiles {
+		platform, raw := strings.TrimSpace(profile.Platform), strings.TrimSpace(profile.URL)
+		if !slices.Contains(socialPlatforms, platform) {
+			return nil, ErrInvalidSetting
+		}
+		if _, exists := values[platform]; exists {
+			return nil, ErrInvalidSetting
+		}
+		if raw == "" {
+			continue
+		}
+		parsed, err := url.Parse(raw)
+		if err != nil || parsed.Scheme != "https" || parsed.User != nil || parsed.Hostname() == "" || parsed.Port() != "" || parsed.RawQuery != "" || parsed.Fragment != "" || !socialHostAllowed(platform, strings.ToLower(parsed.Hostname())) {
+			return nil, ErrInvalidSetting
+		}
+		values[platform] = parsed.String()
+	}
+	result := make([]SocialProfile, 0, len(values))
+	for _, platform := range socialPlatforms {
+		if value := values[platform]; value != "" {
+			result = append(result, SocialProfile{Platform: platform, URL: value})
+		}
+	}
+	return result, nil
+}
+
+func socialHostAllowed(platform, host string) bool {
+	domains := map[string][]string{"instagram": {"instagram.com"}, "linkedin": {"linkedin.com"}, "youtube": {"youtube.com", "youtu.be"}, "twitter_x": {"x.com", "twitter.com"}, "tiktok": {"tiktok.com"}, "facebook": {"facebook.com", "fb.com", "fb.me"}, "github": {"github.com"}}
+	for _, domain := range domains[platform] {
+		if host == domain || strings.HasSuffix(host, "."+domain) {
+			return true
+		}
+	}
+	return false
+}
+
+func SocialProfilesFromSettings(settings []Setting) []SocialProfile {
+	for _, setting := range settings {
+		if setting.Key != "site.social_profiles" || !setting.Public {
+			continue
+		}
+		var profiles []SocialProfile
+		if json.Unmarshal([]byte(setting.Value), &profiles) != nil {
+			return nil
+		}
+		valid, err := NormalizeSocialProfiles(profiles)
+		if err != nil {
+			return nil
+		}
+		return valid
+	}
+	return nil
 }
 
 func ContactWidgetFromSettings(settings []Setting) ContactWidget {

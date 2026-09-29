@@ -110,6 +110,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/appearance", Handler: http.HandlerFunc(h.saveAppearance)},
 		{Pattern: "GET /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.contactWidget)},
 		{Pattern: "POST /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.saveContactWidget)},
+		{Pattern: "GET /admin/site/social-links", Handler: http.HandlerFunc(h.socialLinks)},
+		{Pattern: "POST /admin/site/social-links", Handler: http.HandlerFunc(h.saveSocialLinks)},
 		{Pattern: "GET /admin/site/seo", Handler: http.HandlerFunc(h.seoSettings)},
 		{Pattern: "POST /admin/site/seo", Handler: http.HandlerFunc(h.saveSEOSettings)},
 		{Pattern: "POST /admin/site/redirects", Handler: http.HandlerFunc(h.saveRedirect)},
@@ -147,6 +149,48 @@ func (h Handler) Routes() []Route {
 		)
 	}
 	return routes
+}
+
+func (h Handler) socialLinks(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil || guards.IsNil(h.Store) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	settings, err := h.Store.ListPublicSettings(r.Context(), h.DB)
+	if err != nil {
+		http.Error(w, "social settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	urls := make(map[string]string)
+	for _, profile := range site.SocialProfilesFromSettings(settings) {
+		urls[profile.Platform] = profile.URL
+	}
+	if ui.AdminStartForRequest(w, r, "Sosyal bağlantılar", "Marka profillerini yönetin", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	_ = designsystem.SocialAccounts(designsystem.SocialAccountsProps{CSRF: security.CSRFTokenFromContext(r.Context()), URLs: urls}).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveSocialLinks(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid social links", http.StatusBadRequest)
+		return
+	}
+	profiles := make([]site.SocialProfile, 0, len(designsystem.SocialAccountPlatforms()))
+	for _, platform := range designsystem.SocialAccountPlatforms() {
+		profiles = append(profiles, site.SocialProfile{Platform: platform, URL: r.FormValue("social_" + platform)})
+	}
+	if err := h.Service.SaveSocialProfiles(r.Context(), profiles); err != nil {
+		http.Error(w, "invalid social links", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/social-links?saved=1", http.StatusSeeOther)
 }
 
 func (h Handler) contactWidget(w http.ResponseWriter, r *http.Request) {

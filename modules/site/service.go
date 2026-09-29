@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -150,6 +151,26 @@ func (s Service) SaveContactWidget(ctx context.Context, value ContactWidget) err
 			}
 		}
 		return s.audit(ctx, tx, "site.contact_widget.updated", "contact widget")
+	})
+}
+
+func (s Service) SaveSocialProfiles(ctx context.Context, profiles []SocialProfile) error {
+	profiles, err := NormalizeSocialProfiles(profiles)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(profiles)
+	if err != nil {
+		return ErrInvalidSetting
+	}
+	if err := s.requireStore(); err != nil {
+		return err
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if err := s.Store.UpsertSetting(ctx, tx, Setting{Key: "site.social_profiles", Value: string(payload), Public: true}); err != nil {
+			return err
+		}
+		return s.audit(ctx, tx, "site.social_profiles.updated", "social profiles")
 	})
 }
 
