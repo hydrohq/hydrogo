@@ -164,7 +164,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /public/pages/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
 		{Pattern: "GET /api/pages/by-slug", Handler: http.HandlerFunc(h.getPublishedByQuery)},
 		{Pattern: "GET /public/pages/{locale}/{slug}/html", Handler: http.HandlerFunc(h.getPublishedHTML)},
-		{Pattern: "GET /og/{locale}/{slug}.png", Handler: http.HandlerFunc(h.openGraphImage)},
+		{Pattern: "GET /og/{locale}/{slug}", Handler: http.HandlerFunc(h.openGraphImage)},
 		{Pattern: "GET /admin/pages/new", Handler: http.HandlerFunc(h.adminNewPage), Protected: true},
 		{Pattern: "GET /admin/pages/import", Handler: http.HandlerFunc(h.adminImport), Protected: true},
 		{Pattern: "POST /admin/pages/import", Handler: http.HandlerFunc(h.adminImport), Protected: true},
@@ -1069,7 +1069,10 @@ func (h Handler) openGraphImage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
+	// Clients request /og/{locale}/{slug}.png; ServeMux wildcards must own a
+	// whole segment, so the .png suffix is parsed here instead of the pattern.
+	slug := strings.TrimSuffix(r.PathValue("slug"), ".png")
+	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), slug)
 	if err != nil || !h.publicPageAllowed(page) {
 		http.NotFound(w, r)
 		return
