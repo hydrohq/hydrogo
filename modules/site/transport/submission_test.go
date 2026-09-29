@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/ai"
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
@@ -19,6 +22,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
@@ -28,6 +32,68 @@ type verifierStub struct {
 	valid bool
 	seen  string
 }
+
+type aiSummaryProvider struct{ request ai.Request }
+
+func (p *aiSummaryProvider) Suggest(_ context.Context, request ai.Request) (ai.Suggestion, error) {
+	p.request = request
+	return ai.Suggestion{Body: "Summary without contact details"}, nil
+}
+
+type aiAuditRecorder struct{ action, target string }
+
+func (a *aiAuditRecorder) Record(_ context.Context, _ database.Executor, _, action, target string) error {
+	a.action, a.target = action, target
+	return nil
+}
+
+func TestInboxAISummaryRequiresConsentAndDoesNotPersistContent(t *testing.T) {
+	handler, _ := submissionHandler(t, forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{
+		{ID: "email", Type: forms.Email, Label: "Email", Required: true},
+		{ID: "message", Type: forms.Textarea, Label: "Message", Required: true},
+	}})
+	values := url.Values{"email": {"visitor@example.test"}, "message": {"Need help with my order"}, "_submission_token": {"ai-summary-submission-token-123"}}
+	if response := submitRequest(handler, values); response.Code != http.StatusAccepted {
+		t.Fatalf("submission status=%d body=%s", response.Code, response.Body.String())
+	}
+	items, err := handler.Store.ListSubmissions(context.Background(), handler.DB, "contact", 10)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("submissions=%+v err=%v", items, err)
+	}
+	provider, auditLog := &aiSummaryProvider{}, &aiAuditRecorder{}
+	handler.Assistant = ai.Assistant{Enabled: true, Provider: provider}
+	handler.AIAudit = auditLog
+	post := func(consent string) *httptest.ResponseRecorder {
+		form := url.Values{"submission_id": {items[0].ID}, "consent": {consent}, "_csrf": {"csrf-inbox-ai"}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/inbox/contact/ai-summarize", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-inbox-ai"})
+		request.SetPathValue("form", "contact")
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin-1", Role: auth.RoleAdmin, Active: true}))
+		response := httptest.NewRecorder()
+		security.CSRFMiddleware(false)(http.HandlerFunc(handler.summarizeInboxAI)).ServeHTTP(response, request)
+		return response
+	}
+	denied := post("")
+	if denied.Code != http.StatusBadRequest || provider.request.Body != "" || auditLog.action != "" {
+		t.Fatalf("missing consent status=%d request=%+v audit=%+v", denied.Code, provider.request, auditLog)
+	}
+	accepted := post("yes")
+	if accepted.Code != http.StatusOK || !strings.Contains(accepted.Body.String(), "Summary without contact details") {
+		t.Fatalf("summary status=%d body=%q", accepted.Code, accepted.Body.String())
+	}
+	if provider.request.Operation != ai.Summary || !strings.Contains(provider.request.Body, "Need help with my order") || strings.Contains(provider.request.Body, "visitor@example.test") {
+		t.Fatalf("provider received unsafe summary request: %+v", provider.request)
+	}
+	if auditLog.action != "ai.submission.summary.requested" || auditLog.target != "submission:"+items[0].ID {
+		t.Fatalf("submission audit=%+v", auditLog)
+	}
+	if strings.Contains(accepted.Body.String(), "Need help with my order") {
+		t.Fatal("raw form content was returned in the summary page")
+	}
+}
+
+var _ audit.Writer = (*aiAuditRecorder)(nil)
 
 type realtimeRecorder struct{ events []realtime.Event }
 

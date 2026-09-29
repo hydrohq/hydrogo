@@ -23,7 +23,9 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -88,6 +90,12 @@ type Handler struct {
 	LinkScanManager    *linkcheck.Manager
 	LinkScanLimiter    security.RateLimiter
 	RequireTenantScope bool
+	Assistant          ai.Assistant
+	AIAudit            audit.Writer
+}
+
+func (h Handler) assistantEnabled() bool {
+	return h.Assistant.Enabled && h.Assistant.Provider != nil && h.AIAudit != nil
 }
 
 func submissionLocation(item site.Submission) string {
@@ -169,6 +177,9 @@ func (h Handler) Routes() []Route {
 			Route{Pattern: "POST /forms/{form}/submit", Public: true, Handler: http.HandlerFunc(h.submitForm)},
 			Route{Pattern: "POST /forms/{form}/view", Public: true, Handler: http.HandlerFunc(h.recordFormView)},
 		)
+		if h.assistantEnabled() {
+			routes = append(routes, Route{Pattern: "POST /admin/site/inbox/{form}/ai-summarize", Handler: http.HandlerFunc(h.summarizeInboxAI)})
+		}
 	}
 	return routes
 }
@@ -1191,7 +1202,74 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 	_ = designsystem.ExportLinks([]designsystem.ExportLink{{Label: "CSV indir", URL: "/admin/site/inbox/" + formPath + "/export.csv"}, {Label: "Excel indir", URL: "/admin/site/inbox/" + formPath + "/export.xlsx"}}).Render(r.Context(), w)
 	_, _ = fmt.Fprint(w, `</p>`)
 	_ = uicomponents.Table(uicomponents.TableProps{Caption: "Form talepleri", Columns: []string{"E-posta", "Durum", "Lead aşaması", "Atanan kişi", "Konum", "Tarih"}, Rows: rows, EmptyMessage: "Eşleşen talep yok."}).Render(r.Context(), w)
+	if h.assistantEnabled() {
+		options := make([]designsystem.AIInboxOption, 0, len(items))
+		for _, item := range items {
+			options = append(options, designsystem.AIInboxOption{ID: item.ID, Label: "Talep · " + item.CreatedAt.UTC().Format("2006-01-02 15:04 UTC")})
+		}
+		summary := ""
+		if result, ok := r.Context().Value(aiInboxSummaryKey{}).(aiInboxSummary); ok && result.Form == r.PathValue("form") {
+			summary = result.Text
+		}
+		action := "/admin/site/inbox/" + url.PathEscape(r.PathValue("form")) + "/ai-summarize"
+		_ = designsystem.AIInboxSummary(options, action, security.CSRFTokenFromContext(r.Context()), summary).Render(r.Context(), w)
+	}
 	_ = ui.AdminEnd(w)
+}
+
+type aiInboxSummaryKey struct{}
+
+type aiInboxSummary struct{ Form, Text string }
+
+func (h Handler) summarizeInboxAI(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !h.admin(r) || !h.assistantEnabled() || h.Service == nil || user == nil || !user.Active {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if r.FormValue("consent") != "yes" || strings.TrimSpace(r.FormValue("submission_id")) == "" {
+		http.Error(w, "Form yanıtı seçin ve içerik paylaşımını onaylayın.", http.StatusBadRequest)
+		return
+	}
+	items, err := h.Store.ListSubmissions(r.Context(), h.DB, r.PathValue("form"), 100)
+	if err != nil {
+		http.Error(w, "Form yanıtı şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	var selected *site.Submission
+	for i := range items {
+		if items[i].ID == r.FormValue("submission_id") {
+			selected = &items[i]
+			break
+		}
+	}
+	if selected == nil {
+		http.Error(w, "Form yanıtı bulunamadı.", http.StatusNotFound)
+		return
+	}
+	if err := h.Service.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		auditID := "ai-submission-" + fmt.Sprintf("%x", sha256.Sum256([]byte(selected.ID+"\x00"+user.ID+"\x00"+time.Now().UTC().Format(time.RFC3339Nano))))[:32]
+		return h.AIAudit.Record(r.Context(), tx, auditID, "ai.submission.summary.requested", "submission:"+selected.ID)
+	}); err != nil {
+		http.Error(w, "Özet hizmeti şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		return
+	}
+	result, err := h.Assistant.Suggest(r.Context(), ai.Request{Operation: ai.Summary, Locale: "tr", Title: "Form yanıtları", Body: selected.Payload, Consent: true})
+	if err != nil {
+		status := http.StatusServiceUnavailable
+		if errors.Is(err, ai.ErrInvalidRequest) {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, "Özet oluşturulamadı. Form yanıtı değiştirilmedi.", status)
+		return
+	}
+	ctx := context.WithValue(r.Context(), aiInboxSummaryKey{}, aiInboxSummary{Form: r.PathValue("form"), Text: result.Body})
+	h.inbox(w, r.WithContext(ctx))
 }
 
 func (h Handler) inboxStatus(w http.ResponseWriter, r *http.Request) {
