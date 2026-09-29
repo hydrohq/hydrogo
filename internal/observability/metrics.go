@@ -424,7 +424,12 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration,
 	if m == nil || r == nil || len(r.URL.Path) == 0 || len(r.URL.Path) > 128 || !trackablePath(r.URL.Path) {
 		return
 	}
-	path := normalizeRoute(r.URL.Path)
+	path := r.URL.Path
+	if r.Pattern != "" {
+		path = r.Pattern
+	} else {
+		path = normalizeRoute(r.URL.Path)
+	}
 	m.pathMu.Lock()
 	if m.paths == nil {
 		m.paths = make(map[string]PathStats)

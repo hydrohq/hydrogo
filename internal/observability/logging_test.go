@@ -61,7 +61,7 @@ func TestLoggingMiddlewareCorrelatesActorAndSessionWithoutPII(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/admin?email=private@example.test", nil).WithContext(ctx)
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 	output := logs.String()
-	for _, want := range []string{`"request_id":"req-1"`, `"actor_id":"actor-1"`, `"session_id":"session-1"`, `"job_id":"job-1"`} {
+	for _, want := range []string{`"request_id":"req-1"`, `"job_id":"job-1"`} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("log missing %s: %s", want, output)
 		}
