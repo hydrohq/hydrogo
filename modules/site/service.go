@@ -14,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/forms"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 type Store interface {
@@ -65,6 +66,10 @@ type AuditWriter interface {
 	Record(context.Context, database.Executor, string, string, string) error
 }
 
+type FormSubmissionMetrics interface {
+	RecordFormSubmission(context.Context, database.Executor, string, string, time.Time) error
+}
+
 type FormRegistry interface {
 	Upsert(context.Context, forms.Form) error
 	UpsertWithExecutor(context.Context, database.Executor, forms.Form) error
@@ -75,11 +80,13 @@ type FormRegistry interface {
 }
 
 type Service struct {
-	Transactions database.Transactor
-	Store        Store
-	Audit        AuditWriter
-	Forms        FormRegistry
-	MailQueue    TransactionalMailQueue
+	Transactions       database.Transactor
+	Store              Store
+	Audit              AuditWriter
+	Forms              FormRegistry
+	MailQueue          TransactionalMailQueue
+	FormMetrics        FormSubmissionMetrics
+	RequireTenantScope bool
 }
 
 func (s Service) SaveForm(ctx context.Context, form forms.Form) error {
@@ -450,6 +457,9 @@ func (s Service) submit(ctx context.Context, value Submission, idempotent bool) 
 			if err := s.Store.CreateSubmission(ctx, tx, value); err != nil {
 				return err
 			}
+			if err := s.recordFormSubmissionMetric(ctx, tx, value.FormKey); err != nil {
+				return err
+			}
 			if err := s.enqueueNotifications(ctx, tx, value.Notifications); err != nil {
 				return err
 			}
@@ -481,6 +491,9 @@ func (s Service) submit(ctx context.Context, value Submission, idempotent bool) 
 			}
 			return err
 		}
+		if err := s.recordFormSubmissionMetric(ctx, tx, value.FormKey); err != nil {
+			return err
+		}
 		if err := s.enqueueNotifications(ctx, tx, value.Notifications); err != nil {
 			return err
 		}
@@ -500,6 +513,19 @@ func (s Service) submit(ctx context.Context, value Submission, idempotent bool) 
 		})
 	}
 	return replayed, err
+}
+
+func (s Service) recordFormSubmissionMetric(ctx context.Context, tx database.Executor, formID string) error {
+	if s.FormMetrics == nil {
+		return nil
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(ctx); err == nil {
+		tenantID = scope.TenantID
+	} else if s.RequireTenantScope {
+		return err
+	}
+	return s.FormMetrics.RecordFormSubmission(ctx, tx, tenantID, formID, time.Now().UTC())
 }
 
 func (s Service) SetSubmissionStatus(ctx context.Context, id, status string) error {

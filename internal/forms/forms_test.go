@@ -78,7 +78,7 @@ func TestPublicFormUsesNativeAccessibleControlsAndSpamFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := output.String()
-	for _, want := range []string{`action="/forms/contact/submit"`, `name="_csrf" value="csrf-token"`, `name="_submission_token" value="0123456789abcdef"`, `name="website_url"`, `type="email"`, `data-email-suggest`, `aria-live="polite"`, `data-sitekey="site-key"`, `challenges.cloudflare.com/turnstile/v0/api.js`} {
+	for _, want := range []string{`action="/forms/contact/submit"`, `data-form-view-endpoint="/forms/contact/view"`, `name="_csrf" value="csrf-token"`, `name="_submission_token" value="0123456789abcdef"`, `name="website_url"`, `type="email"`, `data-email-suggest`, `aria-live="polite"`, `data-sitekey="site-key"`, `challenges.cloudflare.com/turnstile/v0/api.js`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q from form: %s", want, got)
 		}

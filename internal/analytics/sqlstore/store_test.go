@@ -42,6 +42,55 @@ func TestSQLiteFeedbackUsesTenantScopedDailyAggregates(t *testing.T) {
 	}
 	runFeedbackContract(t, db, database.SQLite)
 	runSearchInsightsContract(t, db, database.SQLite)
+	runFormAnalyticsContract(t, db, database.SQLite)
+}
+
+func TestSQLiteFormAnalyticsDeduplicatesViewsAndAggregatesSubmissions(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "form-analytics.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	runFormAnalyticsContract(t, db, database.SQLite)
+}
+
+func runFormAnalyticsContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	store := Store{Executor: db, Dialect: dialect}
+	day := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+	visitor := strings.Repeat("a", 64)
+	if unique, err := store.RecordFormView(ctx, "tenant-a", "contact", visitor, day); err != nil || !unique {
+		t.Fatalf("first view unique=%t err=%v", unique, err)
+	}
+	if unique, err := store.RecordFormView(ctx, "tenant-a", "contact", visitor, day); err != nil || unique {
+		t.Fatalf("duplicate view unique=%t err=%v", unique, err)
+	}
+	if unique, err := store.RecordFormView(ctx, "tenant-a", "apply", visitor, day); err != nil || !unique {
+		t.Fatalf("other-form view unique=%t err=%v", unique, err)
+	}
+	if unique, err := store.RecordFormView(ctx, "tenant-a", "contact", visitor, day.AddDate(0, 0, 1)); err != nil || !unique {
+		t.Fatalf("next-day view unique=%t err=%v", unique, err)
+	}
+	for range 2 {
+		if err := store.RecordFormSubmission(ctx, db, "tenant-a", "contact", day); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := store.ListFormDaily(ctx, "tenant-a", "contact", "2026-09-29", "2026-09-30")
+	if err != nil || len(rows) != 2 || rows[0].Views != 1 || rows[0].Submissions != 2 || rows[1].Views != 1 || rows[1].Submissions != 0 {
+		t.Fatalf("form daily metrics=%+v err=%v", rows, err)
+	}
+	otherTenant, err := store.ListFormDaily(ctx, "tenant-b", "contact", "2026-09-29", "2026-09-30")
+	if err != nil || len(otherTenant) != 0 {
+		t.Fatalf("cross-tenant metrics=%+v err=%v", otherTenant, err)
+	}
+	if _, err := store.RecordFormView(ctx, "tenant-a", "contact", "bad", day); err == nil {
+		t.Fatal("invalid visitor digest was accepted")
+	}
 }
 
 func runFeedbackContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
@@ -86,6 +135,7 @@ func TestMySQLNoCookieDailyStatsContract(t *testing.T) {
 	runFeedbackContract(t, db, database.MySQL)
 	runSearchInsightsContract(t, db, database.MySQL)
 	runNoCookieStatsContract(t, db, database.MySQL)
+	runFormAnalyticsContract(t, db, database.MySQL)
 }
 
 func TestPostgresNoCookieDailyStatsContract(t *testing.T) {
@@ -104,6 +154,7 @@ func TestPostgresNoCookieDailyStatsContract(t *testing.T) {
 	runFeedbackContract(t, db, database.Postgres)
 	runSearchInsightsContract(t, db, database.Postgres)
 	runNoCookieStatsContract(t, db, database.Postgres)
+	runFormAnalyticsContract(t, db, database.Postgres)
 }
 
 func runSearchInsightsContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {

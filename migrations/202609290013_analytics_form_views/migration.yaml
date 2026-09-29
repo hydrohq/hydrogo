@@ -1,0 +1,30 @@
+id: "202609290013_analytics_form_views"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+dependencies:
+  - "202609290012_analytics_search_terms"
+checksum_sha256:
+  sqlite: "674b8f2c663899a90721941555f45ce2e1115e83a8d6ceb5b20368c52a2ef3bb"
+  postgres: "9c98dfd289e85aeac64f1f5a6d35240d46d3299705550535bcf0231c11e3149b"
+  mysql: "fb3f5772c550dcbf8335b3edb9756944e9db2c0122bc8e4627d796e7d946d49e"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Analytics module is enabled"
+  - "Daily form views and pseudonymous deduplication table do not exist"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "One aggregate row per tenant, form, and day; pseudonymous visitor keys follow analytics retention"
+compatibility: "Additive tables; existing binaries ignore form analytics"
+smoke:
+  - "Form views deduplicate by tenant, form, visitor, and day across adapters"
+  - "Accepted submissions increment only the matching form and tenant aggregate"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Drop analytics_form_visitors then analytics_form_daily; form analytics history is lost"

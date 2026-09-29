@@ -70,9 +70,49 @@ type PageLayoutOption struct{ ID, Name, Description string }
 type PageLayoutPickerProps struct{ Options []PageLayoutOption }
 type PasswordResetFormProps struct{ Token, CSRF, Nonce string }
 
+type FormConversionDay struct {
+	Day         string
+	Submissions int64
+}
+
+type FormConversionMetric struct {
+	FormID            string
+	Title             string
+	Views             int64
+	Submissions       int64
+	ConversionPercent float64
+	Trend             []FormConversionDay
+}
+
 func SocialAccountPlatforms() []string {
 	return []string{"instagram", "linkedin", "youtube", "twitter_x", "tiktok", "facebook", "github"}
 }
+
+func FormConversionPercentage(value float64) string {
+	if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		value = 0
+	}
+	return fmt.Sprintf("%.1f%%", value)
+}
+
+func FormTrendBarClass(value int64, days []FormConversionDay) string {
+	maximum := int64(0)
+	for _, day := range days {
+		if day.Submissions > maximum {
+			maximum = day.Submissions
+		}
+	}
+	height := 1
+	if maximum > 0 && value > 0 {
+		height = int(math.Ceil(float64(value) / float64(maximum) * 12))
+	}
+	if height > 12 {
+		height = 12
+	}
+	classes := [...]string{"block w-2 shrink-0 h-1 bg-sky-600", "block w-2 shrink-0 h-2 bg-sky-600", "block w-2 shrink-0 h-3 bg-sky-600", "block w-2 shrink-0 h-4 bg-sky-600", "block w-2 shrink-0 h-5 bg-sky-600", "block w-2 shrink-0 h-6 bg-sky-600", "block w-2 shrink-0 h-7 bg-sky-600", "block w-2 shrink-0 h-8 bg-sky-600", "block w-2 shrink-0 h-9 bg-sky-600", "block w-2 shrink-0 h-10 bg-sky-600", "block w-2 shrink-0 h-11 bg-sky-600", "block w-2 shrink-0 h-12 bg-sky-600"}
+	return classes[height-1]
+}
+
 func socialPlatformLabel(platform string) string {
 	labels := map[string]string{"instagram": "Instagram", "linkedin": "LinkedIn", "youtube": "YouTube", "twitter_x": "X / Twitter", "tiktok": "TikTok", "facebook": "Facebook", "github": "GitHub"}
 	return labels[platform]

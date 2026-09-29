@@ -2,6 +2,14 @@
   if (window.__hydroFormsReady) return;
   window.__hydroFormsReady = true;
 
+  document.querySelectorAll('[data-public-form][data-form-view-endpoint]').forEach(form => {
+    if (form.dataset.formViewSent) return;
+    form.dataset.formViewSent = 'true';
+    const csrf = form.querySelector('input[name="_csrf"]')?.value;
+    if (!csrf || !window.fetch) return;
+    fetch(form.dataset.formViewEndpoint, { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'X-CSRF-Token': csrf } }).catch(() => {});
+  });
+
   const providers = [
     'gmail.com','googlemail.com','yahoo.com','yahoo.co.uk','yahoo.ca','yahoo.com.au','outlook.com','hotmail.com','hotmail.co.uk','live.com','msn.com','icloud.com','me.com','mac.com','aol.com','proton.me','protonmail.com','pm.me','gmx.com','gmx.de','mail.com','yandex.com','yandex.ru','zoho.com','fastmail.com','hey.com','tuta.com','tutanota.com','qq.com','163.com','126.com','sina.com','sohu.com','comcast.net','att.net','verizon.net','orange.fr','free.fr','laposte.net','wanadoo.fr','btinternet.com','sky.com','virginmedia.com','talktalk.net','bluewin.ch','t-online.de','freenet.de','web.de','mailbox.org','seznam.cz','centrum.cz'
   ];
