@@ -137,12 +137,14 @@ type I18N struct {
 }
 
 type Mail struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	From     string `yaml:"from"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	StartTLS bool   `yaml:"starttls"`
+	Host         string `yaml:"host"`
+	Port         int    `yaml:"port"`
+	From         string `yaml:"from"`
+	Username     string `yaml:"username"`
+	Password     string `yaml:"password"`
+	StartTLS     bool   `yaml:"starttls"`
+	MaxPerSecond int    `yaml:"max_per_second"`
+	MaxPerHour   int    `yaml:"max_per_hour"`
 }
 
 type Forms struct {
@@ -425,6 +427,18 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 			return Config{}, fmt.Errorf("invalid HYDRO_SMTP_STARTTLS: %w", err)
 		}
 		result.Mail.StartTLS = startTLS
+	}
+	for _, setting := range []struct {
+		name   string
+		target *int
+	}{{"HYDRO_SMTP_MAX_PER_SECOND", &result.Mail.MaxPerSecond}, {"HYDRO_SMTP_MAX_PER_HOUR", &result.Mail.MaxPerHour}} {
+		if value, ok := lookup(setting.name); ok && value != "" {
+			parsed, err := strconv.Atoi(value)
+			if err != nil {
+				return Config{}, fmt.Errorf("invalid %s: %w", setting.name, err)
+			}
+			*setting.target = parsed
+		}
 	}
 	if value, ok := lookup("HYDRO_FORMS_TURNSTILE_SITE_KEY"); ok && value != "" {
 		result.Forms.TurnstileSiteKey = value
@@ -770,6 +784,9 @@ func (c Config) Validate() error {
 		if c.Mail.Username != "" && !c.Mail.StartTLS {
 			return errors.New("mail SMTP AUTH requires STARTTLS")
 		}
+	}
+	if c.Mail.MaxPerSecond < 0 || c.Mail.MaxPerSecond > 3600 || c.Mail.MaxPerHour < 0 || c.Mail.MaxPerHour > 100_000 {
+		return errors.New("SMTP rate limits are invalid")
 	}
 	if (c.Forms.TurnstileSiteKey == "") != (c.Forms.TurnstileSecretKey == "") {
 		return errors.New("Turnstile site key and secret key must be configured together")

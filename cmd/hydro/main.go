@@ -1598,7 +1598,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	var smtpSender mailer.Sender
 	if cfg.Mail.Host != "" {
-		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS})
+		sender, err := mailer.NewSMTP(mailer.SMTPConfig{Host: cfg.Mail.Host, Port: cfg.Mail.Port, From: cfg.Mail.From, Username: cfg.Mail.Username, Password: cfg.Mail.Password, StartTLS: cfg.Mail.StartTLS, MaxPerSecond: cfg.Mail.MaxPerSecond, MaxPerHour: cfg.Mail.MaxPerHour})
 		if err != nil {
 			return err
 		}

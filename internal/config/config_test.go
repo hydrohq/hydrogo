@@ -173,6 +173,17 @@ func TestLoadEnablesOptInDirectMXWithSenderAddressOnly(t *testing.T) {
 	}
 }
 
+func TestLoadSMTPRateLimitsFromEnvironment(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_MAX_PER_SECOND": "3", "HYDRO_SMTP_MAX_PER_HOUR": "42"}), Overrides{})
+	if err != nil || cfg.Mail.MaxPerSecond != 3 || cfg.Mail.MaxPerHour != 42 {
+		t.Fatalf("SMTP rate config = %#v, error = %v", cfg.Mail, err)
+	}
+	_, err = Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_MAX_PER_SECOND": "-1"}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "SMTP rate limits") {
+		t.Fatalf("invalid SMTP rate config error = %v", err)
+	}
+}
+
 func TestLoadRejectsInvalidDirectMXSenderAddress(t *testing.T) {
 	_, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "HYDRO_SMTP_FROM": "bad\r\nBcc: victim@example.test"}), Overrides{})
 	if err == nil || !strings.Contains(err.Error(), "mail from is invalid") {
