@@ -63,7 +63,7 @@
           if (item.retries < 1) {
             const retry = document.createElement('button');
             retry.type = 'button'; retry.textContent = 'Yeniden dene';
-            retry.addEventListener('click', () => { retry.remove(); item.retries++; failures--; upload(item); });
+            retry.addEventListener('click', () => { retry.remove(); item.retries++; failures--; queue.push(item); run(); });
             row.append(retry);
           }
           resolve();
