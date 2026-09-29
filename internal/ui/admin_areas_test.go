@@ -96,6 +96,21 @@ func TestAdminRealtimeChimeUsesOptInSettingAndFormEvent(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesDevicePreviewBehavior(t *testing.T) {
+	for _, want := range []string{"data-device-preview-dialog", "data-device-preview-open", "data-device-preview-size", "data-device-preview-frame", "X-CSRF-Token", "credentials:'same-origin'"} {
+		if !strings.Contains(AdminDevicePreviewJS, want) {
+			t.Fatalf("device preview script missing %q", want)
+		}
+	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Preview", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "data-device-preview-dialog") {
+		t.Fatal("admin shell did not include device preview script")
+	}
+}
+
 func TestAdminShellSPARouterAdoptsFragmentAssetsWithDocumentNonce(t *testing.T) {
 	for _, want := range []string{"currentDocumentNonce", "adoptFragmentStyles", "Normalize while the fragment is still inert", "oldStyle.setAttribute('nonce', nonce)", "replaceChildren(...Array.from(newMain.childNodes))", "adoptFragmentStyles(newMain)", "searchGlobalBound"} {
 		if !strings.Contains(AdminSPARouterJS, want) {
