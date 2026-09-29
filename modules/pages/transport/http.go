@@ -835,6 +835,22 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 	if err != nil {
 		return "", err
 	}
+	if translations, ok := h.Content.Pages.(interface {
+		ListPublishedTranslations(context.Context, database.Executor, string, int) ([]pages.Page, error)
+	}); ok {
+		variants, listErr := translations.ListPublishedTranslations(ctx, h.DB, page.Slug, 100)
+		if listErr != nil {
+			return "", listErr
+		}
+		for _, variant := range variants {
+			locale := canonical.Locale(variant.Locale)
+			if locale == "" || locale != variant.Locale || variant.Slug != page.Slug {
+				continue
+			}
+			href := strings.TrimRight(origin, "/") + "/public/pages/" + url.PathEscape(locale) + "/" + url.PathEscape(variant.Slug) + "/html"
+			fmt.Fprintf(&head, `<link rel="alternate" hreflang="%s" href="%s">`, template.HTMLEscapeString(locale), template.HTMLEscapeString(href))
+		}
+	}
 	ogImage := view.OGImage
 	if site.ValidAppearanceAssetURL(settings.SocialImageURL) && settings.SocialImageURL != "" {
 		ogImage = strings.TrimRight(origin, "/") + settings.SocialImageURL
