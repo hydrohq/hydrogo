@@ -60,6 +60,7 @@ type Config struct {
 	Maintenance                MaintenanceConfig
 	CustomCodeProvider         func(*http.Request) (head, body string)
 	SafeMode                   bool
+	PublicHTMLCache            *PublicHTMLCache
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -164,8 +165,11 @@ func NewHandler(config Config) http.Handler {
 	if config.CustomCodeProvider != nil && !config.SafeMode {
 		handler = CustomCodeMiddleware(config.CustomCodeProvider)(handler)
 	}
-	handler = CompressionMiddleware(handler)
+	// Cache the uncompressed representation so CSP nonces can be regenerated
+	// safely before compression transforms the body.
 	handler = ETagMiddleware(handler)
+	handler = config.PublicHTMLCache.Middleware(handler)
+	handler = CompressionMiddleware(handler)
 	hostMiddleware, err := security.NewHostMiddleware(config.PublicOrigin)
 	if err != nil {
 		panic(err)

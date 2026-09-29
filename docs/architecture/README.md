@@ -1,5 +1,7 @@
 # HydroGo Architecture Decision Log
 
+- [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
+
 This directory is the main source of HydroGo's long-lived architectural decisions. The implementation plan describes the order of work, while ADRs explain why the system is built this way.
 
 HydroGo is a Workspace/Engine: HydroCore supplies generic, versioned contracts
