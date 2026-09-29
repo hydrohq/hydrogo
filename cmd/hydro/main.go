@@ -2954,6 +2954,44 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		logWriter = io.Discard
 	}
 	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	if !*cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
+		go database.RunWeeklyMaintenance(ctx, func(maintenanceCtx context.Context) {
+			maintenanceCtx, cancel := context.WithTimeout(maintenanceCtx, 30*time.Minute)
+			defer cancel()
+			maintenanceDB, openErr := database.OpenWithOptions(maintenanceCtx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+			if openErr != nil {
+				logger.ErrorContext(maintenanceCtx, "database maintenance connection failed", "error", openErr)
+				return
+			}
+			defer maintenanceDB.Close()
+			path := ""
+			if cfg.Database.Dialect == database.SQLite {
+				path, openErr = sqliteDatabasePath(cfg.Database.DSN)
+				if openErr != nil {
+					logger.ErrorContext(maintenanceCtx, "database maintenance path unavailable", "error", openErr)
+					return
+				}
+			}
+			report, maintenanceErr := database.Maintain(maintenanceCtx, maintenanceDB, cfg.Database.Dialect, path)
+			if maintenanceErr != nil {
+				logger.ErrorContext(maintenanceCtx, "database maintenance failed", "dialect", cfg.Database.Dialect, "error", maintenanceErr)
+				return
+			}
+			logger.InfoContext(maintenanceCtx, "database maintenance completed", "dialect", report.Dialect, "reclaimed_bytes", report.ReclaimedBytes, "duration", report.Duration, "wal_checkpoint_deferred", report.WALCheckpointDeferred)
+			if modules["pages"] {
+				target := fmt.Sprintf("dialect=%s reclaimed_bytes=%d duration=%s wal_checkpoint_deferred=%t", report.Dialect, report.ReclaimedBytes, report.Duration, report.WALCheckpointDeferred)
+				if requireTenantScope {
+					for _, scope := range tenantScopes {
+						if auditErr := auditRecorder.Record(tenant.WithScope(maintenanceCtx, scope), "database.maintenance", target); auditErr != nil {
+							logger.ErrorContext(maintenanceCtx, "database maintenance audit failed", "tenant", scope.TenantID, "error", auditErr)
+						}
+					}
+				} else if auditErr := auditRecorder.Record(maintenanceCtx, "database.maintenance", target); auditErr != nil {
+					logger.ErrorContext(maintenanceCtx, "database maintenance audit failed", "error", auditErr)
+				}
+			}
+		})
+	}
 	var panicReporter *observability.SentryReporter
 	if cfg.Observability.SentryDSN != "" {
 		panicReporter, err = observability.NewSentryReporter(cfg.Observability.SentryDSN, nil, 64)
