@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/signintech/gopdf"
 	"golang.org/x/image/font/gofont/goregular"
 )
@@ -223,6 +224,29 @@ func GenerateQuotePDF(quote Quote) ([]byte, error) {
 		return nil, ErrQuoteTooLarge
 	}
 	return data, nil
+}
+
+// QuoteEmailMessage returns a private, ready-to-send message with the rendered
+// quote attached as a PDF. Delivery and retry policy remain with the caller.
+func QuoteEmailMessage(quote Quote, recipient, body string) (mailer.Message, error) {
+	pdf, err := GenerateQuotePDF(quote)
+	if err != nil {
+		return mailer.Message{}, err
+	}
+	name := strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' {
+			return r
+		}
+		return '-'
+	}, quote.Number)
+	name = strings.Trim(name, "-")
+	if name == "" {
+		name = "quote"
+	}
+	if len(name) > 64 {
+		name = name[:64]
+	}
+	return mailer.Message{To: recipient, Subject: "Quote " + quote.Number, Body: body, Attachments: []mailer.Attachment{{Filename: name + ".pdf", ContentType: "application/pdf", Data: pdf}}}, nil
 }
 
 func validateQuote(q Quote) error {

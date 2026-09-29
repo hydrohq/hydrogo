@@ -45,3 +45,14 @@ func TestGenerateQuotePDFIsBoundedAndSupportsUnicode(t *testing.T) {
 		t.Fatalf("oversized quote error = %v", err)
 	}
 }
+
+func TestQuoteEmailMessageAttachesSanitizedPDF(t *testing.T) {
+	quote := Quote{Number: "Q/2026 1", Currency: "USD", IssuedAt: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), ExpiresAt: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), Company: "HydroGo", Customer: "Customer", Items: []QuoteItem{{Description: "Service", Quantity: 1, UnitPriceMinor: 1000}}}
+	message, err := QuoteEmailMessage(quote, "customer@example.test", "Please find your quote attached.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if message.To != "customer@example.test" || len(message.Attachments) != 1 || message.Attachments[0].Filename != "Q-2026-1.pdf" || message.Attachments[0].ContentType != "application/pdf" || !bytes.HasPrefix(message.Attachments[0].Data, []byte("%PDF-")) {
+		t.Fatalf("quote email = recipient %q attachments %+v", message.To, message.Attachments)
+	}
+}

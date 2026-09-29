@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -24,10 +25,16 @@ import (
 )
 
 type Message struct {
-	To       string
-	Subject  string
-	Body     string
-	HTMLBody string
+	To          string
+	Subject     string
+	Body        string
+	HTMLBody    string
+	Attachments []Attachment
+}
+
+type Attachment struct {
+	Filename, ContentType string
+	Data                  []byte
 }
 
 type Sender interface {
@@ -365,6 +372,17 @@ func validateMessage(message Message) error {
 	if len(message.Body) > 1<<20 || len(message.HTMLBody) > 1<<20 {
 		return fmt.Errorf("%w: body is too large", ErrInvalidMessage)
 	}
+	if len(message.Attachments) > 4 {
+		return fmt.Errorf("%w: too many attachments", ErrInvalidMessage)
+	}
+	var attachmentBytes int
+	for _, attachment := range message.Attachments {
+		mediaType, _, typeErr := mime.ParseMediaType(attachment.ContentType)
+		if strings.TrimSpace(attachment.Filename) == "" || len(attachment.Filename) > 128 || strings.ContainsAny(attachment.Filename, "\\/:\r\n\x00") || typeErr != nil || mediaType == "" || len(attachment.Data) == 0 || len(attachment.Data) > 8<<20 || attachmentBytes > (8<<20)-len(attachment.Data) {
+			return fmt.Errorf("%w: attachment is invalid or too large", ErrInvalidMessage)
+		}
+		attachmentBytes += len(attachment.Data)
+	}
 	return nil
 }
 
@@ -374,25 +392,54 @@ func formatMessage(from string, message Message) string {
 		"Subject: " + mime.QEncoding.Encode("UTF-8", message.Subject) + "\r\n" +
 		"Date: " + time.Now().UTC().Format(time.RFC1123Z) + "\r\n" +
 		"MIME-Version: 1.0\r\n"
+	if len(message.Attachments) > 0 {
+		var body strings.Builder
+		writer := multipart.NewWriter(&body)
+		_, _ = io.WriteString(&body, headers+"Content-Type: multipart/mixed; boundary=\""+writer.Boundary()+"\"\r\n\r\n")
+		if message.HTMLBody == "" {
+			part, _ := writer.CreatePart(textproto.MIMEHeader{"Content-Type": {"text/plain; charset=utf-8"}, "Content-Transfer-Encoding": {"quoted-printable"}})
+			encoded := quotedprintable.NewWriter(part)
+			_, _ = io.WriteString(encoded, message.Body)
+			_ = encoded.Close()
+		} else {
+			var alternative bytes.Buffer
+			alternativeWriter := multipart.NewWriter(&alternative)
+			writeQuotedPart(alternativeWriter, "text/plain; charset=utf-8", message.Body)
+			writeQuotedPart(alternativeWriter, "text/html; charset=utf-8", message.HTMLBody)
+			_ = alternativeWriter.Close()
+			part, _ := writer.CreatePart(textproto.MIMEHeader{"Content-Type": {"multipart/alternative; boundary=\"" + alternativeWriter.Boundary() + "\""}})
+			_, _ = part.Write(alternative.Bytes())
+		}
+		for _, attachment := range message.Attachments {
+			params := mime.FormatMediaType("attachment", map[string]string{"filename": attachment.Filename})
+			part, _ := writer.CreatePart(textproto.MIMEHeader{"Content-Type": {attachment.ContentType}, "Content-Transfer-Encoding": {"base64"}, "Content-Disposition": {params}})
+			encoded := base64.NewEncoder(base64.StdEncoding, part)
+			_, _ = encoded.Write(attachment.Data)
+			_ = encoded.Close()
+		}
+		_ = writer.Close()
+		return body.String()
+	}
 	if message.HTMLBody == "" {
 		return headers + "Content-Type: text/plain; charset=utf-8\r\n\r\n" + message.Body + "\r\n"
 	}
 	var body strings.Builder
 	writer := multipart.NewWriter(&body)
 	_, _ = io.WriteString(&body, headers+"Content-Type: multipart/alternative; boundary=\""+writer.Boundary()+"\"\r\n\r\n")
-	writeQuotedPart := func(contentType, value string) {
-		part, err := writer.CreatePart(textproto.MIMEHeader{"Content-Type": {contentType}, "Content-Transfer-Encoding": {"quoted-printable"}})
-		if err != nil {
-			return
-		}
-		encoded := quotedprintable.NewWriter(part)
-		_, _ = io.WriteString(encoded, value)
-		_ = encoded.Close()
-	}
-	writeQuotedPart("text/plain; charset=utf-8", message.Body)
-	writeQuotedPart("text/html; charset=utf-8", message.HTMLBody)
+	writeQuotedPart(writer, "text/plain; charset=utf-8", message.Body)
+	writeQuotedPart(writer, "text/html; charset=utf-8", message.HTMLBody)
 	_ = writer.Close()
 	return body.String()
+}
+
+func writeQuotedPart(writer *multipart.Writer, contentType, value string) {
+	part, err := writer.CreatePart(textproto.MIMEHeader{"Content-Type": {contentType}, "Content-Transfer-Encoding": {"quoted-printable"}})
+	if err != nil {
+		return
+	}
+	encoded := quotedprintable.NewWriter(part)
+	_, _ = io.WriteString(encoded, value)
+	_ = encoded.Close()
 }
 
 func (n NotificationSender) SendEmailVerification(ctx context.Context, email, link string) error {
