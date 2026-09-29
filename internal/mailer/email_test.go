@@ -1,6 +1,11 @@
 package mailer
 
 import (
+	"encoding/base64"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/mail"
 	"strings"
 	"testing"
 )
@@ -22,5 +27,46 @@ func TestSMTPFormatsPlainAndHTMLAlternative(t *testing.T) {
 		if !strings.Contains(message, want) {
 			t.Errorf("missing %q from message: %s", want, message)
 		}
+	}
+}
+
+func TestSMTPFormatsBoundedPDFAttachment(t *testing.T) {
+	message := Message{To: "user@example.test", Subject: "Quote", Body: "Attached", Attachments: []Attachment{{Filename: "quote-1.pdf", ContentType: "application/pdf", Data: []byte("%PDF-test")}}}
+	if err := validateMessage(message); err != nil {
+		t.Fatal(err)
+	}
+	formatted := formatMessage("sender@example.test", message)
+	parsed, err := mail.ReadMessage(strings.NewReader(formatted))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mediaType, params, err := mime.ParseMediaType(parsed.Header.Get("Content-Type"))
+	if err != nil || mediaType != "multipart/mixed" {
+		t.Fatalf("content type = %q, err=%v", mediaType, err)
+	}
+	reader := multipart.NewReader(parsed.Body, params["boundary"])
+	found := false
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if part.FileName() == "quote-1.pdf" {
+			data, err := io.ReadAll(base64.NewDecoder(base64.StdEncoding, part))
+			if err != nil || string(data) != "%PDF-test" {
+				t.Fatalf("attachment=%q err=%v", data, err)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("PDF attachment missing")
+	}
+	message.Attachments[0].Filename = "../unsafe.pdf"
+	if err := validateMessage(message); err == nil {
+		t.Fatal("accepted a path-like attachment filename")
 	}
 }

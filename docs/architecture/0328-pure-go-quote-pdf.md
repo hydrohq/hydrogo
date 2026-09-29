@@ -21,10 +21,12 @@ calculation, and a PDF byte renderer. Rendering uses the Pure Go
 PNG/JPEG logo. Logo dimensions, font bytes, line count, text, and PDF output
 are bounded. Quotes retain no data in HydroGo.
 
-The first slice does not add quote persistence, sales routes, or automatic
-email attachment because HydroGo has no sales/document workflow to integrate.
-The resulting bytes are suitable for a caller-owned download or message
-attachment once that workflow exists.
+`QuoteEmailMessage` creates a mailer message containing the PDF, and the SMTP
+sender supports bounded MIME attachments. HydroGo does not yet persist
+attachments in its mail spool or provide a sales confirmation flow; caller
+delivery must therefore be direct until a generic sales workflow is added.
+Quote persistence and sales routes are also Edition-owned until that workflow
+exists.
 
 ## Alternatives
 
@@ -45,7 +47,8 @@ attachment once that workflow exists.
 ### Costs and risks
 
 - A caller must own persistence, authorization, download policy, and mail
-  delivery.
+  delivery. The existing durable mail spool still stores text and HTML bodies
+  only.
 - Complex Unicode requires a TrueType font with the needed glyph coverage.
 - PDF generation is synchronous and caller input/output limits are fixed.
 
