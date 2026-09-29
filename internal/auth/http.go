@@ -82,6 +82,9 @@ type HTTPHandler struct {
 	InviteNotice           InviteNotifier
 	SocialOAuth            *SocialOAuthHandler
 	LoginSecurity          LoginSecurityTracker
+	PasswordResetTTL       time.Duration
+	InvitationTTL          time.Duration
+	TokenLifetimeSettings  TokenLifetimeSettings
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -110,6 +113,31 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		routes = append(routes, social.Routes()...)
 	}
 	return routes
+}
+
+func (h HTTPHandler) readTokenLifetimeSettings(ctx context.Context) (TokenLifetimes, bool, error) {
+	if h.TokenLifetimeSettings == nil {
+		return TokenLifetimes{}, false, nil
+	}
+	return h.TokenLifetimeSettings.Read(ctx)
+}
+
+func (h HTTPHandler) effectiveTokenLifetimes(ctx context.Context) (TokenLifetimes, error) {
+	value := TokenLifetimes{PasswordReset: h.PasswordResetTTL, Invitation: h.InvitationTTL}
+	if value.PasswordReset <= 0 {
+		value.PasswordReset = time.Hour
+	}
+	if value.Invitation <= 0 {
+		value.Invitation = 24 * time.Hour
+	}
+	configured, ok, err := h.readTokenLifetimeSettings(ctx)
+	if err != nil {
+		return TokenLifetimes{}, err
+	}
+	if ok {
+		value = configured
+	}
+	return value, value.Validate()
 }
 
 func (h HTTPHandler) adminPasswordResetLink(w http.ResponseWriter, r *http.Request) {
@@ -141,10 +169,15 @@ func (h HTTPHandler) adminPasswordResetLink(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "user unavailable", http.StatusNotFound)
 		return
 	}
+	policy, err := h.effectiveTokenLifetimes(r.Context())
+	if err != nil {
+		http.Error(w, "password reset link could not be created", http.StatusServiceUnavailable)
+		return
+	}
 	var token string
 	err = h.Transactions.Within(r.Context(), func(tx database.Executor) error {
 		var issueErr error
-		token, issueErr = h.Recovery.IssueForUser(r.Context(), tx, user, time.Hour)
+		token, issueErr = h.Recovery.IssueForUser(r.Context(), tx, user, policy.PasswordReset)
 		return issueErr
 	})
 	if err != nil || token == "" {
@@ -170,7 +203,17 @@ func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role := Role(r.FormValue("role"))
-	token, err := h.Invitation.Issue(r.Context(), h.InviteDB, r.FormValue("email"), role, 24*time.Hour)
+	ttl := h.InvitationTTL
+	if policy, ok, policyErr := h.readTokenLifetimeSettings(r.Context()); policyErr != nil {
+		http.Error(w, "invitation is temporarily unavailable", http.StatusServiceUnavailable)
+		return
+	} else if ok {
+		ttl = policy.Invitation
+	}
+	if ttl <= 0 {
+		ttl = 24 * time.Hour
+	}
+	token, err := h.Invitation.Issue(r.Context(), h.InviteDB, r.FormValue("email"), role, ttl)
 	if errors.Is(err, ErrUserAlreadyExists) {
 		http.Error(w, "user already exists", http.StatusConflict)
 		return
@@ -213,7 +256,7 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 	if errors.Is(err, ErrInviteInvalid) {
-		http.Error(w, "invalid or expired invitation", http.StatusUnauthorized)
+		http.Error(w, "This invitation is invalid or has expired. Ask your administrator to send a new invitation.", http.StatusUnauthorized)
 		return
 	}
 	if errors.Is(err, ErrWeakPassword) {
@@ -245,7 +288,18 @@ func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request
 		security.WriteRateLimitedResponse(w, "too many password recovery requests", time.Minute)
 		return
 	}
-	token, err := h.Recovery.Issue(r.Context(), h.RecoveryDB, r.FormValue("email"), 30*time.Minute)
+	ttl := h.PasswordResetTTL
+	if policy, ok, policyErr := h.readTokenLifetimeSettings(r.Context()); policyErr != nil {
+		// Preserve the generic accepted response and avoid revealing account state.
+		w.WriteHeader(http.StatusAccepted)
+		return
+	} else if ok {
+		ttl = policy.PasswordReset
+	}
+	if ttl <= 0 {
+		ttl = 30 * time.Minute
+	}
+	token, err := h.Recovery.Issue(r.Context(), h.RecoveryDB, r.FormValue("email"), ttl)
 	if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrUserInactive) {
 		// Do not disclose whether an account exists.
 		w.WriteHeader(http.StatusAccepted)
@@ -285,7 +339,7 @@ func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request
 		return h.Recovery.Reset(r.Context(), tx, r.FormValue("token"), r.FormValue("password"))
 	})
 	if errors.Is(err, ErrRecoveryTokenInvalid) {
-		http.Error(w, "invalid or expired recovery token", http.StatusUnauthorized)
+		http.Error(w, "This password reset link is invalid or has expired. Request a new link to continue.", http.StatusUnauthorized)
 		return
 	}
 	if errors.Is(err, ErrWeakPassword) {

@@ -1,0 +1,26 @@
+id: "202609290009_auth_token_lifetimes"
+module: "auth"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "80faf941bab7ec2552acddf59554efaa87d9828eef30df1ece2922178ae7bd13"
+  postgres: "f44007eef9f4057222065cdd449ef49fc49100ce1d5541a9107a1187b17f63a5"
+  mysql: "88642a1b15039b4b2534359f6d80018de06a77a04af74cef5345ba713b75ddb1"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Auth module schema is available"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "One small global policy row"
+compatibility: "Additive policy table; unset row falls back to configured default lifetimes"
+smoke:
+  - "Policy accepts only the supported reset and invitation lifetimes"
+restart: "Safe to rerun through migration ledger"
+rollback: "Drop auth_token_lifetimes; runtime falls back to configured defaults"

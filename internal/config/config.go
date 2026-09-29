@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -129,6 +130,8 @@ type Security struct {
 	AnomalyBypassPaths  []string `yaml:"anomaly_bypass_paths"`
 	MFARequiredRoles    []string `yaml:"mfa_required_roles"`
 	PreviewSigningKey   string   `yaml:"preview_signing_key" json:"-"`
+	PasswordResetTTL    string   `yaml:"password_reset_ttl"`
+	InvitationTTL       string   `yaml:"invitation_ttl"`
 }
 
 type I18N struct {
@@ -204,7 +207,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ThemeDir: "themes", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ThemeDir: "themes", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true, PasswordResetTTL: "1h", InvitationTTL: "24h"}}
 	result.License.File = "hydro.lic"
 	if path != "" {
 		file, err := os.Open(path)
@@ -217,6 +220,12 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		if err := decoder.Decode(&result); err != nil {
 			return Config{}, fmt.Errorf("decode config: %w", err)
 		}
+	}
+	if result.Security.PasswordResetTTL == "" {
+		result.Security.PasswordResetTTL = "1h"
+	}
+	if result.Security.InvitationTTL == "" {
+		result.Security.InvitationTTL = "24h"
 	}
 
 	if value, ok := lookup("HYDRO_HTTP_ADDRESS"); ok {
@@ -367,6 +376,12 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_PREVIEW_SIGNING_KEY"); ok && value != "" {
 		result.Security.PreviewSigningKey = value
+	}
+	if value, ok := lookup("HYDRO_PASSWORD_RESET_TTL"); ok && value != "" {
+		result.Security.PasswordResetTTL = value
+	}
+	if value, ok := lookup("HYDRO_INVITATION_TTL"); ok && value != "" {
+		result.Security.InvitationTTL = value
 	}
 	if value, ok := lookup("HYDRO_SECURE_COOKIES"); ok && value != "" {
 		secureCookies, err := strconv.ParseBool(value)
@@ -521,6 +536,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 }
 
 func (c Config) Validate() error {
+	if !validTokenTTL(c.Security.PasswordResetTTL, []time.Duration{15 * time.Minute, time.Hour, 24 * time.Hour}) || !validTokenTTL(c.Security.InvitationTTL, []time.Duration{24 * time.Hour, 72 * time.Hour, 7 * 24 * time.Hour}) {
+		return errors.New("security token lifetimes must be one of the supported choices")
+	}
 	if len(c.GeoIP.TrustedProxyCIDRs) > 256 || strings.ContainsAny(c.GeoIP.DatabasePath, "\x00\r\n") || len(c.GeoIP.DatabasePath) > 4096 {
 		return errors.New("invalid GeoIP configuration")
 	}
@@ -838,6 +856,29 @@ func (c Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+func validTokenTTL(raw string, choices []time.Duration) bool {
+	value, err := time.ParseDuration(strings.TrimSpace(raw))
+	if err != nil {
+		return false
+	}
+	for _, choice := range choices {
+		if value == choice {
+			return true
+		}
+	}
+	return false
+}
+
+func (c Config) PasswordResetDuration() time.Duration {
+	value, _ := time.ParseDuration(c.Security.PasswordResetTTL)
+	return value
+}
+
+func (c Config) InvitationDuration() time.Duration {
+	value, _ := time.ParseDuration(c.Security.InvitationTTL)
+	return value
 }
 
 func isHTTPOrigin(parsed *url.URL) bool {
