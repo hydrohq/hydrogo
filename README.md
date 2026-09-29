@@ -115,7 +115,25 @@ SQLite Engine             PostgreSQL Adapter           MySQL / MariaDB
 - **Monday Morning Executive Digest:** Automated weekly KPI and form submission digest delivered to business stakeholders every Monday at 09:00.
 - **Agency Support Card & Video Guide Tab:** In-app agency communication box and embedded video training player for smooth client handoff.
 
-### 7. 🌐 Adaptive Deployment Spectrum
+### 7. 🧩 Turnkey Domain Modules (`modules/*`)
+HydroGo includes an industrial suite of pre-built, production-tested domain modules:
+- **Membership & Portal (`modules/members`):** Registration, Argon2id passwords, email verification tokens, session revocation, and member dashboards.
+- **Editorial & Publications (`modules/news` & `modules/pages`):** Multi-block page builder, structured categories, draft-to-publish editorial workflows, and visual revision diffs.
+- **Corporate & Commercial Showcases:** Dedicated plug-and-play modules for **Portfolio**, **Events & Ticketing**, **Downloads**, **Testimonials**, **FAQ**, **Pricing Tables**, **Locations / Branch Finder**, and **Team Directories**.
+- **GraphQL & Unified REST/OpenAPI (`modules/api`):** Out-of-the-box GraphQL endpoint and typed REST endpoints with automatic OpenAPI v3 schema synchronization.
+
+### 8. 🏢 Enterprise Reliability, Multi-Tenancy & Privacy
+- **Multi-Tenancy Engine (`internal/tenant`):** Context-aware request routing with tenant-scoped schema segregation and automated provisioning.
+- **Transactional Outbox & Signed Webhooks (`internal/outbox`, `internal/webhooks`):** Guaranteed at-least-once event delivery, HMAC-SHA256 request signing, and automatic dead-letter queueing.
+- **GDPR / KVKK Cryptographic Erasure (`internal/erasure`):** Tamper-proof, auditable, irreversible deletion workflows adhering to strict data sovereignty mandates.
+- **Cross-Platform Push Notifications (`internal/push`):** Integrated WebPush and Firebase Cloud Messaging (FCM) dispatchers with zero-PII client targeting.
+- **Safe Soft-Delete & Trash Bin (`internal/trash`):** System-wide recycle bin preventing accidental data loss with point-in-time restoration.
+
+### 9. 🔭 Observability & Multi-Language SDK Generation
+- **Production Observability (`internal/observability`):** OpenTelemetry (OTLP) tracing, Prometheus-compatible `/metrics`, bounded in-memory error analytics, and non-blocking Sentry panic captures with strict PII stripping.
+- **Client SDK Generator (`internal/sdkdist`):** Generates strictly-typed TypeScript and Dart / Flutter client SDKs straight from the compiled OpenAPI contract.
+
+### 10. 🌐 Adaptive Deployment Spectrum
 - **High-Performance Daemons:** Standalone HTTP/HTTPS server with automatic ACME Let's Encrypt certificates.
 - **Container & Cloud:** Production-ready Docker Compose, Caddy, and Kubernetes deployment configurations.
 - **Zero-Ops Shared Hosting:** Optional native CGI / FastCGI compatibility (`net/http/cgi`) running dynamic Go apps on standard cPanel/Plesk shared hosting with 0ms static disk caching.
