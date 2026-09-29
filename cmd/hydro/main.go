@@ -3056,6 +3056,30 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			}
 			return body.Bytes(), true
 		},
+		Maintenance: server.MaintenanceConfig{
+			Enabled: func(r *http.Request) bool {
+				if !modules["site"] {
+					return false
+				}
+				setting, found, err := siteStore.GetSetting(r.Context(), db, site.MaintenanceSettingKey)
+				return err == nil && found && site.MaintenanceFromSetting(setting).Enabled
+			},
+			Allowlist: func(r *http.Request) []string {
+				if !modules["site"] {
+					return nil
+				}
+				setting, found, err := siteStore.GetSetting(r.Context(), db, site.MaintenanceSettingKey)
+				if err != nil || !found {
+					return nil
+				}
+				return site.MaintenanceFromSetting(setting).Allowlist
+			},
+			Render: func(r *http.Request) ([]byte, error) {
+				var body bytes.Buffer
+				err := designsystem.MaintenancePage("We’ll be back soon", "We’re making a few improvements. Please try again shortly.").Render(r.Context(), &body)
+				return body.Bytes(), err
+			},
+		},
 		TenantResolver: tenantResolver,
 		Routes:         routes,
 		Ready: func(checkCtx context.Context) error {

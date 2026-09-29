@@ -111,6 +111,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /admin/site/appearance", Handler: http.HandlerFunc(h.saveAppearance)},
 		{Pattern: "GET /admin/site/error-pages", Handler: http.HandlerFunc(h.errorPages)},
 		{Pattern: "POST /admin/site/error-pages/{status}", Handler: http.HandlerFunc(h.saveErrorPage)},
+		{Pattern: "GET /admin/site/maintenance", Handler: http.HandlerFunc(h.maintenanceSettings)},
+		{Pattern: "POST /admin/site/maintenance", Handler: http.HandlerFunc(h.saveMaintenanceSettings)},
 		{Pattern: "GET /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.contactWidget)},
 		{Pattern: "POST /admin/appearance/contact-widget", Handler: http.HandlerFunc(h.saveContactWidget)},
 		{Pattern: "GET /admin/site/social-links", Handler: http.HandlerFunc(h.socialLinks)},
@@ -154,6 +156,52 @@ func (h Handler) Routes() []Route {
 		)
 	}
 	return routes
+}
+
+type privateSettingReader interface {
+	GetSetting(context.Context, database.Executor, string) (site.Setting, bool, error)
+}
+
+func (h Handler) maintenanceSettings(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "Bu sayfaya erişim yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	settings := site.MaintenanceSettings{}
+	if reader, ok := h.Store.(privateSettingReader); ok {
+		if setting, found, err := reader.GetSetting(r.Context(), h.DB, site.MaintenanceSettingKey); err == nil && found {
+			settings = site.MaintenanceFromSetting(setting)
+		}
+	}
+	if ui.AdminStartForRequest(w, r, "Bakım modu", "Site ziyaretçileri için geçici bilgilendirme", security.NonceFromContext(r.Context()), "site") != nil {
+		return
+	}
+	_ = designsystem.MaintenanceEditor(settings.Enabled, strings.Join(settings.Allowlist, "\n"), security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) saveMaintenanceSettings(w http.ResponseWriter, r *http.Request) {
+	if !h.admin(r) || h.Service == nil {
+		http.Error(w, "Bu sayfaya erişim yetkiniz yok.", http.StatusForbidden)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Ayarlar kaydedilemedi.", http.StatusBadRequest)
+		return
+	}
+	entries := strings.FieldsFunc(r.FormValue("allowlist"), func(ch rune) bool { return ch == '\n' || ch == '\r' || ch == ',' || ch == ' ' || ch == '\t' })
+	settings := site.MaintenanceSettings{Enabled: r.FormValue("enabled") == "true", Allowlist: entries}
+	setting, err := settings.Setting()
+	if err != nil {
+		http.Error(w, "IP adreslerini veya ağları kontrol edin.", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.SaveSetting(r.Context(), setting); err != nil {
+		http.Error(w, "Bakım ayarları kaydedilemedi.", siteStatus(err))
+		return
+	}
+	http.Redirect(w, r, "/admin/site/maintenance?saved=1", http.StatusSeeOther)
 }
 
 func (h Handler) socialLinks(w http.ResponseWriter, r *http.Request) {

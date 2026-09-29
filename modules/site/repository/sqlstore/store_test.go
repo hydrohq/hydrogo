@@ -56,6 +56,16 @@ func TestScopedSiteSettingsAndNavigationCannotCrossTenant(t *testing.T) {
 	if err := store.UpsertSetting(tenant.WithScope(ctx, beta), db, site.Setting{Key: "title", Value: "Beta", Public: true}); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.UpsertSetting(tenant.WithScope(ctx, alpha), db, site.Setting{Key: "site.maintenance", Value: "{\"enabled\":true}", Public: false}); err != nil {
+		t.Fatal(err)
+	}
+	private, found, err := store.GetSetting(tenant.WithScope(ctx, alpha), db, "site.maintenance")
+	if err != nil || !found || private.Public || private.Value != "{\"enabled\":true}" {
+		t.Fatalf("private scoped setting = %#v found=%t err=%v", private, found, err)
+	}
+	if _, found, err := store.GetSetting(tenant.WithScope(ctx, beta), db, "site.maintenance"); err != nil || found {
+		t.Fatalf("cross-tenant private setting leaked: found=%t err=%v", found, err)
+	}
 	items, err := store.ListPublicSettings(tenant.WithScope(ctx, alpha), db)
 	if err != nil || len(items) != 1 || items[0].Value != "Alpha" {
 		t.Fatalf("scoped settings = %#v/%v", items, err)

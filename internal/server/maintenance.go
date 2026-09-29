@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 )
 
@@ -13,28 +14,38 @@ import (
 type MaintenanceConfig struct {
 	Enabled   func(*http.Request) bool
 	Render    func(*http.Request) ([]byte, error)
-	Allowlist []string
+	Allowlist func(*http.Request) []string
 }
 
 func MaintenanceMiddleware(config MaintenanceConfig) func(http.Handler) http.Handler {
-	allowed := make([]*net.IPNet, 0, len(config.Allowlist))
-	for _, entry := range config.Allowlist {
-		if ip := net.ParseIP(strings.TrimSpace(entry)); ip != nil {
-			mask := net.CIDRMask(32, 32)
-			if ip.To4() == nil {
-				mask = net.CIDRMask(128, 128)
-			}
-			allowed = append(allowed, &net.IPNet{IP: ip, Mask: mask})
-			continue
-		}
-		_, block, err := net.ParseCIDR(strings.TrimSpace(entry))
-		if err == nil {
-			allowed = append(allowed, block)
-		}
-	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if config.Enabled == nil || !config.Enabled(r) || maintenanceExempt(r) || maintenanceStaff(r) || maintenanceIPAllowed(r, allowed) {
+			allowlist := []string(nil)
+			if config.Allowlist != nil {
+				allowlist = config.Allowlist(r)
+			}
+			allowed := make([]*net.IPNet, 0, len(allowlist))
+			for _, entry := range allowlist {
+				if ip := net.ParseIP(strings.TrimSpace(entry)); ip != nil {
+					mask := net.CIDRMask(32, 32)
+					if ip.To4() == nil {
+						mask = net.CIDRMask(128, 128)
+					}
+					allowed = append(allowed, &net.IPNet{IP: ip, Mask: mask})
+					continue
+				}
+				_, block, err := net.ParseCIDR(strings.TrimSpace(entry))
+				if err == nil {
+					allowed = append(allowed, block)
+				}
+			}
+			enabled := config.Enabled != nil && config.Enabled(r)
+			if enabled && maintenanceStaff(r) {
+				support := adminstudio.SupportConfigFromContext(r.Context())
+				support.MaintenanceActive = true
+				r = r.WithContext(adminstudio.WithSupportConfig(r.Context(), support))
+			}
+			if !enabled || maintenanceExempt(r) || maintenanceStaff(r) || maintenanceIPAllowed(r, allowed) {
 				next.ServeHTTP(w, r)
 				return
 			}
