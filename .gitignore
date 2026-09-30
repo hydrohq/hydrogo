@@ -27,6 +27,11 @@ config.env.*
 /bin/
 /build/
 /dist/
+/hydro-cache-bench-linux
+/hydro-cache-load
+/hydro-capacity-load
+/hydro-retest-linux
+/start-hydro-retest.sh
 /node_modules/
 /e2e/node_modules/
 examples/admin-news-compare/react/node_modules/
