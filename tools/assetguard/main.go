@@ -33,7 +33,13 @@ func main() {
 		if walkErr != nil {
 			return walkErr
 		}
-		if entry.IsDir() || (filepath.Ext(path) != ".go" && filepath.Ext(path) != ".html") {
+		if entry.IsDir() {
+			if entry.Name() == ".tmp" || entry.Name() == ".git" || entry.Name() == "vendor" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".go" && filepath.Ext(path) != ".html" {
 			return nil
 		}
 		data, err := os.ReadFile(path)
