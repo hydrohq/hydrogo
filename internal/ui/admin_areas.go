@@ -743,6 +743,10 @@ function testGraphQL(btn){
 		passwordHelp := "Parolanızı yenilemek için Güvenlik Merkezinden şifre sıfırlama akışını başlatabilir veya CLI üzerinden <code>hydro user reset-password</code> komutunu çalıştırabilirsiniz."
 		accountSave, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel := "Hesap Bilgilerini Kaydet", "Mevcut Parola", "Yeni Parola", "Yeni Parola (Tekrar)"
 		accountHelp := "Email veya parolanızı değiştirmek için mevcut parolanızı doğrulayın. Değişiklikten sonra güvenlik için tüm oturumlar kapatılır."
+		appearanceTitle, appearanceIntro, appearanceLabel := "Görünüm", "Studio'nun görsel temasını seçin. Tercihiniz bu tarayıcıda saklanır.", "Tema"
+		if data.Locale == "en" {
+			appearanceTitle, appearanceIntro, appearanceLabel = "Appearance", "Choose Studio's visual theme. Your choice is saved in this browser.", "Theme"
+		}
 		if data.Locale == "en" {
 			profileTitle = "👤 Administrator profile"
 			profileIntro = "The administrator account currently authorized to access Admin Studio:"
@@ -805,7 +809,12 @@ function testGraphQL(btn){
       <button class="button" type="submit">%s</button>
     </form>
   </div>
-		</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"))
+  <div class="acc-card">
+    <h3>🎨 %s</h3>
+    <p>%s</p>
+    <label class="studio-form-field"><span>%s</span><select id="ui-family-select" class="ui-family-select" aria-label="%s"><option value="hydrogo">HydroGo</option><option value="shadcn">shadcn</option><option value="workbench">Workbench</option><option value="nova">Nova</option></select></label>
+  </div>
+		</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"), appearanceTitle, appearanceIntro, appearanceLabel, appearanceLabel)
 		soundTitle, soundLabel, soundDescription := "Bildirim sesleri", "Yeni taleplerde sesli uyarı ver", "Bu tercih yalnızca bu tarayıcıda saklanır ve varsayılan olarak kapalıdır."
 		if data.Locale == "en" {
 			soundTitle, soundLabel, soundDescription = "Notification sounds", "Play a sound for new inquiries", "This preference is stored in this browser and is off by default."

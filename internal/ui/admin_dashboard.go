@@ -32,6 +32,7 @@ type AdminDashboardData struct {
 	UniqueVisitors        int64
 	PushEnabled           bool
 	EmailPreviewEnabled   bool
+	CommerceModuleEnabled bool
 	PreviousLogin         string
 	PreviousLoginIP       string
 	FailedLoginAttempts   int
@@ -55,6 +56,9 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 		return err
 	}
 	if err := adminWorkbenchDashboardTemplate.Execute(w, data); err != nil {
+		return err
+	}
+	if err := adminNovaDashboardTemplate.Execute(w, data); err != nil {
 		return err
 	}
 	for _, collection := range data.Collections {
