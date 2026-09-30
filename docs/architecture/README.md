@@ -5,6 +5,7 @@
 - [ADR-0331: Bounded SQLite shadow-table migrations](0331-sqlite-batched-shadow-migrations.md)
 - [ADR-0332: Reversible content deletion before permanent erasure](0332-soft-delete-retention-and-erasure.md)
 - [ADR-0333: Bounded HTTP admission concurrency limit](0333-http-admission-concurrency-limit.md)
+- [ADR-0334: Capacity-profile-scaled public HTML cache budget](0334-capacity-scaled-public-html-cache-budget.md)
 
 This directory is the main source of HydroGo's long-lived architectural decisions. The implementation plan describes the order of work, while ADRs explain why the system is built this way.
 
