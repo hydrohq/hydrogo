@@ -21,12 +21,25 @@ html[data-ui-theme="nova"] .studio-sidebar{display:none}
 html[data-ui-theme="nova"] .studio-mobile-menu-toggle{display:none}
 html[data-ui-theme="nova"] .nova-topnav-wrap{display:flex;align-items:center;gap:20px;min-width:0}
 html[data-ui-theme="nova"] .nova-topnav-brand{flex-shrink:0;display:grid;place-items:center;width:30px;height:30px;border-radius:var(--radius-sm);background:var(--brand);color:#fff}
-html[data-ui-theme="nova"] .nova-topnav-links{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto}
+html[data-ui-theme="nova"] .nova-topnav-links{display:flex;align-items:center;gap:20px;min-width:0;overflow-x:auto}
 html[data-ui-theme="nova"] .nova-topnav-link{flex-shrink:0;padding:7px 12px;border-radius:var(--radius-sm);color:var(--muted);font-size:.84rem;font-weight:600;text-decoration:none;white-space:nowrap}
 html[data-ui-theme="nova"] .nova-topnav-link:hover{background:var(--bg-subtle);color:var(--ink)}
 html[data-ui-theme="nova"] .nova-topnav-link.is-active{background:var(--brand-subtle);color:var(--brand-light)}
 html[data-ui-theme="nova"] .studio-search{flex-shrink:0;max-width:260px}
 @media(max-width:900px){html[data-ui-theme="nova"] .studio-search{display:none}}
+html[data-ui-theme="nova"] .studio-topbar{height:64px;min-height:64px;max-height:64px;background:var(--surface);backdrop-filter:blur(10px)}
+html[data-ui-theme="nova"] .nova-topnav-brand{background:transparent;color:var(--ink);width:24px;height:24px;border-radius:0}
+html[data-ui-theme="nova"] .nova-topnav-link{padding:0;border-radius:0;font-weight:500}
+html[data-ui-theme="nova"] .nova-topnav-link:hover{background:none;color:var(--ink)}
+html[data-ui-theme="nova"] .nova-topnav-link.is-active{background:none;color:var(--ink);font-weight:600}
+html[data-ui-theme="nova"] .studio-search{height:36px;background:var(--surface)}
+html[data-ui-theme="nova"] .studio-search kbd{display:none}
+html[data-ui-theme="nova"] .studio-badge-status{display:none}
+html[data-ui-theme="nova"] .studio-user{padding:0;background:transparent;border:0}
+html[data-ui-theme="nova"] .studio-user .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--bg-subtle);color:var(--muted);border:1px solid var(--line)}
+html[data-ui-theme="nova"] .studio-user .user-name,html[data-ui-theme="nova"] .studio-user .chevron-icon{display:none}
+html[data-ui-theme="nova"] .ui-family-select,html[data-ui-theme="nova"] .theme-toggle-btn{border-color:transparent;background:transparent}
+html[data-ui-theme="nova"] .ui-family-select:hover,html[data-ui-theme="nova"] .theme-toggle-btn:hover{background:var(--bg-subtle)}
 html[data-ui-theme="nova"] .nova-dashboard{display:grid;gap:20px;max-width:1600px;margin:0 auto}
 html[data-ui-theme="nova"] .nova-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
 html[data-ui-theme="nova"] .nova-toolbar h2{margin:0 0 2px;font-size:1.3rem;font-weight:700;letter-spacing:-.03em;color:var(--ink)}
