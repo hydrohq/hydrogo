@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -17,6 +18,33 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	for _, want := range []string{"wb-dashboard", "wb-hero", "wb-metric-strip", "wb-collection-grid", "wb-action-list", "wb-health-list"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("workbench dashboard widget %q missing", want)
+		}
+	}
+}
+
+func TestBrandBackgroundsNeverPairWithHardcodedWhiteText(t *testing.T) {
+	// Regression test: several rules painted white text (color:#fff) on a
+	// var(--brand)/var(--brand-hover) background. That's fine for hydrogo and
+	// workbench (brand stays a saturated color in both variants), but shadcn
+	// and Nova's dark variant deliberately make --brand a near-white zinc
+	// tone (matching the shadcn/Vercel reference), so the hardcoded white
+	// text became unreadable white-on-white - e.g. a plain <a> row action
+	// like "Düzenle" (internal/adminstudio/list.go renders it with no class
+	// at all, so only the global `.studio-card td a:not(.button):hover` rule
+	// applied). Every such rule must use var(--brand-ink) instead, which is
+	// #fff by default and flips to a dark color for shadcn-dark/nova-dark.
+	if !strings.Contains(AdminCSS, "--brand-ink:#fff") {
+		t.Fatal("base :root is missing the --brand-ink default")
+	}
+	for _, css := range []string{AdminShadcnCSS, AdminNovaCSS} {
+		if !strings.Contains(css, `][data-theme="dark"]{`) || !strings.Contains(css, "--brand-ink:#09090b") {
+			t.Fatal("shadcn/nova dark variant is missing a --brand-ink override")
+		}
+	}
+	for _, css := range []string{AdminCSS, AdminShadcnCSS, AdminWorkbenchCSS, AdminNovaCSS} {
+		re := regexp.MustCompile(`background:var\(--brand(?:-hover)?\)[^}]*color:#fff|color:#fff[^}]*background:var\(--brand(?:-hover)?\)`)
+		if re.MatchString(css) {
+			t.Fatalf("found a brand-background rule still hardcoding color:#fff instead of var(--brand-ink): %q", re.FindString(css))
 		}
 	}
 }
