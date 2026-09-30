@@ -1724,7 +1724,12 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	var publicHTMLCache *server.PublicHTMLCache
 	if modules["pages"] || modules["news"] {
-		publicHTMLCache = server.NewPublicHTMLCache(server.PublicHTMLCacheOptions{})
+		publicHTMLCache = server.NewPublicHTMLCache(server.PublicHTMLCacheOptions{
+			MaxEntries: budget.PublicHTMLCacheEntries,
+			MaxBytes:   budget.PublicHTMLCacheMaxBytes,
+			MaxBody:    budget.PublicHTMLCacheMaxBodyBytes,
+			TTL:        budget.CacheTTL,
+		})
 	}
 	staticCacheDir := ""
 	if *cgiMode && (modules["pages"] || modules["news"]) {

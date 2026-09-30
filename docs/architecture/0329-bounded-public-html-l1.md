@@ -1,9 +1,12 @@
 # ADR-0329: Bounded public HTML process cache
 
-- **Status:** Accepted
+- **Status:** Superseded (partially): [ADR-0334](0334-capacity-scaled-public-html-cache-budget.md)
+  scales the entry/byte/body caps below by capacity profile; the rest of this
+  decision (allowlist, invalidation, singleflight coalescing, nonce handling)
+  is unchanged and still governs.
 - **Date:** 2026-09-29
 - **Supersedes:** None
-- **Superseded by:** None
+- **Superseded by:** [ADR-0334](0334-capacity-scaled-public-html-cache-budget.md) (partially)
 
 ## Context
 
@@ -15,8 +18,11 @@ private previews, authenticated output, fragments, or unbounded response data.
 ## Decision
 
 Add an optional process-local L1 for allowlisted public page/news HTML routes.
-The cache stores complete `200 text/html` responses only, with a maximum of 128
-entries, 32 MiB total body data, 512 KiB per body, and a default 30-second TTL.
+The cache stores complete `200 text/html` responses only, with a default
+30-second TTL. The original fixed caps (128 entries, 32 MiB total body data,
+512 KiB per body) are superseded by [ADR-0334](0334-capacity-scaled-public-html-cache-budget.md),
+which scales entry/byte/body limits by capacity profile instead of using one
+fixed size for every deployment.
 Cookies other than the existing explicitly public consent cookies, authorization,
 query strings, HTMX requests, private/no-store/no-cache responses, and
 unsupported `Vary` responses bypass storage. ETags and conditional requests are

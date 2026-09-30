@@ -17,10 +17,14 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// These are outer safety ceilings, not the effective size for any profile.
+// ADR-0334 scales the actual per-profile budget (Compact/Standard/Distributed)
+// within these bounds via capacity.Budget; NewPublicHTMLCache clamps any
+// caller-supplied option down to whichever of these is smallest.
 const (
-	publicHTMLBodyLimit  = 512 << 10
-	publicHTMLByteLimit  = 32 << 20
-	publicHTMLEntryLimit = 128
+	publicHTMLBodyLimit  = 2 << 20
+	publicHTMLByteLimit  = 512 << 20
+	publicHTMLEntryLimit = 4096
 )
 
 // PublicHTMLCacheOptions bounds the in-process cache for anonymous public
