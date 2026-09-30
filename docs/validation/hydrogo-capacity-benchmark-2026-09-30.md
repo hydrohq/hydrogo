@@ -15,6 +15,13 @@ HTTP admission shedding: at overload, excess requests receive HTTP 503 with
 short follow-up samples, so compare trends rather than treating the exact
 percentages as guaranteed.
 
+A second follow-up, after commit `372dbbfd` raised the admission thresholds
+and exempted `/healthz`/`/readyz`/`/metrics` from shedding, found the warm-cache
+peak moved to about 1,414 successful req/s and the dynamic peak to about 668
+successful req/s, while HTTP 503 counts at 320 clients dropped from the tens
+of thousands (first update, threshold 150) to double digits (this update,
+threshold 300). See "Second updated run" below.
+
 | Request path | Best observed throughput | Latency at that point | Errors |
 |---|---:|---:|---:|
 | Public news HTML, warm HydroGo process cache | 832 requests/s at 160 clients | p95 362 ms; p99 473 ms | 0 |
@@ -228,6 +235,99 @@ around 1.6 of the 2 logical CPUs. These samples support CPU/queue pressure as a
 more immediate limit than RAM for this short workload, but they do not establish
 a long-duration memory or CPU ceiling.
 
+## Second updated run after admission threshold revision (commit 372dbbfd)
+
+The first updated run above (Standard profile admission limit = 150 in-flight
+requests) was found to undershoot real sustainable concurrency on the dynamic
+path: at 320 clients it completed only 487.0 successful req/s while shedding
+33,189 requests with HTTP 503, well below the 515.3 req/s the original,
+unthrottled baseline completed at the same concurrency with zero errors.
+Commit `372dbbfd` raised the thresholds (Compact 32→64, Standard 150→300,
+Distributed 600→1,200) and added a bypass so `/healthz`, `/readyz`, and
+`/metrics` are never shed even while the limiter is actively rejecting other
+traffic — the earlier version had no such bypass, so a sustained overload
+could have made an orchestrator conclude the instance itself was unhealthy
+and kill or recycle it.
+
+This round used the same host, Standard profile, and isolated benchmark
+Postgres/Redis containers as both earlier rounds. The load client ran on a
+separate Windows workstation (not on the server) against the server's public
+IPv4 address on port 80, using the same closed-loop, keep-alive, no-think-time
+model, now also reporting HTTP 503 counts separately from successful-response
+latency. `insaat-api` and its PostgreSQL/Redis containers were stopped for the
+duration and restarted afterward; a post-test check returned HTTP 401 at `/`,
+matching the pre-test state.
+
+### Warm HTML cache (threshold = 300)
+
+| Clients | Successful req/s | p50 | p95 | p99 | HTTP 503 | Failed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 20 | 350.7 | 50.9 ms | 100.9 ms | 214.9 ms | 0 | 0 |
+| 40 | 656.5 | 57.9 ms | 95.1 ms | 122.5 ms | 0 | 0 |
+| 80 | 1,093.1 | 68.8 ms | 112.1 ms | 137.0 ms | 0 | 0 |
+| 160 | 1,413.6 | 104.6 ms | 188.8 ms | 241.2 ms | 0 | 0 |
+| 320 | 1,409.0 | 199.4 ms | 450.8 ms | 606.2 ms | 22 | 0 |
+| 640 | 1,154.7 | 278.1 ms | 651.7 ms | 867.6 ms | 54,023 | 0 |
+| 1,000 | 965.6 | 362.7 ms | 974.2 ms | 2.21 s | 101,471 | 0 |
+
+### Dynamic HTML, cache bypassed (threshold = 300)
+
+| Clients | Successful req/s | p50 | p95 | p99 | HTTP 503 | Failed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 20 | 279.1 | 60.6 ms | 140.8 ms | 232.1 ms | 0 | 0 |
+| 40 | 409.3 | 88.8 ms | 147.7 ms | 193.7 ms | 0 | 0 |
+| 80 | 655.8 | 117.4 ms | 170.7 ms | 220.4 ms | 0 | 0 |
+| 160 | 671.5 | 226.5 ms | 371.3 ms | 458.9 ms | 0 | 0 |
+| 320 | 668.4 | 449.7 ms | 775.6 ms | 954.1 ms | 85 | 0 |
+
+Note the `fail=0` column in both tables: across every stage in this round,
+including the 1,000-client warm-cache run, no request reached the 5-second
+client timeout. The original baseline had 6 timeouts at 1,000 clients
+(warm cache) and 9 at 1,000 clients (dynamic); with admission shedding in
+place, overload now produces fast, cheap HTTP 503 responses instead of
+requests that hang until they time out.
+
+### Health-check bypass, verified under active shedding
+
+During the 1,000-client warm-cache run above (947.9 successful req/s,
+87,255 HTTP 503 responses over that specific sub-run), five sequential
+`/healthz` requests were issued from the load-testing workstation while the
+overload run was in flight. All five returned HTTP 200 (100 ms–1.4 s,
+network-bound), confirming the bypass added in commit `372dbbfd` keeps
+health checks reachable while the admission limiter is actively shedding
+other traffic.
+
+### Comparison across all three rounds, low-latency reference point (80 clients)
+
+| Round | Warm-cache req/s | Warm p95 | Dynamic req/s | Dynamic p95 |
+|---|---:|---:|---:|---:|
+| Original baseline | 807.5 | 149.9 ms | 467.0 | 251.4 ms |
+| First update (threshold 150) | 972.3 | 113 ms | 548.6 | 207 ms |
+| Second update (threshold 300) | 1,093.1 | 112.1 ms | 655.8 | 170.7 ms |
+
+### Comparison at 320 clients, where the first threshold undershot capacity
+
+| Round | Warm-cache successful req/s | Warm HTTP 503 | Dynamic successful req/s | Dynamic HTTP 503 |
+|---|---:|---:|---:|---:|
+| Original baseline (no admission limit) | 733.2–753.9 | 0 (no limiter existed) | 515.3 | 0 (no limiter existed) |
+| First update (threshold 150) | 897.3 | 27,913 (71.8%) | 487.0 | 33,189 |
+| Second update (threshold 300) | 1,409.0 | 22 | 668.4 | 85 |
+
+Raising the threshold did not just restore the pre-limiter throughput at 320
+clients — it exceeded it, because the same commits also carry the GC tuning,
+faster gzip level, and cache-miss coalescing from commit `3dd78a18`/`ee7ccdf8`.
+Shedding at 320 clients is now negligible (22 and 85 requests, versus tens of
+thousands under the first threshold); it becomes material again at 640 and
+1,000 clients, which is the intended behavior — the limiter is sized to absorb
+normal traffic spikes and only shed once concurrency moves well past what
+this host can sustain.
+
+As with the first update, part of the very high 503 counts at 640–1,000
+clients reflects the closed-loop load client's immediate retry on any
+response, including a 503; a real client population would not retry that
+aggressively, so the true proportion of shed traffic under equivalent organic
+load is likely lower than these raw counts suggest.
+
 ## Code changes represented by the updated run
 
 The updated binary included these already committed changes:
@@ -246,6 +346,19 @@ The updated binary included these already committed changes:
 - These benchmark results do not isolate the individual effect of each code
   change. They compare the combined updated binary with the earlier baseline.
 
+The second updated run adds one more committed change:
+
+- Commit `372dbbfd` raises `Budget.MaxInFlightHTTP` (Compact 32→64,
+  Standard 150→300, Distributed 600→1,200) after the first update's Standard
+  threshold was found, on this same host, to shed enough dynamic-path traffic
+  at 320 clients to complete less successful work (487.0 req/s) than the
+  unthrottled original baseline (515.3 req/s) at the same concurrency. It also
+  adds a bypass so `/healthz`, `/readyz`, and `/metrics` are never subject to
+  the admission limit, closing a gap where a sustained overload could have
+  made an orchestrator kill the instance the limiter was trying to protect.
+  See the revision note in
+  [ADR-0333](../architecture/0333-http-admission-concurrency-limit.md).
+
 ## Interpretation and limits
 
 - On this specific 2-vCPU / 908-MiB host, observed peak throughput was about
@@ -262,6 +375,16 @@ The updated binary included these already committed changes:
   req/s, p95 150 ms** for warm cache at 80 clients, and **467 req/s, p95 251
   ms** for dynamic HTML at 80 clients. They are short-test reference points,
   not an SLA.
+- In the second follow-up run after `372dbbfd` raised the admission
+  thresholds, observed peaks rose again to about **1,414 successful req/s for
+  warm cache** (at 160–320 clients) and **671 successful req/s for dynamic
+  HTML** (at 160 clients). At 320 clients — the concurrency where the first
+  threshold (150) undershot capacity — HTTP 503 counts fell from the tens of
+  thousands to 22 (warm cache) and 85 (dynamic), while every stage in this
+  round completed with zero client timeouts, including at 1,000 clients. This
+  round also confirmed `/healthz` stays reachable (HTTP 200) while the limiter
+  is actively shedding other traffic, closing the gap noted in the previous
+  bullet's admission-shedding behavior.
 - A cache hit is not equivalent to an authenticated request, a write, an API
   query, or a cache miss. This report does not measure login, admin, writes,
   media uploads, cold start, long soak, deployment restarts, or multi-process
@@ -284,6 +407,16 @@ benchmark used separate HydroGo-only PostgreSQL/Redis containers. After the
 test, the benchmark HydroGo process and its containers were stopped and the
 previous services were started again. The inşaat API returned HTTP 401 at `/`,
 which was its pre-test observed response.
+
+The second updated run (commit `372dbbfd`) followed the same isolation
+procedure: `insaat-api`, `insaat-postgres`, and `insaat-redis` were stopped,
+the isolated `hydro-bench-postgres`/`hydro-bench-redis` containers were
+started, and the updated binary was run as root on port 80 (required to bind
+a privileged port) with `GOGC=300` and `GOMEMLIMIT=256MiB`. After the load
+stages completed, the HydroGo process was stopped, the benchmark containers
+were stopped, and `insaat-postgres`, `insaat-redis`, and `insaat-api` were
+restarted. A post-test check against `/` returned HTTP 401, matching the
+pre-test state.
 
 The source adjustment required for PostgreSQL startup removed an empty-string
 comparison from the PostgreSQL ban query while retaining that comparison in the
