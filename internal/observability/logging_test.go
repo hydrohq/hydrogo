@@ -104,3 +104,19 @@ func TestLoggingMiddlewareAddsBoundedOperationalDimensions(t *testing.T) {
 		}
 	}
 }
+
+func TestDevelopmentHandlerFormatsReadableRequestLine(t *testing.T) {
+	var logs strings.Builder
+	logger := slog.New(DevelopmentHandler(&logs))
+	logger.LogAttrs(context.Background(), slog.LevelInfo, "http_request",
+		slog.String("method", "GET"), slog.String("path", "/admin/members"), slog.Int("status", 200), slog.Int64("duration_ms", 2))
+	got := logs.String()
+	for _, want := range []string{"INFO", "http_request", "method=GET", "path=/admin/members", "status=200", "duration_ms=2"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("development log missing %q: %q", want, got)
+		}
+	}
+	if strings.HasPrefix(got, "{") || !strings.HasSuffix(got, "\n") {
+		t.Fatalf("development output should be one readable text line: %q", got)
+	}
+}

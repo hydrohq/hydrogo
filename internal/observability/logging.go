@@ -1,8 +1,12 @@
 package observability
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -12,6 +16,31 @@ import (
 )
 
 const maxLoggedPathBytes = 512
+
+// DevelopmentHandler renders structured events as compact, human-readable
+// lines for the local hydro dev terminal. Production keeps JSON logs.
+func DevelopmentHandler(w io.Writer) slog.Handler {
+	return &developmentHandler{writer: w}
+}
+
+type developmentHandler struct{ writer io.Writer }
+
+func (h *developmentHandler) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= slog.LevelInfo
+}
+
+func (h *developmentHandler) Handle(_ context.Context, record slog.Record) error {
+	var fields []string
+	record.Attrs(func(attr slog.Attr) bool {
+		fields = append(fields, fmt.Sprintf("%s=%s", attr.Key, attr.Value.String()))
+		return true
+	})
+	_, err := fmt.Fprintf(h.writer, "%s %-5s %-20s %s\n", record.Time.Format("15:04:05"), record.Level, record.Message, strings.Join(fields, " "))
+	return err
+}
+
+func (h *developmentHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *developmentHandler) WithGroup(_ string) slog.Handler      { return h }
 
 // LoggingMiddleware emits one bounded JSON event per request. It deliberately
 // excludes query strings, request bodies, cookies, and response bodies.
