@@ -22,8 +22,8 @@ func TestAnomalyMiddlewareRejectsObviousPayloadBeforeHandler(t *testing.T) {
 
 func TestAnomalyMiddlewareRestoresBenignBodyAndHonorsBypass(t *testing.T) {
 	for _, test := range []struct {
-		path  string
-		body  string
+		path   string
+		body   string
 		bypass []string
 	}{
 		{path: "/contact", body: "message=hello"},

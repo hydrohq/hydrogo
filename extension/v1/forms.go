@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 const (

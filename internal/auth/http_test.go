@@ -485,8 +485,8 @@ func TestAdminPermissionEndpointBoundsFormBody(t *testing.T) {
 func TestLoginRateLimitBypassByChangingEmail(t *testing.T) {
 	service := &AuthService{userRepo: httpUserRepo{}}
 	handler := HTTPHandler{
-		Service:       service,
-		LoginLimiter:  security.NewAttemptLimiter(1, 1, time.Minute),
+		Service:      service,
+		LoginLimiter: security.NewAttemptLimiter(1, 1, time.Minute),
 	}.login
 
 	makeRequest := func(email string) *httptest.ResponseRecorder {

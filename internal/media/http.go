@@ -264,7 +264,7 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 		http.NotFound(w, r)
 		return
 	}
-		w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", mimeType)
 	http.ServeFile(w, r, path)
 }

@@ -7,11 +7,11 @@ import (
 )
 
 type Worker struct {
-	Service      *SyncService
-	Interval     time.Duration
-	Logger       *slog.Logger
-	stopChan     chan struct{}
-	stoppedChan  chan struct{}
+	Service     *SyncService
+	Interval    time.Duration
+	Logger      *slog.Logger
+	stopChan    chan struct{}
+	stoppedChan chan struct{}
 }
 
 func NewWorker(service *SyncService, interval time.Duration, logger *slog.Logger) *Worker {

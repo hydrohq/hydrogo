@@ -535,12 +535,12 @@ func TestAssetServingIncludesNosniffHeader(t *testing.T) {
 		Uploader: uploader,
 	}
 	handler := HTTPHandler{Service: service, DB: nil}
-	
+
 	req := httptest.NewRequest(http.MethodGet, "/media/abc", nil)
 	req.SetPathValue("id", "abc")
 	rec := httptest.NewRecorder()
 	handler.serve(rec, req)
-	
+
 	if rec.Code != 200 {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}

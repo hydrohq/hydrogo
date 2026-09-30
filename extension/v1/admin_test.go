@@ -111,7 +111,7 @@ func TestAdminManifestUnboundedStrings(t *testing.T) {
 			},
 		},
 	}
-	
+
 	if err := manifest.Validate(); err == nil {
 		t.Fatalf("VULNERABILITY: AdminExtensionManifest allows unbounded string sizes in Name, Version, Label, and Placement! This causes memory DoS.")
 	}

@@ -28,7 +28,7 @@ func TestFormNumberIsParsedAsNumber(t *testing.T) {
 		Title:  "Form",
 		Fields: []FormField{{ID: "age", Type: FormNumber, Label: "Age"}},
 	}
-	
+
 	_, problems, err := def.NormalizeFormSubmission(map[string]string{"age": "not-a-number"})
 	if err != nil {
 		t.Fatal(err)

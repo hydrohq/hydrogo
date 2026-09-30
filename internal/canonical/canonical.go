@@ -28,9 +28,13 @@ func Slugify(value string) string {
 	var out strings.Builder
 	separator := false
 	for _, r := range value {
-		if unicode.Is(unicode.Mn, r) { continue }
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
 		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			if separator && out.Len() > 0 { out.WriteByte('-') }
+			if separator && out.Len() > 0 {
+				out.WriteByte('-')
+			}
 			separator = false
 			out.WriteRune(r)
 		} else {
