@@ -32,7 +32,7 @@ func AdminLoginSecurityNotice(previousLogin, previousIP string, failedAttempts i
 		}
 		ctx = templ.ClearChildren(ctx)
 		if previousLogin != "" || failedAttempts > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"studio-card\" role=\"status\" aria-label=\"Oturum güvenlik özeti\" data-login-security-notice><h2>Oturum güvenlik özeti</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"studio-card login-security-notice\" role=\"status\" aria-label=\"Oturum güvenlik özeti\" data-login-security-notice data-staff-notice=\"login-security\"><div class=\"login-security-notice-header\"><h2>Oturum güvenlik özeti</h2><button type=\"button\" class=\"admin-ux-close\" data-staff-notice-dismiss title=\"Kapat\" aria-label=\"Bu bildirimi gizle\">×</button></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

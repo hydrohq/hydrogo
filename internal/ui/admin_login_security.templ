@@ -4,8 +4,11 @@ import "strconv"
 
 templ AdminLoginSecurityNotice(previousLogin, previousIP string, failedAttempts int) {
 	if previousLogin != "" || failedAttempts > 0 {
-		<section class="studio-card" role="status" aria-label="Oturum güvenlik özeti" data-login-security-notice>
-			<h2>Oturum güvenlik özeti</h2>
+		<section class="studio-card login-security-notice" role="status" aria-label="Oturum güvenlik özeti" data-login-security-notice data-staff-notice="login-security">
+			<div class="login-security-notice-header">
+				<h2>Oturum güvenlik özeti</h2>
+				<button type="button" class="admin-ux-close" data-staff-notice-dismiss title="Kapat" aria-label="Bu bildirimi gizle">×</button>
+			</div>
 			if previousLogin != "" {
 				<p>Önceki başarılı giriş: { previousLogin }
 				if previousIP != "" {
