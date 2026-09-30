@@ -38,22 +38,20 @@ templ MediaUploadFolderField(folderID string) {
 	<input type="hidden" name="folder_id" value={ folderID } form="media-upload-form" />
 }
 
-templ MediaTagFilter(tag, folder, color string) {
+templ MediaTagFilter(tag, folder string) {
 	<form method="get" action="/admin/media" class="studio-form media-inline-form">
 		<input type="hidden" name="folder" value={ folder } />
 		<label class="studio-form-field"><span>Etiketleri filtrele</span>
 			<input type="search" name="tag" value={ tag } placeholder="logo, hero" maxlength="512" />
-		</label>
-		<label class="studio-form-field"><span>Dominant renk</span>
-			<input type="text" name="color" value={ color } placeholder="#1e3a8a" maxlength="7" />
 		</label>
 		<button type="submit" class="button">Uygula</button>
 	</form>
 }
 
 templ MediaSettingsForm(p MediaSettingsFormProps) {
-	<details class="studio-card media-settings-disclosure">
-		<summary>Medya güvenliği ve filigran ayarları</summary>
+	<button type="button" class="button button-quiet media-settings-trigger" data-media-settings-open>Medya güvenliği ve filigran ayarları</button>
+	<dialog class="media-settings-dialog" aria-label="Medya güvenliği ve filigran ayarları">
+		<div class="media-pdf-dialog-head"><strong>Medya güvenliği ve filigran ayarları</strong><button type="button" data-media-settings-close class="button-quiet">Kapat</button></div>
 		<form method="post" action="/admin/media/settings" class="studio-form">
 			<input type="hidden" name="_csrf" value={ p.CSRF } />
 			<label class="studio-form-field studio-form-field-checkbox"><input type="checkbox" name="hotlink_protection" checked?={ p.HotlinkProtection } /> <span>Harici siteden gömmeyi engelle</span></label>
@@ -75,7 +73,7 @@ templ MediaSettingsForm(p MediaSettingsFormProps) {
 			<label class="studio-form-field"><span>Kenar boşluğu (px)</span><input type="number" name="watermark_margin" min="0" max="1000" value={ p.WatermarkMargin } /></label>
 			<button type="submit" class="button">Ayarları kaydet</button>
 		</form>
-	</details>
+	</dialog>
 }
 
 templ MediaAssetMetadataForm(p MediaMetadataFormProps) {

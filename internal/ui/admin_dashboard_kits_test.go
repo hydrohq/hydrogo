@@ -68,7 +68,7 @@ func TestMediaFormsDoNotUseDeadTailwindClasses(t *testing.T) {
 	if err := MediaCreateFolderForm(nil, "", "").Render(context.Background(), &out); err != nil {
 		t.Fatal(err)
 	}
-	if err := MediaTagFilter("", "", "").Render(context.Background(), &out); err != nil {
+	if err := MediaTagFilter("", "").Render(context.Background(), &out); err != nil {
 		t.Fatal(err)
 	}
 	if err := MediaFolderTree(nil, "").Render(context.Background(), &out); err != nil {
@@ -350,5 +350,57 @@ func TestEmailPreviewActionAppearsOnlyWhenMailerConfigured(t *testing.T) {
 	}
 	if !strings.Contains(active.String(), `href="/admin/mailer/test-preview"`) || strings.Contains(inactive.String(), `href="/admin/mailer/test-preview"`) {
 		t.Fatal("email preview navigation does not follow mailer availability")
+	}
+}
+
+func TestMediaTagFilterHasNoColorField(t *testing.T) {
+	var out bytes.Buffer
+	if err := MediaTagFilter("", "").Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), `name="color"`) || strings.Contains(out.String(), "Dominant renk") {
+		t.Fatal("media tag filter should only filter by tag, not by dominant color")
+	}
+}
+
+func TestMediaSettingsFormRendersAsADialogNotADisclosure(t *testing.T) {
+	var out bytes.Buffer
+	if err := MediaSettingsForm(MediaSettingsFormProps{}).Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `<dialog class="media-settings-dialog"`) {
+		t.Fatal("media security/watermark settings must open as a dialog, not a <details> disclosure")
+	}
+	if !strings.Contains(out.String(), `data-media-settings-open`) || !strings.Contains(out.String(), `data-media-settings-close`) {
+		t.Fatal("media settings dialog is missing its open/close triggers")
+	}
+	if strings.Contains(out.String(), `<details class="studio-card media-settings-disclosure">`) {
+		t.Fatal("media settings form should no longer render as a <details> disclosure")
+	}
+}
+
+func TestMediaToolbarRowButtonsShareTheSameHeightUnderNova(t *testing.T) {
+	// The toolbar row mixes several different element types (button, <a>,
+	// <summary>, a submit button) that each have their own default sizing;
+	// they must all be pinned to the same explicit height so they line up,
+	// even though their widths naturally differ by content.
+	for _, want := range []string{
+		`html[data-ui-theme="nova"] .media-toolbar-row .list-view-switch button,html[data-ui-theme="nova"] .media-toolbar-row>.media-folder-tree>a,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-disclosure>summary,html[data-ui-theme="nova"] .media-toolbar-row>p>.button,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-trigger{`,
+	} {
+		if !strings.Contains(AdminMediaFormsCSS, want) {
+			t.Fatal("Nova's media toolbar row is missing the shared-height rule covering all its button-like children")
+		}
+	}
+}
+
+func TestNovaThemeToggleAndAvatarHaveVisibleBorders(t *testing.T) {
+	if strings.Contains(AdminNovaDashboardLayoutCSS, `.ui-family-select,html[data-ui-theme="nova"] .theme-toggle-btn{border-color:transparent`) {
+		t.Fatal("Nova must not strip the theme toggle button's border - it should match the notification bell's border")
+	}
+	if !strings.Contains(AdminNovaDashboardLayoutCSS, `html[data-ui-theme="nova"] .theme-toggle-btn{border:1px solid var(--line);background:var(--surface)}`) {
+		t.Fatal("Nova's theme toggle button is missing a visible border like the other topbar buttons")
+	}
+	if !strings.Contains(AdminNovaDashboardLayoutCSS, `.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--surface);color:var(--muted);border:1px solid var(--line)}`) {
+		t.Fatal("Nova's account avatar must use the same border/background treatment as the notification bell button")
 	}
 }
