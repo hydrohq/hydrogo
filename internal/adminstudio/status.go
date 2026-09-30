@@ -23,18 +23,18 @@ func statusPillClass(status string) string {
 func statusPillLabel(info StatusInfo) string {
 	switch strings.ToLower(strings.TrimSpace(info.Value)) {
 	case "published":
-		return "Published"
+		return "Yayında"
 	case "draft":
-		return "Draft"
+		return "Taslak"
 	case "scheduled":
 		if info.ScheduledAt != nil {
-			return "Scheduled " + info.ScheduledAt.UTC().Format("02 Jan 15:04 UTC")
+			return "Zamanlandı · " + info.ScheduledAt.UTC().Format("02 Jan 15:04 UTC")
 		}
-		return "Scheduled"
+		return "Zamanlandı"
 	case "archived", "retracted":
-		return "Archived"
+		return "Arşivlendi"
 	default:
-		return "Other"
+		return "Diğer"
 	}
 }
 

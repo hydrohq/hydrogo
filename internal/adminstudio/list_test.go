@@ -33,7 +33,7 @@ func TestRenderListUsesTypedStatusPillsAndScheduleTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-status-row="scheduled"`, `data-status-filter="scheduled"`, `Scheduled 15 Oct 06:00 UTC`, `datetime="2026-10-15T06:00:00Z"`} {
+	for _, want := range []string{`data-status-row="scheduled"`, `Zamanlandı · 15 Oct 06:00 UTC`, `datetime="2026-10-15T06:00:00Z"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("status list omitted %q: %s", want, out.String())
 		}

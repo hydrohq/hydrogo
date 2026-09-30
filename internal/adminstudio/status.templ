@@ -1,12 +1,12 @@
 package adminstudio
 
 templ StatusPill(info StatusInfo) {
-	<button type="button" class={ statusPillClass(info.Value) } data-status-filter={ info.Value } aria-label={ "Filter by " + statusPillLabel(info) }>
+	<span class={ statusPillClass(info.Value) } aria-label={ statusPillLabel(info) }>
 		<span aria-hidden="true">●</span>
 		if statusPillScheduledAt(info) != "" {
 			<time datetime={ statusPillScheduledAt(info) }>{ statusPillLabel(info) }</time>
 		} else {
 			{ statusPillLabel(info) }
 		}
-	</button>
+	</span>
 }
