@@ -191,7 +191,7 @@ func hasContentEncoding(header http.Header) bool { return header.Get("Content-En
 func compressBody(encoding string, body []byte, out *bytes.Buffer) error {
 	switch encoding {
 	case "br":
-		writer := brotli.NewWriterLevel(out, 4)
+		writer := brotli.NewWriterLevel(out, 1)
 		if _, err := writer.Write(body); err != nil {
 			return err
 		}
