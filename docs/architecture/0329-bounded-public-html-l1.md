@@ -49,9 +49,15 @@ migration, worker, or external service is introduced.
 ## Cache and capacity impact
 
 The cache is bounded independently of request volume. Expiration and LRU-like
-oldest-expiry eviction cap retained response memory. Concurrent misses may
-render more than once; normal request admission and database budgets still
-apply. A process restart clears the cache. Every process owns its own configured
+oldest-expiry eviction cap retained response memory. Concurrent misses on the
+same key are coalesced with `golang.org/x/sync/singleflight` (2026-09-30,
+see ADR-0333): only one goroutine renders; every other waiting request still
+gets its own independently generated CSP nonce from the resulting cache
+entry, never the leader's raw response. An oversized body that streams
+straight to the leader's connection is not shared; callers that were waiting
+on that key fall back to rendering independently, same as before this
+change. Normal request admission and database budgets still apply. A process
+restart clears the cache. Every process owns its own configured
 budget, so deployment capacity planning multiplies the 32 MiB maximum by the
 number of web processes.
 
