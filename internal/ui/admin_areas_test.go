@@ -426,8 +426,26 @@ func TestAdminShellIncludesWorkbenchThemeMode(t *testing.T) {
 	if !strings.Contains(out.String(), `data-ui-theme="workbench"`) {
 		t.Fatal("rendered admin shell missing workbench contract")
 	}
-	if !strings.Contains(out.String(), "hydro-ui-theme-v2") || !strings.Contains(out.String(), "startsWith('workbench-')") {
+	if !strings.Contains(out.String(), "hydro-ui-theme-v2") || !strings.Contains(out.String(), "workbench-'+variant") {
 		t.Fatal("rendered admin shell missing pre-paint Workbench migration")
+	}
+}
+
+func TestAdminThemeMigrationDoesNotOverrideExplicitFamilyChoice(t *testing.T) {
+	// Regression test: an earlier version of AdminThemeMigrationJS ran on
+	// every page load and forced data-ui-theme back to "workbench" unless the
+	// stored preference literally started with "workbench-", silently
+	// reverting any explicit hydrogo/shadcn/nova selection on the next
+	// refresh. The migration must now only seed a default when no versioned
+	// preference exists at all, and must never call setAttribute itself.
+	if strings.Contains(AdminThemeMigrationJS, "setAttribute") {
+		t.Fatal("AdminThemeMigrationJS must not set data-ui-theme/data-theme itself; that would override an explicit family choice on every reload")
+	}
+	if strings.Contains(AdminThemeMigrationJS, "startsWith('workbench-')") {
+		t.Fatal("AdminThemeMigrationJS must not re-fire for every non-workbench saved family")
+	}
+	if !strings.Contains(AdminThemeMigrationJS, "!localStorage.getItem(key)") {
+		t.Fatal("AdminThemeMigrationJS must only seed a default when no versioned preference exists yet")
 	}
 }
 
