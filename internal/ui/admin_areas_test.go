@@ -504,16 +504,25 @@ func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
+	if !strings.Contains(out.String(), `data-ui-theme="nova"`) {
+		t.Fatal(`rendered admin shell missing data-ui-theme="nova" contract`)
+	}
+
+	// The family selector itself lives on the account settings page, not the
+	// shared shell (moved out of the header per customer feedback).
+	var account bytes.Buffer
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account"}); err != nil {
+		t.Fatalf("render account area: %v", err)
+	}
 	for _, want := range []string{
-		`data-ui-theme="nova"`,
 		`id="ui-family-select"`,
 		`<option value="hydrogo">HydroGo</option>`,
 		`<option value="shadcn">shadcn</option>`,
 		`<option value="workbench">Workbench</option>`,
 		`<option value="nova">Nova</option>`,
 	} {
-		if !strings.Contains(out.String(), want) {
-			t.Fatalf("rendered admin shell missing nova contract %q", want)
+		if !strings.Contains(account.String(), want) {
+			t.Fatalf("account area missing family selector contract %q", want)
 		}
 	}
 }
