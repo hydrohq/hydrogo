@@ -6,6 +6,15 @@ This report records a short, single-host capacity exercise for the HydroGo
 Standard runtime. It is an empirical snapshot, not a supported capacity
 guarantee or production certification.
 
+An updated run was collected after commits `3dd78a18` and `ee7ccdf8` were
+present in the workspace. The new version raised the best observed warm-cache
+throughput from about 832 to 1,016 successful requests/s, and dynamic HTML from
+about 515 to 560 successful requests/s. The update also introduces explicit
+HTTP admission shedding: at overload, excess requests receive HTTP 503 with
+`Retry-After` rather than waiting indefinitely in the application. These are
+short follow-up samples, so compare trends rather than treating the exact
+percentages as guaranteed.
+
 | Request path | Best observed throughput | Latency at that point | Errors |
 |---|---:|---:|---:|
 | Public news HTML, warm HydroGo process cache | 832 requests/s at 160 clients | p95 362 ms; p99 473 ms | 0 |
@@ -148,15 +157,111 @@ stage. Linux process CPU percentages above 100% mean the process used more than
 one logical CPU; container CPU percentages are the Docker CLI readings and are
 reported separately.
 
+## Updated run after performance changes
+
+The following follow-up was run on the same server, with the same Standard
+profile, routes, separate benchmark database/cache containers, and external
+closed-loop Go load client described above. Each stage lasted approximately 12
+seconds. The current generator reports successful response latency separately
+from overload 503 latency; only successful responses count toward useful RPS.
+
+### Updated warm HTML cache
+
+| Clients | Successful req/s | Successful p50 | Successful p95 | Successful p99 | HTTP 503 | Notes |
+|---:|---:|---:|---:|---:|---:|---|
+| 80 | 972.3 | 79 ms | 113 ms | 137 ms | 0 | Repeat run |
+| 160 | 921.3 | 149 ms | 334 ms | 528 ms | 5 | Near admission limit |
+| 320 | 897.3 | 193 ms | 424 ms | 572 ms | 27,913 (71.8%) | Excess load shed quickly |
+| 640 | 740.8 | 230 ms | 513 ms | 705 ms | 90,097 (90.9%) | Most attempts rejected |
+| 1,000 | 601.7 | 283 ms | 686 ms | 861 ms | 141,052 (95.1%) | Most attempts rejected |
+
+A separate first pass reached 1,016.1 successful req/s at 160 clients, with
+12,351 successes and no errors. The repeat at 80 clients reached 972.3 req/s
+with p95 113 ms. Across the runs the new peak is roughly 22% above the old
+832 req/s peak, and the 80-client point is roughly 20% above the old 808 req/s
+point. The run-to-run spread (including a 921 req/s repeat at 160 clients)
+shows that the short external test has meaningful variance.
+
+### Updated dynamic HTML (cache bypassed)
+
+| Clients | Successful req/s | Successful p50 | Successful p95 | Successful p99 | HTTP 503 | Notes |
+|---:|---:|---:|---:|---:|---:|---|
+| 20 | 257.9 | 65 ms | 147 ms | 210 ms | 0 | |
+| 40 | 481.5 | 79 ms | 121 ms | 171 ms | 0 | |
+| 80 | 548.6 | 140 ms | 207 ms | 265 ms | 0 | Repeat run |
+| 160 | 559.7 | 270 ms | 452 ms | 549 ms | 23 | Near admission limit |
+| 320 | 487.0 | 340 ms | 566 ms | 684 ms | 33,189 | Most attempts rejected |
+| 640 | 355.3 | 415 ms | 908 ms | 1.26 s | 83,892 | Most attempts rejected |
+| 1,000 | 315.7 | 519 ms | 869 ms | 1.05 s | 150,837 | Most attempts rejected |
+
+The 80-client dynamic point improved from 467 to 549 successful req/s (about
+17.5%), while p95 fell from 251 to 207 ms (about 18%). At 160 clients,
+successful throughput increased from 491 to 560 req/s (about 14%) and p95 fell
+from 519 to 452 ms (about 13%). The observed dynamic peak increased from 515 to
+560 req/s (about 9%), but it occurred at fewer clients and lower p95 latency.
+At 20 clients the new result was effectively flat versus the earlier run.
+
+The HTTP admission limit for the Standard profile is 150 in-flight requests.
+Therefore 503 counts at 320 clients and above are expected overload responses,
+not successful content delivery or client timeouts. The closed-loop generator
+immediately retries after each response, so at high client counts it produced
+thousands of attempts per second. That artificial retry pressure also consumes
+some CPU and means the decreasing successful RPS at high concurrency should not
+be read as the service's normal-load throughput. A sensible use of these
+results is to assess the admitted requests' throughput/latency and the fact
+that excess work is shed promptly; do not count 503 responses as served pages.
+
+### Updated resource sample
+
+| Updated load snapshot | HydroGo process | PostgreSQL container | Redis container | Host memory available |
+|---|---:|---:|---:|---:|
+| Warm cache, 320 clients | RSS about 73 MiB; CPU about 159% (1.59 logical CPUs) | RSS about 44 MiB; Docker CPU sample about 23% | about 6.5 MiB | about 448 MiB |
+| Dynamic HTML, 20 clients | RSS about 53 MiB; CPU about 104% (1.04 logical CPUs) | RSS about 46 MiB; Docker CPU sample about 69% | about 7 MiB | about 469 MiB |
+
+The warm-cache snapshot was collected at high concurrency. The dynamic resource
+snapshot was taken at only 20 clients, so it is not a dynamic saturation or
+high-water measurement and should not be compared directly with the earlier
+320-client dynamic snapshot. No continuous resource collector was active across
+all updated stages. The host had 2 vCPUs and 908 MiB visible RAM; the updated
+samples showed substantial memory headroom, while the high-load process used
+around 1.6 of the 2 logical CPUs. These samples support CPU/queue pressure as a
+more immediate limit than RAM for this short workload, but they do not establish
+a long-duration memory or CPU ceiling.
+
+## Code changes represented by the updated run
+
+The updated binary included these already committed changes:
+
+- Commit `3dd78a18` adds opt-in pprof diagnostics bound to loopback, sets a
+  PostgreSQL connection maximum lifetime, gzip compression at `BestSpeed`, and
+  capacity-profile HTTP concurrency limits: Compact 32, Standard 150, and
+  Distributed 600 in-flight requests. When the limit is full, HydroGo responds
+  with HTTP 503 and `Retry-After`. See
+  [ADR-0333](../architecture/0333-http-admission-concurrency-limit.md) for the decision.
+- Commit `ee7ccdf8` coalesces concurrent misses for the same public HTML cache
+  key using `golang.org/x/sync/singleflight`. A test verifies that eight
+  concurrent requests render once while each response retains its own CSP
+  nonce; the test was run five times and passed each time. This builds on the
+  bounded local HTML cache decision in [ADR-0329](../architecture/0329-bounded-public-html-l1.md).
+- These benchmark results do not isolate the individual effect of each code
+  change. They compare the combined updated binary with the earlier baseline.
+
 ## Interpretation and limits
 
 - On this specific 2-vCPU / 908-MiB host, observed peak throughput was about
   **800 requests/s for the warm public HTML cache** and **500 requests/s for
   dynamic HTML**. Those peak values came with materially higher tail latency as
   concurrency increased.
-- For lower tail latency, the measured points were approximately **808 req/s,
-  p95 150 ms** for warm cache at 80 clients, and **467 req/s, p95 251 ms** for
-  dynamic HTML at 80 clients. They are short-test reference points, not an SLA.
+- In the follow-up run after `3dd78a18` and `ee7ccdf8`, observed peaks were
+  about **1,016 successful req/s for warm cache** and **560 successful req/s
+  for dynamic HTML**. At 80 clients, the follow-up delivered about 972 req/s
+  cached (p95 113 ms) and 549 req/s dynamic (p95 207 ms). Excess requests
+  above the admission budget were rejected with HTTP 503 and are excluded from
+  successful throughput.
+- Before the update, lower-latency reference points were approximately **808
+  req/s, p95 150 ms** for warm cache at 80 clients, and **467 req/s, p95 251
+  ms** for dynamic HTML at 80 clients. They are short-test reference points,
+  not an SLA.
 - A cache hit is not equivalent to an authenticated request, a write, an API
   query, or a cache miss. This report does not measure login, admin, writes,
   media uploads, cold start, long soak, deployment restarts, or multi-process
