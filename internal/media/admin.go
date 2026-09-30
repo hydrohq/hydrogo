@@ -216,7 +216,7 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 	if err := ui.MediaCreateFolderForm(folderItems, csrf, selectedFolder).Render(r.Context(), w); err != nil {
 		return
 	}
-	if err := ui.MediaTagFilter(selectedTag, selectedFolder, selectedColor).Render(r.Context(), w); err != nil {
+	if err := ui.MediaTagFilter(selectedTag, selectedFolder).Render(r.Context(), w); err != nil {
 		return
 	}
 	if user := auth.UserFromContext(r.Context()); user != nil && user.Role == auth.RoleAdmin && h.Garbage != nil {
@@ -369,6 +369,17 @@ if (dropzone && fileInput) {
 	dropzone.addEventListener('drop', (e) => {
 		if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
 			fileInput.files = e.dataTransfer.files;
+		}
+	});
+}
+
+const settingsDialog = document.querySelector('.media-settings-dialog');
+if (settingsDialog) {
+	document.addEventListener('click', (e) => {
+		if (e.target.closest('[data-media-settings-open]')) {
+			settingsDialog.showModal();
+		} else if (e.target.closest('[data-media-settings-close]') || e.target === settingsDialog) {
+			settingsDialog.close();
 		}
 	});
 }
