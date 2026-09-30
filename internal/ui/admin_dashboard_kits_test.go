@@ -23,6 +23,17 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	}
 }
 
+func TestMediaInlineFormSubmitButtonDoesNotStretchFullWidth(t *testing.T) {
+	// Regression test: .studio-form is a 2-column CSS grid with no
+	// justify-items override, so a lone <button type="submit"> landing alone
+	// in the grid's second row stretched to fill its whole column by CSS
+	// Grid's default justify-items:stretch - "Uygula"/"Oluştur" rendered as a
+	// near-full-width bar instead of a normal button.
+	if !strings.Contains(AdminMediaFormsCSS, `.media-inline-form button[type="submit"]{justify-self:start`) {
+		t.Fatal("media-inline-form submit buttons are missing the justify-self:start override that keeps them from stretching")
+	}
+}
+
 func TestMediaFormsDoNotUseDeadTailwindClasses(t *testing.T) {
 	// Regression test: internal/ui/picture.templ (folder tree, tag/color
 	// filter, settings and per-asset metadata disclosures) was written with
