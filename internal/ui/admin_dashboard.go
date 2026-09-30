@@ -57,6 +57,9 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	if err := adminWorkbenchDashboardTemplate.Execute(w, data); err != nil {
 		return err
 	}
+	if err := adminNovaDashboardTemplate.Execute(w, data); err != nil {
+		return err
+	}
 	for _, collection := range data.Collections {
 		if len(collection.Kits) == 0 || collection.ID == "commerce_variants" {
 			continue
