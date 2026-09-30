@@ -67,6 +67,8 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0271](0271-security-hardening-and-recovery.md) | Security hardening and recovery controls | Accepted |
 | [0278](0278-indexed-related-content.md) | Indexed taxonomy recommendations | Accepted for News and Portfolio; Pages superseded by 0279 |
 | [0279](0279-indexed-related-pages.md) | Indexed related-page recommendations | Accepted |
+| [0280](0280-tenant-scoped-static-ui-overrides.md) | Tenant-scoped static UI translation overrides | Accepted |
+| [0281](0281-hierarchical-site-navigation.md) | Hierarchical Site navigation | Accepted |
 | [0282](0282-postgres-physical-schema-diff.md) | PostgreSQL physical schema diff | Accepted |
 | [0283](0283-mysql-mariadb-adapter.md) | MySQL/MariaDB adapter certification | Accepted; certified on MySQL 8.0.46 and MariaDB 10.5.29 |
 | [0284](0284-mysql-physical-schema-diff.md) | MySQL physical schema diff | Accepted |
@@ -405,6 +407,7 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0311: Security token lifetime settings](0311-security-token-lifetime-settings.md)
 - [ADR-0312: Global email branding and legal footer](0312-email-branding-and-legal-footer.md)
 - [ADR-0313: Configurable admin login background](0313-login-background-appearance.md)
+- [ADR-0314: Aggregate content feedback](0314-aggregate-content-feedback.md)
 - [ADR-0315: Tenant-scoped site search insights](0315-tenant-scoped-search-insights.md)
 - [ADR-0316: Scheduled database maintenance](0316-scheduled-database-maintenance.md)
 - [ADR-0317: Custom public 404 and 500 pages](0317-custom-public-error-pages.md)
