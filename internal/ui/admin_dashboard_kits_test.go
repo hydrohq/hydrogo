@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bytes"
+	"context"
 	"regexp"
 	"strings"
 	"testing"
@@ -18,6 +19,43 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	for _, want := range []string{"wb-dashboard", "wb-hero", "wb-metric-strip", "wb-collection-grid", "wb-action-list", "wb-health-list"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("workbench dashboard widget %q missing", want)
+		}
+	}
+}
+
+func TestMediaFormsDoNotUseDeadTailwindClasses(t *testing.T) {
+	// Regression test: internal/ui/picture.templ (folder tree, tag/color
+	// filter, settings and per-asset metadata disclosures) was written with
+	// Tailwind utility class names (rounded, border-slate-200, bg-slate-900,
+	// block, w-full, ...) that have zero matching CSS anywhere in this
+	// codebase - Studio never loads Tailwind (ADR-0041) - so the whole media
+	// page rendered unstyled in every visual family. It must instead reuse
+	// the same semantic classes (.studio-card, .studio-form,
+	// .studio-form-field, .button) the rest of Studio already relies on.
+	var out bytes.Buffer
+	if err := MediaSettingsForm(MediaSettingsFormProps{}).Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if err := MediaAssetMetadataForm(MediaMetadataFormProps{}).Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if err := MediaCreateFolderForm(nil, "", "").Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if err := MediaTagFilter("", "", "").Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if err := MediaFolderTree(nil, "").Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, dead := range []string{"border-slate", "bg-slate-900", "text-slate", "rounded-lg border ", `class="block `, `class="mt-`, `class="w-full`, `class="px-`} {
+		if strings.Contains(out.String(), dead) {
+			t.Fatalf("media forms still use a dead Tailwind class fragment %q", dead)
+		}
+	}
+	for _, want := range []string{`class="studio-card`, `class="studio-form`, `class="studio-form-field`, `class="button"`, `class="media-folder-link`} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("media forms missing expected Studio design-system class %q", want)
 		}
 	}
 }

@@ -249,7 +249,7 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 
 		overlay := fmt.Sprintf(`<div class="media-thumb-overlay"><a href="/media/%s" target="_blank" rel="noopener noreferrer" class="media-overlay-btn" title="Yeni sekmede aç"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" x2="21" y1="14" y2="3"></line></svg></a><button type="button" class="media-overlay-btn media-copy-link" data-url="/media/%s" title="Bağlantıyı kopyala"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button></div>`, url.PathEscape(asset.ID), url.PathEscape(asset.ID))
 
-		_, _ = fmt.Fprintf(w, `<article id="media-%s" class="media-card" data-filename="%s" data-id="%s"><div class="media-thumb-wrap">%s%s%s</div><div class="media-card-body"><strong class="media-title" title="%s">%s</strong><small class="media-sub">%s</small><div class="media-card-actions"><code>%s</code><button class="button button-quiet media-copy" type="button" data-copy="%s" title="ID Kopyala">Kopyala</button></div><form class="media-visibility-form" method="post" action="/admin/media/%s/visibility"><input type="hidden" name="_csrf" value="%s"><select name="visibility" aria-label="Görünürlük"><option value="private" %s>Özel</option><option value="public" %s>Herkese açık</option></select><button class="button button-quiet" type="submit">Güncelle</button></form></div></article>`,
+		_, _ = fmt.Fprintf(w, `<article id="media-%s" class="media-card" data-filename="%s" data-id="%s"><div class="media-thumb-wrap">%s%s%s</div><div class="media-card-body"><strong class="media-title" title="%s">%s</strong><small class="media-sub">%s</small><div class="media-card-actions"><code>%s</code><button class="button button-quiet media-copy" type="button" data-copy="%s" title="ID Kopyala">Kopyala</button></div><form class="media-visibility-form" method="post" action="/admin/media/%s/visibility"><input type="hidden" name="_csrf" value="%s"><select name="visibility" aria-label="Görünürlük"><option value="private" %s>Özel</option><option value="public" %s>Herkese açık</option></select><button class="button button-quiet" type="submit">Güncelle</button></form>`,
 			template.HTMLEscapeString(asset.ID),
 			template.HTMLEscapeString(asset.OriginalFilename),
 			template.HTMLEscapeString(asset.ID),
@@ -273,6 +273,7 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 		if err := ui.MediaAssetMetadataForm(ui.MediaMetadataFormProps{Action: "/admin/media/" + url.PathEscape(asset.ID) + "/metadata", CSRF: csrf, ReturnFolder: selectedFolder, FolderID: asset.FolderID, Tags: strings.Join(asset.Tags, ", "), FocalX: fmt.Sprintf("%.2f", asset.FocalX), FocalY: fmt.Sprintf("%.2f", asset.FocalY), Folders: formFolders}).Render(r.Context(), w); err != nil {
 			return
 		}
+		_, _ = fmt.Fprint(w, `</div></article>`)
 	}
 
 	if len(assets) == 0 {
