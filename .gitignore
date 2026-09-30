@@ -65,8 +65,3 @@ Thumbs.db
 /hydro
 /hydro-issuer
 .temp_files/
-
-.wrongstack/
-!/.wrongstack/
-/.wrongstack/*
-!/.wrongstack/project.json

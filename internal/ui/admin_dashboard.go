@@ -191,7 +191,7 @@ var adminReportsKPIsTemplate = template.Must(template.New("admin-reports-kpis").
 
 <div class="reports-notice-box">
 	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-	<div><strong>Gerçek Veri ve Kapsam Bilgisi:</strong> Raporlar geçerli sunucu prosesinin başlangıcından itibaren toplanan gerçek bellek içi (in-memory) telemetri verileridir (proses yeniden başlatıldığında sıfırlanır). Tarihsel 7g/30g zaman serisi filtreleme ve oturum bazlı kullanıcı aksiyon-hata korelasyonu kalıcı veritabanı şeması, saklama (retention) süresi ve KVKK/GDPR rıza kararı gerektirdiğinden ADR/TASKS.md kapsamında açık karar kapısı (gate) olarak tutulmaktadır.</div>
+	<div><strong>Gerçek Veri ve Kapsam Bilgisi:</strong> Raporlar geçerli sunucu prosesinin başlangıcından itibaren toplanan gerçek bellek içi (in-memory) telemetri verileridir (proses yeniden başlatıldığında sıfırlanır). Tarihsel 7g/30g zaman serisi filtreleme ve oturum bazlı kullanıcı aksiyon-hata korelasyonu kalıcı veritabanı şeması, saklama (retention) süresi ve KVKK/GDPR rıza kararı gerektirdiğinden ADR/docs/planning/TASKS.md kapsamında açık karar kapısı (gate) olarak tutulmaktadır.</div>
 </div>
 
 <section class="dashboard-kpis">

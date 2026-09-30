@@ -7,10 +7,10 @@ need.
 
 ## Before making a change
 
-Read [AGENTS.md](AGENTS.md), the [philosophy](docs/HYDROGO_PHILOSOPHY.md),
-the [implementation plan](docs/implementation_plan.md), the
-[architecture index](docs/architecture/README.md), and every affected ADR.
-Choose one concrete acceptance criterion from the [roadmap](docs/ROADMAP.md).
+Read [AGENTS.md](../AGENTS.md), the [philosophy](HYDROGO_PHILOSOPHY.md),
+the [implementation plan](implementation_plan.md), the
+[architecture index](architecture/README.md), and every affected ADR.
+Choose one concrete acceptance criterion from the [roadmap](ROADMAP.md).
 Do not silently change an accepted architectural decision; supersede it with a
 new ADR and link the two decisions.
 
