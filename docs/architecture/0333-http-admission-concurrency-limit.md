@@ -19,10 +19,25 @@ requests it already admitted.
 ## Decision
 
 Add `Budget.MaxInFlightHTTP` to the capacity profile (`internal/capacity/profile.go`):
-Compact=32, Standard=150, Distributed=600. These are initial empirical
-estimates sized to the observed single-host saturation points, not a
-hardware-independent guarantee; they must be revisited once a production
-soak or a larger host class is measured.
+Compact=64, Standard=300, Distributed=1200. These are empirical estimates,
+not a hardware-independent guarantee; they must be revisited again once a
+longer production soak or a larger host class is measured.
+
+**2026-09-30 revision:** the initial thresholds (Compact=32, Standard=150,
+Distributed=600) were validated against the real benchmark host and found to
+undershoot on the dynamic (uncached) path: at 320 concurrent clients, the
+pre-ADR-0333 baseline completed all requests at 515 req/s, while the
+Standard=150 cap only admitted enough traffic for 403 req/s of completed
+work, shedding the rest with 503. Dynamic requests hold their slot far
+longer than a cache hit, so a cap sized only from the earlier warm-cache
+numbers cut into throughput the process could actually sustain. The
+thresholds above roughly double the original estimates to close most of that
+gap while still capping the runaway case (1,000+ clients) that motivated this
+ADR. (Part of the observed 503 count in that run is also a load-generator
+artifact — a closed-loop client that retries immediately on a 503 amplifies
+the shed count above what a normal client population would produce; the
+gap between 515 and 403 req/s of *completed* work is the number that matters
+for this revision, not the raw 503 count.)
 
 `server.ConcurrencyLimitMiddleware` (`internal/server/concurrency_limit.go`)
 enforces this budget as the outermost middleware in the handler chain. A
@@ -32,6 +47,14 @@ so CPU already committed to in-flight requests is not starved by requests the
 process cannot serve anyway. A non-positive limit (not expected in a valid
 profile, but honored defensively) disables the middleware with zero added
 overhead, preserving the Compact-profile zero-footprint rule.
+
+**Health/readiness/metrics bypass:** `/healthz`, `/readyz`, and `/metrics` are
+exempt from the limit. Shedding a health or readiness probe during the exact
+overload this middleware reacts to would make an orchestrator conclude the
+instance is unhealthy and kill or recycle it — the opposite of the intended
+effect — and shedding `/metrics` would blind an operator at the moment they
+most need visibility. These routes are cheap and do not consume the request
+budget this ADR protects.
 
 This budget is process-local, like the ADR-0329 HTML cache: it does not
 coordinate admission across multiple processes or nodes. A Distributed
@@ -62,7 +85,10 @@ observability surface is introduced by this ADR.
 ## Validation
 
 Unit tests (`internal/server/concurrency_limit_test.go`) cover pass-through
-when disabled and 503 shedding with `Retry-After` at capacity. The default
-thresholds themselves are not yet certified by a production soak; that
-remains open, matching the qualification already carried by ADR-0190's
-profile numbers.
+when disabled, 503 shedding with `Retry-After` at capacity, and the
+health-check bypass staying reachable while the limit is saturated. The
+default thresholds themselves are not yet certified by a production soak;
+that remains open, matching the qualification already carried by ADR-0190's
+profile numbers. A real-host validation run against the revised thresholds
+is expected before the "empirical thresholds" caveat in this ADR's status
+line can be dropped.

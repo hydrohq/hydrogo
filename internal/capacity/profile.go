@@ -45,11 +45,11 @@ func Defaults(p Profile) (Budget, error) {
 	}
 	switch p {
 	case Compact:
-		return Budget{DBMaxOpenConns: 1, DBMaxIdleConns: 1, CacheEntries: 256, CacheTTL: 30 * time.Second, WorkerConcurrency: 1, QueueEntries: 10000, HTTPBodyBytes: 64 << 10, MediaMaxBytes: 10 << 20, ShutdownTimeout: 10 * time.Second, MaxInFlightHTTP: 32}, nil
+		return Budget{DBMaxOpenConns: 1, DBMaxIdleConns: 1, CacheEntries: 256, CacheTTL: 30 * time.Second, WorkerConcurrency: 1, QueueEntries: 10000, HTTPBodyBytes: 64 << 10, MediaMaxBytes: 10 << 20, ShutdownTimeout: 10 * time.Second, MaxInFlightHTTP: 64}, nil
 	case Standard:
-		return Budget{DBMaxOpenConns: 10, DBMaxIdleConns: 5, CacheEntries: 1024, CacheTTL: 30 * time.Second, WorkerConcurrency: 4, QueueEntries: 100000, HTTPBodyBytes: 1 << 20, MediaMaxBytes: 50 << 20, ShutdownTimeout: 20 * time.Second, MaxInFlightHTTP: 150}, nil
+		return Budget{DBMaxOpenConns: 10, DBMaxIdleConns: 5, CacheEntries: 1024, CacheTTL: 30 * time.Second, WorkerConcurrency: 4, QueueEntries: 100000, HTTPBodyBytes: 1 << 20, MediaMaxBytes: 50 << 20, ShutdownTimeout: 20 * time.Second, MaxInFlightHTTP: 300}, nil
 	case Distributed:
-		return Budget{DBMaxOpenConns: 50, DBMaxIdleConns: 25, CacheEntries: 4096, CacheTTL: 30 * time.Second, WorkerConcurrency: 16, QueueEntries: 500000, HTTPBodyBytes: 4 << 20, MediaMaxBytes: 100 << 20, ShutdownTimeout: 30 * time.Second, MaxInFlightHTTP: 600}, nil
+		return Budget{DBMaxOpenConns: 50, DBMaxIdleConns: 25, CacheEntries: 4096, CacheTTL: 30 * time.Second, WorkerConcurrency: 16, QueueEntries: 500000, HTTPBodyBytes: 4 << 20, MediaMaxBytes: 100 << 20, ShutdownTimeout: 30 * time.Second, MaxInFlightHTTP: 1200}, nil
 	default:
 		return Budget{}, errors.New("capacity profile defaults are unavailable")
 	}
