@@ -23,6 +23,19 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	}
 }
 
+func TestMediaHeaderGridIsTwoColumnsUnderNova(t *testing.T) {
+	if !strings.Contains(AdminMediaFormsCSS, `html[data-ui-theme="nova"] .media-header-grid{display:grid;grid-template-columns:`) {
+		t.Fatal("Nova is missing the two-column layout for the media page's header controls (upload/search/folder/filter/settings), which should sit side-by-side instead of each spanning the full row")
+	}
+	// Each side must be its own independent flex column, not a row-paired
+	// grid: the primary column (upload/search/folder/filter/settings) runs
+	// much taller than the secondary one (view toggle/create-folder/cleanup),
+	// so row-pairing them left a large empty gap under the short column.
+	if !strings.Contains(AdminMediaFormsCSS, `html[data-ui-theme="nova"] .media-header-col{display:flex;flex-direction:column`) {
+		t.Fatal("Nova's media header columns must stack independently (flex column), not be paired row-by-row in the grid")
+	}
+}
+
 func TestMediaInlineFormSubmitButtonDoesNotStretchFullWidth(t *testing.T) {
 	// Regression test: .studio-form is a 2-column CSS grid with no
 	// justify-items override, so a lone <button type="submit"> landing alone
