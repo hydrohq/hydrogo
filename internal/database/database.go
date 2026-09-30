@@ -237,8 +237,11 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 		db.Close()
 		return nil, err
 	}
-	if dialect == MySQL {
+	switch dialect {
+	case MySQL:
 		db.SetConnMaxLifetime(3 * time.Minute)
+	case Postgres:
+		db.SetConnMaxLifetime(30 * time.Minute)
 	}
 	return db, nil
 }

@@ -199,7 +199,10 @@ func compressBody(encoding string, body []byte, out *bytes.Buffer) error {
 			return err
 		}
 	case "gzip":
-		writer := gzip.NewWriter(out)
+		writer, err := gzip.NewWriterLevel(out, gzip.BestSpeed)
+		if err != nil {
+			return err
+		}
 		if _, err := writer.Write(body); err != nil {
 			return err
 		}

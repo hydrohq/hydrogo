@@ -61,6 +61,10 @@ type Config struct {
 	CustomCodeProvider         func(*http.Request) (head, body string)
 	SafeMode                   bool
 	PublicHTMLCache            *PublicHTMLCache
+	// MaxInFlightRequests caps concurrently handled requests for this process.
+	// Requests beyond the cap fail fast with 503 instead of queuing behind
+	// already-admitted work (ADR-0333). Non-positive disables the limiter.
+	MaxInFlightRequests int
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -243,6 +247,10 @@ func NewHandler(config Config) http.Handler {
 	// Final response guard: no HTML comment is allowed into production output.
 	handler = observability.HTMLCommentMiddleware(handler)
 	handler = adminstudio.SupportConfigResolverMiddleware(config.AdminSupport, config.AdminSupportResolver)(handler)
+
+	// Outermost: shed load before any other middleware spends CPU on a request
+	// this process cannot serve promptly.
+	handler = ConcurrencyLimitMiddleware(config.MaxInFlightRequests)(handler)
 
 	return handler
 }
