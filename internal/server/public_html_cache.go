@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -61,6 +62,19 @@ type PublicHTMLCache struct {
 	maxBody    int64
 	ttl        time.Duration
 	bytes      int64
+	render     singleflight.Group
+}
+
+// publicHTMLRenderOutcome is the value shared by singleflight across every
+// request that arrived while one render for the same key was already in
+// flight (ADR-0333 note in ADR-0329: coalesces concurrent cache misses).
+// Only the single goroutine whose closure singleflight actually runs writes
+// a real HTTP response inside that closure; every other caller must render
+// its own response afterward, so nothing observable (headers, CSP nonce,
+// body) is ever shared between two distinct client responses.
+type publicHTMLRenderOutcome struct {
+	cacheable bool
+	entry     publicHTMLCacheEntry
 }
 
 func NewPublicHTMLCache(opts PublicHTMLCacheOptions) *PublicHTMLCache {
@@ -101,46 +115,67 @@ func (c *PublicHTMLCache) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		tag := cacheTag(r.URL.Path)
-		generation := c.currentGeneration(tag)
-		pathGeneration := c.beginPathRender(r.URL.Path)
-		defer c.endPathRender(r.URL.Path)
-		capture := &publicHTMLResponseWriter{header: w.Header(), limit: c.maxBody, dst: w}
-		next.ServeHTTP(capture, r)
-		if capture.committed {
+		// Coalesce concurrent misses on the same key: only the caller whose
+		// closure singleflight actually runs performs a render, using its own
+		// w/r end to end exactly as before. Every other concurrent caller for
+		// the same key waits here, then serves its own response from the
+		// resulting cache entry (never from the leader's raw captured bytes),
+		// so per-response CSP nonces are still generated fresh for each
+		// client and nothing about one client's response is shared with
+		// another's.
+		executedHere := false
+		outcomeAny, _, _ := c.render.Do(key, func() (any, error) {
+			executedHere = true
+			tag := cacheTag(r.URL.Path)
+			generation := c.currentGeneration(tag)
+			pathGeneration := c.beginPathRender(r.URL.Path)
+			defer c.endPathRender(r.URL.Path)
+			capture := &publicHTMLResponseWriter{header: w.Header(), limit: c.maxBody, dst: w}
+			next.ServeHTTP(capture, r)
+			if capture.committed {
+				return publicHTMLRenderOutcome{}, nil
+			}
+			body := capture.body.Bytes()
+			cacheCSP := capture.header.Get("Content-Security-Policy")
+			if cacheCSP == "" && security.NonceFromContext(r.Context()) != "" {
+				cacheCSP = "script-src 'nonce-" + security.NonceFromContext(r.Context()) + "'"
+			}
+			nonceHeader := capture.header.Clone()
+			if cacheCSP != "" {
+				nonceHeader.Set("Content-Security-Policy", cacheCSP)
+			}
+			storedBody, storedCSP, cacheable := normalizePublicHTMLNonce(nonceHeader, body)
+			cacheHeader := capture.header.Clone()
+			if storedCSP != "" {
+				cacheHeader.Set("Content-Security-Policy", storedCSP)
+			}
+			if !cacheable || !publicHTMLResponseAllowed(capture.status, cacheHeader, storedBody) {
+				capture.commit(w)
+				return publicHTMLRenderOutcome{}, nil
+			}
+			hash := sha256.Sum256(storedBody)
+			etag := `W/"` + hex.EncodeToString(hash[:]) + `"`
+			capture.header.Set("ETag", etag)
+			capture.header.Set("Cache-Control", "public, max-age="+strconvSeconds(c.ttl))
+			entry := publicHTMLCacheEntry{
+				path: r.URL.Path, tag: tag, body: bytes.Clone(storedBody), contentType: capture.header.Get("Content-Type"),
+				contentEncoding: capture.header.Get("Content-Encoding"), vary: capture.header.Get("Vary"), csp: storedCSP,
+				etag: etag, expiresAt: time.Now().Add(c.ttl),
+			}
+			c.set(key, entry, generation, pathGeneration)
+			if !writeCachedHTML(w, r, entry) {
+				next.ServeHTTP(w, r)
+			}
+			return publicHTMLRenderOutcome{cacheable: true, entry: entry}, nil
+		})
+		if executedHere {
 			return
 		}
-		body := capture.body.Bytes()
-		cacheCSP := capture.header.Get("Content-Security-Policy")
-		if cacheCSP == "" && security.NonceFromContext(r.Context()) != "" {
-			cacheCSP = "script-src 'nonce-" + security.NonceFromContext(r.Context()) + "'"
-		}
-		nonceHeader := capture.header.Clone()
-		if cacheCSP != "" {
-			nonceHeader.Set("Content-Security-Policy", cacheCSP)
-		}
-		storedBody, storedCSP, cacheable := normalizePublicHTMLNonce(nonceHeader, body)
-		cacheHeader := capture.header.Clone()
-		if storedCSP != "" {
-			cacheHeader.Set("Content-Security-Policy", storedCSP)
-		}
-		if !cacheable || !publicHTMLResponseAllowed(capture.status, cacheHeader, storedBody) {
-			capture.commit(w)
+		outcome, _ := outcomeAny.(publicHTMLRenderOutcome)
+		if outcome.cacheable && writeCachedHTML(w, r, outcome.entry) {
 			return
 		}
-		hash := sha256.Sum256(storedBody)
-		etag := `W/"` + hex.EncodeToString(hash[:]) + `"`
-		capture.header.Set("ETag", etag)
-		capture.header.Set("Cache-Control", "public, max-age="+strconvSeconds(c.ttl))
-		entry := publicHTMLCacheEntry{
-			path: r.URL.Path, tag: tag, body: bytes.Clone(storedBody), contentType: capture.header.Get("Content-Type"),
-			contentEncoding: capture.header.Get("Content-Encoding"), vary: capture.header.Get("Vary"), csp: storedCSP,
-			etag: etag, expiresAt: time.Now().Add(c.ttl),
-		}
-		c.set(key, entry, generation, pathGeneration)
-		if !writeCachedHTML(w, r, entry) {
-			next.ServeHTTP(w, r)
-		}
+		next.ServeHTTP(w, r)
 	})
 }
 

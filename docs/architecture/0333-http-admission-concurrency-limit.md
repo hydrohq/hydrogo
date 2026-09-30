@@ -44,11 +44,12 @@ None. No schema, migration, or external service is introduced.
 
 ## Cache and capacity impact
 
-Interacts with, but does not replace, ADR-0329's cache. Concurrent cache
-misses on the same route still each render independently (a known,
-documented ADR-0329 gap); this ADR only bounds how many requests — cached or
-not — a process serves at once. Singleflight-style cache-miss coalescing
-remains open future work.
+Interacts with, but does not replace, ADR-0329's cache. This ADR only bounds
+how many requests — cached or not — a process serves at once. Separately,
+concurrent cache misses on the same route are now coalesced with
+`golang.org/x/sync/singleflight` (ADR-0329 update, 2026-09-30): each waiting
+request still renders its own CSP nonce from the shared entry, so nothing is
+replayed between distinct client responses.
 
 ## Deployment and compatibility
 
