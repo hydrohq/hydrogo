@@ -239,8 +239,10 @@ func NewHandler(config Config) http.Handler {
 		Preset:     config.SecurityHeadersPreset,
 	})(handler)
 
-	// Keep metrics outermost so rejected requests from every middleware layer
-	// (body limit, CSRF, auth, and routing) are visible to operators.
+	// Keep metrics ahead of every other application middleware so rejected
+	// requests from any layer below it (body limit, CSRF, auth, and routing)
+	// are visible to operators. Only the concurrency limiter wraps outside
+	// this, and it bypasses /metrics itself (see below).
 	if config.Metrics != nil {
 		handler = config.Metrics.Middleware(handler)
 	}
@@ -249,8 +251,18 @@ func NewHandler(config Config) http.Handler {
 	handler = adminstudio.SupportConfigResolverMiddleware(config.AdminSupport, config.AdminSupportResolver)(handler)
 
 	// Outermost: shed load before any other middleware spends CPU on a request
-	// this process cannot serve promptly.
-	handler = ConcurrencyLimitMiddleware(config.MaxInFlightRequests)(handler)
+	// this process cannot serve promptly. Health/readiness probes and metrics
+	// scraping are exempt: shedding them would make an orchestrator kill the
+	// instance that is trying to protect itself, or blind an operator during
+	// the exact overload they need visibility into.
+	handler = ConcurrencyLimitMiddleware(config.MaxInFlightRequests, func(r *http.Request) bool {
+		switch r.URL.Path {
+		case "/healthz", "/readyz", "/metrics":
+			return true
+		default:
+			return false
+		}
+	})(handler)
 
 	return handler
 }

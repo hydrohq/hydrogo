@@ -10,7 +10,7 @@ import (
 
 func TestConcurrencyLimitMiddlewareDisabledPassesThrough(t *testing.T) {
 	called := false
-	handler := ConcurrencyLimitMiddleware(0)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ConcurrencyLimitMiddleware(0, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -25,7 +25,7 @@ func TestConcurrencyLimitMiddlewareShedsExcessRequests(t *testing.T) {
 	release := make(chan struct{})
 	var started sync.WaitGroup
 	started.Add(1)
-	handler := ConcurrencyLimitMiddleware(1)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := ConcurrencyLimitMiddleware(1, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started.Done()
 		<-release
 		w.WriteHeader(http.StatusOK)
@@ -56,5 +56,41 @@ func TestConcurrencyLimitMiddlewareShedsExcessRequests(t *testing.T) {
 	}
 	if rec1.Code != http.StatusOK {
 		t.Fatalf("expected first request to succeed, got %d", rec1.Code)
+	}
+}
+
+func TestConcurrencyLimitMiddlewareBypassesHealthChecksAtCapacity(t *testing.T) {
+	release := make(chan struct{})
+	var started sync.WaitGroup
+	started.Add(1)
+	bypass := func(r *http.Request) bool { return r.URL.Path == "/healthz" }
+	handler := ConcurrencyLimitMiddleware(1, bypass)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		started.Done()
+		<-release
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	done := make(chan struct{})
+	go func() {
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+		close(done)
+	}()
+	started.Wait()
+
+	health := httptest.NewRecorder()
+	handler.ServeHTTP(health, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if health.Code != http.StatusOK {
+		t.Fatalf("expected /healthz to bypass the limit while at capacity, got %d", health.Code)
+	}
+
+	close(release)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first request did not complete")
 	}
 }
