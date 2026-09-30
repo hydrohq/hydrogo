@@ -24,7 +24,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"math"
+	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"net/netip"
 	"net/url"
 	"os"
@@ -1509,6 +1511,14 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if addr := strings.TrimSpace(os.Getenv("HYDRO_DEBUG_PPROF_ADDR")); addr != "" {
+		if host, _, splitErr := net.SplitHostPort(addr); splitErr != nil || (host != "127.0.0.1" && host != "localhost") {
+			return errors.New("HYDRO_DEBUG_PPROF_ADDR must bind to 127.0.0.1 or localhost")
+		}
+		pprofSrv := &http.Server{Addr: addr, ReadHeaderTimeout: 5 * time.Second}
+		go func() { _ = pprofSrv.ListenAndServe() }()
+		defer func() { _ = pprofSrv.Close() }()
+	}
 	tracingProfile, err := observability.LoadTracingProfile()
 	if err != nil {
 		return fmt.Errorf("tracing profile: %w", err)
@@ -3383,10 +3393,11 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				_ = authHTTP.Audit.Record(r.Context(), "security.request_rejected", target)
 			}
 		},
-		SecureCookie:     cfg.Security.SecureCookies,
-		HTTPBodyLimit:    budget.HTTPBodyBytes,
-		PublicOrigin:     cfg.HTTP.PublicOrigin,
-		PublicAPIOrigins: cfg.Security.PublicAPIOrigins,
+		SecureCookie:        cfg.Security.SecureCookies,
+		HTTPBodyLimit:       budget.HTTPBodyBytes,
+		MaxInFlightRequests: budget.MaxInFlightHTTP,
+		PublicOrigin:        cfg.HTTP.PublicOrigin,
+		PublicAPIOrigins:    cfg.Security.PublicAPIOrigins,
 		PublicErrorPage: func(errorCtx context.Context, status int) ([]byte, bool) {
 			if !modules["site"] {
 				return nil, false
