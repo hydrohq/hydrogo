@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1418,7 +1419,8 @@ func TestRunDoctorJSON(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if report.Version != version || report.SchemaMigration == "" || report.Database != "sqlite" || !report.MediaWritable || report.SQLiteJournalMode == "" || report.ForeignKeyIssues != 0 || report.MediaMode != "0750" || report.BackupTools != "sqlite" || report.WorkerConcurrency != 1 || report.DeadLetteredJobs != 0 {
+	mediaModeMatches := runtime.GOOS == "windows" || report.MediaMode == "0750"
+	if report.Version != version || report.SchemaMigration == "" || report.Database != "sqlite" || !report.MediaWritable || report.SQLiteJournalMode == "" || report.ForeignKeyIssues != 0 || !mediaModeMatches || report.BackupTools != "sqlite" || report.WorkerConcurrency != 1 || report.DeadLetteredJobs != 0 {
 		t.Fatalf("unexpected doctor report: %+v", report)
 	}
 	mediaDir := filepath.Join(root, "media")
@@ -1442,7 +1444,7 @@ func TestRunDoctorJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o750 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o750 {
 		t.Fatalf("media directory mode = %v", info.Mode().Perm())
 	}
 }

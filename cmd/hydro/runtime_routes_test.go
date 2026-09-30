@@ -109,6 +109,8 @@ func testRuntimeStandaloneShutdown(t *testing.T, optional []string) {
 			t.Fatalf("standalone runtime did not become ready within 15s\nstdout:\n%s\nstderr:\n%s", &stdout, &stderr)
 		}
 		if err := terminateRuntimeProcess(cmd); err != nil {
+			_ = cmd.Process.Kill()
+			<-exited
 			t.Skipf("cannot deliver shutdown signals on this platform: %v", err)
 		}
 		select {
