@@ -186,6 +186,18 @@ Deploy the compiled `hydro.cgi` and `deploy/hosting/.htaccess` file to `public_h
 
 ---
 
+## 📊 Capacity Benchmark
+
+A short external load test measured warm public HTML cache traffic and dynamic
+HTML traffic on a 2-vCPU host with 908 MiB of RAM. The full report includes
+every load stage, latency and error counts, resource samples, test limits, and
+the earlier paced measurements: [HydroGo capacity benchmark — 2026-09-30](docs/validation/hydrogo-capacity-benchmark-2026-09-30.md).
+
+Those values describe that test setup only; they are reference measurements,
+not a general hardware or throughput promise.
+
+---
+
 ## 🧪 Testing & Verification
 
 HydroGo adheres to strict verification discipline across all supported database adapters:

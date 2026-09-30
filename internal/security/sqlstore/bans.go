@@ -47,7 +47,7 @@ func (s BanStore) ListActive(ctx context.Context, db database.QueryExecutor, now
 	if limit < 1 || limit > 10000 {
 		return nil, fmt.Errorf("ban list limit must be 1-10000")
 	}
-	query := `SELECT address,expires_at FROM security_ip_bans WHERE expires_at IS NULL OR expires_at='' OR expires_at>$1 ORDER BY address LIMIT $2`
+	query := `SELECT address,expires_at FROM security_ip_bans WHERE expires_at IS NULL OR expires_at>$1 ORDER BY address LIMIT $2`
 	if s.Dialect == database.SQLite {
 		query = `SELECT address,expires_at FROM security_ip_bans WHERE expires_at IS NULL OR expires_at='' OR expires_at>? ORDER BY address LIMIT ?`
 	}
