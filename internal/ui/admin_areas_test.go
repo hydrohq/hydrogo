@@ -445,6 +445,47 @@ func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
+	for _, want := range []string{
+		`data-ui-theme="nova"`,
+		`nova-light`,
+		`nova-dark`,
+		`nova:'Nova'`,
+	} {
+		if !strings.Contains(AdminNovaCSS+AdminSPARouterJS+AdminFamilySelectCSS, want) {
+			t.Fatalf("admin shell missing nova theme contract %q", want)
+		}
+	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	for _, want := range []string{
+		`data-ui-theme="nova"`,
+		`id="ui-family-select"`,
+		`<option value="hydrogo">HydroGo</option>`,
+		`<option value="shadcn">shadcn</option>`,
+		`<option value="workbench">Workbench</option>`,
+		`<option value="nova">Nova</option>`,
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("rendered admin shell missing nova contract %q", want)
+		}
+	}
+}
+
+func TestNovaModeSharesSemanticMarkupContract(t *testing.T) {
+	novaCSS := AdminNovaCSS + AdminNovaDensityCSS
+	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
+		if !strings.Contains(novaCSS, selector) {
+			t.Fatalf("Nova mode missing shared semantic selector %q", selector)
+		}
+	}
+	if !strings.Contains(AdminNovaCSS, `html[data-ui-theme="nova"]`) {
+		t.Fatal("Nova styles are not scoped to the visual mode")
+	}
+}
+
 func TestAdminControlDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf"}); err != nil {
