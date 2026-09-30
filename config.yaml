@@ -1,0 +1,56 @@
+profile: compact
+modules: [core, auth, members, pages, media, site, news]
+http:
+  address: "127.0.0.1:8080"
+  # Set this to the canonical HTTPS origin in deployed environments.
+  public_origin: ""
+database:
+  dialect: "sqlite"
+  dsn: "data/hydro.db"
+media:
+  dir: "data/media"
+  min_free_bytes: 52428800
+admin_support:
+  enabled: false
+  agency_name: ""
+  email: ""
+  phone: ""
+  whatsapp_url: ""
+  sla_badge: ""
+  guide_url: ""
+seo:
+  fonts_dir: "public/fonts"
+# Optional Redis/Valkey endpoint. Leave empty for Compact/local mode.
+redis:
+  url: ""
+  key_prefix: "hydro:"
+# Analytics is an opt-in module. No-cookie daily visitor summaries also require
+# analytics.no_cookie_enabled and HYDRO_ANALYTICS_HASH_KEY (32+ random bytes).
+analytics:
+  no_cookie_enabled: false
+  hash_key: ""
+# Optional Forms geolocation. Supply an operator-managed offline MMDB and
+# explicit proxy CIDRs before trusting Cloudflare location headers.
+geoip:
+  database_path: ""
+  trusted_proxy_cidrs: []
+# Optional Sentry/GlitchTip DSN. Keep the key in a protected environment
+# variable (HYDRO_SENTRY_DSN) in deployed environments.
+observability:
+  sentry_dsn: ""
+theme_dir: "themes"
+theme: "corporate"
+# Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,
+# and HYDRO_WEBHOOK_TOPICS in the deployment environment.
+security:
+  # Keep false for local HTTP development; enable both for HTTPS deployments.
+  secure_cookies: false
+  enable_hsts: false
+  headers_preset: strict
+  enable_anomaly_filter: true
+  anomaly_bypass_paths: []
+  # Enroll these accounts before enabling role enforcement.
+  mfa_required_roles: []
+  # Optional explicit allowlist for credential-free published /api/v1 reads.
+  # Browser writes remain same-site or BFF-only; wildcard origins are not supported.
+  public_api_origins: []

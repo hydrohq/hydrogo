@@ -154,6 +154,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /public/news/{locale}/{slug}/html", Handler: http.HandlerFunc(h.publicGetHTML)},
 		{Pattern: "GET /public/news/{locale}/html", Handler: http.HandlerFunc(h.publicListHTML)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
+		{Pattern: "POST /admin/news/{id}/preview", Protected: true, Handler: http.HandlerFunc(h.adminPreview)},
 	}
 	if h.Presence != nil {
 		routes = append(routes,
@@ -238,10 +239,6 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		actions := []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}
-		if item.Status == news.StatusPublished {
-			publicPath := "/public/news/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
-			actions = append(actions, adminstudio.Action{Label: "Copy live URL", CopyText: strings.TrimRight(strings.TrimSpace(h.PublicOrigin), "/") + publicPath})
-		}
 		counts := feedbackCounts[item.ID]
 		values := map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10), "helpful": strconv.FormatInt(counts.Up, 10), "not_helpful": strconv.FormatInt(counts.Down, 10)}
 		rows = append(rows, adminstudio.Row{Values: values, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status), ScheduledAt: item.ScheduledAt}, Actions: actions})
@@ -1163,7 +1160,27 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(titleDisplay) == "" {
 		titleDisplay = "[Başlıksız]"
 	}
-	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">%s</strong><span class="editor-live-sub">Haber düzenleniyor · %s</span></div><div class="editor-top-actions"><button type="submit" form="news-edit-form" class="button">Taslağı kaydet</button></div></div><form id="news-edit-form" class="studio-form" method="post" action="/admin/news/%s" data-local-autosave data-autosave-resource="news:%s"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın &amp; İşlem</span>%s</div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>%s</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><div class="editor-workflow-actions">%s</div></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>İçerik Sınıflandırması</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="_csrf" value="%s"></form><script nonce="%s">(()=>{const titleInp=document.querySelector('#news-edit-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`, template.HTMLEscapeString(titleDisplay), statusBadge, template.HTMLEscapeString(item.ID), template.HTMLEscapeString(item.ID), template.HTML(leftBuf.String()), statusBadge, template.HTMLEscapeString(string(item.Status)), template.HTMLEscapeString(item.Locale), workflowActionMarkup(h.Service, item, csrf), template.HTML(rightMetaBuf.String()), template.HTML(taxonomyBuf.String()), template.HTML(rightSEOBuf.String()), template.HTMLEscapeString(item.Locale), item.Version, template.HTMLEscapeString(csrf), template.HTMLEscapeString(nonce))
+	previewEndpoint := "/admin/news/" + url.PathEscape(item.ID) + "/preview"
+	copyLiveURL := ""
+	if item.Status == news.StatusPublished && item.Slug != "" {
+		publicPath := "/public/news/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
+		copyLiveURL = strings.TrimRight(strings.TrimSpace(h.PublicOrigin), "/") + publicPath
+	}
+	extraActions := new(strings.Builder)
+	if copyLiveURL != "" {
+		extraActions.WriteString(`<button type="button" class="button button-quiet" data-copy-text="` + template.HTMLEscapeString(copyLiveURL) + `" aria-label="Canlı URL&#39;yi kopyala" title="Canlı URL&#39;yi kopyala">🔗 URL kopyala</button><span data-copy-status style="font-size:.75rem;color:var(--muted)"></span>`)
+	}
+	extraActions.WriteString(`<button type="button" class="button button-quiet" data-device-preview-open data-preview-endpoint="` + template.HTMLEscapeString(previewEndpoint) + `" data-preview-csrf="` + template.HTMLEscapeString(csrf) + `" title="Önizleme">👁 Önizle</button>`)
+	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">%s</strong><span class="editor-live-sub">Haber düzenleniyor · %s</span></div><div class="editor-top-actions">%s<button type="submit" form="news-edit-form" class="button">Taslağı kaydet</button></div></div><form id="news-edit-form" class="studio-form" method="post" action="/admin/news/%s" data-local-autosave data-autosave-resource="news:%s"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın &amp; İşlem</span>%s</div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>%s</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><div class="editor-workflow-actions">%s</div></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>İçerik Sınıflandırması</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="_csrf" value="%s"></form><dialog class="device-preview-dialog" data-device-preview-dialog aria-labelledby="device-preview-title"><div class="device-preview-header"><div><h2 id="device-preview-title">Haber Önizlemesi</h2><p data-device-preview-status>Güncel taslağı yüklemek için önizle butonuna basın.</p></div><div class="studio-actions"><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="desktop" aria-pressed="true">🖥 Masaüstü</button><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="mobile" aria-pressed="false">📱 Mobil</button><button type="button" class="button button-quiet" data-device-preview-close>✕ Kapat</button></div></div><div class="device-preview-stage"><iframe data-device-preview-frame src="about:blank" title="Haber önizlemesi" sandbox="allow-same-origin allow-scripts allow-forms"></iframe></div></dialog><script nonce="%s">(()=>{const titleInp=document.querySelector('#news-edit-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`,
+		template.HTMLEscapeString(titleDisplay), statusBadge,
+		template.HTML(extraActions.String()),
+		template.HTMLEscapeString(item.ID), template.HTMLEscapeString(item.ID),
+		template.HTML(leftBuf.String()), statusBadge,
+		template.HTMLEscapeString(string(item.Status)), template.HTMLEscapeString(item.Locale),
+		workflowActionMarkup(h.Service, item, csrf),
+		template.HTML(rightMetaBuf.String()), template.HTML(taxonomyBuf.String()), template.HTML(rightSEOBuf.String()),
+		template.HTMLEscapeString(item.Locale), item.Version, template.HTMLEscapeString(csrf),
+		template.HTMLEscapeString(nonce))
 	_ = ui.AdminEnd(w)
 }
 
@@ -1386,6 +1403,22 @@ func (h Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) adminRetract(w http.ResponseWriter, r *http.Request) {
 	h.adminTransition(w, r, "retract")
+}
+
+func (h Handler) adminPreview(w http.ResponseWriter, r *http.Request) {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	id := r.PathValue("id")
+	item, err := h.Service.Repository.Get(r.Context(), h.DB, id)
+	if err != nil {
+		http.Error(w, "news not found", http.StatusNotFound)
+		return
+	}
+	publicPath := "/public/news/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = fmt.Fprintf(w, `{"url":%q}`, publicPath)
 }
 
 func (h Handler) adminTransition(w http.ResponseWriter, r *http.Request, action string) {
