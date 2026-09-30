@@ -21,6 +21,37 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	}
 }
 
+func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "articles", Label: "Articles", Description: "Content", Actions: []adminstudio.Action{{Label: "Open", Href: "/admin/articles"}}, Fields: []adminstudio.Field{{ID: "title", Label: "Title", Kind: adminstudio.FieldText}}, Kits: []adminstudio.Kit{adminstudio.KitSEO}}}, Active: "dashboard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"nova-dashboard", "nova-stat-grid", "nova-table-card", "nova-activity-card", "Articles", "Yönet"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("nova dashboard widget %q missing", want)
+		}
+	}
+	// Both dashboard variants must render server-side (family selection is
+	// client-only); visibility is toggled purely by CSS.
+	for _, want := range []string{"wb-dashboard", "nova-dashboard"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected both dashboard variants to render, missing %q", want)
+		}
+	}
+}
+
+func TestAdminShellHidesInactiveDashboardVariantByCSS(t *testing.T) {
+	for _, want := range []string{
+		`html:not([data-ui-theme="nova"]) .nova-dashboard{display:none}`,
+		`html[data-ui-theme="nova"] .wb-dashboard{display:none}`,
+	} {
+		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
+			t.Fatalf("admin shell missing dashboard variant toggle rule %q", want)
+		}
+	}
+}
+
 func TestAdminLoginSecurityNoticeShowsPreviousSessionAndFailures(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderAdminDashboard(&out, AdminDashboardData{Active: "dashboard", PreviousLogin: "28 Sep 2026 12:15 UTC", PreviousLoginIP: "192.0.2.4", FailedLoginAttempts: 2}); err != nil {
