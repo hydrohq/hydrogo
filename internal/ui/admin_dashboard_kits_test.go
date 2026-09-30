@@ -94,7 +94,7 @@ func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"nova-dashboard", "nova-stat-grid", "nova-table-card", "nova-activity-card", "Articles", "Yönet"} {
+	for _, want := range []string{"nova-dashboard", "nova-stat-grid", "nova-table-card", "nova-activity-card", "nova-side-stack", "Sistem Durumu", "Articles", "Yönet"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("nova dashboard widget %q missing", want)
 		}
@@ -105,6 +105,61 @@ func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("expected both dashboard variants to render, missing %q", want)
 		}
+	}
+}
+
+func TestNovaDashboardHidesPagesCollectionAndGatesCommerceAction(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminDashboard(&out, AdminDashboardData{
+		Collections: []adminstudio.Collection{
+			{ID: "news", Label: "Haberler", Description: "Content"},
+			{ID: "pages", Label: "Sayfalar", Description: "Content"},
+		},
+		Active:                "dashboard",
+		CommerceModuleEnabled: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Both dashboard variants render server-side (family selection is
+	// client-only) and the Workbench variant intentionally still lists every
+	// collection including pages, so scope the check to Nova's own table
+	// markup instead of the whole page.
+	novaStart := strings.Index(out.String(), `class="nova-table-card"`)
+	novaEnd := strings.Index(out.String(), `class="nova-activity-card"`)
+	if novaStart == -1 || novaEnd == -1 || novaEnd < novaStart {
+		t.Fatal("could not locate the Nova content-areas table in the rendered dashboard")
+	}
+	novaTable := out.String()[novaStart:novaEnd]
+	if strings.Contains(novaTable, "Sayfalar") {
+		t.Fatal("Nova dashboard's content-areas table still lists the pages collection; it should be hidden per the request to hide the pages feature from the Nova theme")
+	}
+	if !strings.Contains(novaTable, "Haberler") {
+		t.Fatal("Nova dashboard's content-areas table lost the non-pages collection along with the filter")
+	}
+	// Workbench's own quick-action list (wb-action-list) is a separate,
+	// pre-existing template that always includes "Ürün oluştur" regardless of
+	// CommerceModuleEnabled; only Nova's activity card is in scope here.
+	novaActivityStart := strings.Index(out.String(), `class="nova-activity-card"`)
+	novaActivityEnd := strings.Index(out.String(), `class="nova-status-dot"`)
+	if novaActivityStart == -1 || novaActivityEnd == -1 || novaActivityEnd < novaActivityStart {
+		t.Fatal("could not locate the Nova quick-actions card in the rendered dashboard")
+	}
+	if strings.Contains(out.String()[novaActivityStart:novaActivityEnd], "Ürün oluştur") {
+		t.Fatal("Nova quick actions still show the commerce 'Ürün oluştur' shortcut with CommerceModuleEnabled=false")
+	}
+
+	var withCommerce bytes.Buffer
+	err = RenderAdminDashboard(&withCommerce, AdminDashboardData{
+		Collections:           []adminstudio.Collection{{ID: "news", Label: "Haberler", Description: "Content"}},
+		Active:                "dashboard",
+		CommerceModuleEnabled: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(withCommerce.String(), "Ürün oluştur") {
+		t.Fatal("Nova quick actions should show 'Ürün oluştur' when CommerceModuleEnabled=true")
 	}
 }
 
@@ -130,6 +185,44 @@ func TestAdminShellIncludesNovaTopNav(t *testing.T) {
 		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
 			t.Fatalf("admin shell missing nova sidebar-less layout rule %q", want)
 		}
+	}
+}
+
+func TestNovaTopNavHidesPagesAndIncludesSidebarParity(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), `nova-topnav-link" href="/admin/pages"`) {
+		t.Fatal("Nova top nav still links to /admin/pages; the pages feature was asked to be hidden from the Nova theme (endpoint stays, nav link should not)")
+	}
+	for _, want := range []string{
+		// Raporlar/Üyeler/Geliştirici carry data-admin-only, same as their
+		// sidebar counterparts, so editor-role accounts don't see them.
+		`href="/admin/reports" data-admin-only>Raporlar</a>`,
+		`href="/admin/developer" data-admin-only>Geliştirici &amp; API</a>`,
+		`href="/admin/members" data-admin-only>Üyeler</a>`,
+		`href="/admin/media">Medya</a>`,
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("Nova top nav missing sidebar-parity link %q", want)
+		}
+	}
+}
+
+func TestRemoveCommerceLinksStripsNovaTopNavCommerceLinks(t *testing.T) {
+	// Regression test: the Nova top nav always rendered "Ürünler"/"Siparişler"
+	// regardless of whether the commerce module was enabled, so clicking them
+	// 404'd on any install without commerce active. removeCommerceLinks (the
+	// same gate that already strips the sidebar's COMMERCE section) must also
+	// strip the nova-commerce-start/end marked span in the Nova top nav.
+	markup := `<div class="topbar-right"><nav class="nova-topnav-links"><!--nova-commerce-start--><a class="nova-topnav-link" href="/admin/commerce/products">Ürünler</a><a class="nova-topnav-link" href="/admin/commerce/orders">Siparişler</a><!--nova-commerce-end--><a class="nova-topnav-link" href="/admin/members">Üyeler</a></nav></div>`
+	out := removeCommerceLinks(markup)
+	if strings.Contains(out, "Ürünler") || strings.Contains(out, "Siparişler") || strings.Contains(out, "/admin/commerce/") {
+		t.Fatalf("removeCommerceLinks did not strip the Nova top nav commerce links: %q", out)
+	}
+	if !strings.Contains(out, "Üyeler") {
+		t.Fatal("removeCommerceLinks stripped more than the commerce-marked span")
 	}
 }
 
