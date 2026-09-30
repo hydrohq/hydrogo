@@ -46,9 +46,9 @@ type MediaPDFCoverProps struct{ AssetID, Filename string }
 
 func mediaFolderClass(active bool) string {
 	if active {
-		return "block rounded px-2 py-1 font-medium text-sky-800 bg-sky-50"
+		return "media-folder-link is-active"
 	}
-	return "block rounded px-2 py-1 text-slate-700 hover:bg-slate-50"
+	return "media-folder-link"
 }
 func mediaFolderCurrent(selected, id string) string {
 	if selected == id {

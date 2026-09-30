@@ -1,32 +1,32 @@
 package ui
 
 templ Picture(p PictureProps) {
-	<img src={ p.Src } alt={ p.Alt } loading="lazy" decoding="async" class={ "block h-full w-full object-cover " + p.Class } style={ pictureStyle(p) } data-blurhash={ p.BlurHash } />
+	<img src={ p.Src } alt={ p.Alt } loading="lazy" decoding="async" class={ "media-picture " + p.Class } style={ pictureStyle(p) } data-blurhash={ p.BlurHash } />
 }
 
 templ MediaPDFCoverPreview(p MediaPDFCoverProps) {
 	<div data-pdf-cover-preview>
-		<button type="button" data-pdf-cover-open aria-label={ "Önizle: " + p.Filename } class="h-full w-full cursor-zoom-in">
-			<img src={ "/media/" + p.AssetID + "?variant=pdf-cover" } alt={ p.Filename + " PDF kapağı" } loading="lazy" decoding="async" class="h-full w-full object-cover" />
+		<button type="button" data-pdf-cover-open aria-label={ "Önizle: " + p.Filename } class="media-pdf-cover-trigger">
+			<img src={ "/media/" + p.AssetID + "?variant=pdf-cover" } alt={ p.Filename + " PDF kapağı" } loading="lazy" decoding="async" class="media-picture" />
 		</button>
-		<dialog aria-label={ p.Filename + " PDF önizlemesi" } class="w-[min(90vw,36rem)] rounded-xl border border-border bg-surface p-4 text-foreground shadow-xl">
-			<div class="mb-3 flex items-center justify-between gap-3"><strong>{ p.Filename }</strong><button type="button" data-pdf-cover-close class="rounded border border-border px-3 py-1">Kapat</button></div>
-			<img src={ "/media/" + p.AssetID + "?variant=pdf-cover" } alt={ p.Filename + " PDF kapağı" } class="mx-auto max-h-[70vh] max-w-full object-contain" />
-			<a href={ "/media/" + p.AssetID } class="mt-3 inline-flex rounded bg-primary px-3 py-2 text-primary-foreground" download>PDF dosyasını indir</a>
+		<dialog aria-label={ p.Filename + " PDF önizlemesi" } class="media-pdf-dialog">
+			<div class="media-pdf-dialog-head"><strong>{ p.Filename }</strong><button type="button" data-pdf-cover-close class="button-quiet">Kapat</button></div>
+			<img src={ "/media/" + p.AssetID + "?variant=pdf-cover" } alt={ p.Filename + " PDF kapağı" } class="media-pdf-dialog-img" />
+			<a href={ "/media/" + p.AssetID } class="button" download>PDF dosyasını indir</a>
 		</dialog>
 	</div>
 }
 
 templ videoEmbed(src, title string) {
-	<div class="aspect-video w-full overflow-hidden rounded-lg">
-		<iframe src={ src } title={ title } loading="lazy" class="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+	<div class="media-video-embed">
+		<iframe src={ src } title={ title } loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 	</div>
 }
 
 templ MediaFolderTree(items []MediaFolderItem, selected string) {
-	<nav aria-label="Medya klasörleri" class="rounded-lg border border-slate-200 p-3">
+	<nav aria-label="Medya klasörleri" class="studio-card media-folder-tree">
 		<a href="/admin/media" class={ mediaFolderClass(selected == "") }>Tüm medya</a>
-		<ul class="mt-2 space-y-1">
+		<ul>
 			for _, item := range items {
 				<li><a href={ item.Href } aria-current={ mediaFolderCurrent(selected, item.ID) } class={ mediaFolderClass(selected == item.ID) } style={ mediaFolderIndent(item.Depth) }>{ item.Name }</a></li>
 			}
@@ -39,76 +39,76 @@ templ MediaUploadFolderField(folderID string) {
 }
 
 templ MediaTagFilter(tag, folder, color string) {
-	<form method="get" action="/admin/media" class="my-3 flex items-end gap-2">
+	<form method="get" action="/admin/media" class="studio-form media-inline-form">
 		<input type="hidden" name="folder" value={ folder } />
-		<label class="text-sm text-slate-700">Etiketleri filtrele
-			<input type="search" name="tag" value={ tag } placeholder="logo, hero" maxlength="512" class="block rounded border border-slate-300 px-3 py-2" />
+		<label class="studio-form-field"><span>Etiketleri filtrele</span>
+			<input type="search" name="tag" value={ tag } placeholder="logo, hero" maxlength="512" />
 		</label>
-		<label class="text-sm text-slate-700">Dominant renk
-			<input type="text" name="color" value={ color } placeholder="#1e3a8a" maxlength="7" class="block w-28 rounded border border-slate-300 px-3 py-2" />
+		<label class="studio-form-field"><span>Dominant renk</span>
+			<input type="text" name="color" value={ color } placeholder="#1e3a8a" maxlength="7" />
 		</label>
-		<button type="submit" class="rounded bg-slate-900 px-3 py-2 text-white">Uygula</button>
+		<button type="submit" class="button">Uygula</button>
 	</form>
 }
 
 templ MediaSettingsForm(p MediaSettingsFormProps) {
-	<details class="my-3 rounded-lg border border-slate-200 p-3">
-		<summary class="cursor-pointer font-medium">Medya güvenliği ve filigran ayarları</summary>
-		<form method="post" action="/admin/media/settings" class="mt-3 grid gap-3 md:grid-cols-2">
+	<details class="studio-card media-settings-disclosure">
+		<summary>Medya güvenliği ve filigran ayarları</summary>
+		<form method="post" action="/admin/media/settings" class="studio-form">
 			<input type="hidden" name="_csrf" value={ p.CSRF } />
-			<label class="flex items-center gap-2"><input type="checkbox" name="hotlink_protection" checked?={ p.HotlinkProtection } /> Harici siteden gömmeyi engelle</label>
-			<label>İzin verilen alan adları (virgülle ayırın)<textarea name="allowed_referer_hosts" maxlength="2048" class="block w-full rounded border px-2 py-1">{ p.AllowedRefererHosts }</textarea></label>
-			<label class="flex items-center gap-2"><input type="checkbox" name="watermark_enabled" checked?={ p.WatermarkEnabled } /> Yeni yüklenen görselleri filigranla</label>
-			<label>Filigran metni<input name="watermark_text" value={ p.WatermarkText } maxlength="128" class="block w-full rounded border px-2 py-1" /></label>
-			<label>PNG logo<select name="watermark_logo_id" class="block w-full rounded border px-2 py-1"><option value="">Logo kullanma</option>
+			<label class="studio-form-field studio-form-field-checkbox"><input type="checkbox" name="hotlink_protection" checked?={ p.HotlinkProtection } /> <span>Harici siteden gömmeyi engelle</span></label>
+			<label class="studio-form-field full-width"><span>İzin verilen alan adları (virgülle ayırın)</span><textarea name="allowed_referer_hosts" maxlength="2048">{ p.AllowedRefererHosts }</textarea></label>
+			<label class="studio-form-field studio-form-field-checkbox"><input type="checkbox" name="watermark_enabled" checked?={ p.WatermarkEnabled } /> <span>Yeni yüklenen görselleri filigranla</span></label>
+			<label class="studio-form-field"><span>Filigran metni</span><input name="watermark_text" value={ p.WatermarkText } maxlength="128" /></label>
+			<label class="studio-form-field"><span>PNG logo</span><select name="watermark_logo_id"><option value="">Logo kullanma</option>
 				for _, logo := range p.WatermarkLogos {
 					<option value={ logo.ID } selected?={ logo.ID == p.WatermarkLogoID }>{ logo.Name }</option>
 				}
 			</select></label>
-			<label>Filigran klasörleri (boş seçim tüm klasörler)<select name="watermark_folders" multiple class="block w-full rounded border px-2 py-1">
+			<label class="studio-form-field"><span>Filigran klasörleri (boş seçim tüm klasörler)</span><select name="watermark_folders" multiple>
 				for _, folder := range p.WatermarkFolders {
 					<option value={ folder.ID } selected?={ mediaFolderSelected(p.WatermarkFoldersSelected, folder.ID) }>{ folder.Name }</option>
 				}
 			</select></label>
-			<label>Konum<select name="watermark_position" class="block rounded border px-2 py-1"><option value="bottom-right" selected?={ p.WatermarkPosition == "bottom-right" }>Sağ alt</option><option value="bottom-left" selected?={ p.WatermarkPosition == "bottom-left" }>Sol alt</option><option value="top-right" selected?={ p.WatermarkPosition == "top-right" }>Sağ üst</option><option value="center" selected?={ p.WatermarkPosition == "center" }>Orta</option></select></label>
-			<label>Opaklık (%)<input type="number" name="watermark_opacity" min="10" max="100" value={ p.WatermarkOpacity } class="block w-full rounded border px-2 py-1" /></label>
-			<label>Kenar boşluğu (px)<input type="number" name="watermark_margin" min="0" max="1000" value={ p.WatermarkMargin } class="block w-full rounded border px-2 py-1" /></label>
-			<button type="submit" class="w-fit rounded bg-slate-900 px-3 py-2 text-white">Ayarları kaydet</button>
+			<label class="studio-form-field"><span>Konum</span><select name="watermark_position"><option value="bottom-right" selected?={ p.WatermarkPosition == "bottom-right" }>Sağ alt</option><option value="bottom-left" selected?={ p.WatermarkPosition == "bottom-left" }>Sol alt</option><option value="top-right" selected?={ p.WatermarkPosition == "top-right" }>Sağ üst</option><option value="center" selected?={ p.WatermarkPosition == "center" }>Orta</option></select></label>
+			<label class="studio-form-field"><span>Opaklık (%)</span><input type="number" name="watermark_opacity" min="10" max="100" value={ p.WatermarkOpacity } /></label>
+			<label class="studio-form-field"><span>Kenar boşluğu (px)</span><input type="number" name="watermark_margin" min="0" max="1000" value={ p.WatermarkMargin } /></label>
+			<button type="submit" class="button">Ayarları kaydet</button>
 		</form>
 	</details>
 }
 
 templ MediaAssetMetadataForm(p MediaMetadataFormProps) {
-	<details class="mt-2 rounded border border-slate-200 p-2">
-		<summary class="cursor-pointer text-sm">Odak, klasör ve etiketler</summary>
-		<form method="post" action={ p.Action } class="mt-2 grid gap-2">
+	<details class="media-meta-disclosure">
+		<summary>Odak, klasör ve etiketler</summary>
+		<form method="post" action={ p.Action } class="studio-form media-meta-form">
 			<input type="hidden" name="_csrf" value={ p.CSRF } />
 			<input type="hidden" name="return_folder" value={ p.ReturnFolder } />
-			<label class="text-xs">Odak X (0–1)<input name="focal_x" type="number" min="0" max="1" step="0.01" value={ p.FocalX } class="block w-full rounded border px-2 py-1" /></label>
-			<label class="text-xs">Odak Y (0–1)<input name="focal_y" type="number" min="0" max="1" step="0.01" value={ p.FocalY } class="block w-full rounded border px-2 py-1" /></label>
-			<label class="text-xs">Klasör<select name="folder_id" class="block w-full rounded border px-2 py-1"><option value="">Tüm medya</option>
+			<label class="studio-form-field"><span>Odak X (0–1)</span><input name="focal_x" type="number" min="0" max="1" step="0.01" value={ p.FocalX } /></label>
+			<label class="studio-form-field"><span>Odak Y (0–1)</span><input name="focal_y" type="number" min="0" max="1" step="0.01" value={ p.FocalY } /></label>
+			<label class="studio-form-field full-width"><span>Klasör</span><select name="folder_id"><option value="">Tüm medya</option>
 				for _, folder := range p.Folders {
 					<option value={ folder.ID } selected?={ folder.ID == p.FolderID }>{ folder.Name }</option>
 				}
 			</select></label>
-			<label class="text-xs">Etiketler (virgülle ayırın)<input name="tags" maxlength="2048" value={ p.Tags } class="block w-full rounded border px-2 py-1" /></label>
-			<button type="submit" class="rounded bg-slate-900 px-3 py-2 text-white">Kaydet</button>
+			<label class="studio-form-field full-width"><span>Etiketler (virgülle ayırın)</span><input name="tags" maxlength="2048" value={ p.Tags } /></label>
+			<button type="submit" class="button button-sm">Kaydet</button>
 		</form>
 	</details>
 }
 
 templ MediaCreateFolderForm(folders []MediaFolderItem, csrf, selected string) {
-	<details class="my-3 rounded-lg border border-slate-200 p-3">
-		<summary class="cursor-pointer font-medium">Klasör oluştur</summary>
-		<form method="post" action="/admin/media/folders" class="mt-2 flex flex-wrap items-end gap-2">
+	<details class="studio-card media-settings-disclosure">
+		<summary>Klasör oluştur</summary>
+		<form method="post" action="/admin/media/folders" class="studio-form media-inline-form">
 			<input type="hidden" name="_csrf" value={ csrf } />
-			<label class="text-sm">Ad<input name="name" maxlength="128" required class="block rounded border px-3 py-2" /></label>
-			<label class="text-sm">Üst klasör<select name="parent_id" class="block rounded border px-3 py-2"><option value="">Kök klasör</option>
+			<label class="studio-form-field"><span>Ad</span><input name="name" maxlength="128" required /></label>
+			<label class="studio-form-field"><span>Üst klasör</span><select name="parent_id"><option value="">Kök klasör</option>
 				for _, folder := range folders {
 					<option value={ folder.ID } selected?={ folder.ID == selected }>{ folder.Name }</option>
 				}
 			</select></label>
-			<button type="submit" class="rounded bg-slate-900 px-3 py-2 text-white">Oluştur</button>
+			<button type="submit" class="button">Oluştur</button>
 		</form>
 	</details>
 }
