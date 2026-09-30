@@ -41,6 +41,31 @@ func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesNovaTopNav(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`class="nova-topnav-wrap"`,
+		`class="nova-topnav-brand"`,
+		`nova-topnav-link is-active" href="/admin"`,
+		`href="/admin/news">Haberler</a>`,
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("admin shell missing nova top nav contract %q", want)
+		}
+	}
+	for _, want := range []string{
+		`html[data-ui-theme="nova"] .studio-sidebar{display:none}`,
+		`html[data-ui-theme="nova"] .studio-app{grid-template-columns:minmax(0,1fr)}`,
+	} {
+		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
+			t.Fatalf("admin shell missing nova sidebar-less layout rule %q", want)
+		}
+	}
+}
+
 func TestAdminShellHidesInactiveDashboardVariantByCSS(t *testing.T) {
 	for _, want := range []string{
 		`html:not([data-ui-theme="nova"]) .nova-dashboard{display:none}`,
