@@ -217,4 +217,4 @@ go test -race ./...
 
 ## 📄 License & Commercial Terms
 
-HydroGo is proprietary software. Commercial licensing terms, distribution rights, and client edition permissions are detailed in [`PROPRIETARY_NOTICE.md`](PROPRIETARY_NOTICE.md) and [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md).
+HydroGo is proprietary software. Commercial licensing terms, distribution rights, and client edition permissions are detailed in [`PROPRIETARY_NOTICE.md`](docs/legal/PROPRIETARY_NOTICE.md) and [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md).
