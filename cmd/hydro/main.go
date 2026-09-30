@@ -2599,7 +2599,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if securityNotice.PreviousLoginAt != nil {
 			previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})

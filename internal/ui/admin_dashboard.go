@@ -32,6 +32,7 @@ type AdminDashboardData struct {
 	UniqueVisitors        int64
 	PushEnabled           bool
 	EmailPreviewEnabled   bool
+	CommerceModuleEnabled bool
 	PreviousLogin         string
 	PreviousLoginIP       string
 	FailedLoginAttempts   int
