@@ -22,6 +22,20 @@ successful req/s, while HTTP 503 counts at 320 clients dropped from the tens
 of thousands (first update, threshold 150) to double digits (this update,
 threshold 300). See "Second updated run" below.
 
+A third follow-up, through commit `c012ce09`, added a controlled before/after
+(same host, same method, back-to-back) rather than comparing against an
+earlier report's numbers: warm cache at 320 clients went from 827.8 to
+1,480.3 successful req/s (+79%) while **average process CPU fell** from ~153%
+to ~120%, and dynamic HTML at 80 clients went from 462.1 to 729.3 (+58%)
+while average CPU fell from ~121% to ~88%. This round also found that every
+earlier CPU profile in this report had only exercised gzip, never the Brotli
+path real browsers use; profiling with Brotli explicitly negotiated led to
+lowering its compression quality from 4 to 1. Separately, an experimental
+Caddy edge cache measured 6,184.3 req/s with HydroGo's own CPU near 0%, but
+was rejected after it was found to replay the identical CSP nonce to every
+client, defeating ADR-0329's per-response freshness guarantee — nothing from
+that experiment was deployed. See "Third updated run" below for all details.
+
 | Request path | Best observed throughput | Latency at that point | Errors |
 |---|---:|---:|---:|
 | Public news HTML, warm HydroGo process cache | 832 requests/s at 160 clients | p95 362 ms; p99 473 ms | 0 |
@@ -328,6 +342,132 @@ response, including a 503; a real client population would not retry that
 aggressively, so the true proportion of shed traffic under equivalent organic
 load is likely lower than these raw counts suggest.
 
+## Third updated run: controlled before/after, Brotli profiling, multi-route check, and an edge-cache experiment
+
+This round adds four things the earlier rounds did not have: (1) a true
+controlled A/B — the pre-change binary (commit `f1535fd3`, via a separate git
+worktree) and the fully updated binary (commit `c012ce09`, everything through
+the Brotli quality change) were built and load-tested with the *identical*
+method, same host, same stage back-to-back, so the comparison below is not
+cross-report; (2) CPU profiling with `Accept-Encoding: br` explicitly set,
+because every earlier profile in this report only exercised gzip (Go's
+`net/http` client only auto-negotiates gzip, and real browsers prefer
+Brotli — CompressionMiddleware picks `br` whenever a client offers it); (3) a
+multi-route load test across the demo dataset's 5 distinct news articles; and
+(4) an experimental Caddy + Souin edge-cache layer in front of HydroGo, which
+surfaced a real security regression described below.
+
+### Controlled before/after (same host, same method, back-to-back)
+
+| Path | Metric | Before (`f1535fd3`, no tuning) | After (`c012ce09`, GOGC=300 GOMEMLIMIT=700MiB, Brotli negotiated) | Change |
+|---|---|---:|---:|---:|
+| Warm cache, 320 clients | Successful req/s | 827.8 | 1,480.3 | **+79%** |
+| Warm cache, 320 clients | p95 | 808.7 ms | 449.5 ms | **-44%** |
+| Warm cache, 320 clients | Process CPU (avg / peak) | ~153% / 170% | ~120% / 130% | **-22% avg** |
+| Warm cache, 320 clients | Process RSS | 76–79 MiB | 99–278 MiB (spikes with `GOMEMLIMIT`, settles ~100–135 MiB) | higher, by design |
+| Dynamic, 80 clients | Successful req/s | 462.1 | 729.3 | **+58%** |
+| Dynamic, 80 clients | p95 | 271.3 ms | 147.3 ms | **-46%** |
+| Dynamic, 80 clients | Process CPU (avg / peak) | ~121% / 130% | ~88% / 100% | **-27% avg** |
+| Dynamic, 80 clients | Process RSS | 60–70 MiB | 77–79 MiB | modestly higher |
+
+Both the "before" and "after" req/s figures land close to their respective
+earlier-round measurements in this report (827.8 vs. the original 832 peak;
+462.1 vs. the original 467.0 at 80 clients), which cross-validates the
+methodology across rounds. The "after" figures here are higher than the
+second-round figures at the same concurrency because this run explicitly
+negotiated Brotli — the encoding real browsers actually use — instead of
+gzip-only.
+
+The headline result: **throughput went up substantially while average CPU
+went down**, not merely "throughput per CPU-percent" — actual CPU utilization
+dropped in both tests. RSS moved the other way, which is the intended,
+accepted trade from raising `GOMEMLIMIT` (see below and the GOMEMLIMIT
+experiment write-up already in this conversation's history): more spare host
+RAM is now used to let the garbage collector run less often.
+
+### Brotli CPU profiling (new finding this round)
+
+Every CPU profile earlier in this document was taken with a load client that
+only sends `Accept-Encoding: gzip` (Go's `net/http` default). Real browsers
+send `Accept-Encoding: br, gzip` and prefer Brotli, which
+`CompressionMiddleware` honors. Profiling with Brotli explicitly negotiated
+showed Brotli quality 4 (the setting in place through the second updated run)
+spending the majority of sampled CPU in
+`andybalholm/brotli.createBackwardReferences` and related LZ77/context work —
+substantially more than gzip's `BestSpeed` level ever cost. Lowering Brotli
+to quality 1 (commit `c012ce09`) measured, at 100 clients on this host:
+
+| Brotli quality | Successful req/s | p95 |
+|---|---:|---:|
+| 4 (prior setting) | 918.0 | 238.9 ms |
+| 1 (current setting) | 1,430.8 | 152.8 ms |
+
+Compressed size impact on a real cached page (9,947 bytes uncompressed):
+quality 1 produces 3,317 bytes versus gzip `BestSpeed`'s 3,268 bytes for the
+same page — a negligible bandwidth cost for the CPU headroom gained. This
+finding came directly from testing with the encoding real traffic uses,
+which no earlier round in this report had done.
+
+### Multi-route cache check
+
+The demo dataset seeded on this host has only 5 distinct news articles, all
+well under even the original (pre-`372dbbfd`) fixed cache limit of 128
+entries — so this benchmark cannot exercise the capacity-scaled cache sizes
+from ADR-0334 under real eviction pressure. What it can and does confirm:
+warming and then load-testing all 5 distinct article routes simultaneously
+(160 clients, random selection per request) served 1,307.7 successful req/s
+with zero errors or unexpected shedding, confirming the cache correctly
+tracks multiple independent keys under concurrent load. Validating the
+larger ADR-0334 budgets under genuine eviction pressure would require a much
+larger seeded content set than this demo dataset provides; that remains open.
+
+### Edge-cache experiment (Caddy + Souin): real throughput, but not safe as configured
+
+A custom Caddy build (via `xcaddy`, adding the `github.com/darkweak/souin`
+HTTP cache module) was placed in front of HydroGo, with HydroGo moved to
+`127.0.0.1:8080` and Caddy listening on `:80`. HydroGo's existing
+`Cache-Control: public, max-age=<ttl>` header (already emitted by the
+ADR-0329 cache on a hit) was sufficient for Souin to cache responses with no
+further configuration. The measured effect was dramatic:
+
+| Metric | Direct to HydroGo | Through Caddy + Souin |
+|---|---:|---:|
+| Warm-cache req/s, 320 clients | 1,480.3 | **6,184.3** |
+| p95 | 449.5 ms | **65.6 ms** |
+| HydroGo process CPU during the run | ~120–130% | **~0%** (Caddy served every hit) |
+
+HydroGo's own request log confirmed it received zero additional requests
+while Caddy served repeated cache hits — the edge cache fully offloaded
+warm-cache traffic away from the application process, exactly as intended.
+
+**This configuration was not adopted, because it broke a security guarantee.**
+ADR-0329's cache deliberately stores HTML *before* compression and
+regenerates the CSP script/style nonce fresh on every response specifically
+so a nonce is never replayed to more than one client. Caddy/Souin, sitting in
+front of HydroGo, instead cached HydroGo's final compressed bytes —
+nonce and all — and replayed the identical `Content-Security-Policy` header,
+including the identical nonce value, to every client for the life of the
+cache entry. This was verified directly: three consecutive requests through
+the Caddy layer returned the exact same
+`nonce-Yh1S4aFAg9r1+7X6zWq+gQ==` value. A generic HTTP cache sitting in front
+of a nonce-based CSP scheme cannot preserve ADR-0329's per-response
+freshness guarantee without cache-side logic that understands and rewrites
+the nonce on every replay — which Souin, as a generic RFC 7234 cache, does
+not have.
+
+**Disposition:** the Caddy/Souin layer was torn down; nothing from this
+experiment was deployed or persisted in the HydroGo binary or its
+configuration. This is recorded here as a rejected direction, not an accepted
+one. A safe version of edge-level caching would need one of: (a) excluding
+any nonce-bearing response from the edge cache (which, on current evidence,
+is effectively all public HTML responses, eliminating most of the benefit),
+(b) moving to hash-based CSP (`'sha256-...'`) for inline scripts/styles that
+are static at build time, which doesn't require per-response freshness and
+would be safely cacheable as-is, or (c) a purpose-built cache module that
+replicates HydroGo's own nonce-regeneration logic at the edge. Each is a
+distinct architectural decision needing its own ADR before implementation;
+none is in place today.
+
 ## Code changes represented by the updated run
 
 The updated binary included these already committed changes:
@@ -359,6 +499,21 @@ The second updated run adds one more committed change:
   See the revision note in
   [ADR-0333](../architecture/0333-http-admission-concurrency-limit.md).
 
+The third updated run adds two more committed changes:
+
+- Commit `cd43c257` wires the ADR-0329 public HTML cache's size to
+  `capacity.Budget` instead of a single fixed size for every profile
+  (Compact 128 entries/16 MiB, Standard 512/128 MiB, Distributed 2,048/512 MiB
+  — see [ADR-0334](../architecture/0334-capacity-scaled-public-html-cache-budget.md)).
+  This benchmark's 5-article demo dataset never approached the *old* fixed
+  limit, so it cannot demonstrate this change's benefit under real eviction
+  pressure; see the multi-route check above.
+- Commit `c012ce09` lowers Brotli compression quality from 4 to 1, after
+  profiling with Brotli explicitly negotiated (rather than this report's
+  earlier gzip-only profiles) showed it consuming substantially more CPU per
+  request than gzip at a comparable compression ratio. See the Brotli
+  profiling section above.
+
 ## Interpretation and limits
 
 - On this specific 2-vCPU / 908-MiB host, observed peak throughput was about
@@ -385,6 +540,28 @@ The second updated run adds one more committed change:
   round also confirmed `/healthz` stays reachable (HTTP 200) while the limiter
   is actively shedding other traffic, closing the gap noted in the previous
   bullet's admission-shedding behavior.
+- The third follow-up run is the first controlled before/after in this
+  report: the pre-change binary and the fully updated binary (through
+  `c012ce09`) were built and tested with the identical method, back-to-back,
+  on the same host. Warm cache at 320 clients went from 827.8 to 1,480.3
+  successful req/s (+79%) while **average process CPU fell** from ~153% to
+  ~120%; dynamic HTML at 80 clients went from 462.1 to 729.3 successful req/s
+  (+58%) while average CPU fell from ~121% to ~88%. Process RSS rose (76–79
+  MiB to 99–278 MiB on the cache path), which is the deliberate trade from
+  raising `GOMEMLIMIT` to 700 MiB — more of this host's spare RAM is now used
+  to reduce GC frequency. This run also found and fixed a real profiling gap:
+  every earlier CPU profile in this report only exercised gzip, because the
+  load client never negotiated Brotli the way real browsers do; profiling
+  with Brotli explicitly requested is what led to the quality 4→1 change in
+  `c012ce09`.
+- An experimental Caddy + Souin edge cache in front of HydroGo measured
+  6,184.3 successful req/s (versus 1,480.3 direct) with HydroGo's own CPU at
+  ~0% during the run, but was **not adopted**: it cached HydroGo's
+  already-compressed response including its CSP nonce, and replayed the
+  identical nonce to every client for the life of the cache entry, defeating
+  ADR-0329's per-response nonce-freshness guarantee. This is recorded as a
+  rejected direction, not an accepted architecture change; nothing from it
+  was deployed or persisted in the codebase.
 - A cache hit is not equivalent to an authenticated request, a write, an API
   query, or a cache miss. This report does not measure login, admin, writes,
   media uploads, cold start, long soak, deployment restarts, or multi-process
@@ -417,6 +594,23 @@ stages completed, the HydroGo process was stopped, the benchmark containers
 were stopped, and `insaat-postgres`, `insaat-redis`, and `insaat-api` were
 restarted. A post-test check against `/` returned HTTP 401, matching the
 pre-test state.
+
+The third updated run followed the same isolation procedure across several
+back-to-back stages (baseline binary, updated binary, and the Caddy edge-cache
+experiment), each stopping `insaat-api`/`insaat-postgres`/`insaat-redis` and
+starting the isolated benchmark containers, then reversing that at the end of
+the round. The pre-change baseline binary was built from a separate `git
+worktree` checked out at commit `f1535fd3` (the last commit before this
+report's code changes began) so it could be compiled and load-tested with
+the exact same method as the updated binary. The Caddy build (`xcaddy` plus
+the `github.com/darkweak/souin` module) required redirecting `TMPDIR` and
+`GOTMPDIR` away from this host's small `tmpfs`-backed `/tmp` (only ~91 MiB
+free) to a directory on the root filesystem, and required freeing
+accumulated benchmark binaries and logs from earlier rounds first, as the
+root filesystem was down to under 700 MiB free at one point during this
+session. The worktree, the Caddy build tree, and all stray benchmark
+binaries/logs on the server were removed at the end of the round. A final
+post-test check against `/` returned HTTP 401, matching the pre-test state.
 
 The source adjustment required for PostgreSQL startup removed an empty-string
 comparison from the PostgreSQL ban query while retaining that comparison in the
