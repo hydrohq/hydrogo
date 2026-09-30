@@ -280,7 +280,7 @@ func (s *supervisor) stop() {
 }
 
 func main() {
-	address := flag.String("address", "0.0.0.0:8090", "development proxy listen address")
+	address := flag.String("address", "127.0.0.1:8090", "development proxy listen address (use 0.0.0.0:PORT to allow LAN access, e.g. from a phone on the same network)")
 	appAddress := flag.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	databaseDSN := flag.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
 	redisURL := flag.String("redis-url", "", "Optional Redis URL passed to the child server")

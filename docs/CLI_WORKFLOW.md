@@ -29,14 +29,19 @@ configuration or module errors before running migrations or serving traffic.
 ## Develop and test a focused area
 
 ```text
-hydro run --address 0.0.0.0:8090
+hydro run
 hydro test --package ./modules/news/... --timeout 2m
 ```
 
 `hydro run` canlı geliştirme için önerilen komuttur. Eski betiklerle uyumluluk
 için `hydro dev` aynı seçenekleri kabul eden bir takma ad olarak tutulur.
-Geliştirme proxy'si LAN erişimi için `0.0.0.0:8090` üzerinde dinler; aynı ağdaki
-başka bir cihazdan bilgisayarın LAN IP'si ve `8090` portuyla bağlanabilirsiniz.
+Geliştirme proxy'si varsayılan olarak sadece `127.0.0.1:8090`'da (loopback)
+dinler, böylece işletim sistemi ağ güvenlik duvarı izni istemez. Aynı ağdaki
+başka bir cihazdan (örn. telefon) erişmek için proxy'yi açıkça LAN'a açın:
+
+```text
+hydro run --address 0.0.0.0:8090
+```
 
 Use a different address when a local process owns the default port. Narrowing
 the package makes failures faster to reproduce; increase the timeout only when
