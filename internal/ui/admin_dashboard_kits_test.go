@@ -21,6 +21,24 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	}
 }
 
+func TestNovaSearchOpensAsDropdownNotModal(t *testing.T) {
+	// Nova must not move the search box into the centered
+	// studio-search-dialog <dialog> (a full command-palette modal); it should
+	// keep it in place and show .studio-search-results as an anchored
+	// dropdown instead, matching the reference design's inline search.
+	if !strings.Contains(AdminSPARouterJS, `data-ui-theme') === 'nova'`) {
+		t.Fatal("__openSpotlight is missing the Nova dropdown branch")
+	}
+	idx := strings.Index(AdminSPARouterJS, "__openSpotlight = ()")
+	if idx == -1 {
+		t.Fatal("__openSpotlight definition not found")
+	}
+	branch := AdminSPARouterJS[idx : idx+420]
+	if !strings.Contains(branch, "data-ui-theme') === 'nova'") || !strings.Contains(branch, "return;") {
+		t.Fatal("__openSpotlight must check for Nova and return before opening the modal dialog")
+	}
+}
+
 func TestDashboardLayoutCSSIsNotScopedToWorkbenchOnly(t *testing.T) {
 	// Regression test: AdminWorkbenchDashboardCSS and AdminWorkbenchComponentsCSS
 	// style the .wb-*/.dashboard-*/.collection-tile/.quick-action-list markup
