@@ -426,8 +426,26 @@ func TestAdminShellIncludesWorkbenchThemeMode(t *testing.T) {
 	if !strings.Contains(out.String(), `data-ui-theme="workbench"`) {
 		t.Fatal("rendered admin shell missing workbench contract")
 	}
-	if !strings.Contains(out.String(), "hydro-ui-theme-v2") || !strings.Contains(out.String(), "startsWith('workbench-')") {
+	if !strings.Contains(out.String(), "hydro-ui-theme-v2") || !strings.Contains(out.String(), "workbench-'+variant") {
 		t.Fatal("rendered admin shell missing pre-paint Workbench migration")
+	}
+}
+
+func TestAdminThemeMigrationDoesNotOverrideExplicitFamilyChoice(t *testing.T) {
+	// Regression test: an earlier version of AdminThemeMigrationJS ran on
+	// every page load and forced data-ui-theme back to "workbench" unless the
+	// stored preference literally started with "workbench-", silently
+	// reverting any explicit hydrogo/shadcn/nova selection on the next
+	// refresh. The migration must now only seed a default when no versioned
+	// preference exists at all, and must never call setAttribute itself.
+	if strings.Contains(AdminThemeMigrationJS, "setAttribute") {
+		t.Fatal("AdminThemeMigrationJS must not set data-ui-theme/data-theme itself; that would override an explicit family choice on every reload")
+	}
+	if strings.Contains(AdminThemeMigrationJS, "startsWith('workbench-')") {
+		t.Fatal("AdminThemeMigrationJS must not re-fire for every non-workbench saved family")
+	}
+	if !strings.Contains(AdminThemeMigrationJS, "!localStorage.getItem(key)") {
+		t.Fatal("AdminThemeMigrationJS must only seed a default when no versioned preference exists yet")
 	}
 }
 
@@ -442,6 +460,82 @@ func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
 	}
 	if !strings.Contains(AdminShadcnCSS, `html[data-ui-theme="shadcn"]`) {
 		t.Fatal("Shadcn styles are not scoped to the visual mode")
+	}
+}
+
+func TestAdminShellSelfHostsInterFont(t *testing.T) {
+	for _, want := range []string{
+		`@font-face{font-family:'Inter'`,
+		`url(/vendor/inter/inter-latin.woff2)`,
+		`url(/vendor/inter/inter-latin-ext.woff2)`,
+	} {
+		if !strings.Contains(AdminInterFontCSS, want) {
+			t.Fatalf("AdminInterFontCSS missing %q", want)
+		}
+	}
+	// Must never point at an external font host: the project's CSP only
+	// allows font-src 'self' data:, and ADR-0041 rules out a CDN dependency.
+	for _, forbidden := range []string{"fonts.googleapis.com", "fonts.gstatic.com", "http://", "https://"} {
+		if strings.Contains(AdminInterFontCSS, forbidden) {
+			t.Fatalf("AdminInterFontCSS must be self-hosted, found forbidden reference %q", forbidden)
+		}
+	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	if !strings.Contains(out.String(), `/vendor/inter/inter-latin.woff2`) {
+		t.Fatal("rendered admin shell missing self-hosted Inter font reference")
+	}
+}
+
+func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
+	for _, want := range []string{
+		`data-ui-theme="nova"`,
+		`nova-light`,
+		`nova-dark`,
+		`nova:'Nova'`,
+	} {
+		if !strings.Contains(AdminNovaCSS+AdminSPARouterJS+AdminFamilySelectCSS, want) {
+			t.Fatalf("admin shell missing nova theme contract %q", want)
+		}
+	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	if !strings.Contains(out.String(), `data-ui-theme="nova"`) {
+		t.Fatal(`rendered admin shell missing data-ui-theme="nova" contract`)
+	}
+
+	// The family selector itself lives on the account settings page, not the
+	// shared shell (moved out of the header per customer feedback).
+	var account bytes.Buffer
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account"}); err != nil {
+		t.Fatalf("render account area: %v", err)
+	}
+	for _, want := range []string{
+		`id="ui-family-select"`,
+		`<option value="hydrogo">HydroGo</option>`,
+		`<option value="shadcn">shadcn</option>`,
+		`<option value="workbench">Workbench</option>`,
+		`<option value="nova">Nova</option>`,
+	} {
+		if !strings.Contains(account.String(), want) {
+			t.Fatalf("account area missing family selector contract %q", want)
+		}
+	}
+}
+
+func TestNovaModeSharesSemanticMarkupContract(t *testing.T) {
+	novaCSS := AdminNovaCSS + AdminNovaDensityCSS
+	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
+		if !strings.Contains(novaCSS, selector) {
+			t.Fatalf("Nova mode missing shared semantic selector %q", selector)
+		}
+	}
+	if !strings.Contains(AdminNovaCSS, `html[data-ui-theme="nova"]`) {
+		t.Fatal("Nova styles are not scoped to the visual mode")
 	}
 }
 

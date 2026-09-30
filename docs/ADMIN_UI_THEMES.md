@@ -3,7 +3,8 @@
 HydroGo Studio keeps the visual layer independent from the server-rendered
 admin screens. The existing HydroGo and shadcn modes remain available; the
 Workbench mode adds a denser, enterprise-oriented presentation for daily
-content and operations work.
+content and operations work, and the Nova mode adds a shadcn/Vercel
+dashboard-inspired look (ADR-0335).
 
 ## Available modes
 
@@ -11,13 +12,18 @@ content and operations work.
 - **shadcn**: neutral zinc surfaces with compact controls and light/dark variants.
 - **Workbench**: a restrained blue-gray workspace with a dark navigation rail,
   stronger data hierarchy, quieter surfaces, and accessible focus states.
+- **Nova**: an indigo-accented, slate-neutral dashboard look with rounded
+  cards and soft low-opacity shadows, reusing the same dashboard markup as
+  Workbench.
 
-The theme button cycles through light and dark variants of each mode and stores
-the choice in `localStorage` under the versioned `hydro-ui-theme-v2` key. Existing
-profiles that have an older HydroGo preference are migrated to Workbench once;
-after that, an explicit user choice is preserved. The mode changes tokens and
-shared semantic selectors only; it does not change routes, permissions, or
-module behavior.
+The topbar's family selector (`#ui-family-select`) picks one of the four
+modes; the theme button next to it toggles the light/dark variant of
+whichever mode is currently selected. Both choices persist together in
+`localStorage` under the versioned `hydro-ui-theme-v2` key. Existing profiles
+that have an older HydroGo preference are migrated to Workbench once; after
+that, an explicit user choice is preserved. A mode changes tokens and shared
+semantic selectors only; it does not change routes, permissions, or module
+behavior.
 
 ## Why not ship a full component framework?
 

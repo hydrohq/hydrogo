@@ -2599,7 +2599,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if securityNotice.PreviousLoginAt != nil {
 			previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
@@ -4810,6 +4810,15 @@ func sqliteDatabasePath(dsn string) (string, error) {
 	value := strings.TrimSpace(dsn)
 	if strings.HasPrefix(value, "file:") {
 		value = strings.TrimPrefix(value, "file:")
+	}
+	// database.SQLiteDSN encodes an absolute path as a URI opaque part, which
+	// prepends "/" before a Windows drive letter (file:/C:/path) so the value
+	// parses as a valid file URI. filepath.Abs does not understand that
+	// leading slash and would otherwise anchor it under the current drive,
+	// producing a doubled "C:\C:\..." path.
+	if runtime.GOOS == "windows" && len(value) >= 4 && value[0] == '/' && value[2] == ':' &&
+		((value[1] >= 'a' && value[1] <= 'z') || (value[1] >= 'A' && value[1] <= 'Z')) {
+		value = value[1:]
 	}
 	if index := strings.IndexByte(value, '?'); index >= 0 {
 		query := value[index+1:]
