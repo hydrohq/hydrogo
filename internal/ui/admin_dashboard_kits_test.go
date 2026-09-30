@@ -23,16 +23,18 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	}
 }
 
-func TestMediaHeaderGridIsTwoColumnsUnderNova(t *testing.T) {
-	if !strings.Contains(AdminMediaFormsCSS, `html[data-ui-theme="nova"] .media-header-grid{display:grid;grid-template-columns:`) {
-		t.Fatal("Nova is missing the two-column layout for the media page's header controls (upload/search/folder/filter/settings), which should sit side-by-side instead of each spanning the full row")
+func TestMediaHeaderControlsWrapInAFlexToolbarUnderNova(t *testing.T) {
+	// Two fixed-column layouts (a plain 2-col grid, then two independent
+	// flex-columns) both left a dead empty block under whichever side had
+	// less content, since the page's media-card grid can only start below
+	// the taller side. A flex-wrap toolbar has no "columns" to go uneven:
+	// items pack left-to-right and only take the height their own line
+	// needs, so there's never a leftover empty block.
+	if !strings.Contains(AdminMediaFormsCSS, `html[data-ui-theme="nova"] .media-toolbar-row{display:flex;flex-wrap:wrap`) {
+		t.Fatal("Nova is missing the flex-wrap toolbar row for the media page's secondary controls (view toggle, folder tree, create-folder, tag filter, cleanup link, settings)")
 	}
-	// Each side must be its own independent flex column, not a row-paired
-	// grid: the primary column (upload/search/folder/filter/settings) runs
-	// much taller than the secondary one (view toggle/create-folder/cleanup),
-	// so row-pairing them left a large empty gap under the short column.
-	if !strings.Contains(AdminMediaFormsCSS, `html[data-ui-theme="nova"] .media-header-col{display:flex;flex-direction:column`) {
-		t.Fatal("Nova's media header columns must stack independently (flex column), not be paired row-by-row in the grid")
+	if strings.Contains(AdminMediaFormsCSS, `.media-header-grid`) || strings.Contains(AdminMediaFormsCSS, `.media-header-col`) {
+		t.Fatal("leftover media-header-grid/media-header-col rules from the earlier column-based layout should be removed, not left dead in the CSS")
 	}
 }
 
