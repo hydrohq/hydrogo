@@ -3280,7 +3280,12 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if logWriter == nil {
 		logWriter = io.Discard
 	}
-	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	var logger *slog.Logger
+	if os.Getenv("HYDRO_DEV_MODE") == "1" {
+		logger = slog.New(observability.DevelopmentHandler(logWriter))
+	} else {
+		logger = slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	}
 	if !cfg.SafeMode && !*cgiMode && modules["site"] && linkScanManager != nil && linkScanOrigin != "" {
 		tenantKeys := []string{"default"}
 		if requireTenantScope {
