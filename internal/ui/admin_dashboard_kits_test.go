@@ -21,6 +21,27 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	}
 }
 
+func TestDashboardLayoutCSSIsNotScopedToWorkbenchOnly(t *testing.T) {
+	// Regression test: AdminWorkbenchDashboardCSS and AdminWorkbenchComponentsCSS
+	// style the .wb-*/.dashboard-*/.collection-tile/.quick-action-list markup
+	// that RenderAdminDashboard (and /admin/control) render unconditionally,
+	// for every family - not just Workbench. When these rules were scoped to
+	// html[data-ui-theme="workbench"], the hydrogo and shadcn families
+	// rendered that markup with no layout/box styling at all (broken grid,
+	// no card borders, sparkline SVGs stretched full width). The rules must
+	// stay unscoped so every family styles this shared markup correctly.
+	for _, css := range []string{AdminWorkbenchDashboardCSS, AdminWorkbenchComponentsCSS} {
+		if strings.Contains(css, `html[data-ui-theme="workbench"]`) {
+			t.Fatal("dashboard layout CSS must not be scoped to a single family; it styles markup shared by every mode")
+		}
+	}
+	for _, selector := range []string{".wb-metric-strip", ".wb-content-grid", ".collection-tile", ".dashboard-stat"} {
+		if !strings.Contains(AdminWorkbenchDashboardCSS+AdminWorkbenchComponentsCSS, selector) {
+			t.Fatalf("dashboard layout CSS missing shared selector %q", selector)
+		}
+	}
+}
+
 func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 	var out bytes.Buffer
 	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "articles", Label: "Articles", Description: "Content", Actions: []adminstudio.Action{{Label: "Open", Href: "/admin/articles"}}, Fields: []adminstudio.Field{{ID: "title", Label: "Title", Kind: adminstudio.FieldText}}, Kits: []adminstudio.Kit{adminstudio.KitSEO}}}, Active: "dashboard"})
