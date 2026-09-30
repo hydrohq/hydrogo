@@ -31,4 +31,3 @@ func TestExtensionRegistryRejectsDuplicateOrInvalidManifest(t *testing.T) {
 		t.Fatalf("invalid error = %v", err)
 	}
 }
-

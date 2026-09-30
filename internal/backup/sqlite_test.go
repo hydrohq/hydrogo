@@ -342,4 +342,3 @@ func TestVerifyRequiresMatchingStoredManifest(t *testing.T) {
 		t.Fatal("snapshot without stored manifest unexpectedly verified")
 	}
 }
-

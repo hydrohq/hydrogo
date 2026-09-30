@@ -11,7 +11,7 @@ import (
 
 type ExplorerFilter struct {
 	Actor, Action, Resource, Target, From, Until string
-	Limit, Offset                                  int
+	Limit, Offset                                int
 }
 
 type ExplorerEvent struct {

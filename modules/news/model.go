@@ -58,7 +58,9 @@ func Validate(item Item) error {
 	if item.ID == "" || len(item.ID) > 128 || item.Locale == "" || len(item.Locale) > 16 || item.Slug == "" || len(item.Slug) > 256 || item.Title == "" || len(item.Title) > 256 || len(item.Excerpt) > 4000 || len(item.KeyTakeaways) > 12000 || len(item.Category) > 128 || len(item.AuthorName) > 256 || len(item.Tags) > 2000 || len(item.SEOTitle) > 256 || len(item.SEODescription) > 1000 || item.Status != StatusDraft {
 		return ErrInvalidItem
 	}
-	if item.ExpiresAt != nil && item.ExpiresAt.IsZero() { return ErrInvalidItem }
+	if item.ExpiresAt != nil && item.ExpiresAt.IsZero() {
+		return ErrInvalidItem
+	}
 	return nil
 }
 
@@ -68,7 +70,9 @@ func Canonicalize(item *Item) error {
 	}
 	item.Locale = canonical.Locale(item.Locale)
 	item.Slug = canonical.Slugify(item.Slug)
-	if item.Slug == "" { item.Slug = canonical.Slugify(item.Title) }
+	if item.Slug == "" {
+		item.Slug = canonical.Slugify(item.Title)
+	}
 	var err error
 	item.Slug, err = canonical.Path(item.Slug)
 	return err
