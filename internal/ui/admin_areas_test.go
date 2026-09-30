@@ -463,6 +463,32 @@ func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
 	}
 }
 
+func TestAdminShellSelfHostsInterFont(t *testing.T) {
+	for _, want := range []string{
+		`@font-face{font-family:'Inter'`,
+		`url(/vendor/inter/inter-latin.woff2)`,
+		`url(/vendor/inter/inter-latin-ext.woff2)`,
+	} {
+		if !strings.Contains(AdminInterFontCSS, want) {
+			t.Fatalf("AdminInterFontCSS missing %q", want)
+		}
+	}
+	// Must never point at an external font host: the project's CSP only
+	// allows font-src 'self' data:, and ADR-0041 rules out a CDN dependency.
+	for _, forbidden := range []string{"fonts.googleapis.com", "fonts.gstatic.com", "http://", "https://"} {
+		if strings.Contains(AdminInterFontCSS, forbidden) {
+			t.Fatalf("AdminInterFontCSS must be self-hosted, found forbidden reference %q", forbidden)
+		}
+	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	if !strings.Contains(out.String(), `/vendor/inter/inter-latin.woff2`) {
+		t.Fatal("rendered admin shell missing self-hosted Inter font reference")
+	}
+}
+
 func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 	for _, want := range []string{
 		`data-ui-theme="nova"`,
