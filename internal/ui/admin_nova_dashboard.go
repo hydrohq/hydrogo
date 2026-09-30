@@ -15,6 +15,18 @@ import (
 // client-only family selection has no server-side signal to branch on).
 const AdminNovaDashboardLayoutCSS = `html:not([data-ui-theme="nova"]) .nova-dashboard{display:none}
 html[data-ui-theme="nova"] .wb-dashboard{display:none}
+html:not([data-ui-theme="nova"]) .nova-topnav-wrap{display:none}
+html[data-ui-theme="nova"] .studio-app{grid-template-columns:minmax(0,1fr)}
+html[data-ui-theme="nova"] .studio-sidebar{display:none}
+html[data-ui-theme="nova"] .studio-mobile-menu-toggle{display:none}
+html[data-ui-theme="nova"] .nova-topnav-wrap{display:flex;align-items:center;gap:20px;min-width:0}
+html[data-ui-theme="nova"] .nova-topnav-brand{flex-shrink:0;display:grid;place-items:center;width:30px;height:30px;border-radius:var(--radius-sm);background:var(--brand);color:#fff}
+html[data-ui-theme="nova"] .nova-topnav-links{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto}
+html[data-ui-theme="nova"] .nova-topnav-link{flex-shrink:0;padding:7px 12px;border-radius:var(--radius-sm);color:var(--muted);font-size:.84rem;font-weight:600;text-decoration:none;white-space:nowrap}
+html[data-ui-theme="nova"] .nova-topnav-link:hover{background:var(--bg-subtle);color:var(--ink)}
+html[data-ui-theme="nova"] .nova-topnav-link.is-active{background:var(--brand-subtle);color:var(--brand-light)}
+html[data-ui-theme="nova"] .studio-search{flex-shrink:0;max-width:260px}
+@media(max-width:900px){html[data-ui-theme="nova"] .studio-search{display:none}}
 html[data-ui-theme="nova"] .nova-dashboard{display:grid;gap:20px;max-width:1600px;margin:0 auto}
 html[data-ui-theme="nova"] .nova-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
 html[data-ui-theme="nova"] .nova-toolbar h2{margin:0 0 2px;font-size:1.3rem;font-weight:700;letter-spacing:-.03em;color:var(--ink)}
