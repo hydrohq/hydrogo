@@ -22,6 +22,55 @@ Client Edition choices and can be replaced by a custom registry provider.
 | Elevation | `--shadow-xs`, `--shadow-md`, `--shadow-lg` | restrained depth |
 | Motion | `--motion-fast`, `--motion-normal`, `--motion-slow` | animation budget and reduced-motion override |
 
+## Quick reference for implementers
+
+Resolve the shadcn semantic adapter once and pass the `ui.DesignSystem` value
+into your `.templ` components; do not hard-code class strings.
+
+```go
+registry, err := ui.NewDefaultDesignSystemRegistry()
+if err != nil {
+	// handle: registry construction failed
+}
+ds, err := registry.Resolve("shadcn")
+if err != nil {
+	// handle: "shadcn" provider not registered
+}
+```
+
+Import path: `github.com/ardaozyildirim/hydrogo/internal/ui`.
+
+### Example 1 — button
+
+```templ
+templ SaveButton(ds ui.DesignSystem) {
+	<button class={ ds.ButtonClass("primary") } type="submit">Save</button>
+}
+```
+
+`ButtonClass(variant string) string` concatenates the provider's base button
+class with `variant`; an empty/whitespace `variant` falls back to
+`"default"`.
+
+### Example 2 — card
+
+`DesignSystem` has no `CardClass` method. A card is a layout built from the
+semantic tokens in the table above; any action inside it still goes through
+`ds.ButtonClass(...)`.
+
+```templ
+templ ProfileCard(ds ui.DesignSystem) {
+	<section style="background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:var(--space-md)">
+		<h2>Profile</h2>
+		<button class={ ds.ButtonClass("secondary") } type="button">Edit</button>
+	</section>
+}
+```
+
+`FieldClass()` and `TableClass()` are used the same way; the `DesignSystem`
+interface provides no card-specific method, card layout is built from
+semantic tokens.
+
 Components must preserve semantic HTML, visible focus, keyboard operation, and
 an accessible name. A theme can change token values, but not the meaning of a
 component state. New shared components belong in `internal/ui`; edition-specific
