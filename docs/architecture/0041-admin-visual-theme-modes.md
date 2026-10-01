@@ -1,6 +1,6 @@
 # ADR-0041: Admin visual theme modes
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0338](0338-standalone-tailwind-build-time-css.md) for the "no Tailwind" consequence only; the four admin appearance modes below remain Accepted and unchanged
 - **Date:** 2026-09-14
 - **Related decisions:** [ADR-0020](0020-headless-first-admin-studio-and-frontend-templates.md), [ADR-0037](0037-strict-modular-monolith-boundaries.md)
 
@@ -23,7 +23,11 @@ with the legacy `hydro-theme` key retained for variant compatibility.
 
 ## Consequences
 
-- No React, Tailwind, CDN, or third-party runtime is introduced.
+- No React, CDN, or third-party runtime is introduced. (Tailwind: see
+  [ADR-0338](0338-standalone-tailwind-build-time-css.md) — a standalone,
+  build-time-only Tailwind CLI is now permitted, strictly isolated to
+  `custom/ui/tailwind/`; it is not introduced here, in `internal/ui`, or in
+  any of the four admin visual families below.)
 - Existing routes and custom HydroGo styling remain intact and can be restored
   by cycling the appearance control.
 - Visual parity is covered by token/markup contract tests; browser viewport

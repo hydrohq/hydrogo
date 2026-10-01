@@ -7,6 +7,7 @@
 - [ADR-0333: Bounded HTTP admission concurrency limit](0333-http-admission-concurrency-limit.md)
 - [ADR-0334: Capacity-profile-scaled public HTML cache budget](0334-capacity-scaled-public-html-cache-budget.md)
 - [ADR-0337: `hydro dev` entrypoint for scaffolded Client Edition projects](0337-hydro-dev-client-edition-entrypoint.md)
+- [ADR-0338: Standalone Tailwind CLI for isolated, build-time custom UI CSS](0338-standalone-tailwind-build-time-css.md)
 
 This directory is the main source of HydroGo's long-lived architectural decisions. The implementation plan describes the order of work, while ADRs explain why the system is built this way.
 
