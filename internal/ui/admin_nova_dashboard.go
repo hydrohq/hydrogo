@@ -67,7 +67,8 @@ html[data-ui-theme="nova"] .nova-card-head h3{margin:0;font-size:.98rem;font-wei
 html[data-ui-theme="nova"] .nova-card-head p{margin:2px 0 0;color:var(--muted);font-size:.78rem}
 html[data-ui-theme="nova"] .nova-card-head a{color:var(--brand-light);font-size:.8rem;font-weight:600;text-decoration:none;white-space:nowrap}
 html[data-ui-theme="nova"] .nova-card-head a:hover{text-decoration:underline}
-html[data-ui-theme="nova"] .nova-table{width:100%;border-collapse:collapse}
+html[data-ui-theme="nova"] .nova-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+html[data-ui-theme="nova"] .nova-table{width:100%;border-collapse:collapse;min-width:600px}
 html[data-ui-theme="nova"] .nova-table th{padding:8px 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg-subtle);color:var(--muted);font-size:.68rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-align:left}
 html[data-ui-theme="nova"] .nova-table td{padding:12px 20px;border-bottom:1px solid var(--line);font-size:.84rem;color:var(--ink);vertical-align:middle}
 html[data-ui-theme="nova"] .nova-table tr:last-child td{border-bottom:0}
@@ -86,7 +87,7 @@ html[data-ui-theme="nova"] .nova-activity-copy{min-width:0}
 html[data-ui-theme="nova"] .nova-activity-copy strong{display:block;font-size:.84rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 html[data-ui-theme="nova"] .nova-activity-copy small{display:block;margin-top:1px;color:var(--muted);font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:1000px){html[data-ui-theme="nova"] .nova-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}html[data-ui-theme="nova"] .nova-content-grid{grid-template-columns:1fr}}
-@media(max-width:640px){html[data-ui-theme="nova"] .nova-stat-grid{grid-template-columns:1fr}html[data-ui-theme="nova"] .nova-toolbar{flex-direction:column;align-items:flex-start}}`
+@media(max-width:640px){html[data-ui-theme="nova"] .nova-stat-grid{grid-template-columns:1fr}html[data-ui-theme="nova"] .nova-toolbar{flex-direction:column;align-items:flex-start;gap:12px}html[data-ui-theme="nova"] .nova-toolbar .button{width:100%;justify-content:center}}`
 
 var adminNovaDashboardTemplate = template.Must(template.New("admin-nova-dashboard").Parse(`<div class="nova-dashboard">
 	<div class="nova-toolbar">
@@ -139,26 +140,28 @@ var adminNovaDashboardTemplate = template.Must(template.New("admin-nova-dashboar
 				</div>
 				<a href="/admin/news">Tümünü gör</a>
 			</div>
-			<table class="nova-table">
-				<thead><tr><th>Alan</th><th>Açıklama</th><th>Yetenek</th><th></th></tr></thead>
-				<tbody>
-					{{$visible := 0}}
-					{{range .Collections}}
-					{{if ne .ID "pages"}}
-					{{$visible = 1}}
-					<tr>
-						<td><strong>{{.Label}}</strong></td>
-						<td class="muted">{{.Description}}</td>
-						<td><span class="nova-badge">{{len .Kits}} yetenek</span></td>
-						<td class="nova-table-action"><a href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">Yönet</a></td>
-					</tr>
-					{{end}}
-					{{end}}
-					{{if eq $visible 0}}
-					<tr><td colspan="4" class="nova-empty">Henüz etkin koleksiyon bulunmuyor.</td></tr>
-					{{end}}
-				</tbody>
-			</table>
+			<div class="nova-table-wrap">
+				<table class="nova-table">
+					<thead><tr><th>Alan</th><th>Açıklama</th><th>Yetenek</th><th></th></tr></thead>
+					<tbody>
+						{{$visible := 0}}
+						{{range .Collections}}
+						{{if ne .ID "pages"}}
+						{{$visible = 1}}
+						<tr>
+							<td><strong>{{.Label}}</strong></td>
+							<td class="muted">{{.Description}}</td>
+							<td><span class="nova-badge">{{len .Kits}} yetenek</span></td>
+							<td class="nova-table-action"><a href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">Yönet</a></td>
+						</tr>
+						{{end}}
+						{{end}}
+						{{if eq $visible 0}}
+						<tr><td colspan="4" class="nova-empty">Henüz etkin koleksiyon bulunmuyor.</td></tr>
+						{{end}}
+					</tbody>
+				</table>
+			</div>
 		</div>
 
 		<div class="nova-side-stack">
