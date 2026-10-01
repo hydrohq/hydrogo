@@ -25,6 +25,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/xlsx"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 )
 
 type Handler struct {
@@ -155,24 +156,24 @@ func (h Handler) mobileOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Orders == nil || h.DB == nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "ORDERS_UNAVAILABLE", "Orders are temporarily unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Orders are temporarily unavailable.", nil)
 		return
 	}
 	limit := 100
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed < 1 || parsed > 100 {
-			writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid order limit.")
+			api.WriteError(w, r, http.StatusBadRequest, "Invalid order limit.", nil)
 			return
 		}
 		limit = parsed
 	}
 	orders, err := h.Orders.ListOrdersByUserID(r.Context(), h.DB, memberID, limit)
 	if err != nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "ORDERS_UNAVAILABLE", "Orders are temporarily unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Orders are temporarily unavailable.", nil)
 		return
 	}
-	writeMemberMobileJSON(w, http.StatusOK, map[string]any{"orders": orders, "limit": limit})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"orders": orders, "limit": limit})
 }
 
 func (h Handler) mobileOrder(w http.ResponseWriter, r *http.Request) {
@@ -182,20 +183,20 @@ func (h Handler) mobileOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	reader, ok := h.Orders.(customerorders.DetailReader)
 	if !ok || h.DB == nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "ORDERS_UNAVAILABLE", "Orders are temporarily unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Orders are temporarily unavailable.", nil)
 		return
 	}
 	orderID := strings.TrimSpace(r.PathValue("orderID"))
 	if orderID == "" || len(orderID) > 256 {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid order.")
+		api.WriteError(w, r, http.StatusBadRequest, "Invalid order.", nil)
 		return
 	}
 	order, err := reader.GetOrderByUserID(r.Context(), h.DB, memberID, orderID)
 	if err != nil {
-		writeMemberMobileError(w, http.StatusNotFound, "ORDER_NOT_FOUND", "Order not found.")
+		api.WriteError(w, r, http.StatusNotFound, "Order not found.", nil)
 		return
 	}
-	writeMemberMobileJSON(w, http.StatusOK, order)
+	api.WriteJSON(w, http.StatusOK, order)
 }
 
 func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {

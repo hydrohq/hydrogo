@@ -3,6 +3,7 @@ package security
 import (
 	"context"
 	"crypto/sha256"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -22,6 +23,9 @@ type Tarpit struct {
 	baseDelay  time.Duration
 	maxDelay   time.Duration
 	now        func() time.Time
+	Extractor  interface {
+		Extract(*http.Request) string
+	}
 }
 
 func NewTarpit(maxEntries int, expires, baseDelay, maxDelay time.Duration) *Tarpit {

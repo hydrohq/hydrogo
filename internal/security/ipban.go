@@ -19,10 +19,13 @@ type IPBan struct {
 // from the security store by the runtime and administrative changes update it
 // immediately in the current process.
 type IPBlocklist struct {
-	mu      sync.RWMutex
-	entries map[string]IPBan
-	max     int
-	now     func() time.Time
+	mu        sync.RWMutex
+	entries   map[string]IPBan
+	max       int
+	now       func() time.Time
+	Extractor interface {
+		Extract(r *http.Request) string
+	}
 }
 
 func NewIPBlocklist(maxEntries int) *IPBlocklist {
@@ -92,9 +95,14 @@ func (b *IPBlocklist) Blocked(address string) bool {
 
 func (b *IPBlocklist) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		address := strings.TrimSpace(r.RemoteAddr)
-		if host, _, err := net.SplitHostPort(address); err == nil {
-			address = host
+		var address string
+		if b.Extractor != nil {
+			address = b.Extractor.Extract(r)
+		} else {
+			address = strings.TrimSpace(r.RemoteAddr)
+			if host, _, err := net.SplitHostPort(address); err == nil {
+				address = host
+			}
 		}
 		if b.Blocked(address) {
 			http.Error(w, "forbidden", http.StatusForbidden)

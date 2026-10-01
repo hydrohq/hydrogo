@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	stdsql "database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -412,7 +413,7 @@ func (h Handler) adminTaxonomyTerm(w http.ResponseWriter, r *http.Request) {
 	}
 	term := v1.TaxonomyTerm{ID: r.FormValue("id"), Slug: r.FormValue("slug"), Kind: r.FormValue("kind"), Parent: r.FormValue("parent"), Labels: labels}
 	if err := upsertTaxonomyTermAtomically(r.Context(), h.DB, repository, term); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	http.Redirect(w, r, "/admin/news/taxonomy", http.StatusSeeOther)
@@ -429,7 +430,7 @@ func (h Handler) adminTaxonomyTermDelete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := deleteTaxonomyTermAtomically(r.Context(), h.DB, repository, r.PathValue("id")); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	http.Redirect(w, r, "/admin/news/taxonomy", http.StatusSeeOther)
@@ -465,7 +466,7 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(id), http.StatusSeeOther)
@@ -500,7 +501,7 @@ func (h Handler) publicList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, http.StatusOK, items)
+	api.WriteJSON(w, http.StatusOK, items)
 }
 
 func (h Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -523,7 +524,7 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.CreateDraft(r.Context(), item); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	h.write(w, r, item.ID)
@@ -546,7 +547,7 @@ func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.UpdateDraft(r.Context(), item, value.Version); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	h.write(w, r, item.ID)
@@ -570,7 +571,7 @@ func (h Handler) schedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.Schedule(r.Context(), r.PathValue("id"), value.Version, at); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	h.write(w, r, r.PathValue("id"))
@@ -587,7 +588,7 @@ func (h Handler) publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.Publish(r.Context(), r.PathValue("id"), version); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	h.write(w, r, r.PathValue("id"))
@@ -604,7 +605,7 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.Retract(r.Context(), r.PathValue("id"), version); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	h.write(w, r, r.PathValue("id"))
@@ -644,7 +645,7 @@ func (h Handler) publicGetWithRoute(w http.ResponseWriter, r *http.Request, rawL
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	api.WriteJSON(w, http.StatusOK, item)
 }
 
 // publicGetHTML exposes a human-facing counterpart to the JSON public route.
@@ -1260,7 +1261,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.UpdateDraft(r.Context(), item, version); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	if repository, ok := h.Service.Repository.(taxonomyAdminRepository); ok {
@@ -1277,7 +1278,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if err := replaceTaxonomyAtomically(r.Context(), h.DB, repository, item.ID, selected); err != nil {
-				writeError(w, err)
+				api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 				return
 			}
 		}
@@ -1316,7 +1317,7 @@ func (h Handler) adminTaxonomy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := replaceTaxonomyAtomically(r.Context(), h.DB, repository, r.PathValue("id"), selected); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
@@ -1391,7 +1392,7 @@ func (h Handler) adminSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Service.Schedule(r.Context(), r.PathValue("id"), version, at); err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
@@ -1442,7 +1443,7 @@ func (h Handler) adminTransition(w http.ResponseWriter, r *http.Request, action 
 		err = h.Service.Retract(r.Context(), r.PathValue("id"), version)
 	}
 	if err != nil {
-		writeError(w, err)
+		api.WriteError(w, r, newsErrorStatus(err), "news operation failed", nil)
 		return
 	}
 	http.Redirect(w, r, "/admin/news/"+url.PathEscape(r.PathValue("id")), http.StatusSeeOther)
@@ -1462,7 +1463,7 @@ func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	api.WriteJSON(w, http.StatusOK, item)
 }
 
 func editorAllowed(r *http.Request) bool {
@@ -1509,7 +1510,7 @@ func (h Handler) editPresenceList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, http.StatusOK, h.Presence.Active(tenantID, "news:"+r.PathValue("id"), user.ID))
+	api.WriteJSON(w, http.StatusOK, h.Presence.Active(tenantID, "news:"+r.PathValue("id"), user.ID))
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
@@ -1520,31 +1521,23 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
-}
-
-func writeError(w http.ResponseWriter, err error) {
-	if errors.Is(err, news.ErrRepositoryRequired) || errors.Is(err, database.ErrDatabaseRequired) {
-		http.Error(w, "news service unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	status := http.StatusInternalServerError
-	if errors.Is(err, news.ErrInvalidItem) {
-		status = http.StatusBadRequest
-	}
-	if errors.Is(err, news.ErrConflict) || errors.Is(err, news.ErrScheduleStale) {
-		status = http.StatusConflict
-	}
-	http.Error(w, "news operation failed", status)
-}
-
 func newID() (string, error) {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func newsErrorStatus(err error) int {
+	if errors.Is(err, news.ErrRepositoryRequired) || errors.Is(err, database.ErrDatabaseRequired) {
+		return http.StatusServiceUnavailable
+	}
+	if errors.Is(err, news.ErrInvalidItem) {
+		return http.StatusBadRequest
+	}
+	if errors.Is(err, news.ErrConflict) || errors.Is(err, news.ErrScheduleStale) {
+		return http.StatusConflict
+	}
+	return http.StatusInternalServerError
 }

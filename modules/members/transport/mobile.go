@@ -12,6 +12,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 )
 
 const maxMemberMobileJSONBytes = 16 << 10
@@ -41,7 +42,7 @@ type memberMobileRefreshRequest struct {
 func (h Handler) mobileLogin(w http.ResponseWriter, r *http.Request) {
 	noStoreMemberMobileResponse(w)
 	if h.Mobile == nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	var input memberMobileLoginRequest
@@ -51,35 +52,35 @@ func (h Handler) mobileLogin(w http.ResponseWriter, r *http.Request) {
 	deviceID := strings.TrimSpace(input.DeviceID)
 	platform := strings.TrimSpace(input.Platform)
 	if len(deviceID) == 0 || len(deviceID) > 256 || len(platform) == 0 || len(platform) > 64 || len(strings.TrimSpace(input.DeviceName)) > 256 {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid device metadata.")
+		api.WriteError(w, r, http.StatusBadRequest, "Invalid device metadata.", nil)
 		return
 	}
 	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-mobile-login:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
-		writeMemberMobileError(w, http.StatusTooManyRequests, "RATE_LIMITED", "Too many authentication attempts.")
+		api.WriteError(w, r, http.StatusTooManyRequests, "Too many authentication attempts.", nil)
 		return
 	}
 	member, err := h.Service.Authenticate(r.Context(), input.Email, input.Password)
 	if err != nil {
 		if errors.Is(err, members.ErrInvalidCredentials) || errors.Is(err, members.ErrMemberInactive) || errors.Is(err, auth.ErrInvalidCredentials) {
-			writeMemberMobileError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid credentials.")
+			api.WriteError(w, r, http.StatusUnauthorized, "Invalid credentials.", nil)
 			return
 		}
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	pair, err := h.Mobile.Issue(r.Context(), member.ID, deviceID, strings.TrimSpace(input.DeviceName), platform)
 	if err != nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	h.recordMobileAudit(r, "member_mobile_auth.login", member.ID)
-	writeMemberMobileJSON(w, http.StatusOK, pair)
+	api.WriteJSON(w, http.StatusOK, pair)
 }
 
 func (h Handler) mobileRegister(w http.ResponseWriter, r *http.Request) {
 	noStoreMemberMobileResponse(w)
 	if h.Mobile == nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	var input memberMobileRegisterRequest
@@ -89,40 +90,40 @@ func (h Handler) mobileRegister(w http.ResponseWriter, r *http.Request) {
 	deviceID := strings.TrimSpace(input.DeviceID)
 	platform := strings.TrimSpace(input.Platform)
 	if len(deviceID) == 0 || len(deviceID) > 256 || len(platform) == 0 || len(platform) > 64 || len(strings.TrimSpace(input.DeviceName)) > 256 {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid device metadata.")
+		api.WriteError(w, r, http.StatusBadRequest, "Invalid device metadata.", nil)
 		return
 	}
 	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-mobile-register:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
-		writeMemberMobileError(w, http.StatusTooManyRequests, "RATE_LIMITED", "Too many registration attempts.")
+		api.WriteError(w, r, http.StatusTooManyRequests, "Too many registration attempts.", nil)
 		return
 	}
 	member, err := h.Service.Register(r.Context(), input.Email, input.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, members.ErrMemberExists):
-			writeMemberMobileError(w, http.StatusConflict, "MEMBER_EXISTS", "An account with this email already exists.")
+			api.WriteError(w, r, http.StatusConflict, "An account with this email already exists.", nil)
 		case errors.Is(err, auth.ErrInvalidCredentials):
-			writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid registration details.")
+			api.WriteError(w, r, http.StatusBadRequest, "Invalid registration details.", nil)
 		case errors.Is(err, auth.ErrWeakPassword):
-			writeMemberMobileError(w, http.StatusBadRequest, "WEAK_PASSWORD", "Choose a longer, less common password.")
+			api.WriteError(w, r, http.StatusBadRequest, "Choose a longer, less common password.", nil)
 		default:
-			writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+			api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		}
 		return
 	}
 	pair, err := h.Mobile.Issue(r.Context(), member.ID, deviceID, strings.TrimSpace(input.DeviceName), platform)
 	if err != nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	h.recordMobileAudit(r, "member_mobile_auth.register", member.ID)
-	writeMemberMobileJSON(w, http.StatusOK, pair)
+	api.WriteJSON(w, http.StatusOK, pair)
 }
 
 func (h Handler) mobileRefresh(w http.ResponseWriter, r *http.Request) {
 	noStoreMemberMobileResponse(w)
 	if h.Mobile == nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	var input memberMobileRefreshRequest
@@ -130,20 +131,20 @@ func (h Handler) mobileRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(input.RefreshToken) == "" {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request.")
+		api.WriteError(w, r, http.StatusBadRequest, "Invalid request.", nil)
 		return
 	}
 	pair, err := h.Mobile.Refresh(r.Context(), input.RefreshToken)
 	if err != nil {
 		if errors.Is(err, members.ErrMobileTokenInvalid) {
-			writeMemberMobileError(w, http.StatusUnauthorized, "INVALID_REFRESH_TOKEN", "Invalid or expired refresh token.")
+			api.WriteError(w, r, http.StatusUnauthorized, "Invalid or expired refresh token.", nil)
 			return
 		}
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	h.recordMobileAudit(r, "member_mobile_auth.refresh", "")
-	writeMemberMobileJSON(w, http.StatusOK, pair)
+	api.WriteJSON(w, http.StatusOK, pair)
 }
 
 func (h Handler) mobileRevoke(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +153,7 @@ func (h Handler) mobileRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Mobile.RevokeDevice(r.Context(), memberID, deviceID); err != nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	h.recordMobileAudit(r, "member_mobile_auth.device_revoked", memberID)
@@ -165,7 +166,7 @@ func (h Handler) mobileRevokeAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Mobile.RevokeAll(r.Context(), memberID); err != nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	h.recordMobileAudit(r, "member_mobile_auth.all_devices_revoked", memberID)
@@ -179,10 +180,10 @@ func (h Handler) mobileDevices(w http.ResponseWriter, r *http.Request) {
 	}
 	devices, err := h.Mobile.ListDevices(r.Context(), memberID, deviceID)
 	if err != nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
-	writeMemberMobileJSON(w, http.StatusOK, map[string]any{"devices": devices})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"devices": devices})
 }
 
 func (h Handler) mobileMe(w http.ResponseWriter, r *http.Request) {
@@ -191,15 +192,15 @@ func (h Handler) mobileMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Service.Members == nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return
 	}
 	member, err := h.Service.Members.GetByID(r.Context(), memberID)
 	if err != nil || member == nil || !member.Active {
-		writeMemberMobileError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required.")
+		api.WriteError(w, r, http.StatusUnauthorized, "Authentication is required.", nil)
 		return
 	}
-	writeMemberMobileJSON(w, http.StatusOK, member)
+	api.WriteJSON(w, http.StatusOK, member)
 }
 
 func (h Handler) recordMobileAudit(r *http.Request, action, targetID string) {
@@ -211,17 +212,17 @@ func (h Handler) recordMobileAudit(r *http.Request, action, targetID string) {
 func (h Handler) memberMobilePrincipal(w http.ResponseWriter, r *http.Request) (string, string, bool) {
 	noStoreMemberMobileResponse(w)
 	if h.Mobile == nil {
-		writeMemberMobileError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+		api.WriteError(w, r, http.StatusServiceUnavailable, "Authentication is unavailable.", nil)
 		return "", "", false
 	}
 	parts := strings.Fields(r.Header.Get("Authorization"))
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
-		writeMemberMobileError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required.")
+		api.WriteError(w, r, http.StatusUnauthorized, "Authentication is required.", nil)
 		return "", "", false
 	}
 	memberID, deviceID, err := h.Mobile.ValidateAccess(r.Context(), parts[1])
 	if err != nil {
-		writeMemberMobileError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required.")
+		api.WriteError(w, r, http.StatusUnauthorized, "Authentication is required.", nil)
 		return "", "", false
 	}
 	return memberID, deviceID, true
@@ -232,11 +233,11 @@ func decodeMemberMobileJSON(w http.ResponseWriter, r *http.Request, target any) 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request.")
+		api.WriteError(w, r, http.StatusBadRequest, "Invalid request.", nil)
 		return false
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request.")
+		api.WriteError(w, r, http.StatusBadRequest, "Invalid request.", nil)
 		return false
 	}
 	return true
@@ -245,21 +246,6 @@ func decodeMemberMobileJSON(w http.ResponseWriter, r *http.Request, target any) 
 func noStoreMemberMobileResponse(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
-}
-
-func writeMemberMobileJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
-}
-
-func writeMemberMobileError(w http.ResponseWriter, status int, code, message string) {
-	writeMemberMobileJSON(w, status, map[string]any{"error": map[string]string{
-		"code":       code,
-		"message":    message,
-		"request_id": w.Header().Get("X-Request-ID"),
-	}})
 }
 
 func (h Handler) mobilePushSubscribe(w http.ResponseWriter, r *http.Request) {
@@ -274,11 +260,11 @@ func (h Handler) mobilePushSubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(input.Token) == 0 || len(input.Token) > 2048 {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be registered.")
+		api.WriteError(w, r, http.StatusBadRequest, "Device could not be registered.", nil)
 		return
 	}
 	if err := h.Push.Subscribe(r.Context(), push.Subscription{UserID: memberID, Platform: push.PlatformMobile, Endpoint: input.Token}); err != nil {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be registered.")
+		api.WriteError(w, r, http.StatusBadRequest, "Device could not be registered.", nil)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -296,11 +282,11 @@ func (h Handler) mobilePushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(input.Token) == 0 || len(input.Token) > 2048 {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be removed.")
+		api.WriteError(w, r, http.StatusBadRequest, "Device could not be removed.", nil)
 		return
 	}
 	if err := h.Push.Unsubscribe(r.Context(), memberID, push.PlatformMobile, input.Token); err != nil {
-		writeMemberMobileError(w, http.StatusBadRequest, "INVALID_REQUEST", "Device could not be removed.")
+		api.WriteError(w, r, http.StatusBadRequest, "Device could not be removed.", nil)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

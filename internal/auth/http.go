@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,9 +14,11 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/erasure"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 )
 
 // AuditRecorder records security-relevant authentication events.
@@ -85,6 +88,8 @@ type HTTPHandler struct {
 	PasswordResetTTL       time.Duration
 	InvitationTTL          time.Duration
 	TokenLifetimeSettings  TokenLifetimeSettings
+	ErasureLog             *erasure.Log
+	EditionID              string
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -92,6 +97,8 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/login", Public: true, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /auth/logout", Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "GET /auth/me", Handler: http.HandlerFunc(h.me)},
+		{Pattern: "GET /auth/me/export", Handler: http.HandlerFunc(h.exportUser)},
+		{Pattern: "POST /auth/me/erasure", Handler: http.HandlerFunc(h.requestErasure)},
 		{Pattern: "GET /auth/me/sessions", Handler: http.HandlerFunc(h.listSessions)},
 		{Pattern: "POST /auth/me/sessions/revoke-others", Handler: http.HandlerFunc(h.revokeOtherSessions)},
 		{Pattern: "POST /auth/me/session/extend", Handler: http.HandlerFunc(h.extendSession)},
@@ -101,6 +108,7 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/users/{id}/permissions", Handler: http.HandlerFunc(h.updateUserPermissions)},
 		{Pattern: "POST /auth/me/mfa/enroll", Handler: http.HandlerFunc(h.enrollMFA)},
 		{Pattern: "POST /auth/me/mfa/enable", Handler: http.HandlerFunc(h.enableMFA)},
+		{Pattern: "POST /auth/me/mfa/disable", Handler: http.HandlerFunc(h.disableMFA)},
 		{Pattern: "POST /auth/password-reset/request", Public: true, Handler: http.HandlerFunc(h.requestPasswordReset)},
 		{Pattern: "POST /auth/password-reset/confirm", Public: true, Handler: http.HandlerFunc(h.confirmPasswordReset)},
 		{Pattern: "POST /auth/users/{id}/password-reset-link", Handler: http.HandlerFunc(h.adminPasswordResetLink)},
@@ -271,7 +279,7 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		writeAuthDependencyError(w, "invitation acceptance failed", err, http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"user_id": user.ID, "email": user.Email, "role": user.Role})
+	api.WriteJSON(w, http.StatusCreated, map[string]any{"user_id": user.ID, "email": user.Email, "role": user.Role})
 }
 
 func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
@@ -412,7 +420,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		if enabled {
 			code := strings.TrimSpace(r.FormValue("mfa_code"))
 			if code == "" {
-				writeJSON(w, http.StatusUnauthorized, map[string]any{
+				api.WriteJSON(w, http.StatusUnauthorized, map[string]any{
 					"error":               "mfa_code_required",
 					"totp_period_seconds": 30,
 					"server_time_unix":    time.Now().UTC().Unix(),
@@ -475,7 +483,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	SetSessionCookie(w, token, session.ExpiresAt, h.Secure)
-	writeJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role, "security_notice": notice})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"authenticated": true, "user_id": user.ID, "role": user.Role, "security_notice": notice})
 }
 
 func (h HTTPHandler) requiresMFA(role Role) bool {
@@ -542,7 +550,7 @@ func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {
 	if session != nil {
 		expiresAt = session.ExpiresAt
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active, "session_expires_at": expiresAt})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active, "session_expires_at": expiresAt})
 }
 
 func (h HTTPHandler) listSessions(w http.ResponseWriter, r *http.Request) {
@@ -567,7 +575,7 @@ func (h HTTPHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 		out = append(out, item{ID: x.ID, UserAgent: x.UserAgent, IPAddress: x.IPAddress, CreatedAt: x.CreatedAt, LastSeenAt: x.LastSeenAt, ExpiresAt: x.ExpiresAt, Current: x.ID == session.ID})
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
-	writeJSON(w, http.StatusOK, map[string]any{"sessions": out})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"sessions": out})
 }
 
 func (h HTTPHandler) revokeOtherSessions(w http.ResponseWriter, r *http.Request) {
@@ -586,7 +594,7 @@ func (h HTTPHandler) revokeOtherSessions(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, "/auth/me/sessions/manage", http.StatusSeeOther)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
+	api.WriteJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
 }
 
 func (h HTTPHandler) extendSession(w http.ResponseWriter, r *http.Request) {
@@ -608,7 +616,7 @@ func (h HTTPHandler) extendSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	SetSessionCookie(w, token, next.ExpiresAt, h.Secure)
-	writeJSON(w, http.StatusOK, map[string]any{"session_expires_at": next.ExpiresAt})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"session_expires_at": next.ExpiresAt})
 }
 
 func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
@@ -790,7 +798,7 @@ func (h HTTPHandler) enrollMFA(w http.ResponseWriter, r *http.Request) {
 		writeAuthDependencyError(w, "MFA enrollment failed", err, http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusCreated, enrollment)
+	api.WriteJSON(w, http.StatusCreated, enrollment)
 }
 
 func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
@@ -850,12 +858,6 @@ func (h HTTPHandler) adminUser(r *http.Request) bool {
 	return user != nil && user.Active && user.Role == RoleAdmin
 }
 
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
-}
-
 func writeAuthDependencyError(w http.ResponseWriter, message string, err error, fallbackStatus int) {
 	status := fallbackStatus
 	if errors.Is(err, database.ErrDatabaseRequired) ||
@@ -867,4 +869,114 @@ func writeAuthDependencyError(w http.ResponseWriter, message string, err error, 
 		status = http.StatusServiceUnavailable
 	}
 	http.Error(w, message, status)
+}
+
+func (h HTTPHandler) exportUser(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var mfaEnabled bool
+	if h.MFA != nil && h.MFADB != nil {
+		mfaEnabled, _ = h.MFA.Enabled(r.Context(), h.MFADB, user.ID)
+	}
+
+	sessions := []map[string]any{}
+	if h.Service != nil {
+		items, err := h.Service.ListUserSessions(r.Context(), user.ID)
+		if err == nil {
+			for _, x := range items {
+				sessions = append(sessions, map[string]any{
+					"id": x.ID,
+					"user_agent": x.UserAgent,
+					"ip_address": x.IPAddress,
+					"created_at": x.CreatedAt,
+					"last_seen_at": x.LastSeenAt,
+					"expires_at": x.ExpiresAt,
+				})
+			}
+		}
+	}
+
+	exportData := map[string]any{
+		"user": map[string]any{
+			"id":         user.ID,
+			"email":      user.Email,
+			"role":       user.Role,
+			"active":     user.Active,
+			"created_at": user.CreatedAt,
+			"updated_at": user.UpdatedAt,
+		},
+		"security": map[string]any{
+			"mfa_enabled": mfaEnabled,
+		},
+		"sessions": sessions,
+	}
+
+	w.Header().Set("Cache-Control", "no-store")
+	api.WriteJSON(w, http.StatusOK, exportData)
+}
+
+func (h HTTPHandler) requestErasure(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil || h.Service == nil || h.ErasureLog == nil {
+		http.Error(w, "erasure unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	
+	intentIDBytes := make([]byte, 16)
+	rand.Read(intentIDBytes)
+	intentID := hex.EncodeToString(intentIDBytes)
+
+	editionID := h.EditionID
+	if editionID == "" {
+		editionID = "default"
+	}
+
+	intent := erasure.Intent{
+		ID:        intentID,
+		EditionID: editionID,
+		TargetID:  user.ID,
+		Kind:      "user_erasure",
+		CreatedAt: time.Now().UTC(),
+	}
+
+	if _, err := h.ErasureLog.Append(intent); err != nil {
+		writeAuthDependencyError(w, "erasure failed", err, http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.Service.SetUserActive(r.Context(), user.ID, false); err != nil {
+		writeAuthDependencyError(w, "erasure failed", err, http.StatusInternalServerError)
+		return
+	}
+	
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), "auth.user_erasure_requested", user.ID)
+	}
+
+	ClearSessionCookie(w, h.Secure)
+	api.WriteJSON(w, http.StatusOK, map[string]string{"status": "erasure_requested"})
+}
+
+func (h HTTPHandler) disableMFA(w http.ResponseWriter, r *http.Request) {
+	user := UserFromContext(r.Context())
+	if user == nil || !user.Active || h.MFA == nil || h.Transactions == (database.Transactor{}) {
+		http.Error(w, "MFA unavailable", http.StatusForbidden)
+		return
+	}
+	
+	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		return h.MFA.Disable(r.Context(), tx, user.ID)
+	}); err != nil {
+		writeAuthDependencyError(w, "MFA disable failed", err, http.StatusInternalServerError)
+		return
+	}
+
+	if h.Audit != nil {
+		_ = h.Audit.Record(r.Context(), "auth.mfa_disabled", user.ID)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

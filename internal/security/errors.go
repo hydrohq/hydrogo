@@ -107,7 +107,7 @@ func (c *errorCapture) commit(r *http.Request) {
 	}
 	if c.status >= http.StatusInternalServerError {
 		payload, err := json.Marshal(ErrorResponse{
-			Code:      errorCode(c.status),
+			Code:      ErrorCode(c.status),
 			Message:   publicServerErrorMessage(c.status),
 			RequestID: RequestIDFromContext(r.Context()),
 		})
@@ -120,7 +120,7 @@ func (c *errorCapture) commit(r *http.Request) {
 		}
 	} else if c.status >= http.StatusBadRequest && !isJSON(c.header.Get("Content-Type")) {
 		payload, err := json.Marshal(ErrorResponse{
-			Code:      errorCode(c.status),
+			Code:      ErrorCode(c.status),
 			Message:   strings.TrimSpace(c.body.String()),
 			RequestID: RequestIDFromContext(r.Context()),
 		})
@@ -147,7 +147,7 @@ func isJSON(contentType string) bool {
 	return strings.HasPrefix(strings.ToLower(contentType), "application/json")
 }
 
-func errorCode(status int) string {
+func ErrorCode(status int) string {
 	known := map[int]string{
 		http.StatusBadRequest:            "bad_request",
 		http.StatusUnauthorized:          "unauthorized",

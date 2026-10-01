@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -714,7 +715,7 @@ func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
 			visible = append(visible, item)
 		}
 	}
-	writeJSON(w, http.StatusOK, summarizePages(visible))
+	api.WriteJSON(w, http.StatusOK, summarizePages(visible))
 }
 
 func summarizePages(items []pages.Page) []pageSummary {
@@ -738,7 +739,7 @@ func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	writeJSON(w, http.StatusOK, page)
+	api.WriteJSON(w, http.StatusOK, page)
 }
 
 func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
@@ -1151,7 +1152,7 @@ func (h Handler) getPublishedWithRoute(w http.ResponseWriter, r *http.Request, l
 		http.NotFound(w, r)
 		return
 	}
-	writeJSON(w, http.StatusOK, page)
+	api.WriteJSON(w, http.StatusOK, page)
 }
 
 type Route struct {
@@ -1230,7 +1231,7 @@ func (h Handler) createPreviewLink(w http.ResponseWriter, r *http.Request) {
 		_ = ui.DraftPreviewLinkResult(target, now.Add(24*time.Hour).Format(time.RFC3339)).Render(r.Context(), w)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"url": target, "expires_at": now.Add(24 * time.Hour)})
+	api.WriteJSON(w, http.StatusCreated, map[string]any{"url": target, "expires_at": now.Add(24 * time.Hour)})
 }
 
 func (h Handler) publicDraftPreview(w http.ResponseWriter, r *http.Request) {
@@ -1285,7 +1286,7 @@ func (h Handler) writePage(w http.ResponseWriter, r *http.Request, id string) {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
 		return
 	}
-	writeJSON(w, http.StatusOK, page)
+	api.WriteJSON(w, http.StatusOK, page)
 }
 
 func (h Handler) update(w http.ResponseWriter, r *http.Request) {
@@ -1606,7 +1607,7 @@ func (h Handler) editPresenceList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, http.StatusOK, h.Presence.Active(tenantID, "page:"+r.PathValue("id"), user.ID))
+	api.WriteJSON(w, http.StatusOK, h.Presence.Active(tenantID, "page:"+r.PathValue("id"), user.ID))
 }
 
 func (h Handler) faqFeedbackMetrics(r *http.Request, blocks []pages.Block) []designsystem.FAQFeedbackMetric {
@@ -2042,12 +2043,6 @@ func newID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
 }
 
 func editorAllowed(r *http.Request) bool {

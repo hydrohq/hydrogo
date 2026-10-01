@@ -12,6 +12,9 @@ type AnomalyConfig struct {
 	MaxBodyBytes int64
 	BypassPaths  []string
 	OnDetect     func(*http.Request, string)
+	Extractor    interface {
+		Extract(*http.Request) string
+	}
 }
 
 var anomalyPatterns = []struct {

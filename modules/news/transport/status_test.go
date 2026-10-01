@@ -3,7 +3,6 @@ package transport
 import (
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -11,18 +10,14 @@ import (
 )
 
 func TestWriteErrorMapsMissingRepositoryToUnavailable(t *testing.T) {
-	res := httptest.NewRecorder()
-	writeError(res, news.ErrRepositoryRequired)
-	if res.Code != http.StatusServiceUnavailable {
-		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	if code := newsErrorStatus(news.ErrRepositoryRequired); code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", code, http.StatusServiceUnavailable)
 	}
 	if errors.Is(news.ErrRepositoryRequired, news.ErrInvalidItem) {
 		t.Fatal("repository error unexpectedly classified as validation")
 	}
-	res = httptest.NewRecorder()
-	writeError(res, database.ErrDatabaseRequired)
-	if res.Code != http.StatusServiceUnavailable {
-		t.Fatalf("database status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	if code := newsErrorStatus(database.ErrDatabaseRequired); code != http.StatusServiceUnavailable {
+		t.Fatalf("database status = %d, want %d", code, http.StatusServiceUnavailable)
 	}
 }
 

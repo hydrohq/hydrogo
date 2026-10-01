@@ -1,0 +1,245 @@
+﻿package designsystem
+
+import "fmt"
+
+templ ViewCountBadge(p ViewCountBadgeProps) {
+	<span class="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-1 text-xs text-foreground" aria-label={ fmt.Sprintf("%d views", p.Count) }>{ "👁 " + compactViewCount(p.Count) }</span>
+}
+
+templ InitialsAvatar(p InitialsAvatarProps) {
+	<span class={ "user-avatar ds-avatar " + p.Class } role="img" aria-label={ label(p.Initials, "User") }>{ label(p.Initials, "?") }</span>
+}
+
+templ HeroBlock(p HeroProps) {
+	<section class="ds-hero bg-surface text-foreground border-border" data-block="hero" data-media-asset-id={ p.MediaAssetID }>
+		if image := validMediaURL(p.MediaURL); image != "" {
+			<img src={ image } alt={ p.MediaAlt } loading="lazy" />
+		}
+		<h1>{ p.Title }</h1>
+		if p.Subtitle != "" {
+			<p>{ p.Subtitle }</p>
+		}
+		if href := safeLink(p.ButtonURL); href != "" && p.ButtonText != "" {
+			<a class="ds-button ds-button--primary" href={ href }>{ p.ButtonText }</a>
+		}
+	</section>
+}
+
+templ CTABlock(p CTAProps) {
+	<section class="ds-cta bg-surface text-foreground" data-block="cta">
+		<h2>{ p.Title }</h2>
+		if href := safeLink(p.ButtonURL); href != "" && p.ButtonText != "" {
+			<a class="ds-button ds-button--primary" href={ href }>{ p.ButtonText }</a>
+		}
+	</section>
+}
+
+templ PricingTable(p PricingTableProps) {
+	<section class="ds-pricing bg-background text-foreground" data-block="pricing_table">
+		if len(p.Items) == 0 {
+			<p role="status" class="empty-state">No pricing options available.</p>
+		} else {
+			<div class="ds-pricing__grid">
+				for _, item := range p.Items {
+					<article class="ds-pricing__card"><h2>{ item.Name }</h2><p class="ds-pricing__price">{ formatPrice(item.PriceCents) } { item.Currency }</p><ul>
+						for _, feature := range item.Features {
+							<li>{ feature }</li>
+						}
+					</ul></article>
+				}
+			</div>
+		}
+	</section>
+}
+
+templ Testimonials(p TestimonialsProps) {
+	<section class="ds-testimonials bg-background text-foreground" data-block="testimonials">
+		if len(p.Items) == 0 {
+			<p role="status" class="empty-state">No testimonials available.</p>
+		} else {
+			for _, item := range p.Items {
+				<blockquote><p>{ item.Quote }</p><cite>{ item.Name }</cite></blockquote>
+			}
+		}
+	</section>
+}
+
+templ BeforeAfter(p BeforeAfterProps) {
+	<div class="ds-before-after bg-surface text-foreground border-border" data-before-after style={ "--ds-position: " + beforeAfterPosition(p) + "%" }>
+		<img class="ds-before-after__image" src={ validMediaURL(p.BeforeSrc) } alt={ p.BeforeAlt } loading="lazy" />
+		<div class="ds-before-after__after" aria-hidden="true"><img class="ds-before-after__image" src={ validMediaURL(p.AfterSrc) } alt="" loading="lazy" /></div>
+		<span class="ds-before-after__label ds-before-after__label--before" aria-hidden="true">{ label(p.BeforeLabel, "Before") }</span>
+		<span class="ds-before-after__label ds-before-after__label--after" aria-hidden="true">{ label(p.AfterLabel, "After") }</span>
+		<input class="ds-before-after__range" type="range" min="0" max="100" value={ beforeAfterPosition(p) } aria-label={ label(p.BeforeLabel, "Before") + " / " + label(p.AfterLabel, "After") } />
+	</div>
+}
+
+templ AnimatedCounter(p CounterProps) {
+	<section id={ p.ID } class="ds-counter bg-background text-foreground" aria-label="Statistics" data-counter-group>
+		if len(p.Stats) == 0 {
+			<p role="status" class="empty-state ds-sr-only">No statistics available.</p>
+		}
+		for _, stat := range p.Stats {
+			<article class="ds-counter__item">
+				if stat.Badge != "" {
+					<span class="ds-counter__badge" aria-hidden="true">{ stat.Badge }</span>
+				}
+				<p class="ds-counter__value"><span>{ stat.Prefix }</span><span data-counter-value={ fmtFloat(stat.Value) } aria-hidden="true">{ fmtFloat(stat.Value) }</span><span class="ds-sr-only">{ fmtFloat(stat.Value) }</span><span>{ stat.Suffix }</span></p>
+				<p class="ds-counter__label">{ stat.Label }</p>
+			</article>
+		}
+	</section>
+}
+
+templ ContactCTA(p ContactCTAProps) {
+	<section class="ds-contact-cta text-foreground" aria-label="Contact">
+		if tel := validPhone(p.Phone); tel != "" {
+			<a class="ds-button ds-button--primary" href={ "tel:" + tel } data-contact-action="call">{ label(p.PhoneLabel, "Call now") }</a>
+		}
+		if wa := WhatsAppURL(p.WhatsApp, p.Message); wa != "" {
+			<a class="ds-button ds-button--secondary" href={ templ.SafeURL(wa) } target="_blank" rel="noopener noreferrer" data-contact-action="whatsapp">{ label(p.WhatsAppLabel, "WhatsApp") }</a>
+		}
+	</section>
+}
+
+templ FloatingContact(p FloatingContactProps) {
+	if floatingPhone(p) != "" || floatingWhatsApp(p) != "" {
+		<nav class={ "ds-floating-contact " + floatingPosition(p) + " " + floatingVisibility(p) } aria-label={ label(p.AriaLabel, "Contact options") } data-floating-contact>
+			if phone := floatingPhone(p); phone != "" {
+				<a class="ds-button ds-button--primary" href={ "tel:" + phone } data-contact-action="call">{ label(p.PhoneLabel, "Call") }</a>
+			}
+			if whatsapp := floatingWhatsApp(p); whatsapp != "" {
+				<a class="ds-button ds-button--secondary" href={ templ.SafeURL(whatsapp) } target="_blank" rel="noopener noreferrer" data-contact-action="whatsapp">{ label(p.WhatsAppLabel, "WhatsApp") }</a>
+			}
+		</nav>
+	}
+}
+
+templ SocialLinks(p SocialLinksProps) {
+	if len(p.Links) > 0 {
+		<nav class="ds-social-links flex flex-wrap gap-3" aria-label="Social profiles">
+			for _, link := range p.Links {
+			if socialPlatformLabel(link.Platform) != "" && safeLink(link.URL) != "" {
+					<a class="ds-social-link inline-flex items-center gap-2 rounded border border-border p-2 text-foreground" href={ safeLink(link.URL) } target="_blank" rel="noopener noreferrer" aria-label={ socialPlatformLabel(link.Platform) }>
+						<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/></svg>
+						<span>{ socialPlatformLabel(link.Platform) }</span>
+					</a>
+				}
+			}
+		</nav>
+	}
+}
+
+templ Countdown(p CountdownProps) {
+	<section class="ds-countdown bg-surface text-foreground" data-countdown data-target={ p.Target } data-expired-headline={ p.ExpiredHeadline } data-expired-url={ safeLink(p.ExpiredURL) } data-timezone={ p.Timezone } aria-live="polite">
+		<div class="ds-countdown__clock" aria-label="Countdown"><span data-countdown-days>0</span> days <span data-countdown-hours>00</span> hours <span data-countdown-minutes>00</span> minutes <span data-countdown-seconds>00</span> seconds</div>
+		<div class="ds-countdown__expired" hidden><p data-countdown-headline></p><a class="ds-button ds-button--primary" data-countdown-cta href={ safeLink(p.ExpiredURL) } hidden>View details</a></div>
+	</section>
+}
+
+templ FAQAccordion(p FAQProps) {
+	<section id={ p.ID } class="ds-faq bg-background text-foreground" aria-label={ label(p.Heading, "Frequently asked questions") }>
+		if p.Heading != "" {
+			<h2>{ p.Heading }</h2>
+		}
+		@FAQItems(p)
+		@FAQSchema(p.ID, p.Items)
+	</section>
+}
+
+templ FAQList(p FAQProps) {
+	<section id={ p.ID } class="ds-faq bg-background text-foreground" aria-label={ label(p.Heading, "Frequently asked questions") }>
+		if p.Heading != "" {
+			<h2>{ p.Heading }</h2>
+		}
+		@FAQItems(p)
+	</section>
+}
+
+templ FAQItems(p FAQProps) {
+	if len(p.Items) == 0 {
+		<p role="status" class="empty-state">No FAQs available.</p>
+	} else {
+		for index, item := range p.Items {
+			<details class="ds-faq__item"><summary aria-expanded="false">{ item.Question }</summary><div class="ds-faq__answer">{ item.Answer }</div></details>
+			if p.FeedbackEnabled {
+				@HelpfulFeedback(faqFeedbackProps(p, item, index))
+			}
+		}
+	}
+}
+
+templ FAQSchema(id string, items []FAQItem) {
+	@templ.JSONScript("faq-" + safeID(id), faqJSONLD(items)).WithType("application/ld+json")
+}
+
+templ VideoPlayer(p VideoProps) {
+	<div id={ p.ID } class="ds-video bg-surface text-foreground" data-video-player tabindex="0" aria-label={ label(p.Label, "Video player") }>
+		<video controls preload="metadata" poster={ validMediaURL(p.Poster) }>
+			<source src={ validMediaURL(p.Src) } type={ videoType(p.Type) } />
+			for _, track := range p.Tracks {
+				if validMediaURL(track.Src) != "" {
+					<track kind="captions" src={ validMediaURL(track.Src) } srclang={ track.Language } label={ track.Label } default?={ track.Default } />
+				}
+			}
+			Your browser does not support video playback.
+		</video>
+		<div class="ds-video__controls" role="group" aria-label="Video controls">
+			<button type="button" data-video-play aria-label="Play video">Play</button>
+			<label class="ds-sr-only" for={ p.ID + "-seek" }>Seek</label><input id={ p.ID + "-seek" } data-video-seek type="range" min="0" max="1000" value="0" />
+			<button type="button" data-video-mute aria-label="Mute video">Mute</button>
+			<label class="ds-sr-only" for={ p.ID + "-volume" }>Volume</label><input id={ p.ID + "-volume" } data-video-volume type="range" min="0" max="1" step="0.05" value="1" />
+			<label class="ds-sr-only" for={ p.ID + "-speed" }>Playback speed</label><select id={ p.ID + "-speed" } data-video-speed aria-label="Playback speed"><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+			<button type="button" data-video-pip aria-label="Picture in picture">PiP</button><button type="button" data-video-fullscreen aria-label="Full screen">Full screen</button>
+			<output data-video-time aria-live="off">0:00 / 0:00</output>
+		</div>
+		<p class="ds-sr-only">Keyboard: Space play or pause, M mute, F full screen, ArrowLeft and ArrowRight seek.</p>
+	</div>
+}
+
+templ MasonryGrid(p MasonryProps) {
+	<section id={ p.ID } class="ds-masonry bg-background text-foreground" aria-label={ label(p.Label, "Image gallery") } style={ "--ds-columns: " + fmtPosition(clampColumns(p.Columns)) }>
+		if len(p.Items) == 0 {
+			<p role="status" class="empty-state">No images available in gallery.</p>
+		} else {
+			for _, item := range p.Items {
+				<figure class="ds-masonry__item">
+					if href := safeLink(item.Link); href != "" {
+						<a href={ href }><img src={ validMediaURL(item.Image) } alt={ item.Alt } loading="lazy" /></a>
+					} else {
+						<img src={ validMediaURL(item.Image) } alt={ item.Alt } loading="lazy" />
+					}
+					if item.Caption != "" {
+						<figcaption>{ item.Caption }</figcaption>
+					}
+				</figure>
+			}
+		}
+	</section>
+}
+
+templ ImageHotspots(p HotspotsProps) {
+	<section id={ p.ID } class="ds-hotspots bg-background text-foreground" aria-label={ label(p.Label, "Image details") }>
+		<div class="ds-hotspots__image"><img src={ validMediaURL(p.Image) } alt={ p.Alt } loading="lazy" />
+			for i, point := range p.Points {
+				<details class="ds-hotspot" style={ hotspotStyle(point) }>
+					<summary aria-label={ "Show details: " + point.Title } aria-expanded="false">{ fmtPosition(i + 1) }</summary>
+					<div class="ds-hotspot__popover"><strong>{ point.Title }</strong><p>{ point.Description }</p>
+						if href := safeLink(point.Link); href != "" {
+							<a href={ href }>{ label(point.LinkLabel, "Learn more") }</a>
+						}
+					</div>
+				</details>
+			}
+		</div>
+		<ol class="ds-hotspots__list">
+			for _, point := range p.Points {
+				<li><strong>{ point.Title }</strong><p>{ point.Description }</p>
+					if href := safeLink(point.Link); href != "" {
+						<a href={ href }>{ label(point.LinkLabel, "Learn more") }</a>
+					}
+				</li>
+			}
+		</ol>
+	</section>
+}

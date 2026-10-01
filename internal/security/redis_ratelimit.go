@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -15,10 +16,13 @@ import (
 // RedisRateLimiter is an optional distributed limiter. Redis/Valkey is never
 // required by Compact; callers select it only when a shared URL is configured.
 type RedisRateLimiter struct {
-	Client *redis.Client
-	Prefix string
-	Limit  int
-	Window time.Duration
+	Client    *redis.Client
+	Prefix    string
+	Limit     int
+	Window    time.Duration
+	Extractor interface {
+		Extract(*http.Request) string
+	}
 }
 
 func NewRedisClient(ctx context.Context, rawURL string) (*redis.Client, error) {
