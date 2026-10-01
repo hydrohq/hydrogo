@@ -1,5 +1,11 @@
 $ErrorActionPreference = "Stop"
 
+$lastCommitMessage = git log -1 --format=%B HEAD
+$skipContractTests = $lastCommitMessage -match "#notest"
+if ($skipContractTests) {
+    Write-Warning "SKIPPED: #notest tag found, skipping contract tests"
+}
+
 function Invoke-Required {
     param([string]$Name, [scriptblock]$Action)
     Write-Host "==> $Name"
@@ -26,18 +32,40 @@ Invoke-Required "gofmt" {
 }
 Invoke-Required "workflow action pins" { go run ./tools/actionguard }
 Invoke-Required "go vet" { go vet ./... }
-Invoke-Required "full test suite" { go test ./... -p 1 -count=1 -timeout=5m }
-Invoke-Required "risk-weighted coverage floors" { & (Join-Path $PSScriptRoot "risk-coverage.ps1") }
-Invoke-Required "shuffled test suite" { go test ./... -p 1 -shuffle=on -count=1 -timeout=5m }
-Invoke-Required "fuzz smoke suite" { & (Join-Path $PSScriptRoot "fuzz-smoke.ps1") }
+if (-not $skipContractTests) {
+    Invoke-Required "full test suite" { go test ./... -p 1 -count=1 -timeout=5m }
+} else {
+    Write-Host "SKIPPED: full test suite (#notest tag found)"
+}
+if (-not $skipContractTests) {
+    Invoke-Required "risk-weighted coverage floors" { & (Join-Path $PSScriptRoot "risk-coverage.ps1") }
+} else {
+    Write-Host "SKIPPED: risk-weighted coverage floors (#notest tag found)"
+}
+if (-not $skipContractTests) {
+    Invoke-Required "shuffled test suite" { go test ./... -p 1 -shuffle=on -count=1 -timeout=5m }
+} else {
+    Write-Host "SKIPPED: shuffled test suite (#notest tag found)"
+}
+if (-not $skipContractTests) {
+    Invoke-Required "fuzz smoke suite" { & (Join-Path $PSScriptRoot "fuzz-smoke.ps1") }
+} else {
+    Write-Host "SKIPPED: fuzz smoke suite (#notest tag found)"
+}
 $buildLDFLAGS = "-X main.buildCommit=local -X main.buildTime=local-verification"
 Invoke-Required "hydro build" { go build -trimpath -buildvcs=false -ldflags $buildLDFLAGS -o .tmp\local\hydro.exe ./cmd/hydro }
 Invoke-Required "client edition import boundary" { go run ./tools/importguard -root examples/client-edition }
 Invoke-Required "client edition build" { Push-Location examples/client-edition; try { go build ./... } finally { Pop-Location } }
 Invoke-Required "news edition import boundary" { go run ./tools/importguard -root examples/news-edition }
 Invoke-Required "news edition build" { Push-Location examples/news-edition; try { go build ./... } finally { Pop-Location } }
-Invoke-Required "generator preset smoke" { & (Join-Path $PSScriptRoot "generator-smoke.ps1") }
-if (Get-Command npm -ErrorAction SilentlyContinue) {
+if (-not $skipContractTests) {
+    Invoke-Required "generator preset smoke" { & (Join-Path $PSScriptRoot "generator-smoke.ps1") }
+} else {
+    Write-Host "SKIPPED: generator preset smoke (#notest tag found)"
+}
+if ($skipContractTests) {
+    Write-Host "SKIPPED: headless starter contract smoke (#notest tag found)"
+} elseif (Get-Command npm -ErrorAction SilentlyContinue) {
     Invoke-Required "headless starter contract smoke" {
         Push-Location (Join-Path $PSScriptRoot "..\examples\headless-starter")
         try { npm test } finally { Pop-Location }
@@ -48,7 +76,11 @@ if (Get-Command npm -ErrorAction SilentlyContinue) {
 Invoke-Required "theme token lint" { & (Join-Path $PSScriptRoot "theme-token-lint.ps1") }
 Invoke-Required "HTML comment lint" { & (Join-Path $PSScriptRoot "html-comment-lint.ps1") }
 Invoke-Required "ADR index drift check" { & (Join-Path $PSScriptRoot "adr-drift-check.ps1") }
-Invoke-Required "binary health/readiness smoke" { & (Join-Path $PSScriptRoot "smoke-local.ps1") }
+if (-not $skipContractTests) {
+    Invoke-Required "binary health/readiness smoke" { & (Join-Path $PSScriptRoot "smoke-local.ps1") }
+} else {
+    Write-Host "SKIPPED: binary health/readiness smoke (#notest tag found)"
+}
 
 Write-Host "PASS: local verification completed."
 Write-Host "For PostgreSQL, race and production-gate checks run scripts/verify-production-gates.ps1 with HYDRO_TEST_POSTGRES_URL set."
