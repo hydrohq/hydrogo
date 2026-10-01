@@ -44,6 +44,7 @@ examples/admin-news-compare/react/.vite/
 /coverage/
 *.test
 *.exe
+*.exe~
 coverage.out
 go.work
 go.work.sum
