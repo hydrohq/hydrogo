@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/storage"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
 )
 
 type HTTPHandler struct {
@@ -350,4 +350,3 @@ func mediaStatus(err error) int {
 	}
 	return http.StatusInternalServerError
 }
-

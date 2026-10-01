@@ -25,6 +25,7 @@ html[data-ui-theme="nova"] .nova-topnav-link:hover{background:var(--bg-subtle);c
 html[data-ui-theme="nova"] .nova-topnav-link.is-active{background:var(--brand-subtle);color:var(--brand-light)}
 html[data-ui-theme="nova"] .studio-search{flex-shrink:0;max-width:260px}
 @media(max-width:900px){html[data-ui-theme="nova"] .studio-search{display:none}}
+@media(max-width:760px){html[data-ui-theme="nova"] .studio-sidebar{display:block!important}html[data-ui-theme="nova"] .studio-mobile-menu-toggle{display:inline-flex!important}html[data-ui-theme="nova"] .nova-topnav-links{display:none}}
 html[data-ui-theme="nova"] .studio-topbar{height:64px;min-height:64px;max-height:64px;background:var(--surface);backdrop-filter:blur(10px)}
 html[data-ui-theme="nova"] .nova-topnav-brand{background:transparent;color:var(--ink);width:24px;height:24px;border-radius:0}
 html[data-ui-theme="nova"] .nova-topnav-link{padding:0;border-radius:0;font-weight:500}

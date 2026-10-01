@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/erasure"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
 )
 
 // AuditRecorder records security-relevant authentication events.
@@ -889,12 +889,12 @@ func (h HTTPHandler) exportUser(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			for _, x := range items {
 				sessions = append(sessions, map[string]any{
-					"id": x.ID,
-					"user_agent": x.UserAgent,
-					"ip_address": x.IPAddress,
-					"created_at": x.CreatedAt,
+					"id":           x.ID,
+					"user_agent":   x.UserAgent,
+					"ip_address":   x.IPAddress,
+					"created_at":   x.CreatedAt,
 					"last_seen_at": x.LastSeenAt,
-					"expires_at": x.ExpiresAt,
+					"expires_at":   x.ExpiresAt,
 				})
 			}
 		}
@@ -925,7 +925,7 @@ func (h HTTPHandler) requestErasure(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "erasure unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	
+
 	intentIDBytes := make([]byte, 16)
 	rand.Read(intentIDBytes)
 	intentID := hex.EncodeToString(intentIDBytes)
@@ -952,7 +952,7 @@ func (h HTTPHandler) requestErasure(w http.ResponseWriter, r *http.Request) {
 		writeAuthDependencyError(w, "erasure failed", err, http.StatusInternalServerError)
 		return
 	}
-	
+
 	if h.Audit != nil {
 		_ = h.Audit.Record(r.Context(), "auth.user_erasure_requested", user.ID)
 	}
@@ -967,7 +967,7 @@ func (h HTTPHandler) disableMFA(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "MFA unavailable", http.StatusForbidden)
 		return
 	}
-	
+
 	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
 		return h.MFA.Disable(r.Context(), tx, user.ID)
 	}); err != nil {

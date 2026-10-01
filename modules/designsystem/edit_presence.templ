@@ -1,11 +1,14 @@
 package designsystem
 
 templ EditPresence(resource, endpoint, csrf, nonce string) {
-	<div class="mb-4 hidden rounded-md border border-amber-500 bg-amber-50 px-4 py-3 text-amber-950" role="status" aria-live="polite" data-edit-presence data-endpoint={ endpoint } data-resource={ resource } data-csrf={ csrf }>
-		<strong>Bu içerik üzerinde başka bir editör çalışıyor.</strong>
-		<ul class="mt-1 list-disc pl-5" data-edit-presence-list></ul>
+	<div style="display:none; margin-bottom: 16px; border: 1px solid var(--amber, #f59e0b); background: var(--amber-subtle, rgba(245, 158, 11, 0.15)); padding: 14px; border-radius: var(--radius-md); color: var(--ink); box-shadow: var(--shadow-sm);" role="status" aria-live="polite" data-edit-presence data-endpoint={ endpoint } data-resource={ resource } data-csrf={ csrf }>
+		<div style="display:flex; align-items:center; gap: 8px;">
+			<svg style="width:18px;height:18px;color:var(--amber, #f59e0b)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+			<strong style="font-size: .85rem;">Bu içerik üzerinde başka bir editör çalışıyor.</strong>
+		</div>
+		<ul style="margin: 8px 0 0 26px; padding: 0; list-style: disc; font-size: .78rem; color: var(--ink-secondary);" data-edit-presence-list></ul>
 	</div>
 	<script nonce={ nonce }>
-		(()=>{const box=document.querySelector('[data-edit-presence]');if(!box)return;const endpoint=box.dataset.endpoint,csrf=box.dataset.csrf,list=box.querySelector('[data-edit-presence-list]');let stopped=false;const refresh=async()=>{if(stopped)return;try{await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});const response=await fetch(endpoint,{credentials:'same-origin',headers:{'Accept':'application/json'}});if(!response.ok)return;const editors=await response.json();list.replaceChildren();for(const editor of editors){const item=document.createElement('li');item.textContent=editor.name+' (son etkinlik '+editor.active_seconds+' sn önce)';list.append(item)}box.classList.toggle('hidden',editors.length===0)}catch(_){}};refresh();const timer=setInterval(refresh,15000);window.addEventListener('pagehide',()=>{stopped=true;clearInterval(timer)},{once:true})})();
+		(()=>{const box=document.querySelector('[data-edit-presence]');if(!box)return;const endpoint=box.dataset.endpoint,csrf=box.dataset.csrf,list=box.querySelector('[data-edit-presence-list]');let stopped=false;const refresh=async()=>{if(stopped)return;try{await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});const response=await fetch(endpoint,{credentials:'same-origin',headers:{'Accept':'application/json'}});if(!response.ok)return;const editors=await response.json();list.replaceChildren();for(const editor of editors){const item=document.createElement('li');item.textContent=editor.name+' (son etkinlik '+editor.active_seconds+' sn önce)';list.append(item)}box.style.display=editors.length===0?'none':'block'}catch(_){}};refresh();const timer=setInterval(refresh,15000);window.addEventListener('pagehide',()=>{stopped=true;clearInterval(timer)},{once:true})})();
 	</script>
 }

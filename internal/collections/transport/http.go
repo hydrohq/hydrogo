@@ -1,11 +1,11 @@
 package transport
 
 import (
-	"github.com/ardaozyildirim/hydrogo/internal/api"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"net/http"
 	"net/url"
 	"strconv"
