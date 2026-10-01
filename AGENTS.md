@@ -34,6 +34,21 @@ For a new or modified module, evaluate the following:
 
 An architectural change is not considered complete until its corresponding ADR, implementation, certified database behavior tests, required migration metadata, and capacity/deployment impact documentation are all delivered together.
 
+**Full ADR required** when a change moves a module boundary, adds a new
+contract/route/migration, or makes a decision that contradicts an existing
+ADR. In these cases, deliver the full ADR together with the implementation,
+certified database behavior tests, migration metadata, and capacity/
+deployment documentation (`docs/architecture/000X-...md`, using
+`ADR_TEMPLATE.md`).
+
+**No ADR required** for an improvement, bug fix, or small refactor that stays
+within an existing module and does not change its behavior. A 2-3 sentence
+note in the PR description ("what changed, why") is sufficient.
+
+Automated CI guards such as moduleguard, migrationguard, and importguard are
+always mandatory and cannot be skipped, regardless of this distinction — they
+enforce real protection at the code level, not a documentation check.
+
 ## Workspace Generation and AI UI Rules
 
 HydroGo is a Workspace/Engine that produces Client Editions; it is not a
