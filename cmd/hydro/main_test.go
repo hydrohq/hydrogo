@@ -999,10 +999,27 @@ func TestRunMigrationCreateScaffoldsMetadataAndDialectFiles(t *testing.T) {
 }
 
 func TestDevCommandRejectsUnexpectedArgumentsBeforeProcessStart(t *testing.T) {
+	// devCommand now first detects whether it is running inside a HydroGo
+	// Core checkout or a scaffolded Client Edition project (see
+	// detectDevMode); run from the Core repository root so this still
+	// exercises coreDevCommand's own flag validation, unchanged from before.
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(wd, "..", "..")
+	if !isCoreCheckout(root) {
+		t.Skip("repository root does not look like a Core checkout in this environment")
+	}
+	if chdirErr := os.Chdir(root); chdirErr != nil {
+		t.Fatal(chdirErr)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+
 	var stdout, stderr bytes.Buffer
-	err := run([]string{"dev", "unexpected"}, strings.NewReader(""), &stdout, &stderr)
-	if err == nil || !strings.Contains(err.Error(), "unexpected arguments") {
-		t.Fatalf("dev unexpected args error = %v", err)
+	runErr := run([]string{"dev", "unexpected"}, strings.NewReader(""), &stdout, &stderr)
+	if runErr == nil || !strings.Contains(runErr.Error(), "unexpected arguments") {
+		t.Fatalf("dev unexpected args error = %v", runErr)
 	}
 }
 

@@ -344,7 +344,71 @@ func fontsCommand(args []string, stdout io.Writer) error {
 	return err
 }
 
+// devCommand dispatches to the right "hydro dev" implementation depending on
+// where it is run from. HydroGo Core checkouts keep the existing
+// tools/devserver-based flow untouched; scaffolded Client Edition projects
+// (which have no go.mod/tools/devserver) use runEditionDev instead.
 func devCommand(args []string, stdout, stderr io.Writer) error {
+	root, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	switch detectDevMode(root) {
+	case devModeCore:
+		return coreDevCommand(args, stdout, stderr)
+	case devModeClientEdition:
+		return runEditionDev(args, stdout, stderr)
+	default:
+		return fmt.Errorf("hydro dev: %q is neither a HydroGo Core checkout (go.mod + tools/devserver) nor a scaffolded Client Edition project (hydrogo.lock + config.yaml)", root)
+	}
+}
+
+type devMode int
+
+const (
+	devModeUnknown devMode = iota
+	devModeCore
+	devModeClientEdition
+)
+
+// detectDevMode decides which `hydro dev` implementation to use for root.
+// A HydroGo Core checkout can itself carry a root-level config.yaml and
+// hydrogo.lock (used for the Core repo's own local dev/testing), so the two
+// signals are not mutually exclusive in practice — the Core checkout check
+// intentionally takes priority so existing Core-repo workflows never change.
+func detectDevMode(root string) devMode {
+	switch {
+	case isCoreCheckout(root):
+		return devModeCore
+	case isClientEdition(root):
+		return devModeClientEdition
+	default:
+		return devModeUnknown
+	}
+}
+
+// isCoreCheckout reports whether root is a HydroGo Core repository checkout,
+// i.e. the source tree that owns tools/devserver.
+func isCoreCheckout(root string) bool {
+	if info, err := os.Stat(filepath.Join(root, "go.mod")); err != nil || info.IsDir() {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(root, "tools", "devserver"))
+	return err == nil && info.IsDir()
+}
+
+// isClientEdition reports whether root is a project scaffolded by
+// `hydro new`/`hydro generate scaffold`: it ships its own config and lock
+// file but no Go source tree for tools/devserver to run against.
+func isClientEdition(root string) bool {
+	if info, err := os.Stat(filepath.Join(root, "hydrogo.lock")); err != nil || info.IsDir() {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(root, "config.yaml"))
+	return err == nil && !info.IsDir()
+}
+
+func coreDevCommand(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("dev", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	_ = flags.String("address", "0.0.0.0:8090", "development proxy listen address")
