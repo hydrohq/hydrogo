@@ -1431,6 +1431,49 @@ func restoreCommand(args []string, stdout, stderr io.Writer) error {
 	}
 }
 
+// enforceDevModeOfficialBuild refuses --dev/HYDRO_DEV_MODE when this binary
+// was built as an official release with a vendor public key embedded
+// (internal/licensing.TrustedPublicKeyBase64 injected via -ldflags). Dev mode
+// must only be reachable from ordinary `go build` binaries that were never
+// part of the official distribution pipeline, regardless of bind address or
+// any reverse proxy placed in front of the process.
+func enforceDevModeOfficialBuild() error {
+	if licensing.TrustedPublicKeyBase64 != "" {
+		return errors.New("dev mode is not available in official builds: --dev/HYDRO_DEV_MODE is disabled because this binary was built with a vendor public key embedded")
+	}
+	return nil
+}
+
+// enforceDevModeLocalBind requires --dev/HYDRO_DEV_MODE to bind only to a
+// loopback address, so the unlicensed server can never be reachable from
+// outside the local machine.
+func enforceDevModeLocalBind(address string) error {
+	host, _, err := net.SplitHostPort(strings.TrimSpace(address))
+	if err != nil {
+		return fmt.Errorf("--dev/HYDRO_DEV_MODE requires a valid --address host:port, got %q: %w", address, err)
+	}
+	if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+		return fmt.Errorf("--dev/HYDRO_DEV_MODE refused: server must bind to 127.0.0.1, localhost or ::1 (got %q)", host)
+	}
+	return nil
+}
+
+// printDevModeWarning prints a large, impossible-to-miss banner so an
+// unlicensed dev-mode server is never mistaken for a licensed one.
+func printDevModeWarning(stderr io.Writer) {
+	fmt.Fprint(stderr, `
+################################################################
+#                                                              #
+#   UNLICENSED DEV MODE - NOT FOR PRODUCTION                   #
+#                                                              #
+#   License verification was bypassed via --dev/HYDRO_DEV_MODE #
+#   This server only works on 127.0.0.1/localhost/::1 and is   #
+#   disabled in official builds. Never expose it publicly.     #
+#                                                              #
+################################################################
+`)
+}
+
 func serve(args []string, stderr io.Writer) (serveErr error) {
 	if stderr == nil {
 		stderr = io.Discard
@@ -1442,6 +1485,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	fastCGIAddress := flags.String("fastcgi-address", "127.0.0.1:9001", "FastCGI listener address (loopback by default)")
 	sslMode := flags.String("ssl", "", "enable standalone HTTPS with --ssl=auto")
 	sslDomain := flags.String("domain", "", "hostname for standalone HTTPS")
+	devLicenseBypass := flags.Bool("dev", false, "bypass license verification; only works in non-official builds bound to 127.0.0.1/localhost, never for production")
 	values := addRuntimeFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -1506,7 +1550,17 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		resolver := tenant.NewHostResolver(hostScopes, cfg.Tenancy.RequireHost)
 		tenantResolver = &resolver
 	}
-	if _, err := validateRuntimeLicense(cfg, stderr); err != nil {
+	devModeEnv := strings.TrimSpace(os.Getenv("HYDRO_DEV_MODE")) == "1"
+	devMode := *devLicenseBypass || devModeEnv
+	if devMode {
+		if err := enforceDevModeOfficialBuild(); err != nil {
+			return err
+		}
+		if err := enforceDevModeLocalBind(cfg.HTTP.Address); err != nil {
+			return err
+		}
+		printDevModeWarning(stderr)
+	} else if _, err := validateRuntimeLicense(cfg, stderr); err != nil {
 		return err
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -6074,7 +6128,7 @@ Usage:
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]
-  hydro serve [--cgi | --fastcgi --fastcgi-address 127.0.0.1:9001] [runtime flags]
+  hydro serve [--cgi | --fastcgi --fastcgi-address 127.0.0.1:9001] [--dev] [runtime flags]
   hydro help
 
 Examples:

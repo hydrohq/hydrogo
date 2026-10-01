@@ -845,6 +845,24 @@ HydroGo Client Edition project scaffolded with the **%s** preset.
    hydro serve --config config.yaml
    `+"```"+`
 
+## Local verification without a commercial license
+
+`+"`hydro serve`"+` normally requires a vendor-signed `+"`hydro.lic`"+`. To do a
+quick local smoke check (for example `+"`/healthz`"+`) without one, build this
+project's binary with an ordinary `+"`go build`"+` (never an official vendor
+release) and run:
+
+`+"```powershell"+`
+$env:HYDRO_DEV_MODE = "1"
+hydro serve --config config.yaml --address 127.0.0.1:PORT
+`+"```"+`
+
+(or pass `+"`--dev`"+` instead of the environment variable). This only works
+when the binary has no vendor public key embedded and is bound to
+`+"`127.0.0.1`"+`/`+"`localhost`"+`/`+"`::1`"+`; official/customer binaries always
+have the vendor key embedded, so `+"`--dev`"+`/`+"`HYDRO_DEV_MODE`"+` has no effect
+on them. See ADR-0336 in HydroGo Core's `+"`docs/architecture/`"+`.
+
 ## Connecting to Git
 
 `+"```powershell"+`
