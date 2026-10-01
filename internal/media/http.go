@@ -17,6 +17,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/storage"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 )
 
 type HTTPHandler struct {
@@ -92,7 +93,7 @@ func (h HTTPHandler) folders(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "media folders unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, http.StatusOK, folders)
+	api.WriteJSON(w, http.StatusOK, folders)
 }
 
 func (h HTTPHandler) createFolder(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +121,7 @@ func (h HTTPHandler) createFolder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "folder could not be created", mediaStatus(err))
 		return
 	}
-	writeJSON(w, http.StatusCreated, folder)
+	api.WriteJSON(w, http.StatusCreated, folder)
 }
 
 func (h HTTPHandler) updateMetadata(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +141,7 @@ func (h HTTPHandler) updateMetadata(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "media metadata update failed", mediaStatus(err))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"updated": true})
+	api.WriteJSON(w, http.StatusOK, map[string]bool{"updated": true})
 }
 
 func (h HTTPHandler) url(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +173,7 @@ func (h HTTPHandler) url(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "media URL unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"asset_id": asset.ID, "url": signed, "expires_in": int64(expiry / time.Second)})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"asset_id": asset.ID, "url": signed, "expires_in": int64(expiry / time.Second)})
 }
 
 func (h HTTPHandler) list(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +186,7 @@ func (h HTTPHandler) list(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "media list unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, http.StatusOK, assets)
+	api.WriteJSON(w, http.StatusOK, assets)
 }
 
 func (h HTTPHandler) serve(w http.ResponseWriter, r *http.Request) {
@@ -300,7 +301,7 @@ func (h HTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "media upload failed", mediaStatus(err))
 		return
 	}
-	writeJSON(w, http.StatusAccepted, map[string]any{"asset_id": result.ID, "status": "pending", "mime_type": result.MimeType, "size_bytes": result.SizeBytes})
+	api.WriteJSON(w, http.StatusAccepted, map[string]any{"asset_id": result.ID, "status": "pending", "mime_type": result.MimeType, "size_bytes": result.SizeBytes})
 }
 
 func multipartBodyLimit(fileLimit int64) int64 {
@@ -332,7 +333,7 @@ func (h HTTPHandler) ready(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "media state update failed", mediaStatus(err))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"asset_id": r.PathValue("id"), "status": "ready", "visibility": visibility})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"asset_id": r.PathValue("id"), "status": "ready", "visibility": visibility})
 }
 
 func editorAllowed(r *http.Request) bool {
@@ -350,8 +351,3 @@ func mediaStatus(err error) int {
 	return http.StatusInternalServerError
 }
 
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
-}

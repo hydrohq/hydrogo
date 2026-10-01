@@ -1,0 +1,56 @@
+﻿package designsystem
+
+templ ContentViewSort(p ContentViewSortProps) {
+	<nav class="my-3 flex flex-wrap items-center gap-2 text-sm" aria-label="Sort content by views">
+		<span class="text-foreground">Views:</span>
+		if p.Selected == "-views" {
+			<a class="rounded border border-primary bg-surface px-3 py-2 font-semibold text-foreground" href={ contentViewSortURL(p.Path, p.Status, "-views") } aria-current="page">{ "Most viewed" }</a>
+		} else {
+			<a class="rounded border border-border bg-surface px-3 py-2 text-foreground" href={ contentViewSortURL(p.Path, p.Status, "-views") }>{ "Most viewed" }</a>
+		}
+		if p.Selected == "views" {
+			<a class="rounded border border-primary bg-surface px-3 py-2 font-semibold text-foreground" href={ contentViewSortURL(p.Path, p.Status, "views") } aria-current="page">{ "Least viewed" }</a>
+		} else {
+			<a class="rounded border border-border bg-surface px-3 py-2 text-foreground" href={ contentViewSortURL(p.Path, p.Status, "views") }>{ "Least viewed" }</a>
+		}
+	</nav>
+}
+
+templ DeviceViewportPreview(p DeviceViewportPreviewProps) {
+	<button class="button button-quiet" type="button" data-device-preview-open data-preview-endpoint={ p.Endpoint } data-preview-csrf={ p.CSRF } aria-haspopup="dialog" aria-expanded="false">Cihazlarda önizle</button>
+	<dialog class="device-preview-dialog" data-device-preview-dialog data-device-size="mobile" aria-labelledby="device-preview-title">
+		<header class="device-preview-header">
+			<div><h2 id="device-preview-title">Sayfa önizlemesi</h2><p data-device-preview-status role="status" aria-live="polite">Güncel taslağı yüklemek için bir görünüm seçin.</p></div>
+			<div class="studio-actions">
+				<button class="button button-quiet" type="button" data-device-preview-size="mobile" aria-pressed="true">Mobil · 375 px</button>
+				<button class="button button-quiet" type="button" data-device-preview-size="desktop" aria-pressed="false">Masaüstü</button>
+				<button class="button button-quiet" type="button" data-device-preview-close aria-label="Önizlemeyi kapat">Kapat</button>
+			</div>
+		</header>
+		<div class="device-preview-stage"><iframe title="Taslak sayfanın cihaz önizlemesi" sandbox="" referrerpolicy="no-referrer" loading="lazy" data-device-preview-frame></iframe></div>
+	</dialog>
+}
+
+templ Head() {
+	<style>
+		:root{--background:#fff;--foreground:#171923;--surface:#f7f8fa;--border:#d7dbe3;--primary:#315bd6;--primary-foreground:#fff;--radius:.6rem;color-scheme:light dark}
+		[data-theme="dark"],[data-color-scheme="dark"]{--background:#11151d;--foreground:#f4f6fa;--surface:#1b2230;--border:#394355;--primary:#8eacff;--primary-foreground:#10182b}
+		.bg-background{background:var(--background)}.bg-surface{background:var(--surface)}.text-foreground{color:var(--foreground)}
+		.ds-hero{display:grid;gap:1rem;padding:clamp(2rem,6vw,5rem);border-radius:var(--radius)}.ds-hero h1{max-width:18ch;margin:0;font:750 clamp(2rem,6vw,4rem)/1.05 system-ui,sans-serif}
+	</style>
+	<link rel="preload" as="style" href="/designsystem/static/designsystem.css" data-hydro-late-style />
+	<noscript><link rel="stylesheet" href="/designsystem/static/designsystem.css" /></noscript>
+	<script src="/designsystem/static/widgets.js" defer></script>
+}
+
+templ BlockStyleFrame(p BlockStyleProps) {
+	<section class={ "ds-block-frame " + blockStyleClass(p) }>
+		{ children... }
+	</section>
+}
+
+templ StickyHeader(p StickyHeaderProps) {
+	<header id={ p.ID } class="ds-sticky-header" data-sticky-header data-threshold={ fmtInteger(p.Threshold) } role="banner">
+		{ children... }
+	</header>
+}

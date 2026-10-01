@@ -1,0 +1,74 @@
+﻿package designsystem
+
+templ SoundAlertPreference(p SoundAlertPreferenceProps) {
+	<section class="mt-4 rounded-lg border border-border bg-surface p-4 text-foreground" data-sound-alert-settings aria-labelledby="sound-alert-title">
+		<h2 id="sound-alert-title" class="text-base font-semibold">{ p.Title }</h2>
+		<p class="mb-3 text-sm">{ p.Description }</p>
+		<label class="inline-flex items-center gap-2 text-sm">
+			<input type="checkbox" data-sound-alert-preference aria-label={ p.Label } />
+			<span>{ p.Label }</span>
+		</label>
+	</section>
+}
+
+templ FormSuccessConfetti(p ConfettiProps) {
+	if p.Enabled {
+		<span class="ds-confetti" data-confetti-success aria-hidden="true" data-success-label={ label(p.Label, "Form submitted") }></span>
+	}
+}
+
+templ ContactWidgetSettings(p ContactWidgetSettingsProps) {
+	<form class="studio-card grid gap-4" method="post" action="/admin/appearance/contact-widget">
+		<input type="hidden" name="_csrf" value={ p.CSRF } />
+		<label class="flex items-center gap-2"><input type="checkbox" name="enabled" value="true" checked?={ p.Enabled } /> Enable floating contact widget</label>
+		<label class="grid gap-1">WhatsApp number with country code<input class="rounded border border-border bg-surface p-2" name="whatsapp_number" type="tel" maxlength="40" value={ p.WhatsAppNumber } placeholder="+90 555 123 4567" aria-label="WhatsApp Number" /></label>
+		<label class="grid gap-1">Direct call number<input class="rounded border border-border bg-surface p-2" name="phone" type="tel" maxlength="40" value={ p.Phone } placeholder="+90 212 555 0100" aria-label="Phone Number" /></label>
+		<label class="grid gap-1">WhatsApp welcome message<textarea class="rounded border border-border bg-surface p-2" name="message" maxlength="500" aria-label="Welcome message">{ p.Message }</textarea></label>
+		<label class="grid gap-1">Position<select class="rounded border border-border bg-surface p-2" name="position" aria-label="Widget position"><option value="bottom-right" selected?={ p.Position == "bottom-right" }>Bottom right</option><option value="bottom-left" selected?={ p.Position == "bottom-left" }>Bottom left</option></select></label>
+		<label class="flex items-center gap-2"><input type="checkbox" name="mobile_only" value="true" checked?={ p.MobileOnly } /> Show only on mobile devices</label>
+		<button class="ds-button ds-button--primary" type="submit" aria-busy="false" data-loading-text="Saving...">Save contact widget</button>
+	</form>
+}
+
+templ SocialAccounts(p SocialAccountsProps) {
+	<form class="studio-card grid gap-4" method="post" action="/admin/site/social-links">
+		<input type="hidden" name="_csrf" value={ p.CSRF } />
+		for _, platform := range SocialAccountPlatforms() {
+			<label class="grid gap-1">{ socialPlatformLabel(platform) }<input class="rounded border border-border bg-surface p-2" type="url" name={ "social_" + platform } maxlength="2048" value={ p.URLs[platform] } placeholder={ "https://" + platform + ".com/your-profile" } aria-label={ platform + " URL" } /></label>
+		}
+		<button class="ds-button ds-button--primary" type="submit" aria-busy="false" data-loading-text="Saving...">Save social profiles</button>
+	</form>
+}
+
+templ PageLayoutPicker(p PageLayoutPickerProps) {
+	<fieldset class="ds-layout-picker grid gap-3" aria-label="Choose a page layout">
+		<legend class="text-lg font-semibold">Page layout</legend>
+		if len(p.Options) == 0 {
+			<p role="status" class="empty-state">No layout options available.</p>
+		} else {
+			<div class="grid gap-3 md:grid-cols-2">
+				for _, option := range p.Options {
+					<label class="ds-layout-option flex cursor-pointer items-start gap-3 rounded border border-border bg-surface p-3">
+						<input type="radio" name="layout_template" value={ option.ID } checked?={ option.ID == "blank" } aria-label={ option.Name } />
+						<span class="ds-layout-option__preview" aria-hidden="true"><i></i><i></i><i></i></span>
+						<span><strong>{ option.Name }</strong><small class="block text-muted-foreground">{ option.Description }</small></span>
+					</label>
+				}
+			</div>
+		}
+	</fieldset>
+}
+
+templ PasswordResetForm(p PasswordResetFormProps) {
+	<main class="mx-auto grid w-full max-w-md gap-4 rounded-xl border border-border bg-surface p-6 text-foreground" aria-labelledby="password-reset-title">
+		<h1 id="password-reset-title" class="text-2xl font-bold">Choose a new password</h1>
+		<script nonce={ p.Nonce }>history.replaceState(null, "", "/password-reset")</script>
+		<p>Enter a new password to secure your account.</p>
+		<form class="grid gap-4" method="post" action="/auth/password-reset/confirm">
+			<input type="hidden" name="_csrf" value={ p.CSRF } />
+			<input type="hidden" name="token" value={ p.Token } />
+			<label class="grid gap-1">New password<input class="rounded border border-border bg-background p-2" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required aria-label="New password" /></label>
+			<button class="ds-button ds-button--primary" type="submit" aria-busy="false" data-loading-text="Updating...">Update password</button>
+		</form>
+	</main>
+}

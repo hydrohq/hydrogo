@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -294,7 +295,7 @@ func (h Handler) apiSchemas(w http.ResponseWriter, r *http.Request) {
 		apiError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, schemas)
+	api.WriteJSON(w, http.StatusOK, schemas)
 }
 func (h Handler) apiSchema(w http.ResponseWriter, r *http.Request) {
 	if !admin(r) {
@@ -306,7 +307,7 @@ func (h Handler) apiSchema(w http.ResponseWriter, r *http.Request) {
 		apiError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, schema)
+	api.WriteJSON(w, http.StatusOK, schema)
 }
 func (h Handler) apiRecords(w http.ResponseWriter, r *http.Request) {
 	if !admin(r) {
@@ -323,7 +324,7 @@ func (h Handler) apiRecords(w http.ResponseWriter, r *http.Request) {
 		apiError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"records": items, "limit": limit, "offset": offset})
+	api.WriteJSON(w, http.StatusOK, map[string]any{"records": items, "limit": limit, "offset": offset})
 }
 func (h Handler) apiCreateRecord(w http.ResponseWriter, r *http.Request) {
 	if !admin(r) {
@@ -340,7 +341,7 @@ func (h Handler) apiCreateRecord(w http.ResponseWriter, r *http.Request) {
 		apiError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, record)
+	api.WriteJSON(w, http.StatusCreated, record)
 }
 func (h Handler) apiGetRecord(w http.ResponseWriter, r *http.Request) {
 	if !admin(r) {
@@ -352,7 +353,7 @@ func (h Handler) apiGetRecord(w http.ResponseWriter, r *http.Request) {
 		apiError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, record)
+	api.WriteJSON(w, http.StatusOK, record)
 }
 func (h Handler) apiUpdateRecord(w http.ResponseWriter, r *http.Request) {
 	if !admin(r) {
@@ -369,7 +370,7 @@ func (h Handler) apiUpdateRecord(w http.ResponseWriter, r *http.Request) {
 		apiError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, record)
+	api.WriteJSON(w, http.StatusOK, record)
 }
 func (h Handler) apiDeleteRecord(w http.ResponseWriter, r *http.Request) {
 	if !admin(r) {
@@ -445,11 +446,6 @@ func admin(r *http.Request) bool {
 	return user != nil && user.Active && user.Role == auth.RoleAdmin
 }
 func field(prefix string, index int) string { return fmt.Sprintf("field_%s_%d", prefix, index) }
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
-}
 func apiError(w http.ResponseWriter, err error) {
 	status := http.StatusBadRequest
 	if errors.Is(err, collections.ErrCollectionNotFound) || errors.Is(err, collections.ErrRecordNotFound) {
@@ -465,6 +461,6 @@ func apiError(w http.ResponseWriter, err error) {
 	if status == http.StatusConflict {
 		message = "a field value conflicts with an existing record"
 	}
-	writeJSON(w, status, map[string]string{"error": message})
+	api.WriteJSON(w, status, map[string]string{"error": message})
 }
 func _unused(v any) string { return fmt.Sprint(v) }

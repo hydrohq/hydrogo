@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"net/http"
 	"sync"
 	"time"
 
@@ -22,6 +23,9 @@ type AttemptLimiter struct {
 	maxEntries int
 	limit      int
 	window     time.Duration
+	Extractor  interface {
+		Extract(*http.Request) string
+	}
 }
 
 type RateLimiter interface {

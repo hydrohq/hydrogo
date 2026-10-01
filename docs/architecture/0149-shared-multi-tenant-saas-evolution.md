@@ -1,6 +1,6 @@
 # ADR-0149: Shared Multi-Tenant SaaS Evolution & Isolation Architecture
 
-- **Status:** Proposed (Phase 6 Milestone)
+- **Status:** Accepted (Phase 6 Milestone)
 - **Deciders:** HydroGo Engineering & Architecture
 - **Date:** 2026-09-19
 - **Depends On:** [ADR-0140](0140-tenant-isolation-scope.md), [ADR-0147](0147-single-tenant-production-deployment-and-bff-model.md)
