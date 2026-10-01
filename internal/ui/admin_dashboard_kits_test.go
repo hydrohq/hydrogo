@@ -385,7 +385,7 @@ func TestMediaToolbarRowButtonsShareTheSameHeightUnderNova(t *testing.T) {
 	// they must all be pinned to the same explicit height so they line up,
 	// even though their widths naturally differ by content.
 	for _, want := range []string{
-		`html[data-ui-theme="nova"] .media-toolbar-row .list-view-switch button,html[data-ui-theme="nova"] .media-toolbar-row>.media-folder-tree>a,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-disclosure>summary,html[data-ui-theme="nova"] .media-toolbar-row>p>.button,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-trigger{`,
+		`html[data-ui-theme="nova"] .media-toolbar-row .list-view-switch button,html[data-ui-theme="nova"] .media-toolbar-row>.media-folder-tree>a,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-disclosure>summary,html[data-ui-theme="nova"] .media-toolbar-row>p>.button,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-trigger,html[data-ui-theme="nova"] .media-toolbar-row input,html[data-ui-theme="nova"] .media-toolbar-row select,html[data-ui-theme="nova"] .media-toolbar-row button{`,
 	} {
 		if !strings.Contains(AdminMediaFormsCSS, want) {
 			t.Fatal("Nova's media toolbar row is missing the shared-height rule covering all its button-like children")
