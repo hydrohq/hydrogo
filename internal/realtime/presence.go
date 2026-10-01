@@ -10,7 +10,7 @@ import (
 var ErrInvalidPresence = errors.New("invalid editor presence")
 
 const (
-	DefaultPresenceTTL = 60 * time.Second
+	DefaultPresenceTTL = 20 * time.Second
 	maxPresenceEntries = 10000
 )
 

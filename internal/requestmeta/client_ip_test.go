@@ -24,12 +24,12 @@ func TestClientIPAcceptsBareAddress(t *testing.T) {
 
 func TestIPExtractor(t *testing.T) {
 	tests := []struct {
-		name        string
-		behindProxy bool
+		name         string
+		behindProxy  bool
 		trustedCIDRs []string
-		remoteAddr  string
-		headers     map[string]string
-		want        string
+		remoteAddr   string
+		headers      map[string]string
+		want         string
 	}{
 		{
 			name:       "direct connection ignores headers if not trusted",

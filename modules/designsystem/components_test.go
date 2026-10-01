@@ -247,7 +247,7 @@ func TestFloatingContactUsesOnlySafeConfiguredDestinations(t *testing.T) {
 
 func TestFAQAccordionRendersAccessibleDetailsAndSchema(t *testing.T) {
 	got := render(t, FAQAccordion(FAQProps{ID: "help", Heading: "Help", Items: []FAQItem{{Question: "Where?", Answer: `At <home> </script>`}}}))
-	for _, want := range []string{`<details`, `<summary>Where?</summary>`, `application/ld+json`, `"@type":"FAQPage"`, `&lt;home&gt;`, `\u003c/script\u003e`} {
+	for _, want := range []string{`<details`, `<summary aria-expanded="false">Where?</summary>`, `application/ld+json`, `"@type":"FAQPage"`, `&lt;home&gt;`, `\u003c/script\u003e`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in %s", want, got)
 		}

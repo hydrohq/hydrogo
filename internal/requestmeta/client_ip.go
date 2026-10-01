@@ -72,21 +72,21 @@ func (e *IPExtractor) Extract(r *http.Request) string {
 	if r == nil {
 		return ""
 	}
-	
+
 	directIPStr := ClientIP(r)
 	if directIPStr == "" {
 		return ""
 	}
-	
+
 	directIP := net.ParseIP(directIPStr)
 	if directIP == nil {
 		return directIPStr
 	}
-	
+
 	if !e.isTrusted(directIP) {
 		return directIPStr
 	}
-	
+
 	if ip := r.Header.Get("True-Client-IP"); ip != "" {
 		if parsed := net.ParseIP(strings.TrimSpace(ip)); parsed != nil {
 			return parsed.String()
@@ -109,6 +109,6 @@ func (e *IPExtractor) Extract(r *http.Request) string {
 			}
 		}
 	}
-	
+
 	return directIPStr
 }
