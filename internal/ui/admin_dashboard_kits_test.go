@@ -280,7 +280,7 @@ func TestRemoveCommerceLinksStripsNovaTopNavCommerceLinks(t *testing.T) {
 	// 404'd on any install without commerce active. removeCommerceLinks (the
 	// same gate that already strips the sidebar's COMMERCE section) must also
 	// strip the nova-commerce-start/end marked span in the Nova top nav.
-	markup := `<div class="topbar-right"><nav class="nova-topnav-links"><!--nova-commerce-start--><a class="nova-topnav-link" href="/admin/commerce/products">Ürünler</a><a class="nova-topnav-link" href="/admin/commerce/orders">Siparişler</a><!--nova-commerce-end--><a class="nova-topnav-link" href="/admin/members">Üyeler</a></nav></div>`
+	markup := `<div class="topbar-right"><nav class="nova-topnav-links">` + novaCommerceMarkerStart + `<a class="nova-topnav-link" href="/admin/commerce/products">Ürünler</a><a class="nova-topnav-link" href="/admin/commerce/orders">Siparişler</a>` + novaCommerceMarkerEnd + `<a class="nova-topnav-link" href="/admin/members">Üyeler</a></nav></div>`
 	out := removeCommerceLinks(markup)
 	if strings.Contains(out, "Ürünler") || strings.Contains(out, "Siparişler") || strings.Contains(out, "/admin/commerce/") {
 		t.Fatalf("removeCommerceLinks did not strip the Nova top nav commerce links: %q", out)
