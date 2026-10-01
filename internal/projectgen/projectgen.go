@@ -845,6 +845,23 @@ HydroGo Client Edition project scaffolded with the **%s** preset.
    hydro serve --config config.yaml
    `+"```"+`
 
+7. **Local development loop (optional):**
+   `+"```powershell"+`
+   hydro dev --config config.yaml
+   `+"```"+`
+   Runs migrations, seeds disposable demo data, and restarts the server on
+   changes to config.yaml, themes/, migrations/, custom/, seed/ or
+   hydrogo.lock (theme `+"`.css`"+`/`+"`.js`"+` files under a theme's `+"`static/`"+`
+   directory reload without a restart). This project has no Go source tree,
+   so `+"`hydro dev`"+` never compiles anything — it only reuses the installed
+   `+"`hydro`"+` binary as a subprocess. `+"`hydro migrate`"+` and `+"`hydro seed-demo`"+`
+   do not require a license, but with `+"`license.required: true`"+` (the
+   default above), the `+"`hydro serve`"+` step that `+"`hydro dev`"+` runs under
+   the hood still needs a valid `+"`hydro.lic`"+` in the project root — without
+   one, `+"`hydro dev`"+` starts normally but reports a server error instead of
+   "Ready" until a license is supplied, unless you also use the
+   `+"`HYDRO_DEV_MODE`"+` bypass described below.
+
 ## Local verification without a commercial license
 
 `+"`hydro serve`"+` normally requires a vendor-signed `+"`hydro.lic`"+`. To do a
@@ -894,7 +911,7 @@ hydro resource check --root .
 hydro permissions check --spec ./collection.yaml
 hydro api diff --baseline ./openapi-baseline.json --current ./generated/openapi.json
 hydro migrate --config config.yaml
-hydro run
+hydro dev --config config.yaml
 `+"```"+`
 
 hydro project check is dependency-free and should run before migration
