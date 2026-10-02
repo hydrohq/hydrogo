@@ -30,7 +30,7 @@ func (s Store) Enqueue(ctx context.Context, tx database.Executor, id, topic, agg
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	_, err := tx.ExecContext(ctx, "INSERT INTO outbox_events (id, topic, aggregate_id, payload_version, available_at, attempts) VALUES ("+s.placeholder(1)+", "+s.placeholder(2)+", "+s.placeholder(3)+", "+s.placeholder(4)+", "+s.placeholder(5)+", 0)", id, topic, aggregateID, payloadVersion, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err := tx.ExecContext(ctx, "INSERT INTO outbox_events (id, topic, aggregate_id, payload_version, available_at, attempts) VALUES ("+s.placeholder(1)+", "+s.placeholder(2)+", "+s.placeholder(3)+", "+s.placeholder(4)+", "+s.placeholder(5)+", 0)", id, topic, aggregateID, payloadVersion, s.dbNow())
 	return err
 }
 
@@ -47,7 +47,7 @@ func (s Store) EnqueueScoped(ctx context.Context, tx database.Executor, id, topi
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO outbox_events (id, tenant_id, topic, aggregate_id, payload_version, available_at, attempts) VALUES ("+s.placeholder(1)+", "+s.placeholder(2)+", "+s.placeholder(3)+", "+s.placeholder(4)+", "+s.placeholder(5)+", "+s.placeholder(6)+", 0)", id, scope.TenantID, topic, aggregateID, payloadVersion, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(ctx, "INSERT INTO outbox_events (id, tenant_id, topic, aggregate_id, payload_version, available_at, attempts) VALUES ("+s.placeholder(1)+", "+s.placeholder(2)+", "+s.placeholder(3)+", "+s.placeholder(4)+", "+s.placeholder(5)+", "+s.placeholder(6)+", 0)", id, scope.TenantID, topic, aggregateID, payloadVersion, s.dbNow())
 	return err
 }
 
@@ -64,21 +64,22 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 		return outbox.Event{}, "", false, nil
 	}
 	var event outbox.Event
-	var available, leaseUntil, owner, token, lastError string
+	var available any
+	var leaseUntil, owner, token, lastError string
 	q := `SELECT id, topic, aggregate_id, payload_version, attempts, available_at, COALESCE(lease_until, ''), COALESCE(lease_owner, ''), COALESCE(lease_token, ''), COALESCE(last_error, '') FROM outbox_events WHERE available_at <= ` + s.placeholder(1) + ` AND (lease_until IS NULL OR lease_until <= ` + s.placeholder(2) + `) ORDER BY available_at, id LIMIT 1`
-	err := db.QueryRowContext(ctx, q, now.UTC().Format(time.RFC3339Nano), now.UTC().Format(time.RFC3339Nano)).Scan(&event.ID, &event.Topic, &event.AggregateID, &event.PayloadVersion, &event.Attempts, &available, &leaseUntil, &owner, &token, &lastError)
+	err := db.QueryRowContext(ctx, q, s.dbTimeValue(now), s.dbTimeValue(now)).Scan(&event.ID, &event.Topic, &event.AggregateID, &event.PayloadVersion, &event.Attempts, &available, &leaseUntil, &owner, &token, &lastError)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return outbox.Event{}, "", false, nil
 		}
 		return outbox.Event{}, "", false, err
 	}
-	event.AvailableAt, err = time.Parse(time.RFC3339Nano, available)
+	event.AvailableAt, err = parseOutboxTime(available)
 	if err != nil {
 		return outbox.Event{}, "", false, err
 	}
 	leaseToken := newToken(worker, event.ID, now)
-	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = `+s.placeholder(1)+`, lease_token = `+s.placeholder(2)+`, lease_until = `+s.placeholder(3)+`, attempts = attempts + 1 WHERE id = `+s.placeholder(4)+` AND (lease_until IS NULL OR lease_until <= `+s.placeholder(5)+`)`, worker, leaseToken, now.Add(lease).UTC().Format(time.RFC3339Nano), event.ID, now.UTC().Format(time.RFC3339Nano))
+	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = `+s.placeholder(1)+`, lease_token = `+s.placeholder(2)+`, lease_until = `+s.placeholder(3)+`, attempts = attempts + 1 WHERE id = `+s.placeholder(4)+` AND (lease_until IS NULL OR lease_until <= `+s.placeholder(5)+`)`, worker, leaseToken, s.dbTimeValue(now.Add(lease)), event.ID, s.dbTimeValue(now))
 	if err != nil {
 		return outbox.Event{}, "", false, err
 	}
@@ -103,21 +104,22 @@ func (s Store) ClaimScoped(ctx context.Context, db database.Executor, worker str
 		return outbox.Event{}, "", false, err
 	}
 	var event outbox.Event
-	var available, leaseUntil, owner, token, lastError string
+	var available any
+	var leaseUntil, owner, token, lastError string
 	q := `SELECT id, tenant_id, topic, aggregate_id, payload_version, attempts, available_at, COALESCE(lease_until, ''), COALESCE(lease_owner, ''), COALESCE(lease_token, ''), COALESCE(last_error, '') FROM outbox_events WHERE tenant_id = ` + s.placeholder(1) + ` AND available_at <= ` + s.placeholder(2) + ` AND (lease_until IS NULL OR lease_until <= ` + s.placeholder(3) + `) ORDER BY available_at, id LIMIT 1`
-	err = db.QueryRowContext(ctx, q, scope.TenantID, now.UTC().Format(time.RFC3339Nano), now.UTC().Format(time.RFC3339Nano)).Scan(&event.ID, &event.TenantID, &event.Topic, &event.AggregateID, &event.PayloadVersion, &event.Attempts, &available, &leaseUntil, &owner, &token, &lastError)
+	err = db.QueryRowContext(ctx, q, scope.TenantID, s.dbTimeValue(now), s.dbTimeValue(now)).Scan(&event.ID, &event.TenantID, &event.Topic, &event.AggregateID, &event.PayloadVersion, &event.Attempts, &available, &leaseUntil, &owner, &token, &lastError)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return outbox.Event{}, "", false, nil
 		}
 		return outbox.Event{}, "", false, err
 	}
-	event.AvailableAt, err = time.Parse(time.RFC3339Nano, available)
+	event.AvailableAt, err = parseOutboxTime(available)
 	if err != nil {
 		return outbox.Event{}, "", false, err
 	}
 	leaseToken := newToken(worker, event.ID, now)
-	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = `+s.placeholder(1)+`, lease_token = `+s.placeholder(2)+`, lease_until = `+s.placeholder(3)+`, attempts = attempts + 1 WHERE id = `+s.placeholder(4)+` AND tenant_id = `+s.placeholder(5)+` AND (lease_until IS NULL OR lease_until <= `+s.placeholder(6)+`)`, worker, leaseToken, now.Add(lease).UTC().Format(time.RFC3339Nano), event.ID, scope.TenantID, now.UTC().Format(time.RFC3339Nano))
+	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = `+s.placeholder(1)+`, lease_token = `+s.placeholder(2)+`, lease_until = `+s.placeholder(3)+`, attempts = attempts + 1 WHERE id = `+s.placeholder(4)+` AND tenant_id = `+s.placeholder(5)+` AND (lease_until IS NULL OR lease_until <= `+s.placeholder(6)+`)`, worker, leaseToken, s.dbTimeValue(now.Add(lease)), event.ID, scope.TenantID, s.dbTimeValue(now))
 	if err != nil {
 		return outbox.Event{}, "", false, err
 	}
@@ -160,7 +162,7 @@ func (s Store) RetryScoped(ctx context.Context, db database.Executor, id, worker
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = `+s.placeholder(1)+`, last_error = `+s.placeholder(2)+` WHERE id = `+s.placeholder(3)+` AND tenant_id = `+s.placeholder(4)+` AND lease_owner = `+s.placeholder(5)+` AND lease_token = `+s.placeholder(6), availableAt.UTC().Format(time.RFC3339Nano), reason, id, scope.TenantID, worker, token)
+	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = `+s.placeholder(1)+`, last_error = `+s.placeholder(2)+` WHERE id = `+s.placeholder(3)+` AND tenant_id = `+s.placeholder(4)+` AND lease_owner = `+s.placeholder(5)+` AND lease_token = `+s.placeholder(6), s.dbTimeValue(availableAt), reason, id, scope.TenantID, worker, token)
 	if err != nil {
 		return err
 	}
@@ -206,7 +208,7 @@ func (s Store) Retry(ctx context.Context, db database.Executor, id, worker, toke
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = `+s.placeholder(1)+`, last_error = `+s.placeholder(2)+` WHERE id = `+s.placeholder(3)+` AND lease_owner = `+s.placeholder(4)+` AND lease_token = `+s.placeholder(5), availableAt.UTC().Format(time.RFC3339Nano), reason, id, worker, token)
+	result, err := db.ExecContext(ctx, `UPDATE outbox_events SET lease_owner = NULL, lease_token = NULL, lease_until = NULL, available_at = `+s.placeholder(1)+`, last_error = `+s.placeholder(2)+` WHERE id = `+s.placeholder(3)+` AND lease_owner = `+s.placeholder(4)+` AND lease_token = `+s.placeholder(5), s.dbTimeValue(availableAt), reason, id, worker, token)
 	if err != nil {
 		return err
 	}
@@ -274,7 +276,7 @@ func (s Store) DeadLetterScoped(ctx context.Context, db database.Executor, event
 }
 
 func insertDeadLetter(ctx context.Context, db database.Executor, s Store, event outbox.Event, tenantID, reason string) error {
-	_, err := db.ExecContext(ctx, `INSERT INTO outbox_dead_letters (id, tenant_id, topic, aggregate_id, payload_version, attempts, last_error, failed_at) VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, `+s.placeholder(3)+`, `+s.placeholder(4)+`, `+s.placeholder(5)+`, `+s.placeholder(6)+`, `+s.placeholder(7)+`, `+s.placeholder(8)+`)`, event.ID, tenantID, event.Topic, event.AggregateID, event.PayloadVersion, event.Attempts, reason, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err := db.ExecContext(ctx, `INSERT INTO outbox_dead_letters (id, tenant_id, topic, aggregate_id, payload_version, attempts, last_error, failed_at) VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, `+s.placeholder(3)+`, `+s.placeholder(4)+`, `+s.placeholder(5)+`, `+s.placeholder(6)+`, `+s.placeholder(7)+`, `+s.placeholder(8)+`)`, event.ID, tenantID, event.Topic, event.AggregateID, event.PayloadVersion, event.Attempts, reason, s.dbNow())
 	return err
 }
 
@@ -291,4 +293,27 @@ func (s Store) placeholder(position int) string {
 		return fmt.Sprintf("$%d", position)
 	}
 	return "?"
+}
+
+func (s Store) dbTimeValue(t time.Time) any {
+	t = t.UTC()
+	if s.Dialect == database.SQLite {
+		return t.Format(time.RFC3339Nano)
+	}
+	return t
+}
+
+func (s Store) dbNow() any { return s.dbTimeValue(time.Now()) }
+
+func parseOutboxTime(value any) (time.Time, error) {
+	switch v := value.(type) {
+	case time.Time:
+		return v.UTC(), nil
+	case string:
+		return time.Parse(time.RFC3339Nano, v)
+	case []byte:
+		return time.Parse(time.RFC3339Nano, string(v))
+	default:
+		return time.Time{}, fmt.Errorf("unsupported timestamp value %T", value)
+	}
 }

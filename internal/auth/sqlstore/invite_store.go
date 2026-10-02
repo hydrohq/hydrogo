@@ -34,10 +34,12 @@ func (s *UserStore) CreateInvite(ctx context.Context, tx database.Executor, id, 
 		query += fmt.Sprintf("$%d", i+1)
 	}
 	query += `)`
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `INSERT INTO auth_invites (id,email,role,token_hash,expires_at,created_at`
-		args[4] = expiresAt.Format(time.RFC3339Nano)
-		args[5] = createdAt.Format(time.RFC3339Nano)
+		if s.dialect == database.SQLite {
+			args[4] = expiresAt.Format(time.RFC3339Nano)
+			args[5] = createdAt.Format(time.RFC3339Nano)
+		}
 		if s.RequireTenantScope {
 			query += `,tenant_id`
 		}
@@ -71,9 +73,11 @@ func (s *UserStore) ConsumeInvite(ctx context.Context, tx database.Executor, tok
 		query += ` AND tenant_id = $3`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `SELECT email,role FROM auth_invites WHERE token_hash = ? AND consumed_at IS NULL AND expires_at > ?`
-		args[1] = now.Format(time.RFC3339Nano)
+		if s.dialect == database.SQLite {
+			args[1] = now.Format(time.RFC3339Nano)
+		}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
 		}
@@ -88,9 +92,11 @@ func (s *UserStore) ConsumeInvite(ctx context.Context, tx database.Executor, tok
 		update += ` AND tenant_id = $3`
 		updateArgs = append(updateArgs, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		update = `UPDATE auth_invites SET consumed_at = ? WHERE token_hash = ? AND consumed_at IS NULL`
-		updateArgs[0] = now.Format(time.RFC3339Nano)
+		if s.dialect == database.SQLite {
+			updateArgs[0] = now.Format(time.RFC3339Nano)
+		}
 		if s.RequireTenantScope {
 			update += ` AND tenant_id = ?`
 		}

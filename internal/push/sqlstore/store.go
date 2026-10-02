@@ -25,6 +25,13 @@ func (s Store) p(n int) string {
 	}
 	return "?"
 }
+func (s Store) dbNow() any {
+	now := time.Now().UTC()
+	if s.Dialect == database.SQLite {
+		return now.Format(time.RFC3339Nano)
+	}
+	return now
+}
 func (s Store) scope(ctx context.Context) (string, error) {
 	if !s.RequireTenantScope {
 		return "", nil
@@ -55,7 +62,7 @@ func (s Store) Save(ctx context.Context, sub push.Subscription) error {
 		if err != nil {
 			return err
 		}
-		now := time.Now().UTC().Format(time.RFC3339Nano)
+		now := tx.dbNow()
 		_, err = tx.DB.ExecContext(ctx, "INSERT INTO push_subscriptions (tenant_id,id,user_id,platform,endpoint,keys_json,active,created_at,updated_at) VALUES ("+tx.p(1)+","+tx.p(2)+","+tx.p(3)+","+tx.p(4)+","+tx.p(5)+","+tx.p(6)+",1,"+tx.p(7)+","+tx.p(8)+")", scope, sub.ID, sub.UserID, sub.Platform, sub.Endpoint, keys, now, now)
 		return err
 	})
@@ -76,7 +83,7 @@ func (s Store) Disable(ctx context.Context, id string) error {
 		if err != nil {
 			return err
 		}
-		_, err = tx.DB.ExecContext(ctx, "UPDATE push_subscriptions SET active=0,updated_at="+tx.p(1)+" WHERE tenant_id="+tx.p(2)+" AND id="+tx.p(3), time.Now().UTC().Format(time.RFC3339Nano), scope, id)
+		_, err = tx.DB.ExecContext(ctx, "UPDATE push_subscriptions SET active=0,updated_at="+tx.p(1)+" WHERE tenant_id="+tx.p(2)+" AND id="+tx.p(3), tx.dbNow(), scope, id)
 		return err
 	})
 }
@@ -106,7 +113,8 @@ func (s Store) List(ctx context.Context, userID string, platform push.Platform) 
 		defer rows.Close()
 		for rows.Next() {
 			var item push.Subscription
-			var p, keys, created string
+			var p, keys string
+			var created any
 			if err := rows.Scan(&item.ID, &item.UserID, &p, &item.Endpoint, &keys, &created); err != nil {
 				return err
 			}
@@ -114,8 +122,8 @@ func (s Store) List(ctx context.Context, userID string, platform push.Platform) 
 			if json.Valid([]byte(keys)) {
 				item.Keys = json.RawMessage(keys)
 			}
-			item.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
-			if err != nil {
+			item.CreatedAt = parsePushTime(created)
+			if item.CreatedAt.IsZero() {
 				return errors.New("invalid subscription timestamp")
 			}
 			items = append(items, item)
@@ -123,4 +131,19 @@ func (s Store) List(ctx context.Context, userID string, platform push.Platform) 
 		return rows.Err()
 	})
 	return items, err
+}
+
+func parsePushTime(value any) time.Time {
+	switch v := value.(type) {
+	case time.Time:
+		return v.UTC()
+	case string:
+		parsed, _ := time.Parse(time.RFC3339Nano, v)
+		return parsed.UTC()
+	case []byte:
+		parsed, _ := time.Parse(time.RFC3339Nano, string(v))
+		return parsed.UTC()
+	default:
+		return time.Time{}
+	}
 }

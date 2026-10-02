@@ -44,7 +44,7 @@ func (s Store) CreateFolder(ctx context.Context, db database.Executor, folder me
 	if scoped {
 		tenantID = scope.TenantID
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := s.dbNow()
 	_, err = db.ExecContext(ctx, "INSERT INTO media_folders (id,tenant_id,name,parent_id,created_at,updated_at) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+","+s.p(4)+","+s.p(5)+","+s.p(6)+")", folder.ID, tenantID, strings.TrimSpace(folder.Name), parent, now, now)
 	return err
 }
@@ -74,21 +74,30 @@ func (s Store) ListFolders(ctx context.Context, db database.Executor) ([]media.F
 	for rows.Next() {
 		var f media.Folder
 		var parent sql.NullString
-		var created string
+		var created any
 		if err := rows.Scan(&f.ID, &f.Name, &parent, &created); err != nil {
 			return nil, err
 		}
 		f.ParentID = parent.String
-		f.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
-		if err != nil {
-			f.CreatedAt, err = time.Parse("2006-01-02 15:04:05.999999", created)
-		}
-		if err != nil {
-			return nil, err
-		}
+		f.CreatedAt = parseFolderTime(created)
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+func parseFolderTime(value any) time.Time {
+	switch v := value.(type) {
+	case time.Time:
+		return v.UTC()
+	case string:
+		parsed, _ := time.Parse(time.RFC3339Nano, v)
+		return parsed.UTC()
+	case []byte:
+		parsed, _ := time.Parse(time.RFC3339Nano, string(v))
+		return parsed.UTC()
+	default:
+		return time.Time{}
+	}
 }
 
 func (s Store) SetMetadata(ctx context.Context, db database.Executor, id string, metadata media.AssetMetadata) error {
@@ -130,7 +139,7 @@ func (s Store) SetMetadata(ctx context.Context, db database.Executor, id string,
 		folder = metadata.FolderID
 	}
 	q := "UPDATE media_assets SET focal_x=" + s.p(1) + ",focal_y=" + s.p(2) + ",folder_id=" + s.p(3) + ",tags_json=" + s.p(4) + ",updated_at=" + s.p(5) + " WHERE id=" + s.p(6) + " AND status IN ('pending','ready')"
-	args := []any{metadata.Focal.X, metadata.Focal.Y, folder, string(tags), time.Now().UTC().Format(time.RFC3339Nano), id}
+	args := []any{metadata.Focal.X, metadata.Focal.Y, folder, string(tags), s.dbNow(), id}
 	if scoped {
 		q += " AND tenant_id=" + s.p(7)
 		args = append(args, scope.TenantID)

@@ -38,6 +38,14 @@ func (s *UserStore) PutFactor(ctx context.Context, tx database.Executor, userID 
 			args = append(args, tenantID)
 		}
 	}
+	if s.dialect == database.MySQL {
+		query = `INSERT INTO user_mfa (user_id, secret_ciphertext, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE secret_ciphertext = VALUES(secret_ciphertext), enabled = VALUES(enabled), updated_at = VALUES(updated_at)`
+		args = []any{userID, ciphertext, enabled, now, now}
+		if s.RequireTenantScope {
+			query = `INSERT INTO user_mfa (user_id, secret_ciphertext, enabled, created_at, updated_at, tenant_id) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE secret_ciphertext = VALUES(secret_ciphertext), enabled = VALUES(enabled), updated_at = VALUES(updated_at), tenant_id = VALUES(tenant_id)`
+			args = append(args, tenantID)
+		}
+	}
 	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
@@ -59,7 +67,7 @@ func (s *UserStore) GetFactor(ctx context.Context, db database.Executor, userID 
 		query += ` AND tenant_id = $2`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `SELECT secret_ciphertext, enabled FROM user_mfa WHERE user_id = ?`
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -93,7 +101,7 @@ func (s *UserStore) PutRecoveryCode(ctx context.Context, tx database.Executor, u
 		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES ($1, $2, $3)`
 		args = args[:3]
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES (?, ?, ?)`
 		args = []any{id, userID, codeHash}
 		if s.RequireTenantScope {
@@ -122,9 +130,12 @@ func (s *UserStore) ConsumeRecoveryCode(ctx context.Context, tx database.Executo
 		query += ` AND tenant_id = $4`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `UPDATE mfa_recovery_codes SET used_at = ? WHERE user_id = ? AND code_hash = ? AND used_at IS NULL`
-		args = []any{usedAt.Format(time.RFC3339Nano), userID, codeHash}
+		args = []any{usedAt, userID, codeHash}
+		if s.dialect == database.SQLite {
+			args[0] = usedAt.Format(time.RFC3339Nano)
+		}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
 			args = append(args, tenantID)

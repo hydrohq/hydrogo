@@ -5178,7 +5178,13 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("seed demo member password: %w", err)
 	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect,
+	if cfg.Database.Dialect == database.MySQL {
+		if err := seedExecMySQL(ctx, db,
+			`INSERT IGNORE INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES (?,?,?,1,?,?,?,?)`,
+			"demo-member-portal", "member@hydrogo.local", demoMemberHash, now, now, now, now); err != nil {
+			return fmt.Errorf("seed demo member: %w", err)
+		}
+	} else if err := seedExec(ctx, db, cfg.Database.Dialect,
 		`INSERT INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES ($1,$2,$3,TRUE,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING`,
 		`INSERT OR IGNORE INTO members (id,email,password_hash,active,email_verified_at,last_login_at,created_at,updated_at) VALUES (?,?,?,1,?,?,?,?)`,
 		"demo-member-portal", "member@hydrogo.local", demoMemberHash, now, now, now, now); err != nil {
@@ -5293,16 +5299,27 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("write seed media file %s: %w", filePath, err)
 		}
 		sizeBytes := int64(len(payload))
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES ($1,$2,$3,'image/png',$4,$5,$6,'public','ready',$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES (?1,?2,?3,'image/png',?4,?5,?6,'public','ready',?7,?7)`, id, storageKey, filename, sizeBytes, width, height, now); err != nil {
-			return fmt.Errorf("seed media asset %s: %w", id, err)
-		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE media_assets SET storage_key=$1,original_filename=$2,size_bytes=$3,width=$4,height=$5,visibility='public',status='ready',updated_at=$6 WHERE id=$7`, `UPDATE media_assets SET storage_key=?1,original_filename=?2,size_bytes=?3,width=?4,height=?5,visibility='public',status='ready',updated_at=?6 WHERE id=?7`, storageKey, filename, sizeBytes, width, height, now, id); err != nil {
-			return err
+		if cfg.Database.Dialect == database.MySQL {
+			if err := seedExecMySQL(ctx, db, `INSERT IGNORE INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES (?,?,?,'image/png',?,?,?,'public','ready',?,?)`, id, storageKey, filename, sizeBytes, width, height, now, now); err != nil {
+				return fmt.Errorf("seed media asset %s: %w", id, err)
+			}
+			if err := seedExecMySQL(ctx, db, `UPDATE media_assets SET storage_key=?,original_filename=?,size_bytes=?,width=?,height=?,visibility='public',status='ready',updated_at=? WHERE id=?`, storageKey, filename, sizeBytes, width, height, now, id); err != nil {
+				return err
+			}
+		} else {
+			if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES ($1,$2,$3,'image/png',$4,$5,$6,'public','ready',$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES (?1,?2,?3,'image/png',?4,?5,?6,'public','ready',?7,?7)`, id, storageKey, filename, sizeBytes, width, height, now); err != nil {
+				return fmt.Errorf("seed media asset %s: %w", id, err)
+			}
+			if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE media_assets SET storage_key=$1,original_filename=$2,size_bytes=$3,width=$4,height=$5,visibility='public',status='ready',updated_at=$6 WHERE id=$7`, `UPDATE media_assets SET storage_key=?1,original_filename=?2,size_bytes=?3,width=?4,height=?5,visibility='public',status='ready',updated_at=?6 WHERE id=?7`, storageKey, filename, sizeBytes, width, height, now, id); err != nil {
+				return err
+			}
 		}
 		var storedKey string
 		query := `SELECT storage_key FROM media_assets WHERE id=$1`
 		if cfg.Database.Dialect == database.SQLite {
 			query = `SELECT storage_key FROM media_assets WHERE id=?1`
+		} else if cfg.Database.Dialect == database.MySQL {
+			query = `SELECT storage_key FROM media_assets WHERE id=?`
 		}
 		if err := db.QueryRowContext(ctx, query, id).Scan(&storedKey); err != nil {
 			return fmt.Errorf("seed media asset %s was not persisted: %w", id, err)
@@ -5362,11 +5379,22 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		}
 		localePath := url.PathEscape(demoLocale)
 		blocks = strings.ReplaceAll(strings.ReplaceAll(blocks, "/public/pages/tr/", "/public/pages/"+localePath+"/"), "/public/news/tr/", "/public/news/"+localePath+"/")
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,$3,$4,$5,'published',1,1,1,$6,$6,$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,?3,?4,?5,'published',1,1,1,?6,?6,?7,?7)`, id, title, demoLocale, slug, body, blocks, now); err != nil {
+		if cfg.Database.Dialect == database.MySQL {
+			if err := seedExecMySQL(ctx, db, `INSERT IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?,?,1,?,?,?,'published',1,1,1,?,?,?,?)`, id, title, demoLocale, slug, body, blocks, blocks, now, now); err != nil {
+				return err
+			}
+		} else if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES ($1,$2,1,$3,$4,$5,'published',1,1,1,$6,$6,$7,$7) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO pages (id,title,version,locale,slug,body,status,revision,published_revision,publication_generation,blocks,published_blocks,created_at,updated_at) VALUES (?1,?2,1,?3,?4,?5,'published',1,1,1,?6,?6,?7,?7)`, id, title, demoLocale, slug, body, blocks, now); err != nil {
 			return err
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE pages SET locale=$1,slug=$2,title=$3,body=$4,blocks=$5,published_locale=$1,published_slug=$2,published_title=$3,published_body=$4,published_blocks=$5 WHERE id=$6`, `UPDATE pages SET locale=?1,slug=?2,title=?3,body=?4,blocks=?5,published_locale=?1,published_slug=?2,published_title=?3,published_body=?4,published_blocks=?5 WHERE id=?6`, demoLocale, slug, title, body, blocks, id); err != nil {
+		if cfg.Database.Dialect == database.MySQL {
+			if err := seedExecMySQL(ctx, db, `UPDATE pages SET locale=?,slug=?,title=?,body=?,blocks=?,published_locale=?,published_slug=?,published_title=?,published_body=?,published_blocks=? WHERE id=?`, demoLocale, slug, title, body, blocks, demoLocale, slug, title, body, blocks, id); err != nil {
+				return err
+			}
+		} else if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE pages SET locale=$1,slug=$2,title=$3,body=$4,blocks=$5,published_locale=$1,published_slug=$2,published_title=$3,published_body=$4,published_blocks=$5 WHERE id=$6`, `UPDATE pages SET locale=?1,slug=?2,title=?3,body=?4,blocks=?5,published_locale=?1,published_slug=?2,published_title=?3,published_body=?4,published_blocks=?5 WHERE id=?6`, demoLocale, slug, title, body, blocks, id); err != nil {
 			return err
+		}
+		if cfg.Database.Dialect == database.MySQL {
+			return seedExecMySQL(ctx, db, `INSERT IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?,?,1,?,?,?,?,?,?)`, id+"-rev-1", id, demoLocale, slug, title, body, blocks, now)
 		}
 		return seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8) ON CONFLICT (page_id,revision) DO NOTHING`, `INSERT OR IGNORE INTO page_revisions (id,page_id,revision,locale,slug,title,body,blocks,created_at) VALUES (?1,?2,1,?3,?4,?5,?6,?7,?8)`, id+"-rev-1", id, demoLocale, slug, title, body, blocks, now)
 	}
@@ -5520,20 +5548,36 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		if cfg.Database.Dialect == database.Postgres {
 			featuredValue = item.featured
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'published',1,1,1,0,$13,$13) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,'published',1,1,1,0,?13,?13)`, item.id, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, now); err != nil {
+		if cfg.Database.Dialect == database.MySQL {
+			if err := seedExecMySQL(ctx, db, `INSERT IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'published',1,1,1,0,?,?)`, item.id, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, now, now); err != nil {
+				return fmt.Errorf("seed news %s: %w", item.id, err)
+			}
+		} else if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'published',1,1,1,0,$13,$13) ON CONFLICT (id) DO NOTHING`, `INSERT OR IGNORE INTO news_items (id,locale,slug,title,excerpt,key_takeaways,category,author_name,cover_media_id,featured,tags,body,status,version,revision,published_revision,schedule_generation,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,'published',1,1,1,0,?13,?13)`, item.id, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, now); err != nil {
 			return fmt.Errorf("seed news %s: %w", item.id, err)
 		}
-		if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale=$1,slug=$2,title=$3,excerpt=$4,key_takeaways=$5,category=$6,author_name=$7,cover_media_id=$8,featured=$9,tags=$10,body=$11,status='published',published_revision=revision WHERE id=$12`, `UPDATE news_items SET locale=?1,slug=?2,title=?3,excerpt=?4,key_takeaways=?5,category=?6,author_name=?7,cover_media_id=?8,featured=?9,tags=?10,body=?11,status='published',published_revision=revision WHERE id=?12`, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, item.id); err != nil {
+		if cfg.Database.Dialect == database.MySQL {
+			if err := seedExecMySQL(ctx, db, `UPDATE news_items SET locale=?,slug=?,title=?,excerpt=?,key_takeaways=?,category=?,author_name=?,cover_media_id=?,featured=?,tags=?,body=?,status='published',published_revision=revision WHERE id=?`, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, item.id); err != nil {
+				return err
+			}
+		} else if err := seedExec(ctx, db, cfg.Database.Dialect, `UPDATE news_items SET locale=$1,slug=$2,title=$3,excerpt=$4,key_takeaways=$5,category=$6,author_name=$7,cover_media_id=$8,featured=$9,tags=$10,body=$11,status='published',published_revision=revision WHERE id=$12`, `UPDATE news_items SET locale=?1,slug=?2,title=?3,excerpt=?4,key_takeaways=?5,category=?6,author_name=?7,cover_media_id=?8,featured=?9,tags=?10,body=?11,status='published',published_revision=revision WHERE id=?12`, demoLocale, item.slug, item.title, item.excerpt, item.takeaways, item.category, item.author, item.coverMediaID, featuredValue, item.tags, item.body, item.id); err != nil {
 			return fmt.Errorf("publish news %s: %w", item.id, err)
 		}
 	}
 	if err := seedDemoTaxonomy(ctx, db, cfg.Database.Dialect, newsList); err != nil {
 		return fmt.Errorf("seed demo categories: %w", err)
 	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO site_settings (key,value,is_public,updated_at) VALUES ($1,$2,TRUE,$3) ON CONFLICT (tenant_id,key) DO NOTHING`, `INSERT OR IGNORE INTO site_settings (key,value,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
+	if cfg.Database.Dialect == database.MySQL {
+		if err := seedExecMySQL(ctx, db, `INSERT IGNORE INTO site_settings (`+"`key`"+`,`+"`value`"+`,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
+			return fmt.Errorf("seed setting: %w", err)
+		}
+	} else if err := seedExec(ctx, db, cfg.Database.Dialect, `INSERT INTO site_settings (key,value,is_public,updated_at) VALUES ($1,$2,TRUE,$3) ON CONFLICT (tenant_id,key) DO NOTHING`, `INSERT OR IGNORE INTO site_settings (key,value,is_public,updated_at) VALUES (?,?,1,?)`, "site.title", "HydroGo Demo", now); err != nil {
 		return fmt.Errorf("seed setting: %w", err)
 	}
-	if err := seedExec(ctx, db, cfg.Database.Dialect, `DELETE FROM navigation_items WHERE id LIKE $1`, `DELETE FROM navigation_items WHERE id LIKE ?`, "demo-nav-%"); err != nil {
+	if cfg.Database.Dialect == database.MySQL {
+		if err := seedExecMySQL(ctx, db, `DELETE FROM navigation_items WHERE id LIKE ?`, "demo-nav-%"); err != nil {
+			return fmt.Errorf("remove legacy demo navigation: %w", err)
+		}
+	} else if err := seedExec(ctx, db, cfg.Database.Dialect, `DELETE FROM navigation_items WHERE id LIKE $1`, `DELETE FROM navigation_items WHERE id LIKE ?`, "demo-nav-%"); err != nil {
 		return fmt.Errorf("remove legacy demo navigation: %w", err)
 	}
 	_, err = fmt.Fprintf(stdout, "demo-seeded pages=%d news=%d media=%d locale=%s navigation=0\n", 3, len(newsList), len(mediaFixtures), demoLocale)
@@ -5681,7 +5725,12 @@ func seedDemoTaxonomy(ctx context.Context, db database.Executor, dialect databas
 		if err != nil {
 			return err
 		}
-		if err := seedExec(ctx, db, dialect,
+		if dialect == database.MySQL {
+			if err := seedExecMySQL(ctx, db,
+				`INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,'category',NULL,?) ON DUPLICATE KEY UPDATE slug=VALUES(slug),labels_json=VALUES(labels_json)`, id, demoTaxonomySlug(name), string(labels)); err != nil {
+				return err
+			}
+		} else if err := seedExec(ctx, db, dialect,
 			`INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES ($1,$2,'category',NULL,$3) ON CONFLICT(id) DO UPDATE SET slug=EXCLUDED.slug,labels_json=EXCLUDED.labels_json`,
 			`INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,'category',NULL,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,labels_json=excluded.labels_json`, id, demoTaxonomySlug(name), string(labels)); err != nil {
 			return err
@@ -5692,7 +5741,12 @@ func seedDemoTaxonomy(ctx context.Context, db database.Executor, dialect databas
 		if categoryID == "" {
 			continue
 		}
-		if err := seedExec(ctx, db, dialect,
+		if dialect == database.MySQL {
+			if err := seedExecMySQL(ctx, db,
+				`INSERT IGNORE INTO news_taxonomy_relations (content_id,term_id) VALUES (?,?)`, item.id, categoryID); err != nil {
+				return err
+			}
+		} else if err := seedExec(ctx, db, dialect,
 			`INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES ($1,$2) ON CONFLICT(content_id,term_id) DO NOTHING`,
 			`INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES (?,?) ON CONFLICT(content_id,term_id) DO NOTHING`, item.id, categoryID); err != nil {
 			return err
@@ -5732,6 +5786,16 @@ func seedExec(ctx context.Context, db database.Executor, dialect database.Dialec
 		query = sqliteQuery
 	}
 	_, err := db.ExecContext(ctx, query, args...)
+	return err
+}
+
+// seedExecMySQL mirrors seedExec for MySQL, which needs its own query text
+// (plain, non-numbered "?" placeholders, "INSERT IGNORE"/"ON DUPLICATE KEY
+// UPDATE" instead of SQLite/Postgres upsert syntax) and its own arg list,
+// since MySQL placeholders cannot be referenced by number and reused the way
+// "$7"/"?7" are reused above for a value written to two columns.
+func seedExecMySQL(ctx context.Context, db database.Executor, mysqlQuery string, args ...any) error {
+	_, err := db.ExecContext(ctx, mysqlQuery, args...)
 	return err
 }
 

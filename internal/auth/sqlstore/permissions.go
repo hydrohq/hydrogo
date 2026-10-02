@@ -20,7 +20,7 @@ func (s *UserStore) LoadPermissionOverrides(ctx context.Context, userID string) 
 	}
 	query := `SELECT permission, allowed FROM admin_user_permissions WHERE user_id = $1 AND tenant_id = $2`
 	args := []any{userID, tenantID}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `SELECT permission, allowed FROM admin_user_permissions WHERE user_id = ? AND tenant_id = ?`
 	}
 	result := make(map[string]bool)
@@ -61,7 +61,7 @@ func (s *UserStore) ReplacePermissionOverrides(ctx context.Context, userID strin
 	return s.within(ctx, func(exec database.Executor) error {
 		deleteQuery := `DELETE FROM admin_user_permissions WHERE user_id = $1 AND tenant_id = $2`
 		deleteArgs := []any{userID, tenantID}
-		if s.dialect == database.SQLite {
+		if s.dialect == database.SQLite || s.dialect == database.MySQL {
 			deleteQuery = `DELETE FROM admin_user_permissions WHERE user_id = ? AND tenant_id = ?`
 		}
 		if _, err := exec.ExecContext(ctx, deleteQuery, deleteArgs...); err != nil {
@@ -71,8 +71,10 @@ func (s *UserStore) ReplacePermissionOverrides(ctx context.Context, userID strin
 		for permission, allowed := range overrides {
 			query := `INSERT INTO admin_user_permissions (user_id, permission, allowed, tenant_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)`
 			args := []any{userID, permission, allowed, tenantID, now, now}
-			if s.dialect == database.SQLite {
+			if s.dialect == database.SQLite || s.dialect == database.MySQL {
 				query = `INSERT INTO admin_user_permissions (user_id, permission, allowed, tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`
+			}
+			if s.dialect == database.SQLite {
 				args[2] = boolToSQLite(allowed)
 				args[4], args[5] = now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)
 			}

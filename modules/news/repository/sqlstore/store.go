@@ -20,10 +20,10 @@ type Store struct {
 var ErrInvalidListLimit = errors.New("news list limit must be between 1 and 100")
 
 func (s Store) p(n int) string {
-	if s.Dialect == database.SQLite {
-		return "?"
+	if s.Dialect == database.Postgres {
+		return fmt.Sprintf("$%d", n)
 	}
-	return fmt.Sprintf("$%d", n)
+	return "?"
 }
 
 func (s Store) expiryFilter() string { return s.expiryFilterPrefixed("") }
@@ -68,8 +68,10 @@ func (s Store) CreateDraft(ctx context.Context, tx database.Executor, item news.
 		expires = *item.ExpiresAt
 	}
 	args := []any{item.ID, item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, expires, now, now}
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		query = `INSERT INTO news_items (id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,schedule_generation,expires_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft',1,1,0,?,?,?)`
+	}
+	if s.Dialect == database.SQLite {
 		if item.ExpiresAt != nil {
 			args[14] = item.ExpiresAt.UTC().Format(time.RFC3339Nano)
 		}
@@ -101,8 +103,10 @@ func (s Store) UpdateDraft(ctx context.Context, tx database.Executor, item news.
 	}
 	query := `UPDATE news_items SET locale=$1,slug=$2,title=$3,body=$4,cover_media_id=$5,excerpt=$6,key_takeaways=$7,category=$8,author_name=$9,featured=$10,tags=$11,seo_title=$12,seo_description=$13,status='draft',revision=revision+1,version=version+1,expires_at=$14,updated_at=$15 WHERE id=$16 AND version=$17 AND status IN ('draft','retracted') AND deleted_at IS NULL`
 	args := []any{item.Locale, item.Slug, item.Title, item.Body, item.CoverMediaID, item.Excerpt, item.KeyTakeaways, item.Category, item.AuthorName, boolArg(s.Dialect, item.Featured), item.Tags, item.SEOTitle, item.SEODescription, expires, now, item.ID, expectedVersion}
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		query = `UPDATE news_items SET locale=?,slug=?,title=?,body=?,cover_media_id=?,excerpt=?,key_takeaways=?,category=?,author_name=?,featured=?,tags=?,seo_title=?,seo_description=?,status='draft',revision=revision+1,version=version+1,expires_at=?,updated_at=? WHERE id=? AND version=? AND status IN ('draft','retracted') AND deleted_at IS NULL`
+	}
+	if s.Dialect == database.SQLite {
 		if item.ExpiresAt != nil {
 			args[13] = item.ExpiresAt.UTC().Format(time.RFC3339Nano)
 		}
@@ -133,9 +137,12 @@ func (s Store) Schedule(ctx context.Context, tx database.Executor, id string, ex
 	}
 	query := `UPDATE news_items SET status='scheduled',scheduled_at=$1,schedule_generation=schedule_generation+1,version=version+1,updated_at=$1 WHERE id=$2 AND version=$3 AND status IN ('draft','retracted') AND deleted_at IS NULL` + filter
 	args := []any{at, id, expectedVersion}
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		query = `UPDATE news_items SET status='scheduled',scheduled_at=?,schedule_generation=schedule_generation+1,version=version+1,updated_at=? WHERE id=? AND version=? AND status IN ('draft','retracted') AND deleted_at IS NULL` + filter
-		stamp := at.Format(time.RFC3339Nano)
+		stamp := any(at)
+		if s.Dialect == database.SQLite {
+			stamp = at.Format(time.RFC3339Nano)
+		}
 		args = []any{stamp, stamp, id, expectedVersion}
 	}
 	if filter != "" {
@@ -174,8 +181,11 @@ func (s Store) PublishScheduled(ctx context.Context, tx database.Executor, id st
 	}
 	query := `UPDATE news_items SET status='published',published_revision=revision,scheduled_at=NULL,version=version+1,updated_at=$1 WHERE id=$2 AND status='scheduled' AND schedule_generation=$3 AND scheduled_at <= $1 AND deleted_at IS NULL` + filter
 	args := []any{now, id, generation}
-	if s.Dialect == database.SQLite {
-		stamp := now.Format(time.RFC3339Nano)
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
+		stamp := any(now)
+		if s.Dialect == database.SQLite {
+			stamp = now.Format(time.RFC3339Nano)
+		}
 		query = `UPDATE news_items SET status='published',published_revision=revision,scheduled_at=NULL,version=version+1,updated_at=? WHERE id=? AND status='scheduled' AND schedule_generation=? AND scheduled_at <= ? AND deleted_at IS NULL` + filter
 		args = []any{stamp, id, generation, stamp}
 	}
@@ -203,10 +213,11 @@ func (s Store) PublishNow(ctx context.Context, tx database.Executor, id string, 
 	}
 	query := `UPDATE news_items SET status='published',published_revision=revision,scheduled_at=NULL,version=version+1,updated_at=$1 WHERE id=$2 AND version=$3 AND status IN ('draft','scheduled','retracted') AND deleted_at IS NULL` + filter
 	args := []any{time.Now().UTC(), id, expectedVersion}
-	if s.Dialect == database.SQLite {
-		stamp := time.Now().UTC().Format(time.RFC3339Nano)
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		query = `UPDATE news_items SET status='published',published_revision=revision,scheduled_at=NULL,version=version+1,updated_at=? WHERE id=? AND version=? AND status IN ('draft','scheduled','retracted') AND deleted_at IS NULL` + filter
-		args[0] = stamp
+		if s.Dialect == database.SQLite {
+			args[0] = time.Now().UTC().Format(time.RFC3339Nano)
+		}
 	}
 	if filter != "" {
 		args = append(args, scopeID)
@@ -232,10 +243,11 @@ func (s Store) Retract(ctx context.Context, tx database.Executor, id string, exp
 	}
 	query := `UPDATE news_items SET status='retracted',version=version+1,updated_at=$1 WHERE id=$2 AND version=$3 AND status='published' AND deleted_at IS NULL` + filter
 	args := []any{time.Now().UTC(), id, expectedVersion}
-	if s.Dialect == database.SQLite {
-		stamp := time.Now().UTC().Format(time.RFC3339Nano)
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		query = `UPDATE news_items SET status='retracted',version=version+1,updated_at=? WHERE id=? AND version=? AND status='published' AND deleted_at IS NULL` + filter
-		args[0] = stamp
+		if s.Dialect == database.SQLite {
+			args[0] = time.Now().UTC().Format(time.RFC3339Nano)
+		}
 	}
 	if filter != "" {
 		args = append(args, scopeID)
@@ -380,11 +392,11 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, c
 		return nil, err
 	}
 	query := `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=$1) AND n.id<>$1 AND n.locale=$2 AND n.status='published' AND n.published_revision IS NOT NULL AND n.deleted_at IS NULL` + s.expiryFilterPrefixed("n") + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT $3`
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		query = `SELECT n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at,COUNT(rel.term_id) AS relevance FROM news_items n JOIN news_taxonomy_relations rel ON rel.content_id=n.id WHERE rel.term_id IN (SELECT term_id FROM news_taxonomy_relations WHERE content_id=?) AND n.id<>? AND n.locale=? AND n.status='published' AND n.published_revision IS NOT NULL AND n.deleted_at IS NULL` + s.expiryFilterPrefixed("n") + filter + ` GROUP BY n.id,n.locale,n.slug,n.title,n.category,n.cover_media_id,n.excerpt,n.updated_at ORDER BY relevance DESC,n.updated_at DESC,n.id ASC LIMIT ?`
 	}
 	args := []any{contentID, locale, limit}
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		args = []any{contentID, contentID, locale, limit}
 	}
 	if filter != "" {

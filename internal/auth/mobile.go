@@ -165,7 +165,7 @@ func (s *MobileAuthService) IssueTokenPair(ctx context.Context, userID, deviceID
 	var dbRefreshExpires any = refreshExpiryStr
 	var dbCreated any = nowStr
 	var dbLastUsed any = nowStr
-	if s.dialect == database.Postgres {
+	if s.dialect == database.Postgres || s.dialect == database.MySQL {
 		dbAccessExpires = accessExpiry
 		dbRefreshExpires = refreshExpiry
 		dbCreated = now
@@ -321,32 +321,26 @@ func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToke
 
 		// Invalidate the current session token (single-use rotation)
 		var revokeQuery string
+		var revokeArg any = now.Format(time.RFC3339)
 		if s.dialect == database.Postgres {
 			revokeQuery = `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE id = $2`
-			result, updateErr := tx.ExecContext(ctx, revokeQuery+` AND revoked_at IS NULL`, now, sessionID)
-			if updateErr != nil {
-				return updateErr
-			}
-			changed, updateErr := result.RowsAffected()
-			if updateErr != nil || changed != 1 {
-				if updateErr != nil {
-					return updateErr
-				}
-				return ErrTokenReused
-			}
+			revokeArg = now
 		} else {
 			revokeQuery = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE id = ?`
-			result, updateErr := tx.ExecContext(ctx, revokeQuery+` AND revoked_at IS NULL`, now.Format(time.RFC3339), sessionID)
+			if s.dialect == database.MySQL {
+				revokeArg = now
+			}
+		}
+		result, updateErr := tx.ExecContext(ctx, revokeQuery+` AND revoked_at IS NULL`, revokeArg, sessionID)
+		if updateErr != nil {
+			return updateErr
+		}
+		changed, updateErr := result.RowsAffected()
+		if updateErr != nil || changed != 1 {
 			if updateErr != nil {
 				return updateErr
 			}
-			changed, updateErr := result.RowsAffected()
-			if updateErr != nil || changed != 1 {
-				if updateErr != nil {
-					return updateErr
-				}
-				return ErrTokenReused
-			}
+			return ErrTokenReused
 		}
 
 		// Issue replacement token pair within the same Family
@@ -389,7 +383,7 @@ func (s *MobileAuthService) RefreshTokenPair(ctx context.Context, rawRefreshToke
 		var dbRefreshExpires any = refreshExpiryStr
 		var dbCreated any = nowStr
 		var dbLastUsed any = nowStr
-		if s.dialect == database.Postgres {
+		if s.dialect == database.Postgres || s.dialect == database.MySQL {
 			dbAccessExpires = accessExpiry
 			dbRefreshExpires = refreshExpiry
 			dbCreated = now
@@ -480,9 +474,11 @@ func (s *MobileAuthService) ValidateAccessToken(ctx context.Context, rawAccessTo
 func revokeMobileFamily(ctx context.Context, tx database.Executor, dialect database.Dialect, familyID string, now time.Time) error {
 	query := `UPDATE mobile_device_sessions SET revoked_at = $1 WHERE family_id = $2 AND revoked_at IS NULL`
 	args := []any{now, familyID}
-	if dialect == database.SQLite {
+	if dialect == database.SQLite || dialect == database.MySQL {
 		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL`
-		args[0] = now.Format(time.RFC3339)
+		if dialect == database.SQLite {
+			args[0] = now.Format(time.RFC3339)
+		}
 	}
 	_, err := tx.ExecContext(ctx, query, args...)
 	return err
@@ -498,7 +494,11 @@ func (s *MobileAuthService) RevokeFamily(ctx context.Context, familyID string) e
 		args = []any{now, familyID}
 	} else {
 		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL`
-		args = []any{now.Format(time.RFC3339), familyID}
+		arg := any(now.Format(time.RFC3339))
+		if s.dialect == database.MySQL {
+			arg = now
+		}
+		args = []any{arg, familyID}
 	}
 	return s.within(ctx, func(exec database.Executor) error {
 		_, err := exec.ExecContext(ctx, query, args...)
@@ -523,11 +523,15 @@ func (s *MobileAuthService) RevokeDevice(ctx context.Context, userID, deviceID s
 			args = []any{now, userID, tenantID, deviceID}
 		}
 	} else {
+		var nowArg any = now.Format(time.RFC3339)
+		if s.dialect == database.MySQL {
+			nowArg = now
+		}
 		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND device_id = ? AND revoked_at IS NULL`
-		args = []any{now.Format(time.RFC3339), userID, deviceID}
+		args = []any{nowArg, userID, deviceID}
 		if s.RequireTenantScope {
 			query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id IN (SELECT id FROM users WHERE id = ? AND tenant_id = ?) AND device_id = ? AND revoked_at IS NULL`
-			args = []any{now.Format(time.RFC3339), userID, tenantID, deviceID}
+			args = []any{nowArg, userID, tenantID, deviceID}
 		}
 	}
 	return s.within(ctx, func(exec database.Executor) error {
@@ -553,11 +557,15 @@ func (s *MobileAuthService) RevokeAllDevices(ctx context.Context, userID string)
 			args = []any{now, userID, tenantID}
 		}
 	} else {
+		var nowArg any = now.Format(time.RFC3339)
+		if s.dialect == database.MySQL {
+			nowArg = now
+		}
 		query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`
-		args = []any{now.Format(time.RFC3339), userID}
+		args = []any{nowArg, userID}
 		if s.RequireTenantScope {
 			query = `UPDATE mobile_device_sessions SET revoked_at = ? WHERE user_id IN (SELECT id FROM users WHERE id = ? AND tenant_id = ?) AND revoked_at IS NULL`
-			args = []any{now.Format(time.RFC3339), userID, tenantID}
+			args = []any{nowArg, userID, tenantID}
 		}
 	}
 	return s.within(ctx, func(exec database.Executor) error {

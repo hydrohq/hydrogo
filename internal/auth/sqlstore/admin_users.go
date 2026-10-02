@@ -23,7 +23,7 @@ func (s *UserStore) List(ctx context.Context) ([]*auth.User, error) {
 	if s.RequireTenantScope {
 		query = `SELECT id, email, password_hash, role, active, created_at, updated_at, email_verified_at FROM users WHERE tenant_id = $1 ORDER BY email`
 		args = append(args, tenantID)
-		if s.dialect == database.SQLite {
+		if s.dialect == database.SQLite || s.dialect == database.MySQL {
 			query = `SELECT id, email, password_hash, role, active, created_at, updated_at, email_verified_at FROM users WHERE tenant_id = ? ORDER BY email`
 		}
 	}
@@ -84,9 +84,12 @@ func (s *UserStore) UpdateRole(ctx context.Context, userID string, role auth.Rol
 		query += ` AND tenant_id = $4`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `UPDATE users SET role = ?, updated_at = ? WHERE id = ?`
-		args = []any{string(role), time.Now().UTC().Format(time.RFC3339Nano), userID}
+		args = []any{string(role), time.Now().UTC(), userID}
+		if s.dialect == database.SQLite {
+			args[1] = time.Now().UTC().Format(time.RFC3339Nano)
+		}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
 			args = append(args, tenantID)

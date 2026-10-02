@@ -30,7 +30,7 @@ func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor,
 		tenantID = scope.TenantID
 	}
 	stats := adminstudio.WeeklyDigestStats{}
-	startValue, endValue := start.UTC().Format(time.RFC3339Nano), end.UTC().Format(time.RFC3339Nano)
+	startValue, endValue := s.dbTimeValue(start), s.dbTimeValue(end)
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM form_inbox WHERE tenant_id="+s.p(1)+" AND deleted_at IS NULL AND created_at>="+s.p(2)+" AND created_at<"+s.p(3), tenantID, startValue, endValue).Scan(&stats.NewLeads); err != nil {
 		return stats, err
 	}
@@ -81,7 +81,7 @@ func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor,
 		}
 	}
 	if len(membersEnabled) > 0 && membersEnabled[0] {
-		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM members WHERE tenant_id="+s.p(1)+" AND created_at>="+s.p(2)+" AND created_at<"+s.p(3), tenantID, start.UTC().Format(time.RFC3339Nano), end.UTC().Format(time.RFC3339Nano)).Scan(&stats.NewMembers); err != nil {
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM members WHERE tenant_id="+s.p(1)+" AND created_at>="+s.p(2)+" AND created_at<"+s.p(3), tenantID, startValue, endValue).Scan(&stats.NewMembers); err != nil {
 			return stats, err
 		}
 	}
@@ -345,6 +345,13 @@ func (s Store) p(n int) string {
 		return fmt.Sprintf("$%d", n)
 	}
 	return "?"
+}
+func (s Store) dbTimeValue(t time.Time) any {
+	t = t.UTC()
+	if s.Dialect == database.SQLite {
+		return t.Format(time.RFC3339Nano)
+	}
+	return t
 }
 func safeTarget(value string) bool {
 	return len(value) > 0 && value[0] == '/' && (len(value) == 1 || (value[1] != '/' && value[1] != '\\'))

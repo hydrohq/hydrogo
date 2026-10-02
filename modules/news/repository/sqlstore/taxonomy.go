@@ -48,8 +48,11 @@ func (s Store) UpsertTaxonomyTerm(ctx context.Context, tx database.Executor, ter
 		return fmt.Errorf("encode taxonomy labels: %w", err)
 	}
 	query := `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES ($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET slug=EXCLUDED.slug,kind=EXCLUDED.kind,parent_id=EXCLUDED.parent_id,labels_json=EXCLUDED.labels_json`
-	if s.Dialect == database.SQLite {
+	switch s.Dialect {
+	case database.SQLite:
 		query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,kind=excluded.kind,parent_id=excluded.parent_id,labels_json=excluded.labels_json`
+	case database.MySQL:
+		query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE slug=VALUES(slug),kind=VALUES(kind),parent_id=VALUES(parent_id),labels_json=VALUES(labels_json)`
 	}
 	_, err = tx.ExecContext(ctx, query, term.ID, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels))
 	return err
@@ -70,7 +73,7 @@ func (s Store) DeleteTaxonomyTerm(ctx context.Context, tx database.Executor, id 
 	}
 	var childCount int
 	childQuery := `SELECT COUNT(*) FROM news_taxonomy_terms WHERE parent_id=$1`
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		childQuery = `SELECT COUNT(*) FROM news_taxonomy_terms WHERE parent_id=?`
 	}
 	if err := queryer.QueryRowContext(ctx, childQuery, id).Scan(&childCount); err != nil {
@@ -81,7 +84,7 @@ func (s Store) DeleteTaxonomyTerm(ctx context.Context, tx database.Executor, id 
 	}
 	var relationCount int
 	relationQuery := `SELECT COUNT(*) FROM news_taxonomy_relations WHERE term_id=$1`
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		relationQuery = `SELECT COUNT(*) FROM news_taxonomy_relations WHERE term_id=?`
 	}
 	if err := queryer.QueryRowContext(ctx, relationQuery, id).Scan(&relationCount); err != nil {
@@ -91,7 +94,7 @@ func (s Store) DeleteTaxonomyTerm(ctx context.Context, tx database.Executor, id 
 		return ErrTaxonomyTermInUse
 	}
 	deleteQuery := `DELETE FROM news_taxonomy_terms WHERE id=$1`
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		deleteQuery = `DELETE FROM news_taxonomy_terms WHERE id=?`
 	}
 	result, err := tx.ExecContext(ctx, deleteQuery, id)
@@ -142,22 +145,25 @@ func (s Store) ReplaceTaxonomy(ctx context.Context, tx database.Executor, conten
 		}
 		query := `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES ($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET slug=EXCLUDED.slug,kind=EXCLUDED.kind,parent_id=EXCLUDED.parent_id,labels_json=EXCLUDED.labels_json`
 		args := []any{term.ID, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels)}
-		if s.Dialect == database.SQLite {
+		switch s.Dialect {
+		case database.SQLite:
 			query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,kind=excluded.kind,parent_id=excluded.parent_id,labels_json=excluded.labels_json`
+		case database.MySQL:
+			query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE slug=VALUES(slug),kind=VALUES(kind),parent_id=VALUES(parent_id),labels_json=VALUES(labels_json)`
 		}
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 			return err
 		}
 	}
 	deleteQuery := `DELETE FROM news_taxonomy_relations WHERE content_id=$1`
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		deleteQuery = `DELETE FROM news_taxonomy_relations WHERE content_id=?`
 	}
 	if _, err := tx.ExecContext(ctx, deleteQuery, contentID); err != nil {
 		return err
 	}
 	insertQuery := `INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES ($1,$2)`
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		insertQuery = `INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES (?,?)`
 	}
 	for _, term := range terms {
@@ -178,7 +184,7 @@ func (s Store) ListTaxonomy(ctx context.Context, tx database.Executor, contentID
 		return nil, fmt.Errorf("taxonomy executor does not support row queries")
 	}
 	query := `SELECT t.id,t.slug,t.kind,COALESCE(t.parent_id,''),t.labels_json FROM news_taxonomy_terms t JOIN news_taxonomy_relations r ON r.term_id=t.id WHERE r.content_id=$1 ORDER BY t.id`
-	if s.Dialect == database.SQLite {
+	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
 		query = `SELECT t.id,t.slug,t.kind,COALESCE(t.parent_id,''),t.labels_json FROM news_taxonomy_terms t JOIN news_taxonomy_relations r ON r.term_id=t.id WHERE r.content_id=? ORDER BY t.id`
 	}
 	rows, err := queryer.QueryContext(ctx, query, strings.TrimSpace(contentID))
