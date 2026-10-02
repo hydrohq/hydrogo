@@ -75,9 +75,12 @@ func (s *SessionStore) Create(ctx context.Context, sess *auth.Session) error {
 		query += fmt.Sprintf("$%d", i+1)
 	}
 	query += `)`
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address`
-		args = []any{sess.ID, sess.UserID, sess.TokenHash, sess.ExpiresAt.Format(time.RFC3339Nano), sess.CreatedAt.Format(time.RFC3339Nano), sess.LastSeenAt.Format(time.RFC3339Nano), sess.UserAgent, sess.IPAddress}
+		args = []any{sess.ID, sess.UserID, sess.TokenHash, sess.ExpiresAt, sess.CreatedAt, sess.LastSeenAt, sess.UserAgent, sess.IPAddress}
+		if s.dialect == database.SQLite {
+			args = []any{sess.ID, sess.UserID, sess.TokenHash, sess.ExpiresAt.Format(time.RFC3339Nano), sess.CreatedAt.Format(time.RFC3339Nano), sess.LastSeenAt.Format(time.RFC3339Nano), sess.UserAgent, sess.IPAddress}
+		}
 		if s.RequireTenantScope {
 			query += `, tenant_id`
 			args = append(args, tenantID)
@@ -116,7 +119,7 @@ func (s *SessionStore) GetByTokenHash(ctx context.Context, tokenHash string) (*a
 		query += ` AND tenant_id = $2`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `SELECT id, user_id, token_hash, expires_at, created_at, last_seen_at, user_agent, ip_address
                  FROM sessions WHERE token_hash = ?`
 		if s.RequireTenantScope {
@@ -166,7 +169,7 @@ func (s *SessionStore) DeleteByTokenHash(ctx context.Context, tokenHash string) 
 		query += ` AND tenant_id = $2`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `DELETE FROM sessions WHERE token_hash = ?`
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -195,7 +198,7 @@ func (s *SessionStore) DeleteByUserID(ctx context.Context, userID string) error 
 		query += ` AND tenant_id = $2`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `DELETE FROM sessions WHERE user_id = ?`
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -224,7 +227,7 @@ func (s *SessionStore) DeleteOtherByUserID(ctx context.Context, userID, currentT
 		query += ` AND tenant_id = $3`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?`
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -250,7 +253,7 @@ func (s *SessionStore) DeleteByIDAndUserID(ctx context.Context, userID, sessionI
 		query += ` AND tenant_id = $3`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `DELETE FROM sessions WHERE user_id = ? AND id = ?`
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -276,18 +279,28 @@ func (s *SessionStore) ListByUserID(ctx context.Context, userID string, now time
 	if err != nil {
 		return nil, err
 	}
-	placeholder := "$"
-	if s.dialect == database.SQLite {
-		placeholder = "?"
-	}
 	args := []any{userID, now.UTC()}
-	if s.dialect == database.SQLite {
+	var q string
+	switch s.dialect {
+	case database.SQLite:
 		args[1] = now.UTC().Format(time.RFC3339Nano)
-	}
-	q := "SELECT id,user_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM sessions WHERE user_id=" + placeholder + "1 AND expires_at>=" + placeholder + "2"
-	if s.RequireTenantScope {
-		q += " AND tenant_id=" + placeholder + "3"
-		args = append(args, tenantID)
+		q = "SELECT id,user_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM sessions WHERE user_id=?1 AND expires_at>=?2"
+		if s.RequireTenantScope {
+			q += " AND tenant_id=?3"
+			args = append(args, tenantID)
+		}
+	case database.MySQL:
+		q = "SELECT id,user_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM sessions WHERE user_id=? AND expires_at>=?"
+		if s.RequireTenantScope {
+			q += " AND tenant_id=?"
+			args = append(args, tenantID)
+		}
+	default:
+		q = "SELECT id,user_id,token_hash,expires_at,created_at,last_seen_at,user_agent,ip_address FROM sessions WHERE user_id=$1 AND expires_at>=$2"
+		if s.RequireTenantScope {
+			q += " AND tenant_id=$3"
+			args = append(args, tenantID)
+		}
 	}
 	q += " ORDER BY last_seen_at DESC,id ASC LIMIT 100"
 	var sessions []auth.Session
@@ -334,7 +347,7 @@ func (s *SessionStore) DeleteByUserIDTx(ctx context.Context, tx database.Executo
 		query += ` AND tenant_id = $2`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `DELETE FROM sessions WHERE user_id = ?`
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -359,9 +372,11 @@ func (s *SessionStore) DeleteExpired(ctx context.Context, now time.Time) (int64,
 		query += ` AND tenant_id = $2`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `DELETE FROM sessions WHERE expires_at <= ?`
-		arg = now.UTC().Format(time.RFC3339Nano)
+		if s.dialect == database.SQLite {
+			arg = now.UTC().Format(time.RFC3339Nano)
+		}
 		args = []any{arg}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -395,9 +410,11 @@ func (s *SessionStore) Touch(ctx context.Context, tokenHash string, lastSeen tim
 		query += ` AND tenant_id = $3`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?`
-		arg = lastSeen.UTC().Format(time.RFC3339Nano)
+		if s.dialect == database.SQLite {
+			arg = lastSeen.UTC().Format(time.RFC3339Nano)
+		}
 		args = []any{arg, tokenHash}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`

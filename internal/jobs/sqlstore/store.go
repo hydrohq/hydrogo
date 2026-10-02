@@ -47,7 +47,7 @@ func (s Store) ListDeadLetters(ctx context.Context, db database.Executor, limit 
 	result := make([]jobs.Job, 0, limit)
 	for rows.Next() {
 		var job jobs.Job
-		var available, created string
+		var available, created any
 		if err := rows.Scan(&job.ID, &job.Type, &job.Payload, &available, &created, &job.Attempts, &job.DeadLettered, &job.LastError); err != nil {
 			return nil, err
 		}
@@ -222,7 +222,7 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 		return jobs.Job{}, "", false, nil
 	}
 	var job jobs.Job
-	var available, created string
+	var available, created any
 	var attempts int
 	deadLettered := "0"
 	if s.Dialect == database.Postgres {
@@ -352,7 +352,18 @@ func (s Store) dbTime(value time.Time) any {
 	return formatTime(value)
 }
 
-func parseTime(value string) (time.Time, error) { return time.Parse(time.RFC3339Nano, value) }
+func parseTime(value any) (time.Time, error) {
+	switch v := value.(type) {
+	case time.Time:
+		return v.UTC(), nil
+	case string:
+		return time.Parse(time.RFC3339Nano, v)
+	case []byte:
+		return time.Parse(time.RFC3339Nano, string(v))
+	default:
+		return time.Time{}, fmt.Errorf("unsupported stored time value type %T", value)
+	}
+}
 
 func newToken(worker, id string, now time.Time) string {
 	random := make([]byte, 8)

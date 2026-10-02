@@ -88,7 +88,6 @@ func (s Store) SaveAdminSettings(ctx context.Context, db database.Executor, valu
 	if s.Dialect == database.MySQL {
 		query = "INSERT INTO site_settings (tenant_id," + key + ",value,is_public,updated_at) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value),is_public=VALUES(is_public),updated_at=VALUES(updated_at)"
 		args[3] = 0
-		args[4] = time.Now().UTC().Format(time.RFC3339Nano)
 	}
 	_, err = db.ExecContext(ctx, query, args...)
 	return err

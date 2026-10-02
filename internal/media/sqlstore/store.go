@@ -42,10 +42,20 @@ func (s Store) CreateProcessing(ctx context.Context, db database.Executor, varia
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := s.dbNow()
 	if scoped {
+		if s.Dialect == database.MySQL {
+			query := `INSERT INTO media_variants (id, media_id, kind, storage_key, mime_type, size_bytes, width, height, duration_ms, status, error_message, created_at, updated_at, tenant_id) VALUES (?,?,?,?,?,0,0,0,0,'processing','',?,?,?) ON DUPLICATE KEY UPDATE status=IF(tenant_id=VALUES(tenant_id),'processing',status), error_message=IF(tenant_id=VALUES(tenant_id),'',error_message), updated_at=IF(tenant_id=VALUES(tenant_id),VALUES(updated_at),updated_at)`
+			_, err = db.ExecContext(ctx, query, variant.ID, variant.MediaID, variant.Kind, variant.ID, variant.MimeType, now, now, scope.TenantID)
+			return err
+		}
 		query := `INSERT INTO media_variants (id, media_id, kind, storage_key, mime_type, size_bytes, width, height, duration_ms, status, error_message, created_at, updated_at, tenant_id) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,0,0,0,0,'processing','',` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `) ON CONFLICT(media_id, kind) DO UPDATE SET status='processing', error_message='', updated_at=` + s.p(9) + ` WHERE media_variants.tenant_id=` + s.p(10)
 		_, err = db.ExecContext(ctx, query, variant.ID, variant.MediaID, variant.Kind, variant.ID, variant.MimeType, now, now, scope.TenantID, now, scope.TenantID)
+		return err
+	}
+	if s.Dialect == database.MySQL {
+		query := `INSERT INTO media_variants (id, media_id, kind, storage_key, mime_type, size_bytes, width, height, duration_ms, status, error_message, created_at, updated_at) VALUES (?,?,?,?,?,0,0,0,0,'processing','',?,?) ON DUPLICATE KEY UPDATE status='processing', error_message='', updated_at=VALUES(updated_at)`
+		_, err = db.ExecContext(ctx, query, variant.ID, variant.MediaID, variant.Kind, variant.ID, variant.MimeType, now, now)
 		return err
 	}
 	query := `INSERT INTO media_variants (id, media_id, kind, storage_key, mime_type, size_bytes, width, height, duration_ms, status, error_message, created_at, updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,0,0,0,0,'processing','',` + s.p(6) + `,` + s.p(7) + `) ON CONFLICT(media_id, kind) DO UPDATE SET status='processing', error_message='', updated_at=` + s.p(8)
@@ -66,7 +76,7 @@ func (s Store) MarkResult(ctx context.Context, db database.Executor, id, status 
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := s.dbNow()
 	if status == "ready" {
 		storageKey, keyErr := media.StorageKeyForContext(ctx, detail)
 		if keyErr != nil {
@@ -220,7 +230,7 @@ func (s Store) CreatePending(ctx context.Context, tx database.Executor, asset me
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := s.dbNow()
 	colors, err := json.Marshal(asset.DominantColors)
 	if err != nil {
 		return err
@@ -259,7 +269,7 @@ func (s Store) MarkReady(ctx context.Context, tx database.Executor, id, visibili
 		return media.ErrInvalidVisibility
 	}
 	query := "UPDATE media_assets SET status = 'ready', visibility = " + s.p(1) + ", updated_at = " + s.p(2) + " WHERE id = " + s.p(3) + " AND status = 'pending'"
-	args := []any{visibility, time.Now().UTC().Format(time.RFC3339Nano), id}
+	args := []any{visibility, s.dbNow(), id}
 	if scoped {
 		query += " AND tenant_id=" + s.p(4)
 		args = append(args, scope.TenantID)
@@ -290,7 +300,7 @@ func (s Store) MarkReadyVerified(ctx context.Context, tx database.Executor, id, 
 		return media.ErrInvalidVisibility
 	}
 	query := "UPDATE media_assets SET status = 'ready', visibility = " + s.p(1) + ", updated_at = " + s.p(2) + " WHERE id = " + s.p(3) + " AND storage_key = " + s.p(4) + " AND status = 'pending'"
-	args := []any{visibility, time.Now().UTC().Format(time.RFC3339Nano), id, storageKey}
+	args := []any{visibility, s.dbNow(), id, storageKey}
 	if scoped {
 		query += " AND tenant_id=" + s.p(5)
 		args = append(args, scope.TenantID)
@@ -321,7 +331,7 @@ func (s Store) SetVisibility(ctx context.Context, tx database.Executor, id, visi
 		return media.ErrInvalidVisibility
 	}
 	query := "UPDATE media_assets SET visibility = " + s.p(1) + ", updated_at = " + s.p(2) + " WHERE id = " + s.p(3) + " AND status = 'ready'"
-	args := []any{visibility, time.Now().UTC().Format(time.RFC3339Nano), id}
+	args := []any{visibility, s.dbNow(), id}
 	if scoped {
 		query += " AND tenant_id=" + s.p(4)
 		args = append(args, scope.TenantID)
@@ -345,6 +355,18 @@ func (s Store) p(position int) string {
 		return fmt.Sprintf("$%d", position)
 	}
 	return "?"
+}
+
+func (s Store) dbNow() any {
+	return s.dbTimeValue(time.Now().UTC())
+}
+
+func (s Store) dbTimeValue(t time.Time) any {
+	t = t.UTC()
+	if s.Dialect == database.SQLite {
+		return t.Format(time.RFC3339Nano)
+	}
+	return t
 }
 
 type queryExecutor interface {

@@ -96,6 +96,9 @@ func (s MobileAuthService) Issue(ctx context.Context, memberID, deviceID, device
 		q += s.ph(i + 1)
 	}
 	q += `)`
+	if s.Dialect == database.MySQL {
+		args[8], args[9], args[10], args[11] = accessUntil, refreshUntil, now, now
+	}
 	if s.Dialect == database.Postgres {
 		args = []any{id, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil, refreshUntil, now, now}
 		if s.RequireTenantScope {
@@ -193,6 +196,9 @@ func (s MobileAuthService) Refresh(ctx context.Context, raw string) (*auth.Token
 		}
 		update := `UPDATE member_mobile_device_sessions SET revoked_at=? WHERE id=? AND revoked_at IS NULL`
 		updateArgs := []any{now.Format(time.RFC3339Nano), id}
+		if s.Dialect == database.MySQL {
+			updateArgs[0] = now
+		}
 		if s.RequireTenantScope {
 			update += ` AND tenant_id = ?`
 			updateArgs = append(updateArgs, tenantID)
@@ -241,6 +247,9 @@ func (s MobileAuthService) Refresh(ctx context.Context, raw string) (*auth.Token
 			insert += s.ph(i + 1)
 		}
 		insert += `)`
+		if s.Dialect == database.MySQL {
+			values[8], values[9], values[10], values[11] = accessUntil, refreshUntil, now, now
+		}
 		if s.Dialect == database.Postgres {
 			values = []any{newID, memberID, deviceID, deviceName, platform, family, refreshHash, accessHash, accessUntil, refreshUntil, now, now}
 			if s.RequireTenantScope {
@@ -279,7 +288,7 @@ func (s MobileAuthService) revokeFamilyQuery() string {
 	return q
 }
 func (s MobileAuthService) revokeFamilyArgs(now time.Time, family, tenantID string) []any {
-	if s.Dialect == database.Postgres {
+	if s.Dialect == database.Postgres || s.Dialect == database.MySQL {
 		args := []any{now, family}
 		if s.RequireTenantScope {
 			args = append(args, tenantID)
@@ -383,7 +392,7 @@ func (s MobileAuthService) revoke(ctx context.Context, field string, values ...s
 	}
 	q := `UPDATE member_mobile_device_sessions SET revoked_at = ` + s.ph(1) + ` WHERE ` + field + ` = ` + s.ph(2) + ` AND revoked_at IS NULL`
 	args := []any{time.Now().UTC().Format(time.RFC3339Nano), values[0]}
-	if s.Dialect == database.Postgres {
+	if s.Dialect == database.Postgres || s.Dialect == database.MySQL {
 		args = []any{time.Now().UTC(), values[0]}
 	}
 	if len(values) == 2 {

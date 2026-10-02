@@ -28,9 +28,9 @@ func (s *UserStore) UpdatePassword(ctx context.Context, tx database.Executor, us
 		query += ` AND tenant_id = $4`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`
-		args = []any{passwordHash, time.Now().UTC().Format(time.RFC3339Nano), userID}
+		args = []any{passwordHash, s.dbTime(time.Now().UTC()), userID}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
 			args = append(args, tenantID)
@@ -67,9 +67,9 @@ func (s *UserStore) UpdateEmail(ctx context.Context, tx database.Executor, userI
 		query += ` AND tenant_id = $4`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `UPDATE users SET email = ?, email_verified_at = NULL, updated_at = ? WHERE id = ?`
-		args = []any{auth.NormalizeEmail(email), time.Now().UTC().Format(time.RFC3339Nano), userID}
+		args = []any{auth.NormalizeEmail(email), s.dbTime(time.Now().UTC()), userID}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
 			args = append(args, tenantID)
@@ -123,9 +123,9 @@ func (s *UserStore) CreateRecoveryToken(ctx context.Context, tx database.Executo
 		query += fmt.Sprintf("$%d", i+1)
 	}
 	query += `)`
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `INSERT INTO auth_recovery_tokens (id, user_id, purpose, token_hash, expires_at, created_at`
-		args = []any{id, userID, purpose, tokenHash, expiresAt.Format(time.RFC3339Nano), createdAt.Format(time.RFC3339Nano)}
+		args = []any{id, userID, purpose, tokenHash, s.dbTime(expiresAt), s.dbTime(createdAt)}
 		if s.RequireTenantScope {
 			query += `, tenant_id`
 			args = append(args, tenantID)
@@ -161,9 +161,9 @@ func (s *UserStore) ConsumeRecoveryToken(ctx context.Context, tx database.Execut
 		query += ` AND tenant_id = $4`
 		args = append(args, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		query = `SELECT user_id FROM auth_recovery_tokens WHERE purpose = ? AND token_hash = ? AND consumed_at IS NULL AND expires_at > ?`
-		argNow = now.Format(time.RFC3339Nano)
+		argNow = s.dbTime(now)
 		args = []any{purpose, tokenHash, argNow}
 		if s.RequireTenantScope {
 			query += ` AND tenant_id = ?`
@@ -183,9 +183,9 @@ func (s *UserStore) ConsumeRecoveryToken(ctx context.Context, tx database.Execut
 		update += ` AND tenant_id = $4`
 		updateArgs = append(updateArgs, tenantID)
 	}
-	if s.dialect == database.SQLite {
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
 		update = `UPDATE auth_recovery_tokens SET consumed_at = ? WHERE purpose = ? AND token_hash = ? AND consumed_at IS NULL`
-		updateArgs = []any{now.Format(time.RFC3339Nano), purpose, tokenHash}
+		updateArgs = []any{s.dbTime(now), purpose, tokenHash}
 		if s.RequireTenantScope {
 			update += ` AND tenant_id = ?`
 			updateArgs = append(updateArgs, tenantID)

@@ -220,6 +220,9 @@ func placeholder(dialect string, n int) string {
 
 func upsertTenant(ctx context.Context, tx *sql.Tx, dialect string, id, locale, timezone string, now time.Time) error {
 	query := `INSERT INTO tenants (tenant_id, state, default_locale, timezone, created_at, updated_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `, ` + placeholder(dialect, 5) + `, ` + placeholder(dialect, 6) + `) ON CONFLICT(tenant_id) DO UPDATE SET updated_at = excluded.updated_at`
+	if dialect == "mysql" {
+		query = `INSERT INTO tenants (tenant_id, state, default_locale, timezone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+	}
 	args := []any{id, "provisioning", locale, timezone, dbTime(dialect, now), dbTime(dialect, now)}
 	_, err := tx.ExecContext(ctx, query, args...)
 	return err
@@ -244,8 +247,11 @@ func ensureDefaults(ctx context.Context, tx *sql.Tx, dialect string, tenantID, l
 	inserted := 0
 	for _, item := range defaults {
 		query := `INSERT INTO site_settings (tenant_id, key, value, is_public, updated_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `, ` + placeholder(dialect, 5) + `) ON CONFLICT(tenant_id, key) DO NOTHING`
+		if dialect == "mysql" {
+			query = "INSERT IGNORE INTO site_settings (tenant_id, `key`, `value`, is_public, updated_at) VALUES (?, ?, ?, ?, ?)"
+		}
 		public := any(item.Public)
-		if dialect == "sqlite" {
+		if dialect == "sqlite" || dialect == "mysql" {
 			if item.Public {
 				public = 1
 			} else {

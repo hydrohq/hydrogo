@@ -60,11 +60,7 @@ func (s Store) List(ctx context.Context, limit int) ([]trash.Entry, error) {
 			if trashed {
 				query += " AND deleted_at >= " + s.p(len(args)+1)
 				cutoff := time.Now().UTC().Add(-trash.Retention)
-				if s.Dialect != database.Postgres {
-					args = append(args, cutoff.Format(time.RFC3339Nano))
-				} else {
-					args = append(args, cutoff)
-				}
+				args = append(args, s.dbTimeValue(cutoff))
 			}
 			query += " ORDER BY created_at DESC, id ASC LIMIT " + s.p(len(args)+1)
 			args = append(args, limit)
@@ -131,26 +127,13 @@ func (s Store) update(ctx context.Context, db database.Executor, kind trash.Kind
 	args := []any{}
 	if strings.Contains(assignment, "deleted_at=") && assignment != "deleted_at=NULL" {
 		query = "UPDATE " + table + " SET " + assignment + " WHERE id=" + s.p(2) + " AND deleted_at IS NULL"
-		if s.Dialect != database.Postgres {
-			args = append(args, stamp.UTC().Format(time.RFC3339Nano), id)
-		} else {
-			args = append(args, stamp, id)
-		}
+		args = append(args, s.dbTimeValue(stamp), id)
 	} else {
 		query = "UPDATE " + table + " SET deleted_at=NULL WHERE id=" + s.p(1) + " AND deleted_at IS NOT NULL AND deleted_at >= " + s.p(2)
-		if s.Dialect != database.Postgres {
-			stamp = stamp.UTC()
-			args = append(args, id, stamp.Format(time.RFC3339Nano))
-		} else {
-			args = append(args, id, stamp)
-		}
+		args = append(args, id, s.dbTimeValue(stamp))
 	}
 	if len(args) == 0 {
-		if s.Dialect != database.Postgres {
-			args = append(args, stamp.UTC().Format(time.RFC3339Nano), id)
-		} else {
-			args = append(args, stamp, id)
-		}
+		args = append(args, s.dbTimeValue(stamp), id)
 	}
 	tenantID, scoped, err := s.tenantID(ctx)
 	if err != nil {
@@ -190,6 +173,14 @@ func (s Store) p(n int) string {
 		return fmt.Sprintf("$%d", n)
 	}
 	return "?"
+}
+
+func (s Store) dbTimeValue(t time.Time) any {
+	t = t.UTC()
+	if s.Dialect == database.SQLite {
+		return t.Format(time.RFC3339Nano)
+	}
+	return t
 }
 
 func tableFor(kind trash.Kind) (string, bool) {

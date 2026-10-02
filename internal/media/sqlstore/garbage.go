@@ -25,7 +25,7 @@ func (s Store) ListGarbageCandidates(ctx context.Context, db database.Executor, 
 		return nil, err
 	}
 	query := `SELECT id, original_filename, size_bytes+COALESCE((SELECT SUM(size_bytes) FROM media_variants WHERE media_id=media_assets.id),0), created_at, status FROM media_assets WHERE deleted_at IS NULL AND ((status='ready' AND created_at<=` + s.p(1) + `) OR status='deleting')`
-	args := []any{before.UTC().Format(time.RFC3339Nano)}
+	args := []any{s.dbTimeValue(before)}
 	if scoped {
 		query = `SELECT id, original_filename, size_bytes+COALESCE((SELECT SUM(size_bytes) FROM media_variants WHERE media_id=media_assets.id AND tenant_id=media_assets.tenant_id),0), created_at, status FROM media_assets WHERE deleted_at IS NULL AND ((status='ready' AND created_at<=` + s.p(1) + `) OR status='deleting') AND tenant_id=` + s.p(2)
 		args = append(args, scope.TenantID)
@@ -40,12 +40,12 @@ func (s Store) ListGarbageCandidates(ctx context.Context, db database.Executor, 
 	items := make([]media.GarbageAsset, 0, limit)
 	for rows.Next() {
 		var item media.GarbageAsset
-		var created string
+		var created any
 		if err := rows.Scan(&item.ID, &item.Filename, &item.SizeBytes, &created, &item.Status); err != nil {
 			return nil, err
 		}
-		item.CreatedAt, err = parseMediaTime(created)
-		if err != nil {
+		item.CreatedAt = parseMediaTime(created)
+		if item.CreatedAt.IsZero() {
 			return nil, fmt.Errorf("invalid media asset creation time")
 		}
 		items = append(items, item)
@@ -59,7 +59,7 @@ func (s Store) ClaimGarbageAsset(ctx context.Context, db database.Executor, id s
 		return false, err
 	}
 	query := `UPDATE media_assets SET status='deleting', updated_at=` + s.p(1) + ` WHERE id=` + s.p(2) + ` AND status='ready' AND created_at=` + s.p(3)
-	args := []any{time.Now().UTC().Format(time.RFC3339Nano), id, createdAt.UTC().Format(time.RFC3339Nano)}
+	args := []any{s.dbNow(), id, s.dbTimeValue(createdAt)}
 	if scoped {
 		query += ` AND tenant_id=` + s.p(4)
 		args = append(args, scope.TenantID)
@@ -115,7 +115,7 @@ func (s Store) RestoreGarbageAsset(ctx context.Context, db database.Executor, id
 		return err
 	}
 	query := `UPDATE media_assets SET status='ready', updated_at=` + s.p(1) + ` WHERE id=` + s.p(2) + ` AND status='deleting'`
-	args := []any{time.Now().UTC().Format(time.RFC3339Nano), id}
+	args := []any{s.dbNow(), id}
 	if scoped {
 		query += ` AND tenant_id=` + s.p(3)
 		args = append(args, scope.TenantID)
@@ -223,11 +223,24 @@ func (s MediaReferences) placeholder(index int) string {
 	return "?"
 }
 
-func parseMediaTime(value string) (time.Time, error) {
+func parseMediaTime(value any) time.Time {
+	switch v := value.(type) {
+	case time.Time:
+		return v.UTC()
+	case string:
+		return parseMediaTimeString(v)
+	case []byte:
+		return parseMediaTimeString(string(v))
+	default:
+		return time.Time{}
+	}
+}
+
+func parseMediaTimeString(value string) time.Time {
 	for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02T15:04:05"} {
 		if parsed, err := time.Parse(layout, value); err == nil {
-			return parsed.UTC(), nil
+			return parsed.UTC()
 		}
 	}
-	return time.Time{}, errors.New("invalid timestamp")
+	return time.Time{}
 }
