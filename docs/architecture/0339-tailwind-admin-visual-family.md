@@ -87,7 +87,10 @@ at much larger scale.
    `scripts/build-aurora-tailwind.ps1` (mirrors `scripts/build-tailwind.ps1`),
    and `go build ./...` never requires the CLI to be installed.
 6. The shell chrome (sidebar, topbar, shared cards/buttons/inputs) is
-   re-skinned with Aurora's own teal/slate palette using the exact same
+   re-skinned with Aurora's own warm-paper/ink-navy palette (hairline rules,
+   square corners, no card shadows - an "editorial ledger" identity,
+   deliberately distinct from the rounded, shadowed card language the other
+   four families share) using the exact same
    mechanism `nova`/`shadcn`/`workbench` already use: plain CSS under
    `html[data-ui-theme="aurora"]` reusing the shared ADR-0053 semantic
    selectors and token names (`AdminAuroraCSS`, `AdminAuroraDensityCSS`,
