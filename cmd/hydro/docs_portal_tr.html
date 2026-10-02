@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Geliştirici ve operatörler için HydroGo dokümantasyonu: mimari, projeler, modüller, API, güvenlik ve dağıtım.">
+  <title>Dokümantasyon · HydroGo</title>
+  <style nonce="{{.Nonce}}">{{.CSS}}</style>
+</head>
+<body>
+<a class="skip-link" href="#content">İçeriğe geç</a>
+<header class="site-header">
+  <a class="brand" href="/" aria-label="HydroGo ana sayfası"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-9 12h8l-1 8 9-12h-8l1-8Z"/></svg></span><span class="brand-name">HydroGo</span><span class="brand-divider">/</span><span class="brand-docs">Docs</span></a>
+  <nav class="header-actions" aria-label="Site ve dil"><a href="/">Ana sayfa</a><a href="/login?lang=tr">Admin Studio</a><div class="language-switch" aria-label="Dil"><a href="/docs?lang=en" lang="en">EN</a><a href="/docs?lang=tr" lang="tr" aria-current="page">TR</a></div></nav>
+</header>
+<div class="mobile-navigation"><details><summary>Dokümantasyona göz at <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav class="mobile-nav" aria-label="Dokümantasyon bölümleri"><a href="#overview">Genel bakış</a><a href="#quickstart">Hızlı başlangıç</a><a href="#architecture">Mimari</a><a href="#request-flow">İstek akışı</a><a href="#workspace">Workspace ve Edition</a><a href="#modules">Modüller</a><a href="#data">Veri ve migration</a><a href="#api">API ve entegrasyon</a><a href="#security">Güvenlik</a><a href="#admin">Admin ve UI</a><a href="#operations">Operasyon</a><a href="#hosting">Barındırma</a><a href="#contributing">Katkı</a><a href="#status">Kapsam ve durum</a></nav></details></div>
+<div class="layout">
+  <aside class="sidebar"><nav class="side-nav" aria-label="Dokümantasyon bölümleri"><span class="sidebar-title">Dokümantasyon</span><a href="#overview">Genel bakış</a><a href="#quickstart">Hızlı başlangıç</a><a href="#architecture">Mimari</a><a href="#request-flow">İstek akışı</a><span class="nav-group">Geliştir</span><a href="#workspace">Workspace ve Edition</a><a href="#modules">Modüller</a><a href="#data">Veri ve migration</a><a href="#api">API ve entegrasyon</a><span class="nav-group">İşlet</span><a href="#security">Güvenlik</a><a href="#admin">Admin ve UI</a><a href="#operations">Operasyon</a><a href="#hosting">Barındırma</a><a href="#contributing">Katkı</a><a href="#status">Kapsam ve durum</a></nav></aside>
+  <main class="doc-main" id="content"><article class="article">
+    <section class="hero" id="overview"><h1>HydroGo <span>dokümantasyonu.</span></h1><p class="hero-lead">Motoru anlayın, bir Client Edition oluşturun ve sınırları belirli bir sistemi güvenle işletin.</p><p class="hero-sub">HydroGo, Go ile yazılmış bir Workspace ve ürün motorudur. HydroCore ortak, sürümlü sözleşmeleri sağlar; isteğe bağlı modüller yetenekleri ekler; Client Edition neyin çalışacağını seçer ve kendi iş kurallarını taşır. Bu rehber geliştiriciler ve operatörler içindir.</p>
+      <div class="quick-links"><a class="quick-link" href="#quickstart"><strong>Proje başlat</strong><span>CLI ve yerel akış →</span></a><a class="quick-link" href="#architecture"><strong>Sistemi anla</strong><span>Katmanlar ve istek akışı →</span></a><a class="quick-link" href="#operations"><strong>Edition işlet</strong><span>Dağıtım ve kurtarma →</span></a></div>
+      <div class="status-note"><strong>Yetenekleri durumuyla birlikte okuyun.</strong> Bu sayfa sözleşmeleri ve mevcut iş akışlarını açıklar; her birleşimi üretim için sertifikalandırmaz. <a class="inline-link" href="#status">Kapsam ve durum</a> bölümü, Edition bağlantısı veya gerçek ortam doğrulaması isteyen alanları anlatır.</div>
+    </section>
+
+    <section class="doc-section" id="quickstart"><h2>Hızlı başlangıç</h2><p>CLI yardımından başlayın, bir Edition oluşturun ve çalışma zamanı servislerini açmadan yapılandırmayı doğrulayın. Örnek News ön ayarını kullanır; süreçte hangi modüllerin bağlanacağını manifest belirler.</p>
+      <p class="code-caption">Oluştur ve incele</p><pre class="code-block"><code>hydro help
+hydro project new haber-merkezi --preset=news
+cd haber-merkezi
+hydro project check --config config.yaml
+hydro validate --config config.yaml</code></pre>
+      <p><code>project check</code>, veritabanını açmadan proje ve üretilen kaynakları denetler. <code>validate</code>, çalışma zamanı yapılandırmasını ve modül kısıtlarını kontrol eder. Yerel geliştirmede <code>hydro run</code> kullanılır; <code>hydro dev</code> uyumluluk takma adıdır. Geliştirme proxy’si varsayılan olarak <code>127.0.0.1:8090</code> adresindedir.</p>
+      <p class="code-caption">Geliştir ve doğrula</p><pre class="code-block"><code>hydro run
+hydro test --package ./modules/news/... --timeout 2m</code></pre>
+      <p>Üretilen bir Edition, hazırlanmış veri dizini ve geçerli bir <code>hydro.lic</code> lisans dosyası isteyebilir; resmî release ikilileri lisanssız başlatmayı kabul etmez. Kaynaktan derlenen, resmî olmayan bir ikilide <code>--dev</code> bayrağı veya <code>HYDRO_DEV_MODE=1</code> ile açılan ve yalnızca <code>127.0.0.1</code>/<code>localhost</code> adresine bağlanmaya zorlanan <code>hydro serve --dev</code>, lisans doğrulamasını atlayan sınırlı bir yerel doğrulama modudur; stderr’e göz ardı edilemeyecek bir "UNLICENSED DEV MODE" uyarısı yazar. Dağıtımdan önce migration’ları inceleyip açıkça uygulayın.</p>
+    </section>
+
+    <section class="doc-section" id="architecture"><h2>Mimari</h2><p>Sistem, açık bileşime sahip modüler bir monolittir. Ortak motor tek bir müşteri için çatallanmaz. Genel yetenekler sürümlü Core veya Module sözleşmesine dönüşür; müşteriye özel politika ve entegrasyon davranışı Client Edition’da kalır.</p>
+      <div class="diagram" aria-label="Mimari akışı"><div class="diagram-step"><b>Blueprint</b><span>Şema, modül seçimi ve sürüm kilidi</span></div><div class="diagram-step"><b>Generated</b><span>Tipli modeller, repository ve transport iskeleti</span></div><div class="diagram-step"><b>Custom</b><span>Yetki, iş akışı ve entegrasyon</span></div><div class="diagram-step"><b>Runtime</b><span>Açık route, adaptör ve worker bileşimi</span></div></div>
+      <dl class="term-grid"><div><dt>HydroCore</dt><dd>Ortak uygulama sözleşmeleri, güvenlik altyapısı, CLI ve release araçları.</dd></div><div><dt>Hydro Modules</dt><dd>Pages, News, Site, Media ve Forms gibi isteğe bağlı yetenekler.</dd></div><div><dt>Client Edition</dt><dd>Seçilen modüller, manifest, tema, üretilen dosyalar ve insanın yazdığı politika.</dd></div><div><dt>Adaptörler</dt><dd>Domain sözleşmelerinin arkasındaki veritabanı, cache, medya ve sağlayıcı uygulamaları.</dd></div></dl>
+      <p>Bağımlılık yönü HTTP/HTML veya JSON transport → uygulama servisi → modüle ait repository arayüzü → sertifikalı depolama adaptörüdür. Domain ve uygulama kodu SQL lehçesine veya cache sürücüsüne bağımlı olmamalıdır. Kapalı modül route, migration, asset, worker veya zorunlu altyapı eklememelidir.</p>
+    </section>
+
+    <section class="doc-section" id="request-flow"><h2>İstek akışı</h2><p>İstek, sınıflandırılmış route’a ve sınırlandırılmış middleware zincirine girer. Gerektiğinde kimlik doğrulama, yetki, tenant çözümleme ve CSRF kontrolleri uygulanır. Uygulama servisi girdiyi doğrular ve durum geçişlerini yönetir; repository adaptörü veriyi kalıcılaştırır. Yanıt hedef kitleye uygun sunucu HTML’i veya sürümlü JSON olarak üretilir.</p>
+      <div class="diagram" aria-label="İstek akışı"><div class="diagram-step"><b>01 · Route</b><span>Public veya protected erişim, istek sınırları</span></div><div class="diagram-step"><b>02 · Politika</b><span>Kimlik, rol, tenant ve mutation kontrolleri</span></div><div class="diagram-step"><b>03 · Servis</b><span>Doğrulama, işlem, repository ve audit</span></div><div class="diagram-step"><b>04 · Yanıt</b><span>Erişilebilir HTML veya sınırlandırılmış JSON</span></div></div>
+      <p>Kalıcı yan etkiler outbox’a kaydedilip sınırlandırılmış worker’larla teslim edilebilir. Audit kayıtları önemli eylemleri belgeler. Public ziyaretçiye veya üyeye gösterilen hata eyleme dönük kalır; SQL, stack trace, token veya altyapı ayrıntısı içermez.</p>
+    </section>
+
+    <section class="doc-section" id="workspace"><h2>Workspace ve Client Edition</h2><p>Blueprint’ler doğrulanmış tekrarları otomatikleştirir. Makineye ait çıktı <code>generated/</code> altında kalır; değiştirmek için blueprint veya generator düzenlenir. İnsanın yazdığı politika, iş akışı, yetkilendirme ve entegrasyon kodu <code>custom/</code> altında kalır.</p>
+      <ol><li>Edition manifestini, kapasite profilini, açık modülleri ve sürüm kilidini seçin.</li><li>Blueprint’i doğrulayın; tipli modelleri, repository arayüzlerini, route bilgisini, SDK sözleşmelerini ve migration önerilerini üretin.</li><li>İzinleri, tenant kapsamını, migration’ları, cache davranışını ve dış yan etkileri Edition bileşim kökünde inceleyin.</li><li>Sözleşme testlerini çalıştırın ve route veya kaynağı açıkça etkinleştirin.</li></ol>
+      <p>Generator DDL çalıştırmaz, yetki politikası uydurmaz ve modülü sessizce açmaz. Üretilen route yardımcısı bileşim aracıdır; kendiliğinden yayımlanan endpoint değildir. Üretim UI’ı tipli sunucu bileşenleri kullanmalıdır; HTMX yalnızca kayıtlı öznitelikler ve açık mutation sözleşmeleriyle sınırlıdır.</p>
+    </section>
+
+    <section class="doc-section" id="modules"><h2>Modüller ve yetenekler</h2><p>Bir Edition yalnızca ihtiyacı olan yetenekleri açar. Modül kayıtları ve Edition manifesti route, migration, asset, worker ve depolama sorumluluklarını belirler.</p>
+      <div class="table-wrap"><table><thead><tr><th>Alan</th><th>Sorumluluk</th><th>Önemli sınır</th></tr></thead><tbody><tr><td>Pages ve News</td><td>Taslak, revizyon, önizleme, inceleme, zamanlama, yayın ve geri çekme.</td><td>Durum geçişleri ve eşzamanlı güncelleme koruması servislerdedir.</td></tr><tr><td>Site ve SEO</td><td>Gezinme, ayarlar, yerelleştirilmiş sunum, metadata ve yönlendirmeler.</td><td>Public route yalnızca bağlanıp yapılandırıldığında vardır.</td></tr><tr><td>Media</td><td>Yükleme doğrulaması, metadata, public/private yaşam döngüsü ve türevler.</td><td>Medya verisi ikilinin dışındadır; erişim kapsamlıdır.</td></tr><tr><td>Forms</td><td>Şema temelli formlar, gönderimler, gelen kutusu ve teslimat.</td><td>İş doğrulaması ve rıza politikası açıkça tanımlanır.</td></tr><tr><td>Kimlik</td><td>Admin ve member oturumları, izinler, kurtarma ve audit.</td><td>Personel ve üye kimlikleri ayrı kitlelerdir.</td></tr><tr><td>Üretilen kaynaklar</td><td>Collection veya global CRUD transport ve tipli sözleşmeler.</td><td>Edition politikası, migration ve route bağlantısı açıktır.</td></tr></tbody></table></div>
+      <p>Commerce, genel Core yeteneği olarak ertelenmiştir. Eski plan veya örneklerden üretime hazır ödeme akışı çıkarılmamalıdır. İsteğe bağlı AI, GraphQL, Redis, nesne depolama ve diğer sağlayıcılar da açık derleme ve dağıtım kararlarına bağlıdır.</p>
+    </section>
+
+    <section class="doc-section" id="data"><h2>Veri, cache ve migration</h2><p>SQLite, Compact kurulumun yerel varsayılanıdır. PostgreSQL ve MySQL/MariaDB adaptörleri aynı davranış sözleşmesine karşı değerlendirilir ve sertifikalı şema/migration testleri taşır. Migration dosyaları lehçeye duyarlıdır, uygulandıktan sonra değiştirilmez ve uyumluluk ile kurtarma metadata’sı taşır.</p>
+      <ul><li><strong>Migration:</strong> üç lehçeyi doğrulayın, metadata’yı inceleyin ve operatör adımı olarak uygulayın. Trafik sunmak sessizce DDL çalıştırmamalıdır.</li><li><strong>Çok kiracılılık (tenant):</strong> kayıtların çoğu bir tenant kimliğine bağlıdır; bu kimlik istek middleware’inde çözülür ve kayıt düzeyinde okuma, yazma, cache, job ve medya işlemlerinden önce uygulanır. Tenant kayıt defteri ve önyükleme kendi migration’ında kurulur; bir tenant'ın verisi bir diğerinin sorgu veya cache anahtar alanına sızamaz.</li><li><strong>İşlem:</strong> sınırları uygulama servisleri belirler; outbox kayıtları kalıcı yan etkileri commit edilen duruma bağlar.</li><li><strong>Cache:</strong> tenant kapsamlı anahtar, TTL, invalidation, eşzamanlı yük koruması ve güvenli arıza fallback’i tanımlanır.</li><li><strong>Taşınabilirlik:</strong> export/import izin listesi kullanır; sırları, oturum durumunu ve ilgisiz çalışma verisini dışlar.</li><li><strong>Kurtarma:</strong> yedekler bütünlük kanıtı taşır; restore hazırlanır, kontrol edilir ve operatörce etkinleştirilir.</li></ul>
+      <p>Compact kurulum boşta servis maliyeti taşımamalıdır. Daha büyük profillerde bağlantı havuzu, worker eşzamanlılığı ve admission/backpressure evrensel donanım vaadine göre değil, ölçülmüş yüke göre sınırlandırılır.</p>
+    </section>
+
+    <section class="doc-section" id="api"><h2>API ve entegrasyon</h2><p>HydroGo, sunucu HTML’inin yanında sürümlü JSON sözleşmeleri sunar. Public içerik, personel mobil ve üye mobil API’leri ayrı kimlik doğrulama ve yetki sınırlarına sahiptir.</p>
+      <div class="table-wrap"><table><thead><tr><th>Yüzey</th><th>Kullanım</th><th>Sözleşme kuralı</th></tr></thead><tbody><tr><td>Public content API</td><td>Harici frontend’lere yayınlanmış içerik.</td><td>Sınırlandırılmış sorgu, kararlı alanlar, dil ve görünürlük politikası.</td></tr><tr><td>Personel mobil API</td><td>Yetkili editoryal ve operasyonel istemci işlemleri.</td><td>Personel token yaşam döngüsü, rol ve tenant kontrolü.</td></tr><tr><td>Üye mobil API</td><td>Üye profili ve özel kaynaklar.</td><td>Ayrı üye kimliği ve sahiplik kontrolü.</td></tr><tr><td>Üretilen kaynak API’si</td><td>Edition’a ait collection veya tekil kaynaklar.</td><td>Sürüm kilidi, izinli alanlar, açık route bileşimi.</td></tr><tr><td>Webhook ve SDK</td><td>Dış teslimat ve tipli istemciler.</td><td>Yeniden deneme, idempotency, uyumluluk ve payload sınırları.</td></tr></tbody></table></div>
+      <p>Depodaki OpenAPI dosyaları wire sözleşmesinin kaynağıdır. Çalışan üründe istemciler Edition’ın yayımladığı sözleşmeye dayanmalı, her isteğe bağlı endpoint’in var olduğunu varsaymamalıdır. Mutation; yetki, tenant kapsamı, tarayıcı akışlarında CSRF ve tanımlı idempotency davranışı ister.</p>
+    </section>
+
+    <section class="doc-section" id="security"><h2>Güvenlik ve veri yaşam döngüsü</h2><p>Başlangıç noktası varsayılan rettir. Route erişim sınıfını belirtir; servisler kayıt düzeyinde yetki uygular; çıktı kaçışlanır, zengin içerik temizlenir, oturumlar korunur ve önemli eylemler denetlenir.</p>
+      <ul><li>Admin, sysadmin, geliştirici, denetçi ve public/member yüzeyleri farklı ayrıntı seviyeleri gösterir.</li><li>Tenant kimliği, tenant kapsamlı okuma, yazma, cache, job ve medya işlemlerinden önce çözülür.</li><li>Tarayıcı mutation’ları hedef, swap, CSRF, yetki, tenant kapsamı ve idempotency bildirir.</li><li>Sırlar ve dahili teşhisler son kullanıcı yanıtında değil, kontrollü operatör sistemlerinde kalır.</li><li>Saklama, silme, taşınabilir export ve yedek kurtarma açık veri yaşam döngüsü politikalarına sahiptir.</li></ul>
+      <p>Güvenlik testleri ve yerel doğrulama, gerçek sağlayıcı, cihaz, sızma testi ve dağıtım tatbikatının yerini tutmaz. Release kanıtı ortamını ve sınırlarını belirtmelidir.</p>
+    </section>
+
+    <section class="doc-section" id="admin"><h2>Admin Studio ve UI</h2><p>Admin Studio editörlere ve işletme yöneticilerine hizmet eder. İçerik ve iş akışı kararları öne çıkar; altyapı metrikleri ve ham teknik hatalar operatör yüzeyinde kalır. Üretilen sunucu görünümleri, kaçışlama, erişilebilirlik varsayılanları ve görsel token’lar için tipli Design System bileşenleri kullanır.</p>
+      <p>HTMX, istemci tarafı durum yönetiminin yerine geçmez; izin listeli geliştirme katmanıdır. Tailwind, onaylı ayrık yüzeyler ve temalar için derleme sırasında CSS üretir; üretim ikilisi statik CSS taşır, Node veya tarayıcı çalışma zamanı bağımlılığı taşımaz. Dokümantasyon da kendi derlenmiş Tailwind CSS’ini kullanır ve Admin Studio teması yüklemez.</p>
+    </section>
+
+    <section class="doc-section" id="operations"><h2>Dağıtım ve operasyon</h2><p>Çalıştırılabilir dosya release varlıklarını içerir. Yapılandırma, veritabanı, medya, sırlar, loglar ve yedekler kalıcı dış depolamada tutulur. Dağıtım bir kapasite profili ve Edition’ın gerçekten istediği isteğe bağlı servisleri seçer.</p>
+      <p class="code-caption">Açık bir release sırası</p><pre class="code-block"><code>hydro validate --config config.yaml
+hydro migrate --config config.yaml
+hydro doctor --config config.yaml
+hydro serve --config config.yaml</code></pre>
+      <p>Release öncesi sağlık ve hazırlık kontrollerini, migration uyumluluğunu, oturum/medya/asset sürekliliğini, arka plan işlerini, yedek bütünlüğünü ve geri dönüş adımlarını doğrulayın. Blue/Green değişiklikleri expand–migrate–contract sırasını izler; geçişte eski ve yeni ikililer birlikte çalışabilir.</p>
+      <p>Yedekleme ve restore operatör kontrolündedir. Restore etkinleşmeden önce staging’de doğrulanır; yıkıcı temizlik ve saklama sınırlandırılır. Gözlemlenebilirlik, dağıtım profiline uygun log, metrik, iz ve alarm sağlar; dahili teşhisleri üyelere göstermez.</p>
+      <p><strong>Safe Mode:</strong> YAML <code>safe_mode</code>, <code>HYDRO_SAFE_MODE</code> ortam değişkeni veya <code>--safe-mode</code> bayrağıyla açılan geri alınabilir bir olay kurtarma kontrolüdür. Mail, haber yayını, webhook outbox ve aylık bağlantı denetimi worker’larını durdurur (CGI lazy cron bu işleri de göndermez); bekleyen kayıtlar daha sonra teslim edilmek üzere saklanır. Parola ile giriş, MFA, yerel oturum temizliği, IP blocklist yenilemesi ve içerik düzenleme etkin kalır. Admin Studio etkinken belirgin bir uyarı gösterir; Blue/Green geçişte her iki örneğin aynı modda çalıştığından emin olun.</p>
+    </section>
+
+    <section class="doc-section" id="hosting"><h2>Barındırma profilleri</h2><p>Aynı derlenmiş ikili, aynı route/yetki/worker sözleşmesiyle üç barındırma modeline uyar: sürekli çalışan sunucu süreci, paylaşımlı hosting'in FastCGI yöneticisi ve process-per-request CGI. Seçim trafiğe, arka plan iş ihtiyacına ve sağlayıcının sunduğu erişime bağlıdır.</p>
+      <div class="table-wrap"><table><thead><tr><th>Profil</th><th>Arka plan işleri</th><th>Önerilen veritabanı</th><th>Gereksinim</th></tr></thead><tbody><tr><td>VPS / konteyner<br><code>hydro serve</code></td><td>Tüm resident worker'lar (medya türevi, oturum temizliği, news polling, webhook) ve sınırlı bağlantı havuzu çalışır.</td><td>SQLite (Compact) veya PostgreSQL.</td><td>SSH erişimi, bir process manager (systemd/Docker) ve TLS sonlandıran bir reverse proxy (Nginx/Caddy).</td></tr><tr><td>Paylaşımlı hosting — FastCGI<br><code>hydro serve --fastcgi</code></td><td>Aynı resident worker seti, loopback'e bağlı sürekli süreç olarak çalışır.</td><td>PostgreSQL veya MySQL önerilir; SQLite de çalışır.</td><td>Sağlayıcının FastCGI process yöneticisi (ör. Passenger) ve Apache/Nginx proxy entegrasyonu.</td></tr><tr><td>Paylaşımlı hosting — CGI<br><code>hydro.cgi</code> + <code>.htaccess</code></td><td>Resident worker yok; her istekte en fazla dört lease'li job, beş saniyelik bütçeyle işleyen lazy cron.</td><td>MySQL/MariaDB önerilir (çoklu process'in aynı dosyayı kilitleme riskini kaldırır); düşük trafikte SQLite de çalışır.</td><td>Yalnızca Apache + <code>.htaccess</code>; SSH gerekmez.</td></tr></tbody></table></div>
+      <h3>VPS veya konteyner</h3><p>Sürekli çalışan model tüm worker'ları ve bağlantı havuzunu korur; en geniş özellik kapsamına sahip profildir.</p>
+      <p class="code-caption">Release sırası</p><pre class="code-block"><code>hydro validate --config config.yaml
+hydro migrate --config config.yaml
+hydro doctor --config config.yaml
+hydro serve --config config.yaml</code></pre>
+      <p>İkiliyi systemd gibi bir process manager altında çalıştırın ve önüne TLS sonlandıran bir reverse proxy (Nginx/Caddy) koyun; <code>hydro serve</code> kendi portunu doğrudan dışa açmamalıdır. Blue/Green geçişte eski ve yeni ikili expand–migrate–contract sırasıyla bir arada çalışabilir.</p>
+      <h3>Paylaşımlı hosting: FastCGI</h3><p>FastCGI sürekli bir istek döngüsü işlettiği için resident worker'ları korur; <code>net/http/cgi</code> bunu sağlamaz.</p>
+      <pre class="code-block"><code>hydro serve --fastcgi --fastcgi-address 127.0.0.1:9001</code></pre>
+      <p>Bu adres varsayılan olarak yalnızca loopback'e bağlanır; sağlayıcının Apache FastCGI entegrasyonunu bu adrese yönlendirin. Süreç denetimi ve proxy yapılandırması hosting sağlayıcısına aittir.</p>
+      <h3>Paylaşımlı hosting: CGI</h3><p>CGI her istek için yeni bir process başlattığından resident worker'lar devre dışı kalır; News gibi zamanlı işler, en fazla dört lease'li job işleyen sınırlı bir "lazy cron" ile isteğe bağlı olarak ilerler.</p>
+      <p class="code-caption">Kurulum</p><pre class="code-block"><code>make build
+# İkiliyi doküman köküne "hydro.cgi" olarak kopyalayın ve çalıştırılabilir yapın
+# deploy/hosting/.htaccess dosyasını yanına yerleştirin</code></pre>
+      <p>Anonim, sorgu parametresi içermeyen, oturumsuz genel sayfa ve haber HTML yanıtları <code>DOCUMENT_ROOT/static_cache</code> altına yazılır; önbellek isabetinde Apache dosyayı doğrudan sunar ve CGI süreci hiç başlamaz. Sayfa/haber değişiklikleri önbelleği geçersiz kılar; veritabanında iş akışı dışında (out-of-band) yapılan değişikliklerden sonra bu dizini elle temizlemeniz gerekir. Eşzamanlı birden fazla CGI process'inin aynı dosyaya yazma riskini azaltmak için SQLite yerine MySQL/MariaDB kullanmanız önerilir.</p>
+    </section>
+
+    <section class="doc-section" id="contributing"><h2>Katkı ve doğrulama</h2><p>Davranış değiştirmeden önce ürün felsefesini, bilgi hiyerarşisini, uygulama planını, mimari dizinini ve etkilenen ADR’leri okuyun. Modül sınırı, sözleşme, route veya migration değişiyorsa tam ADR ve uygulama kanıtı gerekir. Aynı modül içinde davranışı değiştirmeyen düzeltme için kısa değişiklik notu yeterlidir.</p>
+      <p class="code-caption">Odaklı ve depo kontrolleri</p><pre class="code-block"><code>hydro test --package ./modules/news/... --timeout 2m
+go test ./...
+go run ./tools/moduleguard -root modules -allow modules/api
+go run ./tools/migrationguard -root migrations</code></pre>
+      <p>Importguard, moduleguard ve migrationguard zorunlu CI kapılarıdır. Yeni veya değişen modül; veritabanı eş davranışını, migration kurtarmasını, cache invalidation’ı, Compact izini, eşzamanlılık bütçesini, Blue/Green uyumunu, oturum ve medya sürekliliğini, güvenliği, denetlenebilirliği ve veri yaşam döngüsünü ele almalıdır.</p>
+    </section>
+
+    <section class="doc-section" id="status"><h2>Kapsam, durum ve terimler</h2><p>HydroGo, Client Edition’lar üreten bir Workspace’tir. Kod ve yerel sözleşme testleri sınırlandırılmış davranışı kanıtlar; tüm sağlayıcıların, dağıtım profillerinin veya müşteri ortamlarının üretim sertifikası değildir.</p>
+      <dl class="term-grid"><div><dt>Uygulandı</dt><dd>Belirtilen kapsam için kod ve ilgili yerel testler vardır.</dd></div><div><dt>Planlandı</dt><dd>Tasarım veya görev vardır; teslim kanıtı henüz yoktur.</dd></div><div><dt>Açık kapı</dt><dd>Gerçek ortam, sağlayıcı, operasyon veya hukuk doğrulaması bekler.</dd></div><div><dt>Desteklenmiyor</dt><dd>Mevcut sözleşme dışında bilinçli olarak bırakılmıştır; alternatif belirtilmelidir.</dd></div></dl>
+      <h3>Açık üretim kapılarına örnekler</h3><p>Gerçek reverse proxy arkasında iki prosesli Blue/Green geri dönüşü, müşteri benzeri veriyle ölçülmüş RPO/RTO içeren yedek ve restore, nesne depolama sağlayıcısında IAM/KMS ve failover, çok düğümlü Redis arıza denemeleri, harici extension tarayıcı testleri, mobil cihaz kaybı ve kötüye kullanım tatbikatları, ticari lisans ve hukuk incelemesi kendi gerçek ortamlarından kanıt ister. Yerel sözleşme testleri bu kapıları kapatmaz.</p>
+      <p>Mimari kararlar bir sınırın <em>neden</em> var olduğunu açıklar. Doğrulama raporları gerçek komutları, ortamı, sonuçları ve sınırlamaları kaydeder. Uygulama planı kapsamı ve kabul ölçütlerini tanımlar. Release iddiasında bunları birlikte okuyun.</p>
+    </section>
+    <footer class="footer">HydroGo geliştirici dokümantasyonu · Harici dokümantasyon bağımlılığı olmadan çalışma zamanına gömülüdür.</footer>
+  </article></main>
+</div>
+<script nonce="{{.Nonce}}">document.querySelectorAll('.mobile-nav a').forEach(function(link){link.addEventListener('click',function(){link.closest('details').open=false})})</script>
+</body>
+</html>

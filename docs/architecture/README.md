@@ -11,6 +11,8 @@
 - [ADR-0339: "Aurora" admin visual family, authored with Tailwind](0339-tailwind-admin-visual-family.md)
 - [ADR-0340: Tailwind utilities as the admin Studio and public theme styling language](0340-tailwind-styling-migration.md)
 - [ADR-0341: Admin family overhaul - remove workbench, isolate shadcn and hydrogo](0341-admin-family-overhaul.md)
+- [ADR-0342: Bilingual, build-time Tailwind documentation surface](0342-bilingual-tailwind-documentation-surface.md)
+- [ADR-0343: Bilingual public Admin Studio login](0343-bilingual-public-admin-login.md)
 
 This directory is the main source of HydroGo's long-lived architectural decisions. The implementation plan describes the order of work, while ADRs explain why the system is built this way.
 

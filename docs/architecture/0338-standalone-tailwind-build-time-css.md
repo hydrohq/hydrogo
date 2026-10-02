@@ -1,9 +1,9 @@
 # ADR-0338: Standalone Tailwind CLI for isolated, build-time custom UI CSS
 
-- **Status:** Accepted
+- **Status:** Partially superseded by ADR-0342 for the isolated public `/docs` route; the Client Edition and build-time rules remain accepted
 - **Date:** 2026-10-02
 - **Supersedes:** [ADR-0041](0041-admin-visual-theme-modes.md) (its "no Tailwind" consequence only; its four admin appearance modes are unchanged and remain governed by that ADR)
-- **Superseded by:** None
+- **Superseded by:** ADR-0342 for the isolated public `/docs` route only
 - **Related decisions:** [ADR-0041](0041-admin-visual-theme-modes.md), [ADR-0053](0053-semantic-ui-token-contract.md), [ADR-0020](0020-headless-first-admin-studio-and-frontend-templates.md)
 
 ## Context
