@@ -2,57 +2,57 @@
 	<div class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
 		<div>
 			<h2 class="tw:text-[22px] tw:font-semibold tw:tracking-tight tw:text-[#18181b]">Genel Bakış</h2>
-			<p class="tw:mt-0.5 tw:text-sm tw:text-[#8b8d98]">Sitenizin son durumu tek bakışta.</p>
+			<p class="tw:mt-0.5 tw:text-sm tw:text-[#71717a]">Sitenizin son durumu tek bakışta.</p>
 		</div>
-		<a class="tw:rounded-md tw:bg-[#2f6feb] tw:px-4 tw:py-2 tw:text-sm tw:font-semibold tw:text-white tw:no-underline tw:transition tw:hover:bg-[#2558c2]" href="/admin/news/new">
+		<a class="tw:rounded-md tw:bg-[#18181b] tw:px-4 tw:py-2 tw:text-sm tw:font-semibold tw:text-white tw:no-underline tw:transition tw:hover:bg-[#27272a]" href="/admin/news/new">
 			+ Yeni İçerik
 		</a>
 	</div>
 
 	<section class="tw:grid tw:grid-cols-2 tw:gap-px tw:overflow-hidden tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-[#e4e4e7] tw:md:grid-cols-4" aria-label="Sistem özeti">
 		<div class="tw:bg-white tw:p-4">
-			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Toplam İstek</span>
+			<span class="tw:block tw:text-xs tw:text-[#71717a]">Toplam İstek</span>
 			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}}</strong>
-			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">anlık aktif {{if .Metrics}}{{.Metrics.InFlight}}{{else}}0{{end}}</small>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#71717a]">anlık aktif {{if .Metrics}}{{.Metrics.InFlight}}{{else}}0{{end}}</small>
 		</div>
 		<div class="tw:bg-white tw:p-4">
-			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Görüntülenme</span>
+			<span class="tw:block tw:text-xs tw:text-[#71717a]">Görüntülenme</span>
 			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}}</strong>
-			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">public &amp; mağaza</small>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#71717a]">public &amp; mağaza</small>
 		</div>
 		<div class="tw:bg-white tw:p-4">
-			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Aktif Üyeler</span>
+			<span class="tw:block tw:text-xs tw:text-[#71717a]">Aktif Üyeler</span>
 			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{.MemberStats.ActiveMembers}}</strong>
-			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">doğrulanmış {{.MemberStats.VerifiedMembers}}</small>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#71717a]">doğrulanmış {{.MemberStats.VerifiedMembers}}</small>
 		</div>
 		<div class="tw:bg-white tw:p-4">
-			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Ort. Yanıt</span>
-			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.AverageLatencyMS}}{{else}}0{{end}} <span class="tw:text-sm tw:font-normal tw:text-[#8b8d98]">ms</span></strong>
-			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">süreç içi ortalama</small>
+			<span class="tw:block tw:text-xs tw:text-[#71717a]">Ort. Yanıt</span>
+			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.AverageLatencyMS}}{{else}}0{{end}} <span class="tw:text-sm tw:font-normal tw:text-[#71717a]">ms</span></strong>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#71717a]">süreç içi ortalama</small>
 		</div>
 	</section>
 
 	<section>
 		<div class="tw:mb-3 tw:flex tw:items-center tw:justify-between">
 			<h3 class="tw:text-sm tw:font-semibold tw:text-[#18181b]">Koleksiyonlar</h3>
-			<a class="tw:text-xs tw:font-medium tw:text-[#2f6feb] tw:no-underline tw:hover:underline" href="/admin/news">tümünü gör</a>
+			<a class="tw:text-xs tw:font-medium tw:text-[#18181b] tw:no-underline tw:hover:underline" href="/admin/news">tümünü gör</a>
 		</div>
 		<div class="tw:grid tw:grid-cols-1 tw:gap-3 tw:sm:grid-cols-2 tw:lg:grid-cols-3">
 			{{$visible := 0}}
 			{{range .Collections}}
 			{{if ne .ID "pages"}}
 			{{$visible = 1}}
-			<a class="tw:group tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-white tw:p-4 tw:no-underline tw:shadow-[0_1px_2px_rgba(16,24,40,.05)] tw:transition tw:hover:border-[#2f6feb]" href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">
+			<a class="tw:group tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-white tw:p-4 tw:no-underline tw:shadow-[0_1px_2px_rgba(16,24,40,.05)] tw:transition tw:hover:border-[#18181b]" href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">
 				<div>
 					<strong class="tw:block tw:text-sm tw:font-semibold tw:text-[#18181b]">{{.Label}}</strong>
-					<span class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">{{.Description}}</span>
+					<span class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#71717a]">{{.Description}}</span>
 				</div>
-				<span class="tw:shrink-0 tw:rounded-full tw:bg-[#eaf1ff] tw:px-2.5 tw:py-1 tw:text-xs tw:font-semibold tw:text-[#2f6feb]">{{len .Kits}}</span>
+				<span class="tw:shrink-0 tw:rounded-full tw:bg-[#f4f4f5] tw:px-2.5 tw:py-1 tw:text-xs tw:font-semibold tw:text-[#18181b]">{{len .Kits}}</span>
 			</a>
 			{{end}}
 			{{end}}
 			{{if eq $visible 0}}
-			<p class="tw:text-sm tw:text-[#8b8d98]">Henüz etkin koleksiyon bulunmuyor.</p>
+			<p class="tw:text-sm tw:text-[#71717a]">Henüz etkin koleksiyon bulunmuyor.</p>
 			{{end}}
 		</div>
 	</section>
@@ -61,16 +61,16 @@
 		<div class="tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-white tw:p-5">
 			<h3 class="tw:mb-3 tw:text-sm tw:font-semibold tw:text-[#18181b]">Hızlı İşlemler</h3>
 			<nav class="tw:grid tw:gap-1" aria-label="Hızlı işlemler">
-				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/news/new">Haber yayınla</a>
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f4f4f5]" href="/admin/news/new">Haber yayınla</a>
 				{{if .CommerceModuleEnabled}}
-				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/commerce/products/new">Ürün oluştur</a>
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f4f4f5]" href="/admin/commerce/products/new">Ürün oluştur</a>
 				{{end}}
-				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/media">Medya havuzu</a>
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f4f4f5]" href="/admin/media">Medya havuzu</a>
 				{{if .PushEnabled}}
-				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/push">Bildirim yayınla</a>
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f4f4f5]" href="/admin/push">Bildirim yayınla</a>
 				{{end}}
 				{{if .EmailPreviewEnabled}}
-				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/mailer/test-preview">Test email preview</a>
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f4f4f5]" href="/admin/mailer/test-preview">Test email preview</a>
 				{{end}}
 			</nav>
 		</div>
@@ -78,12 +78,12 @@
 		<div class="tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-white tw:p-5">
 			<div class="tw:mb-3 tw:flex tw:items-center tw:justify-between">
 				<h3 class="tw:text-sm tw:font-semibold tw:text-[#18181b]">Sistem Durumu</h3>
-				<span class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-full tw:bg-[#e9f7ef] tw:px-2 tw:py-0.5 tw:text-xs tw:font-semibold tw:text-[#1a7f4e]">Aktif</span>
+				<span class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-full tw:bg-[#f0fdf4] tw:px-2 tw:py-0.5 tw:text-xs tw:font-semibold tw:text-[#16a34a]">Aktif</span>
 			</div>
 			<dl class="tw:grid tw:gap-2 tw:text-sm">
-				<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-[#f0f1f3] tw:pb-2"><dt class="tw:text-[#8b8d98]">Aktif üyeler</dt><dd class="tw:font-medium tw:text-[#18181b]">{{.MemberStats.ActiveMembers}}</dd></div>
-				<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-[#f0f1f3] tw:pb-2"><dt class="tw:text-[#8b8d98]">Doğrulanmış</dt><dd class="tw:font-medium tw:text-[#18181b]">{{.MemberStats.VerifiedMembers}}</dd></div>
-				<div class="tw:flex tw:items-center tw:justify-between"><dt class="tw:text-[#8b8d98]">Yanıt süresi</dt><dd class="tw:font-medium tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.AverageLatencyMS}} ms{{else}}normal{{end}}</dd></div>
+				<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-[#e4e4e7] tw:pb-2"><dt class="tw:text-[#71717a]">Aktif üyeler</dt><dd class="tw:font-medium tw:text-[#18181b]">{{.MemberStats.ActiveMembers}}</dd></div>
+				<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-[#e4e4e7] tw:pb-2"><dt class="tw:text-[#71717a]">Doğrulanmış</dt><dd class="tw:font-medium tw:text-[#18181b]">{{.MemberStats.VerifiedMembers}}</dd></div>
+				<div class="tw:flex tw:items-center tw:justify-between"><dt class="tw:text-[#71717a]">Yanıt süresi</dt><dd class="tw:font-medium tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.AverageLatencyMS}} ms{{else}}normal{{end}}</dd></div>
 			</dl>
 		</div>
 	</section>
