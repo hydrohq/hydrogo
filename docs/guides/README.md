@@ -44,3 +44,6 @@ in one, check whether the other needs the same fix.
 | Topic | What it covers |
 |---|---|
 | `deploy-ftp-shared-hosting` | Building, FTP-uploading, and verifying a HydroGo deploy on CGI shared hosting (Plesk or similar), including the SSH-less migration/admin-bootstrap trick and the full troubleshooting matrix from a real first deployment. |
+| `local-development-setup` | Running `hydro run` in a Core checkout: dev proxy ports, auto-migration, Templ auto-watch, demo seeding, project layout orientation. |
+| `admin-panel-access` | Creating the first admin account (never automatic), logging in, roles, MFA. |
+| `frontend-development` | The two separate frontend systems (public theme vs Admin Studio), their build steps, and the cache-busting/token-lint gotchas that block `git push` if missed. |
