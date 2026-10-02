@@ -1,8 +1,8 @@
 # ADR-0041: Admin visual theme modes
 
-- **Status:** Superseded by [ADR-0338](0338-standalone-tailwind-build-time-css.md) for the "no Tailwind" consequence only; the four admin appearance modes below remain Accepted and unchanged
+- **Status:** Superseded by [ADR-0338](0338-standalone-tailwind-build-time-css.md) for the "no Tailwind" consequence only; superseded by [ADR-0341](0341-admin-family-overhaul.md) for the "every family renders through byte-identical shared markup" invariant, specifically for the `shadcn` and `hydrogo` families (their dashboard body is now its own isolated Tailwind-authored package; `nova` remains on the shared-markup model this ADR describes, unchanged); the two HydroGo/shadcn appearance modes below remain Accepted and unchanged
 - **Date:** 2026-09-14
-- **Related decisions:** [ADR-0020](0020-headless-first-admin-studio-and-frontend-templates.md), [ADR-0037](0037-strict-modular-monolith-boundaries.md)
+- **Related decisions:** [ADR-0020](0020-headless-first-admin-studio-and-frontend-templates.md), [ADR-0037](0037-strict-modular-monolith-boundaries.md), [ADR-0341](0341-admin-family-overhaul.md)
 
 ## Context
 
