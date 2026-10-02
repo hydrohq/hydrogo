@@ -62,7 +62,7 @@ func TestFeedbackHandlerRejectsInvalidContentAndWrongMethod(t *testing.T) {
 
 func TestFeedbackMutationRequiresSharedCSRFAndHonorsRateLimit(t *testing.T) {
 	store := &feedbackMemory{}
-	handler := security.CSRFMiddleware(false)(FeedbackHandler{Store: store})
+	handler := security.CSRFMiddleware(false, nil)(FeedbackHandler{Store: store})
 	body := "_csrf=csrf&content_type=news&content_id=article-a&element_id=article-feedback&reaction=up"
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/feedback", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")

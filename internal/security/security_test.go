@@ -60,7 +60,7 @@ func TestCSRFProtection(t *testing.T) {
 		_, _ = w.Write([]byte("success"))
 	})
 
-	csrf := CSRFMiddleware(false)(nextHandler)
+	csrf := CSRFMiddleware(false, nil)(nextHandler)
 
 	// 1. GET request generates a CSRF cookie and token in context
 	recGet := httptest.NewRecorder()
@@ -108,7 +108,7 @@ func TestCSRFProtection(t *testing.T) {
 
 func TestCSRFDoesNotReadLargeMultipartWithoutHeaderToken(t *testing.T) {
 	var called atomic.Bool
-	csrf := CSRFMiddleware(false)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	csrf := CSRFMiddleware(false, nil)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		called.Store(true)
 	}))
 	cookie := &http.Cookie{Name: CSRFCookieName, Value: "csrf-token"}
@@ -129,7 +129,7 @@ func TestCSRFDoesNotReadLargeMultipartWithoutHeaderToken(t *testing.T) {
 }
 
 func TestCSRFAcceptsSmallMultipartFormToken(t *testing.T) {
-	csrf := CSRFMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	csrf := CSRFMiddleware(false, nil)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	cookie := &http.Cookie{Name: CSRFCookieName, Value: "csrf-token"}

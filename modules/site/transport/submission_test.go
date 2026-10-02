@@ -71,7 +71,7 @@ func TestInboxAISummaryRequiresConsentAndDoesNotPersistContent(t *testing.T) {
 		request.SetPathValue("form", "contact")
 		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin-1", Role: auth.RoleAdmin, Active: true}))
 		response := httptest.NewRecorder()
-		security.CSRFMiddleware(false)(http.HandlerFunc(handler.summarizeInboxAI)).ServeHTTP(response, request)
+		security.CSRFMiddleware(false, nil)(http.HandlerFunc(handler.summarizeInboxAI)).ServeHTTP(response, request)
 		return response
 	}
 	denied := post("")
