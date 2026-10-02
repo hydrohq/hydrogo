@@ -1,111 +1,90 @@
-<div class="aurora-dashboard tw:mx-auto tw:grid tw:max-w-[1600px] tw:gap-5 tw:p-1">
-	<div class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4 tw:border-2 tw:border-[#111111] tw:bg-[#2b3bf2] tw:p-5 tw:shadow-[5px_5px_0_0_#111111]">
+<div class="aurora-dashboard tw:mx-auto tw:grid tw:max-w-[1600px] tw:gap-7 tw:p-1">
+	<div class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
 		<div>
-			<span class="tw:inline-block tw:border-2 tw:border-[#111111] tw:bg-[#ffce45] tw:px-2 tw:py-0.5 tw:text-[11px] tw:font-extrabold tw:uppercase tw:tracking-[.1em] tw:text-[#111111]">Aurora</span>
-			<h2 class="tw:mt-2.5 tw:text-[26px] tw:font-extrabold tw:uppercase tw:leading-none tw:tracking-tight tw:text-white">Genel Bakış</h2>
+			<h2 class="tw:text-[22px] tw:font-semibold tw:tracking-tight tw:text-[#18181b]">Genel Bakış</h2>
+			<p class="tw:mt-0.5 tw:text-sm tw:text-[#8b8d98]">Sitenizin son durumu tek bakışta.</p>
 		</div>
-		<a class="tw:border-2 tw:border-[#111111] tw:bg-white tw:px-4 tw:py-2.5 tw:text-sm tw:font-extrabold tw:uppercase tw:tracking-wide tw:text-[#111111] tw:no-underline tw:shadow-[3px_3px_0_0_#111111] tw:transition tw:hover:translate-x-[1px] tw:hover:translate-y-[1px] tw:hover:shadow-[1px_1px_0_0_#111111]" href="/admin/news/new">
+		<a class="tw:rounded-md tw:bg-[#2f6feb] tw:px-4 tw:py-2 tw:text-sm tw:font-semibold tw:text-white tw:no-underline tw:transition tw:hover:bg-[#2558c2]" href="/admin/news/new">
 			+ Yeni İçerik
 		</a>
 	</div>
 
-	<section class="tw:grid tw:grid-cols-1 tw:gap-4 tw:md:grid-cols-[1.3fr_1fr_1fr_1fr]" aria-label="Sistem özeti">
-		<article class="tw:border-2 tw:border-[#111111] tw:bg-[#111111] tw:p-5 tw:shadow-[5px_5px_0_0_#2b3bf2]">
-			<span class="tw:text-[11px] tw:font-extrabold tw:uppercase tw:tracking-[.12em] tw:text-[#ffce45]">01 &middot; Toplam İstek</span>
-			<strong class="tw:mt-2 tw:block tw:font-mono tw:text-[42px] tw:font-extrabold tw:leading-none tw:tabular-nums tw:text-white">{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}}</strong>
-			<small class="tw:mt-2 tw:block tw:text-xs tw:font-semibold tw:text-[#b9bdf7]">anlık aktif {{if .Metrics}}{{.Metrics.InFlight}}{{else}}0{{end}}</small>
-		</article>
-		<article class="tw:border-2 tw:border-[#111111] tw:bg-white tw:p-4 tw:shadow-[3px_3px_0_0_#111111]">
-			<span class="tw:text-[10px] tw:font-extrabold tw:uppercase tw:tracking-[.1em] tw:text-[#86847a]">02 &middot; Görüntülenme</span>
-			<strong class="tw:mt-1.5 tw:block tw:font-mono tw:text-2xl tw:font-extrabold tw:leading-none tw:tabular-nums tw:text-[#111111]">{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}}</strong>
-			<small class="tw:mt-1.5 tw:block tw:text-xs tw:font-semibold tw:text-[#86847a]">public &amp; mağaza</small>
-		</article>
-		<article class="tw:border-2 tw:border-[#111111] tw:bg-white tw:p-4 tw:shadow-[3px_3px_0_0_#111111]">
-			<span class="tw:text-[10px] tw:font-extrabold tw:uppercase tw:tracking-[.1em] tw:text-[#86847a]">03 &middot; Aktif Üyeler</span>
-			<strong class="tw:mt-1.5 tw:block tw:font-mono tw:text-2xl tw:font-extrabold tw:leading-none tw:tabular-nums tw:text-[#111111]">{{.MemberStats.ActiveMembers}}</strong>
-			<small class="tw:mt-1.5 tw:block tw:text-xs tw:font-semibold tw:text-[#86847a]">doğrulanmış {{.MemberStats.VerifiedMembers}}</small>
-		</article>
-		<article class="tw:border-2 tw:border-[#111111] tw:bg-[#ffce45] tw:p-4 tw:shadow-[3px_3px_0_0_#111111]">
-			<span class="tw:text-[10px] tw:font-extrabold tw:uppercase tw:tracking-[.1em] tw:text-[#111111]">04 &middot; Ort. Yanıt</span>
-			<strong class="tw:mt-1.5 tw:block tw:font-mono tw:text-2xl tw:font-extrabold tw:leading-none tw:tabular-nums tw:text-[#111111]">{{if .Metrics}}{{.Metrics.AverageLatencyMS}}{{else}}0{{end}}<span class="tw:text-sm">ms</span></strong>
-			<small class="tw:mt-1.5 tw:block tw:text-xs tw:font-semibold tw:text-[#5c4f1a]">süreç içi ortalama</small>
-		</article>
+	<section class="tw:grid tw:grid-cols-2 tw:gap-px tw:overflow-hidden tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-[#e4e4e7] tw:md:grid-cols-4" aria-label="Sistem özeti">
+		<div class="tw:bg-white tw:p-4">
+			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Toplam İstek</span>
+			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}}</strong>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">anlık aktif {{if .Metrics}}{{.Metrics.InFlight}}{{else}}0{{end}}</small>
+		</div>
+		<div class="tw:bg-white tw:p-4">
+			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Görüntülenme</span>
+			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}}</strong>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">public &amp; mağaza</small>
+		</div>
+		<div class="tw:bg-white tw:p-4">
+			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Aktif Üyeler</span>
+			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{.MemberStats.ActiveMembers}}</strong>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">doğrulanmış {{.MemberStats.VerifiedMembers}}</small>
+		</div>
+		<div class="tw:bg-white tw:p-4">
+			<span class="tw:block tw:text-xs tw:text-[#8b8d98]">Ort. Yanıt</span>
+			<strong class="tw:mt-1 tw:block tw:text-[22px] tw:font-semibold tw:tabular-nums tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.AverageLatencyMS}}{{else}}0{{end}} <span class="tw:text-sm tw:font-normal tw:text-[#8b8d98]">ms</span></strong>
+			<small class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">süreç içi ortalama</small>
+		</div>
 	</section>
 
-	<section class="tw:grid tw:grid-cols-1 tw:gap-5 tw:lg:grid-cols-[1.4fr_0.6fr]">
-		<div class="tw:border-2 tw:border-[#111111] tw:bg-white tw:p-5 tw:shadow-[5px_5px_0_0_#111111]">
-			<div class="tw:mb-3 tw:flex tw:items-center tw:justify-between tw:border-b-2 tw:border-[#111111] tw:pb-2.5">
-				<h3 class="tw:text-sm tw:font-extrabold tw:uppercase tw:tracking-wide tw:text-[#111111]">İçerik Alanları</h3>
-				<a class="tw:text-xs tw:font-extrabold tw:uppercase tw:tracking-wide tw:text-[#2b3bf2] tw:no-underline tw:hover:underline" href="/admin/news">Tümünü gör &rarr;</a>
-			</div>
-			<div class="tw:overflow-x-auto">
-				<table class="tw:w-full tw:border-collapse tw:text-left tw:text-sm">
-					<tbody>
-						{{$visible := 0}}
-						{{range .Collections}}
-						{{if ne .ID "pages"}}
-						{{$visible = 1}}
-						<tr class="tw:border-b-2 tw:border-[#eceae0] tw:last:border-0">
-							<td class="tw:py-3 tw:pr-3 tw:font-extrabold tw:text-[#111111]">{{.Label}}</td>
-							<td class="tw:py-3 tw:pr-3 tw:text-[#43423d]">{{.Description}}</td>
-							<td class="tw:py-3 tw:pr-3 tw:text-right"><span class="tw:border-2 tw:border-[#111111] tw:bg-[#e7e9ff] tw:px-2 tw:py-0.5 tw:text-xs tw:font-extrabold tw:text-[#2b3bf2]">{{len .Kits}} yetenek</span></td>
-							<td class="tw:py-3 tw:text-right"><a class="tw:font-extrabold tw:text-[#2b3bf2] tw:no-underline tw:hover:underline" href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">Yönet &rarr;</a></td>
-						</tr>
-						{{end}}
-						{{end}}
-						{{if eq $visible 0}}
-						<tr><td colspan="4" class="tw:py-5 tw:text-center tw:text-xs tw:font-semibold tw:text-[#86847a]">Henüz etkin koleksiyon bulunmuyor.</td></tr>
-						{{end}}
-					</tbody>
-				</table>
-			</div>
+	<section>
+		<div class="tw:mb-3 tw:flex tw:items-center tw:justify-between">
+			<h3 class="tw:text-sm tw:font-semibold tw:text-[#18181b]">Koleksiyonlar</h3>
+			<a class="tw:text-xs tw:font-medium tw:text-[#2f6feb] tw:no-underline tw:hover:underline" href="/admin/news">tümünü gör</a>
+		</div>
+		<div class="tw:grid tw:grid-cols-1 tw:gap-3 tw:sm:grid-cols-2 tw:lg:grid-cols-3">
+			{{$visible := 0}}
+			{{range .Collections}}
+			{{if ne .ID "pages"}}
+			{{$visible = 1}}
+			<a class="tw:group tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-white tw:p-4 tw:no-underline tw:shadow-[0_1px_2px_rgba(16,24,40,.05)] tw:transition tw:hover:border-[#2f6feb]" href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">
+				<div>
+					<strong class="tw:block tw:text-sm tw:font-semibold tw:text-[#18181b]">{{.Label}}</strong>
+					<span class="tw:mt-0.5 tw:block tw:text-xs tw:text-[#8b8d98]">{{.Description}}</span>
+				</div>
+				<span class="tw:shrink-0 tw:rounded-full tw:bg-[#eaf1ff] tw:px-2.5 tw:py-1 tw:text-xs tw:font-semibold tw:text-[#2f6feb]">{{len .Kits}}</span>
+			</a>
+			{{end}}
+			{{end}}
+			{{if eq $visible 0}}
+			<p class="tw:text-sm tw:text-[#8b8d98]">Henüz etkin koleksiyon bulunmuyor.</p>
+			{{end}}
+		</div>
+	</section>
+
+	<section class="tw:grid tw:grid-cols-1 tw:gap-5 tw:lg:grid-cols-2">
+		<div class="tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-white tw:p-5">
+			<h3 class="tw:mb-3 tw:text-sm tw:font-semibold tw:text-[#18181b]">Hızlı İşlemler</h3>
+			<nav class="tw:grid tw:gap-1" aria-label="Hızlı işlemler">
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/news/new">Haber yayınla</a>
+				{{if .CommerceModuleEnabled}}
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/commerce/products/new">Ürün oluştur</a>
+				{{end}}
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/media">Medya havuzu</a>
+				{{if .PushEnabled}}
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/push">Bildirim yayınla</a>
+				{{end}}
+				{{if .EmailPreviewEnabled}}
+				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[#18181b] tw:no-underline tw:transition tw:hover:bg-[#f6f7f8]" href="/admin/mailer/test-preview">Test email preview</a>
+				{{end}}
+			</nav>
 		</div>
 
-		<div class="tw:grid tw:gap-5 tw:content-start">
-			<div class="tw:border-2 tw:border-[#111111] tw:bg-white tw:p-5 tw:shadow-[5px_5px_0_0_#111111]">
-				<h3 class="tw:mb-3 tw:border-b-2 tw:border-[#111111] tw:pb-2.5 tw:text-sm tw:font-extrabold tw:uppercase tw:tracking-wide tw:text-[#111111]">Hızlı İşlemler</h3>
-				<nav class="tw:grid tw:gap-2" aria-label="Hızlı işlemler">
-					<a class="tw:group tw:flex tw:items-center tw:gap-3 tw:text-[#111111] tw:no-underline" href="/admin/news/new">
-						<span class="tw:grid tw:h-7 tw:w-7 tw:shrink-0 tw:place-items-center tw:border-2 tw:border-[#111111] tw:bg-[#ffce45] tw:font-mono tw:text-xs tw:font-extrabold">01</span>
-						<strong class="tw:text-sm tw:font-bold tw:group-hover:text-[#2b3bf2] tw:group-hover:underline">Haber yayınla</strong>
-					</a>
-					{{if .CommerceModuleEnabled}}
-					<a class="tw:group tw:flex tw:items-center tw:gap-3 tw:text-[#111111] tw:no-underline" href="/admin/commerce/products/new">
-						<span class="tw:grid tw:h-7 tw:w-7 tw:shrink-0 tw:place-items-center tw:border-2 tw:border-[#111111] tw:bg-[#ffce45] tw:font-mono tw:text-xs tw:font-extrabold">02</span>
-						<strong class="tw:text-sm tw:font-bold tw:group-hover:text-[#2b3bf2] tw:group-hover:underline">Ürün oluştur</strong>
-					</a>
-					{{end}}
-					<a class="tw:group tw:flex tw:items-center tw:gap-3 tw:text-[#111111] tw:no-underline" href="/admin/media">
-						<span class="tw:grid tw:h-7 tw:w-7 tw:shrink-0 tw:place-items-center tw:border-2 tw:border-[#111111] tw:bg-[#ffce45] tw:font-mono tw:text-xs tw:font-extrabold">03</span>
-						<strong class="tw:text-sm tw:font-bold tw:group-hover:text-[#2b3bf2] tw:group-hover:underline">Medya havuzu</strong>
-					</a>
-					{{if .PushEnabled}}
-					<a class="tw:group tw:flex tw:items-center tw:gap-3 tw:text-[#111111] tw:no-underline" href="/admin/push">
-						<span class="tw:grid tw:h-7 tw:w-7 tw:shrink-0 tw:place-items-center tw:border-2 tw:border-[#111111] tw:bg-[#ffce45] tw:font-mono tw:text-xs tw:font-extrabold">04</span>
-						<strong class="tw:text-sm tw:font-bold tw:group-hover:text-[#2b3bf2] tw:group-hover:underline">Bildirim yayınla</strong>
-					</a>
-					{{end}}
-					{{if .EmailPreviewEnabled}}
-					<a class="tw:group tw:flex tw:items-center tw:gap-3 tw:text-[#111111] tw:no-underline" href="/admin/mailer/test-preview">
-						<span class="tw:grid tw:h-7 tw:w-7 tw:shrink-0 tw:place-items-center tw:border-2 tw:border-[#111111] tw:bg-[#ffce45] tw:font-mono tw:text-xs tw:font-extrabold">05</span>
-						<strong class="tw:text-sm tw:font-bold tw:group-hover:text-[#2b3bf2] tw:group-hover:underline">Test email preview</strong>
-					</a>
-					{{end}}
-				</nav>
+		<div class="tw:rounded-lg tw:border tw:border-[#e4e4e7] tw:bg-white tw:p-5">
+			<div class="tw:mb-3 tw:flex tw:items-center tw:justify-between">
+				<h3 class="tw:text-sm tw:font-semibold tw:text-[#18181b]">Sistem Durumu</h3>
+				<span class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-full tw:bg-[#e9f7ef] tw:px-2 tw:py-0.5 tw:text-xs tw:font-semibold tw:text-[#1a7f4e]">Aktif</span>
 			</div>
-
-			<div class="tw:border-2 tw:border-[#111111] tw:bg-[#111111] tw:p-5 tw:shadow-[5px_5px_0_0_#2b3bf2]">
-				<div class="tw:mb-3 tw:flex tw:items-center tw:justify-between tw:border-b-2 tw:border-[#3a392f] tw:pb-2.5">
-					<h3 class="tw:text-sm tw:font-extrabold tw:uppercase tw:tracking-wide tw:text-white">Sistem Durumu</h3>
-					<span class="tw:border-2 tw:border-[#5fcf87] tw:bg-[#113321] tw:px-2 tw:py-0.5 tw:text-[10px] tw:font-extrabold tw:uppercase tw:text-[#5fcf87]">Aktif</span>
-				</div>
-				<dl class="tw:grid tw:gap-2 tw:text-sm">
-					<div class="tw:flex tw:items-center tw:justify-between"><dt class="tw:text-[#9b998f]">Aktif üyeler</dt><dd class="tw:font-mono tw:font-extrabold tw:text-white">{{.MemberStats.ActiveMembers}}</dd></div>
-					<div class="tw:flex tw:items-center tw:justify-between"><dt class="tw:text-[#9b998f]">Doğrulanmış</dt><dd class="tw:font-mono tw:font-extrabold tw:text-white">{{.MemberStats.VerifiedMembers}}</dd></div>
-					<div class="tw:flex tw:items-center tw:justify-between"><dt class="tw:text-[#9b998f]">Anlık istek</dt><dd class="tw:font-mono tw:font-extrabold tw:text-white">{{if .Metrics}}{{.Metrics.InFlight}}{{else}}0{{end}}</dd></div>
-					<div class="tw:flex tw:items-center tw:justify-between"><dt class="tw:text-[#9b998f]">Yanıt süresi</dt><dd class="tw:font-mono tw:font-extrabold tw:text-white">{{if .Metrics}}{{.Metrics.AverageLatencyMS}} ms{{else}}normal{{end}}</dd></div>
-				</dl>
-			</div>
+			<dl class="tw:grid tw:gap-2 tw:text-sm">
+				<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-[#f0f1f3] tw:pb-2"><dt class="tw:text-[#8b8d98]">Aktif üyeler</dt><dd class="tw:font-medium tw:text-[#18181b]">{{.MemberStats.ActiveMembers}}</dd></div>
+				<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-[#f0f1f3] tw:pb-2"><dt class="tw:text-[#8b8d98]">Doğrulanmış</dt><dd class="tw:font-medium tw:text-[#18181b]">{{.MemberStats.VerifiedMembers}}</dd></div>
+				<div class="tw:flex tw:items-center tw:justify-between"><dt class="tw:text-[#8b8d98]">Yanıt süresi</dt><dd class="tw:font-medium tw:text-[#18181b]">{{if .Metrics}}{{.Metrics.AverageLatencyMS}} ms{{else}}normal{{end}}</dd></div>
+			</dl>
 		</div>
 	</section>
 </div>
