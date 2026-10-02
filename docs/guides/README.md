@@ -46,7 +46,7 @@ in one, check whether the other needs the same fix.
 | `deploy-ftp-shared-hosting` | Building, FTP-uploading, and verifying a HydroGo deploy on CGI shared hosting (Plesk or similar), including the SSH-less migration/admin-bootstrap trick and the full troubleshooting matrix from a real first deployment. |
 | `local-development-setup` | Running `hydro run` in a Core checkout: dev proxy ports, auto-migration, Templ auto-watch, demo seeding, project layout orientation. |
 | `admin-panel-access` | Creating the first admin account (never automatic), logging in, roles, MFA. |
-| `frontend-development` | The two separate frontend systems (public theme vs Admin Studio), their build steps, and the cache-busting/token-lint gotchas that block `git push` if missed. |
+| `frontend-development` | Public theme and Admin Studio build steps, cache-busting/token-lint checks, and a UI quality workflow using design tokens, typed Templ components, Tailwind, complete interaction states, and responsive visual review. Includes component-gallery recommendations and the Edition boundary for a separate React/Next.js frontend. |
 | `deploy-vps` | Deploying `hydro serve` to a VPS behind nginx + systemd — verified end-to-end on a real Ubuntu box, including the `public_origin`/`Host`-header requirement and cloud-provider-firewall-vs-SSH distinction discovered while testing. |
 | `redeploy-live-site` | The build→upload→restart/verify loop for shipping a code change to an already-live deployment (shared hosting or VPS), not a first-time setup. |
 | `mail-smtp-setup` | SMTP relay config (Resend as the worked example), required DNS records, the single-SPF-record rule, and a spam-placement diagnostic checklist. |

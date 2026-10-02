@@ -108,3 +108,99 @@ to be anonymous/cacheable anyway (e.g. anything under `/admin/`).
 - For a public theme change, actually load the affected public route
   (`hydro run`, `http://127.0.0.1:8090/...`) and look at it — a lint pass
   doesn't prove the page looks right.
+
+## Producing high-quality UI with Templ and Tailwind
+
+Target the same visual quality as a well-designed Next.js/React frontend.
+HTML/CSS rendering supports the same typography, layout, responsive behavior,
+and visual effects. Use HydroGo's existing components and design contracts to
+make that quality repeatable. Do not assume that switching frameworks alone
+improves the design.
+
+### Establish the design brief
+
+1. Identify the audience, primary task, actual content, supported languages,
+   and the surface being changed: public theme, Admin Studio, or Edition UI.
+2. Read [DESIGN.md](../../../DESIGN.md), the affected theme's sources, and
+   relevant ADRs. Apply explicit user preferences for the requested surface;
+   do not propagate one surface's palette to unrelated themes.
+3. Establish reference designs and a consistent type scale, content measure,
+   spacing scale, color roles, radii, and shadows. Reuse the
+   [semantic token contract](../../architecture/0053-semantic-ui-token-contract.md).
+   Avoid inventing a separate token vocabulary for each page.
+
+### Compose from existing components
+
+- Inventory `internal/ui/components/` and `modules/designsystem/` before
+  adding primitives. Reuse typed Button, Input, Card, and Form contracts and
+  existing blocks; keep escaping and accessibility at the component boundary.
+- For dialogs, menus, tabs, tables, notices, and empty states, find an existing
+  implementation first. Add a missing capability at the appropriate component
+  boundary rather than copying markup between pages. Preserve flexibility in
+  page composition instead of making every page use the same card layout.
+- Put customer-specific UI and behavior under the Client Edition's `custom/`
+  ownership. Change the blueprint/generator for machine-owned output. Never
+  hand-edit `generated/` or `_templ.go` files.
+- Use the affected surface's Tailwind entry and build script described above.
+  Preserve shared semantic selectors and token definitions in Admin Studio;
+  do not load isolated Edition Tailwind output into an existing admin family.
+- A new component contract or HTMX capability requires the repository's ADR
+  and verification process. Do not treat a styling request as authorization
+  to invent routes, authorization policy, workers, or module activation.
+
+### Implement behavior and complete states
+
+Cover default, focus, disabled, loading, empty, error, and success states as
+applicable. Use real content, long labels, and both English and Turkish when
+the surface supports them. Provide meaningful labels, visible keyboard
+focus, sufficient contrast, and keyboard access to all actions.
+
+Use native controls, CSS, and small scoped JavaScript assets for client-side
+interactions. Follow the external-asset/cache guidance above. Use HTMX only
+through the registered allowlist and existing contracts; every mutation must
+declare target, swap, CSRF, authorization, tenant scope, and idempotency.
+Respect `prefers-reduced-motion` and keep inactive-module assets absent.
+
+### Iterate against rendered evidence
+
+1. Open the real affected route after rebuilding the required assets.
+2. Inspect representative widths of 360, 768, and 1440 pixels. Adjust them
+   when the supported device contract requires additional sizes.
+3. Check content order, line length, alignment, clipping, horizontal overflow,
+   and control usability. Exercise keyboard navigation and reduced motion.
+4. Check real, empty, and long-content states, supported locales, and any
+   supported light/dark modes. A component screenshot alone does not verify
+   its page context.
+5. Capture and inspect screenshots. Fix concrete defects, then recheck the
+   changed states. Build/lint success is not visual acceptance.
+6. Complete relevant asset/token checks and mandatory moduleguard,
+   migrationguard, and importguard gates. Report actual results and existing
+   failures; do not claim a failed gate passed.
+
+For AI-assisted implementation, require a brief containing references,
+existing tokens/components, actual content, interaction states, target widths,
+and acceptance criteria. Replace vague requests such as "make it premium"
+with those inputs, and use rendered evidence for subsequent corrections.
+
+### Proposed improvements and framework choice
+
+A component gallery showing variants, states, responsive behavior, and usage
+examples, followed by a small set of complete reference screens (login,
+admin list, editor form, content detail, landing page), is a recommended next
+step. These are recommendations, not a claim that a unified gallery or full
+reference-screen set is implemented. Verify current availability before
+documenting or using one.
+
+For a highly stateful visual editor or canvas application, assess a separate
+Edition-owned React/Next.js frontend against the actual API contracts. Keep
+its runtime and assets outside Core and the Compact baseline. Do not assume
+an official starter, SDK coverage, or validated integration exists:
+[ADR-0020](../../architecture/0020-headless-first-admin-studio-and-frontend-templates.md)
+is **Proposed**, not an accepted implementation guarantee. Architecture and
+contract changes still require their own ADR and evidence.
+
+References:
+[typed server UI](../../architecture/0209-typed-server-ui-contract.md),
+[design-system provider boundary](../../architecture/0023-provider-agnostic-design-systems.md),
+[blocks and lightweight interactions](../../architecture/0266-design-system-blocks-and-interactions.md),
+[Tailwind authoring rules](../../architecture/0340-tailwind-styling-migration.md).
