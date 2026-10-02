@@ -56,9 +56,9 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
 		return err
 	}
-	if err := adminWorkbenchDashboardTemplate.Execute(w, data); err != nil {
-		return err
-	}
+	// hydrogo's own dashboard template (hydrogoui.DashboardTemplate) is
+	// wired in further down this file, right before the collection-kit
+	// summary loop, as part of ADR-0341's flagship redesign.
 	if err := adminNovaDashboardTemplate.Execute(w, data); err != nil {
 		return err
 	}

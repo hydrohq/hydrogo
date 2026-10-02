@@ -812,7 +812,7 @@ function testGraphQL(btn){
   <div class="acc-card">
     <h3>🎨 %s</h3>
     <p>%s</p>
-    <label class="studio-form-field"><span>%s</span><select id="ui-family-select" class="ui-family-select" aria-label="%s"><option value="hydrogo">HydroGo</option><option value="shadcn">shadcn</option><option value="workbench">Workbench</option><option value="nova">Nova</option><option value="aurora">Aurora</option></select></label>
+    <label class="studio-form-field"><span>%s</span><select id="ui-family-select" class="ui-family-select" aria-label="%s"><option value="hydrogo">HydroGo</option><option value="shadcn">shadcn</option><option value="nova">Nova</option><option value="aurora">Aurora</option></select></label>
   </div>
 		</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"), appearanceTitle, appearanceIntro, appearanceLabel, appearanceLabel)
 		soundTitle, soundLabel, soundDescription := "Bildirim sesleri", "Yeni taleplerde sesli uyarı ver", "Bu tercih yalnızca bu tarayıcıda saklanır ve varsayılan olarak kapalıdır."

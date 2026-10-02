@@ -419,21 +419,52 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 	}
 }
 
-func TestAdminShellIncludesWorkbenchThemeMode(t *testing.T) {
-	for _, want := range []string{"data-ui-theme=workbench", "workbench-light", "workbench-dark", "Workbench"} {
-		if !strings.Contains(AdminWorkbenchCSS+AdminSPARouterJS, want) {
-			t.Fatalf("admin shell missing workbench theme contract %q", want)
+// TestWorkbenchFamilyIsFullyRemoved is a regression guard for ADR-0341's
+// removal of the "workbench" admin visual family: it must never reappear in
+// the rendered shell, the family-select allowlists, the migration/default
+// fallback logic, or the account-page family picker. hydrogo took over
+// workbench's former role as the default/fallback family.
+func TestWorkbenchFamilyIsFullyRemoved(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	if strings.Contains(strings.ToLower(out.String()), "workbench") {
+		t.Fatal("rendered admin shell still mentions workbench - it must be fully removed (ADR-0341)")
+	}
+	var account bytes.Buffer
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account"}); err != nil {
+		t.Fatalf("render account area: %v", err)
+	}
+	if strings.Contains(strings.ToLower(account.String()), "workbench") {
+		t.Fatal("account area's family selector still mentions workbench - it must be fully removed (ADR-0341)")
+	}
+}
+
+// TestAdminShellIncludesHydroGoThemeMode verifies hydrogo (not workbench) is
+// now the default/fallback family everywhere a fallback is needed: the
+// pre-paint bootstrap script, the legacy-session migration script, and the
+// family-select change handler and theme-toggle handler in AdminSPARouterJS.
+func TestAdminShellIncludesHydroGoThemeMode(t *testing.T) {
+	for _, want := range []string{
+		`includes(parts[0])?parts[0]:'hydrogo'`,
+		`setAttribute('data-ui-theme','hydrogo')`,
+		`['hydrogo', 'shadcn', 'nova', 'aurora'].includes(familySelect.value) ? familySelect.value : 'hydrogo'`,
+		`getAttribute('data-ui-theme') || 'hydrogo'`,
+	} {
+		if !strings.Contains(AdminSPARouterJS, want) {
+			t.Fatalf("admin shell missing hydrogo default-fallback contract %q", want)
 		}
 	}
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	if !strings.Contains(out.String(), `data-ui-theme=workbench`) {
-		t.Fatal("rendered admin shell missing workbench contract")
+	if !strings.Contains(out.String(), `data-ui-theme`) || !strings.Contains(out.String(), "hydro-ui-theme-v2") {
+		t.Fatal("rendered admin shell missing pre-paint theme bootstrap")
 	}
-	if !strings.Contains(out.String(), "hydro-ui-theme-v2") || !strings.Contains(out.String(), "workbench-'+variant") {
-		t.Fatal("rendered admin shell missing pre-paint Workbench migration")
+	if !strings.Contains(AdminThemeMigrationJS, "hydrogo-'+variant") {
+		t.Fatal("AdminThemeMigrationJS no longer seeds the hydrogo default for legacy sessions")
 	}
 }
 
@@ -524,7 +555,6 @@ func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 		`id="ui-family-select"`,
 		`<option value="hydrogo">HydroGo</option>`,
 		`<option value="shadcn">shadcn</option>`,
-		`<option value="workbench">Workbench</option>`,
 		`<option value="nova">Nova</option>`,
 	} {
 		if !strings.Contains(account.String(), want) {
