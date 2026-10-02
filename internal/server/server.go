@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -226,7 +225,7 @@ func NewHandler(config Config) http.Handler {
 	// Individual pages and news articles always render a cookie-consent or
 	// helpful-feedback widget bound to the CSRF cookie, so they keep today's
 	// behavior unchanged.
-	handler = security.CSRFMiddleware(config.SecureCookie, newsListCacheEligible)(handler)
+	handler = security.CSRFMiddleware(config.SecureCookie, publicContentCacheEligible)(handler)
 
 	if config.Maintenance.Enabled != nil {
 		handler = MaintenanceMiddleware(config.Maintenance)(handler)
@@ -274,13 +273,15 @@ func NewHandler(config Config) http.Handler {
 	return handler
 }
 
-// newsListCacheEligible matches exactly the "/public/news/{locale}/html" pattern
-// that staticCacheURLPath also recognizes for the on-disk static cache. It is
-// intentionally narrower than staticCacheURLPath: the page and news-article HTML
-// routes it also matches always render a CSRF-cookie-dependent widget (cookie
-// consent, helpful-feedback), so this helper must not be widened to include them
-// without first removing that dependency.
-func newsListCacheEligible(r *http.Request) bool {
-	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	return len(parts) == 4 && parts[0] == "public" && parts[1] == "news" && parts[3] == "html" && staticCacheSegment.MatchString(parts[2])
+// publicContentCacheEligible matches the same route patterns as
+// staticCacheURLPath: "/public/news/{locale}/html" (the news list), and the
+// individual "/public/pages/{locale}/{slug}/html" and
+// "/public/news/{locale}/{slug}/html" routes. All of these now render their
+// CSRF-dependent widgets (cookie consent, helpful-feedback) without requiring
+// the cookie to already exist on this response — the widgets fetch a token
+// client-side from /csrf-token when needed instead of relying on a
+// server-baked value embedded in shared/cached HTML. See
+// modules/designsystem/assets/feedback.js and internal/security/csrf_token_handler.go.
+func publicContentCacheEligible(r *http.Request) bool {
+	return staticCacheURLPath(r.URL.Path)
 }

@@ -39,9 +39,18 @@ func TestPublishedNewsHTMLIncludesHelpfulFeedbackComponent(t *testing.T) {
 	r.SetPathValue("slug", "story")
 	w := httptest.NewRecorder()
 	h.publicGetHTML(w, r)
-	for _, want := range []string{`href="/designsystem/static/designsystem.css"`, `hx-post="/api/v1/feedback"`, `data-feedback-type="news"`, `4 kişi faydalı buldu · 1 kişi faydalı bulmadı`} {
-		if !strings.Contains(w.Body.String(), want) {
+	body := w.Body.String()
+	for _, want := range []string{`href="/designsystem/static/designsystem.css"`, `hx-post="/api/v1/feedback"`, `data-feedback-type="news"`, `4 kişi faydalı buldu · 1 kişi faydalı bulmadı`, `href="/designsystem/static/article-reading.css"`, `src="/designsystem/static/article-reading.js"`} {
+		if !strings.Contains(body, want) {
 			t.Errorf("news feedback response missing %q", want)
 		}
+	}
+	// A published article is a static-disk-cache candidate
+	// (internal/server/static_cache.go); any inline nonce'd tag would
+	// permanently disqualify it (its literal "nonce=" exclusion), so an
+	// anonymous render with no analytics consent banner showing must emit
+	// none.
+	if strings.Contains(body, "nonce=") {
+		t.Error("anonymous article render must not embed an inline nonce'd tag, it must stay cache-eligible")
 	}
 }

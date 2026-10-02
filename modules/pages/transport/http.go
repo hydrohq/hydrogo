@@ -803,8 +803,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page render failed", http.StatusInternalServerError)
 		return
 	}
-	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
-	designHead += `<style nonce="` + nonce + `">` + ui.PublicArticleCSS + `</style><script nonce="` + nonce + `">` + ui.PublicArticleJS + `</script>`
+	designHead += `<link rel="stylesheet" href="/designsystem/static/article-reading.css"><script src="/designsystem/static/article-reading.js" defer></script>`
 	var readingTools bytes.Buffer
 	if err := ui.PublicArticleTools().Render(r.Context(), &readingTools); err != nil {
 		http.Error(w, "page render failed", http.StatusInternalServerError)

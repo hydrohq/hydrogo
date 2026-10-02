@@ -9,13 +9,21 @@ import (
 	"time"
 )
 
-//go:embed assets/designsystem.css assets/widgets.js
+//go:embed assets/designsystem.css assets/widgets.js assets/article-reading.css assets/article-reading.js assets/feedback.js
 var assetFS embed.FS
+
+var publicAssetNames = map[string]bool{
+	"designsystem.css":    true,
+	"widgets.js":          true,
+	"article-reading.css": true,
+	"article-reading.js":  true,
+	"feedback.js":         true,
+}
 
 // ServeAsset exposes only the release-owned design system assets.
 func ServeAsset(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.PathValue("path"), "/")
-	if name != "designsystem.css" && name != "widgets.js" {
+	if !publicAssetNames[name] {
 		http.NotFound(w, r)
 		return
 	}

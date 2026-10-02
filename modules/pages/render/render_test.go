@@ -44,7 +44,7 @@ func TestFAQBlockFeedbackUsesOptionalRenderContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{`data-feedback-type="faq"`, `hx-post="/api/v1/feedback"`, `2 kişi faydalı buldu · 1 kişi faydalı bulmadı`, `name="_csrf" value="csrf"`} {
+	for _, marker := range []string{`data-feedback-type="faq"`, `hx-post="/api/v1/feedback"`, `2 kişi faydalı buldu · 1 kişi faydalı bulmadı`, `name="_csrf" value=""`} {
 		if !strings.Contains(with, marker) {
 			t.Errorf("FAQ feedback output missing %q", marker)
 		}
