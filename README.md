@@ -8,6 +8,23 @@ HydroGo is not a customer-specific CMS or another heavy monolithic framework. It
 
 ---
 
+## 📸 Product Showcase
+
+*(Asagidaki gorseller ornek yer tutuculardir. Lutfen projeden kendi ekran goruntulerinizi alarak docs/assets/ klasorune ekleyip isimlerini guncelleyin.)*
+
+<div align="center">
+  <img src="docs/assets/admin-studio.png" alt="HydroGo Admin Studio" width="800" style="border-radius: 8px; border: 1px solid #ccc;" />
+  <br/>
+  <em>Zero-Jargon Business Studio & Executive Dashboard</em>
+</div>
+<br/>
+<div align="center">
+  <img src="docs/assets/theme-builder.png" alt="Theme Blocks & Bento Grid" width="400" style="border-radius: 8px; border: 1px solid #ccc; margin-right: 10px;" />
+  <img src="docs/assets/rbac-matrix.png" alt="Role & Permission Matrix" width="400" style="border-radius: 8px; border: 1px solid #ccc;" />
+</div>
+
+---
+
 ## ⚡ The HydroGo Philosophy & Vision
 
 Modern web development is burdened by two extremes:
@@ -140,6 +157,23 @@ HydroGo includes an industrial suite of pre-built, production-tested domain modu
 
 ---
 
+## 📖 Documentation & Operational Guides
+
+HydroGo embraces a dual-audience documentation strategy, providing both human-friendly context and AI-executable runbooks.
+
+- **Architecture Decisions (ADR):** docs/architecture/ documents every core architectural choice.
+- **Human Guides:** docs/guides/human/ offers GUI-driven, context-rich runbooks explaining the *why* behind operations.
+- **AI Runbooks:** docs/guides/ai/ provides zero-context, imperative instructions for AI agents to execute tasks flawlessly.
+
+**Key Operational Runbooks:**
+- [Frontend Development & Theming](docs/guides/human/frontend-development.md)
+- [VPS Deployment (Nginx + Systemd)](docs/guides/human/deploy-vps.md)
+- [Shared Hosting & CGI Deployment](docs/guides/human/deploy-ftp-shared-hosting.md)
+- [Database Migrations & Guardrails](docs/guides/human/database-migrations.md)
+- [SMTP Setup & Mail Diagnostics](docs/guides/human/mail-smtp-setup.md)
+
+---
+
 ## 🛠️ Unified Cross-Platform CLI
 
 HydroGo provides a universal CLI that behaves identically on Linux, macOS, and Windows:
@@ -218,3 +252,5 @@ go test -race ./...
 ## 📄 License & Commercial Terms
 
 HydroGo is proprietary software. Commercial licensing terms, distribution rights, and client edition permissions are detailed in [`PROPRIETARY_NOTICE.md`](docs/legal/PROPRIETARY_NOTICE.md) and [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md).
+
+

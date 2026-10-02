@@ -31,6 +31,7 @@ Invoke-Required "gofmt" {
     if ($unformatted) { throw "gofmt required: $($unformatted -join ', ')" }
 }
 Invoke-Required "workflow action pins" { go run ./tools/actionguard }
+Invoke-Required "gosec security scanner" { go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-dir=.tmp ./... }
 Invoke-Required "go vet" { go vet ./... }
 if (-not $skipContractTests) {
     Invoke-Required "full test suite" { go test ./... -p 1 -count=1 -timeout=5m }
