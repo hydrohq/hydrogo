@@ -101,12 +101,18 @@ func TestBrandBackgroundsNeverPairWithHardcodedWhiteText(t *testing.T) {
 		t.Fatal("base :root is missing the --brand-ink default")
 	}
 	for _, css := range []string{AdminShadcnCSS, AdminNovaCSS} {
-		if !strings.Contains(css, `][data-theme="dark"]{`) || !strings.Contains(css, "--brand-ink:#09090b") {
+		// The component CSS is now compiled by the standalone Tailwind CLI
+		// (ADR-0341), which prints attribute selectors without quotes when
+		// not required - functionally identical to `][data-theme="dark"]{`.
+		if !strings.Contains(css, `][data-theme=dark]{`) || !strings.Contains(css, "--brand-ink:#09090b") {
 			t.Fatal("shadcn/nova dark variant is missing a --brand-ink override")
 		}
 	}
 	for _, css := range []string{AdminCSS, AdminShadcnCSS, AdminWorkbenchCSS, AdminNovaCSS} {
-		re := regexp.MustCompile(`background:var\(--brand(?:-hover)?\)[^}]*color:#fff|color:#fff[^}]*background:var\(--brand(?:-hover)?\)`)
+		// `background:var(--brand)` became `background-color:var(--brand)`
+		// under the Tailwind `bg-[...]` utility (ADR-0341); match both
+		// spellings so this regression guard still catches the real bug.
+		re := regexp.MustCompile(`background(?:-color)?:var\(--brand(?:-hover)?\)[^}]*color:#fff|color:#fff[^}]*background(?:-color)?:var\(--brand(?:-hover)?\)`)
 		if re.MatchString(css) {
 			t.Fatalf("found a brand-background rule still hardcoding color:#fff instead of var(--brand-ink): %q", re.FindString(css))
 		}

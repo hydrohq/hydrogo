@@ -390,8 +390,14 @@ func TestAdminShellShowsAuthenticatedUserInitials(t *testing.T) {
 
 func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 	for _, want := range []string{
-		`data-ui-theme="shadcn"`,
-		`data-theme="dark"`,
+		// The CSS half is now compiled by the standalone Tailwind CLI
+		// (ADR-0341), which prints attribute selectors without quotes
+		// when they aren't required (`data-ui-theme=shadcn` instead of
+		// `data-ui-theme="shadcn"`) - functionally identical CSS, so the
+		// contract checks the unquoted form for selectors sourced from
+		// AdminShadcnCSS.
+		`data-ui-theme=shadcn`,
+		`data-theme=dark`,
 		`hydro-ui-theme`,
 		`shadcn-light`,
 		`shadcn-dark`,
@@ -406,7 +412,7 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	for _, want := range []string{`data-ui-theme="shadcn"`, `hydro-ui-theme`, `shadcn-dark`} {
+	for _, want := range []string{`data-ui-theme=shadcn`, `hydro-ui-theme`, `shadcn-dark`} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("rendered admin shell missing shadcn contract %q", want)
 		}
@@ -414,7 +420,7 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 }
 
 func TestAdminShellIncludesWorkbenchThemeMode(t *testing.T) {
-	for _, want := range []string{"data-ui-theme=\"workbench\"", "workbench-light", "workbench-dark", "Workbench"} {
+	for _, want := range []string{"data-ui-theme=workbench", "workbench-light", "workbench-dark", "Workbench"} {
 		if !strings.Contains(AdminWorkbenchCSS+AdminSPARouterJS, want) {
 			t.Fatalf("admin shell missing workbench theme contract %q", want)
 		}
@@ -423,7 +429,7 @@ func TestAdminShellIncludesWorkbenchThemeMode(t *testing.T) {
 	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	if !strings.Contains(out.String(), `data-ui-theme="workbench"`) {
+	if !strings.Contains(out.String(), `data-ui-theme=workbench`) {
 		t.Fatal("rendered admin shell missing workbench contract")
 	}
 	if !strings.Contains(out.String(), "hydro-ui-theme-v2") || !strings.Contains(out.String(), "workbench-'+variant") {
@@ -458,7 +464,7 @@ func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
 			t.Fatalf("Shadcn mode missing shared semantic selector %q", selector)
 		}
 	}
-	if !strings.Contains(AdminShadcnCSS, `html[data-ui-theme="shadcn"]`) {
+	if !strings.Contains(AdminShadcnCSS, `html[data-ui-theme=shadcn]`) {
 		t.Fatal("Shadcn styles are not scoped to the visual mode")
 	}
 }
@@ -491,7 +497,7 @@ func TestAdminShellSelfHostsInterFont(t *testing.T) {
 
 func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 	for _, want := range []string{
-		`data-ui-theme="nova"`,
+		`data-ui-theme=nova`,
 		`nova-light`,
 		`nova-dark`,
 		`nova:'Nova'`,
@@ -504,7 +510,7 @@ func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	if !strings.Contains(out.String(), `data-ui-theme="nova"`) {
+	if !strings.Contains(out.String(), `data-ui-theme=nova`) {
 		t.Fatal(`rendered admin shell missing data-ui-theme="nova" contract`)
 	}
 
@@ -534,7 +540,7 @@ func TestNovaModeSharesSemanticMarkupContract(t *testing.T) {
 			t.Fatalf("Nova mode missing shared semantic selector %q", selector)
 		}
 	}
-	if !strings.Contains(AdminNovaCSS, `html[data-ui-theme="nova"]`) {
+	if !strings.Contains(AdminNovaCSS, `html[data-ui-theme=nova]`) {
 		t.Fatal("Nova styles are not scoped to the visual mode")
 	}
 }
