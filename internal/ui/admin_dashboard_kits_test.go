@@ -203,8 +203,10 @@ func TestNovaDashboardHidesPagesCollectionAndGatesCommerceAction(t *testing.T) {
 	// client-only) and the Workbench variant intentionally still lists every
 	// collection including pages, so scope the check to Nova's own table
 	// markup instead of the whole page.
-	novaStart := strings.Index(out.String(), `class="nova-table-card"`)
-	novaEnd := strings.Index(out.String(), `class="nova-activity-card"`)
+	// Markup now carries Tailwind utility classes alongside the hook class
+	// (ADR-0340), so match the class attribute by prefix, not exact value.
+	novaStart := strings.Index(out.String(), `class="nova-table-card `)
+	novaEnd := strings.Index(out.String(), `class="nova-activity-card `)
 	if novaStart == -1 || novaEnd == -1 || novaEnd < novaStart {
 		t.Fatal("could not locate the Nova content-areas table in the rendered dashboard")
 	}
@@ -218,8 +220,10 @@ func TestNovaDashboardHidesPagesCollectionAndGatesCommerceAction(t *testing.T) {
 	// Workbench's own quick-action list (wb-action-list) is a separate,
 	// pre-existing template that always includes "Ürün oluştur" regardless of
 	// CommerceModuleEnabled; only Nova's activity card is in scope here.
-	novaActivityStart := strings.Index(out.String(), `class="nova-activity-card"`)
-	novaActivityEnd := strings.Index(out.String(), `class="nova-status-dot"`)
+	// Markup now carries Tailwind utility classes alongside the hook class
+	// (ADR-0340), so match the class attribute by prefix, not exact value.
+	novaActivityStart := strings.Index(out.String(), `class="nova-activity-card `)
+	novaActivityEnd := strings.Index(out.String(), `class="nova-status-dot `)
 	if novaActivityStart == -1 || novaActivityEnd == -1 || novaActivityEnd < novaActivityStart {
 		t.Fatal("could not locate the Nova quick-actions card in the rendered dashboard")
 	}
