@@ -3240,8 +3240,11 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		routes = append(routes, newsRoutes...)
 	}
-	if modules["pages"] || modules["forms"] {
+	if modules["pages"] || modules["forms"] || modules["news"] {
 		routes = append(routes, router.Route{Pattern: "GET /designsystem/static/{path...}", Access: router.Public, Handler: http.HandlerFunc(designsystem.ServeAsset)})
+	}
+	if modules["pages"] || modules["news"] {
+		routes = append(routes, router.Route{Pattern: "GET /csrf-token", Access: router.Public, Handler: http.HandlerFunc(security.TokenHandler)})
 	}
 	if modules["pages"] {
 		fontsDir := cfg.SEO.FontsDir

@@ -738,7 +738,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
-	readingEnhancement := fmt.Sprintf(`<style nonce="%s">%s</style><script nonce="%s">%s</script>`, nonce, ui.PublicArticleCSS, nonce, ui.PublicArticleJS)
+	readingEnhancement := `<link rel="stylesheet" href="/designsystem/static/article-reading.css"><script src="/designsystem/static/article-reading.js" defer></script>`
 	var helpfulFeedback bytes.Buffer
 	if h.Feedback != nil {
 		scope, scopeErr := tenant.FromContext(r.Context())

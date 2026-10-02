@@ -5,19 +5,19 @@ templ HelpfulFeedback(p HelpfulFeedbackProps) {
 		<p class="font-semibold">Bu içerik yardımcı oldu mu?</p>
 		<div class="flex gap-2">
 			<form method="post" action="/api/v1/feedback" hx-post="/api/v1/feedback" hx-target={ "#" + p.ElementID } hx-swap="outerHTML">
-				<input type="hidden" name="_csrf" value={ p.CSRF }/><input type="hidden" name="content_type" value={ p.ContentType }/><input type="hidden" name="content_id" value={ p.ContentID }/><input type="hidden" name="element_id" value={ p.ElementID }/><input type="hidden" name="reaction" value="up"/>
+				<input type="hidden" name="_csrf" value=""/><input type="hidden" name="content_type" value={ p.ContentType }/><input type="hidden" name="content_id" value={ p.ContentID }/><input type="hidden" name="element_id" value={ p.ElementID }/><input type="hidden" name="reaction" value="up"/>
 				<button type="submit" class="button button-quiet" aria-label="Evet, içerik yardımcı oldu">👍 Evet</button>
 			</form>
 			<form method="post" action="/api/v1/feedback" hx-post="/api/v1/feedback" hx-target={ "#" + p.ElementID } hx-swap="outerHTML">
-				<input type="hidden" name="_csrf" value={ p.CSRF }/><input type="hidden" name="content_type" value={ p.ContentType }/><input type="hidden" name="content_id" value={ p.ContentID }/><input type="hidden" name="element_id" value={ p.ElementID }/><input type="hidden" name="reaction" value="down"/>
+				<input type="hidden" name="_csrf" value=""/><input type="hidden" name="content_type" value={ p.ContentType }/><input type="hidden" name="content_id" value={ p.ContentID }/><input type="hidden" name="element_id" value={ p.ElementID }/><input type="hidden" name="reaction" value="down"/>
 				<button type="submit" class="button button-quiet" aria-label="Hayır, içerik yardımcı olmadı">👎 Hayır</button>
 			</form>
 		</div>
 		<p class="text-sm text-muted-foreground" aria-live="polite">{ p.Up } kişi faydalı buldu · { p.Down } kişi faydalı bulmadı</p>
-		<script nonce={ p.Nonce }>document.querySelectorAll('[data-feedback]').forEach(s=>{if(s.dataset.feedbackInit)return;s.dataset.feedbackInit='true';try{const k='hydro-feedback:'+s.dataset.feedbackType+':'+s.dataset.feedbackId;if(localStorage.getItem(k)){s.querySelectorAll('button').forEach(b=>b.disabled=true)}s.querySelectorAll('form').forEach(f=>f.addEventListener('submit',()=>s.querySelectorAll('button').forEach(b=>b.disabled=true)))}catch(_){}});if(!document.body.dataset.feedbackListener){document.body.dataset.feedbackListener='true';document.body.addEventListener('htmx:afterRequest',e=>{const f=e.detail.elt?.closest?.('[data-feedback]');if(!f||!e.detail.successful)return;try{localStorage.setItem('hydro-feedback:'+f.dataset.feedbackType+':'+f.dataset.feedbackId,'1')}catch(_){}})}</script>
 		if p.LoadHTMX {
 			<script src="/vendor/htmx/htmx.min.js" defer></script>
 		}
+		<script src="/designsystem/static/feedback.js" defer></script>
 	</section>
 }
 
