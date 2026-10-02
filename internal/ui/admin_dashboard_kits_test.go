@@ -30,7 +30,14 @@ func TestMediaHeaderControlsWrapInAFlexToolbarUnderNova(t *testing.T) {
 	// the taller side. A flex-wrap toolbar has no "columns" to go uneven:
 	// items pack left-to-right and only take the height their own line
 	// needs, so there's never a leftover empty block.
-	if !strings.Contains(AdminMediaFormsCSS, `html[data-ui-theme="nova"] .media-toolbar-row{display:flex;flex-wrap:wrap`) {
+	// The component CSS is now compiled by the standalone Tailwind CLI
+	// (ADR-0340): attribute selectors print unquoted, and @apply expands
+	// each utility's declaration in Tailwind's own canonical order rather
+	// than the source order, so `display:flex` and `flex-wrap:wrap` are no
+	// longer guaranteed to be textually adjacent - check both are present
+	// within the rule instead of one exact adjacent substring.
+	if toolbarRule := firstRuleBody(AdminMediaFormsCSS, `html[data-ui-theme=nova] .media-toolbar-row{`); toolbarRule == "" ||
+		!strings.Contains(toolbarRule, "display:flex") || !strings.Contains(toolbarRule, "flex-wrap:wrap") {
 		t.Fatal("Nova is missing the flex-wrap toolbar row for the media page's secondary controls (view toggle, folder tree, create-folder, tag filter, cleanup link, settings)")
 	}
 	if strings.Contains(AdminMediaFormsCSS, `.media-header-grid`) || strings.Contains(AdminMediaFormsCSS, `.media-header-col`) {
@@ -44,7 +51,8 @@ func TestMediaInlineFormSubmitButtonDoesNotStretchFullWidth(t *testing.T) {
 	// in the grid's second row stretched to fill its whole column by CSS
 	// Grid's default justify-items:stretch - "Uygula"/"Oluştur" rendered as a
 	// near-full-width bar instead of a normal button.
-	if !strings.Contains(AdminMediaFormsCSS, `.media-inline-form button[type="submit"]{justify-self:start`) {
+	// Unquoted attribute selector: see firstRuleBody's doc comment (ADR-0340).
+	if !strings.Contains(AdminMediaFormsCSS, `.media-inline-form button[type=submit]{justify-self:start`) {
 		t.Fatal("media-inline-form submit buttons are missing the justify-self:start override that keeps them from stretching")
 	}
 }
@@ -248,13 +256,19 @@ func TestAdminShellIncludesNovaTopNav(t *testing.T) {
 			t.Fatalf("admin shell missing nova top nav contract %q", want)
 		}
 	}
-	for _, want := range []string{
-		`html[data-ui-theme="nova"] .studio-sidebar{display:none}`,
-		`html[data-ui-theme="nova"] .studio-app{grid-template-columns:minmax(0,1fr)}`,
-	} {
-		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
-			t.Fatalf("admin shell missing nova sidebar-less layout rule %q", want)
-		}
+	// Tailwind's compiler (ADR-0340) prints attribute selectors unquoted
+	// and merges different selectors that end up with an identical
+	// declaration body into one comma-separated rule, so `.studio-sidebar`
+	// no longer has its own standalone "{display:none}" - it's grouped
+	// with `.studio-mobile-menu-toggle`, which gets the same treatment.
+	if !strings.Contains(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .studio-sidebar,`) {
+		t.Fatal(`admin shell missing nova sidebar-less layout rule for .studio-sidebar`)
+	}
+	if rule := firstRuleBody(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .studio-sidebar,`); !strings.Contains(rule, "display:none") {
+		t.Fatalf("nova .studio-sidebar rule is missing display:none: %q", rule)
+	}
+	if !strings.Contains(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .studio-app{grid-template-columns:minmax(0,1fr)}`) {
+		t.Fatal(`admin shell missing nova sidebar-less layout rule for .studio-app`)
 	}
 }
 
@@ -297,9 +311,13 @@ func TestRemoveCommerceLinksStripsNovaTopNavCommerceLinks(t *testing.T) {
 }
 
 func TestAdminShellHidesInactiveDashboardVariantByCSS(t *testing.T) {
+	// Tailwind's compiler (ADR-0340) merges `.nova-dashboard`, `.wb-dashboard`
+	// and `.nova-topnav-wrap` into one comma-separated rule since they all
+	// compile to the identical declaration body ("display:none"), and
+	// prints attribute selectors unquoted.
 	for _, want := range []string{
-		`html:not([data-ui-theme="nova"]) .nova-dashboard{display:none}`,
-		`html[data-ui-theme="nova"] .wb-dashboard{display:none}`,
+		`html:not([data-ui-theme=nova]) .nova-dashboard,`,
+		`html[data-ui-theme=nova] .wb-dashboard,`,
 	} {
 		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
 			t.Fatalf("admin shell missing dashboard variant toggle rule %q", want)
@@ -391,7 +409,8 @@ func TestMediaToolbarRowButtonsShareTheSameHeightUnderNova(t *testing.T) {
 	// they must all be pinned to the same explicit height so they line up,
 	// even though their widths naturally differ by content.
 	for _, want := range []string{
-		`html[data-ui-theme="nova"] .media-toolbar-row .list-view-switch button,html[data-ui-theme="nova"] .media-toolbar-row>.media-folder-tree>a,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-disclosure>summary,html[data-ui-theme="nova"] .media-toolbar-row>p>.button,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-trigger,html[data-ui-theme="nova"] .media-toolbar-row input,html[data-ui-theme="nova"] .media-toolbar-row select,html[data-ui-theme="nova"] .media-toolbar-row button{`,
+		// Unquoted attribute selector: see firstRuleBody's doc comment (ADR-0340).
+		`html[data-ui-theme=nova] .media-toolbar-row .list-view-switch button,html[data-ui-theme=nova] .media-toolbar-row>.media-folder-tree>a,html[data-ui-theme=nova] .media-toolbar-row>.media-settings-disclosure>summary,html[data-ui-theme=nova] .media-toolbar-row>p>.button,html[data-ui-theme=nova] .media-toolbar-row>.media-settings-trigger,html[data-ui-theme=nova] .media-toolbar-row input,html[data-ui-theme=nova] .media-toolbar-row select,html[data-ui-theme=nova] .media-toolbar-row button{`,
 	} {
 		if !strings.Contains(AdminMediaFormsCSS, want) {
 			t.Fatal("Nova's media toolbar row is missing the shared-height rule covering all its button-like children")
@@ -400,13 +419,40 @@ func TestMediaToolbarRowButtonsShareTheSameHeightUnderNova(t *testing.T) {
 }
 
 func TestNovaThemeToggleAndAvatarHaveVisibleBorders(t *testing.T) {
-	if strings.Contains(AdminNovaDashboardLayoutCSS, `.ui-family-select,html[data-ui-theme="nova"] .theme-toggle-btn{border-color:transparent`) {
+	if strings.Contains(AdminNovaDashboardLayoutCSS, `.ui-family-select,html[data-ui-theme=nova] .theme-toggle-btn{border-color:transparent`) {
 		t.Fatal("Nova must not strip the theme toggle button's border - it should match the notification bell's border")
 	}
-	if !strings.Contains(AdminNovaDashboardLayoutCSS, `html[data-ui-theme="nova"] .theme-toggle-btn{border:1px solid var(--line);background:var(--surface)}`) {
-		t.Fatal("Nova's theme toggle button is missing a visible border like the other topbar buttons")
+	// Unquoted attribute selector, and `background` -> `background-color`
+	// under the Tailwind `bg-` utility (ADR-0340); same declarations.
+	if rule := firstRuleBody(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .theme-toggle-btn{`); !strings.Contains(rule, "border:1px solid var(--line)") || !strings.Contains(rule, "background-color:var(--surface)") {
+		t.Fatalf("Nova's theme toggle button is missing a visible border like the other topbar buttons: %q", rule)
 	}
-	if !strings.Contains(AdminNovaDashboardLayoutCSS, `.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--surface);color:var(--muted);border:1px solid var(--line)}`) {
-		t.Fatal("Nova's account avatar must use the same border/background treatment as the notification bell button")
+	// Declaration order and `background`->`background-color` changed under
+	// Tailwind's compiler (ADR-0340); same declarations, checked by content.
+	if rule := firstRuleBody(AdminNovaDashboardLayoutCSS, `.user-avatar{`); !strings.Contains(rule, "width:32px") || !strings.Contains(rule, "height:32px") ||
+		!strings.Contains(rule, "border-radius:50%") || !strings.Contains(rule, "background-color:var(--surface)") ||
+		!strings.Contains(rule, "color:var(--muted)") || !strings.Contains(rule, "border:1px solid var(--line)") {
+		t.Fatalf("Nova's account avatar must use the same border/background treatment as the notification bell button: %q", rule)
 	}
+}
+
+// firstRuleBody returns the declaration body (without the enclosing braces)
+// of the first flat, non-nested CSS rule in css whose selector text starts
+// with selectorPrefix (selectorPrefix must include the trailing "{"), or ""
+// if not found. Since ADR-0340, component CSS is compiled by the standalone
+// Tailwind CLI, which prints each @apply utility's declaration in its own
+// canonical order rather than the original source order - tests that need
+// to check several declarations landed in the same rule should use this
+// instead of asserting one long, order-sensitive substring.
+func firstRuleBody(css, selectorPrefix string) string {
+	i := strings.Index(css, selectorPrefix)
+	if i < 0 {
+		return ""
+	}
+	start := i + len(selectorPrefix)
+	end := strings.Index(css[start:], "}")
+	if end < 0 {
+		return ""
+	}
+	return css[start : start+end]
 }
