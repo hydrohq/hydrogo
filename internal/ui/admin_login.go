@@ -535,15 +535,7 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 		flex-direction: column;
 	}
 	.login-hero-pane {
-		flex: none;
-		padding: 36px 24px;
-	}
-	.login-hero-pane::after { display: none; }
-	.hero-headline {
-		font-size: 1.85rem;
-	}
-	.hero-content {
-		padding: 16px 0;
+		display: none;
 	}
 	.login-form-pane {
 		flex: 1;
@@ -551,10 +543,6 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 	}
 }
 @media (max-width: 480px) {
-	.login-hero-pane { padding: 24px; }
-	.hero-content { padding: 20px 0 8px; }
-	.hero-headline { font-size: 1.6rem; }
-	.hero-links { margin-top: 20px; }
 	.login-form-pane { padding: 24px; }
 	.pane-top-actions { justify-content: space-between; }
 }
