@@ -47,3 +47,9 @@ in one, check whether the other needs the same fix.
 | `local-development-setup` | Running `hydro run` in a Core checkout: dev proxy ports, auto-migration, Templ auto-watch, demo seeding, project layout orientation. |
 | `admin-panel-access` | Creating the first admin account (never automatic), logging in, roles, MFA. |
 | `frontend-development` | The two separate frontend systems (public theme vs Admin Studio), their build steps, and the cache-busting/token-lint gotchas that block `git push` if missed. |
+| `deploy-vps` | Deploying `hydro serve` to a VPS behind nginx + systemd — verified end-to-end on a real Ubuntu box, including the `public_origin`/`Host`-header requirement and cloud-provider-firewall-vs-SSH distinction discovered while testing. |
+| `redeploy-live-site` | The build→upload→restart/verify loop for shipping a code change to an already-live deployment (shared hosting or VPS), not a first-time setup. |
+| `mail-smtp-setup` | SMTP relay config (Resend as the worked example), required DNS records, the single-SPF-record rule, and a spam-placement diagnostic checklist. |
+| `database-migrations` | Migration file anatomy, the checksum/migrationguard requirement, and the MySQL-dialect-forgotten bug class found across 20+ files this session — read before hand-writing dialect-aware SQL. |
+| `dns-cloudflare-setup` | Pointing a domain at Cloudflare, propagation troubleshooting, and the Full(strict) SSL mode requirement. |
+| `reading-production-logs` | Fetching and interpreting shared-hosting error logs over FTP, including why a cache hit produces no log line at all. |
