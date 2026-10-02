@@ -1,0 +1,123 @@
+<div class="aurora-dashboard tw:grid tw:gap-5 tw:max-w-[1600px] tw:mx-auto tw:p-1">
+	<div class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4 tw:rounded-2xl tw:bg-gradient-to-r tw:from-teal-950 tw:to-slate-900 tw:p-6 tw:shadow-lg tw:shadow-teal-950/20">
+		<div>
+			<span class="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:bg-teal-400/10 tw:px-2.5 tw:py-1 tw:text-[11px] tw:font-semibold tw:uppercase tw:tracking-wide tw:text-teal-300">Aurora</span>
+			<h2 class="tw:mt-2 tw:text-xl tw:font-semibold tw:tracking-tight tw:text-white">Genel Bakış</h2>
+			<p class="tw:mt-1 tw:text-sm tw:text-slate-400">Sitenizin son durumu tek bakışta.</p>
+		</div>
+		<a class="tw:inline-flex tw:items-center tw:gap-2 tw:rounded-lg tw:bg-teal-500 tw:px-4 tw:py-2 tw:text-sm tw:font-semibold tw:text-teal-950 tw:shadow-sm tw:transition tw:hover:bg-teal-400" href="/admin/news/new">
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+			Yeni İçerik
+		</a>
+	</div>
+
+	<section class="tw:grid tw:grid-cols-2 tw:gap-3 tw:md:grid-cols-4" aria-label="Sistem özeti">
+		<article class="tw:rounded-xl tw:border tw:border-slate-800 tw:bg-slate-900 tw:p-4 tw:shadow-sm">
+			<div class="tw:flex tw:items-center tw:justify-between tw:text-xs tw:font-medium tw:text-slate-400"><span>Toplam İstek</span><span class="tw:text-teal-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span></div>
+			<strong class="tw:mt-2 tw:block tw:font-mono tw:text-2xl tw:font-bold tw:text-white">{{if .Metrics}}{{.Metrics.TotalRequests}}{{else}}0{{end}}</strong>
+			<small class="tw:mt-1 tw:block tw:text-xs tw:text-slate-500">{{if .Metrics}}Anlık aktif: {{.Metrics.InFlight}}{{else}}İstek yok{{end}}</small>
+		</article>
+		<article class="tw:rounded-xl tw:border tw:border-slate-800 tw:bg-slate-900 tw:p-4 tw:shadow-sm">
+			<div class="tw:flex tw:items-center tw:justify-between tw:text-xs tw:font-medium tw:text-slate-400"><span>Görüntülenme</span><span class="tw:text-teal-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span></div>
+			<strong class="tw:mt-2 tw:block tw:font-mono tw:text-2xl tw:font-bold tw:text-white">{{if .Metrics}}{{.Metrics.TotalViews}}{{else}}0{{end}}</strong>
+			<small class="tw:mt-1 tw:block tw:text-xs tw:text-slate-500">Public &amp; mağaza sayfaları</small>
+		</article>
+		<article class="tw:rounded-xl tw:border tw:border-slate-800 tw:bg-slate-900 tw:p-4 tw:shadow-sm">
+			<div class="tw:flex tw:items-center tw:justify-between tw:text-xs tw:font-medium tw:text-slate-400"><span>Aktif Üyeler</span><span class="tw:text-teal-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg></span></div>
+			<strong class="tw:mt-2 tw:block tw:font-mono tw:text-2xl tw:font-bold tw:text-white">{{.MemberStats.ActiveMembers}}</strong>
+			<small class="tw:mt-1 tw:block tw:text-xs tw:text-slate-500">Doğrulanmış: {{.MemberStats.VerifiedMembers}}</small>
+		</article>
+		<article class="tw:rounded-xl tw:border tw:border-slate-800 tw:bg-slate-900 tw:p-4 tw:shadow-sm">
+			<div class="tw:flex tw:items-center tw:justify-between tw:text-xs tw:font-medium tw:text-slate-400"><span>Ortalama Yanıt</span><span class="tw:text-teal-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span></div>
+			<strong class="tw:mt-2 tw:block tw:font-mono tw:text-2xl tw:font-bold tw:text-white">{{if .Metrics}}{{.Metrics.AverageLatencyMS}} ms{{else}}0 ms{{end}}</strong>
+			<small class="tw:mt-1 tw:block tw:text-xs tw:text-slate-500">Süreç içi ortalama</small>
+		</article>
+	</section>
+
+	<section class="tw:grid tw:grid-cols-1 tw:gap-4 tw:lg:grid-cols-[1.35fr_0.65fr]">
+		<div class="tw:rounded-xl tw:border tw:border-slate-800 tw:bg-slate-900 tw:p-5 tw:shadow-sm">
+			<div class="tw:mb-3 tw:flex tw:items-start tw:justify-between tw:gap-3">
+				<div>
+					<h3 class="tw:text-sm tw:font-semibold tw:text-white">İçerik Alanları</h3>
+					<p class="tw:mt-0.5 tw:text-xs tw:text-slate-500">Yönetilebilir koleksiyonlar ve varlıklar</p>
+				</div>
+				<a class="tw:text-xs tw:font-semibold tw:text-teal-400 tw:hover:text-teal-300" href="/admin/news">Tümünü gör</a>
+			</div>
+			<div class="tw:overflow-x-auto">
+				<table class="tw:w-full tw:text-left tw:text-sm">
+					<thead><tr class="tw:border-b tw:border-slate-800 tw:text-xs tw:uppercase tw:tracking-wide tw:text-slate-500"><th class="tw:pb-2 tw:font-medium">Alan</th><th class="tw:pb-2 tw:font-medium">Açıklama</th><th class="tw:pb-2 tw:font-medium">Yetenek</th><th class="tw:pb-2"></th></tr></thead>
+					<tbody>
+						{{$visible := 0}}
+						{{range .Collections}}
+						{{if ne .ID "pages"}}
+						{{$visible = 1}}
+						<tr class="tw:border-b tw:border-slate-800/60 tw:last:border-0">
+							<td class="tw:py-2 tw:font-semibold tw:text-white">{{.Label}}</td>
+							<td class="tw:py-2 tw:text-slate-400">{{.Description}}</td>
+							<td class="tw:py-2"><span class="tw:rounded-full tw:bg-teal-400/10 tw:px-2 tw:py-0.5 tw:text-xs tw:font-medium tw:text-teal-300">{{len .Kits}} yetenek</span></td>
+							<td class="tw:py-2 tw:text-right"><a class="tw:text-xs tw:font-semibold tw:text-teal-400 tw:hover:text-teal-300" href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}">Yönet</a></td>
+						</tr>
+						{{end}}
+						{{end}}
+						{{if eq $visible 0}}
+						<tr><td colspan="4" class="tw:py-4 tw:text-center tw:text-xs tw:text-slate-500">Henüz etkin koleksiyon bulunmuyor.</td></tr>
+						{{end}}
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="tw:grid tw:gap-4 tw:content-start">
+			<div class="tw:rounded-xl tw:border tw:border-slate-800 tw:bg-slate-900 tw:p-5 tw:shadow-sm">
+				<div class="tw:mb-3">
+					<h3 class="tw:text-sm tw:font-semibold tw:text-white">Hızlı İşlemler</h3>
+					<p class="tw:mt-0.5 tw:text-xs tw:text-slate-500">Sık kullanılan kısayollar</p>
+				</div>
+				<nav class="tw:grid tw:gap-1.5" aria-label="Hızlı işlemler">
+					<a class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:px-2.5 tw:py-2 tw:text-white tw:hover:bg-slate-800" href="/admin/news/new">
+						<span class="tw:grid tw:h-8 tw:w-8 tw:place-items-center tw:rounded-lg tw:bg-teal-400/10 tw:text-teal-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20V4H7a3 3 0 0 0-3 3v12.5Z"></path><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M9 8h7"></path><path d="M9 12h6"></path></svg></span>
+						<span><strong class="tw:block tw:text-sm tw:font-semibold">Haber yayınla</strong><small class="tw:block tw:text-xs tw:text-slate-500">Yeni editoryal içerik ekle</small></span>
+					</a>
+					{{if .CommerceModuleEnabled}}
+					<a class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:px-2.5 tw:py-2 tw:text-white tw:hover:bg-slate-800" href="/admin/commerce/products/new">
+						<span class="tw:grid tw:h-8 tw:w-8 tw:place-items-center tw:rounded-lg tw:bg-teal-400/10 tw:text-teal-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 9-4 9 4-9 4Z"></path><path d="m3 7 9 4 9-4"></path><path d="M3 7v10l9 4 9-4V7"></path><path d="M12 11v10"></path></svg></span>
+						<span><strong class="tw:block tw:text-sm tw:font-semibold">Ürün oluştur</strong><small class="tw:block tw:text-xs tw:text-slate-500">Kataloğa yeni ürün gir</small></span>
+					</a>
+					{{end}}
+					<a class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:px-2.5 tw:py-2 tw:text-white tw:hover:bg-slate-800" href="/admin/media">
+						<span class="tw:grid tw:h-8 tw:w-8 tw:place-items-center tw:rounded-lg tw:bg-teal-400/10 tw:text-teal-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="m21 15-4-4L7 20"></path></svg></span>
+						<span><strong class="tw:block tw:text-sm tw:font-semibold">Medya havuzu</strong><small class="tw:block tw:text-xs tw:text-slate-500">Varlıkları yönet ve yükle</small></span>
+					</a>
+					{{if .PushEnabled}}
+					<a class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:px-2.5 tw:py-2 tw:text-white tw:hover:bg-slate-800" href="/admin/push">
+						<span class="tw:grid tw:h-8 tw:w-8 tw:place-items-center tw:rounded-lg tw:bg-teal-400/10 tw:text-teal-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
+						<span><strong class="tw:block tw:text-sm tw:font-semibold">Bildirim yayınla</strong><small class="tw:block tw:text-xs tw:text-slate-500">Web ve mobil cihazlara duyur</small></span>
+					</a>
+					{{end}}
+					{{if .EmailPreviewEnabled}}
+					<a class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:px-2.5 tw:py-2 tw:text-white tw:hover:bg-slate-800" href="/admin/mailer/test-preview">
+						<span class="tw:grid tw:h-8 tw:w-8 tw:place-items-center tw:rounded-lg tw:bg-teal-400/10 tw:text-teal-300"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-10 5L2 7"></path></svg></span>
+						<span><strong class="tw:block tw:text-sm tw:font-semibold">Test email preview</strong><small class="tw:block tw:text-xs tw:text-slate-500">Verify delivery to your inbox</small></span>
+					</a>
+					{{end}}
+				</nav>
+			</div>
+
+			<div class="tw:rounded-xl tw:border tw:border-slate-800 tw:bg-slate-900 tw:p-5 tw:shadow-sm">
+				<div class="tw:mb-3 tw:flex tw:items-center tw:justify-between">
+					<div>
+						<h3 class="tw:text-sm tw:font-semibold tw:text-white">Sistem Durumu</h3>
+						<p class="tw:mt-0.5 tw:text-xs tw:text-slate-500">Anlık çalışma bilgileri</p>
+					</div>
+					<span class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-full tw:bg-emerald-400/10 tw:px-2 tw:py-0.5 tw:text-xs tw:font-semibold tw:text-emerald-300">Aktif</span>
+				</div>
+				<dl class="tw:grid tw:gap-2">
+					<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-slate-800/60 tw:pb-1.5 tw:text-sm"><dt class="tw:text-slate-500">Aktif üyeler</dt><dd class="tw:font-mono tw:font-semibold tw:text-slate-200">{{.MemberStats.ActiveMembers}}</dd></div>
+					<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-slate-800/60 tw:pb-1.5 tw:text-sm"><dt class="tw:text-slate-500">Doğrulanmış hesaplar</dt><dd class="tw:font-mono tw:font-semibold tw:text-slate-200">{{.MemberStats.VerifiedMembers}}</dd></div>
+					<div class="tw:flex tw:items-center tw:justify-between tw:border-b tw:border-slate-800/60 tw:pb-1.5 tw:text-sm"><dt class="tw:text-slate-500">Anlık istek</dt><dd class="tw:font-mono tw:font-semibold tw:text-slate-200">{{if .Metrics}}{{.Metrics.InFlight}}{{else}}0{{end}}</dd></div>
+					<div class="tw:flex tw:items-center tw:justify-between tw:text-sm"><dt class="tw:text-slate-500">Yanıt süresi</dt><dd class="tw:font-mono tw:font-semibold tw:text-slate-200">{{if .Metrics}}{{.Metrics.AverageLatencyMS}} ms{{else}}Normal{{end}}</dd></div>
+				</dl>
+			</div>
+		</div>
+	</section>
+</div>

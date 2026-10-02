@@ -8,6 +8,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	"github.com/ardaozyildirim/hydrogo/internal/ui/aurora"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
@@ -59,6 +60,9 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 		return err
 	}
 	if err := adminNovaDashboardTemplate.Execute(w, data); err != nil {
+		return err
+	}
+	if err := aurora.DashboardTemplate.Execute(w, data); err != nil {
 		return err
 	}
 	for _, collection := range data.Collections {
