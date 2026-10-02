@@ -22,6 +22,32 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	// TestHydroGoDashboardRendersFlagshipWidgets below.
 }
 
+func TestHydroGoDashboardRendersFlagshipWidgets(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "articles", Label: "Articles", Description: "Content", Actions: []adminstudio.Action{{Label: "Open", Href: "/admin/articles"}}, Kits: []adminstudio.Kit{adminstudio.KitSEO}}}, Active: "dashboard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"hydrogo-dashboard", "Merhaba", "Genel Bakış", "Sistem Durumu", "Hızlı İşlemler", "Articles"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("hydrogo dashboard widget %q missing", want)
+		}
+	}
+}
+
+func TestShadcnDashboardRendersDataTableWidgets(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "articles", Label: "Articles", Description: "Content", Actions: []adminstudio.Action{{Label: "Open", Href: "/admin/articles"}}, Kits: []adminstudio.Kit{adminstudio.KitSEO}}}, Active: "dashboard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"shadcn-dashboard", "<table", "<thead", "Koleksiyonlar", "Articles"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("shadcn dashboard widget %q missing", want)
+		}
+	}
+}
+
 func TestMediaHeaderControlsWrapInAFlexToolbarUnderNova(t *testing.T) {
 	// Two fixed-column layouts (a plain 2-col grid, then two independent
 	// flex-columns) both left a dead empty block under whichever side had
@@ -309,7 +335,7 @@ func TestAdminShellHidesInactiveDashboardVariantByCSS(t *testing.T) {
 	// prints attribute selectors unquoted.
 	for _, want := range []string{
 		`html:not([data-ui-theme=nova]) .nova-dashboard,`,
-		`html[data-ui-theme=nova] .wb-dashboard,`,
+		`html[data-ui-theme=nova] .hydrogo-dashboard,`,
 	} {
 		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
 			t.Fatalf("admin shell missing dashboard variant toggle rule %q", want)
