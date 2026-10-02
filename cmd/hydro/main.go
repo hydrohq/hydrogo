@@ -2491,8 +2491,13 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		http.NotFound(w, r)
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /docs", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lang := r.URL.Query().Get("lang")
+		if lang != "tr" {
+			lang = "en"
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, docsComingSoonHTML(security.NonceFromContext(r.Context())))
+		w.Header().Set("Content-Language", lang)
+		_, _ = io.WriteString(w, docsPortalHTML(lang, security.NonceFromContext(r.Context())))
 	})})
 	if modules["analytics"] {
 		routes = append(routes, router.Route{Pattern: "POST /analytics/consent", Access: router.Public, Handler: analytics.ConsentHandler(analyticsStore, cfg.Security.SecureCookies)})
@@ -2600,19 +2605,23 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/admin")
+		loginLocale := "en"
+		if r.URL.Query().Get("lang") == "tr" {
+			loginLocale = "tr"
+		}
 		if user := auth.UserFromContext(r.Context()); user != nil && user.Active && user.Role == auth.RoleAdmin {
 			http.Redirect(w, r, returnTo, http.StatusSeeOther)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		// Safe fallback: "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin." is rendered via ui.RenderAdminLogin
+		w.Header().Set("Content-Language", loginLocale)
 		appearance := site.Appearance{LoginOverlayOpacity: .4}
 		if modules["site"] {
 			if settings, settingsErr := siteStore.ListPublicSettings(r.Context(), db); settingsErr == nil {
 				appearance = site.AppearanceFromSettings(settings)
 			}
 		}
-		if err := ui.RenderAdminLoginWithAppearance(w, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context()), returnTo, appearance); err != nil {
+		if err := ui.RenderAdminLoginWithLocaleAndAppearance(w, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context()), returnTo, loginLocale, appearance); err != nil {
 			http.Error(w, "admin login unavailable", http.StatusInternalServerError)
 		}
 	})})
@@ -4684,7 +4693,7 @@ func technicalHomeHTML(locale, demoPath string, demoEnabled bool, nonce ...strin
   </div>
 
   <h1 class="hero-title">Welcome to HydroGo</h1>
-  <p class="hero-subtitle">Manage your content, memberships, and commerce operations from one fast, secure workspace.</p>
+  <p class="hero-subtitle">Manage your content, memberships, and publishing workflows from one fast, secure workspace.</p>
 
   <div class="actions-group">
     <a href="/admin" class="btn-hero btn-start">Get Started</a>
@@ -4693,104 +4702,6 @@ func technicalHomeHTML(locale, demoPath string, demoEnabled bool, nonce ...strin
 </main>
 </body>
 </html>`, template.HTMLEscapeString(locale), styleNonceAttr)
-}
-
-func docsComingSoonHTML(nonce ...string) string {
-	styleNonceAttr := ""
-	if len(nonce) > 0 && strings.TrimSpace(nonce[0]) != "" {
-		styleNonceAttr = fmt.Sprintf(` nonce="%s"`, template.HTMLEscapeString(nonce[0]))
-	}
-	return fmt.Sprintf(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Documentation · Coming Soon</title>
-  <style%s>
-    :root {
-      --bg: #090a0f;
-      --card: #0e1118;
-      --border: #1e2533;
-      --text: #ffffff;
-      --text-muted: #94a3b8;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-sans);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-      text-align: center;
-    }
-    .docs-wrapper {
-      max-width: 520px;
-      width: 100%%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .badge {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #a855f7;
-      background: rgba(168, 85, 247, 0.1);
-      border: 1px solid rgba(168, 85, 247, 0.25);
-      padding: 6px 14px;
-      border-radius: 9999px;
-      margin-bottom: 20px;
-    }
-    h1 {
-      font-size: clamp(1.85rem, 3.5vw, 2.3rem);
-      font-weight: 600;
-      letter-spacing: -0.015em;
-      color: #ffffff;
-      margin-bottom: 12px;
-    }
-    p {
-      color: var(--text-muted);
-      font-size: 1rem;
-      margin-bottom: 30px;
-      line-height: 1.6;
-    }
-    .btn-back {
-      display: inline-flex;
-      align-items: center;
-      padding: 10px 22px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #ffffff;
-      background: #1e2533;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      text-decoration: none;
-      transition: all 0.15s ease;
-    }
-    .btn-back:hover {
-      background: #334155;
-      color: #ffffff;
-    }
-  </style>
-</head>
-<body>
-<main class="docs-wrapper">
-  <span class="badge">Documentation</span>
-  <h1>Coming Soon</h1>
-  <p>HydroGo developer documentation and guides are currently being crafted.</p>
-  <a href="/" class="btn-back">&larr; Back to Home</a>
-</main>
-</body>
-</html>`, styleNonceAttr)
 }
 
 func moduleEnabled(modules []string, wanted string) bool {

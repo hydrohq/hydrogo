@@ -31,8 +31,10 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 type pageCacheSpy struct{ cleared int }
@@ -148,10 +150,49 @@ func TestTechnicalHomeHTMLIsBackendFirstAndKeepsDemoOptIn(t *testing.T) {
 			t.Fatalf("technical home missing %q", want)
 		}
 	}
-	docsMarkup := docsComingSoonHTML("test-nonce")
-	for _, want := range []string{"Coming Soon", "Documentation", "nonce=\"test-nonce\""} {
+	docsMarkup := docsPortalHTML("en", "test-nonce")
+	for _, want := range []string{"Documentation", "Quick start", "Architecture", "APIs &amp; integration", "Deployment &amp; operations", "nonce=\"test-nonce\""} {
 		if !strings.Contains(docsMarkup, want) {
-			t.Fatalf("docs coming soon missing %q", want)
+			t.Fatalf("docs portal missing %q", want)
+		}
+	}
+	if strings.Contains(docsMarkup, "github.com") || strings.Contains(docsMarkup, "Coming Soon") {
+		t.Fatal("docs portal contains an external repository link or placeholder copy")
+	}
+	if markup := docsPortalHTML("en", `" onload="alert(1)`); strings.Contains(markup, `nonce="" onload="`) {
+		t.Fatal("docs portal did not escape the CSP nonce")
+	}
+}
+
+func TestDocsPortalLocalesAndCompiledCSS(t *testing.T) {
+	english := docsPortalHTML("en", "test-nonce")
+	turkish := docsPortalHTML("tr", "test-nonce")
+	if fallback := docsPortalHTML("invalid", "test-nonce"); fallback != english {
+		t.Fatal("unknown docs locale must fall back to English")
+	}
+	for _, tc := range []struct {
+		name, markup, lang, heading, current string
+	}{
+		{"English", english, `lang="en"`, "Quick start", `href="/docs?lang=en" lang="en" aria-current="page"`},
+		{"Turkish", turkish, `lang="tr"`, "Hızlı başlangıç", `href="/docs?lang=tr" lang="tr" aria-current="page"`},
+	} {
+		for _, want := range []string{tc.lang, tc.heading, tc.current, ".site-header", "#0ea5e9"} {
+			if !strings.Contains(tc.markup, want) {
+				t.Errorf("%s docs missing %q", tc.name, want)
+			}
+		}
+		if strings.Contains(tc.markup, "github.com") {
+			t.Errorf("%s docs contain a GitHub link", tc.name)
+		}
+		if strings.Contains(tc.markup, `class="toc"`) || strings.Contains(tc.markup, "On this page") || strings.Contains(tc.markup, "Bu sayfada") {
+			t.Errorf("%s docs contain the removed right-hand contents column", tc.name)
+		}
+	}
+	for _, id := range []string{"overview", "quickstart", "architecture", "request-flow", "workspace", "modules", "data", "api", "security", "admin", "operations", "contributing", "status"} {
+		for _, markup := range []string{english, turkish} {
+			if !strings.Contains(markup, `id="`+id+`"`) {
+				t.Errorf("docs missing section %s", id)
+			}
 		}
 	}
 }
@@ -600,8 +641,17 @@ func TestLoginPageDoesNotExposeTransportOrServerErrors(t *testing.T) {
 			t.Fatalf("login page exposes implementation detail %q", forbidden)
 		}
 	}
-	if !strings.Contains(page, "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.") {
-		t.Fatal("login page is missing the safe fallback message")
+	for locale, message := range map[string]string{
+		"en": "Sign in is temporarily unavailable. Please try again.",
+		"tr": "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.",
+	} {
+		var rendered bytes.Buffer
+		if err := ui.RenderAdminLoginWithLocaleAndAppearance(&rendered, "csrf", "nonce", "/admin", locale, site.Appearance{}); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(rendered.String(), message) {
+			t.Fatalf("%s login page is missing the safe fallback message", locale)
+		}
 	}
 }
 

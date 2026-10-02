@@ -1,0 +1,85 @@
+/* Isolated Tailwind entry for the public developer documentation route.
+   The compiled CSS is embedded in the Go binary; no browser runtime is used. */
+@import "tailwindcss/theme.css" layer(theme) prefix(tw);
+@import "tailwindcss/utilities.css" layer(utilities) prefix(tw);
+@source "./docs_portal_en.html";
+@source "./docs_portal_tr.html";
+
+:root{--docs-bg:#090a0f;--docs-panel:#0d1017;--docs-raised:#121620;--docs-line:#1e2533;--docs-muted:#94a3b8;--docs-text:#f8fafc;--docs-blue:#0ea5e9;--docs-blue-light:#38bdf8;--docs-code:#0b1523}
+*,*::before,*::after{@apply tw:box-border}
+html{@apply tw:scroll-smooth tw:bg-[#090a0f] tw:text-[#f8fafc];font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{@apply tw:m-0 tw:min-w-[320px] tw:bg-[#090a0f] tw:text-[#f8fafc] tw:antialiased}
+::selection{background:#0ea5e9;color:#06111c}
+a{@apply tw:text-inherit tw:no-underline}
+a:focus-visible,button:focus-visible,summary:focus-visible{@apply tw:outline-2 tw:outline-offset-4 tw:outline-[#38bdf8]}
+button{font:inherit}
+.skip-link{@apply tw:absolute tw:-left-[9999px] tw:top-3 tw:z-50 tw:bg-[#0ea5e9] tw:px-4 tw:py-2 tw:font-semibold tw:text-[#06111c]}
+.skip-link:focus{@apply tw:left-3}
+.site-header{@apply tw:sticky tw:top-0 tw:z-40 tw:flex tw:h-16 tw:items-center tw:justify-between tw:border-b tw:border-[#1e2533] tw:bg-[#090a0f] tw:px-5 tw:lg:px-8}
+.brand{@apply tw:flex tw:items-center tw:gap-3 tw:font-bold tw:tracking-[-0.025em]}
+.brand-mark{@apply tw:grid tw:size-8 tw:place-items-center tw:rounded-lg tw:bg-[#0ea5e9] tw:text-[#06111c]}
+.brand-mark svg{@apply tw:size-5}
+.brand-name{@apply tw:text-[1.02rem]}
+.brand-divider{@apply tw:text-[#475569]}
+.brand-docs{@apply tw:text-[.95rem] tw:font-medium tw:text-[#cbd5e1]}
+.header-actions{@apply tw:flex tw:items-center tw:gap-3 tw:text-[.82rem] tw:sm:gap-5}
+.header-actions>a{@apply tw:hidden tw:text-[#94a3b8] tw:hover:text-[#f8fafc] tw:sm:inline}
+.language-switch{@apply tw:inline-flex tw:items-center tw:rounded-lg tw:border tw:border-[#283447] tw:bg-[#121620] tw:p-1}
+.language-switch a{@apply tw:inline-flex tw:min-h-11 tw:min-w-11 tw:items-center tw:justify-center tw:rounded-md tw:px-2.5 tw:py-1 tw:font-semibold tw:text-[#94a3b8] tw:transition-colors tw:hover:text-white}
+.language-switch a[aria-current="page"]{@apply tw:bg-[#0ea5e9] tw:text-[#06111c]}
+.layout{@apply tw:mx-auto tw:grid tw:max-w-[1360px] tw:grid-cols-1 tw:lg:grid-cols-[240px_minmax(0,1fr)]}
+.sidebar{@apply tw:sticky tw:top-16 tw:hidden tw:h-[calc(100vh-4rem)] tw:overflow-y-auto tw:border-r tw:border-[#1e2533] tw:px-5 tw:py-9 tw:lg:block}
+.sidebar-title{@apply tw:mb-4 tw:text-[.71rem] tw:font-bold tw:uppercase tw:tracking-[.13em] tw:text-[#64748b]}
+.side-nav{@apply tw:grid tw:gap-0.5}
+.side-nav a,.mobile-nav a{@apply tw:block tw:rounded-md tw:px-3 tw:py-2 tw:text-[.86rem] tw:font-medium tw:text-[#9aaabd] tw:transition-colors tw:hover:bg-[#121620] tw:hover:text-white}
+.side-nav .nav-group{@apply tw:mt-5 tw:mb-1 tw:px-3 tw:text-[.69rem] tw:font-bold tw:uppercase tw:tracking-[.12em] tw:text-[#64748b]}
+.mobile-navigation{@apply tw:sticky tw:top-16 tw:z-30 tw:border-b tw:border-[#1e2533] tw:bg-[#0d1017] tw:px-5 tw:py-3 tw:lg:hidden}
+.mobile-navigation summary{@apply tw:flex tw:min-h-11 tw:cursor-pointer tw:list-none tw:items-center tw:justify-between tw:text-[.88rem] tw:font-semibold}
+.mobile-navigation summary::-webkit-details-marker{@apply tw:hidden}
+.mobile-navigation summary svg{@apply tw:size-4 tw:text-[#38bdf8]}
+.mobile-nav{@apply tw:mt-3 tw:grid tw:max-h-[60vh] tw:overflow-y-auto tw:border-t tw:border-[#1e2533] tw:pt-2;scrollbar-width:thin;scrollbar-color:#334155 transparent}
+.mobile-nav a{@apply tw:flex tw:min-h-11 tw:items-center}
+.doc-main{@apply tw:min-w-0 tw:px-5 tw:pb-24 tw:sm:px-8 tw:lg:px-12 tw:xl:px-16}
+.article{@apply tw:mx-auto tw:max-w-[820px]}
+.hero{@apply tw:border-b tw:border-[#1e2533] tw:pt-16 tw:pb-14 tw:sm:pt-20}
+.hero h1{@apply tw:m-0 tw:max-w-[14ch] tw:text-[2.65rem] tw:leading-[1.08] tw:font-semibold tw:tracking-[-.035em] tw:sm:text-[3.55rem]}
+.hero h1 span{@apply tw:text-[#38bdf8]}
+.hero-lead{@apply tw:mt-6 tw:max-w-[67ch] tw:text-[1.08rem] tw:leading-8 tw:text-[#cbd5e1]}
+.hero-sub{@apply tw:mt-4 tw:max-w-[70ch] tw:leading-7 tw:text-[#94a3b8]}
+.quick-links{@apply tw:mt-10 tw:grid tw:gap-3 tw:sm:grid-cols-3}
+.quick-link{@apply tw:flex tw:min-h-28 tw:flex-col tw:justify-between tw:rounded-xl tw:bg-[#121620] tw:p-4 tw:transition-colors tw:hover:bg-[#1a2534]}
+.quick-link strong{@apply tw:text-[.89rem] tw:font-semibold}
+.quick-link span{@apply tw:text-[.76rem] tw:text-[#38bdf8]}
+.status-note{@apply tw:mt-8 tw:rounded-lg tw:bg-[#0d1827] tw:px-5 tw:py-4 tw:text-[.86rem] tw:leading-6 tw:text-[#b7cadf]}
+.status-note strong{@apply tw:text-white}
+.doc-section{@apply tw:scroll-mt-28 tw:border-b tw:border-[#1e2533] tw:pt-16 tw:pb-14}
+.doc-section h2{@apply tw:mt-0 tw:mb-5 tw:text-[1.82rem] tw:leading-tight tw:font-semibold tw:tracking-[-.025em] tw:sm:text-[2rem]}
+.doc-section h3{@apply tw:mt-9 tw:mb-3 tw:text-[1.13rem] tw:font-semibold tw:tracking-[-.015em]}
+.doc-section p{@apply tw:my-4 tw:max-w-[72ch] tw:leading-[1.8] tw:text-[#aebed0]}
+.doc-section strong{@apply tw:font-semibold tw:text-[#e5edf7]}
+.doc-section ul,.doc-section ol{@apply tw:my-5 tw:pl-6 tw:leading-[1.75] tw:text-[#aebed0]}
+.doc-section li{@apply tw:pl-1}
+.doc-section li+li{@apply tw:mt-2}
+.doc-section li::marker{@apply tw:text-[#38bdf8]}
+.doc-section code,.status-note code{@apply tw:rounded tw:bg-[#0b1523] tw:px-1.5 tw:py-0.5 tw:text-[.84em] tw:text-[#b7e7ff];font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.code-block{@apply tw:my-6 tw:overflow-x-auto tw:rounded-xl tw:bg-[#0b1523] tw:p-5 tw:text-[.84rem] tw:leading-7 tw:text-[#d4eafa];font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.code-block code{@apply tw:bg-transparent tw:p-0 tw:text-inherit}
+.code-caption{@apply tw:mb-[-.6rem] tw:text-[.76rem] tw:font-semibold tw:uppercase tw:tracking-[.08em] tw:text-[#7ab7dc]}
+.diagram{@apply tw:my-7 tw:grid tw:grid-cols-1 tw:gap-2 tw:sm:grid-cols-4}
+.diagram-step{@apply tw:rounded-lg tw:bg-[#121620] tw:p-4}
+.diagram-step b{@apply tw:block tw:text-[.78rem] tw:font-semibold tw:text-[#38bdf8]}
+.diagram-step span{@apply tw:mt-2 tw:block tw:text-[.8rem] tw:leading-5 tw:text-[#9db0c4]}
+.term-grid{@apply tw:my-6 tw:grid tw:gap-x-8 tw:gap-y-4 tw:sm:grid-cols-2}
+.term-grid div{@apply tw:border-t tw:border-[#283447] tw:pt-4}
+.term-grid dt{@apply tw:font-semibold tw:text-[#f8fafc]}
+.term-grid dd{@apply tw:mt-1 tw:ml-0 tw:text-[.9rem] tw:leading-6 tw:text-[#9fb0c3]}
+.table-wrap{@apply tw:my-6 tw:overflow-x-auto tw:rounded-lg tw:border tw:border-[#283447]}
+table{@apply tw:w-full tw:min-w-[570px] tw:border-collapse tw:text-left tw:text-[.86rem]}
+th{@apply tw:bg-[#121620] tw:px-4 tw:py-3 tw:text-[.73rem] tw:font-semibold tw:uppercase tw:tracking-[.07em] tw:text-[#d4e4f2]}
+td{@apply tw:border-t tw:border-[#283447] tw:px-4 tw:py-3 tw:align-top tw:leading-6 tw:text-[#aebed0]}
+.inline-link{@apply tw:text-[#38bdf8] tw:underline tw:decoration-[#356885] tw:underline-offset-4 tw:hover:text-white}
+.footer{@apply tw:pt-10 tw:text-[.78rem] tw:leading-6 tw:text-[#70839a]}
+.mobile-nav::-webkit-scrollbar{@apply tw:w-1.5}
+.mobile-nav::-webkit-scrollbar-thumb{@apply tw:rounded-full tw:bg-[#334155]}
+@media(max-width:400px){.brand-divider,.brand-docs{display:none}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important}}

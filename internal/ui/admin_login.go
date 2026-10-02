@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
@@ -140,14 +142,26 @@ body.login-body {
 .login-hero-pane {
 	position: relative;
 	flex: 1.1;
-	background: radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.12) 0%, transparent 50%),
-	            #0b111c;
+	background: radial-gradient(circle at 12% 24%, rgba(14, 165, 233, 0.2) 0%, transparent 46%),
+	            linear-gradient(145deg, #0c1b2d 0%, #0b111c 68%);
 	padding: 56px 64px;
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
 	border-right: 1px solid var(--border-subtle);
 	overflow: hidden;
+}
+.login-hero-pane::after {
+	content: "";
+	position: absolute;
+	right: -145px;
+	bottom: -260px;
+	width: 610px;
+	height: 610px;
+	border: 1px solid rgba(56, 189, 248, .13);
+	border-radius: 50%;
+	box-shadow: 0 0 0 96px rgba(56,189,248,.025), 0 0 0 192px rgba(56,189,248,.018);
+	pointer-events: none;
 }
 
 html[data-theme="light"] .login-hero-pane {
@@ -249,6 +263,18 @@ html[data-theme="light"] .hero-headline span.gradient-text {
 	line-height: 1.6;
 	color: var(--text-secondary);
 }
+.hero-eyebrow {
+	margin-bottom: 20px;
+	color: #7dd3fc;
+	font-family: var(--font-mono);
+	font-size: .7rem;
+	font-weight: 700;
+	letter-spacing: .15em;
+	text-transform: uppercase;
+}
+.hero-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+.hero-links a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 15px; border: 1px solid rgba(125,211,252,.25); border-radius: 9px; background: rgba(15,30,48,.55); color: #dbeafe; font-size: .82rem; font-weight: 600; text-decoration: none; transition: background .15s, border-color .15s; }
+.hero-links a:hover { background: rgba(14,165,233,.18); border-color: #38bdf8; }
 
 /* RIGHT AUTH FORM PANE */
 .login-form-pane {
@@ -267,6 +293,11 @@ html[data-theme="light"] .hero-headline span.gradient-text {
 	align-items: center;
 	gap: 12px;
 }
+.login-language-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border-light); border-radius: 10px; background: var(--bg-card); }
+.login-language-switch a { display: inline-flex; align-items: center; justify-content: center; min-width: 42px; min-height: 34px; border-radius: 7px; color: var(--text-muted); font-size: .75rem; font-weight: 700; text-decoration: none; }
+.login-language-switch a[aria-current="page"] { background: var(--brand-primary); color: #06111c; }
+.login-language-switch a:hover:not([aria-current="page"]) { color: var(--text-primary); }
+.login-language-switch a:focus-visible,.hero-links a:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
 
 .theme-switch-btn {
 	background: var(--bg-card);
@@ -411,6 +442,8 @@ html[data-theme="light"] .hero-headline span.gradient-text {
 .checkbox-custom svg {
 	display: none;
 }
+.checkbox-label input[type="checkbox"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.checkbox-label input[type="checkbox"]:focus-visible + .checkbox-custom { outline: 2px solid var(--brand-accent); outline-offset: 3px; }
 
 input[type="checkbox"]:checked + .checkbox-custom {
 	background: var(--brand-primary);
@@ -505,6 +538,7 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 		flex: none;
 		padding: 36px 24px;
 	}
+	.login-hero-pane::after { display: none; }
 	.hero-headline {
 		font-size: 1.85rem;
 	}
@@ -516,6 +550,15 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 		padding: 36px 24px;
 	}
 }
+@media (max-width: 480px) {
+	.login-hero-pane { padding: 24px; }
+	.hero-content { padding: 20px 0 8px; }
+	.hero-headline { font-size: 1.6rem; }
+	.hero-links { margin-top: 20px; }
+	.login-form-pane { padding: 24px; }
+	.pane-top-actions { justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 `
 
 // RenderAdminLogin renders the clean high-performance login screen for HydroGo.
@@ -525,6 +568,14 @@ func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
 
 // RenderAdminLoginWithAppearance applies validated site appearance to the public admin login screen.
 func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo string, appearance site.Appearance) error {
+	return RenderAdminLoginWithLocaleAndAppearance(w, csrfToken, nonce, returnTo, "tr", appearance)
+}
+
+// RenderAdminLoginWithLocaleAndAppearance renders the public login in a bounded language.
+func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, nonce, returnTo, locale string, appearance site.Appearance) error {
+	if locale != "tr" {
+		locale = "en"
+	}
 	var mfaChallenge bytes.Buffer
 	if err := designsystem.AuthenticatorChallenge().Render(context.Background(), &mfaChallenge); err != nil {
 		return err
@@ -537,7 +588,7 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 		opacity := strconv.FormatFloat(appearance.LoginOverlayOpacity, 'f', 2, 64)
 		loginCSS += fmt.Sprintf(`\n.login-hero-pane{background-image:linear-gradient(rgba(9,10,15,%s),rgba(9,10,15,%s)),url("%s");background-position:center;background-size:cover}`, opacity, opacity, appearance.LoginBackgroundURL)
 	}
-	_, err := fmt.Fprintf(w, `<!doctype html>
+	pageTemplate := `<!doctype html>
 <html lang="tr" data-theme="dark">
 <head>
 <meta charset="utf-8">
@@ -569,13 +620,16 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 		</header>
 
 		<div class="hero-content">
+			<p class="hero-eyebrow">The workspace for modern publishing</p>
 			<h1 class="hero-headline">Güçlü Yönetim, <br><span class="gradient-text">Yüksek Performans</span></h1>
 			<p class="hero-description">Manage your content, memberships, and commerce operations from one fast, secure workspace.</p>
+			<nav class="hero-links" aria-label="Resources"><a href="%s">Documentation ↗</a><a href="/">Home ↗</a></nav>
 		</div>
 	</aside>
 
 	<main class="login-form-pane">
 		<div class="pane-top-actions">
+			<nav class="login-language-switch" aria-label="Language"><a href="%s"%s>EN</a><a href="%s"%s>TR</a></nav>
 			<button id="theme-toggle-btn" class="theme-switch-btn" type="button" aria-label="Temayı Değiştir">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
 				<span id="theme-toggle-label">Tema</span>
@@ -617,7 +671,7 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 
 				<div class="form-row-utility">
 					<label class="checkbox-label">
-						<input type="checkbox" name="remember" style="display:none;" id="remember-me">
+						<input type="checkbox" name="remember" id="remember-me">
 						<span class="checkbox-custom">
 							<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
 						</span>
@@ -749,7 +803,7 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 				} else if (response.status === 429) {
 					showMsg('error', 'Çok fazla başarısız deneme yapıldı. Lütfen biraz bekleyin.');
 				} else if (response.status === 403) {
-					showMsg('error', 'Güvenlik doğrulaması (CSRF) başarısız. Lütfen sayfayı yenileyin.');
+					showMsg('error', 'Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyin.');
 				} else {
 					showMsg('error', 'Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.');
 				}
@@ -760,7 +814,7 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 
 			var notice = loginResult.security_notice || {}, attempts = Number(notice.failed_attempts || 0);
 			var message = 'Giriş başarılı! Yönetim paneline aktarılıyorsunuz…';
-			if (notice.previous_login_at) { message = 'Önceki başarılı giriş: ' + new Date(notice.previous_login_at).toLocaleString() + '. ' + attempts + ' başarısız deneme.'; }
+			if (notice.previous_login_at) { message = 'Önceki başarılı giriş: ' + new Date(notice.previous_login_at).toLocaleString(document.documentElement.lang === 'tr' ? 'tr-TR' : 'en-US') + '. ' + attempts + ' başarısız deneme.'; }
 			else if (attempts > 0) { message = 'İlk başarılı girişiniz. Önceki oturumdan bu yana ' + attempts + ' başarısız deneme kaydedildi.'; }
 			showMsg(attempts > 0 ? 'warning' : 'success', message);
 			setTimeout(function() {
@@ -775,14 +829,99 @@ func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo stri
 })();
 </script>
 </body>
-</html>`,
+</html>`
+	loginURL := func(language string) string {
+		query := url.Values{"lang": {language}}
+		if returnTo != "/admin" {
+			query.Set("return_to", returnTo)
+		}
+		return template.HTMLEscapeString("/login?" + query.Encode())
+	}
+	current := func(language string) string {
+		if locale == language {
+			return ` aria-current="page"`
+		}
+		return ""
+	}
+	docsURL := "/docs"
+	if locale == "tr" {
+		docsURL = "/docs?lang=tr"
+	}
+	_, err := fmt.Fprintf(w, localizeAdminLoginPage(locale, pageTemplate),
 		template.HTMLEscapeString(nonce),
 		template.HTMLEscapeString(nonce),
 		template.CSS(loginCSS),
+		docsURL,
+		loginURL("en"), current("en"), loginURL("tr"), current("tr"),
 		template.HTMLEscapeString(csrfToken),
-		mfaChallenge.String(),
+		localizeAdminLoginMFA(locale, mfaChallenge.String()),
 		template.HTMLEscapeString(nonce),
 		template.HTMLEscapeString(returnTo),
 	)
 	return err
+}
+
+var adminLoginEnglish = strings.NewReplacer(
+	`<html lang="tr"`, `<html lang="en"`,
+	`Yönetici Girişi · HydroGo Studio`, `Sign in · HydroGo Studio`,
+	`HydroGo Ana Sayfa`, `HydroGo home`,
+	`Güçlü Yönetim,`, `One workspace,`,
+	`Yüksek Performans`, `built for speed`,
+	`Temayı Değiştir`, `Change theme`,
+	`<span id="theme-toggle-label">Tema</span>`, `<span id="theme-toggle-label">Theme</span>`,
+	`Hoş Geldiniz`, `Welcome back`,
+	`Yönetim merkezine erişmek için giriş yapın.`, `Sign in to your Admin Studio workspace.`,
+	`E-posta Adresi`, `Email address`,
+	`Şifremi unuttum?`, `Forgot password?`,
+	`>Şifre<`, `>Password<`,
+	`Beni hatırla`, `Remember me`,
+	`>Giriş Yap<`, `>Sign in<`,
+	`'Koyu Mod'`, `'Dark mode'`,
+	`'Açık Mod'`, `'Light mode'`,
+	`Giriş yapılıyor…`, `Signing in…`,
+	`Kodun süresi `, `Code expires in `,
+	` sonra dolacak.`, `.`,
+	`Authenticator uygulamanızdan yeni kodu girin.`, `Enter the next code from your authenticator app.`,
+	`Parola doğru. İki adımlı doğrulama kodunuzu girin.`, `Password accepted. Enter your two-step verification code.`,
+	`Kod doğrulanamadı. Authenticator uygulamanızdaki güncel kodu deneyin.`, `Code could not be verified. Try the current code in your authenticator app.`,
+	`E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.`, `Email or password is incorrect. Check your details and try again.`,
+	`Çok fazla başarısız deneme yapıldı. Lütfen biraz bekleyin.`, `Too many attempts. Please wait and try again.`,
+	`Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyin.`, `Security check failed. Refresh the page and try again.`,
+	`Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.`, `Sign in is temporarily unavailable. Please try again.`,
+	`Giriş başarılı! Yönetim paneline aktarılıyorsunuz…`, `Signed in. Opening Admin Studio…`,
+	`Önceki başarılı giriş: `, `Previous successful sign in: `,
+	` başarısız deneme.`, ` failed attempts.`,
+	`İlk başarılı girişiniz. Önceki oturumdan bu yana `, `This is your first successful sign in. There have been `,
+	` başarısız deneme kaydedildi.`, ` failed attempts since the previous session.`,
+	`Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin.`, `Could not reach the server. Check your connection and try again.`,
+)
+
+var adminLoginTurkish = strings.NewReplacer(
+	`The workspace for modern publishing`, `Modern yayıncılık için çalışma alanı`,
+	`Manage your content, memberships, and commerce operations from one fast, secure workspace.`, `İçerik, üyelik ve ticaret süreçlerinizi hızlı ve güvenli tek bir çalışma alanından yönetin.`,
+	`aria-label="Resources"`, `aria-label="Kaynaklar"`,
+	`>Documentation ↗<`, `>Dokümantasyon ↗<`,
+	`>Home ↗<`, `>Ana sayfa ↗<`,
+	`aria-label="Language"`, `aria-label="Dil"`,
+)
+
+func localizeAdminLoginPage(locale, page string) string {
+	if locale == "tr" {
+		return adminLoginTurkish.Replace(page)
+	}
+	return adminLoginEnglish.Replace(page)
+}
+
+var adminLoginEnglishMFA = strings.NewReplacer(
+	`İki adımlı doğrulama`, `Two-step verification`,
+	`Authenticator uygulamanızdaki güncel kodu veya kurtarma kodlarından birini girin.`, `Enter the current code from your authenticator app or one of your recovery codes.`,
+	`Doğrulama kodu`, `Verification code`,
+	`Sonraki kodu kullan`, `Use next code`,
+)
+
+func localizeAdminLoginMFA(locale, markup string) string {
+	if locale == "tr" {
+		return markup
+	}
+	return adminLoginEnglishMFA.Replace(markup)
 }
