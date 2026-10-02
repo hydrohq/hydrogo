@@ -16,11 +16,10 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	if err != nil || !strings.Contains(out.String(), "Etkin yetenekler") || !strings.Contains(out.String(), "seo") {
 		t.Fatalf("dashboard kit summary missing: %v", err)
 	}
-	for _, want := range []string{"wb-dashboard", "wb-hero", "wb-metric-strip", "wb-collection-grid", "wb-action-list", "wb-health-list"} {
-		if !strings.Contains(out.String(), want) {
-			t.Fatalf("workbench dashboard widget %q missing", want)
-		}
-	}
+	// The old workbench dashboard widget assertions (wb-hero, wb-metric-strip,
+	// etc.) were removed along with workbench itself (ADR-0341); hydrogo's
+	// own flagship dashboard widgets are asserted in
+	// TestHydroGoDashboardRendersFlagshipWidgets below.
 }
 
 func TestMediaHeaderControlsWrapInAFlexToolbarUnderNova(t *testing.T) {
@@ -116,7 +115,7 @@ func TestBrandBackgroundsNeverPairWithHardcodedWhiteText(t *testing.T) {
 			t.Fatal("shadcn/nova dark variant is missing a --brand-ink override")
 		}
 	}
-	for _, css := range []string{AdminCSS, AdminShadcnCSS, AdminWorkbenchCSS, AdminNovaCSS} {
+	for _, css := range []string{AdminCSS, AdminShadcnCSS, AdminNovaCSS} {
 		// `background:var(--brand)` became `background-color:var(--brand)`
 		// under the Tailwind `bg-[...]` utility (ADR-0341); match both
 		// spellings so this regression guard still catches the real bug.
@@ -145,26 +144,15 @@ func TestNovaSearchOpensAsDropdownNotModal(t *testing.T) {
 	}
 }
 
-func TestDashboardLayoutCSSIsNotScopedToWorkbenchOnly(t *testing.T) {
-	// Regression test: AdminWorkbenchDashboardCSS and AdminWorkbenchComponentsCSS
-	// style the .wb-*/.dashboard-*/.collection-tile/.quick-action-list markup
-	// that RenderAdminDashboard (and /admin/control) render unconditionally,
-	// for every family - not just Workbench. When these rules were scoped to
-	// html[data-ui-theme="workbench"], the hydrogo and shadcn families
-	// rendered that markup with no layout/box styling at all (broken grid,
-	// no card borders, sparkline SVGs stretched full width). The rules must
-	// stay unscoped so every family styles this shared markup correctly.
-	for _, css := range []string{AdminWorkbenchDashboardCSS, AdminWorkbenchComponentsCSS} {
-		if strings.Contains(css, `html[data-ui-theme="workbench"]`) {
-			t.Fatal("dashboard layout CSS must not be scoped to a single family; it styles markup shared by every mode")
-		}
-	}
-	for _, selector := range []string{".wb-metric-strip", ".wb-content-grid", ".collection-tile", ".dashboard-stat"} {
-		if !strings.Contains(AdminWorkbenchDashboardCSS+AdminWorkbenchComponentsCSS, selector) {
-			t.Fatalf("dashboard layout CSS missing shared selector %q", selector)
-		}
-	}
-}
+// Note: TestDashboardLayoutCSSIsNotScopedToWorkbenchOnly used to guard
+// AdminWorkbenchDashboardCSS/AdminWorkbenchComponentsCSS staying unscoped so
+// every family could render the one shared dashboard markup correctly. That
+// invariant no longer applies: ADR-0341 removed workbench and gave hydrogo
+// and shadcn their own isolated, per-family dashboard markup and compiled
+// stylesheets (the same pattern Aurora already used), so there is no more
+// shared dashboard markup/CSS to guard here. See
+// internal/ui/hydrogoui and internal/ui/shadcnui's own contract tests
+// (embed_test.go in each package) for the equivalent dead-class guard.
 
 func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 	var out bytes.Buffer
@@ -177,11 +165,11 @@ func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 			t.Fatalf("nova dashboard widget %q missing", want)
 		}
 	}
-	// Both dashboard variants must render server-side (family selection is
+	// All dashboard variants must render server-side (family selection is
 	// client-only); visibility is toggled purely by CSS.
-	for _, want := range []string{"wb-dashboard", "nova-dashboard"} {
+	for _, want := range []string{"nova-dashboard"} {
 		if !strings.Contains(out.String(), want) {
-			t.Fatalf("expected both dashboard variants to render, missing %q", want)
+			t.Fatalf("expected the nova dashboard variant to render, missing %q", want)
 		}
 	}
 }
