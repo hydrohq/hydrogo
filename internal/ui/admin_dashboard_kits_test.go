@@ -460,3 +460,38 @@ func firstRuleBody(css, selectorPrefix string) string {
 	}
 	return css[start : start+end]
 }
+
+// TestDarkModeStudioMainKeepsGradientAndSolidBackground is a regression test
+// for a real bug introduced by the ADR-0340 Tailwind conversion: the
+// original hand-written rule was a single CSS `background` shorthand with
+// TWO comma-separated layers - a decorative radial-gradient highlight, and
+// a plain var(--bg) solid-color fallback
+// (`background: radial-gradient(...), var(--bg)`). Tailwind's ambiguous
+// `bg-[value]` arbitrary utility took the whole two-layer value as one
+// `background-image`, producing
+// `background-image: radial-gradient(...), var(--bg)` - but a bare
+// var(--bg) resolving to a plain color is not a valid background-image
+// layer, so per CSS's "invalid at computed-value time" rule the ENTIRE
+// declaration was dropped by the browser, silently losing the gradient
+// highlight (and the var(--bg) fallback) across EVERY admin family's dark
+// mode, not just one - the rule has no [data-ui-theme="X"] qualifier. This
+// is the root cause this test guards: the two layers must be two separate,
+// individually-valid declarations (background-image + background-color).
+func TestDarkModeStudioMainKeepsGradientAndSolidBackground(t *testing.T) {
+	rule := firstRuleBody(AdminCSS, `html[data-theme=dark] .studio-main{`)
+	if rule == "" {
+		t.Fatal("AdminCSS is missing the html[data-theme=dark] .studio-main rule entirely")
+	}
+	if !strings.Contains(rule, "background-image:radial-gradient(") {
+		t.Fatalf("dark-mode .studio-main is missing its radial-gradient background-image: %q", rule)
+	}
+	if !strings.Contains(rule, "background-color:var(--bg)") {
+		t.Fatalf("dark-mode .studio-main is missing its background-color:var(--bg) fallback: %q", rule)
+	}
+	// The exact bug signature: a comma joining the gradient and var(--bg)
+	// inside a single background-image value is invalid CSS and must never
+	// reappear.
+	if strings.Contains(rule, "),var(--bg)") || strings.Contains(rule, "), var(--bg)") {
+		t.Fatalf("dark-mode .studio-main regressed: var(--bg) is joined into background-image by a comma again (invalid CSS, silently dropped by browsers): %q", rule)
+	}
+}
