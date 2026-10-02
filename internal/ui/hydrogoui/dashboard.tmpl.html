@@ -2,7 +2,7 @@
 	<div class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4 tw:rounded-2xl tw:border tw:border-[var(--line)] tw:bg-[var(--surface)] tw:p-6 tw:shadow-[var(--shadow-sm)]">
 		<div class="tw:grid tw:gap-1.5">
 			<span class="tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wider tw:text-[var(--brand)]">Genel Bakış</span>
-			<h2 class="tw:text-[26px] tw:font-bold tw:tracking-tight tw:text-[var(--ink)]">Merhaba 👋</h2>
+			<h2 class="tw:text-[26px] tw:font-bold tw:tracking-tight tw:text-[var(--ink)]">Merhaba</h2>
 			<p class="tw:text-sm tw:text-[var(--muted)]">İşte sitenizin bugünkü özeti.</p>
 		</div>
 		<div class="tw:flex tw:items-center tw:gap-2.5">
@@ -11,7 +11,7 @@
 		</div>
 	</div>
 
-	<section class="tw:grid tw:grid-cols-2 tw:gap-4 tw:lg:grid-cols-4" aria-label="Sistem özeti">
+	<section class="tw:grid tw:grid-cols-1 tw:gap-4 tw:sm:grid-cols-2 tw:lg:grid-cols-4" aria-label="Sistem özeti">
 		<div class="tw:rounded-2xl tw:border tw:border-[var(--line)] tw:bg-[var(--surface)] tw:p-5 tw:shadow-[var(--shadow-sm)]">
 			<div class="tw:mb-3 tw:flex tw:h-9 tw:w-9 tw:items-center tw:justify-center tw:rounded-lg tw:bg-[var(--brand-subtle)] tw:text-[var(--brand)]">
 				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>
@@ -63,7 +63,11 @@
 				{{end}}
 				{{end}}
 				{{if eq $visible 0}}
-				<p class="tw:text-sm tw:text-[var(--muted)]">Henüz etkin koleksiyon bulunmuyor.</p>
+				<div class="tw:col-span-full tw:flex tw:flex-col tw:items-center tw:gap-2 tw:rounded-xl tw:border tw:border-dashed tw:border-[var(--line)] tw:py-10 tw:text-center">
+					<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="tw:text-[var(--muted)]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>
+					<p class="tw:text-sm tw:font-medium tw:text-[var(--ink)]">Henüz etkin koleksiyon yok</p>
+					<p class="tw:text-xs tw:text-[var(--muted)]">İçerik eklemeye başladığınızda burada görünecek.</p>
+				</div>
 				{{end}}
 			</div>
 		</div>
