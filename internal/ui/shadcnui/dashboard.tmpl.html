@@ -64,7 +64,7 @@
 						{{range .Collections}}
 						{{if ne .ID "pages"}}
 						{{$visible = 1}}
-						<tr class="tw:border-b tw:border-[var(--line)] tw:last:border-0 tw:hover:bg-[var(--bg-subtle)]">
+						<tr class="tw:border-b tw:border-[var(--line)] tw:last:border-0 tw:transition-colors tw:hover:bg-[var(--bg-subtle)]">
 							<td class="tw:px-6 tw:py-3 tw:font-medium">
 								<a href="{{if .Actions}}{{(index .Actions 0).Href}}{{else}}/admin/{{.ID}}{{end}}" class="tw:text-[var(--ink)] tw:no-underline tw:hover:underline">{{.Label}}</a>
 							</td>
