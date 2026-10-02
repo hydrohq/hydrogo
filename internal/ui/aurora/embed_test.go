@@ -1,6 +1,7 @@
 package aurora
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -36,12 +37,42 @@ func TestDashboardClassesAreCompiled(t *testing.T) {
 // prefixed with "--tw-" so they cannot collide with an ADR-0053 semantic
 // token name (e.g. "--radius-lg", "--shadow-md") when this stylesheet is
 // concatenated into the same page as AdminCSS.
+//
+// The dashboard body deliberately *references* ADR-0053 tokens (e.g.
+// `tw:bg-[var(--surface)]` compiles to `background-color:var(--surface)`)
+// so it re-skins correctly per family and across light/dark - that is a
+// reference, not a definition, and must stay allowed. What must never
+// appear is Tailwind *defining* its own bare `--radius-*`/`--shadow-*`
+// custom property (a definition is `--radius-sm:value`, colon directly
+// after the name; a reference is always `var(--radius-sm)`, no colon).
+var unprefixedTokenDefinition = regexp.MustCompile(`--(?:radius|shadow)-[a-zA-Z0-9]+:`)
+
 func TestAuroraThemeVariablesAreNamespaced(t *testing.T) {
-	if strings.Contains(CSSText, "--radius-") || strings.Contains(CSSText, "--shadow-") {
-		t.Fatal("compiled Aurora CSS defines an unprefixed theme variable that could collide with the ADR-0053 semantic token contract")
+	if loc := unprefixedTokenDefinition.FindString(CSSText); loc != "" {
+		t.Fatalf("compiled Aurora CSS defines an unprefixed theme variable (%q) that could collide with the ADR-0053 semantic token contract", loc)
 	}
 	if !strings.Contains(CSSText, "--tw-") {
 		t.Fatal("compiled Aurora CSS does not use the expected Tailwind \"--tw-\" variable prefix")
+	}
+}
+
+// literalColorUtility matches a color-bearing Tailwind utility
+// (bg-/text-/border-/shadow-) given a literal hex value instead of a
+// var(--token) reference, e.g. `tw:bg-[#18181b]`. A regression exactly like
+// this shipped once already: the dashboard body was colored with literal
+// light-mode hex values, so it never responded to data-theme="dark" at all
+// (cards stayed white, text stayed near-black, on a dark page). Every
+// color-bearing class in the markup must reference an ADR-0053 token via
+// var(...) so it re-skins correctly per family and across light/dark.
+var literalColorUtility = regexp.MustCompile(`tw:(?:bg|text|border|shadow)-\[#[0-9a-fA-F]`)
+
+func TestDashboardMarkupUsesTokensNotLiteralColors(t *testing.T) {
+	b, err := markupFS.ReadFile("dashboard.tmpl.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := literalColorUtility.FindString(string(b)); m != "" {
+		t.Fatalf("dashboard.tmpl.html uses a literal hex color (%q) instead of a var(--token) reference - it will not respond to data-theme=\"dark\"", m)
 	}
 }
 
