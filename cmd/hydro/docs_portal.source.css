@@ -27,7 +27,7 @@ button{font:inherit}
 .language-switch{@apply tw:inline-flex tw:items-center tw:rounded-lg tw:border tw:border-[#283447] tw:bg-[#121620] tw:p-1}
 .language-switch a{@apply tw:inline-flex tw:min-h-11 tw:min-w-11 tw:items-center tw:justify-center tw:rounded-md tw:px-2.5 tw:py-1 tw:font-semibold tw:text-[#94a3b8] tw:transition-colors tw:hover:text-white}
 .language-switch a[aria-current="page"]{@apply tw:bg-[#0ea5e9] tw:text-[#06111c]}
-.layout{@apply tw:mx-auto tw:grid tw:max-w-[1360px] tw:grid-cols-1 tw:lg:grid-cols-[240px_minmax(0,1fr)]}
+.layout{@apply tw:mx-auto tw:grid tw:max-w-[1680px] tw:grid-cols-1 tw:lg:grid-cols-[240px_minmax(0,1fr)]}
 .sidebar{@apply tw:sticky tw:top-16 tw:hidden tw:h-[calc(100vh-4rem)] tw:overflow-y-auto tw:border-r tw:border-[#1e2533] tw:px-5 tw:py-9 tw:lg:block}
 .sidebar-title{@apply tw:mb-4 tw:text-[.71rem] tw:font-bold tw:uppercase tw:tracking-[.13em] tw:text-[#64748b]}
 .side-nav{@apply tw:grid tw:gap-0.5}
@@ -40,7 +40,7 @@ button{font:inherit}
 .mobile-nav{@apply tw:mt-3 tw:grid tw:max-h-[60vh] tw:overflow-y-auto tw:border-t tw:border-[#1e2533] tw:pt-2;scrollbar-width:thin;scrollbar-color:#334155 transparent}
 .mobile-nav a{@apply tw:flex tw:min-h-11 tw:items-center}
 .doc-main{@apply tw:min-w-0 tw:px-5 tw:pb-24 tw:sm:px-8 tw:lg:px-12 tw:xl:px-16}
-.article{@apply tw:mx-auto tw:max-w-[820px]}
+.article{@apply tw:mx-auto tw:max-w-[1040px]}
 .hero{@apply tw:border-b tw:border-[#1e2533] tw:pt-16 tw:pb-14 tw:sm:pt-20}
 .hero h1{@apply tw:m-0 tw:max-w-[14ch] tw:text-[2.65rem] tw:leading-[1.08] tw:font-semibold tw:tracking-[-.035em] tw:sm:text-[3.55rem]}
 .hero h1 span{@apply tw:text-[#38bdf8]}
