@@ -2,9 +2,15 @@
 
 ## CGI
 
-Build the single binary with `make build` (or cross-compile: `GOOS=linux
-GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -buildvcs=false
--ldflags="-s -w -buildid=" -o hydro ./cmd/hydro`). CGI mode requires the
+Build with `make build-hosting` (Linux/macOS) or
+`scripts/build-hosting.ps1` (Windows) — both cross-compile a static,
+CGO-free `hydro` binary for `linux/amd64` regardless of the host OS, since
+shared hosting has no C toolchain on the target. `make build-vps` /
+`scripts/build-vps.ps1` produce the equivalent binary for a VPS/container
+deployment running a long-lived `hydro serve` process instead; the two
+targets exist for workflow clarity (clearly labeled output, right defaults
+per target), not a code or feature difference — the binary itself is
+identical either way. CGI mode requires the
 explicit `serve --cgi` subcommand; a plain Apache CGI invocation passes no
 argv, only environment variables, so the document root's `hydro.cgi` cannot
 be the raw binary. Keep the binary and `config.yaml` outside the document
