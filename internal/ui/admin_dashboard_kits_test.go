@@ -16,9 +16,34 @@ func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	if err != nil || !strings.Contains(out.String(), "Etkin yetenekler") || !strings.Contains(out.String(), "seo") {
 		t.Fatalf("dashboard kit summary missing: %v", err)
 	}
-	for _, want := range []string{"wb-dashboard", "wb-hero", "wb-metric-strip", "wb-collection-grid", "wb-action-list", "wb-health-list"} {
+	// The old workbench dashboard widget assertions (wb-hero, wb-metric-strip,
+	// etc.) were removed along with workbench itself (ADR-0341); hydrogo's
+	// own flagship dashboard widgets are asserted in
+	// TestHydroGoDashboardRendersFlagshipWidgets below.
+}
+
+func TestHydroGoDashboardRendersFlagshipWidgets(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "articles", Label: "Articles", Description: "Content", Actions: []adminstudio.Action{{Label: "Open", Href: "/admin/articles"}}, Kits: []adminstudio.Kit{adminstudio.KitSEO}}}, Active: "dashboard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"hydrogo-dashboard", "Merhaba", "Genel Bakış", "Sistem Durumu", "Hızlı İşlemler", "Articles"} {
 		if !strings.Contains(out.String(), want) {
-			t.Fatalf("workbench dashboard widget %q missing", want)
+			t.Fatalf("hydrogo dashboard widget %q missing", want)
+		}
+	}
+}
+
+func TestShadcnDashboardRendersDataTableWidgets(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "articles", Label: "Articles", Description: "Content", Actions: []adminstudio.Action{{Label: "Open", Href: "/admin/articles"}}, Kits: []adminstudio.Kit{adminstudio.KitSEO}}}, Active: "dashboard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"shadcn-dashboard", "<table", "<thead", "Koleksiyonlar", "Articles"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("shadcn dashboard widget %q missing", want)
 		}
 	}
 }
@@ -30,7 +55,14 @@ func TestMediaHeaderControlsWrapInAFlexToolbarUnderNova(t *testing.T) {
 	// the taller side. A flex-wrap toolbar has no "columns" to go uneven:
 	// items pack left-to-right and only take the height their own line
 	// needs, so there's never a leftover empty block.
-	if !strings.Contains(AdminMediaFormsCSS, `html[data-ui-theme="nova"] .media-toolbar-row{display:flex;flex-wrap:wrap`) {
+	// The component CSS is now compiled by the standalone Tailwind CLI
+	// (ADR-0340): attribute selectors print unquoted, and @apply expands
+	// each utility's declaration in Tailwind's own canonical order rather
+	// than the source order, so `display:flex` and `flex-wrap:wrap` are no
+	// longer guaranteed to be textually adjacent - check both are present
+	// within the rule instead of one exact adjacent substring.
+	if toolbarRule := firstRuleBody(AdminMediaFormsCSS, `html[data-ui-theme=nova] .media-toolbar-row{`); toolbarRule == "" ||
+		!strings.Contains(toolbarRule, "display:flex") || !strings.Contains(toolbarRule, "flex-wrap:wrap") {
 		t.Fatal("Nova is missing the flex-wrap toolbar row for the media page's secondary controls (view toggle, folder tree, create-folder, tag filter, cleanup link, settings)")
 	}
 	if strings.Contains(AdminMediaFormsCSS, `.media-header-grid`) || strings.Contains(AdminMediaFormsCSS, `.media-header-col`) {
@@ -44,7 +76,8 @@ func TestMediaInlineFormSubmitButtonDoesNotStretchFullWidth(t *testing.T) {
 	// in the grid's second row stretched to fill its whole column by CSS
 	// Grid's default justify-items:stretch - "Uygula"/"Oluştur" rendered as a
 	// near-full-width bar instead of a normal button.
-	if !strings.Contains(AdminMediaFormsCSS, `.media-inline-form button[type="submit"]{justify-self:start`) {
+	// Unquoted attribute selector: see firstRuleBody's doc comment (ADR-0340).
+	if !strings.Contains(AdminMediaFormsCSS, `.media-inline-form button[type=submit]{justify-self:start`) {
 		t.Fatal("media-inline-form submit buttons are missing the justify-self:start override that keeps them from stretching")
 	}
 }
@@ -101,12 +134,18 @@ func TestBrandBackgroundsNeverPairWithHardcodedWhiteText(t *testing.T) {
 		t.Fatal("base :root is missing the --brand-ink default")
 	}
 	for _, css := range []string{AdminShadcnCSS, AdminNovaCSS} {
-		if !strings.Contains(css, `][data-theme="dark"]{`) || !strings.Contains(css, "--brand-ink:#09090b") {
+		// The component CSS is now compiled by the standalone Tailwind CLI
+		// (ADR-0341), which prints attribute selectors without quotes when
+		// not required - functionally identical to `][data-theme="dark"]{`.
+		if !strings.Contains(css, `][data-theme=dark]{`) || !strings.Contains(css, "--brand-ink:#09090b") {
 			t.Fatal("shadcn/nova dark variant is missing a --brand-ink override")
 		}
 	}
-	for _, css := range []string{AdminCSS, AdminShadcnCSS, AdminWorkbenchCSS, AdminNovaCSS} {
-		re := regexp.MustCompile(`background:var\(--brand(?:-hover)?\)[^}]*color:#fff|color:#fff[^}]*background:var\(--brand(?:-hover)?\)`)
+	for _, css := range []string{AdminCSS, AdminShadcnCSS, AdminNovaCSS} {
+		// `background:var(--brand)` became `background-color:var(--brand)`
+		// under the Tailwind `bg-[...]` utility (ADR-0341); match both
+		// spellings so this regression guard still catches the real bug.
+		re := regexp.MustCompile(`background(?:-color)?:var\(--brand(?:-hover)?\)[^}]*color:#fff|color:#fff[^}]*background(?:-color)?:var\(--brand(?:-hover)?\)`)
 		if re.MatchString(css) {
 			t.Fatalf("found a brand-background rule still hardcoding color:#fff instead of var(--brand-ink): %q", re.FindString(css))
 		}
@@ -131,26 +170,15 @@ func TestNovaSearchOpensAsDropdownNotModal(t *testing.T) {
 	}
 }
 
-func TestDashboardLayoutCSSIsNotScopedToWorkbenchOnly(t *testing.T) {
-	// Regression test: AdminWorkbenchDashboardCSS and AdminWorkbenchComponentsCSS
-	// style the .wb-*/.dashboard-*/.collection-tile/.quick-action-list markup
-	// that RenderAdminDashboard (and /admin/control) render unconditionally,
-	// for every family - not just Workbench. When these rules were scoped to
-	// html[data-ui-theme="workbench"], the hydrogo and shadcn families
-	// rendered that markup with no layout/box styling at all (broken grid,
-	// no card borders, sparkline SVGs stretched full width). The rules must
-	// stay unscoped so every family styles this shared markup correctly.
-	for _, css := range []string{AdminWorkbenchDashboardCSS, AdminWorkbenchComponentsCSS} {
-		if strings.Contains(css, `html[data-ui-theme="workbench"]`) {
-			t.Fatal("dashboard layout CSS must not be scoped to a single family; it styles markup shared by every mode")
-		}
-	}
-	for _, selector := range []string{".wb-metric-strip", ".wb-content-grid", ".collection-tile", ".dashboard-stat"} {
-		if !strings.Contains(AdminWorkbenchDashboardCSS+AdminWorkbenchComponentsCSS, selector) {
-			t.Fatalf("dashboard layout CSS missing shared selector %q", selector)
-		}
-	}
-}
+// Note: TestDashboardLayoutCSSIsNotScopedToWorkbenchOnly used to guard
+// AdminWorkbenchDashboardCSS/AdminWorkbenchComponentsCSS staying unscoped so
+// every family could render the one shared dashboard markup correctly. That
+// invariant no longer applies: ADR-0341 removed workbench and gave hydrogo
+// and shadcn their own isolated, per-family dashboard markup and compiled
+// stylesheets (the same pattern Aurora already used), so there is no more
+// shared dashboard markup/CSS to guard here. See
+// internal/ui/hydrogoui and internal/ui/shadcnui's own contract tests
+// (embed_test.go in each package) for the equivalent dead-class guard.
 
 func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 	var out bytes.Buffer
@@ -163,11 +191,11 @@ func TestRenderAdminDashboardIncludesNovaVariant(t *testing.T) {
 			t.Fatalf("nova dashboard widget %q missing", want)
 		}
 	}
-	// Both dashboard variants must render server-side (family selection is
+	// All dashboard variants must render server-side (family selection is
 	// client-only); visibility is toggled purely by CSS.
-	for _, want := range []string{"wb-dashboard", "nova-dashboard"} {
+	for _, want := range []string{"nova-dashboard"} {
 		if !strings.Contains(out.String(), want) {
-			t.Fatalf("expected both dashboard variants to render, missing %q", want)
+			t.Fatalf("expected the nova dashboard variant to render, missing %q", want)
 		}
 	}
 }
@@ -189,8 +217,10 @@ func TestNovaDashboardHidesPagesCollectionAndGatesCommerceAction(t *testing.T) {
 	// client-only) and the Workbench variant intentionally still lists every
 	// collection including pages, so scope the check to Nova's own table
 	// markup instead of the whole page.
-	novaStart := strings.Index(out.String(), `class="nova-table-card"`)
-	novaEnd := strings.Index(out.String(), `class="nova-activity-card"`)
+	// Markup now carries Tailwind utility classes alongside the hook class
+	// (ADR-0340), so match the class attribute by prefix, not exact value.
+	novaStart := strings.Index(out.String(), `class="nova-table-card `)
+	novaEnd := strings.Index(out.String(), `class="nova-activity-card `)
 	if novaStart == -1 || novaEnd == -1 || novaEnd < novaStart {
 		t.Fatal("could not locate the Nova content-areas table in the rendered dashboard")
 	}
@@ -204,8 +234,10 @@ func TestNovaDashboardHidesPagesCollectionAndGatesCommerceAction(t *testing.T) {
 	// Workbench's own quick-action list (wb-action-list) is a separate,
 	// pre-existing template that always includes "Ürün oluştur" regardless of
 	// CommerceModuleEnabled; only Nova's activity card is in scope here.
-	novaActivityStart := strings.Index(out.String(), `class="nova-activity-card"`)
-	novaActivityEnd := strings.Index(out.String(), `class="nova-status-dot"`)
+	// Markup now carries Tailwind utility classes alongside the hook class
+	// (ADR-0340), so match the class attribute by prefix, not exact value.
+	novaActivityStart := strings.Index(out.String(), `class="nova-activity-card `)
+	novaActivityEnd := strings.Index(out.String(), `class="nova-status-dot `)
 	if novaActivityStart == -1 || novaActivityEnd == -1 || novaActivityEnd < novaActivityStart {
 		t.Fatal("could not locate the Nova quick-actions card in the rendered dashboard")
 	}
@@ -242,13 +274,19 @@ func TestAdminShellIncludesNovaTopNav(t *testing.T) {
 			t.Fatalf("admin shell missing nova top nav contract %q", want)
 		}
 	}
-	for _, want := range []string{
-		`html[data-ui-theme="nova"] .studio-sidebar{display:none}`,
-		`html[data-ui-theme="nova"] .studio-app{grid-template-columns:minmax(0,1fr)}`,
-	} {
-		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
-			t.Fatalf("admin shell missing nova sidebar-less layout rule %q", want)
-		}
+	// Tailwind's compiler (ADR-0340) prints attribute selectors unquoted
+	// and merges different selectors that end up with an identical
+	// declaration body into one comma-separated rule, so `.studio-sidebar`
+	// no longer has its own standalone "{display:none}" - it's grouped
+	// with `.studio-mobile-menu-toggle`, which gets the same treatment.
+	if !strings.Contains(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .studio-sidebar,`) {
+		t.Fatal(`admin shell missing nova sidebar-less layout rule for .studio-sidebar`)
+	}
+	if rule := firstRuleBody(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .studio-sidebar,`); !strings.Contains(rule, "display:none") {
+		t.Fatalf("nova .studio-sidebar rule is missing display:none: %q", rule)
+	}
+	if !strings.Contains(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .studio-app{grid-template-columns:minmax(0,1fr)}`) {
+		t.Fatal(`admin shell missing nova sidebar-less layout rule for .studio-app`)
 	}
 }
 
@@ -291,9 +329,13 @@ func TestRemoveCommerceLinksStripsNovaTopNavCommerceLinks(t *testing.T) {
 }
 
 func TestAdminShellHidesInactiveDashboardVariantByCSS(t *testing.T) {
+	// Tailwind's compiler (ADR-0340) merges `.nova-dashboard`, `.wb-dashboard`
+	// and `.nova-topnav-wrap` into one comma-separated rule since they all
+	// compile to the identical declaration body ("display:none"), and
+	// prints attribute selectors unquoted.
 	for _, want := range []string{
-		`html:not([data-ui-theme="nova"]) .nova-dashboard{display:none}`,
-		`html[data-ui-theme="nova"] .wb-dashboard{display:none}`,
+		`html:not([data-ui-theme=nova]) .nova-dashboard,`,
+		`html[data-ui-theme=nova] .hydrogo-dashboard,`,
 	} {
 		if !strings.Contains(AdminNovaDashboardLayoutCSS, want) {
 			t.Fatalf("admin shell missing dashboard variant toggle rule %q", want)
@@ -385,7 +427,8 @@ func TestMediaToolbarRowButtonsShareTheSameHeightUnderNova(t *testing.T) {
 	// they must all be pinned to the same explicit height so they line up,
 	// even though their widths naturally differ by content.
 	for _, want := range []string{
-		`html[data-ui-theme="nova"] .media-toolbar-row .list-view-switch button,html[data-ui-theme="nova"] .media-toolbar-row>.media-folder-tree>a,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-disclosure>summary,html[data-ui-theme="nova"] .media-toolbar-row>p>.button,html[data-ui-theme="nova"] .media-toolbar-row>.media-settings-trigger,html[data-ui-theme="nova"] .media-toolbar-row input,html[data-ui-theme="nova"] .media-toolbar-row select,html[data-ui-theme="nova"] .media-toolbar-row button{`,
+		// Unquoted attribute selector: see firstRuleBody's doc comment (ADR-0340).
+		`html[data-ui-theme=nova] .media-toolbar-row .list-view-switch button,html[data-ui-theme=nova] .media-toolbar-row>.media-folder-tree>a,html[data-ui-theme=nova] .media-toolbar-row>.media-settings-disclosure>summary,html[data-ui-theme=nova] .media-toolbar-row>p>.button,html[data-ui-theme=nova] .media-toolbar-row>.media-settings-trigger,html[data-ui-theme=nova] .media-toolbar-row input,html[data-ui-theme=nova] .media-toolbar-row select,html[data-ui-theme=nova] .media-toolbar-row button{`,
 	} {
 		if !strings.Contains(AdminMediaFormsCSS, want) {
 			t.Fatal("Nova's media toolbar row is missing the shared-height rule covering all its button-like children")
@@ -394,13 +437,75 @@ func TestMediaToolbarRowButtonsShareTheSameHeightUnderNova(t *testing.T) {
 }
 
 func TestNovaThemeToggleAndAvatarHaveVisibleBorders(t *testing.T) {
-	if strings.Contains(AdminNovaDashboardLayoutCSS, `.ui-family-select,html[data-ui-theme="nova"] .theme-toggle-btn{border-color:transparent`) {
+	if strings.Contains(AdminNovaDashboardLayoutCSS, `.ui-family-select,html[data-ui-theme=nova] .theme-toggle-btn{border-color:transparent`) {
 		t.Fatal("Nova must not strip the theme toggle button's border - it should match the notification bell's border")
 	}
-	if !strings.Contains(AdminNovaDashboardLayoutCSS, `html[data-ui-theme="nova"] .theme-toggle-btn{border:1px solid var(--line);background:var(--surface)}`) {
-		t.Fatal("Nova's theme toggle button is missing a visible border like the other topbar buttons")
+	// Unquoted attribute selector, and `background` -> `background-color`
+	// under the Tailwind `bg-` utility (ADR-0340); same declarations.
+	if rule := firstRuleBody(AdminNovaDashboardLayoutCSS, `html[data-ui-theme=nova] .theme-toggle-btn{`); !strings.Contains(rule, "border:1px solid var(--line)") || !strings.Contains(rule, "background-color:var(--surface)") {
+		t.Fatalf("Nova's theme toggle button is missing a visible border like the other topbar buttons: %q", rule)
 	}
-	if !strings.Contains(AdminNovaDashboardLayoutCSS, `.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--surface);color:var(--muted);border:1px solid var(--line)}`) {
-		t.Fatal("Nova's account avatar must use the same border/background treatment as the notification bell button")
+	// Declaration order and `background`->`background-color` changed under
+	// Tailwind's compiler (ADR-0340); same declarations, checked by content.
+	if rule := firstRuleBody(AdminNovaDashboardLayoutCSS, `.user-avatar{`); !strings.Contains(rule, "width:32px") || !strings.Contains(rule, "height:32px") ||
+		!strings.Contains(rule, "border-radius:50%") || !strings.Contains(rule, "background-color:var(--surface)") ||
+		!strings.Contains(rule, "color:var(--muted)") || !strings.Contains(rule, "border:1px solid var(--line)") {
+		t.Fatalf("Nova's account avatar must use the same border/background treatment as the notification bell button: %q", rule)
+	}
+}
+
+// firstRuleBody returns the declaration body (without the enclosing braces)
+// of the first flat, non-nested CSS rule in css whose selector text starts
+// with selectorPrefix (selectorPrefix must include the trailing "{"), or ""
+// if not found. Since ADR-0340, component CSS is compiled by the standalone
+// Tailwind CLI, which prints each @apply utility's declaration in its own
+// canonical order rather than the original source order - tests that need
+// to check several declarations landed in the same rule should use this
+// instead of asserting one long, order-sensitive substring.
+func firstRuleBody(css, selectorPrefix string) string {
+	i := strings.Index(css, selectorPrefix)
+	if i < 0 {
+		return ""
+	}
+	start := i + len(selectorPrefix)
+	end := strings.Index(css[start:], "}")
+	if end < 0 {
+		return ""
+	}
+	return css[start : start+end]
+}
+
+// TestDarkModeStudioMainKeepsGradientAndSolidBackground is a regression test
+// for a real bug introduced by the ADR-0340 Tailwind conversion: the
+// original hand-written rule was a single CSS `background` shorthand with
+// TWO comma-separated layers - a decorative radial-gradient highlight, and
+// a plain var(--bg) solid-color fallback
+// (`background: radial-gradient(...), var(--bg)`). Tailwind's ambiguous
+// `bg-[value]` arbitrary utility took the whole two-layer value as one
+// `background-image`, producing
+// `background-image: radial-gradient(...), var(--bg)` - but a bare
+// var(--bg) resolving to a plain color is not a valid background-image
+// layer, so per CSS's "invalid at computed-value time" rule the ENTIRE
+// declaration was dropped by the browser, silently losing the gradient
+// highlight (and the var(--bg) fallback) across EVERY admin family's dark
+// mode, not just one - the rule has no [data-ui-theme="X"] qualifier. This
+// is the root cause this test guards: the two layers must be two separate,
+// individually-valid declarations (background-image + background-color).
+func TestDarkModeStudioMainKeepsGradientAndSolidBackground(t *testing.T) {
+	rule := firstRuleBody(AdminCSS, `html[data-theme=dark] .studio-main{`)
+	if rule == "" {
+		t.Fatal("AdminCSS is missing the html[data-theme=dark] .studio-main rule entirely")
+	}
+	if !strings.Contains(rule, "background-image:radial-gradient(") {
+		t.Fatalf("dark-mode .studio-main is missing its radial-gradient background-image: %q", rule)
+	}
+	if !strings.Contains(rule, "background-color:var(--bg)") {
+		t.Fatalf("dark-mode .studio-main is missing its background-color:var(--bg) fallback: %q", rule)
+	}
+	// The exact bug signature: a comma joining the gradient and var(--bg)
+	// inside a single background-image value is invalid CSS and must never
+	// reappear.
+	if strings.Contains(rule, "),var(--bg)") || strings.Contains(rule, "), var(--bg)") {
+		t.Fatalf("dark-mode .studio-main regressed: var(--bg) is joined into background-image by a comma again (invalid CSS, silently dropped by browsers): %q", rule)
 	}
 }

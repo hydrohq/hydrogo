@@ -36,5 +36,5 @@ const AdminAuroraTypeCSS = `html[data-ui-theme="aurora"] body,html[data-ui-theme
 // stylesheet (aurora.CSSText, concatenated into the shared admin stylesheet
 // in admin_shell.go). See docs/architecture/0339-tailwind-admin-visual-family.md.
 const AdminAuroraDashboardLayoutCSS = `html:not([data-ui-theme="aurora"]) .aurora-dashboard{display:none}
-html[data-ui-theme="aurora"] .wb-dashboard{display:none}
+html[data-ui-theme="aurora"] .hydrogo-dashboard{display:none}
 html[data-ui-theme="aurora"] .nova-dashboard{display:none}`
