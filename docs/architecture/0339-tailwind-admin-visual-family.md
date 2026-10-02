@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-10-02
 - **Supersedes:** None
-- **Superseded by:** None
+- **Superseded by:** [ADR-0340](0340-tailwind-styling-migration.md) for the "isolated exception, not a precedent for Core components generally" framing only; Aurora itself, its markup, and its Tailwind toolchain remain Accepted and unchanged
 - **Related decisions:** [ADR-0041](0041-admin-visual-theme-modes.md), [ADR-0053](0053-semantic-ui-token-contract.md), [ADR-0335](0335-admin-nova-theme-mode.md), [ADR-0338](0338-standalone-tailwind-build-time-css.md)
 
 ## Context

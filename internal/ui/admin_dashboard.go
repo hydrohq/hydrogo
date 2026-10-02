@@ -9,6 +9,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/aurora"
+	"github.com/ardaozyildirim/hydrogo/internal/ui/hydrogoui"
+	"github.com/ardaozyildirim/hydrogo/internal/ui/shadcnui"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
@@ -56,7 +58,15 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
 		return err
 	}
-	if err := adminWorkbenchDashboardTemplate.Execute(w, data); err != nil {
+	// All dashboard-body variants render server-side unconditionally
+	// (family selection is client-only localStorage + a pre-paint
+	// data-ui-theme attribute); visibility is toggled purely by CSS. See
+	// AdminHydroGoCSS/AdminShadcnCSS/AdminNovaDashboardLayoutCSS/
+	// AdminAuroraDashboardLayoutCSS.
+	if err := hydrogoui.DashboardTemplate.Execute(w, data); err != nil {
+		return err
+	}
+	if err := shadcnui.DashboardTemplate.Execute(w, data); err != nil {
 		return err
 	}
 	if err := adminNovaDashboardTemplate.Execute(w, data); err != nil {
