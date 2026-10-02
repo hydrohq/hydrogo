@@ -21,9 +21,8 @@ func TestEmbeddedAuroraCSSIsPresent(t *testing.T) {
 // real rule in the compiled, embedded stylesheet.
 func TestDashboardClassesAreCompiled(t *testing.T) {
 	wantSelectors := []string{
-		`.tw\:flex{`, `.tw\:grid{`, `.tw\:font-semibold{`, `.tw\:italic{`,
-		`.tw\:font-serif{`, `.tw\:tabular-nums{`, `.tw\:uppercase{`,
-		`.tw\:font-mono{`, `.tw\:border-b{`,
+		`.tw\:flex{`, `.tw\:grid{`, `.tw\:font-extrabold{`, `.tw\:uppercase{`,
+		`.tw\:tabular-nums{`, `.tw\:font-mono{`, `.tw\:border-2{`,
 	}
 	for _, sel := range wantSelectors {
 		if !strings.Contains(CSSText, sel) {
