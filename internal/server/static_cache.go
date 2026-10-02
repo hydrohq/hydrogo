@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,10 @@ const (
 	staticCacheBodyLimit  = 512 << 10
 	staticCacheTotalLimit = 32 << 20
 	staticCacheFileLimit  = 128
+	// staticCacheLiteSpeedMaxAgeSeconds matches internal/capacity's CacheTTL
+	// (30s across every profile) so the LiteSpeed edge cache and our own
+	// disk/in-process caches expire in step.
+	staticCacheLiteSpeedMaxAgeSeconds = 30
 )
 
 var staticCacheSegment = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
@@ -105,6 +110,24 @@ func (r *responseCapture) WriteHeader(status int) {
 	if !r.wroteHeader {
 		r.status = status
 		r.wroteHeader = true
+		// Headers must be mutated before this call reaches the real
+		// ResponseWriter.WriteHeader, which commits them. The body (and so
+		// the nonce= check writeCachedFileForHostLimit's caller applies
+		// below) isn't known yet, so this is deliberately a narrower,
+		// header-only version of that same eligibility check: method/path
+		// shape is already guaranteed by staticHTMLRequestAllowed having
+		// let this request reach the wrapped handler at all, and status,
+		// Content-Type, Cache-Control/Vary, and any Set-Cookie delta are
+		// all fully known by the time a handler calls WriteHeader. A
+		// response that also happens to embed a stale CSP nonce (the one
+		// condition this can't see yet) may still get this header even
+		// though the stricter disk-cache write below will skip it; the
+		// worst case is LiteSpeed serving a cached copy whose one
+		// nonce'd inline tag silently no-ops for that visitor, not a
+		// security issue, since the underlying content is already public.
+		if status == http.StatusOK && sameCookieHeaders(r.initialCookies, r.Header().Values("Set-Cookie")) && cacheableHTMLHeaders(r.Header()) && strings.HasPrefix(r.Header().Get("Content-Type"), "text/html") {
+			r.Header().Set("X-LiteSpeed-Cache-Control", "public,max-age="+strconv.Itoa(staticCacheLiteSpeedMaxAgeSeconds))
+		}
 		r.ResponseWriter.WriteHeader(status)
 	}
 }
@@ -166,7 +189,48 @@ func writeCachedFileForHostLimit(baseDir, host, urlPath string, content []byte, 
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, targetFile)
+	if err := os.Rename(tmpName, targetFile); err != nil {
+		return err
+	}
+	writeCachedFileBrotliSibling(targetFile, content)
+	return nil
+}
+
+// writeCachedFileBrotliSibling writes a pre-compressed "<file>.br" next to a
+// freshly written disk-cache entry, matching deploy/hosting/.htaccess's
+// rewrite rule that serves it directly to clients sending "Accept-Encoding:
+// br" without invoking hydro.cgi. Unlike internal/server/http_optimization.go's
+// CompressionMiddleware (which compresses dynamic responses on the fly), a
+// disk-cache hit is served by Apache alone and never reaches that middleware,
+// so this is the only place Brotli applies to a cached response. Failure
+// here is non-fatal: the uncompressed .html file written above already
+// satisfies the deploy contract on its own, so a stale or missing .br
+// sibling just forfeits the compression win for one response, not
+// correctness.
+func writeCachedFileBrotliSibling(targetFile string, content []byte) {
+	var compressed bytes.Buffer
+	if err := compressBody("br", content, &compressed); err != nil {
+		return
+	}
+	brFile := targetFile + ".br"
+	tmp, err := os.CreateTemp(filepath.Dir(targetFile), ".html-cache-br-*.tmp")
+	if err != nil {
+		return
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(0o644); err != nil {
+		_ = tmp.Close()
+		return
+	}
+	if _, err := tmp.Write(compressed.Bytes()); err != nil {
+		_ = tmp.Close()
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		return
+	}
+	_ = os.Rename(tmpName, brFile)
 }
 
 // PurgeStaticDiskCache removes all cached static HTML files in baseDir.
@@ -200,6 +264,7 @@ func PurgeStaticDiskCachePath(baseDir, urlPath string) error {
 		targetFile, err := staticCachePathForHost(baseDir, host.Name(), urlPath)
 		if err == nil {
 			err = os.Remove(targetFile)
+			_ = os.Remove(targetFile + ".br")
 		}
 		if err != nil && !errors.Is(err, os.ErrNotExist) && firstErr == nil {
 			firstErr = err
@@ -332,6 +397,7 @@ func evictStaticCache(baseDir, target string, newBytes int64, maxEntries int, ma
 		if err := os.Remove(victim.path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
+		_ = os.Remove(victim.path + ".br")
 		total -= victim.size
 	}
 	return nil

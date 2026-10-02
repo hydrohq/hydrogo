@@ -12,6 +12,17 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
+# 2a. Brotli-compressed cache passthrough. Same conditions as 2 below, plus a
+# pre-compressed ".html.br" sibling (written alongside every ".html" cache
+# entry, see internal/server/static_cache.go's writeCachedFileBrotliSibling)
+# and client support. Must come first so a supporting client prefers it.
+RewriteCond %{REQUEST_METHOD} GET
+RewriteCond %{QUERY_STRING} ^$
+RewriteCond %{HTTP_COOKIE} ^$
+RewriteCond %{HTTP:Accept-Encoding} br
+RewriteCond %{DOCUMENT_ROOT}/static_cache/%{SERVER_NAME}%{REQUEST_URI}.html.br -f
+RewriteRule ^(.*)$ static_cache/%{SERVER_NAME}/$1.html.br [L]
+
 # 2. Static HTML Cache Passthrough:
 # If a cached static HTML file exists and the visitor has no active session cookie,
 # Apache serves the static file directly from disk with ZERO CGI process invocation!
@@ -31,11 +42,23 @@ RewriteRule ^(.*)$ static_cache/%{SERVER_NAME}/$1.html [L]
   ExpiresByType application/javascript "access plus 1 week"
 </IfModule>
 
-# Cached HTML has no per-request CSP nonce, so use a fixed policy.
-<FilesMatch "\.html$">
+# Cached HTML has no per-request CSP nonce, so use a fixed policy. Matches
+# both the plain ".html" cache file and its pre-compressed ".html.br" sibling.
+<FilesMatch "\.html(\.br)?$">
   <IfModule mod_headers.c>
     Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
     Header always set X-Content-Type-Options "nosniff"
+  </IfModule>
+</FilesMatch>
+
+# ".html.br" has no extension Apache recognizes, so its Content-Type and
+# Content-Encoding must be set explicitly; without this a client would
+# receive raw Brotli bytes labeled as application/octet-stream.
+<FilesMatch "\.html\.br$">
+  <IfModule mod_headers.c>
+    Header always set Content-Encoding br
+    Header always set Content-Type "text/html; charset=utf-8"
+    Header always set Vary "Accept-Encoding"
   </IfModule>
 </FilesMatch>
 
