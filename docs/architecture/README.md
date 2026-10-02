@@ -10,6 +10,7 @@
 - [ADR-0338: Standalone Tailwind CLI for isolated, build-time custom UI CSS](0338-standalone-tailwind-build-time-css.md)
 - [ADR-0339: "Aurora" admin visual family, authored with Tailwind](0339-tailwind-admin-visual-family.md)
 - [ADR-0340: Tailwind utilities as the admin Studio and public theme styling language](0340-tailwind-styling-migration.md)
+- [ADR-0341: Admin family overhaul - remove workbench, isolate shadcn and hydrogo](0341-admin-family-overhaul.md)
 
 This directory is the main source of HydroGo's long-lived architectural decisions. The implementation plan describes the order of work, while ADRs explain why the system is built this way.
 
