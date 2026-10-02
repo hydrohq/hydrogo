@@ -24,7 +24,7 @@ func TestCSPReportHandlerBoundsAndDoesNotRequireCSRF(t *testing.T) {
 	report := `{"csp-report":{"blocked-uri":"https://cdn.example/asset.js"}}`
 	request := httptest.NewRequest(http.MethodPost, "/csp-report", strings.NewReader(report))
 	response := httptest.NewRecorder()
-	handler := CSRFMiddleware(false)(http.HandlerFunc(CSPReportHandler))
+	handler := CSRFMiddleware(false, nil)(http.HandlerFunc(CSPReportHandler))
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("valid CSP report status = %d, want 204", response.Code)

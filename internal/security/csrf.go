@@ -26,6 +26,10 @@ func GenerateCSRFToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+func isSafeCSRFMethod(method string) bool {
+	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
+}
+
 func CSRFTokenFromContext(ctx context.Context) string {
 	if ctx == nil {
 		return ""
@@ -36,7 +40,17 @@ func CSRFTokenFromContext(ctx context.Context) string {
 	return ""
 }
 
-func CSRFMiddleware(secure bool) func(http.Handler) http.Handler {
+// CSRFMiddleware issues and validates the double-submit CSRF cookie. skipCookieFor,
+// when non-nil, is consulted only for cookie-less safe-method (GET/HEAD/OPTIONS)
+// requests; when it reports true, the request proceeds with a per-request token
+// but no Set-Cookie header is written. This exists for routes that are otherwise
+// eligible for shared/edge caching (see internal/server/static_cache.go): any
+// Set-Cookie header permanently disqualifies a response from that cache (and from
+// most CDN/browser shared caches), so unconditionally minting a cookie on every
+// anonymous GET defeats caching entirely. Callers must only mark a route via
+// skipCookieFor when they have verified the route's handler never renders a form
+// or widget that depends on the CSRF cookie actually reaching the browser.
+func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Mobile credentials are bearer tokens carried outside browser cookies.
@@ -54,11 +68,19 @@ func CSRFMiddleware(secure bool) func(http.Handler) http.Handler {
 			}
 			var token string
 			cookie, err := r.Cookie(CSRFCookieName)
-			if err == nil && cookie.Value != "" {
+			switch {
+			case err == nil && cookie.Value != "":
 				token = cookie.Value
-			} else {
-				tok, err := GenerateCSRFToken()
-				if err != nil {
+			case skipCookieFor != nil && isSafeCSRFMethod(r.Method) && skipCookieFor(r):
+				tok, genErr := GenerateCSRFToken()
+				if genErr != nil {
+					http.Error(w, "internal server error", http.StatusInternalServerError)
+					return
+				}
+				token = tok
+			default:
+				tok, genErr := GenerateCSRFToken()
+				if genErr != nil {
 					http.Error(w, "internal server error", http.StatusInternalServerError)
 					return
 				}

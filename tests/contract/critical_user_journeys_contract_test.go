@@ -221,7 +221,7 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 	htmlRec := httptest.NewRecorder()
 	for _, r := range pagesHandler.Routes() {
 		if strings.Contains(r.Pattern, "/public/pages/{locale}/{slug}/html") {
-			security.CSRFMiddleware(false)(r.Handler).ServeHTTP(htmlRec, htmlReq)
+			security.CSRFMiddleware(false, nil)(r.Handler).ServeHTTP(htmlRec, htmlReq)
 			break
 		}
 	}
@@ -261,7 +261,7 @@ func runSecurityNegativePathsTest(t *testing.T, ctx context.Context, sqlDB *sql.
 	authSvc := auth.NewAuthService(userStore, sessionStore, auth.NewMobileAuthService(sqlDB, dialect), auth.TestArgon2Params)
 
 	// A. CSRF Enforcement on Mutations
-	csrfMiddleware := security.CSRFMiddleware(false)
+	csrfMiddleware := security.CSRFMiddleware(false, nil)
 	dummyProtectedMutation := csrfMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("mutated"))

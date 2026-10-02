@@ -8,7 +8,7 @@ import (
 
 func TestCSRFMiddlewareSkipsOnlyVersionedMobileAPI(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	handler := CSRFMiddleware(false)(next)
+	handler := CSRFMiddleware(false, nil)(next)
 
 	mobile := httptest.NewRecorder()
 	handler.ServeHTTP(mobile, httptest.NewRequest(http.MethodPost, "/api/v1/mobile/auth/refresh", nil))

@@ -12,7 +12,7 @@ func FuzzCSRFMiddlewareTokens(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, provided string) {
 		next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
-		handler := CSRFMiddleware(false)(next)
+		handler := CSRFMiddleware(false, nil)(next)
 		req := httptest.NewRequest(http.MethodPost, "/mutate", nil)
 		req.AddCookie(&http.Cookie{Name: CSRFCookieName, Value: "fixed-token"})
 		req.Header.Set(CSRFHeaderName, provided)

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -218,8 +219,14 @@ func NewHandler(config Config) http.Handler {
 	// Generate a fresh correlation identifier before security and auth middleware.
 	handler = security.RequestIDMiddleware(handler)
 
-	// Apply CSRF protection
-	handler = security.CSRFMiddleware(config.SecureCookie)(handler)
+	// Apply CSRF protection. The news list route renders no CSRF-dependent widget
+	// (verified by reading modules/news/transport/http.go's publicListHTML), so a
+	// cookie-less GET there can skip minting hydro_csrf and stay eligible for the
+	// shared/edge caches that any Set-Cookie would otherwise permanently defeat.
+	// Individual pages and news articles always render a cookie-consent or
+	// helpful-feedback widget bound to the CSRF cookie, so they keep today's
+	// behavior unchanged.
+	handler = security.CSRFMiddleware(config.SecureCookie, newsListCacheEligible)(handler)
 
 	if config.Maintenance.Enabled != nil {
 		handler = MaintenanceMiddleware(config.Maintenance)(handler)
@@ -265,4 +272,15 @@ func NewHandler(config Config) http.Handler {
 	})(handler)
 
 	return handler
+}
+
+// newsListCacheEligible matches exactly the "/public/news/{locale}/html" pattern
+// that staticCacheURLPath also recognizes for the on-disk static cache. It is
+// intentionally narrower than staticCacheURLPath: the page and news-article HTML
+// routes it also matches always render a CSRF-cookie-dependent widget (cookie
+// consent, helpful-feedback), so this helper must not be widened to include them
+// without first removing that dependency.
+func newsListCacheEligible(r *http.Request) bool {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	return len(parts) == 4 && parts[0] == "public" && parts[1] == "news" && parts[3] == "html" && staticCacheSegment.MatchString(parts[2])
 }

@@ -83,7 +83,7 @@ func TestPageAIAssistantRequiresConsentAndOnlyReturnsDraftPreview(t *testing.T) 
 		request.SetPathValue("id", "page-1")
 		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor-1", Email: "editor@example.test", Role: auth.RoleEditor, Active: true}))
 		response := httptest.NewRecorder()
-		security.CSRFMiddleware(false)(http.HandlerFunc(handler.adminAISuggest)).ServeHTTP(response, request)
+		security.CSRFMiddleware(false, nil)(http.HandlerFunc(handler.adminAISuggest)).ServeHTTP(response, request)
 		return response
 	}
 	denied := post("")
@@ -105,7 +105,7 @@ func TestPageAIAssistantRequiresConsentAndOnlyReturnsDraftPreview(t *testing.T) 
 	applyRequest.Header.Set(security.CSRFHeaderName, "csrf-test")
 	applyRequest = applyRequest.WithContext(auth.WithUser(applyRequest.Context(), &auth.User{ID: "editor-1", Role: auth.RoleEditor, Active: true}))
 	applyResponse := httptest.NewRecorder()
-	security.CSRFMiddleware(false)(http.HandlerFunc(handler.adminAIApplied)).ServeHTTP(applyResponse, applyRequest)
+	security.CSRFMiddleware(false, nil)(http.HandlerFunc(handler.adminAIApplied)).ServeHTTP(applyResponse, applyRequest)
 	if applyResponse.Code != http.StatusNoContent || auditLog.calls != 2 {
 		t.Fatalf("apply audit status=%d audit=%d body=%q", applyResponse.Code, auditLog.calls, applyResponse.Body.String())
 	}
