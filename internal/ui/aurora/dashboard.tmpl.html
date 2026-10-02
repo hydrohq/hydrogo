@@ -52,7 +52,11 @@
 			{{end}}
 			{{end}}
 			{{if eq $visible 0}}
-			<p class="tw:text-sm tw:text-[var(--muted)]">Henüz etkin koleksiyon bulunmuyor.</p>
+			<div class="tw:col-span-full tw:flex tw:flex-col tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-[var(--line)] tw:py-9 tw:text-center">
+				<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="tw:text-[var(--muted)]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>
+				<p class="tw:text-sm tw:font-medium tw:text-[var(--ink)]">Henüz etkin koleksiyon yok</p>
+				<p class="tw:text-xs tw:text-[var(--muted)]">İçerik eklemeye başladığınızda burada görünecek.</p>
+			</div>
 			{{end}}
 		</div>
 	</section>
