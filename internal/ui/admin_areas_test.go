@@ -539,6 +539,67 @@ func TestNovaModeSharesSemanticMarkupContract(t *testing.T) {
 	}
 }
 
+func TestAdminShellIncludesAuroraThemeMode(t *testing.T) {
+	for _, want := range []string{
+		`data-ui-theme="aurora"`,
+		`aurora-light`,
+		`aurora-dark`,
+		`aurora:'Aurora'`,
+	} {
+		if !strings.Contains(AdminAuroraDashboardLayoutCSS+AdminSPARouterJS, want) {
+			t.Fatalf("admin shell missing aurora theme contract %q", want)
+		}
+	}
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	if !strings.Contains(out.String(), `data-ui-theme="aurora"`) {
+		t.Fatal(`rendered admin shell missing data-ui-theme="aurora" contract`)
+	}
+
+	var account bytes.Buffer
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account"}); err != nil {
+		t.Fatalf("render account area: %v", err)
+	}
+	if !strings.Contains(account.String(), `<option value="aurora">Aurora</option>`) {
+		t.Fatal(`account area missing family selector contract for "aurora"`)
+	}
+}
+
+// TestAuroraChromeSharesSemanticMarkupContract mirrors
+// TestNovaModeSharesSemanticMarkupContract: Aurora re-skins the shared shell
+// chrome (sidebar/topbar/cards/buttons/inputs) the same way every other
+// family does, reusing the ADR-0053 semantic selectors. Only Aurora's
+// dashboard body (covered by the next test) is the documented exception.
+func TestAuroraChromeSharesSemanticMarkupContract(t *testing.T) {
+	auroraCSS := AdminAuroraCSS + AdminAuroraDensityCSS
+	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search", ".studio-sidebar", ".studio-topbar"} {
+		if !strings.Contains(auroraCSS, selector) {
+			t.Fatalf("Aurora chrome missing shared semantic selector %q", selector)
+		}
+	}
+	if !strings.Contains(AdminAuroraCSS, `html[data-ui-theme="aurora"]`) {
+		t.Fatal("Aurora chrome styles are not scoped to the visual mode")
+	}
+}
+
+// TestAuroraModeDoesNotShareSemanticMarkupContract documents the one
+// intentional exception ADR-0339 carves out: unlike hydrogo/shadcn/workbench/
+// nova, Aurora's dashboard is authored with Tailwind utility classes instead
+// of the ADR-0053 semantic token contract, so it must NOT reuse the shared
+// semantic selectors other families restyle.
+func TestAuroraModeDoesNotShareSemanticMarkupContract(t *testing.T) {
+	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
+		if strings.Contains(AdminAuroraDashboardLayoutCSS, selector) {
+			t.Fatalf("Aurora layout CSS unexpectedly restyles shared semantic selector %q - it must stay isolated to its own compiled Tailwind stylesheet (ADR-0339)", selector)
+		}
+	}
+	if !strings.Contains(AdminAuroraDashboardLayoutCSS, `html[data-ui-theme="aurora"]`) {
+		t.Fatal("Aurora dashboard visibility toggle is not scoped to the visual mode")
+	}
+}
+
 func TestAdminControlDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf"}); err != nil {
