@@ -76,6 +76,29 @@ at 128 entries and 32 MiB. Page and News changes clear it. Clear the directory
 after making out-of-band database changes. The `.htaccess` denies direct
 requests to the cache directory and applies a fixed CSP to HTML responses.
 
+Eligible public page and news-article HTML routes no longer need the CSRF
+cookie to exist before the response can be cached: their only CSRF-dependent
+widget (the "was this helpful" feedback control) fetches its token
+client-side from `GET /csrf-token` instead of having it baked into the
+shared HTML. See `internal/security/csrf.go`'s `skipCookieFor` parameter and
+`internal/server/server.go`'s `publicContentCacheEligible`.
+
+Every cache write also produces a pre-compressed `<file>.html.br` sibling
+(`internal/server/static_cache.go`'s `writeCachedFileBrotliSibling`, reusing
+the same Brotli encoder as the dynamic-response `CompressionMiddleware` in
+`internal/server/http_optimization.go`). A disk-cache hit is served by Apache
+alone and never reaches that middleware, so without the pre-compressed
+sibling a cached response would always go out uncompressed regardless of
+what the live CGI path would have sent. `.htaccess` prefers the `.br` file
+whenever the client's `Accept-Encoding` includes `br`, falling back to the
+plain `.html` file otherwise; compression failures are non-fatal and just
+leave that one response uncompressed. Responses are also eligible for
+LiteSpeed's own edge cache: eligible responses carry an
+`X-LiteSpeed-Cache-Control: public,max-age=30` header (same TTL as
+`internal/capacity`'s `CacheTTL`), which is a no-op on plain Apache and an
+additional cache layer on LiteSpeed Web Server (a common Apache-compatible
+drop-in on shared hosting) without any separate configuration.
+
 ## FastCGI
 
 FastCGI is a long-running responder. Start it under the hosting provider's
