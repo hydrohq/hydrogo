@@ -2,18 +2,14 @@ package server
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -111,7 +107,7 @@ func (c *PublicHTMLCache) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		key := strings.ToLower(r.Host) + "\x00" + r.URL.Path
+		key := strings.ToLower(r.Host) + "\x00" + negotiatedEncoding(r.Header.Get("Accept-Encoding")) + "\x00" + r.URL.Path
 		if entry, ok := c.get(key); ok {
 			if writeCachedHTML(w, r, entry) {
 				return
@@ -140,19 +136,10 @@ func (c *PublicHTMLCache) Middleware(next http.Handler) http.Handler {
 				return publicHTMLRenderOutcome{}, nil
 			}
 			body := capture.body.Bytes()
-			cacheCSP := capture.header.Get("Content-Security-Policy")
-			if cacheCSP == "" && security.NonceFromContext(r.Context()) != "" {
-				cacheCSP = "script-src 'nonce-" + security.NonceFromContext(r.Context()) + "'"
-			}
-			nonceHeader := capture.header.Clone()
-			if cacheCSP != "" {
-				nonceHeader.Set("Content-Security-Policy", cacheCSP)
-			}
-			storedBody, storedCSP, cacheable := normalizePublicHTMLNonce(nonceHeader, body)
+			storedBody := body
+			storedCSP := capture.header.Get("Content-Security-Policy")
+			cacheable := true
 			cacheHeader := capture.header.Clone()
-			if storedCSP != "" {
-				cacheHeader.Set("Content-Security-Policy", storedCSP)
-			}
 			if !cacheable || !publicHTMLResponseAllowed(capture.status, cacheHeader, storedBody) {
 				capture.commit(w)
 				return publicHTMLRenderOutcome{}, nil
@@ -367,30 +354,19 @@ func publicHTMLRequestAllowed(r *http.Request) bool {
 
 func publicHTMLResponseAllowed(status int, header http.Header, body []byte) bool {
 	contentType := strings.ToLower(header.Get("Content-Type"))
-	csp := strings.ToLower(header.Get("Content-Security-Policy"))
 	cacheControl := strings.ToLower(header.Get("Cache-Control"))
 	vary := strings.ToLower(strings.TrimSpace(header.Get("Vary")))
 	return status == http.StatusOK && strings.HasPrefix(contentType, "text/html") && len(body) > 0 &&
 		len(header.Values("Set-Cookie")) == 0 && !strings.Contains(cacheControl, "private") &&
 		!strings.Contains(cacheControl, "no-store") && !strings.Contains(cacheControl, "no-cache") &&
 		(vary == "" || vary == "accept-encoding") &&
-		(!strings.Contains(csp, "nonce-") || strings.Contains(csp, "__hydro_nonce__")) &&
-		(!bytes.Contains(bytes.ToLower(body), []byte("nonce=")) || bytes.Contains(body, []byte("__hydro_nonce__")))
+true
 }
 
 func writeCachedHTML(w http.ResponseWriter, r *http.Request, entry publicHTMLCacheEntry) bool {
 	body := entry.body
 	if entry.csp != "" {
-		nonce := security.NonceFromContext(r.Context())
-		if nonce == "" {
-			nonceBytes := make([]byte, 18)
-			if _, err := rand.Read(nonceBytes); err != nil {
-				return false
-			}
-			nonce = base64.RawStdEncoding.EncodeToString(nonceBytes)
-			w.Header().Set("Content-Security-Policy", strings.ReplaceAll(entry.csp, "__hydro_nonce__", nonce))
-		}
-		body = bytes.ReplaceAll(body, []byte("__hydro_nonce__"), []byte(nonce))
+		w.Header().Set("Content-Security-Policy", entry.csp)
 	}
 	w.Header().Set("Content-Type", entry.contentType)
 	if entry.contentEncoding != "" {
@@ -414,45 +390,7 @@ func writeCachedHTML(w http.ResponseWriter, r *http.Request, entry publicHTMLCac
 	return true
 }
 
-var (
-	cspNoncePattern  = regexp.MustCompile(`nonce-([A-Za-z0-9+/_=-]+)`)
-	bodyNoncePattern = regexp.MustCompile(`(?i)(\bnonce\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))`)
-)
 
-func normalizePublicHTMLNonce(header http.Header, body []byte) ([]byte, string, bool) {
-	csp := header.Get("Content-Security-Policy")
-	if !strings.Contains(csp, "nonce-") {
-		return body, "", !bytes.Contains(bytes.ToLower(body), []byte("nonce="))
-	}
-	matches := cspNoncePattern.FindAllStringSubmatch(csp, -1)
-	if len(matches) == 0 {
-		return nil, "", false
-	}
-	nonce := matches[0][1]
-	for _, match := range matches[1:] {
-		if match[1] != nonce {
-			return nil, "", false
-		}
-	}
-	for _, match := range bodyNoncePattern.FindAllSubmatch(body, -1) {
-		value := match[2]
-		if value == nil {
-			value = match[3]
-		}
-		if value == nil {
-			value = match[4]
-		}
-		if string(value) != nonce {
-			return nil, "", false
-		}
-	}
-	normalizedCSP := strings.ReplaceAll(csp, "nonce-"+nonce, "nonce-__hydro_nonce__")
-	normalizedBody := bodyNoncePattern.ReplaceAllFunc(body, func(match []byte) []byte {
-		parts := bodyNoncePattern.FindSubmatch(match)
-		return append(append(bytes.Clone(parts[1]), '"'), append([]byte("__hydro_nonce__"), '"')...)
-	})
-	return normalizedBody, normalizedCSP, true
-}
 
 func cacheTag(path string) string {
 	if strings.HasPrefix(path, "/public/pages/") {
