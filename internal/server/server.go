@@ -171,9 +171,11 @@ func NewHandler(config Config) http.Handler {
 	}
 	// Cache the uncompressed representation so CSP nonces can be regenerated
 	// safely before compression transforms the body.
+
+	handler = CompressionMiddleware(handler)
 	handler = ETagMiddleware(handler)
 	handler = config.PublicHTMLCache.Middleware(handler)
-	handler = CompressionMiddleware(handler)
+
 	hostMiddleware, err := security.NewHostMiddleware(config.PublicOrigin)
 	if err != nil {
 		panic(err)
