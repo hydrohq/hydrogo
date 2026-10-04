@@ -12,7 +12,7 @@ akışı dış bağımlılık başlatmaz ve testi skip eder.
 ```bash
 redis-cli ping
 # PONG
-cd /mnt/c/dev/cms
+cd /path/to/project
 HYDRO_TEST_REDIS_URL=redis://127.0.0.1:6379/15 \
   go test ./internal/security -run TestRedisRateLimiterAtomicLimitAndTTL -count=1
 # ok .../internal/security

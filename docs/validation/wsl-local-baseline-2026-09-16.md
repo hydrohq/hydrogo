@@ -1,13 +1,13 @@
 # WSL yerel test tabanı — 2026-09-16
 
 **Ortam:** Windows WSL2, Ubuntu, `Linux DESKTOP-RL4NSEN 6.18.33.2-microsoft-standard-WSL2`, `x86_64`  
-**Kullanıcı:** `arda`  
+**Kullanıcı:** `testuser`  
 **Go:** `go1.27.0 linux/amd64`
 
 ## Komut
 
 ```bash
-cd /mnt/c/dev/cms
+cd /path/to/project
 go test ./...
 ```
 

@@ -7,7 +7,7 @@ go test ./internal/backup -count=1
 ```
 
 The PostgreSQL dump/restore contract now passes against a fresh WSL database
-(`HYDRO_TEST_POSTGRES_URL=postgres://arda@/hydrogo_backup_cert2?host=/var/run/postgresql`):
+(`HYDRO_TEST_POSTGRES_URL=postgres://user@localhost:5432/hydrogo_backup_cert2`):
 
 ```text
 HYDRO_TEST_POSTGRES_URL=... go test ./internal/backup -count=1

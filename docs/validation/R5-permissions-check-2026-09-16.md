@@ -12,7 +12,7 @@ go test ./internal/generator ./cmd/hydro
 PASS
 ```
 
-WSL Ubuntu (`arda`):
+WSL Ubuntu (`testuser`):
 
 ```text
 go test ./internal/generator ./cmd/hydro ./internal/release ./internal/sdkdist

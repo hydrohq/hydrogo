@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **LAWYER REVIEW REQUIRED / HUKUKİ İNCELEME GEREKLİDİR**
-> Bu dokümanda ve bağlı dosyalarda sunulan lisanslama modeli, teknik mimari ve sözleşme metinleri bir mühendislik ve ürün tasarımı taslağıdır. Ticari kullanıma ve müşteri dağıtımına sunulmadan önce yetkili hukuk danışmanları tarafından incelenmeli, yerel ve uluslararası fikri mülkiyet mevzuatına göre uyarlanmalıdır. HydroGo Core için MIT veya Apache gibi sınırsız genel kamu lisansları kullanılmaz.
+> Bu dokümanda ve bağlı dosyalarda sunulan lisanslama modeli, teknik mimari ve sözleşme metinleri projenin ilk ticari mimari taslağıdır. HydroGo'nun açık kaynak (Open Source / Community Edition) modeline geçişi kapsamında genel kamu lisansı ve açık kaynak topluluk dağıtımı hazırlıkları başlatılmıştır; kurumsal/commercial lisanslama mekanizması ileride yalnızca opsiyonel kurumsal eklentiler için değerlendirilmek üzere arşiv/referans niteliğindedir.
 
 ---
 

@@ -20,6 +20,6 @@ PASS
 ```
 
 Çalıştırılan güncel komut `go test ./cmd/hydro ./internal/release
-./internal/sdkdist` olup WSL kullanıcı `arda` ile exit code 0 döndürdü.
+./internal/sdkdist` olup WSL kullanıcı `testuser` ile exit code 0 döndürdü.
 
 Ham SQL veya veritabanı lehçesi kullanıcı çıktısına taşınmaz.

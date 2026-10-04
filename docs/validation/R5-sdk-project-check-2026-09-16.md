@@ -7,7 +7,7 @@
 ## WSL kanıtı
 
 ```bash
-cd /mnt/c/dev/cms
+cd /path/to/project
 go test ./...
 go run ./cmd/hydro project check --config /tmp/hydro-project-check/config.yaml --json
 ```

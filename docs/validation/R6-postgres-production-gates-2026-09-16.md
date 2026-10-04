@@ -8,8 +8,8 @@ silinmelidir.
 ## Komut
 
 ```bash
-cd /mnt/c/dev/cms
-HYDRO_TEST_POSTGRES_URL="postgres://arda@/hydro_gate_local?host=/var/run/postgresql" \
+cd /path/to/project
+HYDRO_TEST_POSTGRES_URL="postgres://user@localhost:5432/hydro_gate_local" \
   HYDRO_GATE_REPORT=.tmp/gates/postgres-local-20260916-full.md \
   bash scripts/verify-production-gates.sh
 ```

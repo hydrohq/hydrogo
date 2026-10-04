@@ -8,8 +8,8 @@ Redis/Valkey local service
 ## Command
 
 ```bash
-cd /mnt/c/dev/cms
-export HYDRO_TEST_POSTGRES_URL='postgres://arda@/hydro_contract?host=/var/run/postgresql&sslmode=disable'
+cd /path/to/project
+export HYDRO_TEST_POSTGRES_URL='postgres://user@localhost:5432/hydro_contract?sslmode=disable'
 export HYDRO_TEST_REDIS_URL='redis://127.0.0.1:6379/15'
 bash scripts/verify-production-gates.sh
 ```

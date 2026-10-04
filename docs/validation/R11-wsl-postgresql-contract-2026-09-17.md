@@ -5,7 +5,7 @@
 - Ubuntu WSL2, Go 1.27.0, linux/amd64
 - PostgreSQL 18.6 (`Ubuntu 18.6-0ubuntu0.26.04.1`)
 - Isolated database: `hydro_contract`
-- Peer-authenticated WSL role: `arda`
+- Peer-authenticated WSL role: `testuser`
 
 The test database is disposable and contains no customer data. Credentials are
 not written to the repository or report.
@@ -13,8 +13,8 @@ not written to the repository or report.
 ## Commands and results
 
 ```bash
-cd /mnt/c/dev/cms
-export HYDRO_TEST_POSTGRES_URL='postgres://arda@/hydro_contract?host=/var/run/postgresql&sslmode=disable'
+cd /path/to/project
+export HYDRO_TEST_POSTGRES_URL='postgres://user@localhost:5432/hydro_contract?sslmode=disable'
 go test ./tests/contract ./internal/backup -count=1 -p 1 -timeout=8m
 # PASS: tests/contract
 # PASS: internal/backup

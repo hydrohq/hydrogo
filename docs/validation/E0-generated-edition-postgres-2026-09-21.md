@@ -6,8 +6,8 @@ PostgreSQL service. The Go process ran inside WSL so it could use the Unix
 socket (Windows processes cannot address the WSL socket directly):
 
 ```text
-cd /mnt/c/dev/cms
-HYDRO_TEST_POSTGRES_URL="postgres://arda@/hydrogo_backup_cert2?host=/var/run/postgresql" \
+cd /path/to/project
+HYDRO_TEST_POSTGRES_URL="postgres://user@localhost:5432/hydrogo_backup_cert2" \
   go test ./tests/contract ./internal/generator ./internal/modules -count=1 -timeout=10m
 
 ok  github.com/ardaozyildirim/hydrogo/tests/contract

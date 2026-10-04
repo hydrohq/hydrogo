@@ -16,7 +16,7 @@ exposed to the Windows process. The equivalent WSL run used a fresh database
 and passed:
 
 ```text
-HYDRO_TEST_POSTGRES_URL=postgres://arda@/hydrogo_backup_cert2?host=/var/run/postgresql \
+HYDRO_TEST_POSTGRES_URL=postgres://user@localhost:5432/hydrogo_backup_cert2 \
   go test ./internal/backup ./tests/contract -count=1 -timeout=5m
 ok  github.com/ardaozyildirim/hydrogo/internal/backup
 ok  github.com/ardaozyildirim/hydrogo/tests/contract

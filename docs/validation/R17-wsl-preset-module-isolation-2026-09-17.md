@@ -6,7 +6,7 @@ supported dialects.
 ## Command
 
 ```bash
-HYDRO_TEST_POSTGRES_URL='postgres://arda@/hydro_contract?host=/var/run/postgresql&sslmode=disable' \
+HYDRO_TEST_POSTGRES_URL='postgres://user@localhost:5432/hydro_contract?sslmode=disable' \
   go test ./tests/contract \
   -run '^TestGeneratedPresetsKeepModuleSchemasIsolated$' \
   -count=1 -p 1 -timeout=10m

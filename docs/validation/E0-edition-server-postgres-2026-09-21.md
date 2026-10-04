@@ -5,7 +5,7 @@ PostgreSQL service. The operator migration subcommand and the live generated
 HTTP handler both completed successfully:
 
 ```text
-HYDRO_TEST_POSTGRES_URL=postgres://arda@/hydrogo_backup_cert2?host=/var/run/postgresql
+HYDRO_TEST_POSTGRES_URL=postgres://user@localhost:5432/hydrogo_backup_cert2
 edition-server migrate --dialect postgres --dsn "$HYDRO_TEST_POSTGRES_URL"
 migration-applied edition=project dialect=postgres
 

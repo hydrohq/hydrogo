@@ -17,8 +17,8 @@ hydro create-admin --email <e-posta> --password-stdin --config <config.yaml>
 ```
 Başarılı olursa `Created admin user: ...` yazısını görürsün.
 
-SSH'in olmayan bir paylaşımlı hosting'teysen (bizim ardalabs.xyz'de
-yaptığımız gibi), bu komutu doğrudan çalıştıramazsın — bunun yerine
+SSH'in olmayan bir paylaşımlı hosting'teysen (örnek paylaşımlı
+hosting senaryolarında olduğu gibi), bu komutu doğrudan çalıştıramazsın — bunun yerine
 `docs/guides/human/deploy-ftp-shared-hosting.md`'deki tek kullanımlık
 tetikleyici dosya yöntemi kullanılıyor.
 
