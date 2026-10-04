@@ -12,7 +12,7 @@ go test ./internal/release ./internal/sdkdist ./cmd/hydro
 PASS
 ```
 
-WSL Ubuntu (`arda`) doğrulaması:
+WSL Ubuntu (`testuser`) doğrulaması:
 
 ```text
 go test ./internal/release ./internal/sdkdist ./cmd/hydro

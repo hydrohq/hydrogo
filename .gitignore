@@ -71,3 +71,10 @@ Thumbs.db
 /hydro
 /hydro-issuer
 .temp_files/
+.wrongstack/
+*.tar.gz
+*.zip
+patch*.py
+patch*.go
+scratch*.py
+

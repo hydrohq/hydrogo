@@ -1,6 +1,6 @@
 # WSL tam suite yeniden doğrulama — 2026-09-16
 
-Ortam: Ubuntu WSL2, kullanıcı `arda`, çalışma dizini `/mnt/c/dev/cms`.
+Ortam: Ubuntu WSL2, kullanıcı `testuser`, çalışma dizini `/path/to/project`.
 
 ```text
 go test ./... -p 1 -timeout=5m

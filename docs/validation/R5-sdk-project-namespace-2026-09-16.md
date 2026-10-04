@@ -9,10 +9,10 @@
 
 ## WSL kanıtı
 
-Ortam: Ubuntu WSL2, Go 1.27.0 linux/amd64, kullanıcı `arda`.
+Ortam: Ubuntu WSL2, Go 1.27.0 linux/amd64, kullanıcı `testuser`.
 
 ```bash
-cd /mnt/c/dev/cms
+cd /path/to/project
 go test ./cmd/hydro
 go run ./cmd/hydro project new sdk-demo --preset compact-site --no-demo --root /tmp/hydro-sdk-alias-check
 test -f /tmp/hydro-sdk-alias-check/sdk-demo/hydrogo.lock

@@ -4,7 +4,7 @@ The complete repository passes Go's race detector in the WSL development
 toolchain (`gcc` and Go are available there):
 
 ```bash
-cd /mnt/c/dev/cms
+cd /path/to/project
 CGO_ENABLED=1 go test -race ./...
 ```
 

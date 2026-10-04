@@ -1,8 +1,8 @@
 # WSL kalite doğrulaması — 2026-09-16
 
 - Dağıtım: Ubuntu WSL2
-- Kullanıcı: `arda`
-- Dizin: `/mnt/c/dev/cms`
+- Kullanıcı: `testuser`
+- Dizin: `/path/to/project`
 
 Çalıştırılan komutlar:
 

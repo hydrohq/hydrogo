@@ -16,7 +16,7 @@ proxy, provider, OCI, capacity or independent penetration-test evidence.
 
 ## WSL evidence
 
-Ubuntu/WSL2 (`whoami=arda`, `go1.27.0 linux/amd64`) independently passed:
+Ubuntu/WSL2 (`whoami=testuser`, `go1.27.0 linux/amd64`) independently passed:
 
 ```text
 go mod verify

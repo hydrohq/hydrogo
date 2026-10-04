@@ -2,7 +2,7 @@
 
 `scripts/verify-wsl-postgres-drill.ps1` now creates a uniquely named,
 disposable PostgreSQL database inside WSL, runs the backup and contract suites
-with the peer-authenticated `arda` role, and drops the database in `finally`.
+with the peer-authenticated `testuser` role, and drops the database in `finally`.
 
 Observed pass:
 

@@ -4,13 +4,13 @@
 
 - WSL Ubuntu, Go 1.27.0
 - PostgreSQL 18.6 local service
-- Database: disposable `hydro_contract`, role `arda`
+- Database: disposable `hydro_contract`, role `testuser`
 - Revision under test: `5ed79a6`
 
 ## Command and result
 
 ```bash
-HYDRO_TEST_POSTGRES_URL='postgres://arda@/hydro_contract?host=/var/run/postgresql&sslmode=disable' \
+HYDRO_TEST_POSTGRES_URL='postgres://user@localhost:5432/hydro_contract?sslmode=disable' \
   go test ./tests/contract \
   -run '^TestPostgresModuleFilteringLeavesInactiveModuleSchemaAbsent$' \
   -count=1 -p 1 -timeout=5m

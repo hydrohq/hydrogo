@@ -180,10 +180,10 @@ go test ./internal/sdkdist
 go test ./internal/projectgen ./internal/release ./cmd/hydro
 ```
 
-WSL Ubuntu'da (`whoami` sonucu `arda` olmalı):
+WSL Ubuntu'da (`whoami` sonucu `operator` olmalı):
 
 ```bash
-cd /mnt/c/dev/cms
+cd /path/to/project
 go test ./... -p 1 -timeout=5m
 ```
 

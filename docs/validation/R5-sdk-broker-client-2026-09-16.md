@@ -16,7 +16,7 @@ go test ./internal/sdkdist
 PASS
 ```
 
-WSL Ubuntu (`arda`):
+WSL Ubuntu (`testuser`):
 
 ```text
 go test ./internal/sdkdist ./internal/release ./cmd/hydro

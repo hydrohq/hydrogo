@@ -3,8 +3,8 @@
 ## Ortam
 
 - Dağıtım: Ubuntu (WSL2)
-- Kullanıcı: `arda`
-- Çalışma ağacı: `/mnt/c/dev/cms`
+- Kullanıcı: `testuser`
+- Çalışma ağacı: `/path/to/project`
 - Komut: `go test ./... -p 1 -timeout=5m`
 
 ## Sonuç
