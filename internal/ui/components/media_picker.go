@@ -3,6 +3,8 @@ package components
 import (
 	"context"
 	"io"
+	"net/url"
+	"strings"
 
 	"github.com/a-h/templ"
 )
@@ -29,7 +31,13 @@ func MediaPicker(p MediaPickerProps) templ.Component {
 		if name == "" {
 			name = id
 		}
-		return writeString(w, `<div class="media-picker"><label for="`+esc(id)+`">`+esc(p.Label)+`</label><input id="`+esc(id)+`" name="`+esc(name)+`" type="hidden" value="`+esc(p.Value)+`"><a class="button button-quiet" href="/admin/media?select=`+esc(id)+`">Medya seç</a></div>`)
+		selected := strings.TrimSpace(p.Value) != ""
+		selectedClass, imageClass, imageURL, valueLabel, clearClass := "", "is-hidden", "", "Görsel seçilmedi", " is-hidden"
+		if selected {
+			selectedClass, imageClass, imageURL, valueLabel, clearClass = " has-selected", "", "/media/"+url.PathEscape(p.Value), p.Value, ""
+		}
+		markup := `<div class="media-select-field` + selectedClass + `"><label class="studio-form-label" for="` + esc(id) + `">` + esc(p.Label) + `</label><div class="media-select-card` + selectedClass + `"><div class="media-select-preview"><img class="` + imageClass + `" src="` + esc(imageURL) + `" alt="Seçilen görsel"><div class="media-select-empty"><span>Görsel seçilmedi</span></div></div><div class="media-select-body"><div class="media-select-info"><span class="media-select-name">` + esc(valueLabel) + `</span></div><div class="media-select-actions"><button class="button button-quiet media-picker-open" type="button" data-media-target="` + esc(id) + `">Kütüphaneden seç</button><button class="button button-quiet button-danger media-select-clear` + clearClass + `" type="button">Kaldır</button><a class="text-link" href="/admin/media?select=` + url.QueryEscape(id) + `">Medya kütüphanesini aç</a></div></div></div><input type="hidden" id="` + esc(id) + `" name="` + esc(name) + `" value="` + esc(p.Value) + `"></div>`
+		return writeString(w, markup)
 	})
 }
 
