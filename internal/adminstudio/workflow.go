@@ -23,6 +23,7 @@ var ErrInvalidTransition = errors.New("invalid publication transition")
 // Workflow is a bounded, provider-neutral state machine. Modules own the
 // meaning and persistence of states; Admin Studio only validates transitions.
 type Workflow struct {
+	StateField  string                                  `json:"state_field"`
 	States      []PublicationState                      `json:"states"`
 	Transitions map[PublicationState][]PublicationState `json:"transitions"`
 }

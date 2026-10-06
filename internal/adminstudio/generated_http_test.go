@@ -2,6 +2,7 @@ package adminstudio
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -70,6 +71,81 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	formHTML, _ := io.ReadAll(form.Body)
 	if form.StatusCode != http.StatusOK || !strings.Contains(string(formHTML), `name="_csrf"`) || !strings.Contains(string(formHTML), `name="id"`) || !strings.Contains(string(formHTML), `name="status"`) {
 		t.Fatalf("generated create form missing contract fields: status=%d body=%s", form.StatusCode, formHTML)
+	}
+}
+
+func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title",
+		Fields:   []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}, {ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "review", "published"}}},
+		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, "review", StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {"review"}, "review": {StatePublished}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/article/article-1" {
+			t.Errorf("unexpected workflow record read %s %s", r.Method, r.URL.String())
+		}
+		if r.Method == http.MethodPut {
+			var updated map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+				t.Errorf("decode workflow resource update: %v", err)
+			}
+			if updated["status"] != "draft" {
+				t.Errorf("ordinary document edit changed workflow state: %#v", updated)
+			}
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodGet {
+			t.Errorf("unexpected workflow method %s", r.Method)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"article-1","title":"A story","status":"draft","version":4}`)
+	})
+	var transitioned PublicationState
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, Collection) bool { return true },
+		CanTransition: func(_ *http.Request, _ Collection, record map[string]any, target PublicationState) bool {
+			return record["status"] == "draft" && target == "review"
+		},
+		Transition: func(_ *http.Request, _ Collection, record map[string]any, target PublicationState) error {
+			if record["version"] != float64(4) {
+				return errors.New("unexpected record version")
+			}
+			transitioned = target
+			return nil
+		},
+		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	edit := httptest.NewRecorder()
+	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/article-1", nil))
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/article-1/workflow"`) || !strings.Contains(edit.Body.String(), `name="target" value="review"`) {
+		t.Fatalf("workflow transition was not rendered: status=%d body=%s", edit.Code, edit.Body.String())
+	}
+	request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1/workflow", strings.NewReader("_csrf=csrf-value&target=review"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther || transitioned != "review" {
+		t.Fatalf("workflow transition not delegated to Edition service: status=%d target=%q body=%s", response.Code, transitioned, response.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1", strings.NewReader("_csrf=csrf-value&title=Changed&status=published"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response = httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("ordinary document edit failed: status=%d body=%s", response.Code, response.Body.String())
 	}
 }
 

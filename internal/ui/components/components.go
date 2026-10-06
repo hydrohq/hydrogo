@@ -64,6 +64,7 @@ type InputProps struct {
 	Value        string
 	Placeholder  string
 	Required     bool
+	ReadOnly     bool
 	Checked      bool
 	MinLength    int
 	MaxLength    int
@@ -145,6 +146,9 @@ func Input(p InputProps) templ.Component {
 		}
 		if p.Required {
 			attrs += ` required="required"`
+		}
+		if p.ReadOnly {
+			attrs += ` readonly="readonly"`
 		}
 		if p.Checked {
 			attrs += ` checked="checked"`

@@ -64,6 +64,7 @@ type Validation struct {
 // WorkflowSpec is a bounded, provider-neutral state machine declaration.
 // Persistence, role policy, scheduling, and side effects remain Edition-owned.
 type WorkflowSpec struct {
+	StateField  string              `json:"state_field" yaml:"state_field"`
 	States      []string            `json:"states" yaml:"states"`
 	Transitions map[string][]string `json:"transitions" yaml:"transitions"`
 }
@@ -209,6 +210,30 @@ func Validate(spec Spec) error {
 			return ErrInvalidSpec
 		}
 		seen[field.Name] = struct{}{}
+	}
+	if spec.Workflow != nil {
+		stateField, found := func() (Field, bool) {
+			for _, field := range spec.Fields {
+				if field.Name == spec.Workflow.StateField {
+					return field, true
+				}
+			}
+			return Field{}, false
+		}()
+		if !found || spec.Workflow.StateField == "" || (stateField.Admin.Widget != "select" && !strings.EqualFold(stateField.Type, "status")) || len(stateField.Admin.Options) == 0 {
+			return ErrInvalidSpec
+		}
+		if len(stateField.Admin.Options) > 0 {
+			allowed := make(map[string]struct{}, len(stateField.Admin.Options))
+			for _, option := range stateField.Admin.Options {
+				allowed[option] = struct{}{}
+			}
+			for _, state := range spec.Workflow.States {
+				if _, ok := allowed[state]; !ok {
+					return ErrInvalidSpec
+				}
+			}
+		}
 	}
 	for _, action := range spec.Admin.Actions {
 		if strings.TrimSpace(action.Label) == "" || !strings.HasPrefix(action.Href, "/") || strings.HasPrefix(action.Href, "//") {
@@ -366,7 +391,19 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 	if group == "" {
 		group = "content"
 	}
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Group: group, Icon: spec.Admin.Icon, Hidden: spec.Admin.Hidden, TitleField: titleField, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
+	var workflow *adminstudio.Workflow
+	if spec.Workflow != nil {
+		workflow = &adminstudio.Workflow{StateField: spec.Workflow.StateField, Transitions: make(map[adminstudio.PublicationState][]adminstudio.PublicationState, len(spec.Workflow.Transitions))}
+		for _, state := range spec.Workflow.States {
+			workflow.States = append(workflow.States, adminstudio.PublicationState(state))
+		}
+		for from, targets := range spec.Workflow.Transitions {
+			for _, target := range targets {
+				workflow.Transitions[adminstudio.PublicationState(from)] = append(workflow.Transitions[adminstudio.PublicationState(from)], adminstudio.PublicationState(target))
+			}
+		}
+	}
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Group: group, Icon: spec.Admin.Icon, Hidden: spec.Admin.Hidden, TitleField: titleField, Workflow: workflow, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}
@@ -568,6 +605,7 @@ func renderWorkflow(spec Spec) string {
 			sort.Strings(copyTargets)
 			transitions[from] = copyTargets
 		}
+		document["state_field"] = spec.Workflow.StateField
 		document["states"] = states
 		document["transitions"] = transitions
 	}
