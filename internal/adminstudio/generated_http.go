@@ -13,8 +13,10 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/a-h/templ"
 	ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
@@ -30,9 +32,25 @@ type GeneratedAdminOptions struct {
 	CanReadResource func(*http.Request, Collection) bool
 	CanTransition   func(*http.Request, Collection, map[string]any, PublicationState) bool
 	Transition      func(*http.Request, Collection, map[string]any, PublicationState, int64) error
+	ListRevisions   func(*http.Request, Collection, string, int) ([]RevisionSummary, error)
+	GetRevision     func(*http.Request, Collection, string, int64) (RevisionSnapshot, error)
+	CanRestore      func(*http.Request, Collection, string, int64) bool
+	RestoreRevision func(*http.Request, Collection, string, int64, int64) error
 	CSRFToken       func(*http.Request) string
 	ValidateCSRF    func(*http.Request) bool
 	RenderPage      func(http.ResponseWriter, *http.Request, string, templ.Component) error
+}
+
+type RevisionSummary struct {
+	Version   int64
+	State     string
+	Actor     string
+	CreatedAt time.Time
+}
+
+type RevisionSnapshot struct {
+	RevisionSummary
+	Fields map[string]string
 }
 
 // GeneratedAdminHandler renders the manifest's generated resources and sends
@@ -49,6 +67,9 @@ func (h GeneratedAdminHandler) Register(mux *http.ServeMux) error {
 	for _, collection := range h.Registry.Collections() {
 		if collection.Workflow != nil && (h.Options.CanTransition == nil || h.Options.Transition == nil) {
 			return errors.New("generated Admin workflow requires Edition-owned transition policy and service")
+		}
+		if collection.Revisions && (h.Options.ListRevisions == nil || h.Options.GetRevision == nil || h.Options.CanRestore == nil || h.Options.RestoreRevision == nil) {
+			return errors.New("generated Admin revisions require Edition-owned history and restore services")
 		}
 	}
 	mux.Handle("/admin/resources", h)
@@ -77,8 +98,16 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	parts := strings.Split(path, "/")
 	collection, ok := h.Registry.Collection(parts[0])
-	if !ok || collection.Hidden || !h.Options.CanReadResource(r, collection) || len(parts) > 3 {
+	if !ok || collection.Hidden || !h.Options.CanReadResource(r, collection) || len(parts) > 5 {
 		http.NotFound(w, r)
+		return
+	}
+	if len(parts) == 4 && parts[2] == "revisions" && r.Method == http.MethodGet {
+		h.revision(w, r, collection, parts[1], parts[3])
+		return
+	}
+	if len(parts) == 5 && parts[2] == "revisions" && parts[4] == "restore" && r.Method == http.MethodPost {
+		h.restoreRevision(w, r, collection, parts[1], parts[3])
 		return
 	}
 	if len(parts) == 2 && parts[1] == "new" {
@@ -101,7 +130,7 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		h.list(w, r, collection)
 		return
 	}
-	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete" && parts[2] != "workflow") {
+	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete" && parts[2] != "workflow") || (len(parts) > 3 && parts[2] != "revisions") {
 		http.NotFound(w, r)
 		return
 	}
@@ -400,6 +429,27 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	if collection.Versioned {
 		values["version"] = displayValue(record["version"])
 	}
+	var revisions []RevisionSummary
+	if editing && collection.Revisions {
+		var err error
+		revisions, err = h.Options.ListRevisions(r, collection, id, 50)
+		if err != nil || len(revisions) > 50 {
+			h.apiError(w)
+			return
+		}
+		seen := make(map[int64]struct{}, len(revisions))
+		for _, revision := range revisions {
+			if revision.Version < 1 {
+				h.apiError(w)
+				return
+			}
+			if _, exists := seen[revision.Version]; exists {
+				h.apiError(w)
+				return
+			}
+			seen[revision.Version] = struct{}{}
+		}
+	}
 	relationOptions := make(map[string][]ui.SelectOption)
 	for _, field := range collection.Fields {
 		if field.Kind != FieldRelation || field.Relation == nil || field.ReadOnly {
@@ -439,7 +489,12 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 			}
 		}
 		if editing && collection.Workflow != nil {
-			return h.generatedWorkflowActions(ctx, out, r, collection, id, record)
+			if err := h.generatedWorkflowActions(ctx, out, r, collection, id, record); err != nil {
+				return err
+			}
+		}
+		if editing && collection.Revisions {
+			return h.generatedRevisionHistory(ctx, out, r, collection, id, record, revisions)
 		}
 		return nil
 	})
@@ -560,6 +615,210 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 	}
 	_, err := io.WriteString(out, `</div></section>`)
 	return err
+}
+
+func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any, revisions []RevisionSummary) error {
+	if _, err := io.WriteString(out, `<section class="studio-card" aria-labelledby="generated-revisions-heading"><h2 id="generated-revisions-heading">Sürüm geçmişi</h2>`); err != nil {
+		return err
+	}
+	if len(revisions) == 0 {
+		if _, err := io.WriteString(out, `<p role="status">Henüz kayıtlı bir sürüm yok.</p></section>`); err != nil {
+			return err
+		}
+		return nil
+	}
+	revisions = append([]RevisionSummary(nil), revisions...)
+	sort.Slice(revisions, func(i, j int) bool { return revisions[i].Version > revisions[j].Version })
+	if _, err := io.WriteString(out, `<ol class="revision-list">`); err != nil {
+		return err
+	}
+	currentVersion := generatedRecordVersion(record)
+	for _, revision := range revisions {
+		href := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/revisions/" + strconv.FormatInt(revision.Version, 10)
+		if _, err := io.WriteString(out, `<li><div class="revision-list-item">`); err != nil {
+			return err
+		}
+		label := "Sürüm " + strconv.FormatInt(revision.Version, 10)
+		if err := ui.Link(ui.LinkProps{Href: href, Label: label, Class: "text-link"}).Render(ctx, out); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, `<p>`+template.HTMLEscapeString(revisionSummaryText(revision))+`</p></div>`); err != nil {
+			return err
+		}
+		if revision.Version != currentVersion && h.Options.CanRestore(r, collection, id, revision.Version) {
+			body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(currentVersion, 10)}).Render(ctx, form); err != nil {
+					return err
+				}
+				return ui.Button(ui.ButtonProps{Type: "submit", Label: "Bu sürüme geri yükle", Variant: ui.Quiet}).Render(ctx, form)
+			})
+			action := href + "/restore"
+			if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(out, `</li>`); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, `</ol></section>`)
+	return err
+}
+
+func revisionSummaryText(revision RevisionSummary) string {
+	parts := make([]string, 0, 3)
+	if !revision.CreatedAt.IsZero() {
+		parts = append(parts, revision.CreatedAt.Local().Format("02.01.2006 15:04"))
+	}
+	if strings.TrimSpace(revision.Actor) != "" {
+		parts = append(parts, strings.TrimSpace(revision.Actor))
+	}
+	if strings.TrimSpace(revision.State) != "" {
+		parts = append(parts, strings.TrimSpace(revision.State))
+	}
+	return strings.Join(parts, " · ")
+}
+
+func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, collection Collection, id, rawVersion string) {
+	if !collection.Revisions || h.Options.GetRevision == nil {
+		http.NotFound(w, r)
+		return
+	}
+	version, err := strconv.ParseInt(rawVersion, 10, 64)
+	if err != nil || version < 1 {
+		http.NotFound(w, r)
+		return
+	}
+	revision, err := h.Options.GetRevision(r, collection, id, version)
+	if err != nil || revision.Version != version || len(revision.Fields) > len(collection.Fields) {
+		http.NotFound(w, r)
+		return
+	}
+	snapshotJSON, err := json.Marshal(revision.Fields)
+	if err != nil || len(snapshotJSON) > generatedAdminBodyLimit {
+		http.Error(w, "revision unavailable", http.StatusRequestEntityTooLarge)
+		return
+	}
+	currentJSON, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
+	if err != nil || status != http.StatusOK {
+		h.apiError(w)
+		return
+	}
+	var current map[string]any
+	if json.Unmarshal(currentJSON, &current) != nil {
+		h.apiError(w)
+		return
+	}
+	before, after := make(map[string]string), make(map[string]string)
+	labels := make(map[string]string)
+	for _, field := range collection.Fields {
+		if field.ReadOnly {
+			continue
+		}
+		labels[field.ID] = field.Label
+		if value, ok := revision.Fields[field.ID]; ok {
+			before[field.ID] = value
+		}
+		after[field.ID] = displayValue(current[field.ID])
+	}
+	for fieldID := range revision.Fields {
+		if _, ok := labels[fieldID]; !ok {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	diffs := CompareFields(before, after)
+	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		content := templ.ComponentFunc(func(_ context.Context, body io.Writer) error {
+			if len(diffs) == 0 {
+				_, err := io.WriteString(body, `<p role="status">Bu sürümde değişen alan yok.</p>`)
+				return err
+			}
+			if _, err := io.WriteString(body, `<dl class="revision-diff-list">`); err != nil {
+				return err
+			}
+			for _, diff := range diffs {
+				label := labels[diff.Field]
+				if label == "" {
+					continue
+				}
+				if _, err := fmt.Fprintf(body, `<div><dt>%s</dt><dd><del>%s</del><br><ins>%s</ins></dd></div>`, template.HTMLEscapeString(label), template.HTMLEscapeString(diff.Before), template.HTMLEscapeString(diff.After)); err != nil {
+					return err
+				}
+			}
+			_, err := io.WriteString(body, `</dl>`)
+			return err
+		})
+		if err := ui.Card(ui.CardProps{Title: "Sürüm " + strconv.FormatInt(revision.Version, 10) + " · Geçmiş ve geçerli belge", Class: "studio-card", Body: content}).Render(ctx, out); err != nil {
+			return err
+		}
+		if h.Options.CanRestore(r, collection, id, version) {
+			expectedVersion := generatedRecordVersion(current)
+			if expectedVersion > 0 {
+				formBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expectedVersion, 10)}).Render(ctx, form); err != nil {
+						return err
+					}
+					return ui.Button(ui.ButtonProps{Type: "submit", Label: "Bu sürüme geri yükle", Variant: ui.Primary}).Render(ctx, form)
+				})
+				action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/revisions/" + strconv.FormatInt(version, 10) + "/restore"
+				if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: formBody}).Render(ctx, out); err != nil {
+					return err
+				}
+			}
+		}
+		return ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id), Label: "Belgeye dön"}).Render(ctx, out)
+	})
+	h.renderPage(w, r, "Sürüm geçmişi · "+collection.Label, body)
+}
+
+func (h GeneratedAdminHandler) restoreRevision(w http.ResponseWriter, r *http.Request, collection Collection, id, rawVersion string) {
+	if !collection.Revisions || h.Options.RestoreRevision == nil || h.Options.CanRestore == nil {
+		http.NotFound(w, r)
+		return
+	}
+	revisionVersion, err := strconv.ParseInt(rawVersion, 10, 64)
+	if err != nil || revisionVersion < 1 {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	if !h.Options.ValidateCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil || len(r.Form) != 2 || len(r.Form["expected_version"]) != 1 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	expectedVersion, err := strconv.ParseInt(r.FormValue("expected_version"), 10, 64)
+	if err != nil || expectedVersion < 1 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	currentJSON, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
+	if err != nil || status != http.StatusOK {
+		h.apiError(w)
+		return
+	}
+	var current map[string]any
+	if json.Unmarshal(currentJSON, &current) != nil {
+		h.apiError(w)
+		return
+	}
+	if generatedRecordVersion(current) != expectedVersion {
+		http.Error(w, "document changed; reload before restoring", http.StatusConflict)
+		return
+	}
+	if !h.Options.CanRestore(r, collection, id, revisionVersion) {
+		http.Error(w, "restore unavailable", http.StatusForbidden)
+		return
+	}
+	if err := h.Options.RestoreRevision(r, collection, id, revisionVersion, expectedVersion); err != nil {
+		http.Error(w, "restore unavailable", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, "/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), http.StatusSeeOther)
 }
 
 func workflowActionLabel(state PublicationState) string {

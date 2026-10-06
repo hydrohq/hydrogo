@@ -113,7 +113,7 @@ func TestLoadBlueprintMapsAuthCompositionFlag(t *testing.T) {
 
 func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "workflow.yaml")
-	data := []byte("name: article\nversioned: true\nworkflow:\n  state_field: status\n  states: [draft, review, published]\n  transitions:\n    draft: [review]\n    review: [published, draft]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft, review, published]\n")
+	data := []byte("name: article\nversioned: true\nrevisions: true\nworkflow:\n  state_field: status\n  states: [draft, review, published]\n  transitions:\n    draft: [review]\n    review: [published, draft]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft, review, published]\n")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -132,6 +132,21 @@ func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 	if err != nil || !strings.Contains(string(workflow), `"enabled": true`) || !strings.Contains(string(workflow), `"state_field": "status"`) || !strings.Contains(string(workflow), `"published"`) {
 		t.Fatalf("generated workflow contract missing: %v\n%s", err, workflow)
 	}
+	revisionsSQL, err := os.ReadFile(filepath.Join(root, "generated", "article", "revisions_migration.sql"))
+	if err != nil || !strings.Contains(string(revisionsSQL), "CREATE TABLE articles_revisions") || !strings.Contains(string(revisionsSQL), "schema_version") || !strings.Contains(string(revisionsSQL), "snapshot TEXT") {
+		t.Fatalf("revision storage proposal missing: %v\n%s", err, revisionsSQL)
+	}
+	revisionsMetadata, err := os.ReadFile(filepath.Join(root, "generated", "article", "revisions_migration.yaml"))
+	if err != nil || !strings.Contains(string(revisionsMetadata), "sqlite: expand") || !strings.Contains(string(revisionsMetadata), "postgres: expand") || !strings.Contains(string(revisionsMetadata), "checksum_sha256:") || !strings.Contains(string(revisionsMetadata), "rollback:") {
+		t.Fatalf("revision migration metadata missing: %v\n%s", err, revisionsMetadata)
+	}
+	revisionContract, err := os.ReadFile(filepath.Join(root, "generated", "article", "revision_contract.go"))
+	if err != nil || !strings.Contains(string(revisionContract), "type ArticleRevisionStore interface") || !strings.Contains(string(revisionContract), "Edition transaction") {
+		t.Fatalf("revision adapter contract missing: %v\n%s", err, revisionContract)
+	}
+	if _, err := CheckCompatibility(root, spec); err != nil {
+		t.Fatalf("revision artifacts are missing from generated compatibility checks: %v", err)
+	}
 	adminRegistry, err := os.ReadFile(filepath.Join(root, "generated", "admin_registry.json"))
 	if err != nil || !strings.Contains(string(adminRegistry), `"state_field": "status"`) || !strings.Contains(string(adminRegistry), `"published"`) || !strings.Contains(string(adminRegistry), `"versioned": true`) {
 		t.Fatalf("workflow is missing from the Admin registry: %v\n%s", err, adminRegistry)
@@ -140,7 +155,7 @@ func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 
 func TestLoadBlueprintRejectsInvalidWorkflowTransition(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "invalid-workflow.yaml")
-	data := []byte("name: article\nversioned: true\nworkflow:\n  state_field: status\n  states: [draft]\n  transitions:\n    draft: [missing]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft]\n")
+	data := []byte("name: article\nversioned: true\nrevisions: true\nworkflow:\n  state_field: status\n  states: [draft]\n  transitions:\n    draft: [missing]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft]\n")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}

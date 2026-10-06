@@ -82,6 +82,7 @@ type Collection struct {
 	Hidden      bool      `json:"hidden,omitempty"`
 	TitleField  string    `json:"title_field,omitempty"`
 	Versioned   bool      `json:"versioned,omitempty"`
+	Revisions   bool      `json:"revisions,omitempty"`
 	Workflow    *Workflow `json:"workflow,omitempty"`
 	Fields      []Field   `json:"fields"`
 	Actions     []Action  `json:"actions"`
@@ -172,7 +173,7 @@ func validateCollection(collection Collection) error {
 	}
 	if collection.Workflow != nil {
 		workflow := collection.Workflow
-		if !collection.Versioned || workflow.StateField == "" || workflow.Validate() != nil {
+		if !collection.Versioned || !collection.Revisions || workflow.StateField == "" || workflow.Validate() != nil {
 			return ErrInvalidCollection
 		}
 		stateField, found := func() (Field, bool) {

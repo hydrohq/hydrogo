@@ -95,7 +95,14 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 	if lock.SpecSHA256 != expected {
 		return CompatibilityReport{}, fmt.Errorf("generated spec hash mismatch: lock=%s expected=%s", lock.SpecSHA256, expected)
 	}
-	for _, name := range requiredGeneratedFiles {
+	requiredFiles := append([]string(nil), requiredGeneratedFiles...)
+	if spec.Versioned {
+		requiredFiles = append(requiredFiles, "migration_2.sql", "migration_2.yaml")
+	}
+	if spec.Revisions {
+		requiredFiles = append(requiredFiles, "revisions_migration.sql", "revisions_migration.yaml", "revision_contract.go")
+	}
+	for _, name := range requiredFiles {
 		artifactPath := filepath.Join(collectionRoot, name)
 		info, err := os.Lstat(artifactPath)
 		if err != nil {
@@ -119,7 +126,7 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 			}
 		}
 	}
-	return CompatibilityReport{Collection: spec.Name, GeneratorVersion: lock.GeneratorVersion, ContractVersion: contractVersion, SpecSHA256: lock.SpecSHA256, FilesChecked: len(requiredGeneratedFiles)}, nil
+	return CompatibilityReport{Collection: spec.Name, GeneratorVersion: lock.GeneratorVersion, ContractVersion: contractVersion, SpecSHA256: lock.SpecSHA256, FilesChecked: len(requiredFiles)}, nil
 }
 
 // CheckGeneratedCompatibility discovers every generated collection beneath
