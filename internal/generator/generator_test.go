@@ -53,6 +53,44 @@ func TestGenerateIsDeterministicAndPreservesCustom(t *testing.T) {
 	}
 }
 
+func TestGenerateBuildsAggregateAdminRegistryForAllResources(t *testing.T) {
+	root := t.TempDir()
+	for _, spec := range []Spec{
+		{Name: "project", Table: "projects", Fields: []Field{{Name: "title", Type: "string", Admin: FieldAdmin{VisibleInList: true}}}, Permissions: []string{"project.read", "project.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "article", Table: "articles", Fields: []Field{{Name: "headline", Type: "string", Admin: FieldAdmin{VisibleInList: true}}}, Permissions: []string{"article.read", "article.write"}, Dialects: []string{"sqlite", "postgres"}},
+	} {
+		if _, err := Generate(root, spec); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(root, "generated", "admin_registry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := adminstudio.ParseManifest(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resources := registry.Collections()
+	if len(resources) != 2 || resources[0].ID != "article" || resources[1].ID != "project" {
+		t.Fatalf("unexpected generated Admin resources: %#v", resources)
+	}
+	if _, err := CheckGeneratedCompatibility(root); err != nil {
+		t.Fatalf("generated resources or Admin registry are incompatible: %v", err)
+	}
+	lockBytes, err := os.ReadFile(filepath.Join(root, "generated", "generator.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lock Lock
+	if err := json.Unmarshal(lockBytes, &lock); err != nil {
+		t.Fatal(err)
+	}
+	if len(lock.Resources) != 2 {
+		t.Fatalf("generator lock lost resource entries: %#v", lock.Resources)
+	}
+}
+
 func TestGeneratedSpecIsCanonicalAcrossInputOrder(t *testing.T) {
 	root := t.TempDir()
 	first := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}, {Name: "published", Type: "bool"}}, Permissions: []string{"article.write", "article.read"}, Dialects: []string{"postgres", "sqlite"}, Kits: []string{"seo", "localization"}}
