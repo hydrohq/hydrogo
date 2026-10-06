@@ -45,16 +45,23 @@ func (r FieldRegistry) Supports(kind FieldKind) bool {
 }
 
 type Field struct {
-	ID            string    `json:"id"`
-	Label         string    `json:"label"`
-	Kind          FieldKind `json:"kind"`
-	Widget        string    `json:"widget,omitempty"`
-	Required      bool      `json:"required"`
-	ReadOnly      bool      `json:"read_only,omitempty"`
-	VisibleInList bool      `json:"visible_in_list"`
-	Searchable    bool      `json:"searchable,omitempty"`
-	Filterable    bool      `json:"filterable,omitempty"`
-	Options       []string  `json:"options,omitempty"`
+	ID            string       `json:"id"`
+	Label         string       `json:"label"`
+	Kind          FieldKind    `json:"kind"`
+	Widget        string       `json:"widget,omitempty"`
+	Required      bool         `json:"required"`
+	ReadOnly      bool         `json:"read_only,omitempty"`
+	VisibleInList bool         `json:"visible_in_list"`
+	Searchable    bool         `json:"searchable,omitempty"`
+	Filterable    bool         `json:"filterable,omitempty"`
+	Options       []string     `json:"options,omitempty"`
+	Relation      *RelationRef `json:"relation,omitempty"`
+}
+
+type RelationRef struct {
+	Collection  string `json:"collection"`
+	Cardinality string `json:"cardinality"`
+	MaxItems    int    `json:"max_items,omitempty"`
 }
 
 type Action struct {
@@ -138,6 +145,9 @@ func validateCollection(collection Collection) error {
 		if field.Widget != "" && !supportedWidget(field.Widget) {
 			return ErrInvalidCollection
 		}
+		if field.Kind == FieldRelation && field.Relation != nil && (field.Relation.Collection == "" || (field.Relation.Cardinality != "one" && field.Relation.Cardinality != "many") || (field.Relation.Cardinality == "one" && field.Relation.MaxItems != 0) || (field.Relation.Cardinality == "many" && (field.Relation.MaxItems < 0 || field.Relation.MaxItems > 100))) {
+			return ErrInvalidCollection
+		}
 		if _, exists := seenFields[field.ID]; exists {
 			return ErrInvalidCollection
 		}
@@ -218,6 +228,10 @@ func cloneCollection(collection Collection) Collection {
 	for i, field := range collection.Fields {
 		clone.Fields[i] = field
 		clone.Fields[i].Options = append([]string(nil), field.Options...)
+		if field.Relation != nil {
+			relation := *field.Relation
+			clone.Fields[i].Relation = &relation
+		}
 	}
 	clone.Actions = append([]Action(nil), collection.Actions...)
 	clone.BulkActions = append([]Action(nil), collection.BulkActions...)

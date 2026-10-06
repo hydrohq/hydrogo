@@ -359,7 +359,11 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		if fieldLabel == "" {
 			fieldLabel = exportName(field.Name)
 		}
-		fields = append(fields, adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable, Options: append([]string(nil), field.Admin.Options...)})
+		adminField := adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable, Options: append([]string(nil), field.Admin.Options...)}
+		if field.Relation != nil {
+			adminField.Relation = &adminstudio.RelationRef{Collection: field.Relation.Collection, Cardinality: field.Relation.Cardinality, MaxItems: field.Relation.MaxItems}
+		}
+		fields = append(fields, adminField)
 	}
 	actions := append([]adminstudio.Action(nil), spec.Admin.Actions...)
 	if len(actions) == 0 {

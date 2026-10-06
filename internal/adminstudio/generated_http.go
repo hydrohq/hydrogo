@@ -397,6 +397,18 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	for _, field := range collection.Fields {
 		values[field.ID] = displayValue(record[field.ID])
 	}
+	relationOptions := make(map[string][]ui.SelectOption)
+	for _, field := range collection.Fields {
+		if field.Kind != FieldRelation || field.Relation == nil || field.ReadOnly {
+			continue
+		}
+		options, err := h.loadRelationOptions(r, field, record[field.ID])
+		if err != nil {
+			h.apiError(w)
+			return
+		}
+		relationOptions[field.ID] = options
+	}
 	action := "/admin/resources/" + url.PathEscape(collection.ID)
 	if editing {
 		action += "/" + url.PathEscape(id)
@@ -414,7 +426,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 		}
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		props := ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, id, editing)}
+		props := ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing)}
 		if err := ui.Form(props).Render(ctx, out); err != nil {
 			return err
 		}
@@ -433,6 +445,81 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 		title = "Kaydı düzenle · " + collection.Label
 	}
 	h.renderPage(w, r, title, body)
+}
+
+func (h GeneratedAdminHandler) loadRelationOptions(r *http.Request, field Field, selectedValue any) ([]ui.SelectOption, error) {
+	selected := relationIDs(selectedValue)
+	target, targetRegistered := h.Registry.Collection(field.Relation.Collection)
+	titleField := ""
+	if targetRegistered {
+		titleField = target.TitleField
+	}
+	query := url.Values{"limit": {"50"}, "offset": {"0"}}
+	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(field.Relation.Collection)+"?"+query.Encode(), nil)
+	if err != nil || status != http.StatusOK {
+		return nil, errors.New("related resource is unavailable")
+	}
+	var records []map[string]any
+	if json.Unmarshal(response, &records) != nil {
+		return nil, errors.New("related resource response is invalid")
+	}
+	options := make([]ui.SelectOption, 0, min(len(records), 50)+len(selected))
+	known := make(map[string]struct{}, cap(options))
+	add := func(record map[string]any) {
+		id, _ := record["id"].(string)
+		if id == "" {
+			return
+		}
+		if _, exists := known[id]; exists {
+			return
+		}
+		label := displayValue(record[titleField])
+		if label == "" {
+			label = id
+		}
+		known[id] = struct{}{}
+		options = append(options, ui.SelectOption{Value: id, Label: label})
+	}
+	for _, record := range records[:min(len(records), 50)] {
+		add(record)
+	}
+	for _, id := range selected {
+		if _, exists := known[id]; exists {
+			continue
+		}
+		response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(field.Relation.Collection)+"/"+url.PathEscape(id), nil)
+		if err != nil || status != http.StatusOK {
+			return nil, errors.New("selected relation is unavailable")
+		}
+		var record map[string]any
+		if json.Unmarshal(response, &record) != nil {
+			return nil, errors.New("selected relation response is invalid")
+		}
+		add(record)
+	}
+	return options, nil
+}
+
+func relationIDs(value any) []string {
+	switch value := value.(type) {
+	case string:
+		if value == "" {
+			return nil
+		}
+		return []string{value}
+	case []string:
+		return append([]string(nil), value...)
+	case []any:
+		ids := make([]string, 0, len(value))
+		for _, item := range value {
+			if id, ok := item.(string); ok && id != "" {
+				ids = append(ids, id)
+			}
+		}
+		return ids
+	default:
+		return nil
+	}
 }
 
 func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
@@ -524,7 +611,7 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 	http.Redirect(w, r, "/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), http.StatusSeeOther)
 }
 
-func generatedFormFields(collection Collection, values map[string]string, id string, editing bool) templ.Component {
+func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if !editing && collection.Type != "global" {
 			if err := ui.Input(ui.InputProps{ID: "resource-id", Name: "id", Label: "Kayıt kimliği", Type: "text", Value: id, Required: true}).Render(ctx, out); err != nil {
@@ -546,6 +633,17 @@ func generatedFormFields(collection Collection, values map[string]string, id str
 				continue
 			}
 			props := ui.InputProps{ID: field.ID, Name: field.ID, Label: field.Label, Type: "text", Value: values[field.ID], Required: field.Required}
+			if field.Kind == FieldRelation && field.Relation != nil {
+				items := append([]ui.SelectOption(nil), relationOptions[field.ID]...)
+				selected := relationIDsFromValue(values[field.ID], field.Relation.Cardinality)
+				if field.Relation.Cardinality == "one" {
+					items = append([]ui.SelectOption{{Value: "", Label: "Seçin"}}, items...)
+				}
+				if err := ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: field.Label, Value: values[field.ID], Items: items, Selected: selected, Multiple: field.Relation.Cardinality == "many", Required: field.Required}).Render(ctx, out); err != nil {
+					return err
+				}
+				continue
+			}
 			switch field.Kind {
 			case FieldNumber:
 				props.Type = "number"
@@ -565,6 +663,13 @@ func generatedFormFields(collection Collection, values map[string]string, id str
 		}
 		return ui.Button(ui.ButtonProps{Type: "submit", Label: "Kaydet", Variant: ui.Primary}).Render(ctx, out)
 	})
+}
+
+func relationIDsFromValue(value, cardinality string) []string {
+	if value == "" || cardinality != "many" {
+		return nil
+	}
+	return strings.Split(value, ",")
 }
 
 func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, collection Collection, id string, deleting bool) {
@@ -602,6 +707,8 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 			if !exists {
 				if field.Kind == FieldBoolean {
 					data[field.ID] = false
+				} else if field.Kind == FieldRelation && field.Relation != nil && field.Relation.Cardinality == "many" {
+					data[field.ID] = []string{}
 				}
 				continue
 			}
@@ -643,6 +750,26 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 }
 
 func parseAdminField(field Field, values []string) (any, error) {
+	if field.Kind == FieldRelation && field.Relation != nil && field.Relation.Cardinality == "many" {
+		limit := field.Relation.MaxItems
+		if limit == 0 {
+			limit = 100
+		}
+		if len(values) > limit {
+			return nil, errors.New("too many related records")
+		}
+		seen := make(map[string]struct{}, len(values))
+		for _, value := range values {
+			if strings.TrimSpace(value) == "" {
+				return nil, errors.New("empty related record")
+			}
+			if _, exists := seen[value]; exists {
+				return nil, errors.New("duplicate related record")
+			}
+			seen[value] = struct{}{}
+		}
+		return append([]string(nil), values...), nil
+	}
 	if len(values) != 1 {
 		return nil, errors.New("multiple field values")
 	}
@@ -800,6 +927,16 @@ func (h GeneratedAdminHandler) apiError(w http.ResponseWriter) {
 func displayValue(value any) string {
 	if value == nil {
 		return ""
+	}
+	switch value := value.(type) {
+	case []string:
+		return strings.Join(value, ",")
+	case []any:
+		items := make([]string, 0, len(value))
+		for _, item := range value {
+			items = append(items, fmt.Sprint(item))
+		}
+		return strings.Join(items, ",")
 	}
 	return fmt.Sprint(value)
 }
