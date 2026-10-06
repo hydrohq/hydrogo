@@ -422,3 +422,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0336: Dev-mode license bypass for local-only verification](0336-dev-mode-license-bypass.md)
 - [ADR-0345: Generated resource Admin Studio activation](0345-generated-resource-admin-activation.md) — Superseded
 - [ADR-0346: Blueprint Admin Studio and editorial workflows](0346-blueprint-admin-studio-workflows.md) — Accepted
+- [ADR-0347: Versioned public generated Admin runtime contract](0347-versioned-public-generated-admin-runtime.md) — Accepted
