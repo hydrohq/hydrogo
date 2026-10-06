@@ -136,6 +136,9 @@ func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 	if err != nil || !strings.Contains(string(revisionsSQL), "CREATE TABLE articles_revisions") || !strings.Contains(string(revisionsSQL), "schema_version") || !strings.Contains(string(revisionsSQL), "snapshot TEXT") {
 		t.Fatalf("revision storage proposal missing: %v\n%s", err, revisionsSQL)
 	}
+	if !strings.Contains(string(revisionsSQL), "locale TEXT NOT NULL") || !strings.Contains(string(revisionsSQL), "PRIMARY KEY (resource_id, locale, version)") {
+		t.Fatalf("localized revisions must have independent locale versions:\n%s", revisionsSQL)
+	}
 	revisionsMetadata, err := os.ReadFile(filepath.Join(root, "generated", "article", "revisions_migration.yaml"))
 	if err != nil || !strings.Contains(string(revisionsMetadata), "sqlite: expand") || !strings.Contains(string(revisionsMetadata), "postgres: expand") || !strings.Contains(string(revisionsMetadata), "checksum_sha256:") || !strings.Contains(string(revisionsMetadata), "rollback:") {
 		t.Fatalf("revision migration metadata missing: %v\n%s", err, revisionsMetadata)
@@ -145,7 +148,7 @@ func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 		t.Fatalf("revision adapter contract missing: %v\n%s", err, revisionContract)
 	}
 	draftMigration, err := os.ReadFile(filepath.Join(root, "generated", "article", "drafts_migration.sql"))
-	if err != nil || !strings.Contains(string(draftMigration), "CREATE TABLE articles_drafts") || !strings.Contains(string(draftMigration), "resource_id TEXT NOT NULL PRIMARY KEY") {
+	if err != nil || !strings.Contains(string(draftMigration), "CREATE TABLE articles_drafts") || !strings.Contains(string(draftMigration), "PRIMARY KEY (resource_id, locale)") {
 		t.Fatalf("isolated draft migration missing: %v\n%s", err, draftMigration)
 	}
 	draftContract, err := os.ReadFile(filepath.Join(root, "generated", "article", "draft_contract.go"))
@@ -179,6 +182,24 @@ func TestLoadBlueprintRejectsInvalidWorkflowTransition(t *testing.T) {
 	}
 	if _, err := LoadBlueprint(path); err == nil {
 		t.Fatal("workflow transition to unknown state was accepted")
+	}
+}
+
+func TestBlueprintEditorialCapabilitiesRequireExplicitFieldAndWorkflowContracts(t *testing.T) {
+	tests := []string{
+		"name: article\nlocalization: true\nfields:\n  - name: title\n    type: string\n",
+		"name: article\nfields:\n  - name: title\n    type: string\n    ui:\n      localized: true\n",
+		"name: article\nlocalization: true\nfields:\n  - name: title\n    type: string\n    ui:\n      localized: true\n      searchable: true\n",
+		"name: article\nversioned: true\nrevisions: true\ndrafts: true\nfields:\n  - name: title\n    type: string\n",
+	}
+	for index, data := range tests {
+		path := filepath.Join(t.TempDir(), "invalid-editorial.yaml")
+		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadBlueprint(path); err == nil {
+			t.Errorf("invalid editorial contract %d was accepted", index)
+		}
 	}
 }
 

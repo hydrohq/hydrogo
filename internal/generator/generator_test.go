@@ -619,8 +619,20 @@ func TestDraftAndLocalizationMigrationsPreservePublicationAndDefaultLocale(t *te
 	if _, err := db.Exec(renderDraftsMigration(spec)); err != nil {
 		t.Fatalf("SQLite draft migration: %v", err)
 	}
-	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?)", "a1", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
+	revisionTable := revisionTableName(spec.Table)
+	if _, err := db.Exec(renderRevisionsMigration(spec)); err != nil {
+		t.Fatalf("SQLite localized revision migration: %v", err)
+	}
+	for _, locale := range []string{"en", "fr"} {
+		if _, err := db.Exec("INSERT INTO "+revisionTable+" (resource_id, locale, version, schema_version, actor_id, created_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", "a1", locale, 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Version"}`); err != nil {
+			t.Fatalf("locale revision identity was not independent for %s: %v", locale, err)
+		}
+	}
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", "a1", "en", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", "a1", "fr", 1, 1, "editor", "2026-10-07T10:01:00Z", "draft", `{"title":"Titre brouillon"}`); err != nil {
+		t.Fatalf("draft versions must be independent by locale: %v", err)
 	}
 	var published string
 	if err := db.QueryRow("SELECT title FROM articles WHERE id = ?", "a1").Scan(&published); err != nil || published != "Published title" {
@@ -655,13 +667,14 @@ func TestDraftLocalizationMigrationsOnPostgreSQL(t *testing.T) {
 	}
 	defer db.Close()
 	draftTable, localeTable := draftTableName(spec.Table), localizationTableName(spec.Table)
-	for _, table := range []string{localeTable, draftTable, spec.Table} {
+	revisionTable := revisionTableName(spec.Table)
+	for _, table := range []string{localeTable, draftTable, revisionTable, spec.Table} {
 		if _, err := db.Exec("DROP TABLE IF EXISTS " + table); err != nil {
 			t.Fatal(err)
 		}
 	}
 	defer func() {
-		for _, table := range []string{localeTable, draftTable, spec.Table} {
+		for _, table := range []string{localeTable, draftTable, revisionTable, spec.Table} {
 			_, _ = db.Exec("DROP TABLE IF EXISTS " + table)
 		}
 	}()
@@ -674,7 +687,15 @@ func TestDraftLocalizationMigrationsOnPostgreSQL(t *testing.T) {
 	if _, err := db.Exec(renderDraftsMigration(spec)); err != nil {
 		t.Fatalf("PostgreSQL draft migration: %v", err)
 	}
-	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, version, schema_version, actor_id, updated_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7)", "a1", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
+	if _, err := db.Exec(renderRevisionsMigration(spec)); err != nil {
+		t.Fatalf("PostgreSQL localized revision migration: %v", err)
+	}
+	for _, locale := range []string{"en", "fr"} {
+		if _, err := db.Exec("INSERT INTO "+revisionTable+" (resource_id, locale, version, schema_version, actor_id, created_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", "a1", locale, 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Version"}`); err != nil {
+			t.Fatalf("PostgreSQL locale revision identity was not independent for %s: %v", locale, err)
+		}
+	}
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, schema_version, actor_id, updated_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", "a1", "en", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(strings.ReplaceAll(renderLocalizationMigration(spec, "postgres"), "__HYDRO_DEFAULT_LOCALE__", "en")); err != nil {

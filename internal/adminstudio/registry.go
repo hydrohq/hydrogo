@@ -4,6 +4,7 @@ package adminstudio
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -153,7 +154,7 @@ func validateCollection(collection Collection) error {
 		}
 		if field.Localized {
 			localizedFields++
-			if !collection.Localization || field.Kind == FieldBoolean || field.Kind == FieldRelation || field.ReadOnly {
+			if !collection.Localization || field.Kind == FieldBoolean || field.Kind == FieldRelation || field.ReadOnly || field.Searchable || field.Filterable {
 				return ErrInvalidCollection
 			}
 		}
@@ -178,7 +179,7 @@ func validateCollection(collection Collection) error {
 			seenOptions[option] = struct{}{}
 		}
 	}
-	if collection.Localization != (localizedFields > 0) || collection.Drafts && !collection.Revisions {
+	if collection.Localization != (localizedFields > 0) || collection.Localization && (!collection.Versioned || !collection.Revisions) || collection.Drafts && (!collection.Revisions || collection.Workflow == nil || !slices.Contains(collection.Workflow.States, StateDraft) || !slices.Contains(collection.Workflow.States, StatePublished)) {
 		return ErrInvalidCollection
 	}
 	if !titleFieldFound {
