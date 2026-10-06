@@ -15,7 +15,7 @@ import (
 func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Request) bool) *http.ServeMux {
 	t.Helper()
 	registry, err := NewRegistry([]Collection{{
-		ID: "project", Label: "Projects", Group: "Content", Fields: []Field{
+		ID: "project", Label: "Projects", Group: "Content", TitleField: "title", Fields: []Field{
 			{ID: "title", Label: "Title", Kind: FieldText, Required: true, VisibleInList: true, Searchable: true},
 			{ID: "status", Label: "Status", Kind: FieldSelect, Required: true, VisibleInList: true, Filterable: true, Options: []string{"draft", "active"}},
 		}, Actions: []Action{{Label: "Open projects", Href: "/admin/resources/project"}},
@@ -59,7 +59,7 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	}
 	defer list.Body.Close()
 	listHTML, _ := io.ReadAll(list.Body)
-	if list.StatusCode != http.StatusOK || !strings.Contains(string(listHTML), "Roof &amp; wall") || !strings.Contains(string(listHTML), "/admin/resources/project/p-1") || !strings.Contains(string(listHTML), `href="/admin/resources/project"`) || list.Header.Get("Cache-Control") != "private, no-store" {
+	if list.StatusCode != http.StatusOK || !strings.Contains(string(listHTML), `href="/admin/resources/project/p-1">Roof &amp; wall</a>`) || !strings.Contains(string(listHTML), `href="/admin/resources/project"`) || list.Header.Get("Cache-Control") != "private, no-store" {
 		t.Fatalf("generated resource list was not rendered safely: status=%d body=%s", list.StatusCode, listHTML)
 	}
 	form, err := http.Get(server.URL + "/admin/resources/project/new")

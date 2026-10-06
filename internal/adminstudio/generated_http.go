@@ -182,7 +182,8 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		for _, field := range collection.Fields {
 			values[field.ID] = displayValue(record[field.ID])
 		}
-		rows = append(rows, Row{ID: id, Values: values, Actions: []Action{{Label: "Düzenle", Href: "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)}}})
+		editURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
+		rows = append(rows, Row{ID: id, EditURL: editURL, Values: values, Actions: []Action{{Label: "Düzenle", Href: editURL}}})
 	}
 	body := templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
 		if _, err := io.WriteString(out, `<section class="studio-card"><header class="resource-banner"><div><h2>`+template.HTMLEscapeString(collection.Label)+`</h2><p>`+template.HTMLEscapeString(collection.Description)+`</p></div><a class="button" href="/admin/resources/`+url.PathEscape(collection.ID)+`/new">Yeni kayıt</a></header>`); err != nil {
