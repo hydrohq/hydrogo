@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
 
@@ -438,8 +439,8 @@ func TestGeneratedTransportDoesNotMisclassifyRepositoryErrors(t *testing.T) {
 func TestGeneratedImmutableFieldsUseAtomicUpdateGuards(t *testing.T) {
 	root := t.TempDir()
 	specs := []Spec{
-		{Name: "immutable_doc", Table: "immutable_docs", Fields: []Field{{Name: "title", Type: "string", Validation: Validation{Immutable: true}}, {Name: "body", Type: "string"}}, Permissions: []string{"immutable_doc.read", "immutable_doc.write"}, Dialects: []string{"sqlite", "postgres"}},
-		{Name: "tenant_immutable_doc", Table: "tenant_immutable_docs", TenantScoped: true, Fields: []Field{{Name: "title", Type: "string", Validation: Validation{Immutable: true}}, {Name: "body", Type: "string"}}, Permissions: []string{"tenant_immutable_doc.read", "tenant_immutable_doc.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "immutable_doc", Table: "immutable_docs", Versioned: true, Fields: []Field{{Name: "title", Type: "string", Validation: Validation{Immutable: true}}, {Name: "body", Type: "string"}}, Permissions: []string{"immutable_doc.read", "immutable_doc.write"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "tenant_immutable_doc", Table: "tenant_immutable_docs", TenantScoped: true, Versioned: true, Fields: []Field{{Name: "title", Type: "string", Validation: Validation{Immutable: true}}, {Name: "body", Type: "string"}}, Permissions: []string{"tenant_immutable_doc.read", "tenant_immutable_doc.write"}, Dialects: []string{"sqlite", "postgres"}},
 	}
 	for _, spec := range specs {
 		if _, err := Generate(root, spec); err != nil {
@@ -452,29 +453,30 @@ func TestGeneratedImmutableFieldsUseAtomicUpdateGuards(t *testing.T) {
 import ("context"; "database/sql"; "errors"; "testing"; _ "modernc.org/sqlite")
 func TestImmutableMutationIsAtomic(t *testing.T) {
  db, err := sql.Open("sqlite", ":memory:"); if err != nil { t.Fatal(err) }; defer db.Close()
- if _, err := db.Exec("CREATE TABLE %s (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL)"); err != nil { t.Fatal(err) }
+ if _, err := db.Exec("CREATE TABLE %s (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, version BIGINT NOT NULL DEFAULT 1)"); err != nil { t.Fatal(err) }
  repo := %sRepository{DB: db, Dialect: "sqlite"}; ctx := context.Background()
- item := %s{ID:"row-1", TenantID:"tenant-1", Title:"fixed", Body:"before"}
+ item := %s{ID:"row-1", TenantID:"tenant-1", Version:1, Title:"fixed", Body:"before"}
  if err := repo.Create(ctx, "tenant-1", item); err != nil { t.Fatal(err) }
  changed := item; changed.Title = "tampered"; changed.Body = "after"
  if err := repo.Update(ctx, "tenant-1", changed); !errors.Is(err, ErrResourceConflict) { t.Fatalf("immutable update error = %%v", err) }
  got, err := repo.Get(ctx, "tenant-1", "row-1"); if err != nil { t.Fatal(err) }; if got.Title != "fixed" || got.Body != "before" { t.Fatalf("rejected update changed row: %%+v", got) }
- item.Body = "after"; if err := repo.Update(ctx, "tenant-1", item); err != nil { t.Fatalf("mutable field update failed: %%v", err) }
+ item.Body = "after"; if err := repo.Update(ctx, "tenant-1", item); err != nil { t.Fatalf("mutable field update failed: %%v", err) }; fresh, err := repo.Get(ctx, "tenant-1", "row-1"); if err != nil || fresh.Version != 2 { t.Fatalf("version did not advance: item=%%+v err=%%v", fresh, err) }; if err := repo.Update(ctx, "tenant-1", item); !errors.Is(err, ErrResourceConflict) { t.Fatalf("stale version update error = %%v", err) }
 }
+
 `, spec.Table, name, name)
 		} else {
 			source = fmt.Sprintf(`package generated
 import ("context"; "database/sql"; "errors"; "testing"; _ "modernc.org/sqlite")
 func TestImmutableMutationIsAtomic(t *testing.T) {
  db, err := sql.Open("sqlite", ":memory:"); if err != nil { t.Fatal(err) }; defer db.Close()
- if _, err := db.Exec("CREATE TABLE %s (id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL)"); err != nil { t.Fatal(err) }
+ if _, err := db.Exec("CREATE TABLE %s (id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, version BIGINT NOT NULL DEFAULT 1)"); err != nil { t.Fatal(err) }
  repo := %sRepository{DB: db, Dialect: "sqlite"}; ctx := context.Background()
- item := %s{ID:"row-1", Title:"fixed", Body:"before"}
+ item := %s{ID:"row-1", Version:1, Title:"fixed", Body:"before"}
  if err := repo.Create(ctx, item); err != nil { t.Fatal(err) }
  changed := item; changed.Title = "tampered"; changed.Body = "after"
  if err := repo.Update(ctx, changed); !errors.Is(err, ErrResourceConflict) { t.Fatalf("immutable update error = %%v", err) }
  got, err := repo.Get(ctx, "row-1"); if err != nil { t.Fatal(err) }; if got.Title != "fixed" || got.Body != "before" { t.Fatalf("rejected update changed row: %%+v", got) }
- item.Body = "after"; if err := repo.Update(ctx, item); err != nil { t.Fatalf("mutable field update failed: %%v", err) }
+ item.Body = "after"; if err := repo.Update(ctx, item); err != nil { t.Fatalf("mutable field update failed: %%v", err) }; fresh, err := repo.Get(ctx, "row-1"); if err != nil || fresh.Version != 2 { t.Fatalf("version did not advance: item=%%+v err=%%v", fresh, err) }; if err := repo.Update(ctx, item); !errors.Is(err, ErrResourceConflict) { t.Fatalf("stale version update error = %%v", err) }
 }
 `, spec.Table, name, name)
 		}
@@ -494,6 +496,85 @@ func TestImmutableMutationIsAtomic(t *testing.T) {
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("generated immutable fixtures failed: %v\n%s", err, output)
+	}
+}
+
+func TestVersionMigrationAddsOptimisticVersionWithoutChangingExistingRows(t *testing.T) {
+	spec := Spec{Name: "article", Table: "articles", Versioned: true, Fields: []Field{{Name: "title", Type: "string"}}, Dialects: []string{"sqlite", "postgres"}}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(renderMigration(spec)); err != nil {
+		t.Fatalf("SQLite rejected base migration: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO articles (id, title) VALUES ('a1', 'Existing')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(renderVersionMigration(spec)); err != nil {
+		t.Fatalf("SQLite rejected additive version migration: %v", err)
+	}
+	var id, title string
+	var version int64
+	if err := db.QueryRow(`SELECT id, title, version FROM articles WHERE id = 'a1'`).Scan(&id, &title, &version); err != nil {
+		t.Fatal(err)
+	}
+	if id != "a1" || title != "Existing" || version != 1 {
+		t.Fatalf("existing row did not preserve its data/default version: id=%q title=%q version=%d", id, title, version)
+	}
+	metadata := renderVersionMigrationMetadata(spec)
+	for _, marker := range []string{"sqlite: expand", "postgres: expand", "checksum_sha256:", "readable_epoch: 1", "writable_epoch: 2", "rollback:"} {
+		if !strings.Contains(metadata, marker) {
+			t.Fatalf("version migration metadata missing %q: %s", marker, metadata)
+		}
+	}
+	if !strings.Contains(renderVersionMigration(spec), "ADD COLUMN version BIGINT NOT NULL DEFAULT 1") {
+		t.Fatal("portable PostgreSQL/SQLite version migration was not generated")
+	}
+}
+
+func TestVersionMigrationAndCASOnPostgreSQL(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	spec := Spec{Name: "version_contract", Table: "hydro_generated_version_contract", Versioned: true, Fields: []Field{{Name: "title", Type: "string"}}, Dialects: []string{"sqlite", "postgres"}}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`DROP TABLE IF EXISTS hydro_generated_version_contract`); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Exec(`DROP TABLE IF EXISTS hydro_generated_version_contract`)
+	if _, err := db.Exec(renderMigration(spec)); err != nil {
+		t.Fatalf("PostgreSQL rejected base migration: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO hydro_generated_version_contract (id, title) VALUES ('a1', 'Existing')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(renderVersionMigration(spec)); err != nil {
+		t.Fatalf("PostgreSQL rejected additive version migration: %v", err)
+	}
+	var version int64
+	if err := db.QueryRow(`SELECT version FROM hydro_generated_version_contract WHERE id = $1`, "a1").Scan(&version); err != nil || version != 1 {
+		t.Fatalf("existing PostgreSQL row version=%d err=%v", version, err)
+	}
+	result, err := db.Exec(`UPDATE hydro_generated_version_contract SET title = $1, version = version + 1 WHERE id = $2 AND version = $3`, "Updated", "a1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if affected, err := result.RowsAffected(); err != nil || affected != 1 {
+		t.Fatalf("PostgreSQL versioned update affected=%d err=%v", affected, err)
+	}
+	result, err = db.Exec(`UPDATE hydro_generated_version_contract SET title = $1, version = version + 1 WHERE id = $2 AND version = $3`, "Stale", "a1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if affected, err := result.RowsAffected(); err != nil || affected != 0 {
+		t.Fatalf("stale PostgreSQL update affected=%d err=%v", affected, err)
 	}
 }
 

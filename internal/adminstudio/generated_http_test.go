@@ -77,7 +77,7 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 
 func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{
-		ID: "article", Label: "Articles", TitleField: "title",
+		ID: "article", Label: "Articles", TitleField: "title", Versioned: true,
 		Fields:   []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}, {ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "review", "published"}}},
 		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
 		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, "review", StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {"review"}, "review": {StatePublished}}},
@@ -94,8 +94,8 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
 				t.Errorf("decode workflow resource update: %v", err)
 			}
-			if updated["status"] != "draft" {
-				t.Errorf("ordinary document edit changed workflow state: %#v", updated)
+			if updated["status"] != "draft" || updated["version"] != float64(4) {
+				t.Errorf("ordinary document edit changed workflow state or lost expected version: %#v", updated)
 			}
 			w.WriteHeader(http.StatusOK)
 			return
@@ -131,7 +131,7 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	}
 	edit := httptest.NewRecorder()
 	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/article-1", nil))
-	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/article-1/workflow"`) || !strings.Contains(edit.Body.String(), `name="target" value="review"`) || !strings.Contains(edit.Body.String(), `name="expected_version" value="4"`) {
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/article-1/workflow"`) || !strings.Contains(edit.Body.String(), `name="target" value="review"`) || !strings.Contains(edit.Body.String(), `name="expected_version" value="4"`) || !strings.Contains(edit.Body.String(), `name="version" value="4"`) {
 		t.Fatalf("workflow transition was not rendered: status=%d body=%s", edit.Code, edit.Body.String())
 	}
 	request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1/workflow", strings.NewReader("_csrf=csrf-value&target=review&expected_version=4"))
@@ -141,7 +141,7 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	if response.Code != http.StatusSeeOther || transitioned != "review" {
 		t.Fatalf("workflow transition not delegated to Edition service: status=%d target=%q body=%s", response.Code, transitioned, response.Body.String())
 	}
-	request = httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1", strings.NewReader("_csrf=csrf-value&title=Changed&status=published"))
+	request = httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1", strings.NewReader("_csrf=csrf-value&title=Changed&status=published&version=4"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response = httptest.NewRecorder()
 	mux.ServeHTTP(response, request)

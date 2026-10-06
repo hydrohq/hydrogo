@@ -397,6 +397,9 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	for _, field := range collection.Fields {
 		values[field.ID] = displayValue(record[field.ID])
 	}
+	if collection.Versioned {
+		values["version"] = displayValue(record["version"])
+	}
 	relationOptions := make(map[string][]ui.SelectOption)
 	for _, field := range collection.Fields {
 		if field.Kind != FieldRelation || field.Relation == nil || field.ReadOnly {
@@ -639,6 +642,11 @@ func generatedRecordVersion(record map[string]any) int64 {
 
 func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		if editing && collection.Versioned {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "version", Value: values["version"]}).Render(ctx, out); err != nil {
+				return err
+			}
+		}
 		if !editing && collection.Type != "global" {
 			if err := ui.Input(ui.InputProps{ID: "resource-id", Name: "id", Label: "Kayıt kimliği", Type: "text", Value: id, Required: true}).Render(ctx, out); err != nil {
 				return err
@@ -722,6 +730,19 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 	} else {
 		creating := strings.HasSuffix(r.URL.Path, "/new")
 		data := make(map[string]any, len(collection.Fields)+1)
+		if collection.Versioned && !creating {
+			versions := r.Form["version"]
+			if len(versions) != 1 {
+				http.Error(w, "invalid form", http.StatusBadRequest)
+				return
+			}
+			version, err := strconv.ParseInt(versions[0], 10, 64)
+			if err != nil || version < 1 {
+				http.Error(w, "invalid form", http.StatusBadRequest)
+				return
+			}
+			data["version"] = version
+		}
 		if id == "" {
 			id = r.FormValue("id")
 		}
