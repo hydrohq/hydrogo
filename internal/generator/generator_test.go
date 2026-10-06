@@ -628,10 +628,10 @@ func TestDraftAndLocalizationMigrationsPreservePublicationAndDefaultLocale(t *te
 			t.Fatalf("locale revision identity was not independent for %s: %v", locale, err)
 		}
 	}
-	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", "a1", "en", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, published_version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", "a1", "en", 1, 4, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", "a1", "fr", 1, 1, "editor", "2026-10-07T10:01:00Z", "draft", `{"title":"Titre brouillon"}`); err != nil {
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, published_version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", "a1", "fr", 1, 4, 1, "editor", "2026-10-07T10:01:00Z", "draft", `{"title":"Titre brouillon"}`); err != nil {
 		t.Fatalf("draft versions must be independent by locale: %v", err)
 	}
 	var published string
@@ -695,7 +695,7 @@ func TestDraftLocalizationMigrationsOnPostgreSQL(t *testing.T) {
 			t.Fatalf("PostgreSQL locale revision identity was not independent for %s: %v", locale, err)
 		}
 	}
-	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, schema_version, actor_id, updated_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", "a1", "en", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, published_version, schema_version, actor_id, updated_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)", "a1", "en", 1, 4, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(strings.ReplaceAll(renderLocalizationMigration(spec, "postgres"), "__HYDRO_DEFAULT_LOCALE__", "en")); err != nil {

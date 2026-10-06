@@ -431,3 +431,140 @@ func TestGeneratedAdminRequiresEditionAuthorizationAndBoundaries(t *testing.T) {
 		t.Fatalf("unauthorized generated Admin request status=%d", response.StatusCode)
 	}
 }
+
+func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true, Drafts: true,
+		Fields:   []Field{{ID: "title", Label: "Title", Kind: FieldText}, {ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "review", "published"}}},
+		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, "review", StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {"review"}, "review": {StatePublished}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishedReads, publishedWrites, saves, transitions := 0, 0, 0, 0
+	draft := DraftDocument{ID: "a1", Version: 2, PublishedVersion: 4, State: StateDraft, Fields: map[string]any{"title": "Working title"}, Exists: true}
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/article" {
+			_, _ = io.WriteString(w, `[]`)
+			return
+		}
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/article/a1" {
+			if r.Method == http.MethodPut || r.Method == http.MethodPost || r.Method == http.MethodDelete {
+				publishedWrites++
+			}
+			t.Errorf("draft flow touched unexpected published API: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected", http.StatusInternalServerError)
+			return
+		}
+		publishedReads++
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"a1","title":"Published title","status":"published","version":4}`)
+	})
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, Collection) bool { return true },
+		ListDrafts: func(_ *http.Request, _ Collection, _ string, limit int) ([]DraftDocument, error) {
+			if limit != 50 {
+				t.Errorf("draft list limit=%d", limit)
+			}
+			return []DraftDocument{draft}, nil
+		},
+		GetDraft: func(_ *http.Request, _ Collection, id, _ string) (DraftDocument, error) {
+			if id != "a1" {
+				return DraftDocument{}, errors.New("missing")
+			}
+			return draft, nil
+		},
+		CanSaveDraft: func(*http.Request, Collection, string, string) bool { return true },
+		SaveDraft: func(_ *http.Request, _ Collection, id, _ string, fields map[string]any, expectedDraft, expectedPublished int64) error {
+			saves++
+			if id != "a1" || expectedDraft != 2 || expectedPublished != 4 || fields["title"] != "Edited draft" {
+				return errors.New("unexpected draft CAS")
+			}
+			return nil
+		},
+		CanTransitionDraft: func(_ *http.Request, _ Collection, got DraftDocument, target PublicationState) bool {
+			return got.Version == 2 && target == "review"
+		},
+		TransitionDraft: func(_ *http.Request, _ Collection, id, _ string, target PublicationState, expectedDraft, expectedPublished int64) error {
+			transitions++
+			if id != "a1" || target != "review" || expectedDraft != 2 || expectedPublished != 4 {
+				return errors.New("unexpected transition CAS")
+			}
+			return nil
+		},
+		CanDiscardDraft: func(*http.Request, Collection, DraftDocument) bool { return true },
+		DiscardDraft: func(_ *http.Request, _ Collection, id, _ string, expected int64) error {
+			if id != "a1" || expected != 2 {
+				return errors.New("unexpected discard CAS")
+			}
+			return nil
+		},
+		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
+		ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) { return nil, nil },
+		GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
+			return RevisionSnapshot{}, errors.New("missing")
+		},
+		CanRestore:      func(*http.Request, Collection, string, int64) bool { return false },
+		RestoreRevision: func(*http.Request, Collection, string, int64, int64) error { return errors.New("missing") },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+
+	edit := httptest.NewRecorder()
+	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), "Working title") || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/a1/draft"`) || !strings.Contains(edit.Body.String(), `name="draft_version" value="2"`) || !strings.Contains(edit.Body.String(), `name="expected_published_version" value="4"`) {
+		t.Fatalf("draft editor missing isolated working copy or CAS tokens: status=%d body=%s", edit.Code, edit.Body.String())
+	}
+	post := func(path, form string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, req)
+		return response
+	}
+	if got := post("/admin/resources/article/a1/draft", "_csrf=csrf-value&title=Edited+draft&status=draft&draft_version=2&published_version=3"); got.Code != http.StatusConflict || saves != 0 {
+		t.Fatalf("stale published version must block draft save: status=%d saves=%d", got.Code, saves)
+	}
+	if got := post("/admin/resources/article/a1/draft", "_csrf=csrf-value&title=Edited+draft&status=draft&draft_version=2&published_version=4"); got.Code != http.StatusSeeOther || saves != 1 {
+		t.Fatalf("valid draft save was not delegated: status=%d saves=%d body=%s", got.Code, saves, got.Body.String())
+	}
+	if got := post("/admin/resources/article/a1/workflow", "_csrf=csrf-value&target=review&expected_draft_version=1&expected_published_version=4"); got.Code != http.StatusConflict || transitions != 0 {
+		t.Fatalf("stale draft must block transition: status=%d transitions=%d", got.Code, transitions)
+	}
+	if got := post("/admin/resources/article/a1/workflow", "_csrf=csrf-value&target=review&expected_draft_version=2&expected_published_version=4"); got.Code != http.StatusSeeOther || transitions != 1 {
+		t.Fatalf("valid transition was not delegated: status=%d transitions=%d body=%s", got.Code, transitions, got.Body.String())
+	}
+	if got := post("/admin/resources/article/a1/draft/discard", "_csrf=csrf-value&expected_version=2"); got.Code != http.StatusSeeOther {
+		t.Fatalf("draft discard was not delegated: status=%d body=%s", got.Code, got.Body.String())
+	}
+	if publishedReads < 4 || publishedWrites != 0 {
+		t.Fatalf("draft operations modified the published API: reads=%d writes=%d", publishedReads, publishedWrites)
+	}
+
+	list := httptest.NewRecorder()
+	mux.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil))
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "Working title") {
+		t.Fatalf("draft list missing title: status=%d body=%s", list.Code, list.Body.String())
+	}
+	collectionList := httptest.NewRecorder()
+	mux.ServeHTTP(collectionList, httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil))
+	if collectionList.Code != http.StatusOK || !strings.Contains(collectionList.Body.String(), `href="/admin/resources/article/drafts"`) {
+		t.Fatalf("collection draft navigation missing: status=%d body=%s", collectionList.Code, collectionList.Body.String())
+	}
+}
+
+func TestGeneratedAdminDraftRejectsNonlocalizedFieldWrites(t *testing.T) {
+	collection := Collection{Localization: true, Fields: []Field{{ID: "title", Localized: true}, {ID: "slug"}}}
+	if err := applyDraftFields(collection, map[string]any{}, map[string]any{"slug": "changed"}, "fr", "en"); err == nil {
+		t.Fatal("secondary locale draft accepted a nonlocalized field")
+	}
+	if err := applyDraftFields(collection, map[string]any{}, map[string]any{"slug": "base", "title": "base"}, "en", "en"); err != nil {
+		t.Fatalf("default locale draft should include base fields: %v", err)
+	}
+}

@@ -1,6 +1,6 @@
 # ADR-0346: Blueprint Admin Studio and editorial workflows
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-07
 - **Supersedes:** [ADR-0345](0345-generated-resource-admin-activation.md)
 - **Superseded by:** None
@@ -70,6 +70,10 @@ validation, audit, and data lifecycle boundaries.
   as a draft must not change the published representation. Publish, unpublish,
   and restore are explicit service operations with expected-version checks,
   resource authorization, tenant scope, audit, and CSRF protection.
+- Every draft save and workflow transition compares both the current draft
+  version and the published resource version atomically. A stale published
+  version blocks save or publish until the editor reloads; a new draft for an
+  unpublished identity starts with published version zero.
 - The Admin document view can browse revisions, compare bounded snapshots,
   and request a restore. Restore creates a new version; it never deletes or
   rewrites prior history. Autosave is separately opt-in, bounded, idempotent,
