@@ -537,17 +537,17 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		} else if collection.Localization {
 			newURL = ""
 		}
-		if _, err := io.WriteString(out, `<section class="studio-card"><header class="resource-banner"><div><h2>`+template.HTMLEscapeString(collection.Label)+`</h2><p>`+template.HTMLEscapeString(collection.Description)+`</p></div>`); err != nil {
+		if _, err := io.WriteString(out, `<section class="resource-page"><header class="dashboard-card-head"><div><p class="muted">`+template.HTMLEscapeString(collection.Description)+`</p></div>`); err != nil {
 			return err
 		}
 		if newURL != "" {
-			if _, err := io.WriteString(out, `<a class="button" href="`+template.HTMLEscapeString(newURL)+`">Yeni kayıt</a>`); err != nil {
+			if err := ui.Link(ui.LinkProps{Href: newURL, Label: "Yeni kayıt", Class: "button"}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
 		if collection.Drafts {
 			draftsURL := localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/drafts", localeState(r).Current)
-			if err := ui.Link(ui.LinkProps{Href: draftsURL, Label: "Taslaklar", Class: "button"}).Render(ctx, out); err != nil {
+			if err := ui.Link(ui.LinkProps{Href: draftsURL, Label: "Taslaklar", Class: "button button-quiet"}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -555,6 +555,9 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 			return err
 		}
 		if err := h.generatedLocaleNav(context.Background(), out, r, collection, ""); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, `<section class="studio-card">`); err != nil {
 			return err
 		}
 		if err := generatedListControls(out, collection, query, localeState(r).Current); err != nil {
@@ -576,6 +579,9 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 			if err := generatedListPageForm(context.Background(), out, collection.ID, next, localeState(r).Current, "Sonraki"); err != nil {
 				return err
 			}
+		}
+		if _, err := io.WriteString(out, `</section>`); err != nil {
+			return err
 		}
 		_, err := io.WriteString(out, `</section>`)
 		return err
@@ -718,7 +724,7 @@ func generatedListPageForm(ctx context.Context, out io.Writer, id string, query 
 
 func generatedListControls(w io.Writer, collection Collection, query ListQuery, locale string) error {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if _, err := io.WriteString(out, `<form class="admin-list-toolbar" method="get" action="/admin/resources/`+url.PathEscape(collection.ID)+`">`); err != nil {
+		if _, err := io.WriteString(out, `<form class="admin-list-toolbar studio-form" method="get" action="/admin/resources/`+url.PathEscape(collection.ID)+`">`); err != nil {
 			return err
 		}
 		if query.Sort != "" {
@@ -738,7 +744,7 @@ func generatedListControls(w io.Writer, collection Collection, query ListQuery, 
 			}
 		}
 		if searchFields > 0 {
-			if err := ui.Input(ui.InputProps{ID: "resource-search", Name: "search", Label: "Ara", Type: "search", Value: query.Search, Placeholder: "Kayıtlarda ara"}).Render(ctx, out); err != nil {
+			if err := ui.Input(ui.InputProps{ID: "resource-search", Name: "search", Label: "Ara", Type: "search", Value: query.Search}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -748,15 +754,29 @@ func generatedListControls(w io.Writer, collection Collection, query ListQuery, 
 			}
 			options := append([]string(nil), field.Options...)
 			if len(options) > 0 {
-				options = append([]string{""}, options...)
-				if err := ui.Select(ui.SelectProps{ID: "filter-" + field.ID, Name: "filter[" + field.ID + "]", Label: field.Label, Value: query.Filters[field.ID], Options: options}).Render(ctx, out); err != nil {
+				allLabel := "Tümü"
+				if locale == "en" {
+					allLabel = "All"
+				}
+				items := make([]ui.SelectOption, 0, len(options)+1)
+				items = append(items, ui.SelectOption{Value: "", Label: allLabel})
+				for _, option := range options {
+					items = append(items, ui.SelectOption{Value: option, Label: option})
+				}
+				if err := ui.Select(ui.SelectProps{ID: "filter-" + field.ID, Name: "filter[" + field.ID + "]", Label: field.Label, Value: query.Filters[field.ID], Items: items}).Render(ctx, out); err != nil {
 					return err
 				}
 			} else if err := ui.Input(ui.InputProps{ID: "filter-" + field.ID, Name: "filter[" + field.ID + "]", Label: field.Label, Value: query.Filters[field.ID]}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
+		if _, err := io.WriteString(out, `<div class="studio-actions">`); err != nil {
+			return err
+		}
 		if err := ui.Button(ui.ButtonProps{Type: "submit", Label: "Uygula", Variant: ui.Primary}).Render(ctx, out); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, `</div>`); err != nil {
 			return err
 		}
 		_, err := io.WriteString(out, `</form>`)
@@ -1807,7 +1827,7 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 			}
 		}
 		if !editing && collection.Type != "global" {
-			if err := ui.Input(ui.InputProps{ID: "resource-id", Name: "id", Label: "Kayıt kimliği", Type: "text", Value: id, Required: true}).Render(ctx, out); err != nil {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "id", Value: id}).Render(ctx, out); err != nil {
 				return err
 			}
 		}

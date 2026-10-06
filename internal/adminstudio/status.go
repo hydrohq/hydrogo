@@ -34,7 +34,7 @@ func statusPillLabel(info StatusInfo) string {
 	case "archived", "retracted":
 		return "Arşivlendi"
 	default:
-		return "Diğer"
+		return strings.TrimSpace(info.Value)
 	}
 }
 

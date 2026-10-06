@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -380,7 +381,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 	for _, field := range spec.Fields {
 		fieldLabel := strings.TrimSpace(field.Admin.Label)
 		if fieldLabel == "" {
-			fieldLabel = exportName(field.Name)
+			fieldLabel = defaultAdminFieldLabel(field.Name)
 		}
 		adminField := adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, Localized: field.Admin.Localized, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable, Options: append([]string(nil), field.Admin.Options...)}
 		if field.Relation != nil {
@@ -435,6 +436,15 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		return adminstudio.Collection{}, err
 	}
 	return registry.Collections()[0], nil
+}
+
+func defaultAdminFieldLabel(name string) string {
+	label := strings.NewReplacer("_", " ", "-", " ").Replace(strings.TrimSpace(name))
+	if label == "" {
+		return label
+	}
+	first, size := utf8.DecodeRuneInString(label)
+	return string(unicode.ToUpper(first)) + label[size:]
 }
 
 func Generate(root string, spec Spec) (Lock, error) {

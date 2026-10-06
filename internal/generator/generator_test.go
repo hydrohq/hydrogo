@@ -805,6 +805,19 @@ func TestAdminCollectionUsesExplicitPresentationMetadata(t *testing.T) {
 	}
 }
 
+func TestAdminCollectionHumanizesDefaultFieldLabels(t *testing.T) {
+	collection, err := AdminCollection(Spec{
+		Name: "article", Table: "articles", Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"},
+		Fields: []Field{{Name: "published_at", Type: "string"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := collection.Fields[0].Label; got != "Published at" {
+		t.Fatalf("default field label = %q, want %q", got, "Published at")
+	}
+}
+
 func TestGeneratedAdminTemplatesUseBlockEditorContract(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "body", Type: "text", Admin: FieldAdmin{Widget: "block-editor"}}}, Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"}}

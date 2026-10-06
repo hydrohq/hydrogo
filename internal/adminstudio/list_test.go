@@ -40,6 +40,17 @@ func TestRenderListUsesTypedStatusPillsAndScheduleTime(t *testing.T) {
 	}
 }
 
+func TestRenderListPreservesEditionSpecificStatusValues(t *testing.T) {
+	collection := Collection{ID: "projects", Label: "Projects", Fields: []Field{{ID: "status", Label: "Status", Kind: FieldStatus, VisibleInList: true}}, Actions: []Action{{Label: "Edit", Href: "/admin/projects/p1"}}}
+	var out strings.Builder
+	if err := RenderList(&out, ListData{Collection: collection, Rows: []Row{{Values: map[string]string{"status": "active"}}}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), " active</span>") || strings.Contains(out.String(), "Diğer") {
+		t.Fatalf("Edition status was hidden behind a generic label: %s", out.String())
+	}
+}
+
 func TestRenderListAppliesStatusFilterWithoutMutatingRows(t *testing.T) {
 	collection := Collection{ID: "pages", Label: "Pages", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}, {ID: "status", Label: "Status", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Edit", Href: "/admin/pages/edit"}}}
 	rows := []Row{{Values: map[string]string{"title": "Published page", "status": "published"}}, {Values: map[string]string{"title": "Draft page", "status": "draft"}}}
