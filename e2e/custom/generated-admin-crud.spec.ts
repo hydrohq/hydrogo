@@ -47,24 +47,47 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.goto(`${baseURL}/admin/resources`);
     await expect(page.getByRole("heading", { name: "Generated resources" })).toBeVisible();
     await page.getByRole("navigation").getByRole("link", { name: "Projects" }).click();
-    await expect(page).toHaveURL(/\/admin\/resources\/project$/);
+    await expect(page).toHaveURL(/\/admin\/resources\/project(?:\?.*)?$/);
     await expect(page.locator("h1", { hasText: "Projects" })).toBeVisible();
     await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible();
     await expect(page.locator("#filter-status option").first()).toHaveText("Tümü");
-    await page.getByRole("link", { name: "Yeni kayıt" }).click();
+    for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }]) {
+      await page.setViewportSize(viewport);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(1);
+      await expect(page.locator(".table-wrap")).toBeVisible();
+    }
+    await page.setViewportSize({ width: 1280, height: 720 });
+    const newRecord = page.getByRole("link", { name: "Yeni kayıt" });
+    await newRecord.focus();
+    await page.keyboard.press("Enter");
     const create = page.locator('form[action="/admin/resources/project/new"]');
     await expect(create.getByLabel("Title")).toBeVisible();
     await expect(create.locator('[name="id"]')).toHaveAttribute("type", "hidden");
     await expect(create.locator('label[for="resource-id"]')).toHaveCount(0);
     await expect(create.getByLabel("Project code")).toBeVisible();
+    await create.locator('button[type="submit"]').click();
+    await expect(create.getByLabel("Project code")).toBeFocused();
+    expect(await create.getByLabel("Project code").evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true);
     await create.locator('[name="title"]').fill("HydroGo E2E project");
     await create.locator('[name="project_code"]').fill("E2E-001");
     await create.locator('[name="status"]').selectOption("active");
     await create.locator('button[type="submit"]').click();
-    await expect(page).toHaveURL(/\/admin\/resources\/project$/);
+    await expect(page).toHaveURL(/\/admin\/resources\/project(?:\?.*)?$/);
     const recordLink = page.getByRole("link", { name: "HydroGo E2E project" });
     await expect(recordLink).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("generated-list-desktop.png") });
+
+    await page.getByLabel("Status").selectOption("active");
+    await page.getByRole("button", { name: "Uygula" }).click();
+    await expect(page.getByRole("link", { name: "HydroGo E2E project" })).toBeVisible();
+    await page.getByLabel("Ara", { exact: true }).fill("no matching project");
+    await page.getByRole("button", { name: "Uygula" }).click();
+    await expect(page.getByText("Bu koleksiyonda henüz kayıt bulunmuyor.")).toBeVisible();
+    await page.getByLabel("Ara", { exact: true }).fill("");
+    await page.getByLabel("Status").selectOption("");
+    await page.getByRole("button", { name: "Uygula" }).click();
+    await expect(page.getByRole("link", { name: "HydroGo E2E project" })).toBeVisible();
     const recordPath = await recordLink.getAttribute("href");
     expect(recordPath).toMatch(/^\/admin\/resources\/project\//);
 
@@ -72,12 +95,12 @@ test.describe("generated Edition Admin CRUD", () => {
     await expect(page.locator('[name="title"]')).toHaveValue("HydroGo E2E project");
     await page.locator('[name="title"]').fill("HydroGo E2E updated");
     await page.locator(`form[action="${recordPath}"] button[type="submit"]`).click();
-    await expect(page).toHaveURL(/\/admin\/resources\/project$/);
+    await expect(page).toHaveURL(/\/admin\/resources\/project(?:\?.*)?$/);
     await expect(page.getByRole("link", { name: "HydroGo E2E updated" })).toBeVisible();
 
     await page.getByRole("link", { name: "HydroGo E2E updated" }).click();
     await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
-    await expect(page).toHaveURL(/\/admin\/resources\/project$/);
+    await expect(page).toHaveURL(/\/admin\/resources\/project(?:\?.*)?$/);
     await expect(page.getByText("HydroGo E2E updated")).toHaveCount(0);
     const deleted = await request.get(`${baseURL}${recordPath!.replace("/admin/resources", "/api/v1")}`);
     expect(deleted.status()).toBe(404);
