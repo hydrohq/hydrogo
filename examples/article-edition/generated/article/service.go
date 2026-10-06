@@ -25,6 +25,7 @@ func (s ArticleService) List(ctx context.Context, query hydroquery.ResourceQuery
 }
 
 func (s ArticleService) Create(ctx context.Context, item Article) error {
+
 	item.normalize()
 	if err := item.Validate(); err != nil {
 		return err
@@ -32,7 +33,14 @@ func (s ArticleService) Create(ctx context.Context, item Article) error {
 	return s.Repository.Create(ctx, item)
 }
 
+// CreateWithPresence applies Blueprint defaults only to omitted JSON fields.
+func (s ArticleService) CreateWithPresence(ctx context.Context, item Article, present map[string]bool) error {
+	item.ApplyCreateDefaults(present)
+	return s.Create(ctx, item)
+}
+
 func (s ArticleService) Update(ctx context.Context, item Article) error {
+
 	item.normalize()
 	if err := item.Validate(); err != nil {
 		return err

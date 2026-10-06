@@ -73,8 +73,20 @@ func (r ArticleRepository) Create(ctx context.Context, item Article) error {
 
 func (r ArticleRepository) Update(ctx context.Context, item Article) error {
 	dialect := r.Dialect
-	_, err := r.DB.ExecContext(ctx, "UPDATE articles SET "+"slug = "+placeholder(dialect, 1)+", "+"status = "+placeholder(dialect, 2)+", "+"title = "+placeholder(dialect, 3)+" WHERE id = "+placeholder(dialect, 4), item.Slug, item.Status, item.Title, item.ID)
-	return err
+	result, err := r.DB.ExecContext(ctx, "UPDATE articles SET "+"slug = "+placeholder(dialect, 1)+", "+"status = "+placeholder(dialect, 2)+", "+"title = "+placeholder(dialect, 3)+" WHERE "+"id = "+placeholder(dialect, 4), item.Slug, item.Status, item.Title, item.ID)
+	if err != nil {
+		return err
+	}
+	if 0 > 0 {
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected == 0 {
+			return ErrResourceConflict
+		}
+	}
+	return nil
 }
 
 func (r ArticleRepository) Delete(ctx context.Context, id string) error {

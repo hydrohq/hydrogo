@@ -31,7 +31,7 @@ func ArticleListColumns() []string {
 
 func ArticleListRows(rows []ArticleListRow) [][]string {
 	result := make([][]string, 0, len(rows))
-	for range rows {
+	for _, row := range rows {
 		result = append(result, []string{  })
 	}
 	return result
