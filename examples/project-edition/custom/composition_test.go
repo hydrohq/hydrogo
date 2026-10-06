@@ -40,7 +40,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	adminIndexBody, _ := io.ReadAll(adminIndex.Body)
 	_ = adminIndex.Body.Close()
-	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(adminIndexBody, []byte("/admin/resources/project")) || !bytes.Contains(adminIndexBody, []byte("</html>")) {
+	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(adminIndexBody, []byte("/admin/resources/project")) || !bytes.Contains(adminIndexBody, []byte(`class="collection-tile"`)) || !bytes.Contains(adminIndexBody, []byte("</html>")) {
 		t.Fatalf("generated resource missing from Admin index: status=%d", adminIndex.StatusCode)
 	}
 	post, err := http.Post(server.URL+"/api/v1/project", "application/json", bytes.NewReader(body))
@@ -81,6 +81,15 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 			index = max(0, len(body)-500)
 		}
 		t.Fatalf("generated Admin list status=%d body=%s", adminList.StatusCode, body[index:min(len(body), index+500)])
+	}
+	adminForm, err := http.Get(server.URL + "/admin/resources/project/new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminFormBody, _ := io.ReadAll(adminForm.Body)
+	_ = adminForm.Body.Close()
+	if adminForm.StatusCode != http.StatusOK || !bytes.Contains(adminFormBody, []byte(`class="studio-form"`)) || !bytes.Contains(adminFormBody, []byte("</html>")) {
+		t.Fatalf("generated Admin form layout missing: status=%d body=%s", adminForm.StatusCode, adminFormBody)
 	}
 	form := url.Values{"id": {"p-admin"}, "project_code": {"P-ADMIN"}, "status": {"active"}, "title": {"From Admin"}, "_csrf": {"edition-demo-csrf"}}
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

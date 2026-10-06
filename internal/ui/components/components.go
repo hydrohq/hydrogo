@@ -96,6 +96,7 @@ type CardProps struct {
 type FormProps struct {
 	Action string
 	Method string
+	Class  string
 	CSRF   string
 	Body   templ.Component
 }
@@ -190,7 +191,11 @@ func Form(p FormProps) templ.Component {
 		if method == "" {
 			method = "post"
 		}
-		if _, err := io.WriteString(w, `<form action="`+esc(p.Action)+`" method="`+esc(method)+`">`); err != nil {
+		classAttr := ""
+		if strings.TrimSpace(p.Class) != "" {
+			classAttr = ` class="` + esc(strings.TrimSpace(p.Class)) + `"`
+		}
+		if _, err := io.WriteString(w, `<form action="`+esc(p.Action)+`" method="`+esc(method)+`"`+classAttr+`>`); err != nil {
 			return err
 		}
 		if p.CSRF != "" {
