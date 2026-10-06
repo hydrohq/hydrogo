@@ -48,7 +48,7 @@
           "label": "",
           "widget": "",
           "read_only": false,
-          "visible_in_list": false,
+          "visible_in_list": true,
           "searchable": false,
           "filterable": false
         }

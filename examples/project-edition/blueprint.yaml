@@ -3,6 +3,8 @@ fields:
   - name: title
     type: string
     required: true
+    ui:
+      list: true
   - name: status
     type: enum
     required: true
@@ -10,4 +12,3 @@ fields:
   - name: project_code
     type: string
     required: true
-

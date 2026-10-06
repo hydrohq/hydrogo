@@ -26,13 +26,13 @@ templ ProjectList(view ProjectListView) {
 }
 
 func ProjectListColumns() []string {
-	return []string{  }
+	return []string{ "Title" }
 }
 
 func ProjectListRows(rows []ProjectListRow) [][]string {
 	result := make([][]string, 0, len(rows))
-	for range rows {
-		result = append(result, []string{  })
+	for _, row := range rows {
+		result = append(result, []string{ row.Values["title"] })
 	}
 	return result
 }

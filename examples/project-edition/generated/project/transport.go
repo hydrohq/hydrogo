@@ -3,7 +3,9 @@ package generated
 
 import (
 	"encoding/json"
+	"errors"
 	hydroquery "github.com/ardaozyildirim/hydrogo/extension/v1"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -68,11 +70,12 @@ func (h ProjectHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var item Project
-		if !decodeProjectJSON(w, r, &item) {
+		present, ok := decodeProjectCreateJSON(w, r, &item)
+		if !ok {
 			return
 		}
-		if err := h.Service.Create(r.Context(), item); err != nil {
-			http.Error(w, "conflict", http.StatusConflict)
+		if err := h.Service.CreateWithPresence(r.Context(), item, present); err != nil {
+			writeGeneratedMutationError(w, r, err)
 			return
 		}
 		writeProjectJSON(w, http.StatusCreated, item)
@@ -87,7 +90,7 @@ func (h ProjectHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		item.ID = id
 		if err := h.Service.Update(r.Context(), item); err != nil {
-			http.Error(w, "conflict", http.StatusConflict)
+			writeGeneratedMutationError(w, r, err)
 			return
 		}
 		writeProjectJSON(w, http.StatusOK, item)
@@ -117,11 +120,106 @@ func decodeProjectJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	}
 	return true
 }
+func decodeProjectCreateJSON(w http.ResponseWriter, r *http.Request, dst *Project) (map[string]bool, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	decoder := json.NewDecoder(r.Body)
+	token, err := decoder.Token()
+	delimiter, object := token.(json.Delim)
+	if err != nil || !object || delimiter != '{' {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return nil, false
+	}
+	present := make(map[string]bool)
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return nil, false
+		}
+		key, ok := token.(string)
+		if !ok {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return nil, false
+		}
+		switch key {
+		case "id":
+			if err := decoder.Decode(&dst.ID); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return nil, false
+			}
+		case "title":
+			present["title"] = true
+			if err := decoder.Decode(&dst.Title); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return nil, false
+			}
+		case "status":
+			present["status"] = true
+			if err := decoder.Decode(&dst.Status); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return nil, false
+			}
+		case "project_code":
+			present["project_code"] = true
+			if err := decoder.Decode(&dst.ProjectCode); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return nil, false
+			}
+		default:
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return nil, false
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return nil, false
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return nil, false
+	}
+	return present, true
+}
 
 func writeProjectJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+func writeGeneratedErrorJSON(w http.ResponseWriter, r *http.Request, status int, code, message string, fields map[string]string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	requestID := r.Header.Get("X-Request-ID")
+	if len(requestID) > 64 {
+		requestID = ""
+	}
+	for _, ch := range requestID {
+		if !(ch >= 'a' && ch <= 'z') && !(ch >= 'A' && ch <= 'Z') && !(ch >= '0' && ch <= '9') && ch != '-' && ch != '_' && ch != '.' {
+			requestID = ""
+			break
+		}
+	}
+	payload := map[string]any{"code": code, "message": message, "request_id": requestID}
+	if fields != nil {
+		payload["fields"] = fields
+	}
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+var ErrResourceConflict = errors.New("resource conflict")
+
+func writeGeneratedMutationError(w http.ResponseWriter, r *http.Request, err error) {
+	var validation FieldValidationError
+	if errors.As(err, &validation) {
+		writeGeneratedErrorJSON(w, r, http.StatusUnprocessableEntity, "validation_failed", "One or more fields are invalid.", map[string]string{validation.Field: validation.Code})
+		return
+	}
+	if errors.Is(err, ErrResourceConflict) {
+		writeGeneratedErrorJSON(w, r, http.StatusConflict, "conflict", "The request conflicts with current resource state.", nil)
+		return
+	}
+	writeGeneratedErrorJSON(w, r, http.StatusInternalServerError, "internal_error", "The request could not be completed.", nil)
 }
 func parseProjectListQuery(r *http.Request) (hydroquery.ResourceQuery, error) {
 	return hydroquery.ParseResourceQuery(r.URL.Query(), queryFields)
