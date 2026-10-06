@@ -11,6 +11,7 @@
     "type": { "type": "string", "enum": ["collection", "global"], "default": "collection" },
     "auth": { "type": "boolean", "default": false, "description": "Require Edition-owned Identity/Session/RBAC composition before exposing the generated resource." },
     "tenant_scoped": { "type": "boolean", "default": false },
+    "versioned": { "type": "boolean", "default": false, "description": "Adds an optimistic concurrency version to generated resources. Required for editorial workflows." },
     "workflow": {
       "type": "object",
       "additionalProperties": false,

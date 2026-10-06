@@ -113,7 +113,7 @@ func TestLoadBlueprintMapsAuthCompositionFlag(t *testing.T) {
 
 func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "workflow.yaml")
-	data := []byte("name: article\nworkflow:\n  state_field: status\n  states: [draft, review, published]\n  transitions:\n    draft: [review]\n    review: [published, draft]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft, review, published]\n")
+	data := []byte("name: article\nversioned: true\nworkflow:\n  state_field: status\n  states: [draft, review, published]\n  transitions:\n    draft: [review]\n    review: [published, draft]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft, review, published]\n")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -133,14 +133,14 @@ func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 		t.Fatalf("generated workflow contract missing: %v\n%s", err, workflow)
 	}
 	adminRegistry, err := os.ReadFile(filepath.Join(root, "generated", "admin_registry.json"))
-	if err != nil || !strings.Contains(string(adminRegistry), `"state_field": "status"`) || !strings.Contains(string(adminRegistry), `"published"`) {
+	if err != nil || !strings.Contains(string(adminRegistry), `"state_field": "status"`) || !strings.Contains(string(adminRegistry), `"published"`) || !strings.Contains(string(adminRegistry), `"versioned": true`) {
 		t.Fatalf("workflow is missing from the Admin registry: %v\n%s", err, adminRegistry)
 	}
 }
 
 func TestLoadBlueprintRejectsInvalidWorkflowTransition(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "invalid-workflow.yaml")
-	data := []byte("name: article\nworkflow:\n  state_field: status\n  states: [draft]\n  transitions:\n    draft: [missing]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft]\n")
+	data := []byte("name: article\nversioned: true\nworkflow:\n  state_field: status\n  states: [draft]\n  transitions:\n    draft: [missing]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft]\n")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
