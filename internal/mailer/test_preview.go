@@ -24,7 +24,7 @@ func (h TestPreviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Cache-Control", "private, no-store")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.AdminStartForRequest(w, r, "Test email preview", "Mailer", security.NonceFromContext(r.Context()), "settings"); err != nil {
+		if err := ui.AdminStartForRequest(w, r, "Test email preview", "Mailer", "settings"); err != nil {
 			return
 		}
 		_, pingEnabled := h.Sender.(interface {

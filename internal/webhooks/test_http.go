@@ -29,7 +29,7 @@ func (h TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			items = append(items, ui.WebhookTestEndpoint{ID: endpoint.ID})
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.AdminStartForRequest(w, r, "Webhook test sandbox", "Developer tools", security.NonceFromContext(r.Context()), "developer"); err != nil {
+		if err := ui.AdminStartForRequest(w, r, "Webhook test sandbox", "Developer tools", "developer"); err != nil {
 			return
 		}
 		if err := ui.WebhookTestPage(items, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {

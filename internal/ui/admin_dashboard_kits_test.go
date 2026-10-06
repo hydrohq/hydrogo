@@ -261,7 +261,7 @@ func TestNovaDashboardHidesPagesCollectionAndGatesCommerceAction(t *testing.T) {
 
 func TestAdminShellIncludesNovaTopNav(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
@@ -292,7 +292,7 @@ func TestAdminShellIncludesNovaTopNav(t *testing.T) {
 
 func TestNovaTopNavHidesPagesAndIncludesSidebarParity(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(out.String(), `nova-topnav-link" href="/admin/pages"`) {

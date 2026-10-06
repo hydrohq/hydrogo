@@ -66,7 +66,7 @@ func (h Handler) settings(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Notifications", "Push settings", security.NonceFromContext(r.Context()), "settings") != nil {
+	if ui.AdminStartForRequest(w, r, "Notifications", "Push settings", "settings") != nil {
 		return
 	}
 	if err := ui.PushSettings(security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
@@ -159,7 +159,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Push announcements", "Broadcast", security.NonceFromContext(r.Context()), "settings") != nil {
+	if ui.AdminStartForRequest(w, r, "Push announcements", "Broadcast", "settings") != nil {
 		return
 	}
 	sent, delivered, failed := 0, 0, 0

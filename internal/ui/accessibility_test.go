@@ -10,7 +10,7 @@ import (
 
 func TestAdminShellInteractiveElementsHaveAccessibleNames(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Erişilebilirlik", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Erişilebilirlik", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	root, err := html.Parse(strings.NewReader(out.String()))
@@ -53,7 +53,7 @@ func TestAdminShellAccessibilityCSSContract(t *testing.T) {
 
 func TestAdminShellDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Güvenli yönetim", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Güvenli yönetim", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	body := out.String()

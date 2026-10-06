@@ -26,7 +26,7 @@ func TestRenderAdminResourceUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderAdminResourceUsage() error = %v", err)
 	}
-	for _, want := range []string{"Kaynak tüketimi", "Sistem kaynakları", "Heap kullanımı", "Toplam istek", "nonce-test", "/admin/developer/resources"} {
+	for _, want := range []string{"Kaynak tüketimi", "Sistem kaynakları", "Heap kullanımı", "Toplam istek", "/admin/developer/resources"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("rendered resource page missing %q", want)
 		}
@@ -36,14 +36,14 @@ func TestRenderAdminResourceUsage(t *testing.T) {
 func TestAdminShellAddsTrashNavigationOnlyWhenEnabled(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin/trash", nil)
 	var enabled bytes.Buffer
-	if err := AdminStartForRequestWithTrash(&enabled, request, "Çöp kutusu", "", "", "trash"); err != nil {
+	if err := AdminStartForRequestWithTrash(&enabled, request, "Çöp kutusu", "", "trash"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(enabled.String(), `href="/admin/trash" aria-current="page"`) {
 		t.Fatal("trash navigation link is missing")
 	}
 	var disabled bytes.Buffer
-	if err := AdminStartForRequest(&disabled, request, "Dashboard", "", "", "dashboard"); err != nil {
+	if err := AdminStartForRequest(&disabled, request, "Dashboard", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(disabled.String(), `href="/admin/trash"`) {
@@ -55,7 +55,7 @@ func TestAdminShellShowsMaintenanceBanner(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{MaintenanceActive: true}))
 	var out bytes.Buffer
-	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "Site bakım modunda") || !strings.Contains(out.String(), "/admin/site/maintenance") {
@@ -67,7 +67,7 @@ func TestAdminShellShowsBrokenLinksWarning(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{BrokenLinksActive: true, BrokenLinksJobID: "report"}))
 	var out bytes.Buffer
-	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "erişilemeyen bağlantılar") || !strings.Contains(out.String(), "/admin/site/link-check?job=report") {
@@ -79,7 +79,7 @@ func TestAdminShellShowsSafeModeWarning(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{SafeModeActive: true}))
 	var out bytes.Buffer
-	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "System is operating in Safe Mode") {
@@ -91,7 +91,7 @@ func TestAdminShellShowsDismissibleStaffNoticeAsEscapedTypedContent(t *testing.T
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{StaffNoticeActive: true, StaffNoticeMessage: "<urgent> update", StaffNoticeSeverity: "critical", StaffNoticeDismissKey: "notice-key"}))
 	var out bytes.Buffer
-	if err := AdminStartForRequest(&out, request, "Dashboard", "", "", "dashboard"); err != nil {
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
 	for _, marker := range []string{"&lt;urgent&gt; update", `data-staff-notice="notice-key"`, `data-staff-notice-dismiss`, "hydro-staff-notice-dismissed"} {
@@ -186,14 +186,14 @@ func TestAdminPermissionCatalogEscapesEditionNames(t *testing.T) {
 	if err := RenderAdminArea(&out, AdminAreaData{Area: "permissions", Permissions: []string{`article<script>`}}); err != nil {
 		t.Fatalf("RenderAdminArea(permissions): %v", err)
 	}
-	if strings.Contains(out.String(), "<script>") || !strings.Contains(out.String(), "&lt;script&gt;") {
+	if strings.Contains(out.String(), "article<script>") || !strings.Contains(out.String(), "article&lt;script&gt;") {
 		t.Fatal("Edition permission catalog rendered an unescaped permission name")
 	}
 }
 
 func TestRenderAdminAccountEnglishLocaleSelector(t *testing.T) {
 	var out bytes.Buffer
-	if err := RenderAdminArea(&out, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account", Locale: "en", SoundAlertsEnabled: true}); err != nil {
+	if err := RenderAdminArea(&out, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account", Locale: "en", SoundAlertsEnabled: true}); err != nil {
 		t.Fatalf("RenderAdminArea(account) error = %v", err)
 	}
 	markup := out.String()
@@ -219,7 +219,7 @@ func TestAdminShellIncludesDevicePreviewBehavior(t *testing.T) {
 		}
 	}
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Preview", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Preview", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "data-device-preview-dialog") {
@@ -245,7 +245,7 @@ func TestAdminShellSpotlightFetchesProtectedCategorizedResults(t *testing.T) {
 
 func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Güvenli bağlantılar", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Güvenli bağlantılar", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"target=\"_blank\"", "noopener noreferrer"} {
@@ -263,7 +263,7 @@ func TestAdminShellHardensBlankTargetLinks(t *testing.T) {
 
 func TestAdminShellUsesDistinctBundledFavicon(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Admin", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Admin", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	markup := out.String()
@@ -279,7 +279,7 @@ func TestAdminShellUsesDistinctBundledFavicon(t *testing.T) {
 
 func TestAdminShellIncludesSessionExpiryWarning(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Session", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Session", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"/auth/me/session/extend", "Oturumunuz yakında sona erecek", "setAttribute('role','alertdialog')"} {
@@ -291,7 +291,7 @@ func TestAdminShellIncludesSessionExpiryWarning(t *testing.T) {
 
 func TestAdminShellIncludesMobileNavigationContract(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Mobil navigasyon", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Mobil navigasyon", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	markup := out.String()
@@ -309,7 +309,7 @@ func TestAdminShellIncludesMobileNavigationContract(t *testing.T) {
 
 func TestAdminShellIncludesAccessibleUXDialogsAndQuickActions(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Studio", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Studio", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := AdminEnd(&out); err != nil {
@@ -363,7 +363,7 @@ func TestAdminShellWriterPreservesInputLengthAfterRewrite(t *testing.T) {
 
 func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Test", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Test", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, forbidden := range []string{"fonts.googleapis.com", "fonts.gstatic.com"} {
@@ -377,7 +377,7 @@ func TestAdminShellShowsAuthenticatedUserInitials(t *testing.T) {
 	user := &auth.User{Email: "arda.ozyildirim@example.test", Role: auth.RoleAdmin, Active: true}
 	request := httptest.NewRequest("GET", "/admin", nil).WithContext(auth.WithUser(httptest.NewRequest("GET", "/admin", nil).Context(), user))
 	var out bytes.Buffer
-	if err := AdminStartForRequest(&out, request, "Dashboard", "", "nonce", "dashboard"); err != nil {
+	if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), `aria-label="AO"`) || !strings.Contains(out.String(), `ds-avatar--`) {
@@ -409,7 +409,7 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 		}
 	}
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
 	for _, want := range []string{`data-ui-theme=shadcn`, `hydro-ui-theme`, `shadcn-dark`} {
@@ -426,14 +426,14 @@ func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
 // workbench's former role as the default/fallback family.
 func TestWorkbenchFamilyIsFullyRemoved(t *testing.T) {
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
 	if strings.Contains(strings.ToLower(out.String()), "workbench") {
 		t.Fatal("rendered admin shell still mentions workbench - it must be fully removed (ADR-0341)")
 	}
 	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account"}); err != nil {
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account"}); err != nil {
 		t.Fatalf("render account area: %v", err)
 	}
 	if strings.Contains(strings.ToLower(account.String()), "workbench") {
@@ -457,7 +457,7 @@ func TestAdminShellIncludesHydroGoThemeMode(t *testing.T) {
 		}
 	}
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
 	if !strings.Contains(out.String(), `data-ui-theme`) || !strings.Contains(out.String(), "hydro-ui-theme-v2") {
@@ -518,7 +518,7 @@ func TestAdminShellSelfHostsInterFont(t *testing.T) {
 		}
 	}
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
 	if !strings.Contains(out.String(), `/vendor/inter/inter-latin.woff2`) {
@@ -538,7 +538,7 @@ func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 		}
 	}
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
 	if !strings.Contains(out.String(), `data-ui-theme=nova`) {
@@ -548,7 +548,7 @@ func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 	// The family selector itself lives on the account settings page, not the
 	// shared shell (moved out of the header per customer feedback).
 	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account"}); err != nil {
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account"}); err != nil {
 		t.Fatalf("render account area: %v", err)
 	}
 	for _, want := range []string{
@@ -587,7 +587,7 @@ func TestAdminShellIncludesAuroraThemeMode(t *testing.T) {
 		}
 	}
 	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", "nonce-test", ""); err != nil {
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
 	if !strings.Contains(out.String(), `data-ui-theme="aurora"`) {
@@ -595,7 +595,7 @@ func TestAdminShellIncludesAuroraThemeMode(t *testing.T) {
 	}
 
 	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "account"}); err != nil {
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account"}); err != nil {
 		t.Fatalf("render account area: %v", err)
 	}
 	if !strings.Contains(account.String(), `<option value="aurora">Aurora</option>`) {
@@ -638,7 +638,7 @@ func TestAuroraModeDoesNotShareSemanticMarkupContract(t *testing.T) {
 
 func TestAdminControlDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	var out bytes.Buffer
-	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf"}); err != nil {
+	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test",  CSRF: "csrf"}); err != nil {
 		t.Fatal(err)
 	}
 	body := out.String()
@@ -672,7 +672,7 @@ func TestDeveloperTabsRendered(t *testing.T) {
 
 	// Verify security page also renders developer tabs
 	var secOut bytes.Buffer
-	if err := RenderAdminArea(&secOut, AdminAreaData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Area: "security"}); err != nil {
+	if err := RenderAdminArea(&secOut, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "security"}); err != nil {
 		t.Fatalf("RenderAdminArea(security) error = %v", err)
 	}
 	if !strings.Contains(secOut.String(), "studio-tabs-nav") || !strings.Contains(secOut.String(), `href="/admin/security" class="studio-tab-item is-active"`) {
@@ -681,7 +681,7 @@ func TestDeveloperTabsRendered(t *testing.T) {
 
 	// Verify control page also renders developer tabs
 	var ctrlOut bytes.Buffer
-	if err := RenderAdminControl(&ctrlOut, AdminControlData{Email: "admin@example.test", Nonce: "nonce", CSRF: "csrf", Active: "control"}); err != nil {
+	if err := RenderAdminControl(&ctrlOut, AdminControlData{Email: "admin@example.test",  CSRF: "csrf", Active: "control"}); err != nil {
 		t.Fatalf("RenderAdminControl error = %v", err)
 	}
 	for _, want := range []string{`data-invite-share-dialog`, `data-invite-share-message`, `data-invite-share-copy`, `dialog.showModal()`, `clipboard.writeText`} {

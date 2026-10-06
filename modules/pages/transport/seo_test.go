@@ -107,7 +107,7 @@ func TestPageHeadIncludesValidatedAppearanceTokens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{`<style nonce="">:root{--brand:#155EEF;--accent:#155EEF}</style>`, `rel="icon" href="/media/favicon.svg"`, `og:image" content="https://hydro.invalid/media/share.webp`} {
+	for _, marker := range []string{`<style>:root{--brand:#155EEF;--accent:#155EEF}</style>`, `rel="icon" href="/media/favicon.svg"`, `og:image" content="https://hydro.invalid/media/share.webp`} {
 		if !strings.Contains(meta, marker) {
 			t.Errorf("appearance head missing %q: %s", marker, meta)
 		}

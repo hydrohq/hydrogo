@@ -1,9 +1,6 @@
 package security
 
 import (
-	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,29 +13,12 @@ func isDevEnvironment() bool {
 	return dev == "1" || dev == "true" || env == "development" || env == "dev" || env == "local"
 }
 
-type cspNonceContextKey struct{}
-
-func GenerateCSPNonce() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(b), nil
-}
-
-func NonceFromContext(ctx context.Context) string {
-	if ctx == nil {
-		return ""
-	}
-	if nonce, ok := ctx.Value(cspNonceContextKey{}).(string); ok {
-		return nonce
-	}
-	return ""
-}
 
 type HeaderConfig struct {
-	EnableHSTS bool
-	Preset     string
+	EnableHSTS   bool
+	Preset       string
+	ScriptHashes []string
+	StyleHashes  []string
 }
 
 const (
@@ -50,13 +30,7 @@ const (
 func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nonce, err := GenerateCSPNonce()
-			if err != nil {
-				http.Error(w, "internal server error", http.StatusInternalServerError)
-				return
-			}
 
-			ctx := context.WithValue(r.Context(), cspNonceContextKey{}, nonce)
 
 			preset := strings.ToLower(strings.TrimSpace(cfg.Preset))
 			if preset == "" {
@@ -64,7 +38,14 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 			}
 			frameAncestors, frameOptions := "'none'", "DENY"
 			referrer := "strict-origin-when-cross-origin"
-			stylePolicy := "'nonce-" + nonce + "'"
+			stylePolicy := "'self'"
+			scriptPolicy := "'self'"
+			for _, hash := range cfg.StyleHashes {
+				stylePolicy += " 'sha256-" + hash + "'"
+			}
+			for _, hash := range cfg.ScriptHashes {
+				scriptPolicy += " 'sha256-" + hash + "'"
+			}
 			switch preset {
 			case HeaderPresetStandard:
 				frameAncestors, frameOptions = "'self'", "SAMEORIGIN"
@@ -76,7 +57,7 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 			default:
 				preset = HeaderPresetStrict
 			}
-			csp := fmt.Sprintf("default-src 'self'; script-src 'self' 'nonce-%s'; style-src 'self' %s; style-src-attr 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; frame-ancestors %s; form-action 'self';", nonce, stylePolicy, frameAncestors)
+			csp := fmt.Sprintf("default-src 'self'; script-src %s; style-src %s; style-src-attr 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; frame-ancestors %s; form-action 'self';", scriptPolicy, stylePolicy, frameAncestors)
 			w.Header().Set("Content-Security-Policy", csp)
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.Header().Set("X-Frame-Options", frameOptions)
@@ -97,7 +78,7 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 				w.Header().Set("Expires", "0")
 			}
 
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r)
 			if extra := strings.TrimSpace(w.Header().Get("X-Hydro-Custom-CSP")); extra != "" {
 				w.Header().Del("X-Hydro-Custom-CSP")
 				w.Header().Set("Content-Security-Policy", mergeCSP(w.Header().Get("Content-Security-Policy"), extra))

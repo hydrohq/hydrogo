@@ -59,7 +59,7 @@ func (h Handler) adminIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Collections", "Schema builder", security.NonceFromContext(r.Context()), "collections") != nil {
+	if ui.AdminStartForRequest(w, r, "Collections", "Schema builder", "collections") != nil {
 		return
 	}
 	if err := ui.CollectionStudio(schemas, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
@@ -191,7 +191,7 @@ func (h Handler) adminRecords(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, schema.Label, "Collection records", security.NonceFromContext(r.Context()), "collections") != nil {
+	if ui.AdminStartForRequest(w, r, schema.Label, "Collection records", "collections") != nil {
 		return
 	}
 	if err := ui.CollectionRecordsPage(schema, records, security.CSRFTokenFromContext(r.Context()), ui.CollectionRecordFields(schema, nil), "/admin/collections/"+url.PathEscape(id)+"/records").Render(r.Context(), w); err != nil {
@@ -240,7 +240,7 @@ func (h Handler) adminEditRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Edit record", schema.Label, security.NonceFromContext(r.Context()), "collections") != nil {
+	if ui.AdminStartForRequest(w, r, "Edit record", schema.Label, "collections") != nil {
 		return
 	}
 	action := "/admin/collections/" + url.PathEscape(schema.ID) + "/records/" + url.PathEscape(record.ID)

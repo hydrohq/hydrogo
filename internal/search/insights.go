@@ -8,7 +8,6 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
@@ -63,7 +62,7 @@ func SearchInsightsHandler(store SearchInsightsReader, requireTenantScope bool) 
 		}
 		w.Header().Set("Cache-Control", "private, no-store")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.AdminStartForRequest(w, r, "Site arama içgörüleri", "Popüler aramalar ve sonuçsuz sorgular", security.NonceFromContext(r.Context()), "reports"); err != nil {
+		if err := ui.AdminStartForRequest(w, r, "Site arama içgörüleri", "Popüler aramalar ve sonuçsuz sorgular", "reports"); err != nil {
 			return
 		}
 		if err := designsystem.SearchInsightsTable(designsystem.SearchInsightsProps{RangeDays: days, Items: rows, ZeroResultItems: zeroRows}).Render(r.Context(), w); err != nil {

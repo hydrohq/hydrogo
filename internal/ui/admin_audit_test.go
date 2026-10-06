@@ -9,7 +9,7 @@ import (
 
 func TestRenderAdminAuditEscapesDetailsAndShowsFilters(t *testing.T) {
 	var output strings.Builder
-	err := RenderAdminAudit(&output, "nonce", "en", designsystem.AdminAuditPageProps{
+	err := RenderAdminAudit(&output, "en", designsystem.AdminAuditPageProps{
 		Action: "pages.updated", Total: 1, Limit: 50,
 		Entries: []designsystem.AdminAuditEntry{{At: "29 Sep 2026", Actor: "admin@example.test", Action: "pages.updated", Resource: "pages", Target: "Page", BeforeJSON: `{"title":"<old>"}`, AfterJSON: `{"title":"new"}`}},
 	})

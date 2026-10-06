@@ -51,7 +51,7 @@ templ AIInboxSummary(options []AIInboxOption, action, csrf, summary string) {
 	</section>
 }
 
-templ AIAssistantSuggestion(beforeTitle, beforeBody string, suggestion ai.Suggestion, auditAction, csrf, nonce string) {
+templ AIAssistantSuggestion(beforeTitle, beforeBody string, suggestion ai.Suggestion, auditAction, csrf string) {
 	<section class="studio-card mt-4" data-ai-suggestion>
 		<h2>Yapay zekâ önerisi</h2>
 		<p>Bu içerik yalnızca taslak düzenleyiciye aktarılır. Kaydetme ve yayımlama işlemleri size aittir.</p>
@@ -61,7 +61,7 @@ templ AIAssistantSuggestion(beforeTitle, beforeBody string, suggestion ai.Sugges
 		</div>
 		<button type="button" class="mt-3 rounded bg-primary px-3 py-2 text-primary-foreground" data-ai-apply data-audit-action={ auditAction } data-csrf={ csrf }>Öneriyi taslağa aktar</button>
 		<p class="mt-2" role="status" aria-live="polite" data-ai-apply-status></p>
-		<script nonce={ nonce }>
+		<script>
 			document.querySelectorAll('[data-ai-apply]').forEach(function(button){
 				button.addEventListener('click', function(){
 					var panel=button.closest('[data-ai-suggestion]');

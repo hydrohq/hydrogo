@@ -200,7 +200,7 @@ func (h Handler) customCodePage(w http.ResponseWriter, r *http.Request) {
 			code = site.CustomCodeFromSetting(setting)
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "Custom code", "Site geneli özel HTML ve izleme kodları", security.NonceFromContext(r.Context()), "developer") != nil {
+	if ui.AdminStartForRequest(w, r, "Custom code", "Site geneli özel HTML ve izleme kodları", "developer") != nil {
 		return
 	}
 	_, _ = io.WriteString(w, ui.RenderDeveloperTabs("custom-code"))
@@ -260,7 +260,7 @@ func (h Handler) linkCheckPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "Bağlantı denetimi", "Yayınlanmış sayfa, bağlantı ve medya adreslerini kontrol edin", security.NonceFromContext(r.Context()), "developer") != nil {
+	if ui.AdminStartForRequest(w, r, "Bağlantı denetimi", "Yayınlanmış sayfa, bağlantı ve medya adreslerini kontrol edin", "developer") != nil {
 		return
 	}
 	_, _ = io.WriteString(w, ui.RenderDeveloperTabs("link-check"))
@@ -305,7 +305,7 @@ func (h Handler) maintenanceSettings(w http.ResponseWriter, r *http.Request) {
 			settings = site.MaintenanceFromSetting(setting)
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "Bakım modu", "Site ziyaretçileri için geçici bilgilendirme", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Bakım modu", "Site ziyaretçileri için geçici bilgilendirme", "site") != nil {
 		return
 	}
 	_ = designsystem.MaintenanceEditor(settings.Enabled, strings.Join(settings.Allowlist, "\n"), maintenanceFormTime(settings.StartsAt), maintenanceFormTime(settings.EndsAt), settings.Headline, settings.Message, security.CSRFTokenFromContext(r.Context()), settings.PreviewKeyHash != "").Render(r.Context(), w)
@@ -382,7 +382,7 @@ func (h Handler) staffBroadcastNotice(w http.ResponseWriter, r *http.Request) {
 			notice = site.StaffBroadcastNoticeFromSetting(setting)
 		}
 	}
-	if err := ui.AdminStartForRequest(w, r, "Staff notice", "Internal announcement for the team", security.NonceFromContext(r.Context()), "developer"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Staff notice", "Internal announcement for the team", "developer"); err != nil {
 		return
 	}
 	_, _ = io.WriteString(w, ui.RenderDeveloperTabs("broadcast"))
@@ -432,7 +432,7 @@ func (h Handler) socialLinks(w http.ResponseWriter, r *http.Request) {
 	for _, profile := range site.SocialProfilesFromSettings(settings) {
 		urls[profile.Platform] = profile.URL
 	}
-	if ui.AdminStartForRequest(w, r, "Sosyal bağlantılar", "Marka profillerini yönetin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Sosyal bağlantılar", "Marka profillerini yönetin", "site") != nil {
 		return
 	}
 	_ = designsystem.SocialAccounts(designsystem.SocialAccountsProps{CSRF: security.CSRFTokenFromContext(r.Context()), URLs: urls}).Render(r.Context(), w)
@@ -471,7 +471,7 @@ func (h Handler) contactWidget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	value := site.ContactWidgetFromSettings(settings)
-	if err := ui.AdminStartForRequest(w, r, "İletişim bileşeni", "Arama ve WhatsApp seçeneklerini yönetin", security.NonceFromContext(r.Context()), "site"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "İletişim bileşeni", "Arama ve WhatsApp seçeneklerini yönetin", "site"); err != nil {
 		return
 	}
 	_ = designsystem.ContactWidgetSettings(designsystem.ContactWidgetSettingsProps{CSRF: security.CSRFTokenFromContext(r.Context()), Enabled: value.Enabled, Phone: value.Phone, WhatsAppNumber: value.WhatsAppNumber, Message: value.Message, Position: value.Position, MobileOnly: value.MobileOnly}).Render(r.Context(), w)
@@ -512,7 +512,7 @@ func (h Handler) translations(w http.ResponseWriter, r *http.Request) {
 			localizedRows[cellLocale][row.Key] = row
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "Çeviri düzenleyici", "Sabit arayüz metinlerini düzenleyin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Çeviri düzenleyici", "Sabit arayüz metinlerini düzenleyin", "site") != nil {
 		return
 	}
 	_, _ = io.WriteString(w, `<main class="studio-card"><label for="translation-search">Çevirilerde ara</label><input id="translation-search" type="search" autocomplete="off" aria-controls="translation-matrix"><p>Eksik çeviriler sarı renkle işaretlenir. Boş bırakılan değerler Türkçe metne geri döner.</p><div class="studio-table-wrap"><table id="translation-matrix"><thead><tr><th scope="col">Anahtar</th><th scope="col">Türkçe (TR)</th><th scope="col">English (EN)</th></tr></thead><tbody>`)
@@ -530,7 +530,7 @@ func (h Handler) translations(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = io.WriteString(w, `</tr>`)
 	}
-	_, _ = io.WriteString(w, `</tbody></table></div></main><style nonce="`+template.HTMLEscapeString(security.NonceFromContext(r.Context()))+`">.translation-missing{background:#fef3c7}.translation-missing input{border-color:#d97706}#translation-matrix small{display:block;color:var(--muted);font-weight:400}#translation-matrix form{display:flex;gap:6px;align-items:center}#translation-matrix input:not([type=hidden]){min-width:180px;width:100%}</style><script nonce="`+template.HTMLEscapeString(security.NonceFromContext(r.Context()))+`">(()=>{const input=document.getElementById('translation-search');input?.addEventListener('input',()=>{const query=input.value.trim().toLocaleLowerCase();document.querySelectorAll('[data-translation-row]').forEach(row=>{row.hidden=!row.dataset.search.includes(query)})})})()</script>`)
+	_, _ = io.WriteString(w, `</tbody></table></div></main><style>.translation-missing{background:#fef3c7}.translation-missing input{border-color:#d97706}#translation-matrix small{display:block;color:var(--muted);font-weight:400}#translation-matrix form{display:flex;gap:6px;align-items:center}#translation-matrix input:not([type=hidden]){min-width:180px;width:100%}</style><script>(()=>{const input=document.getElementById('translation-search');input?.addEventListener('input',()=>{const query=input.value.trim().toLocaleLowerCase();document.querySelectorAll('[data-translation-row]').forEach(row=>{row.hidden=!row.dataset.search.includes(query)})})})()</script>`)
 	_ = ui.AdminEnd(w)
 }
 
@@ -639,7 +639,7 @@ func (h Handler) errorPages(w http.ResponseWriter, r *http.Request) {
 		}
 		return designsystem.PublicErrorPageProps{Status: status, Headline: value.Headline, Message: value.Message, ImageURL: value.ImageURL, ActionLabel: value.ActionLabel, ActionURL: value.ActionURL, Links: links}
 	}
-	if ui.AdminStartForRequest(w, r, "Custom error pages", "Set helpful public pages for missing or unavailable content", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Custom error pages", "Set helpful public pages for missing or unavailable content", "site") != nil {
 		return
 	}
 	if err := designsystem.ErrorPageEditor(designsystem.ErrorPageEditorProps{CSRF: security.CSRFTokenFromContext(r.Context()), NotFound: toProps(http.StatusNotFound), ServerError: toProps(http.StatusInternalServerError)}).Render(r.Context(), w); err != nil {
@@ -741,7 +741,7 @@ func (h Handler) notFoundPaths(w http.ResponseWriter, r *http.Request) {
 	for _, item := range items {
 		rows = append(rows, ui.NotFoundPathRow{Path: item.Path, Hits: strconv.FormatInt(item.Hits, 10), LastSeen: item.LastSeen.Local().Format("02 Jan 2006 15:04")})
 	}
-	if ui.AdminStartForRequest(w, r, "404 izleyici", "Sık ziyaret edilen eksik bağlantıları yönlendirin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "404 izleyici", "Sık ziyaret edilen eksik bağlantıları yönlendirin", "site") != nil {
 		return
 	}
 	if err := ui.NotFoundPaths(rows, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
@@ -844,7 +844,7 @@ func (h Handler) redirectRules(w http.ResponseWriter, r *http.Request) {
 		rowActions = append(rowActions, []uicomponents.TableAction{{Label: "Kaldır", Action: "/admin/site/redirect-rules/" + url.PathEscape(item.ID) + "/delete", CSRF: security.CSRFTokenFromContext(r.Context()), Variant: uicomponents.Danger}})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Yönlendirmeler", "Eski bağlantıları güncel sayfalara yönetin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Yönlendirmeler", "Eski bağlantıları güncel sayfalara yönetin", "site") != nil {
 		return
 	}
 	_, _ = io.WriteString(w, `<p><a href="/admin/redirects">Bulunamayan bağlantı raporunu aç</a></p>`)
@@ -1056,7 +1056,7 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Formlar", "Schema yönetimi", security.NonceFromContext(r.Context()), "site"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Formlar", "Schema yönetimi", "site"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><p class="muted">Kayıtlı formlar</p><div class="studio-actions">`)
@@ -1067,7 +1067,7 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 	if len(formMetrics) > 0 {
 		_ = designsystem.FormConversionMetrics(formMetrics).Render(r.Context(), w)
 	}
-	_ = adminstudio.RenderFormBuilder(w, adminstudio.FormBuilderData{Form: selected, Action: "/admin/site/forms", CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context())})
+	_ = adminstudio.RenderFormBuilder(w, adminstudio.FormBuilderData{Form: selected, Action: "/admin/site/forms", CSRFToken: security.CSRFTokenFromContext(r.Context())})
 	workingHours := forms.WorkingHours{Timezone: "UTC"}
 	if selected.WorkingHours != nil {
 		workingHours = *selected.WorkingHours
@@ -1195,7 +1195,7 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, []string{item.Email, item.Status, item.LeadStage, item.AssignedTo, submissionLocation(item), item.CreatedAt.UTC().Format(time.RFC3339)})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Gelen talepler", "Form gelen kutusu", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Gelen talepler", "Form gelen kutusu", "site") != nil {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<form method="get" action="/admin/site/inbox/%s" class="studio-form">`, template.URLQueryEscaper(r.PathValue("form")))
@@ -1740,7 +1740,7 @@ func (h Handler) appearance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	value := site.AppearanceFromSettings(settings)
-	if ui.AdminStartForRequest(w, r, "Marka ve görünüm", "Renkleri ve yazı tipini sitenizin görünümüne uygulayın", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Marka ve görünüm", "Renkleri ve yazı tipini sitenizin görünümüne uygulayın", "site") != nil {
 		return
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
@@ -1777,7 +1777,7 @@ func (h Handler) appearance(w http.ResponseWriter, r *http.Request) {
 		if err := uicomponents.Button(uicomponents.ButtonProps{Label: "Görünümü kaydet", Type: "submit", Variant: uicomponents.Primary}).Render(ctx, output); err != nil {
 			return err
 		}
-		_, err := io.WriteString(output, `<script nonce="`+template.HTMLEscapeString(security.NonceFromContext(ctx))+`">(()=>{const ids=['appearance-primary','appearance-accent','appearance-dark-primary','appearance-dark-accent'];const out=document.getElementById('appearance-contrast');const preview=document.getElementById('appearance-preview');const lum=h=>{const c=h.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]};const update=()=>{const ratios=ids.map(id=>{const x=document.getElementById(id);return 1.05/(lum(x.value)+.05)});const min=Math.min(...ratios);const low=min<4.5;out.textContent=low?'Kontrast yetersiz: beyaz metin için en az 4,5:1 gerekli.':min>=7?'WCAG AAA uyumlu: en düşük oran '+min.toFixed(2)+':1.':'WCAG AA uyumlu: en düşük oran '+min.toFixed(2)+':1.';out.dataset.state=low?'low':min>=7?'aaa':'aa';preview.style.setProperty('--appearance-primary',document.getElementById(ids[0]).value);preview.style.setProperty('--appearance-accent',document.getElementById(ids[1]).value);preview.style.fontFamily=document.getElementById('appearance-font').value+', system-ui'};ids.forEach(id=>document.getElementById(id)?.addEventListener('input',update));document.getElementById('appearance-font')?.addEventListener('change',update);['appearance-logo','appearance-dark-logo'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{const img=document.getElementById('appearance-preview-logo');const path=document.getElementById(id).value;img.src=path;img.hidden=!path}));update()})()</script>`)
+		_, err := io.WriteString(output, `<script>(()=>{const ids=['appearance-primary','appearance-accent','appearance-dark-primary','appearance-dark-accent'];const out=document.getElementById('appearance-contrast');const preview=document.getElementById('appearance-preview');const lum=h=>{const c=h.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]};const update=()=>{const ratios=ids.map(id=>{const x=document.getElementById(id);return 1.05/(lum(x.value)+.05)});const min=Math.min(...ratios);const low=min<4.5;out.textContent=low?'Kontrast yetersiz: beyaz metin için en az 4,5:1 gerekli.':min>=7?'WCAG AAA uyumlu: en düşük oran '+min.toFixed(2)+':1.':'WCAG AA uyumlu: en düşük oran '+min.toFixed(2)+':1.';out.dataset.state=low?'low':min>=7?'aaa':'aa';preview.style.setProperty('--appearance-primary',document.getElementById(ids[0]).value);preview.style.setProperty('--appearance-accent',document.getElementById(ids[1]).value);preview.style.fontFamily=document.getElementById('appearance-font').value+', system-ui'};ids.forEach(id=>document.getElementById(id)?.addEventListener('input',update));document.getElementById('appearance-font')?.addEventListener('change',update);['appearance-logo','appearance-dark-logo'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{const img=document.getElementById('appearance-preview-logo');const path=document.getElementById(id).value;img.src=path;img.hidden=!path}));update()})()</script>`)
 		return err
 	})
 	form := uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/appearance", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: body})
@@ -1832,7 +1832,7 @@ func (h Handler) seoSettings(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "SEO ayarları", "Yayınlanmış içeriklerin arama ve keşif görünümü", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "SEO ayarları", "Yayınlanmış içeriklerin arama ve keşif görünümü", "site") != nil {
 		return
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
@@ -1913,7 +1913,7 @@ func (h Handler) fontPicker(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	if ui.AdminStartForRequest(w, r, "Yerel yazı tipi", "Kendi siteniz için yerel bir yazı tipi seçin", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Yerel yazı tipi", "Kendi siteniz için yerel bir yazı tipi seçin", "site") != nil {
 		return
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {

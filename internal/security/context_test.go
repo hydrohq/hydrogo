@@ -12,7 +12,4 @@ func TestContextHelpersAcceptNilContexts(t *testing.T) {
 	if got := CSRFTokenFromContext(nil); got != "" {
 		t.Fatalf("nil CSRF context = %q", got)
 	}
-	if got := NonceFromContext(nil); got != "" {
-		t.Fatalf("nil nonce context = %q", got)
-	}
 }

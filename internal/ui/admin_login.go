@@ -550,17 +550,17 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 `
 
 // RenderAdminLogin renders the clean high-performance login screen for HydroGo.
-func RenderAdminLogin(w io.Writer, csrfToken, nonce, returnTo string) error {
-	return RenderAdminLoginWithAppearance(w, csrfToken, nonce, returnTo, site.Appearance{})
+func RenderAdminLogin(w io.Writer, csrfToken, returnTo string) error {
+	return RenderAdminLoginWithAppearance(w, csrfToken, returnTo, site.Appearance{})
 }
 
 // RenderAdminLoginWithAppearance applies validated site appearance to the public admin login screen.
-func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, nonce, returnTo string, appearance site.Appearance) error {
-	return RenderAdminLoginWithLocaleAndAppearance(w, csrfToken, nonce, returnTo, "tr", appearance)
+func RenderAdminLoginWithAppearance(w io.Writer, csrfToken, returnTo string, appearance site.Appearance) error {
+	return RenderAdminLoginWithLocaleAndAppearance(w, csrfToken, returnTo, "tr", appearance)
 }
 
 // RenderAdminLoginWithLocaleAndAppearance renders the public login in a bounded language.
-func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, nonce, returnTo, locale string, appearance site.Appearance) error {
+func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, returnTo, locale string, appearance site.Appearance) error {
 	if locale != "tr" {
 		locale = "en"
 	}
@@ -582,10 +582,10 @@ func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, nonce, retu
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Yönetici Girişi · HydroGo Studio</title>
-<script nonce="%s">
+<script>
 (()=>{try{const saved=localStorage.getItem('hydro-ui-theme-v2');const variant=localStorage.getItem('hydro-theme')==='light'?'light':'dark';if(saved&&saved.endsWith('-light')){document.documentElement.setAttribute('data-theme','light');}else if(saved&&saved.endsWith('-dark')){document.documentElement.setAttribute('data-theme','dark');}else{document.documentElement.setAttribute('data-theme',variant);}}catch(_){}})();
 </script>
-<style nonce="%s">
+<style>
 %s
 </style>
 </head>
@@ -683,7 +683,7 @@ func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, nonce, retu
 
 </div>
 
-<script nonce="%s">
+<script>
 (function(){
 	var form = document.getElementById('login-form');
 	var status = document.getElementById('login-status');
@@ -836,14 +836,11 @@ func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, nonce, retu
 		docsURL = "/docs?lang=tr"
 	}
 	_, err := fmt.Fprintf(w, localizeAdminLoginPage(locale, pageTemplate),
-		template.HTMLEscapeString(nonce),
-		template.HTMLEscapeString(nonce),
 		template.CSS(loginCSS),
 		docsURL,
 		loginURL("en"), current("en"), loginURL("tr"), current("tr"),
 		template.HTMLEscapeString(csrfToken),
 		localizeAdminLoginMFA(locale, mfaChallenge.String()),
-		template.HTMLEscapeString(nonce),
 		template.HTMLEscapeString(returnTo),
 	)
 	return err

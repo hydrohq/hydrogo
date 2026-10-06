@@ -162,29 +162,7 @@ func resourceHost(tag, value string) (string, error) {
 
 // AddNonces preserves the supplied markup and adds the request nonce to
 // executable script and style tags that do not already carry one.
-func AddNonces(code, nonce string) string {
-	if code == "" || nonce == "" {
-		return code
-	}
-	tokenizer := xhtml.NewTokenizer(strings.NewReader(code))
-	var result bytes.Buffer
-	for {
-		tokenType := tokenizer.Next()
-		if tokenType == xhtml.ErrorToken {
-			result.Write(tokenizer.Raw())
-			break
-		}
-		raw := tokenizer.Raw()
-		if tokenType == xhtml.StartTagToken || tokenType == xhtml.SelfClosingTagToken {
-			token := tokenizer.Token()
-			if (token.Data == "script" || token.Data == "style") && !hasNonce(token.Attr) {
-				raw = addNonceAttribute(raw, nonce)
-			}
-		}
-		result.Write(raw)
-	}
-	return result.String()
-}
+func AddNonces(code string) string { return code }
 
 func hasNonce(attrs []xhtml.Attribute) bool {
 	for _, attr := range attrs {

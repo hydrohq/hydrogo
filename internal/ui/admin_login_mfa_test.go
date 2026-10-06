@@ -10,7 +10,7 @@ import (
 
 func TestAdminLoginContainsAccessibleMFAChallenge(t *testing.T) {
 	var output bytes.Buffer
-	if err := RenderAdminLogin(&output, "csrf", "nonce", "/admin"); err != nil {
+	if err := RenderAdminLogin(&output, "csrf", "/admin"); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{`id="mfa-challenge"`, `name="mfa_code"`, `data-mfa-countdown`, `data-mfa-next`, "Authenticator uygulamanızdaki güncel kodu"} {
@@ -30,7 +30,7 @@ func TestAdminLoginLocalesAndReturnPath(t *testing.T) {
 		{locale: "tr", want: []string{`<html lang="tr"`, `Hoş Geldiniz`, `Giriş Yap`, `İki adımlı doğrulama`, `Kodun süresi `, `href="/login?lang=en&amp;return_to=%2Fadmin%2Fusers"`}, absent: []string{`Welcome back`, `Two-step verification`, `The workspace for modern publishing`}},
 	} {
 		var output bytes.Buffer
-		if err := RenderAdminLoginWithLocaleAndAppearance(&output, "csrf", "nonce", "/admin/users", test.locale, site.Appearance{}); err != nil {
+		if err := RenderAdminLoginWithLocaleAndAppearance(&output, "csrf", "/admin/users", test.locale, site.Appearance{}); err != nil {
 			t.Fatal(err)
 		}
 		for _, want := range test.want {
