@@ -25,6 +25,7 @@ func (s ProjectService) List(ctx context.Context, query hydroquery.ResourceQuery
 }
 
 func (s ProjectService) Create(ctx context.Context, item Project) error {
+
 	item.normalize()
 	if err := item.Validate(); err != nil {
 		return err
@@ -39,6 +40,7 @@ func (s ProjectService) CreateWithPresence(ctx context.Context, item Project, pr
 }
 
 func (s ProjectService) Update(ctx context.Context, item Project) error {
+
 	item.normalize()
 	if err := item.Validate(); err != nil {
 		return err

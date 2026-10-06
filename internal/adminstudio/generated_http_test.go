@@ -62,7 +62,7 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	}
 	defer list.Body.Close()
 	listHTML, _ := io.ReadAll(list.Body)
-	if list.StatusCode != http.StatusOK || !strings.Contains(string(listHTML), `href="/admin/resources/project/p-1">Roof &amp; wall</a>`) || !strings.Contains(string(listHTML), `href="/admin/resources/project"`) || list.Header.Get("Cache-Control") != "private, no-store" {
+	if list.StatusCode != http.StatusOK || !strings.Contains(string(listHTML), `class="text-link" href="/admin/resources/project/p-1">Roof &amp; wall</a>`) || !strings.Contains(string(listHTML), `href="/admin/resources/project"`) || !strings.Contains(string(listHTML), `<option value="">Tümü</option>`) || list.Header.Get("Cache-Control") != "private, no-store" {
 		t.Fatalf("generated resource list was not rendered safely: status=%d body=%s", list.StatusCode, listHTML)
 	}
 	form, err := http.Get(server.URL + "/admin/resources/project/new")

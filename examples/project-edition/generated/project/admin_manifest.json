@@ -31,7 +31,7 @@
     },
     {
       "id": "project_code",
-      "label": "ProjectCode",
+      "label": "Project code",
       "kind": "text",
       "required": true,
       "visible_in_list": false,
