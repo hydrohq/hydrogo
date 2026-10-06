@@ -1,7 +1,10 @@
 package externaledition
 
 import (
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/a-h/templ"
@@ -9,20 +12,31 @@ import (
 )
 
 func TestExternalEditionCanComposeGeneratedAdmin(t *testing.T) {
-	registry, err := adminstudio.ParseManifest([]byte(`{"version":"v1","resources":[{"id":"projects","label":"Projects","fields":[{"id":"title","label":"Title","kind":"text","required":true,"visible_in_list":true}],"actions":[{"label":"Open","href":"/admin/projects"}]}]}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	admin := adminstudio.GeneratedAdminHandler{
-		Registry: registry,
-		Options: adminstudio.GeneratedAdminOptions{
-			API:             http.NotFoundHandler(),
-			Authorize:       func(*http.Request) bool { return true },
-			CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-			CSRFToken:       func(*http.Request) string { return "edition-token" },
-			ValidateCSRF:    func(*http.Request) bool { return true },
-			RenderPage:      func(http.ResponseWriter, *http.Request, string, templ.Component) error { return nil },
+	manifest := []byte(`{"version":"v1","resources":[{"id":"projects","label":"Projects","fields":[{"id":"title","label":"Title","kind":"text","required":true,"visible_in_list":true}],"actions":[{"label":"Open","href":"/admin/projects"}]}]}`)
+	mux := http.NewServeMux()
+	options := adminstudio.GeneratedAdminOptions{
+		API: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v1/projects" {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `[]`)
+		}),
+		Authorize:       func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
+		CSRFToken:       func(*http.Request) string { return "edition-token" },
+		ValidateCSRF:    func(*http.Request) bool { return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
 		},
 	}
-	_ = admin
+	if err := adminstudio.RegisterGenerated(mux, manifest, options); err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/admin/resources/projects", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "Yeni kayıt") {
+		t.Fatalf("registered generated Admin route did not render: status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
 }

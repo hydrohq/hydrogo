@@ -6,7 +6,11 @@
 // activation policy. Editions must supply those boundaries explicitly.
 package adminstudio
 
-import internal "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+import (
+	"net/http"
+
+	internal "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+)
 
 type (
 	Action                = internal.Action
@@ -42,3 +46,14 @@ var (
 	NewRegistry   = internal.NewRegistry
 	ParseManifest = internal.ParseManifest
 )
+
+// RegisterGenerated parses the generated Edition manifest and registers its
+// Admin routes with the caller-supplied security, API, CSRF, and page-shell
+// boundaries. Calling this function is the explicit activation step.
+func RegisterGenerated(mux *http.ServeMux, manifest []byte, options GeneratedAdminOptions) error {
+	registry, err := ParseManifest(manifest)
+	if err != nil {
+		return err
+	}
+	return (GeneratedAdminHandler{Registry: registry, Options: options}).Register(mux)
+}
