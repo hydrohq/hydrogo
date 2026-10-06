@@ -40,7 +40,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	adminIndexBody, _ := io.ReadAll(adminIndex.Body)
 	_ = adminIndex.Body.Close()
-	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(adminIndexBody, []byte("/admin/resources/project")) {
+	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(adminIndexBody, []byte("/admin/resources/project")) || !bytes.Contains(adminIndexBody, []byte("</html>")) {
 		t.Fatalf("generated resource missing from Admin index: status=%d", adminIndex.StatusCode)
 	}
 	post, err := http.Post(server.URL+"/api/v1/project", "application/json", bytes.NewReader(body))
@@ -74,7 +74,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	adminBody, _ := io.ReadAll(adminList.Body)
 	_ = adminList.Body.Close()
-	if adminList.StatusCode != http.StatusOK || !bytes.Contains(adminBody, []byte("Demo")) {
+	if adminList.StatusCode != http.StatusOK || !bytes.Contains(adminBody, []byte("Demo")) || !bytes.Contains(adminBody, []byte("</html>")) {
 		body := string(adminBody)
 		index := strings.Index(body, "admin-resource")
 		if index < 0 {
@@ -83,12 +83,72 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 		t.Fatalf("generated Admin list status=%d body=%s", adminList.StatusCode, body[index:min(len(body), index+500)])
 	}
 	form := url.Values{"id": {"p-admin"}, "project_code": {"P-ADMIN"}, "status": {"active"}, "title": {"From Admin"}, "_csrf": {"edition-demo-csrf"}}
-	created, err := http.PostForm(server.URL+"/admin/resources/project/new", form)
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	createRequest, _ := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/new", strings.NewReader(form.Encode()))
+	createRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	created, err := client.Do(createRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
+	createdBody, _ := io.ReadAll(created.Body)
 	_ = created.Body.Close()
-	if created.StatusCode != http.StatusOK {
-		t.Fatalf("generated Admin create status=%d", created.StatusCode)
+	if created.StatusCode != http.StatusSeeOther || created.Header.Get("Location") != "/admin/resources/project" {
+		t.Fatalf("generated Admin create status=%d location=%q body=%s", created.StatusCode, created.Header.Get("Location"), createdBody)
+	}
+	adminList, err = http.Get(server.URL + created.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminBody, _ = io.ReadAll(adminList.Body)
+	_ = adminList.Body.Close()
+	if adminList.StatusCode != http.StatusOK || !bytes.Contains(adminBody, []byte("From Admin")) || !bytes.Contains(adminBody, []byte("</html>")) {
+		t.Fatalf("generated Admin list after create status=%d body=%s", adminList.StatusCode, adminBody)
+	}
+	detail, err := http.Get(server.URL + "/admin/resources/project/p-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	detailBody, _ := io.ReadAll(detail.Body)
+	_ = detail.Body.Close()
+	if detail.StatusCode != http.StatusOK || !bytes.Contains(detailBody, []byte("From Admin")) || !bytes.Contains(detailBody, []byte("</html>")) {
+		t.Fatalf("generated Admin detail status=%d body=%s", detail.StatusCode, detailBody)
+	}
+	update := url.Values{"project_code": {"P-ADMIN"}, "status": {"active"}, "title": {"Updated in Admin"}, "_csrf": {"edition-demo-csrf"}}
+	updateRequest, _ := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/p-admin", strings.NewReader(update.Encode()))
+	updateRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	updated, err := client.Do(updateRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = updated.Body.Close()
+	if updated.StatusCode != http.StatusSeeOther {
+		t.Fatalf("generated Admin update status=%d", updated.StatusCode)
+	}
+	detail, err = http.Get(server.URL + "/admin/resources/project/p-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	detailBody, _ = io.ReadAll(detail.Body)
+	_ = detail.Body.Close()
+	if detail.StatusCode != http.StatusOK || !bytes.Contains(detailBody, []byte("Updated in Admin")) {
+		t.Fatalf("generated Admin detail after update status=%d body=%s", detail.StatusCode, detailBody)
+	}
+	deleteRequest, _ := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/p-admin/delete", strings.NewReader("_csrf=edition-demo-csrf"))
+	deleteRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	deleted, err := client.Do(deleteRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = deleted.Body.Close()
+	if deleted.StatusCode != http.StatusSeeOther {
+		t.Fatalf("generated Admin delete status=%d", deleted.StatusCode)
+	}
+	deletedRecord, err := http.Get(server.URL + "/api/v1/project/p-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = deletedRecord.Body.Close()
+	if deletedRecord.StatusCode != http.StatusNotFound {
+		t.Fatalf("generated API record after Admin delete status=%d", deletedRecord.StatusCode)
 	}
 }
