@@ -114,8 +114,8 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 		CanTransition: func(_ *http.Request, _ Collection, record map[string]any, target PublicationState) bool {
 			return record["status"] == "draft" && target == "review"
 		},
-		Transition: func(_ *http.Request, _ Collection, record map[string]any, target PublicationState) error {
-			if record["version"] != float64(4) {
+		Transition: func(_ *http.Request, _ Collection, record map[string]any, target PublicationState, expectedVersion int64) error {
+			if record["version"] != float64(4) || expectedVersion != 4 {
 				return errors.New("unexpected record version")
 			}
 			transitioned = target
@@ -131,10 +131,10 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	}
 	edit := httptest.NewRecorder()
 	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/article-1", nil))
-	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/article-1/workflow"`) || !strings.Contains(edit.Body.String(), `name="target" value="review"`) {
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/article-1/workflow"`) || !strings.Contains(edit.Body.String(), `name="target" value="review"`) || !strings.Contains(edit.Body.String(), `name="expected_version" value="4"`) {
 		t.Fatalf("workflow transition was not rendered: status=%d body=%s", edit.Code, edit.Body.String())
 	}
-	request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1/workflow", strings.NewReader("_csrf=csrf-value&target=review"))
+	request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1/workflow", strings.NewReader("_csrf=csrf-value&target=review&expected_version=4"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, request)
