@@ -633,6 +633,12 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				continue
 			}
 			props := ui.InputProps{ID: field.ID, Name: field.ID, Label: field.Label, Type: "text", Value: values[field.ID], Required: field.Required}
+			if field.Kind == FieldMedia || field.Widget == "media" {
+				if err := ui.MediaPicker(ui.MediaPickerProps{ID: field.ID, Name: field.ID, Label: field.Label, Value: values[field.ID]}).Render(ctx, out); err != nil {
+					return err
+				}
+				continue
+			}
 			if field.Kind == FieldRelation && field.Relation != nil {
 				items := append([]ui.SelectOption(nil), relationOptions[field.ID]...)
 				selected := relationIDsFromValue(values[field.ID], field.Relation.Cardinality)

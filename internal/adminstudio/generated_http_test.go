@@ -153,7 +153,7 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 func TestGeneratedAdminUsesBoundedRelationPicker(t *testing.T) {
 	registry, err := NewRegistry([]Collection{
 		{ID: "author", Label: "Authors", TitleField: "name", Fields: []Field{{ID: "name", Label: "Name", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Authors", Href: "/admin/resources/author"}}},
-		{ID: "article", Label: "Articles", TitleField: "title", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}, {ID: "author_id", Label: "Author", Kind: FieldRelation, Relation: &RelationRef{Collection: "author", Cardinality: "one"}}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}},
+		{ID: "article", Label: "Articles", TitleField: "title", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}, {ID: "author_id", Label: "Author", Kind: FieldRelation, Relation: &RelationRef{Collection: "author", Cardinality: "one"}}, {ID: "cover_id", Label: "Cover image", Kind: FieldMedia, Widget: "media"}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -178,7 +178,7 @@ func TestGeneratedAdminUsesBoundedRelationPicker(t *testing.T) {
 	}
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/resources/article/new", nil))
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `name="author_id"`) || !strings.Contains(response.Body.String(), `<option value="author-1">Ada</option>`) {
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `name="author_id"`) || !strings.Contains(response.Body.String(), `<option value="author-1">Ada</option>`) || !strings.Contains(response.Body.String(), `data-media-target="cover_id"`) {
 		t.Fatalf("relation picker missing title choices: status=%d body=%s", response.Code, response.Body.String())
 	}
 	field := Field{Kind: FieldRelation, Relation: &RelationRef{Collection: "author", Cardinality: "many", MaxItems: 2}}

@@ -28,6 +28,18 @@ func TestButtonEscapesAndAllowlistsHTMX(t *testing.T) {
 	}
 }
 
+func TestMediaPickerEscapesValuesAndUsesAdminPickerContract(t *testing.T) {
+	out := render(t, MediaPicker(MediaPickerProps{ID: `cover"`, Name: "cover_asset_id", Label: "Cover image", Value: `<script>`}))
+	for _, marker := range []string{`data-media-target="cover&#34;"`, `name="cover_asset_id"`, `href="/admin/media?select=cover%22"`, `media-select-clear`, `value="&lt;script&gt;"`} {
+		if !strings.Contains(out, marker) {
+			t.Fatalf("media picker missing %q: %s", marker, out)
+		}
+	}
+	if strings.Contains(out, `<script>`) {
+		t.Fatalf("media value was rendered as markup: %s", out)
+	}
+}
+
 func TestTypedLinksRequireLocalPathsAndEscapeLabels(t *testing.T) {
 	out := render(t, Link(LinkProps{Href: "/admin/site/seo", Label: "<SEO>"}))
 	if !strings.Contains(out, `href="/admin/site/seo"`) || !strings.Contains(out, "&lt;SEO&gt;") {
