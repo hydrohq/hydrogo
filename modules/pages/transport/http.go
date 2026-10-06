@@ -102,7 +102,7 @@ func (h Handler) publicPageAllowed(page pages.Page) bool {
 }
 
 func (h Handler) feedbackRenderOptions(r *http.Request) blockrender.RenderOptions {
-	options := blockrender.RenderOptions{CSRF: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context())}
+	options := blockrender.RenderOptions{CSRF: security.CSRFTokenFromContext(r.Context())}
 	if !h.AnalyticsEnabled || h.Feedback == nil {
 		return options
 	}
@@ -309,7 +309,7 @@ func (h Handler) adminNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Bildirimler", "Sistem bildirimleri", security.NonceFromContext(r.Context()), "dashboard") != nil {
+	if ui.AdminStartForRequest(w, r, "Bildirimler", "Sistem bildirimleri", "dashboard") != nil {
 		return
 	}
 	_ = ui.NotificationCenter(view, security.CSRFTokenFromContext(r.Context()), digestEnabled, timezone, frequency, h.WeeklyDigestEnabled).Render(r.Context(), w)
@@ -344,7 +344,7 @@ func (h Handler) adminGuide(w http.ResponseWriter, r *http.Request) {
 	}
 	support := adminstudio.SupportConfigFromContext(r.Context())
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Yardım ve rehberler", "", "", "dashboard") != nil {
+	if ui.AdminStartForRequest(w, r, "Yardım ve rehberler", "", "dashboard") != nil {
 		return
 	}
 	_ = ui.GuideCenter(support.GuideURL).Render(r.Context(), w)
@@ -422,7 +422,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		collection.Fields = append(append([]adminstudio.Field(nil), collection.Fields...), adminstudio.Field{ID: "views", Label: "Views", Kind: adminstudio.FieldText, VisibleInList: true})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Sayfalar", "", security.NonceFromContext(r.Context()), "pages"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Sayfalar", "", "pages"); err != nil {
 		return
 	}
 	if err := ui.ListViewSwitcher("admin-content-list", "hydro-view-content").Render(r.Context(), w); err != nil {
@@ -471,7 +471,7 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if r.Method == http.MethodGet {
-		if ui.AdminStartForRequest(w, r, "İçerik içe aktar", "", "", "pages") != nil {
+		if ui.AdminStartForRequest(w, r, "İçerik içe aktar", "", "pages") != nil {
 			return
 		}
 		_ = ui.ImportWizard(nil, security.CSRFTokenFromContext(r.Context()), false).Render(r.Context(), w)
@@ -495,7 +495,7 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 	}
 	headers := rows[0]
 	if r.FormValue("map_title") == "" || r.FormValue("map_slug") == "" {
-		if ui.AdminStartForRequest(w, r, "Sütunları eşleştir", "İçe aktarma sihirbazı", security.NonceFromContext(r.Context()), "pages") != nil {
+		if ui.AdminStartForRequest(w, r, "Sütunları eşleştir", "İçe aktarma sihirbazı", "pages") != nil {
 			return
 		}
 		_ = ui.ImportWizard(headers, security.CSRFTokenFromContext(r.Context()), true).Render(r.Context(), w)
@@ -544,7 +544,7 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 	}
 	valid, duplicates, invalid := planImport(rows[1:], columns, seen)
 	if r.FormValue("action") != "import" {
-		if ui.AdminStartForRequest(w, r, "Aktarım önizlemesi", "İçe aktarma önizlemesi", security.NonceFromContext(r.Context()), "pages") != nil {
+		if ui.AdminStartForRequest(w, r, "Aktarım önizlemesi", "İçe aktarma önizlemesi", "pages") != nil {
 			return
 		}
 		_ = ui.ImportPreview(security.CSRFTokenFromContext(r.Context()), mapValues, len(valid), duplicates, invalid).Render(r.Context(), w)
@@ -560,7 +560,7 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 		}
 		created++
 	}
-	if ui.AdminStartForRequest(w, r, "Aktarım tamamlandı", "İçe aktarma sonucu", security.NonceFromContext(r.Context()), "pages") != nil {
+	if ui.AdminStartForRequest(w, r, "Aktarım tamamlandı", "İçe aktarma sonucu", "pages") != nil {
 		return
 	}
 	_, _ = fmt.Fprintf(w, `<section class="studio-card" role="status"><h2>Aktarım tamamlandı</h2><p>%d taslak eklendi. %d satır atlandı.</p><a href="/admin/pages">Sayfalara dön</a></section>`, created, skipped)
@@ -618,7 +618,7 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Yeni sayfa", "Sayfa yönetimi", security.NonceFromContext(r.Context()), "pages"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Yeni sayfa", "Sayfa yönetimi", "pages"); err != nil {
 		return
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages">`)
@@ -633,7 +633,6 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 		Collection:  h.AdminCollection,
 		Action:      "/admin/pages",
 		CSRFToken:   security.CSRFTokenFromContext(r.Context()),
-		Nonce:       security.NonceFromContext(r.Context()),
 		Values:      map[string]string{"locale": "tr"},
 		SubmitLabel: "Taslak oluştur",
 	}); err != nil {
@@ -810,7 +809,7 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if editorAllowed(r) {
-		designHead += `<style nonce="` + template.HTMLEscapeString(security.NonceFromContext(r.Context())) + `">.hydro-inline-edit{position:fixed;right:18px;bottom:18px;z-index:9999;display:inline-flex;gap:7px;align-items:center;padding:10px 14px;border-radius:999px;background:#0284c7;color:#fff;text-decoration:none;font:600 14px/1.2 system-ui;box-shadow:0 4px 16px #0003}.hydro-inline-edit:hover{background:#0369a1}</style>`
+		designHead += `<style>.hydro-inline-edit{position:fixed;right:18px;bottom:18px;z-index:9999;display:inline-flex;gap:7px;align-items:center;padding:10px 14px;border-radius:999px;background:#0284c7;color:#fff;text-decoration:none;font:600 14px/1.2 system-ui;box-shadow:0 4px 16px #0003}.hydro-inline-edit:hover{background:#0369a1}</style>`
 	}
 	consentMarkup := ""
 	if showConsentNotice {
@@ -986,7 +985,7 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 	}
 	var head strings.Builder
 	if settings.AppearanceCSS != "" {
-		fmt.Fprintf(&head, `<style nonce="%s">%s</style>`, template.HTMLEscapeString(security.NonceFromContext(ctx)), settings.AppearanceCSS)
+		fmt.Fprintf(&head, `<style>%s</style>`, settings.AppearanceCSS)
 	}
 	if validLocalFontCSS(settings.FontCSS) {
 		fmt.Fprintf(&head, `<link rel="stylesheet" href="%s">`, template.HTMLEscapeString(settings.FontCSS))
@@ -1387,7 +1386,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		data := ui.TranslationEditorData{SourceTitle: page.Title, SourceBody: page.Body, Locale: locale, Action: "/admin/pages/" + url.PathEscape(page.ID) + "/translate", CSRF: security.CSRFTokenFromContext(r.Context()), Exists: translated.ID != "", Outdated: translated.ID != "" && page.UpdatedAt.After(translated.UpdatedAt), Version: translated.Version}
 		data.TargetTitle, data.TargetBody = translated.Title, translated.Body
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := ui.AdminStartForRequest(w, r, "Sayfa çevirisi", "Yan yana çeviri", security.NonceFromContext(r.Context()), "pages"); err != nil {
+		if err := ui.AdminStartForRequest(w, r, "Sayfa çevirisi", "Yan yana çeviri", "pages"); err != nil {
 			return
 		}
 		_ = ui.TranslationEditor(data).Render(r.Context(), w)
@@ -1395,7 +1394,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -1404,12 +1403,12 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Sayfa düzenle", "İçerik stüdyosu", security.NonceFromContext(r.Context()), "pages"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Sayfa düzenle", "İçerik stüdyosu", "pages"); err != nil {
 		return
 	}
 	if h.Presence != nil {
 		endpoint := "/admin/pages/" + url.PathEscape(page.ID) + "/presence"
-		_ = designsystem.EditPresence(page.ID, endpoint, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context())).Render(r.Context(), w)
+		_ = designsystem.EditPresence(page.ID, endpoint, security.CSRFTokenFromContext(r.Context()), ).Render(r.Context(), w)
 	}
 	if h.PreviewSigner != nil {
 		_ = designsystem.DeviceViewportPreview(designsystem.DeviceViewportPreviewProps{Endpoint: "/admin/pages/" + url.PathEscape(page.ID) + "/preview-link", CSRF: security.CSRFTokenFromContext(r.Context())}).Render(r.Context(), w)
@@ -1457,7 +1456,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	if h.assistantEnabled() {
 		_ = designsystem.AIAssistantRequest("/admin/pages/"+url.PathEscape(page.ID)+"/ai-suggest", security.CSRFTokenFromContext(r.Context()), h.SupportedLocales).Render(r.Context(), w)
 		if suggestion, ok := r.Context().Value(pageSuggestionKey{}).(pageSuggestion); ok {
-			_ = designsystem.AIAssistantSuggestion(suggestion.BeforeTitle, suggestion.BeforeBody, suggestion.Result, "/admin/pages/"+url.PathEscape(page.ID)+"/ai-applied", security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context())).Render(r.Context(), w)
+			_ = designsystem.AIAssistantSuggestion(suggestion.BeforeTitle, suggestion.BeforeBody, suggestion.Result, "/admin/pages/"+url.PathEscape(page.ID)+"/ai-applied", security.CSRFTokenFromContext(r.Context()), ).Render(r.Context(), w)
 		}
 	}
 	_ = ui.AdminEnd(w)

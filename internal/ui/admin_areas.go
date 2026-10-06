@@ -150,7 +150,7 @@ func RenderAdminResourceUsage(w io.Writer, data AdminResourceUsageData) error {
 		Uptime:                 formatDuration(s.Uptime),
 		StartedAt:              s.StartedAt.Local().Format("02.01.2006 15:04:05"),
 	}
-	if err := AdminStartLocale(w, "Kaynak tüketimi", "GELİŞTİRİCİ", data.Nonce, "resources", data.Locale); err != nil {
+	if err := AdminStartLocale(w, "Kaynak tüketimi", "GELİŞTİRİCİ", "resources", data.Locale); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(w, renderDeveloperTabs("resources")); err != nil {
@@ -242,7 +242,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 	if data.Locale == "en" {
 		title, areaLabel = adminAreaEnglishLabels(data.Area)
 	}
-	if err := AdminStartLocale(w, title, areaLabel, data.Nonce, activeItem, data.Locale); err != nil {
+	if err := AdminStartLocale(w, title, areaLabel, activeItem, data.Locale); err != nil {
 		return err
 	}
 

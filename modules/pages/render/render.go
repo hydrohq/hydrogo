@@ -111,7 +111,7 @@ func blockHTML(block pages.Block, options RenderOptions) (string, error) {
 			}
 			counts = options.FeedbackCounts(ids)
 		}
-		return renderComponent(designsystem.FAQList(designsystem.FAQProps{Heading: "Frequently asked questions", Items: items, FeedbackEnabled: options.FeedbackEnabled, CSRF: options.CSRF, Nonce: options.Nonce, FeedbackCounts: counts}))
+		return renderComponent(designsystem.FAQList(designsystem.FAQProps{Heading: "Frequently asked questions", Items: items, FeedbackEnabled: options.FeedbackEnabled, CSRF: options.CSRF, FeedbackCounts: counts}))
 	case "before_after":
 		var p struct {
 			BeforeID    string `json:"before_image_asset_id"`

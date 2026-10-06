@@ -40,7 +40,7 @@ func (h adminTokenLifetimeSettingsHandler) ServeHTTP(w http.ResponseWriter, r *h
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Security token lifetimes", "Security", security.NonceFromContext(r.Context()), "security"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Security token lifetimes", "Security", "security"); err != nil {
 		return
 	}
 	_ = designsystem.TokenLifetimeForm(designsystem.TokenLifetimeFormProps{

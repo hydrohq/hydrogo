@@ -8,7 +8,7 @@ package designsystem
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func EditPresence(resource, endpoint, csrf, nonce string) templ.Component {
+func EditPresence(resource, endpoint, csrf string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -68,20 +68,7 @@ func EditPresence(resource, endpoint, csrf, nonce string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><div style=\"display:flex; align-items:center; gap: 8px;\"><svg style=\"width:18px;height:18px;color:var(--amber, #f59e0b)\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z\"></path></svg> <strong style=\"font-size: .85rem;\">Bu içerik üzerinde başka bir editör çalışıyor.</strong></div><ul style=\"margin: 8px 0 0 26px; padding: 0; list-style: disc; font-size: .78rem; color: var(--ink-secondary);\" data-edit-presence-list></ul></div><script nonce=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(nonce)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/edit_presence.templ`, Line: 11, Col: 22}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\">\n\t\t(()=>{const box=document.querySelector('[data-edit-presence]');if(!box)return;const endpoint=box.dataset.endpoint,csrf=box.dataset.csrf,list=box.querySelector('[data-edit-presence-list]');let stopped=false;const refresh=async()=>{if(stopped)return;try{await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});const response=await fetch(endpoint,{credentials:'same-origin',headers:{'Accept':'application/json'}});if(!response.ok)return;const editors=await response.json();list.replaceChildren();for(const editor of editors){const item=document.createElement('li');item.textContent=editor.name+' (son etkinlik '+editor.active_seconds+' sn önce)';list.append(item)}box.style.display=editors.length===0?'none':'block'}catch(_){}};refresh();const timer=setInterval(refresh,15000);window.addEventListener('pagehide',()=>{stopped=true;clearInterval(timer)},{once:true})})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><div style=\"display:flex; align-items:center; gap: 8px;\"><svg style=\"width:18px;height:18px;color:var(--amber, #f59e0b)\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z\"></path></svg> <strong style=\"font-size: .85rem;\">Bu içerik üzerinde başka bir editör çalışıyor.</strong></div><ul style=\"margin: 8px 0 0 26px; padding: 0; list-style: disc; font-size: .78rem; color: var(--ink-secondary);\" data-edit-presence-list></ul></div><script>\n\t\t(()=>{const box=document.querySelector('[data-edit-presence]');if(!box)return;const endpoint=box.dataset.endpoint,csrf=box.dataset.csrf,list=box.querySelector('[data-edit-presence-list]');let stopped=false;const refresh=async()=>{if(stopped)return;try{await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});const response=await fetch(endpoint,{credentials:'same-origin',headers:{'Accept':'application/json'}});if(!response.ok)return;const editors=await response.json();list.replaceChildren();for(const editor of editors){const item=document.createElement('li');item.textContent=editor.name+' (son etkinlik '+editor.active_seconds+' sn önce)';list.append(item)}box.style.display=editors.length===0?'none':'block'}catch(_){}};refresh();const timer=setInterval(refresh,15000);window.addEventListener('pagehide',()=>{stopped=true;clearInterval(timer)},{once:true})})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

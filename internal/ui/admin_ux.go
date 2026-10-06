@@ -8,7 +8,6 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 type NotificationItem struct {
@@ -206,7 +205,7 @@ func RenderBusinessOwnerDashboardWithSecurityNotice(w http.ResponseWriter, r *ht
 	if user == nil || user.Role != auth.RoleEditor || !user.Active {
 		return errors.New("business dashboard is unavailable")
 	}
-	if err := AdminStartForRequest(w, r, "Hoş geldiniz", "", security.NonceFromContext(r.Context()), "dashboard"); err != nil {
+	if err := AdminStartForRequest(w, r, "Hoş geldiniz", "", "dashboard"); err != nil {
 		return err
 	}
 	if err := AdminLoginSecurityNotice(previousLogin, previousIP, failedAttempts).Render(r.Context(), w); err != nil {

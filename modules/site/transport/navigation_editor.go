@@ -35,7 +35,7 @@ func (h Handler) navigationEditor(w http.ResponseWriter, r *http.Request) {
 	if h.NavigationSuggestions != nil {
 		suggestions, _ = h.NavigationSuggestions(r.Context(), locale)
 	}
-	if ui.AdminStartForRequest(w, r, "Menü düzenleyici", "Bağlantıları sıralayın ve alt menüler oluşturun", security.NonceFromContext(r.Context()), "site") != nil {
+	if ui.AdminStartForRequest(w, r, "Menü düzenleyici", "Bağlantıları sıralayın ve alt menüler oluşturun", "site") != nil {
 		return
 	}
 	_, _ = io.WriteString(w, `<main class="studio-card"><nav aria-label="Menü dili">`)
@@ -70,7 +70,7 @@ func (h Handler) navigationEditor(w http.ResponseWriter, r *http.Request) {
 <button type="button" class="button button-quiet" data-remove-row>Bağlantıyı kaldır</button></td></tr>
 </template>
 <div class="studio-actions"><button class="button button-quiet" type="button" id="navigation-add">Bağlantı ekle</button><button class="button" type="submit">Menüyü kaydet</button></div></form></main>`)
-	_, _ = fmt.Fprintf(w, `<script nonce="%s">(()=>{
+	_, _ = fmt.Fprint(w, `<script>(()=>{
 const tree=document.getElementById('navigation-tree'),tpl=document.getElementById('navigation-row-template');if(!tree||!tpl)return;
 const rows=()=>[...tree.querySelectorAll('[data-navigation-row]')];
 const refresh=()=>{const opts=rows().map(r=>({id:r.querySelector('[name=id]').value,label:r.querySelector('[name=label]').value||'Yeni bağlantı'}));for(const row of rows()){const s=row.querySelector('[name=parent_id]'),value=s.value,id=row.querySelector('[name=id]').value;s.replaceChildren(new Option('Ana menü',''));opts.filter(x=>x.id!==id).forEach(x=>s.add(new Option(x.label,x.id)));s.value=value}};
@@ -81,7 +81,7 @@ tree.addEventListener('click',e=>{const row=e.target.closest('[data-navigation-r
 let dragging=null;tree.addEventListener('dragstart',e=>{dragging=e.target.closest('[data-navigation-row]');if(dragging)e.dataTransfer.setData('text/plain','navigation-row')});tree.addEventListener('dragover',e=>{const target=e.target.closest('[data-navigation-row]');if(!dragging||!target||target===dragging)return;e.preventDefault();const box=target.getBoundingClientRect();tree.insertBefore(dragging,e.clientY<box.top+box.height/2?target:target.nextElementSibling)});tree.addEventListener('dragend',()=>{dragging=null;renumber()});
 tree.addEventListener('change',e=>{if(e.target.matches('[name=parent_id]')){const row=e.target.closest('[data-navigation-row]'),parent=rows().find(x=>x.querySelector('[name=id]').value===e.target.value);if(parent&&row&&parent.nextElementSibling!==row)tree.insertBefore(row,parent.nextElementSibling)}renumber()});
 refresh();renumber();document.querySelectorAll('#navigation-tree [name=href]').forEach(input=>input.setAttribute('list','published-page-paths'));
-})();</script>`, template.HTMLEscapeString(security.NonceFromContext(r.Context())))
+})();</script>`)
 	_ = ui.AdminEnd(w)
 }
 

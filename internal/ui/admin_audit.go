@@ -7,8 +7,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
-func RenderAdminAudit(w io.Writer, nonce, locale string, page designsystem.AdminAuditPageProps) error {
-	if err := AdminStartLocale(w, "Audit history", "Security", nonce, "audit", locale); err != nil {
+func RenderAdminAudit(w io.Writer, locale string, page designsystem.AdminAuditPageProps) error {
+	if err := AdminStartLocale(w, "Audit history", "Security", "audit", locale); err != nil {
 		return err
 	}
 	if err := designsystem.AdminAuditPage(page).Render(context.Background(), w); err != nil {

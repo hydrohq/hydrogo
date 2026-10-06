@@ -409,7 +409,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 </script>`))
 
 func RenderAdminControl(w io.Writer, data AdminControlData) error {
-	if err := AdminStartLocale(w, "Yönetim araçları", "Platform yönetimi", data.Nonce, "developer", data.Locale); err != nil {
+	if err := AdminStartLocale(w, "Yönetim araçları", "Platform yönetimi", "developer", data.Locale); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(w, renderDeveloperTabs("control")); err != nil {

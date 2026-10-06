@@ -47,7 +47,7 @@ func (h EmailBrandingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Email identity", "Mailer", security.NonceFromContext(r.Context()), "settings"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Email identity", "Mailer", "settings"); err != nil {
 		return
 	}
 	_ = designsystem.EmailBrandingForm(designsystem.EmailBrandingFormProps{

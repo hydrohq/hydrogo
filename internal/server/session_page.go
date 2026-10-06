@@ -49,7 +49,7 @@ func (h SessionPageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Active sessions", "Account security", security.NonceFromContext(r.Context()), "account"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Active sessions", "Account security", "account"); err != nil {
 		return
 	}
 	if err := ui.ActiveSessionsPage(items, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {

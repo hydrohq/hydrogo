@@ -62,7 +62,7 @@ templ PageLayoutPicker(p PageLayoutPickerProps) {
 templ PasswordResetForm(p PasswordResetFormProps) {
 	<main class="mx-auto grid w-full max-w-md gap-4 rounded-xl border border-border bg-surface p-6 text-foreground" aria-labelledby="password-reset-title">
 		<h1 id="password-reset-title" class="text-2xl font-bold">Choose a new password</h1>
-		<script nonce={ p.Nonce }>history.replaceState(null, "", "/password-reset")</script>
+		<script>history.replaceState(null, "", "/password-reset")</script>
 		<p>Enter a new password to secure your account.</p>
 		<form class="grid gap-4" method="post" action="/auth/password-reset/confirm">
 			<input type="hidden" name="_csrf" value={ p.CSRF } />

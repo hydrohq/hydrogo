@@ -20,16 +20,15 @@ var docsPortalTemplates = map[string]*template.Template{
 	"tr": template.Must(template.New("docs-tr").Parse(docsPortalTurkish)),
 }
 
-func docsPortalHTML(lang, nonce string) string {
+func docsPortalHTML(lang string) string {
 	tmpl, ok := docsPortalTemplates[lang]
 	if !ok {
 		tmpl = docsPortalTemplates["en"]
 	}
 	var output bytes.Buffer
 	data := struct {
-		Nonce string
 		CSS   template.CSS
-	}{Nonce: nonce, CSS: template.CSS(docsPortalCSS)} // CSS is a build-time, embedded asset.
+	}{CSS: template.CSS(docsPortalCSS)} // CSS is a build-time, embedded asset.
 	if err := tmpl.Execute(&output, data); err != nil {
 		return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Documentation</title></head><body><h1>Documentation is temporarily unavailable</h1></body></html>"
 	}

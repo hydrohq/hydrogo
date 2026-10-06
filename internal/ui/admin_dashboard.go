@@ -52,7 +52,7 @@ type NoCookieAnalyticsRow struct {
 }
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
-	if err := AdminStartLocale(w, "Dashboard", "", data.Nonce, data.Active, data.Locale); err != nil {
+	if err := AdminStartLocale(w, "Dashboard", "", data.Active, data.Locale); err != nil {
 		return err
 	}
 	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
@@ -93,7 +93,7 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 }
 
 func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
-	if err := AdminStartLocale(w, "Raporlar", "Analitik ve Performans", data.Nonce, data.Active, data.Locale); err != nil {
+	if err := AdminStartLocale(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale); err != nil {
 		return err
 	}
 	if err := adminReportsKPIsTemplate.Execute(w, data); err != nil {

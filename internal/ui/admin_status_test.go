@@ -8,7 +8,7 @@ import (
 
 func TestAdminShellLoadsAccessibleStatusFilter(t *testing.T) {
 	var output bytes.Buffer
-	if err := AdminStartLocaleRole(&output, "Pages", "", "nonce", "pages", "en", "admin"); err != nil {
+	if err := AdminStartLocaleRole(&output, "Pages", "", "pages", "en", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	markup := output.String()

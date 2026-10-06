@@ -68,7 +68,7 @@ func (h FeedbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	props := designsystem.HelpfulFeedbackProps{ElementID: elementID, CSRF: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context()), Up: totals.Up, Down: totals.Down}
+	props := designsystem.HelpfulFeedbackProps{ElementID: elementID, CSRF: security.CSRFTokenFromContext(r.Context()), Up: totals.Up, Down: totals.Down}
 	if err := designsystem.HelpfulFeedbackThanks(props).Render(r.Context(), w); err != nil {
 		http.Error(w, "Feedback is temporarily unavailable", http.StatusServiceUnavailable)
 	}

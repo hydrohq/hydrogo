@@ -68,7 +68,7 @@ type SocialAccountsProps struct {
 }
 type PageLayoutOption struct{ ID, Name, Description string }
 type PageLayoutPickerProps struct{ Options []PageLayoutOption }
-type PasswordResetFormProps struct{ Token, CSRF, Nonce string }
+type PasswordResetFormProps struct{ Token, CSRF string }
 
 type FormConversionDay struct {
 	Day         string
@@ -160,7 +160,7 @@ type FAQProps struct {
 	ID, Heading     string
 	Items           []FAQItem
 	FeedbackEnabled bool
-	CSRF, Nonce     string
+	CSRF            string
 	FeedbackCounts  map[string][2]int64
 }
 type CopyButtonProps struct {

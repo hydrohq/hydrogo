@@ -2459,7 +2459,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled(), security.NonceFromContext(r.Context())))
+		_, _ = io.WriteString(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled(), ))
 	})}, router.Route{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			if localeEnabled {
@@ -2485,7 +2485,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = io.WriteString(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled(), security.NonceFromContext(r.Context())))
+			_, _ = io.WriteString(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled(), ))
 			return
 		}
 		http.NotFound(w, r)
@@ -2497,7 +2497,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Language", lang)
-		_, _ = io.WriteString(w, docsPortalHTML(lang, security.NonceFromContext(r.Context())))
+		_, _ = io.WriteString(w, docsPortalHTML(lang, ))
 	})})
 	if modules["analytics"] {
 		routes = append(routes, router.Route{Pattern: "POST /analytics/consent", Access: router.Public, Handler: analytics.ConsentHandler(analyticsStore, cfg.Security.SecureCookies)})
@@ -2599,7 +2599,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := designsystem.PasswordResetForm(designsystem.PasswordResetFormProps{Token: token, CSRF: security.CSRFTokenFromContext(r.Context()), Nonce: security.NonceFromContext(r.Context())}).Render(r.Context(), w); err != nil {
+		if err := designsystem.PasswordResetForm(designsystem.PasswordResetFormProps{Token: token, CSRF: security.CSRFTokenFromContext(r.Context()), }).Render(r.Context(), w); err != nil {
 			http.Error(w, "Password reset is temporarily unavailable.", http.StatusServiceUnavailable)
 		}
 	})})
@@ -2621,7 +2621,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				appearance = site.AppearanceFromSettings(settings)
 			}
 		}
-		if err := ui.RenderAdminLoginWithLocaleAndAppearance(w, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context()), returnTo, loginLocale, appearance); err != nil {
+		if err := ui.RenderAdminLoginWithLocaleAndAppearance(w, security.CSRFTokenFromContext(r.Context()), returnTo, loginLocale, appearance); err != nil {
 			http.Error(w, "admin login unavailable", http.StatusInternalServerError)
 		}
 	})})
@@ -2697,7 +2697,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
 				Email:                 user.Email,
 				Collections:           activeStudioCollections(),
-				Nonce:                 security.NonceFromContext(r.Context()),
+
 				Active:                "reports",
 				Metrics:               runtimeMetrics,
 				MemberStats:           stats,
@@ -2726,7 +2726,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if securityNotice.PreviousLoginAt != nil {
 			previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Nonce: security.NonceFromContext(r.Context()), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(),  Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
@@ -2801,7 +2801,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				}
 				page.Entries = append(page.Entries, designsystem.AdminAuditEntry{At: at, Actor: actor, Action: event.Action, Resource: event.ResourceType, Target: targetLabel, RequestID: event.RequestID, BeforeJSON: event.BeforeJSON, AfterJSON: event.AfterJSON, Legacy: legacy})
 			}
-			if err := ui.RenderAdminAudit(w, security.NonceFromContext(r.Context()), adminLocaleFromRequest(r), page); err != nil {
+			if err := ui.RenderAdminAudit(w, adminLocaleFromRequest(r), page); err != nil {
 				slog.Error("admin audit page render failed", "error", err)
 				http.Error(w, "Audit history is temporarily unavailable.", http.StatusInternalServerError)
 			}
@@ -2836,7 +2836,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 					}
 				}
 			}
-			if err := ui.RenderAdminBackup(w, security.CSRFTokenFromContext(r.Context()), security.NonceFromContext(r.Context()), adminLocaleFromRequest(r), recent, cfg.Backup.Enabled, publicKey); err != nil {
+			if err := ui.RenderAdminBackup(w, security.CSRFTokenFromContext(r.Context()), adminLocaleFromRequest(r), recent, cfg.Backup.Enabled, publicKey); err != nil {
 				http.Error(w, "backup page unavailable", http.StatusInternalServerError)
 			}
 			return
@@ -3071,13 +3071,13 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			active = "operations"
 		}
 		if r.URL.Path == "/admin/developer" {
-			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer", Locale: adminLocaleFromRequest(r)}); err != nil {
+			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email,  CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer", Locale: adminLocaleFromRequest(r)}); err != nil {
 				http.Error(w, "developer tools unavailable", http.StatusInternalServerError)
 			}
 			return
 		}
 		if r.URL.Path == "/admin/developer/resources" {
-			if err := ui.RenderAdminResourceUsage(w, ui.AdminResourceUsageData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), Snapshot: runtimeMetrics.Snapshot(), Locale: adminLocaleFromRequest(r)}); err != nil {
+			if err := ui.RenderAdminResourceUsage(w, ui.AdminResourceUsageData{Email: user.Email,  Snapshot: runtimeMetrics.Snapshot(), Locale: adminLocaleFromRequest(r)}); err != nil {
 				http.Error(w, "resource usage unavailable", http.StatusInternalServerError)
 			}
 			return
@@ -3097,10 +3097,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		var err error
 		if active == "control" {
-			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
+			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email,  CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
 			scope, _ := tenant.FromContext(r.Context())
-			areaData := ui.AdminAreaData{Email: user.Email, Nonce: security.NonceFromContext(r.Context()), CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], EmailVerificationEnabled: smtpSender != nil, PasswordResetLinkEnabled: recoveryService != nil && cfg.HTTP.PublicOrigin != "", Permissions: authSvc.AvailablePermissions()}
+			areaData := ui.AdminAreaData{Email: user.Email,  CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], EmailVerificationEnabled: smtpSender != nil, PasswordResetLinkEnabled: recoveryService != nil && cfg.HTTP.PublicOrigin != "", Permissions: authSvc.AvailablePermissions()}
 			if active == "users" {
 				if repo, ok := any(userStore).(auth.UserAdminRepository); ok {
 					areaData.Users, err = repo.List(r.Context())
@@ -4525,8 +4525,8 @@ func localeRedirect(w http.ResponseWriter, r *http.Request, locale string) {
 	http.Redirect(w, r, "/"+url.PathEscape(locale)+"/", http.StatusFound)
 }
 
-func technicalHomeWithLocales(locale string, locales []string, demoPath string, demoEnabled bool, nonce string) string {
-	markup := technicalHomeHTML(locale, demoPath, demoEnabled, nonce)
+func technicalHomeWithLocales(locale string, locales []string, demoPath string, demoEnabled bool) string {
+	markup := technicalHomeHTML(locale, demoPath, demoEnabled)
 	if len(locales) < 2 {
 		return markup
 	}

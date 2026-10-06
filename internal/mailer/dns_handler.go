@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
@@ -27,7 +26,7 @@ func (h DNSDiagnosticsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Email domain diagnostics", "Mailer", security.NonceFromContext(r.Context()), "settings"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Email domain diagnostics", "Mailer", "settings"); err != nil {
 		return
 	}
 	view := make([]designsystem.EmailDNSCheck, len(checks))

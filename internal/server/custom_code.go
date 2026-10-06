@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/customcode"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 const customCodeResponseLimit = 2 << 20
@@ -45,9 +44,8 @@ func CustomCodeMiddleware(provider func(*http.Request) (string, string)) func(ht
 				return
 			}
 			content := capture.buf.Bytes()
-			nonce := security.NonceFromContext(r.Context())
-			head = customcode.AddNonces(head, nonce)
-			body = customcode.AddNonces(body, nonce)
+			head = customcode.AddNonces(head)
+			body = customcode.AddNonces(body)
 			if head != "" {
 				content = insertBeforeClosingTag(content, "</head>", head)
 			}

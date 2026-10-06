@@ -145,13 +145,13 @@ func TestRequestedLocaleHonorsManualChoiceBeforeBrowserHeader(t *testing.T) {
 
 func TestTechnicalHomeHTMLIsBackendFirstAndKeepsDemoOptIn(t *testing.T) {
 	markup := technicalHomeHTML("tr-TR", publicHomePath("tr-TR"), false, "test-nonce")
-	for _, want := range []string{"Welcome to HydroGo", "Get Started", "Documentation", "/admin", "/docs", "nonce=\"test-nonce\""} {
+	for _, want := range []string{"Welcome to HydroGo", "Get Started", "Documentation", "/admin", "/docs", ""} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("technical home missing %q", want)
 		}
 	}
-	docsMarkup := docsPortalHTML("en", "test-nonce")
-	for _, want := range []string{"Documentation", "Quick start", "Architecture", "APIs &amp; integration", "Deployment &amp; operations", "nonce=\"test-nonce\""} {
+	docsMarkup := docsPortalHTML("en")
+	for _, want := range []string{"Documentation", "Quick start", "Architecture", "APIs &amp; integration", "Deployment &amp; operations", ""} {
 		if !strings.Contains(docsMarkup, want) {
 			t.Fatalf("docs portal missing %q", want)
 		}
@@ -159,15 +159,15 @@ func TestTechnicalHomeHTMLIsBackendFirstAndKeepsDemoOptIn(t *testing.T) {
 	if strings.Contains(docsMarkup, "github.com") || strings.Contains(docsMarkup, "Coming Soon") {
 		t.Fatal("docs portal contains an external repository link or placeholder copy")
 	}
-	if markup := docsPortalHTML("en", `" onload="alert(1)`); strings.Contains(markup, `nonce="" onload="`) {
+	if markup := docsPortalHTML("en"); strings.Contains(markup, `nonce="" onload="`) {
 		t.Fatal("docs portal did not escape the CSP nonce")
 	}
 }
 
 func TestDocsPortalLocalesAndCompiledCSS(t *testing.T) {
-	english := docsPortalHTML("en", "test-nonce")
-	turkish := docsPortalHTML("tr", "test-nonce")
-	if fallback := docsPortalHTML("invalid", "test-nonce"); fallback != english {
+	english := docsPortalHTML("en")
+	turkish := docsPortalHTML("tr")
+	if fallback := docsPortalHTML("invalid"); fallback != english {
 		t.Fatal("unknown docs locale must fall back to English")
 	}
 	for _, tc := range []struct {
@@ -198,13 +198,13 @@ func TestDocsPortalLocalesAndCompiledCSS(t *testing.T) {
 }
 
 func TestTechnicalHomeIncludesTypedLocalePickerForConfiguredLocales(t *testing.T) {
-	markup := technicalHomeWithLocales("en", []string{"tr", "en"}, "/public/en", false, "nonce")
+	markup := technicalHomeWithLocales("en", []string{"tr", "en"}, "/public/en", false)
 	for _, want := range []string{`name="locale"`, `value="tr"`, `value="en"`, `selected`} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("locale home missing %q", want)
 		}
 	}
-	if markup := technicalHomeWithLocales("en", []string{"en"}, "/public/en", false, "nonce"); strings.Contains(markup, `name="locale"`) {
+	if markup := technicalHomeWithLocales("en", []string{"en"}, "/public/en", false); strings.Contains(markup, `name="locale"`) {
 		t.Fatal("single-locale home unexpectedly rendered locale picker")
 	}
 }
@@ -646,7 +646,7 @@ func TestLoginPageDoesNotExposeTransportOrServerErrors(t *testing.T) {
 		"tr": "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin.",
 	} {
 		var rendered bytes.Buffer
-		if err := ui.RenderAdminLoginWithLocaleAndAppearance(&rendered, "csrf", "nonce", "/admin", locale, site.Appearance{}); err != nil {
+		if err := ui.RenderAdminLoginWithLocaleAndAppearance(&rendered, "csrf", "/admin", locale, site.Appearance{}); err != nil {
 			t.Fatal(err)
 		}
 		if !strings.Contains(rendered.String(), message) {

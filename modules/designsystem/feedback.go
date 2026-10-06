@@ -25,7 +25,7 @@ type FAQFeedbackMetric struct {
 func faqFeedbackProps(p FAQProps, item FAQItem, index int) HelpfulFeedbackProps {
 	id := FAQFeedbackID(item, index)
 	counts := p.FeedbackCounts[id]
-	return HelpfulFeedbackProps{ContentType: "faq", ContentID: id, ElementID: "faq-feedback-" + id, CSRF: p.CSRF, Nonce: p.Nonce, Up: counts[0], Down: counts[1], LoadHTMX: index == 0}
+	return HelpfulFeedbackProps{ContentType: "faq", ContentID: id, ElementID: "faq-feedback-" + id, CSRF: p.CSRF,  Up: counts[0], Down: counts[1], LoadHTMX: index == 0}
 }
 
 func FAQFeedbackID(item FAQItem, index int) string {

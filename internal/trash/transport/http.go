@@ -48,7 +48,7 @@ func (h Handler) list(w http.ResponseWriter, r *http.Request) {
 		items = filtered
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequestWithTrash(w, r, "Çöp kutusu", "İçerik", security.NonceFromContext(r.Context()), "trash"); err != nil {
+	if err := ui.AdminStartForRequestWithTrash(w, r, "Çöp kutusu", "İçerik", "trash"); err != nil {
 		return
 	}
 	if err := designsystem.TrashPage(items, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {

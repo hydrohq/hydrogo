@@ -50,7 +50,7 @@ func (h HTTPHandler) adminCleanup(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStartForRequest(w, r, "Unused media cleanup", "Media maintenance", security.NonceFromContext(r.Context()), "media"); err != nil {
+	if err := ui.AdminStartForRequest(w, r, "Unused media cleanup", "Media maintenance", "media"); err != nil {
 		return
 	}
 	if err := ui.MediaCleanupPage(view, size, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
@@ -168,10 +168,9 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	assets = filtered
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Medya", "Medya kütüphanesi", security.NonceFromContext(r.Context()), "media"); err != nil {
+	if err := ui.AdminStart(w, "Medya", "Medya kütüphanesi", "media"); err != nil {
 		return
 	}
-	nonce := template.HTMLEscapeString(security.NonceFromContext(r.Context()))
 	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
 
 	folderItems := mediaFolderTree(folders)
@@ -290,7 +289,7 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprint(w, `<p class="empty" style="grid-column:1/-1;padding:32px;text-align:center;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);">Henüz medya yüklenmedi. Yukarıdaki alandan dosya sürükleyerek veya seçerek yükleyebilirsiniz.</p>`)
 	}
 
-	_, _ = fmt.Fprintf(w, `</div><script nonce="%s">(()=>{
+	_, _ = fmt.Fprint(w, `</div><script>(()=>{
 const copyHandler = (e) => {
 	const copyBtn = e.target.closest('.media-copy');
 	if (copyBtn) {
@@ -383,7 +382,7 @@ if (settingsDialog) {
 		}
 	});
 }
-})();</script>`, nonce)
+})();</script>`)
 	_, _ = fmt.Fprint(w, `<script src="/admin/media/static/uploader.js" defer></script>`)
 	_ = ui.AdminEnd(w)
 }
