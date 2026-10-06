@@ -634,6 +634,10 @@ func TestDraftAndLocalizationMigrationsPreservePublicationAndDefaultLocale(t *te
 	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, published_version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", "a1", "fr", 1, 4, 1, "editor", "2026-10-07T10:01:00Z", "draft", `{"title":"Titre brouillon"}`); err != nil {
 		t.Fatalf("draft versions must be independent by locale: %v", err)
 	}
+	var publishedVersion int64
+	if err := db.QueryRow("SELECT published_version FROM "+draftTable+" WHERE resource_id = ? AND locale = ?", "a1", "fr").Scan(&publishedVersion); err != nil || publishedVersion != 4 {
+		t.Fatalf("draft must retain its published compare version: version=%d err=%v", publishedVersion, err)
+	}
 	var published string
 	if err := db.QueryRow("SELECT title FROM articles WHERE id = ?", "a1").Scan(&published); err != nil || published != "Published title" {
 		t.Fatalf("draft changed published representation: title=%q err=%v", published, err)
@@ -697,6 +701,10 @@ func TestDraftLocalizationMigrationsOnPostgreSQL(t *testing.T) {
 	}
 	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, locale, version, published_version, schema_version, actor_id, updated_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)", "a1", "en", 1, 4, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
 		t.Fatal(err)
+	}
+	var draftPublishedVersion int64
+	if err := db.QueryRow("SELECT published_version FROM "+draftTable+" WHERE resource_id = $1 AND locale = $2", "a1", "en").Scan(&draftPublishedVersion); err != nil || draftPublishedVersion != 4 {
+		t.Fatalf("PostgreSQL draft must retain its published compare version: version=%d err=%v", draftPublishedVersion, err)
 	}
 	if _, err := db.Exec(strings.ReplaceAll(renderLocalizationMigration(spec, "postgres"), "__HYDRO_DEFAULT_LOCALE__", "en")); err != nil {
 		t.Fatalf("PostgreSQL localization migration: %v", err)
