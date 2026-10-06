@@ -13,6 +13,8 @@
     "tenant_scoped": { "type": "boolean", "default": false },
     "versioned": { "type": "boolean", "default": false, "description": "Adds an optimistic concurrency version to generated resources. Required for editorial workflows." },
     "revisions": { "type": "boolean", "default": false, "description": "Proposes bounded revision history storage and enables the Edition-owned revision UI. Requires versioned: true." },
+    "drafts": { "type": "boolean", "default": false, "description": "Enables Edition-owned isolated drafts and publish actions. Requires revisions: true." },
+    "localization": { "type": "boolean", "default": false, "description": "Enables locale-specific storage for fields marked ui.localized. The Edition supplies authorized locales." },
     "workflow": {
       "type": "object",
       "additionalProperties": false,
@@ -68,6 +70,7 @@
               "list": { "type": "boolean", "default": false },
               "searchable": { "type": "boolean", "default": false },
               "filterable": { "type": "boolean", "default": false },
+              "localized": { "type": "boolean", "default": false },
               "widget": {
                 "type": "string",
                 "enum": ["text", "textarea", "number", "boolean", "date", "datetime", "select", "media", "richtext", "block-editor", "relation", "array", "hidden"]

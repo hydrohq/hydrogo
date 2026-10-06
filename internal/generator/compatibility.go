@@ -102,6 +102,12 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 	if spec.Revisions {
 		requiredFiles = append(requiredFiles, "revisions_migration.sql", "revisions_migration.yaml", "revision_contract.go")
 	}
+	if spec.Drafts {
+		requiredFiles = append(requiredFiles, "drafts_migration.sql", "drafts_migration.yaml", "draft_contract.go")
+	}
+	if spec.Localization {
+		requiredFiles = append(requiredFiles, "localization_migration_sqlite.sql", "localization_migration_postgres.sql", "localization_migration.yaml", "localization_contract.go")
+	}
 	for _, name := range requiredFiles {
 		artifactPath := filepath.Join(collectionRoot, name)
 		info, err := os.Lstat(artifactPath)

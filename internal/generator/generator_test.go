@@ -598,6 +598,97 @@ func TestRevisionMigrationOnPostgreSQL(t *testing.T) {
 	}
 }
 
+func TestDraftAndLocalizationMigrationsPreservePublicationAndDefaultLocale(t *testing.T) {
+	spec := Spec{
+		Name: "article", Table: "articles", Versioned: true, Revisions: true, Drafts: true, Localization: true,
+		Fields:   []Field{{Name: "title", Type: "string", Admin: FieldAdmin{Localized: true}}, {Name: "status", Type: "string"}},
+		Dialects: []string{"sqlite", "postgres"},
+	}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(renderMigration(spec)); err != nil {
+		t.Fatalf("SQLite base migration: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO articles (id, title, status) VALUES ('a1', 'Published title', 'published')"); err != nil {
+		t.Fatal(err)
+	}
+	draftTable := draftTableName(spec.Table)
+	if _, err := db.Exec(renderDraftsMigration(spec)); err != nil {
+		t.Fatalf("SQLite draft migration: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, version, schema_version, actor_id, updated_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?)", "a1", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
+		t.Fatal(err)
+	}
+	var published string
+	if err := db.QueryRow("SELECT title FROM articles WHERE id = ?", "a1").Scan(&published); err != nil || published != "Published title" {
+		t.Fatalf("draft changed published representation: title=%q err=%v", published, err)
+	}
+	localizationTable := localizationTableName(spec.Table)
+	localizationSQL := strings.ReplaceAll(renderLocalizationMigration(spec, "sqlite"), "__HYDRO_DEFAULT_LOCALE__", "en")
+	if _, err := db.Exec(localizationSQL); err != nil {
+		t.Fatalf("SQLite localization migration: %v\n%s", err, localizationSQL)
+	}
+	var locale, value string
+	if err := db.QueryRow("SELECT locale, json_extract(values_json, '$.title') FROM "+localizationTable+" WHERE resource_id = ?", "a1").Scan(&locale, &value); err != nil || locale != "en" || value != "Published title" {
+		t.Fatalf("default locale backfill lost existing content: locale=%q value=%q err=%v", locale, value, err)
+	}
+	metadata := renderLocalizationMigrationMetadata(spec)
+	for _, marker := range []string{"sqlite: expand", "postgres: expand", "checksum_sha256:", "rollback:", "default locale"} {
+		if !strings.Contains(metadata, marker) {
+			t.Fatalf("localization migration metadata missing %q: %s", marker, metadata)
+		}
+	}
+}
+
+func TestDraftLocalizationMigrationsOnPostgreSQL(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	spec := Spec{Name: "editorial_contract", Table: "hydro_generated_editorial_contract", Versioned: true, Revisions: true, Drafts: true, Localization: true, Fields: []Field{{Name: "title", Type: "string", Admin: FieldAdmin{Localized: true}}, {Name: "status", Type: "string"}}, Dialects: []string{"sqlite", "postgres"}}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	draftTable, localeTable := draftTableName(spec.Table), localizationTableName(spec.Table)
+	for _, table := range []string{localeTable, draftTable, spec.Table} {
+		if _, err := db.Exec("DROP TABLE IF EXISTS " + table); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer func() {
+		for _, table := range []string{localeTable, draftTable, spec.Table} {
+			_, _ = db.Exec("DROP TABLE IF EXISTS " + table)
+		}
+	}()
+	if _, err := db.Exec(renderMigration(spec)); err != nil {
+		t.Fatalf("PostgreSQL base migration: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO "+spec.Table+" (id, title, status) VALUES ($1, $2, $3)", "a1", "Published title", "published"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(renderDraftsMigration(spec)); err != nil {
+		t.Fatalf("PostgreSQL draft migration: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO "+draftTable+" (resource_id, version, schema_version, actor_id, updated_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7)", "a1", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"Draft title"}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(strings.ReplaceAll(renderLocalizationMigration(spec, "postgres"), "__HYDRO_DEFAULT_LOCALE__", "en")); err != nil {
+		t.Fatalf("PostgreSQL localization migration: %v", err)
+	}
+	var locale, value, published string
+	if err := db.QueryRow("SELECT locale, values_json::json->>'title' FROM "+localeTable+" WHERE resource_id = $1", "a1").Scan(&locale, &value); err != nil || locale != "en" || value != "Published title" {
+		t.Fatalf("PostgreSQL locale backfill: locale=%q value=%q err=%v", locale, value, err)
+	}
+	if err := db.QueryRow("SELECT title FROM "+spec.Table+" WHERE id = $1", "a1").Scan(&published); err != nil || published != "Published title" {
+		t.Fatalf("draft changed PostgreSQL published representation: title=%q err=%v", published, err)
+	}
+}
+
 func TestVersionMigrationAndCASOnPostgreSQL(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
 	if dsn == "" {
