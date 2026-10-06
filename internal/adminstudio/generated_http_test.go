@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/a-h/templ"
 )
@@ -77,7 +78,7 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 
 func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{
-		ID: "article", Label: "Articles", TitleField: "title", Versioned: true,
+		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true,
 		Fields:   []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}, {ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "review", "published"}}},
 		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
 		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, "review", StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {"review"}, "review": {StatePublished}}},
@@ -121,6 +122,14 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 			transitioned = target
 			return nil
 		},
+		ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) { return nil, nil },
+		GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
+			return RevisionSnapshot{}, errors.New("not found")
+		},
+		CanRestore: func(*http.Request, Collection, string, int64) bool { return false },
+		RestoreRevision: func(*http.Request, Collection, string, int64, int64) error {
+			return errors.New("not found")
+		},
 		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
 		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
 			return body.Render(r.Context(), w)
@@ -147,6 +156,79 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	mux.ServeHTTP(response, request)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("ordinary document edit failed: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", Versioned: true, Revisions: true,
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText}},
+		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/article/a1" {
+			t.Errorf("unexpected revision API call: %s %s", r.Method, r.URL.String())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"a1","title":"Current","version":4}`)
+	})
+	var restored bool
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, Collection) bool { return true },
+		ListRevisions: func(_ *http.Request, _ Collection, id string, limit int) ([]RevisionSummary, error) {
+			if id != "a1" || limit != 50 {
+				t.Errorf("revision history query not bounded or scoped: id=%q limit=%d", id, limit)
+			}
+			return []RevisionSummary{{Version: 3, Actor: "Editor <admin@example.test>", State: "draft", CreatedAt: time.Date(2026, 10, 7, 10, 0, 0, 0, time.UTC)}}, nil
+		},
+		GetRevision: func(_ *http.Request, _ Collection, id string, version int64) (RevisionSnapshot, error) {
+			if id != "a1" || version != 3 {
+				return RevisionSnapshot{}, errors.New("not found")
+			}
+			return RevisionSnapshot{RevisionSummary: RevisionSummary{Version: 3}, Fields: map[string]string{"title": `<script>alert(1)</script>`}}, nil
+		},
+		CanRestore: func(_ *http.Request, _ Collection, id string, version int64) bool { return id == "a1" && version == 3 },
+		RestoreRevision: func(_ *http.Request, _ Collection, id string, revision, expected int64) error {
+			if id != "a1" || revision != 3 || expected != 4 {
+				return errors.New("unexpected restore arguments")
+			}
+			restored = true
+			return nil
+		},
+		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	edit := httptest.NewRecorder()
+	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), "/revisions/3") || !strings.Contains(edit.Body.String(), "Editor &lt;admin@example.test&gt;") {
+		t.Fatalf("revision history missing or unsafe: status=%d body=%s", edit.Code, edit.Body.String())
+	}
+	detail := httptest.NewRecorder()
+	mux.ServeHTTP(detail, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1/revisions/3", nil))
+	if detail.Code != http.StatusOK || strings.Contains(detail.Body.String(), `<script>`) || !strings.Contains(detail.Body.String(), "&lt;script&gt;") {
+		t.Fatalf("revision diff did not escape snapshot: status=%d body=%s", detail.Code, detail.Body.String())
+	}
+	post := func(expected string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/revisions/3/restore", strings.NewReader("_csrf=csrf-value&expected_version="+expected))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		return response
+	}
+	if response := post("3"); response.Code != http.StatusConflict || restored {
+		t.Fatalf("stale restore should conflict before the Edition callback: status=%d restored=%v", response.Code, restored)
+	}
+	if response := post("4"); response.Code != http.StatusSeeOther || !restored {
+		t.Fatalf("restore was not delegated with expected version: status=%d restored=%v body=%s", response.Code, restored, response.Body.String())
 	}
 }
 

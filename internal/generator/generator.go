@@ -106,6 +106,7 @@ type Spec struct {
 	Auth         bool          `json:"auth,omitempty" yaml:"auth,omitempty"`
 	TenantScoped bool          `json:"tenant_scoped" yaml:"tenant_scoped"`
 	Versioned    bool          `json:"versioned,omitempty" yaml:"versioned,omitempty"`
+	Revisions    bool          `json:"revisions,omitempty" yaml:"revisions,omitempty"`
 	Workflow     *WorkflowSpec `json:"workflow,omitempty" yaml:"workflow,omitempty"`
 	Table        string        `json:"table" yaml:"table"`
 	Fields       []Field       `json:"fields" yaml:"fields"`
@@ -212,8 +213,8 @@ func Validate(spec Spec) error {
 		}
 		seen[field.Name] = struct{}{}
 	}
-	if spec.Workflow != nil {
-		if !spec.Versioned {
+	if spec.Revisions && !spec.Versioned || spec.Workflow != nil {
+		if !spec.Versioned || (spec.Workflow != nil && !spec.Revisions) {
 			return ErrInvalidSpec
 		}
 		stateField, found := func() (Field, bool) {
@@ -411,7 +412,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 			}
 		}
 	}
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Group: group, Icon: spec.Admin.Icon, Hidden: spec.Admin.Hidden, TitleField: titleField, Versioned: spec.Versioned, Workflow: workflow, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Group: group, Icon: spec.Admin.Icon, Hidden: spec.Admin.Hidden, TitleField: titleField, Versioned: spec.Versioned, Revisions: spec.Revisions, Workflow: workflow, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}
@@ -491,6 +492,11 @@ func Generate(root string, spec Spec) (Lock, error) {
 	if spec.Versioned {
 		files["migration_2.sql"] = renderVersionMigration(spec)
 		files["migration_2.yaml"] = renderVersionMigrationMetadata(spec)
+	}
+	if spec.Revisions {
+		files["revisions_migration.sql"] = renderRevisionsMigration(spec)
+		files["revisions_migration.yaml"] = renderRevisionsMigrationMetadata(spec)
+		files["revision_contract.go"] = renderRevisionContract(spec)
 	}
 	for name, content := range files {
 		if filepath.Ext(name) == ".go" {
@@ -2282,6 +2288,80 @@ func renderVersionMigrationMetadata(spec Spec) string {
 	digest := sha256.Sum256([]byte(sql))
 	checksum := hex.EncodeToString(digest[:])
 	return fmt.Sprintf("id: generated_%s_version_v1\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: [generated_%s]\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 2\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, spec.Name, checksum, checksum, "Additive version column defaults existing rows to 1. Old binaries may read it, but old writers do not advance versions; drain old writers before activating version-aware updates.", "No down migration; retain the column or restore a verified backup before rolling back writers.")
+}
+
+func revisionTableName(table string) string {
+	name := table + "_revisions"
+	if len(name) <= 63 {
+		return name
+	}
+	digest := sha256.Sum256([]byte(name))
+	return strings.TrimRight(name[:50], "_") + "_" + hex.EncodeToString(digest[:])[:12]
+}
+
+func renderRevisionsMigration(spec Spec) string {
+	table := revisionTableName(spec.Table)
+	var b strings.Builder
+	b.WriteString("-- Reviewable, additive revision proposal. Generation never executes this SQL.\n")
+	if spec.TenantScoped {
+		fmt.Fprintf(&b, "CREATE TABLE %s (tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL, version BIGINT NOT NULL CHECK (version > 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, created_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576), PRIMARY KEY (tenant_id, resource_id, version));\n", table)
+		fmt.Fprintf(&b, "CREATE INDEX %s ON %s (tenant_id, resource_id, created_at);\n", revisionIndexName(table), table)
+	} else {
+		fmt.Fprintf(&b, "CREATE TABLE %s (resource_id TEXT NOT NULL, version BIGINT NOT NULL CHECK (version > 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, created_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576), PRIMARY KEY (resource_id, version));\n", table)
+		fmt.Fprintf(&b, "CREATE INDEX %s ON %s (resource_id, created_at);\n", revisionIndexName(table), table)
+	}
+	return b.String()
+}
+
+func revisionIndexName(table string) string {
+	name := table + "_created_idx"
+	if len(name) <= 63 {
+		return name
+	}
+	digest := sha256.Sum256([]byte(name))
+	return strings.TrimRight(name[:50], "_") + "_" + hex.EncodeToString(digest[:])[:12]
+}
+
+func renderRevisionsMigrationMetadata(spec Spec) string {
+	sql := renderRevisionsMigration(spec)
+	digest := sha256.Sum256([]byte(sql))
+	checksum := hex.EncodeToString(digest[:])
+	return fmt.Sprintf("id: generated_%s_revisions_v1\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: [generated_%s, generated_%s_version_v1]\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 2\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, spec.Name, spec.Name, checksum, checksum, "Creates bounded append-only version snapshots; old binaries ignore this table. Actor identifiers are Edition-owned references and retention is an Edition policy.", "No down migration; preserve revision evidence or use an operator-approved archival procedure.")
+}
+
+func renderRevisionContract(spec Spec) string {
+	name := exportName(spec.Name)
+	appendArgs := "revision *" + name + "Revision"
+	resourceArgs := "resourceID string"
+	if spec.TenantScoped {
+		appendArgs = "tenantID string, revision *" + name + "Revision"
+		resourceArgs = "tenantID string, resourceID string"
+	}
+	return fmt.Sprintf(`// Code generated by hydrogo generator; persistence policy is Edition-owned.
+package generated
+
+import "context"
+
+// %sRevision is a bounded historical representation. Snapshot contains only
+// explicitly allowlisted editorial fields, never secrets or derived data.
+type %sRevision struct {
+	ResourceID string
+	Version int64
+	SchemaVersion int
+	ActorID string
+	CreatedAt string
+	State string
+	Snapshot []byte
+}
+
+// %sRevisionStore is a contract proposal; bind it to the Edition transaction,
+// tenant policy, audit trail, and database adapter before activation.
+type %sRevisionStore interface {
+	Append(ctx context.Context, %s) error
+	List(ctx context.Context, %s, limit int) ([]%sRevision, error)
+	Get(ctx context.Context, %s, version int64) (%sRevision, error)
+}
+`, name, name, name, name, appendArgs, resourceArgs, name, resourceArgs, name)
 }
 
 func uniqueFields(spec Spec) []Field {

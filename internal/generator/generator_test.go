@@ -534,6 +534,70 @@ func TestVersionMigrationAddsOptimisticVersionWithoutChangingExistingRows(t *tes
 	}
 }
 
+func TestRevisionMigrationPreservesTenantScopedAppendOnlyHistory(t *testing.T) {
+	spec := Spec{Name: "article", Table: "articles", TenantScoped: true, Versioned: true, Revisions: true, Fields: []Field{{Name: "title", Type: "string"}}, Dialects: []string{"sqlite", "postgres"}}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(renderRevisionsMigration(spec)); err != nil {
+		t.Fatalf("SQLite rejected revision migration: %v", err)
+	}
+	table := revisionTableName(spec.Table)
+	insert := "INSERT INTO " + table + " (tenant_id, resource_id, version, schema_version, actor_id, created_at, state, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	if _, err := db.Exec(insert, "t1", "a1", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"One"}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(insert, "t1", "a1", 2, 1, "editor", "2026-10-07T10:01:00Z", "draft", `{"title":"Two"}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(insert, "t2", "a1", 1, 1, "editor", "2026-10-07T10:02:00Z", "draft", `{"title":"Other tenant"}`); err != nil {
+		t.Fatalf("revision identities must be tenant scoped: %v", err)
+	}
+	if _, err := db.Exec(insert, "t1", "a1", 2, 1, "editor", "2026-10-07T10:03:00Z", "draft", `{}`); err == nil {
+		t.Fatal("duplicate resource version was accepted")
+	}
+	var count int
+	if err := db.QueryRow("SELECT count(*) FROM "+table+" WHERE tenant_id = ? AND resource_id = ?", "t1", "a1").Scan(&count); err != nil || count != 2 {
+		t.Fatalf("tenant history count=%d err=%v", count, err)
+	}
+	metadata := renderRevisionsMigrationMetadata(spec)
+	for _, marker := range []string{"sqlite: expand", "postgres: expand", "checksum_sha256:", "rollback:", "bounded append-only"} {
+		if !strings.Contains(metadata, marker) {
+			t.Fatalf("revision migration metadata missing %q: %s", marker, metadata)
+		}
+	}
+}
+
+func TestRevisionMigrationOnPostgreSQL(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	spec := Spec{Name: "revision_contract", Table: "hydro_generated_revision_contract", TenantScoped: true, Versioned: true, Revisions: true, Fields: []Field{{Name: "title", Type: "string"}}, Dialects: []string{"sqlite", "postgres"}}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	table := revisionTableName(spec.Table)
+	if _, err := db.Exec("DROP TABLE IF EXISTS " + table); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Exec("DROP TABLE IF EXISTS " + table)
+	if _, err := db.Exec(renderRevisionsMigration(spec)); err != nil {
+		t.Fatalf("PostgreSQL rejected revision migration: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO "+table+" (tenant_id, resource_id, version, schema_version, actor_id, created_at, state, snapshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", "t1", "a1", 1, 1, "editor", "2026-10-07T10:00:00Z", "draft", `{"title":"One"}`); err != nil {
+		t.Fatalf("PostgreSQL rejected revision row: %v", err)
+	}
+	var count int
+	if err := db.QueryRow("SELECT count(*) FROM "+table+" WHERE tenant_id = $1 AND resource_id = $2", "t1", "a1").Scan(&count); err != nil || count != 1 {
+		t.Fatalf("PostgreSQL revision count=%d err=%v", count, err)
+	}
+}
+
 func TestVersionMigrationAndCASOnPostgreSQL(t *testing.T) {
 	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
 	if dsn == "" {
