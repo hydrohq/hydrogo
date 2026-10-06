@@ -2415,9 +2415,9 @@ func renderDraftsMigration(spec Spec) string {
 		localeColumn, localeKey = ", locale TEXT NOT NULL", ", locale"
 	}
 	if spec.TenantScoped {
-		fmt.Fprintf(&b, "CREATE TABLE %s (tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL%s, version BIGINT NOT NULL CHECK (version > 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, updated_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576), PRIMARY KEY (tenant_id, resource_id%s));\n", table, localeColumn, localeKey)
+		fmt.Fprintf(&b, "CREATE TABLE %s (tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL%s, version BIGINT NOT NULL CHECK (version > 0), published_version BIGINT NOT NULL CHECK (published_version >= 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, updated_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576), PRIMARY KEY (tenant_id, resource_id%s));\n", table, localeColumn, localeKey)
 	} else {
-		fmt.Fprintf(&b, "CREATE TABLE %s (resource_id TEXT NOT NULL%s, version BIGINT NOT NULL CHECK (version > 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, updated_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576), PRIMARY KEY (resource_id%s));\n", table, localeColumn, localeKey)
+		fmt.Fprintf(&b, "CREATE TABLE %s (resource_id TEXT NOT NULL%s, version BIGINT NOT NULL CHECK (version > 0), published_version BIGINT NOT NULL CHECK (published_version >= 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, updated_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576), PRIMARY KEY (resource_id%s));\n", table, localeColumn, localeKey)
 	}
 	return b.String()
 }
@@ -2435,7 +2435,7 @@ func renderDraftsMigrationMetadata(spec Spec) string {
 	sql := renderDraftsMigration(spec)
 	digest := sha256.Sum256([]byte(sql))
 	checksum := hex.EncodeToString(digest[:])
-	return fmt.Sprintf("id: generated_%s_drafts_v1\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: [generated_%s, generated_%s_revisions_v1]\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 2\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, spec.Name, spec.Name, checksum, checksum, "Draft content is stored apart from the published resource and checked against an expected draft version. The Edition owns validation, audit, tenant access, and publish transactions.", "No down migration; preserve drafts for recovery or discard through the Edition service before a reviewed rollback.")
+	return fmt.Sprintf("id: generated_%s_drafts_v1\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: [generated_%s, generated_%s_revisions_v1]\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 2\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, spec.Name, spec.Name, checksum, checksum, "Draft content is stored apart from the published resource and checked against expected draft and published versions. The Edition owns validation, audit, tenant access, and publish transactions.", "No down migration; preserve drafts for recovery or discard through the Edition service before a reviewed rollback.")
 }
 
 func renderDraftContract(spec Spec) string {
@@ -2454,13 +2454,13 @@ package generated
 
 import "context"
 
-type %sDraft struct { ResourceID string; %sVersion int64; SchemaVersion int; ActorID string; UpdatedAt string; State string; Snapshot []byte }
+type %sDraft struct { ResourceID string; %sVersion int64; PublishedVersion int64; SchemaVersion int; ActorID string; UpdatedAt string; State string; Snapshot []byte }
 
-// %sDraftStore is an adapter contract. Save must compare expectedVersion
-// atomically, and a draft must never overwrite the published resource.
+// %sDraftStore is an adapter contract. Save must atomically compare both the
+// expected draft and published versions; it must never overwrite the published resource.
 type %sDraftStore interface {
 	Get(ctx context.Context, %s) (%sDraft, error)
-	Save(ctx context.Context, %s, draft *%sDraft, expectedVersion int64) error
+	Save(ctx context.Context, %s, draft *%sDraft, expectedDraftVersion, expectedPublishedVersion int64) error
 	Discard(ctx context.Context, %s, expectedVersion int64) error
 }
 `, name, localeField, name, name, args, name, args, name, args)

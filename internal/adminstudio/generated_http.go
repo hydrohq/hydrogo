@@ -26,6 +26,7 @@ import (
 const generatedAdminBodyLimit = 1 << 20
 
 var localePattern = regexp.MustCompile(`^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$`)
+var draftIDPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._:-]{0,127}$`)
 
 // GeneratedAdminOptions contains the Edition-owned security and page-shell
 // boundaries. Nil callbacks make the generated Admin surface unavailable.
@@ -46,11 +47,19 @@ type GeneratedAdminOptions struct {
 	SaveLocalized func(*http.Request, Collection, string, string, map[string]any, int64) error
 	ListLocalized func(*http.Request, Collection, []string, string) (map[string]map[string]any, error)
 	// CopyLocale must revalidate the source and target and audit the copy.
-	CanCopyLocale func(*http.Request, Collection, string, string) bool
-	CopyLocale    func(*http.Request, Collection, string, string, string, int64) error
-	CSRFToken     func(*http.Request) string
-	ValidateCSRF  func(*http.Request) bool
-	RenderPage    func(http.ResponseWriter, *http.Request, string, templ.Component) error
+	CanCopyLocale      func(*http.Request, Collection, string, string) bool
+	CopyLocale         func(*http.Request, Collection, string, string, string, int64) error
+	ListDrafts         func(*http.Request, Collection, string, int) ([]DraftDocument, error)
+	GetDraft           func(*http.Request, Collection, string, string) (DraftDocument, error)
+	CanSaveDraft       func(*http.Request, Collection, string, string) bool
+	SaveDraft          func(*http.Request, Collection, string, string, map[string]any, int64, int64) error
+	CanTransitionDraft func(*http.Request, Collection, DraftDocument, PublicationState) bool
+	TransitionDraft    func(*http.Request, Collection, string, string, PublicationState, int64, int64) error
+	CanDiscardDraft    func(*http.Request, Collection, DraftDocument) bool
+	DiscardDraft       func(*http.Request, Collection, string, string, int64) error
+	CSRFToken          func(*http.Request) string
+	ValidateCSRF       func(*http.Request) bool
+	RenderPage         func(http.ResponseWriter, *http.Request, string, templ.Component) error
 }
 
 type LocaleOptions struct {
@@ -77,6 +86,18 @@ type RevisionSnapshot struct {
 	Fields map[string]string
 }
 
+// DraftDocument is a working copy. PublishedVersion is checked independently
+// from the draft version so a concurrent publish cannot be silently replaced.
+type DraftDocument struct {
+	ID               string
+	Version          int64
+	PublishedVersion int64
+	State            PublicationState
+	UpdatedAt        time.Time
+	Fields           map[string]any
+	Exists           bool
+}
+
 // GeneratedAdminHandler renders the manifest's generated resources and sends
 // every read/write through the Edition's already-composed API handlers.
 type GeneratedAdminHandler struct {
@@ -89,7 +110,7 @@ func (h GeneratedAdminHandler) Register(mux *http.ServeMux) error {
 		return errors.New("generated Admin registration requires registry, API, authorization, CSRF and page renderer")
 	}
 	for _, collection := range h.Registry.Collections() {
-		if collection.Workflow != nil && (h.Options.CanTransition == nil || h.Options.Transition == nil) {
+		if collection.Workflow != nil && !collection.Drafts && (h.Options.CanTransition == nil || h.Options.Transition == nil) {
 			return errors.New("generated Admin workflow requires Edition-owned transition policy and service")
 		}
 		if collection.Revisions && (h.Options.ListRevisions == nil || h.Options.GetRevision == nil || h.Options.CanRestore == nil || h.Options.RestoreRevision == nil) {
@@ -97,6 +118,9 @@ func (h GeneratedAdminHandler) Register(mux *http.ServeMux) error {
 		}
 		if collection.Localization && (h.Options.Locales == nil || h.Options.GetLocalized == nil || h.Options.SaveLocalized == nil || h.Options.ListLocalized == nil || h.Options.CanCopyLocale == nil || h.Options.CopyLocale == nil) {
 			return errors.New("generated Admin localization requires Edition-owned locale access and storage services")
+		}
+		if collection.Drafts && (h.Options.ListDrafts == nil || h.Options.GetDraft == nil || h.Options.CanSaveDraft == nil || h.Options.SaveDraft == nil || h.Options.CanTransitionDraft == nil || h.Options.TransitionDraft == nil || h.Options.CanDiscardDraft == nil || h.Options.DiscardDraft == nil) {
+			return errors.New("generated Admin drafts require Edition-owned draft, publish, and discard services")
 		}
 	}
 	mux.Handle("/admin/resources", h)
@@ -148,12 +172,24 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		h.restoreRevision(w, r, collection, parts[1], parts[3])
 		return
 	}
+	if len(parts) == 2 && parts[1] == "drafts" && r.Method == http.MethodGet {
+		h.draftList(w, r, collection)
+		return
+	}
 	if len(parts) == 3 && parts[2] == "locale-copy" && r.Method == http.MethodPost {
 		h.copyLocale(w, r, collection, parts[1])
 		return
 	}
 	if len(parts) == 3 && parts[2] == "locale" && r.Method == http.MethodPost {
 		h.mutateLocale(w, r, collection, parts[1])
+		return
+	}
+	if len(parts) == 3 && parts[2] == "draft" && r.Method == http.MethodPost {
+		h.mutateDraft(w, r, collection, parts[1], false)
+		return
+	}
+	if len(parts) == 4 && parts[2] == "draft" && parts[3] == "discard" && r.Method == http.MethodPost {
+		h.discardDraft(w, r, collection, parts[1])
 		return
 	}
 	if len(parts) == 2 && parts[1] == "new" {
@@ -165,11 +201,19 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		case http.MethodGet:
 			h.renderForm(w, r, collection, "", nil, false)
 		case http.MethodPost:
-			h.mutate(w, r, collection, "", false)
+			if collection.Drafts {
+				h.mutateDraft(w, r, collection, "", true)
+			} else {
+				h.mutate(w, r, collection, "", false)
+			}
 		default:
 			w.Header().Set("Allow", "GET, POST")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+		return
+	}
+	if len(parts) == 3 && parts[1] == "new" && parts[2] == "draft" && r.Method == http.MethodPost {
+		h.mutateDraft(w, r, collection, "", true)
 		return
 	}
 	if len(parts) == 1 {
@@ -180,7 +224,7 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		h.list(w, r, collection)
 		return
 	}
-	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete" && parts[2] != "workflow" && parts[2] != "locale-copy" && parts[2] != "locale") || (len(parts) > 3 && parts[2] != "revisions") {
+	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete" && parts[2] != "workflow" && parts[2] != "locale-copy" && parts[2] != "locale" && parts[2] != "draft") || (len(parts) > 3 && parts[2] != "revisions") {
 		http.NotFound(w, r)
 		return
 	}
@@ -293,6 +337,24 @@ func (h GeneratedAdminHandler) currentResource(r *http.Request, collection Colle
 		}
 		record["locale_version"] = version
 	}
+	if collection.Drafts {
+		draft, err := h.Options.GetDraft(r, collection, id, state.Current)
+		if err != nil || draft.ID != "" && draft.ID != id || draft.Version < 0 || draft.PublishedVersion < 0 || draft.PublishedVersion > recordVersion(record["version"]) || draft.Exists && draft.Version < 1 || !draft.Exists && (draft.Version != 0 || len(draft.Fields) != 0) {
+			return nil, errors.New("draft is unavailable")
+		}
+		if draft.Exists && applyDraftFields(collection, record, draft.Fields, state.Current, state.Options.Default) != nil {
+			return nil, errors.New("draft fields are invalid")
+		}
+		if draft.Exists {
+			if !slices.Contains(collection.Workflow.States, draft.State) {
+				return nil, errors.New("draft state is invalid")
+			}
+			record[collection.Workflow.StateField] = string(draft.State)
+			record["draft_version"] = draft.Version
+		}
+		record["published_version"] = draft.PublishedVersion
+		record["_draft"] = draft
+	}
 	return record, nil
 }
 
@@ -334,6 +396,9 @@ func (h GeneratedAdminHandler) generatedCopyLocaleActions(ctx context.Context, o
 		return err
 	}
 	expected := generatedRecordVersion(record)
+	if collection.Localization {
+		expected = recordVersion(record["locale_version"])
+	}
 	for _, from := range localeState(r).Options.Allowed {
 		if from == localeState(r).Current || !h.Options.CanCopyLocale(r, collection, id, from) {
 			continue
@@ -465,7 +530,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		}
 		rows = append(rows, Row{ID: id, EditURL: editURL, Values: values, Actions: []Action{{Label: "Düzenle", Href: editURL}}})
 	}
-	body := templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
+	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		newURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/new"
 		if collection.Localization && localeState(r).Current == localeState(r).Options.Default {
 			newURL = localePath(newURL, localeState(r).Current)
@@ -477,6 +542,12 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		}
 		if newURL != "" {
 			if _, err := io.WriteString(out, `<a class="button" href="`+template.HTMLEscapeString(newURL)+`">Yeni kayıt</a>`); err != nil {
+				return err
+			}
+		}
+		if collection.Drafts {
+			draftsURL := localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/drafts", localeState(r).Current)
+			if err := ui.Link(ui.LinkProps{Href: draftsURL, Label: "Taslaklar", Class: "button"}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -700,14 +771,18 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 	}
 	apiPath := "/api/v1/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
 	response, status, err := h.callAPI(r, http.MethodGet, apiPath, nil)
-	if err != nil || status != http.StatusOK {
+	if err != nil || status != http.StatusOK && !(collection.Drafts && status == http.StatusNotFound) {
 		h.apiError(w)
 		return
 	}
-	var record map[string]any
-	if json.Unmarshal(response, &record) != nil {
-		h.apiError(w)
-		return
+	record := map[string]any{"id": id}
+	publishedVersion := int64(0)
+	if status == http.StatusOK {
+		if json.Unmarshal(response, &record) != nil {
+			h.apiError(w)
+			return
+		}
+		publishedVersion = generatedRecordVersion(record)
 	}
 	if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
 		values, version, err := h.Options.GetLocalized(r, collection, id, localeState(r).Current)
@@ -717,7 +792,57 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 		}
 		record["locale_version"] = version
 	}
+	if collection.Drafts {
+		draft, err := h.Options.GetDraft(r, collection, id, localeState(r).Current)
+		if err != nil || draft.ID != "" && draft.ID != id || draft.Version < 0 || draft.PublishedVersion < 0 || draft.PublishedVersion > publishedVersion || draft.Exists && draft.Version < 1 || !draft.Exists && (draft.Version != 0 || len(draft.Fields) != 0) {
+			h.apiError(w)
+			return
+		}
+		if draft.Exists && applyDraftFields(collection, record, draft.Fields, localeState(r).Current, localeState(r).Options.Default) != nil {
+			h.apiError(w)
+			return
+		}
+		state := draft.State
+		if state == "" {
+			state = collection.Workflow.States[0]
+		}
+		if !slices.Contains(collection.Workflow.States, state) {
+			h.apiError(w)
+			return
+		}
+		record[collection.Workflow.StateField] = string(state)
+		record["draft_state"] = string(state)
+		record["draft_version"] = draft.Version
+		record["published_version"] = draft.PublishedVersion
+		record["draft_exists"] = draft.Exists
+		record["draft_updated_at"] = draft.UpdatedAt
+		record["published_conflict"] = draft.Exists && draft.PublishedVersion != publishedVersion
+		record["_draft"] = draft
+	}
 	h.renderForm(w, r, collection, id, record, true)
+}
+
+func applyDraftFields(collection Collection, record, values map[string]any, locale, defaultLocale string) error {
+	encoded, err := json.Marshal(values)
+	if err != nil || len(encoded) > generatedAdminBodyLimit {
+		return errors.New("draft payload exceeds the resource limit")
+	}
+	allowed := make(map[string]struct{}, len(collection.Fields))
+	for _, field := range collection.Fields {
+		if !field.ReadOnly && (!collection.Localization || locale == defaultLocale || field.Localized) {
+			allowed[field.ID] = struct{}{}
+		}
+	}
+	if len(values) > len(allowed) {
+		return errors.New("draft field count exceeds the resource contract")
+	}
+	for field, value := range values {
+		if _, ok := allowed[field]; !ok {
+			return errors.New("draft field is outside the resource contract")
+		}
+		record[field] = value
+	}
+	return nil
 }
 
 func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request, collection Collection, id string, record map[string]any, editing bool) {
@@ -734,6 +859,10 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	}
 	if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
 		values["locale_version"] = displayValue(record["locale_version"])
+	}
+	if collection.Drafts {
+		values["draft_version"] = displayValue(record["draft_version"])
+		values["published_version"] = displayValue(record["published_version"])
 	}
 	var revisions []RevisionSummary
 	if editing && collection.Revisions {
@@ -771,7 +900,9 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	action := "/admin/resources/" + url.PathEscape(collection.ID)
 	if editing {
 		action += "/" + url.PathEscape(id)
-		if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
+		if collection.Drafts {
+			action += "/draft"
+		} else if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
 			action += "/locale"
 		}
 	} else {
@@ -796,11 +927,18 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 		}
 		localeInfo := localeState(r)
 		localizedEdit := collection.Localization && localeInfo.Current != localeInfo.Options.Default
-		props := ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit)}
+		draftEdit := collection.Drafts
+		saveAllowed := !draftEdit || h.Options.CanSaveDraft(r, collection, id, localeInfo.Current) && record["published_conflict"] != true
+		if draftEdit && record["published_conflict"] == true {
+			if _, err := io.WriteString(out, `<p role="alert">Yayımlanmış kayıt değişmiş. Taslağı kaydetmek için yeniden yükleyin.</p>`); err != nil {
+				return err
+			}
+		}
+		props := ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed)}
 		if err := ui.Form(props).Render(ctx, out); err != nil {
 			return err
 		}
-		if editing && collection.Type != "global" && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
+		if editing && !collection.Drafts && collection.Type != "global" && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
 			deleteAction := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/delete"
 			if collection.Localization {
 				deleteAction = localePath(deleteAction, localeState(r).Current)
@@ -809,7 +947,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 				return err
 			}
 		}
-		if editing && collection.Workflow != nil && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
+		if editing && collection.Workflow != nil && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default || collection.Drafts) {
 			if err := h.generatedWorkflowActions(ctx, out, r, collection, id, record); err != nil {
 				return err
 			}
@@ -820,7 +958,12 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 			}
 		}
 		if editing && collection.Localization {
-			return h.generatedCopyLocaleActions(ctx, out, r, collection, id, record)
+			if err := h.generatedCopyLocaleActions(ctx, out, r, collection, id, record); err != nil {
+				return err
+			}
+		}
+		if editing && collection.Drafts && record["draft_exists"] == true {
+			return h.generatedDiscardDraft(ctx, out, r, collection, id, record)
 		}
 		return nil
 	})
@@ -909,12 +1052,26 @@ func relationIDs(value any) []string {
 func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
 	current := PublicationState(displayValue(record[collection.Workflow.StateField]))
 	expectedVersion := generatedRecordVersion(record)
+	draft := draftForRecord(collection, id, record)
+	if collection.Drafts {
+		current = draft.State
+		expectedVersion = draft.Version
+		if !draft.Exists {
+			return nil
+		}
+	}
 	if !slices.Contains(collection.Workflow.States, current) || current == "" || expectedVersion < 1 {
 		return nil
 	}
 	allowedTargets := make([]PublicationState, 0, len(collection.Workflow.Transitions[current]))
 	for _, target := range collection.Workflow.Transitions[current] {
-		if h.Options.CanTransition(r, collection, record, target) {
+		allowed := false
+		if collection.Drafts {
+			allowed = h.Options.CanTransitionDraft(r, collection, draft, target)
+		} else {
+			allowed = h.Options.CanTransition(r, collection, record, target)
+		}
+		if allowed {
 			allowedTargets = append(allowedTargets, target)
 		}
 	}
@@ -929,8 +1086,17 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "target", Value: string(target)}).Render(ctx, form); err != nil {
 				return err
 			}
-			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expectedVersion, 10)}).Render(ctx, form); err != nil {
+			versionName := "expected_version"
+			if collection.Drafts {
+				versionName = "expected_draft_version"
+			}
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: versionName, Value: strconv.FormatInt(expectedVersion, 10)}).Render(ctx, form); err != nil {
 				return err
+			}
+			if collection.Drafts {
+				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_published_version", Value: strconv.FormatInt(draft.PublishedVersion, 10)}).Render(ctx, form); err != nil {
+					return err
+				}
 			}
 			return ui.Button(ui.ButtonProps{Type: "submit", Label: workflowActionLabel(target), Variant: ui.Primary}).Render(ctx, form)
 		})
@@ -941,6 +1107,31 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 	}
 	_, err := io.WriteString(out, `</div></section>`)
 	return err
+}
+
+func draftForRecord(collection Collection, id string, record map[string]any) DraftDocument {
+	if draft, ok := record["_draft"].(DraftDocument); ok {
+		return draft
+	}
+	return DraftDocument{ID: id, Version: recordVersion(record["draft_version"]), PublishedVersion: recordVersion(record["published_version"]), State: PublicationState(displayValue(record[collection.Workflow.StateField])), Exists: record["draft_exists"] == true}
+}
+
+func (h GeneratedAdminHandler) generatedDiscardDraft(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
+	draft := draftForRecord(collection, id, record)
+	if !draft.Exists || !h.Options.CanDiscardDraft(r, collection, draft) {
+		return nil
+	}
+	body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+		if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(draft.Version, 10)}).Render(ctx, form); err != nil {
+			return err
+		}
+		return ui.Button(ui.ButtonProps{Type: "submit", Label: "Taslağı sil", Variant: ui.Danger}).Render(ctx, form)
+	})
+	action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/draft/discard"
+	if collection.Localization {
+		action = localePath(action, localeState(r).Current)
+	}
+	return ui.Form(ui.FormProps{Action: action, Method: http.MethodPost, CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out)
 }
 
 func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any, revisions []RevisionSummary) error {
@@ -1269,6 +1460,217 @@ func (h GeneratedAdminHandler) mutateLocale(w http.ResponseWriter, r *http.Reque
 	http.Redirect(w, r, localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), localeState(r).Current), http.StatusSeeOther)
 }
 
+func (h GeneratedAdminHandler) mutateDraft(w http.ResponseWriter, r *http.Request, collection Collection, id string, creating bool) {
+	if !collection.Drafts {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, generatedAdminBodyLimit)
+	if !h.Options.ValidateCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	if creating {
+		id = strings.TrimSpace(r.PostFormValue("id"))
+	}
+	if !draftIDPattern.MatchString(id) {
+		http.Error(w, "invalid document id", http.StatusBadRequest)
+		return
+	}
+	draftVersions, publishedVersions := r.PostForm["draft_version"], r.PostForm["published_version"]
+	if len(draftVersions) != 1 || len(publishedVersions) != 1 {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	expectedDraft, err := strconv.ParseInt(draftVersions[0], 10, 64)
+	if err != nil || expectedDraft < 0 {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	expectedPublished, err := strconv.ParseInt(publishedVersions[0], 10, 64)
+	if err != nil || expectedPublished < 0 {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	fields := make(map[string]any, len(collection.Fields))
+	allowed := map[string]struct{}{"_csrf": {}, "draft_version": {}, "published_version": {}}
+	if creating {
+		allowed["id"] = struct{}{}
+	}
+	for _, field := range collection.Fields {
+		if collection.Workflow != nil && field.ID == collection.Workflow.StateField {
+			allowed[field.ID] = struct{}{}
+			continue
+		}
+		if field.ReadOnly {
+			continue
+		}
+		if collection.Localization && localeState(r).Current != localeState(r).Options.Default && !field.Localized {
+			continue
+		}
+		allowed[field.ID] = struct{}{}
+		values, exists := r.PostForm[field.ID]
+		if !exists {
+			continue
+		}
+		value, err := parseAdminField(field, values)
+		if err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		fields[field.ID] = value
+	}
+	if creating {
+		fields[collection.Workflow.StateField] = string(collection.Workflow.States[0])
+	}
+	for key, values := range r.PostForm {
+		if _, ok := allowed[key]; !ok || len(values) != 1 {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+	}
+	if !h.Options.CanSaveDraft(r, collection, id, localeState(r).Current) {
+		http.Error(w, "draft editing unavailable", http.StatusForbidden)
+		return
+	}
+	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
+	publishedVersion := int64(0)
+	if err != nil || status == http.StatusOK && func() bool {
+		var published map[string]any
+		if json.Unmarshal(response, &published) != nil {
+			return true
+		}
+		publishedVersion = generatedRecordVersion(published)
+		return false
+	}() || status != http.StatusOK && status != http.StatusNotFound {
+		h.apiError(w)
+		return
+	}
+	if publishedVersion != expectedPublished || creating && publishedVersion != 0 {
+		http.Error(w, "published document changed; reload before saving", http.StatusConflict)
+		return
+	}
+	if err := h.Options.SaveDraft(r, collection, id, localeState(r).Current, fields, expectedDraft, expectedPublished); err != nil {
+		http.Error(w, "draft could not be saved", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), localeState(r).Current), http.StatusSeeOther)
+}
+
+func (h GeneratedAdminHandler) discardDraft(w http.ResponseWriter, r *http.Request, collection Collection, id string) {
+	if !collection.Drafts {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	if !h.Options.ValidateCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil || len(r.PostForm) != 2 || len(r.PostForm["expected_version"]) != 1 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	expected, err := strconv.ParseInt(r.PostFormValue("expected_version"), 10, 64)
+	if err != nil || expected < 1 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	draft, err := h.Options.GetDraft(r, collection, id, localeState(r).Current)
+	if err != nil || !draft.Exists || draft.ID != id || draft.Version != expected {
+		http.Error(w, "draft changed; reload before discarding", http.StatusConflict)
+		return
+	}
+	if !h.Options.CanDiscardDraft(r, collection, draft) {
+		http.Error(w, "draft discard unavailable", http.StatusForbidden)
+		return
+	}
+	if err := h.Options.DiscardDraft(r, collection, id, localeState(r).Current, expected); err != nil {
+		http.Error(w, "draft discard unavailable", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/drafts", localeState(r).Current), http.StatusSeeOther)
+}
+
+func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request, collection Collection) {
+	if !collection.Drafts {
+		http.NotFound(w, r)
+		return
+	}
+	drafts, err := h.Options.ListDrafts(r, collection, localeState(r).Current, 50)
+	if err != nil || len(drafts) > 50 {
+		h.apiError(w)
+		return
+	}
+	seen := make(map[string]struct{}, len(drafts))
+	for _, draft := range drafts {
+		if !draftIDPattern.MatchString(draft.ID) || draft.Version < 1 || draft.PublishedVersion < 0 || !draft.Exists || !slices.Contains(collection.Workflow.States, draft.State) {
+			h.apiError(w)
+			return
+		}
+		if _, exists := seen[draft.ID]; exists {
+			h.apiError(w)
+			return
+		}
+		seen[draft.ID] = struct{}{}
+		state := localeState(r)
+		if applyDraftFields(collection, map[string]any{}, draft.Fields, state.Current, state.Options.Default) != nil {
+			h.apiError(w)
+			return
+		}
+	}
+	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		if err := h.generatedLocaleNav(ctx, out, r, collection, ""); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, `<section class="studio-card"><h1>Taslaklar · `+template.HTMLEscapeString(collection.Label)+`</h1>`); err != nil {
+			return err
+		}
+		if len(drafts) == 0 {
+			_, err := io.WriteString(out, `<p role="status">Açık taslak yok.</p></section>`)
+			return err
+		}
+		if _, err := io.WriteString(out, `<ul class="draft-list">`); err != nil {
+			return err
+		}
+		for _, draft := range drafts {
+			label := displayValue(draft.Fields[collection.TitleField])
+			if label == "" {
+				label = draft.ID
+			}
+			action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(draft.ID)
+			linkBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+				if collection.Localization {
+					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
+						return err
+					}
+				}
+				return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
+			})
+			if _, err := io.WriteString(out, `<li>`); err != nil {
+				return err
+			}
+			if err := ui.Form(ui.FormProps{Action: action, Method: http.MethodGet, Body: linkBody}).Render(ctx, out); err != nil {
+				return err
+			}
+			meta := "Sürüm " + strconv.FormatInt(draft.Version, 10) + " · " + string(draft.State)
+			if !draft.UpdatedAt.IsZero() {
+				meta += " · " + draft.UpdatedAt.Local().Format("02.01.2006 15:04")
+			}
+			if _, err := io.WriteString(out, `<p>`+template.HTMLEscapeString(meta)+`</p></li>`); err != nil {
+				return err
+			}
+		}
+		_, err := io.WriteString(out, `</ul></section>`)
+		return err
+	})
+	h.renderPage(w, r, "Taslaklar · "+collection.Label, body)
+}
+
 func workflowActionLabel(state PublicationState) string {
 	switch state {
 	case StateDraft:
@@ -1285,7 +1687,7 @@ func workflowActionLabel(state PublicationState) string {
 }
 
 func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request, collection Collection, id string) {
-	if collection.Workflow == nil || h.Options.Transition == nil || h.Options.CanTransition == nil || collection.Localization && localeState(r).Current != localeState(r).Options.Default {
+	if collection.Workflow == nil || collection.Drafts && (h.Options.TransitionDraft == nil || h.Options.CanTransitionDraft == nil) || !collection.Drafts && (h.Options.Transition == nil || h.Options.CanTransition == nil) || collection.Localization && !collection.Drafts && localeState(r).Current != localeState(r).Options.Default {
 		http.NotFound(w, r)
 		return
 	}
@@ -1294,7 +1696,11 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid request", http.StatusForbidden)
 		return
 	}
-	if err := r.ParseForm(); err != nil || len(r.PostForm) != 3 || len(r.PostForm["target"]) != 1 || len(r.PostForm["expected_version"]) != 1 {
+	versionKey, expectedFields := "expected_version", 3
+	if collection.Drafts {
+		versionKey, expectedFields = "expected_draft_version", 4
+	}
+	if err := r.ParseForm(); err != nil || len(r.PostForm) != expectedFields || len(r.PostForm["target"]) != 1 || len(r.PostForm[versionKey]) != 1 || collection.Drafts && len(r.PostForm["expected_published_version"]) != 1 {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
@@ -1313,17 +1719,36 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 		h.apiError(w)
 		return
 	}
-	expectedVersion, err := strconv.ParseInt(r.PostFormValue("expected_version"), 10, 64)
-	if err != nil || expectedVersion < 1 || generatedRecordVersion(record) != expectedVersion {
+	expectedVersion, err := strconv.ParseInt(r.PostFormValue(versionKey), 10, 64)
+	if err != nil || expectedVersion < 1 {
 		http.Error(w, "document changed; reload before transitioning", http.StatusConflict)
 		return
 	}
 	current := PublicationState(displayValue(record[collection.Workflow.StateField]))
-	if current == target || !collection.Workflow.CanTransition(current, target) || !h.Options.CanTransition(r, collection, record, target) {
+	if collection.Drafts {
+		draft, err := h.Options.GetDraft(r, collection, id, localeState(r).Current)
+		publishedVersion := generatedRecordVersion(record)
+		expectedPublished, parseErr := strconv.ParseInt(r.PostFormValue("expected_published_version"), 10, 64)
+		if err != nil || parseErr != nil || !draft.Exists || draft.ID != id || draft.Version != expectedVersion || draft.PublishedVersion != expectedPublished || publishedVersion != expectedPublished {
+			http.Error(w, "draft or published document changed; reload before transitioning", http.StatusConflict)
+			return
+		}
+		current = draft.State
+		if current == target || !collection.Workflow.CanTransition(current, target) || !h.Options.CanTransitionDraft(r, collection, draft, target) {
+			http.Error(w, "transition unavailable", http.StatusForbidden)
+			return
+		}
+		if err := h.Options.TransitionDraft(r, collection, id, localeState(r).Current, target, expectedVersion, expectedPublished); err != nil {
+			http.Error(w, "transition unavailable", http.StatusConflict)
+			return
+		}
+	} else if generatedRecordVersion(record) != expectedVersion {
+		http.Error(w, "document changed; reload before transitioning", http.StatusConflict)
+		return
+	} else if current == target || !collection.Workflow.CanTransition(current, target) || !h.Options.CanTransition(r, collection, record, target) {
 		http.Error(w, "transition unavailable", http.StatusForbidden)
 		return
-	}
-	if err := h.Options.Transition(r, collection, record, target, expectedVersion); err != nil {
+	} else if err := h.Options.Transition(r, collection, record, target, expectedVersion); err != nil {
 		http.Error(w, "transition unavailable", http.StatusConflict)
 		return
 	}
@@ -1335,6 +1760,9 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 }
 
 func generatedRecordVersion(record map[string]any) int64 {
+	if value, ok := record["draft_version"]; ok {
+		return recordVersion(value)
+	}
 	if value, ok := record["locale_version"]; ok {
 		return recordVersion(value)
 	}
@@ -1358,15 +1786,23 @@ func recordVersion(value any) int64 {
 	return 0
 }
 
-func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool, locale, defaultLocale string, localizedEdit bool) templ.Component {
+func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool, locale, defaultLocale string, localizedEdit, draftEdit, saveAllowed bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if editing && collection.Versioned && !localizedEdit {
+		if editing && collection.Versioned && !localizedEdit && !draftEdit {
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "version", Value: values["version"]}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
-		if editing && localizedEdit {
+		if editing && localizedEdit && !draftEdit {
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale_version", Value: values["locale_version"]}).Render(ctx, out); err != nil {
+				return err
+			}
+		}
+		if draftEdit {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "draft_version", Value: values["draft_version"]}).Render(ctx, out); err != nil {
+				return err
+			}
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "published_version", Value: values["published_version"]}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -1435,7 +1871,11 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				return err
 			}
 		}
-		return ui.Button(ui.ButtonProps{Type: "submit", Label: "Kaydet", Variant: ui.Primary}).Render(ctx, out)
+		label := "Kaydet"
+		if draftEdit {
+			label = "Taslağı kaydet"
+		}
+		return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Primary, Disabled: !saveAllowed}).Render(ctx, out)
 	})
 }
 
