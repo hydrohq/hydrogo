@@ -66,18 +66,19 @@ type Action struct {
 // Collection is presentation metadata only. Mutations must still go through
 // the module application service and its authorization policy.
 type Collection struct {
-	ID          string   `json:"id"`
-	Type        string   `json:"type,omitempty"`
-	Label       string   `json:"label"`
-	Description string   `json:"description"`
-	Group       string   `json:"group,omitempty"`
-	Icon        string   `json:"icon,omitempty"`
-	Hidden      bool     `json:"hidden,omitempty"`
-	TitleField  string   `json:"title_field,omitempty"`
-	Fields      []Field  `json:"fields"`
-	Actions     []Action `json:"actions"`
-	BulkActions []Action `json:"bulk_actions,omitempty"`
-	Kits        []Kit    `json:"kits,omitempty"`
+	ID          string    `json:"id"`
+	Type        string    `json:"type,omitempty"`
+	Label       string    `json:"label"`
+	Description string    `json:"description"`
+	Group       string    `json:"group,omitempty"`
+	Icon        string    `json:"icon,omitempty"`
+	Hidden      bool      `json:"hidden,omitempty"`
+	TitleField  string    `json:"title_field,omitempty"`
+	Workflow    *Workflow `json:"workflow,omitempty"`
+	Fields      []Field   `json:"fields"`
+	Actions     []Action  `json:"actions"`
+	BulkActions []Action  `json:"bulk_actions,omitempty"`
+	Kits        []Kit     `json:"kits,omitempty"`
 }
 
 type Registry struct {
@@ -158,6 +159,34 @@ func validateCollection(collection Collection) error {
 	if !titleFieldFound {
 		return ErrInvalidCollection
 	}
+	if collection.Workflow != nil {
+		workflow := collection.Workflow
+		if workflow.StateField == "" || workflow.Validate() != nil {
+			return ErrInvalidCollection
+		}
+		stateField, found := func() (Field, bool) {
+			for _, field := range collection.Fields {
+				if field.ID == workflow.StateField {
+					return field, true
+				}
+			}
+			return Field{}, false
+		}()
+		if !found || (stateField.Kind != FieldStatus && stateField.Kind != FieldSelect && stateField.Widget != "select") {
+			return ErrInvalidCollection
+		}
+		if len(stateField.Options) > 0 {
+			allowed := make(map[string]struct{}, len(stateField.Options))
+			for _, option := range stateField.Options {
+				allowed[option] = struct{}{}
+			}
+			for _, state := range workflow.States {
+				if _, ok := allowed[string(state)]; !ok {
+					return ErrInvalidCollection
+				}
+			}
+		}
+	}
 	if err := ValidateKits(collection.Kits); err != nil {
 		return ErrInvalidCollection
 	}
@@ -193,5 +222,14 @@ func cloneCollection(collection Collection) Collection {
 	clone.Actions = append([]Action(nil), collection.Actions...)
 	clone.BulkActions = append([]Action(nil), collection.BulkActions...)
 	clone.Kits = append([]Kit(nil), collection.Kits...)
+	if collection.Workflow != nil {
+		workflow := *collection.Workflow
+		workflow.States = append([]PublicationState(nil), collection.Workflow.States...)
+		workflow.Transitions = make(map[PublicationState][]PublicationState, len(collection.Workflow.Transitions))
+		for from, to := range collection.Workflow.Transitions {
+			workflow.Transitions[from] = append([]PublicationState(nil), to...)
+		}
+		clone.Workflow = &workflow
+	}
 	return clone
 }

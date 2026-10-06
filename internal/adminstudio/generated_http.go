@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,8 @@ type GeneratedAdminOptions struct {
 	API             http.Handler
 	Authorize       func(*http.Request) bool
 	CanReadResource func(*http.Request, Collection) bool
+	CanTransition   func(*http.Request, Collection, map[string]any, PublicationState) bool
+	Transition      func(*http.Request, Collection, map[string]any, PublicationState) error
 	CSRFToken       func(*http.Request) string
 	ValidateCSRF    func(*http.Request) bool
 	RenderPage      func(http.ResponseWriter, *http.Request, string, templ.Component) error
@@ -42,6 +45,11 @@ type GeneratedAdminHandler struct {
 func (h GeneratedAdminHandler) Register(mux *http.ServeMux) error {
 	if mux == nil || h.Options.API == nil || h.Options.Authorize == nil || h.Options.CanReadResource == nil || h.Options.CSRFToken == nil || h.Options.ValidateCSRF == nil || h.Options.RenderPage == nil || len(h.Registry.Collections()) == 0 {
 		return errors.New("generated Admin registration requires registry, API, authorization, CSRF and page renderer")
+	}
+	for _, collection := range h.Registry.Collections() {
+		if collection.Workflow != nil && (h.Options.CanTransition == nil || h.Options.Transition == nil) {
+			return errors.New("generated Admin workflow requires Edition-owned transition policy and service")
+		}
 	}
 	mux.Handle("/admin/resources", h)
 	mux.Handle("/admin/resources/", h)
@@ -93,7 +101,7 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		h.list(w, r, collection)
 		return
 	}
-	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete") {
+	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete" && parts[2] != "workflow") {
 		http.NotFound(w, r)
 		return
 	}
@@ -102,6 +110,10 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if r.Method == http.MethodPost {
+		if len(parts) == 3 && parts[2] == "workflow" {
+			h.transition(w, r, collection, parts[1])
+			return
+		}
 		h.mutate(w, r, collection, parts[1], len(parts) == 3)
 		return
 	}
@@ -407,7 +419,12 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 			return err
 		}
 		if editing && collection.Type != "global" {
-			return ui.Form(ui.FormProps{Action: action + "/delete", Method: "post", CSRF: h.Options.CSRFToken(r), Body: ui.Button(ui.ButtonProps{Type: "submit", Label: "Sil", Variant: ui.Danger})}).Render(ctx, out)
+			if err := ui.Form(ui.FormProps{Action: action + "/delete", Method: "post", CSRF: h.Options.CSRFToken(r), Body: ui.Button(ui.ButtonProps{Type: "submit", Label: "Sil", Variant: ui.Danger})}).Render(ctx, out); err != nil {
+				return err
+			}
+		}
+		if editing && collection.Workflow != nil {
+			return h.generatedWorkflowActions(ctx, out, r, collection, id, record)
 		}
 		return nil
 	})
@@ -418,6 +435,95 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	h.renderPage(w, r, title, body)
 }
 
+func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
+	current := PublicationState(displayValue(record[collection.Workflow.StateField]))
+	if !slices.Contains(collection.Workflow.States, current) || current == "" {
+		return nil
+	}
+	allowedTargets := make([]PublicationState, 0, len(collection.Workflow.Transitions[current]))
+	for _, target := range collection.Workflow.Transitions[current] {
+		if h.Options.CanTransition(r, collection, record, target) {
+			allowedTargets = append(allowedTargets, target)
+		}
+	}
+	if len(allowedTargets) == 0 {
+		return nil
+	}
+	if _, err := io.WriteString(out, `<section class="studio-card" aria-labelledby="generated-workflow-heading"><h2 id="generated-workflow-heading">Yayın akışı</h2><div class="studio-actions">`); err != nil {
+		return err
+	}
+	for _, target := range allowedTargets {
+		body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "target", Value: string(target)}).Render(ctx, form); err != nil {
+				return err
+			}
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: workflowActionLabel(target), Variant: ui.Primary}).Render(ctx, form)
+		})
+		action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/workflow"
+		if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, `</div></section>`)
+	return err
+}
+
+func workflowActionLabel(state PublicationState) string {
+	switch state {
+	case StateDraft:
+		return "Taslağa al"
+	case StateScheduled:
+		return "Yayını planla"
+	case StatePublished:
+		return "Yayımla"
+	case StateRetracted:
+		return "Yayından kaldır"
+	default:
+		return "Durumu değiştir: " + string(state)
+	}
+}
+
+func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request, collection Collection, id string) {
+	if collection.Workflow == nil || h.Options.Transition == nil || h.Options.CanTransition == nil {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	if !h.Options.ValidateCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil || len(r.Form) != 2 || len(r.Form["target"]) != 1 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	target := PublicationState(r.FormValue("target"))
+	if !slices.Contains(collection.Workflow.States, target) {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
+	if err != nil || status != http.StatusOK {
+		h.apiError(w)
+		return
+	}
+	var record map[string]any
+	if json.Unmarshal(response, &record) != nil {
+		h.apiError(w)
+		return
+	}
+	current := PublicationState(displayValue(record[collection.Workflow.StateField]))
+	if current == target || !collection.Workflow.CanTransition(current, target) || !h.Options.CanTransition(r, collection, record, target) {
+		http.Error(w, "transition unavailable", http.StatusForbidden)
+		return
+	}
+	if err := h.Options.Transition(r, collection, record, target); err != nil {
+		http.Error(w, "transition unavailable", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, "/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), http.StatusSeeOther)
+}
+
 func generatedFormFields(collection Collection, values map[string]string, id string, editing bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if !editing && collection.Type != "global" {
@@ -426,6 +532,16 @@ func generatedFormFields(collection Collection, values map[string]string, id str
 			}
 		}
 		for _, field := range collection.Fields {
+			if collection.Workflow != nil && field.ID == collection.Workflow.StateField {
+				value := values[field.ID]
+				if value == "" && !editing {
+					value = string(collection.Workflow.States[0])
+				}
+				if err := ui.Input(ui.InputProps{ID: field.ID, Name: field.ID, Label: field.Label, Type: "text", Value: value, ReadOnly: true}).Render(ctx, out); err != nil {
+					return err
+				}
+				continue
+			}
 			if field.ReadOnly {
 				continue
 			}
@@ -467,6 +583,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		method = http.MethodDelete
 		path += "/" + url.PathEscape(id)
 	} else {
+		creating := strings.HasSuffix(r.URL.Path, "/new")
 		data := make(map[string]any, len(collection.Fields)+1)
 		if id == "" {
 			id = r.FormValue("id")
@@ -478,7 +595,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 			data["id"] = id
 		}
 		for _, field := range collection.Fields {
-			if field.ReadOnly {
+			if field.ReadOnly || (collection.Workflow != nil && field.ID == collection.Workflow.StateField) {
 				continue
 			}
 			values, exists := r.Form[field.ID]
@@ -495,7 +612,18 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 			}
 			data[field.ID] = value
 		}
-		if id != "" && !strings.HasSuffix(r.URL.Path, "/new") {
+		if collection.Workflow != nil && creating {
+			data[collection.Workflow.StateField] = string(collection.Workflow.States[0])
+		} else if collection.Workflow != nil {
+			current, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
+			var record map[string]any
+			if err != nil || status != http.StatusOK || json.Unmarshal(current, &record) != nil {
+				h.apiError(w)
+				return
+			}
+			data[collection.Workflow.StateField] = record[collection.Workflow.StateField]
+		}
+		if id != "" && !creating {
 			method = http.MethodPut
 			path += "/" + url.PathEscape(id)
 		}
