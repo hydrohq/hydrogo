@@ -3,7 +3,15 @@
   "type": "collection",
   "label": "Article",
   "description": "",
+  "group": "content",
   "fields": [
+    {
+      "id": "title",
+      "label": "Title",
+      "kind": "text",
+      "required": true,
+      "visible_in_list": false
+    },
     {
       "id": "slug",
       "label": "Slug",
@@ -23,13 +31,6 @@
         "published",
         "archived"
       ]
-    },
-    {
-      "id": "title",
-      "label": "Title",
-      "kind": "text",
-      "required": true,
-      "visible_in_list": false
     }
   ],
   "actions": [

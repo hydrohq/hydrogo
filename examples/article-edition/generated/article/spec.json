@@ -68,6 +68,8 @@
       "description": "",
       "icon": "",
       "group": "",
+      "hidden": false,
+      "use_as_title": "",
       "actions": null,
       "bulk_actions": null
     }
