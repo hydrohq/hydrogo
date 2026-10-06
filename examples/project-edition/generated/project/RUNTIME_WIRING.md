@@ -15,8 +15,10 @@ dependencies.
   keep authentication, authorization and request limits in the outer stack.
 
 
-- [ ] Bind the generated form/table/admin manifest to the authenticated admin
-  surface; add CSRF, validation, error and empty-state handling.
+- [ ] Call the Edition's shared generated-resource Admin handler once with
+  generated.AdminRegistry, the composed API handler, authenticated-admin
+  authorization, the Edition CSRF boundary and its typed page renderer. The
+  registry adds every generated resource to the shared list/form surface.
 - [ ] Apply the migration through the module migration registry for every
   declared dialect: postgres, sqlite.
 

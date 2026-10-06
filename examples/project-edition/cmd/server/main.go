@@ -88,7 +88,7 @@ func serve(args []string) error {
 	}
 	defer db.Close()
 	mux := http.NewServeMux()
-	mux.Handle("/api/v1/project/", custom.NewHandler(db, *dialect))
+	mux.Handle("/", custom.NewHandler(db, *dialect))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	server := &http.Server{Addr: *address, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

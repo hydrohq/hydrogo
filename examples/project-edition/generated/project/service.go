@@ -32,6 +32,12 @@ func (s ProjectService) Create(ctx context.Context, item Project) error {
 	return s.Repository.Create(ctx, item)
 }
 
+// CreateWithPresence applies Blueprint defaults only to omitted JSON fields.
+func (s ProjectService) CreateWithPresence(ctx context.Context, item Project, present map[string]bool) error {
+	item.ApplyCreateDefaults(present)
+	return s.Create(ctx, item)
+}
+
 func (s ProjectService) Update(ctx context.Context, item Project) error {
 	item.normalize()
 	if err := item.Validate(); err != nil {

@@ -1,0 +1,46 @@
+{
+  "version": "v1",
+  "resources": [
+    {
+      "id": "project",
+      "type": "collection",
+      "label": "Project",
+      "description": "",
+      "fields": [
+        {
+          "id": "project_code",
+          "label": "ProjectCode",
+          "kind": "text",
+          "required": true,
+          "visible_in_list": false
+        },
+        {
+          "id": "status",
+          "label": "Status",
+          "kind": "text",
+          "widget": "select",
+          "required": true,
+          "visible_in_list": false,
+          "options": [
+            "draft",
+            "active",
+            "completed"
+          ]
+        },
+        {
+          "id": "title",
+          "label": "Title",
+          "kind": "text",
+          "required": true,
+          "visible_in_list": true
+        }
+      ],
+      "actions": [
+        {
+          "label": "Open Project",
+          "href": "/admin/project"
+        }
+      ]
+    }
+  ]
+}

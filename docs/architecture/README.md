@@ -420,3 +420,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0317: Custom public 404 and 500 pages](0317-custom-public-error-pages.md)
 - [ADR-0335: Admin "Nova" theme mode and family selector](0335-admin-nova-theme-mode.md)
 - [ADR-0336: Dev-mode license bypass for local-only verification](0336-dev-mode-license-bypass.md)
+- [ADR-0345: Generated resource Admin Studio activation](0345-generated-resource-admin-activation.md) — Accepted
