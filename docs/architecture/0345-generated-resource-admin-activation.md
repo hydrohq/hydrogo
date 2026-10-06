@@ -1,9 +1,9 @@
 # ADR-0345: Generated resource Admin Studio activation
 
-- **Status:** Accepted
+- **Status:** Superseded
 - **Date:** 2026-10-07
 - **Supersedes:** None
-- **Superseded by:** None
+- **Superseded by:** [ADR-0346](0346-blueprint-admin-studio-workflows.md)
 - **Related decisions:** [ADR-0210](0210-blueprint-scaffold-boundary.md), [ADR-0211](0211-declarative-module-resource-contract.md), [ADR-0223](0223-generated-admin-ui-and-publishing-preview.md), [ADR-0234](0234-generated-admin-view-metadata.md), [ADR-0240](0240-generated-route-composition.md)
 
 ## Context
