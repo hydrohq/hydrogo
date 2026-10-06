@@ -4,6 +4,10 @@ Bu belge, planlanan işlerle gerçekten teslim edilmiş işleri ayırır. Bir ö
 burada “tamamlandı” olması, kodun repoda bulunması ve yerel testinin geçmesi
 anlamına gelir; production hazır olduğu anlamına gelmez.
 
+Blueprint Admin Studio'nun müşteri deneyimi, Super Admin sınırı, otomatik
+aktivasyon ve doğrulama boşlukları için güncel denetim ve aşamalı teslim planı:
+[`docs/planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md`](planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md).
+
 ## Tamamlanan ve doğrulanan parçalar
 
 | Alan | Durum | Nasıl kullanılır? | Kanıt |
