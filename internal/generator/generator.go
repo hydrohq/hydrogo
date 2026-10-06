@@ -93,6 +93,8 @@ type Admin struct {
 	Description string               `json:"description" yaml:"description"`
 	Icon        string               `json:"icon" yaml:"icon"`
 	Group       string               `json:"group" yaml:"group"`
+	Hidden      bool                 `json:"hidden" yaml:"hidden"`
+	UseAsTitle  string               `json:"use_as_title" yaml:"use_as_title"`
 	Actions     []adminstudio.Action `json:"actions" yaml:"actions"`
 	BulkActions []adminstudio.Action `json:"bulk_actions" yaml:"bulk_actions"`
 }
@@ -347,7 +349,24 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		return adminstudio.Collection{}, err
 	}
 	bulkActions := append([]adminstudio.Action(nil), spec.Admin.BulkActions...)
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
+	titleField := strings.TrimSpace(spec.Admin.UseAsTitle)
+	if titleField != "" {
+		found := false
+		for _, field := range spec.Fields {
+			if field.Name == titleField && !field.Admin.ReadOnly {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return adminstudio.Collection{}, ErrInvalidSpec
+		}
+	}
+	group := strings.TrimSpace(spec.Admin.Group)
+	if group == "" {
+		group = "content"
+	}
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Group: group, Icon: spec.Admin.Icon, Hidden: spec.Admin.Hidden, TitleField: titleField, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}

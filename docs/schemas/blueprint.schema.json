@@ -83,6 +83,8 @@
         "description": { "type": "string", "maxLength": 500 },
         "icon": { "type": "string", "pattern": "^[a-z][a-z0-9._:-]{0,63}$" },
         "group": { "type": "string", "pattern": "^[a-z][a-z0-9._:-]{0,63}$" },
+        "hidden": { "type": "boolean", "default": false },
+        "use_as_title": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
         "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
         "bulk_actions": { "type": "array", "items": { "$ref": "#/$defs/action" } }
       }

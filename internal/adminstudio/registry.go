@@ -70,6 +70,10 @@ type Collection struct {
 	Type        string   `json:"type,omitempty"`
 	Label       string   `json:"label"`
 	Description string   `json:"description"`
+	Group       string   `json:"group,omitempty"`
+	Icon        string   `json:"icon,omitempty"`
+	Hidden      bool     `json:"hidden,omitempty"`
+	TitleField  string   `json:"title_field,omitempty"`
 	Fields      []Field  `json:"fields"`
 	Actions     []Action `json:"actions"`
 	BulkActions []Action `json:"bulk_actions,omitempty"`
@@ -125,6 +129,7 @@ func validateCollection(collection Collection) error {
 	}
 	seenFields := make(map[string]struct{}, len(collection.Fields))
 	fieldRegistry := NewFieldRegistry()
+	titleFieldFound := collection.TitleField == ""
 	for _, field := range collection.Fields {
 		if strings.TrimSpace(field.ID) == "" || strings.TrimSpace(field.Label) == "" || !fieldRegistry.Supports(field.Kind) {
 			return ErrInvalidCollection
@@ -136,6 +141,9 @@ func validateCollection(collection Collection) error {
 			return ErrInvalidCollection
 		}
 		seenFields[field.ID] = struct{}{}
+		if field.ID == collection.TitleField {
+			titleFieldFound = true
+		}
 		seenOptions := make(map[string]struct{}, len(field.Options))
 		for _, option := range field.Options {
 			if strings.TrimSpace(option) == "" {
@@ -146,6 +154,9 @@ func validateCollection(collection Collection) error {
 			}
 			seenOptions[option] = struct{}{}
 		}
+	}
+	if !titleFieldFound {
+		return ErrInvalidCollection
 	}
 	if err := ValidateKits(collection.Kits); err != nil {
 		return ErrInvalidCollection
