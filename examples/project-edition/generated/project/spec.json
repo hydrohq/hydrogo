@@ -16,7 +16,7 @@
           "widget": "",
           "read_only": false,
           "visible_in_list": false,
-          "searchable": false,
+          "searchable": true,
           "filterable": false
         }
       },
@@ -29,9 +29,9 @@
           "label": "",
           "widget": "select",
           "read_only": false,
-          "visible_in_list": false,
+          "visible_in_list": true,
           "searchable": false,
-          "filterable": false,
+          "filterable": true,
           "options": [
             "draft",
             "active",
@@ -49,7 +49,7 @@
           "widget": "",
           "read_only": false,
           "visible_in_list": true,
-          "searchable": false,
+          "searchable": true,
           "filterable": false
         }
       }
@@ -64,10 +64,12 @@
     ],
     "destructive": false,
     "admin": {
-      "label": "",
-      "description": "",
-      "icon": "",
-      "group": "",
+      "label": "Projects",
+      "description": "Track active project work.",
+      "icon": "briefcase",
+      "group": "content",
+      "hidden": false,
+      "use_as_title": "title",
       "actions": null,
       "bulk_actions": null
     }

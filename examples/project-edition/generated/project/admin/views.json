@@ -4,9 +4,15 @@
   "views": [
     {
       "columns": [
-        "title"
+        "title",
+        "status"
       ],
-      "filters": [],
+      "filters": [
+        {
+          "field": "status",
+          "operator": "equals"
+        }
+      ],
       "id": "all",
       "name": "All"
     }

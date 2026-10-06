@@ -4,15 +4,19 @@
     {
       "id": "project",
       "type": "collection",
-      "label": "Project",
-      "description": "",
+      "label": "Projects",
+      "description": "Track active project work.",
+      "group": "content",
+      "icon": "briefcase",
+      "title_field": "title",
       "fields": [
         {
           "id": "project_code",
           "label": "ProjectCode",
           "kind": "text",
           "required": true,
-          "visible_in_list": false
+          "visible_in_list": false,
+          "searchable": true
         },
         {
           "id": "status",
@@ -20,7 +24,8 @@
           "kind": "text",
           "widget": "select",
           "required": true,
-          "visible_in_list": false,
+          "visible_in_list": true,
+          "filterable": true,
           "options": [
             "draft",
             "active",
@@ -32,12 +37,13 @@
           "label": "Title",
           "kind": "text",
           "required": true,
-          "visible_in_list": true
+          "visible_in_list": true,
+          "searchable": true
         }
       ],
       "actions": [
         {
-          "label": "Open Project",
+          "label": "Open Projects",
           "href": "/admin/project"
         }
       ]
