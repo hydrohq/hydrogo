@@ -15,9 +15,9 @@ import (
 func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Request) bool) *http.ServeMux {
 	t.Helper()
 	registry, err := NewRegistry([]Collection{{
-		ID: "project", Label: "Projects", Fields: []Field{
-			{ID: "title", Label: "Title", Kind: FieldText, Required: true, VisibleInList: true},
-			{ID: "status", Label: "Status", Kind: FieldSelect, Required: true, VisibleInList: true, Options: []string{"draft", "active"}},
+		ID: "project", Label: "Projects", Group: "Content", Fields: []Field{
+			{ID: "title", Label: "Title", Kind: FieldText, Required: true, VisibleInList: true, Searchable: true},
+			{ID: "status", Label: "Status", Kind: FieldSelect, Required: true, VisibleInList: true, Filterable: true, Options: []string{"draft", "active"}},
 		}, Actions: []Action{{Label: "Open projects", Href: "/admin/resources/project"}},
 	}})
 	if err != nil {
@@ -25,10 +25,10 @@ func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Req
 	}
 	mux := http.NewServeMux()
 	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
-		API: api, Authorize: authorize, CSRFToken: func(*http.Request) string { return "csrf-value" },
+		API: api, Authorize: authorize, CanReadResource: func(*http.Request, Collection) bool { return true }, CSRFToken: func(*http.Request) string { return "csrf-value" },
 		ValidateCSRF: func(r *http.Request) bool { return r.Header.Get("X-CSRF-Test") == "valid" },
 		RenderPage: func(w http.ResponseWriter, r *http.Request, title string, body templ.Component) error {
-			_, _ = io.WriteString(w, "<main><h1>"+title+"</h1>")
+			_, _ = io.WriteString(w, `<aside><nav><a href="/admin">Home</a></nav></aside><main><h1>`+title+`</h1>`)
 			err := body.Render(r.Context(), w)
 			_, _ = io.WriteString(w, "</main>")
 			return err
@@ -45,18 +45,21 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 		if r.URL.Path != "/api/v1/project" || r.Method != http.MethodGet {
 			t.Errorf("unexpected API request %s %s", r.Method, r.URL.String())
 		}
+		if r.URL.Query().Get("where[or][0][title][contains]") != "Roof" || r.URL.Query().Get("where[status][equals]") != "active" || r.URL.Query().Get("sort") != "-title" {
+			t.Errorf("list controls were not translated to the bounded resource query: %s", r.URL.RawQuery)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `[{"id":"p-1","title":"Roof & wall","status":"active"}]`)
 	})
 	server := httptest.NewServer(testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
 	defer server.Close()
-	list, err := http.Get(server.URL + "/admin/resources/project")
+	list, err := http.Get(server.URL + "/admin/resources/project?search=Roof&filter%5Bstatus%5D=active&sort=-title")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer list.Body.Close()
 	listHTML, _ := io.ReadAll(list.Body)
-	if list.StatusCode != http.StatusOK || !strings.Contains(string(listHTML), "Roof &amp; wall") || !strings.Contains(string(listHTML), "/admin/resources/project/p-1") || list.Header.Get("Cache-Control") != "private, no-store" {
+	if list.StatusCode != http.StatusOK || !strings.Contains(string(listHTML), "Roof &amp; wall") || !strings.Contains(string(listHTML), "/admin/resources/project/p-1") || !strings.Contains(string(listHTML), `href="/admin/resources/project"`) || list.Header.Get("Cache-Control") != "private, no-store" {
 		t.Fatalf("generated resource list was not rendered safely: status=%d body=%s", list.StatusCode, listHTML)
 	}
 	form, err := http.Get(server.URL + "/admin/resources/project/new")

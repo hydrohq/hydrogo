@@ -31,7 +31,7 @@ func NewHandler(db *sql.DB, dialect string) http.Handler {
 		panic(err)
 	}
 	admin := adminstudio.GeneratedAdminHandler{Registry: registry, Options: adminstudio.GeneratedAdminOptions{
-		API: mux, Authorize: func(*http.Request) bool { return true },
+		API: mux, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken: func(*http.Request) string { return "edition-demo-csrf" },
 		ValidateCSRF: func(r *http.Request) bool {
 			return r.ParseForm() == nil && r.FormValue("_csrf") == "edition-demo-csrf"

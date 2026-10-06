@@ -529,13 +529,13 @@ func TestAdminCollectionUsesExplicitPresentationMetadata(t *testing.T) {
 			{Name: "title", Type: "string", Admin: FieldAdmin{Label: "Product title", VisibleInList: true, Searchable: true}},
 			{Name: "price_cents", Type: "integer", Admin: FieldAdmin{Label: "Price", Widget: "currency", VisibleInList: true, Filterable: true}},
 		},
-		Admin: Admin{Label: "Catalog", Description: "Sellable products", Actions: []adminstudio.Action{{Label: "Products", Href: "/admin/commerce/products"}}},
+		Admin: Admin{Label: "Catalog", Description: "Sellable products", Group: "commerce", Icon: "box", UseAsTitle: "title", Actions: []adminstudio.Action{{Label: "Products", Href: "/admin/commerce/products"}}},
 	}
 	collection, err := AdminCollection(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if collection.Label != "Catalog" || collection.Fields[1].Kind != adminstudio.FieldNumber || !collection.Fields[0].VisibleInList || !collection.Fields[0].Searchable || !collection.Fields[1].Filterable || collection.Actions[0].Href != "/admin/commerce/products" {
+	if collection.Label != "Catalog" || collection.Description != "Sellable products" || collection.Group != "commerce" || collection.Icon != "box" || collection.TitleField != "title" || collection.Fields[1].Kind != adminstudio.FieldNumber || !collection.Fields[0].VisibleInList || !collection.Fields[0].Searchable || !collection.Fields[1].Filterable || collection.Actions[0].Href != "/admin/commerce/products" {
 		t.Fatalf("collection = %#v", collection)
 	}
 }

@@ -72,6 +72,18 @@ type InputProps struct {
 	HTMX         HTMX
 }
 
+type HiddenInputProps struct{ Name, Value string }
+
+func HiddenInput(p HiddenInputProps) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		if strings.TrimSpace(p.Name) == "" {
+			return errors.New("hidden input name is required")
+		}
+		_, err := io.WriteString(w, `<input type="hidden" name="`+esc(p.Name)+`" value="`+esc(p.Value)+`">`)
+		return err
+	})
+}
+
 // CardProps wraps generated content in a stable design-system surface.
 type CardProps struct {
 	Title string
