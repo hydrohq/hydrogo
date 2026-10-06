@@ -26,7 +26,7 @@ func NewHandler(db *sql.DB, dialect string) http.Handler {
 	if err := generated.RegisterProjectRoute(mux, db, dialect, demoPolicy{}); err != nil {
 		panic(err)
 	}
-	if err := adminstudio.RegisterGenerated(mux, generatedadmin.AdminRegistry, adminstudio.GeneratedAdminOptions{
+	if err := adminstudio.RegisterGenerated(mux, generatedadmin.AdminRegistry, []string{"project"}, adminstudio.GeneratedAdminOptions{
 		API: mux, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken: func(*http.Request) string { return "edition-demo-csrf" },
 		ValidateCSRF: func(r *http.Request) bool {

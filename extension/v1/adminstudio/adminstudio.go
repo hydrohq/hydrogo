@@ -7,7 +7,9 @@
 package adminstudio
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 
 	internal "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 )
@@ -47,11 +49,32 @@ var (
 	ParseManifest = internal.ParseManifest
 )
 
-// RegisterGenerated parses the generated Edition manifest and registers its
-// Admin routes with the caller-supplied security, API, CSRF, and page-shell
-// boundaries. Calling this function is the explicit activation step.
-func RegisterGenerated(mux *http.ServeMux, manifest []byte, options GeneratedAdminOptions) error {
+// RegisterGenerated parses the generated Edition manifest and registers only
+// the explicitly selected resources using caller-supplied security, API,
+// CSRF, and page-shell boundaries. Calling this function is the activation
+// step; an empty or invalid resource selection fails closed.
+func RegisterGenerated(mux *http.ServeMux, manifest []byte, activeResources []string, options GeneratedAdminOptions) error {
 	registry, err := ParseManifest(manifest)
+	if err != nil {
+		return err
+	}
+	collections := registry.Collections()
+	if len(activeResources) == 0 || len(activeResources) > len(collections) {
+		return errors.New("generated Admin activation requires a valid resource selection")
+	}
+	active := make(map[string]bool, len(activeResources))
+	for _, id := range activeResources {
+		id = strings.TrimSpace(id)
+		if id == "" || active[id] {
+			return errors.New("generated Admin activation requires a valid resource selection")
+		}
+		active[id] = true
+	}
+	filtered := internal.FilterActiveCollections(collections, active)
+	if len(filtered) != len(activeResources) {
+		return errors.New("generated Admin activation references an unknown resource")
+	}
+	registry, err = internal.NewRegistry(filtered)
 	if err != nil {
 		return err
 	}

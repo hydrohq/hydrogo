@@ -1,6 +1,6 @@
 # ADR-0348: Single-call explicit generated Admin activation
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0349](0349-explicit-generated-resource-activation.md)
 - **Date:** 2026-10-07
 - **Supersedes:** None
 - **Superseded by:** None
