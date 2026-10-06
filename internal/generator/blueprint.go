@@ -22,6 +22,8 @@ type Blueprint struct {
 	TenantScoped bool             `json:"tenant_scoped,omitempty" yaml:"tenant_scoped,omitempty"`
 	Versioned    bool             `json:"versioned,omitempty" yaml:"versioned,omitempty"`
 	Revisions    bool             `json:"revisions,omitempty" yaml:"revisions,omitempty"`
+	Drafts       bool             `json:"drafts,omitempty" yaml:"drafts,omitempty"`
+	Localization bool             `json:"localization,omitempty" yaml:"localization,omitempty"`
 	Workflow     *WorkflowSpec    `json:"workflow,omitempty" yaml:"workflow,omitempty"`
 	Table        string           `json:"table,omitempty" yaml:"table,omitempty"`
 	Fields       []BlueprintField `json:"fields" yaml:"fields"`
@@ -47,6 +49,7 @@ type BlueprintFieldUI struct {
 	Searchable bool   `json:"searchable,omitempty" yaml:"searchable,omitempty"`
 	Filterable bool   `json:"filterable,omitempty" yaml:"filterable,omitempty"`
 	Widget     string `json:"widget,omitempty" yaml:"widget,omitempty"`
+	Localized  bool   `json:"localized,omitempty" yaml:"localized,omitempty"`
 }
 
 func LoadBlueprint(path string) (Spec, error) {
@@ -98,6 +101,7 @@ func LoadBlueprint(path string) (Spec, error) {
 		typ := strings.ToLower(strings.TrimSpace(field.Type))
 		admin := FieldAdmin{
 			Widget:        strings.ToLower(strings.TrimSpace(field.UI.Widget)),
+			Localized:     field.UI.Localized,
 			VisibleInList: field.UI.List,
 			Searchable:    field.UI.Searchable,
 			Filterable:    field.UI.Filterable,
@@ -115,7 +119,7 @@ func LoadBlueprint(path string) (Spec, error) {
 		fields = append(fields, Field{Name: strings.ToLower(strings.TrimSpace(field.Name)), Type: typ, Nullable: !field.Required, Relation: field.Relation, Validation: field.Validation, Admin: admin})
 	}
 	permissions := []string{name + ".read", name + ".write"}
-	spec := Spec{Name: name, Type: typeName, Auth: blueprint.Auth, TenantScoped: blueprint.TenantScoped, Versioned: blueprint.Versioned, Revisions: blueprint.Revisions, Workflow: blueprint.Workflow, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
+	spec := Spec{Name: name, Type: typeName, Auth: blueprint.Auth, TenantScoped: blueprint.TenantScoped, Versioned: blueprint.Versioned, Revisions: blueprint.Revisions, Drafts: blueprint.Drafts, Localization: blueprint.Localization, Workflow: blueprint.Workflow, Table: table, Fields: fields, Permissions: permissions, Dialects: []string{"sqlite", "postgres"}, Admin: blueprint.Admin, Kits: blueprint.Kits}
 	if err := Validate(spec); err != nil {
 		return Spec{}, err
 	}

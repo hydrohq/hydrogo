@@ -83,6 +83,7 @@ type FieldAdmin struct {
 	Label         string   `json:"label" yaml:"label"`
 	Widget        string   `json:"widget" yaml:"widget"`
 	ReadOnly      bool     `json:"read_only" yaml:"read_only"`
+	Localized     bool     `json:"localized,omitempty" yaml:"localized,omitempty"`
 	VisibleInList bool     `json:"visible_in_list" yaml:"visible_in_list"`
 	Searchable    bool     `json:"searchable" yaml:"searchable"`
 	Filterable    bool     `json:"filterable" yaml:"filterable"`
@@ -107,6 +108,8 @@ type Spec struct {
 	TenantScoped bool          `json:"tenant_scoped" yaml:"tenant_scoped"`
 	Versioned    bool          `json:"versioned,omitempty" yaml:"versioned,omitempty"`
 	Revisions    bool          `json:"revisions,omitempty" yaml:"revisions,omitempty"`
+	Drafts       bool          `json:"drafts,omitempty" yaml:"drafts,omitempty"`
+	Localization bool          `json:"localization,omitempty" yaml:"localization,omitempty"`
 	Workflow     *WorkflowSpec `json:"workflow,omitempty" yaml:"workflow,omitempty"`
 	Table        string        `json:"table" yaml:"table"`
 	Fields       []Field       `json:"fields" yaml:"fields"`
@@ -240,6 +243,21 @@ func Validate(spec Spec) error {
 			}
 		}
 	}
+	if spec.Drafts && !spec.Revisions {
+		return ErrInvalidSpec
+	}
+	localizedFields := 0
+	for _, field := range spec.Fields {
+		if field.Admin.Localized {
+			localizedFields++
+			if !spec.Localization || field.Relation != nil || strings.EqualFold(field.Type, "boolean") || strings.EqualFold(field.Type, "bool") {
+				return ErrInvalidSpec
+			}
+		}
+	}
+	if spec.Localization != (localizedFields > 0) {
+		return ErrInvalidSpec
+	}
 	for _, action := range spec.Admin.Actions {
 		if strings.TrimSpace(action.Label) == "" || !strings.HasPrefix(action.Href, "/") || strings.HasPrefix(action.Href, "//") {
 			return ErrInvalidSpec
@@ -364,7 +382,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 		if fieldLabel == "" {
 			fieldLabel = exportName(field.Name)
 		}
-		adminField := adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable, Options: append([]string(nil), field.Admin.Options...)}
+		adminField := adminstudio.Field{ID: field.Name, Label: fieldLabel, Kind: adminFieldKind(field.Type), Widget: field.Admin.Widget, Required: !field.Nullable, ReadOnly: field.Admin.ReadOnly, Localized: field.Admin.Localized, VisibleInList: field.Admin.VisibleInList, Searchable: field.Admin.Searchable, Filterable: field.Admin.Filterable, Options: append([]string(nil), field.Admin.Options...)}
 		if field.Relation != nil {
 			adminField.Relation = &adminstudio.RelationRef{Collection: field.Relation.Collection, Cardinality: field.Relation.Cardinality, MaxItems: field.Relation.MaxItems}
 		}
@@ -412,7 +430,7 @@ func AdminCollection(spec Spec) (adminstudio.Collection, error) {
 			}
 		}
 	}
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Group: group, Icon: spec.Admin.Icon, Hidden: spec.Admin.Hidden, TitleField: titleField, Versioned: spec.Versioned, Revisions: spec.Revisions, Workflow: workflow, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{ID: spec.Name, Type: spec.Type, Label: label, Description: spec.Admin.Description, Group: group, Icon: spec.Admin.Icon, Hidden: spec.Admin.Hidden, TitleField: titleField, Versioned: spec.Versioned, Revisions: spec.Revisions, Drafts: spec.Drafts, Localization: spec.Localization, Workflow: workflow, Fields: fields, Actions: actions, BulkActions: bulkActions, Kits: resolvedKits}})
 	if err != nil {
 		return adminstudio.Collection{}, err
 	}
@@ -497,6 +515,17 @@ func Generate(root string, spec Spec) (Lock, error) {
 		files["revisions_migration.sql"] = renderRevisionsMigration(spec)
 		files["revisions_migration.yaml"] = renderRevisionsMigrationMetadata(spec)
 		files["revision_contract.go"] = renderRevisionContract(spec)
+	}
+	if spec.Drafts {
+		files["drafts_migration.sql"] = renderDraftsMigration(spec)
+		files["drafts_migration.yaml"] = renderDraftsMigrationMetadata(spec)
+		files["draft_contract.go"] = renderDraftContract(spec)
+	}
+	if spec.Localization {
+		files["localization_migration_sqlite.sql"] = renderLocalizationMigration(spec, "sqlite")
+		files["localization_migration_postgres.sql"] = renderLocalizationMigration(spec, "postgres")
+		files["localization_migration.yaml"] = renderLocalizationMigrationMetadata(spec)
+		files["localization_contract.go"] = renderLocalizationContract(spec)
 	}
 	for name, content := range files {
 		if filepath.Ext(name) == ".go" {
@@ -2362,6 +2391,131 @@ type %sRevisionStore interface {
 	Get(ctx context.Context, %s, version int64) (%sRevision, error)
 }
 `, name, name, name, name, appendArgs, resourceArgs, name, resourceArgs, name)
+}
+
+func renderDraftsMigration(spec Spec) string {
+	table := draftTableName(spec.Table)
+	var b strings.Builder
+	b.WriteString("-- One isolated working draft per resource; generation never runs DDL.\n")
+	if spec.TenantScoped {
+		fmt.Fprintf(&b, "CREATE TABLE %s (tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL, version BIGINT NOT NULL CHECK (version > 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, updated_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576), PRIMARY KEY (tenant_id, resource_id));\n", table)
+	} else {
+		fmt.Fprintf(&b, "CREATE TABLE %s (resource_id TEXT NOT NULL PRIMARY KEY, version BIGINT NOT NULL CHECK (version > 0), schema_version INTEGER NOT NULL CHECK (schema_version > 0), actor_id TEXT NOT NULL, updated_at TEXT NOT NULL, state TEXT NOT NULL, snapshot TEXT NOT NULL CHECK (length(snapshot) <= 1048576));\n", table)
+	}
+	return b.String()
+}
+
+func draftTableName(table string) string {
+	name := table + "_drafts"
+	if len(name) <= 63 {
+		return name
+	}
+	digest := sha256.Sum256([]byte(name))
+	return strings.TrimRight(name[:50], "_") + "_" + hex.EncodeToString(digest[:])[:12]
+}
+
+func renderDraftsMigrationMetadata(spec Spec) string {
+	sql := renderDraftsMigration(spec)
+	digest := sha256.Sum256([]byte(sql))
+	checksum := hex.EncodeToString(digest[:])
+	return fmt.Sprintf("id: generated_%s_drafts_v1\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: [generated_%s, generated_%s_revisions_v1]\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 2\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, spec.Name, spec.Name, checksum, checksum, "Draft content is stored apart from the published resource and checked against an expected draft version. The Edition owns validation, audit, tenant access, and publish transactions.", "No down migration; preserve drafts for recovery or discard through the Edition service before a reviewed rollback.")
+}
+
+func renderDraftContract(spec Spec) string {
+	name := exportName(spec.Name)
+	args := "resourceID string"
+	if spec.TenantScoped {
+		args = "tenantID string, resourceID string"
+	}
+	return fmt.Sprintf(`// Code generated by hydrogo generator; the Edition owns draft policy.
+package generated
+
+import "context"
+
+type %sDraft struct { ResourceID string; Version int64; SchemaVersion int; ActorID string; UpdatedAt string; State string; Snapshot []byte }
+
+// %sDraftStore is an adapter contract. Save must compare expectedVersion
+// atomically, and a draft must never overwrite the published resource.
+type %sDraftStore interface {
+	Get(ctx context.Context, %s) (%sDraft, error)
+	Save(ctx context.Context, %s, draft *%sDraft, expectedVersion int64) error
+	Discard(ctx context.Context, %s, expectedVersion int64) error
+}
+`, name, name, name, args, name, args, name, args)
+}
+
+func localizedFields(spec Spec) []Field {
+	fields := make([]Field, 0)
+	for _, field := range spec.Fields {
+		if field.Admin.Localized {
+			fields = append(fields, field)
+		}
+	}
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	return fields
+}
+
+func localizationTableName(table string) string {
+	name := table + "_locales"
+	if len(name) <= 63 {
+		return name
+	}
+	digest := sha256.Sum256([]byte(name))
+	return strings.TrimRight(name[:50], "_") + "_" + hex.EncodeToString(digest[:])[:12]
+}
+
+func renderLocalizationMigration(spec Spec, dialect string) string {
+	table := localizationTableName(spec.Table)
+	base := spec.Table
+	var b strings.Builder
+	b.WriteString("-- Replace __HYDRO_DEFAULT_LOCALE__ with the Edition's reviewed default locale before applying.\n")
+	if spec.TenantScoped {
+		fmt.Fprintf(&b, "CREATE TABLE %s (tenant_id TEXT NOT NULL, resource_id TEXT NOT NULL, locale TEXT NOT NULL, version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0), values_json TEXT NOT NULL, PRIMARY KEY (tenant_id, resource_id, locale));\n", table)
+	} else {
+		fmt.Fprintf(&b, "CREATE TABLE %s (resource_id TEXT NOT NULL, locale TEXT NOT NULL, version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0), values_json TEXT NOT NULL, PRIMARY KEY (resource_id, locale));\n", table)
+	}
+	columns := make([]string, 0, len(localizedFields(spec)))
+	for _, field := range localizedFields(spec) {
+		columns = append(columns, "'"+field.Name+"', "+field.Name)
+	}
+	jsonExpr := "json_object(" + strings.Join(columns, ", ") + ")"
+	if dialect == "postgres" {
+		jsonExpr = "json_build_object(" + strings.Join(columns, ", ") + ")::text"
+	}
+	if spec.TenantScoped {
+		fmt.Fprintf(&b, "INSERT INTO %s (tenant_id, resource_id, locale, version, values_json) SELECT tenant_id, id, '__HYDRO_DEFAULT_LOCALE__', 1, %s FROM %s;\n", table, jsonExpr, base)
+	} else {
+		fmt.Fprintf(&b, "INSERT INTO %s (resource_id, locale, version, values_json) SELECT id, '__HYDRO_DEFAULT_LOCALE__', 1, %s FROM %s;\n", table, jsonExpr, base)
+	}
+	return b.String()
+}
+
+func renderLocalizationMigrationMetadata(spec Spec) string {
+	sqliteSQL, postgresSQL := renderLocalizationMigration(spec, "sqlite"), renderLocalizationMigration(spec, "postgres")
+	sqliteDigest, postgresDigest := sha256.Sum256([]byte(sqliteSQL)), sha256.Sum256([]byte(postgresSQL))
+	return fmt.Sprintf("id: generated_%s_localization_v1\nmodule: %s\nclass:\n  sqlite: expand\n  postgres: expand\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: [generated_%s]\nchecksum_sha256:\n  sqlite: %q\n  postgres: %q\nschema:\n  readable_epoch: 1\n  writable_epoch: 2\ncompatibility: %q\nrollback: %q\n", spec.Name, spec.Name, spec.Name, hex.EncodeToString(sqliteDigest[:]), hex.EncodeToString(postgresDigest[:]), "The migration copies existing localized columns into the Edition default locale. Replace the explicit locale placeholder before approval; then activate only after both dialect contract tests pass.", "No down migration; preserve translations or export them through an operator-approved recovery before rollback.")
+}
+
+func renderLocalizationContract(spec Spec) string {
+	name := exportName(spec.Name)
+	args := "resourceID string, locale string"
+	if spec.TenantScoped {
+		args = "tenantID string, resourceID string, locale string"
+	}
+	return fmt.Sprintf(`// Code generated by hydrogo generator; locale access policy is Edition-owned.
+package generated
+
+import "context"
+
+type %sLocalizedFields map[string]string
+
+// %sLocalizationStore must scope every operation by the supplied locale and,
+// where enabled, tenant. Locale authorization is checked before this adapter.
+type %sLocalizationStore interface {
+	Get(ctx context.Context, %s) (%sLocalizedFields, int64, error)
+	Put(ctx context.Context, %s, values %sLocalizedFields, expectedVersion int64) (int64, error)
+}
+`, name, name, name, args, name, args, name)
 }
 
 func uniqueFields(spec Spec) []Field {

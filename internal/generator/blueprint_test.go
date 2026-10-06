@@ -113,7 +113,7 @@ func TestLoadBlueprintMapsAuthCompositionFlag(t *testing.T) {
 
 func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "workflow.yaml")
-	data := []byte("name: article\nversioned: true\nrevisions: true\nworkflow:\n  state_field: status\n  states: [draft, review, published]\n  transitions:\n    draft: [review]\n    review: [published, draft]\nfields:\n  - name: title\n    type: string\n  - name: status\n    type: enum\n    values: [draft, review, published]\n")
+	data := []byte("name: article\nversioned: true\nrevisions: true\ndrafts: true\nlocalization: true\nworkflow:\n  state_field: status\n  states: [draft, review, published]\n  transitions:\n    draft: [review]\n    review: [published, draft]\nfields:\n  - name: title\n    type: string\n    ui:\n      localized: true\n  - name: status\n    type: enum\n    values: [draft, review, published]\n")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -143,6 +143,24 @@ func TestLoadBlueprintMapsBoundedWorkflow(t *testing.T) {
 	revisionContract, err := os.ReadFile(filepath.Join(root, "generated", "article", "revision_contract.go"))
 	if err != nil || !strings.Contains(string(revisionContract), "type ArticleRevisionStore interface") || !strings.Contains(string(revisionContract), "Edition transaction") {
 		t.Fatalf("revision adapter contract missing: %v\n%s", err, revisionContract)
+	}
+	draftMigration, err := os.ReadFile(filepath.Join(root, "generated", "article", "drafts_migration.sql"))
+	if err != nil || !strings.Contains(string(draftMigration), "CREATE TABLE articles_drafts") || !strings.Contains(string(draftMigration), "resource_id TEXT NOT NULL PRIMARY KEY") {
+		t.Fatalf("isolated draft migration missing: %v\n%s", err, draftMigration)
+	}
+	draftContract, err := os.ReadFile(filepath.Join(root, "generated", "article", "draft_contract.go"))
+	if err != nil || !strings.Contains(string(draftContract), "type ArticleDraftStore interface") || !strings.Contains(string(draftContract), "never overwrite the published resource") {
+		t.Fatalf("draft service contract missing: %v\n%s", err, draftContract)
+	}
+	for _, dialect := range []string{"sqlite", "postgres"} {
+		localizationMigration, err := os.ReadFile(filepath.Join(root, "generated", "article", "localization_migration_"+dialect+".sql"))
+		if err != nil || !strings.Contains(string(localizationMigration), "__HYDRO_DEFAULT_LOCALE__") || !strings.Contains(string(localizationMigration), "json_object") && dialect == "sqlite" || !strings.Contains(string(localizationMigration), "json_build_object") && dialect == "postgres" {
+			t.Fatalf("%s locale backfill migration missing: %v\n%s", dialect, err, localizationMigration)
+		}
+	}
+	localizationContract, err := os.ReadFile(filepath.Join(root, "generated", "article", "localization_contract.go"))
+	if err != nil || !strings.Contains(string(localizationContract), "type ArticleLocalizationStore interface") || !strings.Contains(string(localizationContract), "locale string") {
+		t.Fatalf("localized field contract missing: %v\n%s", err, localizationContract)
 	}
 	if _, err := CheckCompatibility(root, spec); err != nil {
 		t.Fatalf("revision artifacts are missing from generated compatibility checks: %v", err)

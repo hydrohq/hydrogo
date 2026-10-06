@@ -51,6 +51,7 @@ type Field struct {
 	Widget        string       `json:"widget,omitempty"`
 	Required      bool         `json:"required"`
 	ReadOnly      bool         `json:"read_only,omitempty"`
+	Localized     bool         `json:"localized,omitempty"`
 	VisibleInList bool         `json:"visible_in_list"`
 	Searchable    bool         `json:"searchable,omitempty"`
 	Filterable    bool         `json:"filterable,omitempty"`
@@ -73,21 +74,23 @@ type Action struct {
 // Collection is presentation metadata only. Mutations must still go through
 // the module application service and its authorization policy.
 type Collection struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type,omitempty"`
-	Label       string    `json:"label"`
-	Description string    `json:"description"`
-	Group       string    `json:"group,omitempty"`
-	Icon        string    `json:"icon,omitempty"`
-	Hidden      bool      `json:"hidden,omitempty"`
-	TitleField  string    `json:"title_field,omitempty"`
-	Versioned   bool      `json:"versioned,omitempty"`
-	Revisions   bool      `json:"revisions,omitempty"`
-	Workflow    *Workflow `json:"workflow,omitempty"`
-	Fields      []Field   `json:"fields"`
-	Actions     []Action  `json:"actions"`
-	BulkActions []Action  `json:"bulk_actions,omitempty"`
-	Kits        []Kit     `json:"kits,omitempty"`
+	ID           string    `json:"id"`
+	Type         string    `json:"type,omitempty"`
+	Label        string    `json:"label"`
+	Description  string    `json:"description"`
+	Group        string    `json:"group,omitempty"`
+	Icon         string    `json:"icon,omitempty"`
+	Hidden       bool      `json:"hidden,omitempty"`
+	TitleField   string    `json:"title_field,omitempty"`
+	Versioned    bool      `json:"versioned,omitempty"`
+	Revisions    bool      `json:"revisions,omitempty"`
+	Drafts       bool      `json:"drafts,omitempty"`
+	Localization bool      `json:"localization,omitempty"`
+	Workflow     *Workflow `json:"workflow,omitempty"`
+	Fields       []Field   `json:"fields"`
+	Actions      []Action  `json:"actions"`
+	BulkActions  []Action  `json:"bulk_actions,omitempty"`
+	Kits         []Kit     `json:"kits,omitempty"`
 }
 
 type Registry struct {
@@ -139,6 +142,7 @@ func validateCollection(collection Collection) error {
 	}
 	seenFields := make(map[string]struct{}, len(collection.Fields))
 	fieldRegistry := NewFieldRegistry()
+	localizedFields := 0
 	titleFieldFound := collection.TitleField == ""
 	for _, field := range collection.Fields {
 		if strings.TrimSpace(field.ID) == "" || strings.TrimSpace(field.Label) == "" || !fieldRegistry.Supports(field.Kind) {
@@ -146,6 +150,12 @@ func validateCollection(collection Collection) error {
 		}
 		if field.Widget != "" && !supportedWidget(field.Widget) {
 			return ErrInvalidCollection
+		}
+		if field.Localized {
+			localizedFields++
+			if !collection.Localization || field.Kind == FieldBoolean || field.Kind == FieldRelation || field.ReadOnly {
+				return ErrInvalidCollection
+			}
 		}
 		if field.Kind == FieldRelation && field.Relation != nil && (field.Relation.Collection == "" || (field.Relation.Cardinality != "one" && field.Relation.Cardinality != "many") || (field.Relation.Cardinality == "one" && field.Relation.MaxItems != 0) || (field.Relation.Cardinality == "many" && (field.Relation.MaxItems < 0 || field.Relation.MaxItems > 100))) {
 			return ErrInvalidCollection
@@ -167,6 +177,9 @@ func validateCollection(collection Collection) error {
 			}
 			seenOptions[option] = struct{}{}
 		}
+	}
+	if collection.Localization != (localizedFields > 0) || collection.Drafts && !collection.Revisions {
+		return ErrInvalidCollection
 	}
 	if !titleFieldFound {
 		return ErrInvalidCollection
