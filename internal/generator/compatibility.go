@@ -44,6 +44,16 @@ func CheckCompatibility(root string, spec Spec) (CompatibilityReport, error) {
 	if err := json.Unmarshal(lockData, &lock); err != nil {
 		return CompatibilityReport{}, fmt.Errorf("parse generator lock: %w", err)
 	}
+	if version := strings.TrimSpace(lock.ContractVersion); version != "" && version != CollectionContractVersion {
+		return CompatibilityReport{}, fmt.Errorf("unsupported generated contract version %q", version)
+	}
+	resourceLock, hasResourceLock := lock.Resources[spec.Name]
+	if hasResourceLock {
+		lock.GeneratorVersion = resourceLock.GeneratorVersion
+		lock.ContractVersion = resourceLock.ContractVersion
+		lock.SpecSHA256 = resourceLock.SpecSHA256
+		lock.ArtifactsSHA256 = resourceLock.ArtifactsSHA256
+	}
 	if lock.GeneratorVersion == "" || lock.SpecSHA256 == "" {
 		return CompatibilityReport{}, errors.New("generator lock is incomplete")
 	}
@@ -130,7 +140,7 @@ func CheckGeneratedCompatibility(root string) ([]CompatibilityReport, error) {
 	}
 	reports := make([]CompatibilityReport, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Name() == "generator.lock" {
+		if entry.Name() == "generator.lock" || entry.Name() == "admin_registry.json" || entry.Name() == "admin_registry.go" {
 			continue
 		}
 		info, err := entry.Info()
@@ -156,6 +166,26 @@ func CheckGeneratedCompatibility(root string) ([]CompatibilityReport, error) {
 	}
 	if len(reports) == 0 {
 		return nil, errors.New("generated root contains no collections")
+	}
+	expectedRegistry, err := renderAdminRegistry(generatedRoot)
+	if err != nil {
+		return nil, fmt.Errorf("build generated Admin registry: %w", err)
+	}
+	registryPath := filepath.Join(generatedRoot, "admin_registry.json")
+	registryInfo, err := os.Lstat(registryPath)
+	if err != nil || registryInfo.Mode()&os.ModeSymlink != 0 || !registryInfo.Mode().IsRegular() {
+		return nil, errors.New("generated Admin registry is missing or invalid")
+	}
+	actualRegistry, err := os.ReadFile(registryPath)
+	if err != nil {
+		return nil, fmt.Errorf("read generated Admin registry: %w", err)
+	}
+	if !bytes.Equal(actualRegistry, expectedRegistry) {
+		return nil, errors.New("generated Admin registry does not match resource specifications")
+	}
+	registryGo, err := os.ReadFile(filepath.Join(generatedRoot, "admin_registry.go"))
+	if err != nil || !bytes.Contains(registryGo, []byte("//go:embed admin_registry.json")) {
+		return nil, errors.New("generated Admin registry embed is missing or invalid")
 	}
 	sort.Slice(reports, func(i, j int) bool { return reports[i].Collection < reports[j].Collection })
 	return reports, nil

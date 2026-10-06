@@ -80,6 +80,12 @@ type Registry struct {
 	collections []Collection
 }
 
+// Manifest is the build-time registry consumed by Edition Admin composition.
+type Manifest struct {
+	Version   string       `json:"version"`
+	Resources []Collection `json:"resources"`
+}
+
 func NewRegistry(collections []Collection) (Registry, error) {
 	seen := make(map[string]struct{}, len(collections))
 	copyCollections := append([]Collection(nil), collections...)
