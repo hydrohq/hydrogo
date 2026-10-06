@@ -29,7 +29,7 @@ type GeneratedAdminOptions struct {
 	Authorize       func(*http.Request) bool
 	CanReadResource func(*http.Request, Collection) bool
 	CanTransition   func(*http.Request, Collection, map[string]any, PublicationState) bool
-	Transition      func(*http.Request, Collection, map[string]any, PublicationState) error
+	Transition      func(*http.Request, Collection, map[string]any, PublicationState, int64) error
 	CSRFToken       func(*http.Request) string
 	ValidateCSRF    func(*http.Request) bool
 	RenderPage      func(http.ResponseWriter, *http.Request, string, templ.Component) error
@@ -524,7 +524,8 @@ func relationIDs(value any) []string {
 
 func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
 	current := PublicationState(displayValue(record[collection.Workflow.StateField]))
-	if !slices.Contains(collection.Workflow.States, current) || current == "" {
+	expectedVersion := generatedRecordVersion(record)
+	if !slices.Contains(collection.Workflow.States, current) || current == "" || expectedVersion < 1 {
 		return nil
 	}
 	allowedTargets := make([]PublicationState, 0, len(collection.Workflow.Transitions[current]))
@@ -542,6 +543,9 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 	for _, target := range allowedTargets {
 		body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "target", Value: string(target)}).Render(ctx, form); err != nil {
+				return err
+			}
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expectedVersion, 10)}).Render(ctx, form); err != nil {
 				return err
 			}
 			return ui.Button(ui.ButtonProps{Type: "submit", Label: workflowActionLabel(target), Variant: ui.Primary}).Render(ctx, form)
@@ -580,7 +584,7 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid request", http.StatusForbidden)
 		return
 	}
-	if err := r.ParseForm(); err != nil || len(r.Form) != 2 || len(r.Form["target"]) != 1 {
+	if err := r.ParseForm(); err != nil || len(r.Form) != 3 || len(r.Form["target"]) != 1 || len(r.Form["expected_version"]) != 1 {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
@@ -599,16 +603,38 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 		h.apiError(w)
 		return
 	}
+	expectedVersion, err := strconv.ParseInt(r.FormValue("expected_version"), 10, 64)
+	if err != nil || expectedVersion < 1 || generatedRecordVersion(record) != expectedVersion {
+		http.Error(w, "document changed; reload before transitioning", http.StatusConflict)
+		return
+	}
 	current := PublicationState(displayValue(record[collection.Workflow.StateField]))
 	if current == target || !collection.Workflow.CanTransition(current, target) || !h.Options.CanTransition(r, collection, record, target) {
 		http.Error(w, "transition unavailable", http.StatusForbidden)
 		return
 	}
-	if err := h.Options.Transition(r, collection, record, target); err != nil {
+	if err := h.Options.Transition(r, collection, record, target, expectedVersion); err != nil {
 		http.Error(w, "transition unavailable", http.StatusConflict)
 		return
 	}
 	http.Redirect(w, r, "/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), http.StatusSeeOther)
+}
+
+func generatedRecordVersion(record map[string]any) int64 {
+	switch value := record["version"].(type) {
+	case float64:
+		if value > 0 && value == float64(int64(value)) {
+			return int64(value)
+		}
+	case int64:
+		return value
+	case int:
+		return int64(value)
+	case json.Number:
+		version, _ := value.Int64()
+		return version
+	}
+	return 0
 }
 
 func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool) templ.Component {
