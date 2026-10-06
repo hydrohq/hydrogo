@@ -424,15 +424,15 @@ func (h GeneratedAdminHandler) generatedCopyLocaleActions(ctx context.Context, o
 func (h GeneratedAdminHandler) index(w http.ResponseWriter, r *http.Request) {
 	collections := h.visibleCollections(r)
 	content := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if _, err := io.WriteString(out, `<section class="studio-card"><h1>Generated resources</h1><ul>`); err != nil {
+		if _, err := io.WriteString(out, `<section class="studio-card"><h2>Collections</h2><div class="collection-grid">`); err != nil {
 			return err
 		}
 		for _, collection := range collections {
-			if err := ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: collection.Label}).Render(ctx, out); err != nil {
+			if err := ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: collection.Label, Class: "collection-tile"}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
-		_, err := io.WriteString(out, `</ul></section>`)
+		_, err := io.WriteString(out, `</div></section>`)
 		return err
 	})
 	h.renderPage(w, r, "Generated resources", content)
@@ -934,7 +934,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 				return err
 			}
 		}
-		props := ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed)}
+		props := ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed)}
 		if err := ui.Form(props).Render(ctx, out); err != nil {
 			return err
 		}
