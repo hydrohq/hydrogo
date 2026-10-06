@@ -4,6 +4,7 @@ import (
 	"context"
 	"html/template"
 	"io"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -29,6 +30,7 @@ type ListData struct {
 	Rows         []Row
 	StatusFilter string
 	BaseURL      string
+	Locale       string
 	Query        ListQuery
 	SortURLs     map[string]string
 	// EmptyMessage optionally replaces the default message shown when the
@@ -80,7 +82,7 @@ func RenderList(w io.Writer, data ListData) error {
 	data.SortURLs = make(map[string]string)
 	if data.BaseURL != "" {
 		for _, field := range data.Collection.Fields {
-			if !field.VisibleInList {
+			if !field.VisibleInList || field.Localized {
 				continue
 			}
 			next := data.Query
@@ -90,7 +92,11 @@ func RenderList(w io.Writer, data ListData) error {
 				next.Sort = field.ID
 			}
 			next.Page = 1
-			data.SortURLs[field.ID] = data.BaseURL + "?" + EncodeListQuery(next)
+			href := data.BaseURL + "?" + EncodeListQuery(next)
+			if data.Locale != "" {
+				href += "&locale=" + url.QueryEscape(data.Locale)
+			}
+			data.SortURLs[field.ID] = href
 		}
 	}
 	for _, row := range data.Rows {

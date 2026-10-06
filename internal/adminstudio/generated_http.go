@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -23,6 +24,8 @@ import (
 )
 
 const generatedAdminBodyLimit = 1 << 20
+
+var localePattern = regexp.MustCompile(`^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$`)
 
 // GeneratedAdminOptions contains the Edition-owned security and page-shell
 // boundaries. Nil callbacks make the generated Admin surface unavailable.
@@ -36,9 +39,30 @@ type GeneratedAdminOptions struct {
 	GetRevision     func(*http.Request, Collection, string, int64) (RevisionSnapshot, error)
 	CanRestore      func(*http.Request, Collection, string, int64) bool
 	RestoreRevision func(*http.Request, Collection, string, int64, int64) error
-	CSRFToken       func(*http.Request) string
-	ValidateCSRF    func(*http.Request) bool
-	RenderPage      func(http.ResponseWriter, *http.Request, string, templ.Component) error
+	// Locales returns only languages the current Edition user may access.
+	Locales func(*http.Request, Collection) (LocaleOptions, error)
+	// Locale storage callbacks must apply tenant scope and expected-version CAS.
+	GetLocalized  func(*http.Request, Collection, string, string) (map[string]any, int64, error)
+	SaveLocalized func(*http.Request, Collection, string, string, map[string]any, int64) error
+	ListLocalized func(*http.Request, Collection, []string, string) (map[string]map[string]any, error)
+	// CopyLocale must revalidate the source and target and audit the copy.
+	CanCopyLocale func(*http.Request, Collection, string, string) bool
+	CopyLocale    func(*http.Request, Collection, string, string, string, int64) error
+	CSRFToken     func(*http.Request) string
+	ValidateCSRF  func(*http.Request) bool
+	RenderPage    func(http.ResponseWriter, *http.Request, string, templ.Component) error
+}
+
+type LocaleOptions struct {
+	Default string
+	Allowed []string
+}
+
+type localeContextKey struct{}
+
+type selectedLocale struct {
+	Options LocaleOptions
+	Current string
 }
 
 type RevisionSummary struct {
@@ -71,6 +95,9 @@ func (h GeneratedAdminHandler) Register(mux *http.ServeMux) error {
 		if collection.Revisions && (h.Options.ListRevisions == nil || h.Options.GetRevision == nil || h.Options.CanRestore == nil || h.Options.RestoreRevision == nil) {
 			return errors.New("generated Admin revisions require Edition-owned history and restore services")
 		}
+		if collection.Localization && (h.Options.Locales == nil || h.Options.GetLocalized == nil || h.Options.SaveLocalized == nil || h.Options.ListLocalized == nil || h.Options.CanCopyLocale == nil || h.Options.CopyLocale == nil) {
+			return errors.New("generated Admin localization requires Edition-owned locale access and storage services")
+		}
 	}
 	mux.Handle("/admin/resources", h)
 	mux.Handle("/admin/resources/", h)
@@ -102,6 +129,17 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		http.NotFound(w, r)
 		return
 	}
+	if collection.Localization {
+		locale, err := h.localeSelection(r, collection)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), localeContextKey{}, locale))
+	} else if len(r.URL.Query()["locale"]) != 0 {
+		http.Error(w, "invalid locale selection", http.StatusBadRequest)
+		return
+	}
 	if len(parts) == 4 && parts[2] == "revisions" && r.Method == http.MethodGet {
 		h.revision(w, r, collection, parts[1], parts[3])
 		return
@@ -110,7 +148,19 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		h.restoreRevision(w, r, collection, parts[1], parts[3])
 		return
 	}
+	if len(parts) == 3 && parts[2] == "locale-copy" && r.Method == http.MethodPost {
+		h.copyLocale(w, r, collection, parts[1])
+		return
+	}
+	if len(parts) == 3 && parts[2] == "locale" && r.Method == http.MethodPost {
+		h.mutateLocale(w, r, collection, parts[1])
+		return
+	}
 	if len(parts) == 2 && parts[1] == "new" {
+		if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
+			http.NotFound(w, r)
+			return
+		}
 		switch r.Method {
 		case http.MethodGet:
 			h.renderForm(w, r, collection, "", nil, false)
@@ -130,7 +180,7 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		h.list(w, r, collection)
 		return
 	}
-	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete" && parts[2] != "workflow") || (len(parts) > 3 && parts[2] != "revisions") {
+	if parts[1] == "" || (len(parts) == 3 && parts[2] != "delete" && parts[2] != "workflow" && parts[2] != "locale-copy" && parts[2] != "locale") || (len(parts) > 3 && parts[2] != "revisions") {
 		http.NotFound(w, r)
 		return
 	}
@@ -147,6 +197,163 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+}
+
+func (h GeneratedAdminHandler) localeSelection(r *http.Request, collection Collection) (selectedLocale, error) {
+	options, err := h.Options.Locales(r, collection)
+	if err != nil || len(options.Allowed) == 0 || len(options.Allowed) > 32 || !localePattern.MatchString(options.Default) {
+		return selectedLocale{}, errors.New("locale policy unavailable")
+	}
+	allowed := make(map[string]struct{}, len(options.Allowed))
+	defaultFound := false
+	for _, locale := range options.Allowed {
+		if !localePattern.MatchString(locale) {
+			return selectedLocale{}, errors.New("invalid Edition locale")
+		}
+		if _, exists := allowed[locale]; exists {
+			return selectedLocale{}, errors.New("duplicate Edition locale")
+		}
+		allowed[locale] = struct{}{}
+		defaultFound = defaultFound || locale == options.Default
+	}
+	if !defaultFound || len(r.URL.Query()["locale"]) > 1 {
+		return selectedLocale{}, errors.New("invalid locale selection")
+	}
+	current := r.URL.Query().Get("locale")
+	if current == "" {
+		current = options.Default
+	}
+	if _, ok := allowed[current]; !ok {
+		return selectedLocale{}, errors.New("locale is not available")
+	}
+	options.Allowed = append([]string(nil), options.Allowed...)
+	return selectedLocale{Options: options, Current: current}, nil
+}
+
+func localeState(r *http.Request) selectedLocale {
+	state, _ := r.Context().Value(localeContextKey{}).(selectedLocale)
+	return state
+}
+
+func localizedTarget(target, locale string) string {
+	if locale == "" {
+		return target
+	}
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return target
+	}
+	query := parsed.Query()
+	query.Set("locale", locale)
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
+}
+
+func localePath(path, locale string) string {
+	return localizedTarget(path, locale)
+}
+
+func applyLocalizedValues(collection Collection, record, values map[string]any) error {
+	encoded, err := json.Marshal(values)
+	if err != nil || len(encoded) > generatedAdminBodyLimit {
+		return errors.New("localized payload exceeds the resource limit")
+	}
+	allowed := make(map[string]struct{})
+	for _, field := range collection.Fields {
+		if field.Localized {
+			allowed[field.ID] = struct{}{}
+		}
+	}
+	if len(values) > len(allowed) {
+		return errors.New("localized field count exceeds the resource contract")
+	}
+	for field, value := range values {
+		if _, ok := allowed[field]; !ok {
+			return errors.New("localized value is outside the resource contract")
+		}
+		record[field] = value
+	}
+	return nil
+}
+
+func (h GeneratedAdminHandler) currentResource(r *http.Request, collection Collection, id string) (map[string]any, error) {
+	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
+	if err != nil || status != http.StatusOK {
+		return nil, errors.New("resource is unavailable")
+	}
+	var record map[string]any
+	if json.Unmarshal(response, &record) != nil {
+		return nil, errors.New("resource response is invalid")
+	}
+	state := localeState(r)
+	if collection.Localization && state.Current != state.Options.Default {
+		values, version, err := h.Options.GetLocalized(r, collection, id, state.Current)
+		if err != nil || version < 0 || applyLocalizedValues(collection, record, values) != nil {
+			return nil, errors.New("localized resource is unavailable")
+		}
+		record["locale_version"] = version
+	}
+	return record, nil
+}
+
+func (h GeneratedAdminHandler) generatedLocaleNav(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string) error {
+	if !collection.Localization {
+		return nil
+	}
+	state := localeState(r)
+	if _, err := io.WriteString(out, `<nav class="locale-tabs" aria-label="İçerik dili">`); err != nil {
+		return err
+	}
+	for _, locale := range state.Options.Allowed {
+		label := strings.ToUpper(locale)
+		if locale == state.Current {
+			if _, err := io.WriteString(out, `<span aria-current="page">`+template.HTMLEscapeString(label)+`</span> `); err != nil {
+				return err
+			}
+			continue
+		}
+		body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: locale}).Render(ctx, form); err != nil {
+				return err
+			}
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
+		})
+		if err := ui.Form(ui.FormProps{Action: r.URL.Path, Method: http.MethodGet, Body: body}).Render(ctx, out); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, " "); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, `</nav>`)
+	return err
+}
+
+func (h GeneratedAdminHandler) generatedCopyLocaleActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
+	if _, err := io.WriteString(out, `<section class="studio-card" aria-labelledby="locale-copy-heading"><h2 id="locale-copy-heading">Dili kopyala</h2>`); err != nil {
+		return err
+	}
+	expected := generatedRecordVersion(record)
+	for _, from := range localeState(r).Options.Allowed {
+		if from == localeState(r).Current || !h.Options.CanCopyLocale(r, collection, id, from) {
+			continue
+		}
+		body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "from_locale", Value: from}).Render(ctx, form); err != nil {
+				return err
+			}
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expected, 10)}).Render(ctx, form); err != nil {
+				return err
+			}
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: strings.ToUpper(from) + " içeriğini buraya kopyala", Variant: ui.Quiet}).Render(ctx, form)
+		})
+		action := localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id)+"/locale-copy", localeState(r).Current)
+		if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, `</section>`)
+	return err
 }
 
 func (h GeneratedAdminHandler) index(w http.ResponseWriter, r *http.Request) {
@@ -216,37 +423,86 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 	if hasNext {
 		records = records[:DefaultPageSize]
 	}
+	localizedRecords := map[string]map[string]any(nil)
+	if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
+		ids := make([]string, 0, len(records))
+		for _, record := range records {
+			if id, _ := record["id"].(string); id != "" {
+				ids = append(ids, id)
+			}
+		}
+		var err error
+		localizedRecords, err = h.Options.ListLocalized(r, collection, ids, localeState(r).Current)
+		if err != nil || len(localizedRecords) > len(ids) {
+			h.apiError(w)
+			return
+		}
+		known := make(map[string]struct{}, len(ids))
+		for _, id := range ids {
+			known[id] = struct{}{}
+		}
+		for id := range localizedRecords {
+			if _, ok := known[id]; !ok {
+				h.apiError(w)
+				return
+			}
+		}
+	}
 	rows := make([]Row, 0, len(records))
 	for _, record := range records {
 		id, _ := record["id"].(string)
+		if translated, ok := localizedRecords[id]; ok && applyLocalizedValues(collection, record, translated) != nil {
+			h.apiError(w)
+			return
+		}
 		values := make(map[string]string, len(collection.Fields))
 		for _, field := range collection.Fields {
 			values[field.ID] = displayValue(record[field.ID])
 		}
 		editURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
+		if collection.Localization {
+			editURL = localePath(editURL, localeState(r).Current)
+		}
 		rows = append(rows, Row{ID: id, EditURL: editURL, Values: values, Actions: []Action{{Label: "Düzenle", Href: editURL}}})
 	}
 	body := templ.ComponentFunc(func(_ context.Context, out io.Writer) error {
-		if _, err := io.WriteString(out, `<section class="studio-card"><header class="resource-banner"><div><h2>`+template.HTMLEscapeString(collection.Label)+`</h2><p>`+template.HTMLEscapeString(collection.Description)+`</p></div><a class="button" href="/admin/resources/`+url.PathEscape(collection.ID)+`/new">Yeni kayıt</a></header>`); err != nil {
+		newURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/new"
+		if collection.Localization && localeState(r).Current == localeState(r).Options.Default {
+			newURL = localePath(newURL, localeState(r).Current)
+		} else if collection.Localization {
+			newURL = ""
+		}
+		if _, err := io.WriteString(out, `<section class="studio-card"><header class="resource-banner"><div><h2>`+template.HTMLEscapeString(collection.Label)+`</h2><p>`+template.HTMLEscapeString(collection.Description)+`</p></div>`); err != nil {
 			return err
 		}
-		if err := generatedListControls(out, collection, query); err != nil {
+		if newURL != "" {
+			if _, err := io.WriteString(out, `<a class="button" href="`+template.HTMLEscapeString(newURL)+`">Yeni kayıt</a>`); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(out, `</header>`); err != nil {
 			return err
 		}
-		if err := RenderList(out, ListData{Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID), Query: query}); err != nil {
+		if err := h.generatedLocaleNav(context.Background(), out, r, collection, ""); err != nil {
+			return err
+		}
+		if err := generatedListControls(out, collection, query, localeState(r).Current); err != nil {
+			return err
+		}
+		if err := RenderList(out, ListData{Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID), Locale: localeState(r).Current, Query: query}); err != nil {
 			return err
 		}
 		if page > 1 {
 			previous := query
 			previous.Page = page - 1
-			if err := ui.Link(ui.LinkProps{Href: generatedListURL(collection.ID, previous), Label: "Önceki"}).Render(context.Background(), out); err != nil {
+			if err := generatedListPageForm(context.Background(), out, collection.ID, previous, localeState(r).Current, "Önceki"); err != nil {
 				return err
 			}
 		}
 		if hasNext {
 			next := query
 			next.Page = page + 1
-			if err := ui.Link(ui.LinkProps{Href: generatedListURL(collection.ID, next), Label: "Sonraki"}).Render(context.Background(), out); err != nil {
+			if err := generatedListPageForm(context.Background(), out, collection.ID, next, localeState(r).Current, "Sonraki"); err != nil {
 				return err
 			}
 		}
@@ -262,13 +518,13 @@ func generatedResourceQuery(collection Collection, query ListQuery, page int) (u
 	filterFields := make(map[string]Field)
 	sortFields := make(map[string]struct{})
 	for _, field := range collection.Fields {
-		if field.Searchable && (field.Kind == FieldText || field.Kind == FieldRichText || field.Kind == FieldSelect || field.Kind == FieldStatus) {
+		if field.Searchable && !field.Localized && (field.Kind == FieldText || field.Kind == FieldRichText || field.Kind == FieldSelect || field.Kind == FieldStatus) {
 			searchFields = append(searchFields, field)
 		}
-		if field.Filterable {
+		if field.Filterable && !field.Localized {
 			filterFields[field.ID] = field
 		}
-		if field.VisibleInList {
+		if field.VisibleInList && !field.Localized {
 			sortFields[field.ID] = struct{}{}
 		}
 	}
@@ -334,7 +590,7 @@ func parseGeneratedListQuery(values url.Values) (ListQuery, error) {
 			return ListQuery{}, errors.New("list query exceeds limit")
 		}
 		filterKey := strings.HasPrefix(key, "filter[") && strings.HasSuffix(key, "]") && len(key) > len("filter[]")
-		if key != "search" && key != "sort" && key != "page" && !filterKey {
+		if key != "search" && key != "sort" && key != "page" && key != "locale" && !filterKey {
 			return ListQuery{}, errors.New("unsupported list query parameter")
 		}
 	}
@@ -352,17 +608,55 @@ func parseGeneratedListQuery(values url.Values) (ListQuery, error) {
 	return query, nil
 }
 
-func generatedListURL(id string, query ListQuery) string {
-	return "/admin/resources/" + url.PathEscape(id) + "?" + EncodeListQuery(query)
+func generatedListPageForm(ctx context.Context, out io.Writer, id string, query ListQuery, locale, label string) error {
+	body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+		values := url.Values{}
+		if query.Search != "" {
+			values.Set("search", query.Search)
+		}
+		if query.Sort != "" {
+			values.Set("sort", query.Sort)
+		}
+		if query.Page > 0 {
+			values.Set("page", strconv.Itoa(query.Page))
+		}
+		if locale != "" {
+			values.Set("locale", locale)
+		}
+		for field, value := range query.Filters {
+			values.Set("filter["+field+"]", value)
+		}
+		keys := make([]string, 0, len(values))
+		for name := range values {
+			keys = append(keys, name)
+		}
+		sort.Strings(keys)
+		for _, name := range keys {
+			entries := values[name]
+			if len(entries) != 1 {
+				return errors.New("invalid list pagination query")
+			}
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: name, Value: entries[0]}).Render(ctx, form); err != nil {
+				return err
+			}
+		}
+		return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
+	})
+	return ui.Form(ui.FormProps{Action: "/admin/resources/" + url.PathEscape(id), Method: http.MethodGet, Body: body}).Render(ctx, out)
 }
 
-func generatedListControls(w io.Writer, collection Collection, query ListQuery) error {
+func generatedListControls(w io.Writer, collection Collection, query ListQuery, locale string) error {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if _, err := io.WriteString(out, `<form class="admin-list-toolbar" method="get" action="/admin/resources/`+url.PathEscape(collection.ID)+`">`); err != nil {
 			return err
 		}
 		if query.Sort != "" {
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "sort", Value: query.Sort}).Render(ctx, out); err != nil {
+				return err
+			}
+		}
+		if collection.Localization && locale != "" {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: locale}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -404,7 +698,8 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 		http.NotFound(w, r)
 		return
 	}
-	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
+	apiPath := "/api/v1/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
+	response, status, err := h.callAPI(r, http.MethodGet, apiPath, nil)
 	if err != nil || status != http.StatusOK {
 		h.apiError(w)
 		return
@@ -413,6 +708,14 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 	if json.Unmarshal(response, &record) != nil {
 		h.apiError(w)
 		return
+	}
+	if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
+		values, version, err := h.Options.GetLocalized(r, collection, id, localeState(r).Current)
+		if err != nil || version < 0 || applyLocalizedValues(collection, record, values) != nil {
+			h.apiError(w)
+			return
+		}
+		record["locale_version"] = version
 	}
 	h.renderForm(w, r, collection, id, record, true)
 }
@@ -428,6 +731,9 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	}
 	if collection.Versioned {
 		values["version"] = displayValue(record["version"])
+	}
+	if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
+		values["locale_version"] = displayValue(record["locale_version"])
 	}
 	var revisions []RevisionSummary
 	if editing && collection.Revisions {
@@ -465,6 +771,9 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	action := "/admin/resources/" + url.PathEscape(collection.ID)
 	if editing {
 		action += "/" + url.PathEscape(id)
+		if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
+			action += "/locale"
+		}
 	} else {
 		action += "/new"
 		if collection.Type == "global" {
@@ -478,23 +787,40 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 			}
 		}
 	}
+	if collection.Localization {
+		action = localePath(action, localeState(r).Current)
+	}
 	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		props := ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing)}
+		if err := h.generatedLocaleNav(ctx, out, r, collection, id); err != nil {
+			return err
+		}
+		localeInfo := localeState(r)
+		localizedEdit := collection.Localization && localeInfo.Current != localeInfo.Options.Default
+		props := ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit)}
 		if err := ui.Form(props).Render(ctx, out); err != nil {
 			return err
 		}
-		if editing && collection.Type != "global" {
-			if err := ui.Form(ui.FormProps{Action: action + "/delete", Method: "post", CSRF: h.Options.CSRFToken(r), Body: ui.Button(ui.ButtonProps{Type: "submit", Label: "Sil", Variant: ui.Danger})}).Render(ctx, out); err != nil {
+		if editing && collection.Type != "global" && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
+			deleteAction := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/delete"
+			if collection.Localization {
+				deleteAction = localePath(deleteAction, localeState(r).Current)
+			}
+			if err := ui.Form(ui.FormProps{Action: deleteAction, Method: "post", CSRF: h.Options.CSRFToken(r), Body: ui.Button(ui.ButtonProps{Type: "submit", Label: "Sil", Variant: ui.Danger})}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
-		if editing && collection.Workflow != nil {
+		if editing && collection.Workflow != nil && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
 			if err := h.generatedWorkflowActions(ctx, out, r, collection, id, record); err != nil {
 				return err
 			}
 		}
 		if editing && collection.Revisions {
-			return h.generatedRevisionHistory(ctx, out, r, collection, id, record, revisions)
+			if err := h.generatedRevisionHistory(ctx, out, r, collection, id, record, revisions); err != nil {
+				return err
+			}
+		}
+		if editing && collection.Localization {
+			return h.generatedCopyLocaleActions(ctx, out, r, collection, id, record)
 		}
 		return nil
 	})
@@ -639,7 +965,15 @@ func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out
 			return err
 		}
 		label := "Sürüm " + strconv.FormatInt(revision.Version, 10)
-		if err := ui.Link(ui.LinkProps{Href: href, Label: label, Class: "text-link"}).Render(ctx, out); err != nil {
+		visit := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+			if collection.Localization {
+				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
+					return err
+				}
+			}
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
+		})
+		if err := ui.Form(ui.FormProps{Action: href, Method: http.MethodGet, Body: visit}).Render(ctx, out); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(out, `<p>`+template.HTMLEscapeString(revisionSummaryText(revision))+`</p></div>`); err != nil {
@@ -653,6 +987,9 @@ func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out
 				return ui.Button(ui.ButtonProps{Type: "submit", Label: "Bu sürüme geri yükle", Variant: ui.Quiet}).Render(ctx, form)
 			})
 			action := href + "/restore"
+			if collection.Localization {
+				action = localePath(action, localeState(r).Current)
+			}
 			if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
 				return err
 			}
@@ -699,13 +1036,8 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 		http.Error(w, "revision unavailable", http.StatusRequestEntityTooLarge)
 		return
 	}
-	currentJSON, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
-	if err != nil || status != http.StatusOK {
-		h.apiError(w)
-		return
-	}
-	var current map[string]any
-	if json.Unmarshal(currentJSON, &current) != nil {
+	current, err := h.currentResource(r, collection, id)
+	if err != nil {
 		h.apiError(w)
 		return
 	}
@@ -762,12 +1094,24 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 					return ui.Button(ui.ButtonProps{Type: "submit", Label: "Bu sürüme geri yükle", Variant: ui.Primary}).Render(ctx, form)
 				})
 				action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/revisions/" + strconv.FormatInt(version, 10) + "/restore"
+				if collection.Localization {
+					action = localePath(action, localeState(r).Current)
+				}
 				if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: formBody}).Render(ctx, out); err != nil {
 					return err
 				}
 			}
 		}
-		return ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id), Label: "Belgeye dön"}).Render(ctx, out)
+		back := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
+		backBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+			if collection.Localization {
+				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
+					return err
+				}
+			}
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: "Belgeye dön", Variant: ui.Quiet}).Render(ctx, form)
+		})
+		return ui.Form(ui.FormProps{Action: back, Method: http.MethodGet, Body: backBody}).Render(ctx, out)
 	})
 	h.renderPage(w, r, "Sürüm geçmişi · "+collection.Label, body)
 }
@@ -787,22 +1131,17 @@ func (h GeneratedAdminHandler) restoreRevision(w http.ResponseWriter, r *http.Re
 		http.Error(w, "invalid request", http.StatusForbidden)
 		return
 	}
-	if err := r.ParseForm(); err != nil || len(r.Form) != 2 || len(r.Form["expected_version"]) != 1 {
+	if err := r.ParseForm(); err != nil || len(r.PostForm) != 2 || len(r.PostForm["expected_version"]) != 1 {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-	expectedVersion, err := strconv.ParseInt(r.FormValue("expected_version"), 10, 64)
+	expectedVersion, err := strconv.ParseInt(r.PostFormValue("expected_version"), 10, 64)
 	if err != nil || expectedVersion < 1 {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-	currentJSON, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
-	if err != nil || status != http.StatusOK {
-		h.apiError(w)
-		return
-	}
-	var current map[string]any
-	if json.Unmarshal(currentJSON, &current) != nil {
+	current, err := h.currentResource(r, collection, id)
+	if err != nil {
 		h.apiError(w)
 		return
 	}
@@ -818,7 +1157,116 @@ func (h GeneratedAdminHandler) restoreRevision(w http.ResponseWriter, r *http.Re
 		http.Error(w, "restore unavailable", http.StatusConflict)
 		return
 	}
-	http.Redirect(w, r, "/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), http.StatusSeeOther)
+	redirect := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
+	if collection.Localization {
+		redirect = localePath(redirect, localeState(r).Current)
+	}
+	http.Redirect(w, r, redirect, http.StatusSeeOther)
+}
+
+func (h GeneratedAdminHandler) copyLocale(w http.ResponseWriter, r *http.Request, collection Collection, id string) {
+	if !collection.Localization || h.Options.CopyLocale == nil || h.Options.CanCopyLocale == nil {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	if !h.Options.ValidateCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil || len(r.PostForm) != 3 || len(r.PostForm["from_locale"]) != 1 || len(r.PostForm["expected_version"]) != 1 {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	from := r.PostFormValue("from_locale")
+	currentLocale := localeState(r).Current
+	allowed := false
+	for _, locale := range localeState(r).Options.Allowed {
+		allowed = allowed || locale == from
+	}
+	expected, err := strconv.ParseInt(r.PostFormValue("expected_version"), 10, 64)
+	if err != nil || expected < 0 || from == currentLocale || !allowed || !h.Options.CanCopyLocale(r, collection, id, from) {
+		http.Error(w, "locale copy unavailable", http.StatusForbidden)
+		return
+	}
+	_, currentVersion, err := h.Options.GetLocalized(r, collection, id, currentLocale)
+	if err != nil || currentVersion < 0 {
+		h.apiError(w)
+		return
+	}
+	if currentVersion != expected {
+		http.Error(w, "document changed; reload before copying", http.StatusConflict)
+		return
+	}
+	if err := h.Options.CopyLocale(r, collection, id, from, currentLocale, expected); err != nil {
+		http.Error(w, "locale copy unavailable", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), currentLocale), http.StatusSeeOther)
+}
+
+func (h GeneratedAdminHandler) mutateLocale(w http.ResponseWriter, r *http.Request, collection Collection, id string) {
+	if !collection.Localization || localeState(r).Current == localeState(r).Options.Default {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, generatedAdminBodyLimit)
+	if !h.Options.ValidateCSRF(r) {
+		http.Error(w, "invalid request", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	versions := r.PostForm["locale_version"]
+	if len(versions) != 1 {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	expected, err := strconv.ParseInt(versions[0], 10, 64)
+	if err != nil || expected < 0 {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	fields := make(map[string]any, len(collection.Fields))
+	allowed := map[string]struct{}{"_csrf": {}, "locale_version": {}}
+	for _, field := range collection.Fields {
+		if field.ReadOnly {
+			continue
+		}
+		allowed[field.ID] = struct{}{}
+		values, exists := r.PostForm[field.ID]
+		if !exists || !field.Localized {
+			continue
+		}
+		value, err := parseAdminField(field, values)
+		if err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		fields[field.ID] = value
+	}
+	for key, values := range r.PostForm {
+		if _, ok := allowed[key]; !ok || len(values) != 1 {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+	}
+	_, currentVersion, err := h.Options.GetLocalized(r, collection, id, localeState(r).Current)
+	if err != nil || currentVersion < 0 {
+		h.apiError(w)
+		return
+	}
+	if currentVersion != expected {
+		http.Error(w, "document changed; reload before saving", http.StatusConflict)
+		return
+	}
+	if err := h.Options.SaveLocalized(r, collection, id, localeState(r).Current, fields, expected); err != nil {
+		http.Error(w, "translation could not be saved", http.StatusConflict)
+		return
+	}
+	http.Redirect(w, r, localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), localeState(r).Current), http.StatusSeeOther)
 }
 
 func workflowActionLabel(state PublicationState) string {
@@ -837,7 +1285,7 @@ func workflowActionLabel(state PublicationState) string {
 }
 
 func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request, collection Collection, id string) {
-	if collection.Workflow == nil || h.Options.Transition == nil || h.Options.CanTransition == nil {
+	if collection.Workflow == nil || h.Options.Transition == nil || h.Options.CanTransition == nil || collection.Localization && localeState(r).Current != localeState(r).Options.Default {
 		http.NotFound(w, r)
 		return
 	}
@@ -846,11 +1294,11 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid request", http.StatusForbidden)
 		return
 	}
-	if err := r.ParseForm(); err != nil || len(r.Form) != 3 || len(r.Form["target"]) != 1 || len(r.Form["expected_version"]) != 1 {
+	if err := r.ParseForm(); err != nil || len(r.PostForm) != 3 || len(r.PostForm["target"]) != 1 || len(r.PostForm["expected_version"]) != 1 {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-	target := PublicationState(r.FormValue("target"))
+	target := PublicationState(r.PostFormValue("target"))
 	if !slices.Contains(collection.Workflow.States, target) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
@@ -865,7 +1313,7 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 		h.apiError(w)
 		return
 	}
-	expectedVersion, err := strconv.ParseInt(r.FormValue("expected_version"), 10, 64)
+	expectedVersion, err := strconv.ParseInt(r.PostFormValue("expected_version"), 10, 64)
 	if err != nil || expectedVersion < 1 || generatedRecordVersion(record) != expectedVersion {
 		http.Error(w, "document changed; reload before transitioning", http.StatusConflict)
 		return
@@ -879,11 +1327,22 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 		http.Error(w, "transition unavailable", http.StatusConflict)
 		return
 	}
-	http.Redirect(w, r, "/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), http.StatusSeeOther)
+	redirect := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
+	if collection.Localization {
+		redirect = localePath(redirect, localeState(r).Current)
+	}
+	http.Redirect(w, r, redirect, http.StatusSeeOther)
 }
 
 func generatedRecordVersion(record map[string]any) int64 {
-	switch value := record["version"].(type) {
+	if value, ok := record["locale_version"]; ok {
+		return recordVersion(value)
+	}
+	return recordVersion(record["version"])
+}
+
+func recordVersion(value any) int64 {
+	switch value := value.(type) {
 	case float64:
 		if value > 0 && value == float64(int64(value)) {
 			return int64(value)
@@ -899,10 +1358,15 @@ func generatedRecordVersion(record map[string]any) int64 {
 	return 0
 }
 
-func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool) templ.Component {
+func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool, locale, defaultLocale string, localizedEdit bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if editing && collection.Versioned {
+		if editing && collection.Versioned && !localizedEdit {
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "version", Value: values["version"]}).Render(ctx, out); err != nil {
+				return err
+			}
+		}
+		if editing && localizedEdit {
+			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale_version", Value: values["locale_version"]}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -925,9 +1389,20 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 			if field.ReadOnly {
 				continue
 			}
-			props := ui.InputProps{ID: field.ID, Name: field.ID, Label: field.Label, Type: "text", Value: values[field.ID], Required: field.Required}
+			label := field.Label
+			localizedOnly := collection.Localization && locale != defaultLocale && !field.Localized
+			if field.Localized {
+				label += " · " + locale
+			}
+			props := ui.InputProps{ID: field.ID, Name: field.ID, Label: label, Type: "text", Value: values[field.ID], Required: field.Required && (!collection.Localization || locale == defaultLocale), ReadOnly: localizedOnly}
+			if localizedOnly {
+				if err := ui.Input(props).Render(ctx, out); err != nil {
+					return err
+				}
+				continue
+			}
 			if field.Kind == FieldMedia || field.Widget == "media" {
-				if err := ui.MediaPicker(ui.MediaPickerProps{ID: field.ID, Name: field.ID, Label: field.Label, Value: values[field.ID]}).Render(ctx, out); err != nil {
+				if err := ui.MediaPicker(ui.MediaPickerProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID]}).Render(ctx, out); err != nil {
 					return err
 				}
 				continue
@@ -938,7 +1413,7 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				if field.Relation.Cardinality == "one" {
 					items = append([]ui.SelectOption{{Value: "", Label: "Seçin"}}, items...)
 				}
-				if err := ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: field.Label, Value: values[field.ID], Items: items, Selected: selected, Multiple: field.Relation.Cardinality == "many", Required: field.Required}).Render(ctx, out); err != nil {
+				if err := ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Items: items, Selected: selected, Multiple: field.Relation.Cardinality == "many", Required: props.Required}).Render(ctx, out); err != nil {
 					return err
 				}
 				continue
@@ -952,9 +1427,9 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 			}
 			var component templ.Component = ui.Input(props)
 			if len(field.Options) > 0 {
-				component = ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: field.Label, Value: values[field.ID], Options: field.Options, Required: field.Required})
+				component = ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Options: field.Options, Required: props.Required})
 			} else if field.Widget == "textarea" || field.Widget == "richtext" || field.Kind == FieldRichText {
-				component = ui.Textarea(ui.TextareaProps{ID: field.ID, Name: field.ID, Label: field.Label, Value: values[field.ID], Required: field.Required, Rows: 8})
+				component = ui.Textarea(ui.TextareaProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Required: props.Required, Rows: 8})
 			}
 			if err := component.Render(ctx, out); err != nil {
 				return err
@@ -1058,7 +1533,11 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		h.apiError(w)
 		return
 	}
-	http.Redirect(w, r, "/admin/resources/"+url.PathEscape(collection.ID), http.StatusSeeOther)
+	redirect := "/admin/resources/" + url.PathEscape(collection.ID)
+	if collection.Localization {
+		redirect = localePath(redirect, localeState(r).Current)
+	}
+	http.Redirect(w, r, redirect, http.StatusSeeOther)
 }
 
 func parseAdminField(field Field, values []string) (any, error) {

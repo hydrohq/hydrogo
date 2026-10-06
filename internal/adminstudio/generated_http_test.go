@@ -232,6 +232,110 @@ func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", Localization: true, Versioned: true, Revisions: true, TitleField: "title",
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText, Localized: true, VisibleInList: true}, {ID: "status", Label: "Status", Kind: FieldText}},
+		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/article":
+			_, _ = io.WriteString(w, `[{"id":"a1","title":"Base title","status":"published","version":4}]`)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/article/a1":
+			_, _ = io.WriteString(w, `{"id":"a1","title":"Base title","status":"published","version":4}`)
+		default:
+			t.Errorf("unexpected localized resource API call: %s %s", r.Method, r.URL.String())
+			http.NotFound(w, r)
+		}
+	})
+	var saved map[string]any
+	var savedVersion int64
+	var copied bool
+	var renderErr error
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, Collection) bool { return true },
+		Locales: func(*http.Request, Collection) (LocaleOptions, error) {
+			return LocaleOptions{Default: "en", Allowed: []string{"en", "fr"}}, nil
+		},
+		ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) { return nil, nil },
+		GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
+			return RevisionSnapshot{}, errors.New("not found")
+		},
+		CanRestore:      func(*http.Request, Collection, string, int64) bool { return false },
+		RestoreRevision: func(*http.Request, Collection, string, int64, int64) error { return errors.New("not found") },
+		GetLocalized: func(_ *http.Request, _ Collection, id, locale string) (map[string]any, int64, error) {
+			if id != "a1" || locale != "fr" {
+				return nil, 0, errors.New("not found")
+			}
+			return map[string]any{"title": "Titre"}, 2, nil
+		},
+		SaveLocalized: func(_ *http.Request, _ Collection, id, locale string, fields map[string]any, expected int64) error {
+			if id != "a1" || locale != "fr" {
+				return errors.New("wrong locale scope")
+			}
+			saved, savedVersion = fields, expected
+			return nil
+		},
+		ListLocalized: func(_ *http.Request, _ Collection, ids []string, locale string) (map[string]map[string]any, error) {
+			if len(ids) != 1 || ids[0] != "a1" || locale != "fr" {
+				return nil, errors.New("wrong list locale scope")
+			}
+			return map[string]map[string]any{"a1": {"title": "Titre liste"}}, nil
+		},
+		CanCopyLocale: func(_ *http.Request, _ Collection, id, from string) bool { return id == "a1" && from == "en" },
+		CopyLocale: func(_ *http.Request, _ Collection, id, from, to string, expected int64) error {
+			if id != "a1" || from != "en" || to != "fr" || expected != 2 {
+				return errors.New("wrong copy contract")
+			}
+			copied = true
+			return nil
+		},
+		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			renderErr = body.Render(r.Context(), w)
+			return renderErr
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	edit := httptest.NewRecorder()
+	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1?locale=fr", nil))
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `value="Titre"`) || !strings.Contains(edit.Body.String(), `value="published" readonly`) || !strings.Contains(edit.Body.String(), `/article/a1/locale?locale=fr`) || !strings.Contains(edit.Body.String(), `name="locale_version" value="2"`) || !strings.Contains(edit.Body.String(), "EN içeriğini buraya kopyala") {
+		t.Fatalf("localized editor contract missing: status=%d err=%v body=%s", edit.Code, renderErr, edit.Body.String())
+	}
+	request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale?locale=fr", strings.NewReader("_csrf=csrf-value&locale_version=2&title=Nouveau&status=published"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther || savedVersion != 2 || saved["title"] != "Nouveau" || len(saved) != 1 {
+		t.Fatalf("localized mutation did not isolate translated fields or preserve expected version: status=%d version=%d fields=%#v body=%s", response.Code, savedVersion, saved, response.Body.String())
+	}
+	copyRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale-copy?locale=fr", strings.NewReader("_csrf=csrf-value&from_locale=en&expected_version=2"))
+	copyRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	copyResponse := httptest.NewRecorder()
+	mux.ServeHTTP(copyResponse, copyRequest)
+	if copyResponse.Code != http.StatusSeeOther || !copied {
+		t.Fatalf("authorized locale copy was not delegated with the current locale version: status=%d copied=%v body=%s", copyResponse.Code, copied, copyResponse.Body.String())
+	}
+	list := httptest.NewRecorder()
+	mux.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/admin/resources/article?locale=fr", nil))
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "Titre liste") || !strings.Contains(list.Body.String(), `name="locale" value="en"`) {
+		t.Fatalf("localized list or locale navigation missing: status=%d body=%s", list.Code, list.Body.String())
+	}
+	unsupported := httptest.NewRecorder()
+	mux.ServeHTTP(unsupported, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1?locale=de", nil))
+	if unsupported.Code != http.StatusNotFound {
+		t.Fatalf("Edition-disallowed locale was accepted: status=%d", unsupported.Code)
+	}
+}
+
 func TestGeneratedAdminUsesBoundedRelationPicker(t *testing.T) {
 	registry, err := NewRegistry([]Collection{
 		{ID: "author", Label: "Authors", TitleField: "name", Fields: []Field{{ID: "name", Label: "Name", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Authors", Href: "/admin/resources/author"}}},
