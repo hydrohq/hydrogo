@@ -12,7 +12,7 @@ import (
 )
 
 func TestExternalEditionCanComposeGeneratedAdmin(t *testing.T) {
-	manifest := []byte(`{"version":"v1","resources":[{"id":"projects","label":"Projects","fields":[{"id":"title","label":"Title","kind":"text","required":true,"visible_in_list":true}],"actions":[{"label":"Open","href":"/admin/projects"}]}]}`)
+	manifest := []byte(`{"version":"v1","resources":[{"id":"projects","label":"Projects","fields":[{"id":"title","label":"Title","kind":"text","required":true,"visible_in_list":true}],"actions":[{"label":"Open","href":"/admin/projects"}]},{"id":"disabled","label":"Disabled","fields":[{"id":"title","label":"Title","kind":"text"}],"actions":[{"label":"Open","href":"/admin/disabled"}]}]}`)
 	mux := http.NewServeMux()
 	options := adminstudio.GeneratedAdminOptions{
 		API: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,12 +31,17 @@ func TestExternalEditionCanComposeGeneratedAdmin(t *testing.T) {
 			return body.Render(r.Context(), w)
 		},
 	}
-	if err := adminstudio.RegisterGenerated(mux, manifest, options); err != nil {
+	if err := adminstudio.RegisterGenerated(mux, manifest, []string{"projects"}, options); err != nil {
 		t.Fatal(err)
 	}
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/admin/resources/projects", nil))
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "Yeni kayıt") {
 		t.Fatalf("registered generated Admin route did not render: status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	inactive := httptest.NewRecorder()
+	mux.ServeHTTP(inactive, httptest.NewRequest(http.MethodGet, "/admin/resources/disabled", nil))
+	if inactive.Code != http.StatusNotFound {
+		t.Fatalf("unselected generated resource route was registered: status=%d body=%s", inactive.Code, inactive.Body.String())
 	}
 }
