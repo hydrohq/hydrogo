@@ -162,6 +162,10 @@ func TestLoadBlueprintMapsRelationsIntoManifestAndAdminForm(t *testing.T) {
 	if spec.Fields[0].Relation == nil || spec.Fields[0].Relation.Collection != "author" || spec.Fields[0].Admin.Widget != "relation" || spec.Fields[0].Nullable {
 		t.Fatalf("single relation mapping is incomplete: %#v", spec.Fields[0])
 	}
+	adminCollection, err := AdminCollection(spec)
+	if err != nil || adminCollection.Fields[0].Relation == nil || adminCollection.Fields[0].Relation.Collection != "author" {
+		t.Fatalf("relation field is missing from generated Admin metadata: collection=%#v err=%v", adminCollection, err)
+	}
 	root := t.TempDir()
 	if _, err := Generate(root, spec); err != nil {
 		t.Fatal(err)

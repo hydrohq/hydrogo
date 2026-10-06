@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -146,6 +147,47 @@ func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	mux.ServeHTTP(response, request)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("ordinary document edit failed: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestGeneratedAdminUsesBoundedRelationPicker(t *testing.T) {
+	registry, err := NewRegistry([]Collection{
+		{ID: "author", Label: "Authors", TitleField: "name", Fields: []Field{{ID: "name", Label: "Name", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Authors", Href: "/admin/resources/author"}}},
+		{ID: "article", Label: "Articles", TitleField: "title", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}, {ID: "author_id", Label: "Author", Kind: FieldRelation, Relation: &RelationRef{Collection: "author", Cardinality: "one"}}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/author" || r.URL.Query().Get("limit") != "50" || r.URL.Query().Get("offset") != "0" {
+			t.Errorf("relation choices were not bounded: %s %s", r.Method, r.URL.String())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[{"id":"author-1","name":"Ada"}]`)
+	})
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, Collection) bool { return true },
+		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(*http.Request) bool { return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/resources/article/new", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `name="author_id"`) || !strings.Contains(response.Body.String(), `<option value="author-1">Ada</option>`) {
+		t.Fatalf("relation picker missing title choices: status=%d body=%s", response.Code, response.Body.String())
+	}
+	field := Field{Kind: FieldRelation, Relation: &RelationRef{Collection: "author", Cardinality: "many", MaxItems: 2}}
+	parsed, err := parseAdminField(field, []string{"a", "b"})
+	if err != nil || !reflect.DeepEqual(parsed, []string{"a", "b"}) {
+		t.Fatalf("many relation values not preserved: value=%#v err=%v", parsed, err)
+	}
+	if _, err := parseAdminField(field, []string{"a", "b", "c"}); err == nil {
+		t.Fatal("many relation limit was not enforced")
 	}
 }
 

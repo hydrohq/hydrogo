@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -19,9 +20,14 @@ type SelectProps struct {
 	Label    string
 	Value    string
 	Options  []string
+	Items    []SelectOption
+	Selected []string
+	Multiple bool
 	Required bool
 	HTMX     HTMX
 }
+
+type SelectOption struct{ Value, Label string }
 
 func Select(p SelectProps) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
@@ -29,15 +35,25 @@ func Select(p SelectProps) templ.Component {
 		if p.Required {
 			attrs += ` required="required"`
 		}
+		if p.Multiple {
+			attrs += ` multiple="multiple"`
+		}
 		if _, err := io.WriteString(w, `<label for="`+esc(p.ID)+`">`+esc(p.Label)+`</label><select`+attrs+`>`); err != nil {
 			return err
 		}
-		for _, option := range p.Options {
+		items := p.Items
+		if len(items) == 0 {
+			items = make([]SelectOption, len(p.Options))
+			for index, option := range p.Options {
+				items[index] = SelectOption{Value: option, Label: option}
+			}
+		}
+		for _, option := range items {
 			selected := ""
-			if option == p.Value {
+			if option.Value == p.Value || slices.Contains(p.Selected, option.Value) {
 				selected = ` selected="selected"`
 			}
-			if _, err := io.WriteString(w, `<option value="`+esc(option)+`"`+selected+`>`+esc(option)+`</option>`); err != nil {
+			if _, err := io.WriteString(w, `<option value="`+esc(option.Value)+`"`+selected+`>`+esc(option.Label)+`</option>`); err != nil {
 				return err
 			}
 		}
