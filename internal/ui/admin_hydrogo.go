@@ -36,6 +36,19 @@ html[data-ui-theme=hydrogo] .studio-form button,html[data-ui-theme=hydrogo] .but
 html[data-ui-theme=hydrogo][data-theme=dark] .studio-form button,html[data-ui-theme=hydrogo][data-theme=dark] .button,html[data-ui-theme=hydrogo][data-theme=dark] .studio-card button{box-shadow:0 1px 2px #00000059}
 `
 
+// Initials avatars use a fixed palette independent of the active Admin theme.
+// Theme-specific .user-avatar rules must not replace those colors: in dark
+// mode their --brand token may be too light for white initials, while
+// monochrome themes set --brand-ink to near-black for white primary buttons.
+const AdminAvatarContrastCSS = `html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--0{background-color:#315bd6;color:#fff}
+html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--1{background-color:#087f8c;color:#fff}
+html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--2{background-color:#7c3aed;color:#fff}
+html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--3{background-color:#b45309;color:#fff}
+html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--4{background-color:#be123c;color:#fff}
+html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--5{background-color:#047857;color:#fff}
+html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--6{background-color:#4338ca;color:#fff}
+html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--7{background-color:#a21caf;color:#fff}`
+
 // AdminShadcnDashboardLayoutCSS toggles which dashboard body markup is
 // visible for the shadcn family, following the same client-only
 // display-toggle pattern AdminNovaDashboardLayoutCSS/
