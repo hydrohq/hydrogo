@@ -52,6 +52,30 @@ test.describe("single Edition administrator management", () => {
 
   test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
     let createdPageID = "";
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    await adminPage.goto(`${baseURL}/login`);
+    await adminPage.getByLabel("Email address").fill("admin@example.test");
+    await adminPage.getByLabel("Password").fill(adminPassword);
+    await adminPage.getByRole("button", { name: "Sign in" }).click();
+    await expect(adminPage).toHaveURL(/\/admin(?:\?.*)?$/);
+    await adminPage.goto(`${baseURL}/admin/users`);
+    const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string }> = {};
+    for (const email of ["editor@example.test", "viewer@example.test"]) {
+      const row = adminPage.locator(".studio-table tbody tr").filter({ has: adminPage.getByText(email, { exact: true }) });
+      const roleAction = await row.locator('form[action$="/role"]').getAttribute("action");
+      const permissionAction = await row.locator('form[action$="/permissions"]').getAttribute("action");
+      const disableAction = await row.locator('form[action$="/disable"]').getAttribute("action");
+      expect(roleAction).toBeTruthy();
+      expect(permissionAction).toBeTruthy();
+      expect(disableAction).toBeTruthy();
+      const id = new URL(roleAction!, baseURL).pathname.split("/").at(-2)!;
+      expect(new URL(permissionAction!, baseURL).pathname.split("/").at(-2)).toBe(id);
+      expect(new URL(disableAction!, baseURL).pathname.split("/").at(-2)).toBe(id);
+      managementTargets[email] = { id, role: roleAction!, permissions: permissionAction!, disable: disableAction! };
+    }
+    await adminContext.close();
+
     for (const account of [
       { email: "editor@example.test", expectedRole: "editor", allowedPath: "/admin/pages/new" },
       { email: "viewer@example.test", expectedRole: "viewer", allowedPath: "/admin/pages/new" },
@@ -127,6 +151,23 @@ test.describe("single Edition administrator management", () => {
       }
       const mutation = await page.request.post(`${baseURL}/admin/pages`, { form: { slug: "role-denied", title: "Role denied" } });
       expect(mutation.status()).toBe(403);
+
+      const csrfResponse = await page.request.get(`${baseURL}/csrf-token`);
+      expect(csrfResponse.status()).toBe(200);
+      const { token } = await csrfResponse.json();
+      expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(token);
+      const otherAccount = account.expectedRole === "editor" ? "viewer@example.test" : "editor@example.test";
+      const target = managementTargets[otherAccount];
+      const deniedRoleChange = await page.request.post(new URL(target.role, baseURL).href, {
+        form: { _csrf: token, role: account.expectedRole === "editor" ? "editor" : "viewer" },
+      });
+      expect(deniedRoleChange.status(), `${account.expectedRole} cannot change another user's role`).toBe(403);
+      const deniedPermissionChange = await page.request.post(new URL(target.permissions, baseURL).href, {
+        form: { _csrf: token, "perm_admin.content.write": "deny" },
+      });
+      expect(deniedPermissionChange.status(), `${account.expectedRole} cannot change another user's permissions`).toBe(403);
+      const deniedAccountDisable = await page.request.post(new URL(target.disable, baseURL).href, { form: { _csrf: token } });
+      expect(deniedAccountDisable.status(), `${account.expectedRole} cannot disable another user's account`).toBe(403);
       await context.close();
     }
   });
