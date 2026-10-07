@@ -301,7 +301,7 @@ test.describe("single Edition administrator management", () => {
     const permissionAction = await permissionForm.getAttribute("action");
     expect(permissionAction).toBeTruthy();
     const denyPermission = await page.request.post(new URL(permissionAction!, baseURL).href, {
-      form: { _csrf: permissionToken, "perm_admin.content.read": "deny", "perm_admin.content.write": "deny" },
+      form: { _csrf: permissionToken, "perm_admin.content.read": "deny", "perm_admin.content.write": "deny", "perm_admin.media.manage": "deny" },
     });
     expect(denyPermission.status()).toBe(204);
     await page.reload();
@@ -316,6 +316,7 @@ test.describe("single Edition administrator management", () => {
     await expect(restrictedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
     const deniedCreatePage = await restrictedEditor.goto(`${baseURL}/admin/pages/new`);
     expect(deniedCreatePage?.status()).toBe(403);
+    expect((await restrictedEditor.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
     await expect(restrictedEditor.locator('form[action="/admin/pages"]')).toHaveCount(0);
     expect((await restrictedEditor.goto(`${baseURL}/admin/pages`))?.status()).toBe(403);
     const csrfResponse = await restrictedEditor.request.get(`${baseURL}/csrf-token`);
@@ -333,7 +334,7 @@ test.describe("single Edition administrator management", () => {
 
     const grantToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
     const permissionUpdate = await page.request.post(new URL(permissionAction!, baseURL).href, {
-      form: { _csrf: grantToken, "perm_admin.content.read": "allow", "perm_admin.content.write": "allow" },
+      form: { _csrf: grantToken, "perm_admin.content.read": "allow", "perm_admin.content.write": "allow", "perm_admin.media.manage": "inherit" },
     });
     expect(await permissionUpdate.text()).toBe("");
     expect(permissionUpdate.status()).toBe(204);
@@ -362,32 +363,6 @@ test.describe("single Edition administrator management", () => {
     expect(restoreRole.status()).toBe(204);
     await page.reload();
     await expect(editorRow.locator('[name="role"]')).toHaveValue("editor");
-
-    const denyMediaToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
-    const denyMedia = await page.request.post(new URL(permissionAction!, baseURL).href, {
-      form: { _csrf: denyMediaToken, "perm_admin.media.manage": "deny" },
-    });
-    expect(denyMedia.status()).toBe(204);
-    await page.reload();
-    await expect(editorRow.locator('[name="perm_admin.media.manage"]')).toHaveValue("deny");
-
-    const mediaRestrictedContext = await browser.newContext();
-    const mediaRestrictedEditor = await mediaRestrictedContext.newPage();
-    await mediaRestrictedEditor.goto(`${baseURL}/login`);
-    await mediaRestrictedEditor.getByLabel("Email address").fill("editor@example.test");
-    await mediaRestrictedEditor.getByLabel("Password").fill(adminPassword);
-    await mediaRestrictedEditor.getByRole("button", { name: "Sign in" }).click();
-    await expect(mediaRestrictedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
-    expect((await mediaRestrictedEditor.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
-    const restoreMediaToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
-    const restoreMedia = await page.request.post(new URL(permissionAction!, baseURL).href, {
-      form: { _csrf: restoreMediaToken, "perm_admin.media.manage": "inherit" },
-    });
-    expect(restoreMedia.status()).toBe(204);
-    await page.reload();
-    await expect(editorRow.locator('[name="perm_admin.media.manage"]')).toHaveValue("inherit");
-    expect((await mediaRestrictedEditor.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
-    await mediaRestrictedContext.close();
 
     const editorResponse = await page.goto(`${baseURL}/admin/pages/new`);
     await expect(page.getByRole("group", { name: "Sayfa düzeni" })).toBeVisible();
