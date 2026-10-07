@@ -153,6 +153,21 @@ test.describe("single Edition administrator management", () => {
       }
     }
 
+    const usersResponse = await page.goto(`${baseURL}/admin/users`);
+    expect(usersResponse?.status()).toBe(200);
+    const editorRow = page.locator(".studio-table tbody tr").filter({ hasText: "editor@example.test" });
+    const permissionForm = editorRow.locator('form[action$="/permissions"]');
+    const permissionToken = await permissionForm.locator('[name="_csrf"]').inputValue();
+    const permissionAction = await permissionForm.getAttribute("action");
+    expect(permissionAction).toBeTruthy();
+    const permissionUpdate = await page.request.post(new URL(permissionAction!, baseURL).href, {
+      form: { _csrf: permissionToken, "perm_admin.content.write": "allow" },
+    });
+    expect(await permissionUpdate.text()).toBe("");
+    expect(permissionUpdate.status()).toBe(204);
+    await page.reload();
+    await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("allow");
+
     const editorResponse = await page.goto(`${baseURL}/admin/pages/new`);
     await expect(page.getByRole("group", { name: "Sayfa düzeni" })).toBeVisible();
     await expect(page.getByText("Boş sayfa")).toBeVisible();
