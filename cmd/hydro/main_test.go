@@ -272,6 +272,31 @@ func TestAdminControlAccessFollowsSiteManagePermission(t *testing.T) {
 	}
 }
 
+func TestEveryRegisteredAdminControlRouteEnforcesRoleBoundary(t *testing.T) {
+	routes := adminControlRoutePatterns(map[string]bool{"site": true})
+	users := []struct {
+		name string
+		user *auth.User
+	}{
+		{name: "admin", user: &auth.User{Role: auth.RoleAdmin, Active: true}},
+		{name: "editor", user: &auth.User{Role: auth.RoleEditor, Active: true}},
+		{name: "viewer", user: &auth.User{Role: auth.RoleViewer, Active: true}},
+		{name: "inactive admin", user: &auth.User{Role: auth.RoleAdmin, Active: false}},
+		{name: "anonymous"},
+	}
+	for _, route := range routes {
+		path := strings.TrimPrefix(route, "GET ")
+		for _, tc := range users {
+			t.Run(tc.name+" "+path, func(t *testing.T) {
+				want := tc.name == "admin" || ((tc.name == "editor" || tc.name == "viewer") && path == "/admin/account")
+				if got := adminControlAllowed(tc.user, path); got != want {
+					t.Errorf("adminControlAllowed(%s, %s) = %v, want %v", tc.name, path, got, want)
+				}
+			})
+		}
+	}
+}
+
 func TestPageCacheConstructionFollowsModuleActivation(t *testing.T) {
 	budget, err := capacity.Defaults(capacity.Compact)
 	if err != nil {
