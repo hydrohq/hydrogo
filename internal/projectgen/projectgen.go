@@ -39,6 +39,7 @@ type Options struct {
 	Edition          string `json:"edition"`
 	Demo             bool   `json:"demo"`
 	E2E              bool   `json:"e2e"`
+	Collections      bool   `json:"collections"`
 	Git              bool   `json:"git"`
 	FrontendManifest string `json:"frontend_manifest,omitempty"`
 	DesignSystem     string `json:"design_system,omitempty"`
@@ -210,6 +211,9 @@ func Generate(opts Options) (string, error) {
 	}
 
 	features := presetFeatures(opts.Preset)
+	if opts.Collections {
+		features = append(features, "auth", "members", "collections")
+	}
 	if opts.Presentation == "headless" && !contains(features, "headless") {
 		features = append(features, "headless")
 	}
@@ -253,6 +257,8 @@ func Generate(opts Options) (string, error) {
 		"TASKS.md":                   tasksTemplate(opts),
 		"LICENSE":                    licenseDraftTemplate(opts),
 		"NOTICE":                     noticeTemplate(),
+		".gitignore":                 "/data/*\n!/data/.gitkeep\n",
+		"data/.gitkeep":              "",
 		"docs/ARCHITECTURE.md":       architectureDocTemplate(opts, lock),
 		"docs/OPERATIONS.md":         operationsDocTemplate(opts),
 		"docs/SDK.md":                sdkDocTemplate(opts, lock),
@@ -861,6 +867,31 @@ HydroGo Client Edition project scaffolded with the **%s** preset.
    one, `+"`hydro dev`"+` starts normally but reports a server error instead of
    "Ready" until a license is supplied, unless you also use the
    `+"`HYDRO_DEV_MODE`"+` bypass described below.
+
+## Blueprint collections in Admin
+
+For a new Edition that should use the built-in schema-driven Collections
+panel, create it with `+"`--with-collections`"+`. This explicitly enables
+the `+"`auth`"+`, `+"`members`"+`, and `+"`collections`"+` modules. From the project root, the
+complete local workflow is:
+
+`+"```powershell"+`
+hydro project new my-edition --preset=compact-site --with-collections
+Set-Location my-edition
+hydro resource create --name article --field title:text --out .
+hydro migrate --config config.yaml
+hydro collections sync --config config.yaml --generated generated --confirm-admin-crud
+hydro create-admin --config config.yaml --email admin@example.test --password-stdin
+hydro serve --config config.yaml
+`+"```"+`
+
+Then open `+"`/admin/collections`"+`. The module is optional; without
+`+"`--with-collections`"+`, it adds no route or migration. Sync is an explicit
+confirmation because it grants existing Edition administrators full CRUD for
+the imported schemas. The Blueprint's generated per-resource SQL remains a
+reviewable proposal and is not applied by this workflow. This panel uses the
+Collections storage contract; workflow, draft, revision, localization, and
+generated Edition policy callbacks require the generated Edition runtime.
 
 ## Local verification without a commercial license
 

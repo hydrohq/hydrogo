@@ -229,6 +229,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	presentation := flags.String("presentation", "integrated", "Presentation: integrated or headless")
 	edition := flags.String("edition", "starter", "License edition: starter, growth, enterprise or custom")
 	noDemo := flags.Bool("no-demo", false, "Do not create the seed directory")
+	withCollections := flags.Bool("with-collections", false, "Enable the optional Collections Admin module for Blueprint CRUD sync")
 	withGit := flags.Bool("git", false, "Run git init in the new project")
 	root := flags.String("root", ".", "Parent directory for the new project")
 	frontendManifest := flags.String("frontend-manifest", "", "JSON frontend build manifest containing routes and test_id selectors")
@@ -329,6 +330,7 @@ func newProjectCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		Edition:          *edition,
 		Demo:             !*noDemo,
 		E2E:              true,
+		Collections:      *withCollections,
 		Git:              *withGit,
 		FrontendManifest: *frontendManifest,
 		DesignSystem:     *designSystem,

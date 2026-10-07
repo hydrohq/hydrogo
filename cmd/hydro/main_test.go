@@ -352,7 +352,7 @@ func TestResourceCreateFromFlagsGeneratesCompleteScaffold(t *testing.T) {
 func TestProjectNewAliasGeneratesProject(t *testing.T) {
 	root := t.TempDir()
 	var stdout, stderr bytes.Buffer
-	if err := run([]string{"project", "new", "demo", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+	if err := run([]string{"project", "new", "demo", "--root", root, "--preset", "compact-site", "--no-demo", "--with-collections"}, strings.NewReader(""), &stdout, &stderr); err != nil {
 		t.Fatalf("project new: %v stderr=%s", err, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "project-created path=") {
@@ -362,6 +362,23 @@ func TestProjectNewAliasGeneratesProject(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(root, "demo", name)); err != nil {
 			t.Fatalf("missing generated project file %s: %v", name, err)
 		}
+	}
+	cfg, err := config.Load(filepath.Join(root, "demo", "config.yaml"), nil, config.Overrides{})
+	if err != nil {
+		t.Fatalf("load generated config: %v", err)
+	}
+	collectionsEnabled := false
+	for _, module := range cfg.Modules {
+		if module == "collections" {
+			collectionsEnabled = true
+			break
+		}
+	}
+	if !collectionsEnabled {
+		t.Fatalf("generated modules = %#v, want collections enabled", cfg.Modules)
+	}
+	if _, err := os.Stat(filepath.Join(root, "demo", "data", ".gitkeep")); err != nil {
+		t.Fatalf("generated project must include the default SQLite data directory: %v", err)
 	}
 }
 
