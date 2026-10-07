@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -114,6 +115,26 @@ func TestAdminShellPageCreateActionFollowsContentWritePermission(t *testing.T) {
 			got := strings.Contains(out.String(), `href="/admin/pages/new"`)
 			if got != tc.visible {
 				t.Fatalf("page create action visible = %t, want %t", got, tc.visible)
+			}
+		})
+	}
+}
+
+func TestAdminShellCommerceCommandsFollowModuleActivation(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enabled=%t", enabled), func(t *testing.T) {
+			request := httptest.NewRequest("GET", "/admin", nil)
+			request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{CommerceModuleEnabled: enabled}))
+			var out bytes.Buffer
+			if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
+				t.Fatal(err)
+			}
+			marker := `data-commerce-enabled="false"`
+			if enabled {
+				marker = `data-commerce-enabled="true"`
+			}
+			if !strings.Contains(out.String(), marker) {
+				t.Fatalf("Admin shell missing module state %q", marker)
 			}
 		})
 	}
