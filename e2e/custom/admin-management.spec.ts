@@ -201,6 +201,33 @@ test.describe("single Edition administrator management", () => {
     await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+\?saved=1$/);
     await expect(page.locator('form[data-autosave-resource^="page:"] [name="title"]')).toHaveValue("E2E editorial published");
 
+    const originalPagePath = new URL(page.url()).pathname;
+    await page.goto(`${baseURL}${originalPagePath}?revision=1`);
+    const revisionPanel = page.locator("[data-revision-diff]");
+    await expect(revisionPanel).toBeVisible();
+    await revisionPanel.locator("summary").click();
+    await expect(revisionPanel.getByRole("button", { name: "Bu sürümü geri yükle" })).toBeVisible();
+    page.once("dialog", (dialog) => dialog.accept());
+    await revisionPanel.getByRole("button", { name: "Bu sürümü geri yükle" }).click();
+    await expect(page).toHaveURL(`${baseURL}${originalPagePath}`);
+    await expect(page.locator('form[data-autosave-resource^="page:"] [name="title"]')).toHaveValue("E2E editorial draft");
+
+    const restoredEdit = page.locator('form[data-autosave-resource^="page:"]');
+    await restoredEdit.locator('[name="title"]').fill("E2E editorial published");
+    await restoredEdit.locator(".richtext-editor [contenteditable=true]").fill("Published body from the editorial browser journey.");
+    await restoredEdit.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+\?saved=1$/);
+
+    await page.goto(`${baseURL}${originalPagePath}?compare=en`);
+    const translation = page.locator("[data-translation-editor]");
+    await expect(translation).toBeVisible();
+    await translation.getByLabel("Başlık çevirisi").fill("E2E editorial translated");
+    await translation.getByLabel("Metin çevirisi").fill("Translated body from the editorial browser journey.");
+    await translation.getByRole("button", { name: "Çeviriyi kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+    await expect(page.locator('form[data-autosave-resource^="page:"] [name="title"]')).toHaveValue("E2E editorial translated");
+
+    await page.goto(`${baseURL}${originalPagePath}`);
     await page.locator('form[action$="/publish"] button[type="submit"]').click();
     await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
     const publishedPage = await page.request.get(`${baseURL}/public/pages/tr/e2e-editorial-page/html`);
