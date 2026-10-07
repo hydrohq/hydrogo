@@ -1,7 +1,7 @@
 # Admin Studio ve müşteri akışları Chromium matrisi
 
 **Tarih:** 2026-10-07  
-**Sonuç:** 63/63 Chromium testi geçti  
+**Sonuç:** 64/64 Chromium testi geçti  
 **Kapsam:** Admin ve editör deneyimi, generated/dynamic CRUD, MFA, erişilebilirlik,
 responsive davranış ve public sayfalar.
 
@@ -78,10 +78,19 @@ go run ./tools/importguard -root examples/construction-edition
   sonra her tema/modu doğrular. Bu alt matriste bütün Admin rotalarının veya
   public/generated sayfa türlerinin her temada tarandığı iddia edilmez.
 
+2026-10-07 takip koşusunda `admin-management.spec.ts`, mevcut admin storage
+state'i yeniden kullanarak 15 yönetim rotasının hem 390px hem 768px viewport'ta
+200 döndüğünü ve yatay taşmadığını doğrulayan bir test ekledi. Böylece tam
+Chromium matrisi **64/64** geçti (2.9 dakika). Admin desktop visual golden
+koşusu 7/7 geçti. Tablet/mobile visual projeleri bu makinede WebKit bağımlı
+tarayıcı başlatma kütüphaneleri eksik olduğu için açılamadı; aynı viewport
+boyutlarındaki responsive kabul Chromium ile çalıştı. Bu sonuç fiziksel cihaz
+veya WebKit görsel parity testi olarak değerlendirilmez.
+
 Admin ve MFA grubu ayrıca `custom/admin-management.spec.ts`,
 `custom/admin-password-reset.spec.ts` ve `custom/admin-mfa-settings.spec.ts`
-ile 5/5 geçti. Suite aynı gerçek login/challenge ve mutasyon akışlarını
-bağımsız tekrarlar.
+ile yeni responsive kabul testi dahil 6/6 geçti. Suite aynı gerçek
+login/challenge ve mutasyon akışlarını bağımsız tekrarlar.
 
 Faz 1 devamında Project Edition'e yeni bir `milestone` Blueprint kaynağı
 eklendi. Aynı generated Admin registration helper'ı bu kaynağı ayrıca ID

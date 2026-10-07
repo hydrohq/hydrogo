@@ -12,6 +12,7 @@ let server: ChildProcess | undefined;
 let tempDir = "";
 let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
+let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
 test.describe("single Edition administrator management", () => {
   test.describe.configure({ mode: "serial" });
@@ -132,6 +133,7 @@ test.describe("single Edition administrator management", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
     await dismissAdminTour(page);
+    adminStorageState = await page.context().storageState();
     await page.goto(`${baseURL}/admin`);
     await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
     await expect(page.locator("h1")).toBeVisible();
@@ -509,6 +511,38 @@ test.describe("single Edition administrator management", () => {
     await page.reload();
     await expect(viewerRow).toContainText("Pasif");
     await viewerContext.close();
+  });
+
+  test("admin routes fit mobile and tablet viewports", async ({ browser }) => {
+    expect(adminStorageState, "admin route test must reuse the authenticated Edition admin session").toBeDefined();
+    const context = await browser.newContext({ storageState: adminStorageState });
+    const page = await context.newPage();
+    for (const viewport of [{ name: "mobile", width: 390, height: 844 }, { name: "tablet", width: 768, height: 1024 }]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      for (const route of [
+        "/admin",
+        "/admin/pages/new",
+        "/admin/news/new",
+        "/admin/media",
+        "/admin/users",
+        "/admin/permissions",
+        "/admin/security",
+        "/admin/audit",
+        "/admin/backup",
+        "/admin/control",
+        "/admin/operations",
+        "/admin/developer",
+        "/admin/developer/resources",
+        "/admin/reports",
+        "/admin/account",
+      ]) {
+        const response = await page.goto(`${baseURL}${route}`, { waitUntil: "domcontentloaded" });
+        expect(response?.status(), `${route} must render at ${viewport.width}px`).toBe(200);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(overflow, `${route} must not overflow at ${viewport.width}px`).toBeLessThanOrEqual(1);
+      }
+    }
+    await context.close();
   });
 
   test("real invitation link creates a usable Edition editor account", async ({ browser }) => {
