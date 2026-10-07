@@ -83,6 +83,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0284](0284-mysql-physical-schema-diff.md) | MySQL physical schema diff | Accepted |
 | [0285](0285-media-enrichment-and-upload-safety.md) | Pure Go media enrichment and upload safety | Accepted |
 | [0286](0286-dalga4-bounded-platform-capabilities.md) | Bounded Dalga 4 platform capabilities | Accepted for bounded scope |
+| [0287](0287-static-storage-dynamic-collections.md) | Dynamic collections on static, certified storage | Accepted |
 | [0318](0318-maintenance-mode-request-gate.md) | Opt-in maintenance mode request gate | Accepted for bounded contract |
 | [0319](0319-bounded-link-audit.md) | Bounded public link and asset audit | Accepted for operator-initiated scans |
 | [0320](0320-safe-mode-runtime.md) | Incident Safe Mode runtime and external work suppression | Accepted |

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -107,6 +108,24 @@ func testRuntimeStandaloneShutdown(t *testing.T, optional []string) {
 		}
 		if !ready {
 			t.Fatalf("standalone runtime did not become ready within 15s\nstdout:\n%s\nstderr:\n%s", &stdout, &stderr)
+		}
+		response, requestErr := http.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/admin/collections")
+		if requestErr != nil {
+			_ = cmd.Process.Kill()
+			<-exited
+			t.Fatalf("collections route probe failed: %v", requestErr)
+		}
+		_ = response.Body.Close()
+		collectionsEnabled := slices.Contains(optional, "collections")
+		if collectionsEnabled && response.StatusCode != http.StatusUnauthorized && response.StatusCode != http.StatusSeeOther {
+			_ = cmd.Process.Kill()
+			<-exited
+			t.Fatalf("enabled collections route status = %d, want protected route response", response.StatusCode)
+		}
+		if !collectionsEnabled && response.StatusCode != http.StatusNotFound {
+			_ = cmd.Process.Kill()
+			<-exited
+			t.Fatalf("inactive collections route status = %d, want 404", response.StatusCode)
 		}
 		if err := terminateRuntimeProcess(cmd); err != nil {
 			_ = cmd.Process.Kill()

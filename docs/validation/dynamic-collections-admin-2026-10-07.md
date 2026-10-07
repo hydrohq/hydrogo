@@ -29,6 +29,16 @@ editor and viewer contexts; both roles are denied with 403. All routes are
 asserted to remain protected. This route-handler role matrix complements the
 browser test's real administrator journey.
 
+SQLite and live PostgreSQL storage contracts cover schema/record CRUD, required
+and unique fields, duplicate-write rollback, relation existence and deletion
+protection, version increments, and tenant isolation. PostgreSQL's unique-value
+race test starts eight writers together and requires exactly one persisted
+record. The live test uses a temporary schema and drops it during cleanup.
+SQLite migration filtering verifies the four collection tables are absent when
+the module is disabled and present when enabled. A runtime startup test checks
+that `/admin/collections` is missing with the module disabled and remains behind
+authentication when enabled.
+
 ## Commands
 
 ```sh
@@ -36,7 +46,10 @@ go test ./internal/ui ./internal/adminstudio ./internal/collections/... ./cmd/hy
 cd e2e && npx playwright test custom/dynamic-collections.spec.ts --project=chromium --workers=1 --reporter=line
 ```
 
-Both commands passed. The browser test passed 1/1. Screenshots and traces are
+The Go contract was also run against live PostgreSQL with
+`HYDRO_TEST_POSTGRES_URL` set to an isolated test connection; PostgreSQL
+collection contract passed. The targeted database, transport, runtime route,
+and browser tests passed; the browser test passed 1/1. Screenshots and traces are
 stored in the ignored `e2e/artifacts/` directory and are not committed.
 
 This validates the runtime dynamic-collections module. It does not claim that
