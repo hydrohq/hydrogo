@@ -3175,6 +3175,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if r.URL.Path == "/admin/permissions" {
 			active = "permissions"
 		}
+		if (active == "users" || active == "permissions") && !authSvc.Can(user, auth.PermissionUsersManage) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		var err error
 		if active == "control" {
 			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})

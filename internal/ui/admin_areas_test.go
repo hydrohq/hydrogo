@@ -181,6 +181,11 @@ func TestAdminShellNavigationFollowsEffectivePermissions(t *testing.T) {
 			user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionCommerceRead: false, auth.PermissionCommerceWrite: false}},
 			omit: []string{`href="/admin/commerce/products"`, `href="/admin/commerce/orders"`, `href="/admin/commerce/products/new"`},
 		},
+		{
+			name: "admin user management denied",
+			user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionUsersManage: false}},
+			omit: []string{`href="/admin/users"`, `href="/admin/permissions"`},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

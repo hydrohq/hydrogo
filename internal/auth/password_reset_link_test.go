@@ -47,7 +47,7 @@ func TestAdminPasswordResetLinkIsOneUseAndResetsTargetAccount(t *testing.T) {
 	}
 	transactions := database.NewTenantTransactor(db, database.SQLite, false)
 	recovery := &auth.PasswordRecovery{Users: users, Tokens: users, Sessions: authstore.NewSessionStore(db, database.SQLite), ArgonParams: auth.TestArgon2Params}
-	handler := auth.HTTPHandler{Recovery: recovery, RecoveryDB: db, Transactions: transactions, PublicOrigin: "https://hydro.example.test"}
+	handler := auth.HTTPHandler{Service: auth.NewAuthService(users, authstore.NewSessionStore(db, database.SQLite), nil, auth.TestArgon2Params), Recovery: recovery, RecoveryDB: db, Transactions: transactions, PublicOrigin: "https://hydro.example.test"}
 	var generate http.Handler
 	var confirm http.Handler
 	for _, route := range handler.Routes() {

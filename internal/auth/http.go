@@ -150,7 +150,7 @@ func (h HTTPHandler) effectiveTokenLifetimes(ctx context.Context) (TokenLifetime
 
 func (h HTTPHandler) adminPasswordResetLink(w http.ResponseWriter, r *http.Request) {
 	admin := UserFromContext(r.Context())
-	if admin == nil || !admin.Active || admin.Role != RoleAdmin {
+	if !h.adminUserManage(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -201,7 +201,11 @@ func (h HTTPHandler) adminPasswordResetLink(w http.ResponseWriter, r *http.Reque
 }
 
 func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
-	if !h.adminUser(r) || h.Invitation == nil || database.RequireExecutor(h.InviteDB) != nil || guards.IsNil(h.InviteNotice) || strings.TrimSpace(h.PublicOrigin) == "" {
+	if !h.adminUserManage(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Invitation == nil || database.RequireExecutor(h.InviteDB) != nil || guards.IsNil(h.InviteNotice) || strings.TrimSpace(h.PublicOrigin) == "" {
 		http.Error(w, "invitation unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -797,7 +801,7 @@ func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := UserFromContext(r.Context())
-	if actor == nil || !actor.Active || actor.Role != RoleAdmin {
+	if !h.adminUserManage(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -825,7 +829,7 @@ func (h HTTPHandler) disableUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) updateUserRole(w http.ResponseWriter, r *http.Request) {
-	if h.Service == nil || !h.adminUser(r) {
+	if h.Service == nil || !h.adminUserManage(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -853,7 +857,7 @@ func (h HTTPHandler) updateUserRole(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) updateUserPermissions(w http.ResponseWriter, r *http.Request) {
-	if h.Service == nil || !h.adminUser(r) {
+	if h.Service == nil || !h.adminUserManage(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -985,6 +989,11 @@ func clientIP(r *http.Request) string {
 func (h HTTPHandler) adminUser(r *http.Request) bool {
 	user := UserFromContext(r.Context())
 	return user != nil && user.Active && user.Role == RoleAdmin
+}
+
+func (h HTTPHandler) adminUserManage(r *http.Request) bool {
+	user := UserFromContext(r.Context())
+	return h.adminUser(r) && h.Service.Can(user, PermissionUsersManage)
 }
 
 func writeAuthDependencyError(w http.ResponseWriter, message string, err error, fallbackStatus int) {

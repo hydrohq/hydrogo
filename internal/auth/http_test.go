@@ -386,6 +386,7 @@ func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
 	service := &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params}
 	var notified string
 	handler := HTTPHandler{
+		Service:      NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params),
 		Invitation:   service,
 		InviteDB:     httpExecutor{},
 		PublicOrigin: "https://hydro.example.test",
@@ -409,6 +410,34 @@ func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
 	}
 	if response["email"] != "new@example.com" || !strings.Contains(response["url"], "https://hydro.example.test/auth/invites/accept?token=") || res.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("share response = %#v, headers=%v", response, res.Header())
+	}
+}
+
+func TestAdminUserManagementMutationDeniesExplicitPermissionOverride(t *testing.T) {
+	service := NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params)
+	admin := &User{ID: "actor", Role: RoleAdmin, Active: true, PermissionOverrides: map[string]bool{PermissionUsersManage: false}}
+	h := HTTPHandler{Service: service}
+	endpoints := []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{"role", h.updateUserRole},
+		{"permissions", h.updateUserPermissions},
+		{"disable", h.disableUser},
+		{"invite", h.issueInvite},
+		{"password reset link", h.adminPasswordResetLink},
+	}
+	for _, endpoint := range endpoints {
+		t.Run(endpoint.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/auth/users/target", strings.NewReader("role=editor"))
+			req.SetPathValue("id", "target")
+			req = req.WithContext(WithUser(req.Context(), admin))
+			res := httptest.NewRecorder()
+			endpoint.handler(res, req)
+			if res.Code != http.StatusForbidden {
+				t.Fatalf("admin mutation with users.manage denied = %d, want %d", res.Code, http.StatusForbidden)
+			}
+		})
 	}
 }
 
