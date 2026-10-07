@@ -68,6 +68,17 @@ test.describe("generated Edition Admin CRUD", () => {
     await expect(page.locator("h1", { hasText: "Projects" })).toBeVisible();
     await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible();
     await expectNoA11yViolations(page);
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await expectNoA11yViolations(page);
+      }
+    }
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.reload();
     await expect(page.locator("#filter-status option").first()).toHaveText("Tümü");
     for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }]) {
       await page.setViewportSize(viewport);

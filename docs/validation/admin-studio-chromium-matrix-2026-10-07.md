@@ -37,6 +37,19 @@ npm run generate
 npx playwright test --project=chromium --workers=1 --reporter=line
 ```
 
+Go ve repository kapıları:
+
+```sh
+go test ./... -count=1 -p 1 -timeout=5m
+go vet ./...
+go run ./tools/actionguard
+go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json
+go run ./tools/migrationguard -root migrations
+go run ./tools/importguard -root examples/client-edition
+go run ./tools/importguard -root examples/news-edition
+go run ./tools/importguard -root examples/construction-edition
+```
+
 ## Sonuç
 
 - İlk doğrudan koşu fixture hazırlanmadan yapıldığı için generated Admin smoke
@@ -50,8 +63,20 @@ npx playwright test --project=chromium --workers=1 --reporter=line
 - İlk tam koşuda generated Admin axe taraması tek bir kontrast uyarısı verdi;
   izole tekil tekrar ve fixture-auth ile yapılan tam tekrar geçti. E2E helper'ı
   bundan sonra axe node failure summary'sini de assertion çıktısına ekler.
-  Bu görünüm HydroGo temasıyla test edildi; bütün tema varyantları ve bütün
-  üretilen sayfa türleri için WCAG kabulü hâlâ açık.
+  Bu generated CRUD sayfası için sekiz tema/mod birleşimi de ayrıca axe-core
+  taramasından geçirildi: HydroGo, shadcn, Nova ve Aurora için light/dark;
+  **8/8 geçti.** Denetim, karanlık HydroGo modunda avatar kontrastını ve
+  shadcn/Nova temalarının sabit avatar paletini ezmesini buldu. Palet renkleri
+  tema değişimlerinden bağımsız hale getirildi; matriste tam Axe taraması artık
+  tüm sekiz birleşimde koşuyor. Diğer Admin sayfaları ile tüm public/generated
+  türler için tema bazlı WCAG kabulü hâlâ açık.
+- Takipte generated CRUD liste görünümü sekiz aile/mod kombinasyonunda ayrı
+  axe-core taramasından geçirildi: HydroGo, shadcn, Nova ve Aurora için light ve
+  dark. **8/8 geçti.** Denetim, koyu modda HydroGo accent rengi üzerinde beyaz
+  avatar metni kontrastını ve shadcn/Nova temalarının avatar paletini ezmesini
+  buldu. Avatar palette renkleri temadan bağımsız hale getirildi; test bundan
+  sonra her tema/modu doğrular. Bu alt matriste bütün Admin rotalarının veya
+  public/generated sayfa türlerinin her temada tarandığı iddia edilmez.
 
 Admin ve MFA grubu ayrıca `custom/admin-management.spec.ts`,
 `custom/admin-password-reset.spec.ts` ve `custom/admin-mfa-settings.spec.ts`
