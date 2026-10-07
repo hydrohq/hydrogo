@@ -63,3 +63,19 @@ func TestHeadersMiddlewareAllowsConfiguredInlineHashes(t *testing.T) {
 		}
 	}
 }
+
+func TestAllowSameOriginFrameReplacesStrictFramePolicy(t *testing.T) {
+	response := httptest.NewRecorder()
+	handler := HeadersMiddleware(HeaderConfig{})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		AllowSameOriginFrame(w.Header())
+		w.WriteHeader(http.StatusOK)
+	}))
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/preview", nil))
+	csp := response.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "frame-ancestors 'self'") || strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Fatalf("same-origin frame policy = %q", csp)
+	}
+	if got := response.Header().Get("X-Frame-Options"); got != "SAMEORIGIN" {
+		t.Fatalf("X-Frame-Options = %q", got)
+	}
+}

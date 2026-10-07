@@ -13,15 +13,17 @@ import (
 var ErrInvalidToken = errors.New("invalid preview token")
 
 type Claims struct {
-	PageID   string `json:"page_id"`
-	TenantID string `json:"tenant_id,omitempty"`
-	Revision int    `json:"revision"`
-	Expires  int64  `json:"expires"`
+	PageID       string `json:"page_id,omitempty"`
+	ResourceType string `json:"resource_type,omitempty"`
+	ResourceID   string `json:"resource_id,omitempty"`
+	TenantID     string `json:"tenant_id,omitempty"`
+	Revision     int    `json:"revision"`
+	Expires      int64  `json:"expires"`
 }
 type Signer struct{ Key []byte }
 
 func (s Signer) Issue(claims Claims, now time.Time, ttl time.Duration) (string, error) {
-	if len(s.Key) < 32 || claims.PageID == "" || len(claims.PageID) > 128 || claims.Revision < 1 || ttl <= 0 || ttl > 7*24*time.Hour {
+	if len(s.Key) < 32 || !validSubject(claims) || claims.Revision < 1 || ttl <= 0 || ttl > 7*24*time.Hour {
 		return "", ErrInvalidToken
 	}
 	claims.Expires = now.Add(ttl).Unix()
@@ -56,8 +58,15 @@ func (s Signer) Verify(token string, now time.Time) (Claims, error) {
 		return Claims{}, ErrInvalidToken
 	}
 	var claims Claims
-	if json.Unmarshal(payload, &claims) != nil || claims.PageID == "" || claims.Revision < 1 || claims.Expires <= now.Unix() {
+	if json.Unmarshal(payload, &claims) != nil || !validSubject(claims) || claims.Revision < 1 || claims.Expires <= now.Unix() {
 		return Claims{}, ErrInvalidToken
 	}
 	return claims, nil
+}
+
+func validSubject(claims Claims) bool {
+	if claims.PageID != "" {
+		return claims.ResourceType == "" && claims.ResourceID == "" && len(claims.PageID) <= 128
+	}
+	return claims.ResourceType != "" && len(claims.ResourceType) <= 32 && claims.ResourceID != "" && len(claims.ResourceID) <= 128
 }
