@@ -77,6 +77,10 @@ go run ./tools/importguard -root examples/construction-edition
   buldu. Avatar palette renkleri temadan bağımsız hale getirildi; test bundan
   sonra her tema/modu doğrular. Bu alt matriste bütün Admin rotalarının veya
   public/generated sayfa türlerinin her temada tarandığı iddia edilmez.
+- 2026-10-07 follow-up'ta generated CRUD create formu da aynı dört tema ailesi
+  ve açık/koyu mod birleşimlerinde axe-core taramasından geçirildi: **8/8
+  geçti**. Form kontrolü responsive Chromium akışında da yer alır; diğer Admin
+  rotaları ve public sayfaların tüm tema/mod birleşimleri hâlâ kapsam dışıdır.
 
 2026-10-07 takip koşusunda `admin-management.spec.ts`, mevcut admin storage
 state'i yeniden kullanarak 15 yönetim rotasının hem 390px hem 768px viewport'ta

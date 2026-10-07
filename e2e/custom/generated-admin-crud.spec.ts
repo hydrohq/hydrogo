@@ -165,6 +165,15 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${baseURL}/admin/resources/milestone/new`);
     await expect(page.getByLabel("Title")).toBeVisible();
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await expectNoA11yViolations(page);
+      }
+    }
     await page.screenshot({ path: test.info().outputPath("generated-form-mobile.png") });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
