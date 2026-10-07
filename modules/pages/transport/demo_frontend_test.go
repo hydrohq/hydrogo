@@ -1,8 +1,11 @@
 package transport
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -29,5 +32,30 @@ func TestPageLayoutCopyLocalizesBuiltinsAndPreservesEditionTemplates(t *testing.
 	}
 	if name, _ := pageLayoutCopy(custom, "en"); name != custom.Name {
 		t.Fatalf("English edition template name changed: %q", name)
+	}
+}
+
+func TestPageEditorRoutesAllowEditorAndDenyViewer(t *testing.T) {
+	newPage := func(role auth.Role) *http.Request {
+		req := httptest.NewRequest(http.MethodGet, "/admin/pages/new", nil)
+		return req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: string(role), Role: role, Active: true}))
+	}
+	h := Handler{}
+	for _, tc := range []struct {
+		role auth.Role
+		want int
+	}{{auth.RoleEditor, http.StatusOK}, {auth.RoleAdmin, http.StatusOK}, {auth.RoleViewer, http.StatusForbidden}} {
+		res := httptest.NewRecorder()
+		h.adminNewPage(res, newPage(tc.role))
+		if res.Code != tc.want {
+			t.Errorf("GET /admin/pages/new as %s = %d, want %d", tc.role, res.Code, tc.want)
+		}
+	}
+	viewer := httptest.NewRequest(http.MethodPost, "/admin/pages", nil)
+	viewer = viewer.WithContext(auth.WithUser(viewer.Context(), &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}))
+	res := httptest.NewRecorder()
+	h.adminCreateForm(res, viewer)
+	if res.Code != http.StatusForbidden {
+		t.Fatalf("POST /admin/pages as viewer = %d, want %d", res.Code, http.StatusForbidden)
 	}
 }

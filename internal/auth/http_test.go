@@ -412,6 +412,33 @@ func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
 	}
 }
 
+func TestAdminUserMutationEndpointsRejectEditorAndViewer(t *testing.T) {
+	service := NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params)
+	h := HTTPHandler{Service: service}
+	endpoints := []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{"role", h.updateUserRole},
+		{"permissions", h.updateUserPermissions},
+		{"disable", h.disableUser},
+	}
+	for _, endpoint := range endpoints {
+		for _, role := range []Role{RoleEditor, RoleViewer} {
+			t.Run(endpoint.name+"/"+string(role), func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodPost, "/auth/users/target/"+endpoint.name, strings.NewReader("role=admin"))
+				req.SetPathValue("id", "target")
+				req = req.WithContext(WithUser(req.Context(), &User{ID: "actor", Role: role, Active: true}))
+				res := httptest.NewRecorder()
+				endpoint.handler(res, req)
+				if res.Code != http.StatusForbidden {
+					t.Fatalf("admin user mutation as %s = %d, want %d", role, res.Code, http.StatusForbidden)
+				}
+			})
+		}
+	}
+}
+
 func TestInviteAcceptanceIsRateLimitedByClient(t *testing.T) {
 	service := &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params}
 	db, err := sql.Open("sqlite", ":memory:")
