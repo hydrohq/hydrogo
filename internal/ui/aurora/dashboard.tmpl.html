@@ -66,7 +66,7 @@
 			<h3 class="tw:mb-3 tw:text-sm tw:font-semibold tw:text-[var(--ink)]">Hızlı İşlemler</h3>
 			<nav class="tw:grid tw:gap-1" aria-label="Hızlı işlemler">
 				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[var(--ink)] tw:no-underline tw:transition tw:hover:bg-[var(--bg-subtle)]" href="/admin/news/new">Haber yayınla</a>
-				{{if .CommerceModuleEnabled}}
+				{{if .CommerceWriteAllowed}}
 				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[var(--ink)] tw:no-underline tw:transition tw:hover:bg-[var(--bg-subtle)]" href="/admin/commerce/products/new">Ürün oluştur</a>
 				{{end}}
 				<a class="tw:rounded-md tw:px-2.5 tw:py-2 tw:text-sm tw:font-medium tw:text-[var(--ink)] tw:no-underline tw:transition tw:hover:bg-[var(--bg-subtle)]" href="/admin/media">Medya havuzu</a>

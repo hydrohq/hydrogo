@@ -38,6 +38,7 @@ type AdminDashboardData struct {
 	PushEnabled              bool
 	EmailPreviewEnabled      bool
 	CommerceModuleEnabled    bool
+	CommerceWriteAllowed     bool
 	CollectionsModuleEnabled bool
 	PreviousLogin            string
 	PreviousLoginIP          string
@@ -56,6 +57,7 @@ type NoCookieAnalyticsRow struct {
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	user := dashboardUser(data.User)
+	data.CommerceWriteAllowed = data.CommerceModuleEnabled && auth.Can(user, auth.PermissionCommerceWrite)
 	if err := adminStartLocaleRoleSupport(w, "Dashboard", "", data.Active, data.Locale, string(user.Role), auth.Can(user, auth.PermissionContentWrite), shellPermissionList(user), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
 		return err
 	}
