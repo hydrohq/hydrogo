@@ -20,6 +20,9 @@
   CSRF reddi, viewer deny ve tenant başına ayrı Admin listesi aynı SQLite
   veritabanıyla gerçek HTTP testinde doğrulanır. Eksik tenant resolver
   başlangıçta reddedilir ve route kaydı oluşmaz.
+- Aynı bağımsız Edition, ayrı bir Chromium E2E server'ında SQLite ile açılır;
+  browser Admin üzerinden kayıt create/edit/delete, viewer deny, cross-tenant
+  API 404 ve diğer tenant listesindeki kayıt yokluğu doğrulanır.
 - `hydro project check` aggregate helper'ı module path ve Blueprint setiyle
   karşılaştırır; generator testi helper'ın elle değiştirilmesini reddeder.
 - Göreli `--out tests/external-edition` yolu CLI'nin scaffold `gofmt` adımında
@@ -37,6 +40,7 @@
   external Edition `go test -mod=mod ./... -count=1`, göreli scaffold CLI
   regresyonu ve `hydro project check` stale-helper testi geçti.
 - Generated Admin Chromium CRUD **1/1** geçti.
+- Bağımsız Edition Chromium Admin CRUD ve tenant/role akışı **1/1** geçti.
 - İzole PostgreSQL 18.6 cluster'ında
   `HYDRO_TEST_POSTGRES_URL=... go test ./examples/project-edition/custom
   -run '^TestPostgresEditionGeneratedAdminCRUD$' -count=1` **1/1 geçti**.
