@@ -171,6 +171,20 @@ test.describe("single Edition administrator management", () => {
       }
     }
 
+    await page.goto(`${baseURL}/admin/security`);
+    const testBanAddress = "198.51.100.222";
+    const banForm = page.locator('form[action="/admin/security/bans"]');
+    await banForm.getByLabel("IP adresi veya CIDR").fill(testBanAddress);
+    await banForm.getByLabel(/Süre/).fill("1h");
+    await banForm.getByRole("button", { name: "IP engelle" }).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/security`);
+    await expect(page.getByText(`${testBanAddress}/32`, { exact: true })).toBeVisible();
+    const unbanForm = page.locator('form[action="/admin/security/bans/remove"]');
+    await unbanForm.getByLabel("Engeli kaldırılacak adres veya CIDR").fill(testBanAddress);
+    await unbanForm.getByRole("button", { name: "Engeli kaldır" }).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/security`);
+    await expect(page.getByText(testBanAddress, { exact: true })).toHaveCount(0);
+
     const usersResponse = await page.goto(`${baseURL}/admin/users`);
     expect(usersResponse?.status()).toBe(200);
     const editorRow = page.locator(".studio-table tbody tr").filter({ hasText: "editor@example.test" });
