@@ -344,12 +344,21 @@ func TestGeneratedAdminUsesBoundedRelationPicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var created map[string]any
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/author" || r.URL.Query().Get("limit") != "50" || r.URL.Query().Get("offset") != "0" {
-			t.Errorf("relation choices were not bounded: %s %s", r.Method, r.URL.String())
-		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `[{"id":"author-1","name":"Ada"}]`)
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/author" && r.URL.Query().Get("limit") == "50" && r.URL.Query().Get("offset") == "0":
+			_, _ = io.WriteString(w, `[{"id":"author-1","name":"Ada"}]`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/article":
+			if err := json.NewDecoder(r.Body).Decode(&created); err != nil {
+				t.Errorf("decode generated relation record: %v", err)
+			}
+			w.WriteHeader(http.StatusCreated)
+		default:
+			t.Errorf("unexpected relation API request: %s %s", r.Method, r.URL.String())
+			http.NotFound(w, r)
+		}
 	})
 	mux := http.NewServeMux()
 	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
@@ -366,6 +375,14 @@ func TestGeneratedAdminUsesBoundedRelationPicker(t *testing.T) {
 	mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/resources/article/new", nil))
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `name="author_id"`) || !strings.Contains(response.Body.String(), `<option value="author-1">Ada</option>`) || !strings.Contains(response.Body.String(), `data-media-target="cover_id"`) {
 		t.Fatalf("relation picker missing title choices: status=%d body=%s", response.Code, response.Body.String())
+	}
+	values := url.Values{"_csrf": {"csrf-value"}, "title": {"A story"}, "author_id": {"author-1"}}
+	create := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/new", strings.NewReader(values.Encode()))
+	createRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	mux.ServeHTTP(create, createRequest)
+	if create.Code != http.StatusSeeOther || created["title"] != "A story" || created["author_id"] != "author-1" {
+		t.Fatalf("selected relation did not reach resource API: status=%d payload=%#v body=%s", create.Code, created, create.Body.String())
 	}
 	field := Field{Kind: FieldRelation, Relation: &RelationRef{Collection: "author", Cardinality: "many", MaxItems: 2}}
 	parsed, err := parseAdminField(field, []string{"a", "b"})
