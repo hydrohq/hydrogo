@@ -527,6 +527,11 @@ test.describe("single Edition administrator management", () => {
     expect((await publishResponsePromise).status()).toBe(303);
     const publishedStory = await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`);
     expect(publishedStory.status(), "manually publishing a scheduled news item must make it public").toBe(200);
+    const retractResponsePromise = page.waitForResponse((response) => response.url() === `${baseURL}${scheduledNewsPath}/retract` && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Yayından Çek" }).click();
+    expect((await retractResponsePromise).status()).toBe(303);
+    const retractedStory = await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`);
+    expect(retractedStory.status(), "retracted news must no longer be public").toBe(404);
 
     await page.goto(`${baseURL}/admin/news/new`);
     await page.locator('#news-form [name="title"]').fill("E2E worker scheduled story");
