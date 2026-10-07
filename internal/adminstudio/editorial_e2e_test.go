@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,8 @@ import (
 // TestEditorialAdminSQLiteComposition drives the generated Admin handler,
 // resource API, and Edition-owned stores together against SQLite.
 func TestEditorialAdminSQLiteComposition(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
+	dbPath := filepath.Join(t.TempDir(), "editorial.db")
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,6 +517,17 @@ func TestEditorialAdminSQLiteComposition(t *testing.T) {
 	if draftSave.Code != http.StatusSeeOther {
 		t.Fatalf("draft save failed: status=%d body=%s", draftSave.Code, draftSave.Body.String())
 	}
+	// A saved draft must survive the process/database connection lifecycle, not
+	// only remain visible in the in-memory state of the composed handlers.
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
 	var publishedTitle, publishedCover string
 	if err := db.QueryRow(`SELECT title,cover_media_id FROM stories WHERE id='story-1'`).Scan(&publishedTitle, &publishedCover); err != nil || publishedTitle != "Published title" || publishedCover != "media-1" {
 		t.Fatalf("draft save changed the published record: title=%q cover=%q err=%v", publishedTitle, publishedCover, err)
