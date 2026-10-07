@@ -62,6 +62,44 @@ func TestPermissionCatalogAllowsOnlyRegisteredPermissionsAndExplicitOverrides(t 
 	}
 }
 
+func TestPermissionCatalogRoleAndOverrideMatrix(t *testing.T) {
+	catalog, err := NewPermissionCatalog("article.read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	roleGrants := map[Role]map[string]bool{
+		RoleAdmin:  {},
+		RoleEditor: {PermissionContentRead: true, PermissionContentWrite: true, PermissionCommerceRead: true, PermissionMediaManage: true},
+		RoleViewer: {PermissionContentRead: true, PermissionCommerceRead: true},
+	}
+	for _, role := range []Role{RoleAdmin, RoleEditor, RoleViewer} {
+		for _, permission := range KnownPermissions {
+			want := role == RoleAdmin || roleGrants[role][permission]
+			t.Run(string(role)+"/"+permission, func(t *testing.T) {
+				user := &User{Role: role, Active: true}
+				if got := catalog.Allows(user, permission); got != want {
+					t.Fatalf("default grant = %t, want %t", got, want)
+				}
+				user.PermissionOverrides = map[string]bool{permission: !want}
+				if got := catalog.Allows(user, permission); got == want {
+					t.Fatalf("explicit override did not change grant; got %t", got)
+				}
+				user.Active = false
+				user.PermissionOverrides[permission] = true
+				if catalog.Allows(user, permission) {
+					t.Fatal("inactive user retained permission through override")
+				}
+			})
+		}
+	}
+	for _, role := range []Role{RoleAdmin, RoleEditor, RoleViewer} {
+		user := &User{Role: role, Active: true}
+		if got, want := catalog.Allows(user, "article.read"), role == RoleAdmin; got != want {
+			t.Errorf("%s Edition permission = %t, want %t", role, got, want)
+		}
+	}
+}
+
 func TestPermissionCatalogRejectsUnknownWritesAndFiltersRemovedPermissions(t *testing.T) {
 	catalog, err := NewPermissionCatalog("article.read")
 	if err != nil {
