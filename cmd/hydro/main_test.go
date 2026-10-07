@@ -841,6 +841,24 @@ func TestResourceWizardAcceptsNamedFlagsAndUniqueConstraints(t *testing.T) {
 	}
 }
 
+func TestResourceWizardUsesTextTitleByDefault(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	args := []string{"new", "resource", "article", "--out", root, "--fields", "title:text:required,body:richtext"}
+	if err := run(args, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("resource wizard text title: %v stderr=%s", err, stderr.String())
+	}
+	manifest, err := os.ReadFile(filepath.Join(root, "generated", "article", "admin_manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"title_field": "title"`, `"visible_in_list": true`, `"searchable": true`} {
+		if !strings.Contains(string(manifest), want) {
+			t.Errorf("generated Admin manifest missing %s:\n%s", want, manifest)
+		}
+	}
+}
+
 func TestInteractiveResourceRejectsUnsafeNamesAndFields(t *testing.T) {
 	for _, input := range []string{"../outside\ntitle:string\n"} {
 		var stdout, stderr bytes.Buffer

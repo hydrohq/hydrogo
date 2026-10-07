@@ -99,7 +99,7 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 			return fmt.Errorf("invalid field %q", raw)
 		}
 		fmt.Fprintf(&b, "  - name: %s\n    type: %s\n", parts[0], parts[1])
-		if titleField == "" && strings.EqualFold(parts[1], "string") {
+		if titleField == "" && (strings.EqualFold(parts[1], "string") || strings.EqualFold(parts[1], "text")) {
 			titleField = parts[0]
 			b.WriteString("    ui:\n      list: true\n      searchable: true\n")
 		}
