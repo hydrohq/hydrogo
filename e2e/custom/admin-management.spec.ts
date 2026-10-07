@@ -132,7 +132,7 @@ test.describe("single Edition administrator management", () => {
   });
 
   test("admin login opens the Edition management areas and rejects anonymous access", async ({ page, browser }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     const denied = await page.request.get(`${baseURL}/admin/users`, { maxRedirects: 0 });
     expect([401, 302, 303]).toContain(denied.status());
     if (denied.status() !== 401) expect(denied.headers().location).toContain("/login");
@@ -527,6 +527,31 @@ test.describe("single Edition administrator management", () => {
     expect((await publishResponsePromise).status()).toBe(303);
     const publishedStory = await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`);
     expect(publishedStory.status(), "manually publishing a scheduled news item must make it public").toBe(200);
+
+    await page.goto(`${baseURL}/admin/news/new`);
+    await page.locator('#news-form [name="title"]').fill("E2E worker scheduled story");
+    await page.locator('#news-form [name="slug"]').fill("e2e-worker-scheduled-story");
+    await page.locator('#news-form .richtext-editor [contenteditable="true"]').fill("Published by the running HydroGo news worker.");
+    await page.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/news\/[^/?]+$/);
+    const workerNewsPath = new URL(page.url()).pathname;
+    const workerScheduleInput = page.getByLabel("Yayın tarihi ve saati");
+    const workerScheduleAt = new Date();
+    workerScheduleAt.setMinutes(workerScheduleAt.getMinutes() + 1, 0, 0);
+    await workerScheduleInput.fill(workerScheduleAt.toISOString().slice(0, 16));
+    const workerScheduleResponse = page.waitForResponse((response) => response.url() === `${baseURL}${workerNewsPath}/schedule` && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Zamanla" }).click();
+    expect((await workerScheduleResponse).status()).toBe(303);
+    const workerStoryURL = `${baseURL}/public/news/tr/e2e-worker-scheduled-story/html`;
+    if (workerScheduleAt.getTime() - Date.now() > 2_000) {
+      expect((await page.request.get(workerStoryURL)).status()).toBe(404);
+    }
+    await expect.poll(async () => (await page.request.get(workerStoryURL)).status(), {
+      timeout: 75_000,
+      intervals: [1_000],
+      message: "the live news worker should publish the scheduled item when its time arrives",
+    }).toBe(200);
+    expect(await (await page.request.get(workerStoryURL)).text()).toContain("Published by the running HydroGo news worker.");
 
     await page.goto(`${baseURL}/admin/pages/new`);
     const conflictCreate = page.locator('form[action="/admin/pages"]');
