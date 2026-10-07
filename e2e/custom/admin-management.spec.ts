@@ -222,6 +222,20 @@ test.describe("single Edition administrator management", () => {
     expect(backupResponse.headers()["cache-control"]).toContain("no-store");
     expect(download.suggestedFilename()).toMatch(/^hydrogo-backup-.*\.tar\.gz$/);
 
+    await page.goto(`${baseURL}/admin/account`);
+    const localeForm = page.locator('form[action="/admin/account/locale"]');
+    await localeForm.locator('[name="locale"]').selectOption("en");
+    await localeForm.getByRole("button", { name: /Dili kaydet|Save language/i }).click();
+    await expect(page).toHaveURL(/\/admin\/account\?locale_saved=1$/);
+    await page.goto(`${baseURL}/admin/backup`);
+    await expect(page.getByRole("heading", { name: "Full site backup" })).toBeVisible();
+    await expect(page.getByLabel("Confirm your password to continue")).toBeVisible();
+    await page.goto(`${baseURL}/admin/account`);
+    const restoreLocaleForm = page.locator('form[action="/admin/account/locale"]');
+    await restoreLocaleForm.locator('[name="locale"]').selectOption("tr");
+    await restoreLocaleForm.getByRole("button", { name: /Dili kaydet|Save language/i }).click();
+    await expect(page).toHaveURL(/\/admin\/account\?locale_saved=1$/);
+
     const usersResponse = await page.goto(`${baseURL}/admin/users`);
     expect(usersResponse?.status()).toBe(200);
     const editorRow = page.locator(".studio-table tbody tr").filter({ hasText: "editor@example.test" });
