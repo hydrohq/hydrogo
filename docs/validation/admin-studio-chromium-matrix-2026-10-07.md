@@ -146,3 +146,23 @@ ikincil metin tonları düzeltildi. Test komutu ve kesin kapsam:
 `docs/validation/admin-theme-accessibility-2026-10-07.md`.
 Bu sonuç WebKit/cihaz görsel testi veya public/generated tüm türlerin tema
 kapsaması olarak yorumlanmamalıdır.
+
+## Linux WebKit tablet/mobile visual goldens
+
+2026-10-07 takip doğrulamasında, `@playwright/test` 1.63.0 ile eşleşen resmi
+`mcr.microsoft.com/playwright:v1.63.0-noble` container'ında Playwright'ın
+WebKit varsayılanını kullanan `visual-tablet` ve `visual-mobile` projeleri
+çalıştırıldı. İzole seeded SQLite Edition, geçici admin hesabı ve corporate
+tema kullanıldı. Home, news, admin login, dashboard, page editor, news editor
+ve media library için **14/14** Linux full-page screenshot baseline üretildi;
+aynı session/fixture ile `--update-snapshots` olmadan tekrar çalıştırma da
+**14/14** geçti. Canlı 390×664 WebKit viewport'unda news editor'ın sabit
+kaydet aksiyonu ekran altında 44px ölçüldü. Bu golden seti yedi yüzeyi kapsar;
+tüm yönetim rotaları, generated koleksiyonların tüm field varyantları veya
+fiziksel iOS cihazı kapsamı iddia edilmez.
+
+Kapsamı aynı koşullarda yeniden çalıştırmak için:
+
+```sh
+HYDRO_VISUAL=1 npx playwright test visual.spec.ts --project=visual-tablet --project=visual-mobile --workers=1
+```
