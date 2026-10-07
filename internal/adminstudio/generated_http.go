@@ -1991,7 +1991,25 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		body = encoded
 	}
 	_, status, err := h.callAPI(r, method, path, body)
-	if err != nil || status < 200 || status >= 300 {
+	if err != nil {
+		h.apiError(w)
+		return
+	}
+	switch status {
+	case http.StatusConflict:
+		http.Error(w, "Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.", http.StatusConflict)
+		return
+	case http.StatusBadRequest, http.StatusUnprocessableEntity:
+		http.Error(w, "Bilgiler geçersiz veya eksik. Alanları kontrol edip yeniden deneyin.", http.StatusBadRequest)
+		return
+	case http.StatusForbidden:
+		http.Error(w, "Bu işlem için yetkiniz yok.", http.StatusForbidden)
+		return
+	case http.StatusNotFound:
+		http.NotFound(w, r)
+		return
+	}
+	if status < 200 || status >= 300 {
 		h.apiError(w)
 		return
 	}
