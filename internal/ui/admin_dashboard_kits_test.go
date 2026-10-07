@@ -43,6 +43,22 @@ func TestRenderAdminDashboardUsesSessionPermissions(t *testing.T) {
 	}
 }
 
+func TestRenderAdminDashboardHidesCommerceActionsWithoutPermission(t *testing.T) {
+	var out bytes.Buffer
+	user := &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{
+		auth.PermissionCommerceRead: false, auth.PermissionCommerceWrite: false,
+	}}
+	if err := RenderAdminDashboard(&out, AdminDashboardData{User: user, Active: "dashboard", CommerceModuleEnabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	visibleMarkup := adminShellInlineAsset.ReplaceAllString(out.String(), "")
+	for _, href := range []string{`href="/admin/commerce/products"`, `href="/admin/commerce/orders"`, `href="/admin/commerce/products/new"`} {
+		if strings.Contains(visibleMarkup, href) {
+			t.Errorf("dashboard still renders denied commerce action %s", href)
+		}
+	}
+}
+
 func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	var out bytes.Buffer
 	err := RenderAdminDashboard(&out, AdminDashboardData{Collections: []adminstudio.Collection{{ID: "articles", Label: "Articles", Description: "Content", Actions: []adminstudio.Action{{Label: "Open", Href: "/admin/articles"}}, Fields: []adminstudio.Field{{ID: "title", Label: "Title", Kind: adminstudio.FieldText}}, Kits: []adminstudio.Kit{adminstudio.KitSEO}}}, Active: "dashboard"})
