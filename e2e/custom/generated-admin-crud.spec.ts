@@ -150,6 +150,9 @@ async function expectNoA11yViolations(page: import("@playwright/test").Page): Pr
   }));
   expect(result.violations.map((violation: any) => ({
     id: violation.id,
-    targets: violation.nodes.map((node: any) => node.target),
+    nodes: violation.nodes.map((node: any) => ({
+      target: node.target,
+      failureSummary: node.failureSummary,
+    })),
   }))).toEqual([]);
 }
