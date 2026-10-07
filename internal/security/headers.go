@@ -1,18 +1,46 @@
 package security
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 )
+
+var inlineCSPBlock = regexp.MustCompile(`(?s)<(script|style)(?:\s[^>]*)?>(.*?)</(?:script|style)>`)
+
+// InlineCSPDirectives hashes exact inline script and style bodies in trusted,
+// server-rendered HTML so the caller can add them to the existing strict CSP.
+func InlineCSPDirectives(document []byte) string {
+	var scripts, styles []string
+	for _, match := range inlineCSPBlock.FindAllSubmatch(document, -1) {
+		digest := sha256.Sum256(match[2])
+		source := "'sha256-" + base64.StdEncoding.EncodeToString(digest[:]) + "'"
+		if bytes.Equal(match[1], []byte("script")) {
+			scripts = append(scripts, source)
+		} else {
+			styles = append(styles, source)
+		}
+	}
+	var directives []string
+	if len(scripts) > 0 {
+		directives = append(directives, "script-src "+strings.Join(scripts, " "))
+	}
+	if len(styles) > 0 {
+		directives = append(directives, "style-src "+strings.Join(styles, " "))
+	}
+	return strings.Join(directives, "; ")
+}
 
 func isDevEnvironment() bool {
 	dev := strings.TrimSpace(os.Getenv("HYDRO_DEV_MODE"))
 	env := strings.ToLower(strings.TrimSpace(os.Getenv("HYDRO_ENV")))
 	return dev == "1" || dev == "true" || env == "development" || env == "dev" || env == "local"
 }
-
 
 type HeaderConfig struct {
 	EnableHSTS   bool
@@ -30,7 +58,6 @@ const (
 func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 
 			preset := strings.ToLower(strings.TrimSpace(cfg.Preset))
 			if preset == "" {
@@ -81,13 +108,14 @@ func HeadersMiddleware(cfg HeaderConfig) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			if extra := strings.TrimSpace(w.Header().Get("X-Hydro-Custom-CSP")); extra != "" {
 				w.Header().Del("X-Hydro-Custom-CSP")
-				w.Header().Set("Content-Security-Policy", mergeCSP(w.Header().Get("Content-Security-Policy"), extra))
+				w.Header().Set("Content-Security-Policy", MergeCSP(w.Header().Get("Content-Security-Policy"), extra))
 			}
 		})
 	}
 }
 
-func mergeCSP(policy, extra string) string {
+// MergeCSP combines additional directive sources with the existing policy.
+func MergeCSP(policy, extra string) string {
 	directives := strings.Split(policy, ";")
 	for _, addition := range strings.Split(extra, ";") {
 		addition = strings.TrimSpace(addition)

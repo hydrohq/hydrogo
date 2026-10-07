@@ -4,6 +4,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 func TestMemberAuthPageDoesNotPersistIdentityInBrowserStorage(t *testing.T) {
@@ -16,6 +18,25 @@ func TestMemberAuthPageDoesNotPersistIdentityInBrowserStorage(t *testing.T) {
 		if strings.Contains(body, forbidden) {
 			t.Fatalf("member auth page contains forbidden client detail %q", forbidden)
 		}
+	}
+}
+
+func TestMemberAuthPageCSPAllowsOnlyRenderedInlineScripts(t *testing.T) {
+	response := httptest.NewRecorder()
+	response.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'")
+	request := httptest.NewRequest("GET", "/member/login?return_to=%2Fmember%2Faccount", nil)
+	(Handler{}).loginPage(response, request)
+	body := response.Body.String()
+	policy := response.Header().Get("Content-Security-Policy")
+	for _, directive := range strings.Split(security.InlineCSPDirectives([]byte(body)), "; ") {
+		for _, source := range strings.Fields(directive)[1:] {
+			if !strings.Contains(policy, source) {
+				t.Fatalf("member login CSP missing rendered script hash %q: %s", source, policy)
+			}
+		}
+	}
+	if strings.Contains(policy, "unsafe-inline") {
+		t.Fatalf("member login CSP unexpectedly permits inline code: %s", policy)
 	}
 }
 

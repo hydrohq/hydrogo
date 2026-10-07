@@ -45,3 +45,17 @@ func TestAdminLoginLocalesAndReturnPath(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminLoginCSPHashesRenderedInlineBlocks(t *testing.T) {
+	var output bytes.Buffer
+	if err := RenderAdminLoginWithLocaleAndAppearance(&output, "csrf", "/admin", "en", site.Appearance{}); err != nil {
+		t.Fatal(err)
+	}
+	policy := AdminLoginCSP(output.Bytes())
+	if strings.Count(policy, "'sha256-") != 3 || !strings.Contains(policy, "script-src") || !strings.Contains(policy, "style-src") {
+		t.Fatalf("unexpected login CSP hashes: %s", policy)
+	}
+	if AdminLoginCSP([]byte(`<html><script>alert(1)</script></html>`)) == "" {
+		t.Fatal("script hash should be generated for an inline block")
+	}
+}

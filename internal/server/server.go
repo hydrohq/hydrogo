@@ -40,6 +40,8 @@ type Config struct {
 	Logger                     *slog.Logger
 	EnableHSTS                 bool
 	SecurityHeadersPreset      string
+	SecurityScriptHashes       []string
+	SecurityStyleHashes        []string
 	AdminSupport               adminstudio.SupportConfig
 	AdminSupportResolver       func(*http.Request) adminstudio.SupportConfig
 	IPBlocklist                *security.IPBlocklist
@@ -243,8 +245,10 @@ func NewHandler(config Config) http.Handler {
 
 	// Apply Security Headers with CSP nonces
 	handler = security.HeadersMiddleware(security.HeaderConfig{
-		EnableHSTS: config.EnableHSTS,
-		Preset:     config.SecurityHeadersPreset,
+		EnableHSTS:   config.EnableHSTS,
+		Preset:       config.SecurityHeadersPreset,
+		ScriptHashes: config.SecurityScriptHashes,
+		StyleHashes:  config.SecurityStyleHashes,
 	})(handler)
 
 	// Keep metrics ahead of every other application middleware so rejected

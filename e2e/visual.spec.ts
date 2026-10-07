@@ -18,6 +18,7 @@ test.describe("HydroGo visual contract", () => {
 
   for (const surface of stableSurfaces) {
     test(`${surface.id} visual baseline`, async ({ page }) => {
+      if (!surface.auth) await page.context().clearCookies();
       await page.goto(surface.path, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(300);
       await page.evaluate(() => document.fonts?.ready);
