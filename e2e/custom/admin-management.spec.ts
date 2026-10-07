@@ -351,6 +351,31 @@ test.describe("single Edition administrator management", () => {
     await expect(page).toHaveURL(/\/admin\/news\/[^/?]+$/);
     await expect(page.locator('#news-edit-form [name="cover_media_id"]')).toHaveValue(selectedMediaID);
 
+    await page.goto(`${baseURL}/admin/pages/new`);
+    const conflictCreate = page.locator('form[action="/admin/pages"]');
+    await conflictCreate.locator('[name="slug"]').fill("e2e-conflict-page");
+    await conflictCreate.locator('[name="title"]').fill("Conflict draft");
+    await conflictCreate.locator(".richtext-editor [contenteditable=true]").fill("Initial conflict content.");
+    await conflictCreate.getByRole("button", { name: "Taslak oluştur" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+
+    const staleEditor = await page.context().newPage();
+    await staleEditor.goto(page.url());
+    const currentEditor = page.locator('form[data-autosave-resource^="page:"]');
+    await currentEditor.locator('[name="title"]').fill("Current page version");
+    await currentEditor.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/\?saved=1$/);
+
+    const staleForm = staleEditor.locator('form[data-autosave-resource^="page:"]');
+    await staleForm.locator('[name="title"]').fill("Stale page version");
+    const staleSave = staleEditor.waitForResponse((response) => response.request().method() === "POST" && response.status() === 409);
+    await staleForm.getByRole("button", { name: "Taslağı kaydet" }).click();
+    const conflictResponse = await staleSave;
+    expect(await conflictResponse.text()).toContain("Bu içerik başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.");
+    await staleEditor.goto(`${baseURL}${new URL(page.url()).pathname}`);
+    await expect(staleEditor.locator('form[data-autosave-resource^="page:"] [name="title"]')).toHaveValue("Current page version");
+    await staleEditor.close();
+
     const viewerContext = await browser.newContext();
     const viewerPage = await viewerContext.newPage();
     await viewerPage.goto(`${baseURL}/login`);
