@@ -91,6 +91,8 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toHaveCount(0);
         await page.locator('.studio-search').click();
         await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toHaveCount(0);
+        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Ürün Ekle" })).toHaveCount(0);
+        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Siparişler" })).toHaveCount(0);
         await expect(page.locator('a[href="/admin/pages/import"]')).toHaveCount(0);
         await expect(page.locator(`a[href="/admin/pages/${createdPageID}"]`)).toBeVisible();
         expect((await page.goto(`${baseURL}/admin/pages/${createdPageID}`))?.status()).toBe(200);
