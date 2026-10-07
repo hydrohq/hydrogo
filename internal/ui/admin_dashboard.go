@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/aurora"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/hydrogoui"
@@ -16,29 +17,30 @@ import (
 )
 
 type AdminDashboardData struct {
-	SearchInsightsEnabled bool
-	Email                 string
-	Collections           []adminstudio.Collection
-	Nonce                 string
-	Active                string
-	Metrics               *observability.Metrics
-	MemberStats           members.MemberStats
-	DataTime              string
-	DataSource            string
-	DateFilter            string
-	DateFrom              string
-	DateTo                string
-	Locale                string
-	ContentViews          []ContentViewReportRow
-	AnalyticsEnabled      bool
-	NoCookieStats         []NoCookieAnalyticsRow
-	UniqueVisitors        int64
-	PushEnabled           bool
-	EmailPreviewEnabled   bool
-	CommerceModuleEnabled bool
-	PreviousLogin         string
-	PreviousLoginIP       string
-	FailedLoginAttempts   int
+	SearchInsightsEnabled    bool
+	Email                    string
+	Collections              []adminstudio.Collection
+	Nonce                    string
+	Active                   string
+	Metrics                  *observability.Metrics
+	MemberStats              members.MemberStats
+	DataTime                 string
+	DataSource               string
+	DateFilter               string
+	DateFrom                 string
+	DateTo                   string
+	Locale                   string
+	ContentViews             []ContentViewReportRow
+	AnalyticsEnabled         bool
+	NoCookieStats            []NoCookieAnalyticsRow
+	UniqueVisitors           int64
+	PushEnabled              bool
+	EmailPreviewEnabled      bool
+	CommerceModuleEnabled    bool
+	CollectionsModuleEnabled bool
+	PreviousLogin            string
+	PreviousLoginIP          string
+	FailedLoginAttempts      int
 }
 
 type ContentViewReportRow struct {
@@ -52,7 +54,7 @@ type NoCookieAnalyticsRow struct {
 }
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
-	if err := AdminStartLocale(w, "Dashboard", "", data.Active, data.Locale); err != nil {
+	if err := adminStartLocaleRoleSupport(w, "Dashboard", "", data.Active, data.Locale, string(auth.RoleAdmin), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
 		return err
 	}
 	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
@@ -93,7 +95,7 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 }
 
 func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
-	if err := AdminStartLocale(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale); err != nil {
+	if err := adminStartLocaleRoleSupport(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale, string(auth.RoleAdmin), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
 		return err
 	}
 	if err := adminReportsKPIsTemplate.Execute(w, data); err != nil {

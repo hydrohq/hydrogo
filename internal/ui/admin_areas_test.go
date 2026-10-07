@@ -51,6 +51,45 @@ func TestAdminShellAddsTrashNavigationOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestAdminShellAddsCollectionsNavigationOnlyForEnabledModuleAndAdmin(t *testing.T) {
+	request := httptest.NewRequest("GET", "/admin", nil)
+	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{CollectionsModuleEnabled: true}))
+	var admin bytes.Buffer
+	if err := AdminStartForRequest(&admin, request, "Dashboard", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(admin.String(), `class="nav-item" href="/admin/collections"`) {
+		t.Fatal("enabled dynamic collections should be discoverable in the admin sidebar")
+	}
+	var inactive bytes.Buffer
+	request = httptest.NewRequest("GET", "/admin", nil)
+	if err := AdminStartForRequest(&inactive, request, "Dashboard", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(inactive.String(), `href="/admin/collections"`) {
+		t.Fatal("collections navigation appeared while the module is inactive")
+	}
+	var viewer bytes.Buffer
+	request = httptest.NewRequest("GET", "/admin", nil)
+	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{CollectionsModuleEnabled: true}))
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}))
+	if err := AdminStartForRequest(&viewer, request, "Dashboard", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(viewer.String(), `href="/admin/collections"`) {
+		t.Fatal("admin-only collections navigation appeared for a viewer")
+	}
+	var active bytes.Buffer
+	request = httptest.NewRequest("GET", "/admin/collections", nil)
+	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{CollectionsModuleEnabled: true}))
+	if err := AdminStartForRequest(&active, request, "Collections", "", "collections"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(active.String(), `class="nav-item is-active" href="/admin/collections" aria-current="page"`) {
+		t.Fatal("collections navigation should identify the current page")
+	}
+}
+
 func TestAdminShellShowsMaintenanceBanner(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{MaintenanceActive: true}))
