@@ -4869,7 +4869,13 @@ func adminControlAllowed(user *auth.User, path string) bool {
 	if path == "/admin/site" {
 		return auth.Can(user, auth.PermissionSiteManage)
 	}
-	return user != nil && user.Active && user.Role == auth.RoleAdmin
+	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		return false
+	}
+	if path == "/admin/operations" {
+		return auth.Can(user, auth.PermissionOperations)
+	}
+	return true
 }
 
 func newAuditRecorder(db *sql.DB, dialect database.Dialect, requireTenantScope bool) auth.AuditRecorder {
