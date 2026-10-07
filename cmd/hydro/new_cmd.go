@@ -92,12 +92,17 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "name: %s\nfields:\n", name)
+	titleField := ""
 	for _, raw := range strings.Split(fields, ",") {
 		parts := strings.Split(strings.TrimSpace(raw), ":")
 		if len(parts) < 2 || len(parts) > 4 || !resourceFieldPart.MatchString(parts[0]) || !resourceFieldPart.MatchString(strings.ToLower(parts[1])) {
 			return fmt.Errorf("invalid field %q", raw)
 		}
 		fmt.Fprintf(&b, "  - name: %s\n    type: %s\n", parts[0], parts[1])
+		if titleField == "" && strings.EqualFold(parts[1], "string") {
+			titleField = parts[0]
+			b.WriteString("    ui:\n      list: true\n      searchable: true\n")
+		}
 		if strings.EqualFold(parts[1], "relation") || strings.EqualFold(parts[1], "reference") {
 			if len(parts) < 3 || !resourceFieldPart.MatchString(parts[2]) {
 				return fmt.Errorf("relation field %q requires a target collection", parts[0])
@@ -132,6 +137,9 @@ func interactiveResourceCommand(args []string, stdin io.Reader, stdout, stderr i
 				b.WriteString("    validation:\n      unique: true\n")
 			}
 		}
+	}
+	if titleField != "" {
+		fmt.Fprintf(&b, "admin:\n  use_as_title: %s\n", titleField)
 	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return err

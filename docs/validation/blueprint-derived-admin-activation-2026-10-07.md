@@ -36,11 +36,16 @@ or stale registration output fails validation.
 - Project Edition Chromium generated Admin test passes generated navigation,
   shared shell, create/search/filter/edit/delete, axe checks, and mobile/tablet
   overflow. The generated route is reached through the new helper.
+- `hydro new resource` now makes the first string field the default Admin title,
+  list column, and search field. The wizard test checks both the authored
+  Blueprint and generated `admin_manifest.json`; resources without a string
+  field still require an explicit title/list choice.
 
 ## Commands
 
 ```sh
 go test ./internal/generator ./examples/project-edition/... ./extension/v1/adminstudio -count=1
+go test ./cmd/hydro -count=1
 go vet ./internal/generator ./examples/project-edition/... ./extension/v1/adminstudio
 cd examples/project-edition && HYDRO_DATABASE_DSN=file:/tmp/hydro-project-edition-check.sqlite go run ../../cmd/hydro project check
 cd e2e && npx playwright test custom/generated-admin-crud.spec.ts --project=chromium --workers=1 --reporter=line

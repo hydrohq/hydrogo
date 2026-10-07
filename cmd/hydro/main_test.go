@@ -822,9 +822,18 @@ func TestResourceWizardAcceptsNamedFlagsAndUniqueConstraints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"required: true", "unique: true", "collection: categories", "cardinality: one"} {
+	for _, want := range []string{"required: true", "unique: true", "collection: categories", "cardinality: one", "ui:\n      list: true\n      searchable: true", "use_as_title: sku"} {
 		if !strings.Contains(string(blueprint), want) {
 			t.Errorf("blueprint missing %q:\n%s", want, blueprint)
+		}
+	}
+	manifest, err := os.ReadFile(filepath.Join(root, "generated", "catalog_item", "admin_manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"title_field": "sku"`, `"visible_in_list": true`, `"searchable": true`} {
+		if !strings.Contains(string(manifest), want) {
+			t.Errorf("generated Admin manifest missing %s:\n%s", want, manifest)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(root, "generated", "catalog_item", "model.go")); err != nil {
