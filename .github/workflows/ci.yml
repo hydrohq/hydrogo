@@ -139,7 +139,7 @@ jobs:
       - name: Enforce News Edition import boundary
         run: go run ./tools/importguard -root examples/news-edition
       - name: Enforce internal module boundaries
-        run: go run ./tools/moduleguard -root modules -allow modules/api
+        run: go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json
       - name: Enforce frontend asset version consistency
         run: go run ./tools/assetguard -root .
       - name: Generate deterministic frontend asset manifest

@@ -13,6 +13,7 @@
 - [ADR-0341: Admin family overhaul - remove workbench, isolate shadcn and hydrogo](0341-admin-family-overhaul.md)
 - [ADR-0342: Bilingual, build-time Tailwind documentation surface](0342-bilingual-tailwind-documentation-surface.md)
 - [ADR-0343: Bilingual public Admin Studio login](0343-bilingual-public-admin-login.md)
+- [ADR-0351: Declare exact direct dependencies between HydroGo modules](0351-declared-module-dependency-graph.md)
 
 This directory is the main source of HydroGo's long-lived architectural decisions. The implementation plan describes the order of work, while ADRs explain why the system is built this way.
 
@@ -426,3 +427,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0348: Single-call explicit generated Admin activation](0348-generated-admin-explicit-activation-helper.md) — Superseded
 - [ADR-0349: Explicit generated resource activation](0349-explicit-generated-resource-activation.md) — Accepted
 - [ADR-0350: Allow verified Admin Studio inline assets through CSP hashes](0350-admin-studio-csp-style-and-script-hashes.md) — Accepted
+- [ADR-0351: Declare exact direct dependencies between HydroGo modules](0351-declared-module-dependency-graph.md) — Accepted
