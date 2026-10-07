@@ -67,9 +67,9 @@ try {
         npm run generate
         if ($LASTEXITCODE -ne 0) { throw "E2E generation failed with exit code $LASTEXITCODE" }
         if ($env:HYDRO_E2E_UPDATE_SNAPSHOTS -eq "1") {
-            npm test -- --update-snapshots
+            npm test -- --workers=1 --update-snapshots
         } else {
-            npm test
+            npm test -- --workers=1
         }
         if ($LASTEXITCODE -ne 0) { throw "Playwright E2E failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
