@@ -526,6 +526,21 @@ test.describe("single Edition administrator management", () => {
     }
     for (const viewport of [{ name: "mobile", width: 390, height: 844 }, { name: "tablet", width: 768, height: 1024 }]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      if (viewport.width === 390) {
+        await page.goto(`${baseURL}/admin`);
+        const menuToggle = page.getByRole("button", { name: "Menüyü aç" });
+        await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
+        await menuToggle.click();
+        await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
+        await expect(page.locator("body")).toHaveClass(/studio-mobile-nav-open/);
+        await page.keyboard.press("Escape");
+        await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
+        await expect(page.locator("body")).not.toHaveClass(/studio-mobile-nav-open/);
+        await menuToggle.click();
+        await page.locator('.studio-sidebar a[href="/admin/pages"]').click();
+        await expect(page).toHaveURL(`${baseURL}/admin/pages`);
+        await expect(page.locator("body")).not.toHaveClass(/studio-mobile-nav-open/);
+      }
       for (const route of [
         "/admin",
         "/admin/pages/new",
