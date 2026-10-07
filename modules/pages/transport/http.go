@@ -424,9 +424,6 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10)}, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status)}, Actions: actions})
 	}
 	collection := h.AdminCollection
-	if !editorAllowed(r) {
-		collection.Actions = nil
-	}
 	if viewsAvailable {
 		collection.Fields = append(append([]adminstudio.Field(nil), collection.Fields...), adminstudio.Field{ID: "views", Label: "Views", Kind: adminstudio.FieldText, VisibleInList: true})
 	}
