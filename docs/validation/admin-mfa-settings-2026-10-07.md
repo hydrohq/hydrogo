@@ -71,6 +71,15 @@ değişikliği editörün mevcut oturumunu iptal etti ve izin değeri yenilenen
 listede doğrulandı. Viewer hesabını devre dışı bırakma da mevcut viewer
 oturumunu iptal etti. Bu ek akışla birleşik Chromium grubu **5/5** geçti.
 
+Auth unit testlerinde rol/izin varsayılan matrisi genişletildi: üç yerleşik rol
+× dokuz yerleşik izin için 27 kombinasyon; her hücrede varsayılan karar,
+kararı tersine çeviren kullanıcı override'ı ve pasif kullanıcının override'a
+rağmen reddi doğrulanıyor. Edition'e özel izinlerin yalnız katalogda
+bulunmasının tek başına editör/viewer erişimi vermediği de kontrol ediliyor.
+Komut: `go test ./internal/auth -run
+'TestPermissionCatalog(RoleAndOverrideMatrix|AllowsOnlyRegisteredPermissionsAndExplicitOverrides|RejectsUnknownWritesAndFiltersRemovedPermissions)'
+-count=1`.
+
 15 yönetim rotası boyunca her render edilmiş satır içi scriptin SHA-256 değeri
 yanıtın `Content-Security-Policy` başlığındaki allowlist ile birebir
 karşılaştırılır; Playwright ayrıca CSP console ihlallerini toplar. News ve media
@@ -88,9 +97,9 @@ artifact'ı olarak üretildi ve görsel olarak incelendi. Artifact git'e eklenme
 
 Bu çalışma yeni cross-tenant Super Admin veya yeni auth route/şeması eklemez.
 TOTP/recovery API'si mevcut Edition auth sözleşmesinin üstünde kullanılır.
-Bu doğrulama MFA oturumunda içerik oluşturma, yedek indirme, izin deny/allow
-ve hesap devre dışı bırakma yollarını kapsar; her izin kataloğu girdisi ile
-her rol/mutasyon kombinasyonunun tam matrisi değildir. Diğer Faz 1/2/3/5 açık
-kabul maddeleri ana ürün planında takip edilir. 15 yönetim rotasının CSP
-script hashleri doğrulandı; tüm tema varyantları ve tüm admin mutasyonları
-için tam kabul kanıtı sağlanmış sayılmaz.
+Unit testleri yerleşik rol/izin karar matrisini kapsar; tüm yönetim HTTP
+rotaları × roller × mutation tipleri, Edition'a özel izin mutasyonları ve
+veritabanı round-trip'leri için tam kombinatoryal matris hâlâ açık. Diğer
+Faz 1/2/3/5 açık kabul maddeleri ana ürün planında takip edilir. 15 yönetim
+rotasının CSP script hashleri doğrulandı; tüm tema varyantları ve tüm admin
+mutasyonları için tam kabul kanıtı sağlanmış sayılmaz.
