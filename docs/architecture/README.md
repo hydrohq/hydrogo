@@ -2,6 +2,7 @@
 
 - [ADR-0352: Public staff invitation acceptance form](0352-public-invitation-acceptance-form.md)
 - [ADR-0353: Public shared Admin Studio shell for generated Edition panels](0353-public-generated-admin-studio-shell.md)
+- [ADR-0354: Blueprint-derived generated Admin activation helper](0354-blueprint-derived-admin-activation.md)
 - [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
 - [ADR-0330: Pure Go PDF cover derivatives](0330-pure-go-pdf-cover-derivatives.md)
 - [ADR-0331: Bounded SQLite shadow-table migrations](0331-sqlite-batched-shadow-migrations.md)
@@ -433,3 +434,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0351: Declare exact direct dependencies between HydroGo modules](0351-declared-module-dependency-graph.md) — Accepted
 - [ADR-0352: Public staff invitation acceptance form](0352-public-invitation-acceptance-form.md) — Accepted
 - [ADR-0353: Public shared Admin Studio shell for generated Edition panels](0353-public-generated-admin-studio-shell.md) — Accepted
+- [ADR-0354: Blueprint-derived generated Admin activation helper](0354-blueprint-derived-admin-activation.md) — Accepted

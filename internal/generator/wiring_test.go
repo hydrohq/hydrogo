@@ -19,6 +19,48 @@ func TestGeneratedRuntimeWiringListsSelectedKits(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminRegistrationTracksBlueprintResources(t *testing.T) {
+	root := t.TempDir()
+	resources := []Spec{
+		{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "project", Table: "projects", Fields: []Field{{Name: "name", Type: "string"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite", "postgres"}},
+	}
+	for _, resource := range resources {
+		if _, err := Generate(root, resource); err != nil {
+			t.Fatal(err)
+		}
+	}
+	registration, err := os.ReadFile(filepath.Join(root, "generated", "admin_registration.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`func RegisterGeneratedAdmin(mux *http.ServeMux, options adminstudio.GeneratedAdminOptions) error`,
+		`[]string{"article", "project"}`,
+		`adminstudio.RegisterGenerated(mux, AdminRegistry`,
+	} {
+		if !strings.Contains(string(registration), want) {
+			t.Fatalf("generated Admin registration missing %q:\n%s", want, registration)
+		}
+	}
+}
+
+func TestGeneratedAdminRegistrationCompatibilityRejectsStaleResourceSelection(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"article", "project"} {
+		if _, err := Generate(root, Spec{Name: name, Table: name + "s", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite", "postgres"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(root, "generated", "admin_registration.go")
+	if err := os.WriteFile(path, []byte("// stale generated activation list\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CheckGeneratedCompatibility(root); err == nil || !strings.Contains(err.Error(), "Admin registration does not match") {
+		t.Fatalf("stale generated resource selection was accepted: %v", err)
+	}
+}
+
 func TestGeneratedKitArtifactsIncludeDependencies(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "order", Table: "orders", Fields: []Field{{Name: "total", Type: "decimal"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite"}, Kits: []string{"commerce"}}
