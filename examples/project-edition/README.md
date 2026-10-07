@@ -18,3 +18,6 @@ boundary for tenant ownership, workflow, and authorization decisions.
 
 The example is intentionally not a construction-management product. It is a
 contract fixture used to verify that the Workspace can produce one safely.
+Its server uses permissive demo policy callbacks and is restricted to loopback
+addresses. Replace those callbacks with Edition authentication, authorization,
+CSRF, and tenant rules before adapting the composition to a deployable Edition.

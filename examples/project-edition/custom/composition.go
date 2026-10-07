@@ -17,8 +17,10 @@ func NewDemoHandler(db *sql.DB) http.Handler {
 	return NewHandler(db, "sqlite")
 }
 
-// NewHandler is the Edition composition point. The caller owns the database
-// lifecycle and must pass the dialect selected by the deployment profile.
+// NewHandler is a demo Edition composition point, not a production auth stack.
+// Its permissive callbacks are for the loopback-only fixture server and local
+// contract tests; a real Edition must replace them with its identity, CSRF,
+// resource visibility, and tenant-aware authorization boundaries.
 func NewHandler(db *sql.DB, dialect string) http.Handler {
 	mux := http.NewServeMux()
 	if err := generated.RegisterProjectRoute(mux, db, dialect, demoPolicy{}); err != nil {
