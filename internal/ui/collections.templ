@@ -83,7 +83,7 @@ templ CollectionRecordsPage(schema collections.Schema, records []collections.Rec
 }
 
 templ CollectionRecordForm(schema collections.Schema, fields []CollectionRecordField, action, csrf, recordID string) {
-	<form method="post" action={ action } class="studio-form">
+	<form method="post" action={ action } class={ collectionRecordFormClass(fields) }>
 		<input type="hidden" name="_csrf" value={ csrf } />
 		if recordID != "" {
 			<input type="hidden" name="record_id" value={ recordID } />

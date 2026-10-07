@@ -47,6 +47,14 @@ func CollectionRecordFields(schema collections.Schema, data map[string]any) []Co
 	return result
 }
 
+func collectionRecordFormClass(fields []CollectionRecordField) string {
+	class := "studio-form collection-record-form"
+	if len(fields) == 1 {
+		class += " single-field"
+	}
+	return class
+}
+
 func collectionFieldName(prefix string, index int) string {
 	return fmt.Sprintf("field_%s_%d", prefix, index)
 }
