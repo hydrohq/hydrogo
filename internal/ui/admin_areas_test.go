@@ -140,6 +140,66 @@ func TestAdminShellCommerceCommandsFollowModuleActivation(t *testing.T) {
 	}
 }
 
+func TestAdminShellNavigationFollowsEffectivePermissions(t *testing.T) {
+	tests := []struct {
+		name string
+		user *auth.User
+		want []string
+		omit []string
+	}{
+		{
+			name: "viewer defaults",
+			user: &auth.User{Role: auth.RoleViewer, Active: true},
+			want: []string{`href="/admin/pages"`, `href="/admin/news"`},
+			omit: []string{`href="/admin/users"`, `href="/admin/reports"`, `href="/admin/members"`, `href="/admin/media"`},
+		},
+		{
+			name: "viewer member override",
+			user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}},
+			want: []string{`href="/admin/members"`},
+			omit: []string{`href="/admin/users"`},
+		},
+		{
+			name: "editor member override",
+			user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}},
+			want: []string{`href="/admin/members"`},
+			omit: []string{`href="/admin/users"`, `href="/admin/reports"`},
+		},
+		{
+			name: "editor media denied",
+			user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}},
+			want: []string{`href="/admin/pages"`, `href="/admin/news"`},
+			omit: []string{`href="/admin/media"`, `href="/admin/reports"`},
+		},
+		{
+			name: "admin content read denied",
+			user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentRead: false}},
+			omit: []string{`href="/admin/pages"`, `href="/admin/news"`},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest("GET", "/admin", nil)
+			request = request.WithContext(auth.WithUser(request.Context(), tc.user))
+			var out bytes.Buffer
+			if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
+				t.Fatal(err)
+			}
+			html := adminShellInlineAsset.ReplaceAllString(out.String(), "")
+			for _, marker := range tc.want {
+				if !strings.Contains(html, marker) {
+					t.Errorf("navigation missing %q", marker)
+				}
+			}
+			for _, marker := range tc.omit {
+				if strings.Contains(html, marker) {
+					t.Errorf("navigation still shows denied link %q", marker)
+				}
+			}
+		})
+	}
+}
+
 func TestAdminShellShowsMaintenanceBanner(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{MaintenanceActive: true}))
