@@ -2158,7 +2158,7 @@ func injectGeneratedNavigation(markup []byte, collections []Collection, current,
 			continue
 		}
 		group := strings.TrimSpace(collection.Group)
-		if group == "" || group == "content" {
+		if group == "" || strings.EqualFold(group, "content") {
 			group = "İÇERİK"
 			if locale == "en" {
 				group = "CONTENT"

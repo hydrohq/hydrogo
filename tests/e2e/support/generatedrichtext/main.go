@@ -9,9 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/a-h/templ"
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
 	staticassets "github.com/ardaozyildirim/hydrogo/static"
 )
 
@@ -28,6 +26,15 @@ func main() {
 			},
 			Actions: []adminstudio.Action{{Label: "Articles", Href: "/admin/resources/article"}},
 		},
+		{
+			ID: "story", Label: "Stories", Group: "Content", TitleField: "title", Versioned: true, Revisions: true, Drafts: true,
+			Fields: []adminstudio.Field{
+				{ID: "title", Label: "Title", Kind: adminstudio.FieldText, Required: true, VisibleInList: true},
+				{ID: "status", Label: "Status", Kind: adminstudio.FieldSelect, Options: []string{"draft", "review", "published"}},
+			},
+			Actions:  []adminstudio.Action{{Label: "Stories", Href: "/admin/resources/story"}},
+			Workflow: &adminstudio.Workflow{StateField: "status", States: []adminstudio.PublicationState{adminstudio.StateDraft, "review", adminstudio.StatePublished}, Transitions: map[adminstudio.PublicationState][]adminstudio.PublicationState{adminstudio.StateDraft: {"review"}, "review": {adminstudio.StatePublished}}},
+		},
 	})
 	if err != nil {
 		panic(err)
@@ -35,6 +42,8 @@ func main() {
 
 	var mu sync.Mutex
 	records := map[string]map[string]any{}
+	draft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
+	publishedStory := map[string]any{"id": "story-1", "title": "Published story", "status": "published", "version": float64(1)}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/author") {
 			if strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/author/author-1" {
@@ -42,6 +51,24 @@ func main() {
 				return
 			}
 			writeJSON(w, http.StatusOK, []map[string]any{{"id": "author-1", "name": "Test Author"}})
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/v1/story") {
+			mu.Lock()
+			defer mu.Unlock()
+			if r.Method != http.MethodGet {
+				writeError(w, http.StatusMethodNotAllowed)
+				return
+			}
+			if r.URL.Path == "/api/v1/story" {
+				writeJSON(w, http.StatusOK, []map[string]any{clone(publishedStory)})
+				return
+			}
+			if r.URL.Path == "/api/v1/story/story-1" {
+				writeJSON(w, http.StatusOK, clone(publishedStory))
+				return
+			}
+			http.NotFound(w, r)
 			return
 		}
 		parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/v1/article"), "/"), "/")
@@ -141,23 +168,88 @@ func main() {
 	mux.HandleFunc("GET /api/media", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, []map[string]any{{"id": "fixture-image", "status": "ready", "mime_type": "image/png", "original_filename": "fixture.png"}})
 	})
+	mux.Handle("/api/v1/story", api)
+	mux.Handle("/api/v1/story/", api)
 	if err := (adminstudio.GeneratedAdminHandler{Registry: registry, Options: adminstudio.GeneratedAdminOptions{
 		API:             api,
 		Authorize:       func(*http.Request) bool { return true },
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-		CSRFToken:       func(*http.Request) string { return "generated-richtext-e2e-csrf" },
+		ListDrafts: func(_ *http.Request, collection adminstudio.Collection, _ string, limit int) ([]adminstudio.DraftDocument, error) {
+			if collection.ID != "story" || limit != 50 {
+				return nil, fmt.Errorf("unexpected draft list request: %s limit=%d", collection.ID, limit)
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			return []adminstudio.DraftDocument{cloneDraft(draft)}, nil
+		},
+		GetDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string) (adminstudio.DraftDocument, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || id != draft.ID {
+				return adminstudio.DraftDocument{}, fmt.Errorf("draft not found")
+			}
+			return cloneDraft(draft), nil
+		},
+		CanSaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string) bool {
+			return collection.ID == "story" && id == "story-1"
+		},
+		SaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string, fields map[string]any, expectedDraft, expectedPublished int64) error {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || id != draft.ID || expectedDraft != draft.Version || expectedPublished != draft.PublishedVersion {
+				return fmt.Errorf("draft changed")
+			}
+			draft.Version++
+			draft.Fields = clone(fields)
+			return nil
+		},
+		CanTransitionDraft: func(_ *http.Request, collection adminstudio.Collection, current adminstudio.DraftDocument, target adminstudio.PublicationState) bool {
+			return collection.ID == "story" && current.State == "review" && target == adminstudio.StatePublished
+		},
+		TransitionDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string, target adminstudio.PublicationState, expectedDraft, expectedPublished int64) error {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || id != draft.ID || target != adminstudio.StatePublished || expectedDraft != draft.Version || expectedPublished != draft.PublishedVersion {
+				return fmt.Errorf("draft changed")
+			}
+			draft.Version++
+			draft.PublishedVersion = 2
+			draft.State = target
+			publishedStory = map[string]any{"id": id, "title": draft.Fields["title"], "status": string(target), "version": float64(2)}
+			return nil
+		},
+		CanDiscardDraft: func(_ *http.Request, collection adminstudio.Collection, current adminstudio.DraftDocument) bool {
+			return collection.ID == "story" && current.Exists
+		},
+		DiscardDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string, expected int64) error {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || id != draft.ID || expected != draft.Version {
+				return fmt.Errorf("draft changed")
+			}
+			draft.Exists = false
+			return nil
+		},
+		ListRevisions: func(_ *http.Request, collection adminstudio.Collection, _ string, limit int) ([]adminstudio.RevisionSummary, error) {
+			if collection.ID != "story" || limit != 50 {
+				return nil, fmt.Errorf("unexpected revisions request")
+			}
+			return nil, nil
+		},
+		GetRevision: func(*http.Request, adminstudio.Collection, string, int64) (adminstudio.RevisionSnapshot, error) {
+			return adminstudio.RevisionSnapshot{}, fmt.Errorf("revision not found")
+		},
+		CanRestore: func(*http.Request, adminstudio.Collection, string, int64) bool { return false },
+		RestoreRevision: func(*http.Request, adminstudio.Collection, string, int64, int64) error {
+			return fmt.Errorf("revision not found")
+		},
+		CSRFToken: func(*http.Request) string { return "generated-richtext-e2e-csrf" },
 		ValidateCSRF: func(r *http.Request) bool {
 			return r.ParseForm() == nil && r.FormValue("_csrf") == "generated-richtext-e2e-csrf"
 		},
-		RenderPage: func(w http.ResponseWriter, r *http.Request, title string, body templ.Component) error {
-			if err := ui.AdminStartForRequest(w, r, title, "", "generated"); err != nil {
-				return err
-			}
-			if err := body.Render(r.Context(), w); err != nil {
-				return err
-			}
-			return ui.AdminEnd(w)
-		},
+		RenderPage: adminstudio.StudioPageRenderer(func(*http.Request) adminstudio.PageIdentity {
+			return adminstudio.PageIdentity{UserID: "generated-editor", Email: "editor@example.test", Role: adminstudio.PageRoleAdmin}
+		}),
 	}}).Register(mux); err != nil {
 		panic(err)
 	}
@@ -169,6 +261,15 @@ func main() {
 	if err := http.ListenAndServe(address, mux); err != nil {
 		panic(err)
 	}
+}
+
+func cloneDraft(draft adminstudio.DraftDocument) adminstudio.DraftDocument {
+	fields := make(map[string]any, len(draft.Fields))
+	for key, value := range draft.Fields {
+		fields[key] = value
+	}
+	draft.Fields = fields
+	return draft
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
