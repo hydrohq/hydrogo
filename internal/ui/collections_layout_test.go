@@ -43,3 +43,20 @@ func TestCollectionRecordsPaginationLinks(t *testing.T) {
 		t.Fatalf("page number for offset 50 = %d, want 2", got)
 	}
 }
+
+func TestCollectionRecordSummaryUsesLabelsAndBoundsLongValues(t *testing.T) {
+	schema := collections.Schema{Fields: []collections.Field{
+		{ID: "sku", Label: "Stock code", Kind: collections.Text},
+		{ID: "title", Label: "Product name", Kind: collections.Text},
+		{ID: "description", Label: "Description", Kind: collections.Text},
+		{ID: "extra", Label: "Extra", Kind: collections.Text},
+	}}
+	longValue := strings.Repeat("x", 80)
+	got := collectionRecordSummary(schema, map[string]any{"sku": "SKU-001", "title": "Sample", "description": longValue, "extra": "omitted"})
+	if !strings.HasPrefix(got, "Stock code: SKU-001 · Product name: Sample · Description: ") {
+		t.Fatalf("summary should use schema labels in field order: %q", got)
+	}
+	if strings.Contains(got, "omitted") || !strings.Contains(got, strings.Repeat("x", 72)+"…") {
+		t.Fatalf("summary should limit fields and long values: %q", got)
+	}
+}

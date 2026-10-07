@@ -81,7 +81,7 @@ templ CollectionRecordsPage(schema collections.Schema, records []collections.Rec
 		if len(records) > 0 {
 			<div class="table-responsive"><table><thead><tr><th>ID</th><th>Values</th><th>Actions</th></tr></thead><tbody>
 				for _, record := range records {
-					<tr><td><code>{ record.ID }</code></td><td>{ collectionRecordSummary(record.Data) }</td><td><a href={ action + "/" + record.ID } aria-label={ "Edit " + record.ID }>Edit</a></td></tr>
+					<tr><td><code>{ record.ID }</code></td><td>{ collectionRecordSummary(schema, record.Data) }</td><td><a href={ action + "/" + record.ID } aria-label={ "Edit " + record.ID }>Edit</a></td></tr>
 				}
 			</tbody></table></div>
 		}

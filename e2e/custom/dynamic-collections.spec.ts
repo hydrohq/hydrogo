@@ -170,6 +170,10 @@ test.describe("dynamic Admin collections", () => {
     await page.goto(`${baseURL}/admin/collections/e2e_catalog`);
     const recordRows = page.locator("section.studio-card table tbody tr");
     await expect(recordRows).toHaveCount(50);
+    await expect(page.locator("table")).toContainText("Stock code: PAGE-");
+    await expect(page.locator("table")).toContainText("Product name: Page record");
+    await expect(page.locator("table")).not.toContainText('{"sku":');
+    await page.screenshot({ path: test.info().outputPath("collection-records-page-1-desktop.png") });
     const pagination = page.getByRole("navigation", { name: "Record pages" });
     await expect(pagination).toContainText("Page 1");
     await expect(pagination.getByText("Previous")).toHaveAttribute("aria-disabled", "true");
