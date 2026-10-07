@@ -3,29 +3,29 @@ package ui
 import "strconv"
 
 templ MediaCleanupLink() {
-	<p><a class="button button-quiet" href="/admin/media/cleanup">Review unused media</a></p>
+<p><a class="button button-quiet" href="/admin/media/cleanup">Kullanılmayan medyayı incele</a></p>
 }
 
 templ MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) {
 	<section class="studio-card">
-		<h1>Unused media cleanup</h1>
-		<p>Only unreferenced ready assets older than seven days appear here. Content and settings references are rescanned before deletion.</p>
-	<p>{ strconv.Itoa(len(items)) } assets · { formatMediaGarbageSize(totalBytes) } reclaimable</p>
+		<h1>Kullanılmayan medya dosyalarını temizle</h1>
+		<p>Yalnızca yedi günden eski ve hiçbir yerde kullanılmayan hazır dosyalar listelenir. Silmeden önce içerik ve ayarlardaki kullanımlar yeniden kontrol edilir.</p>
+	<p>{ strconv.Itoa(len(items)) } dosya · { formatMediaGarbageSize(totalBytes) } geri kazanılabilir alan</p>
 	if len(items) == 0 {
-		<p role="status">No unused media assets were found.</p>
+		<p role="status">Kullanılmayan medya dosyası bulunamadı.</p>
 	} else {
 		<form method="post" action="/admin/media/cleanup/delete">
 			<input type="hidden" name="_csrf" value={ csrf } />
-			<div class="table-responsive"><table><thead><tr><th>Select</th><th>File</th><th>Uploaded</th><th>Size</th></tr></thead><tbody>
+			<div class="table-responsive"><table><thead><tr><th>Seç</th><th>Dosya</th><th>Yüklenme tarihi</th><th>Boyut</th></tr></thead><tbody>
 			for _, item := range items {
-				<tr><td><input type="checkbox" name="asset_id" value={ item.ID } aria-label={ "Delete " + item.Filename } /></td><td>{ item.Filename }</td><td>{ item.CreatedAt }</td><td>{ formatMediaGarbageSize(item.SizeBytes) }</td></tr>
+				<tr><td><input type="checkbox" name="asset_id" value={ item.ID } aria-label={ "Sil " + item.Filename } /></td><td>{ item.Filename }</td><td>{ item.CreatedAt }</td><td>{ formatMediaGarbageSize(item.SizeBytes) }</td></tr>
 			}
 			</tbody></table></div>
-			<label><input type="checkbox" name="confirm" value="yes" required /> I reviewed the selected files and confirm deletion.</label>
-			<button type="submit" class="button button-danger">Delete selected unused assets</button>
+			<label><input type="checkbox" name="confirm" value="yes" required /> Seçtiğim dosyaları inceledim ve silinmesini onaylıyorum.</label>
+			<button type="submit" class="button button-danger">Seçilen kullanılmayan dosyaları sil</button>
 		</form>
 	}
-	<a href="/admin/media">Back to media library</a>
+	<a href="/admin/media">Medya kütüphanesine dön</a>
 	</section>
 }
 
