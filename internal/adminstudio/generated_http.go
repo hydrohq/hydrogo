@@ -538,9 +538,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		newURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/new"
-		if collection.Localization && localeState(r).Current == localeState(r).Options.Default {
-			newURL = localePath(newURL, localeState(r).Current)
-		} else if collection.Localization {
+		if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
 			newURL = ""
 		}
 		if _, err := io.WriteString(out, `<section class="resource-page"><header class="dashboard-card-head"><div><p class="muted">`+template.HTMLEscapeString(collection.Description)+`</p></div>`); err != nil {
@@ -552,8 +550,18 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 			}
 		}
 		if collection.Drafts {
-			draftsURL := localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/drafts", localeState(r).Current)
-			if err := ui.Link(ui.LinkProps{Href: draftsURL, Label: "Taslaklar", Class: "button button-quiet"}).Render(ctx, out); err != nil {
+			draftsPath := "/admin/resources/" + url.PathEscape(collection.ID) + "/drafts"
+			if collection.Localization {
+				draftsBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
+						return err
+					}
+					return ui.Button(ui.ButtonProps{Type: "submit", Label: "Taslaklar", Variant: ui.Quiet}).Render(ctx, form)
+				})
+				if err := ui.Form(ui.FormProps{Action: draftsPath, Method: http.MethodGet, Body: draftsBody}).Render(ctx, out); err != nil {
+					return err
+				}
+			} else if err := ui.Link(ui.LinkProps{Href: draftsPath, Label: "Taslaklar", Class: "button button-quiet"}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -1127,6 +1135,9 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 			return ui.Button(ui.ButtonProps{Type: "submit", Label: workflowActionLabel(target), Variant: ui.Primary}).Render(ctx, form)
 		})
 		action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/workflow"
+		if collection.Localization {
+			action = localePath(action, localeState(r).Current)
+		}
 		if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
 			return err
 		}

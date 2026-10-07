@@ -137,6 +137,29 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(editForm.locator(".media-select-field")).toHaveClass(/has-selected/);
   });
 
+  test("generated localized draft publishes without changing the default locale", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.goto(`${baseURL}/admin/resources/story/story-1?locale=tr`);
+    await dismissOnboarding(page);
+    await expect(page.getByRole("navigation", { name: "İçerik dili" })).toBeVisible();
+    const title = page.getByLabel("Title · tr");
+    await expect(title).toHaveValue("Türkçe taslak");
+    await expectNoA11yViolations(page);
+
+    await title.fill("Onaylanan Türkçe başlık");
+    await page.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/locale=tr/);
+    await expect(page.getByLabel("Title · tr")).toHaveValue("Onaylanan Türkçe başlık");
+    await page.getByRole("button", { name: "Yayımla" }).click();
+    await expect(page).toHaveURL(/locale=tr/);
+    await expect(page.getByLabel("Title · tr")).toHaveValue("Onaylanan Türkçe başlık");
+
+    await page.goto(`${baseURL}/admin/resources/story?locale=tr`);
+    await expect(page.getByRole("link", { name: "Onaylanan Türkçe başlık" })).toBeVisible();
+    const defaultRecord = await request.get(`${baseURL}/api/v1/story/story-1`);
+    await expect(defaultRecord.json()).resolves.toMatchObject({ title: "Published story", version: 1 });
+  });
+
   test("generated draft review and publish flow keeps working copy separate", async ({ page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources/story/drafts`);
@@ -149,17 +172,17 @@ test.describe("generated rich-text Edition Admin", () => {
     await expectNoA11yViolations(page);
 
     await page.getByRole("button", { name: "Review copy" }).click();
-    const editor = page.locator('form[action="/admin/resources/story/story-1/draft"]');
-    await expect(editor.getByLabel("Title")).toHaveValue("Review copy");
+    const editor = page.locator('form[action^="/admin/resources/story/story-1/draft"]');
+    await expect(editor.locator('input[name="title"]')).toHaveValue("Review copy");
     await page.screenshot({ path: test.info().outputPath("generated-draft-editor.png") });
-    await editor.getByLabel("Title").fill("Approved story copy");
+    await editor.locator('input[name="title"]').fill("Approved story copy");
     await editor.getByRole("button", { name: "Taslağı kaydet" }).click();
-    await expect(page).toHaveURL(/\/admin\/resources\/story\/story-1$/);
-    await expect(page.locator('form[action="/admin/resources/story/story-1/draft"] input[name="title"]')).toHaveValue("Approved story copy");
+    await expect(page).toHaveURL(/\/admin\/resources\/story\/story-1(?:\?locale=en)?$/);
+    await expect(page.locator('form[action^="/admin/resources/story/story-1/draft"] input[name="title"]')).toHaveValue("Approved story copy");
     await expectNoA11yViolations(page);
 
     await page.getByRole("button", { name: "Yayımla" }).click();
-    await expect(page).toHaveURL(/\/admin\/resources\/story\/story-1$/);
+    await expect(page).toHaveURL(/\/admin\/resources\/story\/story-1(?:\?locale=en)?$/);
     const published = await request.get(`${baseURL}/api/v1/story/story-1`);
     expect(published.status()).toBe(200);
     await expect(published.json()).resolves.toMatchObject({ title: "Approved story copy", status: "published", version: 2 });
@@ -176,7 +199,7 @@ test.describe("generated rich-text Edition Admin", () => {
 
     await page.getByRole("button", { name: "Discard-only draft" }).click();
     await page.getByRole("button", { name: "Taslağı sil" }).click();
-    await expect(page).toHaveURL(/\/admin\/resources\/story\/drafts$/);
+    await expect(page).toHaveURL(/\/admin\/resources\/story\/drafts(?:\?locale=en)?$/);
     await expect(page.getByRole("button", { name: "Discard-only draft" })).toHaveCount(0);
     await expectNoA11yViolations(page);
     const unpublished = await request.get(`${baseURL}/api/v1/story/story-discard`);
