@@ -522,6 +522,21 @@ test.describe("single Edition administrator management", () => {
     await expect(page).toHaveURL(new RegExp(`${scheduledNewsPath}$`));
     const scheduledStory = await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`);
     expect(scheduledStory.status(), "scheduled news must stay private until its publication time").toBe(404);
+    expect(viewerStorageState, "the preceding role test must capture a viewer session").toBeDefined();
+    const workflowViewerContext = await browser.newContext({ storageState: viewerStorageState });
+    const workflowViewer = await workflowViewerContext.newPage();
+    const viewerCSRFResponse = await workflowViewer.request.get(`${baseURL}/csrf-token`);
+    expect(viewerCSRFResponse.status()).toBe(200);
+    const { token: viewerCSRFToken } = await viewerCSRFResponse.json();
+    const scheduledVersion = await page.locator('#news-publish-form [name="version"]').inputValue();
+    for (const action of ["publish", "retract"]) {
+      const deniedTransition = await workflowViewer.request.post(`${baseURL}${scheduledNewsPath}/${action}`, {
+        form: { _csrf: viewerCSRFToken, version: scheduledVersion },
+      });
+      expect(deniedTransition.status(), `viewer with valid CSRF must not ${action} news`).toBe(403);
+    }
+    expect((await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`)).status()).toBe(404);
+    await workflowViewerContext.close();
     const publishResponsePromise = page.waitForResponse((response) => response.url() === `${baseURL}${scheduledNewsPath}/publish` && response.request().method() === "POST");
     await page.getByRole("button", { name: "Yayına Al" }).click();
     expect((await publishResponsePromise).status()).toBe(303);
