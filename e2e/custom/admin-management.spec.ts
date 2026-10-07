@@ -511,6 +511,23 @@ test.describe("single Edition administrator management", () => {
     await expect(page).toHaveURL(/\/admin\/news\/[^/?]+$/);
     await expect(page.locator('#news-edit-form [name="cover_media_id"]')).toHaveValue(selectedMediaID);
 
+    const scheduledNewsPath = new URL(page.url()).pathname;
+    const scheduleInput = page.getByLabel("Yayın tarihi ve saati");
+    await expect(scheduleInput).toBeVisible();
+    const scheduledAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    await scheduleInput.fill(scheduledAt);
+    const scheduleResponsePromise = page.waitForResponse((response) => response.url() === `${baseURL}${scheduledNewsPath}/schedule` && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Zamanla" }).click();
+    expect((await scheduleResponsePromise).status()).toBe(303);
+    await expect(page).toHaveURL(new RegExp(`${scheduledNewsPath}$`));
+    const scheduledStory = await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`);
+    expect(scheduledStory.status(), "scheduled news must stay private until its publication time").toBe(404);
+    const publishResponsePromise = page.waitForResponse((response) => response.url() === `${baseURL}${scheduledNewsPath}/publish` && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Yayına Al" }).click();
+    expect((await publishResponsePromise).status()).toBe(303);
+    const publishedStory = await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`);
+    expect(publishedStory.status(), "manually publishing a scheduled news item must make it public").toBe(200);
+
     await page.goto(`${baseURL}/admin/pages/new`);
     const conflictCreate = page.locator('form[action="/admin/pages"]');
     await conflictCreate.locator('[name="slug"]').fill("e2e-conflict-page");

@@ -136,9 +136,11 @@ func TestWorkflowActionMarkupFollowsConfiguredPolicy(t *testing.T) {
 		States:      []v1.EditorialState{v1.EditorialDraft, v1.EditorialPublished},
 		Transitions: map[v1.EditorialState][]v1.EditorialState{v1.EditorialDraft: {}},
 	}}
-	markup := string(workflowActionMarkup(service, news.Item{ID: "article-1", Status: news.StatusDraft}, "csrf"))
-	if strings.Contains(markup, "/publish") || strings.Contains(markup, "/schedule") || strings.Contains(markup, "/retract") {
-		t.Fatalf("disallowed workflow action rendered: %s", markup)
+	item := news.Item{ID: "article-1", Status: news.StatusDraft}
+	markup := string(workflowActionMarkup(service, item))
+	forms := string(workflowFormsMarkup(service, item, "csrf"))
+	if strings.Contains(markup+forms, "/publish") || strings.Contains(markup+forms, "/schedule") || strings.Contains(markup+forms, "/retract") {
+		t.Fatalf("disallowed workflow action rendered: controls=%s forms=%s", markup, forms)
 	}
 	if !strings.Contains(markup, "kullanılabilir yayın aksiyonu yok") {
 		t.Fatalf("missing empty workflow action state: %s", markup)
