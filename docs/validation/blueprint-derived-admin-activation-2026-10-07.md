@@ -36,9 +36,9 @@ or stale registration output fails validation.
 - Project Edition Chromium generated Admin test passes generated navigation,
   shared shell, create/search/filter/edit/delete, axe checks, and mobile/tablet
   overflow. The generated route is reached through the new helper.
-- `hydro new resource` now makes the first string field the default Admin title,
+- `hydro new resource` now makes the first string or text field the default Admin title,
   list column, and search field. The wizard test checks both the authored
-  Blueprint and generated `admin_manifest.json`; resources without a string
+  Blueprint and generated `admin_manifest.json`; resources without a string or text
   field still require an explicit title/list choice.
 
 ## Commands
