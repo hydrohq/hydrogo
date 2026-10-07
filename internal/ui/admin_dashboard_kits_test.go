@@ -8,7 +8,40 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 )
+
+func TestRenderAdminDashboardUsesSessionPermissions(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		user  *auth.User
+		write bool
+	}{
+		{name: "content write denied", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}}},
+		{name: "content write allowed", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: true}}, write: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := RenderAdminDashboard(&out, AdminDashboardData{User: tc.user, Active: "dashboard"}); err != nil {
+				t.Fatal(err)
+			}
+			markup := out.String()
+			start := strings.Index(markup, `data-admin-permissions="`)
+			if start < 0 {
+				t.Fatal("dashboard omitted effective permission list")
+			}
+			start += len(`data-admin-permissions="`)
+			end := strings.IndexByte(markup[start:], '"')
+			if end < 0 {
+				t.Fatal("dashboard permission list was not closed")
+			}
+			hasWrite := shellHasPermission(markup[start:start+end], auth.PermissionContentWrite)
+			if hasWrite != tc.write {
+				t.Errorf("dashboard content write permission = %v, want %v", hasWrite, tc.write)
+			}
+		})
+	}
+}
 
 func TestRenderAdminDashboardShowsCapabilitySummary(t *testing.T) {
 	var out bytes.Buffer

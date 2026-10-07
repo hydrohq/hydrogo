@@ -17,6 +17,7 @@ import (
 )
 
 type AdminDashboardData struct {
+	User                     *auth.User
 	SearchInsightsEnabled    bool
 	Email                    string
 	Collections              []adminstudio.Collection
@@ -54,8 +55,8 @@ type NoCookieAnalyticsRow struct {
 }
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
-	adminUser := &auth.User{Role: auth.RoleAdmin, Active: true}
-	if err := adminStartLocaleRoleSupport(w, "Dashboard", "", data.Active, data.Locale, string(auth.RoleAdmin), true, shellPermissionList(adminUser), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
+	user := dashboardUser(data.User)
+	if err := adminStartLocaleRoleSupport(w, "Dashboard", "", data.Active, data.Locale, string(user.Role), auth.Can(user, auth.PermissionContentWrite), shellPermissionList(user), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
 		return err
 	}
 	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
@@ -96,8 +97,8 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 }
 
 func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
-	adminUser := &auth.User{Role: auth.RoleAdmin, Active: true}
-	if err := adminStartLocaleRoleSupport(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale, string(auth.RoleAdmin), true, shellPermissionList(adminUser), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
+	user := dashboardUser(data.User)
+	if err := adminStartLocaleRoleSupport(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale, string(user.Role), auth.Can(user, auth.PermissionContentWrite), shellPermissionList(user), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
 		return err
 	}
 	if err := adminReportsKPIsTemplate.Execute(w, data); err != nil {
@@ -131,6 +132,13 @@ func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 		}
 	}
 	return AdminEnd(w)
+}
+
+func dashboardUser(user *auth.User) *auth.User {
+	if user != nil {
+		return user
+	}
+	return &auth.User{Role: auth.RoleAdmin, Active: true}
 }
 
 func renderNoCookieAnalytics(w io.Writer, data AdminDashboardData) error {
