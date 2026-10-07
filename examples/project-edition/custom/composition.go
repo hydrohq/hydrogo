@@ -5,11 +5,9 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/a-h/templ"
 	generatedadmin "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated"
 	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 )
 
 // NewDemoHandler wires generated persistence and transport for local contract
@@ -32,15 +30,9 @@ func NewHandler(db *sql.DB, dialect string) http.Handler {
 		ValidateCSRF: func(r *http.Request) bool {
 			return r.ParseForm() == nil && r.FormValue("_csrf") == "edition-demo-csrf"
 		},
-		RenderPage: func(w http.ResponseWriter, r *http.Request, title string, body templ.Component) error {
-			if err := ui.AdminStartForRequest(w, r, title, "", "generated"); err != nil {
-				return err
-			}
-			if err := body.Render(r.Context(), w); err != nil {
-				return err
-			}
-			return ui.AdminEnd(w)
-		},
+		RenderPage: adminstudio.StudioPageRenderer(func(*http.Request) adminstudio.PageIdentity {
+			return adminstudio.PageIdentity{UserID: "demo-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
+		}),
 	}); err != nil {
 		panic(err)
 	}

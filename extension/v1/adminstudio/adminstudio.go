@@ -11,10 +11,15 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/a-h/templ"
 	internal "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	internalAuth "github.com/ardaozyildirim/hydrogo/internal/auth"
+	internalUI "github.com/ardaozyildirim/hydrogo/internal/ui"
 )
 
 type (
+	PageRole              string
+	PageIdentityResolver  func(*http.Request) PageIdentity
 	Action                = internal.Action
 	Collection            = internal.Collection
 	DraftDocument         = internal.DraftDocument
@@ -31,18 +36,55 @@ type (
 	Workflow              = internal.Workflow
 )
 
+// PageIdentity is presentation data for the shared Admin Studio shell. It is
+// not an authorization decision; GeneratedAdminOptions.Authorize remains the
+// route boundary and CanReadResource filters the resources shown to a user.
+type PageIdentity struct {
+	UserID string
+	Email  string
+	Role   PageRole
+}
+
 const (
-	FieldText      = internal.FieldText
-	FieldRichText  = internal.FieldRichText
-	FieldSelect    = internal.FieldSelect
-	FieldStatus    = internal.FieldStatus
-	FieldRelation  = internal.FieldRelation
-	FieldMedia     = internal.FieldMedia
-	StateDraft     = internal.StateDraft
-	StateScheduled = internal.StateScheduled
-	StatePublished = internal.StatePublished
-	StateRetracted = internal.StateRetracted
+	PageRoleAdmin  PageRole = "admin"
+	PageRoleEditor PageRole = "editor"
+	FieldText               = internal.FieldText
+	FieldRichText           = internal.FieldRichText
+	FieldSelect             = internal.FieldSelect
+	FieldStatus             = internal.FieldStatus
+	FieldRelation           = internal.FieldRelation
+	FieldMedia              = internal.FieldMedia
+	StateDraft              = internal.StateDraft
+	StateScheduled          = internal.StateScheduled
+	StatePublished          = internal.StatePublished
+	StateRetracted          = internal.StateRetracted
 )
+
+// StudioPageRenderer adapts an Edition's authenticated identity to the shared
+// HydroGo Admin Studio shell, so independently built Editions can reuse the
+// same layout without importing Core's internal UI package.
+func StudioPageRenderer(resolve PageIdentityResolver) func(http.ResponseWriter, *http.Request, string, templ.Component) error {
+	return func(w http.ResponseWriter, r *http.Request, title string, body templ.Component) error {
+		if resolve == nil || r == nil || body == nil {
+			return errors.New("Admin Studio page rendering requires request, identity and content")
+		}
+		identity := resolve(r)
+		role := internalAuth.Role(identity.Role)
+		if strings.TrimSpace(identity.UserID) == "" || (role != internalAuth.RoleAdmin && role != internalAuth.RoleEditor) {
+			return errors.New("Admin Studio page identity is invalid")
+		}
+		pageRequest := r.WithContext(internalAuth.WithUser(r.Context(), &internalAuth.User{
+			ID: identity.UserID, Email: identity.Email, Role: role, Active: true,
+		}))
+		if err := internalUI.AdminStartForRequest(w, pageRequest, title, "", "generated"); err != nil {
+			return err
+		}
+		if err := body.Render(pageRequest.Context(), w); err != nil {
+			return err
+		}
+		return internalUI.AdminEnd(w)
+	}
+}
 
 var (
 	NewRegistry   = internal.NewRegistry

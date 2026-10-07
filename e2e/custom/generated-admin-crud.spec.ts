@@ -45,12 +45,29 @@ test.describe("generated Edition Admin CRUD", () => {
   });
 
   test("finds a generated collection and creates, edits, and deletes a record", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources`);
+    await expect(page.getByRole("heading", { name: "Kaynaklar" })).toBeVisible();
+    await expect(page.locator(".studio-sidebar")).toBeVisible();
+    await expect(page.getByRole("link", { name: "HYDROGO Studio" })).toBeVisible();
+    await expect(page.locator(".studio-sidebar")).toContainText("İÇERİK");
+    const onboarding = page.locator("#admin-onboarding-dialog");
+    await expect(onboarding).toBeVisible();
+    await onboarding.getByRole("button", { name: "Bir daha gösterme" }).click();
+    await expect(onboarding).toBeHidden();
+    await expectNoA11yViolations(page);
+    await page.context().addCookies([{ name: "hydro_admin_locale", value: "en", url: baseURL }]);
+    await page.reload();
     await expect(page.getByRole("heading", { name: "Generated resources" })).toBeVisible();
+    await expect(page.locator(".studio-sidebar")).toContainText("CONTENT");
+    await page.context().clearCookies();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Kaynaklar" })).toBeVisible();
     await page.getByRole("navigation").getByRole("link", { name: "Projects" }).click();
     await expect(page).toHaveURL(/\/admin\/resources\/project(?:\?.*)?$/);
     await expect(page.locator("h1", { hasText: "Projects" })).toBeVisible();
     await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible();
+    await expectNoA11yViolations(page);
     await expect(page.locator("#filter-status option").first()).toHaveText("Tümü");
     for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }]) {
       await page.setViewportSize(viewport);
@@ -125,4 +142,14 @@ async function unusedPort(): Promise<number> {
       probe.close((error) => error ? reject(error) : resolve(address.port));
     });
   });
+}
+
+async function expectNoA11yViolations(page: import("@playwright/test").Page): Promise<void> {
+  const result = await page.evaluate(async () => (window as any).axe.run(document, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+  }));
+  expect(result.violations.map((violation: any) => ({
+    id: violation.id,
+    targets: violation.nodes.map((node: any) => node.target),
+  }))).toEqual([]);
 }
