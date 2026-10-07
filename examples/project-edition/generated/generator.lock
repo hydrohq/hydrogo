@@ -4,7 +4,7 @@
   "spec_sha256": "e4cff686e120387f93a8fcf0f4dd7e5b977eedee860e61067810c2503f4504aa",
   "artifacts_sha256": {
     "REVIEW.md": "54c23e5e3523fbee36605b40b6c5cd82bafaa18e6fe333d5775cf2445eaacd9c",
-    "RUNTIME_WIRING.md": "bd7cf16207eb93b4be0ea65e7425e5508a24618c8f41f4ba0f8568e165f6e288",
+    "RUNTIME_WIRING.md": "e4c1903d34f5bc8605dfd046a54e03efa6ea317fbfccdd0cf056076b6f2b9aaf",
     "admin/form.templ": "ca5af17fc8128eb9dc11e9368251a3e66db292e6cc5029cebbd0ba2e82623059",
     "admin/list.templ": "01fddb6779f3131d3ab59fe88e1d6e76849a1ba128663dffb0f90248323c99fd",
     "admin/views.json": "086c57a23ffe5bbdac4c6bbe43b43964265e841f3fe4fd671f507ed27b5afdaf",
@@ -51,7 +51,7 @@
       "spec_sha256": "e4cff686e120387f93a8fcf0f4dd7e5b977eedee860e61067810c2503f4504aa",
       "artifacts_sha256": {
         "REVIEW.md": "54c23e5e3523fbee36605b40b6c5cd82bafaa18e6fe333d5775cf2445eaacd9c",
-        "RUNTIME_WIRING.md": "bd7cf16207eb93b4be0ea65e7425e5508a24618c8f41f4ba0f8568e165f6e288",
+        "RUNTIME_WIRING.md": "e4c1903d34f5bc8605dfd046a54e03efa6ea317fbfccdd0cf056076b6f2b9aaf",
         "admin/form.templ": "ca5af17fc8128eb9dc11e9368251a3e66db292e6cc5029cebbd0ba2e82623059",
         "admin/list.templ": "01fddb6779f3131d3ab59fe88e1d6e76849a1ba128663dffb0f90248323c99fd",
         "admin/views.json": "086c57a23ffe5bbdac4c6bbe43b43964265e841f3fe4fd671f507ed27b5afdaf",
@@ -98,7 +98,7 @@
       "spec_sha256": "2604cfaaf4c2b7ad507b5b34aab604d47f0c5911b14f60d3c76b663886510da7",
       "artifacts_sha256": {
         "REVIEW.md": "5702d3e254a3e0efe697d04072a8efaa6032be6a4e2be1a991020bfc8789fa1c",
-        "RUNTIME_WIRING.md": "e96f9b99bb118b6497c43e2e77f8306e3ba7b76dae743fba2b9c77ff96f85462",
+        "RUNTIME_WIRING.md": "d54bee0640d915e4b3c0fd14275a80b204f046ee98877b138f69e8c9ac0e4f57",
         "admin/form.templ": "399bfcce95e161bebd5af93029a947ad885897eeebc8f0c690ac83758e798913",
         "admin/list.templ": "22e89395e0af3bcc338a340002e1b8325621670eeed4d923448fef36265a2ad4",
         "admin/views.json": "df2783379fe2b260845979ef9a77496420fcea79c7b145f424745e67d1bfa13c",

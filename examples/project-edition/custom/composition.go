@@ -6,8 +6,6 @@ import (
 	"net/http"
 
 	generatedadmin "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated"
-	generatedmilestone "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
-	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
 )
 
@@ -24,10 +22,14 @@ func NewDemoHandler(db *sql.DB) http.Handler {
 // resource visibility, and tenant-aware authorization boundaries.
 func NewHandler(db *sql.DB, dialect string) http.Handler {
 	mux := http.NewServeMux()
-	if err := generated.RegisterProjectRoute(mux, db, dialect, demoPolicy{}); err != nil {
-		panic(err)
-	}
-	if err := generatedmilestone.RegisterMilestoneRoute(mux, db, dialect, demoPolicy{}); err != nil {
+	if err := generatedadmin.RegisterGeneratedResources(mux, generatedadmin.GeneratedResourceOptions{
+		DB: db, Dialect: dialect,
+		PolicyFor: func(string) generatedadmin.GeneratedResourcePolicy {
+			// This permissive fixture is safe only because the example server
+			// refuses non-loopback binds; real Editions must resolve permissions.
+			return demoPolicy{}
+		},
+	}); err != nil {
 		panic(err)
 	}
 	if err := generatedadmin.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{

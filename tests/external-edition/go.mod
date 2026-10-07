@@ -5,6 +5,7 @@ go 1.27.0
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/ardaozyildirim/hydrogo v0.0.0
+	modernc.org/sqlite v1.59.0
 )
 
 require (
@@ -50,7 +51,6 @@ require (
 	modernc.org/libc v1.75.7 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.59.0 // indirect
 )
 
 replace github.com/ardaozyildirim/hydrogo => ../..

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	generatedadmin "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated"
 	generatedmilestone "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
 	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -184,6 +185,29 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	_ = deletedRecord.Body.Close()
 	if deletedRecord.StatusCode != http.StatusNotFound {
 		t.Fatalf("generated API record after Admin delete status=%d", deletedRecord.StatusCode)
+	}
+}
+
+func TestGeneratedResourceRoutesFailClosedBeforeRegisteringAnyRoute(t *testing.T) {
+	mux := http.NewServeMux()
+	err := generatedadmin.RegisterGeneratedResources(mux, generatedadmin.GeneratedResourceOptions{
+		DB: &sql.DB{}, Dialect: "sqlite",
+		PolicyFor: func(resourceID string) generatedadmin.GeneratedResourcePolicy {
+			if resourceID == "milestone" {
+				return demoPolicy{}
+			}
+			return nil
+		},
+	})
+	if err == nil {
+		t.Fatal("missing policy for one generated resource was accepted")
+	}
+	for _, path := range []string{"/api/v1/milestone", "/api/v1/project"} {
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusNotFound {
+			t.Errorf("route %s was partially registered after preflight failure: status=%d", path, response.Code)
+		}
 	}
 }
 

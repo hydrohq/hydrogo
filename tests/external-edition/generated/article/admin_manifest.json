@@ -1,0 +1,24 @@
+{
+  "id": "article",
+  "type": "collection",
+  "label": "Articles",
+  "description": "",
+  "group": "content",
+  "title_field": "title",
+  "fields": [
+    {
+      "id": "title",
+      "label": "Title",
+      "kind": "text",
+      "required": true,
+      "visible_in_list": true,
+      "searchable": true
+    }
+  ],
+  "actions": [
+    {
+      "label": "Open Articles",
+      "href": "/admin/article"
+    }
+  ]
+}

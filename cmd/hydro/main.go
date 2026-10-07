@@ -932,6 +932,11 @@ func generatorExportName(value string) string {
 }
 
 func verifyGeneratedScaffold(root string) error {
+	var err error
+	root, err = filepath.Abs(root)
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(filepath.Join(root, "go.mod")); errors.Is(err, os.ErrNotExist) {
 		return nil
 	} else if err != nil {

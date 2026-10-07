@@ -1,0 +1,15 @@
+version: v0
+type: collection
+name: article
+table: articles
+auth: false
+permissions:
+  - article.read
+  - article.write
+dialects:
+  - postgres
+  - sqlite
+fields:
+  - name: title
+    type: string
+    nullable: false

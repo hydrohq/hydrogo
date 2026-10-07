@@ -27,6 +27,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
+	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
@@ -360,6 +361,59 @@ func TestProjectCheckValidatesGeneratedResourcesWhenPresent(t *testing.T) {
 	}
 	if err := run([]string{"project", "check", "--config", filepath.Join(projectRoot, "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err == nil {
 		t.Fatal("project check accepted tampered generated resource")
+	}
+}
+
+func TestGeneratedScaffoldVerificationResolvesRelativeRoot(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.MkdirAll(filepath.Join("edition", "generated"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join("edition", "go.mod"), []byte("module edition.example/test\n\ngo 1.27.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	generated := filepath.Join("edition", "generated", "route.go")
+	if err := os.WriteFile(generated, []byte("package generated\nfunc Ready( )bool{return true}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyGeneratedScaffold("edition"); err != nil {
+		t.Fatalf("relative generated root failed verification: %v", err)
+	}
+	formatted, err := os.ReadFile(generated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(formatted) != "package generated\n\nfunc Ready() bool { return true }\n" {
+		t.Fatalf("relative generated source was not formatted: %q", formatted)
+	}
+}
+
+func TestProjectCheckRejectsStaleAggregateGeneratedRoutes(t *testing.T) {
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"project", "new", "route-check", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project new: %v stderr=%s", err, stderr.String())
+	}
+	projectRoot := filepath.Join(root, "route-check")
+	if err := os.WriteFile(filepath.Join(projectRoot, "go.mod"), []byte("module edition.example/route-check\n\ngo 1.27.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := generator.Generate(projectRoot, generator.Spec{
+		Name: "article", Table: "articles", Fields: []generator.Field{{Name: "title", Type: "string"}},
+		Permissions: []string{"article.read", "article.write"}, Dialects: []string{"sqlite", "postgres"},
+	}); err != nil {
+		t.Fatalf("generate resource: %v", err)
+	}
+	configPath := filepath.Join(projectRoot, "config.yaml")
+	if err := run([]string{"project", "check", "--config", configPath}, strings.NewReader(""), &stdout, &stderr); err != nil {
+		t.Fatalf("project check rejected generated route helper: %v stderr=%s", err, stderr.String())
+	}
+	registrationPath := filepath.Join(projectRoot, "generated", "route_registration.go")
+	if err := os.WriteFile(registrationPath, []byte("// stale route helper\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"project", "check", "--config", configPath}, strings.NewReader(""), &stdout, &stderr); err == nil || !strings.Contains(err.Error(), "resource route registration does not match") {
+		t.Fatalf("project check accepted stale route helper: %v", err)
 	}
 }
 
