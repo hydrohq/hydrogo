@@ -9,6 +9,7 @@ import path from "node:path";
 const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
 const masterKey = "12345678901234567890123456789012";
+const backupSigningSeed = "ab".repeat(32);
 let server: ChildProcess | undefined;
 let tempDir = "";
 let baseURL = "";
@@ -20,10 +21,11 @@ test.describe("Admin Studio MFA self-service", () => {
     const binary = path.join(tempDir, "hydro");
     execFileSync("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     execFileSync("go", ["build", "-o", binary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn(binary, ["serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MFA_MASTER_KEY: masterKey, HYDRO_MEDIA_DIR: path.join(tempDir, "media") } });
+    server = spawn(binary, ["serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MFA_MASTER_KEY: masterKey, HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_MEDIA_DIR: path.join(tempDir, "media") } });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
@@ -49,7 +51,7 @@ test.describe("Admin Studio MFA self-service", () => {
   });
 
   test("sets up, verifies and disables MFA from account settings", async ({ browser }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     const context = await browser.newContext();
     const page = await context.newPage();
     const browserIssues: string[] = [];
@@ -168,6 +170,79 @@ test.describe("Admin Studio MFA self-service", () => {
     await unbanForm.getByLabel("Engeli kaldırılacak adres veya CIDR").fill(banAddress);
     await unbanForm.getByRole("button", { name: "Engeli kaldır" }).click();
     await expect(page.getByText(banAddress, { exact: true })).toHaveCount(0);
+
+    await page.goto(`${baseURL}/admin/pages/new`);
+    await page.getByLabel("Boş sayfa").check();
+    const contentForm = page.locator('form[action="/admin/pages"]');
+    await contentForm.locator('[name="slug"]').fill("mfa-admin-mutation");
+    await contentForm.locator('[name="title"]').fill("MFA verified content mutation");
+    await contentForm.locator(".richtext-editor [contenteditable=true]").fill("Created in an MFA-authenticated admin session.");
+    await contentForm.getByRole("button", { name: "Taslak oluştur" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+
+    await page.goto(`${baseURL}/admin/backup`);
+    const backupForm = page.locator('form[action="/admin/backup"]');
+    await backupForm.getByLabel(/Devam etmek için parolanızı doğrulayın|Confirm your password to continue/i).fill(adminPassword);
+    const backupResponse = page.waitForResponse((response) => response.url() === `${baseURL}/admin/backup` && response.request().method() === "POST");
+    const backupDownload = page.waitForEvent("download");
+    await backupForm.getByRole("button", { name: /Yedeği oluştur ve indir|Create and download backup/i }).click();
+    const [backupResult, backupFile] = await Promise.all([backupResponse, backupDownload]);
+    expect(backupResult.status()).toBe(200);
+    expect(backupResult.headers()["cache-control"]).toContain("no-store");
+    expect(backupFile.suggestedFilename()).toMatch(/^hydrogo-backup-.*\.tar\.gz$/);
+
+    const editorContext = await browser.newContext();
+    const editorPage = await editorContext.newPage();
+    await editorPage.goto(`${baseURL}/login`);
+    await editorPage.getByLabel("Email address").fill("editor@example.test");
+    await editorPage.getByLabel("Password").fill(adminPassword);
+    await editorPage.getByRole("button", { name: "Sign in" }).click();
+    await expect(editorPage).toHaveURL(/\/admin(?:\?.*)?$/);
+    expect((await editorPage.goto(`${baseURL}/admin/pages/new`))?.status()).toBe(200);
+
+    await page.goto(`${baseURL}/admin/users`);
+    const editorRow = page.locator(".studio-table tbody tr").filter({ has: page.getByText("editor@example.test", { exact: true }) });
+    const editorPermissionForm = editorRow.locator('form[action$="/permissions"]');
+    const denyToken = await editorPermissionForm.locator('[name="_csrf"]').inputValue();
+    const permissionAction = await editorPermissionForm.getAttribute("action");
+    expect(permissionAction).toBeTruthy();
+    const deniedWrite = await page.request.post(new URL(permissionAction!, baseURL).href, {
+      form: { _csrf: denyToken, "perm_admin.content.write": "deny" },
+    });
+    expect(deniedWrite.status()).toBe(204);
+    expect((await editorPage.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    await page.reload();
+    await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("deny");
+
+    const grantForm = editorRow.locator('form[action$="/permissions"]');
+    const grantToken = await grantForm.locator('[name="_csrf"]').inputValue();
+    const grantWrite = await page.request.post(new URL(permissionAction!, baseURL).href, {
+      form: { _csrf: grantToken, "perm_admin.content.write": "allow" },
+    });
+    expect(grantWrite.status()).toBe(204);
+    await page.reload();
+    await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("allow");
+    await editorContext.close();
+
+    const viewerContext = await browser.newContext();
+    const viewerPage = await viewerContext.newPage();
+    await viewerPage.goto(`${baseURL}/login`);
+    await viewerPage.getByLabel("Email address").fill("viewer@example.test");
+    await viewerPage.getByLabel("Password").fill(adminPassword);
+    await viewerPage.getByRole("button", { name: "Sign in" }).click();
+    await expect(viewerPage).toHaveURL(/\/admin(?:\?.*)?$/);
+    expect((await viewerPage.request.get(`${baseURL}/auth/me`)).status()).toBe(200);
+
+    await page.goto(`${baseURL}/admin/users`);
+    const viewerRow = page.locator(".studio-table tbody tr").filter({ has: page.getByText("viewer@example.test", { exact: true }) });
+    const disableForm = viewerRow.locator('form[action$="/disable"]');
+    const disableToken = await disableForm.locator('[name="_csrf"]').inputValue();
+    const disableAction = await disableForm.getAttribute("action");
+    expect(disableAction).toBeTruthy();
+    const disableViewer = await page.request.post(new URL(disableAction!, baseURL).href, { form: { _csrf: disableToken } });
+    expect(disableViewer.status()).toBe(204);
+    expect((await viewerPage.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    await viewerContext.close();
 
     watchCSP = true;
     browserIssues.length = 0;

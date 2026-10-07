@@ -64,6 +64,13 @@ axe-core WCAG 2.1 A/AA taraması ve yatay taşma kontrolü geçti. MFA hesap
 ekranının CSP/no-store başlıkları ve onboarding görünürlüğü de browser testinde
 doğrulanır.
 
+MFA ile doğrulanmış aynı yönetici oturumunda sayfa taslağı oluşturma ve
+parolayı yeniden doğrulayarak imzalı yedek indirme de geçti. Yönetici,
+editörün `admin.content.write` iznini deny/allow olarak değiştirdi; deny
+değişikliği editörün mevcut oturumunu iptal etti ve izin değeri yenilenen
+listede doğrulandı. Viewer hesabını devre dışı bırakma da mevcut viewer
+oturumunu iptal etti. Bu ek akışla birleşik Chromium grubu **5/5** geçti.
+
 15 yönetim rotası boyunca her render edilmiş satır içi scriptin SHA-256 değeri
 yanıtın `Content-Security-Policy` başlığındaki allowlist ile birebir
 karşılaştırılır; Playwright ayrıca CSP console ihlallerini toplar. News ve media
@@ -81,8 +88,9 @@ artifact'ı olarak üretildi ve görsel olarak incelendi. Artifact git'e eklenme
 
 Bu çalışma yeni cross-tenant Super Admin veya yeni auth route/şeması eklemez.
 TOTP/recovery API'si mevcut Edition auth sözleşmesinin üstünde kullanılır.
-MFA ile doğrulanmış oturumda izin, yedek, kullanıcı ve içerik mutasyonlarının
-tümleşik kombinasyon matrisi ile diğer Faz 1/2/3/5 açık kabul maddeleri ana
-ürün planında takip edilmeye devam eder. Bu test 15 yönetim rotasının CSP
-script hashlerini kapsar; sayfa tasarımlarının tüm tema varyantları ve tüm
-admin mutasyon kombinasyonları için tam kabul kanıtı sağlamaz.
+Bu doğrulama MFA oturumunda içerik oluşturma, yedek indirme, izin deny/allow
+ve hesap devre dışı bırakma yollarını kapsar; her izin kataloğu girdisi ile
+her rol/mutasyon kombinasyonunun tam matrisi değildir. Diğer Faz 1/2/3/5 açık
+kabul maddeleri ana ürün planında takip edilir. 15 yönetim rotasının CSP
+script hashleri doğrulandı; tüm tema varyantları ve tüm admin mutasyonları
+için tam kabul kanıtı sağlanmış sayılmaz.
