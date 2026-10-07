@@ -56,3 +56,19 @@ This validates the runtime dynamic-collections module. It does not claim that
 every Blueprint-generated resource becomes active without Edition composition;
 generated route, authorization, and migration activation remain explicit by
 design under the existing ADRs.
+
+## Blueprint sync follow-up — 2026-10-08
+
+The same Chromium journey now creates a generated `sync_articles` Blueprint,
+runs `hydro collections sync --confirm-admin-crud`, and verifies that the
+imported schema appears in the existing Admin Collections panel. The imported
+resource's record create, update, and delete workflow passed in the real
+temporary Edition. Command:
+
+```sh
+cd e2e && npx playwright test custom/dynamic-collections.spec.ts --project chromium --output /tmp/hydro-e2e-blueprint-sync
+```
+
+Result: 1/1 Chromium test passed. The normal `e2e/artifacts` output directory
+was not writable in this workspace, so Playwright results were directed to a
+temporary output directory.
