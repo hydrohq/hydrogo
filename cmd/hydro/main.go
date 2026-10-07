@@ -233,6 +233,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return moduleCommand(args[1:], stdout, stderr)
 	case "resource":
 		return resourceCommand(args[1:], stdout, stderr)
+	case "collections":
+		return collectionsCommand(args[1:], stdout, stderr)
 	case "api":
 		return apiCommand(args[1:], stdout, stderr)
 	case "frontend":
@@ -6295,6 +6297,7 @@ Usage:
   hydro resource create --spec SPEC --out OUTPUT
   hydro resource new --spec SPEC --out OUTPUT
   hydro resource check --root OUTPUT [--spec SPEC]
+  hydro collections sync --confirm-admin-crud [--config config.yaml] [--generated generated] [--tenant ID]
   hydro api diff --baseline OPENAPI.json --current OPENAPI.json
   hydro schema diff --baseline RELEASE.json --current RELEASE.json --public-key KEY
   hydro permissions check --spec SPEC [--json]
@@ -6310,6 +6313,7 @@ Usage:
 Examples:
   hydro validate --config config.yaml
   hydro test --package ./modules/news/... --timeout 2m
+  hydro collections sync --config config.yaml --generated generated --confirm-admin-crud
   hydro module create --spec ./module.yaml --out ./modules/catalog
   hydro resource create --name products --field title:text --field price:integer
 	  hydro run --address 0.0.0.0:8090
