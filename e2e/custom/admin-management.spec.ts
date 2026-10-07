@@ -173,6 +173,30 @@ test.describe("single Edition administrator management", () => {
     }
 
     await page.goto(`${baseURL}/admin/security`);
+    await page.route(`${baseURL}/admin/auth/invites`, async (route) => {
+      const request = route.request();
+      expect(request.method()).toBe("POST");
+      expect(request.headers()["x-csrf-token"]).toBeTruthy();
+      expect(request.postData()).toContain("invitee@example.test");
+      expect(request.postData()).toContain("role");
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: JSON.stringify({ email: "invitee@example.test", url: `${baseURL}/auth/invites/accept?token=e2e-invite-token` }),
+      });
+    });
+    const inviteForm = page.locator("form[data-admin-invite]");
+    await inviteForm.getByLabel("E-posta Adresi").fill("invitee@example.test");
+    await inviteForm.getByRole("button", { name: /Davet Bağlantısı Oluştur/ }).click();
+    await expect(inviteForm.locator("[data-invite-status]")).toContainText("Davet bağlantısı oluşturuldu");
+    await expect(inviteForm.locator("[data-invite-link]")).toHaveValue(`${baseURL}/auth/invites/accept?token=e2e-invite-token`);
+    await page.unroute(`${baseURL}/admin/auth/invites`);
+    await page.route(`${baseURL}/admin/auth/invites`, (route) => route.fulfill({ status: 503, body: "unavailable" }));
+    await inviteForm.getByLabel("E-posta Adresi").fill("offline@example.test");
+    await inviteForm.getByRole("button", { name: /Davet Bağlantısı Oluştur/ }).click();
+    await expect(inviteForm.locator("[data-invite-status]")).toContainText("Davet oluşturulamadı");
+    await page.unroute(`${baseURL}/admin/auth/invites`);
+
     const testBanAddress = "198.51.100.222";
     const banForm = page.locator('form[action="/admin/security/bans"]');
     await banForm.getByLabel("IP adresi veya CIDR").fill(testBanAddress);
