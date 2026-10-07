@@ -338,7 +338,7 @@ func (h HTTPHandler) ready(w http.ResponseWriter, r *http.Request) {
 
 func editorAllowed(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
-	return user != nil && user.Active && (user.Role == auth.RoleAdmin || user.Role == auth.RoleEditor)
+	return auth.Can(user, auth.PermissionMediaManage)
 }
 
 func mediaStatus(err error) int {

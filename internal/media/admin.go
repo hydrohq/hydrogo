@@ -546,7 +546,11 @@ func (h HTTPHandler) adminCreateFolder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) adminUpload(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) || h.Service.Uploader == nil {
+	if !editorAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.Service.Uploader == nil {
 		http.Error(w, "media unavailable", http.StatusServiceUnavailable)
 		return
 	}
