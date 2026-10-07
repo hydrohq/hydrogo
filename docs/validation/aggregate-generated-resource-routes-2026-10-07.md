@@ -16,8 +16,9 @@
   doğrular.
 - Bağımsız `tests/external-edition` Go modülüne Blueprint ile tenant-scoped
   `article` üretilir. Generated migration SQLite'a uygulanır; API create,
-  tenant içi read, tenantlar arası 404 ve ortak generated Admin listesi
-  Chromium dışı gerçek HTTP testinde doğrulanır. Eksik tenant resolver
+  tenant içi read, tenantlar arası 404, generated Admin create/update/delete,
+  CSRF reddi, viewer deny ve tenant başına ayrı Admin listesi aynı SQLite
+  veritabanıyla gerçek HTTP testinde doğrulanır. Eksik tenant resolver
   başlangıçta reddedilir ve route kaydı oluşmaz.
 - `hydro project check` aggregate helper'ı module path ve Blueprint setiyle
   karşılaştırır; generator testi helper'ın elle değiştirilmesini reddeder.
