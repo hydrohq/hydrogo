@@ -185,6 +185,92 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 		t.Fatalf("second recovery code consume = %v, want invalid code", err)
 	}
 
+	// MFA can only be disabled after proving possession of the factor or a
+	// one-time recovery code; reenrollment rotates the previously issued codes.
+	securityHandler := auth.HTTPHandler{MFA: &mfa, MFADB: db, Transactions: database.NewTransactor(db)}
+	findRoute := func(pattern string) http.Handler {
+		for _, route := range securityHandler.Routes() {
+			if route.Pattern == pattern {
+				return route.Handler
+			}
+		}
+		t.Fatalf("missing route %s", pattern)
+		return nil
+	}
+	disabledPath := findRoute("POST /auth/me/mfa/disable")
+	badDisable := httptest.NewRequest(http.MethodPost, "/auth/me/mfa/disable", strings.NewReader(url.Values{"code": {"000000"}}.Encode()))
+	badDisable.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	badDisable = badDisable.WithContext(auth.WithUser(badDisable.Context(), u))
+	badDisableResult := httptest.NewRecorder()
+	disabledPath.ServeHTTP(badDisableResult, badDisable)
+	if badDisableResult.Code != http.StatusUnauthorized {
+		t.Fatalf("disable MFA with invalid code status = %d, want 401", badDisableResult.Code)
+	}
+	if enabled, err := mfa.Enabled(ctx, db, u.ID); err != nil || !enabled {
+		t.Fatalf("invalid disable changed MFA state: enabled=%v err=%v", enabled, err)
+	}
+	validCode, err := totp.GenerateCode(enrollment.Secret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	validDisable := httptest.NewRequest(http.MethodPost, "/auth/me/mfa/disable", strings.NewReader(url.Values{"code": {validCode}}.Encode()))
+	validDisable.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	validDisable = validDisable.WithContext(auth.WithUser(validDisable.Context(), u))
+	validDisableResult := httptest.NewRecorder()
+	disabledPath.ServeHTTP(validDisableResult, validDisable)
+	if validDisableResult.Code != http.StatusNoContent {
+		t.Fatalf("disable MFA with valid code status = %d, want 204", validDisableResult.Code)
+	}
+	var reenrollment auth.MFAEnrollment
+	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		var err error
+		reenrollment, err = mfa.Enroll(ctx, tx, u.ID, u.Email)
+		return err
+	}); err != nil {
+		t.Fatalf("reenroll MFA: %v", err)
+	}
+	if len(reenrollment.RecoveryCodes) != 8 || reenrollment.Secret == enrollment.Secret {
+		t.Fatalf("unexpected MFA reenrollment: %+v", reenrollment)
+	}
+	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error {
+		return mfa.ConsumeRecoveryCode(ctx, tx, u.ID, enrollment.RecoveryCodes[1])
+	}); !errors.Is(err, auth.ErrMFAInvalidCode) {
+		t.Fatalf("old recovery code after reenrollment = %v, want invalid code", err)
+	}
+	enablePath := findRoute("POST /auth/me/mfa/enable")
+	newCode, err := totp.GenerateCode(reenrollment.Secret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	enableReq := httptest.NewRequest(http.MethodPost, "/auth/me/mfa/enable", strings.NewReader(url.Values{"code": {newCode}}.Encode()))
+	enableReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	enableReq = enableReq.WithContext(auth.WithUser(enableReq.Context(), u))
+	enableRes := httptest.NewRecorder()
+	enablePath.ServeHTTP(enableRes, enableReq)
+	if enableRes.Code != http.StatusNoContent {
+		t.Fatalf("enable reenrolled MFA status = %d, want 204", enableRes.Code)
+	}
+	enrollPath := findRoute("POST /auth/me/mfa/enroll")
+	reenrollReq := httptest.NewRequest(http.MethodPost, "/auth/me/mfa/enroll", strings.NewReader(""))
+	reenrollReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	reenrollReq = reenrollReq.WithContext(auth.WithUser(reenrollReq.Context(), u))
+	reenrollRes := httptest.NewRecorder()
+	enrollPath.ServeHTTP(reenrollRes, reenrollReq)
+	if reenrollRes.Code != http.StatusConflict {
+		t.Fatalf("enroll over enabled MFA status = %d, want 409", reenrollRes.Code)
+	}
+	recoveryDisable := httptest.NewRequest(http.MethodPost, "/auth/me/mfa/disable", strings.NewReader(url.Values{"code": {reenrollment.RecoveryCodes[0]}}.Encode()))
+	recoveryDisable.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recoveryDisable = recoveryDisable.WithContext(auth.WithUser(recoveryDisable.Context(), u))
+	recoveryDisableResult := httptest.NewRecorder()
+	disabledPath.ServeHTTP(recoveryDisableResult, recoveryDisable)
+	if recoveryDisableResult.Code != http.StatusNoContent {
+		t.Fatalf("disable MFA with recovery code status = %d, want 204", recoveryDisableResult.Code)
+	}
+	if enabled, err := mfa.Enabled(ctx, db, u.ID); err != nil || enabled {
+		t.Fatalf("recovery disable did not clear MFA state: enabled=%v err=%v", enabled, err)
+	}
+
 	// 11. Password reset tokens are purpose-bound, short-lived and single-use.
 	resetService := auth.PasswordRecovery{Users: userStore, Tokens: userStore, Sessions: sessionStore, ArgonParams: auth.TestArgon2Params}
 	var resetToken string

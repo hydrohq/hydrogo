@@ -887,20 +887,45 @@ func (h HTTPHandler) updateUserPermissions(w http.ResponseWriter, r *http.Reques
 
 func (h HTTPHandler) enrollMFA(w http.ResponseWriter, r *http.Request) {
 	user := UserFromContext(r.Context())
-	if user == nil || !user.Active || h.MFA == nil {
+	if user == nil || !user.Active || h.MFA == nil || database.RequireExecutor(h.MFADB) != nil {
 		http.Error(w, "MFA unavailable", http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid MFA request", http.StatusBadRequest)
+		return
+	}
+	if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
+		security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
+		return
+	}
+	enabled, err := h.MFA.Enabled(r.Context(), h.MFADB, user.ID)
+	if err != nil {
+		writeAuthDependencyError(w, "MFA enrollment unavailable", err, http.StatusServiceUnavailable)
+		return
+	}
+	if enabled {
+		http.Error(w, "MFA is already enabled", http.StatusConflict)
+		return
+	}
 	var enrollment MFAEnrollment
-	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+	err = h.Transactions.Within(r.Context(), func(tx database.Executor) error {
 		var err error
 		enrollment, err = h.MFA.Enroll(r.Context(), tx, user.ID, user.Email)
 		return err
 	})
 	if err != nil {
+		if errors.Is(err, ErrMFAAlreadyEnabled) {
+			http.Error(w, "MFA is already enabled", http.StatusConflict)
+			return
+		}
 		writeAuthDependencyError(w, "MFA enrollment failed", err, http.StatusInternalServerError)
 		return
 	}
+	h.recordAuthEvent(r, "auth.mfa_enrollment_started", user.ID)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	api.WriteJSON(w, http.StatusCreated, enrollment)
 }
 
@@ -910,6 +935,7 @@ func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "MFA unavailable", http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid MFA request", http.StatusBadRequest)
 		return
@@ -1070,10 +1096,32 @@ func (h HTTPHandler) disableMFA(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "MFA unavailable", http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid MFA request", http.StatusBadRequest)
+		return
+	}
+	if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
+		security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
+		return
+	}
 
 	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
+		code := r.FormValue("code")
+		if err := h.MFA.Verify(r.Context(), tx, user.ID, code); err != nil {
+			if !errors.Is(err, ErrMFAInvalidCode) {
+				return err
+			}
+			if err := h.MFA.ConsumeRecoveryCode(r.Context(), tx, user.ID, code); err != nil {
+				return ErrMFAInvalidCode
+			}
+		}
 		return h.MFA.Disable(r.Context(), tx, user.ID)
 	}); err != nil {
+		if errors.Is(err, ErrMFAInvalidCode) {
+			http.Error(w, "invalid MFA code", http.StatusUnauthorized)
+			return
+		}
 		writeAuthDependencyError(w, "MFA disable failed", err, http.StatusInternalServerError)
 		return
 	}

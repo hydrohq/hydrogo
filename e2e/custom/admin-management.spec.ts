@@ -129,6 +129,7 @@ test.describe("single Edition administrator management", () => {
     await page.getByLabel("Password").fill(adminPassword);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
+    await dismissAdminTour(page);
     await page.goto(`${baseURL}/admin`);
     await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
     await expect(page.locator("h1")).toBeVisible();
@@ -452,6 +453,7 @@ test.describe("single Edition administrator management", () => {
 
     const staleEditor = await page.context().newPage();
     await staleEditor.goto(page.url());
+    await dismissAdminTour(staleEditor);
     const currentEditor = page.locator('form[data-autosave-resource^="page:"]');
     await currentEditor.locator('[name="title"]').fill("Current page version");
     await currentEditor.getByRole("button", { name: "Taslağı kaydet" }).click();
@@ -544,4 +546,12 @@ async function unusedPort(): Promise<number> {
       probe.close((error) => error ? reject(error) : resolve(address.port));
     });
   });
+}
+
+async function dismissAdminTour(page: import("@playwright/test").Page): Promise<void> {
+  const dismissed = await page.evaluate(() => localStorage.getItem("hydro-onboarding-dismissed") === "1" || localStorage.getItem("hydro-onboarding-dismissed:admin") === "1");
+  if (dismissed) return;
+  const tour = page.locator("#admin-onboarding-dialog");
+  await expect(tour).toBeVisible();
+  await tour.locator("[data-onboarding-dismiss]").click();
 }
