@@ -5,6 +5,7 @@
 - [ADR-0354: Blueprint-derived generated Admin activation helper](0354-blueprint-derived-admin-activation.md)
 - [ADR-0355: Aggregate generated resource route registration](0355-aggregate-generated-resource-route-registration.md)
 - [ADR-0356: Revision-bound News draft preview](0356-revision-bound-news-preview.md) — Accepted
+- [ADR-0357: Explicit Blueprint sync into Dynamic Collections](0357-explicit-blueprint-collections-sync.md) — Accepted
 - [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
 - [ADR-0330: Pure Go PDF cover derivatives](0330-pure-go-pdf-cover-derivatives.md)
 - [ADR-0331: Bounded SQLite shadow-table migrations](0331-sqlite-batched-shadow-migrations.md)
@@ -88,6 +89,7 @@ An accepted decision is not silently changed. If new information invalidates the
 | [0285](0285-media-enrichment-and-upload-safety.md) | Pure Go media enrichment and upload safety | Accepted |
 | [0286](0286-dalga4-bounded-platform-capabilities.md) | Bounded Dalga 4 platform capabilities | Accepted for bounded scope |
 | [0287](0287-static-storage-dynamic-collections.md) | Dynamic collections on static, certified storage | Accepted |
+| [0357](0357-explicit-blueprint-collections-sync.md) | Explicit Blueprint sync into Dynamic Collections | Accepted |
 | [0318](0318-maintenance-mode-request-gate.md) | Opt-in maintenance mode request gate | Accepted for bounded contract |
 | [0319](0319-bounded-link-audit.md) | Bounded public link and asset audit | Accepted for operator-initiated scans |
 | [0320](0320-safe-mode-runtime.md) | Incident Safe Mode runtime and external work suppression | Accepted |
