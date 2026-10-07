@@ -284,7 +284,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 
 <script nonce="{{.Nonce}}">
 (()=>{
-	const csrf = {{printf "%q" .CSRF}};
+	const csrf = () => decodeURIComponent((document.cookie.match(/(?:^|; )hydro_csrf=([^;]+)/) || [])[1] || "");
 	const notify = (msg, type = 'info', title = '') => {
 		if (typeof window.HydroToast === 'function') {
 			window.HydroToast(msg, type, title);
@@ -299,7 +299,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-CSRF-Token': csrf
+					'X-CSRF-Token': csrf()
 				},
 				body: JSON.stringify(data)
 			});
@@ -349,7 +349,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 		try {
 			const res = await fetch('/api/media', {
 				method: 'POST',
-				headers: { 'X-CSRF-Token': csrf },
+				headers: { 'X-CSRF-Token': csrf() },
 				body: new FormData(form)
 			});
 			if (!res.ok) {
@@ -374,7 +374,7 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 		try {
 			const res = await fetch('/admin/auth/invites', {
 				method: 'POST',
-				headers: { 'X-CSRF-Token': csrf },
+				headers: { 'X-CSRF-Token': csrf() },
 				body: new URLSearchParams(new FormData(form))
 			});
 			if (!res.ok) {

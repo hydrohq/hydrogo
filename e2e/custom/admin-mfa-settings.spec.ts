@@ -1,5 +1,6 @@
 import { test, expect, type ChildProcess } from "@playwright/test";
 import { spawn, execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -113,7 +114,6 @@ test.describe("Admin Studio MFA self-service", () => {
     await expect(page.getByRole("button", { name: "MFA'yı kapat" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Authenticator uygulamasını kur" })).toHaveCount(0);
 
-    watchCSP = false;
     await page.locator("#user-menu-btn").click();
     await page.locator("#studio-logout-btn").click();
     await expect(page).toHaveURL(/\/login\?return_to=%2Fadmin|\/login\?return_to=\/admin/);
@@ -148,9 +148,15 @@ test.describe("Admin Studio MFA self-service", () => {
     ]) {
       const response = await page.goto(`${baseURL}${route}`);
       expect(response?.status(), `MFA-authenticated administrator must access ${route}`).toBe(200);
+      const csp = response?.headers()["content-security-policy"] || "";
+      const authorized = new Set([...csp.matchAll(/'sha256-([^']+)'/g)].map((match) => match[1]));
+      const inlineScripts = await page.locator("script:not([src])").evaluateAll((scripts) => scripts.map((script) => script.textContent || "").filter((source) => source.trim().length > 0));
+      for (const source of inlineScripts) {
+        const digest = createHash("sha256").update(source, "utf8").digest("base64");
+        expect(authorized.has(digest), `CSP for ${route} must authorize rendered inline script ${digest}`).toBe(true);
+      }
     }
 
-    watchCSP = false;
     await page.goto(`${baseURL}/admin/security`);
     const banAddress = "198.51.100.223";
     const banForm = page.locator('form[action="/admin/security/bans"]');
