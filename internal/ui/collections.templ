@@ -61,7 +61,7 @@ templ CollectionSchemaField(index int) {
 	</div>
 }
 
-templ CollectionRecordsPage(schema collections.Schema, records []collections.Record, csrf string, fields []CollectionRecordField, action string) {
+templ CollectionRecordsPage(schema collections.Schema, records []collections.Record, csrf string, fields []CollectionRecordField, action string, offset, pageSize int, hasNextPage bool) {
 	<section class="studio-card">
 		<p><a href="/admin/collections">Collections</a></p>
 		<h1>{ schema.Label }</h1>
@@ -72,13 +72,32 @@ templ CollectionRecordsPage(schema collections.Schema, records []collections.Rec
 	<section class="studio-card">
 		<h2>Records</h2>
 		if len(records) == 0 {
-			<p>No records are stored in this collection.</p>
-		}
-		<div class="table-responsive"><table><thead><tr><th>ID</th><th>Values</th><th>Actions</th></tr></thead><tbody>
-			for _, record := range records {
-				<tr><td><code>{ record.ID }</code></td><td>{ collectionRecordSummary(record.Data) }</td><td><a href={ action + "/" + record.ID } aria-label={ "Edit " + record.ID }>Edit</a></td></tr>
+			if offset == 0 {
+				<p>No records are stored in this collection.</p>
+			} else {
+				<p>No records are on this page.</p>
 			}
-		</tbody></table></div>
+		}
+		if len(records) > 0 {
+			<div class="table-responsive"><table><thead><tr><th>ID</th><th>Values</th><th>Actions</th></tr></thead><tbody>
+				for _, record := range records {
+					<tr><td><code>{ record.ID }</code></td><td>{ collectionRecordSummary(record.Data) }</td><td><a href={ action + "/" + record.ID } aria-label={ "Edit " + record.ID }>Edit</a></td></tr>
+				}
+			</tbody></table></div>
+		}
+		<nav class="studio-actions" aria-label="Record pages">
+			if offset > 0 {
+				<a class="button button-quiet" href={ collectionRecordsPageHref(action, max(0, offset - pageSize)) }>Previous</a>
+			} else {
+				<span class="muted" aria-disabled="true">Previous</span>
+			}
+			<span aria-current="page">Page { collectionPageNumber(offset, pageSize) }</span>
+			if hasNextPage {
+				<a class="button button-quiet" href={ collectionRecordsPageHref(action, offset + pageSize) }>Next</a>
+			} else {
+				<span class="muted" aria-disabled="true">Next</span>
+			}
+		</nav>
 	</section>
 }
 

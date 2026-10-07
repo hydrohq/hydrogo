@@ -158,6 +158,36 @@ test.describe("dynamic Admin collections", () => {
     await expect(page).toHaveURL(`${baseURL}/admin/collections/e2e_catalog`);
     await expect(page.getByText("No records are stored in this collection.")).toBeVisible();
 
+    const csrfResponse = await page.request.get(`${baseURL}/csrf-token`);
+    const { token } = await csrfResponse.json();
+    for (let index = 0; index < 51; index++) {
+      const response = await page.request.post(`${baseURL}/admin/collections/e2e_catalog/records`, {
+        form: { _csrf: token, sku: `PAGE-${String(index).padStart(3, "0")}`, title: `Page record ${index}` },
+        maxRedirects: 0,
+      });
+      expect(response.status(), `create pagination fixture record ${index}`).toBe(303);
+    }
+    await page.goto(`${baseURL}/admin/collections/e2e_catalog`);
+    const recordRows = page.locator("section.studio-card table tbody tr");
+    await expect(recordRows).toHaveCount(50);
+    const pagination = page.getByRole("navigation", { name: "Record pages" });
+    await expect(pagination).toContainText("Page 1");
+    await expect(pagination.getByText("Previous")).toHaveAttribute("aria-disabled", "true");
+    await expectNoA11yViolations(page);
+    await pagination.getByRole("link", { name: "Next" }).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/collections/e2e_catalog?offset=50`);
+    await expect(recordRows).toHaveCount(1);
+    await expect(pagination).toContainText("Page 2");
+    await expect(pagination.getByText("Next")).toHaveAttribute("aria-disabled", "true");
+    await expectNoA11yViolations(page);
+    for (const offset of ["-1", "1", "10001", "invalid"]) {
+      const invalidPage = await page.request.get(`${baseURL}/admin/collections/e2e_catalog?offset=${offset}`);
+      expect(invalidPage.status(), `reject invalid page offset ${offset}`).toBe(400);
+    }
+    await pagination.getByRole("link", { name: "Previous" }).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/collections/e2e_catalog`);
+    await expect(recordRows).toHaveCount(50);
+
     await page.setViewportSize({ width: 390, height: 844 });
     const mobileNavOpen = await page.locator("body").evaluate((body) => body.classList.contains("studio-mobile-nav-open"));
     expect(mobileNavOpen).toBe(false);

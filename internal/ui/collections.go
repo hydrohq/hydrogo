@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 )
@@ -59,6 +60,14 @@ func collectionFieldName(prefix string, index int) string {
 	return fmt.Sprintf("field_%s_%d", prefix, index)
 }
 func collectionFieldCount(fields []collections.Field) string { return strconv.Itoa(len(fields)) }
+func collectionRecordsPageHref(action string, offset int) string {
+	listPath := strings.TrimSuffix(action, "/records")
+	if offset <= 0 {
+		return listPath
+	}
+	return listPath + "?offset=" + strconv.Itoa(offset)
+}
+func collectionPageNumber(offset, pageSize int) int { return offset/pageSize + 1 }
 
 func collectionRecordSummary(data map[string]any) string {
 	encoded, err := json.Marshal(data)
