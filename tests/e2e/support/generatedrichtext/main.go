@@ -43,6 +43,7 @@ func main() {
 	var mu sync.Mutex
 	records := map[string]map[string]any{}
 	draft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
+	discardDraft := adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
 	publishedStory := map[string]any{"id": "story-1", "title": "Published story", "status": "published", "version": float64(1)}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/author") {
@@ -180,15 +181,29 @@ func main() {
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			return []adminstudio.DraftDocument{cloneDraft(draft)}, nil
+			result := make([]adminstudio.DraftDocument, 0, 2)
+			if draft.Exists {
+				result = append(result, cloneDraft(draft))
+			}
+			if discardDraft.Exists {
+				result = append(result, cloneDraft(discardDraft))
+			}
+			return result, nil
 		},
 		GetDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string) (adminstudio.DraftDocument, error) {
 			mu.Lock()
 			defer mu.Unlock()
-			if collection.ID != "story" || id != draft.ID {
+			if collection.ID != "story" {
 				return adminstudio.DraftDocument{}, fmt.Errorf("draft not found")
 			}
-			return cloneDraft(draft), nil
+			switch id {
+			case draft.ID:
+				return cloneDraft(draft), nil
+			case discardDraft.ID:
+				return cloneDraft(discardDraft), nil
+			default:
+				return adminstudio.DraftDocument{}, fmt.Errorf("draft not found")
+			}
 		},
 		CanSaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string) bool {
 			return collection.ID == "story" && id == "story-1"
@@ -224,10 +239,10 @@ func main() {
 		DiscardDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string, expected int64) error {
 			mu.Lock()
 			defer mu.Unlock()
-			if collection.ID != "story" || id != draft.ID || expected != draft.Version {
+			if collection.ID != "story" || id != discardDraft.ID || expected != discardDraft.Version {
 				return fmt.Errorf("draft changed")
 			}
-			draft.Exists = false
+			discardDraft.Exists = false
 			return nil
 		},
 		ListRevisions: func(_ *http.Request, collection adminstudio.Collection, _ string, limit int) ([]adminstudio.RevisionSummary, error) {

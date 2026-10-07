@@ -166,6 +166,22 @@ test.describe("generated rich-text Edition Admin", () => {
     await page.goto(`${baseURL}/admin/resources/story`);
     await expect(page.getByRole("link", { name: "Approved story copy" })).toBeVisible();
   });
+
+  test("generated draft discard removes only the unpublished working copy", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.goto(`${baseURL}/admin/resources/story/drafts`);
+    await dismissOnboarding(page);
+    await expect(page.getByRole("button", { name: "Discard-only draft" })).toBeVisible();
+    await expectNoA11yViolations(page);
+
+    await page.getByRole("button", { name: "Discard-only draft" }).click();
+    await page.getByRole("button", { name: "Taslağı sil" }).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/story\/drafts$/);
+    await expect(page.getByRole("button", { name: "Discard-only draft" })).toHaveCount(0);
+    await expectNoA11yViolations(page);
+    const unpublished = await request.get(`${baseURL}/api/v1/story/story-discard`);
+    expect(unpublished.status()).toBe(404);
+  });
 });
 
 async function unusedPort(): Promise<number> {
