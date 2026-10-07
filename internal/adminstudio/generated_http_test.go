@@ -77,6 +77,48 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/project/p-1" {
+			t.Errorf("unexpected API path %s", r.URL.Path)
+		}
+		if r.Method == http.MethodPut {
+			http.Error(w, "stale version", http.StatusConflict)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"p-1","title":"Current","description":"","status":"active"}`)
+	})
+	server := httptest.NewServer(testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
+	defer server.Close()
+
+	response, err := http.Get(server.URL + "/admin/resources/project/p-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("edit page status = %d", response.StatusCode)
+	}
+
+	form := url.Values{"title": {"Stale"}, "description": {"draft"}, "status": {"active"}, "_csrf": {"csrf-value"}}
+	request, err := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/p-1", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("X-CSRF-Test", "valid")
+	response, err = http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(response.Body)
+	if response.StatusCode != http.StatusConflict || !strings.Contains(string(body), "Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.") {
+		t.Fatalf("conflict response = %d %s", response.StatusCode, body)
+	}
+}
+
 func TestGeneratedAdminWorkflowUsesEditionTransitionBoundary(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{
 		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true,
