@@ -21,7 +21,7 @@ test.describe("single Edition administrator management", () => {
     execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore" });
+    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MEDIA_DIR: path.join(tempDir, "media") } });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
@@ -288,6 +288,44 @@ test.describe("single Edition administrator management", () => {
     expect(publishedPage.status()).toBe(200);
     await expect(publishedPage).toBeOK();
     expect(await publishedPage.text()).toContain("E2E editorial published");
+
+    const mediaName = "hydro-picker-e2e.png";
+    await page.goto(`${baseURL}/admin/media`);
+    await page.locator("#media-file-input").setInputFiles({
+      name: mediaName,
+      mimeType: "image/png",
+      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", "base64"),
+    });
+    const uploadResponsePromise = page.waitForResponse((response) => response.url() === `${baseURL}/admin/media` && response.request().method() === "POST");
+    await page.locator('#media-upload-form button[type="submit"]').click();
+    const uploadResponse = await uploadResponsePromise;
+    expect(uploadResponse.status()).toBe(303);
+    await expect(page.locator(`.media-card[data-filename="${mediaName}"]`)).toBeVisible();
+
+    await page.goto(`${baseURL}/admin/news/new`);
+    const coverField = page.locator('#news-form .media-select-field');
+    await coverField.getByRole("button", { name: "Kütüphaneden seç" }).click();
+    const mediaModal = page.locator("#admin-media-picker-modal");
+    await expect(mediaModal).toBeVisible();
+    const mediaChoice = mediaModal.getByRole("button", { name: mediaName });
+    await expect(mediaChoice).toBeVisible();
+    await mediaChoice.click();
+    const coverID = page.locator('#news-form [name="cover_media_id"]');
+    await expect(coverID).toHaveValue(/.+/);
+    const selectedMediaID = await coverID.inputValue();
+    await expect(coverField.locator(".media-select-preview img")).toHaveAttribute("src", `/media/${selectedMediaID}`);
+    await coverField.getByRole("button", { name: "Kaldır" }).click();
+    await expect(coverID).toHaveValue("");
+    await coverField.getByRole("button", { name: "Kütüphaneden seç" }).click();
+    await mediaModal.getByRole("button", { name: mediaName }).click();
+    await expect(coverID).toHaveValue(selectedMediaID);
+
+    await page.locator('#news-form [name="title"]').fill("E2E media picker story");
+    await page.locator('#news-form [name="slug"]').fill("e2e-media-picker-story");
+    await page.locator('#news-form .richtext-editor [contenteditable="true"]').fill("Created from the media picker browser flow.");
+    await page.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/news\/[^/?]+$/);
+    await expect(page.locator('#news-edit-form [name="cover_media_id"]')).toHaveValue(selectedMediaID);
 
     const viewerContext = await browser.newContext();
     const viewerPage = await viewerContext.newPage();
