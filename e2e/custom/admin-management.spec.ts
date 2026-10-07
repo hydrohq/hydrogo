@@ -72,6 +72,8 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator('.studio-sidebar a[href="/admin/pages"]')).toBeVisible();
         await page.goto(`${baseURL}/admin/pages`);
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toBeVisible();
+        await page.locator('.studio-search').click();
+        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toBeVisible();
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(200);
         const createForm = page.locator('form[action="/admin/pages"]');
         await page.goto(`${baseURL}${account.allowedPath}`);
@@ -87,6 +89,8 @@ test.describe("single Edition administrator management", () => {
         expect(createdPageID).not.toBe("");
         expect((await page.goto(`${baseURL}/admin/pages`))?.status()).toBe(200);
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toHaveCount(0);
+        await page.locator('.studio-search').click();
+        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toHaveCount(0);
         await expect(page.locator('a[href="/admin/pages/import"]')).toHaveCount(0);
         await expect(page.locator(`a[href="/admin/pages/${createdPageID}"]`)).toBeVisible();
         expect((await page.goto(`${baseURL}/admin/pages/${createdPageID}`))?.status()).toBe(200);
