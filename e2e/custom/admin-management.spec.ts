@@ -188,10 +188,10 @@ test.describe("single Edition administrator management", () => {
 
     await page.goto(`${baseURL}/admin/backup`);
     const backupForm = page.locator('form[action="/admin/backup"]');
-    await backupForm.getByLabel("Confirm your password to continue").fill(adminPassword);
+    await backupForm.getByLabel("Devam etmek için parolanızı doğrulayın").fill(adminPassword);
     const downloadResponse = page.waitForResponse((response) => response.url() === `${baseURL}/admin/backup` && response.request().method() === "POST");
     const backupDownload = page.waitForEvent("download");
-    await backupForm.getByRole("button", { name: "Create and download backup" }).click();
+    await backupForm.getByRole("button", { name: "Yedeği oluştur ve indir" }).click();
     const [backupResponse, download] = await Promise.all([downloadResponse, backupDownload]);
     expect(backupResponse.status()).toBe(200);
     expect(backupResponse.headers()["content-type"]).toContain("application/gzip");
