@@ -574,6 +574,9 @@ func Generate(root string, spec Spec) (Lock, error) {
 	if err := writeGenerated(filepath.Join(generatedRoot, "admin_registration.go"), adminRegistration); err != nil {
 		return Lock{}, err
 	}
+	if err := updateGeneratedRouteRegistration(root, generatedRoot); err != nil {
+		return Lock{}, fmt.Errorf("generate aggregate resource routes: %w", err)
+	}
 	lock.ArtifactsSHA256 = make(map[string]string, len(files))
 	for name, content := range files {
 		digest := sha256.Sum256([]byte(content))
@@ -1460,12 +1463,18 @@ dependencies.
 
 ## Registration checklist
 
-- [ ] Call Register%sRoute from the module composition root with the
-  configured SQL dialect/connection pool and the Edition-owned policy.
+- [ ] When this Edition's generated directory belongs to a Go module, call
+  generated.RegisterGeneratedResources once with the configured SQL
+  dialect/connection pool, an Edition-owned PolicyFor callback, and an
+  Edition-owned ResolveTenant callback if any resource is tenant-scoped. The
+  helper preflights every generated policy and required tenant resolver before
+  registering any route. For partial resource activation or a non-module
+  generated directory, call Register%sRoute for each explicitly selected
+  resource instead.
 - Route contract: /api/v1/%s
 %s
-- [ ] For tenant-scoped resources, provide the Edition-owned tenant resolver;
-  keep authentication, authorization and request limits in the outer stack.
+- [ ] Keep authentication, authorization and request limits in the outer
+  stack; the aggregate helper does not install middleware or infer policy.
 %s
 %s
 - [ ] Call generated.RegisterGeneratedAdmin once from the Edition composition
@@ -1494,7 +1503,7 @@ an omitted kit must not add routes, migrations, workers or assets.
 
 Record the owning ADR, migration/rollback result, policy test, deployment
 compatibility result and capacity impact in REVIEW.md before release.
-`, exportName(spec.Name), exportName(spec.Name), spec.Name, authEvidence, workflowEvidence, relationEvidence, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
+`, spec.Name, exportName(spec.Name), spec.Name, authEvidence, workflowEvidence, relationEvidence, strings.Join(sortedStrings(spec.Dialects), ", "), tenantEvidence, strings.Join(kits, ", "))
 }
 
 func resolvedKitNames(declared []string) []string {

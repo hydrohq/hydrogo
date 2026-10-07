@@ -153,7 +153,7 @@ func CheckGeneratedCompatibility(root string) ([]CompatibilityReport, error) {
 	}
 	reports := make([]CompatibilityReport, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Name() == "generator.lock" || entry.Name() == "admin_registry.json" || entry.Name() == "admin_registry.go" || entry.Name() == "admin_registration.go" {
+		if entry.Name() == "generator.lock" || entry.Name() == "admin_registry.json" || entry.Name() == "admin_registry.go" || entry.Name() == "admin_registration.go" || entry.Name() == "route_registration.go" {
 			continue
 		}
 		info, err := entry.Info()
@@ -209,10 +209,42 @@ func CheckGeneratedCompatibility(root string) ([]CompatibilityReport, error) {
 	if err != nil || !bytes.Equal(actualRegistration, expectedRegistration) {
 		return nil, errors.New("generated Admin registration does not match resource specifications")
 	}
+	expectedRoutes, hasModule, err := expectedGeneratedRouteRegistration(root, generatedRoot)
+	if err != nil {
+		return nil, fmt.Errorf("build generated resource route registration: %w", err)
+	}
+	routesPath := filepath.Join(generatedRoot, "route_registration.go")
+	routesInfo, routesErr := os.Lstat(routesPath)
+	if hasModule {
+		if routesErr != nil || routesInfo.Mode()&os.ModeSymlink != 0 || !routesInfo.Mode().IsRegular() {
+			return nil, errors.New("generated resource route registration is missing or invalid")
+		}
+		actualRoutes, err := os.ReadFile(routesPath)
+		if err != nil || !bytes.Equal(actualRoutes, expectedRoutes) {
+			return nil, errors.New("generated resource route registration does not match resource specifications")
+		}
+	} else if routesErr == nil {
+		return nil, errors.New("generated resource route registration is stale without a Go module")
+	} else if !os.IsNotExist(routesErr) {
+		return nil, fmt.Errorf("inspect generated resource route registration: %w", routesErr)
+	}
 	registryGo, err := os.ReadFile(filepath.Join(generatedRoot, "admin_registry.go"))
 	if err != nil || !bytes.Contains(registryGo, []byte("//go:embed admin_registry.json")) {
 		return nil, errors.New("generated Admin registry embed is missing or invalid")
 	}
 	sort.Slice(reports, func(i, j int) bool { return reports[i].Collection < reports[j].Collection })
 	return reports, nil
+}
+
+func expectedGeneratedRouteRegistration(root, generatedRoot string) ([]byte, bool, error) {
+	packagePath, found, err := generatedPackageImportPath(root)
+	if err != nil || !found {
+		return nil, found, err
+	}
+	resources, err := generatedRouteResources(generatedRoot)
+	if err != nil {
+		return nil, false, err
+	}
+	source, err := renderGeneratedRouteRegistration(packagePath, resources)
+	return source, true, err
 }

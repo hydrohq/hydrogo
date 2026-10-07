@@ -1,0 +1,12 @@
+{
+  "id": "article",
+  "title": "Articles",
+  "fields": [
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    }
+  ]
+}

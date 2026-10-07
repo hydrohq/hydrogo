@@ -61,6 +61,60 @@ func TestGeneratedAdminRegistrationCompatibilityRejectsStaleResourceSelection(t 
 	}
 }
 
+func TestGeneratedResourceRouteRegistrationTracksResourcesAndTenantResolvers(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module edition.example/site\n\ngo 1.24\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resources := []Spec{
+		{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"}},
+		{Name: "workspace", Table: "workspaces", TenantScoped: true, Fields: []Field{{Name: "name", Type: "string"}}, Permissions: []string{"workspace.read"}, Dialects: []string{"sqlite", "postgres"}},
+	}
+	for _, resource := range resources {
+		if _, err := Generate(root, resource); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(root, "generated", "route_registration.go")
+	registration, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`edition.example/site/generated/article`,
+		`edition.example/site/generated/workspace`,
+		`RegisterArticleRoute(mux, options.DB, options.Dialect, policy0)`,
+		`RegisterWorkspaceRoute(mux, options.DB, options.Dialect, policy1, resolver1)`,
+		`options.ResolveTenant("workspace", r)`,
+		`generated tenant resource %s has no tenant resolver`,
+	} {
+		if !strings.Contains(string(registration), want) {
+			t.Fatalf("aggregate generated route registration missing %q:\n%s", want, registration)
+		}
+	}
+	if _, err := CheckGeneratedCompatibility(root); err != nil {
+		t.Fatalf("generated route helper rejected: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("// stale helper\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CheckGeneratedCompatibility(root); err == nil || !strings.Contains(err.Error(), "resource route registration does not match") {
+		t.Fatalf("stale aggregate route helper was accepted: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, "go.mod")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Generate(root, resources[1]); err != nil {
+		t.Fatalf("regenerate without a Go module: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("module-less output retained an aggregate import helper: %v", err)
+	}
+	if _, err := CheckGeneratedCompatibility(root); err != nil {
+		t.Fatalf("module-less generated resource set rejected: %v", err)
+	}
+}
+
 func TestGeneratedKitArtifactsIncludeDependencies(t *testing.T) {
 	root := t.TempDir()
 	spec := Spec{Name: "order", Table: "orders", Fields: []Field{{Name: "total", Type: "decimal"}}, Permissions: []string{"read"}, Dialects: []string{"sqlite"}, Kits: []string{"commerce"}}

@@ -19,9 +19,12 @@ boundary for tenant ownership, workflow, and authorization decisions.
 The `milestone.blueprint.yaml` file is a second resource produced with
 `hydro new resource`. Its metadata enters the shared Admin registry
 automatically through the already-wired `generated.RegisterGeneratedAdmin`
-helper. The Edition still explicitly composes its API route with an
-Edition-owned policy and applies the reviewed SQLite/PostgreSQL migration in
-the migration command; Blueprint generation never guesses those security or
+helper. API routes are composed once through the generated
+`RegisterGeneratedResources` helper and an Edition-owned policy callback, so
+new generated resources join the API and Admin registry without per-resource
+route imports. Tenant resolver callbacks remain required for tenant-scoped
+resources. The Edition still applies each reviewed SQLite/PostgreSQL migration
+in the migration command; Blueprint generation never guesses security or
 database activation decisions. The Chromium and SQLite/PostgreSQL CRUD evidence
 is recorded in `docs/validation/blueprint-derived-admin-activation-2026-10-07.md`.
 

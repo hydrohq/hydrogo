@@ -1,4 +1,4 @@
-# Milestone runtime wiring
+# milestone runtime wiring
 
 This generated contract deliberately separates deterministic scaffolding from
 application composition. Complete each item in the owning module before
@@ -7,12 +7,18 @@ dependencies.
 
 ## Registration checklist
 
-- [ ] Call RegisterMilestoneRoute from the module composition root with the
-  configured SQL dialect/connection pool and the Edition-owned policy.
+- [ ] When this Edition's generated directory belongs to a Go module, call
+  generated.RegisterGeneratedResources once with the configured SQL
+  dialect/connection pool, an Edition-owned PolicyFor callback, and an
+  Edition-owned ResolveTenant callback if any resource is tenant-scoped. The
+  helper preflights every generated policy and required tenant resolver before
+  registering any route. For partial resource activation or a non-module
+  generated directory, call RegisterMilestoneRoute for each explicitly selected
+  resource instead.
 - Route contract: /api/v1/milestone
 
-- [ ] For tenant-scoped resources, provide the Edition-owned tenant resolver;
-  keep authentication, authorization and request limits in the outer stack.
+- [ ] Keep authentication, authorization and request limits in the outer
+  stack; the aggregate helper does not install middleware or infer policy.
 
 
 - [ ] Call generated.RegisterGeneratedAdmin once from the Edition composition
