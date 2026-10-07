@@ -18,10 +18,11 @@ editing and deleting the record, and deleting the schema. A schema POST without
 CSRF is rejected with 403. The flow uses the fixed collection storage model and
 does not execute runtime DDL.
 
-The collection hub had no automated axe-core WCAG 2.1 A/AA violations in the
-test. At 390px viewport width, the document has no horizontal overflow. The
-schema-driven records screen was visually inspected at desktop size; it uses
-the Admin Studio shell, navigation, form and table styling.
+The collection hub, schema-driven create/list screen, and edit form had no
+automated axe-core WCAG 2.1 A/AA violations in the test. At 390px viewport
+width, the document has no horizontal overflow. The schema-driven records
+screen was visually inspected at desktop size; it uses the Admin Studio shell,
+navigation, form and table styling.
 
 ## Commands
 
