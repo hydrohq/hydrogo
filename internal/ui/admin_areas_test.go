@@ -186,6 +186,12 @@ func TestAdminShellNavigationFollowsEffectivePermissions(t *testing.T) {
 			user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionUsersManage: false}},
 			omit: []string{`href="/admin/users"`, `href="/admin/permissions"`},
 		},
+		{
+			name: "admin users permission independent of members",
+			user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: false}},
+			want: []string{`href="/admin/users"`},
+			omit: []string{`href="/admin/members"`},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
