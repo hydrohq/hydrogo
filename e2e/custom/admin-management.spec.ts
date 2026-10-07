@@ -51,6 +51,7 @@ test.describe("single Edition administrator management", () => {
   });
 
   test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
+    let createdPageID = "";
     for (const account of [
       { email: "editor@example.test", expectedRole: "editor", allowedPath: "/admin/pages/new" },
       { email: "viewer@example.test", expectedRole: "viewer", allowedPath: "/admin/pages/new" },
@@ -77,9 +78,18 @@ test.describe("single Edition administrator management", () => {
         await createForm.locator(".richtext-editor [contenteditable=true]").fill("Created by an authenticated Edition editor.");
         await createForm.getByRole("button", { name: "Taslak oluştur" }).click();
         await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+        createdPageID = new URL(page.url()).pathname.split("/").at(-1) || "";
       } else {
         expect(allowed?.status()).toBe(403);
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
+        expect(createdPageID).not.toBe("");
+        expect((await page.goto(`${baseURL}/admin/pages`))?.status()).toBe(200);
+        await expect(page.locator('a[href="/admin/pages/import"]')).toHaveCount(0);
+        await expect(page.locator(`a[href="/admin/pages/${createdPageID}"]`)).toBeVisible();
+        expect((await page.goto(`${baseURL}/admin/pages/${createdPageID}`))?.status()).toBe(200);
+        await expect(page.locator('form[action^="/admin/pages/"]')).toHaveCount(0);
+        await expect(page.locator('iframe.readonly-content-preview')).toBeVisible();
+        expect((await page.request.get(`${baseURL}/api/pages/${createdPageID}`)).status()).toBe(200);
       }
 
       if (account.expectedRole === "editor") {
