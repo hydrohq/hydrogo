@@ -10,23 +10,26 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/ardaozyildirim/hydrogo/internal/router"
 )
 
 func TestCollectionRoutesRequireAdmin(t *testing.T) {
 	handler := Handler{Service: collections.Service{}}
-	for name, call := range map[string]http.HandlerFunc{
-		"admin studio": handler.adminIndex,
-		"schema api":   handler.apiSchemas,
-	} {
-		t.Run(name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			req = req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: "staff", Role: auth.RoleViewer, Active: true}))
-			recorder := httptest.NewRecorder()
-			call.ServeHTTP(recorder, req)
-			if recorder.Code != http.StatusForbidden {
-				t.Fatalf("status = %d, want forbidden", recorder.Code)
-			}
-		})
+	for _, route := range handler.Routes() {
+		if route.Access != router.Protected {
+			t.Errorf("route %q access = %v, want protected", route.Pattern, route.Access)
+		}
+		for _, role := range []auth.Role{auth.RoleEditor, auth.RoleViewer} {
+			t.Run(route.Pattern+"/"+string(role), func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, "/", nil)
+				req = req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: "staff", Role: role, Active: true}))
+				recorder := httptest.NewRecorder()
+				route.Handler.ServeHTTP(recorder, req)
+				if recorder.Code != http.StatusForbidden {
+					t.Fatalf("status = %d, want forbidden", recorder.Code)
+				}
+			})
+		}
 	}
 }
 

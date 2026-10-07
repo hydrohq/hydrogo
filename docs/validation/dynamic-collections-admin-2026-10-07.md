@@ -24,6 +24,11 @@ width, the document has no horizontal overflow. The schema-driven records
 screen was visually inspected at desktop size; it uses the Admin Studio shell,
 navigation, form and table styling.
 
+Every registered collections HTML/API handler is also invoked with authenticated
+editor and viewer contexts; both roles are denied with 403. All routes are
+asserted to remain protected. This route-handler role matrix complements the
+browser test's real administrator journey.
+
 ## Commands
 
 ```sh
