@@ -249,6 +249,20 @@ test.describe("single Edition administrator management", () => {
     await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
 
     const editPage = page.locator('form[data-autosave-resource^="page:"]');
+    const faqBlock = editPage.locator("[data-block-row]").first();
+    await faqBlock.locator('[name="block_type_0"]').selectOption("faq");
+    await expect(faqBlock.locator(".faq-visual-builder")).toBeVisible();
+    await faqBlock.locator(".faq-q-input").first().fill("Teslimat ne kadar sürer?");
+    await faqBlock.locator(".faq-a-input").first().fill("Siparişiniz iki iş gününde ulaşır.");
+    await faqBlock.locator(".faq-add-card-btn").click();
+    await faqBlock.locator(".faq-q-input").nth(1).fill("İade yapabilir miyim?");
+    await faqBlock.locator(".faq-a-input").nth(1).fill("Evet, 14 gün içinde iade edebilirsiniz.");
+    await editPage.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+\?saved=1$/);
+    const savedFAQBlock = page.locator('form[data-autosave-resource^="page:"] [data-block-row]').first();
+    await expect(savedFAQBlock.locator('[name="block_type_0"]')).toHaveValue("faq");
+    await expect(savedFAQBlock.locator(".faq-q-input").nth(1)).toHaveValue("İade yapabilir miyim?");
+
     await editPage.locator('[name="title"]').fill("E2E editorial published");
     await editPage.locator(".richtext-editor [contenteditable=true]").fill("Published body from the editorial browser journey.");
     await editPage.getByRole("button", { name: "Taslağı kaydet" }).click();
@@ -267,6 +281,14 @@ test.describe("single Edition administrator management", () => {
     await expect(page.locator('form[data-autosave-resource^="page:"] [name="title"]')).toHaveValue("E2E editorial draft");
 
     const restoredEdit = page.locator('form[data-autosave-resource^="page:"]');
+    const restoredFAQBlock = restoredEdit.locator("[data-block-row]").first();
+    await restoredFAQBlock.locator('[name="block_type_0"]').selectOption("faq");
+    await expect(restoredFAQBlock.locator(".faq-visual-builder")).toBeVisible();
+    await restoredFAQBlock.locator(".faq-q-input").first().fill("Teslimat ne kadar sürer?");
+    await restoredFAQBlock.locator(".faq-a-input").first().fill("Siparişiniz iki iş gününde ulaşır.");
+    await restoredFAQBlock.locator(".faq-add-card-btn").click();
+    await restoredFAQBlock.locator(".faq-q-input").nth(1).fill("İade yapabilir miyim?");
+    await restoredFAQBlock.locator(".faq-a-input").nth(1).fill("Evet, 14 gün içinde iade edebilirsiniz.");
     await restoredEdit.locator('[name="title"]').fill("E2E editorial published");
     await restoredEdit.locator(".richtext-editor [contenteditable=true]").fill("Published body from the editorial browser journey.");
     await restoredEdit.getByRole("button", { name: "Taslağı kaydet" }).click();
@@ -288,6 +310,8 @@ test.describe("single Edition administrator management", () => {
     expect(publishedPage.status()).toBe(200);
     await expect(publishedPage).toBeOK();
     expect(await publishedPage.text()).toContain("E2E editorial published");
+    expect(await publishedPage.text()).toContain("Teslimat ne kadar sürer?");
+    expect(await publishedPage.text()).toContain("Evet, 14 gün içinde iade edebilirsiniz.");
 
     const mediaName = "hydro-picker-e2e.png";
     await page.goto(`${baseURL}/admin/media`);
