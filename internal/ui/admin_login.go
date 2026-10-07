@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
@@ -844,6 +845,11 @@ func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, returnTo, l
 		template.HTMLEscapeString(returnTo),
 	)
 	return err
+}
+
+// AdminLoginCSP returns hash sources for the exact inline blocks rendered on the login page.
+func AdminLoginCSP(document []byte) string {
+	return security.InlineCSPDirectives(document)
 }
 
 var adminLoginEnglish = strings.NewReplacer(

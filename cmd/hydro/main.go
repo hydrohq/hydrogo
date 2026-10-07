@@ -2459,7 +2459,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled(), ))
+		_, _ = io.WriteString(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled()))
 	})}, router.Route{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			if localeEnabled {
@@ -2485,7 +2485,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = io.WriteString(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled(), ))
+			_, _ = io.WriteString(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled()))
 			return
 		}
 		http.NotFound(w, r)
@@ -2497,7 +2497,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Language", lang)
-		_, _ = io.WriteString(w, docsPortalHTML(lang, ))
+		_, _ = io.WriteString(w, docsPortalHTML(lang))
 	})})
 	if modules["analytics"] {
 		routes = append(routes, router.Route{Pattern: "POST /analytics/consent", Access: router.Public, Handler: analytics.ConsentHandler(analyticsStore, cfg.Security.SecureCookies)})
@@ -2599,7 +2599,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := designsystem.PasswordResetForm(designsystem.PasswordResetFormProps{Token: token, CSRF: security.CSRFTokenFromContext(r.Context()), }).Render(r.Context(), w); err != nil {
+		if err := designsystem.PasswordResetForm(designsystem.PasswordResetFormProps{Token: token, CSRF: security.CSRFTokenFromContext(r.Context())}).Render(r.Context(), w); err != nil {
 			http.Error(w, "Password reset is temporarily unavailable.", http.StatusServiceUnavailable)
 		}
 	})})
@@ -2621,9 +2621,13 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				appearance = site.AppearanceFromSettings(settings)
 			}
 		}
-		if err := ui.RenderAdminLoginWithLocaleAndAppearance(w, security.CSRFTokenFromContext(r.Context()), returnTo, loginLocale, appearance); err != nil {
+		var page bytes.Buffer
+		if err := ui.RenderAdminLoginWithLocaleAndAppearance(&page, security.CSRFTokenFromContext(r.Context()), returnTo, loginLocale, appearance); err != nil {
 			http.Error(w, "admin login unavailable", http.StatusInternalServerError)
+			return
 		}
+		w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), ui.AdminLoginCSP(page.Bytes())))
+		_, _ = w.Write(page.Bytes())
 	})})
 	var runtimeMetrics *observability.Metrics
 	adminDashboardHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2695,8 +2699,8 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				contentViewRows = append(contentViewRows, ui.ContentViewReportRow{Day: row.Day, TenantID: row.TenantID, ContentType: row.ContentType, ContentID: row.ContentID, Locale: row.Locale, ViewCount: row.ViewCount})
 			}
 			if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
-				Email:                 user.Email,
-				Collections:           activeStudioCollections(),
+				Email:       user.Email,
+				Collections: activeStudioCollections(),
 
 				Active:                "reports",
 				Metrics:               runtimeMetrics,
@@ -2726,7 +2730,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if securityNotice.PreviousLoginAt != nil {
 			previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(),  Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
@@ -3071,13 +3075,13 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			active = "operations"
 		}
 		if r.URL.Path == "/admin/developer" {
-			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email,  CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer", Locale: adminLocaleFromRequest(r)}); err != nil {
+			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer", Locale: adminLocaleFromRequest(r)}); err != nil {
 				http.Error(w, "developer tools unavailable", http.StatusInternalServerError)
 			}
 			return
 		}
 		if r.URL.Path == "/admin/developer/resources" {
-			if err := ui.RenderAdminResourceUsage(w, ui.AdminResourceUsageData{Email: user.Email,  Snapshot: runtimeMetrics.Snapshot(), Locale: adminLocaleFromRequest(r)}); err != nil {
+			if err := ui.RenderAdminResourceUsage(w, ui.AdminResourceUsageData{Email: user.Email, Snapshot: runtimeMetrics.Snapshot(), Locale: adminLocaleFromRequest(r)}); err != nil {
 				http.Error(w, "resource usage unavailable", http.StatusInternalServerError)
 			}
 			return
@@ -3097,10 +3101,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		var err error
 		if active == "control" {
-			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email,  CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
+			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
 			scope, _ := tenant.FromContext(r.Context())
-			areaData := ui.AdminAreaData{Email: user.Email,  CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], EmailVerificationEnabled: smtpSender != nil, PasswordResetLinkEnabled: recoveryService != nil && cfg.HTTP.PublicOrigin != "", Permissions: authSvc.AvailablePermissions()}
+			areaData := ui.AdminAreaData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], EmailVerificationEnabled: smtpSender != nil, PasswordResetLinkEnabled: recoveryService != nil && cfg.HTTP.PublicOrigin != "", Permissions: authSvc.AvailablePermissions()}
 			if active == "users" {
 				if repo, ok := any(userStore).(auth.UserAdminRepository); ok {
 					areaData.Users, err = repo.List(r.Context())
@@ -3509,6 +3513,8 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		},
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
+		SecurityScriptHashes:  ui.AdminScriptHashes(),
+		SecurityStyleHashes:   ui.AdminStyleHashes(),
 		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"]},
 		AdminSupportResolver: func(r *http.Request) adminstudio.SupportConfig {
 			if !modules["site"] {

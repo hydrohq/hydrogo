@@ -12,7 +12,7 @@ const page = await context.newPage();
 await page.goto("/login?return_to=%2Fadmin");
 await page.locator('input[name="email"]').fill(email);
 await page.locator('input[name="password"]').fill(password);
-await page.getByRole("button", { name: "Giriş yap" }).click();
+await page.locator('button[type="submit"]').click();
 await page.waitForURL(/\/admin(?:$|\?)/);
 // Persist the onboarding-tour dismissal so admin journeys interact with the
 // editor instead of the first-run dialog — same as a returning admin who
