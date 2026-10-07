@@ -3151,7 +3151,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			active = "operations"
 		}
 		if r.URL.Path == "/admin/developer" {
-			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer", Locale: adminLocaleFromRequest(r)}); err != nil {
+			if err := ui.RenderAdminArea(w, ui.AdminAreaData{Request: r, Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Area: "developer", Locale: adminLocaleFromRequest(r)}); err != nil {
 				http.Error(w, "developer tools unavailable", http.StatusInternalServerError)
 			}
 			return
@@ -3184,7 +3184,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			err = ui.RenderAdminControl(w, ui.AdminControlData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Active: active, Locale: adminLocaleFromRequest(r)})
 		} else {
 			scope, _ := tenant.FromContext(r.Context())
-			areaData := ui.AdminAreaData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], EmailVerificationEnabled: smtpSender != nil, PasswordResetLinkEnabled: recoveryService != nil && cfg.HTTP.PublicOrigin != "", Permissions: authSvc.AvailablePermissions()}
+			areaData := ui.AdminAreaData{Request: r, Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], EmailVerificationEnabled: smtpSender != nil, PasswordResetLinkEnabled: recoveryService != nil && cfg.HTTP.PublicOrigin != "", Permissions: authSvc.AvailablePermissions()}
 			if active == "account" {
 				areaData.MFAEnabled, err = mfaService.Enabled(r.Context(), db, user.ID)
 				areaData.MFAStatusLoaded = err == nil

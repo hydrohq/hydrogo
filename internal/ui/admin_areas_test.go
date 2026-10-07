@@ -357,6 +357,26 @@ func TestAdminSiteAreaLinksToSEOAndRedirectTools(t *testing.T) {
 	}
 }
 
+func TestRenderAdminAreaUsesRequestRoleAndPermissions(t *testing.T) {
+	request := httptest.NewRequest("GET", "/admin/site", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}))
+	var out bytes.Buffer
+	if err := RenderAdminArea(&out, AdminAreaData{Request: request, Area: "site", Locale: "tr"}); err != nil {
+		t.Fatal(err)
+	}
+	markup := adminShellInlineAsset.ReplaceAllString(out.String(), "")
+	for _, marker := range []string{`data-studio-role="editor"`, `href="/admin/site"`, "Site ayarları"} {
+		if !strings.Contains(markup, marker) {
+			t.Errorf("permission-aware site page missing %q", marker)
+		}
+	}
+	for _, marker := range []string{`href="/admin/users"`, `href="/admin/operations"`, `href="/admin/control"`} {
+		if strings.Contains(markup, marker) {
+			t.Errorf("editor site page leaked privileged navigation %q", marker)
+		}
+	}
+}
+
 func TestAdminPermissionCatalogEscapesEditionNames(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderAdminArea(&out, AdminAreaData{Area: "permissions", Permissions: []string{`article<script>`}}); err != nil {

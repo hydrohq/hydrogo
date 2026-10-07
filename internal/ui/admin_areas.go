@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 )
 
 type AdminAreaData struct {
+	Request                  *http.Request
 	Email                    string
 	Nonce                    string
 	CSRF                     string
@@ -245,8 +247,14 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
 	if data.Locale == "en" {
 		title, areaLabel = adminAreaEnglishLabels(data.Area)
 	}
-	if err := AdminStartLocale(w, title, areaLabel, activeItem, data.Locale); err != nil {
-		return err
+	var startErr error
+	if data.Request != nil {
+		startErr = AdminStartForRequest(w, data.Request, title, areaLabel, activeItem)
+	} else {
+		startErr = AdminStartLocale(w, title, areaLabel, activeItem, data.Locale)
+	}
+	if startErr != nil {
+		return startErr
 	}
 
 	nonce := template.HTMLEscapeString(data.Nonce)
