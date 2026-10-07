@@ -22,6 +22,22 @@ test.describe("HydroGo visual contract", () => {
       await page.goto(surface.path, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(300);
       await page.evaluate(() => document.fonts?.ready);
+      if (surface.id === "admin-news-editor") {
+        await expect(page.locator("[data-page-weight]")).toBeVisible();
+        await expect(page.locator("[data-page-weight]")).toContainText("Tahmini sayfa boyutu");
+        const overlaps = await page.locator(".editor-side-col > *").evaluateAll((cards) => {
+          const boxes = cards.map((card) => {
+            const { x, y, right, bottom } = card.getBoundingClientRect();
+            return { x, y, right, bottom };
+          });
+          return boxes.some((box, index) =>
+            boxes.slice(index + 1).some((other) =>
+              box.x < other.right && box.right > other.x && box.y < other.bottom && box.bottom > other.y,
+            ),
+          );
+        });
+        expect(overlaps, "news editor sidebar cards must not overlap").toBe(false);
+      }
       await expect(page).toHaveScreenshot(`${surface.id}.png`, {
         fullPage: true,
         animations: "disabled",
