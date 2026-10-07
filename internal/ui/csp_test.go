@@ -7,6 +7,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/ui/dashboardtw"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/hydrogoui"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/shadcnui"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 func TestAdminStyleHashesIncludeCompleteShellStyleBlock(t *testing.T) {
@@ -15,7 +16,7 @@ func TestAdminStyleHashesIncludeCompleteShellStyleBlock(t *testing.T) {
 		t.Fatal("Admin style hash catalog is empty")
 	}
 	for _, source := range hashes {
-		if source == hash(AdminInterFontCSS+AdminCSS+AdminCSSOverrides+AdminDashboardCSS+AdminPolishCSS+AdminNavTreeCSS+AdminRichTextCSS+AdminRichTextFixCSS+AdminItemListCSS+AdminFormLayoutCSS+AdminIconCSS+AdminSearchCSS+AdminToastCSS+AdminInfoTipCSS+AdminResourceCSS+AdminAreaCSS+AdminPermissionsCSS+AdminHydroGoCSS+hydrogoui.CSSText+AdminShadcnCSS+AdminShadcnDashboardLayoutCSS+shadcnui.CSSText+AdminNovaCSS+AdminNovaDensityCSS+AdminNovaTypeCSS+AdminNovaDashboardCSS+AdminNovaComponentsCSS+AdminNovaDashboardLayoutCSS+AdminAuroraCSS+AdminAuroraDensityCSS+AdminAuroraTypeCSS+AdminAuroraDashboardLayoutCSS+aurora.CSSText+dashboardtw.CSSText+AdminFamilySelectCSS+AdminShowcaseCSS+AdminKitCSS+AdminListViewCSS+AdminMediaCSS+AdminMediaFormsCSS+AdminSplitEditorCSS+AdminTabsCSS+AdminSpotlightCSS+AdminResponsiveCSS+AdminUXCSS+AdminDraftAutosaveCSS+AdminPasswordStrengthCSS+AdminEditorStatsCSS+AdminBusinessCSS+AdminRevisionCSS+AdminStatusFilterCSS) {
+		if source == hash(AdminInterFontCSS+AdminCSS+AdminCSSOverrides+AdminDashboardCSS+AdminPolishCSS+AdminNavTreeCSS+AdminRichTextCSS+AdminRichTextFixCSS+AdminItemListCSS+AdminFormLayoutCSS+AdminIconCSS+AdminSearchCSS+AdminToastCSS+AdminInfoTipCSS+AdminResourceCSS+AdminAreaCSS+designsystem.PageLayoutPickerCSS+AdminPermissionsCSS+AdminHydroGoCSS+hydrogoui.CSSText+AdminShadcnCSS+AdminShadcnDashboardLayoutCSS+shadcnui.CSSText+AdminNovaCSS+AdminNovaDensityCSS+AdminNovaTypeCSS+AdminNovaDashboardCSS+AdminNovaComponentsCSS+AdminNovaDashboardLayoutCSS+AdminAuroraCSS+AdminAuroraDensityCSS+AdminAuroraTypeCSS+AdminAuroraDashboardLayoutCSS+aurora.CSSText+dashboardtw.CSSText+AdminFamilySelectCSS+AdminShowcaseCSS+AdminKitCSS+AdminListViewCSS+AdminMediaCSS+AdminMediaFormsCSS+AdminSplitEditorCSS+AdminTabsCSS+AdminSpotlightCSS+AdminResponsiveCSS+AdminUXCSS+AdminDraftAutosaveCSS+AdminPasswordStrengthCSS+AdminEditorStatsCSS+AdminBusinessCSS+AdminRevisionCSS+AdminStatusFilterCSS) {
 			return
 		}
 	}

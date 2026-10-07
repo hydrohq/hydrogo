@@ -83,6 +83,36 @@ test.describe("single Edition administrator management", () => {
       expect(response?.status(), `${route} should be available to the Edition admin`).toBe(200);
       await expect(page.locator("h1").first()).toBeVisible();
     }
+
+    const editorResponse = await page.goto(`${baseURL}/admin/pages/new`);
+    await expect(page.getByRole("group", { name: "Sayfa düzeni" })).toBeVisible();
+    await expect(page.getByText("Boş sayfa")).toBeVisible();
+    await expect(page.getByText("Hizmet tanıtımı")).toBeVisible();
+    const picker = page.locator(".ds-layout-picker");
+    await expect(picker.locator("input[type=radio][value=blank]")).toBeChecked();
+    const pickerLayout = await page.locator(".ds-layout-picker__options").evaluate((element) => {
+      const picker = getComputedStyle(element);
+      const fieldset = getComputedStyle(element.parentElement!);
+      const finalOption = getComputedStyle(element.lastElementChild!);
+      return { columns: picker.gridTemplateColumns, span: fieldset.gridColumnEnd, finalOptionSpan: finalOption.gridColumnEnd };
+    });
+    expect(pickerLayout.columns.split(" ").length).toBe(2);
+    expect(pickerLayout.span).toBe("-1");
+    expect(pickerLayout.finalOptionSpan).toBe("auto");
+    const editorHTML = await editorResponse?.text() ?? "";
+    const inlineLayoutCSS = [...editorHTML.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g)]
+      .map((match) => match[1])
+      .find((style) => style.includes(".ds-layout-picker"));
+    expect(inlineLayoutCSS, "Admin shell must include the layout picker styles").toBeTruthy();
+    const styleHash = `sha256-${Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(inlineLayoutCSS!))).toString("base64")}`;
+    expect(editorResponse?.headers()["content-security-policy"]).toContain(`'${styleHash}'`);
+    await page.getByLabel("Başarı hikâyesi").check();
+    await expect(page.locator(".ds-layout-picker input[value=case_study]")).toBeChecked();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileLayout = await page.locator(".ds-layout-picker__options").evaluate((element) =>
+      getComputedStyle(element).gridTemplateColumns,
+    );
+    expect(mobileLayout.split(" ").length).toBe(1);
   });
 });
 

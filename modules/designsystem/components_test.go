@@ -95,10 +95,19 @@ func TestSocialLinksUseAccessibleSafeExternalAnchors(t *testing.T) {
 }
 
 func TestPageLayoutPickerShowsTypedTemplateOptions(t *testing.T) {
-	got := render(t, PageLayoutPicker(PageLayoutPickerProps{Options: []PageLayoutOption{{ID: "service_showcase", Name: "Service showcase", Description: "Benefits"}, {ID: "blank", Name: "Blank canvas", Description: "Start empty"}}}))
-	for _, want := range []string{`type="radio" name="layout_template" value="service_showcase"`, "Service showcase", "Benefits", `value="blank" checked`} {
+	got := render(t, PageLayoutPicker(PageLayoutPickerProps{Legend: "Sayfa düzeni", EmptyMessage: "Düzen bulunamadı", Options: []PageLayoutOption{{ID: "service_showcase", Name: "Service showcase", Description: "Benefits"}, {ID: "blank", Name: "Blank canvas", Description: "Start empty"}}}))
+	for _, want := range []string{`aria-label="Sayfa düzeni"`, "Sayfa düzeni", `class="ds-layout-picker__options"`, `type="radio" name="layout_template" value="service_showcase"`, "Service showcase", "Benefits", `value="blank" checked`} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("layout picker missing %q: %s", want, got)
+		}
+	}
+}
+
+func TestPageLayoutPickerEmptyStateIsLocalized(t *testing.T) {
+	got := render(t, PageLayoutPicker(PageLayoutPickerProps{Legend: "Sayfa düzeni", EmptyMessage: "Kullanılabilir düzen yok."}))
+	for _, want := range []string{"Sayfa düzeni", "Kullanılabilir düzen yok."} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("empty layout picker missing %q: %s", want, got)
 		}
 	}
 }

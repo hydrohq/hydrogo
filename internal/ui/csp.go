@@ -7,6 +7,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/ui/dashboardtw"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/hydrogoui"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/shadcnui"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 func hash(data string) string {
@@ -27,7 +28,7 @@ func AdminScriptHashes() []string {
 
 func AdminStyleHashes() []string {
 	return []string{
-		hash(AdminInterFontCSS + AdminCSS + AdminCSSOverrides + AdminDashboardCSS + AdminPolishCSS + AdminNavTreeCSS + AdminRichTextCSS + AdminRichTextFixCSS + AdminItemListCSS + AdminFormLayoutCSS + AdminIconCSS + AdminSearchCSS + AdminToastCSS + AdminInfoTipCSS + AdminResourceCSS + AdminAreaCSS + AdminPermissionsCSS + AdminHydroGoCSS + hydrogoui.CSSText + AdminShadcnCSS + AdminShadcnDashboardLayoutCSS + shadcnui.CSSText + AdminNovaCSS + AdminNovaDensityCSS + AdminNovaTypeCSS + AdminNovaDashboardCSS + AdminNovaComponentsCSS + AdminNovaDashboardLayoutCSS + AdminAuroraCSS + AdminAuroraDensityCSS + AdminAuroraTypeCSS + AdminAuroraDashboardLayoutCSS + aurora.CSSText + dashboardtw.CSSText + AdminFamilySelectCSS + AdminShowcaseCSS + AdminKitCSS + AdminListViewCSS + AdminMediaCSS + AdminMediaFormsCSS + AdminSplitEditorCSS + AdminTabsCSS + AdminSpotlightCSS + AdminResponsiveCSS + AdminUXCSS + AdminDraftAutosaveCSS + AdminPasswordStrengthCSS + AdminEditorStatsCSS + AdminBusinessCSS + AdminRevisionCSS + AdminStatusFilterCSS),
+		hash(AdminInterFontCSS + AdminCSS + AdminCSSOverrides + AdminDashboardCSS + AdminPolishCSS + AdminNavTreeCSS + AdminRichTextCSS + AdminRichTextFixCSS + AdminItemListCSS + AdminFormLayoutCSS + AdminIconCSS + AdminSearchCSS + AdminToastCSS + AdminInfoTipCSS + AdminResourceCSS + AdminAreaCSS + designsystem.PageLayoutPickerCSS + AdminPermissionsCSS + AdminHydroGoCSS + hydrogoui.CSSText + AdminShadcnCSS + AdminShadcnDashboardLayoutCSS + shadcnui.CSSText + AdminNovaCSS + AdminNovaDensityCSS + AdminNovaTypeCSS + AdminNovaDashboardCSS + AdminNovaComponentsCSS + AdminNovaDashboardLayoutCSS + AdminAuroraCSS + AdminAuroraDensityCSS + AdminAuroraTypeCSS + AdminAuroraDashboardLayoutCSS + aurora.CSSText + dashboardtw.CSSText + AdminFamilySelectCSS + AdminShowcaseCSS + AdminKitCSS + AdminListViewCSS + AdminMediaCSS + AdminMediaFormsCSS + AdminSplitEditorCSS + AdminTabsCSS + AdminSpotlightCSS + AdminResponsiveCSS + AdminUXCSS + AdminDraftAutosaveCSS + AdminPasswordStrengthCSS + AdminEditorStatsCSS + AdminBusinessCSS + AdminRevisionCSS + AdminStatusFilterCSS),
 		hash(AdminInterFontCSS + AdminCSS),
 		hash(AdminCSSOverrides),
 		hash(AdminDashboardCSS),
@@ -39,6 +40,6 @@ func AdminStyleHashes() []string {
 		hash(AdminIconCSS),
 		hash(AdminSearchCSS),
 		hash(AdminToastCSS),
-		hash(AdminInfoTipCSS + AdminResourceCSS + AdminAreaCSS + AdminPermissionsCSS + AdminHydroGoCSS + hydrogoui.CSSText + AdminShadcnCSS + AdminShadcnDashboardLayoutCSS + shadcnui.CSSText + AdminNovaCSS + AdminNovaDensityCSS + AdminNovaTypeCSS + AdminNovaDashboardCSS + AdminNovaComponentsCSS + AdminNovaDashboardLayoutCSS + AdminAuroraCSS + AdminAuroraDensityCSS + AdminAuroraTypeCSS + AdminAuroraDashboardLayoutCSS + aurora.CSSText + dashboardtw.CSSText + AdminFamilySelectCSS + AdminShowcaseCSS + AdminKitCSS + AdminListViewCSS + AdminMediaCSS + AdminMediaFormsCSS + AdminSplitEditorCSS + AdminTabsCSS + AdminSpotlightCSS + AdminResponsiveCSS + AdminUXCSS + AdminDraftAutosaveCSS + AdminPasswordStrengthCSS + AdminEditorStatsCSS + AdminBusinessCSS + AdminRevisionCSS + AdminStatusFilterCSS),
+		hash(AdminInfoTipCSS + AdminResourceCSS + AdminAreaCSS + designsystem.PageLayoutPickerCSS + AdminPermissionsCSS + AdminHydroGoCSS + hydrogoui.CSSText + AdminShadcnCSS + AdminShadcnDashboardLayoutCSS + shadcnui.CSSText + AdminNovaCSS + AdminNovaDensityCSS + AdminNovaTypeCSS + AdminNovaDashboardCSS + AdminNovaComponentsCSS + AdminNovaDashboardLayoutCSS + AdminAuroraCSS + AdminAuroraDensityCSS + AdminAuroraTypeCSS + AdminAuroraDashboardLayoutCSS + aurora.CSSText + dashboardtw.CSSText + AdminFamilySelectCSS + AdminShowcaseCSS + AdminKitCSS + AdminListViewCSS + AdminMediaCSS + AdminMediaFormsCSS + AdminSplitEditorCSS + AdminTabsCSS + AdminSpotlightCSS + AdminResponsiveCSS + AdminUXCSS + AdminDraftAutosaveCSS + AdminPasswordStrengthCSS + AdminEditorStatsCSS + AdminBusinessCSS + AdminRevisionCSS + AdminStatusFilterCSS),
 	}
 }

@@ -41,17 +41,17 @@ templ SocialAccounts(p SocialAccountsProps) {
 }
 
 templ PageLayoutPicker(p PageLayoutPickerProps) {
-	<fieldset class="ds-layout-picker grid gap-3" aria-label="Choose a page layout">
-		<legend class="text-lg font-semibold">Page layout</legend>
+	<fieldset class="ds-layout-picker" aria-label={ p.Legend }>
+		<legend>{ p.Legend }</legend>
 		if len(p.Options) == 0 {
-			<p role="status" class="empty-state">No layout options available.</p>
+			<p role="status" class="empty-state">{ p.EmptyMessage }</p>
 		} else {
-			<div class="grid gap-3 md:grid-cols-2">
+			<div class="ds-layout-picker__options">
 				for _, option := range p.Options {
-					<label class="ds-layout-option flex cursor-pointer items-start gap-3 rounded border border-border bg-surface p-3">
+					<label class="ds-layout-option">
 						<input type="radio" name="layout_template" value={ option.ID } checked?={ option.ID == "blank" } aria-label={ option.Name } />
 						<span class="ds-layout-option__preview" aria-hidden="true"><i></i><i></i><i></i></span>
-						<span><strong>{ option.Name }</strong><small class="block text-muted-foreground">{ option.Description }</small></span>
+						<span class="ds-layout-option__copy"><strong>{ option.Name }</strong><small>{ option.Description }</small></span>
 					</label>
 				}
 			</div>
