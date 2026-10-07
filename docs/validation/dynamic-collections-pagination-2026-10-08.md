@@ -20,3 +20,7 @@ Each request reads at most 51 records, below the existing service maximum of 100
 ## Record summary presentation
 
 Record rows now follow the schema's field order and show up to three human-readable labels, with each value capped at 72 Unicode characters. The generated Edition browser fixture asserts that labels are visible and raw JSON is absent. The desktop table capture was inspected; the existing a11y scan passed and the Impeccable detector reported no findings.
+
+## Customer-facing list clarity
+
+The list now hides internal record UUIDs and presents field-label summaries instead of JSON. Edit links keep their full route IDs but expose a record summary in their accessible names. The Chromium fixture verifies the summary and CRUD edit/delete links; the desktop capture confirms the denser, readable two-column table. UUIDs remain on the record edit page for administrative diagnosis.
