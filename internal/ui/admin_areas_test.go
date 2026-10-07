@@ -166,6 +166,12 @@ func TestAdminShellNavigationFollowsEffectivePermissions(t *testing.T) {
 			omit: []string{`href="/admin/users"`, `href="/admin/reports"`},
 		},
 		{
+			name: "editor site management override",
+			user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}},
+			want: []string{`href="/admin/site"`},
+			omit: []string{`href="/admin/control"`},
+		},
+		{
 			name: "editor media denied",
 			user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}},
 			want: []string{`href="/admin/pages"`, `href="/admin/news"`},
