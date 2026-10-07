@@ -54,6 +54,14 @@ test.describe("single Edition administrator management", () => {
     await adminPage.getByLabel("Password").fill(adminPassword);
     await adminPage.getByRole("button", { name: "Sign in" }).click();
     await expect(adminPage).toHaveURL(/\/admin(?:\?.*)?$/);
+    const adminNavPaths = await adminPage.locator('.studio-sidebar a[href^="/admin"]').evaluateAll((links) =>
+      [...new Set(links.map((link) => new URL((link as HTMLAnchorElement).href).pathname))],
+    );
+    expect(adminNavPaths.length).toBeGreaterThan(0);
+    for (const path of adminNavPaths) {
+      const response = await adminPage.goto(`${baseURL}${path}`);
+      expect(response?.status(), `admin navigation link ${path} must open`).toBe(200);
+    }
     await adminPage.goto(`${baseURL}/admin/users`);
     const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string }> = {};
     for (const email of ["editor@example.test", "viewer@example.test"]) {
@@ -83,6 +91,14 @@ test.describe("single Edition administrator management", () => {
       await page.getByRole("button", { name: "Sign in" }).click();
       await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
       if (account.expectedRole === "viewer") viewerStorageState = await context.storageState();
+
+      const visibleNavPaths = await page.locator('.studio-sidebar a[href^="/admin"]').evaluateAll((links) =>
+        [...new Set(links.map((link) => new URL((link as HTMLAnchorElement).href).pathname))],
+      );
+      for (const path of visibleNavPaths) {
+        const response = await page.goto(`${baseURL}${path}`);
+        expect(response?.status(), `${account.expectedRole} navigation link ${path} must open`).toBe(200);
+      }
 
       const allowed = await page.goto(`${baseURL}${account.allowedPath}`);
       const accountSettings = await page.goto(`${baseURL}/admin/account`);
