@@ -24,7 +24,7 @@ test.describe("single Edition administrator management", () => {
     execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed } });
+    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) } });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
@@ -510,6 +510,24 @@ test.describe("single Edition administrator management", () => {
     await page.getByRole("button", { name: "Taslağı kaydet" }).click();
     await expect(page).toHaveURL(/\/admin\/news\/[^/?]+$/);
     await expect(page.locator('#news-edit-form [name="cover_media_id"]')).toHaveValue(selectedMediaID);
+
+    const previewDialog = page.locator("[data-device-preview-dialog]");
+    const previewFrameResponse = page.waitForResponse((response) => response.request().method() === "GET" && new URL(response.url()).searchParams.has("preview_token"));
+    await page.locator("[data-device-preview-open]").click();
+    const previewResponse = await previewFrameResponse;
+    expect(previewResponse.status()).toBe(200);
+    expect(previewResponse.headers()["cache-control"]).toContain("no-store");
+    expect(previewResponse.headers()["x-robots-tag"]).toContain("noindex");
+    expect(previewResponse.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(previewResponse.headers()["x-frame-options"]).toBe("SAMEORIGIN");
+    expect(previewResponse.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");
+    expect(await previewResponse.text()).toContain("E2E media picker story");
+    await expect(previewDialog.locator("[data-device-preview-status]")).toHaveText("Güncel taslak · betikler devre dışı");
+    await expect(previewDialog.locator("iframe")).toHaveAttribute("src", /preview_token=/);
+    await expect(previewDialog.locator("iframe").contentFrame().locator("body")).toContainText("E2E media picker story");
+    await previewDialog.getByRole("button", { name: /Mobil/ }).click();
+    await expect(previewDialog).toHaveAttribute("data-device-size", "mobile");
+    await previewDialog.getByRole("button", { name: "Önizlemeyi kapat" }).click();
 
     const scheduledNewsPath = new URL(page.url()).pathname;
     const scheduleInput = page.getByLabel("Yayın tarihi ve saati");

@@ -2355,7 +2355,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				}
 			}
 		}
-		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, MediaLookup: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, ContentViews: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: editPresence, RequireTenantScope: requireTenantScope, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
+		newsHTTP = newstransport.Handler{Service: newsService, DB: db, Media: mediaService, MediaLookup: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, ContentViews: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: editPresence, RequireTenantScope: requireTenantScope, PreviewSigner: previewSigner, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
 			if !modules["site"] {
 				return nil, nil
 			}
@@ -3317,7 +3317,15 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		for i := range newsRoutes {
 			if strings.HasPrefix(newsRoutes[i].Pattern, "GET /public/news/") {
 				if modules["analytics"] {
-					newsRoutes[i].Handler = analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(newsRoutes[i].Handler, contentViewQueue, "news"), noCookieQueue, noCookieHasher)
+					original := newsRoutes[i].Handler
+					tracked := analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(original, contentViewQueue, "news"), noCookieQueue, noCookieHasher)
+					newsRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.URL.Query().Get("preview_token") != "" {
+							original.ServeHTTP(w, r)
+							return
+						}
+						tracked.ServeHTTP(w, r)
+					})
 				}
 			} else if !strings.HasPrefix(newsRoutes[i].Pattern, "GET ") {
 				original := newsRoutes[i].Handler

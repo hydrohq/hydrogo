@@ -23,3 +23,19 @@ func TestPreviewTokenBindsPageTenantRevisionAndExpiry(t *testing.T) {
 		t.Fatal("tampered link accepted")
 	}
 }
+
+func TestPreviewTokenBindsGenericResource(t *testing.T) {
+	now := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
+	signer := Signer{Key: []byte("0123456789abcdef0123456789abcdef")}
+	token, err := signer.Issue(Claims{ResourceType: "news", ResourceID: "article-1", Revision: 3}, now, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, err := signer.Verify(token, now)
+	if err != nil || claims.ResourceType != "news" || claims.ResourceID != "article-1" || claims.Revision != 3 {
+		t.Fatalf("claims=%+v err=%v", claims, err)
+	}
+	if _, err := signer.Issue(Claims{PageID: "page-1", ResourceType: "news", ResourceID: "article-1", Revision: 3}, now, time.Minute); err == nil {
+		t.Fatal("token accepted conflicting page and resource subjects")
+	}
+}

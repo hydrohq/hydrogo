@@ -29,6 +29,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
+	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -65,6 +66,7 @@ type Handler struct {
 	}
 	RequireTenantScope    bool
 	AnalyticsEnabled      bool
+	PreviewSigner         *preview.Signer
 	PublicSupport         adminstudio.SupportConfig
 	Presence              *realtime.Presence
 	PublicContactSettings func(context.Context) ([]site.Setting, error)
@@ -663,6 +665,12 @@ func (h Handler) publicGetWithRoute(w http.ResponseWriter, r *http.Request, rawL
 // publicGetHTML exposes a human-facing counterpart to the JSON public route.
 // The JSON endpoint remains stable for headless clients.
 func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
+	previewed := r.URL.Query().Get("preview_token") != ""
+	if previewed {
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+	}
 	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
 		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
@@ -673,7 +681,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
 	}
-	item, err := h.Service.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
+	item, previewed, err := h.publicHTMLItem(r, locale, slug)
 	if err != nil {
 		if errors.Is(err, database.ErrDatabaseRequired) {
 			http.Error(w, "news unavailable", http.StatusServiceUnavailable)
@@ -681,6 +689,9 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, "news not found", http.StatusNotFound)
 		return
+	}
+	if previewed {
+		security.AllowSameOriginFrame(w.Header())
 	}
 
 	// Fetch popular/recent news items for the sticky sidebar
@@ -692,8 +703,11 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	consentNotice := h.analyticsConsentNotice(r, locale)
-	if h.AnalyticsEnabled {
+	consentNotice := ""
+	if !previewed {
+		consentNotice = h.analyticsConsentNotice(r, locale)
+	}
+	if h.AnalyticsEnabled && !previewed {
 		w.Header().Set("Vary", "Cookie")
 	}
 	documentStart := newsDocumentStart(locale, item.Title, h.themeNavigation(r.Context(), locale))
@@ -751,7 +765,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	readingEnhancement := `<link rel="stylesheet" href="/designsystem/static/article-reading.css"><script src="/designsystem/static/article-reading.js" defer></script>`
 	var helpfulFeedback bytes.Buffer
-	if h.Feedback != nil {
+	if h.Feedback != nil && !previewed {
 		scope, scopeErr := tenant.FromContext(r.Context())
 		if scopeErr == nil || !h.RequireTenantScope {
 			tenantID := "default"
@@ -790,6 +804,32 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		readingEnhancement,
 		footer,
 	)
+}
+
+func (h Handler) publicHTMLItem(r *http.Request, locale, slug string) (news.Item, bool, error) {
+	token := r.URL.Query().Get("preview_token")
+	if token == "" {
+		item, err := h.Service.GetPublishedByRoute(r.Context(), h.DB, locale, slug)
+		return item, false, err
+	}
+	if h.PreviewSigner == nil {
+		return news.Item{}, false, errors.New("preview unavailable")
+	}
+	claims, err := h.PreviewSigner.Verify(token, time.Now().UTC())
+	if err != nil || claims.ResourceType != "news" {
+		return news.Item{}, false, errors.New("preview unavailable")
+	}
+	if h.RequireTenantScope || claims.TenantID != "" {
+		scope, scopeErr := tenant.Require(r.Context())
+		if scopeErr != nil || scope.TenantID != claims.TenantID {
+			return news.Item{}, false, errors.New("preview unavailable")
+		}
+	}
+	item, err := h.Service.Repository.Get(r.Context(), h.DB, claims.ResourceID)
+	if err != nil || item.Status == news.StatusPublished || item.Revision != claims.Revision || item.Locale != locale || item.Slug != slug {
+		return news.Item{}, false, errors.New("preview unavailable")
+	}
+	return item, true, nil
 }
 
 func (h Handler) analyticsConsentNotice(r *http.Request, locale string) string {
@@ -1186,7 +1226,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		extraActions.WriteString(`<button type="button" class="button button-quiet" data-copy-text="` + template.HTMLEscapeString(copyLiveURL) + `" aria-label="Canlı URL&#39;yi kopyala" title="Canlı URL&#39;yi kopyala">🔗 URL kopyala</button><span data-copy-status style="font-size:.75rem;color:var(--muted)"></span>`)
 	}
 	extraActions.WriteString(`<button type="button" class="button button-quiet" data-device-preview-open data-preview-endpoint="` + template.HTMLEscapeString(previewEndpoint) + `" data-preview-csrf="` + template.HTMLEscapeString(csrf) + `" title="Önizleme">👁 Önizle</button>`)
-	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">%s</strong><span class="editor-live-sub">Haber düzenleniyor · %s</span></div><div class="editor-top-actions">%s<button type="submit" form="news-edit-form" class="button">Taslağı kaydet</button></div></div><form id="news-edit-form" class="studio-form" method="post" action="/admin/news/%s" data-local-autosave data-autosave-resource="news:%s"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın &amp; İşlem</span>%s</div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>%s</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><div class="editor-workflow-actions">%s</div></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>İçerik Sınıflandırması</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="_csrf" value="%s"></form>%s<dialog class="device-preview-dialog" data-device-preview-dialog aria-labelledby="device-preview-title"><div class="device-preview-header"><div><h2 id="device-preview-title">Haber Önizlemesi</h2><p data-device-preview-status>Önizle butonuna basarak güncel taslağı yükleyin.</p></div><div class="studio-actions"><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="desktop" aria-pressed="true" title="Masaüstü">🖥 Masaüstü</button><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="tablet" aria-pressed="false" title="Tablet">📟 Tablet</button><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="mobile" aria-pressed="false" title="Mobil">📱 Mobil</button><button type="button" class="button button-quiet" data-device-preview-close aria-label="Önizlemeyi kapat">✕ Kapat</button></div></div><div class="device-preview-stage"><iframe data-device-preview-frame src="about:blank" title="Haber önizlemesi" sandbox="allow-same-origin allow-scripts allow-forms"></iframe></div></dialog><script>(()=>{const titleInp=document.querySelector('#news-edit-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`,
+	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">%s</strong><span class="editor-live-sub">Haber düzenleniyor · %s</span></div><div class="editor-top-actions">%s<button type="submit" form="news-edit-form" class="button">Taslağı kaydet</button></div></div><form id="news-edit-form" class="studio-form" method="post" action="/admin/news/%s" data-local-autosave data-autosave-resource="news:%s"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın &amp; İşlem</span>%s</div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>%s</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><div class="editor-workflow-actions">%s</div></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>İçerik Sınıflandırması</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="_csrf" value="%s"></form>%s<dialog class="device-preview-dialog" data-device-preview-dialog aria-labelledby="device-preview-title"><div class="device-preview-header"><div><h2 id="device-preview-title">Haber Önizlemesi</h2><p data-device-preview-status>Önizle butonuna basarak güncel taslağı yükleyin.</p></div><div class="studio-actions"><button type="button" class="button button-quiet" data-device-preview-size="desktop" aria-pressed="true" title="Masaüstü">🖥 Masaüstü</button><button type="button" class="button button-quiet" data-device-preview-size="tablet" aria-pressed="false" title="Tablet">📟 Tablet</button><button type="button" class="button button-quiet" data-device-preview-size="mobile" aria-pressed="false" title="Mobil">📱 Mobil</button><button type="button" class="button button-quiet" data-device-preview-close aria-label="Önizlemeyi kapat">✕ Kapat</button></div></div><div class="device-preview-stage"><iframe data-device-preview-frame src="about:blank" title="Haber önizlemesi" sandbox="allow-same-origin allow-scripts allow-forms"></iframe></div></dialog><script>(()=>{const titleInp=document.querySelector('#news-edit-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`,
 		template.HTMLEscapeString(titleDisplay), statusBadge,
 		template.HTML(extraActions.String()),
 		template.HTMLEscapeString(item.ID), template.HTMLEscapeString(item.ID),
@@ -1478,6 +1518,26 @@ func (h Handler) adminPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	publicPath := "/public/news/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
+	if item.Status != news.StatusPublished {
+		if h.PreviewSigner == nil || (item.Status != news.StatusDraft && item.Status != news.StatusScheduled && item.Status != news.StatusRetracted) {
+			http.Error(w, "news preview unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		claims := preview.Claims{ResourceType: "news", ResourceID: item.ID, Revision: item.Revision}
+		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
+			claims.TenantID = scope.TenantID
+		} else if h.RequireTenantScope {
+			http.Error(w, "news preview unavailable", http.StatusForbidden)
+			return
+		}
+		token, err := h.PreviewSigner.Issue(claims, time.Now().UTC(), 15*time.Minute)
+		if err != nil {
+			http.Error(w, "news preview unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		publicPath += "?preview_token=" + url.QueryEscape(token)
+	}
+	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = fmt.Fprintf(w, `{"url":%q}`, publicPath)
 }

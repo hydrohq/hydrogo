@@ -117,6 +117,7 @@ func TestRoutesIncludeCSRFProtectedAdminNewsForms(t *testing.T) {
 		"POST /admin/news/{id}/schedule":        true,
 		"POST /admin/news/{id}/publish":         true,
 		"POST /admin/news/{id}/retract":         true,
+		"POST /admin/news/{id}/preview":         true,
 	}
 	for _, route := range routes {
 		if _, ok := want[route.Pattern]; ok {

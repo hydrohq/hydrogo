@@ -166,3 +166,22 @@ func MergeCSP(policy, extra string) string {
 	}
 	return strings.TrimSpace(strings.Join(directives, ";")) + ";"
 }
+
+// AllowSameOriginFrame permits the current response to be embedded by the
+// same origin, replacing any stricter frame-ancestors directive.
+func AllowSameOriginFrame(header http.Header) {
+	directives := strings.Split(header.Get("Content-Security-Policy"), ";")
+	found := false
+	for i, directive := range directives {
+		fields := strings.Fields(directive)
+		if len(fields) > 0 && fields[0] == "frame-ancestors" {
+			directives[i] = " frame-ancestors 'self'"
+			found = true
+		}
+	}
+	if !found {
+		directives = append(directives, " frame-ancestors 'self'")
+	}
+	header.Set("Content-Security-Policy", strings.TrimSpace(strings.Join(directives, ";")))
+	header.Set("X-Frame-Options", "SAMEORIGIN")
+}
