@@ -1884,7 +1884,9 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 			var component templ.Component = ui.Input(props)
 			if len(field.Options) > 0 {
 				component = ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Options: field.Options, Required: props.Required})
-			} else if field.Widget == "textarea" || field.Widget == "richtext" || field.Kind == FieldRichText {
+			} else if field.Widget == "richtext" || field.Kind == FieldRichText {
+				component = ui.RichTextEditor(ui.RichTextEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID]})
+			} else if field.Widget == "textarea" {
 				component = ui.Textarea(ui.TextareaProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Required: props.Required, Rows: 8})
 			}
 			if err := component.Render(ctx, out); err != nil {

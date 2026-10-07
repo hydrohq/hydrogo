@@ -1,0 +1,27 @@
+package components
+
+templ RichTextEditor(p RichTextEditorProps) {
+	<div class="studio-form-field full-width richtext-wrap" data-field-name={ p.ID }>
+		<span class="studio-form-label" id={ p.ID + "-label" }>{ p.Label }</span>
+		<div class="richtext-field" data-richtext>
+			<div class="richtext-toolbar ql-toolbar ql-snow" aria-label={ p.Label + " araçları" }>
+				<span class="ql-formats">
+					<button type="button" class="ql-bold" aria-label="Kalın"></button>
+					<button type="button" class="ql-italic" aria-label="İtalik"></button>
+					<button type="button" class="ql-underline" aria-label="Altı çizili"></button>
+				</span>
+				<span class="ql-formats">
+					<button type="button" class="ql-link" aria-label="Bağlantı ekle"></button>
+					<button type="button" class="ql-image" aria-label="Görsel ekle"></button>
+					<button type="button" class="ql-blockquote" aria-label="Alıntı"></button>
+				</span>
+				<span class="ql-formats">
+					<button type="button" class="ql-list" value="ordered" aria-label="Numaralı liste"></button>
+					<button type="button" class="ql-list" value="bullet" aria-label="Madde listesi"></button>
+				</span>
+			</div>
+			<div id={ p.ID + "-editor" } class="richtext-editor ql-container ql-snow" role="textbox" aria-labelledby={ p.ID + "-label" } aria-multiline="true" tabindex="0"></div>
+			<textarea id={ p.ID } class="richtext-value" name={ p.Name } hidden aria-hidden="true">{ p.Value }</textarea>
+		</div>
+	</div>
+}

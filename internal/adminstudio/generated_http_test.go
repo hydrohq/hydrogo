@@ -20,6 +20,7 @@ func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Req
 	registry, err := NewRegistry([]Collection{{
 		ID: "project", Label: "Projects", Group: "Content", TitleField: "title", Fields: []Field{
 			{ID: "title", Label: "Title", Kind: FieldText, Required: true, VisibleInList: true, Searchable: true},
+			{ID: "description", Label: "Description", Kind: FieldText, Widget: "richtext"},
 			{ID: "status", Label: "Status", Kind: FieldSelect, Required: true, VisibleInList: true, Filterable: true, Options: []string{"draft", "active"}},
 		}, Actions: []Action{{Label: "Open projects", Href: "/admin/resources/project"}},
 	}})
@@ -71,7 +72,7 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	}
 	defer form.Body.Close()
 	formHTML, _ := io.ReadAll(form.Body)
-	if form.StatusCode != http.StatusOK || !strings.Contains(string(formHTML), `name="_csrf"`) || !strings.Contains(string(formHTML), `name="id"`) || !strings.Contains(string(formHTML), `name="status"`) {
+	if form.StatusCode != http.StatusOK || !strings.Contains(string(formHTML), `name="_csrf"`) || !strings.Contains(string(formHTML), `name="id"`) || !strings.Contains(string(formHTML), `name="status"`) || !strings.Contains(string(formHTML), `class="richtext-field" data-richtext`) || !strings.Contains(string(formHTML), `name="description"`) {
 		t.Fatalf("generated create form missing contract fields: status=%d body=%s", form.StatusCode, formHTML)
 	}
 }
