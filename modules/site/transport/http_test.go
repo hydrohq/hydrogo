@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -228,6 +229,56 @@ func TestAdminSiteMutationRequiresAdminContext(t *testing.T) {
 	handler.saveSetting(res, req)
 	if res.Code != http.StatusForbidden {
 		t.Fatalf("unauthorized mutation status = %d", res.Code)
+	}
+}
+
+type recordingSettingStore struct {
+	fakeStore
+	upserts int
+}
+
+func (s *recordingSettingStore) UpsertSetting(context.Context, database.Executor, site.Setting) error {
+	s.upserts++
+	return nil
+}
+
+func TestAdminSiteSettingUsesSiteManageOverrides(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-permission.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	for _, tc := range []struct {
+		name string
+		user *auth.User
+		want int
+	}{
+		{name: "editor default denied", user: &auth.User{Role: auth.RoleEditor, Active: true}, want: http.StatusForbidden},
+		{name: "editor deny override", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, want: http.StatusForbidden},
+		{name: "viewer allow override", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, want: http.StatusNoContent},
+		{name: "admin deny override", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, want: http.StatusForbidden},
+		{name: "inactive grant denied", user: &auth.User{Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, want: http.StatusForbidden},
+		{name: "admin default allowed", user: &auth.User{Role: auth.RoleAdmin, Active: true}, want: http.StatusNoContent},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &recordingSettingStore{}
+			handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+			req := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"HydroGo"}`))
+			req = req.WithContext(auth.WithUser(req.Context(), tc.user))
+			res := httptest.NewRecorder()
+			handler.saveSetting(res, req)
+			if res.Code != tc.want {
+				t.Fatalf("POST /admin/site/settings status=%d want=%d body=%s", res.Code, tc.want, res.Body.String())
+			}
+			wantWrites := 0
+			if tc.want == http.StatusNoContent {
+				wantWrites = 1
+			}
+			if store.upserts != wantWrites {
+				t.Fatalf("setting writes=%d want=%d", store.upserts, wantWrites)
+			}
+		})
 	}
 }
 

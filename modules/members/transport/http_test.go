@@ -587,3 +587,39 @@ func TestMemberLoginRejectsOversizedForm(t *testing.T) {
 		t.Fatalf("POST /member/login status=%d, want 413", rr.Code)
 	}
 }
+
+func TestAdminMemberListUsesMemberManageOverrides(t *testing.T) {
+	handler := transport.Handler{Service: members.Service{Members: newMemoryMemberStore()}}
+	var list http.Handler
+	for _, route := range handler.Routes() {
+		if route.Pattern == "GET /admin/members" {
+			list = route.Handler
+			break
+		}
+	}
+	if list == nil {
+		t.Fatal("GET /admin/members route is missing")
+	}
+
+	for _, tc := range []struct {
+		name string
+		user *auth.User
+		want int
+	}{
+		{name: "editor default denied", user: &auth.User{Role: auth.RoleEditor, Active: true}, want: http.StatusForbidden},
+		{name: "editor allow override", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusOK},
+		{name: "viewer allow override", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusOK},
+		{name: "admin deny override", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: false}}, want: http.StatusForbidden},
+		{name: "inactive grant denied", user: &auth.User{Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/admin/members", nil)
+			req = req.WithContext(auth.WithUser(req.Context(), tc.user))
+			res := httptest.NewRecorder()
+			list.ServeHTTP(res, req)
+			if res.Code != tc.want {
+				t.Fatalf("GET /admin/members status=%d want=%d body=%s", res.Code, tc.want, res.Body.String())
+			}
+		})
+	}
+}
