@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/a-h/templ"
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
 )
 
@@ -27,15 +26,20 @@ func TestExternalEditionCanComposeGeneratedAdmin(t *testing.T) {
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken:       func(*http.Request) string { return "edition-token" },
 		ValidateCSRF:    func(*http.Request) bool { return true },
-		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
-			return body.Render(r.Context(), w)
-		},
+		RenderPage: adminstudio.StudioPageRenderer(func(*http.Request) adminstudio.PageIdentity {
+			return adminstudio.PageIdentity{UserID: "edition-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
+		}),
 	}
 	if err := adminstudio.RegisterGenerated(mux, manifest, []string{"projects"}, options); err != nil {
 		t.Fatal(err)
 	}
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/admin/resources/projects", nil))
+	for _, want := range []string{`<aside class="studio-sidebar">`, `data-studio-role="admin"`, `href="/admin/resources/projects"`, "Projects"} {
+		if !strings.Contains(recorder.Body.String(), want) {
+			t.Fatalf("shared generated Admin shell missing %q", want)
+		}
+	}
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "Yeni kayıt") {
 		t.Fatalf("registered generated Admin route did not render: status=%d body=%s", recorder.Code, recorder.Body.String())
 	}

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 )
 
@@ -423,8 +424,13 @@ func (h GeneratedAdminHandler) generatedCopyLocaleActions(ctx context.Context, o
 
 func (h GeneratedAdminHandler) index(w http.ResponseWriter, r *http.Request) {
 	collections := h.visibleCollections(r)
+	locale := generatedAdminLocale(r)
+	title, heading := "Kaynaklar", "Koleksiyonlar"
+	if locale == "en" {
+		title, heading = "Generated resources", "Collections"
+	}
 	content := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if _, err := io.WriteString(out, `<section class="studio-card"><h2>Collections</h2><div class="collection-grid">`); err != nil {
+		if _, err := io.WriteString(out, `<section class="studio-card"><h2>`+template.HTMLEscapeString(heading)+`</h2><div class="collection-grid">`); err != nil {
 			return err
 		}
 		for _, collection := range collections {
@@ -435,7 +441,7 @@ func (h GeneratedAdminHandler) index(w http.ResponseWriter, r *http.Request) {
 		_, err := io.WriteString(out, `</div></section>`)
 		return err
 	})
-	h.renderPage(w, r, "Generated resources", content)
+	h.renderPage(w, r, title, content)
 }
 
 func (h GeneratedAdminHandler) visibleCollections(r *http.Request) []Collection {
@@ -2109,14 +2115,20 @@ func (r *boundedResponseRecorder) Write(data []byte) (int, error) {
 func (h GeneratedAdminHandler) renderPage(w http.ResponseWriter, r *http.Request, title string, body templ.Component) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	locale := "tr"
-	if strings.HasPrefix(strings.ToLower(r.Header.Get("Accept-Language")), "en") {
-		locale = "en"
-	}
+	locale := generatedAdminLocale(r)
 	navigation := &generatedNavigationWriter{ResponseWriter: w, items: h.visibleCollections(r), current: r.URL.Path, locale: locale}
 	if err := h.Options.RenderPage(navigation, r, title, body); err != nil {
 		http.Error(w, "admin page unavailable", http.StatusInternalServerError)
 	}
+}
+
+func generatedAdminLocale(r *http.Request) string {
+	if r != nil {
+		if cookie, err := r.Cookie("hydro_admin_locale"); err == nil && i18n.IsSupportedCatalogLocale(cookie.Value) {
+			return i18n.ResolveCatalogLocale(cookie.Value)
+		}
+	}
+	return i18n.ResolveCatalogLocale("")
 }
 
 type generatedNavigationWriter struct {
@@ -2147,9 +2159,9 @@ func injectGeneratedNavigation(markup []byte, collections []Collection, current,
 		}
 		group := strings.TrimSpace(collection.Group)
 		if group == "" || group == "content" {
-			group = "İçerik"
+			group = "İÇERİK"
 			if locale == "en" {
-				group = "Content"
+				group = "CONTENT"
 			}
 		}
 		route := "/admin/resources/" + url.PathEscape(collection.ID)
