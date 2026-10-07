@@ -441,6 +441,38 @@ func TestAdminUserManagementMutationDeniesExplicitPermissionOverride(t *testing.
 	}
 }
 
+func TestAdminCannotChangeOwnRoleOrPermissions(t *testing.T) {
+	actor := &User{ID: "actor", Role: RoleAdmin, Active: true}
+	permissionStore := &permissionTestStore{}
+	service := NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params)
+	service.SetPermissionStore(permissionStore)
+	h := HTTPHandler{Service: service}
+
+	for _, endpoint := range []struct {
+		name    string
+		handler http.HandlerFunc
+		body    string
+	}{
+		{name: "role", handler: h.updateUserRole, body: "role=editor"},
+		{name: "permissions", handler: h.updateUserPermissions, body: "perm_admin.users.manage=deny"},
+	} {
+		t.Run(endpoint.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/auth/users/actor/"+endpoint.name, strings.NewReader(endpoint.body))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.SetPathValue("id", actor.ID)
+			req = req.WithContext(WithUser(req.Context(), actor))
+			res := httptest.NewRecorder()
+			endpoint.handler(res, req)
+			if res.Code != http.StatusConflict {
+				t.Fatalf("self %s update status=%d body=%q, want %d", endpoint.name, res.Code, res.Body.String(), http.StatusConflict)
+			}
+			if permissionStore.saved != nil {
+				t.Fatalf("self %s update persisted permission overrides: %#v", endpoint.name, permissionStore.saved)
+			}
+		})
+	}
+}
+
 func TestAdminUserMutationEndpointsRejectEditorAndViewer(t *testing.T) {
 	service := NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params)
 	h := HTTPHandler{Service: service}
