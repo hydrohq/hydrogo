@@ -294,6 +294,14 @@ test.describe("single Edition administrator management", () => {
     const deniedCreatePage = await restrictedEditor.goto(`${baseURL}/admin/pages/new`);
     expect(deniedCreatePage?.status()).toBe(403);
     await expect(restrictedEditor.locator('form[action="/admin/pages"]')).toHaveCount(0);
+    expect((await restrictedEditor.goto(`${baseURL}/admin/pages`))?.status()).toBe(403);
+    const csrfResponse = await restrictedEditor.request.get(`${baseURL}/csrf-token`);
+    expect(csrfResponse.status()).toBe(200);
+    const { token: restrictedCsrfToken } = await csrfResponse.json();
+    const deniedCreateMutation = await restrictedEditor.request.post(`${baseURL}/admin/pages`, {
+      form: { _csrf: restrictedCsrfToken, slug: "permission-denied-page", title: "Must not be created" },
+    });
+    expect(deniedCreateMutation.status()).toBe(403);
     const deniedSearch = await restrictedEditor.request.get(`${baseURL}/admin/api/search?q=Hydro`);
     expect(deniedSearch.status()).toBe(200);
     const deniedSearchBody = await deniedSearch.json();
