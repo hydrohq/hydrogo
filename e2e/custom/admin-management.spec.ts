@@ -278,7 +278,7 @@ test.describe("single Edition administrator management", () => {
     const permissionAction = await permissionForm.getAttribute("action");
     expect(permissionAction).toBeTruthy();
     const denyPermission = await page.request.post(new URL(permissionAction!, baseURL).href, {
-      form: { _csrf: permissionToken, "perm_admin.content.write": "deny" },
+      form: { _csrf: permissionToken, "perm_admin.content.read": "deny", "perm_admin.content.write": "deny" },
     });
     expect(denyPermission.status()).toBe(204);
     await page.reload();
@@ -294,10 +294,15 @@ test.describe("single Edition administrator management", () => {
     const deniedCreatePage = await restrictedEditor.goto(`${baseURL}/admin/pages/new`);
     expect(deniedCreatePage?.status()).toBe(403);
     await expect(restrictedEditor.locator('form[action="/admin/pages"]')).toHaveCount(0);
+    const deniedSearch = await restrictedEditor.request.get(`${baseURL}/admin/api/search?q=Hydro`);
+    expect(deniedSearch.status()).toBe(200);
+    const deniedSearchBody = await deniedSearch.json();
+    expect(deniedSearchBody.items.map((item: { badge: string }) => item.badge)).not.toContain("Sayfa");
+    expect(deniedSearchBody.items.map((item: { badge: string }) => item.badge)).not.toContain("Haber");
 
     const grantToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
     const permissionUpdate = await page.request.post(new URL(permissionAction!, baseURL).href, {
-      form: { _csrf: grantToken, "perm_admin.content.write": "allow" },
+      form: { _csrf: grantToken, "perm_admin.content.read": "allow", "perm_admin.content.write": "allow" },
     });
     expect(await permissionUpdate.text()).toBe("");
     expect(permissionUpdate.status()).toBe(204);
@@ -341,6 +346,7 @@ test.describe("single Edition administrator management", () => {
     await mediaRestrictedEditor.getByLabel("Email address").fill("editor@example.test");
     await mediaRestrictedEditor.getByLabel("Password").fill(adminPassword);
     await mediaRestrictedEditor.getByRole("button", { name: "Sign in" }).click();
+    await expect(mediaRestrictedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
     expect((await mediaRestrictedEditor.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
     const restoreMediaToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
     const restoreMedia = await page.request.post(new URL(permissionAction!, baseURL).href, {

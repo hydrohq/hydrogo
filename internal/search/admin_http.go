@@ -69,7 +69,7 @@ func (h AdminSearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeAdminSearchError(w, http.StatusForbidden, "search unavailable")
 		return
 	}
-	items, err := h.search(r.Context(), query, tenantID, user.Role == auth.RoleAdmin, user.Role == auth.RoleAdmin)
+	items, err := h.search(r.Context(), query, tenantID, user)
 	if err != nil {
 		writeAdminSearchError(w, http.StatusServiceUnavailable, "search unavailable")
 		return
@@ -82,15 +82,15 @@ func (h AdminSearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}{Items: items, Total: len(items)})
 }
 
-func (h AdminSearchHandler) search(ctx context.Context, query Query, tenantID string, includeMembers, includeSettings bool) ([]adminSearchItem, error) {
+func (h AdminSearchHandler) search(ctx context.Context, query Query, tenantID string, user *auth.User) ([]adminSearchItem, error) {
 	documents := make([]adminSearchItem, 0, 64)
 	for _, source := range []adminSearchSource{
-		{"pages", "pages", "id", "locale", "title", "body", "Sayfa"},
-		{"news", "news_items", "id", "locale", "title", "excerpt", "Haber"},
-		{"members", "members", "id", "", "email", "", "Üye"},
-		{"media", "media_assets", "id", "", "original_filename", "mime_type", "Medya"},
+		{"pages", "pages", "id", "locale", "title", "body", "Sayfa", auth.PermissionContentRead},
+		{"news", "news_items", "id", "locale", "title", "excerpt", "Haber", auth.PermissionContentRead},
+		{"members", "members", "id", "", "email", "", "Üye", auth.PermissionMembersManage},
+		{"media", "media_assets", "id", "", "original_filename", "mime_type", "Medya", auth.PermissionMediaManage},
 	} {
-		if !h.Modules[source.module] || (source.table == "members" && !includeMembers) {
+		if !h.Modules[source.module] || !auth.Can(user, source.permission) {
 			continue
 		}
 		items, err := h.readSource(ctx, source, tenantID, query)
@@ -102,7 +102,7 @@ func (h AdminSearchHandler) search(ctx context.Context, query Query, tenantID st
 		}
 		documents = append(documents, items...)
 	}
-	if includeSettings && h.Modules["site"] {
+	if h.Modules["site"] && auth.Can(user, auth.PermissionSiteManage) {
 		items, err := h.readSettings(ctx, tenantID, query.Text)
 		if err != nil {
 			return nil, err
@@ -146,7 +146,7 @@ func adminSearchScore(title, body string, terms []string) float64 {
 }
 
 type adminSearchSource struct {
-	module, table, id, locale, title, body, label string
+	module, table, id, locale, title, body, label, permission string
 }
 
 func (h AdminSearchHandler) readSource(ctx context.Context, source adminSearchSource, tenantID string, searchQuery Query) ([]adminSearchItem, error) {

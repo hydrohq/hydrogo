@@ -87,6 +87,12 @@ go run ./tools/importguard -root examples/construction-edition
   Tekil Chromium rol akışı **1/1** geçti. Medya handler'ları artık aynı
   `auth.Can` kontrolünü kullanır; izin reddi sunucu bileşeni eksikliğinden ayrı
   olarak 403 döndürülür.
+- Admin hızlı araması artık pages/news, media, members ve site settings
+  sonuçlarını sırasıyla `content.read`, `media.manage`, `members.manage` ve
+  `site.manage` ile sınırlar. Gerçek editor oturumunda `content.read` deny
+  override'ı sonrası sayfa/haber arama sonuçları yok; aynı admin-management
+  Chromium akışındaki iki rol/izin testi geçti. Kaynak bazlı tam Go role ve
+  override tablosu `internal/search/admin_http_test.go` içindedir.
 
 2026-10-07 takip koşusunda `admin-management.spec.ts`, mevcut admin storage
 state'i yeniden kullanarak 15 yönetim rotasının hem 390px hem 768px viewport'ta
