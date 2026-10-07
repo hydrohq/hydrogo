@@ -12,6 +12,7 @@ let tempDir = "";
 let baseURL = "";
 
 test.describe("single Edition administrator management", () => {
+  test.describe.configure({ mode: "serial" });
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-management-"));
     const database = path.join(tempDir, "edition.sqlite");
@@ -97,7 +98,7 @@ test.describe("single Edition administrator management", () => {
     }
   });
 
-  test("admin login opens the Edition management areas and rejects anonymous access", async ({ page }) => {
+  test("admin login opens the Edition management areas and rejects anonymous access", async ({ page, browser }) => {
     const denied = await page.request.get(`${baseURL}/admin/users`, { maxRedirects: 0 });
     expect([401, 302, 303]).toContain(denied.status());
     if (denied.status() !== 401) expect(denied.headers().location).toContain("/login");
@@ -270,6 +271,28 @@ test.describe("single Edition administrator management", () => {
     expect(publishedPage.status()).toBe(200);
     await expect(publishedPage).toBeOK();
     expect(await publishedPage.text()).toContain("E2E editorial published");
+
+    const viewerContext = await browser.newContext();
+    const viewerPage = await viewerContext.newPage();
+    await viewerPage.goto(`${baseURL}/login`);
+    await viewerPage.getByLabel("Email address").fill("viewer@example.test");
+    await viewerPage.getByLabel("Password").fill(adminPassword);
+    await viewerPage.getByRole("button", { name: "Sign in" }).click();
+    await expect(viewerPage).toHaveURL(/\/admin(?:\?.*)?$/);
+    expect((await viewerPage.request.get(`${baseURL}/auth/me`)).status()).toBe(200);
+
+    await page.goto(`${baseURL}/admin/users`);
+    const viewerRow = page.locator(".studio-table tbody tr").filter({ hasText: "viewer@example.test" });
+    const disableForm = viewerRow.locator('form[action$="/disable"]');
+    const disableToken = await disableForm.locator('[name="_csrf"]').inputValue();
+    const disableAction = await disableForm.getAttribute("action");
+    expect(disableAction).toBeTruthy();
+    const disabled = await page.request.post(new URL(disableAction!, baseURL).href, { form: { _csrf: disableToken } });
+    expect(disabled.status()).toBe(204);
+    expect((await viewerPage.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    await page.reload();
+    await expect(viewerRow).toContainText("Pasif");
+    await viewerContext.close();
   });
 });
 
