@@ -1,9 +1,9 @@
 import { test, expect, type ChildProcess } from "@playwright/test";
-import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { spawnServer, stopServer } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const editionRoot = path.join(repoRoot, "tests", "external-edition");
@@ -16,7 +16,7 @@ test.describe("independent Edition generated Admin", () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-external-edition-"));
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./cmd/testserver", "--address", `127.0.0.1:${port}`, "--dsn", path.join(tempDir, "edition.sqlite")], {
+    server = spawnServer("go", ["run", "./cmd/testserver", "--address", `127.0.0.1:${port}`, "--dsn", path.join(tempDir, "edition.sqlite")], {
       cwd: editionRoot,
       stdio: "ignore",
     });
@@ -35,13 +35,7 @@ test.describe("independent Edition generated Admin", () => {
   }, 60_000);
 
   test.afterAll(async () => {
-    if (server && server.exitCode === null) {
-      server.kill("SIGTERM");
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 5_000);
-        server?.once("exit", () => { clearTimeout(timeout); resolve(); });
-      });
-    }
+    await stopServer(server);
     if (tempDir) await rm(tempDir, { recursive: true, force: true });
   });
 

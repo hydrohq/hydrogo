@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { spawn, execFileSync, type ChildProcess } from "node:child_process";
+import { execFileSync, type ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { spawnServer, stopServer } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 let server: ChildProcess | undefined;
@@ -18,7 +19,7 @@ test.describe("generated Edition Admin CRUD", () => {
     execFileSync("go", ["run", "./examples/project-edition/cmd/server", "migrate", "--dialect", dialect, "--dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./examples/project-edition/cmd/server", "serve", "--dialect", dialect, "--dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore" });
+    server = spawnServer("go", ["run", "./examples/project-edition/cmd/server", "serve", "--dialect", dialect, "--dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore" });
     const deadline = Date.now() + 30_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`generated Edition server exited with ${server.exitCode}`);
@@ -34,13 +35,7 @@ test.describe("generated Edition Admin CRUD", () => {
   }, 60_000);
 
   test.afterAll(async () => {
-    if (server && server.exitCode === null) {
-      server.kill("SIGTERM");
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 5_000);
-        server?.once("exit", () => { clearTimeout(timeout); resolve(); });
-      });
-    }
+    await stopServer(server);
     if (tempDir) await rm(tempDir, { recursive: true, force: true });
   });
 
