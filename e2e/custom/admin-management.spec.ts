@@ -7,6 +7,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
+const backupSigningSeed = "ab".repeat(32);
 let server: ChildProcess | undefined;
 let tempDir = "";
 let baseURL = "";
@@ -21,7 +22,7 @@ test.describe("single Edition administrator management", () => {
     execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MEDIA_DIR: path.join(tempDir, "media") } });
+    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed } });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
@@ -184,6 +185,18 @@ test.describe("single Edition administrator management", () => {
     await unbanForm.getByRole("button", { name: "Engeli kaldır" }).click();
     await expect(page).toHaveURL(`${baseURL}/admin/security`);
     await expect(page.getByText(testBanAddress, { exact: true })).toHaveCount(0);
+
+    await page.goto(`${baseURL}/admin/backup`);
+    const backupForm = page.locator('form[action="/admin/backup"]');
+    await backupForm.getByLabel("Confirm your password to continue").fill(adminPassword);
+    const downloadResponse = page.waitForResponse((response) => response.url() === `${baseURL}/admin/backup` && response.request().method() === "POST");
+    const backupDownload = page.waitForEvent("download");
+    await backupForm.getByRole("button", { name: "Create and download backup" }).click();
+    const [backupResponse, download] = await Promise.all([downloadResponse, backupDownload]);
+    expect(backupResponse.status()).toBe(200);
+    expect(backupResponse.headers()["content-type"]).toContain("application/gzip");
+    expect(backupResponse.headers()["cache-control"]).toContain("no-store");
+    expect(download.suggestedFilename()).toMatch(/^hydrogo-backup-.*\.tar\.gz$/);
 
     const usersResponse = await page.goto(`${baseURL}/admin/users`);
     expect(usersResponse?.status()).toBe(200);
