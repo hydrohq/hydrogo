@@ -95,17 +95,25 @@ func (s *UserStore) PutRecoveryCode(ctx context.Context, tx database.Executor, u
 	if err != nil {
 		return err
 	}
-	query := `INSERT INTO mfa_recovery_codes (id, user_id, code_hash, tenant_id) VALUES ($1, $2, $3, $4)`
+	query := `INSERT INTO mfa_recovery_codes (id, user_id, code_hash, tenant_id) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET code_hash = EXCLUDED.code_hash, used_at = NULL, tenant_id = EXCLUDED.tenant_id`
 	args := []any{id, userID, codeHash, tenantID}
 	if !s.RequireTenantScope {
-		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES ($1, $2, $3)`
+		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET code_hash = EXCLUDED.code_hash, used_at = NULL`
 		args = args[:3]
 	}
-	if s.dialect == database.SQLite || s.dialect == database.MySQL {
-		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES (?, ?, ?)`
+	if s.dialect == database.SQLite {
+		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET code_hash = excluded.code_hash, used_at = NULL`
 		args = []any{id, userID, codeHash}
 		if s.RequireTenantScope {
-			query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash, tenant_id) VALUES (?, ?, ?, ?)`
+			query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash, tenant_id) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET code_hash = excluded.code_hash, used_at = NULL, tenant_id = excluded.tenant_id`
+			args = append(args, tenantID)
+		}
+	}
+	if s.dialect == database.MySQL {
+		query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE code_hash = VALUES(code_hash), used_at = NULL`
+		args = []any{id, userID, codeHash}
+		if s.RequireTenantScope {
+			query = `INSERT INTO mfa_recovery_codes (id, user_id, code_hash, tenant_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE code_hash = VALUES(code_hash), used_at = NULL, tenant_id = VALUES(tenant_id)`
 			args = append(args, tenantID)
 		}
 	}

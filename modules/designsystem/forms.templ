@@ -98,6 +98,136 @@ templ PasswordResetForm(p PasswordResetFormProps) {
 	</html>
 }
 
+templ MFASettings(p MFASettingsProps) {
+	<section class="studio-card mfa-settings" data-mfa-settings data-locale={ p.Locale } aria-labelledby="mfa-settings-title">
+		<div>
+			if p.Locale == "en" {
+				<h2 id="mfa-settings-title" class="text-xl font-semibold">Authenticator app</h2>
+				<p>Protect this account with a time-based code. Keep the recovery codes somewhere separate from this device.</p>
+			} else {
+				<h2 id="mfa-settings-title" class="text-xl font-semibold">Authenticator uygulaması</h2>
+				<p>Hesabınızı süreli doğrulama koduyla koruyun. Kurtarma kodlarını bu cihazdan ayrı bir yerde saklayın.</p>
+			}
+		</div>
+		<div data-mfa-state>
+			if !p.StatusLoaded {
+				<p role="status">{ mfaText(p.Locale, "status_error") }</p>
+			} else if p.Enabled {
+				<p role="status" class="mb-3">{ mfaText(p.Locale, "enabled") }</p>
+				if p.Available {
+					<form method="post" action="/auth/me/mfa/disable" data-mfa-disable class="studio-form">
+						<input type="hidden" name="_csrf" value={ p.CSRF } />
+						<label class="studio-form-field"><span>{ mfaText(p.Locale, "code_label") }</span><input type="text" name="code" inputmode="text" autocapitalize="characters" spellcheck="false" autocomplete="one-time-code" required aria-label={ mfaText(p.Locale, "code_label") } /></label>
+						<button class="button button-quiet" type="submit" data-mfa-submit>{ mfaText(p.Locale, "disable") }</button>
+					</form>
+				} else {
+					<p>{ mfaText(p.Locale, "unavailable_enabled") }</p>
+				}
+			} else if p.Available {
+				<form method="post" action="/auth/me/mfa/enroll" data-mfa-enroll>
+					<input type="hidden" name="_csrf" value={ p.CSRF } />
+					<button class="button button-primary" type="submit" data-mfa-submit>{ mfaText(p.Locale, "setup") }</button>
+				</form>
+			} else {
+				<p role="status">{ mfaText(p.Locale, "unavailable_setup") }</p>
+			}
+		</div>
+		<div data-mfa-enrollment hidden>
+			<div>
+				<h3 class="font-semibold">{ mfaText(p.Locale, "connect") }</h3>
+				<p>{ mfaText(p.Locale, "connect_help") }</p>
+				<label class="studio-form-field"><span>{ mfaText(p.Locale, "secret") }</span><input readonly data-mfa-secret aria-label={ mfaText(p.Locale, "secret_label") } /></label>
+				<a class="underline underline-offset-4" data-mfa-provisioning target="_blank" rel="noopener noreferrer">{ mfaText(p.Locale, "provisioning") }</a>
+			</div>
+			<div data-mfa-recovery-section>
+				<h3 class="font-semibold">{ mfaText(p.Locale, "recovery_title") }</h3>
+				<p>{ mfaText(p.Locale, "recovery_help") }</p>
+				<ul data-mfa-recovery-codes></ul>
+				<button type="button" class="button button-quiet" data-mfa-copy>{ mfaText(p.Locale, "copy") }</button>
+				<label class="flex items-start gap-2"><input type="checkbox" data-mfa-recovery-saved required /><span>{ mfaText(p.Locale, "saved") }</span></label>
+			</div>
+			<form method="post" action="/auth/me/mfa/enable" data-mfa-enable class="studio-form">
+				<input type="hidden" name="_csrf" value={ p.CSRF } />
+			<label class="studio-form-field"><span>{ mfaText(p.Locale, "verify") }</span><input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required aria-label={ mfaText(p.Locale, "verify") } /></label>
+			<button class="button button-primary" type="submit" data-mfa-submit disabled>{ mfaText(p.Locale, "enable") }</button>
+			</form>
+		</div>
+		<p class="min-h-6" role="status" aria-live="polite" data-mfa-message></p>
+		<noscript>
+			if p.Locale == "en" {
+				<p>JavaScript is required to display the one-time setup details securely.</p>
+			} else {
+				<p>Tek kullanımlık kurulum bilgilerini güvenli biçimde göstermek için JavaScript açık olmalıdır.</p>
+			}
+		</noscript>
+		<script>
+			const initializeMFASettings = () => {
+				const root = document.querySelector("[data-mfa-settings]");
+				if (!root || root.dataset.initialized === "true") return;
+				root.dataset.initialized = "true";
+				const message = root.querySelector("[data-mfa-message]");
+				const csrf = () => decodeURIComponent((document.cookie.match(/(?:^|; )hydro_csrf=([^;]+)/) || [])[1] || "");
+				const copy = async value => {
+					if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(value);
+					const field = document.createElement("textarea"); field.value = value; field.setAttribute("readonly", ""); field.style.position = "fixed"; field.style.opacity = "0"; document.body.append(field); field.select();
+					const copied = document.execCommand("copy"); field.remove(); if (!copied) throw new Error("copy");
+				};
+				const english = root.dataset.locale === "en";
+				const messages = english ? {
+					invalid: "The code is incorrect. Check the latest code and try again.", rate: "Too many attempts. Wait a moment and try again.", conflict: "MFA is already enabled. Refresh this page to see its current status.", forbidden: "Your session or permission has expired. Sign in again and retry.", generic: "The request could not be completed. Try again.", network: "Connection problem. Check your network and retry.", working: "Working…", enrolled: "Setup details are ready. Save your recovery codes before enabling MFA.", saved: "Save the recovery codes before continuing.", enabled: "MFA is enabled. Refreshing account security…", copied: "Recovery codes copied.", copyError: "Copy failed. Select the codes and copy them manually."
+				} : {
+					invalid: "Kod geçersiz. Güncel kodu kontrol edip yeniden deneyin.", rate: "Çok fazla deneme yapıldı. Biraz bekleyip yeniden deneyin.", conflict: "MFA zaten açık. Güncel durumu görmek için sayfayı yenileyin.", forbidden: "Oturum veya yetki süresi doldu. Yeniden giriş yapıp tekrar deneyin.", generic: "İşlem tamamlanamadı. Yeniden deneyin.", network: "Bağlantı sorunu oluştu. Ağınızı kontrol edip yeniden deneyin.", working: "İşlem sürüyor…", enrolled: "Kurulum bilgileri hazır. MFA'yı açmadan önce kurtarma kodlarınızı kaydedin.", saved: "Devam etmeden önce kurtarma kodlarını kaydedin.", enabled: "MFA açıldı. Hesap güvenliği yenileniyor…", copied: "Kurtarma kodları kopyalandı.", copyError: "Kopyalama başarısız oldu. Kodları seçip elle kopyalayın."
+				};
+				const errorText = status => {
+					if (status === 401) return messages.invalid;
+					if (status === 429) return messages.rate;
+					if (status === 409) return messages.conflict;
+					if (status === 403) return messages.forbidden;
+					return messages.generic;
+				};
+				const submit = async (form, onSuccess) => {
+					const button = form.querySelector("[data-mfa-submit]"); if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
+					message.setAttribute("role", "status"); message.textContent = messages.working;
+					try {
+						const body = new URLSearchParams();
+						for (const [key, value] of new FormData(form)) if (typeof value === "string") body.append(key, value);
+						const response = await fetch(form.action, { method: "POST", body, credentials: "same-origin", headers: { "X-CSRF-Token": csrf(), "Accept": "application/json" } });
+						if (!response.ok) { message.setAttribute("role", "alert"); message.textContent = errorText(response.status); return; }
+						await onSuccess(response);
+				} catch (_) { message.setAttribute("role", "alert"); message.textContent = messages.network; }
+					finally { if (button) { button.disabled = false; button.removeAttribute("aria-busy"); } }
+				};
+				const enroll = root.querySelector("[data-mfa-enroll]");
+				if (enroll) enroll.addEventListener("submit", event => { event.preventDefault(); submit(enroll, async response => {
+					const data = await response.json();
+					if (!data.Secret || !data.Provisioning || !Array.isArray(data.RecoveryCodes)) throw new Error("enrollment");
+					root.querySelector("[data-mfa-enrollment]").hidden = false;
+					root.querySelector("[data-mfa-state]").hidden = true;
+					root.querySelector("[data-mfa-secret]").value = data.Secret;
+					const provisioning = new URL(data.Provisioning, location.href);
+					if (provisioning.protocol !== "otpauth:") throw new Error("provisioning URI");
+					const link = root.querySelector("[data-mfa-provisioning]"); link.href = provisioning.href;
+					const list = root.querySelector("[data-mfa-recovery-codes]"); list.replaceChildren();
+					for (const code of data.RecoveryCodes) { const item = document.createElement("li"); item.textContent = code; list.append(item); }
+					message.textContent = messages.enrolled;
+				}); });
+				const enable = root.querySelector("[data-mfa-enable]");
+				if (enable) {
+					const saved = root.querySelector("[data-mfa-recovery-saved]"), button = enable.querySelector("[data-mfa-submit]");
+					saved.addEventListener("change", () => { button.disabled = !saved.checked; });
+					enable.addEventListener("submit", event => { event.preventDefault(); if (!saved.checked) { message.textContent = messages.saved; return; } submit(enable, async () => { message.textContent = messages.enabled; window.location.reload(); }); });
+				}
+				const disable = root.querySelector("[data-mfa-disable]");
+				if (disable) disable.addEventListener("submit", event => { event.preventDefault(); submit(disable, async () => window.location.reload()); });
+				const copyButton = root.querySelector("[data-mfa-copy]");
+				if (copyButton) copyButton.addEventListener("click", async () => { const codes = [...root.querySelectorAll("[data-mfa-recovery-codes] li")].map(item => item.textContent).join("\n"); try { await copy(codes); message.textContent = messages.copied; } catch (_) { message.textContent = messages.copyError; } });
+			};
+			if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeMFASettings, { once: true });
+			else initializeMFASettings();
+		</script>
+	</section>
+}
+
 templ InviteAcceptForm(p InviteAcceptFormProps) {
 	<html lang={ inviteAcceptLocale(p.Locale) }>
 		<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{ inviteAcceptTitle(p.Locale) }</title><link rel="stylesheet" href="/designsystem/static/designsystem.css"/></head>

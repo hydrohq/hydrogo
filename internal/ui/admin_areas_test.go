@@ -193,14 +193,22 @@ func TestAdminPermissionCatalogEscapesEditionNames(t *testing.T) {
 
 func TestRenderAdminAccountEnglishLocaleSelector(t *testing.T) {
 	var out bytes.Buffer
-	if err := RenderAdminArea(&out, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account", Locale: "en", SoundAlertsEnabled: true}); err != nil {
+	if err := RenderAdminArea(&out, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "account", Locale: "en", SoundAlertsEnabled: true, MFAAvailable: true, MFAStatusLoaded: true}); err != nil {
 		t.Fatalf("RenderAdminArea(account) error = %v", err)
 	}
 	markup := out.String()
-	for _, want := range []string{`lang="en"`, "The operation could not be completed.", "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`, `data-password-strength`, `data-password-meter`, `data-password-feedback`, `data-sound-alert-preference`, "Play a sound for new inquiries"} {
+	for _, want := range []string{`lang="en"`, "The operation could not be completed.", "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`, `data-password-strength`, `data-password-meter`, `data-password-feedback`, `data-sound-alert-preference`, "Play a sound for new inquiries", `data-mfa-settings`, "Set up authenticator"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("English account markup missing %q", want)
 		}
+	}
+}
+
+func TestAdminTourReadsRoleAfterDOMIsReady(t *testing.T) {
+	roleRead := strings.Index(AdminTourJS, "const role = document.body?.dataset.studioRole")
+	initializer := strings.Index(AdminTourJS, "function initTour()")
+	if roleRead < 0 || initializer < 0 || roleRead < initializer {
+		t.Fatal("admin onboarding tour must read the body role from its DOM-ready initializer")
 	}
 }
 
@@ -451,7 +459,7 @@ func TestWorkbenchFamilyIsFullyRemoved(t *testing.T) {
 		t.Fatal("rendered admin shell still mentions workbench - it must be fully removed (ADR-0341)")
 	}
 	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account"}); err != nil {
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "account"}); err != nil {
 		t.Fatalf("render account area: %v", err)
 	}
 	if strings.Contains(strings.ToLower(account.String()), "workbench") {
@@ -566,7 +574,7 @@ func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
 	// The family selector itself lives on the account settings page, not the
 	// shared shell (moved out of the header per customer feedback).
 	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account"}); err != nil {
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "account"}); err != nil {
 		t.Fatalf("render account area: %v", err)
 	}
 	for _, want := range []string{
@@ -613,7 +621,7 @@ func TestAdminShellIncludesAuroraThemeMode(t *testing.T) {
 	}
 
 	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "account"}); err != nil {
+	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "account"}); err != nil {
 		t.Fatalf("render account area: %v", err)
 	}
 	if !strings.Contains(account.String(), `<option value="aurora">Aurora</option>`) {
@@ -656,7 +664,7 @@ func TestAuroraModeDoesNotShareSemanticMarkupContract(t *testing.T) {
 
 func TestAdminControlDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	var out bytes.Buffer
-	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test",  CSRF: "csrf"}); err != nil {
+	if err := RenderAdminControl(&out, AdminControlData{Email: "admin@example.test", CSRF: "csrf"}); err != nil {
 		t.Fatal(err)
 	}
 	body := out.String()
@@ -690,7 +698,7 @@ func TestDeveloperTabsRendered(t *testing.T) {
 
 	// Verify security page also renders developer tabs
 	var secOut bytes.Buffer
-	if err := RenderAdminArea(&secOut, AdminAreaData{Email: "admin@example.test",  CSRF: "csrf", Area: "security"}); err != nil {
+	if err := RenderAdminArea(&secOut, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "security"}); err != nil {
 		t.Fatalf("RenderAdminArea(security) error = %v", err)
 	}
 	if !strings.Contains(secOut.String(), "studio-tabs-nav") || !strings.Contains(secOut.String(), `href="/admin/security" class="studio-tab-item is-active"`) {
@@ -699,7 +707,7 @@ func TestDeveloperTabsRendered(t *testing.T) {
 
 	// Verify control page also renders developer tabs
 	var ctrlOut bytes.Buffer
-	if err := RenderAdminControl(&ctrlOut, AdminControlData{Email: "admin@example.test",  CSRF: "csrf", Active: "control"}); err != nil {
+	if err := RenderAdminControl(&ctrlOut, AdminControlData{Email: "admin@example.test", CSRF: "csrf", Active: "control"}); err != nil {
 		t.Fatalf("RenderAdminControl error = %v", err)
 	}
 	for _, want := range []string{`data-invite-share-dialog`, `data-invite-share-message`, `data-invite-share-copy`, `dialog.showModal()`, `clipboard.writeText`} {

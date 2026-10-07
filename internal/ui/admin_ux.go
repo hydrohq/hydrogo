@@ -57,11 +57,11 @@ const AdminDevicePreviewJS = `(()=>{const getDialog=()=>document.querySelector('
 const AdminRealtimeChimeJS = `(()=>{if(!location.pathname.startsWith('/admin'))return;const key='hydro-inquiry-sound-v1',preference=document.querySelector('[data-sound-alert-preference]');const enabled=()=>{try{return localStorage.getItem(key)==='1'}catch(_){return false}};let audio=null,source=null,errors=0;const unlock=()=>{if(!enabled())return;try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;if(!audio)audio=new Audio();if(audio.state==='suspended')audio.resume().catch(()=>{})}catch(_){}};const play=()=>{if(!enabled())return;unlock();if(!audio||audio.state!=='running')return;const start=audio.currentTime;[880,1174].forEach((frequency,index)=>{const oscillator=audio.createOscillator(),gain=audio.createGain(),time=start+index*.12;oscillator.type='sine';oscillator.frequency.setValueAtTime(frequency,time);gain.gain.setValueAtTime(.0001,time);gain.gain.exponentialRampToValueAtTime(.08,time+.02);gain.gain.exponentialRampToValueAtTime(.0001,time+.22);oscillator.connect(gain);gain.connect(audio.destination);oscillator.start(time);oscillator.stop(time+.23)})};if(preference){preference.checked=enabled();preference.addEventListener('change',()=>{try{localStorage.setItem(key,preference.checked?'1':'0')}catch(_){}if(preference.checked)unlock()})}if(enabled()){document.addEventListener('pointerdown',unlock,{once:true});document.addEventListener('keydown',unlock,{once:true});try{source=new EventSource('/api/v1/realtime/subscriptions?topics=forms%3Asubmission_created');source.addEventListener('forms:submission_created',play);source.onopen=()=>{errors=0};source.onerror=()=>{if(++errors>=3||source.readyState===EventSource.CLOSED)source.close()}}catch(_){}}})();`
 
 const AdminTourJS = `(function(){
-	const role = document.body.dataset.studioRole || 'admin';
 	const dismissedKey = 'hydro-onboarding-dismissed';
-	const seenKey = 'hydro-tour-seen:' + role;
 
 	function initTour() {
+		const role = document.body?.dataset.studioRole || 'admin';
+		const seenKey = 'hydro-tour-seen:' + role;
 		const tour = document.querySelector('[data-onboarding-tour]');
 		if (!tour) return;
 		const dialog = tour.closest('.admin-ux-dialog');

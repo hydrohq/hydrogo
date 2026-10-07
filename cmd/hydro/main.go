@@ -3174,6 +3174,13 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		} else {
 			scope, _ := tenant.FromContext(r.Context())
 			areaData := ui.AdminAreaData{Email: user.Email, CSRF: security.CSRFTokenFromContext(r.Context()), Area: active, Locale: adminLocaleFromRequest(r), TenantID: scope.TenantID, LocaleSaved: r.URL.Query().Get("locale_saved") == "1", SoundAlertsEnabled: modules["realtime"] && modules["forms"], FontToolsEnabled: modules["pages"], EmailVerificationEnabled: smtpSender != nil, PasswordResetLinkEnabled: recoveryService != nil && cfg.HTTP.PublicOrigin != "", Permissions: authSvc.AvailablePermissions()}
+			if active == "account" {
+				areaData.MFAEnabled, err = mfaService.Enabled(r.Context(), db, user.ID)
+				areaData.MFAStatusLoaded = err == nil
+				keySize := len([]byte(cfg.Security.MFAMasterKey))
+				areaData.MFAAvailable = areaData.MFAStatusLoaded && (keySize == 16 || keySize == 24 || keySize == 32)
+				err = nil // Keep account settings available if the MFA status store is temporarily unavailable.
+			}
 			if active == "users" {
 				if repo, ok := any(userStore).(auth.UserAdminRepository); ok {
 					areaData.Users, err = repo.List(r.Context())
@@ -3197,7 +3204,17 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				}
 			}
 			if err == nil {
-				err = ui.RenderAdminArea(w, areaData)
+				if active == "account" {
+					var page bytes.Buffer
+					err = ui.RenderAdminArea(&page, areaData)
+					if err == nil {
+						w.Header().Set("Cache-Control", "private, no-store")
+						w.Header().Set("X-Hydro-Custom-CSP", security.InlineCSPDirectives(page.Bytes()))
+						_, err = w.Write(page.Bytes())
+					}
+				} else {
+					err = ui.RenderAdminArea(w, areaData)
+				}
 			}
 		}
 		if err != nil {

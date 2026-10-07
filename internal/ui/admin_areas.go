@@ -30,6 +30,9 @@ type AdminAreaData struct {
 	Users                    []*auth.User
 	EmailVerificationEnabled bool
 	PasswordResetLinkEnabled bool
+	MFAEnabled               bool
+	MFAAvailable             bool
+	MFAStatusLoaded          bool
 	Permissions              []string
 	IPBans                   []SecurityBanRow
 }
@@ -821,6 +824,9 @@ function testGraphQL(btn){
     <label class="studio-form-field"><span>%s</span><select id="ui-family-select" class="ui-family-select" aria-label="%s"><option value="hydrogo">HydroGo</option><option value="shadcn">shadcn</option><option value="nova">Nova</option><option value="aurora">Aurora</option></select></label>
   </div>
 		</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"), appearanceTitle, appearanceIntro, appearanceLabel, appearanceLabel)
+		if err := designsystem.MFASettings(designsystem.MFASettingsProps{CSRF: data.CSRF, Locale: data.Locale, Enabled: data.MFAEnabled, Available: data.MFAAvailable, StatusLoaded: data.MFAStatusLoaded}).Render(context.Background(), w); err != nil {
+			return err
+		}
 		soundTitle, soundLabel, soundDescription := "Bildirim sesleri", "Yeni taleplerde sesli uyarı ver", "Bu tercih yalnızca bu tarayıcıda saklanır ve varsayılan olarak kapalıdır."
 		if data.Locale == "en" {
 			soundTitle, soundLabel, soundDescription = "Notification sounds", "Play a sound for new inquiries", "This preference is stored in this browser and is off by default."

@@ -74,6 +74,43 @@ type PageLayoutPickerProps struct {
 
 type PasswordResetFormProps struct{ Token, CSRF, Locale, Error string }
 type InviteAcceptFormProps struct{ Token, CSRF, Locale, Error string }
+type MFASettingsProps struct {
+	CSRF, Locale                     string
+	Enabled, Available, StatusLoaded bool
+}
+
+var mfaEnglishText = map[string]string{
+	"status_error": "MFA status could not be loaded. Refresh the page to try again.", "enabled": "Multi-factor authentication is enabled for this account.",
+	"code_label": "Current authenticator or recovery code", "disable": "Turn off MFA", "unavailable_enabled": "MFA settings are unavailable. Contact your system administrator.",
+	"setup": "Set up authenticator", "unavailable_setup": "MFA setup is unavailable. Contact your system administrator.", "connect": "Connect your authenticator",
+	"connect_help": "Add the account using this setup key or provisioning link, then enter a current code to confirm.", "secret": "Setup key", "secret_label": "Authenticator setup key", "provisioning": "Open authenticator link",
+	"recovery_title": "Save your recovery codes", "recovery_help": "Each code works once. They will not be shown again after leaving this page.", "copy": "Copy recovery codes",
+	"saved": "I saved these codes somewhere safe.", "verify": "Verification code", "enable": "Confirm and enable", "working": "Working…",
+	"invalid": "The code is incorrect. Check the latest code and try again.", "rate": "Too many attempts. Wait a moment and try again.", "conflict": "MFA is already enabled. Refresh this page to see its current status.",
+	"forbidden": "Your session or permission has expired. Sign in again and retry.", "generic": "The request could not be completed. Try again.", "network": "Connection problem. Check your network and retry.",
+	"enrolled": "Setup details are ready. Save your recovery codes before enabling MFA.", "saved_required": "Save the recovery codes before continuing.", "enabled_reload": "MFA is enabled. Refreshing account security…",
+	"copied": "Recovery codes copied.", "copy_error": "Copy failed. Select the codes and copy them manually.",
+}
+
+var mfaTurkishText = map[string]string{
+	"status_error": "MFA durumu yüklenemedi. Yeniden denemek için sayfayı yenileyin.", "enabled": "Bu hesapta çok faktörlü doğrulama açık.",
+	"code_label": "Güncel doğrulama veya kurtarma kodu", "disable": "MFA'yı kapat", "unavailable_enabled": "MFA ayarları şu anda kullanılamıyor. Sistem yöneticinizle iletişime geçin.",
+	"setup": "Authenticator uygulamasını kur", "unavailable_setup": "MFA kurulumu şu anda kullanılamıyor. Sistem yöneticinizle iletişime geçin.", "connect": "Authenticator uygulamanızı bağlayın",
+	"connect_help": "Bu kurulum anahtarını veya bağlantısını kullanarak hesabı ekleyin. Ardından doğrulamak için güncel kodu girin.", "secret": "Kurulum anahtarı", "secret_label": "Authenticator kurulum anahtarı", "provisioning": "Authenticator bağlantısını aç",
+	"recovery_title": "Kurtarma kodlarınızı kaydedin", "recovery_help": "Her kod yalnızca bir kez kullanılabilir. Bu sayfadan ayrıldıktan sonra tekrar gösterilmez.", "copy": "Kurtarma kodlarını kopyala",
+	"saved": "Bu kodları güvenli bir yere kaydettim.", "verify": "Doğrulama kodu", "enable": "Doğrula ve etkinleştir", "working": "İşlem sürüyor…",
+	"invalid": "Kod geçersiz. Güncel kodu kontrol edip yeniden deneyin.", "rate": "Çok fazla deneme yapıldı. Biraz bekleyip yeniden deneyin.", "conflict": "MFA zaten açık. Güncel durumu görmek için sayfayı yenileyin.",
+	"forbidden": "Oturum veya yetki süresi doldu. Yeniden giriş yapıp tekrar deneyin.", "generic": "İşlem tamamlanamadı. Yeniden deneyin.", "network": "Bağlantı sorunu oluştu. Ağınızı kontrol edip yeniden deneyin.",
+	"enrolled": "Kurulum bilgileri hazır. MFA'yı açmadan önce kurtarma kodlarınızı kaydedin.", "saved_required": "Devam etmeden önce kurtarma kodlarını kaydedin.", "enabled_reload": "MFA açıldı. Hesap güvenliği yenileniyor…",
+	"copied": "Kurtarma kodları kopyalandı.", "copy_error": "Kopyalama başarısız oldu. Kodları seçip elle kopyalayın.",
+}
+
+func mfaText(locale, key string) string {
+	if locale == "en" {
+		return mfaEnglishText[key]
+	}
+	return mfaTurkishText[key]
+}
 
 func inviteAcceptError(locale, code string) string {
 	if locale == "tr" {

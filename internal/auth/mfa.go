@@ -18,9 +18,10 @@ import (
 )
 
 var (
-	ErrMFAInvalidCode   = errors.New("invalid MFA code")
-	ErrMFAUnavailable   = errors.New("MFA is unavailable")
-	ErrMFAStoreRequired = errors.New("MFA store is required")
+	ErrMFAInvalidCode    = errors.New("invalid MFA code")
+	ErrMFAUnavailable    = errors.New("MFA is unavailable")
+	ErrMFAStoreRequired  = errors.New("MFA store is required")
+	ErrMFAAlreadyEnabled = errors.New("MFA is already enabled")
 )
 
 type MFAStore interface {
@@ -67,6 +68,13 @@ func (s MFAService) Enroll(ctx context.Context, tx database.Executor, userID, ac
 	}
 	if len(s.MasterKey) != 16 && len(s.MasterKey) != 24 && len(s.MasterKey) != 32 {
 		return MFAEnrollment{}, ErrMFAUnavailable
+	}
+	_, enabled, err := s.Store.GetFactor(ctx, tx, userID)
+	if err != nil && !errors.Is(err, ErrMFAUnavailable) {
+		return MFAEnrollment{}, err
+	}
+	if enabled {
+		return MFAEnrollment{}, ErrMFAAlreadyEnabled
 	}
 	key, err := totp.Generate(totp.GenerateOpts{Issuer: "HydroGo", AccountName: accountName})
 	if err != nil {

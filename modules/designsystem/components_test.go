@@ -121,6 +121,27 @@ func TestPasswordResetFormKeepsTokenInPostBody(t *testing.T) {
 	}
 }
 
+func TestMFASettingsShowsLocalizedSetupAndSafeRecoveryWorkflow(t *testing.T) {
+	setup := render(t, MFASettings(MFASettingsProps{CSRF: "csrf-value", Locale: "tr", Available: true, StatusLoaded: true}))
+	for _, want := range []string{`data-mfa-settings`, `action="/auth/me/mfa/enroll"`, `name="_csrf" value="csrf-value"`, "Authenticator uygulamasını kur", "Her kod yalnızca bir kez kullanılabilir", `data-mfa-recovery-saved`, `action="/auth/me/mfa/enable"`, `data-mfa-message`, "JavaScript açık olmalıdır"} {
+		if !strings.Contains(setup, want) {
+			t.Fatalf("MFA setup UI missing %q: %s", want, setup)
+		}
+	}
+	if strings.Contains(setup, `value="seed-secret"`) || strings.Contains(setup, `>A1B2C3</li>`) {
+		t.Fatalf("MFA enrollment secrets must only render after a one-time enrollment response: %s", setup)
+	}
+	enabled := render(t, MFASettings(MFASettingsProps{CSRF: "csrf-value", Locale: "en", Enabled: true, Available: true, StatusLoaded: true}))
+	for _, want := range []string{`action="/auth/me/mfa/disable"`, `name="code"`, `autocomplete="one-time-code"`, "Current authenticator or recovery code", "Turn off MFA"} {
+		if !strings.Contains(enabled, want) {
+			t.Fatalf("enabled MFA UI missing %q: %s", want, enabled)
+		}
+	}
+	if strings.Contains(enabled, `action="/auth/me/mfa/enroll"`) {
+		t.Fatalf("enabled MFA must not offer re-enrollment: %s", enabled)
+	}
+}
+
 func TestViewCountBadgeFormatsAndLabelsCount(t *testing.T) {
 	got := render(t, ViewCountBadge(ViewCountBadgeProps{Count: 1249}))
 	if !strings.Contains(got, `aria-label="1249 views"`) || !strings.Contains(got, "1.2k") || !strings.Contains(got, "👁") {
