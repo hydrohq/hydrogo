@@ -54,7 +54,7 @@ type NoCookieAnalyticsRow struct {
 }
 
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
-	if err := adminStartLocaleRoleSupport(w, "Dashboard", "", data.Active, data.Locale, string(auth.RoleAdmin), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
+	if err := adminStartLocaleRoleSupport(w, "Dashboard", "", data.Active, data.Locale, string(auth.RoleAdmin), true, adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
 		return err
 	}
 	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
@@ -95,7 +95,7 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 }
 
 func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
-	if err := adminStartLocaleRoleSupport(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale, string(auth.RoleAdmin), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
+	if err := adminStartLocaleRoleSupport(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale, string(auth.RoleAdmin), true, adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
 		return err
 	}
 	if err := adminReportsKPIsTemplate.Execute(w, data); err != nil {

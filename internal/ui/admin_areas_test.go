@@ -90,6 +90,35 @@ func TestAdminShellAddsCollectionsNavigationOnlyForEnabledModuleAndAdmin(t *test
 	}
 }
 
+func TestAdminShellPageCreateActionFollowsContentWritePermission(t *testing.T) {
+	tests := []struct {
+		name    string
+		user    *auth.User
+		visible bool
+	}{
+		{name: "admin default", user: &auth.User{Role: auth.RoleAdmin, Active: true}, visible: true},
+		{name: "editor default", user: &auth.User{Role: auth.RoleEditor, Active: true}, visible: true},
+		{name: "viewer default", user: &auth.User{Role: auth.RoleViewer, Active: true}},
+		{name: "viewer allow override", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: true}}, visible: true},
+		{name: "editor deny override", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}}},
+		{name: "admin deny override", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest("GET", "/admin/pages", nil)
+			request = request.WithContext(auth.WithUser(request.Context(), tc.user))
+			var out bytes.Buffer
+			if err := AdminStartForRequest(&out, request, "Sayfalar", "", "pages"); err != nil {
+				t.Fatal(err)
+			}
+			got := strings.Contains(out.String(), `href="/admin/pages/new"`)
+			if got != tc.visible {
+				t.Fatalf("page create action visible = %t, want %t", got, tc.visible)
+			}
+		})
+	}
+}
+
 func TestAdminShellShowsMaintenanceBanner(t *testing.T) {
 	request := httptest.NewRequest("GET", "/admin", nil)
 	request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{MaintenanceActive: true}))
