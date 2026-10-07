@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess } from "node:child_process";
 import net from "node:net";
 import path from "node:path";
+import { spawnServer, stopServer } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 let server: ChildProcess | undefined;
@@ -11,7 +12,7 @@ test.describe("generated rich-text Edition Admin", () => {
   test.beforeAll(async () => {
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./tests/e2e/support/generatedrichtext"], {
+    server = spawnServer("go", ["run", "./tests/e2e/support/generatedrichtext"], {
       cwd: repoRoot,
       stdio: "ignore",
       env: { ...process.env, HYDRO_E2E_ADDRESS: `127.0.0.1:${port}` },
@@ -31,13 +32,7 @@ test.describe("generated rich-text Edition Admin", () => {
   }, 60_000);
 
   test.afterAll(async () => {
-    if (server && server.exitCode === null) {
-      server.kill("SIGTERM");
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 5_000);
-        server?.once("exit", () => { clearTimeout(timeout); resolve(); });
-      });
-    }
+    await stopServer(server);
   });
 
   test("Quill formats generated content and preserves it through API create/edit", async ({ page }) => {

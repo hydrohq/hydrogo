@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { spawn, execFileSync, type ChildProcess } from "node:child_process";
+import { execFileSync, type ChildProcess } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { spawnServer, stopServer } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
@@ -31,7 +32,7 @@ test.describe("dynamic Admin collections", () => {
     execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--config", configPath, "--address", `127.0.0.1:${port}`], {
+    server = spawnServer("go", ["run", "./cmd/hydro", "serve", "--dev", "--config", configPath, "--address", `127.0.0.1:${port}`], {
       cwd: repoRoot,
       stdio: "ignore",
       env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media") },
@@ -51,13 +52,7 @@ test.describe("dynamic Admin collections", () => {
   }, 60_000);
 
   test.afterAll(async () => {
-    if (server && server.exitCode === null) {
-      server.kill("SIGTERM");
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 5_000);
-        server?.once("exit", () => { clearTimeout(timeout); resolve(); });
-      });
-    }
+    await stopServer(server);
     if (tempDir) await rm(tempDir, { recursive: true, force: true });
   });
 
