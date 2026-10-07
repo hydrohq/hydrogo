@@ -1,6 +1,6 @@
 # ADR-0287: Dynamic collections on static, certified storage
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-28
 - **Related decisions:** [ADR-0020](0020-headless-first-admin-studio-and-frontend-templates.md), [ADR-0069](0069-optional-module-lifecycle-contracts.md), [ADR-0080](0080-profile-pool-transaction-contract.md), [ADR-0134](0134-site-module-business-capability-boundary.md)
 
@@ -61,6 +61,7 @@ size to keep validation and writes bounded.
 
 ## Acceptance gates
 
-This proposal becomes accepted after the SQLite/PostgreSQL contract suite,
-generated Templ Admin Studio screens, API authorization checks, relation and
-unique-value concurrency tests, and module-inactive migration/route checks pass.
+Accepted 2026-10-07 after the SQLite/PostgreSQL contract suite, generated
+Templ Admin Studio screens, API authorization checks, relation and unique-value
+concurrency tests, and module-inactive migration/route checks passed. Evidence:
+[`dynamic-collections-admin-2026-10-07.md`](../validation/dynamic-collections-admin-2026-10-07.md).

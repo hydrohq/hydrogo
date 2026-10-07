@@ -120,6 +120,10 @@ func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 		{name: "news_taxonomy_terms", want: false},
 		{name: "news_taxonomy_relations", want: false},
 		{name: "sectoral_portfolio_tags", want: false},
+		{name: "hydro_collections", want: false},
+		{name: "hydro_collection_records", want: false},
+		{name: "hydro_collection_unique", want: false},
+		{name: "hydro_collection_relations", want: false},
 	} {
 		var count int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table.name).Scan(&count); err != nil {
@@ -132,6 +136,27 @@ func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 
 	if err := database.CheckCompatibilityForModules(ctx, db, database.SQLite, migrations.FS, enabled); err != nil {
 		t.Fatalf("filtered compatibility check failed: %v", err)
+	}
+}
+
+func TestSQLiteCollectionsMigrationIsOptIn(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "collections-module.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"collections": true}); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"hydro_collections", "hydro_collection_records", "hydro_collection_unique", "hydro_collection_relations"} {
+		var count int
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 1 {
+			t.Fatalf("enabled collections table %q exists=%v, want true", table, count == 1)
+		}
 	}
 }
 
