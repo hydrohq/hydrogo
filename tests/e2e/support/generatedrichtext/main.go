@@ -17,7 +17,7 @@ import (
 
 func main() {
 	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{
-		ID: "article", Label: "Articles", Group: "Content", TitleField: "title",
+		ID: "article", Label: "Articles", Group: "Content", TitleField: "title", Versioned: true,
 		Fields: []adminstudio.Field{
 			{ID: "title", Label: "Title", Kind: adminstudio.FieldText, Required: true, VisibleInList: true},
 			{ID: "body", Label: "Article body", Kind: adminstudio.FieldText, Widget: "richtext"},
@@ -41,9 +41,12 @@ func main() {
 				}
 				id, _ := record["id"].(string)
 				if id == "" {
+					mu.Lock()
 					id = "article-" + fmt.Sprint(len(records)+1)
+					mu.Unlock()
 				}
 				record["id"] = id
+				record["version"] = float64(1)
 				mu.Lock()
 				records[id] = record
 				mu.Unlock()
@@ -93,6 +96,18 @@ func main() {
 				writeJSON(w, http.StatusCreated, clone(record))
 				return
 			}
+			current, exists := records[id]
+			if !exists {
+				writeError(w, http.StatusNotFound)
+				return
+			}
+			expectedVersion, _ := record["version"].(float64)
+			currentVersion, _ := current["version"].(float64)
+			if expectedVersion != currentVersion {
+				writeError(w, http.StatusConflict)
+				return
+			}
+			record["version"] = currentVersion + 1
 			record["id"] = id
 			records[id] = record
 			writeJSON(w, http.StatusOK, clone(record))

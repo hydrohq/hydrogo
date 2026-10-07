@@ -59,7 +59,9 @@ test.describe("generated rich-text Edition Admin", () => {
 
     await form.getByRole("button", { name: "Kaydet" }).click();
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
-    await page.getByRole("link", { name: "Generated rich text article" }).click();
+    const recordURL = await page.getByRole("link", { name: "Generated rich text article" }).getAttribute("href");
+    expect(recordURL).toBeTruthy();
+    await page.goto(new URL(recordURL!, baseURL).toString());
     const editForm = page.locator('form[action^="/admin/resources/article/"]');
     const restoredEditor = page.getByRole("textbox", { name: "Article body" });
     await expect(restoredEditor.locator("strong")).toHaveText("A formatted generated article.");
@@ -74,6 +76,33 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
     await page.getByRole("link", { name: "Generated rich text article" }).click();
     await expect(page.getByRole("textbox", { name: "Article body" }).locator("strong")).toHaveText("An updated formatted article.");
+  });
+
+  test("a stale generated edit gets a conflict and keeps the latest saved value", async ({ browser }) => {
+    const context = await browser.newContext();
+    const first = await context.newPage();
+    await first.goto(`${baseURL}/admin/resources/article/new`);
+    const createForm = first.locator('form[action="/admin/resources/article/new"]');
+    await createForm.getByLabel("Title").fill("Concurrent generated article");
+    await createForm.getByRole("button", { name: "Kaydet" }).click();
+    await expect(first).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
+    const recordURL = await first.getByRole("link", { name: "Concurrent generated article" }).getAttribute("href");
+    expect(recordURL).toBeTruthy();
+
+    const second = await context.newPage();
+    await Promise.all([first.goto(new URL(recordURL!, baseURL).toString()), second.goto(new URL(recordURL!, baseURL).toString())]);
+    const firstForm = first.locator('form[action^="/admin/resources/article/"]');
+    const secondForm = second.locator('form[action^="/admin/resources/article/"]');
+    await firstForm.getByLabel("Title").fill("Latest generated title");
+    await firstForm.getByRole("button", { name: "Kaydet" }).click();
+    await expect(first).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
+
+    await secondForm.getByLabel("Title").fill("Stale generated title");
+    await secondForm.getByRole("button", { name: "Kaydet" }).click();
+    await expect(second.locator("body")).toContainText("Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.");
+    await second.goto(new URL(recordURL!, baseURL).toString());
+    await expect(secondForm.getByLabel("Title")).toHaveValue("Latest generated title");
+    await context.close();
   });
 });
 
