@@ -678,7 +678,7 @@ function testGraphQL(btn){
 			_, _ = fmt.Fprintf(w, `<tr><td colspan="4">%s</td></tr>`, emptyText)
 		}
 		for _, u := range data.Users {
-			roleOptions := fmt.Sprintf(`<select name="role"><option value="admin"%s>Admin</option><option value="editor"%s>Editor</option><option value="viewer"%s>Viewer</option></select>`, selectedLocale(string(u.Role), "admin"), selectedLocale(string(u.Role), "editor"), selectedLocale(string(u.Role), "viewer"))
+			roleOptions := fmt.Sprintf(`<select name="role" aria-label="%s · %s"><option value="admin"%s>Admin</option><option value="editor"%s>Editor</option><option value="viewer"%s>Viewer</option></select>`, template.HTMLEscapeString(u.Email), roleLabel, selectedLocale(string(u.Role), "admin"), selectedLocale(string(u.Role), "editor"), selectedLocale(string(u.Role), "viewer"))
 			permissionControls := ""
 			permissions := data.Permissions
 			if len(permissions) == 0 {

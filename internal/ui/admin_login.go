@@ -36,8 +36,8 @@ const AdminLoginCSS = `
 	--brand-accent: #38bdf8;
 	--brand-glow: rgba(14, 165, 233, 0.22);
 
-	--btn-primary-bg: #0ea5e9;
-	--btn-primary-hover: #38bdf8;
+	--btn-primary-bg: #0369a1;
+	--btn-primary-hover: #075985;
 	--btn-primary-text: #ffffff;
 
 	--btn-secondary-bg: #121620;
@@ -105,8 +105,8 @@ html[data-theme="dark"] {
 	--brand-accent: #38bdf8;
 	--brand-glow: rgba(14, 165, 233, 0.22);
 
-	--btn-primary-bg: #0ea5e9;
-	--btn-primary-hover: #38bdf8;
+	--btn-primary-bg: #0369a1;
+	--btn-primary-hover: #075985;
 	--btn-primary-text: #ffffff;
 
 	--btn-secondary-bg: #121620;

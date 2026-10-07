@@ -100,6 +100,7 @@ test.describe("single Edition administrator management", () => {
   });
 
   test("admin login opens the Edition management areas and rejects anonymous access", async ({ page, browser }) => {
+    test.setTimeout(90_000);
     const denied = await page.request.get(`${baseURL}/admin/users`, { maxRedirects: 0 });
     expect([401, 302, 303]).toContain(denied.status());
     if (denied.status() !== 401) expect(denied.headers().location).toContain("/login");
@@ -113,6 +114,17 @@ test.describe("single Edition administrator management", () => {
       expect(csp).toContain(`'${hash}'`);
       expect(csp).toContain(kind === "script" ? "script-src" : "style-src");
     }
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.reload();
+    const loginA11y = await page.evaluate(async () => (window as any).axe.run(document, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+    }));
+    expect(loginA11y.violations.map((violation: any) => ({
+      id: violation.id,
+      impact: violation.impact,
+      description: violation.description,
+      nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+    })), "admin login WCAG 2.1 A/AA violations").toEqual([]);
     await page.getByLabel("Email address").fill("admin@example.test");
     await page.getByLabel("Password").fill(adminPassword);
     await page.getByRole("button", { name: "Sign in" }).click();
@@ -122,6 +134,10 @@ test.describe("single Edition administrator management", () => {
     await expect(page.locator("h1")).toBeVisible();
 
     for (const route of [
+      "/admin",
+      "/admin/pages/new",
+      "/admin/news/new",
+      "/admin/media",
       "/admin/users",
       "/admin/permissions",
       "/admin/security",
@@ -136,6 +152,16 @@ test.describe("single Edition administrator management", () => {
       const response = await page.goto(`${baseURL}${route}`);
       expect(response?.status(), `${route} should be available to the Edition admin`).toBe(200);
       await expect(page.locator("h1").first()).toBeVisible();
+
+      const a11y = await page.evaluate(async () => (window as any).axe.run(document, {
+        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+      }));
+      expect(a11y.violations.map((violation: any) => ({
+        id: violation.id,
+        impact: violation.impact,
+        description: violation.description,
+        nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+      })), `${route} WCAG 2.1 A/AA violations`).toEqual([]);
 
       const unnamedControls = await page.locator('a,button,input:not([type="hidden"]),select,textarea,[role="button"],[contenteditable="true"]').evaluateAll((elements) =>
         elements.filter((element) => {

@@ -111,7 +111,7 @@ func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 		return err
 	}
 	if len(data.ContentViews) > 0 {
-		if _, err := io.WriteString(w, `<section class="studio-card"><h2>Consentli içerik görüntülenmeleri</h2><div class="table-wrap"><table><thead><tr><th>Gün</th><th>Tür</th><th>İçerik</th><th>Dil</th><th>Görüntülenme</th></tr></thead><tbody>`); err != nil {
+		if _, err := io.WriteString(w, `<section class="studio-card"><h2>Consentli içerik görüntülenmeleri</h2><div class="table-wrap" role="region" aria-label="Consentli içerik görüntülenmeleri" tabindex="0"><table><thead><tr><th>Gün</th><th>Tür</th><th>İçerik</th><th>Dil</th><th>Görüntülenme</th></tr></thead><tbody>`); err != nil {
 			return err
 		}
 		for _, row := range data.ContentViews {
@@ -348,7 +348,7 @@ var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths")
 			</div>
 			<span class="muted">Görüntülenmeye göre sıralı</span>
 		</div>
-		<div class="table-wrap">
+		<div class="table-wrap" role="region" aria-label="En çok görüntülenen rotalar" tabindex="0">
 			<table>
 				<thead>
 					<tr>
@@ -386,7 +386,7 @@ var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths")
 			</div>
 			<span class="muted">Hata sayısına göre sıralı</span>
 		</div>
-		<div class="table-wrap">
+		<div class="table-wrap" role="region" aria-label="En çok hata alan rotalar" tabindex="0">
 			<table>
 				<thead>
 					<tr>
@@ -429,7 +429,7 @@ var adminReportsPathTemplate = template.Must(template.New("admin-reports-paths")
 		<label>Rota ara <input id="report-path-filter" type="search" placeholder="/public, /shop, /member…"></label>
 		<label>Göster <select id="report-kind-filter"><option value="all">Tümü</option><option value="views">Görüntülenme Olanlar</option><option value="errors">Hata Alanlar</option></select></label>
 	</div>
-	<div class="table-wrap">
+	<div class="table-wrap" role="region" aria-label="Tüm rotalar ve performans analizi" tabindex="0">
 		<table id="report-path-table">
 			<thead>
 				<tr>
