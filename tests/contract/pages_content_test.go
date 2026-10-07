@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -136,7 +137,7 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 
 func placeholderForTest(dialect database.Dialect, position int) string {
 	if dialect == database.Postgres {
-		return "$1"
+		return "$" + strconv.Itoa(position)
 	}
 	return "?"
 }
