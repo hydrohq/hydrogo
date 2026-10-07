@@ -81,6 +81,12 @@ go run ./tools/importguard -root examples/construction-edition
   ve açık/koyu mod birleşimlerinde axe-core taramasından geçirildi: **8/8
   geçti**. Form kontrolü responsive Chromium akışında da yer alır; diğer Admin
   rotaları ve public sayfaların tüm tema/mod birleşimleri hâlâ kapsam dışıdır.
+- Güvenlik takibinde editor/viewer oturumlarıyla medya liste erişimi denendi;
+  yönetici `media.manage` iznini editörden kaldırınca yeni oturum `/admin/media`
+  rotasından 403 alıyor, izin geri alındığında eski oturum iptal ediliyor.
+  Tekil Chromium rol akışı **1/1** geçti. Medya handler'ları artık aynı
+  `auth.Can` kontrolünü kullanır; izin reddi sunucu bileşeni eksikliğinden ayrı
+  olarak 403 döndürülür.
 
 2026-10-07 takip koşusunda `admin-management.spec.ts`, mevcut admin storage
 state'i yeniden kullanarak 15 yönetim rotasının hem 390px hem 768px viewport'ta

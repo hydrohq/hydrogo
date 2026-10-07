@@ -69,7 +69,9 @@ test.describe("single Edition administrator management", () => {
         expect(allowed?.status()).toBe(200);
         await expect(page.locator(`body[data-studio-role="${account.expectedRole}"]`)).toBeVisible();
         await expect(page.locator('.studio-sidebar a[href="/admin/pages"]')).toBeVisible();
+        expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(200);
         const createForm = page.locator('form[action="/admin/pages"]');
+        await page.goto(`${baseURL}${account.allowedPath}`);
         await createForm.locator('[name="slug"]').fill("role-editor-page");
         await createForm.locator('[name="title"]').fill("Editor session page");
         await createForm.locator(".richtext-editor [contenteditable=true]").fill("Created by an authenticated Edition editor.");
@@ -77,6 +79,7 @@ test.describe("single Edition administrator management", () => {
         await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
       } else {
         expect(allowed?.status()).toBe(403);
+        expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
       }
 
       if (account.expectedRole === "editor") {
@@ -323,6 +326,31 @@ test.describe("single Edition administrator management", () => {
     expect(restoreRole.status()).toBe(204);
     await page.reload();
     await expect(editorRow.locator('[name="role"]')).toHaveValue("editor");
+
+    const denyMediaToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
+    const denyMedia = await page.request.post(new URL(permissionAction!, baseURL).href, {
+      form: { _csrf: denyMediaToken, "perm_admin.media.manage": "deny" },
+    });
+    expect(denyMedia.status()).toBe(204);
+    await page.reload();
+    await expect(editorRow.locator('[name="perm_admin.media.manage"]')).toHaveValue("deny");
+
+    const mediaRestrictedContext = await browser.newContext();
+    const mediaRestrictedEditor = await mediaRestrictedContext.newPage();
+    await mediaRestrictedEditor.goto(`${baseURL}/login`);
+    await mediaRestrictedEditor.getByLabel("Email address").fill("editor@example.test");
+    await mediaRestrictedEditor.getByLabel("Password").fill(adminPassword);
+    await mediaRestrictedEditor.getByRole("button", { name: "Sign in" }).click();
+    expect((await mediaRestrictedEditor.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
+    const restoreMediaToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
+    const restoreMedia = await page.request.post(new URL(permissionAction!, baseURL).href, {
+      form: { _csrf: restoreMediaToken, "perm_admin.media.manage": "inherit" },
+    });
+    expect(restoreMedia.status()).toBe(204);
+    await page.reload();
+    await expect(editorRow.locator('[name="perm_admin.media.manage"]')).toHaveValue("inherit");
+    expect((await mediaRestrictedEditor.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    await mediaRestrictedContext.close();
 
     const editorResponse = await page.goto(`${baseURL}/admin/pages/new`);
     await expect(page.getByRole("group", { name: "Sayfa düzeni" })).toBeVisible();
