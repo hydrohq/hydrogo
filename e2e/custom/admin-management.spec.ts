@@ -66,6 +66,9 @@ test.describe("single Edition administrator management", () => {
       if (account.expectedRole === "viewer") viewerStorageState = await context.storageState();
 
       const allowed = await page.goto(`${baseURL}${account.allowedPath}`);
+      const accountSettings = await page.goto(`${baseURL}/admin/account`);
+      expect(accountSettings?.status()).toBe(200);
+      await expect(page.locator(`body[data-studio-role="${account.expectedRole}"]`)).toBeVisible();
       if (account.expectedRole === "editor") {
         expect(allowed?.status()).toBe(200);
         await expect(page.locator(`body[data-studio-role="${account.expectedRole}"]`)).toBeVisible();

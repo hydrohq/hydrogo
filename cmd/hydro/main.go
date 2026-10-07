@@ -2990,7 +2990,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	routes = append(routes, router.Route{Pattern: "GET /admin/backup", Access: router.Protected, Handler: adminBackupHandler}, router.Route{Pattern: "POST /admin/backup", Access: router.Protected, Handler: adminBackupHandler})
 	routes = append(routes, router.Route{Pattern: "POST /admin/account/locale", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
-		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		if user == nil || !user.Active {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -4862,6 +4862,9 @@ func adminControlRoutePatterns(enabled map[string]bool) []string {
 }
 
 func adminControlAllowed(user *auth.User, path string) bool {
+	if path == "/admin/account" {
+		return user != nil && user.Active
+	}
 	if path == "/admin/site" {
 		return auth.Can(user, auth.PermissionSiteManage)
 	}
