@@ -168,6 +168,27 @@ test.describe("single Edition administrator management", () => {
     await page.reload();
     await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("allow");
 
+    const roleForm = editorRow.locator('form[action$="/role"]');
+    const roleToken = await roleForm.locator('[name="_csrf"]').inputValue();
+    const roleAction = await roleForm.getAttribute("action");
+    expect(roleAction).toBeTruthy();
+    const roleUpdate = await page.request.post(new URL(roleAction!, baseURL).href, {
+      form: { _csrf: roleToken, role: "viewer" },
+    });
+    expect(roleUpdate.status()).toBe(204);
+    await page.reload();
+    await expect(editorRow.locator('[name="role"]')).toHaveValue("viewer");
+
+    const restoreRoleForm = editorRow.locator('form[action$="/role"]');
+    const restoreRoleToken = await restoreRoleForm.locator('[name="_csrf"]').inputValue();
+    const restoreRoleAction = await restoreRoleForm.getAttribute("action");
+    const restoreRole = await page.request.post(new URL(restoreRoleAction!, baseURL).href, {
+      form: { _csrf: restoreRoleToken, role: "editor" },
+    });
+    expect(restoreRole.status()).toBe(204);
+    await page.reload();
+    await expect(editorRow.locator('[name="role"]')).toHaveValue("editor");
+
     const editorResponse = await page.goto(`${baseURL}/admin/pages/new`);
     await expect(page.getByRole("group", { name: "Sayfa düzeni" })).toBeVisible();
     await expect(page.getByText("Boş sayfa")).toBeVisible();
