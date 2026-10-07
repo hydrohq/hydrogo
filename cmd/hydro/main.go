@@ -3132,7 +3132,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 
 	adminControlHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
-		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		if !adminControlAllowed(user, r.URL.Path) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -4863,6 +4863,13 @@ func adminControlRoutePatterns(enabled map[string]bool) []string {
 		patterns = append(patterns, "GET /admin/site")
 	}
 	return patterns
+}
+
+func adminControlAllowed(user *auth.User, path string) bool {
+	if path == "/admin/site" {
+		return auth.Can(user, auth.PermissionSiteManage)
+	}
+	return user != nil && user.Active && user.Role == auth.RoleAdmin
 }
 
 func newAuditRecorder(db *sql.DB, dialect database.Dialect, requireTenantScope bool) auth.AuditRecorder {

@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
@@ -226,6 +227,28 @@ func TestAdminControlRoutesRespectOptionalModules(t *testing.T) {
 		if !seen[pattern] {
 			t.Fatalf("enabled module route missing: %s", pattern)
 		}
+	}
+}
+
+func TestAdminControlAccessFollowsSiteManagePermission(t *testing.T) {
+	tests := []struct {
+		name string
+		user *auth.User
+		path string
+		want bool
+	}{
+		{name: "admin default", user: &auth.User{Role: auth.RoleAdmin, Active: true}, path: "/admin/site", want: true},
+		{name: "admin denied", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, path: "/admin/site"},
+		{name: "editor explicit grant", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, path: "/admin/site", want: true},
+		{name: "editor default denied", user: &auth.User{Role: auth.RoleEditor, Active: true}, path: "/admin/site"},
+		{name: "site grant does not unlock control center", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, path: "/admin/control"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := adminControlAllowed(tc.user, tc.path); got != tc.want {
+				t.Fatalf("adminControlAllowed(%s) = %v, want %v", tc.path, got, tc.want)
+			}
+		})
 	}
 }
 
