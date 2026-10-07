@@ -42,6 +42,8 @@ func TestGenerateAllPresets(t *testing.T) {
 				"TASKS.md",
 				"LICENSE",
 				"NOTICE",
+				".gitignore",
+				"data/.gitkeep",
 				"docs/ARCHITECTURE.md",
 				"docs/OPERATIONS.md",
 				"docs/E2E_GUIDE.md",
@@ -135,6 +137,27 @@ func TestGenerateAllPresets(t *testing.T) {
 				t.Errorf("Core internal/ source directory must never be copied into generated project")
 			}
 		})
+	}
+}
+
+func TestGenerateCollectionsOptIn(t *testing.T) {
+	projectPath, err := Generate(Options{Root: t.TempDir(), Name: "collections-edition", Preset: "compact-site", Collections: true})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	cfg, err := config.Load(filepath.Join(projectPath, "config.yaml"), nil, config.Overrides{})
+	if err != nil {
+		t.Fatalf("load generated config: %v", err)
+	}
+	if !contains(cfg.Modules, "collections") {
+		t.Fatalf("generated modules = %#v, want collections enabled", cfg.Modules)
+	}
+	lock, err := LoadLock(filepath.Join(projectPath, "hydrogo.lock"))
+	if err != nil {
+		t.Fatalf("load generated lock: %v", err)
+	}
+	if !contains(lock.Features, "collections") {
+		t.Fatalf("generated lock features = %#v, want collections", lock.Features)
 	}
 }
 

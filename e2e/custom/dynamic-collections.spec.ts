@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { execFileSync, type ChildProcess } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -15,25 +15,18 @@ let baseURL = "";
 test.describe("dynamic Admin collections", () => {
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-dynamic-collections-"));
-    const configPath = path.join(tempDir, "config.yaml");
-    const database = path.join(tempDir, "edition.sqlite");
-    const baseConfig = await readFile(path.join(repoRoot, "config.yaml"), "utf8");
-    const moduleLine = baseConfig.match(/^modules: \[([^\]]*)\]$/m);
-    if (!moduleLine) throw new Error("base config must declare its enabled modules");
-    const modules = moduleLine[1].split(",").map((name) => name.trim());
-    if (!modules.includes("collections")) modules.push("collections");
-    const enabledConfig = baseConfig.replace(moduleLine[0], `modules: [${modules.join(", ")}]`)
-      .replace('dsn: "data/hydro.db"', `dsn: "${database}"`);
-    await writeFile(configPath, enabledConfig);
-    execFileSync("go", ["run", "./cmd/hydro", "migrate", "--config", configPath], { cwd: repoRoot, stdio: "pipe" });
     const editionRoot = path.join(tempDir, "edition");
-    execFileSync("go", ["run", "./cmd/hydro", "resource", "create", "--name", "sync_articles", "--field", "title:text", "--out", editionRoot], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync("go", ["run", "./cmd/hydro", "collections", "sync", "--config", configPath, "--generated", path.join(editionRoot, "generated"), "--confirm-admin-crud"], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    const hydroBinary = path.join(tempDir, process.platform === "win32" ? "hydro.exe" : "hydro");
+    execFileSync("go", ["build", "-o", hydroBinary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
+    execFileSync(hydroBinary, ["project", "new", "edition", "--root", tempDir, "--preset", "compact-site", "--no-demo", "--with-collections"], { cwd: repoRoot, stdio: "pipe" });
+    execFileSync(hydroBinary, ["resource", "create", "--name", "sync_articles", "--field", "title:text", "--out", "."], { cwd: editionRoot, stdio: "pipe" });
+    execFileSync(hydroBinary, ["migrate", "--config", "config.yaml"], { cwd: editionRoot, stdio: "pipe" });
+    execFileSync(hydroBinary, ["collections", "sync", "--config", "config.yaml", "--generated", "generated", "--confirm-admin-crud"], { cwd: editionRoot, stdio: "pipe" });
+    execFileSync(hydroBinary, ["create-admin", "--config", "config.yaml", "--email", "admin@example.test", "--password-stdin"], { cwd: editionRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawnServer("go", ["run", "./cmd/hydro", "serve", "--dev", "--config", configPath, "--address", `127.0.0.1:${port}`], {
-      cwd: repoRoot,
+    server = spawnServer(hydroBinary, ["serve", "--dev", "--config", "config.yaml", "--address", `127.0.0.1:${port}`], {
+      cwd: editionRoot,
       stdio: "ignore",
       env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media") },
     });
