@@ -113,6 +113,9 @@ created.
 - Unit tests cover supported mappings, rejected features, permissions guard,
   relationship order/cycles, drift, idempotency, and partial-write retry
   behavior.
+- The Chromium dynamic Collections journey generates a Blueprint resource,
+  runs the sync command, then verifies the imported collection appears in the
+  Admin panel and supports record create, update, and delete.
 - SQLite integration exercises sync through the existing SQL Store and
   migration.
 - PostgreSQL contract ran against an isolated schema in a PostgreSQL 18 database

@@ -25,6 +25,9 @@ test.describe("dynamic Admin collections", () => {
       .replace('dsn: "data/hydro.db"', `dsn: "${database}"`);
     await writeFile(configPath, enabledConfig);
     execFileSync("go", ["run", "./cmd/hydro", "migrate", "--config", configPath], { cwd: repoRoot, stdio: "pipe" });
+    const editionRoot = path.join(tempDir, "edition");
+    execFileSync("go", ["run", "./cmd/hydro", "resource", "create", "--name", "sync_articles", "--field", "title:text", "--out", editionRoot], { cwd: repoRoot, stdio: "pipe" });
+    execFileSync("go", ["run", "./cmd/hydro", "collections", "sync", "--config", configPath, "--generated", path.join(editionRoot, "generated"), "--confirm-admin-crud"], { cwd: repoRoot, stdio: "pipe" });
     execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
@@ -73,10 +76,37 @@ test.describe("dynamic Admin collections", () => {
     expect(index?.status()).toBe(200);
     await expect(page.locator('.studio-sidebar a[href="/admin/collections"]')).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { name: "Collections and schemas" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sync articles" })).toHaveAttribute("href", "/admin/collections/sync_articles");
     const a11y = await page.evaluate(async () => (window as any).axe.run(document, {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
     }));
     expect(a11y.violations.map((violation: any) => ({ id: violation.id, targets: violation.nodes.map((node: any) => node.target) }))).toEqual([]);
+
+    await page.getByRole("link", { name: "Sync articles" }).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/collections/sync_articles`);
+    await expect(page.getByRole("heading", { name: "Sync articles" }).first()).toBeVisible();
+    const importedRecord = page.locator('form[action="/admin/collections/sync_articles/records"]');
+    await importedRecord.getByLabel("Title").fill("Blueprint generated record");
+    await importedRecord.getByRole("button", { name: "Save record" }).click();
+    await expect(page.locator("table")).toContainText("Blueprint generated record");
+    const importedResponse = await page.request.get(`${baseURL}/api/v1/collections/sync_articles/records`);
+    expect(importedResponse.status()).toBe(200);
+    const importedRecords = await importedResponse.json();
+    expect(importedRecords.records).toHaveLength(1);
+    const importedID = importedRecords.records[0].id as string;
+    await page.getByRole("link", { name: `Edit ${importedID}` }).click();
+    const importedEdit = page.locator(`form[action="/admin/collections/sync_articles/records/${importedID}"]`);
+    await importedEdit.getByLabel("Title").fill("Updated Blueprint record");
+    await importedEdit.getByRole("button", { name: "Save record" }).click();
+    await expect(page.locator("table")).toContainText("Updated Blueprint record");
+    await page.getByRole("link", { name: `Edit ${importedID}` }).click();
+    await page.locator(`form[action="/admin/collections/sync_articles/records/${importedID}/delete"]`).getByRole("button", { name: "Delete record" }).click();
+    await expect(page.getByText("No records are stored in this collection.")).toBeVisible();
+    await page.goto(`${baseURL}/admin/collections`);
+    const deleteImported = page.locator('form[action="/admin/collections/sync_articles/delete"]');
+    await deleteImported.getByLabel("Delete this schema and its records").check();
+    await deleteImported.getByRole("button", { name: "Delete schema" }).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/collections`);
 
     const createSchema = page.locator('form[action="/admin/collections"]');
     await createSchema.getByLabel("Collection ID").fill("e2e_catalog");
