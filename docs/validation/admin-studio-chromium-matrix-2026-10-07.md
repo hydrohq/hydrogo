@@ -92,6 +92,15 @@ Admin ve MFA grubu ayrıca `custom/admin-management.spec.ts`,
 ile yeni responsive kabul testi dahil 6/6 geçti. Suite aynı gerçek
 login/challenge ve mutasyon akışlarını bağımsız tekrarlar.
 
+Mobil kullanılabilirlik takibinde Admin Studio menüsü ve sık kullanılan
+form/kart/aksiyon düğmeleri için 390px ve 768px genişliklerde en az 44px hedef
+yüksekliği; bilgi ipuçları için en az 24×24px hedef boyutu tanımlandı. Rich-text
+araç çubuğu kontrolleri yoğun düzeni korumak için bu düğme kuralının dışında.
+`admin-management.spec.ts` 15 yönetim rotasını iki viewport'ta dolaşıp hedef
+boyutlarını ölçüyor; test tek başına **1/1**, aynı dosyanın tüm yönetim/rol/
+davet akışları **4/4**, `go test ./internal/ui -count=1` geçti. Bu, masaüstü
+golden veya WebKit/gerçek cihaz doğrulamasının yerine geçmez.
+
 Faz 1 devamında Project Edition'e yeni bir `milestone` Blueprint kaynağı
 eklendi. Aynı generated Admin registration helper'ı bu kaynağı ayrıca ID
 tanımlamadan menüye aldı; API route ve onaylı migration ise Edition tarafından

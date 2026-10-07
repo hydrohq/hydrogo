@@ -514,9 +514,16 @@ test.describe("single Edition administrator management", () => {
   });
 
   test("admin routes fit mobile and tablet viewports", async ({ browser }) => {
-    expect(adminStorageState, "admin route test must reuse the authenticated Edition admin session").toBeDefined();
-    const context = await browser.newContext({ storageState: adminStorageState });
+    const context = await browser.newContext(adminStorageState ? { storageState: adminStorageState } : undefined);
     const page = await context.newPage();
+    if (!adminStorageState) {
+      await page.goto(`${baseURL}/login`);
+      await page.getByLabel("Email address").fill("admin@example.test");
+      await page.getByLabel("Password").fill(adminPassword);
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
+      await dismissAdminTour(page);
+    }
     for (const viewport of [{ name: "mobile", width: 390, height: 844 }, { name: "tablet", width: 768, height: 1024 }]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       for (const route of [
@@ -540,6 +547,21 @@ test.describe("single Edition administrator management", () => {
         expect(response?.status(), `${route} must render at ${viewport.width}px`).toBe(200);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         expect(overflow, `${route} must not overflow at ${viewport.width}px`).toBeLessThanOrEqual(1);
+        const smallHeaderTargets = await page.locator(".studio-mobile-menu-toggle, .topbar-right > button").evaluateAll((targets) => targets
+          .filter((target) => target.getClientRects().length > 0)
+          .filter((target) => target.getBoundingClientRect().height < 44)
+          .map((target) => `${target.getAttribute("aria-label") || target.textContent?.trim()}: ${Math.round(target.getBoundingClientRect().height)}px`));
+        expect(smallHeaderTargets, `${route} header controls must be at least 44px high`).toEqual([]);
+        const smallActions = await page.locator(".studio-card button:not(.ql-toolbar button), .dashboard-card button:not(.ql-toolbar button), .studio-form button:not(.ql-toolbar button), .studio-card .button, .dashboard-card .button, .studio-form .button, .studio-actions button, .studio-actions .button").evaluateAll((targets) => targets
+          .filter((target) => target.getClientRects().length > 0)
+          .filter((target) => target.getBoundingClientRect().height < 44)
+          .map((target) => `${target.textContent?.trim() || target.getAttribute("aria-label") || target.tagName}: ${Math.round(target.getBoundingClientRect().height)}px`));
+        expect(smallActions, `${route} main actions must be at least 44px high`).toEqual([]);
+        const smallInfoTargets = await page.locator(".studio-info-tip").evaluateAll((targets) => targets
+          .filter((target) => target.getClientRects().length > 0)
+          .filter((target) => target.getBoundingClientRect().width < 24 || target.getBoundingClientRect().height < 24)
+          .map((target) => `${target.getAttribute("aria-label") || "info"}: ${Math.round(target.getBoundingClientRect().width)}×${Math.round(target.getBoundingClientRect().height)}px`));
+        expect(smallInfoTargets, `${route} info targets must be at least 24×24px`).toEqual([]);
       }
     }
     await context.close();
