@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type BrowserContext } from "@playwright/test";
 import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
@@ -11,6 +11,7 @@ const backupSigningSeed = "ab".repeat(32);
 let server: ChildProcess | undefined;
 let tempDir = "";
 let baseURL = "";
+let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
 test.describe("single Edition administrator management", () => {
   test.describe.configure({ mode: "serial" });
@@ -60,6 +61,7 @@ test.describe("single Edition administrator management", () => {
       await page.getByLabel("Password").fill(adminPassword);
       await page.getByRole("button", { name: "Sign in" }).click();
       await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
+      if (account.expectedRole === "viewer") viewerStorageState = await context.storageState();
 
       const allowed = await page.goto(`${baseURL}${account.allowedPath}`);
       if (account.expectedRole === "editor") {
@@ -270,13 +272,34 @@ test.describe("single Edition administrator management", () => {
     const permissionToken = await permissionForm.locator('[name="_csrf"]').inputValue();
     const permissionAction = await permissionForm.getAttribute("action");
     expect(permissionAction).toBeTruthy();
+    const denyPermission = await page.request.post(new URL(permissionAction!, baseURL).href, {
+      form: { _csrf: permissionToken, "perm_admin.content.write": "deny" },
+    });
+    expect(denyPermission.status()).toBe(204);
+    await page.reload();
+    await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("deny");
+
+    const restrictedContext = await browser.newContext();
+    const restrictedEditor = await restrictedContext.newPage();
+    await restrictedEditor.goto(`${baseURL}/login`);
+    await restrictedEditor.getByLabel("Email address").fill("editor@example.test");
+    await restrictedEditor.getByLabel("Password").fill(adminPassword);
+    await restrictedEditor.getByRole("button", { name: "Sign in" }).click();
+    await expect(restrictedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
+    const deniedCreatePage = await restrictedEditor.goto(`${baseURL}/admin/pages/new`);
+    expect(deniedCreatePage?.status()).toBe(403);
+    await expect(restrictedEditor.locator('form[action="/admin/pages"]')).toHaveCount(0);
+
+    const grantToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
     const permissionUpdate = await page.request.post(new URL(permissionAction!, baseURL).href, {
-      form: { _csrf: permissionToken, "perm_admin.content.write": "allow" },
+      form: { _csrf: grantToken, "perm_admin.content.write": "allow" },
     });
     expect(await permissionUpdate.text()).toBe("");
     expect(permissionUpdate.status()).toBe(204);
     await page.reload();
     await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("allow");
+    expect((await restrictedEditor.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    await restrictedContext.close();
 
     const roleForm = editorRow.locator('form[action$="/role"]');
     const roleToken = await roleForm.locator('[name="_csrf"]').inputValue();
@@ -469,13 +492,9 @@ test.describe("single Edition administrator management", () => {
     await expect(staleEditor.locator('form[data-autosave-resource^="page:"] [name="title"]')).toHaveValue("Current page version");
     await staleEditor.close();
 
-    const viewerContext = await browser.newContext();
+    expect(viewerStorageState, "role-boundary test must capture the authenticated viewer session").toBeDefined();
+    const viewerContext = await browser.newContext({ storageState: viewerStorageState });
     const viewerPage = await viewerContext.newPage();
-    await viewerPage.goto(`${baseURL}/login`);
-    await viewerPage.getByLabel("Email address").fill("viewer@example.test");
-    await viewerPage.getByLabel("Password").fill(adminPassword);
-    await viewerPage.getByRole("button", { name: "Sign in" }).click();
-    await expect(viewerPage).toHaveURL(/\/admin(?:\?.*)?$/);
     expect((await viewerPage.request.get(`${baseURL}/auth/me`)).status()).toBe(200);
 
     await page.goto(`${baseURL}/admin/users`);
