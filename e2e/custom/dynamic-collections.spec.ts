@@ -85,12 +85,12 @@ test.describe("dynamic Admin collections", () => {
     const importedRecords = await importedResponse.json();
     expect(importedRecords.records).toHaveLength(1);
     const importedID = importedRecords.records[0].id as string;
-    await page.getByRole("link", { name: `Edit ${importedID}` }).click();
+    await page.locator("table tbody tr").filter({ hasText: "Blueprint generated record" }).getByRole("link", { name: /^Edit record:/ }).click();
     const importedEdit = page.locator(`form[action="/admin/collections/sync_articles/records/${importedID}"]`);
     await importedEdit.getByLabel("Title").fill("Updated Blueprint record");
     await importedEdit.getByRole("button", { name: "Save record" }).click();
     await expect(page.locator("table")).toContainText("Updated Blueprint record");
-    await page.getByRole("link", { name: `Edit ${importedID}` }).click();
+    await page.locator("table tbody tr").filter({ hasText: "Updated Blueprint record" }).getByRole("link", { name: /^Edit record:/ }).click();
     await page.locator(`form[action="/admin/collections/sync_articles/records/${importedID}/delete"]`).getByRole("button", { name: "Delete record" }).click();
     await expect(page.getByText("No records are stored in this collection.")).toBeVisible();
     await page.goto(`${baseURL}/admin/collections`);
@@ -145,7 +145,7 @@ test.describe("dynamic Admin collections", () => {
     expect(records.records).toHaveLength(1);
     const recordID = records.records[0].id as string;
 
-    await page.getByRole("link", { name: `Edit ${recordID}` }).click();
+    await page.locator("table tbody tr").filter({ hasText: "SKU-E2E-001" }).getByRole("link", { name: /^Edit record:/ }).click();
     await expectNoA11yViolations(page);
     const editRecord = page.locator(`form[action="/admin/collections/e2e_catalog/records/${recordID}"]`);
     await editRecord.getByLabel("Product name").fill("Updated sample product");
@@ -153,7 +153,7 @@ test.describe("dynamic Admin collections", () => {
     await expect(page).toHaveURL(`${baseURL}/admin/collections/e2e_catalog`);
     await expect(page.locator("table")).toContainText("Updated sample product");
 
-    await page.getByRole("link", { name: `Edit ${recordID}` }).click();
+    await page.locator("table tbody tr").filter({ hasText: "SKU-E2E-001" }).getByRole("link", { name: /^Edit record:/ }).click();
     await page.locator(`form[action="/admin/collections/e2e_catalog/records/${recordID}/delete"]`).getByRole("button", { name: "Delete record" }).click();
     await expect(page).toHaveURL(`${baseURL}/admin/collections/e2e_catalog`);
     await expect(page.getByText("No records are stored in this collection.")).toBeVisible();
