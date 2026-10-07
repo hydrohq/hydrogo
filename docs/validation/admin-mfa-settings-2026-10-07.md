@@ -54,11 +54,15 @@ npx playwright test custom/admin-management.spec.ts custom/admin-password-reset.
 ```
 
 Tekil MFA browser testi **1/1**, birleşik admin yönetim, davet, parola reset
-ve MFA grubu **5/5** geçti. Chromium gerçek Edition admin oturumu açtı; setup,
-recovery code gösterimi, TOTP etkinleştirme, yanlış kodla kapatma reddi ve
-doğru kodla kapatmayı doğruladı. 390px mobil viewport'ta axe-core WCAG 2.1
-A/AA taraması ve yatay taşma kontrolü geçti. CSP/no-store başlıkları ve
-onboarding görünürlüğü de browser testinde doğrulandı.
+ve MFA grubu **5/5** geçti. Genişletilmiş Chromium akışı TOTP
+etkinleştirmesinden sonra çıkış yapıp tekrar giriş yapar, paroladan sonra MFA
+challenge ister ve kod doğrulanana kadar `/auth/me` oturumunun oluşmadığını
+kanıtlar. Doğru TOTP ile girişten sonra 15 Edition yönetim rotası açılır;
+güvenlik IP engeli eklenip kaldırılır. Hesap MFA ekranında yanlış kodla
+kapatma reddi ve doğru kodla kapatma da doğrulanır. 390px mobil viewport'ta
+axe-core WCAG 2.1 A/AA taraması ve yatay taşma kontrolü geçti. MFA hesap
+ekranının CSP/no-store başlıkları ve onboarding görünürlüğü de browser testinde
+doğrulanır.
 
 MFA mobil ekran görüntüsü `e2e/artifacts/admin-mfa-mobile.png` altında Playwright
 artifact'ı olarak üretildi ve görsel olarak incelendi. Artifact git'e eklenmez.
@@ -67,5 +71,7 @@ artifact'ı olarak üretildi ve görsel olarak incelendi. Artifact git'e eklenme
 
 Bu çalışma yeni cross-tenant Super Admin veya yeni auth route/şeması eklemez.
 TOTP/recovery API'si mevcut Edition auth sözleşmesinin üstünde kullanılır.
-Faz 4'te diğer admin mutation kombinasyonlarının tamamı ve Faz 1/2/3/5 açık
-kabul maddeleri ana ürün planında takip edilmeye devam eder.
+MFA ile doğrulanmış oturumda izin, yedek, kullanıcı ve içerik mutasyonlarının
+tümleşik kombinasyon matrisi ile diğer Faz 1/2/3/5 açık kabul maddeleri ana
+ürün planında takip edilmeye devam eder. Genişletilmiş rota taraması beş Admin
+sayfasında inline script CSP ihlali buldu; bu açık plan kaydında listelenmiştir.

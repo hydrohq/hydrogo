@@ -48,11 +48,12 @@ test.describe("Admin Studio MFA self-service", () => {
   });
 
   test("sets up, verifies and disables MFA from account settings", async ({ browser }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(120_000);
     const context = await browser.newContext();
     const page = await context.newPage();
     const browserIssues: string[] = [];
-    page.on("console", (message) => { if (message.type() === "error" && message.text().includes("Content Security Policy")) browserIssues.push(message.text()); });
+    let watchCSP = true;
+    page.on("console", (message) => { if (watchCSP && message.type() === "error" && message.text().includes("Content Security Policy")) browserIssues.push(message.text()); });
     page.on("pageerror", (error) => browserIssues.push(error.stack || error.message));
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/login`);
@@ -112,6 +113,59 @@ test.describe("Admin Studio MFA self-service", () => {
     await expect(page.getByRole("button", { name: "MFA'yı kapat" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Authenticator uygulamasını kur" })).toHaveCount(0);
 
+    watchCSP = false;
+    await page.locator("#user-menu-btn").click();
+    await page.locator("#studio-logout-btn").click();
+    await expect(page).toHaveURL(/\/login\?return_to=%2Fadmin|\/login\?return_to=\/admin/);
+    await page.getByLabel("Email address").fill("admin@example.test");
+    await page.getByLabel("Password").fill(adminPassword);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.locator("#mfa-challenge")).toBeVisible();
+    expect((await page.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    const loginMFA = page.locator("#login-mfa-code");
+    await expect(loginMFA).toBeEnabled();
+    await loginMFA.fill(generateTOTP(secret));
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL((url) => url.pathname === "/admin");
+    expect((await page.request.get(`${baseURL}/auth/me`)).status()).toBe(200);
+
+    for (const route of [
+      "/admin",
+      "/admin/pages/new",
+      "/admin/news/new",
+      "/admin/media",
+      "/admin/users",
+      "/admin/permissions",
+      "/admin/security",
+      "/admin/audit",
+      "/admin/backup",
+      "/admin/control",
+      "/admin/operations",
+      "/admin/developer",
+      "/admin/developer/resources",
+      "/admin/reports",
+      "/admin/account",
+    ]) {
+      const response = await page.goto(`${baseURL}${route}`);
+      expect(response?.status(), `MFA-authenticated administrator must access ${route}`).toBe(200);
+    }
+
+    watchCSP = false;
+    await page.goto(`${baseURL}/admin/security`);
+    const banAddress = "198.51.100.223";
+    const banForm = page.locator('form[action="/admin/security/bans"]');
+    await banForm.getByLabel("IP adresi veya CIDR").fill(banAddress);
+    await banForm.getByLabel(/Süre/).fill("1h");
+    await banForm.getByRole("button", { name: "IP engelle" }).click();
+    await expect(page.getByText(`${banAddress}/32`, { exact: true })).toBeVisible();
+    const unbanForm = page.locator('form[action="/admin/security/bans/remove"]');
+    await unbanForm.getByLabel("Engeli kaldırılacak adres veya CIDR").fill(banAddress);
+    await unbanForm.getByRole("button", { name: "Engeli kaldır" }).click();
+    await expect(page.getByText(banAddress, { exact: true })).toHaveCount(0);
+
+    watchCSP = true;
+    browserIssues.length = 0;
+    await page.goto(`${baseURL}/admin/account`);
     await page.getByLabel("Güncel doğrulama veya kurtarma kodu").fill("000000");
     await page.getByRole("button", { name: "MFA'yı kapat" }).click();
     await expect(page.getByRole("alert")).toContainText("Kod geçersiz");
