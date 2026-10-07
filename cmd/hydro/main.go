@@ -2375,6 +2375,40 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	routes := append([]router.Route{}, authHTTP.RouterRoutes()...)
 	if modules["auth"] {
+		routes = append(routes, router.Route{Pattern: "GET /auth/invites/accept", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := r.URL.Query().Get("token")
+			validToken := len(token) == 64
+			if validToken {
+				_, err := hex.DecodeString(token)
+				validToken = err == nil
+			}
+			locale := "en"
+			if r.URL.Query().Get("lang") == "tr" {
+				locale = "tr"
+			}
+			message := r.URL.Query().Get("error")
+			switch message {
+			case "mismatch", "weak", "rate", "unavailable":
+			default:
+				if !validToken {
+					message = "invalid"
+				} else {
+					message = ""
+				}
+			}
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Referrer-Policy", "no-referrer")
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Content-Language", locale)
+			var page bytes.Buffer
+			props := designsystem.InviteAcceptFormProps{Token: token, CSRF: security.CSRFTokenFromContext(r.Context()), Locale: locale, Error: message}
+			if err := designsystem.InviteAcceptForm(props).Render(r.Context(), &page); err != nil {
+				http.Error(w, "Invitation page is temporarily unavailable.", http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), security.InlineCSPDirectives(page.Bytes())))
+			_, _ = w.Write(page.Bytes())
+		})})
 		tokenSettingsHandler := adminTokenLifetimeSettingsHandler{
 			Settings: authHTTP.TokenLifetimeSettings,
 			Defaults: auth.TokenLifetimes{PasswordReset: cfg.PasswordResetDuration(), Invitation: cfg.InvitationDuration()},
@@ -2625,6 +2659,15 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if err := ui.RenderAdminLoginWithLocaleAndAppearance(&page, security.CSRFTokenFromContext(r.Context()), returnTo, loginLocale, appearance); err != nil {
 			http.Error(w, "admin login unavailable", http.StatusInternalServerError)
 			return
+		}
+		if r.URL.Query().Get("invite_accepted") == "1" {
+			message := `<div id="login-status" class="form-alert alert-success" role="status">Your account is ready. Sign in with the password you just created.</div>`
+			if loginLocale == "tr" {
+				message = `<div id="login-status" class="form-alert alert-success" role="status">Hesabın hazır. Az önce belirlediğin parolayla giriş yap.</div>`
+			}
+			pageBytes := bytes.Replace(page.Bytes(), []byte(`<div id="login-status" class="form-alert" role="alert"></div>`), []byte(message), 1)
+			page.Reset()
+			_, _ = page.Write(pageBytes)
 		}
 		w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), ui.AdminLoginCSP(page.Bytes())))
 		_, _ = w.Write(page.Bytes())

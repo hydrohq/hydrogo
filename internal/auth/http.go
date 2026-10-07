@@ -244,16 +244,35 @@ func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	html := strings.Contains(r.Header.Get("Accept"), "text/html")
 	if h.Invitation == nil || h.Transactions == (database.Transactor{}) {
+		if html {
+			redirectInviteForm(w, r, "unavailable")
+			return
+		}
 		http.Error(w, "invitation unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("token")) == "" || r.FormValue("password") == "" {
+		if html {
+			redirectInviteForm(w, r, "invalid")
+			return
+		}
 		http.Error(w, "invalid invitation request", http.StatusBadRequest)
 		return
 	}
+	if html && r.FormValue("password") != r.FormValue("password_confirm") {
+		redirectInviteForm(w, r, "mismatch")
+		return
+	}
 	if h.InviteAcceptLimiter != nil && !security.AllowForRequest(h.InviteAcceptLimiter, r.Context(), clientIP(r)) {
+		if html {
+			redirectInviteForm(w, r, "rate")
+			return
+		}
 		security.WriteRateLimitedResponse(w, "too many invitation attempts", time.Minute)
 		return
 	}
@@ -264,22 +283,57 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 	if errors.Is(err, ErrInviteInvalid) {
+		if html {
+			redirectInviteForm(w, r, "invalid")
+			return
+		}
 		http.Error(w, "This invitation is invalid or has expired. Ask your administrator to send a new invitation.", http.StatusUnauthorized)
 		return
 	}
 	if errors.Is(err, ErrWeakPassword) {
+		if html {
+			redirectInviteForm(w, r, "weak")
+			return
+		}
 		http.Error(w, "Choose a longer, less common password.", http.StatusBadRequest)
 		return
 	}
 	if errors.Is(err, ErrUserAlreadyExists) {
+		if html {
+			redirectInviteForm(w, r, "invalid")
+			return
+		}
 		http.Error(w, "user already exists", http.StatusConflict)
 		return
 	}
 	if err != nil {
+		if html {
+			redirectInviteForm(w, r, "unavailable")
+			return
+		}
 		writeAuthDependencyError(w, "invitation acceptance failed", err, http.StatusInternalServerError)
 		return
 	}
+	if html {
+		values := url.Values{}
+		values.Set("invite_accepted", "1")
+		if r.FormValue("lang") == "tr" {
+			values.Set("lang", "tr")
+		}
+		http.Redirect(w, r, "/login?"+values.Encode(), http.StatusSeeOther)
+		return
+	}
 	api.WriteJSON(w, http.StatusCreated, map[string]any{"user_id": user.ID, "email": user.Email, "role": user.Role})
+}
+
+func redirectInviteForm(w http.ResponseWriter, r *http.Request, code string) {
+	values := url.Values{}
+	values.Set("token", r.FormValue("token"))
+	values.Set("error", code)
+	if r.FormValue("lang") == "tr" {
+		values.Set("lang", "tr")
+	}
+	http.Redirect(w, r, "/auth/invites/accept?"+values.Encode(), http.StatusSeeOther)
 }
 
 func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {

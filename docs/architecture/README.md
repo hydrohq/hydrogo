@@ -1,5 +1,6 @@
 # HydroGo Architecture Decision Log
 
+- [ADR-0352: Public staff invitation acceptance form](0352-public-invitation-acceptance-form.md)
 - [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
 - [ADR-0330: Pure Go PDF cover derivatives](0330-pure-go-pdf-cover-derivatives.md)
 - [ADR-0331: Bounded SQLite shadow-table migrations](0331-sqlite-batched-shadow-migrations.md)
@@ -428,3 +429,4 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0349: Explicit generated resource activation](0349-explicit-generated-resource-activation.md) — Accepted
 - [ADR-0350: Allow verified Admin Studio inline assets through CSP hashes](0350-admin-studio-csp-style-and-script-hashes.md) — Accepted
 - [ADR-0351: Declare exact direct dependencies between HydroGo modules](0351-declared-module-dependency-graph.md) — Accepted
+- [ADR-0352: Public staff invitation acceptance form](0352-public-invitation-acceptance-form.md) — Accepted
