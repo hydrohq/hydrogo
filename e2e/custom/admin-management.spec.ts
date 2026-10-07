@@ -136,6 +136,23 @@ test.describe("single Edition administrator management", () => {
       expect(response?.status(), `${route} should be available to the Edition admin`).toBe(200);
       await expect(page.locator("h1").first()).toBeVisible();
 
+      const unnamedControls = await page.locator('a,button,input:not([type="hidden"]),select,textarea,[role="button"],[contenteditable="true"]').evaluateAll((elements) =>
+        elements.filter((element) => {
+          const html = element as HTMLElement;
+          if (html.hidden || html.getClientRects().length === 0 || getComputedStyle(html).display === "none" || getComputedStyle(html).visibility === "hidden") return false;
+          const labelledBy = html.getAttribute("aria-labelledby")?.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? "").join(" ");
+          const label = (html.id ? document.querySelector(`label[for="${CSS.escape(html.id)}"]`)?.textContent : "") || html.closest("label")?.textContent;
+          const value = html instanceof HTMLInputElement && ["submit", "button", "reset"].includes(html.type) ? html.value : "";
+          const name = [html.getAttribute("aria-label"), labelledBy, label, value, html.textContent, html.getAttribute("title")]
+            .some((part) => part?.trim());
+          return !name;
+        }).map((element) => {
+          const html = element as HTMLElement;
+          return `${html.tagName.toLowerCase()}${html.id ? `#${html.id}` : ""}${html.getAttribute("name") ? `[name=${html.getAttribute("name")}]` : ""}`;
+        }),
+      );
+      expect(unnamedControls, `${route} visible controls must have accessible names`).toEqual([]);
+
       const mutations = await page.locator('form[method="post"]').evaluateAll((forms) =>
         forms.map((form) => {
           const element = form as HTMLFormElement;
