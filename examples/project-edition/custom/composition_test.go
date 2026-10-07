@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	generatedmilestone "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
 	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	_ "modernc.org/sqlite"
@@ -34,6 +35,9 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if _, err := db.ExecContext(context.Background(), string(migration)); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.ExecContext(context.Background(), generatedmilestone.MigrationSQL); err != nil {
+		t.Fatalf("apply generated milestone migration: %v", err)
+	}
 	handler := NewDemoHandler(db)
 	body, _ := json.Marshal(map[string]string{"id": "p-1", "project_code": "P-1", "status": "active", "title": "Demo"})
 	server := httptest.NewServer(handler)
@@ -44,8 +48,25 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	adminIndexBody, _ := io.ReadAll(adminIndex.Body)
 	_ = adminIndex.Body.Close()
-	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(adminIndexBody, []byte("/admin/resources/project")) || !bytes.Contains(adminIndexBody, []byte(`class="collection-tile"`)) || !bytes.Contains(adminIndexBody, []byte("</html>")) {
+	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(adminIndexBody, []byte("/admin/resources/project")) || !bytes.Contains(adminIndexBody, []byte("/admin/resources/milestone")) || !bytes.Contains(adminIndexBody, []byte(`class="collection-tile"`)) || !bytes.Contains(adminIndexBody, []byte("</html>")) {
 		t.Fatalf("generated resource missing from Admin index: status=%d", adminIndex.StatusCode)
+	}
+	milestoneCreate, err := http.Post(server.URL+"/api/v1/milestone", "application/json", strings.NewReader(`{"id":"m-1","status":"planned","title":"Golden path"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = milestoneCreate.Body.Close()
+	if milestoneCreate.StatusCode != http.StatusCreated {
+		t.Fatalf("generated milestone API create status=%d", milestoneCreate.StatusCode)
+	}
+	milestoneList, err := http.Get(server.URL + "/admin/resources/milestone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	milestoneListBody, _ := io.ReadAll(milestoneList.Body)
+	_ = milestoneList.Body.Close()
+	if milestoneList.StatusCode != http.StatusOK || !bytes.Contains(milestoneListBody, []byte("Golden path")) {
+		t.Fatalf("new Blueprint resource Admin list status=%d body=%s", milestoneList.StatusCode, milestoneListBody)
 	}
 	post, err := http.Post(server.URL+"/api/v1/project", "application/json", bytes.NewReader(body))
 	if err != nil {
@@ -200,6 +221,9 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	if _, err := db.ExecContext(ctx, generated.MigrationSQL); err != nil {
 		t.Fatalf("apply generated Edition migration: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, generatedmilestone.MigrationSQL); err != nil {
+		t.Fatalf("apply generated milestone migration: %v", err)
+	}
 	server := httptest.NewServer(NewHandler(db, "postgres"))
 	defer server.Close()
 
@@ -222,8 +246,22 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	}
 	indexBody, _ := io.ReadAll(adminIndex.Body)
 	_ = adminIndex.Body.Close()
-	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(indexBody, []byte("/admin/resources/project")) {
+	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(indexBody, []byte("/admin/resources/project")) || !bytes.Contains(indexBody, []byte("/admin/resources/milestone")) {
 		t.Fatalf("generated collection missing from PostgreSQL Edition Admin index: status=%d", adminIndex.StatusCode)
+	}
+	milestoneCreate := postJSON("/api/v1/milestone", `{"id":"pg-milestone","status":"planned","title":"PostgreSQL milestone"}`)
+	if milestoneCreate.StatusCode != http.StatusCreated {
+		t.Fatalf("generated PostgreSQL milestone API create status=%d", milestoneCreate.StatusCode)
+	}
+	_ = milestoneCreate.Body.Close()
+	milestoneList, err := http.Get(server.URL + "/admin/resources/milestone?search=PostgreSQL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	milestoneListBody, _ := io.ReadAll(milestoneList.Body)
+	_ = milestoneList.Body.Close()
+	if milestoneList.StatusCode != http.StatusOK || !bytes.Contains(milestoneListBody, []byte("PostgreSQL milestone")) {
+		t.Fatalf("generated PostgreSQL milestone Admin list status=%d body=%s", milestoneList.StatusCode, milestoneListBody)
 	}
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

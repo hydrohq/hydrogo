@@ -14,6 +14,7 @@ import (
 	"time"
 
 	custom "github.com/ardaozyildirim/hydrogo/examples/project-edition/custom"
+	generatedmilestone "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
 	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
@@ -68,6 +69,9 @@ func migrate(args []string) error {
 	defer db.Close()
 	if _, err := db.ExecContext(ctx, generated.MigrationSQL); err != nil {
 		return fmt.Errorf("apply reviewed project migration: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, generatedmilestone.MigrationSQL); err != nil {
+		return fmt.Errorf("apply reviewed milestone migration: %w", err)
 	}
 	fmt.Printf("migration-applied edition=project dialect=%s\n", dialect)
 	return nil
