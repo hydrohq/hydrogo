@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -101,10 +102,10 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		t.Fatalf("register generated routes: %v", err)
 	}
 	if err := generated.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{
-		API: mux, Authorize: func(*http.Request) bool { return true },
+		API: mux, Authorize: func(r *http.Request) bool { return r.Header.Get("X-Test-Role") != "viewer" },
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken:       func(*http.Request) string { return "edition-token" },
-		ValidateCSRF:    func(*http.Request) bool { return true },
+		ValidateCSRF:    func(r *http.Request) bool { return r.FormValue("_csrf") == "edition-token" },
 		RenderPage: adminstudio.StudioPageRenderer(func(*http.Request) adminstudio.PageIdentity {
 			return adminstudio.PageIdentity{UserID: "edition-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
 		}),
@@ -121,19 +122,112 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		t.Fatalf("generated tenant create status=%d body=%s", created.Code, created.Body.String())
 	}
 
-	readFor := func(tenant string) *httptest.ResponseRecorder {
+	readResourceFor := func(tenant, id string) *httptest.ResponseRecorder {
 		t.Helper()
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/article/article-1", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/article/"+id, nil)
 		req.Header.Set("X-Test-Tenant", tenant)
 		response := httptest.NewRecorder()
 		mux.ServeHTTP(response, req)
 		return response
 	}
+	readFor := func(tenant string) *httptest.ResponseRecorder { return readResourceFor(tenant, "article-1") }
 	if response := readFor("tenant-a"); response.Code != http.StatusOK {
 		t.Fatalf("same-tenant read status=%d body=%s", response.Code, response.Body.String())
 	}
 	if response := readFor("tenant-b"); response.Code != http.StatusNotFound {
 		t.Fatalf("cross-tenant read status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	for _, record := range []struct{ tenant, id, title string }{
+		{"tenant-a", "tenant-a-row", "Tenant A record"},
+		{"tenant-b", "tenant-b-row", "Tenant B record"},
+	} {
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/article", strings.NewReader(`{"id":"`+record.id+`","title":"`+record.title+`"}`))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Test-Tenant", record.tenant)
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if response.Code != http.StatusCreated {
+			t.Fatalf("create %s API record status=%d body=%s", record.tenant, response.Code, response.Body.String())
+		}
+	}
+	adminList := func(tenant string) string {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
+		request.Header.Set("X-Test-Tenant", tenant)
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s Admin list status=%d body=%s", tenant, response.Code, response.Body.String())
+		}
+		return response.Body.String()
+	}
+	if body := adminList("tenant-a"); !strings.Contains(body, "Tenant A record") || strings.Contains(body, "Tenant B record") {
+		t.Fatalf("tenant A Admin list leaked or omitted a record: %s", body)
+	}
+	if body := adminList("tenant-b"); !strings.Contains(body, "Tenant B record") || strings.Contains(body, "Tenant A record") {
+		t.Fatalf("tenant B Admin list leaked or omitted a record: %s", body)
+	}
+	viewerList := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
+	viewerList.Header.Set("X-Test-Role", "viewer")
+	viewerListResponse := httptest.NewRecorder()
+	mux.ServeHTTP(viewerListResponse, viewerList)
+	if viewerListResponse.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin allowed a viewer role: status=%d body=%s", viewerListResponse.Code, viewerListResponse.Body.String())
+	}
+	viewerMutation := httptest.NewRequest(http.MethodPost, "/admin/resources/article/new", strings.NewReader("_csrf=edition-token&id=viewer-created&title=Must+be+denied"))
+	viewerMutation.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	viewerMutation.Header.Set("X-Test-Role", "viewer")
+	viewerMutation.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerMutationResponse := httptest.NewRecorder()
+	mux.ServeHTTP(viewerMutationResponse, viewerMutation)
+	if viewerMutationResponse.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin allowed a viewer mutation: status=%d body=%s", viewerMutationResponse.Code, viewerMutationResponse.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "viewer-created"); response.Code != http.StatusNotFound {
+		t.Fatalf("viewer mutation was persisted: status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	adminMutation := func(path string, values url.Values) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(values.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Test-Tenant", "tenant-a")
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		return response
+	}
+	newForm := httptest.NewRequest(http.MethodGet, "/admin/resources/article/new", nil)
+	newForm.Header.Set("X-Test-Tenant", "tenant-a")
+	newFormResponse := httptest.NewRecorder()
+	mux.ServeHTTP(newFormResponse, newForm)
+	if newFormResponse.Code != http.StatusOK || !strings.Contains(newFormResponse.Body.String(), `name="_csrf" value="edition-token"`) {
+		t.Fatalf("generated Admin create form did not render a CSRF token: status=%d body=%s", newFormResponse.Code, newFormResponse.Body.String())
+	}
+	createdByAdmin := adminMutation("/admin/resources/article/new", url.Values{"_csrf": {"edition-token"}, "id": {"admin-created"}, "title": {"Created in Admin"}})
+	if createdByAdmin.Code != http.StatusSeeOther {
+		t.Fatalf("generated Admin create status=%d body=%s", createdByAdmin.Code, createdByAdmin.Body.String())
+	}
+	updatedByAdmin := adminMutation("/admin/resources/article/admin-created", url.Values{"_csrf": {"edition-token"}, "title": {"Updated in Admin"}})
+	if updatedByAdmin.Code != http.StatusSeeOther {
+		t.Fatalf("generated Admin update status=%d body=%s", updatedByAdmin.Code, updatedByAdmin.Body.String())
+	}
+	if body := adminList("tenant-a"); !strings.Contains(body, "Updated in Admin") {
+		t.Fatalf("Admin update was not reflected in its tenant list: %s", body)
+	}
+	deletedByAdmin := adminMutation("/admin/resources/article/admin-created/delete", url.Values{"_csrf": {"edition-token"}})
+	if deletedByAdmin.Code != http.StatusSeeOther {
+		t.Fatalf("generated Admin delete status=%d body=%s", deletedByAdmin.Code, deletedByAdmin.Body.String())
+	}
+	if response := readFor("tenant-a"); response.Code != http.StatusOK {
+		t.Fatalf("existing tenant record was lost after deleting Admin-created record: status=%d body=%s", response.Code, response.Body.String())
+	}
+	missingCSRF := adminMutation("/admin/resources/article/new", url.Values{"id": {"csrf-denied"}, "title": {"Must not be created"}})
+	if missingCSRF.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin accepted a CSRF-less create: status=%d body=%s", missingCSRF.Code, missingCSRF.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "csrf-denied"); response.Code != http.StatusNotFound {
+		t.Fatalf("CSRF-less mutation was persisted: status=%d body=%s", response.Code, response.Body.String())
 	}
 
 	adminRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
