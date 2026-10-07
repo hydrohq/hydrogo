@@ -24,9 +24,19 @@ Testler şu davranışları doğrular:
   olması ve izin deposuna yazma yapılmaması.
 - Tek Edition adminiyle rol ve permission form akışının gerçek Chromium
   testinde çalışması; editör deny/allow override ve rol değişiklikleri.
+- Editor ve viewer oturumlarının geçerli CSRF tokenıyla başka kullanıcı için
+  rol değiştirme, izin override'ı yazma ve hesabı kapatma POST'larından `403`
+  alması.
+
+İlgili Chromium doğrulama komutu:
+
+```sh
+cd e2e
+npx playwright test custom/admin-management.spec.ts --project chromium --workers=1 \
+  --grep 'editor and viewer sessions' --reporter=line
+```
 
 Bu, tek tek davranış kanıtıdır. Her route × rol × CSRF durumu × override
 değerini kapsayan çapraz matris henüz üretilmiş değildir; planın Faz 4 kabul
 koşulu açık kalır. PostgreSQL auth sözleşme testi önceki doğrulama aşamasında
-geçmiştir; bu aşama yalnız handler testi ekler ve veritabanı davranışını
-değiştirmez.
+geçmiştir. Bu aşama çalışma zamanı veya veritabanı davranışını değiştirmez.
