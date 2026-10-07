@@ -134,6 +134,23 @@ test.describe("single Edition administrator management", () => {
       const response = await page.goto(`${baseURL}${route}`);
       expect(response?.status(), `${route} should be available to the Edition admin`).toBe(200);
       await expect(page.locator("h1").first()).toBeVisible();
+
+      const mutations = await page.locator('form[method="post"]').evaluateAll((forms) =>
+        forms.map((form) => {
+          const element = form as HTMLFormElement;
+          return {
+            action: element.action || location.href,
+            csrf: element.querySelector<HTMLInputElement>('input[name="_csrf"]')?.value ?? "",
+          };
+        }),
+      );
+      for (const mutation of mutations) {
+        expect(mutation.csrf, `${route} POST form must contain a CSRF token`).not.toBe("");
+        const target = new URL(mutation.action);
+        expect(target.origin, `${route} mutation target must stay on this Edition`).toBe(new URL(baseURL).origin);
+        const deniedMutation = await page.request.post(target.href, { form: {} });
+        expect(deniedMutation.status(), `CSRF-less POST to ${target.pathname} must be denied`).toBe(403);
+      }
     }
 
     const editorResponse = await page.goto(`${baseURL}/admin/pages/new`);
