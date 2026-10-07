@@ -67,7 +67,11 @@ type SocialAccountsProps struct {
 	URLs map[string]string
 }
 type PageLayoutOption struct{ ID, Name, Description string }
-type PageLayoutPickerProps struct{ Options []PageLayoutOption }
+type PageLayoutPickerProps struct {
+	Options              []PageLayoutOption
+	Legend, EmptyMessage string
+}
+
 type PasswordResetFormProps struct{ Token, CSRF string }
 
 type FormConversionDay struct {

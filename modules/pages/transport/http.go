@@ -623,10 +623,16 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card"><form class="studio-form" method="post" action="/admin/pages">`)
 	options := make([]designsystem.PageLayoutOption, 0, len(layouts))
+	locale := ui.AdminLocaleFromRequest(r)
 	for _, layout := range layouts {
-		options = append(options, designsystem.PageLayoutOption{ID: layout.ID, Name: layout.Name, Description: layout.Description})
+		name, description := pageLayoutCopy(layout, locale)
+		options = append(options, designsystem.PageLayoutOption{ID: layout.ID, Name: name, Description: description})
 	}
-	if err := designsystem.PageLayoutPicker(designsystem.PageLayoutPickerProps{Options: options}).Render(r.Context(), w); err != nil {
+	legend, emptyMessage := "Sayfa düzeni", "Kullanılabilir sayfa düzeni yok."
+	if locale == "en" {
+		legend, emptyMessage = "Page layout", "No layout options available."
+	}
+	if err := designsystem.PageLayoutPicker(designsystem.PageLayoutPickerProps{Options: options, Legend: legend, EmptyMessage: emptyMessage}).Render(r.Context(), w); err != nil {
 		return
 	}
 	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{
@@ -643,6 +649,24 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprint(w, `</form></section>`)
 	_ = ui.AdminEnd(w)
+}
+
+func pageLayoutCopy(layout pages.LayoutTemplate, locale string) (string, string) {
+	if locale == "en" {
+		return layout.Name, layout.Description
+	}
+	switch layout.ID {
+	case "blank":
+		return "Boş sayfa", "Sıfırdan başlayıp içeriğinizi oluşturun."
+	case "service_showcase":
+		return "Hizmet tanıtımı", "Hizmetinizi ve sunduğu faydaları tanıtın."
+	case "landing":
+		return "Açılış sayfası", "Ziyaretçileri net bir mesaj ve eylemle karşılayın."
+	case "case_study":
+		return "Başarı hikâyesi", "İhtiyacı, sonucu ve müşteri deneyimini anlatın."
+	default:
+		return layout.Name, layout.Description
+	}
 }
 
 func (h Handler) adminCreateForm(w http.ResponseWriter, r *http.Request) {
@@ -1408,7 +1432,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.Presence != nil {
 		endpoint := "/admin/pages/" + url.PathEscape(page.ID) + "/presence"
-		_ = designsystem.EditPresence(page.ID, endpoint, security.CSRFTokenFromContext(r.Context()), ).Render(r.Context(), w)
+		_ = designsystem.EditPresence(page.ID, endpoint, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 	}
 	if h.PreviewSigner != nil {
 		_ = designsystem.DeviceViewportPreview(designsystem.DeviceViewportPreviewProps{Endpoint: "/admin/pages/" + url.PathEscape(page.ID) + "/preview-link", CSRF: security.CSRFTokenFromContext(r.Context())}).Render(r.Context(), w)
@@ -1456,7 +1480,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	if h.assistantEnabled() {
 		_ = designsystem.AIAssistantRequest("/admin/pages/"+url.PathEscape(page.ID)+"/ai-suggest", security.CSRFTokenFromContext(r.Context()), h.SupportedLocales).Render(r.Context(), w)
 		if suggestion, ok := r.Context().Value(pageSuggestionKey{}).(pageSuggestion); ok {
-			_ = designsystem.AIAssistantSuggestion(suggestion.BeforeTitle, suggestion.BeforeBody, suggestion.Result, "/admin/pages/"+url.PathEscape(page.ID)+"/ai-applied", security.CSRFTokenFromContext(r.Context()), ).Render(r.Context(), w)
+			_ = designsystem.AIAssistantSuggestion(suggestion.BeforeTitle, suggestion.BeforeBody, suggestion.Result, "/admin/pages/"+url.PathEscape(page.ID)+"/ai-applied", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 		}
 	}
 	_ = ui.AdminEnd(w)
