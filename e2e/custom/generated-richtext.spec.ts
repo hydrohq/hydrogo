@@ -42,6 +42,7 @@ test.describe("generated rich-text Edition Admin", () => {
 
   test("Quill formats generated content and preserves it through API create/edit", async ({ page }) => {
     await page.goto(`${baseURL}/admin/resources/article/new`);
+    await dismissOnboarding(page);
     await expect.poll(() => page.evaluate(() => typeof (window as any).HydroInitQuill)).toBe("function");
     const form = page.locator('form[action="/admin/resources/article/new"]');
     const editor = page.locator(".richtext-editor .ql-editor");
@@ -82,6 +83,7 @@ test.describe("generated rich-text Edition Admin", () => {
     const context = await browser.newContext();
     const first = await context.newPage();
     await first.goto(`${baseURL}/admin/resources/article/new`);
+    await dismissOnboarding(first);
     const createForm = first.locator('form[action="/admin/resources/article/new"]');
     await createForm.getByLabel("Title").fill("Concurrent generated article");
     await createForm.getByRole("button", { name: "Kaydet" }).click();
@@ -91,6 +93,7 @@ test.describe("generated rich-text Edition Admin", () => {
 
     const second = await context.newPage();
     await Promise.all([first.goto(new URL(recordURL!, baseURL).toString()), second.goto(new URL(recordURL!, baseURL).toString())]);
+    await dismissOnboarding(second);
     const firstForm = first.locator('form[action^="/admin/resources/article/"]');
     const secondForm = second.locator('form[action^="/admin/resources/article/"]');
     await firstForm.getByLabel("Title").fill("Latest generated title");
@@ -107,6 +110,7 @@ test.describe("generated rich-text Edition Admin", () => {
 
   test("generated relation and media fields round-trip through the shared Admin picker", async ({ page }) => {
     await page.goto(`${baseURL}/admin/resources/article/new`);
+    await dismissOnboarding(page);
     const form = page.locator('form[action="/admin/resources/article/new"]');
     await form.getByLabel("Title").fill("Generated relation and media");
     await form.getByLabel("Author").selectOption("author-1");
@@ -132,6 +136,36 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(editForm.locator('input[name="cover_id"]')).toHaveValue("fixture-image");
     await expect(editForm.locator(".media-select-field")).toHaveClass(/has-selected/);
   });
+
+  test("generated draft review and publish flow keeps working copy separate", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.goto(`${baseURL}/admin/resources/story/drafts`);
+    await dismissOnboarding(page);
+    await expect(page.locator(".studio-sidebar")).toBeVisible();
+    await expect(page.locator(".studio-sidebar")).toContainText("İÇERİK");
+    await expect(page.getByRole("heading", { name: "Taslaklar · Stories" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review copy" })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("generated-draft-inbox.png") });
+    await expectNoA11yViolations(page);
+
+    await page.getByRole("button", { name: "Review copy" }).click();
+    const editor = page.locator('form[action="/admin/resources/story/story-1/draft"]');
+    await expect(editor.getByLabel("Title")).toHaveValue("Review copy");
+    await page.screenshot({ path: test.info().outputPath("generated-draft-editor.png") });
+    await editor.getByLabel("Title").fill("Approved story copy");
+    await editor.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/story\/story-1$/);
+    await expect(page.locator('form[action="/admin/resources/story/story-1/draft"] input[name="title"]')).toHaveValue("Approved story copy");
+    await expectNoA11yViolations(page);
+
+    await page.getByRole("button", { name: "Yayımla" }).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/story\/story-1$/);
+    const published = await request.get(`${baseURL}/api/v1/story/story-1`);
+    expect(published.status()).toBe(200);
+    await expect(published.json()).resolves.toMatchObject({ title: "Approved story copy", status: "published", version: 2 });
+    await page.goto(`${baseURL}/admin/resources/story`);
+    await expect(page.getByRole("link", { name: "Approved story copy" })).toBeVisible();
+  });
 });
 
 async function unusedPort(): Promise<number> {
@@ -144,4 +178,23 @@ async function unusedPort(): Promise<number> {
       probe.close((error) => error ? reject(error) : resolve(address.port));
     });
   });
+}
+
+async function expectNoA11yViolations(page: import("@playwright/test").Page): Promise<void> {
+  const result = await page.evaluate(async () => (window as any).axe.run(document, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+  }));
+  expect(result.violations.map((violation: any) => ({
+    id: violation.id,
+    targets: violation.nodes.map((node: any) => node.target),
+  }))).toEqual([]);
+}
+
+async function dismissOnboarding(page: import("@playwright/test").Page): Promise<void> {
+  const onboarding = page.locator("#admin-onboarding-dialog");
+  await page.waitForTimeout(500);
+  if (await onboarding.isVisible()) {
+    await onboarding.getByRole("button", { name: "Bir daha gösterme" }).click();
+    await expect(onboarding).toBeHidden();
+  }
 }
