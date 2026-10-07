@@ -44,7 +44,7 @@ test.describe("generated rich-text Edition Admin", () => {
     await page.goto(`${baseURL}/admin/resources/article/new`);
     await expect.poll(() => page.evaluate(() => typeof (window as any).HydroInitQuill)).toBe("function");
     const form = page.locator('form[action="/admin/resources/article/new"]');
-    const editor = page.getByRole("textbox", { name: "Article body" }).locator(".ql-editor");
+    const editor = page.locator(".richtext-editor .ql-editor");
     await expect(editor).toBeVisible();
     await form.getByLabel("Title").fill("Generated rich text article");
     await editor.fill("A formatted generated article.");
@@ -67,7 +67,7 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(restoredEditor.locator("strong")).toHaveText("A formatted generated article.");
     await expect.poll(async () => JSON.parse(await editForm.locator('textarea[name="body"]').inputValue()).ops[0].attributes?.bold).toBe(true);
 
-    const editContent = restoredEditor.locator(".ql-editor");
+    const editContent = restoredEditor;
     await editContent.fill("An updated formatted article.");
     await editContent.press("Control+A");
     const boldButton = page.locator(".richtext-toolbar .ql-bold");
