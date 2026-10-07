@@ -13,11 +13,12 @@ let baseURL = "";
 test.describe("generated Edition Admin CRUD", () => {
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-crud-"));
-    const database = path.join(tempDir, "edition.sqlite");
-    execFileSync("go", ["run", "./examples/project-edition/cmd/server", "migrate", "--dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
+    const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
+    execFileSync("go", ["run", "./examples/project-edition/cmd/server", "migrate", "--dialect", dialect, "--dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./examples/project-edition/cmd/server", "serve", "--dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore" });
+    server = spawn("go", ["run", "./examples/project-edition/cmd/server", "serve", "--dialect", dialect, "--dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore" });
     const deadline = Date.now() + 30_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`generated Edition server exited with ${server.exitCode}`);
