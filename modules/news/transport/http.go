@@ -9,9 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
@@ -36,7 +37,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
-	"github.com/a-h/templ"
 )
 
 type Route struct {
@@ -345,22 +345,22 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 	values := map[string]string{"locale": h.defaultLocale(), "expires_at": ""}
 	csrf := security.CSRFTokenFromContext(r.Context())
-	
+
 	var leftBuf bytes.Buffer
 	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
-	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news", CSRFToken: csrf,  Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
 		return
 	}
 
 	var rightMetaBuf bytes.Buffer
 	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
-	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news", CSRFToken: csrf,  Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
 		return
 	}
 
 	var rightSEOBuf bytes.Buffer
 	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
-	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news", CSRFToken: csrf,  Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
 		return
 	}
 
@@ -759,7 +759,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 				tenantID = scope.TenantID
 			}
 			totals, _ := h.Feedback.FeedbackTotals(r.Context(), tenantID, "news", item.ID)
-			if err := designsystem.HelpfulFeedback(designsystem.HelpfulFeedbackProps{ContentType: "news", ContentID: item.ID, ElementID: "article-feedback", CSRF: security.CSRFTokenFromContext(r.Context()),  Up: totals.Up, Down: totals.Down, LoadHTMX: true}).Render(r.Context(), &helpfulFeedback); err != nil {
+			if err := designsystem.HelpfulFeedback(designsystem.HelpfulFeedbackProps{ContentType: "news", ContentID: item.ID, ElementID: "article-feedback", CSRF: security.CSRFTokenFromContext(r.Context()), Up: totals.Up, Down: totals.Down, LoadHTMX: true}).Render(r.Context(), &helpfulFeedback); err != nil {
 				helpfulFeedback.Reset()
 			}
 		}
@@ -1123,24 +1123,24 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		"expires_at":      expiresValue,
 	}
 	csrf := security.CSRFTokenFromContext(r.Context())
-	
+
 	var leftBuf bytes.Buffer
 	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
-	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf,  Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	var rightMetaBuf bytes.Buffer
 	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
-	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf,  Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	var rightSEOBuf bytes.Buffer
 	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
-	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf,  Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -1168,7 +1168,7 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.Presence != nil {
 		endpoint := "/admin/news/" + url.PathEscape(item.ID) + "/presence"
-		_ = designsystem.EditPresence(item.ID, endpoint, security.CSRFTokenFromContext(r.Context()), ).Render(r.Context(), w)
+		_ = designsystem.EditPresence(item.ID, endpoint, security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 	}
 	statusBadge := fmt.Sprintf(`<span class="status">%s</span>`, template.HTMLEscapeString(string(item.Status)))
 	titleDisplay := item.Title
@@ -1186,16 +1186,17 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		extraActions.WriteString(`<button type="button" class="button button-quiet" data-copy-text="` + template.HTMLEscapeString(copyLiveURL) + `" aria-label="Canlı URL&#39;yi kopyala" title="Canlı URL&#39;yi kopyala">🔗 URL kopyala</button><span data-copy-status style="font-size:.75rem;color:var(--muted)"></span>`)
 	}
 	extraActions.WriteString(`<button type="button" class="button button-quiet" data-device-preview-open data-preview-endpoint="` + template.HTMLEscapeString(previewEndpoint) + `" data-preview-csrf="` + template.HTMLEscapeString(csrf) + `" title="Önizleme">👁 Önizle</button>`)
-	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">%s</strong><span class="editor-live-sub">Haber düzenleniyor · %s</span></div><div class="editor-top-actions">%s<button type="submit" form="news-edit-form" class="button">Taslağı kaydet</button></div></div><form id="news-edit-form" class="studio-form" method="post" action="/admin/news/%s" data-local-autosave data-autosave-resource="news:%s"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın &amp; İşlem</span>%s</div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>%s</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><div class="editor-workflow-actions">%s</div></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>İçerik Sınıflandırması</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="_csrf" value="%s"></form><dialog class="device-preview-dialog" data-device-preview-dialog aria-labelledby="device-preview-title"><div class="device-preview-header"><div><h2 id="device-preview-title">Haber Önizlemesi</h2><p data-device-preview-status>Önizle butonuna basarak güncel taslağı yükleyin.</p></div><div class="studio-actions"><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="desktop" aria-pressed="true" title="Masaüstü">🖥 Masaüstü</button><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="tablet" aria-pressed="false" title="Tablet">📟 Tablet</button><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="mobile" aria-pressed="false" title="Mobil">📱 Mobil</button><button type="button" class="button button-quiet" data-device-preview-close aria-label="Önizlemeyi kapat">✕ Kapat</button></div></div><div class="device-preview-stage"><iframe data-device-preview-frame src="about:blank" title="Haber önizlemesi" sandbox="allow-same-origin allow-scripts allow-forms"></iframe></div></dialog><script>(()=>{const titleInp=document.querySelector('#news-edit-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`,
+	_, _ = fmt.Fprintf(w, `<div class="editor-top-nav"><div class="editor-top-info"><strong class="editor-live-title">%s</strong><span class="editor-live-sub">Haber düzenleniyor · %s</span></div><div class="editor-top-actions">%s<button type="submit" form="news-edit-form" class="button">Taslağı kaydet</button></div></div><form id="news-edit-form" class="studio-form" method="post" action="/admin/news/%s" data-local-autosave data-autosave-resource="news:%s"><div class="editor-split-container"><div class="editor-main-col"><section class="editor-card"><div class="editor-card-title"><span>Haber İçeriği</span></div>%s</section></div><div class="editor-side-col"><section class="editor-card"><div class="editor-card-title"><span>Yayın &amp; İşlem</span>%s</div><div class="editor-side-fields"><div class="editor-side-status"><span>Durum</span><strong>%s</strong></div><div class="editor-side-status"><span>Dil</span><strong>%s</strong></div><div class="editor-workflow-actions">%s</div></div></section><section class="editor-card"><div class="editor-card-title"><span>Genel Bilgiler</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>İçerik Sınıflandırması</span></div><div class="editor-side-fields">%s</div></section><section class="editor-card"><div class="editor-card-title"><span>SEO &amp; Arama Motoru</span></div><div class="editor-side-fields">%s</div></section></div></div><input type="hidden" name="locale" value="%s"><input type="hidden" name="version" value="%d"><input type="hidden" name="_csrf" value="%s"></form>%s<dialog class="device-preview-dialog" data-device-preview-dialog aria-labelledby="device-preview-title"><div class="device-preview-header"><div><h2 id="device-preview-title">Haber Önizlemesi</h2><p data-device-preview-status>Önizle butonuna basarak güncel taslağı yükleyin.</p></div><div class="studio-actions"><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="desktop" aria-pressed="true" title="Masaüstü">🖥 Masaüstü</button><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="tablet" aria-pressed="false" title="Tablet">📟 Tablet</button><button type="button" class="button button-quiet" data-device-preview-size data-device-preview-size="mobile" aria-pressed="false" title="Mobil">📱 Mobil</button><button type="button" class="button button-quiet" data-device-preview-close aria-label="Önizlemeyi kapat">✕ Kapat</button></div></div><div class="device-preview-stage"><iframe data-device-preview-frame src="about:blank" title="Haber önizlemesi" sandbox="allow-same-origin allow-scripts allow-forms"></iframe></div></dialog><script>(()=>{const titleInp=document.querySelector('#news-edit-form input[name="title"]'),liveTitle=document.querySelector('.editor-live-title');if(titleInp&&liveTitle){titleInp.addEventListener('input',()=>{liveTitle.textContent=titleInp.value.trim()||'[Başlıksız]';});}})();</script>`,
 		template.HTMLEscapeString(titleDisplay), statusBadge,
 		template.HTML(extraActions.String()),
 		template.HTMLEscapeString(item.ID), template.HTMLEscapeString(item.ID),
 		template.HTML(leftBuf.String()), statusBadge,
 		template.HTMLEscapeString(string(item.Status)), template.HTMLEscapeString(item.Locale),
-		workflowActionMarkup(h.Service, item, csrf),
+		workflowActionMarkup(h.Service, item),
 		template.HTML(rightMetaBuf.String()), template.HTML(taxonomyBuf.String()), template.HTML(rightSEOBuf.String()),
-		template.HTMLEscapeString(item.Locale), item.Version, template.HTMLEscapeString(csrf))
-		
+		template.HTMLEscapeString(item.Locale), item.Version, template.HTMLEscapeString(csrf),
+		template.HTML(workflowFormsMarkup(h.Service, item, csrf)))
+
 	_ = ui.AdminEnd(w)
 }
 
@@ -1252,21 +1253,36 @@ func parseExpiresAt(value string) (*time.Time, error) {
 	return &parsed, nil
 }
 
-func workflowActionMarkup(service news.Service, item news.Item, csrf string) template.HTML {
+func workflowActionMarkup(service news.Service, item news.Item) template.HTML {
 	var out strings.Builder
-	id := template.HTMLEscapeString(item.ID)
-	token := template.HTMLEscapeString(csrf)
 	if service.CanTransition(item.Status, v1.EditorialScheduled) {
-		fmt.Fprintf(&out, `<form method="post" action="/admin/news/%s/schedule"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><input name="scheduled_at" type="datetime-local"><button type="submit" class="button">Zamanla</button></form>`, id, token, item.Version)
+		out.WriteString(`<label for="news-scheduled-at">Yayın tarihi ve saati</label><input id="news-scheduled-at" name="scheduled_at" type="datetime-local" form="news-schedule-form" required><button type="submit" form="news-schedule-form" class="button">Zamanla</button>`)
 	}
 	if service.CanTransition(item.Status, v1.EditorialPublished) {
-		fmt.Fprintf(&out, `<form method="post" action="/admin/news/%s/publish"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-success">Yayına Al</button></form>`, id, token, item.Version)
+		out.WriteString(`<button type="submit" form="news-publish-form" class="button button-success">Yayına Al</button>`)
 	}
 	if service.CanTransition(item.Status, v1.EditorialRetracted) {
-		fmt.Fprintf(&out, `<form method="post" action="/admin/news/%s/retract"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"><button type="submit" class="button button-quiet button-danger">Yayından Çek</button></form>`, id, token, item.Version)
+		out.WriteString(`<button type="submit" form="news-retract-form" class="button button-quiet button-danger">Yayından Çek</button>`)
 	}
 	if out.Len() == 0 {
 		out.WriteString(`<p class="muted">Bu durum için kullanılabilir yayın aksiyonu yok.</p>`)
+	}
+	return template.HTML(out.String())
+}
+
+func workflowFormsMarkup(service news.Service, item news.Item, csrf string) template.HTML {
+	var out strings.Builder
+	id := template.HTMLEscapeString(item.ID)
+	token := template.HTMLEscapeString(csrf)
+	for _, action := range []struct {
+		id    string
+		state v1.EditorialState
+		path  string
+	}{{"news-schedule-form", v1.EditorialScheduled, "schedule"}, {"news-publish-form", v1.EditorialPublished, "publish"}, {"news-retract-form", v1.EditorialRetracted, "retract"}} {
+		if !service.CanTransition(item.Status, action.state) {
+			continue
+		}
+		fmt.Fprintf(&out, `<form id="%s" method="post" action="/admin/news/%s/%s"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="version" value="%d"></form>`, action.id, id, action.path, token, item.Version)
 	}
 	return template.HTML(out.String())
 }
