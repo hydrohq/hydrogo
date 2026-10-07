@@ -101,6 +101,13 @@ boyutlarını ölçüyor; test tek başına **1/1**, aynı dosyanın tüm yönet
 davet akışları **4/4**, `go test ./internal/ui -count=1` geçti. Bu, masaüstü
 golden veya WebKit/gerçek cihaz doğrulamasının yerine geçmez.
 
+Aynı mobil test hamburger menüsünü 390px'de açıp `aria-expanded` ve açık
+durumunu kontrol eder; Escape ile kapatmayı, hemen yeniden açmayı ve bir menü
+bağlantısı seçince hedef rotaya gidip menünün kapanmasını doğrular. Hemen
+yeniden açma denemesi mevcut 250ms tıklama kilidinin kullanıcı girdisini
+yuttuğunu ortaya çıkardı; redundant kilit kaldırıldı. Yeni menü akışıyla test
+tek başına **1/1**, tam admin-management dosyası **4/4** geçti.
+
 Faz 1 devamında Project Edition'e yeni bir `milestone` Blueprint kaynağı
 eklendi. Aynı generated Admin registration helper'ı bu kaynağı ayrıca ID
 tanımlamadan menüye aldı; API route ve onaylı migration ise Edition tarafından
