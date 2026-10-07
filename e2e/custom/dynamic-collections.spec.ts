@@ -77,6 +77,8 @@ test.describe("dynamic Admin collections", () => {
     await expect(page.locator('.studio-sidebar a[href="/admin/collections"]')).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { name: "Collections and schemas" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sync articles" })).toHaveAttribute("href", "/admin/collections/sync_articles");
+    const cardBorder = await page.locator(".studio-card").first().evaluate((card) => getComputedStyle(card).borderTopStyle);
+    expect(cardBorder).toBe("solid");
     const a11y = await page.evaluate(async () => (window as any).axe.run(document, {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
     }));
@@ -138,6 +140,10 @@ test.describe("dynamic Admin collections", () => {
     await page.screenshot({ path: test.info().outputPath("dynamic-collection-admin-desktop.png") });
 
     const createRecord = page.locator('form[action="/admin/collections/e2e_catalog/records"]');
+    const textFieldWidths = await createRecord.locator("label input[type=text]").evaluateAll((inputs) =>
+      inputs.map((input) => (input as HTMLInputElement).getBoundingClientRect().width),
+    );
+    expect(Math.max(...textFieldWidths) - Math.min(...textFieldWidths)).toBeLessThanOrEqual(1);
     await createRecord.getByLabel("Stock code").fill("SKU-E2E-001");
     await createRecord.getByLabel("Product name").fill("HydroGo sample product");
     await createRecord.getByRole("button", { name: "Save record" }).click();
@@ -164,6 +170,16 @@ test.describe("dynamic Admin collections", () => {
     await expect(page.getByText("No records are stored in this collection.")).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
+    const mobileNavOpen = await page.locator("body").evaluate((body) => body.classList.contains("studio-mobile-nav-open"));
+    expect(mobileNavOpen).toBe(false);
+    const sidebar = page.locator(".studio-sidebar");
+    expect(await sidebar.evaluate((element) => getComputedStyle(element).boxShadow)).toBe("none");
+    await page.getByRole("button", { name: "Menüyü aç" }).click();
+    await expect(page.locator("body")).toHaveClass(/studio-mobile-nav-open/);
+    expect(await sidebar.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe("none");
+    await page.keyboard.press("Escape");
+    await expect(page.locator("body")).not.toHaveClass(/studio-mobile-nav-open/);
+    expect(await sidebar.evaluate((element) => getComputedStyle(element).boxShadow)).toBe("none");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: test.info().outputPath("dynamic-collection-admin-mobile.png") });

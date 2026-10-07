@@ -63,7 +63,7 @@ func uniqueScriptHashes(hashes []string) []string {
 
 func AdminStyleHashes() []string {
 	return []string{
-		hash(AdminInterFontCSS + AdminCSS + AdminCSSOverrides + AdminCollectionDescriptionCSS + AdminDashboardCSS + AdminPolishCSS + AdminNavTreeCSS + AdminRichTextCSS + AdminRichTextFixCSS + AdminItemListCSS + AdminFormLayoutCSS + AdminIconCSS + AdminSearchCSS + AdminToastCSS + AdminInfoTipCSS + AdminResourceCSS + AdminAreaCSS + designsystem.PageLayoutPickerCSS + AdminPermissionsCSS + AdminHydroGoCSS + hydrogoui.CSSText + AdminShadcnCSS + AdminShadcnDashboardLayoutCSS + shadcnui.CSSText + AdminNovaCSS + AdminNovaDensityCSS + AdminNovaTypeCSS + AdminNovaDashboardCSS + AdminNovaComponentsCSS + AdminNovaDashboardLayoutCSS + AdminAuroraCSS + AdminAuroraDensityCSS + AdminAuroraTypeCSS + AdminAuroraDashboardLayoutCSS + aurora.CSSText + dashboardtw.CSSText + AdminFamilySelectCSS + AdminShowcaseCSS + AdminKitCSS + AdminListViewCSS + AdminMediaCSS + AdminMediaFormsCSS + AdminSplitEditorCSS + AdminTabsCSS + AdminSpotlightCSS + AdminResponsiveCSS + AdminUXCSS + AdminDraftAutosaveCSS + AdminPasswordStrengthCSS + AdminEditorStatsCSS + AdminBusinessCSS + AdminRevisionCSS + AdminStatusFilterCSS + AdminAvatarContrastCSS),
+		hash(AdminInterFontCSS + AdminCSS + AdminCSSOverrides + AdminCollectionDescriptionCSS + AdminDashboardCSS + AdminPolishCSS + AdminNavTreeCSS + AdminRichTextCSS + AdminRichTextFixCSS + AdminItemListCSS + AdminFormLayoutCSS + AdminCollectionRecordFormCSS + AdminIconCSS + AdminSearchCSS + AdminToastCSS + AdminInfoTipCSS + AdminResourceCSS + AdminAreaCSS + designsystem.PageLayoutPickerCSS + AdminPermissionsCSS + AdminHydroGoCSS + hydrogoui.CSSText + AdminShadcnCSS + AdminShadcnDashboardLayoutCSS + shadcnui.CSSText + AdminNovaCSS + AdminNovaDensityCSS + AdminNovaTypeCSS + AdminNovaDashboardCSS + AdminNovaComponentsCSS + AdminNovaDashboardLayoutCSS + AdminAuroraCSS + AdminAuroraDensityCSS + AdminAuroraTypeCSS + AdminAuroraDashboardLayoutCSS + aurora.CSSText + dashboardtw.CSSText + AdminFamilySelectCSS + AdminShowcaseCSS + AdminKitCSS + AdminListViewCSS + AdminMediaCSS + AdminMediaFormsCSS + AdminSplitEditorCSS + AdminTabsCSS + AdminSpotlightCSS + AdminResponsiveCSS + AdminUXCSS + AdminDraftAutosaveCSS + AdminPasswordStrengthCSS + AdminEditorStatsCSS + AdminBusinessCSS + AdminRevisionCSS + AdminStatusFilterCSS + AdminAvatarContrastCSS),
 		hash(AdminInterFontCSS + AdminCSS),
 		hash(AdminCSSOverrides + AdminCollectionDescriptionCSS),
 		hash(AdminDashboardCSS),
@@ -72,6 +72,7 @@ func AdminStyleHashes() []string {
 		hash(AdminRichTextCSS + AdminRichTextFixCSS),
 		hash(AdminItemListCSS),
 		hash(AdminFormLayoutCSS),
+		hash(AdminCollectionRecordFormCSS),
 		hash(AdminIconCSS),
 		hash(AdminSearchCSS),
 		hash(AdminToastCSS),

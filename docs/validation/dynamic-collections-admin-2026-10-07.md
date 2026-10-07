@@ -72,3 +72,15 @@ cd e2e && npx playwright test custom/dynamic-collections.spec.ts --project chrom
 Result: 1/1 Chromium test passed. The normal `e2e/artifacts` output directory
 was not writable in this workspace, so Playwright results were directed to a
 temporary output directory.
+
+## Admin form layout follow-up — 2026-10-08
+
+Rendered two-field record forms now keep the fields in equal columns; a single
+field still spans the row, while rich-text fields stay full width. The
+Playwright journey checks the two rendered input widths differ by no more than
+one pixel and asserts the Admin card styles are active under CSP. At 390px,
+the collection form stacks cleanly; the mobile navigation opens with its shadow
+and closes with Escape, after which the shadow no longer covers page content.
+The same test confirms there is no horizontal document overflow. The layout
+check is implemented by a scoped record-form class and included in the Admin
+style hash catalog.
