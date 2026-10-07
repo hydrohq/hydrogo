@@ -27,13 +27,13 @@ func main() {
 			Actions: []adminstudio.Action{{Label: "Articles", Href: "/admin/resources/article"}},
 		},
 		{
-			ID: "story", Label: "Stories", Group: "Content", TitleField: "title", Versioned: true, Revisions: true, Drafts: true,
+			ID: "story", Label: "Stories", Group: "Content", TitleField: "title", Versioned: true, Revisions: true, Drafts: true, Localization: true,
 			Fields: []adminstudio.Field{
-				{ID: "title", Label: "Title", Kind: adminstudio.FieldText, Required: true, VisibleInList: true},
+				{ID: "title", Label: "Title", Kind: adminstudio.FieldText, Required: true, Localized: true, VisibleInList: true},
 				{ID: "status", Label: "Status", Kind: adminstudio.FieldSelect, Options: []string{"draft", "review", "published"}},
 			},
 			Actions:  []adminstudio.Action{{Label: "Stories", Href: "/admin/resources/story"}},
-			Workflow: &adminstudio.Workflow{StateField: "status", States: []adminstudio.PublicationState{adminstudio.StateDraft, "review", adminstudio.StatePublished}, Transitions: map[adminstudio.PublicationState][]adminstudio.PublicationState{adminstudio.StateDraft: {"review"}, "review": {adminstudio.StatePublished}}},
+			Workflow: &adminstudio.Workflow{StateField: "status", States: []adminstudio.PublicationState{adminstudio.StateDraft, "review", adminstudio.StatePublished}, Transitions: map[adminstudio.PublicationState][]adminstudio.PublicationState{adminstudio.StateDraft: {adminstudio.StatePublished}, "review": {adminstudio.StatePublished}}},
 		},
 	})
 	if err != nil {
@@ -43,8 +43,10 @@ func main() {
 	var mu sync.Mutex
 	records := map[string]map[string]any{}
 	draft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
+	translationDraft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Türkçe taslak"}, Exists: true}
 	discardDraft := adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
 	publishedStory := map[string]any{"id": "story-1", "title": "Published story", "status": "published", "version": float64(1)}
+	localizedStory := map[string]map[string]any{"tr": {"title": "Yayımlanmış Türkçe metin"}}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/author") {
 			if strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/author/author-1" {
@@ -175,12 +177,18 @@ func main() {
 		API:             api,
 		Authorize:       func(*http.Request) bool { return true },
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-		ListDrafts: func(_ *http.Request, collection adminstudio.Collection, _ string, limit int) ([]adminstudio.DraftDocument, error) {
+		ListDrafts: func(_ *http.Request, collection adminstudio.Collection, locale string, limit int) ([]adminstudio.DraftDocument, error) {
 			if collection.ID != "story" || limit != 50 {
 				return nil, fmt.Errorf("unexpected draft list request: %s limit=%d", collection.ID, limit)
 			}
 			mu.Lock()
 			defer mu.Unlock()
+			if locale == "tr" {
+				if translationDraft.Exists {
+					return []adminstudio.DraftDocument{cloneDraft(translationDraft)}, nil
+				}
+				return nil, nil
+			}
 			result := make([]adminstudio.DraftDocument, 0, 2)
 			if draft.Exists {
 				result = append(result, cloneDraft(draft))
@@ -190,7 +198,7 @@ func main() {
 			}
 			return result, nil
 		},
-		GetDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string) (adminstudio.DraftDocument, error) {
+		GetDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string) (adminstudio.DraftDocument, error) {
 			mu.Lock()
 			defer mu.Unlock()
 			if collection.ID != "story" {
@@ -198,6 +206,9 @@ func main() {
 			}
 			switch id {
 			case draft.ID:
+				if locale == "tr" {
+					return cloneDraft(translationDraft), nil
+				}
 				return cloneDraft(draft), nil
 			case discardDraft.ID:
 				return cloneDraft(discardDraft), nil
@@ -205,32 +216,44 @@ func main() {
 				return adminstudio.DraftDocument{}, fmt.Errorf("draft not found")
 			}
 		},
-		CanSaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string) bool {
-			return collection.ID == "story" && id == "story-1"
+		CanSaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string) bool {
+			return collection.ID == "story" && id == "story-1" && (locale == "en" || locale == "tr")
 		},
-		SaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string, fields map[string]any, expectedDraft, expectedPublished int64) error {
+		SaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string, fields map[string]any, expectedDraft, expectedPublished int64) error {
 			mu.Lock()
 			defer mu.Unlock()
-			if collection.ID != "story" || id != draft.ID || expectedDraft != draft.Version || expectedPublished != draft.PublishedVersion {
+			current := &draft
+			if locale == "tr" {
+				current = &translationDraft
+			}
+			if collection.ID != "story" || id != current.ID || expectedDraft != current.Version || expectedPublished != current.PublishedVersion {
 				return fmt.Errorf("draft changed")
 			}
-			draft.Version++
-			draft.Fields = clone(fields)
+			current.Version++
+			current.Fields = clone(fields)
 			return nil
 		},
 		CanTransitionDraft: func(_ *http.Request, collection adminstudio.Collection, current adminstudio.DraftDocument, target adminstudio.PublicationState) bool {
-			return collection.ID == "story" && current.State == "review" && target == adminstudio.StatePublished
+			return collection.ID == "story" && target == adminstudio.StatePublished && (current.State == "review" || current.State == adminstudio.StateDraft)
 		},
-		TransitionDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string, target adminstudio.PublicationState, expectedDraft, expectedPublished int64) error {
+		TransitionDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string, target adminstudio.PublicationState, expectedDraft, expectedPublished int64) error {
 			mu.Lock()
 			defer mu.Unlock()
-			if collection.ID != "story" || id != draft.ID || target != adminstudio.StatePublished || expectedDraft != draft.Version || expectedPublished != draft.PublishedVersion {
+			current := &draft
+			if locale == "tr" {
+				current = &translationDraft
+			}
+			if collection.ID != "story" || id != current.ID || target != adminstudio.StatePublished || expectedDraft != current.Version || expectedPublished != current.PublishedVersion {
 				return fmt.Errorf("draft changed")
 			}
-			draft.Version++
-			draft.PublishedVersion = 2
-			draft.State = target
-			publishedStory = map[string]any{"id": id, "title": draft.Fields["title"], "status": string(target), "version": float64(2)}
+			current.Version++
+			current.State = target
+			if locale == "tr" {
+				localizedStory[locale] = map[string]any{"title": current.Fields["title"]}
+			} else {
+				current.PublishedVersion = 2
+				publishedStory = map[string]any{"id": id, "title": current.Fields["title"], "status": string(target), "version": float64(2)}
+			}
 			return nil
 		},
 		CanDiscardDraft: func(_ *http.Request, collection adminstudio.Collection, current adminstudio.DraftDocument) bool {
@@ -243,6 +266,55 @@ func main() {
 				return fmt.Errorf("draft changed")
 			}
 			discardDraft.Exists = false
+			return nil
+		},
+		Locales: func(_ *http.Request, collection adminstudio.Collection) (adminstudio.LocaleOptions, error) {
+			if collection.ID != "story" {
+				return adminstudio.LocaleOptions{}, fmt.Errorf("unexpected localized resource")
+			}
+			return adminstudio.LocaleOptions{Default: "en", Allowed: []string{"en", "tr"}}, nil
+		},
+		GetLocalized: func(_ *http.Request, collection adminstudio.Collection, id, locale string) (map[string]any, int64, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || id != "story-1" || locale != "tr" {
+				return nil, 0, fmt.Errorf("translation not found")
+			}
+			return clone(localizedStory[locale]), 1, nil
+		},
+		SaveLocalized: func(_ *http.Request, collection adminstudio.Collection, id, locale string, fields map[string]any, expected int64) error {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || id != "story-1" || locale != "tr" || expected != 1 {
+				return fmt.Errorf("translation changed")
+			}
+			localizedStory[locale] = clone(fields)
+			return nil
+		},
+		ListLocalized: func(_ *http.Request, collection adminstudio.Collection, ids []string, locale string) (map[string]map[string]any, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || locale != "tr" {
+				return nil, fmt.Errorf("unexpected translation list")
+			}
+			result := make(map[string]map[string]any)
+			for _, id := range ids {
+				if id == "story-1" {
+					result[id] = clone(localizedStory[locale])
+				}
+			}
+			return result, nil
+		},
+		CanCopyLocale: func(_ *http.Request, collection adminstudio.Collection, id, from string) bool {
+			return collection.ID == "story" && id == "story-1" && from == "en"
+		},
+		CopyLocale: func(_ *http.Request, collection adminstudio.Collection, id, from, to string, expected int64) error {
+			mu.Lock()
+			defer mu.Unlock()
+			if collection.ID != "story" || id != "story-1" || from != "en" || to != "tr" || expected != 1 {
+				return fmt.Errorf("translation copy rejected")
+			}
+			localizedStory[to] = map[string]any{"title": publishedStory["title"]}
 			return nil
 		},
 		ListRevisions: func(_ *http.Request, collection adminstudio.Collection, _ string, limit int) ([]adminstudio.RevisionSummary, error) {

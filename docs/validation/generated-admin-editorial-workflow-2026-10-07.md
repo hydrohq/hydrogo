@@ -18,7 +18,9 @@ publish callback:
 
 A second browser path opens a separate unpublished draft, discards it from the
 editor, confirms it disappears from the draft inbox, and verifies the
-published API returns 404 for its ID.
+published API returns 404 for its ID. A localized path edits and publishes the
+Turkish translation, confirms it appears in the Turkish generated list, and
+checks that the default English API record remains unchanged.
 
 The shared Studio shell appears on the generated screens. axe-core WCAG 2.1
 A/AA checks pass on the draft inbox and draft editor.
@@ -33,12 +35,15 @@ Blueprint capitalization.
 cd e2e && npx playwright test custom/generated-richtext.spec.ts --project=chromium --workers=1 --reporter=line
 ```
 
-Result: **5/5 Chromium tests passed**, including formatted rich-text create/edit,
+Result: **6/6 Chromium tests passed**, including formatted rich-text create/edit,
 stale edit conflict recovery, relation/media selection, draft-review-publish,
-and unpublished draft discard.
+unpublished draft discard, and localized draft save/publish with default-locale
+isolation. axe-core checks pass on the draft inbox, draft editor, and localized
+editor.
 
 The editor/publish journey uses an in-memory Edition API and callback fixture;
 it validates the generated Admin HTTP/UI contract and state returned by those
 callbacks. SQLite/PostgreSQL draft storage is covered by separate contract
-tests, not by this browser fixture. Scheduling, discard, locale drafts, and
-locale drafts, and live tenant isolation remain separate acceptance cases.
+tests, not by this browser fixture. Scheduling and live tenant isolation remain
+separate acceptance cases. The browser path found and fixed locale propagation
+on workflow submissions and query-safe locale navigation in generated lists.
