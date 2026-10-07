@@ -7,23 +7,24 @@ import (
 )
 
 type SupportConfig struct {
-	Enabled               bool
-	MaintenanceActive     bool
-	BrokenLinksActive     bool
-	BrokenLinksJobID      string
-	SafeModeActive        bool
-	SiteModuleEnabled     bool
-	CommerceModuleEnabled bool
-	StaffNoticeActive     bool
-	StaffNoticeMessage    string
-	StaffNoticeSeverity   string
-	StaffNoticeDismissKey string
-	AgencyName            string
-	Email                 string
-	Phone                 string
-	WhatsAppURL           string
-	SLABadge              string
-	GuideURL              string
+	Enabled                  bool
+	MaintenanceActive        bool
+	BrokenLinksActive        bool
+	BrokenLinksJobID         string
+	SafeModeActive           bool
+	SiteModuleEnabled        bool
+	CommerceModuleEnabled    bool
+	CollectionsModuleEnabled bool
+	StaffNoticeActive        bool
+	StaffNoticeMessage       string
+	StaffNoticeSeverity      string
+	StaffNoticeDismissKey    string
+	AgencyName               string
+	Email                    string
+	Phone                    string
+	WhatsAppURL              string
+	SLABadge                 string
+	GuideURL                 string
 }
 
 func SupportConfigResolverMiddleware(config SupportConfig, resolve func(*http.Request) SupportConfig) func(http.Handler) http.Handler {

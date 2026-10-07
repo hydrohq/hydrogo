@@ -2771,20 +2771,21 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				Email:       user.Email,
 				Collections: activeStudioCollections(),
 
-				Active:                "reports",
-				Metrics:               runtimeMetrics,
-				MemberStats:           stats,
-				DataTime:              dataTime,
-				DataSource:            "Proses İçi Bellek Telemetrisi",
-				DateFilter:            dateRange,
-				DateFrom:              dateFrom,
-				DateTo:                dateTo,
-				Locale:                adminLocaleFromRequest(r),
-				ContentViews:          contentViewRows,
-				AnalyticsEnabled:      modules["analytics"] && cfg.Analytics.NoCookieEnabled,
-				SearchInsightsEnabled: modules["search"] && modules["analytics"],
-				NoCookieStats:         noCookieStats,
-				UniqueVisitors:        uniqueVisitors,
+				Active:                   "reports",
+				Metrics:                  runtimeMetrics,
+				MemberStats:              stats,
+				DataTime:                 dataTime,
+				DataSource:               "Proses İçi Bellek Telemetrisi",
+				DateFilter:               dateRange,
+				DateFrom:                 dateFrom,
+				DateTo:                   dateTo,
+				Locale:                   adminLocaleFromRequest(r),
+				ContentViews:             contentViewRows,
+				AnalyticsEnabled:         modules["analytics"] && cfg.Analytics.NoCookieEnabled,
+				SearchInsightsEnabled:    modules["search"] && modules["analytics"],
+				CollectionsModuleEnabled: modules["collections"],
+				NoCookieStats:            noCookieStats,
+				UniqueVisitors:           uniqueVisitors,
 			}); err != nil {
 				http.Error(w, "admin reports unavailable", http.StatusInternalServerError)
 			}
@@ -2799,7 +2800,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if securityNotice.PreviousLoginAt != nil {
 			previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
 		}
-		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
+		if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Email: user.Email, Collections: activeStudioCollections(), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: smtpSender != nil, CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
 			http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 		}
 	})
@@ -3601,7 +3602,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
 		SecurityScriptHashes:  ui.AdminScriptHashes(),
 		SecurityStyleHashes:   ui.AdminStyleHashes(),
-		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"]},
+		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"]},
 		AdminSupportResolver: func(r *http.Request) adminstudio.SupportConfig {
 			if !modules["site"] {
 				return adminstudio.SupportConfig{}
