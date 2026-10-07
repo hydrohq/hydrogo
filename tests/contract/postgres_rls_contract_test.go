@@ -51,6 +51,14 @@ var expectedRLSTables = []string{
 func TestPostgresTenantRLSContract(t *testing.T) {
 	ctx := context.Background()
 	db := openIsolatedPostgres(t, ctx)
+	var currentRole string
+	var bypassesRLS bool
+	if err := db.QueryRowContext(ctx, `SELECT current_user, rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user`).Scan(&currentRole, &bypassesRLS); err != nil {
+		t.Fatalf("check current PostgreSQL role: %v", err)
+	}
+	if bypassesRLS {
+		t.Fatalf("tenant RLS contract requires a non-superuser role without BYPASSRLS; %q bypasses row policies", currentRole)
+	}
 
 	if err := database.ApplyMigrations(ctx, db, database.Postgres, migrations.FS); err != nil {
 		t.Fatalf("failed to apply migrations: %v", err)
