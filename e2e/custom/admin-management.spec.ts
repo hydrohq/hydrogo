@@ -657,6 +657,55 @@ test.describe("single Edition administrator management", () => {
     await context.close();
   });
 
+  test("admin routes meet WCAG 2.1 A/AA in every Studio theme and color mode", async ({ browser }) => {
+    test.setTimeout(180_000);
+    expect(adminStorageState, "the preceding admin login test must create an authenticated state").toBeTruthy();
+    const context = await browser.newContext({ storageState: adminStorageState });
+    const page = await context.newPage();
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.goto(`${baseURL}/admin`);
+    await dismissAdminTour(page);
+
+    const routes = [
+      "/admin",
+      "/admin/pages/new",
+      "/admin/news/new",
+      "/admin/media",
+      "/admin/users",
+      "/admin/permissions",
+      "/admin/security",
+      "/admin/audit",
+      "/admin/backup",
+      "/admin/control",
+      "/admin/operations",
+      "/admin/developer",
+      "/admin/developer/resources",
+      "/admin/reports",
+    ];
+    const themes = ["hydrogo", "shadcn", "nova", "aurora"];
+    for (const theme of themes) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([family, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${family}-${colorMode}`), [theme, mode]);
+        for (const route of routes) {
+          const response = await page.goto(`${baseURL}${route}`);
+          expect(response?.status(), `${route} must render with ${theme}-${mode}`).toBe(200);
+          await expect(page.locator("h1").first()).toBeVisible();
+          await expect(page.locator("html")).toHaveAttribute("data-ui-theme", theme);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+          const result = await page.evaluate(async () => (window as any).axe.run(document, {
+            runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+          }));
+          expect(result.violations.map((violation: any) => ({
+            id: violation.id,
+            impact: violation.impact,
+            nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+          })), `${route} WCAG 2.1 A/AA violations in ${theme}-${mode}`).toEqual([]);
+        }
+      }
+    }
+    await context.close();
+  });
+
 
 });
 
