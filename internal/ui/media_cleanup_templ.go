@@ -31,7 +31,7 @@ func MediaCleanupLink() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<p><a class=\"button button-quiet\" href=\"/admin/media/cleanup\">Review unused media</a></p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<p><a class=\"button button-quiet\" href=\"/admin/media/cleanup\">Kullanılmayan medyayı incele</a></p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -60,7 +60,7 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"studio-card\"><h1>Unused media cleanup</h1><p>Only unreferenced ready assets older than seven days appear here. Content and settings references are rescanned before deletion.</p><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"studio-card\"><h1>Kullanılmayan medya dosyalarını temizle</h1><p>Yalnızca yedi günden eski ve hiçbir yerde kullanılmayan hazır dosyalar listelenir. Silmeden önce içerik ve ayarlardaki kullanımlar yeniden kontrol edilir.</p><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -73,25 +73,25 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " assets · ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " dosya · ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(formatMediaGarbageSize(totalBytes))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 13, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 13, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " reclaimable</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " geri kazanılabilir alan</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(items) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p role=\"status\">No unused media assets were found.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p role=\"status\">Kullanılmayan medya dosyası bulunamadı.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -109,7 +109,7 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><div class=\"table-responsive\"><table><thead><tr><th>Select</th><th>File</th><th>Uploaded</th><th>Size</th></tr></thead><tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><div class=\"table-responsive\"><table><thead><tr><th>Seç</th><th>Dosya</th><th>Yüklenme tarihi</th><th>Boyut</th></tr></thead><tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -132,9 +132,9 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var7 string
-				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("Delete " + item.Filename)
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("Sil " + item.Filename)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 107}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 104}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
@@ -147,7 +147,7 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(item.Filename)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 136}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 133}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -160,7 +160,7 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(item.CreatedAt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 163}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 160}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -173,7 +173,7 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(formatMediaGarbageSize(item.SizeBytes))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 214}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/media_cleanup.templ`, Line: 21, Col: 211}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -184,12 +184,12 @@ func MediaCleanupPage(items []MediaGarbageItem, totalBytes int64, csrf string) t
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</tbody></table></div><label><input type=\"checkbox\" name=\"confirm\" value=\"yes\" required> I reviewed the selected files and confirm deletion.</label> <button type=\"submit\" class=\"button button-danger\">Delete selected unused assets</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</tbody></table></div><label><input type=\"checkbox\" name=\"confirm\" value=\"yes\" required> Seçtiğim dosyaları inceledim ve silinmesini onaylıyorum.</label> <button type=\"submit\" class=\"button button-danger\">Seçilen kullanılmayan dosyaları sil</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<a href=\"/admin/media\">Back to media library</a></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<a href=\"/admin/media\">Medya kütüphanesine dön</a></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

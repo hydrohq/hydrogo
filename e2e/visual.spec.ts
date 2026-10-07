@@ -18,9 +18,27 @@ test.describe("HydroGo visual contract", () => {
 
   for (const surface of stableSurfaces) {
     test(`${surface.id} visual baseline`, async ({ page }) => {
-      if (!surface.auth) await page.context().clearCookies();
+      if (!surface.auth) {
+        await page.context().clearCookies();
+        await page.addInitScript(() => {
+          localStorage.clear();
+          sessionStorage.clear();
+        });
+      }
       await page.goto(surface.path, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(300);
+      if (surface.id === "home") {
+        await page.evaluate(async () => {
+          const step = Math.max(1, Math.floor(innerHeight * 0.75));
+          for (let top = 0; top < document.documentElement.scrollHeight; top += step) {
+            scrollTo(0, top);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          scrollTo(0, 0);
+        });
+        await page.waitForTimeout(300);
+      }
+      await page.mouse.move(0, 0);
       await page.evaluate(() => document.fonts?.ready);
       if (surface.id === "admin-news-editor") {
         await expect(page.locator("[data-page-weight]")).toBeVisible();

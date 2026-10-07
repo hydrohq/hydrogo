@@ -127,7 +127,7 @@ func TestAdminMediaCleanupRequiresAdminAndConfirmation(t *testing.T) {
 	adminCtx := auth.WithUser(context.Background(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true})
 	page := httptest.NewRecorder()
 	handler.adminCleanup(page, httptest.NewRequest(http.MethodGet, "/admin/media/cleanup", nil).WithContext(adminCtx))
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "old.png") || !strings.Contains(page.Body.String(), "confirm") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "old.png") || !strings.Contains(page.Body.String(), "confirm") || !strings.Contains(page.Body.String(), "Kullanılmayan medya dosyalarını temizle") {
 		t.Fatalf("GET status=%d body=%s", page.Code, page.Body.String())
 	}
 	form := url.Values{"asset_id": {"orphan"}, "confirm": {"yes"}}
