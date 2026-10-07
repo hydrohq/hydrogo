@@ -48,8 +48,8 @@ test.describe("single Edition administrator management", () => {
 
   test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
     for (const account of [
-      { email: "editor@example.test", expectedRole: "editor", allowedPath: "/admin/pages/new", deniedPath: "/admin/users" },
-      { email: "viewer@example.test", expectedRole: "viewer", allowedPath: "/admin/pages/new", deniedPath: "/admin/users" },
+      { email: "editor@example.test", expectedRole: "editor", allowedPath: "/admin/pages/new" },
+      { email: "viewer@example.test", expectedRole: "viewer", allowedPath: "/admin/pages/new" },
     ]) {
       const context = await browser.newContext();
       const page = await context.newPage();
@@ -77,8 +77,20 @@ test.describe("single Edition administrator management", () => {
       if (account.expectedRole === "editor") {
         await expect(page.locator('.studio-sidebar a[href="/admin/users"]')).toHaveCount(0);
       }
-      const denied = await page.goto(`${baseURL}${account.deniedPath}`);
-      expect(denied?.status()).toBe(403);
+      for (const route of [
+        "/admin/users",
+        "/admin/permissions",
+        "/admin/security",
+        "/admin/audit",
+        "/admin/backup",
+        "/admin/control",
+        "/admin/operations",
+        "/admin/developer",
+        "/admin/developer/resources",
+      ]) {
+        const denied = await page.goto(`${baseURL}${route}`);
+        expect(denied?.status(), `${account.expectedRole} must be denied ${route}`).toBe(403);
+      }
       const mutation = await page.request.post(`${baseURL}/admin/pages`, { form: { slug: "role-denied", title: "Role denied" } });
       expect(mutation.status()).toBe(403);
       await context.close();
