@@ -502,7 +502,9 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	publishedReads, publishedWrites, saves, transitions := 0, 0, 0, 0
+	publishedReads, publishedWrites, saves, transitions, discards := 0, 0, 0, 0, 0
+	allowSave, allowTransition, allowDiscard := true, true, true
+	validCSRF := true
 	draft := DraftDocument{ID: "a1", Version: 2, PublishedVersion: 4, State: StateDraft, Fields: map[string]any{"title": "Working title"}, Exists: true}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/article" {
@@ -536,7 +538,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 			}
 			return draft, nil
 		},
-		CanSaveDraft: func(*http.Request, Collection, string, string) bool { return true },
+		CanSaveDraft: func(*http.Request, Collection, string, string) bool { return allowSave },
 		SaveDraft: func(_ *http.Request, _ Collection, id, _ string, fields map[string]any, expectedDraft, expectedPublished int64) error {
 			saves++
 			if id != "a1" || expectedDraft != 2 || expectedPublished != 4 || fields["title"] != "Edited draft" {
@@ -545,7 +547,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 			return nil
 		},
 		CanTransitionDraft: func(_ *http.Request, _ Collection, got DraftDocument, target PublicationState) bool {
-			return got.Version == 2 && target == "review"
+			return allowTransition && got.Version == 2 && target == "review"
 		},
 		TransitionDraft: func(_ *http.Request, _ Collection, id, _ string, target PublicationState, expectedDraft, expectedPublished int64) error {
 			transitions++
@@ -554,14 +556,15 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 			}
 			return nil
 		},
-		CanDiscardDraft: func(*http.Request, Collection, DraftDocument) bool { return true },
+		CanDiscardDraft: func(*http.Request, Collection, DraftDocument) bool { return allowDiscard },
 		DiscardDraft: func(_ *http.Request, _ Collection, id, _ string, expected int64) error {
+			discards++
 			if id != "a1" || expected != 2 {
 				return errors.New("unexpected discard CAS")
 			}
 			return nil
 		},
-		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
+		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return validCSRF && r.FormValue("_csrf") == "csrf-value" },
 		ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) { return nil, nil },
 		GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
 			return RevisionSnapshot{}, errors.New("missing")
@@ -591,16 +594,36 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	if got := post("/admin/resources/article/a1/draft", "_csrf=csrf-value&title=Edited+draft&status=draft&draft_version=2&published_version=3"); got.Code != http.StatusConflict || saves != 0 {
 		t.Fatalf("stale published version must block draft save: status=%d saves=%d", got.Code, saves)
 	}
+	validCSRF = false
+	if got := post("/admin/resources/article/a1/draft", "_csrf=csrf-value&title=Edited+draft&status=draft&draft_version=2&published_version=4"); got.Code != http.StatusForbidden || saves != 0 {
+		t.Fatalf("draft save without valid CSRF must be rejected before storage: status=%d saves=%d", got.Code, saves)
+	}
+	validCSRF = true
+	allowSave = false
+	if got := post("/admin/resources/article/a1/draft", "_csrf=csrf-value&title=Edited+draft&status=draft&draft_version=2&published_version=4"); got.Code != http.StatusForbidden || saves != 0 {
+		t.Fatalf("unauthorized draft save must be rejected before storage: status=%d saves=%d", got.Code, saves)
+	}
+	allowSave = true
 	if got := post("/admin/resources/article/a1/draft", "_csrf=csrf-value&title=Edited+draft&status=draft&draft_version=2&published_version=4"); got.Code != http.StatusSeeOther || saves != 1 {
 		t.Fatalf("valid draft save was not delegated: status=%d saves=%d body=%s", got.Code, saves, got.Body.String())
 	}
 	if got := post("/admin/resources/article/a1/workflow", "_csrf=csrf-value&target=review&expected_draft_version=1&expected_published_version=4"); got.Code != http.StatusConflict || transitions != 0 {
 		t.Fatalf("stale draft must block transition: status=%d transitions=%d", got.Code, transitions)
 	}
+	allowTransition = false
+	if got := post("/admin/resources/article/a1/workflow", "_csrf=csrf-value&target=review&expected_draft_version=2&expected_published_version=4"); got.Code != http.StatusForbidden || transitions != 0 {
+		t.Fatalf("unauthorized draft transition must be rejected before storage: status=%d transitions=%d", got.Code, transitions)
+	}
+	allowTransition = true
 	if got := post("/admin/resources/article/a1/workflow", "_csrf=csrf-value&target=review&expected_draft_version=2&expected_published_version=4"); got.Code != http.StatusSeeOther || transitions != 1 {
 		t.Fatalf("valid transition was not delegated: status=%d transitions=%d body=%s", got.Code, transitions, got.Body.String())
 	}
-	if got := post("/admin/resources/article/a1/draft/discard", "_csrf=csrf-value&expected_version=2"); got.Code != http.StatusSeeOther {
+	allowDiscard = false
+	if got := post("/admin/resources/article/a1/draft/discard", "_csrf=csrf-value&expected_version=2"); got.Code != http.StatusForbidden || discards != 0 {
+		t.Fatalf("unauthorized draft discard must be rejected before storage: status=%d discards=%d", got.Code, discards)
+	}
+	allowDiscard = true
+	if got := post("/admin/resources/article/a1/draft/discard", "_csrf=csrf-value&expected_version=2"); got.Code != http.StatusSeeOther || discards != 1 {
 		t.Fatalf("draft discard was not delegated: status=%d body=%s", got.Code, got.Body.String())
 	}
 	if publishedReads < 4 || publishedWrites != 0 {
