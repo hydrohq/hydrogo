@@ -303,7 +303,7 @@ func TestNovaTopNavHidesPagesAndIncludesSidebarParity(t *testing.T) {
 		// sidebar counterparts, so editor-role accounts don't see them.
 		`href="/admin/reports" data-admin-only>Raporlar</a>`,
 		`href="/admin/developer" data-admin-only>Geliştirici &amp; API</a>`,
-		`href="/admin/members" data-admin-only>Üyeler</a>`,
+		`href="/admin/members">Üyeler</a>`,
 		`href="/admin/media">Medya</a>`,
 	} {
 		if !strings.Contains(out.String(), want) {

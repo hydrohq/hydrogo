@@ -88,6 +88,10 @@ test.describe("single Edition administrator management", () => {
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
         expect(createdPageID).not.toBe("");
         expect((await page.goto(`${baseURL}/admin/pages`))?.status()).toBe(200);
+        await expect(page.locator('.studio-sidebar a[href="/admin/pages"]')).toBeVisible();
+        await expect(page.locator('.studio-sidebar a[href="/admin/users"]')).toHaveCount(0);
+        await expect(page.locator('.studio-sidebar a[href="/admin/reports"]')).toHaveCount(0);
+        await expect(page.locator('.studio-sidebar a[href="/admin/media"]')).toHaveCount(0);
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toHaveCount(0);
         await page.locator('.studio-search').click();
         await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toHaveCount(0);
