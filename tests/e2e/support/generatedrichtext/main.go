@@ -16,14 +16,19 @@ import (
 )
 
 func main() {
-	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{{
-		ID: "article", Label: "Articles", Group: "Content", TitleField: "title", Versioned: true,
-		Fields: []adminstudio.Field{
-			{ID: "title", Label: "Title", Kind: adminstudio.FieldText, Required: true, VisibleInList: true},
-			{ID: "body", Label: "Article body", Kind: adminstudio.FieldText, Widget: "richtext"},
+	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{
+		{ID: "author", Label: "Authors", TitleField: "name", Fields: []adminstudio.Field{{ID: "name", Label: "Name", Kind: adminstudio.FieldText}}, Actions: []adminstudio.Action{{Label: "Authors", Href: "/admin/resources/author"}}},
+		{
+			ID: "article", Label: "Articles", Group: "Content", TitleField: "title", Versioned: true,
+			Fields: []adminstudio.Field{
+				{ID: "title", Label: "Title", Kind: adminstudio.FieldText, Required: true, VisibleInList: true},
+				{ID: "author_id", Label: "Author", Kind: adminstudio.FieldRelation, Relation: &adminstudio.RelationRef{Collection: "author", Cardinality: "one"}},
+				{ID: "cover_id", Label: "Cover image", Kind: adminstudio.FieldMedia, Widget: "media"},
+				{ID: "body", Label: "Article body", Kind: adminstudio.FieldText, Widget: "richtext"},
+			},
+			Actions: []adminstudio.Action{{Label: "Articles", Href: "/admin/resources/article"}},
 		},
-		Actions: []adminstudio.Action{{Label: "Articles", Href: "/admin/resources/article"}},
-	}})
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -31,6 +36,14 @@ func main() {
 	var mu sync.Mutex
 	records := map[string]map[string]any{}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/author") {
+			if strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/author/author-1" {
+				writeJSON(w, http.StatusOK, map[string]any{"id": "author-1", "name": "Test Author"})
+				return
+			}
+			writeJSON(w, http.StatusOK, []map[string]any{{"id": "author-1", "name": "Test Author"}})
+			return
+		}
 		parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/v1/article"), "/"), "/")
 		if r.URL.Path == "/api/v1/article" {
 			if r.Method == http.MethodPost {
@@ -125,6 +138,9 @@ func main() {
 		panic(err)
 	}
 	mux.Handle("GET /vendor/{path...}", http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS))))
+	mux.HandleFunc("GET /api/media", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, []map[string]any{{"id": "fixture-image", "status": "ready", "mime_type": "image/png", "original_filename": "fixture.png"}})
+	})
 	if err := (adminstudio.GeneratedAdminHandler{Registry: registry, Options: adminstudio.GeneratedAdminOptions{
 		API:             api,
 		Authorize:       func(*http.Request) bool { return true },
