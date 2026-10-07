@@ -30,3 +30,16 @@ func TestCollectionRecordFormLayoutClasses(t *testing.T) {
 		}
 	}
 }
+
+func TestCollectionRecordsPaginationLinks(t *testing.T) {
+	action := "/admin/collections/articles/records"
+	if got := collectionRecordsPageHref(action, 0); got != "/admin/collections/articles" {
+		t.Fatalf("first page link = %q", got)
+	}
+	if got := collectionRecordsPageHref(action, 50); got != "/admin/collections/articles?offset=50" {
+		t.Fatalf("second page link = %q", got)
+	}
+	if got := collectionPageNumber(50, 50); got != 2 {
+		t.Fatalf("page number for offset 50 = %d, want 2", got)
+	}
+}

@@ -184,17 +184,31 @@ func (h Handler) adminRecords(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	records, err := h.Service.ListRecords(r.Context(), id, 100, 0)
+	const pageSize = 50
+	offset := 0
+	if rawOffset := strings.TrimSpace(r.URL.Query().Get("offset")); rawOffset != "" {
+		parsedOffset, parseErr := strconv.Atoi(rawOffset)
+		if parseErr != nil || parsedOffset < 0 || parsedOffset > collections.MaxCollectionRecords || parsedOffset%pageSize != 0 {
+			http.Error(w, "Invalid page", http.StatusBadRequest)
+			return
+		}
+		offset = parsedOffset
+	}
+	records, err := h.Service.ListRecords(r.Context(), id, pageSize+1, offset)
 	if err != nil {
 		http.Error(w, "records unavailable", http.StatusServiceUnavailable)
 		return
+	}
+	hasNextPage := len(records) > pageSize
+	if hasNextPage {
+		records = records[:pageSize]
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if ui.AdminStartForRequest(w, r, schema.Label, "Collection records", "collections") != nil {
 		return
 	}
-	if err := ui.CollectionRecordsPage(schema, records, security.CSRFTokenFromContext(r.Context()), ui.CollectionRecordFields(schema, nil), "/admin/collections/"+url.PathEscape(id)+"/records").Render(r.Context(), w); err != nil {
+	if err := ui.CollectionRecordsPage(schema, records, security.CSRFTokenFromContext(r.Context()), ui.CollectionRecordFields(schema, nil), "/admin/collections/"+url.PathEscape(id)+"/records", offset, pageSize, hasNextPage).Render(r.Context(), w); err != nil {
 		http.Error(w, "collection records unavailable", http.StatusInternalServerError)
 		return
 	}
