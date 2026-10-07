@@ -104,6 +104,34 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(secondForm.getByLabel("Title")).toHaveValue("Latest generated title");
     await context.close();
   });
+
+  test("generated relation and media fields round-trip through the shared Admin picker", async ({ page }) => {
+    await page.goto(`${baseURL}/admin/resources/article/new`);
+    const form = page.locator('form[action="/admin/resources/article/new"]');
+    await form.getByLabel("Title").fill("Generated relation and media");
+    await form.getByLabel("Author").selectOption("author-1");
+    await form.getByRole("button", { name: "Kütüphaneden seç" }).click();
+    const modal = page.getByRole("dialog", { name: "Medya kütüphanesi" });
+    await expect(modal).toBeVisible();
+    const choice = modal.locator(".admin-media-picker-item");
+    await expect(choice).toHaveAttribute("data-asset-id", "fixture-image");
+    await choice.click();
+    await expect(modal).toBeHidden();
+    await expect(form.locator('input[name="cover_id"]')).toHaveValue("fixture-image");
+    await expect(form.locator(".media-select-field")).toHaveClass(/has-selected/);
+
+    await form.getByRole("button", { name: "Kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
+    const recordLink = page.getByRole("link", { name: "Generated relation and media" });
+    await expect(recordLink).toBeVisible();
+    const recordPath = await recordLink.getAttribute("href");
+    expect(recordPath).toBeTruthy();
+    await page.goto(new URL(recordPath!, baseURL).toString());
+    const editForm = page.locator(`form[action="${recordPath}"]`);
+    await expect(editForm.getByLabel("Author")).toHaveValue("author-1");
+    await expect(editForm.locator('input[name="cover_id"]')).toHaveValue("fixture-image");
+    await expect(editForm.locator(".media-select-field")).toHaveClass(/has-selected/);
+  });
 });
 
 async function unusedPort(): Promise<number> {
