@@ -17,6 +17,7 @@ test.describe("single Edition administrator management", () => {
     const database = path.join(tempDir, "edition.sqlite");
     execFileSync("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore" });
@@ -43,6 +44,45 @@ test.describe("single Edition administrator management", () => {
       });
     }
     if (tempDir) await rm(tempDir, { recursive: true, force: true });
+  });
+
+  test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
+    for (const account of [
+      { email: "editor@example.test", expectedRole: "editor", allowedPath: "/admin/pages/new", deniedPath: "/admin/users" },
+      { email: "viewer@example.test", expectedRole: "viewer", allowedPath: "/admin/pages/new", deniedPath: "/admin/users" },
+    ]) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await page.goto(`${baseURL}/login`);
+      await page.getByLabel("Email address").fill(account.email);
+      await page.getByLabel("Password").fill(adminPassword);
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
+
+      const allowed = await page.goto(`${baseURL}${account.allowedPath}`);
+      if (account.expectedRole === "editor") {
+        expect(allowed?.status()).toBe(200);
+        await expect(page.locator(`body[data-studio-role="${account.expectedRole}"]`)).toBeVisible();
+        await expect(page.locator('.studio-sidebar a[href="/admin/pages"]')).toBeVisible();
+        const createForm = page.locator('form[action="/admin/pages"]');
+        await createForm.locator('[name="slug"]').fill("role-editor-page");
+        await createForm.locator('[name="title"]').fill("Editor session page");
+        await createForm.locator(".richtext-editor [contenteditable=true]").fill("Created by an authenticated Edition editor.");
+        await createForm.getByRole("button", { name: "Taslak oluştur" }).click();
+        await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+      } else {
+        expect(allowed?.status()).toBe(403);
+      }
+
+      if (account.expectedRole === "editor") {
+        await expect(page.locator('.studio-sidebar a[href="/admin/users"]')).toHaveCount(0);
+      }
+      const denied = await page.goto(`${baseURL}${account.deniedPath}`);
+      expect(denied?.status()).toBe(403);
+      const mutation = await page.request.post(`${baseURL}/admin/pages`, { form: { slug: "role-denied", title: "Role denied" } });
+      expect(mutation.status()).toBe(403);
+      await context.close();
+    }
   });
 
   test("admin login opens the Edition management areas and rejects anonymous access", async ({ page }) => {
