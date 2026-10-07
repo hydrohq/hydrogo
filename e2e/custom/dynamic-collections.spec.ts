@@ -104,6 +104,7 @@ test.describe("dynamic Admin collections", () => {
     await expect(page.getByRole("heading", { name: "E2E Catalog" }).first()).toBeVisible();
     await expect(page.getByLabel("Stock code")).toHaveAttribute("required", "");
     await expect(page.getByLabel("Product name")).toHaveAttribute("required", "");
+    await expectNoA11yViolations(page);
     await page.screenshot({ path: test.info().outputPath("dynamic-collection-admin-desktop.png") });
 
     const createRecord = page.locator('form[action="/admin/collections/e2e_catalog/records"]');
@@ -120,6 +121,7 @@ test.describe("dynamic Admin collections", () => {
     const recordID = records.records[0].id as string;
 
     await page.getByRole("link", { name: `Edit ${recordID}` }).click();
+    await expectNoA11yViolations(page);
     const editRecord = page.locator(`form[action="/admin/collections/e2e_catalog/records/${recordID}"]`);
     await editRecord.getByLabel("Product name").fill("Updated sample product");
     await editRecord.getByRole("button", { name: "Save record" }).click();
@@ -155,4 +157,14 @@ async function unusedPort(): Promise<number> {
       probe.close((error) => error ? reject(error) : resolve(address.port));
     });
   });
+}
+
+async function expectNoA11yViolations(page: import("@playwright/test").Page): Promise<void> {
+  const result = await page.evaluate(async () => (window as any).axe.run(document, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+  }));
+  expect(result.violations.map((violation: any) => ({
+    id: violation.id,
+    targets: violation.nodes.map((node: any) => node.target),
+  }))).toEqual([]);
 }
