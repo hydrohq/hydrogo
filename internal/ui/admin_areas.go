@@ -469,7 +469,7 @@ function testGraphQL(btn){
     <div class="sec-card">
       <h3>✉️ Yeni Yönetici / Editör Davet Et</h3>
       <p>Yeni bir ekip üyesine Studio erişimi vermek için güvenli davet bağlantısı oluşturun:</p>
-      <form class="studio-form sec-form-row" method="post" action="/admin/control#security">
+      <form class="studio-form sec-form-row" method="post" action="/admin/auth/invites" data-admin-invite>
         <input type="hidden" name="_csrf" value="%s">
         <input type="hidden" name="_action" value="invite">
         <label>E-posta Adresi <input type="email" name="email" required placeholder="yeni-editor@sirket.com"></label>
@@ -480,6 +480,12 @@ function testGraphQL(btn){
           </select>
         </label>
         <button class="button" type="submit" style="margin-top:6px;width:auto;display:inline-flex;align-self:start;">Davet Bağlantısı Oluştur ✉️</button>
+        <p role="status" aria-live="polite" data-invite-status></p>
+        <div data-invite-result hidden>
+          <label for="admin-invite-link">Davet bağlantısı</label>
+          <input id="admin-invite-link" type="url" readonly data-invite-link>
+          <button class="button button-quiet" type="button" data-invite-copy>Bağlantıyı kopyala</button>
+        </div>
       </form>
     </div>
 
