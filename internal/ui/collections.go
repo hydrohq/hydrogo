@@ -69,10 +69,23 @@ func collectionRecordsPageHref(action string, offset int) string {
 }
 func collectionPageNumber(offset, pageSize int) int { return offset/pageSize + 1 }
 
-func collectionRecordSummary(data map[string]any) string {
-	encoded, err := json.Marshal(data)
-	if err != nil {
-		return ""
+func collectionRecordSummary(schema collections.Schema, data map[string]any) string {
+	const maxFields = 3
+	const maxValueRunes = 72
+	parts := make([]string, 0, maxFields)
+	for _, field := range schema.Fields {
+		if len(parts) == maxFields {
+			break
+		}
+		value, ok := data[field.ID]
+		if !ok || value == nil {
+			continue
+		}
+		text := fmt.Sprint(value)
+		if runes := []rune(text); len(runes) > maxValueRunes {
+			text = string(runes[:maxValueRunes]) + "…"
+		}
+		parts = append(parts, field.Label+": "+text)
 	}
-	return fmt.Sprint(string(encoded))
+	return strings.Join(parts, " · ")
 }

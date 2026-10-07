@@ -16,3 +16,7 @@ cd e2e && npx playwright test custom/dynamic-collections.spec.ts --project chrom
 ## Capacity and storage
 
 Each request reads at most 51 records, below the existing service maximum of 100. Pagination uses the existing database adapter and tenant scope; it adds no count query, cache, worker, migration, or retained state.
+
+## Record summary presentation
+
+Record rows now follow the schema's field order and show up to three human-readable labels, with each value capped at 72 Unicode characters. The generated Edition browser fixture asserts that labels are visible and raw JSON is absent. The desktop table capture was inspected; the existing a11y scan passed and the Impeccable detector reported no findings.

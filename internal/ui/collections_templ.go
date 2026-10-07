@@ -410,9 +410,9 @@ func CollectionRecordsPage(schema collections.Schema, records []collections.Reco
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var23 string
-				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(collectionRecordSummary(record.Data))
+				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(collectionRecordSummary(schema, record.Data))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/collections.templ`, Line: 84, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/collections.templ`, Line: 84, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -425,7 +425,7 @@ func CollectionRecordsPage(schema collections.Schema, records []collections.Reco
 				var templ_7745c5c3_Var24 templ.SafeURL
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinURLErrs(action + "/" + record.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/collections.templ`, Line: 84, Col: 131}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/collections.templ`, Line: 84, Col: 139}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -438,7 +438,7 @@ func CollectionRecordsPage(schema collections.Schema, records []collections.Reco
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue("Edit " + record.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/collections.templ`, Line: 84, Col: 166}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/collections.templ`, Line: 84, Col: 174}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 				if templ_7745c5c3_Err != nil {
