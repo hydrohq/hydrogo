@@ -10,8 +10,13 @@ A fresh project generated with `hydro project new edition --preset compact-site 
 4. `hydro create-admin --config config.yaml --email admin@example.test --password-stdin`
 5. `hydro serve --config config.yaml`
 
-The Playwright fixture now follows this flow from a freshly generated Edition, builds and invokes the local `hydro` binary from the Edition root, and completes the Collections Admin CRUD scenario in Chromium. The browser scenario passed 1/1. Project generator and CLI tests verify opt-in module selection and the SQLite data directory.
+The Playwright fixture now follows this flow from a freshly generated Edition, builds and invokes the local `hydro` binary from the Edition root, and completes the Collections Admin CRUD scenario in Chromium. Project generator and CLI tests verify opt-in module selection and the SQLite data directory. Three independent Chromium runs passed 1/1 each; total elapsed times were 11.982 s, 13.835 s, and 15.124 s (median 13.835 s).
 
 ## Product boundary
 
 Collections is an explicit bridge to its existing `/admin/collections` route and Admin CRUD contract. Sync requires `--confirm-admin-crud`, runs no DDL, does not translate generated policy callbacks, and leaves generated SQL as a reviewable proposal. This path does not activate the Blueprint's generated API/Admin registry, Edition authorization policy, drafts, revisions, workflow, or localization. Those still need a runnable, policy-bound Edition composition. Without `--with-collections`, the generated project does not include the optional Collections module.
+
+
+## Timing method
+
+Each timed invocation started a fresh Playwright run. Its `beforeAll` built the local CLI binary, generated a fresh Edition under a temporary directory, created a Blueprint resource, migrated the generated Edition's configured SQLite database, ran explicit Collections sync, created the first admin, and started the Edition server. The browser then logged in and exercised imported-resource create/list/readback/edit/delete plus the Collections schema and record CRUD and responsive/accessibility checks. Timing used Bash `time` around the complete `npx playwright test` command; it includes Node/Playwright startup and Chromium overhead and is not a human-hours or direct PayloadCMS comparison. Runs used a warm Go build cache.
