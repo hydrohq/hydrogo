@@ -245,6 +245,9 @@ func TestAdminControlAccessFollowsSiteManagePermission(t *testing.T) {
 		{name: "operations admin default", user: &auth.User{Role: auth.RoleAdmin, Active: true}, path: "/admin/operations", want: true},
 		{name: "operations admin denied", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionOperations: false}}, path: "/admin/operations"},
 		{name: "operations grant does not unlock for editor", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionOperations: true}}, path: "/admin/operations"},
+		{name: "user management admin default", user: &auth.User{Role: auth.RoleAdmin, Active: true}, path: "/admin/users", want: true},
+		{name: "permission page admin denied", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionUsersManage: false}}, path: "/admin/permissions"},
+		{name: "user grant does not unlock for editor", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionUsersManage: true}}, path: "/admin/users"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
