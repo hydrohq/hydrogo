@@ -5,9 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -82,6 +84,9 @@ func serve(args []string) error {
 	if flags.NArg() != 0 || (*dialect != "sqlite" && *dialect != "postgres") {
 		return errors.New("serve requires --dialect sqlite|postgres and no positional arguments")
 	}
+	if err := validateDemoListenAddress(*address); err != nil {
+		return err
+	}
 	db, err := database.OpenWithOptions(context.Background(), database.Dialect(*dialect), *dsn, database.OpenOptions{MaxOpenConns: 8, MaxIdleConns: 4})
 	if err != nil {
 		return err
@@ -100,4 +105,19 @@ func serve(args []string) error {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 	return server.ListenAndServe()
+}
+
+func validateDemoListenAddress(address string) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return fmt.Errorf("invalid demo server address: %w", err)
+	}
+	if strings.EqualFold(host, "localhost") {
+		return nil
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		return errors.New("the Project Edition fixture has demo-only authorization and may listen only on loopback; add Edition authentication before exposing it")
+	}
+	return nil
 }
