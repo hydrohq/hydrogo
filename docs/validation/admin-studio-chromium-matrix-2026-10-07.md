@@ -135,3 +135,14 @@ paylaşılan `.dashboard-card-head .muted` stili semantik
 `--ink-secondary` tokenına alındı ve Chromium matrisinin tamamı yeniden geçti.
 Kaynak ve DB kontrat kanıtı `blueprint-derived-admin-activation-2026-10-07.md`
 dosyasındadır.
+
+## Follow-up — tüm Admin rotalarında tema WCAG matrisi
+
+2026-10-07'de gerçek tek Edition admin oturumuyla 14 yönetim rotası, dört
+Studio teması (HydroGo, shadcn, Nova, Aurora) ve açık/koyu modda axe-core
+WCAG 2.1 A/AA taramasından geçirildi: **112/112 kombinasyon geçti**. İlk
+koşuların yakaladığı düşük kontrastlı durum/izin rozetleri, medya metinleri ve
+ikincil metin tonları düzeltildi. Test komutu ve kesin kapsam:
+`docs/validation/admin-theme-accessibility-2026-10-07.md`.
+Bu sonuç WebKit/cihaz görsel testi veya public/generated tüm türlerin tema
+kapsaması olarak yorumlanmamalıdır.
