@@ -23,6 +23,7 @@ test.describe("dynamic Admin collections", () => {
     execFileSync(hydroBinary, ["migrate", "--config", "config.yaml"], { cwd: editionRoot, stdio: "pipe" });
     execFileSync(hydroBinary, ["collections", "sync", "--config", "config.yaml", "--generated", "generated", "--confirm-admin-crud"], { cwd: editionRoot, stdio: "pipe" });
     execFileSync(hydroBinary, ["create-admin", "--config", "config.yaml", "--email", "admin@example.test", "--password-stdin"], { cwd: editionRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", path.join(editionRoot, "data", "edition.sqlite")], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawnServer(hydroBinary, ["serve", "--dev", "--config", "config.yaml", "--address", `127.0.0.1:${port}`], {
@@ -49,7 +50,7 @@ test.describe("dynamic Admin collections", () => {
     if (tempDir) await rm(tempDir, { recursive: true, force: true });
   });
 
-  test("defines a collection and gets a schema-driven Admin CRUD surface", async ({ page }) => {
+  test("defines a collection and gets a schema-driven Admin CRUD surface", async ({ page, browser }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/login`);
     await page.getByLabel("Email address").fill("admin@example.test");
@@ -178,6 +179,25 @@ test.describe("dynamic Admin collections", () => {
     await deleteSchema.getByRole("button", { name: "Delete schema" }).click();
     await expect(page).toHaveURL(`${baseURL}/admin/collections`);
     await expect(page.getByText("No collections have been created.")).toBeVisible();
+
+    for (const role of ["editor", "viewer"]) {
+      const restricted = await browser.newContext();
+      const restrictedPage = await restricted.newPage();
+      await restrictedPage.goto(`${baseURL}/login`);
+      await restrictedPage.getByLabel("Email address").fill(`${role}@example.test`);
+      await restrictedPage.getByLabel("Password").fill(adminPassword);
+      await restrictedPage.getByRole("button", { name: "Sign in" }).click();
+      await expect(restrictedPage).toHaveURL(/\/admin(?:\?.*)?$/);
+      expect((await restrictedPage.request.get(`${baseURL}/admin/collections`)).status()).toBe(403);
+      const csrfResponse = await restrictedPage.request.get(`${baseURL}/csrf-token`);
+      expect(csrfResponse.status()).toBe(200);
+      const { token } = await csrfResponse.json();
+      const deniedSchemaCreate = await restrictedPage.request.post(`${baseURL}/admin/collections`, {
+        form: { _csrf: token, id: `denied_${role}`, label: "Must not be created" },
+      });
+      expect(deniedSchemaCreate.status(), `${role} with a valid CSRF token cannot create Collections schemas`).toBe(403);
+      await restricted.close();
+    }
   });
 });
 
