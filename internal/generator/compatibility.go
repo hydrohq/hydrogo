@@ -153,7 +153,7 @@ func CheckGeneratedCompatibility(root string) ([]CompatibilityReport, error) {
 	}
 	reports := make([]CompatibilityReport, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Name() == "generator.lock" || entry.Name() == "admin_registry.json" || entry.Name() == "admin_registry.go" {
+		if entry.Name() == "generator.lock" || entry.Name() == "admin_registry.json" || entry.Name() == "admin_registry.go" || entry.Name() == "admin_registration.go" {
 			continue
 		}
 		info, err := entry.Info()
@@ -195,6 +195,19 @@ func CheckGeneratedCompatibility(root string) ([]CompatibilityReport, error) {
 	}
 	if !bytes.Equal(actualRegistry, expectedRegistry) {
 		return nil, errors.New("generated Admin registry does not match resource specifications")
+	}
+	expectedRegistration, err := renderAdminRegistration(expectedRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("build generated Admin registration: %w", err)
+	}
+	registrationPath := filepath.Join(generatedRoot, "admin_registration.go")
+	registrationInfo, err := os.Lstat(registrationPath)
+	if err != nil || registrationInfo.Mode()&os.ModeSymlink != 0 || !registrationInfo.Mode().IsRegular() {
+		return nil, errors.New("generated Admin registration is missing or invalid")
+	}
+	actualRegistration, err := os.ReadFile(registrationPath)
+	if err != nil || !bytes.Equal(actualRegistration, expectedRegistration) {
+		return nil, errors.New("generated Admin registration does not match resource specifications")
 	}
 	registryGo, err := os.ReadFile(filepath.Join(generatedRoot, "admin_registry.go"))
 	if err != nil || !bytes.Contains(registryGo, []byte("//go:embed admin_registry.json")) {
