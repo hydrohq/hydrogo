@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
@@ -356,7 +358,7 @@ type adminListRepository interface {
 }
 
 func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
+	if !contentReadAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -410,7 +412,11 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		actions := []adminstudio.Action{{Label: "Düzenle", Href: "/admin/pages/" + item.ID}}
+		label := "Görüntüle"
+		if editorAllowed(r) {
+			label = "Düzenle"
+		}
+		actions := []adminstudio.Action{{Label: label, Href: "/admin/pages/" + item.ID}}
 		if item.Status == pages.StatusPublished {
 			publicPath := "/public/pages/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
 			actions = append(actions, adminstudio.Action{Label: "Canlı URL'yi kopyala", CopyText: strings.TrimRight(strings.TrimSpace(h.SEOOrigin), "/") + publicPath})
@@ -418,6 +424,9 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10)}, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status)}, Actions: actions})
 	}
 	collection := h.AdminCollection
+	if !editorAllowed(r) {
+		collection.Actions = nil
+	}
 	if viewsAvailable {
 		collection.Fields = append(append([]adminstudio.Field(nil), collection.Fields...), adminstudio.Field{ID: "views", Label: "Views", Kind: adminstudio.FieldText, VisibleInList: true})
 	}
@@ -428,7 +437,11 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if err := ui.ListViewSwitcher("admin-content-list", "hydro-view-content").Render(r.Context(), w); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><div class="studio-actions"><a class="button button-quiet" href="/admin/pages/import">CSV / Excel içe aktar</a></div><div class="table-wrap" id="admin-content-list" data-view-mode="table">`)
+	_, _ = fmt.Fprint(w, `<section class="studio-card">`)
+	if editorAllowed(r) {
+		_, _ = fmt.Fprint(w, `<div class="studio-actions"><a class="button button-quiet" href="/admin/pages/import">CSV / Excel içe aktar</a></div>`)
+	}
+	_, _ = fmt.Fprint(w, `<div class="table-wrap" id="admin-content-list" data-view-mode="table">`)
 	if viewsAvailable {
 		_ = designsystem.ContentViewSort(designsystem.ContentViewSortProps{Path: "/admin/pages", Status: r.URL.Query().Get("status"), Selected: r.URL.Query().Get("sort")}).Render(r.Context(), w)
 	}
@@ -1210,10 +1223,18 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) get(w http.ResponseWriter, r *http.Request) {
+	if !auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentRead) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	h.writePage(w, r, r.PathValue("id"))
 }
 
 func (h Handler) preview(w http.ResponseWriter, r *http.Request) {
+	if !auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentRead) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	h.writePage(w, r, r.PathValue("id"))
 }
@@ -1380,13 +1401,17 @@ func (h Handler) publish(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
+	if !contentReadAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
 	if err != nil {
 		http.Error(w, "page lookup failed", pageReadStatus(err))
+		return
+	}
+	if !editorAllowed(r) {
+		h.renderReadOnlyPage(w, r, page)
 		return
 	}
 	if locale := canonical.Locale(r.URL.Query().Get("compare")); locale != "" && locale != page.Locale {
@@ -1483,6 +1508,34 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 			_ = designsystem.AIAssistantSuggestion(suggestion.BeforeTitle, suggestion.BeforeBody, suggestion.Result, "/admin/pages/"+url.PathEscape(page.ID)+"/ai-applied", security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w)
 		}
 	}
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) renderReadOnlyPage(w http.ResponseWriter, r *http.Request, page pages.Page) {
+	preview, err := h.revisionPreview(r.Context(), page.Title, page.Body, page.Blocks)
+	if err != nil {
+		http.Error(w, "page preview unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStartForRequest(w, r, "Sayfa görüntüle", "Salt okunur içerik", "pages"); err != nil {
+		return
+	}
+	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		for _, field := range []uicomponents.InputProps{
+			{ID: "page-title-readonly", Name: "title", Label: "Başlık", Value: page.Title, ReadOnly: true},
+			{ID: "page-slug-readonly", Name: "slug", Label: "Adres", Value: page.Slug, ReadOnly: true},
+			{ID: "page-locale-readonly", Name: "locale", Label: "Dil", Value: page.Locale, ReadOnly: true},
+			{ID: "page-status-readonly", Name: "status", Label: "Durum", Value: string(page.Status), ReadOnly: true},
+		} {
+			if err := uicomponents.Input(field).Render(ctx, out); err != nil {
+				return err
+			}
+		}
+		_, err := fmt.Fprintf(out, `<iframe class="revision-preview readonly-content-preview" title="%s" sandbox="" referrerpolicy="no-referrer" srcdoc="%s"></iframe>`, template.HTMLEscapeString(page.Title), template.HTMLEscapeString(preview))
+		return err
+	})
+	_ = uicomponents.Card(uicomponents.CardProps{Title: "Sayfa içeriği", Class: "studio-card", Body: body}).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
 
@@ -2070,4 +2123,8 @@ func newID() (string, error) {
 func editorAllowed(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
 	return auth.Can(user, auth.PermissionContentWrite)
+}
+
+func contentReadAllowed(r *http.Request) bool {
+	return auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentRead)
 }

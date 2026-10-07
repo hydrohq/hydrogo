@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"html/template"
 	"net/http"
@@ -31,9 +32,11 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
+	"github.com/a-h/templ"
 )
 
 type Route struct {
@@ -167,7 +170,7 @@ func (h Handler) Routes() []Route {
 }
 
 func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
+	if !contentReadAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -239,12 +242,19 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		actions := []adminstudio.Action{{Label: "Düzenle", Href: "/admin/news/" + item.ID}}
+		label := "Görüntüle"
+		if editorAllowed(r) {
+			label = "Düzenle"
+		}
+		actions := []adminstudio.Action{{Label: label, Href: "/admin/news/" + item.ID}}
 		counts := feedbackCounts[item.ID]
 		values := map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10), "helpful": strconv.FormatInt(counts.Up, 10), "not_helpful": strconv.FormatInt(counts.Down, 10)}
 		rows = append(rows, adminstudio.Row{Values: values, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status), ScheduledAt: item.ScheduledAt}, Actions: actions})
 	}
 	collection := h.AdminCollection
+	if !editorAllowed(r) {
+		collection.Actions = nil
+	}
 	if viewsAvailable {
 		collection.Fields = append(append([]adminstudio.Field(nil), collection.Fields...), adminstudio.Field{ID: "views", Label: "Views", Kind: adminstudio.FieldText, VisibleInList: true})
 	}
@@ -529,7 +539,13 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 	h.write(w, r, item.ID)
 }
 
-func (h Handler) get(w http.ResponseWriter, r *http.Request) { h.write(w, r, r.PathValue("id")) }
+func (h Handler) get(w http.ResponseWriter, r *http.Request) {
+	if !auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentRead) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	h.write(w, r, r.PathValue("id"))
+}
 
 func (h Handler) update(w http.ResponseWriter, r *http.Request) {
 	if !editorAllowed(r) {
@@ -1045,7 +1061,7 @@ func renderParagraphs(body string) string {
 }
 
 func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
+	if !contentReadAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -1060,6 +1076,10 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, "news not found", http.StatusNotFound)
+		return
+	}
+	if !editorAllowed(r) {
+		h.renderReadOnlyNews(w, r, item)
 		return
 	}
 	fieldMap := make(map[string]adminstudio.Field)
@@ -1179,6 +1199,32 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		template.HTML(rightMetaBuf.String()), template.HTML(taxonomyBuf.String()), template.HTML(rightSEOBuf.String()),
 		template.HTMLEscapeString(item.Locale), item.Version, template.HTMLEscapeString(csrf))
 		
+	_ = ui.AdminEnd(w)
+}
+
+func (h Handler) renderReadOnlyNews(w http.ResponseWriter, r *http.Request, item news.Item) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStartForRequest(w, r, "Haberi görüntüle", "Salt okunur içerik", "news"); err != nil {
+		return
+	}
+	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		for _, field := range []uicomponents.InputProps{
+			{ID: "news-title-readonly", Name: "title", Label: "Başlık", Value: item.Title, ReadOnly: true},
+			{ID: "news-slug-readonly", Name: "slug", Label: "Adres", Value: item.Slug, ReadOnly: true},
+			{ID: "news-locale-readonly", Name: "locale", Label: "Dil", Value: item.Locale, ReadOnly: true},
+			{ID: "news-status-readonly", Name: "status", Label: "Durum", Value: string(item.Status), ReadOnly: true},
+			{ID: "news-category-readonly", Name: "category", Label: "Kategori", Value: item.Category, ReadOnly: true},
+			{ID: "news-author-readonly", Name: "author", Label: "Yazar", Value: item.AuthorName, ReadOnly: true},
+			{ID: "news-tags-readonly", Name: "tags", Label: "Etiketler", Value: item.Tags, ReadOnly: true},
+		} {
+			if err := uicomponents.Input(field).Render(ctx, out); err != nil {
+				return err
+			}
+		}
+		_, err := fmt.Fprintf(out, `<article class="readonly-content-preview rich-article-content">%s</article>`, template.HTML(ui.RichTextHTML(item.Body)))
+		return err
+	})
+	_ = uicomponents.Card(uicomponents.CardProps{Title: "Haber içeriği", Class: "studio-card", Body: body}).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
 
@@ -1404,8 +1450,12 @@ func (h Handler) adminRetract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) adminPreview(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
+	if !contentReadAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if database.RequireExecutor(h.DB) != nil || guards.IsNil(h.Service.Repository) {
+		http.Error(w, "news unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	id := r.PathValue("id")
@@ -1466,6 +1516,10 @@ func (h Handler) write(w http.ResponseWriter, r *http.Request, id string) {
 func editorAllowed(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
 	return auth.Can(user, auth.PermissionContentWrite)
+}
+
+func contentReadAllowed(r *http.Request) bool {
+	return auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentRead)
 }
 
 func (h Handler) editPresenceHeartbeat(w http.ResponseWriter, r *http.Request) {

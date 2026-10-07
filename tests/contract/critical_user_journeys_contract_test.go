@@ -189,6 +189,7 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 	// 2. Preview Draft (requires authentication)
 	previewReq := httptest.NewRequest(http.MethodGet, "/pages/journey-page-1/preview", nil)
 	previewReq.SetPathValue("id", "journey-page-1")
+	previewReq = previewReq.WithContext(auth.WithUser(previewReq.Context(), &auth.User{ID: "journey-editor", Role: auth.RoleEditor, Active: true}))
 	previewRec := httptest.NewRecorder()
 	for _, r := range pagesHandler.Routes() {
 		if strings.Contains(r.Pattern, "/preview") {
