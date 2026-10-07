@@ -469,6 +469,35 @@ func TestInviteAcceptanceIsRateLimitedByClient(t *testing.T) {
 	}
 }
 
+func TestInviteAcceptanceBrowserMismatchRedirectsWithoutConsumingInvite(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	service := &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params}
+	handler := HTTPHandler{Invitation: service, Transactions: database.NewTransactor(db)}.acceptInvite
+	form := url.Values{"token": {strings.Repeat("a", 64)}, "password": {"Lime-Train7!Harbor"}, "password_confirm": {"Lime-Train7!Harbor-Other"}, "lang": {"tr"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/invites/accept", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "text/html")
+	res := httptest.NewRecorder()
+	handler(res, req)
+	if res.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", res.Code)
+	}
+	location, err := url.Parse(res.Header().Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if location.Path != "/auth/invites/accept" || location.Query().Get("error") != "mismatch" || location.Query().Get("lang") != "tr" || location.Query().Get("token") != form.Get("token") {
+		t.Fatalf("unexpected invite form redirect: %s", location)
+	}
+	if res.Header().Get("Cache-Control") != "no-store" || res.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Fatalf("unsafe response headers: cache=%q referrer=%q", res.Header().Get("Cache-Control"), res.Header().Get("Referrer-Policy"))
+	}
+}
+
 func TestAdminPermissionEndpointAcceptsOnlyEditionCatalogNames(t *testing.T) {
 	catalog, err := NewPermissionCatalog("article.read")
 	if err != nil {

@@ -489,6 +489,47 @@ test.describe("single Edition administrator management", () => {
     await expect(viewerRow).toContainText("Pasif");
     await viewerContext.close();
   });
+
+  test("real invitation link creates a usable Edition editor account", async ({ browser }) => {
+    const token = execFileSync("go", ["run", "./tests/e2e/support/seedinvite", "--database-dsn", path.join(tempDir, "edition.sqlite"), "--email", "invited-editor@example.test"], { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    const inviteURL = `${baseURL}/auth/invites/accept?token=${token}`;
+    const response = await page.goto(inviteURL);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { name: "Set up your account" })).toBeVisible();
+    await expect(page).toHaveURL(`${baseURL}/auth/invites/accept`);
+    expect(response?.headers()["cache-control"]).toContain("no-store");
+    expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
+    const a11y = await page.evaluate(async () => (window as any).axe.run(document, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+    }));
+    expect(a11y.violations.map((violation: any) => violation.id)).toEqual([]);
+
+    await page.getByLabel("Password", { exact: true }).fill("passwordpassword");
+    await page.getByLabel("Confirm password").fill("passwordpassword");
+    await page.getByRole("button", { name: "Accept invitation" }).click();
+    await expect(page.getByRole("alert")).toContainText("less predictable password");
+
+    await page.getByLabel("Password", { exact: true }).fill("Lime-Train7!Harbor");
+    await page.getByLabel("Confirm password").fill("Lime-Train7!HarborDifferent");
+    await page.getByRole("button", { name: "Accept invitation" }).click();
+    await expect(page).toHaveURL(`${baseURL}/auth/invites/accept`);
+    await expect(page.getByRole("alert")).toContainText("passwords do not match");
+
+    await page.getByLabel("Password", { exact: true }).fill("Lime-Train7!Harbor");
+    await page.getByLabel("Confirm password").fill("Lime-Train7!Harbor");
+    await page.getByRole("button", { name: "Accept invitation" }).click();
+    await expect(page).toHaveURL(`${baseURL}/login?invite_accepted=1`);
+    await expect(page.getByRole("status")).toContainText("Your account is ready");
+    await page.getByLabel("Email address").fill("invited-editor@example.test");
+    await page.getByLabel("Password").fill("Lime-Train7!Harbor");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
+    await expect(page.locator('body[data-studio-role="editor"]')).toBeVisible();
+    await context.close();
+  });
 });
 
 async function unusedPort(): Promise<number> {

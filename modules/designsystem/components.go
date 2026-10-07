@@ -73,6 +73,50 @@ type PageLayoutPickerProps struct {
 }
 
 type PasswordResetFormProps struct{ Token, CSRF string }
+type InviteAcceptFormProps struct{ Token, CSRF, Locale, Error string }
+
+func inviteAcceptError(locale, code string) string {
+	if locale == "tr" {
+		switch code {
+		case "mismatch":
+			return "Parolalar eşleşmiyor. İki alanı da kontrol edip tekrar dene."
+		case "weak":
+			return "Daha uzun ve tahmin edilmesi zor bir parola seç."
+		case "rate":
+			return "Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene."
+		case "unavailable":
+			return "Davet şu anda tamamlanamıyor. Biraz sonra tekrar dene."
+		default:
+			return "Davet bağlantısı geçersiz veya süresi dolmuş. Yöneticinden yeni bir davet iste."
+		}
+	}
+	switch code {
+	case "mismatch":
+		return "The passwords do not match. Check both fields and try again."
+	case "weak":
+		return "Choose a longer, less predictable password."
+	case "rate":
+		return "Too many attempts. Wait a little and try again."
+	case "unavailable":
+		return "The invitation cannot be completed right now. Try again shortly."
+	default:
+		return "This invitation is invalid or expired. Ask your administrator for a new one."
+	}
+}
+
+func inviteAcceptLocale(locale string) string {
+	if locale == "tr" {
+		return "tr"
+	}
+	return "en"
+}
+
+func inviteAcceptTitle(locale string) string {
+	if locale == "tr" {
+		return "Davetini kabul et"
+	}
+	return "Accept your invitation"
+}
 
 type FormConversionDay struct {
 	Day         string

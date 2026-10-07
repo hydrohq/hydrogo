@@ -72,3 +72,40 @@ templ PasswordResetForm(p PasswordResetFormProps) {
 		</form>
 	</main>
 }
+
+templ InviteAcceptForm(p InviteAcceptFormProps) {
+	<html lang={ inviteAcceptLocale(p.Locale) }>
+		<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{ inviteAcceptTitle(p.Locale) }</title><link rel="stylesheet" href="/designsystem/static/designsystem.css"/></head>
+		<body class="grid min-h-screen place-items-center bg-background p-4 text-foreground">
+		<main class="mx-auto grid w-full max-w-md gap-4 rounded-xl border border-border bg-surface p-6 text-foreground" aria-labelledby="invite-accept-title">
+		if p.Locale == "tr" {
+			<h1 id="invite-accept-title" class="text-2xl font-bold">Hesabını oluştur</h1>
+			<p>Yönetici davetini tamamlamak için güvenli bir parola belirle.</p>
+		} else {
+			<h1 id="invite-accept-title" class="text-2xl font-bold">Set up your account</h1>
+			<p>Choose a secure password to accept your administrator’s invitation.</p>
+		}
+		if p.Error != "" {
+			<p role="alert" class="rounded border border-border p-3">
+				{ inviteAcceptError(p.Locale, p.Error) }
+			</p>
+		}
+		<form class="grid gap-4" method="post" action="/auth/invites/accept">
+			<input type="hidden" name="_csrf" value={ p.CSRF } />
+			<input type="hidden" name="token" value={ p.Token } />
+			<input type="hidden" name="lang" value={ p.Locale } />
+			if p.Locale == "tr" {
+				<label class="grid gap-1">Parola<input class="rounded border border-border bg-background p-2" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required aria-label="Parola" /></label>
+				<label class="grid gap-1">Parolayı doğrula<input class="rounded border border-border bg-background p-2" name="password_confirm" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required aria-label="Parolayı doğrula" /></label>
+				<button class="ds-button ds-button--primary" type="submit">Davetimi kabul et</button>
+			} else {
+				<label class="grid gap-1">Password<input class="rounded border border-border bg-background p-2" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required aria-label="Password" /></label>
+				<label class="grid gap-1">Confirm password<input class="rounded border border-border bg-background p-2" name="password_confirm" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required aria-label="Confirm password" /></label>
+				<button class="ds-button ds-button--primary" type="submit">Accept invitation</button>
+			}
+		</form>
+		<script>history.replaceState(null, "", "/auth/invites/accept")</script>
+		</main>
+		</body>
+	</html>
+}
