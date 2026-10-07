@@ -64,6 +64,16 @@ axe-core WCAG 2.1 A/AA taraması ve yatay taşma kontrolü geçti. MFA hesap
 ekranının CSP/no-store başlıkları ve onboarding görünürlüğü de browser testinde
 doğrulanır.
 
+15 yönetim rotası boyunca her render edilmiş satır içi scriptin SHA-256 değeri
+yanıtın `Content-Security-Policy` başlığındaki allowlist ile birebir
+karşılaştırılır; Playwright ayrıca CSP console ihlallerini toplar. News ve media
+Admin script hashleri makine kaynaklı kod için kataloglanır, News kataloğu
+yalnızca modül açıkken eklenir. Control sayfası CSRF değerini script gövdesine
+gömmez; cookie'den okur, böylece script hash'i kullanıcı/session verisine bağlı
+kalmaz. MFA E2E 1/1 ve birleşik admin yönetim/davet/parola reset/MFA grubu 5/5
+geçti. `go test ./... -count=1 -p 1 -timeout=5m`, `go vet ./...` ve action,
+module, migration ve Edition import guard'ları da geçti.
+
 MFA mobil ekran görüntüsü `e2e/artifacts/admin-mfa-mobile.png` altında Playwright
 artifact'ı olarak üretildi ve görsel olarak incelendi. Artifact git'e eklenmez.
 
@@ -73,5 +83,6 @@ Bu çalışma yeni cross-tenant Super Admin veya yeni auth route/şeması ekleme
 TOTP/recovery API'si mevcut Edition auth sözleşmesinin üstünde kullanılır.
 MFA ile doğrulanmış oturumda izin, yedek, kullanıcı ve içerik mutasyonlarının
 tümleşik kombinasyon matrisi ile diğer Faz 1/2/3/5 açık kabul maddeleri ana
-ürün planında takip edilmeye devam eder. Genişletilmiş rota taraması beş Admin
-sayfasında inline script CSP ihlali buldu; bu açık plan kaydında listelenmiştir.
+ürün planında takip edilmeye devam eder. Bu test 15 yönetim rotasının CSP
+script hashlerini kapsar; sayfa tasarımlarının tüm tema varyantları ve tüm
+admin mutasyon kombinasyonları için tam kabul kanıtı sağlamaz.

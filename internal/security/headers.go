@@ -16,24 +16,39 @@ var inlineCSPBlock = regexp.MustCompile(`(?s)<(script|style)(?:\s[^>]*)?>(.*?)</
 // InlineCSPDirectives hashes exact inline script and style bodies in trusted,
 // server-rendered HTML so the caller can add them to the existing strict CSP.
 func InlineCSPDirectives(document []byte) string {
-	var scripts, styles []string
+	scripts, styles := InlineCSPHashes(document)
+	var directives []string
+	if len(scripts) > 0 {
+		quoted := make([]string, 0, len(scripts))
+		for _, source := range scripts {
+			quoted = append(quoted, "'sha256-"+source+"'")
+		}
+		directives = append(directives, "script-src "+strings.Join(quoted, " "))
+	}
+	if len(styles) > 0 {
+		quoted := make([]string, 0, len(styles))
+		for _, source := range styles {
+			quoted = append(quoted, "'sha256-"+source+"'")
+		}
+		directives = append(directives, "style-src "+strings.Join(quoted, " "))
+	}
+	return strings.Join(directives, "; ")
+}
+
+// InlineCSPHashes returns SHA-256 source values for the trusted inline script
+// and style blocks in a rendered document. Callers must only hash machine-owned
+// output; user content must be escaped or kept outside executable blocks.
+func InlineCSPHashes(document []byte) (scripts, styles []string) {
 	for _, match := range inlineCSPBlock.FindAllSubmatch(document, -1) {
 		digest := sha256.Sum256(match[2])
-		source := "'sha256-" + base64.StdEncoding.EncodeToString(digest[:]) + "'"
+		source := base64.StdEncoding.EncodeToString(digest[:])
 		if bytes.Equal(match[1], []byte("script")) {
 			scripts = append(scripts, source)
 		} else {
 			styles = append(styles, source)
 		}
 	}
-	var directives []string
-	if len(scripts) > 0 {
-		directives = append(directives, "script-src "+strings.Join(scripts, " "))
-	}
-	if len(styles) > 0 {
-		directives = append(directives, "style-src "+strings.Join(styles, " "))
-	}
-	return strings.Join(directives, "; ")
+	return scripts, styles
 }
 
 func isDevEnvironment() bool {

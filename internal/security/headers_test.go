@@ -38,6 +38,18 @@ func TestInlineCSPDirectivesHashEachExactBlock(t *testing.T) {
 	}
 }
 
+func TestInlineCSPHashesReturnsUnquotedExactDigests(t *testing.T) {
+	script := []byte("window.ready=true;")
+	want := sha256.Sum256(script)
+	scripts, styles := InlineCSPHashes([]byte("<script>" + string(script) + "</script>"))
+	if len(scripts) != 1 || scripts[0] != base64.StdEncoding.EncodeToString(want[:]) {
+		t.Fatalf("script hashes = %v", scripts)
+	}
+	if len(styles) != 0 {
+		t.Fatalf("style hashes = %v", styles)
+	}
+}
+
 func TestHeadersMiddlewareAllowsConfiguredInlineHashes(t *testing.T) {
 	handler := HeadersMiddleware(HeaderConfig{ScriptHashes: []string{"script-hash"}, StyleHashes: []string{"style-hash"}})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)

@@ -3565,6 +3565,14 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		defer panicReporter.Close()
 	}
+	adminScriptHashes, err := ui.AdminScriptHashes()
+	if err != nil {
+		return fmt.Errorf("Admin script CSP catalog: %w", err)
+	}
+	adminScriptHashes = append(adminScriptHashes, media.AdminScriptHashes()...)
+	if modules["news"] {
+		adminScriptHashes = append(adminScriptHashes, newstransport.AdminScriptHashes()...)
+	}
 	serverConfig := server.Config{
 		Address:  cfg.HTTP.Address,
 		SafeMode: cfg.SafeMode,
@@ -3600,7 +3608,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		},
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
-		SecurityScriptHashes:  ui.AdminScriptHashes(),
+		SecurityScriptHashes:  adminScriptHashes,
 		SecurityStyleHashes:   ui.AdminStyleHashes(),
 		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"]},
 		AdminSupportResolver: func(r *http.Request) adminstudio.SupportConfig {

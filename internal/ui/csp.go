@@ -1,8 +1,12 @@
 package ui
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/aurora"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/dashboardtw"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/hydrogoui"
@@ -15,8 +19,8 @@ func hash(data string) string {
 	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
-func AdminScriptHashes() []string {
-	return []string{
+func AdminScriptHashes() ([]string, error) {
+	hashes := []string{
 		hash(`(()=>{try{const key='hydro-ui-theme-v2';const saved=localStorage.getItem(key);const variant=localStorage.getItem('hydro-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');if(saved){const parts=saved.split('-');document.documentElement.setAttribute('data-ui-theme',['hydrogo','shadcn','nova','aurora'].includes(parts[0])?parts[0]:'hydrogo');document.documentElement.setAttribute('data-theme',parts[1]==='dark'?'dark':'light');}else{document.documentElement.setAttribute('data-ui-theme','hydrogo');document.documentElement.setAttribute('data-theme',variant);}}catch(_){document.documentElement.setAttribute('data-ui-theme','hydrogo');document.documentElement.setAttribute('data-theme','dark');}})();`),
 		hash(AdminBlockEditorJS),
 		hash(AdminIconJS),
@@ -24,6 +28,37 @@ func AdminScriptHashes() []string {
 		hash(AdminEnglishUIJS),
 		hash(`document.querySelectorAll('a[target="_blank"]').forEach(function(link){link.setAttribute('rel','noopener noreferrer')});`),
 	}
+	for _, render := range []func(*bytes.Buffer) error{
+		func(out *bytes.Buffer) error { return adminControlTemplate.Execute(out, AdminControlData{}) },
+		func(out *bytes.Buffer) error { return adminReportsPathTemplate.Execute(out, AdminDashboardData{}) },
+		func(out *bytes.Buffer) error {
+			return RenderAdminArea(out, AdminAreaData{Area: "developer", Locale: "tr"})
+		},
+	} {
+		var document bytes.Buffer
+		if err := render(&document); err != nil {
+			return nil, fmt.Errorf("render Admin script catalog: %w", err)
+		}
+		scripts, _ := security.InlineCSPHashes(document.Bytes())
+		hashes = append(hashes, scripts...)
+	}
+	return uniqueScriptHashes(hashes), nil
+}
+
+func uniqueScriptHashes(hashes []string) []string {
+	seen := make(map[string]struct{}, len(hashes))
+	unique := make([]string, 0, len(hashes))
+	for _, source := range hashes {
+		if source == "" {
+			continue
+		}
+		if _, exists := seen[source]; exists {
+			continue
+		}
+		seen[source] = struct{}{}
+		unique = append(unique, source)
+	}
+	return unique
 }
 
 func AdminStyleHashes() []string {
