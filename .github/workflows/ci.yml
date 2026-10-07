@@ -61,7 +61,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      HYDRO_TEST_POSTGRES_URL: postgres://hydro:hydro-test-password@127.0.0.1:5432/hydro_contract?sslmode=disable
+      HYDRO_TEST_POSTGRES_URL: postgres://hydro_contract_test:hydro-contract-test-password@127.0.0.1:5432/hydro_contract?sslmode=disable
       HYDRO_TEST_REDIS_URL: redis://127.0.0.1:6379/15
       HYDRO_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
       HYDRO_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
@@ -96,6 +96,14 @@ jobs:
           fi
           test -x /usr/lib/postgresql/18/bin/pg_dump
           test -x /usr/lib/postgresql/18/bin/pg_restore
+      - name: Configure non-superuser PostgreSQL contract role
+        env:
+          PGPASSWORD: hydro-test-password
+        run: |
+          psql -h 127.0.0.1 -U hydro -d hydro_contract -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE hydro_contract_test LOGIN PASSWORD 'hydro-contract-test-password' NOSUPERUSER CREATEDB NOCREATEROLE NOBYPASSRLS" \
+            -c "GRANT CONNECT, CREATE ON DATABASE hydro_contract TO hydro_contract_test" \
+            -c "GRANT USAGE, CREATE ON SCHEMA public TO hydro_contract_test"
       - run: go mod verify
       - name: Scan dependencies for reachable vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
@@ -309,7 +317,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      HYDRO_TEST_POSTGRES_URL: postgres://hydro:hydro-test-password@127.0.0.1:5432/hydro_contract?sslmode=disable
+      HYDRO_TEST_POSTGRES_URL: postgres://hydro_contract_test:hydro-contract-test-password@127.0.0.1:5432/hydro_contract?sslmode=disable
       HYDRO_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
       HYDRO_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
     steps:
@@ -331,6 +339,14 @@ jobs:
           fi
           test -x /usr/lib/postgresql/18/bin/pg_dump
           test -x /usr/lib/postgresql/18/bin/pg_restore
+      - name: Configure non-superuser PostgreSQL contract role
+        env:
+          PGPASSWORD: hydro-test-password
+        run: |
+          psql -h 127.0.0.1 -U hydro -d hydro_contract -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE hydro_contract_test LOGIN PASSWORD 'hydro-contract-test-password' NOSUPERUSER CREATEDB NOCREATEROLE NOBYPASSRLS" \
+            -c "GRANT CONNECT, CREATE ON DATABASE hydro_contract TO hydro_contract_test" \
+            -c "GRANT USAGE, CREATE ON SCHEMA public TO hydro_contract_test"
       - name: Run race-sensitive contract tests
         env:
           CGO_ENABLED: '1'

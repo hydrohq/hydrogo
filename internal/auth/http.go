@@ -384,16 +384,35 @@ func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request
 }
 
 func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	html := strings.Contains(r.Header.Get("Accept"), "text/html")
 	if h.Recovery == nil || h.Transactions == (database.Transactor{}) {
+		if html {
+			redirectPasswordResetForm(w, r, "unavailable")
+			return
+		}
 		http.Error(w, "password recovery unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	if err := r.ParseForm(); err != nil || strings.TrimSpace(r.FormValue("token")) == "" || r.FormValue("password") == "" {
+		if html {
+			redirectPasswordResetForm(w, r, "invalid")
+			return
+		}
 		http.Error(w, "invalid password recovery request", http.StatusBadRequest)
 		return
 	}
+	if html && r.FormValue("password") != r.FormValue("password_confirm") {
+		redirectPasswordResetForm(w, r, "mismatch")
+		return
+	}
 	if h.RecoveryConfirmLimiter != nil && !security.AllowForRequest(h.RecoveryConfirmLimiter, r.Context(), clientIP(r)) {
+		if html {
+			redirectPasswordResetForm(w, r, "rate")
+			return
+		}
 		security.WriteRateLimitedResponse(w, "too many password recovery attempts", time.Minute)
 		return
 	}
@@ -401,18 +420,48 @@ func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request
 		return h.Recovery.Reset(r.Context(), tx, r.FormValue("token"), r.FormValue("password"))
 	})
 	if errors.Is(err, ErrRecoveryTokenInvalid) {
+		if html {
+			redirectPasswordResetForm(w, r, "invalid")
+			return
+		}
 		http.Error(w, "This password reset link is invalid or has expired. Request a new link to continue.", http.StatusUnauthorized)
 		return
 	}
 	if errors.Is(err, ErrWeakPassword) {
+		if html {
+			redirectPasswordResetForm(w, r, "weak")
+			return
+		}
 		http.Error(w, "Choose a longer, less common password.", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		if html {
+			redirectPasswordResetForm(w, r, "unavailable")
+			return
+		}
 		writeAuthDependencyError(w, "password recovery failed", err, http.StatusInternalServerError)
 		return
 	}
+	if html {
+		values := url.Values{"password_reset": {"1"}}
+		if r.FormValue("lang") == "tr" {
+			values.Set("lang", "tr")
+		}
+		http.Redirect(w, r, "/login?"+values.Encode(), http.StatusSeeOther)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func redirectPasswordResetForm(w http.ResponseWriter, r *http.Request, code string) {
+	values := url.Values{}
+	values.Set("token", r.FormValue("token"))
+	values.Set("error", code)
+	if r.FormValue("lang") == "tr" {
+		values.Set("lang", "tr")
+	}
+	http.Redirect(w, r, "/password-reset?"+values.Encode(), http.StatusSeeOther)
 }
 
 func (h HTTPHandler) RouterRoutes() []router.Route {

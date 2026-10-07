@@ -729,6 +729,7 @@ func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, returnTo, l
 
 	function showMsg(type, text) {
 		status.className = 'form-alert alert-' + type;
+		status.setAttribute('role', type === 'error' ? 'alert' : 'status');
 		status.textContent = text;
 		status.style.display = 'block';
 	}

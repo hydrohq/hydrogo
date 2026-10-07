@@ -60,17 +60,42 @@ templ PageLayoutPicker(p PageLayoutPickerProps) {
 }
 
 templ PasswordResetForm(p PasswordResetFormProps) {
-	<main class="mx-auto grid w-full max-w-md gap-4 rounded-xl border border-border bg-surface p-6 text-foreground" aria-labelledby="password-reset-title">
-		<h1 id="password-reset-title" class="text-2xl font-bold">Choose a new password</h1>
-		<script>history.replaceState(null, "", "/password-reset")</script>
-		<p>Enter a new password to secure your account.</p>
-		<form class="grid gap-4" method="post" action="/auth/password-reset/confirm">
-			<input type="hidden" name="_csrf" value={ p.CSRF } />
-			<input type="hidden" name="token" value={ p.Token } />
-			<label class="grid gap-1">New password<input class="rounded border border-border bg-background p-2" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required aria-label="New password" /></label>
-			<button class="ds-button ds-button--primary" type="submit" aria-busy="false" data-loading-text="Updating...">Update password</button>
-		</form>
-	</main>
+	<html lang={ inviteAcceptLocale(p.Locale) }>
+		<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{ passwordResetTitle(p.Locale) }</title><link rel="stylesheet" href="/designsystem/static/designsystem.css"/></head>
+		<body class="grid min-h-screen place-items-center bg-background p-4 text-foreground">
+			<main class="mx-auto grid w-full max-w-md gap-4 rounded-xl border border-border bg-surface p-6 text-foreground" aria-labelledby="password-reset-title">
+				if p.Locale == "tr" {
+					<h1 id="password-reset-title" class="text-2xl font-bold">Yeni parola belirle</h1>
+					<p>Hesabını güvenceye almak için yeni bir parola seç.</p>
+				} else {
+					<h1 id="password-reset-title" class="text-2xl font-bold">Choose a new password</h1>
+					<p>Choose a new password to secure your account.</p>
+				}
+				if p.Error != "" {
+					<p role="alert" class="rounded border border-border p-3">{ passwordResetError(p.Locale, p.Error) }</p>
+				}
+				if p.Error != "invalid" {
+					<form class="grid gap-4" method="post" action="/auth/password-reset/confirm">
+						<input type="hidden" name="_csrf" value={ p.CSRF } />
+						<input type="hidden" name="token" value={ p.Token } />
+						<input type="hidden" name="lang" value={ inviteAcceptLocale(p.Locale) } />
+						if p.Locale == "tr" {
+							<label class="grid gap-1">Yeni parola<input class="rounded border border-border bg-background p-2" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required aria-label="Yeni parola" /></label>
+							<label class="grid gap-1">Yeni parolayı doğrula<input class="rounded border border-border bg-background p-2" name="password_confirm" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required aria-label="Yeni parolayı doğrula" /></label>
+							<button class="ds-button ds-button--primary" type="submit">Parolayı yenile</button>
+						} else {
+							<label class="grid gap-1">New password<input class="rounded border border-border bg-background p-2" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required aria-label="New password" /></label>
+							<label class="grid gap-1">Confirm new password<input class="rounded border border-border bg-background p-2" name="password_confirm" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required aria-label="Confirm new password" /></label>
+							<button class="ds-button ds-button--primary" type="submit">Reset password</button>
+						}
+					</form>
+				} else {
+					<a class="underline underline-offset-4" href="/login">Return to sign in</a>
+				}
+				<script>history.replaceState(null, "", "/password-reset")</script>
+			</main>
+		</body>
+	</html>
 }
 
 templ InviteAcceptForm(p InviteAcceptFormProps) {
