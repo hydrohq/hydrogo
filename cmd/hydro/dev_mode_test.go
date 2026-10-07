@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -161,7 +162,7 @@ func testDevModeServeStartup(t *testing.T, useDevFlag, useDevEnv bool) {
 	for attempt := 0; attempt < 3; attempt++ {
 		port := freeTCPPort(t)
 		cmd := devModeServeChild(t, port, useDevFlag, useDevEnv)
-		var stdout, stderr bytes.Buffer
+		var stdout, stderr synchronizedBuffer
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
@@ -199,6 +200,23 @@ func testDevModeServeStartup(t *testing.T, useDevFlag, useDevEnv bool) {
 		}
 	}
 	t.Fatal("exhausted dev mode startup retries")
+}
+
+type synchronizedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *synchronizedBuffer) Write(data []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(data)
+}
+
+func (b *synchronizedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 func devModeServeChild(t *testing.T, port int, useDevFlag, useDevEnv bool) *exec.Cmd {

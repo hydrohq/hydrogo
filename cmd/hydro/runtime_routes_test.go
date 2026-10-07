@@ -248,7 +248,7 @@ func terminateRuntimeProcess(cmd *exec.Cmd) error {
 	return cmd.Process.Signal(os.Interrupt)
 }
 
-func isPortConflict(stderr *bytes.Buffer) bool {
+func isPortConflict(stderr interface{ String() string }) bool {
 	return strings.Contains(stderr.String(), "address already in use") || strings.Contains(stderr.String(), "bind:")
 }
 
