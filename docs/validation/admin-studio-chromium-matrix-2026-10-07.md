@@ -82,3 +82,15 @@ Admin ve MFA grubu ayrıca `custom/admin-management.spec.ts`,
 `custom/admin-password-reset.spec.ts` ve `custom/admin-mfa-settings.spec.ts`
 ile 5/5 geçti. Suite aynı gerçek login/challenge ve mutasyon akışlarını
 bağımsız tekrarlar.
+
+Faz 1 devamında Project Edition'e yeni bir `milestone` Blueprint kaynağı
+eklendi. Aynı generated Admin registration helper'ı bu kaynağı ayrıca ID
+tanımlamadan menüye aldı; API route ve onaylı migration ise Edition tarafından
+açıkça bağlandı. Tarayıcı testi yeni koleksiyonda create/edit/delete ve API
+readback yaptı, liste ve formu axe ile taradı ve 390px form taşmasını kontrol
+etti. Koyu/açık dört tema ailesi matrisi mevcut Project listesinde tekrar geçti.
+İlk yeni kaynak koşusunda koleksiyon açıklamasının kontrastı 3.7:1 çıktı;
+paylaşılan `.dashboard-card-head .muted` stili semantik
+`--ink-secondary` tokenına alındı ve Chromium matrisinin tamamı yeniden geçti.
+Kaynak ve DB kontrat kanıtı `blueprint-derived-admin-activation-2026-10-07.md`
+dosyasındadır.

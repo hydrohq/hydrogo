@@ -1,0 +1,18 @@
+{
+  "id": "milestone",
+  "title": "Milestone",
+  "fields": [
+    {
+      "id": "status",
+      "type": "text",
+      "label": "Status",
+      "required": true
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    }
+  ]
+}

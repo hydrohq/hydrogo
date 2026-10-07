@@ -134,8 +134,36 @@ test.describe("generated Edition Admin CRUD", () => {
     const deleted = await request.get(`${baseURL}${recordPath!.replace("/admin/resources", "/api/v1")}`);
     expect(deleted.status()).toBe(404);
 
+    await page.goto(`${baseURL}/admin/resources/milestone`);
+    await expect(page.getByRole("heading", { name: "Milestone" })).toBeVisible();
+    await expectNoA11yViolations(page);
+    await page.getByRole("link", { name: "Yeni kayıt" }).click();
+    const milestoneForm = page.locator('form[action="/admin/resources/milestone/new"]');
+    await expectNoA11yViolations(page);
+    await milestoneForm.getByLabel("Title").fill("Blueprint generated milestone");
+    await milestoneForm.getByLabel("Status").fill("planned");
+    await milestoneForm.locator('button[type="submit"]').click();
+    await expect(page).toHaveURL(/\/admin\/resources\/milestone(?:\?.*)?$/);
+    const milestoneLink = page.getByRole("link", { name: "Blueprint generated milestone" });
+    await expect(milestoneLink).toBeVisible();
+    const milestonePath = await milestoneLink.getAttribute("href");
+    expect(milestonePath).toMatch(/^\/admin\/resources\/milestone\//);
+    const milestoneAPI = milestonePath!.replace("/admin/resources", "/api/v1");
+    const milestoneRecord = await request.get(`${baseURL}${milestoneAPI}`);
+    expect(milestoneRecord.status()).toBe(200);
+    await milestoneLink.click();
+    await page.locator('[name="title"]').fill("Blueprint generated milestone updated");
+    await page.locator(`form[action="${milestonePath}"] button[type="submit"]`).click();
+    await expect(page.getByRole("link", { name: "Blueprint generated milestone updated" })).toBeVisible();
+    await page.getByRole("link", { name: "Blueprint generated milestone updated" }).click();
+    await page.locator(`form[action="${milestonePath}/delete"] button[type="submit"]`).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/milestone(?:\?.*)?$/);
+    await expect(page.getByText("Blueprint generated milestone updated")).toHaveCount(0);
+    const deletedMilestone = await request.get(`${baseURL}${milestoneAPI}`);
+    expect(deletedMilestone.status()).toBe(404);
+
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${baseURL}/admin/resources/project/new`);
+    await page.goto(`${baseURL}/admin/resources/milestone/new`);
     await expect(page.getByLabel("Title")).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("generated-form-mobile.png") });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

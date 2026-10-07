@@ -2,6 +2,37 @@
   "version": "v1",
   "resources": [
     {
+      "id": "milestone",
+      "type": "collection",
+      "label": "Milestone",
+      "description": "",
+      "group": "content",
+      "title_field": "title",
+      "fields": [
+        {
+          "id": "status",
+          "label": "Status",
+          "kind": "text",
+          "required": true,
+          "visible_in_list": false
+        },
+        {
+          "id": "title",
+          "label": "Title",
+          "kind": "text",
+          "required": true,
+          "visible_in_list": true,
+          "searchable": true
+        }
+      ],
+      "actions": [
+        {
+          "label": "Open Milestone",
+          "href": "/admin/milestone"
+        }
+      ]
+    },
+    {
       "id": "project",
       "type": "collection",
       "label": "Projects",

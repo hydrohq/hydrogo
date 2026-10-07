@@ -1,0 +1,18 @@
+version: v0
+type: collection
+name: milestone
+table: milestones
+auth: false
+permissions:
+  - milestone.read
+  - milestone.write
+dialects:
+  - postgres
+  - sqlite
+fields:
+  - name: status
+    type: string
+    nullable: false
+  - name: title
+    type: string
+    nullable: false

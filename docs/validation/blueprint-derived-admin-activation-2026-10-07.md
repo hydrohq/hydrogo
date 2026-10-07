@@ -40,12 +40,41 @@ or stale registration output fails validation.
   list column, and search field. The wizard test checks both the authored
   Blueprint and generated `admin_manifest.json`; resources without a string or text
   field still require an explicit title/list choice.
+- The Project Edition's `milestone.blueprint.yaml` was authored through
+  `hydro new resource` and generated alongside its migration proposal, typed
+  API, Admin metadata, and test contract. Because the Edition already invokes
+  `RegisterGeneratedAdmin`, the new resource appeared in the shared Admin
+  registry without a second ID edit. The Edition explicitly added
+  `RegisterMilestoneRoute` with its own policy and applied the reviewed
+  migration at startup; those are deliberate human-owned activation steps.
+- The Project Edition HTTP integration test proves SQLite migration, Admin
+  navigation, API create, and Admin list readback. Its opt-in PostgreSQL test
+  applies the same generated migration in an isolated schema, checks Admin
+  navigation, creates through the API, and reads the record in the Admin list.
+  That test passed on an isolated PostgreSQL 18.6 cluster.
+- The generated resource's Chromium flow now creates, reads back from the API,
+  edits, and deletes a milestone through the shared Admin. Axe checks run on
+  its list and form, and the generated form is checked at 390px without
+  horizontal overflow.
+- The new migration is additive and declares SQLite/PostgreSQL expand
+  compatibility, checksums, and forward/restore-only recovery in
+  `generated/milestone/migration.yaml`. It adds one table and no worker, cache,
+  pool, or separate asset. The Project Edition example is explicitly a
+  loopback-only demo with permissive policy; it is not production auth.
+- The new axe pass found a 3.7:1 collection-description contrast on the
+  existing shared Admin resource page. `.dashboard-card-head .muted` now uses
+  `--ink-secondary`; the 8 theme/mode generated-list axe checks passed again.
+  The shared red alert's thick left accent (including its shadcn override) was
+  also replaced with a neutral one-pixel border; alert color and surface remain
+  semantic red tokens.
 
 ## Commands
 
 ```sh
 go test ./internal/generator ./examples/project-edition/... ./extension/v1/adminstudio -count=1
 go test ./cmd/hydro -count=1
+go test ./examples/project-edition/... -count=1
+go test ./examples/project-edition/custom -run '^TestPostgresEditionGeneratedAdminCRUD$' -count=1
 go vet ./internal/generator ./examples/project-edition/... ./extension/v1/adminstudio
 cd examples/project-edition && HYDRO_DATABASE_DSN=file:/tmp/hydro-project-edition-check.sqlite go run ../../cmd/hydro project check
 cd e2e && npx playwright test custom/generated-admin-crud.spec.ts --project=chromium --workers=1 --reporter=line
@@ -56,6 +85,10 @@ go run ./tools/importguard -root examples/client-edition
 go run ./tools/importguard -root examples/news-edition
 go run ./tools/importguard -root examples/construction-edition
 ```
+
+For the PostgreSQL test, set `HYDRO_TEST_POSTGRES_URL` to a disposable test
+database URL before running the command. The recorded 2026-10-07 run used an
+isolated local PostgreSQL 18.6 cluster and schema.
 
 This removes manual per-resource activation-list maintenance after Edition
 composition has been wired. It does not remove the deliberate one-time work of
