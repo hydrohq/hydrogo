@@ -498,6 +498,35 @@ func TestInviteAcceptanceBrowserMismatchRedirectsWithoutConsumingInvite(t *testi
 	}
 }
 
+func TestPasswordResetBrowserMismatchRedirectsWithoutConsumingToken(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	service := &PasswordRecovery{Users: httpUserRepo{}, Tokens: httpRecoveryStore{}, Sessions: &httpSessionRepo{}, ArgonParams: TestArgon2Params}
+	handler := HTTPHandler{Recovery: service, Transactions: database.NewTransactor(db)}.confirmPasswordReset
+	form := url.Values{"token": {strings.Repeat("b", 64)}, "password": {"Lime-Train7!Harbor"}, "password_confirm": {"Lime-Train7!Harbor-Other"}, "lang": {"tr"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/password-reset/confirm", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "text/html")
+	res := httptest.NewRecorder()
+	handler(res, req)
+	if res.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", res.Code)
+	}
+	location, err := url.Parse(res.Header().Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if location.Path != "/password-reset" || location.Query().Get("error") != "mismatch" || location.Query().Get("lang") != "tr" || location.Query().Get("token") != form.Get("token") {
+		t.Fatalf("unexpected password reset redirect: %s", location)
+	}
+	if res.Header().Get("Cache-Control") != "no-store" || res.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Fatalf("unsafe response headers: cache=%q referrer=%q", res.Header().Get("Cache-Control"), res.Header().Get("Referrer-Policy"))
+	}
+}
+
 func TestAdminPermissionEndpointAcceptsOnlyEditionCatalogNames(t *testing.T) {
 	catalog, err := NewPermissionCatalog("article.read")
 	if err != nil {

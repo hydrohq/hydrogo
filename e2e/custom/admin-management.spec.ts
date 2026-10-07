@@ -22,7 +22,7 @@ test.describe("single Edition administrator management", () => {
     execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed } });
+    server = spawn("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed } });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
@@ -264,7 +264,7 @@ test.describe("single Edition administrator management", () => {
 
     const usersResponse = await page.goto(`${baseURL}/admin/users`);
     expect(usersResponse?.status()).toBe(200);
-    const editorRow = page.locator(".studio-table tbody tr").filter({ hasText: "editor@example.test" });
+    const editorRow = page.locator(".studio-table tbody tr").filter({ has: page.getByText("editor@example.test", { exact: true }) });
     const permissionForm = editorRow.locator('form[action$="/permissions"]');
     const permissionToken = await permissionForm.locator('[name="_csrf"]').inputValue();
     const permissionAction = await permissionForm.getAttribute("action");
@@ -530,6 +530,8 @@ test.describe("single Edition administrator management", () => {
     await expect(page.locator('body[data-studio-role="editor"]')).toBeVisible();
     await context.close();
   });
+
+
 });
 
 async function unusedPort(): Promise<number> {

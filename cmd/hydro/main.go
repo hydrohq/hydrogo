@@ -2622,20 +2622,37 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /password-reset", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
-		if len(token) != 64 {
-			http.Error(w, "This password reset link is invalid or expired.", http.StatusBadRequest)
-			return
+		validToken := len(token) == 64
+		if validToken {
+			_, err := hex.DecodeString(token)
+			validToken = err == nil
 		}
-		if _, err := hex.DecodeString(token); err != nil {
-			http.Error(w, "This password reset link is invalid or expired.", http.StatusBadRequest)
-			return
+		locale := "en"
+		if r.URL.Query().Get("lang") == "tr" {
+			locale = "tr"
+		}
+		message := r.URL.Query().Get("error")
+		switch message {
+		case "mismatch", "weak", "rate", "unavailable":
+		default:
+			if !validToken {
+				message = "invalid"
+			} else {
+				message = ""
+			}
 		}
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := designsystem.PasswordResetForm(designsystem.PasswordResetFormProps{Token: token, CSRF: security.CSRFTokenFromContext(r.Context())}).Render(r.Context(), w); err != nil {
+		w.Header().Set("Content-Language", locale)
+		var page bytes.Buffer
+		props := designsystem.PasswordResetFormProps{Token: token, CSRF: security.CSRFTokenFromContext(r.Context()), Locale: locale, Error: message}
+		if err := designsystem.PasswordResetForm(props).Render(r.Context(), &page); err != nil {
 			http.Error(w, "Password reset is temporarily unavailable.", http.StatusServiceUnavailable)
+			return
 		}
+		w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), security.InlineCSPDirectives(page.Bytes())))
+		_, _ = w.Write(page.Bytes())
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /login", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/admin")
@@ -2660,11 +2677,20 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			http.Error(w, "admin login unavailable", http.StatusInternalServerError)
 			return
 		}
+		var successMessage string
 		if r.URL.Query().Get("invite_accepted") == "1" {
-			message := `<div id="login-status" class="form-alert alert-success" role="status">Your account is ready. Sign in with the password you just created.</div>`
+			successMessage = `Your account is ready. Sign in with the password you just created.`
 			if loginLocale == "tr" {
-				message = `<div id="login-status" class="form-alert alert-success" role="status">Hesabın hazır. Az önce belirlediğin parolayla giriş yap.</div>`
+				successMessage = `Hesabın hazır. Az önce belirlediğin parolayla giriş yap.`
 			}
+		} else if r.URL.Query().Get("password_reset") == "1" {
+			successMessage = `Your password has been updated. Sign in with your new password.`
+			if loginLocale == "tr" {
+				successMessage = `Parolan güncellendi. Yeni parolanla giriş yap.`
+			}
+		}
+		if successMessage != "" {
+			message := `<div id="login-status" class="form-alert alert-success" role="status">` + successMessage + `</div>`
 			pageBytes := bytes.Replace(page.Bytes(), []byte(`<div id="login-status" class="form-alert" role="alert"></div>`), []byte(message), 1)
 			page.Reset()
 			_, _ = page.Write(pageBytes)

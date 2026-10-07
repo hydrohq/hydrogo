@@ -72,7 +72,7 @@ type PageLayoutPickerProps struct {
 	Legend, EmptyMessage string
 }
 
-type PasswordResetFormProps struct{ Token, CSRF string }
+type PasswordResetFormProps struct{ Token, CSRF, Locale, Error string }
 type InviteAcceptFormProps struct{ Token, CSRF, Locale, Error string }
 
 func inviteAcceptError(locale, code string) string {
@@ -116,6 +116,44 @@ func inviteAcceptTitle(locale string) string {
 		return "Davetini kabul et"
 	}
 	return "Accept your invitation"
+}
+
+func passwordResetTitle(locale string) string {
+	if locale == "tr" {
+		return "Parolanı yenile"
+	}
+	return "Reset your password"
+}
+
+func passwordResetError(locale, code string) string {
+	if locale == "tr" {
+		if code == "mismatch" {
+			return "Parolalar eşleşmiyor. İki alanı da kontrol edip tekrar dene."
+		}
+		if code == "weak" {
+			return "Daha uzun ve tahmin edilmesi zor bir parola seç."
+		}
+		if code == "rate" {
+			return "Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene."
+		}
+		if code == "unavailable" {
+			return "Parolan şu anda yenilenemiyor. Biraz sonra tekrar dene."
+		}
+		return "Bu bağlantı geçersiz veya süresi dolmuş. Yöneticinden yeni bir bağlantı iste."
+	}
+	if code == "mismatch" {
+		return "The passwords do not match. Check both fields and try again."
+	}
+	if code == "weak" {
+		return "Choose a longer, less predictable password."
+	}
+	if code == "rate" {
+		return "Too many attempts. Wait a little and try again."
+	}
+	if code == "unavailable" {
+		return "Your password cannot be reset right now. Try again shortly."
+	}
+	return "This link is invalid or expired. Ask your administrator for a new one."
 }
 
 type FormConversionDay struct {

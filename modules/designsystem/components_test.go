@@ -114,7 +114,7 @@ func TestPageLayoutPickerEmptyStateIsLocalized(t *testing.T) {
 
 func TestPasswordResetFormKeepsTokenInPostBody(t *testing.T) {
 	got := render(t, PasswordResetForm(PasswordResetFormProps{Token: "reset-token", CSRF: "csrf-token"}))
-	for _, want := range []string{`action="/auth/password-reset/confirm"`, `name="_csrf" value="csrf-token"`, `name="token" value="reset-token"`, `autocomplete="new-password"`, `name="password"`} {
+	for _, want := range []string{`<html lang="en">`, `action="/auth/password-reset/confirm"`, `name="_csrf" value="csrf-token"`, `name="token" value="reset-token"`, `autocomplete="new-password"`, `name="password"`, `name="password_confirm"`, `history.replaceState`} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("reset form missing %q: %s", want, got)
 		}
