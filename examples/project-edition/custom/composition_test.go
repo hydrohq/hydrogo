@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -159,5 +163,112 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	_ = deletedRecord.Body.Close()
 	if deletedRecord.StatusCode != http.StatusNotFound {
 		t.Fatalf("generated API record after Admin delete status=%d", deletedRecord.StatusCode)
+	}
+}
+
+func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	ctx := context.Background()
+	adminDB, err := database.Open(ctx, database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer adminDB.Close()
+	schema := fmt.Sprintf("project_crud_%d", time.Now().UnixNano())
+	if _, err := adminDB.ExecContext(ctx, "CREATE SCHEMA "+schema); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = adminDB.ExecContext(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	})
+
+	parsed, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := parsed.Query()
+	query.Set("options", "-csearch_path="+schema)
+	parsed.RawQuery = query.Encode()
+	db, err := database.Open(ctx, database.Postgres, parsed.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(ctx, generated.MigrationSQL); err != nil {
+		t.Fatalf("apply generated Edition migration: %v", err)
+	}
+	server := httptest.NewServer(NewHandler(db, "postgres"))
+	defer server.Close()
+
+	postJSON := func(path, body string) *http.Response {
+		t.Helper()
+		response, err := http.Post(server.URL+path, "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+	apiCreate := postJSON("/api/v1/project", `{"id":"pg-api","project_code":"PG-API","status":"active","title":"PostgreSQL API record"}`)
+	if apiCreate.StatusCode != http.StatusCreated {
+		t.Fatalf("generated PostgreSQL API create status=%d", apiCreate.StatusCode)
+	}
+	_ = apiCreate.Body.Close()
+	adminIndex, err := http.Get(server.URL + "/admin/resources")
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexBody, _ := io.ReadAll(adminIndex.Body)
+	_ = adminIndex.Body.Close()
+	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(indexBody, []byte("/admin/resources/project")) {
+		t.Fatalf("generated collection missing from PostgreSQL Edition Admin index: status=%d", adminIndex.StatusCode)
+	}
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	create := url.Values{"id": {"pg-admin"}, "project_code": {"PG-ADMIN"}, "status": {"active"}, "title": {"PostgreSQL Admin record"}, "_csrf": {"edition-demo-csrf"}}
+	createResponse, err := client.PostForm(server.URL+"/admin/resources/project/new", create)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = createResponse.Body.Close()
+	if createResponse.StatusCode != http.StatusSeeOther {
+		t.Fatalf("generated PostgreSQL Admin create status=%d", createResponse.StatusCode)
+	}
+	list, err := http.Get(server.URL + "/admin/resources/project?search=PostgreSQL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	listBody, _ := io.ReadAll(list.Body)
+	_ = list.Body.Close()
+	if list.StatusCode != http.StatusOK || !bytes.Contains(listBody, []byte("PostgreSQL Admin record")) {
+		t.Fatalf("generated PostgreSQL Admin list status=%d body=%s", list.StatusCode, listBody)
+	}
+
+	update := url.Values{"project_code": {"PG-ADMIN"}, "status": {"active"}, "title": {"Updated PostgreSQL Admin record"}, "_csrf": {"edition-demo-csrf"}}
+	updateResponse, err := client.PostForm(server.URL+"/admin/resources/project/pg-admin", update)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = updateResponse.Body.Close()
+	if updateResponse.StatusCode != http.StatusSeeOther {
+		t.Fatalf("generated PostgreSQL Admin update status=%d", updateResponse.StatusCode)
+	}
+	deleteResponse, err := client.PostForm(server.URL+"/admin/resources/project/pg-admin/delete", url.Values{"_csrf": {"edition-demo-csrf"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = deleteResponse.Body.Close()
+	if deleteResponse.StatusCode != http.StatusSeeOther {
+		t.Fatalf("generated PostgreSQL Admin delete status=%d", deleteResponse.StatusCode)
+	}
+	deleted, err := http.Get(server.URL + "/api/v1/project/pg-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = deleted.Body.Close()
+	if deleted.StatusCode != http.StatusNotFound {
+		t.Fatalf("generated PostgreSQL record after Admin delete status=%d", deleted.StatusCode)
 	}
 }
