@@ -361,6 +361,24 @@ func TestAdminShellWriterPreservesInputLengthAfterRewrite(t *testing.T) {
 	}
 }
 
+func TestAdminShellWriterRewritesMarkupWithoutChangingInlineAssets(t *testing.T) {
+	var out bytes.Buffer
+	writer := adminShellWriter{Writer: &out}
+	payload := []byte(`<a href="/public/news/tr/html">News</a><script>const route = "/public/news/tr/html";</script><style>.news{content:"/public/news/tr/html"}</style>`)
+	if _, err := writer.Write(payload); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, `<a href="/">News</a>`) {
+		t.Fatalf("HTML navigation URL was not rewritten: %s", got)
+	}
+	for _, asset := range []string{`<script>const route = "/public/news/tr/html";</script>`, `<style>.news{content:"/public/news/tr/html"}</style>`} {
+		if !strings.Contains(got, asset) {
+			t.Fatalf("inline asset changed during shell rewrite: %s", got)
+		}
+	}
+}
+
 func TestAdminShellDoesNotLoadThirdPartyFonts(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Test", "", ""); err != nil {

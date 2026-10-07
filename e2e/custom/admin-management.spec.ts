@@ -113,6 +113,31 @@ test.describe("single Edition administrator management", () => {
       getComputedStyle(element).gridTemplateColumns,
     );
     expect(mobileLayout.split(" ").length).toBe(1);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByLabel("Boş sayfa").check();
+    const createPage = page.locator('form[action="/admin/pages"]');
+    await expect.poll(() => page.evaluate(() => typeof (window as any).HydroInitQuill)).toBe("function");
+    await expect(createPage.locator(".richtext-editor [contenteditable=true]")).toBeVisible();
+    await createPage.locator('[name="slug"]').fill("e2e-editorial-page");
+    await createPage.locator('[name="title"]').fill("E2E editorial draft");
+    await createPage.locator(".richtext-editor [contenteditable=true]").fill("Draft body for the editorial browser journey.");
+    await createPage.getByRole("button", { name: "Taslak oluştur" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+
+    const editPage = page.locator('form[data-autosave-resource^="page:"]');
+    await editPage.locator('[name="title"]').fill("E2E editorial published");
+    await editPage.locator(".richtext-editor [contenteditable=true]").fill("Published body from the editorial browser journey.");
+    await editPage.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+\?saved=1$/);
+    await expect(page.locator('form[data-autosave-resource^="page:"] [name="title"]')).toHaveValue("E2E editorial published");
+
+    await page.locator('form[action$="/publish"] button[type="submit"]').click();
+    await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+    const publishedPage = await page.request.get(`${baseURL}/public/pages/tr/e2e-editorial-page/html`);
+    expect(publishedPage.status()).toBe(200);
+    await expect(publishedPage).toBeOK();
+    expect(await publishedPage.text()).toContain("E2E editorial published");
   });
 });
 
