@@ -21,6 +21,7 @@ type (
 	PageRole              string
 	PageIdentityResolver  func(*http.Request) PageIdentity
 	Action                = internal.Action
+	BlockEditorConfig     = internal.BlockEditorConfig
 	Collection            = internal.Collection
 	DraftDocument         = internal.DraftDocument
 	Field                 = internal.Field
