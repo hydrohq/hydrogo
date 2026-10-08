@@ -14,9 +14,14 @@ let baseURL = "";
 test.describe("independent Edition generated Admin", () => {
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-external-edition-"));
+    const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
+    const dsn = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
+    if (dialect === "postgres" && !process.env.HYDRO_E2E_DATABASE_DSN) {
+      throw new Error("HYDRO_E2E_DATABASE_DSN is required for the PostgreSQL tenant-isolation run");
+    }
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawnServer("go", ["run", "./cmd/testserver", "--address", `127.0.0.1:${port}`, "--dsn", path.join(tempDir, "edition.sqlite")], {
+    server = spawnServer("go", ["run", "./cmd/testserver", "--address", `127.0.0.1:${port}`, "--dialect", dialect, "--dsn", dsn], {
       cwd: editionRoot,
       stdio: "ignore",
     });
