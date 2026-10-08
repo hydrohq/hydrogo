@@ -81,6 +81,66 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminArrayFieldCreatesStructuredListAndRestoresIt(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title",
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText}, {ID: "tags", Label: "Tags", Kind: FieldArray}},
+		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved map[string]any
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/article":
+			if err := json.NewDecoder(r.Body).Decode(&saved); err != nil {
+				t.Errorf("decode generated array payload: %v", err)
+				http.Error(w, "invalid JSON", http.StatusBadRequest)
+				return
+			}
+			saved["id"] = "article-1"
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/article/article-1":
+			_, _ = io.WriteString(w, `{"id":"article-1","title":"List article","tags":["first","second"]}`)
+		default:
+			t.Errorf("unexpected API request: %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	})
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, Collection) bool { return true },
+		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(*http.Request) bool { return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	form := httptest.NewRecorder()
+	mux.ServeHTTP(form, httptest.NewRequest(http.MethodGet, "/admin/resources/article/new", nil))
+	if form.Code != http.StatusOK || !strings.Contains(form.Body.String(), `data-item-list`) || !strings.Contains(form.Body.String(), `name="tags"`) {
+		t.Fatalf("array editor not rendered: status=%d body=%s", form.Code, form.Body.String())
+	}
+	values := url.Values{"_csrf": {"csrf-value"}, "title": {"List article"}, "tags": {"first\nsecond"}}
+	create := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/new", strings.NewReader(values.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	mux.ServeHTTP(create, request)
+	want := []any{"first", "second"}
+	if create.Code != http.StatusSeeOther || !reflect.DeepEqual(saved["tags"], want) {
+		t.Fatalf("array create did not preserve structured rows: status=%d payload=%#v body=%s", create.Code, saved, create.Body.String())
+	}
+	edit := httptest.NewRecorder()
+	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/article-1", nil))
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `[&#34;first&#34;,&#34;second&#34;]`) {
+		t.Fatalf("saved array rows did not return to the editor: status=%d body=%s", edit.Code, edit.Body.String())
+	}
+}
+
 func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/project/p-1" {

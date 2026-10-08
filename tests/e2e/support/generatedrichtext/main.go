@@ -38,6 +38,7 @@ func main() {
 			ID: "article", Label: "Articles", Group: "Content", TitleField: "title", Versioned: true,
 			Fields: []adminstudio.Field{
 				{ID: "title", Label: "Title", Kind: adminstudio.FieldText, Required: true, VisibleInList: true},
+				{ID: "tags", Label: "Tags", Kind: adminstudio.FieldArray},
 				{ID: "author_id", Label: "Author", Kind: adminstudio.FieldRelation, Relation: &adminstudio.RelationRef{Collection: "author", Cardinality: "one"}},
 				{ID: "cover_id", Label: "Cover image", Kind: adminstudio.FieldMedia, Widget: "media"},
 				{ID: "body", Label: "Article body", Kind: adminstudio.FieldText, Widget: "richtext"},

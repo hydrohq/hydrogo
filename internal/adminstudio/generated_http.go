@@ -886,7 +886,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	}
 	values := make(map[string]string, len(collection.Fields))
 	for _, field := range collection.Fields {
-		values[field.ID] = displayValue(record[field.ID])
+		values[field.ID] = displayFormValue(field, record[field.ID])
 	}
 	if collection.Versioned {
 		values["version"] = displayValue(record["version"])
@@ -1874,6 +1874,12 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				}
 				continue
 			}
+			if field.Kind == FieldArray {
+				if err := ui.ItemListEditor(ui.ItemListEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID]}).Render(ctx, out); err != nil {
+					return err
+				}
+				continue
+			}
 			if field.Kind == FieldMedia || field.Widget == "media" {
 				if err := ui.MediaPicker(ui.MediaPickerProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID]}).Render(ctx, out); err != nil {
 					return err
@@ -2088,7 +2094,14 @@ func parseAdminField(field Field, values []string) (any, error) {
 		if value == "" {
 			return []string{}, nil
 		}
-		return strings.Split(value, ","), nil
+		items := strings.Split(value, "\n")
+		result := make([]string, 0, len(items))
+		for _, item := range items {
+			if item = strings.TrimSpace(item); item != "" {
+				result = append(result, item)
+			}
+		}
+		return result, nil
 	default:
 		return value, nil
 	}
@@ -2250,6 +2263,19 @@ func displayValue(value any) string {
 		return strings.Join(items, ",")
 	}
 	return fmt.Sprint(value)
+}
+
+func displayFormValue(field Field, value any) string {
+	if field.Kind == FieldArray {
+		switch items := value.(type) {
+		case []string, []any:
+			encoded, err := json.Marshal(items)
+			if err == nil {
+				return string(encoded)
+			}
+		}
+	}
+	return displayValue(value)
 }
 
 func randomAdminID() string {

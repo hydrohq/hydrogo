@@ -34,6 +34,14 @@ passed again on SQLite and PostgreSQL 18 (6/6 each, `NOSUPERUSER
 NOBYPASSRLS`). This remains synthetic fixture storage, not a native Edition
 migration or production media policy certification.
 
+The generated article also has a string-array field. Its typed row editor adds
+rows by button or Enter, submits a structured string array, and restores the
+same two values on edit. The API readback confirms the array alongside its
+relation and selected media ID. The Edition facade now exports the existing
+`FieldArray` and `FieldBlocks` kinds so external modules can describe these
+fields without importing Core internals. These checks passed in the same 6/6
+SQLite and PostgreSQL browser runs.
+
 The separate native Project Edition browser run now covers generated article
 rich-text create, Delta API readback, edit, and delete using its real generated
 SQLite/PostgreSQL migration and API. That path passed 1/1 in both database
