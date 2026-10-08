@@ -2,20 +2,28 @@
 
 ## Browser contract
 
-Added a `FieldBlocks` column to the generated article test fixture and served a
-small Editor.js-compatible test adapter from the Edition origin. Chromium
-confirmed that the collection list does not fetch the editor asset, the create
-form loads it, edits become structured JSON in the canonical hidden field, the
-API persists the value, and the edit view restores both JSON and editable text.
+Added a `FieldBlocks` column to the generated article test fixture and served
+the official Editor.js 2.31.6 UMD bundle from the Edition origin. Its Apache
+2.0 license is included beside the test asset. Chromium confirmed that the
+collection list does not fetch the editor asset, the create form loads it, an
+empty field starts with an editable paragraph, a second paragraph can be added,
+and the API persists and restores the structured JSON.
 
-The focused block journey passed with the fixture's in-memory/SQLite-style
-store and a temporary PostgreSQL 18 schema (1/1 each). After adding the block
-field, the full generated editorial Chromium file also passed 7/7 on both
-backends. The focused journey also passed the axe WCAG 2.1 A/AA scan on both
-backends. The fixture schema is synthetic; it is not a Project Edition
-production migration. The adapter proves the shared loader and Editor.js
-constructor contract. It does not certify a selected upstream Editor.js
-distribution or any Edition's preview renderer.
+This run exposed two shared-loader gaps: Editor.js does not make an editable
+paragraph from an explicit empty `blocks` array, and its contenteditable
+paragraphs need textbox roles and accessible names. The loader now seeds one
+empty paragraph only for an explicitly empty array and labels editable blocks
+when Editor.js creates them. DOM observation handles block additions without
+scanning every block on each keystroke.
+
+The final full generated editorial Chromium file passed 7/7 with the current
+loader on SQLite and PostgreSQL 18. The block journey includes an axe WCAG 2.1
+A/AA scan on both backends. The current run also checks the 390px viewport for
+horizontal overflow and captures the mobile editor form. The fixture schema is
+synthetic; it is not a Project Edition production migration. The upstream
+bundle verifies actual Editor.js compatibility for the default Paragraph tool.
+It does not certify a Project Edition deployment bundle, additional Editor.js
+tools, or an Edition preview renderer.
 
 ## Commands
 
@@ -32,3 +40,6 @@ HYDRO_TEST_POSTGRES_URL='postgres://<user>:<password>@127.0.0.1:<port>/<database
 
 The PostgreSQL server was a disposable PostgreSQL 18 container using an
 unprivileged application account and was removed after the run.
+
+The test asset is `@editorjs/editorjs` 2.31.6, `dist/editorjs.umd.js`, from the
+official [Editor.js repository](https://github.com/codex-team/editor.js/).

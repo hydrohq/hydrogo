@@ -99,9 +99,13 @@ recovery step is introduced.
 - Admin shell tests verify the initializer is included in the generated CSP
   hash catalog and is called after full-page and SPA navigation.
 - Browser acceptance tests use an Edition-origin Editor.js-compatible test
-  adapter to verify create/edit JSON persistence and lazy asset loading.
-  Selection and certification of a real upstream Editor.js distribution and an
-  Edition preview renderer remain deployment-level checks.
+  asset to verify create/edit JSON persistence and lazy asset loading. The
+  generated block browser fixture now serves the official Editor.js 2.31.6
+  UMD bundle under its Apache-2.0 license and verifies the default Paragraph
+  tool, multiple blocks, empty-field initialization, and accessible textbox
+  roles/names on SQLite and PostgreSQL. The fixture uses a synthetic storage
+  schema; each Edition's production bundle, additional tools, and preview
+  renderer remain deployment-level checks.
 - `go test ./extension/v1/adminstudio` and the standalone Edition module verify
   the public contract; moduleguard, migrationguard, and importguard remain
   mandatory.

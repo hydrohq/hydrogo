@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -19,6 +19,9 @@ import (
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
 	staticassets "github.com/ardaozyildirim/hydrogo/static"
 )
+
+//go:embed editorjs/editorjs.umd.js
+var editorJS []byte
 
 func main() {
 	var editorialStore *postgresEditorialStore
@@ -222,7 +225,7 @@ func main() {
 	mux.Handle("GET /vendor/{path...}", http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS))))
 	mux.HandleFunc("GET /test/editorjs.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-		_, _ = io.WriteString(w, `window.EditorJS=function(config){let data=config.data||{blocks:[]};const holder=document.getElementById(config.holder);const input=document.createElement('textarea');input.setAttribute('aria-label','Article blocks');input.value=data.blocks?.[0]?.data?.text||'';input.addEventListener('input',()=>{data={blocks:[{type:'paragraph',data:{text:input.value}}]};config.onChange();});holder.appendChild(input);this.save=async()=>data;};`)
+		_, _ = w.Write(editorJS)
 	})
 	mux.Handle("/api/v1/article", api)
 	mux.Handle("/api/v1/article/", api)
