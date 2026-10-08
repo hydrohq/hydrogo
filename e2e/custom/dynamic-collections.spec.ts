@@ -51,6 +51,7 @@ test.describe("dynamic Admin collections", () => {
   });
 
   test("defines a collection and gets a schema-driven Admin CRUD surface", async ({ page, browser }) => {
+    test.setTimeout(240_000);
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/login`);
     await page.getByLabel("Email address").fill("admin@example.test");
@@ -144,6 +145,25 @@ test.describe("dynamic Admin collections", () => {
     const records = await recordsResponse.json();
     expect(records.records).toHaveLength(1);
     const recordID = records.records[0].id as string;
+
+    const themeRoutes = [
+      "/admin/collections",
+      "/admin/collections/e2e_catalog",
+      `/admin/collections/e2e_catalog/records/${recordID}`,
+    ];
+    for (const theme of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([family, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${family}-${colorMode}`), [theme, mode]);
+        for (const route of themeRoutes) {
+          const response = await page.goto(`${baseURL}${route}`);
+          expect(response?.status(), `${route} should render in ${theme}-${mode}`).toBe(200);
+          await expect(page.locator("html")).toHaveAttribute("data-ui-theme", theme);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+          await expectNoA11yViolations(page);
+        }
+      }
+    }
+    await page.goto(`${baseURL}/admin/collections/e2e_catalog`);
 
     await page.locator("table tbody tr").filter({ hasText: "SKU-E2E-001" }).getByRole("link", { name: /^Edit record:/ }).click();
     await expectNoA11yViolations(page);

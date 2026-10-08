@@ -84,3 +84,12 @@ and closes with Escape, after which the shadow no longer covers page content.
 The same test confirms there is no horizontal document overflow. The layout
 check is implemented by a scoped record-form class and included in the Admin
 style hash catalog.
+
+## Theme and color-mode accessibility follow-up — 2026-10-08
+
+The generated Collections hub, schema-driven records/create surface, and
+record-edit form are each checked with axe-core WCAG 2.1 A/AA under all four
+Studio theme families (`hydrogo`, `shadcn`, `nova`, `aurora`) in light and dark
+modes. Each rendered route returns 200 and exposes the selected theme and mode.
+The complete CRUD journey, including this 24-screen accessibility matrix,
+passed in Chromium (1/1 test).
