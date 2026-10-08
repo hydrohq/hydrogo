@@ -628,7 +628,10 @@ func TestGeneratedAdminSurfacesResourceAPIDenialWithoutSuccessRedirect(t *testin
 func TestGeneratedAdminResourceCapabilitiesHideAndDenyBasicCRUD(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{
 		ID: "article", Label: "Articles", TitleField: "title",
-		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}},
+		Fields: []Field{
+			{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true},
+			{ID: "internal_note", Label: "Internal note", Kind: FieldText},
+		},
 		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
 	}})
 	if err != nil {
@@ -648,7 +651,7 @@ func TestGeneratedAdminResourceCapabilitiesHideAndDenyBasicCRUD(t *testing.T) {
 			_, _ = io.WriteString(w, `[{"id":"a1","title":"Read-only article"}]`)
 			return
 		}
-		_, _ = io.WriteString(w, `{"id":"a1","title":"Read-only article"}`)
+		_, _ = io.WriteString(w, `{"id":"a1","title":"<script>bad()</script>","internal_note":"Do not expose"}`)
 	})
 	mux := http.NewServeMux()
 	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
@@ -680,8 +683,8 @@ func TestGeneratedAdminResourceCapabilitiesHideAndDenyBasicCRUD(t *testing.T) {
 	}
 	detail := httptest.NewRecorder()
 	mux.ServeHTTP(detail, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
-	if detail.Code != http.StatusForbidden {
-		t.Fatalf("record edit route was available without update capability: status=%d body=%s", detail.Code, detail.Body.String())
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "&lt;script&gt;bad()&lt;/script&gt;") || !strings.Contains(detail.Body.String(), "Listeye dön") || strings.Contains(detail.Body.String(), "<form") || strings.Contains(detail.Body.String(), "<script") || strings.Contains(detail.Body.String(), "Do not expose") {
+		t.Fatalf("read-only record view is missing or exposed mutation markup: status=%d body=%s", detail.Code, detail.Body.String())
 	}
 	for _, path := range []string{"/admin/resources/article/a1", "/admin/resources/article/a1/delete"} {
 		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader("title=Denied"))
@@ -692,7 +695,7 @@ func TestGeneratedAdminResourceCapabilitiesHideAndDenyBasicCRUD(t *testing.T) {
 			t.Errorf("mutation %s with no capability status=%d, want 403", path, response.Code)
 		}
 	}
-	if mutations != 0 || apiCalls != 1 {
+	if mutations != 0 || apiCalls != 2 {
 		t.Fatalf("denied capability reached mutation API: api calls=%d mutations=%d", apiCalls, mutations)
 	}
 }
