@@ -213,9 +213,28 @@ test.describe("single Edition administrator management", () => {
 
   test("admin login opens the Edition management areas and rejects anonymous access", async ({ page, browser }) => {
     test.setTimeout(180_000);
-    const denied = await page.request.get(`${baseURL}/admin/users`, { maxRedirects: 0 });
-    expect([401, 302, 303]).toContain(denied.status());
-    if (denied.status() !== 401) expect(denied.headers().location).toContain("/login");
+    for (const route of [
+      "/admin",
+      "/admin/pages/new",
+      "/admin/news/new",
+      "/admin/media",
+      "/admin/users",
+      "/admin/permissions",
+      "/admin/security",
+      "/admin/security/token-lifetimes",
+      "/admin/audit",
+      "/admin/backup",
+      "/admin/control",
+      "/admin/operations",
+      "/admin/developer",
+      "/admin/developer/resources",
+      "/admin/reports",
+      "/admin/reports/export?range=week",
+    ]) {
+      const denied = await page.request.get(`${baseURL}${route}`, { maxRedirects: 0 });
+      expect([401, 302, 303], `anonymous access to ${route} must require login`).toContain(denied.status());
+      if (denied.status() !== 401) expect(denied.headers().location, `${route} must redirect to login`).toContain("/login");
+    }
 
     await page.goto(`${baseURL}/login`);
     const loginResponse = await page.goto(`${baseURL}/login`);

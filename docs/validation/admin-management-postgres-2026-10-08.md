@@ -66,3 +66,16 @@ editor signs in.
 The browser checks test the normal Edition application role and the explicit
 backup role boundary. They do not provision production credentials, modify
 production database grants, or add a PostgreSQL migration.
+
+## Anonymous management-route matrix rerun — 2026-10-08
+
+The SQLite Chromium suite was rerun after extending its anonymous-access check
+from `/admin/users` to 16 management entry points: dashboard, page/news create,
+media, users, permissions, security and token lifetimes, audit, backup, control,
+operations, developer and resource telemetry, reports, and report export. Each
+route returned an authentication response (401 or a redirect to `/login`). The
+complete `custom/admin-management.spec.ts` file passed **5/5** in 3.3 minutes,
+including its editor/viewer role checks, CSRF checks, responsive flows, invite
+acceptance, and theme accessibility matrix. This added anonymous check ran on
+SQLite; it does not replace the already recorded PostgreSQL suite or cover all
+Admin POST mutation/permission combinations.
