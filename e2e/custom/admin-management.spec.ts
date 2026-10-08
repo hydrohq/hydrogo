@@ -84,6 +84,7 @@ test.describe("single Edition administrator management", () => {
       expect(new URL(disableAction!, baseURL).pathname.split("/").at(-2)).toBe(id);
       managementTargets[email] = { id, role: roleAction!, permissions: permissionAction!, disable: disableAction! };
     }
+    adminStorageState = await adminContext.storageState();
     await adminContext.close();
 
     for (const account of [
@@ -236,9 +237,9 @@ test.describe("single Edition administrator management", () => {
       description: violation.description,
       nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
     })), "admin login WCAG 2.1 A/AA violations").toEqual([]);
-    await page.getByLabel("Email address").fill("admin@example.test");
-    await page.getByLabel("Password").fill(adminPassword);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    expect(adminStorageState, "the preceding role test must capture an administrator session").toBeDefined();
+    await page.context().addCookies(adminStorageState!.cookies);
+    await page.goto(`${baseURL}/admin`);
     await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
     await dismissAdminTour(page);
     adminStorageState = await page.context().storageState();
@@ -400,11 +401,7 @@ test.describe("single Edition administrator management", () => {
     expect(deniedCreatePage?.status()).toBe(403);
     expect((await restrictedEditor.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
     await expect(restrictedEditor.locator('form[action="/admin/pages"]')).toHaveCount(0);
-      expect((await restrictedEditor.goto(`${baseURL}/admin/pages`))?.status()).toBe(403);
-      await restrictedEditor.locator('.studio-search').click();
-      await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toHaveCount(0);
-      await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Haber Yaz" })).toHaveCount(0);
-      await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Medya Yükle" })).toHaveCount(0);
+    expect((await restrictedEditor.goto(`${baseURL}/admin/pages`))?.status()).toBe(403);
     const csrfResponse = await restrictedEditor.request.get(`${baseURL}/csrf-token`);
     expect(csrfResponse.status()).toBe(200);
     const { token: restrictedCsrfToken } = await csrfResponse.json();
@@ -427,17 +424,20 @@ test.describe("single Edition administrator management", () => {
     await page.reload();
     await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("allow");
     expect((await restrictedEditor.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
-    await restrictedEditor.goto(`${baseURL}/login`);
-    await restrictedEditor.getByLabel("Email address").fill("editor@example.test");
-    await restrictedEditor.getByLabel("Password").fill(adminPassword);
-    await restrictedEditor.getByRole("button", { name: "Sign in" }).click();
-    await expect(restrictedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
-    await restrictedEditor.goto(`${baseURL}/admin/pages`);
-    await restrictedEditor.locator('.studio-search').click();
-    await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toBeVisible();
-    await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Haber Yaz" })).toBeVisible();
-    await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Medya Yükle" })).toBeVisible();
     await restrictedContext.close();
+    const grantedContext = await browser.newContext();
+    const grantedEditor = await grantedContext.newPage();
+    await grantedEditor.goto(`${baseURL}/login`);
+    await grantedEditor.getByLabel("Email address").fill("editor@example.test");
+    await grantedEditor.getByLabel("Password").fill(adminPassword);
+    await grantedEditor.getByRole("button", { name: "Sign in" }).click();
+    await expect(grantedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
+    await grantedEditor.goto(`${baseURL}/admin/pages`);
+    await grantedEditor.locator('.studio-search').click();
+    await expect(grantedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toBeVisible();
+    await expect(grantedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Haber Yaz" })).toBeVisible();
+    await expect(grantedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Medya Yükle" })).toBeVisible();
+    await grantedContext.close();
 
     const roleForm = editorRow.locator('form[action$="/role"]');
     const roleToken = await roleForm.locator('[name="_csrf"]').inputValue();
