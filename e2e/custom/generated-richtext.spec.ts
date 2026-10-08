@@ -74,19 +74,37 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page.getByRole("textbox", { name: "Article body" }).locator("strong")).toHaveText("An updated formatted article.");
   });
 
-  test("generated blocks lazy-load the Edition editor asset and round-trip JSON", async ({ page, request }) => {
+  test("generated blocks lazy-load the Edition editor asset and round-trip JSON", async ({ browser, page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
-    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const mobilePage = await mobileContext.newPage();
+    await mobilePage.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await mobilePage.goto(`${baseURL}/admin/resources/article/new`);
+    await dismissOnboarding(mobilePage);
+    const mobileMount = mobilePage.locator('[data-editorjs-mount="blocks"]');
+    const mobileEditor = mobileMount.locator('.ce-paragraph[contenteditable="true"]').first();
+    await expect(mobileEditor).toBeVisible();
+    await expect.poll(() => mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expectNoA11yViolations(mobilePage);
+    await mobileEditor.fill("Touch generated paragraph.");
+    await mobileEditor.tap();
+    const mobileAddBlock = mobileMount.locator(".ce-toolbar__plus");
+    await expect(mobileAddBlock).toBeVisible();
+    await mobileAddBlock.tap();
+    const mobileTextTool = mobilePage.locator(".ce-popover-item").filter({ hasText: "Text" });
+    await expect(mobileTextTool).toBeVisible();
+    await mobileTextTool.click();
+    await expect(mobileMount.locator('.ce-paragraph[contenteditable="true"]')).toHaveCount(2);
+    await mobilePage.screenshot({ path: test.info().outputPath("generated-block-editor-mobile.png"), fullPage: true });
+    await mobileContext.close();
+
     await page.goto(`${baseURL}/admin/resources/article`);
     await expect(page.locator('script[src="/test/editorjs.js"]')).toHaveCount(0);
     await page.goto(`${baseURL}/admin/resources/article/new`);
     const mount = page.locator('[data-editorjs-mount="blocks"]');
     const editor = mount.locator('.ce-paragraph[contenteditable="true"]').first();
     await expect(editor).toBeVisible();
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expectNoA11yViolations(page);
-    await page.screenshot({ path: test.info().outputPath("generated-block-editor-mobile.png"), fullPage: true });
-    await page.setViewportSize({ width: 1280, height: 900 });
     await editor.fill("A generated block paragraph.");
     await editor.click();
     const addBlock = mount.locator(".ce-toolbar__plus");

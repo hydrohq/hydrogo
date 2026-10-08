@@ -19,11 +19,13 @@ scanning every block on each keystroke.
 The final full generated editorial Chromium file passed 7/7 with the current
 loader on SQLite and PostgreSQL 18. The block journey includes an axe WCAG 2.1
 A/AA scan on both backends. The current run also checks the 390px viewport for
-horizontal overflow and captures the mobile editor form. The fixture schema is
-synthetic; it is not a Project Edition production migration. The upstream
-bundle verifies actual Editor.js compatibility for the default Paragraph tool.
-It does not certify a Project Edition deployment bundle, additional Editor.js
-tools, or an Edition preview renderer.
+horizontal overflow and uses a real touch-enabled Chromium context to tap the
+paragraph, open the block menu, add a second Text block, and confirm both
+editable blocks. The fixture schema is synthetic; it is not a Project Edition
+production migration. The upstream bundle verifies actual Editor.js
+compatibility for the default Paragraph tool. It does not certify a Project
+Edition deployment bundle, additional Editor.js tools, or an Edition preview
+renderer.
 
 ## Commands
 
