@@ -34,12 +34,14 @@ type (
 	RelationRef           = internal.RelationRef
 	RevisionSnapshot      = internal.RevisionSnapshot
 	RevisionSummary       = internal.RevisionSummary
+	ResourceAccess        = internal.ResourceAccess
 	Workflow              = internal.Workflow
 )
 
 // PageIdentity is presentation data for the shared Admin Studio shell. It is
 // not an authorization decision; GeneratedAdminOptions.Authorize remains the
-// route boundary and CanReadResource filters the resources shown to a user.
+// route boundary, CanReadResource filters readable resources, and
+// GeneratedAdminOptions.ResourceAccess controls basic CRUD affordances.
 type PageIdentity struct {
 	UserID string
 	Email  string

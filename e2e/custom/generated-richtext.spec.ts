@@ -130,7 +130,7 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
 
     const records = await (await request.get(`${baseURL}/api/v1/article`)).json();
-    const record = records.find((candidate: { title: string }) => candidate.title === "Generated blocks article");
+    const record = records.find((candidate: { id: string; title: string }) => candidate.title === "Generated blocks article");
     const expected = JSON.parse(record?.blocks ?? "null");
     expect(expected.blocks?.map((block: { type: string; data: { text: string } }) => ({ type: block.type, text: block.data.text }))).toEqual([
       { type: "paragraph", text: "A generated block paragraph." },
@@ -143,6 +143,32 @@ test.describe("generated rich-text Edition Admin", () => {
     const restored = page.locator('[data-editorjs-mount="blocks"] .ce-paragraph[contenteditable="true"]');
     await expect(restored.nth(0)).toHaveText("A generated block paragraph.");
     await expect(restored.nth(1)).toHaveText("A second generated paragraph.");
+
+    await page.context().setExtraHTTPHeaders({ "X-E2E-Resource-Access": "none" });
+    await page.goto(`${baseURL}/admin/resources/article`);
+    await expect(page.getByRole("link", { name: "Yeni kayıt" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Generated blocks article" })).toHaveCount(0);
+    await expect(page.getByText("Generated blocks article", { exact: true })).toBeVisible();
+    expect((await page.goto(`${baseURL}/admin/resources/article/new`))?.status()).toBe(403);
+    expect((await page.goto(`${baseURL}/admin/resources/article/${record.id}`))?.status()).toBe(403);
+    for (const path of [
+      "/admin/resources/article/new",
+      `/admin/resources/article/${record.id}`,
+      `/admin/resources/article/${record.id}/delete`,
+    ]) {
+      const status = await page.evaluate(async (target) => {
+        const response = await fetch(target, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "_csrf=generated-richtext-e2e-csrf&title=Denied+change",
+        });
+        return response.status;
+      }, path);
+      expect(status, `${path} must be denied before API mutation`).toBe(403);
+    }
+    const unchanged = await (await request.get(`${baseURL}/api/v1/article/${record.id}`)).json();
+    expect(unchanged.title).toBe("Generated blocks article");
+    expect(JSON.parse(unchanged.blocks).blocks).toEqual(expected.blocks);
   });
 
   test("a stale generated edit gets a conflict and keeps the latest saved value", async ({ browser }) => {

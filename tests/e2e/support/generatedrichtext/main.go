@@ -238,6 +238,12 @@ func main() {
 		API:             api,
 		Authorize:       func(*http.Request) bool { return true },
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
+		ResourceAccess: func(r *http.Request, _ adminstudio.Collection, _ string) adminstudio.ResourceAccess {
+			if r.Header.Get("X-E2E-Resource-Access") == "none" {
+				return adminstudio.ResourceAccess{}
+			}
+			return adminstudio.ResourceAccess{Create: true, Update: true, Delete: true}
+		},
 		ListDrafts: func(_ *http.Request, collection adminstudio.Collection, locale string, limit int) ([]adminstudio.DraftDocument, error) {
 			if collection.ID != "story" || limit != 50 {
 				return nil, fmt.Errorf("unexpected draft list request: %s limit=%d", collection.ID, limit)
