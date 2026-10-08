@@ -1,9 +1,9 @@
 # ADR-0359: Edition-owned generated Admin block editor
 
-- **Status:** Accepted
+- **Status:** Superseded
 - **Date:** 2026-10-08
 - **Supersedes:** None
-- **Superseded by:** None
+- **Superseded by:** [ADR-0360](0360-hash-authorized-block-editor-loader.md)
 - **Related decisions:** [ADR-0223](0223-generated-admin-ui-and-publishing-preview.md), [ADR-0346](0346-blueprint-admin-studio-workflows.md), [ADR-0347](0347-versioned-public-generated-admin-runtime.md), [ADR-0350](0350-admin-studio-csp-style-and-script-hashes.md)
 
 ## Context

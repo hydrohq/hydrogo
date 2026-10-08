@@ -64,13 +64,12 @@ type GeneratedAdminOptions struct {
 	RenderPage         func(http.ResponseWriter, *http.Request, string, templ.Component) error
 }
 
-// BlockEditorConfig binds the Edition-owned Editor.js asset and CSP nonce.
-// PreviewURL is optional; when set, the endpoint must enforce CSRF and render
-// only validated, sanitized block content.
+// BlockEditorConfig binds the Edition-owned Editor.js asset. PreviewURL is
+// optional; when set, the endpoint must enforce CSRF and render only validated,
+// sanitized block content.
 type BlockEditorConfig struct {
 	EditorScript string
 	PreviewURL   string
-	Nonce        func(*http.Request) string
 }
 
 type LocaleOptions struct {
@@ -126,8 +125,8 @@ func (h GeneratedAdminHandler) Register(mux *http.ServeMux) error {
 				continue
 			}
 			config := h.Options.BlockEditor
-			if !validEditionAssetPath(config.EditorScript) || config.Nonce == nil {
-				return errors.New("generated Admin block editor requires an Edition asset and CSP nonce")
+			if !validEditionAssetPath(config.EditorScript) {
+				return errors.New("generated Admin block editor requires an Edition asset")
 			}
 			if config.PreviewURL != "" && !validEditionAssetPath(config.PreviewURL) {
 				return errors.New("generated Admin block preview must use a same-origin path")
@@ -911,20 +910,6 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 		http.Error(w, "admin page unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	blockNonce := ""
-	for _, field := range collection.Fields {
-		if field.Kind == FieldBlocks || field.Widget == "block-editor" {
-			if h.Options.BlockEditor.Nonce == nil {
-				http.Error(w, "admin page unavailable", http.StatusServiceUnavailable)
-				return
-			}
-			blockNonce = h.Options.BlockEditor.Nonce(r)
-			if blockNonce == "" {
-				http.Error(w, "admin page unavailable", http.StatusServiceUnavailable)
-				return
-			}
-		}
-	}
 	values := make(map[string]string, len(collection.Fields))
 	for _, field := range collection.Fields {
 		values[field.ID] = displayFormValue(field, record[field.ID])
@@ -1009,7 +994,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 				return err
 			}
 		}
-		props := ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, h.Options.BlockEditor, blockNonce)}
+		props := ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, h.Options.BlockEditor)}
 		if err := ui.Form(props).Render(ctx, out); err != nil {
 			return err
 		}
@@ -1864,7 +1849,7 @@ func recordVersion(value any) int64 {
 	return 0
 }
 
-func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool, locale, defaultLocale string, localizedEdit, draftEdit, saveAllowed bool, blockEditor BlockEditorConfig, blockNonce string) templ.Component {
+func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool, locale, defaultLocale string, localizedEdit, draftEdit, saveAllowed bool, blockEditor BlockEditorConfig) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if editing && collection.Versioned && !localizedEdit && !draftEdit {
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "version", Value: values["version"]}).Render(ctx, out); err != nil {
@@ -1922,7 +1907,7 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				continue
 			}
 			if field.Kind == FieldBlocks || field.Widget == "block-editor" {
-				if err := ui.BlockEditor(ui.BlockEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Nonce: blockNonce, EditorScript: blockEditor.EditorScript, PreviewURL: blockEditor.PreviewURL}).Render(ctx, out); err != nil {
+				if err := ui.BlockEditor(ui.BlockEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], EditorScript: blockEditor.EditorScript, PreviewURL: blockEditor.PreviewURL}).Render(ctx, out); err != nil {
 					return err
 				}
 				continue

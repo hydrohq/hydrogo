@@ -20,11 +20,11 @@ import (
 func TestGeneratedFormUsesEditionBlockEditorAdapter(t *testing.T) {
 	collection := Collection{ID: "article", Label: "Articles", Fields: []Field{{ID: "body", Label: "Body", Kind: FieldBlocks}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}}
 	var out bytes.Buffer
-	err := generatedFormFields(collection, map[string]string{"body": `{"blocks":[]}`}, nil, "article-1", false, "tr", "tr", false, false, true, BlockEditorConfig{EditorScript: "/assets/editor.js", PreviewURL: "/api/preview"}, "nonce").Render(context.Background(), &out)
+	err := generatedFormFields(collection, map[string]string{"body": `{"blocks":[]}`}, nil, "article-1", false, "tr", "tr", false, false, true, BlockEditorConfig{EditorScript: "/assets/editor.js", PreviewURL: "/api/preview"}).Render(context.Background(), &out)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-editorjs-mount="body"`, `src="/assets/editor.js"`, `nonce="nonce"`, `hx-post="/api/preview"`, `name="body"`} {
+	for _, want := range []string{`data-editorjs-mount="body"`, `data-editorjs-script="/assets/editor.js"`, `hx-post="/api/preview"`, `name="body"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("generated block field missing %q: %s", want, out.String())
 		}
@@ -586,7 +586,7 @@ func TestGeneratedAdminBlockFieldsRequireEditionAssetAndNonce(t *testing.T) {
 	if err := (GeneratedAdminHandler{Registry: registry, Options: options}).Register(http.NewServeMux()); err == nil {
 		t.Fatal("block editor registered without Edition asset and nonce")
 	}
-	options.BlockEditor = BlockEditorConfig{EditorScript: "https://editor.example/editor.js", Nonce: func(*http.Request) string { return "nonce" }}
+	options.BlockEditor = BlockEditorConfig{EditorScript: "https://editor.example/editor.js"}
 	if err := (GeneratedAdminHandler{Registry: registry, Options: options}).Register(http.NewServeMux()); err == nil {
 		t.Fatal("cross-origin editor asset was accepted")
 	}
