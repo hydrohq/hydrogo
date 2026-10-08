@@ -16,8 +16,11 @@ hydro project check
 The command produces `generated/project` and preserves this `custom/` policy
 boundary for tenant ownership, workflow, and authorization decisions.
 
-The `milestone.blueprint.yaml` file is a second resource produced with
-`hydro new resource`. Its metadata enters the shared Admin registry
+The `milestone.blueprint.yaml` and `article.blueprint.yaml` files are additional
+resources produced with the Blueprint scaffold. Article's rich-text field uses
+the generated `text` column and the shared Quill editor. Its embedded vendor
+assets are mounted by the standalone example server under `/vendor/`, matching
+the Core server's asset route. Its metadata enters the shared Admin registry
 automatically through the already-wired `generated.RegisterGeneratedAdmin`
 helper. API routes are composed once through the generated
 `RegisterGeneratedResources` helper and an Edition-owned policy callback, so

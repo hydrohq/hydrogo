@@ -25,6 +25,11 @@ publish, review/publish, and draft discard. Article and editorial tables are
 synthetic test-fixture schema; this does not execute the production Project
 Edition article migration. The default in-memory Chromium suite passed 6/6 too.
 
+The separate native Project Edition browser run now covers generated article
+rich-text create, Delta API readback, edit, and delete using its real generated
+SQLite/PostgreSQL migration and API. That path passed 1/1 in both database
+modes; see [native generated Edition validation](native-generated-edition-first-crud-2026-10-08.md).
+
 SQLite and PostgreSQL full repository Go suites both passed after these tests
 were added. The temporary PostgreSQL container was stopped, and the fixture's
 shutdown removed its isolated schema.

@@ -52,3 +52,42 @@ npm test -- --project=chromium --workers=1 \
 This verifies that the real browser route and generated Admin CRUD work with
 the PostgreSQL adapter. Other media/relation/editorial browser fixtures remain
 separate; their persistence contracts are covered by their existing DB tests.
+
+## Generated rich-text resource on the real Edition migration
+
+The Project Edition now includes an `article` Blueprint with required `title`
+and `body:text` (`ui.widget: richtext`). Its generated migration creates the
+`articles` table with the portable `TEXT` body column and includes SQLite and
+PostgreSQL checksums, additive compatibility metadata, and rollback notes. The
+Edition migration command explicitly applies this generated proposal, and its
+aggregate API/Admin registration helpers discover the resource from the
+Blueprint registry.
+
+The native Chromium flow requests the embedded Quill script, creates an article
+with bold formatting, reads its serialized Delta through the generated API,
+reloads and edits the record with italic formatting, and deletes it. The same
+test passed **1/1 on SQLite** and **1/1 on PostgreSQL 18** using the real
+Project Edition migration and API, with a `NOSUPERUSER NOBYPASSRLS` PostgreSQL
+role. This closes the gap between synthetic rich-text fixture storage and the
+native generated Edition path; the separate fixture remains useful for its
+workflow, relation/media and stale-write scenarios.
+
+The latest browser test times were 16.7 s total on SQLite and 16.4 s on
+PostgreSQL, including Playwright/Chromium startup, generated Edition migration,
+server startup, and the existing CRUD plus rich-text journeys.
+
+Commands:
+
+```sh
+cd e2e
+TMPDIR=/var/tmp npm test -- --project=chromium --workers=1 \
+  custom/generated-admin-crud.spec.ts
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+HYDRO_E2E_DATABASE_DSN='postgres://<edition-role>:<password>@127.0.0.1:<port>/<empty-database>?sslmode=disable' \
+TMPDIR=/var/tmp npm test -- --project=chromium --workers=1 \
+  custom/generated-admin-crud.spec.ts
+```
+
+The PostgreSQL run uses an empty disposable database because the example's
+reviewed migrations are intentionally not idempotent. The temporary PostgreSQL
+container was removed after verification.

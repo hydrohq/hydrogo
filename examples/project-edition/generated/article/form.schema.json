@@ -1,0 +1,18 @@
+{
+  "id": "article",
+  "title": "Articles",
+  "fields": [
+    {
+      "id": "body",
+      "type": "text",
+      "label": "Body",
+      "required": true
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    }
+  ]
+}

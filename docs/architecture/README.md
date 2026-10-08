@@ -6,6 +6,8 @@
 - [ADR-0355: Aggregate generated resource route registration](0355-aggregate-generated-resource-route-registration.md)
 - [ADR-0356: Revision-bound News draft preview](0356-revision-bound-news-preview.md) — Accepted
 - [ADR-0357: Explicit Blueprint sync into Dynamic Collections](0357-explicit-blueprint-collections-sync.md) — Accepted
+- [ADR-0358: Generated rich-text storage in Client Editions](0358-generated-richtext-edition-storage.md) — Accepted
+- [ADR-0344: Hash-based CSP for edge caching](0344-hash-based-csp-for-edge-caching.md) — Proposed
 - [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
 - [ADR-0330: Pure Go PDF cover derivatives](0330-pure-go-pdf-cover-derivatives.md)
 - [ADR-0331: Bounded SQLite shadow-table migrations](0331-sqlite-batched-shadow-migrations.md)
@@ -441,3 +443,5 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0354: Blueprint-derived generated Admin activation helper](0354-blueprint-derived-admin-activation.md) — Accepted
 - [ADR-0355: Aggregate generated resource route registration](0355-aggregate-generated-resource-route-registration.md) — Accepted
 - [ADR-0356: Revision-bound News draft preview](0356-revision-bound-news-preview.md) — Accepted
+- [ADR-0357: Explicit Blueprint sync into Dynamic Collections](0357-explicit-blueprint-collections-sync.md) — Accepted
+- [ADR-0358: Generated rich-text storage in Client Editions](0358-generated-richtext-edition-storage.md) — Accepted
