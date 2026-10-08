@@ -536,9 +536,21 @@ func TestEditorialAdminSQLiteComposition(t *testing.T) {
 	if drafts.Code != http.StatusOK || !strings.Contains(drafts.Body.String(), "Working title") {
 		t.Fatalf("draft list did not show the SQLite working copy: status=%d body=%s", drafts.Code, drafts.Body.String())
 	}
+	staleDraftSave := post("/admin/resources/story/story-1/draft", url.Values{"_csrf": {"csrf"}, "draft_version": {"0"}, "published_version": {"1"}, "title": {"Stale overwrite"}, "slug": {"stale-overwrite"}, "author_id": {"author-1"}, "cover_media_id": {"media-2"}, "status": {"draft"}})
+	if staleDraftSave.Code != http.StatusConflict {
+		t.Fatalf("stale draft save was not rejected: status=%d body=%s", staleDraftSave.Code, staleDraftSave.Body.String())
+	}
+	var savedDraft string
+	if err := db.QueryRow(`SELECT snapshot FROM stories_drafts WHERE resource_id='story-1' AND locale=''`).Scan(&savedDraft); err != nil || !strings.Contains(savedDraft, "Working title") || strings.Contains(savedDraft, "Stale overwrite") {
+		t.Fatalf("stale draft save changed persisted working copy: snapshot=%q err=%v", savedDraft, err)
+	}
 	review := post("/admin/resources/story/story-1/workflow", url.Values{"_csrf": {"csrf"}, "target": {"review"}, "expected_draft_version": {"1"}, "expected_published_version": {"1"}})
 	if review.Code != http.StatusSeeOther {
 		t.Fatalf("review transition failed: status=%d body=%s", review.Code, review.Body.String())
+	}
+	stalePublish := post("/admin/resources/story/story-1/workflow", url.Values{"_csrf": {"csrf"}, "target": {"published"}, "expected_draft_version": {"1"}, "expected_published_version": {"1"}})
+	if stalePublish.Code != http.StatusConflict {
+		t.Fatalf("stale workflow transition was not rejected: status=%d body=%s", stalePublish.Code, stalePublish.Body.String())
 	}
 	publish := post("/admin/resources/story/story-1/workflow", url.Values{"_csrf": {"csrf"}, "target": {"published"}, "expected_draft_version": {"2"}, "expected_published_version": {"1"}})
 	if publish.Code != http.StatusSeeOther {
@@ -571,6 +583,10 @@ func TestEditorialAdminSQLiteComposition(t *testing.T) {
 	localeSave := post("/admin/resources/page/page-1/locale?locale=fr", url.Values{"_csrf": {"csrf"}, "locale_version": {"0"}, "title": {"Titre français"}})
 	if localeSave.Code != http.StatusSeeOther {
 		t.Fatalf("localized save failed: status=%d body=%s", localeSave.Code, localeSave.Body.String())
+	}
+	staleLocaleSave := post("/admin/resources/page/page-1/locale?locale=fr", url.Values{"_csrf": {"csrf"}, "locale_version": {"0"}, "title": {"Écrasement obsolète"}})
+	if staleLocaleSave.Code != http.StatusConflict {
+		t.Fatalf("stale localized save was not rejected: status=%d body=%s", staleLocaleSave.Code, staleLocaleSave.Body.String())
 	}
 	localized := get("/admin/resources/page/page-1?locale=fr")
 	base := get("/admin/resources/page/page-1?locale=en")
