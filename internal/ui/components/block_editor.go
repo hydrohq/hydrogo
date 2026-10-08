@@ -41,15 +41,16 @@ func BlockEditor(p BlockEditorProps) templ.Component {
 		if script == "" {
 			script = "/vendor/editorjs/editorjs.umd.js"
 		}
-		previewTarget := strings.TrimSpace(p.PreviewTarget)
-		if previewTarget == "" {
-			previewTarget = "#" + id + "-preview"
-		}
 		previewURL := strings.TrimSpace(p.PreviewURL)
-		if previewURL == "" {
-			previewURL = "/api/preview"
+		previewAttrs := ""
+		if previewURL != "" {
+			previewTarget := strings.TrimSpace(p.PreviewTarget)
+			if previewTarget == "" {
+				previewTarget = "#" + id + "-preview"
+			}
+			previewAttrs = ` hx-post="` + esc(previewURL) + `" hx-target="` + esc(previewTarget) + `" hx-swap="innerHTML" hx-trigger="keyup delay:300ms"`
 		}
-		if _, err := io.WriteString(w, `<fieldset class="block-editor" data-hydro-block-editor="`+esc(id)+`"><legend>`+esc(label)+`</legend><div class="block-editor-layout"><div class="block-editor-canvas"><div id="`+esc(id)+`-mount" data-editorjs-mount="`+esc(id)+`"></div><textarea id="`+esc(id)+`" name="`+esc(name)+`" hidden hx-post="`+esc(previewURL)+`" hx-target="`+esc(previewTarget)+`" hx-swap="innerHTML" hx-trigger="keyup delay:300ms">`+esc(p.Value)+`</textarea></div><aside id="`+esc(id)+`-preview" class="block-editor-preview" aria-live="polite"><span>Önizleme bekleniyor.</span></aside></div><script nonce="`+esc(p.Nonce)+`" src="`+esc(script)+`"></script><script nonce="`+esc(p.Nonce)+`">window.HydroInitEditorJS=window.HydroInitEditorJS||function(config){if(!window.EditorJS)return;const input=document.getElementById(config.input);if(!input)return;let data={};try{data=JSON.parse(input.value||"{}")}catch(_e){}const editor=new window.EditorJS({holder:config.mount,data:data,onChange:async function(){try{input.value=JSON.stringify(await editor.save());input.dispatchEvent(new Event("keyup",{bubbles:true}));}catch(_e){}}});};window.HydroInitEditorJS({mount:"`+esc(id)+`-mount",input:"`+esc(id)+`"});</script></fieldset>`); err != nil {
+		if _, err := io.WriteString(w, `<fieldset class="block-editor" data-hydro-block-editor="`+esc(id)+`"><legend>`+esc(label)+`</legend><div class="block-editor-layout"><div class="block-editor-canvas"><div id="`+esc(id)+`-mount" data-editorjs-mount="`+esc(id)+`"></div><textarea id="`+esc(id)+`" name="`+esc(name)+`" hidden`+previewAttrs+`>`+esc(p.Value)+`</textarea></div><aside id="`+esc(id)+`-preview" class="block-editor-preview" aria-live="polite"><span>Önizleme bekleniyor.</span></aside></div><script nonce="`+esc(p.Nonce)+`" src="`+esc(script)+`"></script><script nonce="`+esc(p.Nonce)+`">window.HydroInitEditorJS=window.HydroInitEditorJS||function(config){if(!window.EditorJS)return;const input=document.getElementById(config.input);if(!input)return;let data={};try{data=JSON.parse(input.value||"{}")}catch(_e){}const editor=new window.EditorJS({holder:config.mount,data:data,onChange:async function(){try{input.value=JSON.stringify(await editor.save());input.dispatchEvent(new Event("keyup",{bubbles:true}));}catch(_e){}}});};window.HydroInitEditorJS({mount:"`+esc(id)+`-mount",input:"`+esc(id)+`"});</script></fieldset>`); err != nil {
 			return err
 		}
 		return nil

@@ -1,6 +1,8 @@
 package adminstudio
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +16,20 @@ import (
 
 	"github.com/a-h/templ"
 )
+
+func TestGeneratedFormUsesEditionBlockEditorAdapter(t *testing.T) {
+	collection := Collection{ID: "article", Label: "Articles", Fields: []Field{{ID: "body", Label: "Body", Kind: FieldBlocks}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}}
+	var out bytes.Buffer
+	err := generatedFormFields(collection, map[string]string{"body": `{"blocks":[]}`}, nil, "article-1", false, "tr", "tr", false, false, true, BlockEditorConfig{EditorScript: "/assets/editor.js", PreviewURL: "/api/preview"}, "nonce").Render(context.Background(), &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`data-editorjs-mount="body"`, `src="/assets/editor.js"`, `nonce="nonce"`, `hx-post="/api/preview"`, `name="body"`} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("generated block field missing %q: %s", want, out.String())
+		}
+	}
+}
 
 func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Request) bool) *http.ServeMux {
 	t.Helper()
@@ -553,6 +569,30 @@ func TestGeneratedAdminRequiresEditionAuthorizationAndBoundaries(t *testing.T) {
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusForbidden {
 		t.Fatalf("unauthorized generated Admin request status=%d", response.StatusCode)
+	}
+}
+
+func TestGeneratedAdminBlockFieldsRequireEditionAssetAndNonce(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{ID: "article", Label: "Articles", Fields: []Field{{ID: "body", Label: "Body", Kind: FieldBlocks}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := GeneratedAdminOptions{
+		API: http.NotFoundHandler(), Authorize: func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return true }, CSRFToken: func(*http.Request) string { return "csrf" },
+		ValidateCSRF: func(*http.Request) bool { return true },
+		RenderPage:   func(http.ResponseWriter, *http.Request, string, templ.Component) error { return nil },
+	}
+	if err := (GeneratedAdminHandler{Registry: registry, Options: options}).Register(http.NewServeMux()); err == nil {
+		t.Fatal("block editor registered without Edition asset and nonce")
+	}
+	options.BlockEditor = BlockEditorConfig{EditorScript: "https://editor.example/editor.js", Nonce: func(*http.Request) string { return "nonce" }}
+	if err := (GeneratedAdminHandler{Registry: registry, Options: options}).Register(http.NewServeMux()); err == nil {
+		t.Fatal("cross-origin editor asset was accepted")
+	}
+	options.BlockEditor.EditorScript = "/assets/editor.js"
+	if err := (GeneratedAdminHandler{Registry: registry, Options: options}).Register(http.NewServeMux()); err != nil {
+		t.Fatalf("valid Edition block editor composition rejected: %v", err)
 	}
 }
 

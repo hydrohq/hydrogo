@@ -131,6 +131,13 @@ func TestBlockEditorUsesEditionAssetAndAllowlistedLivePreview(t *testing.T) {
 	}
 }
 
+func TestBlockEditorDoesNotInventPreviewRoute(t *testing.T) {
+	out := render(t, BlockEditor(BlockEditorProps{ID: "body", Name: "body", Label: "Body", Nonce: "nonce", Value: `{"blocks":[]}`}))
+	if strings.Contains(out, "hx-post") || strings.Contains(out, "/api/preview") {
+		t.Fatalf("block editor invented an Edition preview endpoint: %s", out)
+	}
+}
+
 func TestMediaPickerEscapesReferenceAndKeepsChooserNonAuthorizing(t *testing.T) {
 	out := render(t, MediaPicker(MediaPickerProps{ID: "cover", Name: "cover", Label: `<Cover>`, Value: `a"b`}))
 	if !strings.Contains(out, `type="hidden"`) || !strings.Contains(out, `value="a&#34;b"`) || !strings.Contains(out, `/admin/media?select=cover`) {
