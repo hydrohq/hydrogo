@@ -22,6 +22,10 @@ func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Req
 			{ID: "title", Label: "Title", Kind: FieldText, Required: true, VisibleInList: true, Searchable: true},
 			{ID: "description", Label: "Description", Kind: FieldText, Widget: "richtext"},
 			{ID: "status", Label: "Status", Kind: FieldSelect, Required: true, VisibleInList: true, Filterable: true, Options: []string{"draft", "active"}},
+			{ID: "publish_date", Label: "Publish date", Kind: FieldDate},
+			{ID: "starts_at", Label: "Starts at", Kind: FieldText, Widget: "datetime-local"},
+			{ID: "budget", Label: "Budget", Kind: FieldNumber, Widget: "currency"},
+			{ID: "featured", Label: "Featured", Kind: FieldBoolean},
 		}, Actions: []Action{{Label: "Open projects", Href: "/admin/resources/project"}},
 	}})
 	if err != nil {
@@ -72,7 +76,7 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	}
 	defer form.Body.Close()
 	formHTML, _ := io.ReadAll(form.Body)
-	if form.StatusCode != http.StatusOK || !strings.Contains(string(formHTML), `name="_csrf"`) || !strings.Contains(string(formHTML), `name="id"`) || !strings.Contains(string(formHTML), `name="status"`) || !strings.Contains(string(formHTML), `class="richtext-field" data-richtext`) || !strings.Contains(string(formHTML), `name="description"`) {
+	if form.StatusCode != http.StatusOK || !strings.Contains(string(formHTML), `name="_csrf"`) || !strings.Contains(string(formHTML), `name="id"`) || !strings.Contains(string(formHTML), `name="status"`) || !strings.Contains(string(formHTML), `class="richtext-field" data-richtext`) || !strings.Contains(string(formHTML), `name="description"`) || !strings.Contains(string(formHTML), `id="publish_date" name="publish_date" type="date"`) || !strings.Contains(string(formHTML), `id="starts_at" name="starts_at" type="datetime-local"`) || !strings.Contains(string(formHTML), `id="budget" name="budget" type="number"`) || !strings.Contains(string(formHTML), `id="featured" name="featured" type="checkbox"`) {
 		t.Fatalf("generated create form missing contract fields: status=%d body=%s", form.StatusCode, formHTML)
 	}
 }
