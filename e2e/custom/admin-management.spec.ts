@@ -167,6 +167,16 @@ test.describe("single Edition administrator management", () => {
       expect(csrfResponse.status()).toBe(200);
       const { token } = await csrfResponse.json();
       expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(token);
+      for (const restrictedMutation of [
+        { route: "/admin/security/bans", form: { address: "198.51.100.223", duration: "1h" } },
+        { route: "/admin/security/bans/remove", form: { address: "198.51.100.223" } },
+        { route: "/admin/backup", form: { password: adminPassword } },
+      ]) {
+        const denied = await page.request.post(`${baseURL}${restrictedMutation.route}`, {
+          form: { _csrf: token, ...restrictedMutation.form },
+        });
+        expect(denied.status(), `${account.expectedRole} cannot submit ${restrictedMutation.route} even with valid CSRF`).toBe(403);
+      }
       const otherAccount = account.expectedRole === "editor" ? "viewer@example.test" : "editor@example.test";
       const target = managementTargets[otherAccount];
       const deniedRoleChange = await page.request.post(new URL(target.role, baseURL).href, {
