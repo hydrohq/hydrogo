@@ -27,6 +27,13 @@ test.describe("HydroGo visual contract", () => {
       }
       await page.goto(surface.path, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(300);
+      if (surface.id === "admin-dashboard") {
+        const securityNotice = page.locator("[data-login-security-notice]");
+        if (await securityNotice.isVisible()) {
+          await securityNotice.locator("[data-staff-notice-dismiss]").click();
+          await expect(securityNotice).toBeHidden();
+        }
+      }
       if (surface.id === "home") {
         await page.evaluate(async () => {
           const step = Math.max(1, Math.floor(innerHeight * 0.75));

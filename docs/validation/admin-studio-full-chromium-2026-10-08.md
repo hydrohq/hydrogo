@@ -27,6 +27,12 @@ Its disposable database container was stopped after the run. PostgreSQL
 browser proof for the native generated Edition and editorial fixture remains
 listed in their focused validation documents.
 
+Locale/direction checks and all seven desktop visual goldens were also rerun
+with a clean seeded SQLite fixture: **10/10 passed**. The dashboard golden
+test now dismisses the optional prior-login security notice when present. This
+keeps the baseline stable for both first-login and returning-admin storage
+states; the notice itself remains available and dismissible in the product.
+
 ```sh
 export HYDRO_E2E_BASE_URL=http://127.0.0.1:8090
 export HYDRO_E2E_STORAGE_STATE="$TMPDIR/full-chromium-fixture/auth-state.json"
