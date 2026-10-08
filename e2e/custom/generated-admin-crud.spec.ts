@@ -278,7 +278,7 @@ test.describe("generated Edition Admin CRUD", () => {
     await blockForm.getByLabel("Title").fill("Generated Edition block content");
     const paragraph = page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]');
     await expect(paragraph).toBeVisible();
-    const previewResponse = page.waitForResponse((response) => response.url().endsWith("/admin/resources/content_block/preview"), { timeout: 5000 });
+    const previewResponse = page.waitForResponse(async (response) => response.url().endsWith("/admin/resources/content_block/preview") && response.status() === 200 && (await response.text()).includes("A real Edition block paragraph."), { timeout: 5000 });
     await paragraph.fill("A real Edition block paragraph.");
     expect((await previewResponse).status()).toBe(200);
     await expect(page.locator("#body-preview")).toContainText("A real Edition block paragraph.");
@@ -296,7 +296,24 @@ test.describe("generated Edition Admin CRUD", () => {
     await blockLink.click();
     const editParagraph = page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]');
     await expect(editParagraph).toHaveText("A real Edition block paragraph.");
-    const editPreview = page.waitForResponse((response) => response.url().endsWith("/admin/resources/content_block/preview"), { timeout: 5000 });
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await expect(page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]')).toHaveText("A real Edition block paragraph.");
+        await expectBlockEditorThemeInk(page);
+        await expectNoA11yViolations(page, `generated block edit (${family}/${mode})`);
+      }
+    }
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-ui-theme", "hydrogo");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expectBlockEditorThemeInk(page);
+    await expectNoA11yViolations(page);
+    const editPreview = page.waitForResponse(async (response) => response.url().endsWith("/admin/resources/content_block/preview") && response.status() === 200 && (await response.text()).includes("Updated Edition block paragraph."), { timeout: 5000 });
     await editParagraph.fill("Updated Edition block paragraph.");
     expect((await editPreview).status()).toBe(200);
     await page.locator(`form[action="${blockPath}"] button[type="submit"]`).click();
@@ -340,15 +357,36 @@ async function unusedPort(): Promise<number> {
   });
 }
 
-async function expectNoA11yViolations(page: import("@playwright/test").Page): Promise<void> {
+async function expectNoA11yViolations(page: import("@playwright/test").Page, context = "Admin page"): Promise<void> {
   const result = await page.evaluate(async () => (window as any).axe.run(document, {
     runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
   }));
-  expect(result.violations.map((violation: any) => ({
+  const violations = result.violations.map((violation: any) => ({
     id: violation.id,
     nodes: violation.nodes.map((node: any) => ({
       target: node.target,
       failureSummary: node.failureSummary,
+      html: node.html,
+      checks: node.any?.map((check: any) => check.data),
     })),
-  }))).toEqual([]);
+  }));
+  expect(violations, `${context} accessibility violations`).toEqual([]);
+}
+
+async function expectBlockEditorThemeInk(page: import("@playwright/test").Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const editor = document.querySelector<HTMLElement>('.block-editor .ce-paragraph[contenteditable="true"]');
+    if (!editor) return false;
+    const probe = document.createElement("span");
+    probe.style.color = "var(--ink)";
+    document.body.append(probe);
+    const tokenColor = getComputedStyle(probe).color;
+    probe.remove();
+    if (getComputedStyle(editor).color !== tokenColor) return false;
+    for (let node: HTMLElement | null = editor; node; node = node.parentElement) {
+      if (Number.parseFloat(getComputedStyle(node).opacity) < 0.999) return false;
+      if (node.classList.contains("block-editor")) break;
+    }
+    return true;
+  }, undefined, { timeout: 5000 });
 }
