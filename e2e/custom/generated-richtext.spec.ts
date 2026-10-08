@@ -75,11 +75,13 @@ test.describe("generated rich-text Edition Admin", () => {
   });
 
   test("generated blocks lazy-load the Edition editor asset and round-trip JSON", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources/article`);
     await expect(page.locator('script[src="/test/editorjs.js"]')).toHaveCount(0);
     await page.goto(`${baseURL}/admin/resources/article/new`);
     const editor = page.getByLabel("Article blocks");
     await expect(editor).toBeVisible();
+    await expectNoA11yViolations(page);
     await editor.fill("A generated block paragraph.");
     const form = page.locator('form[action="/admin/resources/article/new"]');
     await form.getByLabel("Title").fill("Generated blocks article");

@@ -11,6 +11,7 @@ API persists the value, and the edit view restores both JSON and editable text.
 The focused block journey passed with the fixture's in-memory/SQLite-style
 store and a temporary PostgreSQL 18 schema (1/1 each). After adding the block
 field, the full generated editorial Chromium file also passed 7/7 on both
+backends. The focused journey also passed the axe WCAG 2.1 A/AA scan on both
 backends. The fixture schema is synthetic; it is not a Project Edition
 production migration. The adapter proves the shared loader and Editor.js
 constructor contract. It does not certify a selected upstream Editor.js
