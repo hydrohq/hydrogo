@@ -124,6 +124,8 @@ Admin shell. There is no asset download, external CDN, or worker lifecycle.
   Quill Delta formatting. PostgreSQL uses a `NOSUPERUSER NOBYPASSRLS` role.
 - Rich-text create/edit forms pass the WCAG 2.1 A/AA axe scan; the create form
   has no horizontal overflow at a 390px viewport.
+- The create form passes the axe scan in all four supported Admin theme
+  families and both light/dark modes (8/8).
 - An API create with an empty required rich-text body returns the field-level
   `422 validation_failed` response and creates no record.
 - Generator migration metadata, moduleguard, migrationguard, assetguard, and
