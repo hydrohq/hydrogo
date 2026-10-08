@@ -9,6 +9,13 @@ fresh HydroGo database using the repository migrations and a real PostgreSQL
 18 server. All five browser scenarios passed. The same five scenarios passed
 against the temporary SQLite fixture.
 
+The suite was rerun after stabilizing its login-session use: current SQLite
+and PostgreSQL 18 runs both passed **5/5**. The PostgreSQL rerun also repeated
+the administrator backup-download path with the `hydro_backup` BYPASSRLS role.
+A setup retry exposed that per-database default privileges must be installed
+inside `hydrogo_e2e` before applying migrations; after correcting that fixture
+scope, the signed backup download and complete browser suite passed.
+
 The SQLite suite was rerun on 2026-10-08 after the permission and route-matrix
 review: `npx playwright test custom/admin-management.spec.ts --project=chromium
 --reporter=line --output=/tmp/hydro-admin-management-artifacts` completed with
