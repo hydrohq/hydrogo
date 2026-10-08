@@ -77,6 +77,28 @@ type TextareaProps struct {
 	HTMX         HTMX
 }
 
+// ItemListEditor renders an accessible string-array editor. The shared Admin
+// shell hydrates the rows and synchronizes them to the hidden newline value.
+type ItemListEditorProps struct {
+	ID, Name, Label, Value string
+}
+
+func ItemListEditor(p ItemListEditorProps) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		id := p.ID
+		if strings.TrimSpace(id) == "" {
+			return errors.New("item list id is required")
+		}
+		name := p.Name
+		if strings.TrimSpace(name) == "" {
+			name = id
+		}
+		markup := `<div class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(p.Label) + `: madde ekle">+ Madde ekle</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
+		_, err := io.WriteString(w, markup)
+		return err
+	})
+}
+
 func Textarea(p TextareaProps) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		rows := p.Rows

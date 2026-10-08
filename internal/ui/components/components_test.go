@@ -40,6 +40,19 @@ func TestMediaPickerEscapesValuesAndUsesAdminPickerContract(t *testing.T) {
 	}
 }
 
+func TestItemListEditorEscapesValuesAndUsesSharedAdminContract(t *testing.T) {
+	out := render(t, ItemListEditor(ItemListEditorProps{ID: "keywords", Name: "keywords", Label: "Keywords", Value: `["one","two & <three>"]`}))
+	for _, marker := range []string{`data-item-list`, `data-field-name="keywords"`, `aria-label="Keywords: madde ekle"`, `name="keywords"`, `&#34;two &amp; &lt;three&gt;&#34;`} {
+		if !strings.Contains(out, marker) {
+			t.Fatalf("item list editor missing %q: %s", marker, out)
+		}
+	}
+	var outWithoutID bytes.Buffer
+	if err := ItemListEditor(ItemListEditorProps{Label: "Keywords"}).Render(context.Background(), &outWithoutID); err == nil {
+		t.Fatal("item list editor accepted a missing id")
+	}
+}
+
 func TestTypedLinksRequireLocalPathsAndEscapeLabels(t *testing.T) {
 	out := render(t, Link(LinkProps{Href: "/admin/site/seo", Label: "<SEO>"}))
 	if !strings.Contains(out, `href="/admin/site/seo"`) || !strings.Contains(out, "&lt;SEO&gt;") {

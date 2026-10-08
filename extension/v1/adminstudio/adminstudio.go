@@ -54,6 +54,8 @@ const (
 	FieldStatus             = internal.FieldStatus
 	FieldRelation           = internal.FieldRelation
 	FieldMedia              = internal.FieldMedia
+	FieldArray              = internal.FieldArray
+	FieldBlocks             = internal.FieldBlocks
 	StateDraft              = internal.StateDraft
 	StateScheduled          = internal.StateScheduled
 	StatePublished          = internal.StatePublished

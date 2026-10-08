@@ -109,6 +109,12 @@ test.describe("generated rich-text Edition Admin", () => {
     await dismissOnboarding(page);
     const form = page.locator('form[action="/admin/resources/article/new"]');
     await form.getByLabel("Title").fill("Generated relation and media");
+    const tags = form.locator('[data-field-name="tags"]');
+    await tags.getByRole("button", { name: "Tags: madde ekle" }).click();
+    const firstTag = tags.locator(".item-list-input").nth(0);
+    await firstTag.fill("featured");
+    await firstTag.press("Enter");
+    await tags.locator(".item-list-input").nth(1).fill("editorial");
     await form.getByLabel("Author").selectOption("author-1");
     await form.getByRole("button", { name: "Kütüphaneden seç" }).click();
     const modal = page.getByRole("dialog", { name: "Medya kütüphanesi" });
@@ -132,9 +138,13 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect((await request.get(`${baseURL}${recordAPI}`)).json()).resolves.toMatchObject({
       author_id: "author-1",
       cover_id: "fixture-image",
+      tags: ["featured", "editorial"],
     });
     await page.goto(new URL(recordPath!, baseURL).toString());
     const editForm = page.locator(`form[action="${recordPath}"]`);
+    await expect(editForm.locator('[data-field-name="tags"] .item-list-input')).toHaveCount(2);
+    await expect(editForm.locator('[data-field-name="tags"] .item-list-input').nth(0)).toHaveValue("featured");
+    await expect(editForm.locator('[data-field-name="tags"] .item-list-input').nth(1)).toHaveValue("editorial");
     await expect(editForm.getByLabel("Author")).toHaveValue("author-1");
     await expect(editForm.locator('input[name="cover_id"]')).toHaveValue("fixture-image");
     await expect(editForm.locator(".media-select-field")).toHaveClass(/has-selected/);
