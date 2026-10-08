@@ -12,6 +12,14 @@ state. It passed **67/67** in 5.4 minutes. The earlier attempt without this
 fixture was stopped after its expected connection-refused failures against
 `127.0.0.1:8090`; no product failure was inferred from that invalid setup.
 
+The full Go package suite then passed with temporary directories outside the
+repository: `TMPDIR=/var/tmp/hydro-go-tests go test ./... -count=1 -p 1
+-timeout=8m`. An initial run with `TMPDIR` inside the repository caused
+generator test fixtures to resolve temporary paths as Go import paths; the
+generator package and full suite both pass with the standard external temp
+directory. `go vet ./...`, actionguard, moduleguard, migrationguard (110
+migrations), assetguard, and all three Edition importguards passed as well.
+
 ```sh
 export HYDRO_E2E_BASE_URL=http://127.0.0.1:8090
 export HYDRO_E2E_STORAGE_STATE="$TMPDIR/full-chromium-fixture/auth-state.json"
