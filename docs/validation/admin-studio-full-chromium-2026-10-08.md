@@ -40,13 +40,15 @@ SQLite demo fixture:
   text bounds).
 - Desktop visual baselines: 7/7 passed (public home/news and five Admin
   surfaces).
-- Tablet and mobile visual projects could not launch WebKit. The Linux host is
-  missing the system libraries Playwright requires (`libicu74`, `libflite1`,
-  `libmanette-0.2-0`, among others); all 14 cases failed before page navigation
-  or screenshot comparison. These results do not indicate a visual mismatch.
-- Responsive viewport and Admin route fit checks within Chromium passed for
-  390px mobile and 768px tablet. They are Chromium layout checks, not WebKit
-  visual goldens.
+- Tablet and mobile visual projects ran in the official Playwright 1.63.0 Noble
+  container because the host lacks WebKit system libraries. All 14 WebKit
+  screenshots passed after updating three stale goldens: the mobile home golden
+  was blank, and tablet/mobile dashboard goldens contained a prior-session card
+  absent from the clean fixture. The rendered screens were inspected before
+  accepting those baseline updates. Overall locale and visual result: 24/24
+  passed (locale 3/3, desktop 7/7, tablet 7/7, mobile 7/7).
+- Chromium responsive viewport and Admin route fit checks also passed for
+  390px mobile and 768px tablet.
 
 The opt-in run command was:
 
