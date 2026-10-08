@@ -40,6 +40,7 @@ test.describe("generated Edition Admin CRUD", () => {
   });
 
   test("finds a generated collection and creates, edits, and deletes a record", async ({ page, request }) => {
+    test.setTimeout(240_000);
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources`);
     await expect(page.getByRole("heading", { name: "Kaynaklar" })).toBeVisible();
@@ -114,6 +115,18 @@ test.describe("generated Edition Admin CRUD", () => {
     await expect(page.getByRole("link", { name: "HydroGo E2E project" })).toBeVisible();
     const recordPath = await recordLink.getAttribute("href");
     expect(recordPath).toMatch(/^\/admin\/resources\/project\//);
+
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        const response = await page.goto(`${baseURL}${recordPath}`);
+        expect(response?.status(), `${recordPath} should render in ${family}-${mode}`).toBe(200);
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await expectNoA11yViolations(page);
+      }
+    }
+    await page.goto(`${baseURL}/admin/resources/project`);
 
     await recordLink.click();
     await expect(page.locator('[name="title"]')).toHaveValue("HydroGo E2E project");
