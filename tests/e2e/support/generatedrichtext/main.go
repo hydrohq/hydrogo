@@ -217,6 +217,8 @@ func main() {
 		panic(err)
 	}
 	mux.Handle("GET /vendor/{path...}", http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS))))
+	mux.Handle("/api/v1/article", api)
+	mux.Handle("/api/v1/article/", api)
 	mux.HandleFunc("GET /api/media", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, []map[string]any{{"id": "fixture-image", "status": "ready", "mime_type": "image/png", "original_filename": "fixture.png"}})
 	})

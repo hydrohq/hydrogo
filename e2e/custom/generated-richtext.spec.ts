@@ -103,7 +103,8 @@ test.describe("generated rich-text Edition Admin", () => {
     await context.close();
   });
 
-  test("generated relation and media fields round-trip through the shared Admin picker", async ({ page }) => {
+  test("generated relation and media fields round-trip through the shared Admin picker", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources/article/new`);
     await dismissOnboarding(page);
     const form = page.locator('form[action="/admin/resources/article/new"]');
@@ -112,9 +113,11 @@ test.describe("generated rich-text Edition Admin", () => {
     await form.getByRole("button", { name: "Kütüphaneden seç" }).click();
     const modal = page.getByRole("dialog", { name: "Medya kütüphanesi" });
     await expect(modal).toBeVisible();
+    await expectNoA11yViolations(page);
     const choice = modal.locator(".admin-media-picker-item");
     await expect(choice).toHaveAttribute("data-asset-id", "fixture-image");
-    await choice.click();
+    await choice.focus();
+    await page.keyboard.press("Enter");
     await expect(modal).toBeHidden();
     await expect(form.locator('input[name="cover_id"]')).toHaveValue("fixture-image");
     await expect(form.locator(".media-select-field")).toHaveClass(/has-selected/);
@@ -125,6 +128,11 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(recordLink).toBeVisible();
     const recordPath = await recordLink.getAttribute("href");
     expect(recordPath).toBeTruthy();
+    const recordAPI = recordPath!.replace("/admin/resources", "/api/v1");
+    await expect((await request.get(`${baseURL}${recordAPI}`)).json()).resolves.toMatchObject({
+      author_id: "author-1",
+      cover_id: "fixture-image",
+    });
     await page.goto(new URL(recordPath!, baseURL).toString());
     const editForm = page.locator(`form[action="${recordPath}"]`);
     await expect(editForm.getByLabel("Author")).toHaveValue("author-1");
