@@ -227,6 +227,13 @@ test.describe("generated Edition Admin CRUD", () => {
     const articleEditForm = page.locator(`form[action="${articlePath}"]`);
     const restoredArticleEditor = articleEditForm.getByRole("textbox", { name: "Body" });
     await expect(restoredArticleEditor.locator("strong")).toHaveText("Stored through the real Edition migration.");
+    await expect(page.locator("html")).toHaveAttribute("data-ui-theme", "hydrogo");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    const formColors = await page.evaluate(() => ({
+      bodyLabel: getComputedStyle(document.querySelector("#body-label")!).color,
+      title: getComputedStyle(document.querySelector<HTMLInputElement>("#title")!).color,
+    }));
+    expect(formColors).toEqual({ bodyLabel: "rgb(60, 66, 85)", title: "rgb(16, 20, 37)" });
     await expectNoA11yViolations(page);
     await restoredArticleEditor.fill("Updated in the generated Edition Admin.");
     await restoredArticleEditor.press("Control+A");
