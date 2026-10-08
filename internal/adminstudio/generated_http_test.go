@@ -907,7 +907,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 
 	edit := httptest.NewRecorder()
 	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
-	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), "Working title") || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/a1/draft"`) || !strings.Contains(edit.Body.String(), `name="draft_version" value="2"`) || !strings.Contains(edit.Body.String(), `name="expected_published_version" value="4"`) {
+	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), "Working title") || !strings.Contains(edit.Body.String(), `action="/admin/resources/article/a1/draft"`) || !strings.Contains(edit.Body.String(), `data-confirm-action="Yalnızca yayımlanmamış taslak silinecek. Devam edilsin mi?"`) || !strings.Contains(edit.Body.String(), `name="draft_version" value="2"`) || !strings.Contains(edit.Body.String(), `name="expected_published_version" value="4"`) {
 		t.Fatalf("draft editor missing isolated working copy or CAS tokens: status=%d body=%s", edit.Code, edit.Body.String())
 	}
 	post := func(path, form string) *httptest.ResponseRecorder {

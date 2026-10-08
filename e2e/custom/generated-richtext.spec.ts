@@ -310,6 +310,18 @@ test.describe("generated rich-text Edition Admin", () => {
     await expectNoA11yViolations(page);
 
     await page.getByRole("button", { name: "Discard-only draft" }).click();
+    let discardConfirmation = "";
+    page.once("dialog", async (dialog) => {
+      discardConfirmation = dialog.message();
+      await dialog.dismiss();
+    });
+    await page.getByRole("button", { name: "Taslağı sil" }).click();
+    expect(discardConfirmation).toBe("Yalnızca yayımlanmamış taslak silinecek. Devam edilsin mi?");
+    const draftsAfterCancel = await request.get(`${baseURL}/admin/resources/story/drafts`);
+    expect(draftsAfterCancel.status()).toBe(200);
+    expect(await draftsAfterCancel.text()).toContain("Discard-only draft");
+    await expect(page.getByRole("button", { name: "Taslağı sil" })).toBeVisible();
+    page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Taslağı sil" }).click();
     await expect(page).toHaveURL(/\/admin\/resources\/story\/drafts(?:\?locale=en)?$/);
     await expect(page.getByRole("button", { name: "Discard-only draft" })).toHaveCount(0);

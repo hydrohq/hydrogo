@@ -66,8 +66,8 @@ func TestTypedLinksRequireLocalPathsAndEscapeLabels(t *testing.T) {
 }
 
 func TestFormAndInputRenderCSRFAndEscapedValues(t *testing.T) {
-	out := render(t, Form(FormProps{Action: `/projects/<x>`, Class: "studio-form", CSRF: `a"b`, Body: Input(InputProps{ID: "title", Name: "title", Label: "Title", Required: true})}))
-	if !strings.Contains(out, `name="_csrf" value="a&#34;b"`) || !strings.Contains(out, `action="/projects/&lt;x&gt;"`) || !strings.Contains(out, `class="studio-form"`) || !strings.Contains(out, `required="required"`) {
+	out := render(t, Form(FormProps{Action: `/projects/<x>`, Class: "studio-form", CSRF: `a"b`, ConfirmAction: `Delete <project>?`, Body: Input(InputProps{ID: "title", Name: "title", Label: "Title", Required: true})}))
+	if !strings.Contains(out, `name="_csrf" value="a&#34;b"`) || !strings.Contains(out, `action="/projects/&lt;x&gt;"`) || !strings.Contains(out, `class="studio-form"`) || !strings.Contains(out, `data-confirm-action="Delete &lt;project&gt;?"`) || !strings.Contains(out, `required="required"`) {
 		t.Fatalf("unexpected form output: %s", out)
 	}
 }

@@ -136,6 +136,15 @@ test.describe("generated Edition Admin CRUD", () => {
     await expect(page.getByRole("link", { name: "HydroGo E2E updated" })).toBeVisible();
 
     await page.getByRole("link", { name: "HydroGo E2E updated" }).click();
+    let deleteConfirmation = "";
+    page.once("dialog", async (dialog) => {
+      deleteConfirmation = dialog.message();
+      await dialog.dismiss();
+    });
+    await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
+    expect(deleteConfirmation).toBe("Bu kayıt kalıcı olarak silinecek. Devam edilsin mi?");
+    expect((await request.get(`${baseURL}${recordPath!.replace("/admin/resources", "/api/v1")}`)).status()).toBe(200);
+    page.once("dialog", (dialog) => dialog.accept());
     await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
     await expect(page).toHaveURL(/\/admin\/resources\/project(?:\?.*)?$/);
     await expect(page.getByText("HydroGo E2E updated")).toHaveCount(0);
@@ -164,6 +173,7 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.locator(`form[action="${milestonePath}"] button[type="submit"]`).click();
     await expect(page.getByRole("link", { name: "Blueprint generated milestone updated" })).toBeVisible();
     await page.getByRole("link", { name: "Blueprint generated milestone updated" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
     await page.locator(`form[action="${milestonePath}/delete"] button[type="submit"]`).click();
     await expect(page).toHaveURL(/\/admin\/resources\/milestone(?:\?.*)?$/);
     await expect(page.getByText("Blueprint generated milestone updated")).toHaveCount(0);
@@ -248,6 +258,7 @@ test.describe("generated Edition Admin CRUD", () => {
     const updatedBody = JSON.parse((await updatedArticle.json()).body as string);
     const formattedUpdate = updatedBody.ops.find((operation: { insert?: string }) => operation.insert === "Updated in the generated Edition Admin.");
     expect(formattedUpdate.attributes).toMatchObject({ bold: true, italic: true });
+    page.once("dialog", (dialog) => dialog.accept());
     await page.locator(`form[action="${articlePath}/delete"] button[type="submit"]`).click();
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
     expect((await request.get(`${baseURL}${articleAPI}`)).status()).toBe(404);
@@ -322,6 +333,7 @@ test.describe("generated Edition Admin CRUD", () => {
     expect(updatedBlocks.blocks[0].data.text).toBe("Updated Edition block paragraph.");
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.getByRole("link", { name: "Generated Edition block content" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
     await page.locator(`form[action="${blockPath}/delete"] button[type="submit"]`).click();
     await expect(page).toHaveURL(/\/admin\/resources\/content_block(?:\?.*)?$/);
     expect((await request.get(`${baseURL}${blockAPI}`)).status()).toBe(404);

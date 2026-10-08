@@ -1076,7 +1076,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 			if collection.Localization {
 				deleteAction = localePath(deleteAction, localeState(r).Current)
 			}
-			if err := ui.Form(ui.FormProps{Action: deleteAction, Method: "post", CSRF: h.Options.CSRFToken(r), Body: ui.Button(ui.ButtonProps{Type: "submit", Label: "Sil", Variant: ui.Danger})}).Render(ctx, out); err != nil {
+			if err := ui.Form(ui.FormProps{Action: deleteAction, Method: "post", CSRF: h.Options.CSRFToken(r), ConfirmAction: "Bu kayıt kalıcı olarak silinecek. Devam edilsin mi?", Body: ui.Button(ui.ButtonProps{Type: "submit", Label: "Sil", Variant: ui.Danger})}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -1267,7 +1267,7 @@ func (h GeneratedAdminHandler) generatedDiscardDraft(ctx context.Context, out io
 	if collection.Localization {
 		action = localePath(action, localeState(r).Current)
 	}
-	return ui.Form(ui.FormProps{Action: action, Method: http.MethodPost, CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out)
+	return ui.Form(ui.FormProps{Action: action, Method: http.MethodPost, CSRF: h.Options.CSRFToken(r), ConfirmAction: "Yalnızca yayımlanmamış taslak silinecek. Devam edilsin mi?", Body: body}).Render(ctx, out)
 }
 
 func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any, revisions []RevisionSummary) error {
