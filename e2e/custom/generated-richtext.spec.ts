@@ -150,7 +150,9 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page.getByRole("link", { name: "Generated blocks article" })).toHaveCount(0);
     await expect(page.getByText("Generated blocks article", { exact: true })).toBeVisible();
     expect((await page.goto(`${baseURL}/admin/resources/article/new`))?.status()).toBe(403);
-    expect((await page.goto(`${baseURL}/admin/resources/article/${record.id}`))?.status()).toBe(403);
+    expect((await page.goto(`${baseURL}/admin/resources/article/${record.id}`))?.status()).toBe(200);
+    await expect(page.getByRole("heading", { name: /Articles · Generated blocks article/ })).toBeVisible();
+    await expect(page.locator("form")).toHaveCount(0);
     for (const path of [
       "/admin/resources/article/new",
       `/admin/resources/article/${record.id}`,

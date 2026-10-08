@@ -10,6 +10,7 @@
 - [ADR-0359: Edition-owned generated Admin block editor](0359-edition-owned-generated-block-editor.md) — Superseded
 - [ADR-0360: Hash-authorized generated block editor loader](0360-hash-authorized-block-editor-loader.md) — Accepted
 - [ADR-0361: Edition-provided generated Admin CRUD capabilities](0361-generated-admin-resource-capabilities.md) — Accepted
+- [ADR-0362: Generated Admin read-only record view](0362-generated-admin-read-only-record-view.md) — Accepted
 - [ADR-0344: Hash-based CSP for edge caching](0344-hash-based-csp-for-edge-caching.md) — Proposed
 - [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
 - [ADR-0330: Pure Go PDF cover derivatives](0330-pure-go-pdf-cover-derivatives.md)

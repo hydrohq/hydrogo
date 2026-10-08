@@ -68,6 +68,18 @@ valid-CSRF create/update/delete denials, and unchanged persisted data; the full
 generated editorial suite passed 7/7 on SQLite and PostgreSQL 18. Database
 behavior and migrations are unchanged.
 
+ADR-0362 verifies that a readable record without update capability opens a
+read-only detail page using escaped field values and no forms. POST update and
+delete remain denied before the API is called. Draft and global-resource
+behavior keep their dedicated policy rules.
+
+Validation for the read-only detail change:
+
+```sh
+TMPDIR=/var/tmp go test ./internal/adminstudio ./extension/v1/adminstudio ./examples/project-edition/custom -count=1
+cd e2e && npx playwright test custom/generated-richtext.spec.ts --project=chromium --workers=1 --reporter=line --output=/tmp/hydro-generated-readonly-full
+```
+
 ```sh
 TMPDIR=/var/tmp go test ./internal/adminstudio -run 'TestGeneratedAdmin(ResourceReadPolicy|SurfacesResourceAPIDenial|ResourceCapabilities)' -count=1
 TMPDIR=/var/tmp go test ./internal/adminstudio -count=1

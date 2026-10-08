@@ -282,10 +282,6 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if r.Method == http.MethodGet && len(parts) == 2 {
-		if !collection.Drafts && !h.resourceAccess(r, collection, parts[1]).Update {
-			http.Error(w, "Bu kaydı düzenleme yetkiniz yok.", http.StatusForbidden)
-			return
-		}
 		h.edit(w, r, collection, parts[1])
 		return
 	}
@@ -899,6 +895,10 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 		}
 		record["locale_version"] = version
 	}
+	if !collection.Drafts && !h.resourceAccess(r, collection, id).Update {
+		h.renderReadOnlyRecord(w, r, collection, record)
+		return
+	}
 	if collection.Drafts {
 		draft, err := h.Options.GetDraft(r, collection, id, localeState(r).Current)
 		if err != nil || draft.ID != "" && draft.ID != id || draft.Version < 0 || draft.PublishedVersion < 0 || draft.PublishedVersion > publishedVersion || draft.Exists && draft.Version < 1 || !draft.Exists && (draft.Version != 0 || len(draft.Fields) != 0) {
@@ -927,6 +927,32 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 		record["_draft"] = draft
 	}
 	h.renderForm(w, r, collection, id, record, true)
+}
+
+func (h GeneratedAdminHandler) renderReadOnlyRecord(w http.ResponseWriter, r *http.Request, collection Collection, record map[string]any) {
+	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		if _, err := io.WriteString(out, `<dl class="studio-record-details">`); err != nil {
+			return err
+		}
+		for _, field := range collection.Fields {
+			if !field.VisibleInList {
+				continue
+			}
+			if _, err := fmt.Fprintf(out, `<div><dt>%s</dt><dd>%s</dd></div>`, template.HTMLEscapeString(field.Label), template.HTMLEscapeString(displayFormValue(field, record[field.ID]))); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(out, `</dl>`); err != nil {
+			return err
+		}
+		return ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: "Listeye dön", Class: "button button-quiet"}).Render(ctx, out)
+	})
+	card := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		return ui.Card(ui.CardProps{Title: collection.Label + " · " + displayValue(record[collection.TitleField]), Class: "studio-card", Body: body}).Render(ctx, out)
+	})
+	if err := h.Options.RenderPage(w, r, collection.Label, card); err != nil {
+		h.apiError(w)
+	}
 }
 
 func applyDraftFields(collection Collection, record, values map[string]any, locale, defaultLocale string) error {
