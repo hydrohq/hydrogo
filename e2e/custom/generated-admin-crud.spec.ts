@@ -254,12 +254,27 @@ test.describe("generated Edition Admin CRUD", () => {
 
     await page.goto(`${baseURL}/admin/resources/content_block`);
     await expect(page.getByRole("heading", { name: "Content blocks" })).toBeVisible();
+    expect(await page.evaluate(() => typeof (window as any).htmx)).toBe("undefined");
     const blockFormLink = page.getByRole("link", { name: "Yeni kayıt" });
     await blockFormLink.click();
     const blockForm = page.locator('form[action="/admin/resources/content_block/new"]');
     await page.setViewportSize({ width: 390, height: 844 });
     await expectNoA11yViolations(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await expect(page.getByLabel("Title")).toBeVisible();
+        await expect(page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]')).toBeVisible();
+        await expectNoA11yViolations(page);
+      }
+    }
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.reload();
+    await expectNoA11yViolations(page);
     await blockForm.getByLabel("Title").fill("Generated Edition block content");
     const paragraph = page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]');
     await expect(paragraph).toBeVisible();
@@ -297,6 +312,7 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${baseURL}/admin/resources/milestone/new`);
     await expect(page.getByLabel("Title")).toBeVisible();
+    expect(await page.evaluate(() => typeof (window as any).htmx)).toBe("undefined");
     for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
       for (const mode of ["light", "dark"]) {
         await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
