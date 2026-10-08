@@ -25,6 +25,27 @@ remains available throughout the content permission change.
 The focused editor/viewer browser journey passes on SQLite and PostgreSQL;
 full route-by-route permission and mutation permutations remain open.
 
+## Full Admin management browser rerun
+
+The complete five-test Chromium file passes on SQLite. The rerun caught two
+test-only issues in the longer admin management journey: after content-read is
+denied, `/admin/pages` correctly returns a JSON 403 and therefore has no Studio
+command palette; and repeated administrator/editor sign-ins exceeded the real
+per-IP limit of five logins per minute. The test now checks palette filtering
+through the search API for the denied role, reuses the authenticated admin
+session captured in the preceding role journey, and opens a fresh editor
+session after changing permissions.
+
+```sh
+cd e2e
+TMPDIR=/home/arda/hydrogo/.tmp/pw-system-tmp npx playwright test \
+  custom/admin-management.spec.ts --project=chromium --workers=1 \
+  --reporter=line --trace=off \
+  --output=/home/arda/hydrogo/.tmp/admin-management-full-final2
+```
+
+Result: 5/5 passed in 2.2 minutes. The login limit itself was not changed.
+
 Focused command palette run:
 
 ```sh
