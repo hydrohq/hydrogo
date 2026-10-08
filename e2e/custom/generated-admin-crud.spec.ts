@@ -178,6 +178,12 @@ test.describe("generated Edition Admin CRUD", () => {
     const articleForm = page.locator('form[action="/admin/resources/article/new"]');
     const articleEditor = articleForm.getByRole("textbox", { name: "Body" });
     await expect(articleEditor).toBeVisible();
+    await expectNoA11yViolations(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const richTextMobileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(richTextMobileOverflow).toBeLessThanOrEqual(1);
+    await expect(articleEditor).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 720 });
     await articleForm.getByLabel("Title").fill("Generated Edition rich text article");
     await articleEditor.fill("Stored through the real Edition migration.");
     await articleEditor.press("Control+A");
@@ -198,6 +204,7 @@ test.describe("generated Edition Admin CRUD", () => {
     const articleEditForm = page.locator(`form[action="${articlePath}"]`);
     const restoredArticleEditor = articleEditForm.getByRole("textbox", { name: "Body" });
     await expect(restoredArticleEditor.locator("strong")).toHaveText("Stored through the real Edition migration.");
+    await expectNoA11yViolations(page);
     await restoredArticleEditor.fill("Updated in the generated Edition Admin.");
     await restoredArticleEditor.press("Control+A");
     await articleEditForm.locator(".ql-italic").click();
