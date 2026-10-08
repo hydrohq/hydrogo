@@ -297,6 +297,70 @@ func TestEveryRegisteredAdminControlRouteEnforcesRoleBoundary(t *testing.T) {
 	}
 }
 
+func TestAdminControlRoutesCoverRolesAndPermissionOverrides(t *testing.T) {
+	routes := adminControlRoutePatterns(map[string]bool{"site": true})
+	roles := []auth.Role{auth.RoleAdmin, auth.RoleEditor, auth.RoleViewer}
+	overrides := []struct {
+		name  string
+		value map[string]bool
+	}{
+		{name: "default", value: map[string]bool{}},
+		{name: "all denied", value: permissionOverrides(false)},
+		{name: "all allowed", value: permissionOverrides(true)},
+	}
+	for _, permission := range auth.KnownPermissions {
+		for _, allowed := range []bool{false, true} {
+			value := map[string]bool{permission: allowed}
+			state := "deny"
+			if allowed {
+				state = "allow"
+			}
+			overrides = append(overrides, struct {
+				name  string
+				value map[string]bool
+			}{name: permission + "/" + state, value: value})
+		}
+	}
+
+	for _, route := range routes {
+		path := strings.TrimPrefix(route, "GET ")
+		for _, role := range roles {
+			for _, active := range []bool{false, true} {
+				for _, override := range overrides {
+					name := fmt.Sprintf("%s/%s/active=%t/%s", role, path, active, override.name)
+					t.Run(name, func(t *testing.T) {
+						user := &auth.User{Role: role, Active: active, PermissionOverrides: override.value}
+						want := false
+						switch path {
+						case "/admin/account":
+							want = active
+						case "/admin/site":
+							want = auth.Can(user, auth.PermissionSiteManage)
+						case "/admin/users", "/admin/permissions":
+							want = active && role == auth.RoleAdmin && auth.Can(user, auth.PermissionUsersManage)
+						case "/admin/operations":
+							want = active && role == auth.RoleAdmin && auth.Can(user, auth.PermissionOperations)
+						default:
+							want = active && role == auth.RoleAdmin
+						}
+						if got := adminControlAllowed(user, path); got != want {
+							t.Fatalf("adminControlAllowed(%s, %s, active=%t, overrides=%v) = %t, want %t", role, path, active, override.value, got, want)
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
+func permissionOverrides(allowed bool) map[string]bool {
+	overrides := make(map[string]bool, len(auth.KnownPermissions))
+	for _, permission := range auth.KnownPermissions {
+		overrides[permission] = allowed
+	}
+	return overrides
+}
+
 func TestPageCacheConstructionFollowsModuleActivation(t *testing.T) {
 	budget, err := capacity.Defaults(capacity.Compact)
 	if err != nil {

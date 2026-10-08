@@ -483,11 +483,14 @@ func TestAdminUserMutationEndpointsRejectEditorAndViewer(t *testing.T) {
 		{"role", h.updateUserRole},
 		{"permissions", h.updateUserPermissions},
 		{"disable", h.disableUser},
+		{"invite", h.issueInvite},
+		{"password reset link", h.adminPasswordResetLink},
 	}
 	for _, endpoint := range endpoints {
 		for _, role := range []Role{RoleEditor, RoleViewer} {
 			t.Run(endpoint.name+"/"+string(role), func(t *testing.T) {
-				req := httptest.NewRequest(http.MethodPost, "/auth/users/target/"+endpoint.name, strings.NewReader("role=admin"))
+				pathName := strings.ReplaceAll(endpoint.name, " ", "-")
+				req := httptest.NewRequest(http.MethodPost, "/auth/users/target/"+pathName, strings.NewReader("role=admin"))
 				req.SetPathValue("id", "target")
 				req = req.WithContext(WithUser(req.Context(), &User{ID: "actor", Role: role, Active: true}))
 				res := httptest.NewRecorder()
