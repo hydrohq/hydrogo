@@ -163,6 +163,8 @@ test.describe("single Edition administrator management", () => {
         "/admin/operations",
         "/admin/developer",
         "/admin/developer/resources",
+        "/admin/security/token-lifetimes",
+        "/admin/reports/export?range=week",
       ]) {
         const denied = await page.goto(`${baseURL}${route}`);
         expect(denied?.status(), `${account.expectedRole} must be denied ${route}`).toBe(403);
@@ -177,6 +179,7 @@ test.describe("single Edition administrator management", () => {
       for (const restrictedMutation of [
         { route: "/admin/security/bans", form: { address: "198.51.100.223", duration: "1h" } },
         { route: "/admin/security/bans/remove", form: { address: "198.51.100.223" } },
+        { route: "/admin/security/token-lifetimes", form: { password_reset_ttl: "1h", invitation_ttl: "24h" } },
         { route: "/admin/backup", form: { password: adminPassword } },
       ]) {
         const denied = await page.request.post(`${baseURL}${restrictedMutation.route}`, {
