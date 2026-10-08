@@ -79,3 +79,20 @@ including its editor/viewer role checks, CSRF checks, responsive flows, invite
 acceptance, and theme accessibility matrix. This added anonymous check ran on
 SQLite; it does not replace the already recorded PostgreSQL suite or cover all
 Admin POST mutation/permission combinations.
+
+## Editor/viewer media mutation boundary — 2026-10-08
+
+The role journey now exercises an actual persisted media mutation. An editor
+with the default `admin.media.manage` capability creates a folder with a valid
+CSRF token; the redirect succeeds and the folder appears in the editor's media
+listing and a later admin listing. A viewer submits the same operation with a
+valid CSRF token and receives 403; the attempted folder is absent from the
+admin listing. The complete management Chromium file passed 5/5 on SQLite
+(3.1 minutes) and PostgreSQL 18 (4.5 minutes) using fresh disposable test
+databases. Targeted Go tests for `internal/media`, `internal/auth`, and
+`cmd/hydro` passed. The PostgreSQL container and database were removed after
+the run.
+
+This proves the folder-create capability boundary and persistence on both
+adapters. Other editor media mutations (upload, metadata, visibility, settings,
+and cleanup) still require their own role and persisted-state cases.

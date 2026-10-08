@@ -195,6 +195,22 @@ test.describe("single Edition administrator management", () => {
         });
         expect(denied.status(), `${account.expectedRole} cannot submit ${restrictedMutation.route} even with valid CSRF`).toBe(403);
       }
+      if (account.expectedRole === "editor") {
+        const createdFolder = await page.request.post(`${baseURL}/admin/media/folders`, {
+          maxRedirects: 0,
+          form: { _csrf: token, name: "role-editor-media-folder" },
+        });
+        expect(createdFolder.status(), "editor with media.manage may create a media folder").toBe(303);
+        const mediaAfterCreate = await page.request.get(`${baseURL}/admin/media`);
+        expect(mediaAfterCreate.status()).toBe(200);
+        expect(await mediaAfterCreate.text()).toContain("role-editor-media-folder");
+      } else {
+        const deniedFolder = await page.request.post(`${baseURL}/admin/media/folders`, {
+          maxRedirects: 0,
+          form: { _csrf: token, name: "role-viewer-media-folder" },
+        });
+        expect(deniedFolder.status(), "viewer without media.manage cannot create a media folder").toBe(403);
+      }
       const otherAccount = account.expectedRole === "editor" ? "viewer@example.test" : "editor@example.test";
       const target = managementTargets[otherAccount];
       const deniedRoleChange = await page.request.post(new URL(target.role, baseURL).href, {
@@ -209,6 +225,14 @@ test.describe("single Edition administrator management", () => {
       expect(deniedAccountDisable.status(), `${account.expectedRole} cannot disable another user's account`).toBe(403);
       await context.close();
     }
+    const verificationContext = await browser.newContext({ storageState: adminStorageState });
+    const mediaAdmin = await verificationContext.newPage();
+    const mediaListing = await mediaAdmin.request.get(`${baseURL}/admin/media`);
+    expect(mediaListing.status()).toBe(200);
+    const mediaHTML = await mediaListing.text();
+    expect(mediaHTML).toContain("role-editor-media-folder");
+    expect(mediaHTML).not.toContain("role-viewer-media-folder");
+    await verificationContext.close();
   });
 
   test("admin login opens the Edition management areas and rejects anonymous access", async ({ page, browser }) => {
