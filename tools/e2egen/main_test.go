@@ -46,3 +46,13 @@ func TestRenderIncludesNavigationLifecycleJourney(t *testing.T) {
 		t.Fatal("navigation lifecycle journey was not generated")
 	}
 }
+
+func TestRenderRefreshesExpiredAdminStorageState(t *testing.T) {
+	m := manifest{Version: 1, BaseURL: "http://127.0.0.1:8090", Admin: adminManifest{LoginPath: "/login", Surfaces: []adminSurface{{ID: "admin", Route: "/admin", TestID: "admin-home"}}}}
+	output := render(m)
+	for _, expected := range []string{"test.beforeEach(async ({ page })", "HYDRO_E2E_ADMIN_EMAIL", "HYDRO_E2E_ADMIN_PASSWORD", "saved session has expired"} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("generated Admin tests do not recover an expired saved session; missing %q", expected)
+		}
+	}
+}

@@ -86,7 +86,7 @@ test.describe("Admin Studio MFA self-service", () => {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
     }));
     expect(mobileA11y.violations.map((violation: any) => violation.id)).toEqual([]);
-    await page.locator("[data-mfa-settings]").screenshot({ path: path.join(repoRoot, "e2e/artifacts/admin-mfa-mobile.png") });
+    await page.locator("[data-mfa-settings]").screenshot({ path: path.join(tempDir, "admin-mfa-mobile.png") });
     await page.setViewportSize({ width: 1280, height: 900 });
 
     const enrollmentResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/auth/me/mfa/enroll"));
