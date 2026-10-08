@@ -1,5 +1,16 @@
 # Generated editorial PostgreSQL composition validation
 
+## Latest regression rerun
+
+On 2026-10-08, the complete generated-richtext Chromium suite passed 7/7 on
+SQLite, including rich-text create/edit, block editor, stale-edit conflict,
+relation/media selection, localization, draft publish, and discard. The native
+Project Edition generated CRUD Chromium flow also passed 1/1 on SQLite,
+including accessibility/theme/responsive checks and the Blueprint-generated
+resource lifecycle. Earlier evidence in this document records the complete
+7/7 PostgreSQL 18 generated editorial run and native Project Edition
+PostgreSQL migration-backed journey.
+
 **Date:** 2026-10-08  
 **Scope:** Generated Admin HTTP handler and Edition-owned editorial callbacks.
 
