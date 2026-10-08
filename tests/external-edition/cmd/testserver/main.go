@@ -19,6 +19,7 @@ import (
 	generated "example.com/external-edition/generated"
 	generatedarticle "example.com/external-edition/generated/article"
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
 
@@ -31,7 +32,8 @@ func (resourcePolicy) CanDelete(context.Context, string) bool { return true }
 
 func main() {
 	address := flag.String("address", "127.0.0.1:8099", "loopback listen address")
-	dsn := flag.String("dsn", "", "SQLite database path")
+	dsn := flag.String("dsn", "", "database DSN")
+	dialect := flag.String("dialect", "sqlite", "database dialect (sqlite or postgres)")
 	flag.Parse()
 
 	host, _, err := net.SplitHostPort(*address)
@@ -39,9 +41,15 @@ func main() {
 		log.Fatal("test server requires a loopback listen address")
 	}
 	if strings.TrimSpace(*dsn) == "" {
-		log.Fatal("SQLite DSN is required")
+		log.Fatal("database DSN is required")
 	}
-	db, err := sql.Open("sqlite", *dsn)
+	driver := "sqlite"
+	if *dialect == "postgres" {
+		driver = "pgx"
+	} else if *dialect != "sqlite" {
+		log.Fatalf("unsupported database dialect %q", *dialect)
+	}
+	db, err := sql.Open(driver, *dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +60,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	if err := generated.RegisterGeneratedResources(mux, generated.GeneratedResourceOptions{
-		DB: db, Dialect: "sqlite",
+		DB: db, Dialect: *dialect,
 		PolicyFor: func(string) generated.GeneratedResourcePolicy { return resourcePolicy{} },
 		ResolveTenant: func(_ string, r *http.Request) (string, bool) {
 			tenant := r.Header.Get("X-Test-Tenant")
