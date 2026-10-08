@@ -65,7 +65,7 @@ func (s *postgresEditorialStore) Close() error {
 
 func (s *postgresEditorialStore) initialize(ctx context.Context) error {
 	for _, statement := range []string{
-		`CREATE TABLE articles (id TEXT PRIMARY KEY, title TEXT NOT NULL, tags JSONB, author_id TEXT, cover_id TEXT, body JSONB, version BIGINT NOT NULL)`,
+		`CREATE TABLE articles (id TEXT PRIMARY KEY, title TEXT NOT NULL, tags JSONB, author_id TEXT, cover_id TEXT, body JSONB, blocks JSONB, version BIGINT NOT NULL)`,
 		`CREATE TABLE stories (id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL, version BIGINT NOT NULL)`,
 		`CREATE TABLE stories_drafts (resource_id TEXT NOT NULL, locale TEXT NOT NULL, version BIGINT NOT NULL, published_version BIGINT NOT NULL, state TEXT NOT NULL, snapshot JSONB NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(resource_id, locale))`,
 		`CREATE TABLE stories_locales (resource_id TEXT NOT NULL, locale TEXT NOT NULL, version BIGINT NOT NULL, values_json JSONB NOT NULL, PRIMARY KEY(resource_id, locale))`,
@@ -100,7 +100,7 @@ func (s *postgresEditorialStore) initialize(ctx context.Context) error {
 }
 
 func (s *postgresEditorialStore) Articles() ([]map[string]any, error) {
-	rows, err := s.db.Query(`SELECT id,title,tags,author_id,cover_id,body,version FROM articles ORDER BY id`)
+	rows, err := s.db.Query(`SELECT id,title,tags,author_id,cover_id,body,blocks,version FROM articles ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (s *postgresEditorialStore) Articles() ([]map[string]any, error) {
 }
 
 func (s *postgresEditorialStore) Article(id string) (map[string]any, error) {
-	return scanArticle(s.db.QueryRow(`SELECT id,title,tags,author_id,cover_id,body,version FROM articles WHERE id=$1`, id))
+	return scanArticle(s.db.QueryRow(`SELECT id,title,tags,author_id,cover_id,body,blocks,version FROM articles WHERE id=$1`, id))
 }
 
 func (s *postgresEditorialStore) CreateArticle(article map[string]any) (map[string]any, error) {
@@ -133,7 +133,11 @@ func (s *postgresEditorialStore) CreateArticle(article map[string]any) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.db.Exec(`INSERT INTO articles(id,title,tags,author_id,cover_id,body,version) VALUES($1,$2,$3,$4,$5,$6,1)`, id, article["title"], tags, optionalString(article["author_id"]), optionalString(article["cover_id"]), body)
+	blocks, err := json.Marshal(article["blocks"])
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.db.Exec(`INSERT INTO articles(id,title,tags,author_id,cover_id,body,blocks,version) VALUES($1,$2,$3,$4,$5,$6,$7,1)`, id, article["title"], tags, optionalString(article["author_id"]), optionalString(article["cover_id"]), body, blocks)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +154,11 @@ func (s *postgresEditorialStore) UpdateArticle(id string, article map[string]any
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.db.Exec(`UPDATE articles SET title=$1,tags=$2,author_id=$3,cover_id=$4,body=$5,version=version+1 WHERE id=$6 AND version=$7`, article["title"], tags, optionalString(article["author_id"]), optionalString(article["cover_id"]), body, id, int64(version))
+	blocks, err := json.Marshal(article["blocks"])
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.db.Exec(`UPDATE articles SET title=$1,tags=$2,author_id=$3,cover_id=$4,body=$5,blocks=$6,version=version+1 WHERE id=$7 AND version=$8`, article["title"], tags, optionalString(article["author_id"]), optionalString(article["cover_id"]), body, blocks, id, int64(version))
 	if err != nil {
 		return nil, err
 	}
@@ -177,9 +185,9 @@ func (s *postgresEditorialStore) DeleteArticle(id string) error {
 func scanArticle(row interface{ Scan(...any) error }) (map[string]any, error) {
 	var id, title string
 	var authorID, coverID sql.NullString
-	var tags, body []byte
+	var tags, body, blocks []byte
 	var version int64
-	if err := row.Scan(&id, &title, &tags, &authorID, &coverID, &body, &version); err != nil {
+	if err := row.Scan(&id, &title, &tags, &authorID, &coverID, &body, &blocks, &version); err != nil {
 		return nil, err
 	}
 	var tagsValue any
@@ -194,9 +202,15 @@ func scanArticle(row interface{ Scan(...any) error }) (map[string]any, error) {
 			return nil, err
 		}
 	}
+	var blocksValue any
+	if len(blocks) > 0 {
+		if err := json.Unmarshal(blocks, &blocksValue); err != nil {
+			return nil, err
+		}
+	}
 	return map[string]any{
 		"id": id, "title": title, "tags": tagsValue, "author_id": nullableString(authorID),
-		"cover_id": nullableString(coverID), "body": bodyValue, "version": float64(version),
+		"cover_id": nullableString(coverID), "body": bodyValue, "blocks": blocksValue, "version": float64(version),
 	}, nil
 }
 

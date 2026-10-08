@@ -74,6 +74,31 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page.getByRole("textbox", { name: "Article body" }).locator("strong")).toHaveText("An updated formatted article.");
   });
 
+  test("generated blocks lazy-load the Edition editor asset and round-trip JSON", async ({ page, request }) => {
+    await page.goto(`${baseURL}/admin/resources/article`);
+    await expect(page.locator('script[src="/test/editorjs.js"]')).toHaveCount(0);
+    await page.goto(`${baseURL}/admin/resources/article/new`);
+    const editor = page.getByLabel("Article blocks");
+    await expect(editor).toBeVisible();
+    await editor.fill("A generated block paragraph.");
+    const form = page.locator('form[action="/admin/resources/article/new"]');
+    await form.getByLabel("Title").fill("Generated blocks article");
+    const value = form.locator('textarea[name="blocks"]');
+    const expected = { blocks: [{ type: "paragraph", data: { text: "A generated block paragraph." } }] };
+    await expect.poll(async () => JSON.parse(await value.inputValue())).toEqual(expected);
+    await form.getByRole("button", { name: "Kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
+
+    const records = await (await request.get(`${baseURL}/api/v1/article`)).json();
+    const record = records.find((candidate: { title: string }) => candidate.title === "Generated blocks article");
+    expect(record?.blocks).toBe(JSON.stringify(expected));
+    const href = page.getByRole("link", { name: "Generated blocks article" });
+    await href.click();
+    const editValue = page.locator('textarea[name="blocks"]');
+    await expect.poll(async () => JSON.parse(await editValue.inputValue())).toEqual(expected);
+    await expect(page.getByLabel("Article blocks")).toHaveValue("A generated block paragraph.");
+  });
+
   test("a stale generated edit gets a conflict and keeps the latest saved value", async ({ browser }) => {
     const context = await browser.newContext();
     const first = await context.newPage();
