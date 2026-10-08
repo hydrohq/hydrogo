@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -42,6 +43,7 @@ func main() {
 				{ID: "author_id", Label: "Author", Kind: adminstudio.FieldRelation, Relation: &adminstudio.RelationRef{Collection: "author", Cardinality: "one"}},
 				{ID: "cover_id", Label: "Cover image", Kind: adminstudio.FieldMedia, Widget: "media"},
 				{ID: "body", Label: "Article body", Kind: adminstudio.FieldText, Widget: "richtext"},
+				{ID: "blocks", Label: "Article blocks", Kind: adminstudio.FieldBlocks},
 			},
 			Actions: []adminstudio.Action{{Label: "Articles", Href: "/admin/resources/article"}},
 		},
@@ -218,6 +220,10 @@ func main() {
 		panic(err)
 	}
 	mux.Handle("GET /vendor/{path...}", http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS))))
+	mux.HandleFunc("GET /test/editorjs.js", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = io.WriteString(w, `window.EditorJS=function(config){let data=config.data||{blocks:[]};const holder=document.getElementById(config.holder);const input=document.createElement('textarea');input.setAttribute('aria-label','Article blocks');input.value=data.blocks?.[0]?.data?.text||'';input.addEventListener('input',()=>{data={blocks:[{type:'paragraph',data:{text:input.value}}]};config.onChange();});holder.appendChild(input);this.save=async()=>data;};`)
+	})
 	mux.Handle("/api/v1/article", api)
 	mux.Handle("/api/v1/article/", api)
 	mux.HandleFunc("GET /api/media", func(w http.ResponseWriter, _ *http.Request) {
@@ -443,7 +449,8 @@ func main() {
 		RestoreRevision: func(*http.Request, adminstudio.Collection, string, int64, int64) error {
 			return fmt.Errorf("revision not found")
 		},
-		CSRFToken: func(*http.Request) string { return "generated-richtext-e2e-csrf" },
+		CSRFToken:   func(*http.Request) string { return "generated-richtext-e2e-csrf" },
+		BlockEditor: adminstudio.BlockEditorConfig{EditorScript: "/test/editorjs.js"},
 		ValidateCSRF: func(r *http.Request) bool {
 			return r.ParseForm() == nil && r.FormValue("_csrf") == "generated-richtext-e2e-csrf"
 		},

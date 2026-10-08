@@ -98,8 +98,10 @@ recovery step is introduced.
 - Handler tests verify block fields reject missing and cross-origin asset paths.
 - Admin shell tests verify the initializer is included in the generated CSP
   hash catalog and is called after full-page and SPA navigation.
-- Browser acceptance tests must use an Edition-served compatible Editor.js
-  bundle to verify create/edit JSON persistence and lazy asset loading.
+- Browser acceptance tests use an Edition-origin Editor.js-compatible test
+  adapter to verify create/edit JSON persistence and lazy asset loading.
+  Selection and certification of a real upstream Editor.js distribution and an
+  Edition preview renderer remain deployment-level checks.
 - `go test ./extension/v1/adminstudio` and the standalone Edition module verify
   the public contract; moduleguard, migrationguard, and importguard remain
   mandatory.
