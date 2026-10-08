@@ -6,8 +6,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	resource0 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
-	resource1 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
+	resource0 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/article"
+	resource1 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
+	resource2 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	"net/http"
 )
 
@@ -36,19 +37,26 @@ func RegisterGeneratedResources(mux *http.ServeMux, options GeneratedResourceOpt
 	if mux == nil || options.DB == nil || options.PolicyFor == nil {
 		return errors.New("generated resource registration requires mux, database and policy resolver")
 	}
-	policy0 := options.PolicyFor("milestone")
+	policy0 := options.PolicyFor("article")
 	if policy0 == nil {
+		return fmt.Errorf("generated resource %s has no policy", "article")
+	}
+	policy1 := options.PolicyFor("milestone")
+	if policy1 == nil {
 		return fmt.Errorf("generated resource %s has no policy", "milestone")
 	}
-	policy1 := options.PolicyFor("project")
-	if policy1 == nil {
+	policy2 := options.PolicyFor("project")
+	if policy2 == nil {
 		return fmt.Errorf("generated resource %s has no policy", "project")
 	}
 
-	if err := resource0.RegisterMilestoneRoute(mux, options.DB, options.Dialect, policy0); err != nil {
+	if err := resource0.RegisterArticleRoute(mux, options.DB, options.Dialect, policy0); err != nil {
 		return err
 	}
-	if err := resource1.RegisterProjectRoute(mux, options.DB, options.Dialect, policy1); err != nil {
+	if err := resource1.RegisterMilestoneRoute(mux, options.DB, options.Dialect, policy1); err != nil {
+		return err
+	}
+	if err := resource2.RegisterProjectRoute(mux, options.DB, options.Dialect, policy2); err != nil {
 		return err
 	}
 	return nil

@@ -1,0 +1,17 @@
+id: generated_article
+module: article
+class:
+  sqlite: expand
+  postgres: expand
+transactional:
+  sqlite: true
+  postgres: true
+dependencies: []
+checksum_sha256:
+  sqlite: "9c22e27e3f9a10fbb8f6a512235da126707c3a4f657b7870ab869b7daaf62310"
+  postgres: "9c22e27e3f9a10fbb8f6a512235da126707c3a4f657b7870ab869b7daaf62310"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+compatibility: "Additive generated table; review indexes, RLS, and tenant policy before enabling."
+rollback: "No production down migration; restore or forward migration only."
