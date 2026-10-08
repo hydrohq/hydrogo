@@ -49,7 +49,7 @@ func BlockEditor(p BlockEditorProps) templ.Component {
 			}
 			previewAttrs = ` hx-post="` + esc(previewURL) + `" hx-target="` + esc(previewTarget) + `" hx-swap="innerHTML" hx-trigger="keyup delay:300ms"`
 		}
-		if _, err := io.WriteString(w, `<fieldset class="block-editor" data-hydro-block-editor="`+esc(id)+`"><legend>`+esc(label)+`</legend><div class="block-editor-layout"><div class="block-editor-canvas"><div id="`+esc(id)+`-mount" data-editorjs-mount="`+esc(id)+`" data-editorjs-script="`+esc(script)+`"></div><textarea id="`+esc(id)+`" name="`+esc(name)+`" hidden`+previewAttrs+`>`+esc(p.Value)+`</textarea></div><aside id="`+esc(id)+`-preview" class="block-editor-preview" aria-live="polite"><span>Önizleme bekleniyor.</span></aside></div></fieldset>`); err != nil {
+		if _, err := io.WriteString(w, `<fieldset class="block-editor" data-hydro-block-editor="`+esc(id)+`"><legend>`+esc(label)+`</legend><div class="block-editor-layout"><div class="block-editor-canvas"><div id="`+esc(id)+`-mount" data-editorjs-mount="`+esc(id)+`" data-editorjs-label="`+esc(label)+`" data-editorjs-script="`+esc(script)+`"></div><textarea id="`+esc(id)+`" name="`+esc(name)+`" hidden`+previewAttrs+`>`+esc(p.Value)+`</textarea></div><aside id="`+esc(id)+`-preview" class="block-editor-preview" aria-live="polite"><span>Önizleme bekleniyor.</span></aside></div></fieldset>`); err != nil {
 			return err
 		}
 		return nil

@@ -76,29 +76,55 @@ test.describe("generated rich-text Edition Admin", () => {
 
   test("generated blocks lazy-load the Edition editor asset and round-trip JSON", async ({ page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${baseURL}/admin/resources/article`);
     await expect(page.locator('script[src="/test/editorjs.js"]')).toHaveCount(0);
     await page.goto(`${baseURL}/admin/resources/article/new`);
-    const editor = page.getByLabel("Article blocks");
+    const mount = page.locator('[data-editorjs-mount="blocks"]');
+    const editor = mount.locator('.ce-paragraph[contenteditable="true"]').first();
     await expect(editor).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expectNoA11yViolations(page);
+    await page.screenshot({ path: test.info().outputPath("generated-block-editor-mobile.png"), fullPage: true });
+    await page.setViewportSize({ width: 1280, height: 900 });
     await editor.fill("A generated block paragraph.");
+    await editor.click();
+    const addBlock = mount.locator(".ce-toolbar__plus");
+    await expect(addBlock).toBeVisible();
+    await addBlock.click();
+    const paragraphTool = page.locator(".ce-popover-item").filter({ hasText: "Text" });
+    await expect(paragraphTool).toBeVisible();
+    await paragraphTool.click();
+    const secondEditor = mount.locator('.ce-paragraph[contenteditable="true"]').nth(1);
+    await expect(secondEditor).toBeVisible();
+    await secondEditor.fill("A second generated paragraph.");
     const form = page.locator('form[action="/admin/resources/article/new"]');
     await form.getByLabel("Title").fill("Generated blocks article");
     const value = form.locator('textarea[name="blocks"]');
-    const expected = { blocks: [{ type: "paragraph", data: { text: "A generated block paragraph." } }] };
-    await expect.poll(async () => JSON.parse(await value.inputValue())).toEqual(expected);
+    await expect.poll(async () => {
+      try {
+        return JSON.parse(await value.inputValue()).blocks?.map((block: { data: { text: string } }) => block.data.text) ?? [];
+      } catch {
+        return [];
+      }
+    }).toEqual(["A generated block paragraph.", "A second generated paragraph."]);
     await form.getByRole("button", { name: "Kaydet" }).click();
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
 
     const records = await (await request.get(`${baseURL}/api/v1/article`)).json();
     const record = records.find((candidate: { title: string }) => candidate.title === "Generated blocks article");
-    expect(record?.blocks).toBe(JSON.stringify(expected));
+    const expected = JSON.parse(record?.blocks ?? "null");
+    expect(expected.blocks?.map((block: { type: string; data: { text: string } }) => ({ type: block.type, text: block.data.text }))).toEqual([
+      { type: "paragraph", text: "A generated block paragraph." },
+      { type: "paragraph", text: "A second generated paragraph." },
+    ]);
     const href = page.getByRole("link", { name: "Generated blocks article" });
     await href.click();
     const editValue = page.locator('textarea[name="blocks"]');
     await expect.poll(async () => JSON.parse(await editValue.inputValue())).toEqual(expected);
-    await expect(page.getByLabel("Article blocks")).toHaveValue("A generated block paragraph.");
+    const restored = page.locator('[data-editorjs-mount="blocks"] .ce-paragraph[contenteditable="true"]');
+    await expect(restored.nth(0)).toHaveText("A generated block paragraph.");
+    await expect(restored.nth(1)).toHaveText("A second generated paragraph.");
   });
 
   test("a stale generated edit gets a conflict and keeps the latest saved value", async ({ browser }) => {

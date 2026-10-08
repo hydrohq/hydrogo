@@ -121,7 +121,7 @@ func TestSidebarEscapesModuleMetadataAndMarksActiveItem(t *testing.T) {
 
 func TestBlockEditorUsesEditionAssetAndAllowlistedLivePreview(t *testing.T) {
 	out := render(t, BlockEditor(BlockEditorProps{ID: "body", Name: "body", Label: "Body", Value: `{"blocks":[]}`, PreviewURL: "/api/preview"}))
-	for _, marker := range []string{`data-editorjs-mount="body"`, `data-editorjs-script="/vendor/editorjs/editorjs.umd.js"`, `hx-post="/api/preview"`, `hx-target="#body-preview"`, `hx-swap="innerHTML"`, `hx-trigger="keyup delay:300ms"`} {
+	for _, marker := range []string{`data-editorjs-mount="body"`, `data-editorjs-label="Body"`, `data-editorjs-script="/vendor/editorjs/editorjs.umd.js"`, `hx-post="/api/preview"`, `hx-target="#body-preview"`, `hx-swap="innerHTML"`, `hx-trigger="keyup delay:300ms"`} {
 		if !strings.Contains(out, marker) {
 			t.Fatalf("block editor missing %q: %s", marker, out)
 		}
