@@ -9,6 +9,12 @@ fresh HydroGo database using the repository migrations and a real PostgreSQL
 18 server. All five browser scenarios passed. The same five scenarios passed
 against the temporary SQLite fixture.
 
+The SQLite suite was rerun on 2026-10-08 after the permission and route-matrix
+review: `npx playwright test custom/admin-management.spec.ts --project=chromium
+--reporter=line --output=/tmp/hydro-admin-management-artifacts` completed with
+5/5 passing in 2.6 minutes. Playwright artifacts were directed to `/tmp`
+because the checkout's ignored `e2e/artifacts` directory was owned by root.
+
 The scenarios cover the Edition editor/viewer role boundary, anonymous access
 and administrator management routes, responsive layouts, invitation
 acceptance followed by editor login, and WCAG 2.1 A/AA checks across the four
