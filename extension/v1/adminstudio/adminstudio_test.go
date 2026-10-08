@@ -11,6 +11,9 @@ import (
 )
 
 func TestPublicEditionCompositionContract(t *testing.T) {
+	var _ func(*http.Request, Collection, string) ResourceAccess = func(_ *http.Request, _ Collection, _ string) ResourceAccess {
+		return ResourceAccess{Create: true, Update: true, Delete: true}
+	}
 	var _ func([]byte) (Registry, error) = ParseManifest
 	var renderPage func(http.ResponseWriter, *http.Request, string, templ.Component) error
 	var _ func(http.ResponseWriter, *http.Request, string, templ.Component) error = renderPage
@@ -18,6 +21,7 @@ func TestPublicEditionCompositionContract(t *testing.T) {
 		Options: GeneratedAdminOptions{
 			Authorize:       func(*http.Request) bool { return false },
 			CanReadResource: func(*http.Request, Collection) bool { return false },
+			ResourceAccess:  func(*http.Request, Collection, string) ResourceAccess { return ResourceAccess{} },
 			CSRFToken:       func(*http.Request) string { return "" },
 			ValidateCSRF:    func(*http.Request) bool { return false },
 			RenderPage:      func(http.ResponseWriter, *http.Request, string, templ.Component) error { return nil },

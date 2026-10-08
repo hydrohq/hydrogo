@@ -625,6 +625,172 @@ func TestGeneratedAdminSurfacesResourceAPIDenialWithoutSuccessRedirect(t *testin
 	}
 }
 
+func TestGeneratedAdminResourceCapabilitiesHideAndDenyBasicCRUD(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title",
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}},
+		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiCalls, mutations := 0, 0
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiCalls++
+		if r.Method != http.MethodGet {
+			mutations++
+			t.Errorf("resource mutation passed a denied Admin capability: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v1/article" {
+			_, _ = io.WriteString(w, `[{"id":"a1","title":"Read-only article"}]`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"id":"a1","title":"Read-only article"}`)
+	})
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return true },
+		ResourceAccess:  func(_ *http.Request, _ Collection, _ string) ResourceAccess { return ResourceAccess{} },
+		CSRFToken:       func(*http.Request) string { return "csrf" },
+		ValidateCSRF:    func(*http.Request) bool { return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	list := httptest.NewRecorder()
+	mux.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil))
+	if list.Code != http.StatusOK || strings.Contains(list.Body.String(), "Yeni kayıt") || strings.Contains(list.Body.String(), `href="/admin/resources/article/a1"`) || !strings.Contains(list.Body.String(), "Read-only article") {
+		t.Fatalf("read-only list exposed CRUD affordances or hid content: status=%d body=%s", list.Code, list.Body.String())
+	}
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		create := httptest.NewRecorder()
+		request := httptest.NewRequest(method, "/admin/resources/article/new", strings.NewReader("title=Denied"))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		mux.ServeHTTP(create, request)
+		if create.Code != http.StatusForbidden {
+			t.Errorf("create %s with no capability status=%d, want 403", method, create.Code)
+		}
+	}
+	detail := httptest.NewRecorder()
+	mux.ServeHTTP(detail, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
+	if detail.Code != http.StatusForbidden {
+		t.Fatalf("record edit route was available without update capability: status=%d body=%s", detail.Code, detail.Body.String())
+	}
+	for _, path := range []string{"/admin/resources/article/a1", "/admin/resources/article/a1/delete"} {
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader("title=Denied"))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if response.Code != http.StatusForbidden {
+			t.Errorf("mutation %s with no capability status=%d, want 403", path, response.Code)
+		}
+	}
+	if mutations != 0 || apiCalls != 1 {
+		t.Fatalf("denied capability reached mutation API: api calls=%d mutations=%d", apiCalls, mutations)
+	}
+}
+
+func TestGeneratedAdminResourceCapabilitiesAllowUpdateWithoutCreateOrDelete(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title",
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}},
+		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutations := 0
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/article":
+			_, _ = io.WriteString(w, `[{"id":"a1","title":"Editable article"}]`)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/article/a1":
+			_, _ = io.WriteString(w, `{"id":"a1","title":"Editable article"}`)
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/article/a1":
+			mutations++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected resource API request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	})
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return true },
+		ResourceAccess: func(_ *http.Request, _ Collection, id string) ResourceAccess {
+			return ResourceAccess{Update: id != ""}
+		},
+		CSRFToken:    func(*http.Request) string { return "csrf" },
+		ValidateCSRF: func(*http.Request) bool { return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	list := httptest.NewRecorder()
+	mux.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil))
+	if list.Code != http.StatusOK || strings.Contains(list.Body.String(), "Yeni kayıt") || !strings.Contains(list.Body.String(), `href="/admin/resources/article/a1"`) {
+		t.Fatalf("update-only resource affordances are incorrect: status=%d body=%s", list.Code, list.Body.String())
+	}
+	edit := httptest.NewRecorder()
+	mux.ServeHTTP(edit, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
+	if edit.Code != http.StatusOK || strings.Contains(edit.Body.String(), `action="/admin/resources/article/a1/delete"`) {
+		t.Fatalf("update-only record edit/delete UI is incorrect: status=%d body=%s", edit.Code, edit.Body.String())
+	}
+	update := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1", strings.NewReader("title=Updated"))
+	update.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	updated := httptest.NewRecorder()
+	mux.ServeHTTP(updated, update)
+	if updated.Code != http.StatusSeeOther || updated.Header().Get("Location") != "/admin/resources/article" || mutations != 1 {
+		t.Fatalf("allowed update was not completed: status=%d location=%q API mutations=%d", updated.Code, updated.Header().Get("Location"), mutations)
+	}
+	deleted := httptest.NewRecorder()
+	mux.ServeHTTP(deleted, httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/delete", strings.NewReader("")))
+	if deleted.Code != http.StatusForbidden || mutations != 1 {
+		t.Fatalf("denied delete reached resource API: status=%d mutations=%d", deleted.Code, mutations)
+	}
+}
+
+func TestGeneratedAdminGlobalRequiresUpdateCapability(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "settings", Type: "global", Label: "Settings",
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText}},
+		Actions: []Action{{Label: "Settings", Href: "/admin/resources/settings"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API:             http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("denied global settings reached API") }),
+		Authorize:       func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return true },
+		ResourceAccess:  func(*http.Request, Collection, string) ResourceAccess { return ResourceAccess{} },
+		CSRFToken:       func(*http.Request) string { return "csrf" },
+		ValidateCSRF:    func(*http.Request) bool { return true },
+		RenderPage:      func(http.ResponseWriter, *http.Request, string, templ.Component) error { return nil },
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/resources/settings", nil))
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("global settings ignored update capability: status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestGeneratedAdminBlockFieldsRequireEditionAssetAndNonce(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{ID: "article", Label: "Articles", Fields: []Field{{ID: "body", Label: "Body", Kind: FieldBlocks}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}}})
 	if err != nil {

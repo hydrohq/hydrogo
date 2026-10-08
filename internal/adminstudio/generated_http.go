@@ -36,6 +36,9 @@ type GeneratedAdminOptions struct {
 	API             http.Handler
 	Authorize       func(*http.Request) bool
 	CanReadResource func(*http.Request, Collection) bool
+	// ResourceAccess optionally controls the generated Admin's basic CRUD
+	// affordances and routes. The resource API remains the authorization source.
+	ResourceAccess  func(*http.Request, Collection, string) ResourceAccess
 	CanTransition   func(*http.Request, Collection, map[string]any, PublicationState) bool
 	Transition      func(*http.Request, Collection, map[string]any, PublicationState, int64) error
 	ListRevisions   func(*http.Request, Collection, string, int) ([]RevisionSummary, error)
@@ -62,6 +65,14 @@ type GeneratedAdminOptions struct {
 	CSRFToken          func(*http.Request) string
 	ValidateCSRF       func(*http.Request) bool
 	RenderPage         func(http.ResponseWriter, *http.Request, string, templ.Component) error
+}
+
+// ResourceAccess describes basic generated CRUD capabilities for a resource
+// or record. An empty record ID asks for collection-level create access.
+type ResourceAccess struct {
+	Create bool
+	Update bool
+	Delete bool
 }
 
 // BlockEditorConfig binds the Edition-owned Editor.js asset. PreviewURL is
@@ -155,6 +166,13 @@ func validEditionAssetPath(value string) bool {
 	return err == nil && parsed.IsAbs() == false && parsed.Host == "" && strings.HasPrefix(parsed.Path, "/") && !strings.HasPrefix(parsed.Path, "//")
 }
 
+func (h GeneratedAdminHandler) resourceAccess(r *http.Request, collection Collection, id string) ResourceAccess {
+	if h.Options.ResourceAccess == nil {
+		return ResourceAccess{Create: true, Update: true, Delete: true}
+	}
+	return h.Options.ResourceAccess(r, collection, id)
+}
+
 func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.Options.Authorize == nil || !h.Options.Authorize(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -208,6 +226,10 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if len(parts) == 3 && parts[2] == "locale" && r.Method == http.MethodPost {
+		if !collection.Drafts && !h.resourceAccess(r, collection, parts[1]).Update {
+			http.Error(w, "Bu kaydı düzenleme yetkiniz yok.", http.StatusForbidden)
+			return
+		}
 		h.mutateLocale(w, r, collection, parts[1])
 		return
 	}
@@ -220,6 +242,10 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if len(parts) == 2 && parts[1] == "new" {
+		if !collection.Drafts && !h.resourceAccess(r, collection, "").Create {
+			http.Error(w, "Bu kaynakta kayıt oluşturma yetkiniz yok.", http.StatusForbidden)
+			return
+		}
 		if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
 			http.NotFound(w, r)
 			return
@@ -256,6 +282,10 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if r.Method == http.MethodGet && len(parts) == 2 {
+		if !collection.Drafts && !h.resourceAccess(r, collection, parts[1]).Update {
+			http.Error(w, "Bu kaydı düzenleme yetkiniz yok.", http.StatusForbidden)
+			return
+		}
 		h.edit(w, r, collection, parts[1])
 		return
 	}
@@ -264,7 +294,13 @@ func (h GeneratedAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 			h.transition(w, r, collection, parts[1])
 			return
 		}
-		h.mutate(w, r, collection, parts[1], len(parts) == 3)
+		deleting := len(parts) == 3
+		access := h.resourceAccess(r, collection, parts[1])
+		if deleting && !access.Delete || !deleting && !access.Update {
+			http.Error(w, "Bu işlem için yetkiniz yok.", http.StatusForbidden)
+			return
+		}
+		h.mutate(w, r, collection, parts[1], deleting)
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -483,6 +519,10 @@ func (h GeneratedAdminHandler) visibleCollections(r *http.Request) []Collection 
 
 func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, collection Collection) {
 	if collection.Type == "global" {
+		if !h.resourceAccess(r, collection, "global").Update {
+			http.Error(w, "Bu ayarı düzenleme yetkiniz yok.", http.StatusForbidden)
+			return
+		}
 		h.edit(w, r, collection, "global")
 		return
 	}
@@ -560,7 +600,13 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if collection.Localization {
 			editURL = localePath(editURL, localeState(r).Current)
 		}
-		rows = append(rows, Row{ID: id, EditURL: editURL, Values: values, Actions: []Action{{Label: "Düzenle", Href: editURL}}})
+		row := Row{ID: id, Values: values}
+		canUpdate := collection.Drafts || h.resourceAccess(r, collection, id).Update
+		if canUpdate {
+			row.EditURL = editURL
+			row.Actions = []Action{{Label: "Düzenle", Href: editURL}}
+		}
+		rows = append(rows, row)
 	}
 	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		newURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/new"
@@ -570,7 +616,8 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if _, err := io.WriteString(out, `<section class="resource-page"><header class="dashboard-card-head"><div><p class="muted">`+template.HTMLEscapeString(collection.Description)+`</p></div>`); err != nil {
 			return err
 		}
-		if newURL != "" {
+		canCreate := collection.Drafts || h.resourceAccess(r, collection, "").Create
+		if newURL != "" && canCreate {
 			if err := ui.Link(ui.LinkProps{Href: newURL, Label: "Yeni kayıt", Class: "button"}).Render(ctx, out); err != nil {
 				return err
 			}
@@ -998,7 +1045,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 		if err := ui.Form(props).Render(ctx, out); err != nil {
 			return err
 		}
-		if editing && !collection.Drafts && collection.Type != "global" && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
+		if editing && !collection.Drafts && h.resourceAccess(r, collection, id).Delete && collection.Type != "global" && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
 			deleteAction := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/delete"
 			if collection.Localization {
 				deleteAction = localePath(deleteAction, localeState(r).Current)
@@ -1462,6 +1509,10 @@ func (h GeneratedAdminHandler) copyLocale(w http.ResponseWriter, r *http.Request
 func (h GeneratedAdminHandler) mutateLocale(w http.ResponseWriter, r *http.Request, collection Collection, id string) {
 	if !collection.Localization || localeState(r).Current == localeState(r).Options.Default {
 		http.NotFound(w, r)
+		return
+	}
+	if !collection.Drafts && !h.resourceAccess(r, collection, id).Update {
+		http.Error(w, "Bu kaydı düzenleme yetkiniz yok.", http.StatusForbidden)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, generatedAdminBodyLimit)

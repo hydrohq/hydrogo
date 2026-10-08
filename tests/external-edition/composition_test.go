@@ -31,8 +31,11 @@ func TestExternalEditionCanComposeGeneratedAdmin(t *testing.T) {
 		}),
 		Authorize:       func(*http.Request) bool { return true },
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-		CSRFToken:       func(*http.Request) string { return "edition-token" },
-		ValidateCSRF:    func(*http.Request) bool { return true },
+		ResourceAccess: func(_ *http.Request, _ adminstudio.Collection, id string) adminstudio.ResourceAccess {
+			return adminstudio.ResourceAccess{Create: id == "", Update: id != "", Delete: id != ""}
+		},
+		CSRFToken:    func(*http.Request) string { return "edition-token" },
+		ValidateCSRF: func(*http.Request) bool { return true },
 		RenderPage: adminstudio.StudioPageRenderer(func(*http.Request) adminstudio.PageIdentity {
 			return adminstudio.PageIdentity{UserID: "edition-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
 		}),

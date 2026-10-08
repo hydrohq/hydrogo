@@ -58,7 +58,19 @@ list/create/record routes return `404` without calling the API. A valid-CSRF
 generated create whose resource API denies the write returns a user-facing
 `403` and never redirects as if it succeeded.
 
+ADR-0361 adds optional Edition-provided `ResourceAccess` capabilities for
+basic generated CRUD. Handler tests prove that denied create/update/delete
+actions disappear, direct routes return `403` before a mutation reaches the
+resource API, and update can be allowed independently from create/delete.
+Draft workflow and other editorial mutations keep their dedicated callbacks.
+The generated block Chromium journey also verifies read-only list state,
+valid-CSRF create/update/delete denials, and unchanged persisted data; the full
+generated editorial suite passed 7/7 on SQLite and PostgreSQL 18. Database
+behavior and migrations are unchanged.
+
 ```sh
-TMPDIR=/var/tmp go test ./internal/adminstudio -run 'TestGeneratedAdmin(ResourceReadPolicy|SurfacesResourceAPIDenial)' -count=1
+TMPDIR=/var/tmp go test ./internal/adminstudio -run 'TestGeneratedAdmin(ResourceReadPolicy|SurfacesResourceAPIDenial|ResourceCapabilities)' -count=1
 TMPDIR=/var/tmp go test ./internal/adminstudio -count=1
+go test ./extension/v1/adminstudio ./examples/project-edition/custom -count=1
+cd tests/external-edition && go test ./... -count=1
 ```
