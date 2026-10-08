@@ -186,6 +186,18 @@ test.describe("generated Edition Admin CRUD", () => {
     const articleForm = page.locator('form[action="/admin/resources/article/new"]');
     const articleEditor = articleForm.getByRole("textbox", { name: "Body" });
     await expect(articleEditor).toBeVisible();
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await expect(articleEditor).toBeVisible();
+        await expectNoA11yViolations(page);
+      }
+    }
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.reload();
     await expectNoA11yViolations(page);
     await page.setViewportSize({ width: 390, height: 844 });
     const richTextMobileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

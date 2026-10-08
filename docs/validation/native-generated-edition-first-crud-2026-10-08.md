@@ -85,6 +85,11 @@ The real generated API also rejects an empty required `body` with a field-level
 `422 validation_failed` response before the browser creates a record. This
 negative case passed in both SQLite and PostgreSQL Chromium runs.
 
+The rich-text create page also passes the axe WCAG 2.1 A/AA scan across the
+HydroGo, shadcn, Nova, and Aurora theme families in light and dark mode (8/8).
+This theme matrix passed as part of the SQLite and PostgreSQL browser runs; the
+full acceptance command took 20.1 s and 21.7 s respectively.
+
 Commands:
 
 ```sh
