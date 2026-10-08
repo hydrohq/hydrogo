@@ -97,6 +97,14 @@ bold/italic Delta after persistence. This focused Chromium run passed 1/1 on
 SQLite and 1/1 on PostgreSQL 18 with a `NOSUPERUSER NOBYPASSRLS` role (18.2 s
 and 18.4 s browser test time).
 
+On 2026-10-08, the SQLite journey was repeated three times while auditing the
+generated edit form: all three passed (19.2 s, 19.3 s, and 29.5 s browser test
+time). One earlier attempt had reported low contrast on the edit form before
+these repeats. The browser test now asserts that full-page navigation retains
+the HydroGo light theme and that the body label/title use the expected dark
+foreground colors before running axe. This guards the exact visual state that
+was reported; no repeatable product CSS defect was found.
+
 Commands:
 
 ```sh
