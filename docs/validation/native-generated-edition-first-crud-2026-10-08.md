@@ -81,6 +81,10 @@ create page has no horizontal overflow at a 390px viewport. These checks passed
 in the SQLite Chromium run (16.6 s total) and the PostgreSQL Chromium run
 (16.6 s total).
 
+The real generated API also rejects an empty required `body` with a field-level
+`422 validation_failed` response before the browser creates a record. This
+negative case passed in both SQLite and PostgreSQL Chromium runs.
+
 Commands:
 
 ```sh
