@@ -120,19 +120,19 @@ func TestSidebarEscapesModuleMetadataAndMarksActiveItem(t *testing.T) {
 }
 
 func TestBlockEditorUsesEditionAssetAndAllowlistedLivePreview(t *testing.T) {
-	out := render(t, BlockEditor(BlockEditorProps{ID: "body", Name: "body", Label: "Body", Nonce: "n\"1", Value: `{"blocks":[]}`, PreviewURL: "/api/preview"}))
-	for _, marker := range []string{`data-editorjs-mount="body"`, `hx-post="/api/preview"`, `hx-target="#body-preview"`, `hx-swap="innerHTML"`, `hx-trigger="keyup delay:300ms"`, `/vendor/editorjs/editorjs.umd.js`} {
+	out := render(t, BlockEditor(BlockEditorProps{ID: "body", Name: "body", Label: "Body", Value: `{"blocks":[]}`, PreviewURL: "/api/preview"}))
+	for _, marker := range []string{`data-editorjs-mount="body"`, `data-editorjs-script="/vendor/editorjs/editorjs.umd.js"`, `hx-post="/api/preview"`, `hx-target="#body-preview"`, `hx-swap="innerHTML"`, `hx-trigger="keyup delay:300ms"`} {
 		if !strings.Contains(out, marker) {
 			t.Fatalf("block editor missing %q: %s", marker, out)
 		}
 	}
-	if strings.Contains(out, "<!--") || strings.Contains(out, "n\"1") {
+	if strings.Contains(out, "<!--") || strings.Contains(out, "<script") {
 		t.Fatalf("block editor emitted unsafe/comment markup: %s", out)
 	}
 }
 
 func TestBlockEditorDoesNotInventPreviewRoute(t *testing.T) {
-	out := render(t, BlockEditor(BlockEditorProps{ID: "body", Name: "body", Label: "Body", Nonce: "nonce", Value: `{"blocks":[]}`}))
+	out := render(t, BlockEditor(BlockEditorProps{ID: "body", Name: "body", Label: "Body", Value: `{"blocks":[]}`}))
 	if strings.Contains(out, "hx-post") || strings.Contains(out, "/api/preview") {
 		t.Fatalf("block editor invented an Edition preview endpoint: %s", out)
 	}

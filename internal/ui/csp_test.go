@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/ui/aurora"
@@ -21,4 +22,21 @@ func TestAdminStyleHashesIncludeCompleteShellStyleBlock(t *testing.T) {
 		}
 	}
 	t.Fatal("Admin CSP catalog does not authorize the complete rendered shell style block")
+}
+
+func TestAdminScriptHashesAuthorizeGeneratedBlockEditorLoader(t *testing.T) {
+	hashes, err := AdminScriptHashes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := hash(AdminBlockEditorJS)
+	for _, source := range hashes {
+		if source == want {
+			if !strings.Contains(AdminBlockEditorJS, "HydroInitGeneratedBlockEditors") || !strings.Contains(AdminBlockEditorJS, "mount.dataset.editorjsScript") {
+				t.Fatal("hash-authorized block editor loader is missing")
+			}
+			return
+		}
+	}
+	t.Fatal("Admin CSP catalog does not authorize generated block editor loader")
 }
