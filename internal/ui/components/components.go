@@ -94,11 +94,12 @@ type CardProps struct {
 
 // FormProps provides the mutation boundary used by generated forms.
 type FormProps struct {
-	Action string
-	Method string
-	Class  string
-	CSRF   string
-	Body   templ.Component
+	Action        string
+	Method        string
+	Class         string
+	CSRF          string
+	ConfirmAction string
+	Body          templ.Component
 }
 
 // HTMX is the allowlisted server interaction contract. Empty fields emit no
@@ -195,7 +196,11 @@ func Form(p FormProps) templ.Component {
 		if strings.TrimSpace(p.Class) != "" {
 			classAttr = ` class="` + esc(strings.TrimSpace(p.Class)) + `"`
 		}
-		if _, err := io.WriteString(w, `<form action="`+esc(p.Action)+`" method="`+esc(method)+`"`+classAttr+`>`); err != nil {
+		confirmAttr := ""
+		if strings.TrimSpace(p.ConfirmAction) != "" {
+			confirmAttr = ` data-confirm-action="` + esc(p.ConfirmAction) + `"`
+		}
+		if _, err := io.WriteString(w, `<form action="`+esc(p.Action)+`" method="`+esc(method)+`"`+classAttr+confirmAttr+`>`); err != nil {
 			return err
 		}
 		if p.CSRF != "" {
