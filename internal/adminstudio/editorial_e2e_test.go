@@ -1,26 +1,41 @@
 package adminstudio
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	_ "modernc.org/sqlite"
 )
 
 // TestEditorialAdminSQLiteComposition drives the generated Admin handler,
 // resource API, and Edition-owned stores together against SQLite.
 func TestEditorialAdminSQLiteComposition(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "editorial.db")
-	db, err := sql.Open("sqlite", dbPath)
+	runEditorialAdminComposition(t, "sqlite")
+}
+
+func TestEditorialAdminPostgresComposition(t *testing.T) {
+	if os.Getenv("HYDRO_TEST_POSTGRES_URL") == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	runEditorialAdminComposition(t, "postgres")
+}
+
+func runEditorialAdminComposition(t *testing.T, dialect string) {
+	t.Helper()
+	db, reopen, err := openEditorialTestDB(t, dialect)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -522,7 +537,7 @@ func TestEditorialAdminSQLiteComposition(t *testing.T) {
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err = sql.Open("sqlite", dbPath)
+	db, err = reopen()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,12 +618,123 @@ func TestEditorialAdminSQLiteComposition(t *testing.T) {
 	}
 }
 
+type editorialTestDB struct {
+	*sql.DB
+	postgres bool
+}
+
+func (db *editorialTestDB) Exec(query string, args ...any) (sql.Result, error) {
+	return db.DB.Exec(db.bind(query), args...)
+}
+
+func (db *editorialTestDB) Query(query string, args ...any) (*sql.Rows, error) {
+	return db.DB.Query(db.bind(query), args...)
+}
+
+func (db *editorialTestDB) QueryRow(query string, args ...any) *sql.Row {
+	return db.DB.QueryRow(db.bind(query), args...)
+}
+
+func (db *editorialTestDB) Begin() (*editorialTestTx, error) {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &editorialTestTx{Tx: tx, postgres: db.postgres}, nil
+}
+
+func (db *editorialTestDB) bind(query string) string {
+	return bindEditorialQuery(query, db.postgres)
+}
+
+func bindEditorialQuery(query string, postgres bool) string {
+	if !postgres {
+		return query
+	}
+	var bound strings.Builder
+	bound.Grow(len(query) + 8)
+	parameter := 0
+	for _, char := range query {
+		if char == '?' {
+			parameter++
+			fmt.Fprintf(&bound, "$%d", parameter)
+			continue
+		}
+		bound.WriteRune(char)
+	}
+	return bound.String()
+}
+
+type editorialTestTx struct {
+	*sql.Tx
+	postgres bool
+}
+
+func (tx *editorialTestTx) Exec(query string, args ...any) (sql.Result, error) {
+	return tx.Tx.Exec(bindEditorialQuery(query, tx.postgres), args...)
+}
+
+func (tx *editorialTestTx) QueryRow(query string, args ...any) *sql.Row {
+	return tx.Tx.QueryRow(bindEditorialQuery(query, tx.postgres), args...)
+}
+
+func openEditorialTestDB(t *testing.T, dialect string) (*editorialTestDB, func() (*editorialTestDB, error), error) {
+	t.Helper()
+	open := func(dsn string, postgres bool) (*editorialTestDB, error) {
+		var db *sql.DB
+		var err error
+		if postgres {
+			db, err = database.Open(context.Background(), database.Postgres, dsn)
+		} else {
+			db, err = sql.Open("sqlite", dsn)
+		}
+		if err != nil {
+			return nil, err
+		}
+		db.SetMaxOpenConns(1)
+		return &editorialTestDB{DB: db, postgres: postgres}, nil
+	}
+
+	if dialect == "sqlite" {
+		dsn := filepath.Join(t.TempDir(), "editorial.db")
+		db, err := open(dsn, false)
+		return db, func() (*editorialTestDB, error) { return open(dsn, false) }, err
+	}
+	if dialect != "postgres" {
+		return nil, nil, fmt.Errorf("unsupported editorial test dialect %q", dialect)
+	}
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	parsed, err := url.Parse(dsn)
+	if err != nil {
+		return nil, nil, err
+	}
+	adminDB, err := database.Open(context.Background(), database.Postgres, dsn)
+	if err != nil {
+		return nil, nil, err
+	}
+	schema := fmt.Sprintf("adminstudio_editorial_%d", time.Now().UnixNano())
+	if _, err := adminDB.ExecContext(context.Background(), "CREATE SCHEMA "+schema); err != nil {
+		_ = adminDB.Close()
+		return nil, nil, err
+	}
+	t.Cleanup(func() {
+		_, _ = adminDB.ExecContext(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+		_ = adminDB.Close()
+	})
+	query := parsed.Query()
+	query.Set("options", "-csearch_path="+schema)
+	parsed.RawQuery = query.Encode()
+	dsn = parsed.String()
+	db, err := open(dsn, true)
+	return db, func() (*editorialTestDB, error) { return open(dsn, true) }, err
+}
+
 func writeEditorialJSON(w http.ResponseWriter, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(value)
 }
 
-func appendStoryRevision(db *sql.DB, id string, version int64, fields map[string]any) error {
+func appendStoryRevision(db *editorialTestDB, id string, version int64, fields map[string]any) error {
 	return appendStoryRevisionTx(db, id, version, fields)
 }
 
