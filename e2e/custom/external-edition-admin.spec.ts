@@ -8,6 +8,7 @@ import { spawnServer, stopServer } from "./server-process";
 const repoRoot = path.resolve(process.cwd(), "..");
 const editionRoot = path.join(repoRoot, "tests", "external-edition");
 let server: ChildProcess | undefined;
+let serverArgs: string[] = [];
 let tempDir = "";
 let baseURL = "";
 
@@ -21,22 +22,8 @@ test.describe("independent Edition generated Admin", () => {
     }
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawnServer("go", ["run", "./cmd/testserver", "--address", `127.0.0.1:${port}`, "--dialect", dialect, "--dsn", dsn], {
-      cwd: editionRoot,
-      stdio: "ignore",
-    });
-    const deadline = Date.now() + 45_000;
-    while (Date.now() < deadline) {
-      if (server.exitCode !== null) throw new Error(`external Edition server exited with ${server.exitCode}`);
-      try {
-        const response = await fetch(`${baseURL}/healthz`);
-        if (response.ok) return;
-      } catch {
-        // Wait while the independent Go module builds and starts.
-      }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-    throw new Error("external Edition server did not become healthy within 45 seconds");
+    serverArgs = ["run", "./cmd/testserver", "--address", `127.0.0.1:${port}`, "--dialect", dialect, "--dsn", dsn];
+    await startServer();
   }, 60_000);
 
   test.afterAll(async () => {
@@ -66,6 +53,11 @@ test.describe("independent Edition generated Admin", () => {
     const recordPath = await page.getByRole("link", { name: "External Edition tenant A record" }).getAttribute("href");
     expect(recordPath).toMatch(/^\/admin\/resources\/article\//);
 
+    await stopServer(server);
+    await startServer(true);
+    await page.reload();
+    await expect(page.getByRole("link", { name: "External Edition tenant A record" })).toBeVisible();
+
     const tenantB = await browser.newContext({ extraHTTPHeaders: { "X-Test-Role": "admin", "X-Test-Tenant": "tenant-b" } });
     const tenantBPage = await tenantB.newPage();
     await tenantBPage.goto(`${baseURL}/admin/resources/article`);
@@ -94,6 +86,22 @@ test.describe("independent Edition generated Admin", () => {
     await Promise.all([admin.close(), tenantB.close(), viewer.close()]);
   });
 });
+
+async function startServer(skipMigrate = false): Promise<void> {
+  server = spawnServer("go", skipMigrate ? [...serverArgs, "--skip-migrate"] : serverArgs, { cwd: editionRoot, stdio: "ignore" });
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    if (server.exitCode !== null) throw new Error(`external Edition server exited with ${server.exitCode}`);
+    try {
+      const response = await fetch(`${baseURL}/healthz`);
+      if (response.ok) return;
+    } catch {
+      // Wait while the independent Go module builds and starts.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error("external Edition server did not become healthy within 45 seconds");
+}
 
 async function unusedPort(): Promise<number> {
   return new Promise((resolve, reject) => {
