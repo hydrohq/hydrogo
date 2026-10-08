@@ -24,6 +24,8 @@ validation and sanitization before generated persistence.
 - The CI Edition import guards passed for Client, News, and Construction Editions.
 - `go test ./examples/project-edition/custom -run '^TestPostgresEditionGeneratedAdminCRUD$' -count=1 -timeout=2m` passed against a disposable PostgreSQL 18 instance. This covers the new PostgreSQL migration and sanitized API persistence.
 - The real Project Edition Chromium CRUD journey passed on SQLite and PostgreSQL 18. It checks the collection appears automatically, the block form loads, the live preview returns 200 and renders sanitized text, create/read/update/delete work, and the 390px form has no horizontal overflow or axe violations.
+- The block editor create form passed an axe WCAG 2.1 A/AA scan in all eight combinations of HydroGo, shadcn, Nova, and Aurora with light and dark modes. The title and editor remained visible in every combination.
+- The browser flow confirms that collection lists and forms without a preview-enabled block field do not load HTMX; the runtime is present on the configured block form only.
 - `git diff --check` passed.
 
 The browser command was:
