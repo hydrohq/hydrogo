@@ -252,6 +252,48 @@ test.describe("generated Edition Admin CRUD", () => {
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
     expect((await request.get(`${baseURL}${articleAPI}`)).status()).toBe(404);
 
+    await page.goto(`${baseURL}/admin/resources/content_block`);
+    await expect(page.getByRole("heading", { name: "Content blocks" })).toBeVisible();
+    const blockFormLink = page.getByRole("link", { name: "Yeni kayıt" });
+    await blockFormLink.click();
+    const blockForm = page.locator('form[action="/admin/resources/content_block/new"]');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expectNoA11yViolations(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    await blockForm.getByLabel("Title").fill("Generated Edition block content");
+    const paragraph = page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]');
+    await expect(paragraph).toBeVisible();
+    const previewResponse = page.waitForResponse((response) => response.url().endsWith("/admin/resources/content_block/preview"), { timeout: 5000 });
+    await paragraph.fill("A real Edition block paragraph.");
+    expect((await previewResponse).status()).toBe(200);
+    await expect(page.locator("#body-preview")).toContainText("A real Edition block paragraph.");
+    await blockForm.locator('button[type="submit"]').click();
+    await expect(page).toHaveURL(/\/admin\/resources\/content_block(?:\?.*)?$/);
+    const blockLink = page.getByRole("link", { name: "Generated Edition block content" });
+    await expect(blockLink).toBeVisible();
+    const blockPath = await blockLink.getAttribute("href");
+    expect(blockPath).toMatch(/^\/admin\/resources\/content_block\//);
+    const blockAPI = blockPath!.replace("/admin/resources", "/api/v1");
+    const storedBlocks = JSON.parse((await (await request.get(`${baseURL}${blockAPI}`)).json()).body as string);
+    expect(storedBlocks.blocks).toHaveLength(1);
+    expect(storedBlocks.blocks[0].data.text).toBe("A real Edition block paragraph.");
+
+    await blockLink.click();
+    const editParagraph = page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]');
+    await expect(editParagraph).toHaveText("A real Edition block paragraph.");
+    const editPreview = page.waitForResponse((response) => response.url().endsWith("/admin/resources/content_block/preview"), { timeout: 5000 });
+    await editParagraph.fill("Updated Edition block paragraph.");
+    expect((await editPreview).status()).toBe(200);
+    await page.locator(`form[action="${blockPath}"] button[type="submit"]`).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/content_block(?:\?.*)?$/);
+    const updatedBlocks = JSON.parse((await (await request.get(`${baseURL}${blockAPI}`)).json()).body as string);
+    expect(updatedBlocks.blocks[0].data.text).toBe("Updated Edition block paragraph.");
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.getByRole("link", { name: "Generated Edition block content" }).click();
+    await page.locator(`form[action="${blockPath}/delete"] button[type="submit"]`).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/content_block(?:\?.*)?$/);
+    expect((await request.get(`${baseURL}${blockAPI}`)).status()).toBe(404);
+
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${baseURL}/admin/resources/milestone/new`);
     await expect(page.getByLabel("Title")).toBeVisible();

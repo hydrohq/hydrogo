@@ -32,7 +32,7 @@ func TestAdminScriptHashesAuthorizeGeneratedBlockEditorLoader(t *testing.T) {
 	want := hash(AdminBlockEditorJS)
 	for _, source := range hashes {
 		if source == want {
-			for _, contract := range []string{"HydroInitGeneratedBlockEditors", "mount.dataset.editorjsScript", "data.blocks.length===0", "MutationObserver(labelBlocks)", "aria-label", "role','textbox", "aria-multiline"} {
+			for _, contract := range []string{"HydroInitGeneratedBlockEditors", "mount.dataset.editorjsScript", "mount.dataset.editorjsPreview", "data.blocks.length===0", "MutationObserver(labelBlocks)", "aria-label", "role','textbox", "aria-multiline", "/vendor/htmx/htmx.min.js", "window.htmx?.process(document.body)"} {
 				if !strings.Contains(AdminBlockEditorJS, contract) {
 					t.Fatalf("hash-authorized block editor loader is missing %q", contract)
 				}

@@ -31,6 +31,12 @@ in the migration command; Blueprint generation never guesses security or
 database activation decisions. The Chromium and SQLite/PostgreSQL CRUD evidence
 is recorded in `docs/validation/blueprint-derived-admin-activation-2026-10-07.md`.
 
+`content-block.blueprint.yaml` adds a separate `content_block` resource with
+an Editor.js body and live, CSRF-protected preview. Its Edition-owned bundle,
+sanitization boundary, paragraph-only support, and SQLite/PostgreSQL migration
+are documented in ADR-0363 and
+`docs/validation/generated-edition-block-editor-2026-10-08.md`.
+
 The example is intentionally not a construction-management product. It is a
 contract fixture used to verify that the Workspace can produce one safely.
 Its server uses permissive demo policy callbacks and is restricted to loopback

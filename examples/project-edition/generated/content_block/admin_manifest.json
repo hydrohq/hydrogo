@@ -1,0 +1,33 @@
+{
+  "id": "content_block",
+  "type": "collection",
+  "label": "Content blocks",
+  "description": "Build page content from reusable text blocks.",
+  "group": "content",
+  "icon": "file-text",
+  "title_field": "title",
+  "fields": [
+    {
+      "id": "title",
+      "label": "Title",
+      "kind": "text",
+      "required": true,
+      "visible_in_list": true,
+      "searchable": true
+    },
+    {
+      "id": "body",
+      "label": "Body",
+      "kind": "text",
+      "widget": "block-editor",
+      "required": true,
+      "visible_in_list": false
+    }
+  ],
+  "actions": [
+    {
+      "label": "Open Content blocks",
+      "href": "/admin/content_block"
+    }
+  ]
+}
