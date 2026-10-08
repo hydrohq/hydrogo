@@ -41,9 +41,11 @@ unpublished draft discard, and localized draft save/publish with default-locale
 isolation. axe-core checks pass on the draft inbox, draft editor, and localized
 editor.
 
-The editor/publish journey uses an in-memory Edition API and callback fixture;
-it validates the generated Admin HTTP/UI contract and state returned by those
-callbacks. SQLite/PostgreSQL draft storage is covered by separate contract
-tests, not by this browser fixture. Scheduling and live tenant isolation remain
-separate acceptance cases. The browser path found and fixed locale propagation
-on workflow submissions and query-safe locale navigation in generated lists.
+The browser editor/publish journey uses an in-memory Edition API and callback
+fixture; it validates the UI contract and state returned by those callbacks.
+Persistent generated Admin HTTP composition is separately exercised against
+SQLite and PostgreSQL, including reconnecting after draft save, stale-write
+conflicts, review, publish, revision restore, and locale save/copy. That is not
+a PostgreSQL browser run. Scheduling and live tenant isolation remain separate
+acceptance cases. The browser path found and fixed locale propagation on
+workflow submissions and query-safe locale navigation in generated lists.
