@@ -34,6 +34,7 @@ func main() {
 	address := flag.String("address", "127.0.0.1:8099", "loopback listen address")
 	dsn := flag.String("dsn", "", "database DSN")
 	dialect := flag.String("dialect", "sqlite", "database dialect (sqlite or postgres)")
+	skipMigrate := flag.Bool("skip-migrate", false, "skip the one-time test fixture migration")
 	flag.Parse()
 
 	host, _, err := net.SplitHostPort(*address)
@@ -54,8 +55,10 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	if _, err := db.ExecContext(context.Background(), generatedarticle.MigrationSQL); err != nil {
-		log.Fatal(err)
+	if !*skipMigrate {
+		if _, err := db.ExecContext(context.Background(), generatedarticle.MigrationSQL); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	mux := http.NewServeMux()

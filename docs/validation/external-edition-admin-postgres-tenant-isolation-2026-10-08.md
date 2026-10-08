@@ -10,9 +10,12 @@ empty PostgreSQL database.
 On PostgreSQL 18 with a `NOSUPERUSER NOBYPASSRLS` database role, the real
 generated migration and Admin/API routes passed the cross-tenant browser flow
 (1/1). Tenant A created a record; tenant B could not see it in the generated
-Admin list or retrieve it by API (404). Tenant A edited and deleted it. A
-viewer was denied the Admin route (403), and a request without the valid test
-CSRF token was denied (403) without creating an API record.
+Admin list or retrieve it by API (404). The Edition server was stopped and
+restarted against the same database; tenant A still saw its record and tenant
+B still did not. Tenant A edited and deleted it. A viewer was denied the Admin
+route (403), and a request without the valid test CSRF token was denied (403)
+without creating an API record. The same restart and tenant flow passed on
+SQLite (1/1).
 
 This validates generated repository tenant predicates and the Admin/API
 composition against PostgreSQL. Tenant identity and role come from explicit
