@@ -1897,6 +1897,23 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 			case FieldBoolean:
 				props.Type = "checkbox"
 				props.Checked = values[field.ID] == "true"
+			case FieldDate:
+				props.Type = "date"
+			}
+			switch field.Widget {
+			case "date":
+				props.Type = "date"
+			case "datetime", "datetime-local":
+				props.Type = "datetime-local"
+			case "checkbox":
+				if field.Kind == FieldBoolean {
+					props.Type = "checkbox"
+					props.Checked = values[field.ID] == "true"
+				}
+			case "currency":
+				if field.Kind == FieldNumber {
+					props.Type = "number"
+				}
 			}
 			var component templ.Component = ui.Input(props)
 			if len(field.Options) > 0 {
