@@ -119,6 +119,11 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toBeVisible();
         await page.locator('.studio-search').click();
         await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toBeVisible();
+        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Haber Yaz" })).toBeVisible();
+        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Medya Yükle" })).toBeVisible();
+        for (const hiddenCommand of ["Yeni Ürün Ekle", "Siparişler", "Üye Yönetimi", "Raporlar ve Analitik", "Yönetim Araçları", "Operasyon Durumu", "Yedek İndir", "Güvenlik & Yetkiler"]) {
+          await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: hiddenCommand }), `editor command ${hiddenCommand} must require its capability`).toHaveCount(0);
+        }
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(200);
         const createForm = page.locator('form[action="/admin/pages"]');
         await page.goto(`${baseURL}${account.allowedPath}`);
@@ -140,8 +145,10 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toHaveCount(0);
         await page.locator('.studio-search').click();
         await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toHaveCount(0);
-        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Ürün Ekle" })).toHaveCount(0);
-        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Siparişler" })).toHaveCount(0);
+        await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Haber Yaz" })).toHaveCount(0);
+        for (const hiddenCommand of ["Yeni Ürün Ekle", "Siparişler", "Medya Yükle", "Üye Yönetimi", "Raporlar ve Analitik", "Yönetim Araçları", "Operasyon Durumu", "Yedek İndir", "Güvenlik & Yetkiler"]) {
+          await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: hiddenCommand }), `viewer command ${hiddenCommand} must require its capability`).toHaveCount(0);
+        }
         await expect(page.locator('a[href="/admin/pages/import"]')).toHaveCount(0);
         await expect(page.locator(`a[href="/admin/pages/${createdPageID}"]`)).toBeVisible();
         expect((await page.goto(`${baseURL}/admin/pages/${createdPageID}`))?.status()).toBe(200);
@@ -393,7 +400,11 @@ test.describe("single Edition administrator management", () => {
     expect(deniedCreatePage?.status()).toBe(403);
     expect((await restrictedEditor.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
     await expect(restrictedEditor.locator('form[action="/admin/pages"]')).toHaveCount(0);
-    expect((await restrictedEditor.goto(`${baseURL}/admin/pages`))?.status()).toBe(403);
+      expect((await restrictedEditor.goto(`${baseURL}/admin/pages`))?.status()).toBe(403);
+      await restrictedEditor.locator('.studio-search').click();
+      await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toHaveCount(0);
+      await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Haber Yaz" })).toHaveCount(0);
+      await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Medya Yükle" })).toHaveCount(0);
     const csrfResponse = await restrictedEditor.request.get(`${baseURL}/csrf-token`);
     expect(csrfResponse.status()).toBe(200);
     const { token: restrictedCsrfToken } = await csrfResponse.json();
@@ -416,6 +427,16 @@ test.describe("single Edition administrator management", () => {
     await page.reload();
     await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("allow");
     expect((await restrictedEditor.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    await restrictedEditor.goto(`${baseURL}/login`);
+    await restrictedEditor.getByLabel("Email address").fill("editor@example.test");
+    await restrictedEditor.getByLabel("Password").fill(adminPassword);
+    await restrictedEditor.getByRole("button", { name: "Sign in" }).click();
+    await expect(restrictedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
+    await restrictedEditor.goto(`${baseURL}/admin/pages`);
+    await restrictedEditor.locator('.studio-search').click();
+    await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toBeVisible();
+    await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Haber Yaz" })).toBeVisible();
+    await expect(restrictedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Medya Yükle" })).toBeVisible();
     await restrictedContext.close();
 
     const roleForm = editorRow.locator('form[action$="/role"]');
