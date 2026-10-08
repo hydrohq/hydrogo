@@ -207,8 +207,11 @@ test.describe("generated Edition Admin CRUD", () => {
     await articleForm.getByLabel("Title").fill("Generated Edition rich text article");
     await articleEditor.fill("Stored through the real Edition migration.");
     await articleEditor.press("Control+A");
-    await articleForm.locator(".ql-bold").click();
-    await articleForm.locator('button[type="submit"]').click();
+    await articleEditor.press("Control+B");
+    await expect(articleEditor.locator("strong")).toHaveText("Stored through the real Edition migration.");
+    const createArticleButton = articleForm.locator('button[type="submit"]');
+    await createArticleButton.focus();
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
     const articleLink = page.getByRole("link", { name: "Generated Edition rich text article" });
     await expect(articleLink).toBeVisible();
@@ -227,8 +230,10 @@ test.describe("generated Edition Admin CRUD", () => {
     await expectNoA11yViolations(page);
     await restoredArticleEditor.fill("Updated in the generated Edition Admin.");
     await restoredArticleEditor.press("Control+A");
-    await articleEditForm.locator(".ql-italic").click();
-    await articleEditForm.locator('button[type="submit"]').click();
+    await restoredArticleEditor.press("Control+I");
+    await expect(restoredArticleEditor.locator("em")).toHaveText("Updated in the generated Edition Admin.");
+    await articleEditForm.locator('button[type="submit"]').focus();
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
     await page.getByRole("link", { name: "Generated Edition rich text article" }).click();
     await expect(page.locator(".richtext-editor .ql-editor em")).toHaveText("Updated in the generated Edition Admin.");

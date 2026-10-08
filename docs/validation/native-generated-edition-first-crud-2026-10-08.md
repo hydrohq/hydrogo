@@ -90,6 +90,13 @@ HydroGo, shadcn, Nova, and Aurora theme families in light and dark mode (8/8).
 This theme matrix passed as part of the SQLite and PostgreSQL browser runs; the
 full acceptance command took 20.1 s and 21.7 s respectively.
 
+The create/edit journey now verifies keyboard-only rich-text formatting
+(`Control+B`/`Control+I`) and submits both forms by focusing the submit button
+and pressing Enter. The generated API round-trip still confirms the expected
+bold/italic Delta after persistence. This focused Chromium run passed 1/1 on
+SQLite and 1/1 on PostgreSQL 18 with a `NOSUPERUSER NOBYPASSRLS` role (18.2 s
+and 18.4 s browser test time).
+
 Commands:
 
 ```sh
