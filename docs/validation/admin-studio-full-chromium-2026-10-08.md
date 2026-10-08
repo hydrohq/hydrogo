@@ -20,6 +20,13 @@ generator package and full suite both pass with the standard external temp
 directory. `go vet ./...`, actionguard, moduleguard, migrationguard (110
 migrations), assetguard, and all three Edition importguards passed as well.
 
+The full Go suite also passed with PostgreSQL 18.6 enabled and an isolated
+`NOSUPERUSER NOBYPASSRLS` contract role:
+`HYDRO_TEST_POSTGRES_URL=postgres://… go test ./... -count=1 -p 1 -timeout=10m`.
+Its disposable database container was stopped after the run. PostgreSQL
+browser proof for the native generated Edition and editorial fixture remains
+listed in their focused validation documents.
+
 ```sh
 export HYDRO_E2E_BASE_URL=http://127.0.0.1:8090
 export HYDRO_E2E_STORAGE_STATE="$TMPDIR/full-chromium-fixture/auth-state.json"
