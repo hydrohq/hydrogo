@@ -572,6 +572,59 @@ func TestGeneratedAdminRequiresEditionAuthorizationAndBoundaries(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminResourceReadPolicyHidesIndexAndBlocksCollectionRoutes(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{ID: "article", Label: "Articles", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("read-denied resource reached the API") })
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return false },
+		CSRFToken:       func(*http.Request) string { return "csrf" },
+		ValidateCSRF:    func(*http.Request) bool { return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	index := httptest.NewRecorder()
+	mux.ServeHTTP(index, httptest.NewRequest(http.MethodGet, "/admin/resources", nil))
+	if index.Code != http.StatusOK || strings.Contains(index.Body.String(), "/admin/resources/article") {
+		t.Fatalf("resource index exposed a read-denied collection: status=%d body=%s", index.Code, index.Body.String())
+	}
+	for _, path := range []string{"/admin/resources/article", "/admin/resources/article/new", "/admin/resources/article/a1"} {
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusNotFound {
+			t.Errorf("read-denied route %s status=%d, want 404", path, response.Code)
+		}
+	}
+}
+
+func TestGeneratedAdminSurfacesResourceAPIDenialWithoutSuccessRedirect(t *testing.T) {
+	calls := 0
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/project" {
+			t.Errorf("unexpected API request %s %s", r.Method, r.URL.Path)
+		}
+		http.Error(w, "forbidden", http.StatusForbidden)
+	})
+	mux := testGeneratedAdmin(t, api, func(*http.Request) bool { return true })
+	request := httptest.NewRequest(http.MethodPost, "/admin/resources/project/new", strings.NewReader("title=Denied"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("X-CSRF-Test", "valid")
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), "Bu işlem için yetkiniz yok.") || response.Header().Get("Location") != "" || calls != 1 {
+		t.Fatalf("API write denial was not presented safely: status=%d location=%q calls=%d body=%s", response.Code, response.Header().Get("Location"), calls, response.Body.String())
+	}
+}
+
 func TestGeneratedAdminBlockFieldsRequireEditionAssetAndNonce(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{ID: "article", Label: "Articles", Fields: []Field{{ID: "body", Label: "Body", Kind: FieldBlocks}}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}}})
 	if err != nil {

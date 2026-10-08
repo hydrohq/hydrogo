@@ -51,3 +51,14 @@ değerini kapsayan çapraz matris Go route-policy testinde üretilmiştir. Brows
 testi CSRF tokenlı mutation ve CSRF'siz form retlerini ayrıca doğrular.
 PostgreSQL auth sözleşme testi önceki doğrulama aşamasında geçmiştir. Bu aşama
 çalışma zamanı veya veritabanı davranışını değiştirmez.
+
+Generated Admin resource policy contract also verifies that a collection
+denied by `CanReadResource` is omitted from the resource index and that its
+list/create/record routes return `404` without calling the API. A valid-CSRF
+generated create whose resource API denies the write returns a user-facing
+`403` and never redirects as if it succeeded.
+
+```sh
+TMPDIR=/var/tmp go test ./internal/adminstudio -run 'TestGeneratedAdmin(ResourceReadPolicy|SurfacesResourceAPIDenial)' -count=1
+TMPDIR=/var/tmp go test ./internal/adminstudio -count=1
+```
