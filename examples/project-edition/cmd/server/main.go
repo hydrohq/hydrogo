@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -16,10 +15,10 @@ import (
 
 	custom "github.com/ardaozyildirim/hydrogo/examples/project-edition/custom"
 	generatedarticle "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/article"
+	generatedcontentblock "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/content_block"
 	generatedmilestone "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
 	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
-	staticassets "github.com/ardaozyildirim/hydrogo/static"
 )
 
 func main() {
@@ -79,6 +78,9 @@ func migrate(args []string) error {
 	if _, err := db.ExecContext(ctx, generatedarticle.MigrationSQL); err != nil {
 		return fmt.Errorf("apply reviewed article migration: %w", err)
 	}
+	if _, err := db.ExecContext(ctx, generatedcontentblock.MigrationSQL); err != nil {
+		return fmt.Errorf("apply reviewed content block migration: %w", err)
+	}
 	fmt.Printf("migration-applied edition=project dialect=%s\n", dialect)
 	return nil
 }
@@ -103,11 +105,6 @@ func serve(args []string) error {
 	}
 	defer db.Close()
 	mux := http.NewServeMux()
-	vendorFS, err := fs.Sub(staticassets.FS, "vendor")
-	if err != nil {
-		return fmt.Errorf("prepare embedded vendor assets: %w", err)
-	}
-	mux.Handle("GET /vendor/{path...}", http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS))))
 	mux.Handle("/", custom.NewHandler(db, *dialect))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	server := &http.Server{Addr: *address, Handler: mux, ReadHeaderTimeout: 5 * time.Second}

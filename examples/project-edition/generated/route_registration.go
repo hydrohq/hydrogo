@@ -7,8 +7,9 @@ import (
 	"errors"
 	"fmt"
 	resource0 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/article"
-	resource1 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
-	resource2 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
+	resource1 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/content_block"
+	resource2 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
+	resource3 "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	"net/http"
 )
 
@@ -41,22 +42,29 @@ func RegisterGeneratedResources(mux *http.ServeMux, options GeneratedResourceOpt
 	if policy0 == nil {
 		return fmt.Errorf("generated resource %s has no policy", "article")
 	}
-	policy1 := options.PolicyFor("milestone")
+	policy1 := options.PolicyFor("content_block")
 	if policy1 == nil {
+		return fmt.Errorf("generated resource %s has no policy", "content_block")
+	}
+	policy2 := options.PolicyFor("milestone")
+	if policy2 == nil {
 		return fmt.Errorf("generated resource %s has no policy", "milestone")
 	}
-	policy2 := options.PolicyFor("project")
-	if policy2 == nil {
+	policy3 := options.PolicyFor("project")
+	if policy3 == nil {
 		return fmt.Errorf("generated resource %s has no policy", "project")
 	}
 
 	if err := resource0.RegisterArticleRoute(mux, options.DB, options.Dialect, policy0); err != nil {
 		return err
 	}
-	if err := resource1.RegisterMilestoneRoute(mux, options.DB, options.Dialect, policy1); err != nil {
+	if err := resource1.RegisterContentBlockRoute(mux, options.DB, options.Dialect, policy1); err != nil {
 		return err
 	}
-	if err := resource2.RegisterProjectRoute(mux, options.DB, options.Dialect, policy2); err != nil {
+	if err := resource2.RegisterMilestoneRoute(mux, options.DB, options.Dialect, policy2); err != nil {
+		return err
+	}
+	if err := resource3.RegisterProjectRoute(mux, options.DB, options.Dialect, policy3); err != nil {
 		return err
 	}
 	return nil

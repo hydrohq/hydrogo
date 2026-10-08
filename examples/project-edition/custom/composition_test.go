@@ -17,6 +17,7 @@ import (
 	"time"
 
 	generatedadmin "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated"
+	generatedcontentblock "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/content_block"
 	generatedmilestone "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/milestone"
 	generated "github.com/ardaozyildirim/hydrogo/examples/project-edition/generated/project"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -38,6 +39,9 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	if _, err := db.ExecContext(context.Background(), generatedmilestone.MigrationSQL); err != nil {
 		t.Fatalf("apply generated milestone migration: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(), generatedcontentblock.MigrationSQL); err != nil {
+		t.Fatalf("apply generated content block migration: %v", err)
 	}
 	handler := NewDemoHandler(db)
 	body, _ := json.Marshal(map[string]string{"id": "p-1", "project_code": "P-1", "status": "active", "title": "Demo"})
@@ -185,6 +189,116 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	_ = deletedRecord.Body.Close()
 	if deletedRecord.StatusCode != http.StatusNotFound {
 		t.Fatalf("generated API record after Admin delete status=%d", deletedRecord.StatusCode)
+	}
+}
+
+func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.ExecContext(context.Background(), generatedcontentblock.MigrationSQL); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(NewDemoHandler(db))
+	defer server.Close()
+	htmx, err := http.Get(server.URL + "/vendor/htmx/htmx.min.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	htmxBody, _ := io.ReadAll(htmx.Body)
+	_ = htmx.Body.Close()
+	if htmx.StatusCode != http.StatusOK || !bytes.Contains(htmxBody, []byte("htmx")) {
+		t.Fatalf("shared HTMX runtime was not served by the standalone Edition composition: status=%d", htmx.StatusCode)
+	}
+
+	asset, err := http.Get(server.URL + "/edition/assets/editorjs.umd.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assetBody, _ := io.ReadAll(asset.Body)
+	_ = asset.Body.Close()
+	if asset.StatusCode != http.StatusOK || asset.Header.Get("Content-Type") != "application/javascript; charset=utf-8" || !bytes.Contains(assetBody, []byte("EditorJS")) {
+		t.Fatalf("Edition Editor.js asset was not served: status=%d content-type=%q", asset.StatusCode, asset.Header.Get("Content-Type"))
+	}
+
+	form, err := http.Get(server.URL + "/admin/resources/content_block/new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	formBody, _ := io.ReadAll(form.Body)
+	_ = form.Body.Close()
+	for _, marker := range []string{`data-editorjs-script="/edition/assets/editorjs.umd.js"`, `hx-post="/admin/resources/content_block/preview"`, `hx-include="closest form"`, `hx-params="body,_csrf"`} {
+		if form.StatusCode != http.StatusOK || !bytes.Contains(formBody, []byte(marker)) {
+			t.Fatalf("block form missing %q: status=%d", marker, form.StatusCode)
+		}
+	}
+
+	document := `{"time":1,"blocks":[{"type":"paragraph","data":{"text":"<b>Safe</b><script>alert(1)</script>"}}],"version":"2.31.6"}`
+	previewForm := url.Values{"_csrf": {demoCSRFToken}, "body": {document}}
+	preview, err := http.Post(server.URL+"/admin/resources/content_block/preview", "application/x-www-form-urlencoded", strings.NewReader(previewForm.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previewBody, _ := io.ReadAll(preview.Body)
+	_ = preview.Body.Close()
+	if preview.StatusCode != http.StatusOK || preview.Header.Get("Cache-Control") != "private, no-store" || !bytes.Contains(previewBody, []byte("<b>Safe</b>")) || bytes.Contains(previewBody, []byte("<script")) {
+		t.Fatalf("preview was not sanitized/private: status=%d headers=%v body=%s", preview.StatusCode, preview.Header, previewBody)
+	}
+
+	withoutCSRF, err := http.Post(server.URL+"/admin/resources/content_block/preview", "application/x-www-form-urlencoded", strings.NewReader(url.Values{"body": {document}}.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = withoutCSRF.Body.Close()
+	if withoutCSRF.StatusCode != http.StatusForbidden {
+		t.Fatalf("preview without CSRF status=%d", withoutCSRF.StatusCode)
+	}
+
+	requestBody, _ := json.Marshal(map[string]string{"id": "block-1", "title": "Safe block", "body": document})
+	created, err := http.Post(server.URL+"/api/v1/content_block", "application/json", bytes.NewReader(requestBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	createdBody, _ := io.ReadAll(created.Body)
+	_ = created.Body.Close()
+	if created.StatusCode != http.StatusCreated || bytes.Contains(createdBody, []byte("<script")) {
+		t.Fatalf("generated API did not persist sanitized blocks: status=%d body=%s", created.StatusCode, createdBody)
+	}
+	var createdRecord map[string]any
+	if err := json.Unmarshal(createdBody, &createdRecord); err != nil {
+		t.Fatal(err)
+	}
+	var savedDocument editorDocument
+	if err := json.Unmarshal([]byte(createdRecord["body"].(string)), &savedDocument); err != nil || len(savedDocument.Blocks) != 1 || strings.Contains(savedDocument.Blocks[0].Data.Text, "<script") {
+		t.Fatalf("generated API stored untrusted block data: document=%#v err=%v", savedDocument, err)
+	}
+
+	invalidBody := `{"id":"block-1","title":"Unsafe update","body":"{\"blocks\":[{\"type\":\"image\",\"data\":{}}]}"}`
+	update, err := http.NewRequest(http.MethodPut, server.URL+"/api/v1/content_block/block-1", strings.NewReader(invalidBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	update.Header.Set("Content-Type", "application/json")
+	updated, err := http.DefaultClient.Do(update)
+	if err != nil {
+		t.Fatal(err)
+	}
+	updatedBody, _ := io.ReadAll(updated.Body)
+	_ = updated.Body.Close()
+	if updated.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid block update status=%d body=%s", updated.StatusCode, updatedBody)
+	}
+	stored, err := http.Get(server.URL + "/api/v1/content_block/block-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stored.Body.Close()
+	var afterRejectedUpdate map[string]any
+	if stored.StatusCode != http.StatusOK || json.NewDecoder(stored.Body).Decode(&afterRejectedUpdate) != nil || afterRejectedUpdate["title"] != "Safe block" {
+		t.Fatalf("rejected update changed the stored record: status=%d record=%#v", stored.StatusCode, afterRejectedUpdate)
 	}
 }
 
@@ -356,6 +470,9 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	if _, err := db.ExecContext(ctx, generatedmilestone.MigrationSQL); err != nil {
 		t.Fatalf("apply generated milestone migration: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, generatedcontentblock.MigrationSQL); err != nil {
+		t.Fatalf("apply generated content block migration: %v", err)
+	}
 	server := httptest.NewServer(NewHandler(db, "postgres"))
 	defer server.Close()
 
@@ -386,6 +503,23 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 		t.Fatalf("generated PostgreSQL milestone API create status=%d", milestoneCreate.StatusCode)
 	}
 	_ = milestoneCreate.Body.Close()
+	blockCreate := postJSON("/api/v1/content_block", `{"id":"pg-block","title":"PostgreSQL content block","body":"{\"blocks\":[{\"type\":\"paragraph\",\"data\":{\"text\":\"<b>Safe</b><script>alert(1)</script>\"}}]}"}`)
+	if blockCreate.StatusCode != http.StatusCreated {
+		t.Fatalf("generated PostgreSQL content block API create status=%d", blockCreate.StatusCode)
+	}
+	_ = blockCreate.Body.Close()
+	blockRead, err := http.Get(server.URL + "/api/v1/content_block/pg-block")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persistedBlock map[string]any
+	if err := json.NewDecoder(blockRead.Body).Decode(&persistedBlock); err != nil {
+		t.Fatal(err)
+	}
+	_ = blockRead.Body.Close()
+	if blockRead.StatusCode != http.StatusOK || !strings.Contains(persistedBlock["body"].(string), "Safe") || strings.Contains(persistedBlock["body"].(string), "<script") {
+		t.Fatalf("PostgreSQL generated block was not stored with sanitized content: status=%d body=%v", blockRead.StatusCode, persistedBlock["body"])
+	}
 	milestoneList, err := http.Get(server.URL + "/admin/resources/milestone?search=PostgreSQL")
 	if err != nil {
 		t.Fatal(err)
