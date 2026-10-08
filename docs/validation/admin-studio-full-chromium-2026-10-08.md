@@ -19,7 +19,7 @@ owned by another user.
 
 Validation completed:
 
-- Full Chromium suite: 66/66 passed, one worker, 4.3 minutes.
+- Full Chromium suite: 66/66 passed, one worker, 5.5 minutes.
 - Generated E2E generator package: `go test ./tools/e2egen -count=1` passed.
 - Full Go package suite: `TMPDIR=/var/tmp/hydro-go-tests go test ./... -count=1 -p 1 -timeout=5m` passed.
 - `go vet ./...` passed.
@@ -30,3 +30,27 @@ MFA and password recovery, dynamic Collections CRUD, generated Edition CRUD,
 relations/media, editorial workflow, public frontend journeys, and the
 metadata-generated Admin route smoke tests. SQLite-backed browser fixtures
 were used; this run does not replace PostgreSQL storage contract validation.
+
+## Opt-in locale and visual projects
+
+With `HYDRO_VISUAL=1`, locale and visual acceptance was run against an isolated
+SQLite demo fixture:
+
+- Locale/direction: 3/3 passed (Turkish LTR, Arabic RTL bounds, mixed-direction
+  text bounds).
+- Desktop visual baselines: 7/7 passed (public home/news and five Admin
+  surfaces).
+- Tablet and mobile visual projects could not launch WebKit. The Linux host is
+  missing the system libraries Playwright requires (`libicu74`, `libflite1`,
+  `libmanette-0.2-0`, among others); all 14 cases failed before page navigation
+  or screenshot comparison. These results do not indicate a visual mismatch.
+- Responsive viewport and Admin route fit checks within Chromium passed for
+  390px mobile and 768px tablet. They are Chromium layout checks, not WebKit
+  visual goldens.
+
+The opt-in run command was:
+
+```sh
+HYDRO_VISUAL=1 npm test -- --project=locale --project=visual-desktop \
+  --project=visual-tablet --project=visual-mobile --workers=1
+```
