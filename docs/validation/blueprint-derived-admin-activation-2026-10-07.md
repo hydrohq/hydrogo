@@ -94,3 +94,12 @@ This removes manual per-resource activation-list maintenance after Edition
 composition has been wired. It does not remove the deliberate one-time work of
 connecting the Edition API, policies, CSRF and shell identity, nor migration
 review, server startup, or first-browser-run validation.
+
+## Generated record edit theme accessibility follow-up — 2026-10-08
+
+The native generated Project Edition's real record-edit screen now receives an
+axe-core WCAG 2.1 A/AA scan under HydroGo, shadcn, Nova, and Aurora themes in
+both light and dark modes. All eight variants passed as part of the full
+generated CRUD browser journey (create, search/filter, edit, delete): 1/1
+Chromium test. The list and generated create form theme checks remain covered
+by the same journey.
