@@ -1,19 +1,37 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
 	staticassets "github.com/ardaozyildirim/hydrogo/static"
 )
 
 func main() {
+	var editorialStore *postgresEditorialStore
+	if dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL"); dsn != "" {
+		var err error
+		editorialStore, err = openPostgresEditorialStore(dsn)
+		if err != nil {
+			panic(err)
+		}
+	}
+	if editorialStore != nil {
+		defer editorialStore.Close()
+	}
+
 	registry, err := adminstudio.NewRegistry([]adminstudio.Collection{
 		{ID: "author", Label: "Authors", TitleField: "name", Fields: []adminstudio.Field{{ID: "name", Label: "Name", Kind: adminstudio.FieldText}}, Actions: []adminstudio.Action{{Label: "Authors", Href: "/admin/resources/author"}}},
 		{
@@ -57,6 +75,33 @@ func main() {
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/api/v1/story") {
+			if editorialStore != nil {
+				if r.Method != http.MethodGet {
+					writeError(w, http.StatusMethodNotAllowed)
+					return
+				}
+				if r.URL.Path == "/api/v1/story" {
+					stories, err := editorialStore.PublishedList()
+					if err != nil {
+						writeError(w, http.StatusInternalServerError)
+						return
+					}
+					writeJSON(w, http.StatusOK, stories)
+					return
+				}
+				id := strings.TrimPrefix(r.URL.Path, "/api/v1/story/")
+				story, err := editorialStore.Published(id)
+				if errors.Is(err, sql.ErrNoRows) {
+					http.NotFound(w, r)
+					return
+				}
+				if err != nil {
+					writeError(w, http.StatusInternalServerError)
+					return
+				}
+				writeJSON(w, http.StatusOK, story)
+				return
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if r.Method != http.MethodGet {
@@ -181,6 +226,9 @@ func main() {
 			if collection.ID != "story" || limit != 50 {
 				return nil, fmt.Errorf("unexpected draft list request: %s limit=%d", collection.ID, limit)
 			}
+			if editorialStore != nil {
+				return editorialStore.Drafts(locale, limit)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if locale == "tr" {
@@ -199,6 +247,12 @@ func main() {
 			return result, nil
 		},
 		GetDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string) (adminstudio.DraftDocument, error) {
+			if editorialStore != nil {
+				if collection.ID != "story" {
+					return adminstudio.DraftDocument{}, fmt.Errorf("draft not found")
+				}
+				return editorialStore.Draft(id, locale)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if collection.ID != "story" {
@@ -220,6 +274,12 @@ func main() {
 			return collection.ID == "story" && id == "story-1" && (locale == "en" || locale == "tr")
 		},
 		SaveDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string, fields map[string]any, expectedDraft, expectedPublished int64) error {
+			if editorialStore != nil {
+				if collection.ID != "story" || id != "story-1" || locale != "en" && locale != "tr" {
+					return fmt.Errorf("draft changed")
+				}
+				return editorialStore.SaveDraft(id, locale, fields, expectedDraft, expectedPublished)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			current := &draft
@@ -237,6 +297,12 @@ func main() {
 			return collection.ID == "story" && target == adminstudio.StatePublished && (current.State == "review" || current.State == adminstudio.StateDraft)
 		},
 		TransitionDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string, target adminstudio.PublicationState, expectedDraft, expectedPublished int64) error {
+			if editorialStore != nil {
+				if collection.ID != "story" || id != "story-1" || target != adminstudio.StatePublished || locale != "en" && locale != "tr" {
+					return fmt.Errorf("draft changed")
+				}
+				return editorialStore.PublishDraft(id, locale, expectedDraft, expectedPublished)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			current := &draft
@@ -259,7 +325,13 @@ func main() {
 		CanDiscardDraft: func(_ *http.Request, collection adminstudio.Collection, current adminstudio.DraftDocument) bool {
 			return collection.ID == "story" && current.Exists
 		},
-		DiscardDraft: func(_ *http.Request, collection adminstudio.Collection, id, _ string, expected int64) error {
+		DiscardDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string, expected int64) error {
+			if editorialStore != nil {
+				if collection.ID != "story" {
+					return fmt.Errorf("draft changed")
+				}
+				return editorialStore.DiscardDraft(id, locale, expected)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if collection.ID != "story" || id != discardDraft.ID || expected != discardDraft.Version {
@@ -275,6 +347,12 @@ func main() {
 			return adminstudio.LocaleOptions{Default: "en", Allowed: []string{"en", "tr"}}, nil
 		},
 		GetLocalized: func(_ *http.Request, collection adminstudio.Collection, id, locale string) (map[string]any, int64, error) {
+			if editorialStore != nil {
+				if collection.ID != "story" || id != "story-1" || locale != "tr" {
+					return nil, 0, fmt.Errorf("translation not found")
+				}
+				return editorialStore.Localized(id, locale)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if collection.ID != "story" || id != "story-1" || locale != "tr" {
@@ -283,6 +361,12 @@ func main() {
 			return clone(localizedStory[locale]), 1, nil
 		},
 		SaveLocalized: func(_ *http.Request, collection adminstudio.Collection, id, locale string, fields map[string]any, expected int64) error {
+			if editorialStore != nil {
+				if collection.ID != "story" || id != "story-1" || locale != "tr" {
+					return fmt.Errorf("translation changed")
+				}
+				return editorialStore.SaveLocalized(id, locale, fields, expected)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if collection.ID != "story" || id != "story-1" || locale != "tr" || expected != 1 {
@@ -292,6 +376,22 @@ func main() {
 			return nil
 		},
 		ListLocalized: func(_ *http.Request, collection adminstudio.Collection, ids []string, locale string) (map[string]map[string]any, error) {
+			if editorialStore != nil {
+				if collection.ID != "story" || locale != "tr" {
+					return nil, fmt.Errorf("unexpected translation list")
+				}
+				result := make(map[string]map[string]any, len(ids))
+				for _, id := range ids {
+					fields, _, err := editorialStore.Localized(id, locale)
+					if err != nil {
+						return nil, err
+					}
+					if len(fields) > 0 {
+						result[id] = fields
+					}
+				}
+				return result, nil
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if collection.ID != "story" || locale != "tr" {
@@ -309,6 +409,12 @@ func main() {
 			return collection.ID == "story" && id == "story-1" && from == "en"
 		},
 		CopyLocale: func(_ *http.Request, collection adminstudio.Collection, id, from, to string, expected int64) error {
+			if editorialStore != nil {
+				if collection.ID != "story" || id != "story-1" || from != "en" || to != "tr" {
+					return fmt.Errorf("translation copy rejected")
+				}
+				return editorialStore.CopyLocale(id, from, to, expected)
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			if collection.ID != "story" || id != "story-1" || from != "en" || to != "tr" || expected != 1 {
@@ -345,8 +451,23 @@ func main() {
 	if address == "" {
 		address = "127.0.0.1:8093"
 	}
-	if err := http.ListenAndServe(address, mux); err != nil {
-		panic(err)
+	server := &http.Server{Addr: address, Handler: mux}
+	serveErrors := make(chan error, 1)
+	go func() { serveErrors <- server.ListenAndServe() }()
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(signals)
+	select {
+	case err := <-serveErrors:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			panic(err)
+		}
+	case <-signals:
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			panic(err)
+		}
 	}
 }
 
