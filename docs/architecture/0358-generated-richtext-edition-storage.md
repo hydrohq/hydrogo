@@ -122,6 +122,8 @@ Admin shell. There is no asset download, external CDN, or worker lifecycle.
 - The same test runs against the generated Edition migration on SQLite and
   PostgreSQL 18. It checks the embedded Quill asset response and the stored
   Quill Delta formatting. PostgreSQL uses a `NOSUPERUSER NOBYPASSRLS` role.
+- Rich-text create/edit forms pass the WCAG 2.1 A/AA axe scan; the create form
+  has no horizontal overflow at a 390px viewport.
 - Generator migration metadata, moduleguard, migrationguard, assetguard, and
   Edition importguards are required release checks.
 

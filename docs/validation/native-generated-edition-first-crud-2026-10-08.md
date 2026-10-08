@@ -76,6 +76,11 @@ The latest browser test times were 16.7 s total on SQLite and 16.4 s on
 PostgreSQL, including Playwright/Chromium startup, generated Edition migration,
 server startup, and the existing CRUD plus rich-text journeys.
 
+The rich-text create and edit pages also pass the WCAG 2.1 A/AA axe scan. The
+create page has no horizontal overflow at a 390px viewport. These checks passed
+in the SQLite Chromium run (16.6 s total) and the PostgreSQL Chromium run
+(16.6 s total).
+
 Commands:
 
 ```sh
