@@ -829,10 +829,13 @@ func TestGeneratedAdminTemplatesUseBlockEditorContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(content)
-	for _, marker := range []string{"ui.BlockEditor", `PreviewURL: "/api/preview"`, "Nonce: view.Nonce"} {
+	for _, marker := range []string{"ui.BlockEditor", "Nonce: view.Nonce"} {
 		if !strings.Contains(text, marker) {
 			t.Fatalf("generated form missing %q: %s", marker, text)
 		}
+	}
+	if strings.Contains(text, "/api/preview") {
+		t.Fatalf("generated form invented an Edition preview route: %s", text)
 	}
 }
 

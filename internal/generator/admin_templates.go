@@ -172,7 +172,7 @@ templ {{.Name}}FormFields(view {{.Name}}FormView) {
 {{- if eq .Widget "select"}}
 	@ui.Select(ui.SelectProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Options: []string{ {{range $i, $option := .Options}}{{if $i}}, {{end}}{{printf "%q" $option}}{{end}} }, Required: {{.Required}}})
 {{- else if eq .Widget "block-editor"}}
-	@ui.BlockEditor(ui.BlockEditorProps{ID: "{{.Name}}-editor", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Nonce: view.Nonce, PreviewURL: "/api/preview"})
+	@ui.BlockEditor(ui.BlockEditorProps{ID: "{{.Name}}-editor", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Nonce: view.Nonce})
 {{- else if eq .Widget "relation"}}
 	@ui.Select(ui.SelectProps{ID: "{{.Name}}", Name: "{{.Name}}", Label: "{{.Label}}", Value: view.Values[{{printf "%q" .Name}}], Options: view.RelationOptions[{{printf "%q" .Name}}], Required: {{.Required}}})
 {{- else if eq .Widget "media"}}
