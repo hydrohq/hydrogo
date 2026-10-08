@@ -45,7 +45,10 @@ The browser editor/publish journey uses an in-memory Edition API and callback
 fixture; it validates the UI contract and state returned by those callbacks.
 Persistent generated Admin HTTP composition is separately exercised against
 SQLite and PostgreSQL, including reconnecting after draft save, stale-write
-conflicts, review, publish, revision restore, and locale save/copy. That is not
-a PostgreSQL browser run. Scheduling and live tenant isolation remain separate
+conflicts, review, publish, revision restore, and locale save/copy. The same
+six generated rich-text Chromium scenarios also pass with a PostgreSQL-backed
+story draft/locale fixture. That fixture uses synthetic tables; it does not run
+the production Edition migrations, and article rich-text/relation/media records
+remain in-memory. Scheduling and live tenant isolation remain separate
 acceptance cases. The browser path found and fixed locale propagation on
 workflow submissions and query-safe locale navigation in generated lists.
