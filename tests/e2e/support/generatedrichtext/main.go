@@ -119,6 +119,10 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
+		if editorialStore != nil {
+			handlePostgresArticleAPI(w, r, editorialStore)
+			return
+		}
 		parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/v1/article"), "/"), "/")
 		if r.URL.Path == "/api/v1/article" {
 			if r.Method == http.MethodPost {
@@ -468,6 +472,84 @@ func main() {
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
+	}
+}
+
+func handlePostgresArticleAPI(w http.ResponseWriter, r *http.Request, store *postgresEditorialStore) {
+	const collectionPath = "/api/v1/article"
+	path := strings.TrimSuffix(r.URL.Path, "/")
+	if path == collectionPath {
+		if r.Method == http.MethodGet {
+			articles, err := store.Articles()
+			if err != nil {
+				writeError(w, http.StatusInternalServerError)
+				return
+			}
+			writeJSON(w, http.StatusOK, articles)
+			return
+		}
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed)
+			return
+		}
+		var article map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&article); err != nil {
+			writeError(w, http.StatusBadRequest)
+			return
+		}
+		created, err := store.CreateArticle(article)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusCreated, created)
+		return
+	}
+	id := strings.TrimPrefix(path, collectionPath+"/")
+	if id == path || id == "" || strings.Contains(id, "/") {
+		writeError(w, http.StatusNotFound)
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		article, err := store.Article(id)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, article)
+	case http.MethodPut, http.MethodPost:
+		var article map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&article); err != nil {
+			writeError(w, http.StatusBadRequest)
+			return
+		}
+		updated, err := store.UpdateArticle(id, article)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, errPostgresArticleConflict) {
+			writeError(w, http.StatusConflict)
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, updated)
+	case http.MethodDelete:
+		if err := store.DeleteArticle(id); err != nil {
+			writeError(w, http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeError(w, http.StatusMethodNotAllowed)
 	}
 }
 
