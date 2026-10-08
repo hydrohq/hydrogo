@@ -18,11 +18,12 @@ The test creates only synthetic tables in its isolated schema and drops that
 schema on cleanup. It does not execute product migrations.
 
 The generated rich-text Playwright fixture also supports opt-in PostgreSQL
-storage for story drafts and locales. The six real Chromium scenarios passed
-6/6 with that storage enabled, including localized publish, review/publish, and
-draft discard. Article rich-text/relation/media records in that fixture remain
-in-memory; this is not the production Project Edition migration/browser path.
-The default in-memory Chromium suite passed 6/6 as well.
+storage for story drafts, locales, and generated Admin article CRUD. The six
+real Chromium scenarios passed 6/6 with that storage enabled, including
+formatted body and relation/media round trips, stale edit conflict, localized
+publish, review/publish, and draft discard. Article and editorial tables are
+synthetic test-fixture schema; this does not execute the production Project
+Edition article migration. The default in-memory Chromium suite passed 6/6 too.
 
 SQLite and PostgreSQL full repository Go suites both passed after these tests
 were added. The temporary PostgreSQL container was stopped, and the fixture's

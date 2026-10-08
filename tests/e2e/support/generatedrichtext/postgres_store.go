@@ -19,6 +19,8 @@ type postgresEditorialStore struct {
 	schema  string
 }
 
+var errPostgresArticleConflict = errors.New("generated article version conflict")
+
 func openPostgresEditorialStore(dsn string) (*postgresEditorialStore, error) {
 	ctx := context.Background()
 	adminDB, err := database.Open(ctx, database.Postgres, dsn)
@@ -63,6 +65,7 @@ func (s *postgresEditorialStore) Close() error {
 
 func (s *postgresEditorialStore) initialize(ctx context.Context) error {
 	for _, statement := range []string{
+		`CREATE TABLE articles (id TEXT PRIMARY KEY, title TEXT NOT NULL, author_id TEXT, cover_id TEXT, body JSONB, version BIGINT NOT NULL)`,
 		`CREATE TABLE stories (id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL, version BIGINT NOT NULL)`,
 		`CREATE TABLE stories_drafts (resource_id TEXT NOT NULL, locale TEXT NOT NULL, version BIGINT NOT NULL, published_version BIGINT NOT NULL, state TEXT NOT NULL, snapshot JSONB NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(resource_id, locale))`,
 		`CREATE TABLE stories_locales (resource_id TEXT NOT NULL, locale TEXT NOT NULL, version BIGINT NOT NULL, values_json JSONB NOT NULL, PRIMARY KEY(resource_id, locale))`,
@@ -94,6 +97,108 @@ func (s *postgresEditorialStore) initialize(ctx context.Context) error {
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO stories_locales(resource_id,locale,version,values_json) VALUES($1,$2,$3,$4)`, "story-1", "tr", 1, []byte(`{"title":"Yayımlanmış Türkçe metin"}`))
 	return err
+}
+
+func (s *postgresEditorialStore) Articles() ([]map[string]any, error) {
+	rows, err := s.db.Query(`SELECT id,title,author_id,cover_id,body,version FROM articles ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []map[string]any
+	for rows.Next() {
+		article, err := scanArticle(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, article)
+	}
+	return result, rows.Err()
+}
+
+func (s *postgresEditorialStore) Article(id string) (map[string]any, error) {
+	return scanArticle(s.db.QueryRow(`SELECT id,title,author_id,cover_id,body,version FROM articles WHERE id=$1`, id))
+}
+
+func (s *postgresEditorialStore) CreateArticle(article map[string]any) (map[string]any, error) {
+	id, _ := article["id"].(string)
+	if id == "" {
+		id = "article-" + fmt.Sprint(time.Now().UnixNano())
+	}
+	body, err := json.Marshal(article["body"])
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.db.Exec(`INSERT INTO articles(id,title,author_id,cover_id,body,version) VALUES($1,$2,$3,$4,$5,1)`, id, article["title"], optionalString(article["author_id"]), optionalString(article["cover_id"]), body)
+	if err != nil {
+		return nil, err
+	}
+	return s.Article(id)
+}
+
+func (s *postgresEditorialStore) UpdateArticle(id string, article map[string]any) (map[string]any, error) {
+	version, _ := article["version"].(float64)
+	body, err := json.Marshal(article["body"])
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.db.Exec(`UPDATE articles SET title=$1,author_id=$2,cover_id=$3,body=$4,version=version+1 WHERE id=$5 AND version=$6`, article["title"], optionalString(article["author_id"]), optionalString(article["cover_id"]), body, id, int64(version))
+	if err != nil {
+		return nil, err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		if _, lookupErr := s.Article(id); errors.Is(lookupErr, sql.ErrNoRows) {
+			return nil, sql.ErrNoRows
+		} else if lookupErr != nil {
+			return nil, lookupErr
+		}
+		return nil, errPostgresArticleConflict
+	}
+	return s.Article(id)
+}
+
+func (s *postgresEditorialStore) DeleteArticle(id string) error {
+	_, err := s.db.Exec(`DELETE FROM articles WHERE id=$1`, id)
+	return err
+}
+
+func scanArticle(row interface{ Scan(...any) error }) (map[string]any, error) {
+	var id, title string
+	var authorID, coverID sql.NullString
+	var body []byte
+	var version int64
+	if err := row.Scan(&id, &title, &authorID, &coverID, &body, &version); err != nil {
+		return nil, err
+	}
+	var bodyValue any
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &bodyValue); err != nil {
+			return nil, err
+		}
+	}
+	return map[string]any{
+		"id": id, "title": title, "author_id": nullableString(authorID),
+		"cover_id": nullableString(coverID), "body": bodyValue, "version": float64(version),
+	}, nil
+}
+
+func optionalString(value any) any {
+	text, _ := value.(string)
+	if text == "" {
+		return nil
+	}
+	return text
+}
+
+func nullableString(value sql.NullString) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
 }
 
 func (s *postgresEditorialStore) Published(id string) (map[string]any, error) {
