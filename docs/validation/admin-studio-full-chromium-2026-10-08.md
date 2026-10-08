@@ -1,8 +1,26 @@
 # Admin Studio full Chromium acceptance run
 
 **Date:** 2026-10-08  
-**Result:** 66/66 Chromium tests passed after repairing generated Admin test
+**Result:** 67/67 Chromium tests passed after repairing generated Admin test
 session recovery and keeping MFA screenshots in the isolated test directory.
+
+## Latest full rerun
+
+The full suite was rerun on the current `main` revision with a fresh isolated
+SQLite Edition, demo seed, temporary administrator, and generated storage
+state. It passed **67/67** in 5.4 minutes. The earlier attempt without this
+fixture was stopped after its expected connection-refused failures against
+`127.0.0.1:8090`; no product failure was inferred from that invalid setup.
+
+```sh
+export HYDRO_E2E_BASE_URL=http://127.0.0.1:8090
+export HYDRO_E2E_STORAGE_STATE="$TMPDIR/full-chromium-fixture/auth-state.json"
+export HYDRO_E2E_ADMIN_EMAIL=admin-e2e@example.test
+export HYDRO_E2E_ADMIN_PASSWORD='<temporary test password>'
+TMPDIR=/home/arda/hydrogo/.tmp/pw-system-tmp npx playwright test \
+  --project=chromium --workers=1 --reporter=line --trace=off \
+  --output=/home/arda/hydrogo/.tmp/chromium-full-fixture
+```
 
 The full browser suite needs a demo Edition, seeded content, an Admin account,
 and a Playwright storage state. Running it without that fixture produced
@@ -19,7 +37,8 @@ owned by another user.
 
 Validation completed:
 
-- Full Chromium suite: 66/66 passed, one worker, 5.5 minutes.
+- Previous full Chromium suite: 66/66 passed, one worker, 5.5 minutes. The
+  latest rerun above includes the additional current test and passed 67/67.
 - Generated E2E generator package: `go test ./tools/e2egen -count=1` passed.
 - Full Go package suite: `TMPDIR=/var/tmp/hydro-go-tests go test ./... -count=1 -p 1 -timeout=5m` passed.
 - `go vet ./...` passed.
