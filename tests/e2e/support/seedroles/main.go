@@ -14,17 +14,19 @@ import (
 
 func main() {
 	dsn := flag.String("database-dsn", "", "SQLite database path")
+	dialect := flag.String("database-dialect", string(database.SQLite), "database dialect")
 	flag.Parse()
 	if *dsn == "" {
 		log.Fatal("--database-dsn is required")
 	}
 	ctx := context.Background()
-	db, err := database.Open(ctx, database.SQLite, *dsn)
+	dbDialect := database.Dialect(*dialect)
+	db, err := database.Open(ctx, dbDialect, *dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	users := sqlstore.NewUserStore(db, database.SQLite)
+	users := sqlstore.NewUserStore(db, dbDialect)
 	service := auth.NewAuthService(users, nil, nil, auth.DefaultArgon2Params)
 	for _, account := range []struct {
 		email string

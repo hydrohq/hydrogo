@@ -19,13 +19,20 @@ test.describe("single Edition administrator management", () => {
   test.describe.configure({ mode: "serial" });
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-management-"));
-    const database = path.join(tempDir, "edition.sqlite");
-    execFileSync("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
-    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
+    const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
+    if (dialect === "postgres" && !process.env.HYDRO_E2E_DATABASE_DSN) {
+      throw new Error("HYDRO_E2E_DATABASE_DSN is required for the PostgreSQL Admin management run");
+    }
+    if (dialect === "postgres" && !process.env.HYDRO_PG_PRIVILEGED_ROLE) {
+      throw new Error("HYDRO_PG_PRIVILEGED_ROLE must name the PostgreSQL backup operator role for the Admin management run");
+    }
+    execFileSync("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawnServer("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) } });
+    server = spawnServer("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", dialect, "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) } });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
@@ -768,7 +775,10 @@ test.describe("single Edition administrator management", () => {
   });
 
   test("real invitation link creates a usable Edition editor account", async ({ browser }) => {
-    const token = execFileSync("go", ["run", "./tests/e2e/support/seedinvite", "--database-dsn", path.join(tempDir, "edition.sqlite"), "--email", "invited-editor@example.test"], { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    test.setTimeout(120_000);
+    const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
+    const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
+    const token = execFileSync("go", ["run", "./tests/e2e/support/seedinvite", "--database-dialect", dialect, "--database-dsn", database, "--email", "invited-editor@example.test"], { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
@@ -802,7 +812,17 @@ test.describe("single Edition administrator management", () => {
     await expect(page.getByRole("status")).toContainText("Your account is ready");
     await page.getByLabel("Email address").fill("invited-editor@example.test");
     await page.getByLabel("Password").fill("Lime-Train7!Harbor");
+    const loginResponse = page.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
     await page.getByRole("button", { name: "Sign in" }).click();
+    let loginResult = await loginResponse;
+    if (loginResult.status() === 429) {
+      const retryAfterSeconds = Number(loginResult.headers()["retry-after"] ?? "60");
+      await page.waitForTimeout((retryAfterSeconds + 1) * 1000);
+      const retryResponse = page.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
+      await page.getByRole("button", { name: "Sign in" }).click();
+      loginResult = await retryResponse;
+    }
+    expect(loginResult.status(), "invited editor login must authenticate").toBe(200);
     await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
     await expect(page.locator('body[data-studio-role="editor"]')).toBeVisible();
     await context.close();
