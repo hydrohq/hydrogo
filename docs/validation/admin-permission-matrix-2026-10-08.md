@@ -34,6 +34,9 @@ Testler şu davranışları doğrular:
   alması.
 - Editor ve viewer'ın rol, permission, disable, invitation ve password-reset
   user-management mutation endpoint'lerinden `403` alması.
+- Editor ve viewer'ın geçerli CSRF tokenıyla IP ban ekleme/kaldırma ve backup
+  POST'larından `403` alması; geçerli CSRF admin/user management akışlarının
+  kendi izin kurallarına göre çalışması.
 
 İlgili Chromium doğrulama komutu:
 
