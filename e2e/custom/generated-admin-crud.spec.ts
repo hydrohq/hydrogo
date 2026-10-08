@@ -173,6 +173,14 @@ test.describe("generated Edition Admin CRUD", () => {
     const quillAsset = await request.get(`${baseURL}/vendor/quill/quill.js`);
     expect(quillAsset.status()).toBe(200);
     expect(quillAsset.headers()["content-type"]).toContain("javascript");
+    const rejectedArticle = await request.post(`${baseURL}/api/v1/article`, {
+      data: { title: "Invalid article", body: "" },
+    });
+    expect(rejectedArticle.status()).toBe(422);
+    expect(await rejectedArticle.json()).toMatchObject({
+      code: "validation_failed",
+      fields: { body: "required" },
+    });
     await page.goto(`${baseURL}/admin/resources/article`);
     await page.getByRole("link", { name: "Yeni kayıt" }).click();
     const articleForm = page.locator('form[action="/admin/resources/article/new"]');
