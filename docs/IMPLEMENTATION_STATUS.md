@@ -50,10 +50,11 @@ cells remain open. Evidence:
 
 2026-10-09 Admin CSRF follow-up: Editor and Viewer requests to every same-origin
 POST action discovered on ten privileged Admin pages are rejected with 403
-when the CSRF token is valid, missing, or mismatched. The full five-test
+when the CSRF token is valid, missing, or mismatched. Admin sessions also
+receive 403 for missing/mismatched tokens at each target. The full five-test
 Admin-management Chromium file passed on SQLite and PostgreSQL 18.6. This
-covers rendered privileged targets only; API-only/module routes and per-target
-persisted-state checks remain open. Evidence:
+covers rendered targets only; valid-CSRF Admin writes, API-only/module routes,
+and per-target persisted-state checks remain open. Evidence:
 `admin-rendered-post-csrf-matrix-2026-10-09.md`.
 
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
