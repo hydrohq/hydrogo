@@ -64,6 +64,26 @@ The focused PostgreSQL test does not download a backup; the operator role value
 only satisfies the shared fixture's configuration check. The disposable
 PostgreSQL 18 database was removed after the run.
 
+## Full Admin management suite rerun — 2026-10-09
+
+The complete five-test Chromium file passed 5/5 in 1.9 minutes, including the
+authenticated Editor/Viewer role journey, all listed Admin management routes,
+permission-denied account behavior, mobile/tablet layout, invitation link
+creation/error feedback, and WCAG 2.1 A/AA scans across four Studio themes in
+both color modes.
+
+The browser file now restarts its server process between passing serial test
+journeys while retaining the same database. This isolates each journey from the
+real process-local limit of five login attempts per IP per minute; it does not
+change or bypass that production limit within any individual journey. SQLite
+users, permissions, and DB-backed sessions persist across each restart.
+
+```sh
+cd e2e
+npx playwright test --project=chromium --workers=1 custom/admin-management.spec.ts \
+  --reporter=line --trace=off
+```
+
 ## Result
 
 Commands:

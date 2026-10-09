@@ -10,6 +10,8 @@ const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
 const backupSigningSeed = "ab".repeat(32);
 let server: ChildProcess | undefined;
+let serverArgs: string[] = [];
+let serverEnv: Record<string, string | undefined> = {};
 let tempDir = "";
 let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
@@ -32,20 +34,18 @@ test.describe("single Edition administrator management", () => {
     runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawnServer("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", dialect, "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) } });
-    const deadline = Date.now() + 45_000;
-    while (Date.now() < deadline) {
-      if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
-      try {
-        const response = await fetch(`${baseURL}/healthz`);
-        if (response.ok) return;
-      } catch {
-        // Wait while the Go command compiles and starts the local test server.
-      }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-    throw new Error("HydroGo server did not become healthy within 45 seconds");
+    serverArgs = ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", dialect, "--database-dsn", database, "--address", `127.0.0.1:${port}`];
+    serverEnv = { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) };
+    await startAdminServer();
   }, 60_000);
+
+  test.afterEach(async ({}, testInfo) => {
+    if (testInfo.status !== "passed") return;
+    // Reset the process-local IP login budget between independent browser journeys.
+    // Keep the same DB so users, permissions, and sessions remain available.
+    await stopServer(server);
+    await startAdminServer();
+  });
 
   test.afterAll(async () => {
     await stopServer(server);
@@ -1033,6 +1033,22 @@ test.describe("single Edition administrator management", () => {
 
 
 });
+
+async function startAdminServer(): Promise<void> {
+  server = spawnServer("go", serverArgs, { cwd: repoRoot, stdio: "ignore", env: serverEnv });
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
+    try {
+      const response = await fetch(`${baseURL}/healthz`);
+      if (response.ok) return;
+    } catch {
+      // Wait while the Go command compiles and starts the local test server.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error("HydroGo server did not become healthy within 45 seconds");
+}
 
 async function unusedPort(): Promise<number> {
   return new Promise((resolve, reject) => {
