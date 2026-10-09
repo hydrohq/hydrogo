@@ -385,11 +385,16 @@ directly as well as checking its navigation visibility. An Editor with
 A Viewer cannot see the navigation link and receives 403 on the direct GET.
 The Viewer also submits a valid-CSRF POST with no file and receives 403 before
 the handler's multipart/file validation. The focused Chromium role-boundary
-journey passed 1/1 with Playwright trace disabled; this verifies SQLite-backed
-route authorization and browser behavior, not successful file import parsing
-or PostgreSQL behavior.
+journey passed 1/1 on both SQLite and PostgreSQL with Playwright trace disabled.
+This verifies route authorization and browser behavior, not successful file
+import parsing or PostgreSQL migration/deployment behavior.
 
 ```sh
+npx playwright test --project=chromium --workers=1 custom/admin-management.spec.ts \
+  --grep 'editor and viewer sessions enforce' --reporter=line --trace=off
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+HYDRO_E2E_DATABASE_DSN='postgres://arda@/hydro_admin_import_20261009?host=/run/postgresql&sslmode=disable' \
+HYDRO_PG_PRIVILEGED_ROLE=arda \
 npx playwright test --project=chromium --workers=1 custom/admin-management.spec.ts \
   --grep 'editor and viewer sessions enforce' --reporter=line --trace=off
 ```
