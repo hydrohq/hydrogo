@@ -203,3 +203,15 @@ including save failure/retry, block round-trip and this read-only navigation.
 The browser server uses test-only identity headers and SQLite fixtures. These
 results do not certify production session middleware or PostgreSQL for this
 external Edition fixture.
+
+## Record-level update and delete policy — 2026-10-09
+
+The fixture now seeds an article which the editor may read but may not update
+or delete. The generated Admin shows a read-only detail with no mutation forms;
+direct Admin and resource API update/delete requests return 403, and API
+readback proves the title is unchanged. A different article remains editable
+by the same editor. The external Edition Playwright file passed 2/2 on both
+SQLite and PostgreSQL 18.6. The nested Edition `go test ./...`, vet, and
+`importguard` passed. This is a test Edition record-policy fixture, not a
+production policy implementation; its test-only identity headers keep
+production login/session integration open.

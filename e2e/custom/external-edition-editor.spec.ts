@@ -25,17 +25,26 @@ test.describe("independent Edition generated Admin editor journey", () => {
   test("editor completes generated CRUD while viewer remains read-only", async ({ browser, request }) => {
     const tenant = `e2e-${randomUUID()}`;
     const roleHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "editor" };
+    const adminHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "admin" };
     const editorContext = await browser.newContext({ extraHTTPHeaders: roleHeaders });
     const page = await editorContext.newPage();
     const viewerContext = await browser.newContext({ extraHTTPHeaders: { "X-Test-Tenant": tenant, "X-Test-Role": "viewer" } });
     await page.addInitScript({ path: path.resolve("node_modules/axe-core/axe.min.js") });
+    const lockedID = `locked-${randomUUID()}`;
+    const lockedTitle = "Policy protected record";
 
     try {
+      const seededLockedRecord = await request.post(`${externalOrigin}/api/v1/article`, {
+        headers: adminHeaders,
+        data: { id: lockedID, title: lockedTitle },
+      });
+      expect(seededLockedRecord.status()).toBe(201);
       const listResponse = await page.goto(`${externalOrigin}/admin/resources/article`);
       expect(listResponse?.status()).toBe(200);
       await dismissOnboarding(page);
       await expect(page.locator('body[data-studio-role="editor"]')).toBeVisible();
       await expect(page.getByRole("heading", { name: "Articles" })).toBeVisible();
+      await expect(page.getByRole("link", { name: lockedTitle })).toBeVisible();
       await expectNoA11yViolations(page, "editor resource list");
 
       await page.setViewportSize({ width: 390, height: 844 });
@@ -97,6 +106,36 @@ test.describe("independent Edition generated Admin editor journey", () => {
       const updated = await request.get(`${externalOrigin}${apiPath}`, { headers });
       expect(updated.status()).toBe(200);
       expect((await updated.json()).title).toBe(`${title} updated`);
+
+      const lockedRecordLink = page.getByRole("link", { name: lockedTitle });
+      const lockedRecordPath = await lockedRecordLink.getAttribute("href");
+      expect(lockedRecordPath).toBe(`/admin/resources/article/${lockedID}`);
+      await lockedRecordLink.click();
+      await expect(page).toHaveURL(new RegExp(`${lockedID}$`));
+      await expect(page.locator(`form[action="${lockedRecordPath}"]`)).toHaveCount(0);
+      await expect(page.locator(`form[action="${lockedRecordPath}/delete"]`)).toHaveCount(0);
+      await expect(page.getByText(lockedTitle, { exact: true })).toBeVisible();
+      await expectNoA11yViolations(page, "editor read-only record detail");
+      const adminUpdate = await request.post(`${externalOrigin}${lockedRecordPath}`, {
+        headers,
+        form: { _csrf: "external-edition-test-token", title: "Must remain protected" },
+      });
+      expect(adminUpdate.status()).toBe(403);
+      const adminDelete = await request.post(`${externalOrigin}${lockedRecordPath}/delete`, {
+        headers,
+        form: { _csrf: "external-edition-test-token" },
+      });
+      expect(adminDelete.status()).toBe(403);
+      const apiUpdate = await request.put(`${externalOrigin}/api/v1/article/${lockedID}`, {
+        headers,
+        data: { title: "Must remain protected" },
+      });
+      expect(apiUpdate.status()).toBe(403);
+      const apiDelete = await request.delete(`${externalOrigin}/api/v1/article/${lockedID}`, { headers });
+      expect(apiDelete.status()).toBe(403);
+      const lockedReadback = await request.get(`${externalOrigin}/api/v1/article/${lockedID}`, { headers: adminHeaders });
+      expect(lockedReadback.status()).toBe(200);
+      expect((await lockedReadback.json()).title).toBe(lockedTitle);
 
       const viewerHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "viewer" };
       const viewerList = await request.get(`${externalOrigin}/admin/resources/article`, { headers: viewerHeaders });
