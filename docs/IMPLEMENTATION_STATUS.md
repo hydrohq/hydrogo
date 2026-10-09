@@ -331,6 +331,14 @@ go test ./... -p 1 -timeout=5m
 Test sonucu ve gözlem süresi `docs/validation/` altında tarihli rapor olarak
 eklenmelidir. Şifre veya token raporlara yazılmaz.
 
+2026-10-09 Admin Studio E2E recheck: `e2e` dependencies were installed
+offline from npm cache and Playwright discovered the two independent Edition
+CRUD/media journeys. The SQLite fixture opened/migrated and composed its
+routes, then could not bind `127.0.0.1:8099` (`socket: operation not
+permitted`). Browser assertions remain unexecuted; run on a loopback-capable
+runner. `HYDRO_TEST_POSTGRES_URL` is unset in this checkout, so no PostgreSQL
+result is inferred.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
