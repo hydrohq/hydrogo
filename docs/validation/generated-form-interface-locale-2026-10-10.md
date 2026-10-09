@@ -75,7 +75,7 @@ All three Go packages passed tests and vet; the UI detector returned no findings
 
 ## Generated widget browser regression
 
-`e2e/custom/generated-richtext.spec.ts` now includes an English-to-Turkish browser scenario against the generated Edition fixture. It checks array add controls, media empty/chooser controls, rich-text toolbar accessible names, and the block preview message, including absence of Turkish copy under English locale. Playwright discovery passed and listed the case (1/1). Execution was attempted with:
+`e2e/custom/generated-richtext.spec.ts` now includes an English-to-Turkish browser scenario against the generated Edition fixture. It checks array add controls, media empty/chooser/remove controls and image alt, every rich-text toolbar accessible name, and the block preview message. The Turkish half checks the corresponding catalog values; the English half also checks Turkish copy is absent. Playwright discovery passed and listed the case (1/1). Execution was attempted with:
 
 ```sh
 cd e2e && TMPDIR=/tmp GOCACHE=/tmp/hydro-admin-gocache npm exec playwright test custom/generated-richtext.spec.ts -- --project=chromium --workers=1 --grep 'widget controls follow' --reporter=line --trace=off
