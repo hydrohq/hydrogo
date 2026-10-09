@@ -455,15 +455,104 @@ func TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage(t *testing.T) {
 	}
 }
 
-type retryMailSpool struct{ retried []string }
+type retryMailSpool struct {
+	retried []string
+	items   []mailer.SpoolEntry
+	status  string
+	limit   int
+}
 
-func (s *retryMailSpool) List(context.Context, string, int) ([]mailer.SpoolEntry, error) {
-	return nil, nil
+func (s *retryMailSpool) List(_ context.Context, status string, limit int) ([]mailer.SpoolEntry, error) {
+	s.status, s.limit = status, limit
+	if status == "" {
+		return s.items, nil
+	}
+	var filtered []mailer.SpoolEntry
+	for _, item := range s.items {
+		if item.Status == status {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered, nil
 }
 
 func (s *retryMailSpool) RetryNow(_ context.Context, id string) error {
 	s.retried = append(s.retried, id)
 	return nil
+}
+
+func TestSiteMailQueueUsesAdminShellAndRendersSafeFilteredRows(t *testing.T) {
+	spool := &retryMailSpool{items: []mailer.SpoolEntry{
+		{ID: "failed/1", Message: mailer.Message{To: "person@example.test", Subject: `<script>alert("x")</script>`}, Status: mailer.SpoolFailedPermanent, Attempts: 3, LastError: "secret provider detail"},
+		{ID: "sent-1", Message: mailer.Message{To: "other@example.test", Subject: "Delivered"}, Status: mailer.SpoolDelivered, Attempts: 1},
+	}}
+	handler := Handler{FormsEnabled: true, MailSpool: spool}
+	var route http.Handler
+	for _, candidate := range handler.Routes() {
+		if candidate.Pattern == "GET /admin/site/mail" {
+			route = candidate.Handler
+			break
+		}
+	}
+	if route == nil {
+		t.Fatal("mail queue route is missing")
+	}
+	request := httptest.NewRequest(http.MethodGet, "/admin/site/mail?status=failed_permanent", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	security.CSRFMiddleware(false, nil)(route).ServeHTTP(response, request)
+	body := response.Body.String()
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, body)
+	}
+	for _, marker := range []string{"<title>E-posta kuyruğu · HydroGo Studio", "E-posta kuyruğu", "Tüm durumlar", "Kalıcı hata", "person@example.test", "&lt;script&gt;", "/admin/site/mail/failed%2F1/retry", "name=\"_csrf\""} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("mail queue missing %q", marker)
+		}
+	}
+	for _, marker := range []string{"<script>alert", "secret provider detail", "other@example.test", "TenantID"} {
+		if strings.Contains(body, marker) {
+			t.Errorf("mail queue leaked/unfiltered value %q", marker)
+		}
+	}
+	if spool.status != mailer.SpoolFailedPermanent || spool.limit != 100 {
+		t.Fatalf("list query status=%q limit=%d", spool.status, spool.limit)
+	}
+}
+
+func TestSiteMailQueueEmptyStateAndAccessControl(t *testing.T) {
+	spool := &retryMailSpool{}
+	handler := Handler{FormsEnabled: true, MailSpool: spool}
+	var route http.Handler
+	for _, candidate := range handler.Routes() {
+		if candidate.Pattern == "GET /admin/site/mail" {
+			route = candidate.Handler
+		}
+	}
+	if route == nil {
+		t.Fatal("mail queue route is missing")
+	}
+	request := httptest.NewRequest(http.MethodGet, "/admin/site/mail", nil)
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	response := httptest.NewRecorder()
+	security.CSRFMiddleware(false, nil)(route).ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Bu filtrede ileti bulunamadı.") {
+		t.Fatalf("empty queue response=%d %s", response.Code, response.Body.String())
+	}
+	deniedRequest := httptest.NewRequest(http.MethodGet, "/admin/site/mail", nil)
+	deniedRequest = deniedRequest.WithContext(auth.WithUser(deniedRequest.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+	denied := httptest.NewRecorder()
+	route.ServeHTTP(denied, deniedRequest)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("unauthorized queue status=%d", denied.Code)
+	}
+	invalidRequest := httptest.NewRequest(http.MethodGet, "/admin/site/mail?status=internal-error", nil)
+	invalidRequest = invalidRequest.WithContext(auth.WithUser(invalidRequest.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	invalid := httptest.NewRecorder()
+	route.ServeHTTP(invalid, invalidRequest)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid filter status=%d, want 400", invalid.Code)
+	}
 }
 
 func TestSiteMailRetryRequiresPermissionAndPersistsOnlyAuthorizedAction(t *testing.T) {

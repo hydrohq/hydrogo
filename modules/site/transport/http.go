@@ -1401,22 +1401,68 @@ func (h Handler) mailSpool(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	items, err := h.MailSpool.List(r.Context(), r.URL.Query().Get("status"), 100)
+	status := r.URL.Query().Get("status")
+	if status != "" && status != mailer.SpoolPending && status != mailer.SpoolSending && status != mailer.SpoolDelivered && status != mailer.SpoolFailedPermanent {
+		http.Error(w, "invalid mail queue filter", http.StatusBadRequest)
+		return
+	}
+	items, err := h.MailSpool.List(r.Context(), status, 100)
 	if err != nil {
 		http.Error(w, "mail queue unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = io.WriteString(w, `<!doctype html><html><head><meta charset="utf-8"><title>Mail queue</title></head><body><main><h1>Mail queue</h1><p>Pending messages are retried automatically. Delivery can happen more than once after an unclear server response.</p><table><thead><tr><th>Status</th><th>Recipient</th><th>Subject</th><th>Attempts</th><th>Next attempt</th><th>Action</th></tr></thead><tbody>`)
-	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
+	var rows [][]string
+	var actions [][]uicomponents.TableAction
 	for _, item := range items {
-		fmt.Fprintf(w, `<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td><td>`, template.HTMLEscapeString(item.Status), template.HTMLEscapeString(item.Message.To), template.HTMLEscapeString(item.Message.Subject), item.Attempts, template.HTMLEscapeString(item.NextAttemptAt.UTC().Format(time.RFC3339)))
-		if item.Status == mailer.SpoolFailedPermanent {
-			fmt.Fprintf(w, `<form method="post" action="/admin/site/mail/%s/retry"><input type="hidden" name="_csrf" value="%s"><button type="submit">Retry now</button></form>`, url.PathEscape(item.ID), csrf)
+		nextAttempt := "—"
+		if !item.NextAttemptAt.IsZero() {
+			nextAttempt = item.NextAttemptAt.Local().Format("02.01.2006 15:04")
 		}
-		_, _ = io.WriteString(w, `</td></tr>`)
+		rows = append(rows, []string{mailSpoolStatusLabel(item.Status), item.Message.To, item.Message.Subject, strconv.Itoa(item.Attempts), nextAttempt})
+		rowActions := []uicomponents.TableAction{}
+		if item.Status == mailer.SpoolFailedPermanent {
+			rowActions = append(rowActions, uicomponents.TableAction{Label: "Yeniden dene", Action: "/admin/site/mail/" + url.PathEscape(item.ID) + "/retry", CSRF: security.CSRFTokenFromContext(r.Context()), Variant: uicomponents.Quiet})
+		}
+		actions = append(actions, rowActions)
 	}
-	_, _ = io.WriteString(w, `</tbody></table></main></body></html>`)
+	filter := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+		if err := uicomponents.Select(uicomponents.SelectProps{ID: "mail-status", Name: "status", Label: "Durum", Value: status, Items: []uicomponents.SelectOption{{Value: "", Label: "Tüm durumlar"}, {Value: mailer.SpoolPending, Label: "Bekliyor"}, {Value: mailer.SpoolSending, Label: "Gönderiliyor"}, {Value: mailer.SpoolDelivered, Label: "Teslim edildi"}, {Value: mailer.SpoolFailedPermanent, Label: "Kalıcı hata"}}}).Render(ctx, output); err != nil {
+			return err
+		}
+		return uicomponents.Button(uicomponents.ButtonProps{Label: "Filtrele", Type: "submit", Variant: uicomponents.Primary}).Render(ctx, output)
+	})
+	content := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
+		if err := designsystem.Callout(designsystem.CalloutProps{Tone: "info", Title: "Teslimat hakkında", Text: "Bekleyen iletiler otomatik olarak yeniden denenir. Sağlayıcı ayarlarını düzelttikten sonra kalıcı hatalı iletileri yeniden kuyruğa alabilirsiniz."}).Render(ctx, output); err != nil {
+			return err
+		}
+		if err := uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/mail", Method: http.MethodGet, Class: "studio-form", Body: filter}).Render(ctx, output); err != nil {
+			return err
+		}
+		return uicomponents.Card(uicomponents.CardProps{Title: "İletiler", Body: uicomponents.Table(uicomponents.TableProps{Caption: "E-posta teslim kuyruğu", Columns: []string{"Durum", "Alıcı", "Konu", "Deneme", "Sonraki deneme"}, Rows: rows, RowActions: actions, EmptyMessage: "Bu filtrede ileti bulunamadı."})}).Render(ctx, output)
+	})
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStartForRequest(w, r, "E-posta kuyruğu", "Site", "site"); err != nil {
+		return
+	}
+	if err := content.Render(r.Context(), w); err != nil {
+		return
+	}
+	_ = ui.AdminEnd(w)
+}
+
+func mailSpoolStatusLabel(status string) string {
+	switch status {
+	case mailer.SpoolPending:
+		return "Bekliyor"
+	case mailer.SpoolSending:
+		return "Gönderiliyor"
+	case mailer.SpoolDelivered:
+		return "Teslim edildi"
+	case mailer.SpoolFailedPermanent:
+		return "Kalıcı hata"
+	default:
+		return "Bilinmiyor"
+	}
 }
 
 func (h Handler) mailSpoolRetry(w http.ResponseWriter, r *http.Request) {
