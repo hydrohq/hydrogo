@@ -98,6 +98,22 @@ test.describe("generated rich-text Edition Admin", () => {
     await mobilePage.screenshot({ path: test.info().outputPath("generated-block-editor-mobile.png"), fullPage: true });
     await mobileContext.close();
 
+    await page.goto(`${baseURL}/admin/resources/article/new`);
+    await dismissOnboarding(page);
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        const response = await page.goto(`${baseURL}/admin/resources/article/new`);
+        expect(response?.status(), `generated block editor should render in ${family}-${mode}`).toBe(200);
+        await dismissOnboarding(page);
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await expect(page.locator('[data-editorjs-mount="blocks"] .ce-paragraph[contenteditable="true"]').first()).toBeVisible();
+        await expectNoA11yViolations(page);
+      }
+    }
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+
     await page.goto(`${baseURL}/admin/resources/article`);
     await expect(page.locator('script[src="/test/editorjs.js"]')).toHaveCount(0);
     await page.goto(`${baseURL}/admin/resources/article/new`);
