@@ -302,6 +302,22 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
         await expect(page.locator(".readonly-content-preview")).toContainText("A draft for the Viewer read-only route check.");
         await expect(page.locator('form[action^="/admin/news/"]')).toHaveCount(0);
+        const a11yContext = await browser.newContext({ storageState: await context.storageState() });
+        try {
+          const a11yPage = await a11yContext.newPage();
+          await a11yPage.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+          expect((await a11yPage.goto(`${baseURL}/admin/news/${createdNewsID}`))?.status()).toBe(200);
+          const viewerNewsA11y = await a11yPage.evaluate(async () => (window as any).axe.run(document, {
+            runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+          }));
+          expect(viewerNewsA11y.violations.map((violation: any) => ({
+            id: violation.id,
+            impact: violation.impact,
+            nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+          })), "Viewer read-only News detail WCAG 2.1 A/AA violations").toEqual([]);
+        } finally {
+          await a11yContext.close();
+        }
         const viewerNewsUpdate = await page.request.post(`${baseURL}/admin/news/${createdNewsID}`, {
           form: { _csrf: newsCSRFToken, version: "1", slug: "role-editor-news-draft", title: "Viewer altered news", body: "This must be denied." },
         });
