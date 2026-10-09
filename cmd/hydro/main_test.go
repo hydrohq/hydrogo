@@ -371,6 +371,8 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 		{name: "page editor", routes: pageRouterRoutes(pagetransport.Handler{}.Routes())},
 		{name: "media admin with cleanup", routes: mediaRouterRoutes(append(mediaHTTP.AdminRoutes(), mediaHTTP.Routes()...))},
 		{name: "identity and account admin", routes: (auth.HTTPHandler{}).RouterRoutes()},
+		{name: "backup", routes: adminBackupRoutes(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))},
+		{name: "security IP bans", routes: adminSecurityBanRoutes(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))},
 	}
 	for _, composition := range compositions {
 		t.Run(composition.name, func(t *testing.T) {
@@ -472,6 +474,27 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 				t.Fatal("composition registered no Admin mutation routes")
 			}
 			t.Logf("checked %d registered unsafe Admin/media routes", count)
+		})
+	}
+}
+
+func TestActivePlatformAdminRoleBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		user *auth.User
+		want bool
+	}{
+		{name: "active admin", user: &auth.User{Role: auth.RoleAdmin, Active: true}, want: true},
+		{name: "admin explicit permission overrides do not demote role", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: permissionOverrides(false)}, want: true},
+		{name: "inactive admin", user: &auth.User{Role: auth.RoleAdmin}},
+		{name: "editor", user: &auth.User{Role: auth.RoleEditor, Active: true}},
+		{name: "viewer", user: &auth.User{Role: auth.RoleViewer, Active: true}},
+		{name: "anonymous"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := activePlatformAdmin(tc.user); got != tc.want {
+				t.Fatalf("activePlatformAdmin(%+v) = %t, want %t", tc.user, got, tc.want)
+			}
 		})
 	}
 }
