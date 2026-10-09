@@ -22,11 +22,12 @@ test.describe("independent Edition generated Admin editor journey", () => {
     if (!health.ok) throw new Error(`external Edition health check returned ${health.status}`);
   });
 
-  test("editor completes generated CRUD while viewer remains denied", async ({ browser, request }) => {
+  test("editor completes generated CRUD while viewer remains read-only", async ({ browser, request }) => {
     const tenant = `e2e-${randomUUID()}`;
     const roleHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "editor" };
     const editorContext = await browser.newContext({ extraHTTPHeaders: roleHeaders });
     const page = await editorContext.newPage();
+    const viewerContext = await browser.newContext({ extraHTTPHeaders: { "X-Test-Tenant": tenant, "X-Test-Role": "viewer" } });
     await page.addInitScript({ path: path.resolve("node_modules/axe-core/axe.min.js") });
 
     try {
@@ -67,7 +68,30 @@ test.describe("independent Edition generated Admin editor journey", () => {
 
       const viewerHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "viewer" };
       const viewerList = await request.get(`${externalOrigin}/admin/resources/article`, { headers: viewerHeaders });
-      expect(viewerList.status()).toBe(403);
+      expect(viewerList.status()).toBe(200);
+      const viewerPage = await viewerContext.newPage();
+      await viewerPage.addInitScript({ path: path.resolve("node_modules/axe-core/axe.min.js") });
+      const viewerDocument = await viewerPage.goto(`${externalOrigin}/admin/resources/article`);
+      expect(viewerDocument?.status()).toBe(200);
+      await expect(viewerPage.locator('body[data-studio-role="viewer"]')).toBeVisible();
+      await expect(viewerPage.getByRole("link", { name: "Yeni kayıt" })).toHaveCount(0);
+      await expect(viewerPage.getByRole("link", { name: `${title} updated` })).toBeVisible();
+      await expectNoA11yViolations(viewerPage, "viewer read-only resource list");
+
+      const viewerRecordPath = await viewerPage.getByRole("link", { name: `${title} updated` }).getAttribute("href");
+      await viewerPage.getByRole("link", { name: `${title} updated` }).click();
+      await expect(viewerPage.locator('form[action*="/admin/resources/"]')).toHaveCount(0);
+      await expect(viewerPage.getByText(`${title} updated`)).toBeVisible();
+      expect(viewerRecordPath).toBeTruthy();
+      const viewerDeniedUpdate = await request.post(`${externalOrigin}${viewerRecordPath}`, {
+        headers: viewerHeaders,
+        form: { _csrf: "external-edition-test-token", title: "Must remain unchanged" },
+      });
+      expect(viewerDeniedUpdate.status()).toBe(403);
+      const unchanged = await request.get(`${externalOrigin}${apiPath}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } });
+      expect(unchanged.status()).toBe(200);
+      expect((await unchanged.json()).title).toBe(`${title} updated`);
+
       const viewerID = `viewer-${randomUUID()}`;
       const viewerCreate = await request.post(`${externalOrigin}/admin/resources/article/new`, {
         headers: viewerHeaders,
@@ -80,6 +104,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
       });
       expect(viewerAPIWrite.status()).toBe(403);
       expect((await request.get(`${externalOrigin}/api/v1/article/${viewerID}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(404);
+      expect((await request.get(`${externalOrigin}${apiPath}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(200);
 
       page.once("dialog", (dialog) => dialog.accept());
       await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
@@ -87,6 +112,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
       expect((await request.get(`${externalOrigin}${apiPath}`, { headers })).status()).toBe(404);
     } finally {
       await editorContext.close();
+      await viewerContext?.close();
     }
   });
 });

@@ -129,14 +129,24 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	}
 	if err := generated.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{
 		API: mux, Authorize: func(r *http.Request) bool {
-			return r.Header.Get("X-Test-Role") != "viewer"
+			role := r.Header.Get("X-Test-Role")
+			return role == "admin" || role == "editor" || role == "viewer"
 		},
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-		CSRFToken:       func(*http.Request) string { return "edition-token" },
-		ValidateCSRF:    func(r *http.Request) bool { return r.FormValue("_csrf") == "edition-token" },
+		ResourceAccess: func(r *http.Request, _ adminstudio.Collection, id string) adminstudio.ResourceAccess {
+			if r.Header.Get("X-Test-Role") == "viewer" {
+				return adminstudio.ResourceAccess{}
+			}
+			return adminstudio.ResourceAccess{Create: id == "", Update: id != "", Delete: id != ""}
+		},
+		CSRFToken:    func(*http.Request) string { return "edition-token" },
+		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "edition-token" },
 		RenderPage: adminstudio.StudioPageRenderer(func(r *http.Request) adminstudio.PageIdentity {
 			if r.Header.Get("X-Test-Role") == "editor" {
 				return adminstudio.PageIdentity{UserID: "edition-editor", Email: "editor@example.test", Role: adminstudio.PageRoleEditor}
+			}
+			if r.Header.Get("X-Test-Role") == "viewer" {
+				return adminstudio.PageIdentity{UserID: "edition-viewer", Email: "viewer@example.test", Role: adminstudio.PageRoleViewer}
 			}
 			return adminstudio.PageIdentity{UserID: "edition-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
 		}),
@@ -209,10 +219,40 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	}
 	viewerList := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
 	viewerList.Header.Set("X-Test-Role", "viewer")
+	viewerList.Header.Set("X-Test-Tenant", "tenant-a")
 	viewerListResponse := httptest.NewRecorder()
 	serveWithExternalRole(mux, viewerListResponse, viewerList)
-	if viewerListResponse.Code != http.StatusForbidden {
-		t.Fatalf("generated Admin allowed a viewer role: status=%d body=%s", viewerListResponse.Code, viewerListResponse.Body.String())
+	if viewerListResponse.Code != http.StatusOK {
+		t.Fatalf("generated Admin viewer list status=%d", viewerListResponse.Code)
+	}
+	if !strings.Contains(viewerListResponse.Body.String(), `data-studio-role="viewer"`) {
+		t.Fatal("generated Admin shell did not render the viewer presentation role")
+	}
+	if strings.Contains(viewerListResponse.Body.String(), `href="/admin/resources/article/new"`) {
+		t.Fatal("generated Admin viewer list exposed a create action")
+	}
+	if !strings.Contains(viewerListResponse.Body.String(), "External tenant record") {
+		t.Fatal("generated Admin viewer list did not show the readable tenant record")
+	}
+	viewerDetail := httptest.NewRequest(http.MethodGet, "/admin/resources/article/article-1", nil)
+	viewerDetail.Header.Set("X-Test-Role", "viewer")
+	viewerDetail.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerDetailResponse := httptest.NewRecorder()
+	serveWithExternalRole(mux, viewerDetailResponse, viewerDetail)
+	if viewerDetailResponse.Code != http.StatusOK || strings.Contains(viewerDetailResponse.Body.String(), "<form") || !strings.Contains(viewerDetailResponse.Body.String(), "External tenant record") {
+		t.Fatalf("generated Admin viewer detail was not read-only: status=%d", viewerDetailResponse.Code)
+	}
+	viewerUpdate := httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1", strings.NewReader("_csrf=edition-token&title=Must+remain+unchanged"))
+	viewerUpdate.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	viewerUpdate.Header.Set("X-Test-Role", "viewer")
+	viewerUpdate.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerUpdateResponse := httptest.NewRecorder()
+	serveWithExternalRole(mux, viewerUpdateResponse, viewerUpdate)
+	if viewerUpdateResponse.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin allowed a viewer update: status=%d", viewerUpdateResponse.Code)
+	}
+	if response := readResourceFor("tenant-a", "article-1"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "External tenant record") {
+		t.Fatalf("viewer update changed persisted data: status=%d body=%s", response.Code, response.Body.String())
 	}
 	editorList := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
 	editorList.Header.Set("X-Test-Role", "editor")
