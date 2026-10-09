@@ -67,6 +67,7 @@ func main() {
 	var mu sync.Mutex
 	records := map[string]map[string]any{}
 	failNextArticleWrite := false
+	failNextAuthorRead := false
 	draft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
 	translationDraft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Türkçe taslak"}, Exists: true}
 	discardDraft := adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
@@ -74,6 +75,14 @@ func main() {
 	localizedStory := map[string]map[string]any{"tr": {"title": "Yayımlanmış Türkçe metin"}}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/author") {
+			mu.Lock()
+			if failNextAuthorRead && r.Method == http.MethodGet && r.URL.Path == "/api/v1/author" {
+				failNextAuthorRead = false
+				mu.Unlock()
+				writeError(w, http.StatusServiceUnavailable)
+				return
+			}
+			mu.Unlock()
 			if strings.TrimSuffix(r.URL.Path, "/") == "/api/v1/author/author-1" {
 				writeJSON(w, http.StatusOK, map[string]any{"id": "author-1", "name": "Test Author"})
 				return
@@ -240,6 +249,7 @@ func main() {
 		mu.Lock()
 		records = map[string]map[string]any{}
 		failNextArticleWrite = false
+		failNextAuthorRead = false
 		draft = adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
 		translationDraft = adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Türkçe taslak"}, Exists: true}
 		discardDraft = adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
@@ -260,6 +270,12 @@ func main() {
 	mux.HandleFunc("POST /__test/fail-next-article-write", func(w http.ResponseWriter, _ *http.Request) {
 		mu.Lock()
 		failNextArticleWrite = true
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("POST /__test/fail-next-author-read", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		failNextAuthorRead = true
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	})
