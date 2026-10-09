@@ -522,6 +522,64 @@ func TestAdminUserMutationEndpointsRejectEditorAndViewer(t *testing.T) {
 	}
 }
 
+func TestAdminUserMutationRoutesEnforceRolesAndCSRF(t *testing.T) {
+	h := HTTPHandler{Service: NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params)}
+	mux := http.NewServeMux()
+	type endpoint struct{ method, path string }
+	var endpoints []endpoint
+	for _, route := range h.Routes() {
+		method, path, ok := strings.Cut(route.Pattern, " ")
+		if !ok || method != http.MethodPost || !(strings.HasPrefix(path, "/auth/users/") || path == "/admin/auth/invites") {
+			continue
+		}
+		mux.Handle(route.Pattern, route.Handler)
+		endpoints = append(endpoints, endpoint{method: method, path: strings.NewReplacer("{id}", "target-user").Replace(path)})
+	}
+	if len(endpoints) != 5 {
+		t.Fatalf("registered %d Admin user mutations, want five", len(endpoints))
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	users := []struct {
+		name string
+		user *User
+	}{
+		{name: "editor", user: &User{ID: "editor", Role: RoleEditor, Active: true}},
+		{name: "viewer", user: &User{ID: "viewer", Role: RoleViewer, Active: true}},
+		{name: "inactive admin", user: &User{ID: "inactive", Role: RoleAdmin, Active: false}},
+		{name: "admin users.manage denied", user: &User{ID: "denied", Role: RoleAdmin, Active: true, PermissionOverrides: map[string]bool{PermissionUsersManage: false}}},
+	}
+	for _, route := range endpoints {
+		for _, tc := range users {
+			t.Run(route.path+"/"+tc.name, func(t *testing.T) {
+				body := url.Values{"_csrf": {"valid-token"}, "role": {string(RoleEditor)}, "email": {"editor@example.test"}}
+				request := httptest.NewRequest(route.method, route.path, strings.NewReader(body.Encode()))
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				request.Header.Set(security.CSRFHeaderName, "valid-token")
+				request = request.WithContext(WithUser(request.Context(), tc.user))
+				response := httptest.NewRecorder()
+				secured.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Fatalf("%s %s as %s = %d, want 403; body=%s", route.method, route.path, tc.name, response.Code, response.Body.String())
+				}
+			})
+		}
+		t.Run(route.path+"/invalid-csrf", func(t *testing.T) {
+			body := url.Values{"_csrf": {"wrong-token"}, "role": {string(RoleEditor)}}
+			request := httptest.NewRequest(route.method, route.path, strings.NewReader(body.Encode()))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+			request.Header.Set(security.CSRFHeaderName, "wrong-token")
+			request = request.WithContext(WithUser(request.Context(), &User{ID: "admin", Role: RoleAdmin, Active: true}))
+			response := httptest.NewRecorder()
+			secured.ServeHTTP(response, request)
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("%s %s with invalid CSRF = %d, want 403", route.method, route.path, response.Code)
+			}
+		})
+	}
+}
+
 func TestInviteAcceptanceIsRateLimitedByClient(t *testing.T) {
 	service := &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params}
 	db, err := sql.Open("sqlite", ":memory:")
