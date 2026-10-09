@@ -1481,7 +1481,14 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	})
 	mux := http.NewServeMux()
 	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
-		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(r *http.Request, _ Collection) bool { return r.Header.Get("X-Test-Role") != "viewer" },
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(r *http.Request, _ Collection) bool {
+			switch r.Header.Get("X-Test-Role") {
+			case "editor-denied", "viewer", "admin-denied":
+				return false
+			default:
+				return true
+			}
+		},
 		ListDrafts: func(_ *http.Request, _ Collection, _ string, limit int) ([]DraftDocument, error) {
 			listCalls++
 			if limit != 50 {
@@ -1626,12 +1633,14 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 		t.Fatalf("collection draft navigation missing: status=%d body=%s", collectionList.Code, collectionList.Body.String())
 	}
 	calledLists := listCalls
-	viewerRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil)
-	viewerRequest.Header.Set("X-Test-Role", "viewer")
-	viewerResponse := httptest.NewRecorder()
-	mux.ServeHTTP(viewerResponse, viewerRequest)
-	if viewerResponse.Code != http.StatusNotFound || listCalls != calledLists {
-		t.Fatalf("Viewer draft-list denial must happen before Edition storage: status=%d list calls=%d/%d", viewerResponse.Code, listCalls, calledLists)
+	for _, role := range []string{"editor-denied", "viewer", "admin-denied"} {
+		viewerRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil)
+		viewerRequest.Header.Set("X-Test-Role", role)
+		viewerResponse := httptest.NewRecorder()
+		mux.ServeHTTP(viewerResponse, viewerRequest)
+		if viewerResponse.Code != http.StatusNotFound || listCalls != calledLists {
+			t.Fatalf("%s draft-list denial must happen before Edition storage: status=%d list calls=%d/%d", role, viewerResponse.Code, listCalls, calledLists)
+		}
 	}
 }
 

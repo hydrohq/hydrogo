@@ -94,3 +94,19 @@ GOCACHE=/tmp/hydro-cover-cache go test ./internal/adminstudio \
 
 Passed. This isolates the Edition capability contract; unknown production
 identity/session issuance remains part of the separate external Edition gate.
+
+## Draft inbox denied read roles — 2026-10-10
+
+The direct Drafts route denial now covers Edition `CanReadResource` denying an
+Editor, Viewer, and an active Admin with an explicit read denial. All receive
+404 and `ListDrafts` is not invoked, so draft metadata cannot leak through the
+collection deep link. This tests the Edition callback decision in the generated
+handler, not the production identity middleware or browser shell.
+
+```sh
+GOCACHE=/tmp/hydro-cover-cache go test ./internal/adminstudio \
+  -run '^TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS$' -count=1 -p 1
+GOCACHE=/tmp/hydro-cover-cache go vet ./internal/adminstudio
+```
+
+Both passed.
