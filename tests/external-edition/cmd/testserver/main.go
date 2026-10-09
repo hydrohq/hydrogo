@@ -46,11 +46,11 @@ func canWrite(ctx context.Context) bool {
 	return role == "admin" || role == "editor"
 }
 func (resourcePolicy) CanCreate(ctx context.Context) bool { return canWrite(ctx) }
-func (resourcePolicy) CanUpdate(ctx context.Context, _ string) bool {
-	return canWrite(ctx)
+func (resourcePolicy) CanUpdate(ctx context.Context, id string) bool {
+	return canWrite(ctx) && !strings.HasPrefix(id, "locked-")
 }
-func (resourcePolicy) CanDelete(ctx context.Context, _ string) bool {
-	return canWrite(ctx)
+func (resourcePolicy) CanDelete(ctx context.Context, id string) bool {
+	return canWrite(ctx) && !strings.HasPrefix(id, "locked-")
 }
 
 func main() {
@@ -116,7 +116,8 @@ func main() {
 			if r.Header.Get("X-Test-Role") == "viewer" {
 				return adminstudio.ResourceAccess{}
 			}
-			return adminstudio.ResourceAccess{Create: id == "", Update: id != "", Delete: id != ""}
+			canMutateRecord := id != "" && !strings.HasPrefix(id, "locked-")
+			return adminstudio.ResourceAccess{Create: id == "", Update: canMutateRecord, Delete: canMutateRecord}
 		},
 		CSRFToken:    func(*http.Request) string { return "external-edition-test-token" },
 		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "external-edition-test-token" },
