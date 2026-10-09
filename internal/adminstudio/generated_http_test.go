@@ -1283,6 +1283,7 @@ func TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence(t *te
 		body string
 	}{
 		{name: "create", path: "/admin/resources/article/new", body: "id=a2&draft_version=0&published_version=0&title=New"},
+		{name: "create draft alias", path: "/admin/resources/article/new/draft", body: "id=a3&draft_version=0&published_version=0&title=New"},
 		{name: "update", path: "/admin/resources/article/a1", body: "title=Changed"},
 		{name: "delete", path: "/admin/resources/article/a1/delete"},
 		{name: "workflow", path: "/admin/resources/article/a1/workflow", body: "target=review&expected_draft_version=1&expected_published_version=1"},
