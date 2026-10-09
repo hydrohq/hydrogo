@@ -91,13 +91,21 @@ Viewer direct GET and valid-CSRF POST are denied. The first run exposed a
 repository bound mismatch: import requests 5,000 existing summaries for
 duplicate detection, but `ListAdmin` rejected any limit above 100 and returned
 503. The summary query now accepts the import's bounded 5,000 maximum; no page
-bodies are selected. A focused repository/transport Go run and Chromium passed
-on SQLite. PostgreSQL successful-import replay is still pending.
+bodies are selected. Focused repository/transport Go tests passed, and
+Chromium passed 1/1 on SQLite and 1/1 on PostgreSQL 18.6 using a fresh local
+database. The PostgreSQL database was dropped after the run. This verifies the
+successful import flow on both adapters; it does not close the broader Admin
+route/permission matrix.
 
 ```sh
 TMPDIR=/var/tmp/hydro-go-tests go test ./modules/pages/repository/sqlstore ./modules/pages/transport -count=1
 cd e2e
 TMPDIR=/var/tmp/hydro-go-tests npx playwright test custom/admin-management.spec.ts --project chromium --workers=1 --grep 'editor and viewer sessions enforce'
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+  HYDRO_E2E_DATABASE_DSN='postgres://<role>@/<empty-test-database>?host=/run/postgresql&sslmode=disable' \
+  HYDRO_PG_PRIVILEGED_ROLE=unused_for_this_test TMPDIR=/var/tmp/hydro-go-tests \
+  npx playwright test custom/admin-management.spec.ts --project chromium --workers=1 \
+  --grep 'editor and viewer sessions enforce' --reporter=line --trace=off
 ```
 
 ## Dynamic Collections mutation CSRF and role matrix — 2026-10-08
