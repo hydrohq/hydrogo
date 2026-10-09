@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -476,6 +477,61 @@ func TestSiteSEOAdminRoutePersistsValidatedPathsOnlyForAuthorizedUser(t *testing
 		t.Fatalf("invalid path status=%d, want 400", response.Code)
 	}
 	assertValue("/private\n/archive")
+}
+
+func TestSiteRedirectAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-redirect-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/redirects" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/redirects", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertMissing := func() {
+		t.Helper()
+		if _, err := store.GetRedirect(context.Background(), db, "/old"); !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("denied redirect exists or lookup failed: %v", err)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	const body = `{"SourcePath":"/old","TargetPath":"/new","Status":301}`
+	if response := post(admin, "wrong-token", body); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token", body); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	if response := post(admin, "valid-token", body); response.Code != http.StatusNoContent {
+		t.Fatalf("authorized redirect status=%d body=%s", response.Code, response.Body.String())
+	}
+	redirect, err := store.GetRedirect(context.Background(), db, "/old")
+	if err != nil || redirect.SourcePath != "/old" || redirect.TargetPath != "/new" || redirect.Status != http.StatusMovedPermanently {
+		t.Fatalf("persisted redirect=%+v err=%v", redirect, err)
+	}
 }
 
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
