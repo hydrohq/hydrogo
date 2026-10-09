@@ -160,7 +160,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
       expect(mediaID).toMatch(/^fixture-[a-f0-9]{16}$/);
       await item.click();
       await expect(picker).toBeHidden();
-      await expect(form.getByLabel("Cover media id")).toHaveValue(mediaID!);
+      await expect(form.locator('input[name="cover_media_id"]')).toHaveValue(mediaID!);
 
       const title = `Media article ${randomUUID()}`;
       await form.getByLabel("Title").fill(title);
