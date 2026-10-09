@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -409,6 +410,72 @@ func TestSiteAppearanceAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T
 	if got := site.AppearanceFromSettings(settings); got != want {
 		t.Fatalf("persisted appearance=%+v, want %+v", got, want)
 	}
+}
+
+func TestSiteSEOAdminRoutePersistsValidatedPathsOnlyForAuthorizedUser(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-seo-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/seo" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token, paths string) *httptest.ResponseRecorder {
+		t.Helper()
+		body := "_csrf=" + token + "&paths=" + strings.ReplaceAll(url.QueryEscape(paths), "+", "%20")
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/seo", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertValue := func(want string) {
+		t.Helper()
+		setting, found, err := store.GetSetting(context.Background(), db, "seo.llms_excluded_paths")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want == "" {
+			if found {
+				t.Fatalf("unexpected SEO setting persisted: %+v", setting)
+			}
+			return
+		}
+		if !found || setting.Value != want {
+			t.Fatalf("persisted SEO paths=%q found=%t, want %q", setting.Value, found, want)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := post(admin, "wrong-token", "/private"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertValue("")
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token", "/private"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertValue("")
+	if response := post(admin, "valid-token", "/private\n/archive\n/private"); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/seo" {
+		t.Fatalf("authorized SEO response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	assertValue("/private\n/archive")
+	if response := post(admin, "valid-token", "/private?leak=yes"); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid path status=%d, want 400", response.Code)
+	}
+	assertValue("/private\n/archive")
 }
 
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
