@@ -3,20 +3,20 @@
 ## Scope and result
 
 The independent Edition browser journey injects a test-only 503 at its
-generated resource API boundary during a valid Admin create. Chromium verifies
-that the Admin responds with a user-facing 502 form, identifies the failed
-save and offers a retry message, preserves the entered title, and does not
-persist the record. The test then removes the injected failure, retries the
-same form, and verifies the record is created and read back through the API.
-The injection header is honored only by the loopback test server; no product
-route or customer configuration was added.
+generated resource API boundary during valid Admin create and edit requests.
+For both operations Chromium verifies a user-facing 502 form, a plain-language
+retry message, and retained input. Create failure leaves no record; edit
+failure leaves the persisted record unchanged. Removing the injected failure
+and retrying creates/updates the record, which is then read back through the
+API. The injection header is honored only by the loopback test server; no
+product route or customer configuration was added.
 
 The full `custom/external-edition-editor.spec.ts` file passed **2/2** on
-SQLite and **2/2** on PostgreSQL 18. Besides the new save-error/retry journey,
+SQLite and **2/2** on PostgreSQL 18. Besides create/edit save-error and retry,
 it covers editor/viewer CRUD boundaries, validation, record-level policy,
 tenant media selection, persisted state, axe checks, and mobile overflow. The
 separate Edition module `go test ./... -count=1 -p 1 -timeout=5m` and `go vet
-./...` passed after the fixture change.
+./...` passed.
 
 Commands:
 
@@ -37,6 +37,6 @@ Edition authorization callbacks, deployment, or Core Media storage.
 
 ## Limits
 
-The injected outage covers a 503 during generated collection creation. It does
-not simulate every API status, database outage/recovery, or failure while
-editing, deleting, loading relation options, or serving editorial workflows.
+The injected outage covers generated create and edit only. It does not simulate
+every API status, database outage/recovery, or failure while deleting, loading
+relation options, or serving editorial workflows.

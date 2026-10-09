@@ -212,6 +212,33 @@ test.describe("independent Edition generated Admin editor journey", () => {
       expect((await request.get(`${externalOrigin}/api/v1/article/${viewerID}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(404);
       expect((await request.get(`${externalOrigin}${apiPath}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(200);
 
+      await page.goto(`${externalOrigin}/admin/resources/article`);
+      await page.getByRole("link", { name: `${title} updated` }).click();
+      const retryEditTitle = `${title} edit retry`;
+      const retryEditForm = page.locator(`form[action="${recordPath}"]`);
+      await retryEditForm.getByLabel("Title").fill(retryEditTitle);
+      await editorContext.setExtraHTTPHeaders({ ...roleHeaders, "X-Test-Generated-API-Status": "503" });
+      const [failedEditResponse] = await Promise.all([
+        page.waitForNavigation(),
+        retryEditForm.locator('button[type="submit"]').click(),
+      ]);
+      expect(failedEditResponse?.status()).toBe(502);
+      await expect(page.getByRole("alert")).toContainText("Değişiklikleriniz kaydedilemedi");
+      await expect(page.getByRole("alert")).toContainText("Girdiğiniz bilgiler burada. Biraz sonra yeniden kaydetmeyi deneyin.");
+      await expect(retryEditForm.getByLabel("Title")).toHaveValue(retryEditTitle);
+      const unchangedAfterFailedEdit = await request.get(`${externalOrigin}${apiPath}`, { headers });
+      expect(unchangedAfterFailedEdit.status()).toBe(200);
+      expect((await unchangedAfterFailedEdit.json()).title).toBe(`${title} updated`);
+      await expectNoA11yViolations(page, "editor edit service-error feedback");
+
+      await editorContext.setExtraHTTPHeaders(roleHeaders);
+      await retryEditForm.locator('button[type="submit"]').click();
+      await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
+      await expect(page.getByRole("link", { name: retryEditTitle })).toBeVisible();
+      const savedEditRetry = await request.get(`${externalOrigin}${apiPath}`, { headers });
+      expect(savedEditRetry.status()).toBe(200);
+      expect((await savedEditRetry.json()).title).toBe(retryEditTitle);
+
       await page.goto(`${externalOrigin}${recordPath}`);
       page.once("dialog", (dialog) => dialog.accept());
       await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
