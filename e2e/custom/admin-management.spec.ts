@@ -1,10 +1,10 @@
 import { test, expect, type BrowserContext } from "@playwright/test";
-import { spawnSync, type ChildProcess, type StdioOptions } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawnServer, stopServer } from "./server-process";
+import { runCommand, spawnServer, stopServer } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
@@ -14,15 +14,6 @@ let tempDir = "";
 let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
-
-function runGo(args: string[], options: { cwd: string; input?: string; stdio?: StdioOptions }): string {
-  const result = spawnSync("go", args, { ...options, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
-  // This runner can report EPERM after a child completed; a nonzero exit still fails.
-  if (result.status !== 0 || (result.error && result.error.code !== "EPERM")) {
-    throw new Error(`go ${args.join(" ")} failed: ${result.error?.message ?? result.stderr ?? `exit ${result.status}`}`);
-  }
-  return result.stdout ?? "";
-}
 
 test.describe("single Edition administrator management", () => {
   test.describe.configure({ mode: "serial" });
@@ -36,9 +27,9 @@ test.describe("single Edition administrator management", () => {
     if (dialect === "postgres" && !process.env.HYDRO_PG_PRIVILEGED_ROLE) {
       throw new Error("HYDRO_PG_PRIVILEGED_ROLE must name the PostgreSQL backup operator role for the Admin management run");
     }
-    runGo(["run", "./cmd/hydro", "migrate", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
-    runGo(["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
-    runGo(["run", "./tests/e2e/support/seedroles", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawnServer("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", dialect, "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) } });
@@ -863,7 +854,7 @@ test.describe("single Edition administrator management", () => {
     test.setTimeout(120_000);
     const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
     const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
-    const token = runGo(["run", "./tests/e2e/support/seedinvite", "--database-dialect", dialect, "--database-dsn", database, "--email", "invited-editor@example.test"], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] }).trim();
+    const token = runCommand("go", ["run", "./tests/e2e/support/seedinvite", "--database-dialect", dialect, "--database-dsn", database, "--email", "invited-editor@example.test"], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] }).trim();
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });

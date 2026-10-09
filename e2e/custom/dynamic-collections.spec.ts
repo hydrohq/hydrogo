@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { execFileSync, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawnServer, stopServer } from "./server-process";
+import { runCommand, spawnServer, stopServer } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
@@ -17,13 +17,13 @@ test.describe("dynamic Admin collections", () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-dynamic-collections-"));
     const editionRoot = path.join(tempDir, "edition");
     const hydroBinary = path.join(tempDir, process.platform === "win32" ? "hydro.exe" : "hydro");
-    execFileSync("go", ["build", "-o", hydroBinary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync(hydroBinary, ["project", "new", "edition", "--root", tempDir, "--preset", "compact-site", "--no-demo", "--with-collections"], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync(hydroBinary, ["resource", "create", "--name", "sync_articles", "--field", "title:text", "--out", "."], { cwd: editionRoot, stdio: "pipe" });
-    execFileSync(hydroBinary, ["migrate", "--config", "config.yaml"], { cwd: editionRoot, stdio: "pipe" });
-    execFileSync(hydroBinary, ["collections", "sync", "--config", "config.yaml", "--generated", "generated", "--confirm-admin-crud"], { cwd: editionRoot, stdio: "pipe" });
-    execFileSync(hydroBinary, ["create-admin", "--config", "config.yaml", "--email", "admin@example.test", "--password-stdin"], { cwd: editionRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
-    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", path.join(editionRoot, "data", "edition.sqlite")], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["build", "-o", hydroBinary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
+    runCommand(hydroBinary, ["project", "new", "edition", "--root", tempDir, "--preset", "compact-site", "--no-demo", "--with-collections"], { cwd: repoRoot, stdio: "pipe" });
+    runCommand(hydroBinary, ["resource", "create", "--name", "sync_articles", "--field", "title:text", "--out", "."], { cwd: editionRoot, stdio: "pipe" });
+    runCommand(hydroBinary, ["migrate", "--config", "config.yaml"], { cwd: editionRoot, stdio: "pipe" });
+    runCommand(hydroBinary, ["collections", "sync", "--config", "config.yaml", "--generated", "generated", "--confirm-admin-crud"], { cwd: editionRoot, stdio: "pipe" });
+    runCommand(hydroBinary, ["create-admin", "--config", "config.yaml", "--email", "admin@example.test", "--password-stdin"], { cwd: editionRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", path.join(editionRoot, "data", "edition.sqlite")], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawnServer(hydroBinary, ["serve", "--dev", "--config", "config.yaml", "--address", `127.0.0.1:${port}`], {
