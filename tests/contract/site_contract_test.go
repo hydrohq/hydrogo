@@ -2,16 +2,24 @@ package contract_test
 
 import (
 	"context"
+	"database/sql"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
+	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
 )
 
 func TestSQLiteSiteEditionContract(t *testing.T) {
@@ -92,6 +100,69 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 	}
 	if auditCount < 6 {
 		t.Fatalf("site mutations recorded %d audit events, want at least 6", auditCount)
+	}
+	testSiteSettingsAdminRouteContract(t, db, store)
+}
+
+func testSiteSettingsAdminRouteContract(t *testing.T, db *sql.DB, store sitestore.Store) {
+	t.Helper()
+	handler := sitetransport.Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	var routeHandler http.Handler
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/settings" {
+			routeHandler = route.Handler
+			break
+		}
+	}
+	if routeHandler == nil {
+		t.Fatal("POST /admin/site/settings was not registered")
+	}
+	authenticated, err := router.New([]router.Route{{Pattern: "POST /admin/site/settings", Access: router.Protected, Handler: routeHandler}}, func(request *http.Request) bool {
+		user := auth.UserFromContext(request.Context())
+		return user != nil && user.Active
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secured := security.CSRFMiddleware(false, nil)(authenticated)
+	post := func(user *auth.User, csrf string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"Route contract"}`))
+		request.Header.Set("Content-Type", "application/json")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "route-token"})
+		if csrf != "" {
+			request.Header.Set(security.CSRFHeaderName, csrf)
+		}
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertOriginalSetting := func(caseName string) {
+		t.Helper()
+		setting, found, err := store.GetSetting(context.Background(), db, "site.name")
+		if err != nil || !found || setting.Value != "HydroGo CMS" {
+			t.Fatalf("%s changed site.name: setting=%+v found=%t err=%v", caseName, setting, found, err)
+		}
+	}
+	if response := post(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, ""); response.Code != http.StatusForbidden {
+		t.Fatalf("missing CSRF status=%d, want 403", response.Code)
+	}
+	assertOriginalSetting("missing CSRF")
+	if response := post(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, "wrong-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertOriginalSetting("invalid CSRF")
+	if response := post(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, "route-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertOriginalSetting("denied Admin")
+	if response := post(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, "route-token"); response.Code != http.StatusNoContent {
+		t.Fatalf("granted Editor status=%d, want 204: %s", response.Code, response.Body.String())
+	}
+	setting, found, err := store.GetSetting(context.Background(), db, "site.name")
+	if err != nil || !found || setting.Value != "Route contract" {
+		t.Fatalf("authorized route setting not persisted: setting=%+v found=%t err=%v", setting, found, err)
 	}
 }
 
