@@ -544,12 +544,12 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 	queryValues.Set("offset", strconv.Itoa((page-1)*DefaultPageSize))
 	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"?"+queryValues.Encode(), nil)
 	if err != nil || status != http.StatusOK {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	var records []map[string]any
 	if json.Unmarshal(response, &records) != nil {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	hasNext := len(records) > DefaultPageSize
@@ -567,7 +567,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		var err error
 		localizedRecords, err = h.Options.ListLocalized(r, collection, ids, localeState(r).Current)
 		if err != nil || len(localizedRecords) > len(ids) {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		known := make(map[string]struct{}, len(ids))
@@ -576,7 +576,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		}
 		for id := range localizedRecords {
 			if _, ok := known[id]; !ok {
-				h.apiError(w)
+				h.apiError(w, r)
 				return
 			}
 		}
@@ -585,7 +585,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 	for _, record := range records {
 		id, _ := record["id"].(string)
 		if translated, ok := localizedRecords[id]; ok && applyLocalizedValues(collection, record, translated) != nil {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		values := make(map[string]string, len(collection.Fields))
@@ -875,14 +875,14 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 	apiPath := "/api/v1/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
 	response, status, err := h.callAPI(r, http.MethodGet, apiPath, nil)
 	if err != nil || status != http.StatusOK && !(collection.Drafts && status == http.StatusNotFound) {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	record := map[string]any{"id": id}
 	publishedVersion := int64(0)
 	if status == http.StatusOK {
 		if json.Unmarshal(response, &record) != nil {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		publishedVersion = generatedRecordVersion(record)
@@ -890,7 +890,7 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 	if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
 		values, version, err := h.Options.GetLocalized(r, collection, id, localeState(r).Current)
 		if err != nil || version < 0 || applyLocalizedValues(collection, record, values) != nil {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		record["locale_version"] = version
@@ -902,11 +902,11 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 	if collection.Drafts {
 		draft, err := h.Options.GetDraft(r, collection, id, localeState(r).Current)
 		if err != nil || draft.ID != "" && draft.ID != id || draft.Version < 0 || draft.PublishedVersion < 0 || draft.PublishedVersion > publishedVersion || draft.Exists && draft.Version < 1 || !draft.Exists && (draft.Version != 0 || len(draft.Fields) != 0) {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		if draft.Exists && applyDraftFields(collection, record, draft.Fields, localeState(r).Current, localeState(r).Options.Default) != nil {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		state := draft.State
@@ -914,7 +914,7 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 			state = collection.Workflow.States[0]
 		}
 		if !slices.Contains(collection.Workflow.States, state) {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		record[collection.Workflow.StateField] = string(state)
@@ -951,7 +951,7 @@ func (h GeneratedAdminHandler) renderReadOnlyRecord(w http.ResponseWriter, r *ht
 		return ui.Card(ui.CardProps{Title: collection.Label + " · " + displayValue(record[collection.TitleField]), Class: "studio-card", Body: body}).Render(ctx, out)
 	})
 	if err := h.Options.RenderPage(w, r, collection.Label, card); err != nil {
-		h.apiError(w)
+		h.apiError(w, r)
 	}
 }
 
@@ -1028,17 +1028,17 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 		var err error
 		revisions, err = h.Options.ListRevisions(r, collection, id, 50)
 		if err != nil || len(revisions) > 50 {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		seen := make(map[int64]struct{}, len(revisions))
 		for _, revision := range revisions {
 			if revision.Version < 1 {
-				h.apiError(w)
+				h.apiError(w, r)
 				return
 			}
 			if _, exists := seen[revision.Version]; exists {
-				h.apiError(w)
+				h.apiError(w, r)
 				return
 			}
 			seen[revision.Version] = struct{}{}
@@ -1051,7 +1051,7 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 		}
 		options, err := h.loadRelationOptions(r, field, values[field.ID])
 		if err != nil {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		relationOptions[field.ID] = options
@@ -1408,7 +1408,7 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 	}
 	current, err := h.currentResource(r, collection, id)
 	if err != nil {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	before, after := make(map[string]string), make(map[string]string)
@@ -1512,7 +1512,7 @@ func (h GeneratedAdminHandler) restoreRevision(w http.ResponseWriter, r *http.Re
 	}
 	current, err := h.currentResource(r, collection, id)
 	if err != nil {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	if generatedRecordVersion(current) != expectedVersion {
@@ -1561,7 +1561,7 @@ func (h GeneratedAdminHandler) copyLocale(w http.ResponseWriter, r *http.Request
 	}
 	_, currentVersion, err := h.Options.GetLocalized(r, collection, id, currentLocale)
 	if err != nil || currentVersion < 0 {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	if currentVersion != expected {
@@ -1629,7 +1629,7 @@ func (h GeneratedAdminHandler) mutateLocale(w http.ResponseWriter, r *http.Reque
 	}
 	_, currentVersion, err := h.Options.GetLocalized(r, collection, id, localeState(r).Current)
 	if err != nil || currentVersion < 0 {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	if currentVersion != expected {
@@ -1730,7 +1730,7 @@ func (h GeneratedAdminHandler) mutateDraft(w http.ResponseWriter, r *http.Reques
 		publishedVersion = generatedRecordVersion(published)
 		return false
 	}() || status != http.StatusOK && status != http.StatusNotFound {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	if publishedVersion != expectedPublished || creating && publishedVersion != 0 {
@@ -1786,23 +1786,23 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 	}
 	drafts, err := h.Options.ListDrafts(r, collection, localeState(r).Current, 50)
 	if err != nil || len(drafts) > 50 {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	seen := make(map[string]struct{}, len(drafts))
 	for _, draft := range drafts {
 		if !draftIDPattern.MatchString(draft.ID) || draft.Version < 1 || draft.PublishedVersion < 0 || !draft.Exists || !slices.Contains(collection.Workflow.States, draft.State) {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		if _, exists := seen[draft.ID]; exists {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 		seen[draft.ID] = struct{}{}
 		state := localeState(r)
 		if applyDraftFields(collection, map[string]any{}, draft.Fields, state.Current, state.Options.Default) != nil {
-			h.apiError(w)
+			h.apiError(w, r)
 			return
 		}
 	}
@@ -1894,12 +1894,12 @@ func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request
 	}
 	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
 	if err != nil || status != http.StatusOK {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	var record map[string]any
 	if json.Unmarshal(response, &record) != nil {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	expectedVersion, err := strconv.ParseInt(r.PostFormValue(versionKey), 10, 64)
@@ -2166,7 +2166,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 			current, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
 			var record map[string]any
 			if err != nil || status != http.StatusOK || json.Unmarshal(current, &record) != nil {
-				h.apiError(w)
+				h.apiError(w, r)
 				return
 			}
 			data[collection.Workflow.StateField] = record[collection.Workflow.StateField]
@@ -2184,7 +2184,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 	}
 	responseBody, status, err := h.callAPI(r, method, path, body)
 	if err != nil {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	switch status {
@@ -2200,7 +2200,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 					var loadErr error
 					record, loadErr = h.currentResource(r, collection, id)
 					if loadErr != nil {
-						h.apiError(w)
+						h.apiError(w, r)
 						return
 					}
 				}
@@ -2218,7 +2218,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		return
 	}
 	if status < 200 || status >= 300 {
-		h.apiError(w)
+		h.apiError(w, r)
 		return
 	}
 	redirect := "/admin/resources/" + url.PathEscape(collection.ID)
@@ -2483,8 +2483,8 @@ func injectGeneratedNavigation(markup []byte, collections []Collection, current,
 	return []byte(result), nil
 }
 
-func (h GeneratedAdminHandler) apiError(w http.ResponseWriter) {
-	http.Error(w, "resource operation could not be completed", http.StatusBadGateway)
+func (h GeneratedAdminHandler) apiError(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, i18n.T(generatedAdminLocale(r), "admin.generated.error.operation"), http.StatusBadGateway)
 }
 
 func displayValue(value any) string {

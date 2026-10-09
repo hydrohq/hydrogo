@@ -241,6 +241,39 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminLocalizesAndSanitizesResourceFailure(t *testing.T) {
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/project" {
+			t.Errorf("unexpected API request %s %s", r.Method, r.URL.Path)
+		}
+		http.Error(w, "postgres://secret@db.internal hydrogo panic /srv/customer/data", http.StatusInternalServerError)
+	})
+	mux := testGeneratedAdmin(t, api, func(*http.Request) bool { return true })
+	for _, tc := range []struct{ locale, message string }{
+		{"tr", "Bu işlem şu anda tamamlanamadı. Lütfen tekrar deneyin."},
+		{"en", "This action could not be completed right now. Please try again."},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			form := url.Values{"id": {"project-1"}, "title": {"Hydro project"}, "status": {"draft"}, "_csrf": {"csrf-value"}}
+			request := httptest.NewRequest(http.MethodPost, "/admin/resources/project/new", strings.NewReader(form.Encode()))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			request.Header.Set("X-CSRF-Test", "valid")
+			request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: tc.locale})
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			body := response.Body.String()
+			if response.Code != http.StatusBadGateway || !strings.Contains(body, tc.message) || response.Header().Get("Location") != "" {
+				t.Fatalf("failure response status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), body)
+			}
+			for _, internal := range []string{"postgres://secret", "db.internal", "/srv/customer/data", "panic"} {
+				if strings.Contains(body, internal) {
+					t.Fatalf("internal API detail %q leaked: %s", internal, body)
+				}
+			}
+		})
+	}
+}
+
 func TestGeneratedAdminValidationRendersLocalizedFieldErrorsAndPreservesValues(t *testing.T) {
 	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/project" {
