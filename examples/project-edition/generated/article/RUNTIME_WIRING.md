@@ -28,10 +28,11 @@ dependencies.
   the shared list/form surface without hand-editing a resource ID list.
   For a deployment that intentionally enables only some generated resources,
   call adminstudio.RegisterGenerated with that reviewed selection instead.
-- [ ] Derive ResourceAccess from the same user, tenant and record rules as the
-  resource API. It controls generated CRUD affordances and direct Admin routes;
-  leaving it nil preserves legacy all-actions UI, while the API remains the
-  authorization boundary for every caller.
+- [ ] Bind ResourceAccess from the same user, tenant and record rules as the
+  resource API before exposing this Admin. New Edition compositions should
+  always provide it so actions match policy; omitting this optional v1 callback
+  displays all basic CRUD actions as a legacy compatibility behavior. The API
+  remains the authorization boundary for every caller.
 - [ ] Apply the migration through the module migration registry for every
   declared dialect: postgres, sqlite.
 
