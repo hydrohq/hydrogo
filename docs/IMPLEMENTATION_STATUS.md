@@ -402,6 +402,11 @@ management-route changes: `go test ./internal/auth/... -count=1 -p 1` and
 certify PostgreSQL (`HYDRO_TEST_POSTGRES_URL` is unset) or every Admin route;
 see `docs/validation/admin-auth-route-regression-2026-10-09.md`.
 
+The five Admin account mutation routes now have an additional route-dispatch
+matrix for Editor, Viewer, inactive Admin, explicit `users.manage` denial, and
+invalid CSRF. The focused test and complete auth/sqlstore suite pass; browser
+and PostgreSQL remain open.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99

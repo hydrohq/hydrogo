@@ -11,6 +11,14 @@ module Admin authorization changes.
 - `go test ./internal/auth/... -count=1 -p 1 -timeout=6m` passed for
   `internal/auth` and `internal/auth/sqlstore`.
 - `go vet ./internal/auth/...` passed.
+- The registered Admin account mutations are also mounted on a real
+  `http.ServeMux`; all five role/permission/disable/invite/reset-link paths
+  return 403 for Editor, Viewer, inactive Admin, and Admin with explicit
+  `admin.users.manage=false`. The same routes reject invalid CSRF for an
+  active Admin. This route-dispatch test is
+  `TestAdminUserMutationRoutesEnforceRolesAndCSRF`.
+- After adding that matrix, the focused route test, full `internal/auth/...`
+  suite, and `go vet ./internal/auth/...` passed again.
 - The workspace has no `HYDRO_TEST_POSTGRES_URL`; PostgreSQL test cases are
   not reported as passing from this run.
 - GitHub push was retried separately and failed because this environment
