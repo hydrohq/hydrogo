@@ -33,6 +33,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
     try {
       const listResponse = await page.goto(`${externalOrigin}/admin/resources/article`);
       expect(listResponse?.status()).toBe(200);
+      await dismissOnboarding(page);
       await expect(page.locator('body[data-studio-role="editor"]')).toBeVisible();
       await expect(page.getByRole("heading", { name: "Articles" })).toBeVisible();
       await expectNoA11yViolations(page, "editor resource list");
@@ -106,6 +107,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
       await viewerPage.addInitScript({ path: path.resolve("node_modules/axe-core/axe.min.js") });
       const viewerDocument = await viewerPage.goto(`${externalOrigin}/admin/resources/article`);
       expect(viewerDocument?.status()).toBe(200);
+      await dismissOnboarding(viewerPage);
       await expect(viewerPage.locator('body[data-studio-role="viewer"]')).toBeVisible();
       await expect(viewerPage.getByRole("link", { name: "Yeni kayıt" })).toHaveCount(0);
       await expect(viewerPage.getByRole("link", { name: `${title} updated` })).toBeVisible();
@@ -118,7 +120,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
       const viewerRecordPath = await viewerPage.getByRole("link", { name: `${title} updated` }).getAttribute("href");
       await viewerPage.getByRole("link", { name: `${title} updated` }).click();
       await expect(viewerPage.locator('form[action*="/admin/resources/"]')).toHaveCount(0);
-      await expect(viewerPage.getByText(`${title} updated`)).toBeVisible();
+      await expect(viewerPage.getByText(`${title} updated`, { exact: true })).toBeVisible();
       expect(viewerRecordPath).toBeTruthy();
       const viewerDeniedUpdate = await request.post(`${externalOrigin}${viewerRecordPath}`, {
         headers: viewerHeaders,
@@ -155,6 +157,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
       expect((await request.get(`${externalOrigin}/api/v1/article/${viewerID}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(404);
       expect((await request.get(`${externalOrigin}${apiPath}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(200);
 
+      await page.goto(`${externalOrigin}${recordPath}`);
       page.once("dialog", (dialog) => dialog.accept());
       await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
       await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
@@ -175,6 +178,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
     try {
       const response = await page.goto(`${externalOrigin}/admin/resources/media_article/new`);
       expect(response?.status()).toBe(200);
+      await dismissOnboarding(page);
       const form = page.locator('form[action="/admin/resources/media_article/new"]');
       await form.getByRole("button", { name: "Kütüphaneden seç" }).click();
       const picker = page.getByRole("dialog", { name: "Medya kütüphanesi" });
@@ -216,4 +220,11 @@ async function expectNoA11yViolations(page: import("@playwright/test").Page, con
     runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
   }));
   expect(result.violations.map((violation: any) => violation.id), `${context} WCAG 2.1 A/AA violations`).toEqual([]);
+}
+
+async function dismissOnboarding(page: import("@playwright/test").Page): Promise<void> {
+  const onboarding = page.locator("#admin-onboarding-dialog");
+  await expect(onboarding).toBeVisible();
+  await onboarding.getByRole("button", { name: "Bir daha gösterme" }).click();
+  await expect(onboarding).toBeHidden();
 }
