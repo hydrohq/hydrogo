@@ -1,4 +1,4 @@
-# Admin content permission denied create persistence — 2026-10-09
+# Admin content permission denied mutations — 2026-10-09
 
 ## Scope and result
 
@@ -11,6 +11,11 @@ opens the existing page and reads it from the Edition API to verify that its
 title remains unchanged and its status remains `draft` after the denied update
 and publish. The test therefore checks persisted state rather than relying on
 error statuses alone.
+
+The same Editor also has `admin.content.read` denied. The import wizard GET
+returns 403, and a valid-CSRF import POST without a file also returns 403
+rather than reaching file validation. This confirms the write permission check
+happens before input processing on that unrendered mutation route.
 
 The focused role-boundary Chromium scenario passed **1/1** on SQLite and
 **1/1** on PostgreSQL 18.6. PostgreSQL used an application role configured
@@ -32,7 +37,8 @@ npx playwright test custom/admin-management.spec.ts --project=chromium \
 
 ## Limits
 
-This closes only the denied page create/update/publish persistence cells for
-an Editor with an explicit content-write deny. It does not close every Admin
-route × role × permission override × mutation × CSRF combination, module-owned
-API route, or production tenant/session deployment gate.
+This closes only the denied page create/update/publish persistence cells and
+the import route read/write denial for an Editor with explicit content read
+and write denies. It does not close every Admin route × role × permission
+override × mutation × CSRF combination, module-owned API route, or production
+tenant/session deployment gate.
