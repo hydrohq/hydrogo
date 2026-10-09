@@ -22,6 +22,8 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/forms"
+	formssql "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -1308,6 +1310,121 @@ func TestSiteRedirectRuleCSVImportIsAuthorizedAndAllOrNothing(t *testing.T) {
 	}
 	if unchanged := list(); len(unchanged) != 2 || unchanged[0].Pattern != "/old-a" || unchanged[1].Pattern != "/old-b" {
 		t.Fatalf("failed import partially changed persisted rules: %+v", unchanged)
+	}
+}
+
+func TestSiteFormBuilderAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-form-builder-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	formStore := formssql.Store{Executor: db, Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store, Forms: formStore}
+	handler := Handler{FormsEnabled: true, Service: service}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/forms" || route.Pattern == "POST /admin/site/forms/{id}/delete" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	save := func(user *auth.User, token, schema string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"_csrf": {token}, "schema": {schema}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/forms", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	remove := func(user *auth.User, token, id string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/forms/"+url.PathEscape(id)+"/delete", strings.NewReader("_csrf="+token))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	get := func() (forms.Form, bool) {
+		t.Helper()
+		form, err := formStore.Get(context.Background(), "contact")
+		if errors.Is(err, sql.ErrNoRows) {
+			return forms.Form{}, false
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return form, true
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	created := `{"id":"contact","title":"Contact","fields":[{"id":"email","type":"email","label":"Email","required":true}]}`
+	if response := save(admin, "wrong-token", created); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF create status=%d, want 403", response.Code)
+	}
+	if _, found := get(); found {
+		t.Fatal("invalid CSRF created form")
+	}
+	deniedAdmin := &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := save(deniedAdmin, "valid-token", created); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin create status=%d, want 403", response.Code)
+	}
+	if _, found := get(); found {
+		t.Fatal("denied Admin created form")
+	}
+	if response := save(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "valid-token", created); response.Code != http.StatusForbidden {
+		t.Fatalf("Editor create status=%d, want 403", response.Code)
+	}
+	if response := save(admin, "valid-token", created); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/forms?id=contact" {
+		t.Fatalf("authorized create status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	stored, found := get()
+	if !found || stored.Title != "Contact" || len(stored.Fields) != 1 || stored.Fields[0].Type != forms.Email {
+		t.Fatalf("created form=%+v found=%t", stored, found)
+	}
+	updated := `{"id":"contact","title":"Contact support","fields":[{"id":"email","type":"email","label":"Email address","required":true}]}`
+	if response := save(admin, "valid-token", updated); response.Code != http.StatusSeeOther {
+		t.Fatalf("authorized update status=%d body=%s", response.Code, response.Body.String())
+	}
+	stored, found = get()
+	if !found || stored.Title != "Contact support" || stored.Fields[0].Label != "Email address" {
+		t.Fatalf("updated form=%+v found=%t", stored, found)
+	}
+	invalid := `{"id":"contact","title":"Invalid","fields":[{"id":"bad id","type":"email","label":"Email"}]}`
+	if response := save(admin, "valid-token", invalid); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid schema status=%d, want 400", response.Code)
+	}
+	stored, found = get()
+	if !found || stored.Title != "Contact support" {
+		t.Fatalf("invalid schema replaced valid form: %+v found=%t", stored, found)
+	}
+	if response := remove(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "valid-token", "contact"); response.Code != http.StatusForbidden {
+		t.Fatalf("Editor delete status=%d, want 403", response.Code)
+	}
+	if response := remove(deniedAdmin, "valid-token", "contact"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin delete status=%d, want 403", response.Code)
+	}
+	if response := remove(admin, "wrong-token", "contact"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF delete status=%d, want 403", response.Code)
+	}
+	if _, found := get(); !found {
+		t.Fatal("denied delete removed form")
+	}
+	if response := remove(admin, "valid-token", "contact"); response.Code != http.StatusSeeOther {
+		t.Fatalf("authorized delete status=%d body=%s", response.Code, response.Body.String())
+	}
+	if _, found := get(); found {
+		t.Fatal("authorized delete left form in the registry")
 	}
 }
 
