@@ -564,19 +564,32 @@ func TestAdminUserMutationRoutesEnforceRolesAndCSRF(t *testing.T) {
 				}
 			})
 		}
-		t.Run(route.path+"/invalid-csrf", func(t *testing.T) {
-			body := url.Values{"_csrf": {"wrong-token"}, "role": {string(RoleEditor)}}
-			request := httptest.NewRequest(route.method, route.path, strings.NewReader(body.Encode()))
-			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-			request.Header.Set(security.CSRFHeaderName, "wrong-token")
-			request = request.WithContext(WithUser(request.Context(), &User{ID: "admin", Role: RoleAdmin, Active: true}))
-			response := httptest.NewRecorder()
-			secured.ServeHTTP(response, request)
-			if response.Code != http.StatusForbidden {
-				t.Fatalf("%s %s with invalid CSRF = %d, want 403", route.method, route.path, response.Code)
-			}
-		})
+		for _, csrfCase := range []struct {
+			name  string
+			token string
+		}{
+			{name: "missing-csrf"},
+			{name: "invalid-csrf", token: "wrong-token"},
+		} {
+			t.Run(route.path+"/"+csrfCase.name, func(t *testing.T) {
+				body := url.Values{"role": {string(RoleEditor)}}
+				if csrfCase.token != "" {
+					body.Set("_csrf", csrfCase.token)
+				}
+				request := httptest.NewRequest(route.method, route.path, strings.NewReader(body.Encode()))
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				if csrfCase.token != "" {
+					request.Header.Set(security.CSRFHeaderName, csrfCase.token)
+				}
+				request = request.WithContext(WithUser(request.Context(), &User{ID: "admin", Role: RoleAdmin, Active: true}))
+				response := httptest.NewRecorder()
+				secured.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Fatalf("%s %s with %s = %d, want 403", route.method, route.path, csrfCase.name, response.Code)
+				}
+			})
+		}
 	}
 }
 
