@@ -244,3 +244,22 @@ HYDRO_PG_PRIVILEGED_ROLE='<bypassrls-backup-role>' \
 npx playwright test --project=chromium --workers=1 custom/admin-management.spec.ts \
   --reporter=line --trace=off
 ```
+
+## Full isolated PostgreSQL rerun — 2026-10-09
+
+The complete five-test Admin-management Chromium file passed **5/5** in 1.7
+minutes against PostgreSQL 18.6 after the page import and XLSX changes. This
+rerun also closes the previous local backup-role setup gap: it used a fresh
+temporary cluster with a `hydro_app` database owner and a separate
+`hydro_backup NOLOGIN BYPASSRLS` role, granted to the application connection
+role. Default table and sequence read privileges were granted to the backup
+role before migrations. The signed backup download succeeded as part of the
+Admin journey. The temporary cluster was stopped and deleted after the run;
+the shared local PostgreSQL cluster was not modified.
+
+The suite covered the Editor CSV and XLSX import journeys, duplicate-safe
+reimport, Viewer denial, anonymous access, Admin route accessibility and
+CSRF-less POST rejection, responsive layouts, invitation acceptance, and
+WCAG 2.1 A/AA across four Studio themes in both color modes. This verifies the
+test deployment against PostgreSQL; it does not certify a customer deployment
+or production credentials.
