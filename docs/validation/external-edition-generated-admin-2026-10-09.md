@@ -153,3 +153,10 @@ delete leaves the target row readable. The complete nested Edition suite,
 `go vet ./...`, and `git diff --check` passed. These results use the fixture's
 SQLite database and `ValidateCSRF` callback; browser/session middleware and
 PostgreSQL remain separate open gates.
+
+The independent Edition Playwright editor journey also now attempts forged
+CSRF create, update, and delete requests and checks that create leaves no row
+and update/delete preserve the existing row. Playwright successfully discovers
+both editor/viewer and media scenarios after the change. The actual browser
+assertions remain unrun because the fixture cannot bind its loopback listener
+in this environment; discovery is not a passing browser result.
