@@ -339,6 +339,18 @@ All six route compositions passed. Persistence outcomes and role override
 behavior for every Site/News/Pages/Media/Auth action remain covered by
 handler-specific tests or open cells in the full acceptance matrix.
 
+### Media Admin missing-CSRF permission matrix — 2026-10-09
+
+The actual media `AdminRoutes()` denial matrix now sends a request with no
+`_csrf` field, as well as a mismatched token, to every POST action: upload,
+metadata, folder, settings, visibility, and cleanup deletion. Both variants
+return 403 before handler work for Editor with a media deny override, Viewer,
+and Admin with an explicit media deny. A valid matching token then reaches the
+permission boundary and still returns 403 for those denied principals. The
+full `internal/media/...` test suite and `go vet ./internal/media/...` passed.
+This tests denial and dispatch ordering in an in-memory route fixture; it does
+not add successful mutation persistence or browser evidence.
+
 Validation for the read-only detail change:
 
 ```sh

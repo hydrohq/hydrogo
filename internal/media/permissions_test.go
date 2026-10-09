@@ -68,8 +68,11 @@ func TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies(t *testing.T)
 		t.Run(user.name, func(t *testing.T) {
 			for _, route := range routes {
 				t.Run(route.name, func(t *testing.T) {
-					serve := func(token string) *httptest.ResponseRecorder {
-						body := "_csrf=" + token
+					serve := func(token string, includeToken bool) *httptest.ResponseRecorder {
+						body := ""
+						if includeToken {
+							body = "_csrf=" + token
+						}
 						request := httptest.NewRequest(route.method, route.path, strings.NewReader(body))
 						request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 						request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "fixed-token"})
@@ -79,12 +82,16 @@ func TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies(t *testing.T)
 						return response
 					}
 					if route.method != http.MethodGet {
-						invalidCSRF := serve("wrong-token")
+						missingCSRF := serve("", false)
+						if missingCSRF.Code != http.StatusForbidden || !strings.Contains(missingCSRF.Body.String(), "invalid or missing csrf token") {
+							t.Fatalf("missing CSRF media %s status=%d body=%q", route.name, missingCSRF.Code, missingCSRF.Body.String())
+						}
+						invalidCSRF := serve("wrong-token", true)
 						if invalidCSRF.Code != http.StatusForbidden || !strings.Contains(invalidCSRF.Body.String(), "invalid or missing csrf token") {
 							t.Fatalf("invalid CSRF media %s status=%d body=%q", route.name, invalidCSRF.Code, invalidCSRF.Body.String())
 						}
 					}
-					denied := serve("fixed-token")
+					denied := serve("fixed-token", true)
 					if denied.Code != http.StatusForbidden || !strings.Contains(denied.Body.String(), "forbidden") {
 						t.Fatalf("denied media %s status=%d body=%q", route.name, denied.Code, denied.Body.String())
 					}
