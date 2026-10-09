@@ -88,6 +88,11 @@ test.describe("independent Edition generated Admin editor journey", () => {
         form: { _csrf: "external-edition-test-token", title: "Must remain unchanged" },
       });
       expect(viewerDeniedUpdate.status()).toBe(403);
+      const viewerDeniedDelete = await request.post(`${externalOrigin}${viewerRecordPath}/delete`, {
+        headers: viewerHeaders,
+        form: { _csrf: "external-edition-test-token" },
+      });
+      expect(viewerDeniedDelete.status()).toBe(403);
       const unchanged = await request.get(`${externalOrigin}${apiPath}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } });
       expect(unchanged.status()).toBe(200);
       expect((await unchanged.json()).title).toBe(`${title} updated`);
@@ -103,6 +108,13 @@ test.describe("independent Edition generated Admin editor journey", () => {
         data: { id: viewerID, title: "Must be denied" },
       });
       expect(viewerAPIWrite.status()).toBe(403);
+      const viewerAPIUpdate = await request.put(`${externalOrigin}${apiPath}`, {
+        headers: viewerHeaders,
+        data: { title: "Must remain unchanged" },
+      });
+      expect(viewerAPIUpdate.status()).toBe(403);
+      const viewerAPIDelete = await request.delete(`${externalOrigin}${apiPath}`, { headers: viewerHeaders });
+      expect(viewerAPIDelete.status()).toBe(403);
       expect((await request.get(`${externalOrigin}/api/v1/article/${viewerID}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(404);
       expect((await request.get(`${externalOrigin}${apiPath}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(200);
 

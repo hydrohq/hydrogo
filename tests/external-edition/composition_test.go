@@ -251,6 +251,15 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if viewerUpdateResponse.Code != http.StatusForbidden {
 		t.Fatalf("generated Admin allowed a viewer update: status=%d", viewerUpdateResponse.Code)
 	}
+	viewerDelete := httptest.NewRequest(http.MethodPost, "/admin/resources/article/article-1/delete", strings.NewReader("_csrf=edition-token"))
+	viewerDelete.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	viewerDelete.Header.Set("X-Test-Role", "viewer")
+	viewerDelete.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerDeleteResponse := httptest.NewRecorder()
+	serveWithExternalRole(mux, viewerDeleteResponse, viewerDelete)
+	if viewerDeleteResponse.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin allowed a viewer delete: status=%d", viewerDeleteResponse.Code)
+	}
 	if response := readResourceFor("tenant-a", "article-1"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "External tenant record") {
 		t.Fatalf("viewer update changed persisted data: status=%d body=%s", response.Code, response.Body.String())
 	}
@@ -285,6 +294,27 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	}
 	if response := readResourceFor("tenant-a", "viewer-api-created"); response.Code != http.StatusNotFound {
 		t.Fatalf("viewer API mutation was persisted: status=%d body=%s", response.Code, response.Body.String())
+	}
+	for _, mutation := range []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{http.MethodPut, "/api/v1/article/article-1", `{"title":"Viewer API update denied"}`},
+		{http.MethodDelete, "/api/v1/article/article-1", ""},
+	} {
+		request := httptest.NewRequest(mutation.method, mutation.path, strings.NewReader(mutation.body))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Test-Tenant", "tenant-a")
+		request.Header.Set("X-Test-Role", "viewer")
+		response := httptest.NewRecorder()
+		serveWithExternalRole(mux, response, request)
+		if response.Code != http.StatusForbidden {
+			t.Errorf("viewer API %s %s status=%d, want 403", mutation.method, mutation.path, response.Code)
+		}
+	}
+	if response := readResourceFor("tenant-a", "article-1"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "External tenant record") {
+		t.Fatalf("viewer API update/delete changed persisted data: status=%d body=%s", response.Code, response.Body.String())
 	}
 
 	adminMutation := func(path string, values url.Values) *httptest.ResponseRecorder {
