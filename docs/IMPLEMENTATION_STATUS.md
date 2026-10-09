@@ -250,6 +250,12 @@ coverage: the 404 appears through the public catch-all, the 500 renderer keeps
 its 500 status, denied writes have no effect, and an external link is rejected
 without replacing the saved 404. Remaining Site routes are still open.
 
+Internal staff broadcast settings are covered through the Admin route and
+SQLite. The notice persists privately, never appears in the public settings
+projection, and invalid severity or unauthorized/CSRF-denied writes leave the
+previous value unchanged. Remaining Site mutations and PostgreSQL route-level
+tests remain open.
+
 Windows'ta:
 
 ```powershell
