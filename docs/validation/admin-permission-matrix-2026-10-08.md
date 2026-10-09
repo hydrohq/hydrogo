@@ -328,6 +328,25 @@ deny, and inactive explicit grant also return 403 before handler dependencies.
 This caught `/admin/site/link-check` returning 503 for denied users when its
 scanner dependency was absent. Authorization now returns 403 before the
 separate authorized-but-unavailable 503 path. The full Site transport package
-and vet passed. This covers the registered fixture routes, not every optional
-AI or mail implementation, and only Site settings currently has DB-backed
-successful mutation state evidence.
+and vet passed. This covers registered Forms/Fonts routes; the optional AI
+route is covered separately below, while mail-spool variants and successful
+DB-backed mutation state beyond Site settings remain open.
+
+### Optional Site AI summary mutation — 2026-10-09
+
+With Forms enabled and an explicit AI provider/audit writer, the registered
+`POST /admin/site/inbox/{form}/ai-summarize` route rejects invalid CSRF for
+Admin and rejects valid-CSRF Editor, Viewer, Admin `site.manage=false`, and
+inactive Admin with an explicit grant. The checks run through the production
+CSRF middleware and registered `http.ServeMux` route; denial happens before
+service, storage, audit, or provider work. The Site transport package tests and
+vet passed. This does not verify a successful AI summary or mail-spool routes.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -run '^TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage$' -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go vet ./modules/site/transport
+```

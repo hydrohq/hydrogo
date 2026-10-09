@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 	"time"
 
@@ -398,6 +399,58 @@ func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage(t *testing.T) {
+	handler := Handler{
+		FormsEnabled: true,
+		Assistant:    ai.Assistant{Enabled: true, Provider: &aiSummaryProvider{}},
+		AIAudit:      &aiAuditRecorder{},
+	}
+	mux := http.NewServeMux()
+	registered := false
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/inbox/{form}/ai-summarize" {
+			mux.Handle(route.Pattern, route.Handler)
+			registered = true
+			break
+		}
+	}
+	if !registered {
+		t.Fatal("enabled Site assistant mutation was not registered")
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	serve := func(user *auth.User, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/inbox/contact/ai-summarize", strings.NewReader("submission_id=item&consent=yes&_csrf="+token))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := serve(admin, "wrong-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("assistant invalid CSRF status=%d, want 403", response.Code)
+	}
+	for _, tc := range []struct {
+		name string
+		user *auth.User
+	}{
+		{name: "editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}},
+		{name: "viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}},
+		{name: "admin permission deny", user: &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}},
+		{name: "inactive explicit grant", user: &auth.User{ID: "inactive", Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if response := serve(tc.user, "valid-token"); response.Code != http.StatusForbidden {
+				t.Fatalf("assistant denied status=%d, want 403; body=%s", response.Code, response.Body.String())
+			}
+		})
 	}
 }
 
