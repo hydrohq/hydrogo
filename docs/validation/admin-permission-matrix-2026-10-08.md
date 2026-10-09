@@ -274,3 +274,18 @@ TMPDIR=/var/tmp go test ./internal/adminstudio -count=1
 go test ./extension/v1/adminstudio ./examples/project-edition/custom -count=1
 cd tests/external-edition && go test ./... -count=1
 ```
+
+### Site settings CSRF × permission × persisted state — 2026-10-09
+
+The registered `POST /admin/site/settings` handler is now exercised behind the
+production CSRF middleware with SQLite migrations and the SQL store. Invalid
+CSRF and an Admin `site.manage=false` override both return 403 and leave the
+setting absent. A valid-CSRF Editor with an explicit `site.manage=true` grant
+receives 204 and the setting is read back from SQLite. The focused test and
+`go vet ./modules/site/transport` passed. This closes one Site settings
+mutation cell only; it does not imply the full Site/Admin route matrix passed.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 go test ./modules/site/transport -run '^TestAdminSiteSettingRouteEnforcesCSRFBeforePermission$' -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 go vet ./modules/site/transport
+```
