@@ -101,3 +101,14 @@ execution context; this rerun does not recertify every root PostgreSQL
 contract after the Site migration. A network lookup for `github.com` is also
 blocked in the current environment, so this validation-only follow-up cannot
 be pushed from this session.
+
+## Private PostgreSQL listener capability recheck — 2026-10-09
+
+To distinguish a missing PostgreSQL service from a blocked shared socket, a
+fresh disposable cluster was initialized under `/tmp` with a private Unix-socket
+directory and TCP listening disabled. `initdb` succeeded, but PostgreSQL 18.6
+could not bind its AF_UNIX socket: `Operation not permitted`. The server exited
+before accepting connections, and its temporary cluster files were removed.
+Thus this managed process cannot supply the live PostgreSQL endpoint required
+by the opt-in root contracts; the earlier successful PostgreSQL runs remain
+valid historical evidence but are not reruns against this current tree.
