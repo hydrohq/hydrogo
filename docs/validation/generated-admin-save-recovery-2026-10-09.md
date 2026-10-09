@@ -32,18 +32,21 @@ without exposing the API response.
 
 ## Browser retry coverage added — 2026-10-09
 
-The generated rich-text E2E fixture can now fail the next article create once.
-The Playwright scenario asserts the 502 response, preserved title and rich-text
-body, localized accessible alert, absence of fixture internals, axe results,
-successful retry, and API readback. The Go fixture package compiled and
-Playwright discovered the case (8 tests total). An actual browser execution was
-attempted, but the runner failed before the scenario started because this
-environment denies loopback listeners (`listen EPERM: operation not
-permitted 127.0.0.1`). Therefore browser behavior is still pending a permitted
-runner; discovery is not counted as execution.
+The generated rich-text Chromium suite passed 8/8 on the local Edition fixture.
+It covers Quill formatting and API round-trip; 502 recovery with preserved
+title/body, localized alert, axe, retry and API readback; lazy block-editor load
+and JSON round-trip; stale-edit conflict; relation/media selection; localized
+draft publishing; and draft review/discard state separation.
+
+```sh
+cd e2e
+npx playwright test --project=chromium --workers=1 custom/generated-richtext.spec.ts \
+  --reporter=line --trace=off
+```
 
 ## Limits
 
-This is an in-process HTTP test. Browser interaction, PostgreSQL, and deployed
-Edition error mapping remain open. The delete fallback is covered for Turkish
-and English when the record is no longer readable.
+The UI journeys use the local in-process Edition fixture. Production session
+integration, PostgreSQL browser behavior, and deployed Edition error mapping
+remain open. The delete fallback is covered for Turkish and English when the
+record is no longer readable.
