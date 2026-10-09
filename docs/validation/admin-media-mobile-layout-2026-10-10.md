@@ -9,6 +9,8 @@ The Admin media grid now uses one column at widths up to 520px. Media card butto
 - `go test ./internal/ui -run '^TestMobileMediaLibraryUsesSingleColumnAndTouchSizedControls$' -count=1 -p 1` — passed.
 - `go test ./internal/ui -count=1 -p 1` — passed.
 - `go vet ./internal/ui` — passed.
+- Full root SQLite suite `go test ./... -count=1 -p 1 -timeout=8m` — passed across all packages.
+- Full root `go vet ./...` — passed.
 - `playwright test custom/admin-management.spec.ts --list` — discovered all 5 cases.
 - Targeted Playwright runtime was attempted with a writable Go cache. It stopped before browser assertions because this environment rejects binding the E2E server to `127.0.0.1` (`listen EPERM`).
 - `git diff --check` — passed.
