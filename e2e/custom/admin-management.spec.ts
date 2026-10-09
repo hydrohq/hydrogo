@@ -293,8 +293,13 @@ test.describe("single Edition administrator management", () => {
       const { token } = await csrfResponse.json();
       expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(token);
       for (const target of restrictedMutationTargets) {
-        const denied = await page.request.post(target, { form: { _csrf: token } });
-        expect(denied.status(), `${account.expectedRole} must be denied privileged mutation ${new URL(target).pathname} with valid CSRF`).toBe(403);
+        const route = new URL(target).pathname;
+        const validCSRF = await page.request.post(target, { form: { _csrf: token } });
+        expect(validCSRF.status(), `${account.expectedRole} must be denied privileged mutation ${route} with valid CSRF`).toBe(403);
+        const missingCSRF = await page.request.post(target, { form: {} });
+        expect(missingCSRF.status(), `${account.expectedRole} privileged mutation ${route} must reject missing CSRF`).toBe(403);
+        const mismatchedCSRF = await page.request.post(target, { form: { _csrf: "deliberately-mismatched-csrf-token" } });
+        expect(mismatchedCSRF.status(), `${account.expectedRole} privileged mutation ${route} must reject mismatched CSRF`).toBe(403);
       }
       if (account.expectedRole === "viewer") {
         const deniedImport = await page.request.post(`${baseURL}/admin/pages/import`, {

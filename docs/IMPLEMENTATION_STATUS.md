@@ -48,6 +48,14 @@ documented separate backup role boundary. Other system mutation persistence
 cells remain open. Evidence:
 `admin-security-denied-mutation-persistence-2026-10-09.md`.
 
+2026-10-09 Admin CSRF follow-up: Editor and Viewer requests to every same-origin
+POST action discovered on ten privileged Admin pages are rejected with 403
+when the CSRF token is valid, missing, or mismatched. The full five-test
+Admin-management Chromium file passed on SQLite and PostgreSQL 18.6. This
+covers rendered privileged targets only; API-only/module routes and per-target
+persisted-state checks remain open. Evidence:
+`admin-rendered-post-csrf-matrix-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered
