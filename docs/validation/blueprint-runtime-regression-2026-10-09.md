@@ -51,6 +51,24 @@ files only. It does not exercise the PostgreSQL wire protocol, Go adapter,
 transaction/concurrency behavior, migration runner, tenant isolation, or
 rollback. The migration metadata remains forward-only/restore-based as
 documented; those runtime gates remain open.
+
+### Standalone schema and transaction semantics
+
+Catalog queries on the same temporary cluster confirmed each table has `id`
+as its primary key and all generated columns are PostgreSQL `text NOT NULL`.
+An article insert succeeded; an update inside `BEGIN` followed by `ROLLBACK`
+left the original title unchanged. A `NULL` title insert raised PostgreSQL's
+not-null violation and a follow-up count remained zero. These are direct
+PostgreSQL engine semantics in single-user mode, not tests through HydroGo's
+database adapter, migration runner, or HTTP/API stack.
+
+```sh
+HYDROGO_PGDATA_TMP=/tmp/hydrogo-admin-pgdata-e231
+printf "INSERT INTO articles(id, body, title) VALUES ('e231-rollback-check', 'body', 'before');\nBEGIN; UPDATE articles SET title='after' WHERE id='e231-rollback-check'; ROLLBACK;\nSELECT title FROM articles WHERE id='e231-rollback-check';\n" \
+  | postgres --single -D "$HYDROGO_PGDATA_TMP" postgres
+printf "INSERT INTO articles(id, body, title) VALUES ('e231-null-check', 'body', NULL);\nSELECT count(*) FROM articles WHERE id='e231-null-check';\n" \
+  | postgres --single -D "$HYDROGO_PGDATA_TMP" postgres
+```
 The authenticated Chromium generated Admin flow remains unverified here
 because the fixture cannot bind loopback; see
 `generated-block-editor-theme-matrix-2026-10-09.md` for the external-fixture
