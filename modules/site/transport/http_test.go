@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -727,6 +728,74 @@ func TestSiteContactWidgetAdminRoutePersistsValidatedSettings(t *testing.T) {
 		t.Fatalf("invalid phone status=%d, want 400", response.Code)
 	}
 	assertWidget(want)
+}
+
+func TestSiteMaintenanceAdminRouteProtectsAndPersistsPrivateSettings(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-maintenance-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/maintenance" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token string, form url.Values) *httptest.ResponseRecorder {
+		t.Helper()
+		form.Set("_csrf", token)
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/maintenance", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertMissing := func() {
+		t.Helper()
+		if _, found, err := store.GetSetting(context.Background(), db, site.MaintenanceSettingKey); err != nil || found {
+			t.Fatalf("denied mutation persisted private maintenance setting: found=%t err=%v", found, err)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	form := url.Values{"enabled": {"true"}, "allowlist": {"127.0.0.1\n10.0.0.0/8"}, "headline": {"Kısa bakım"}, "message": {"Birazdan döneceğiz."}, "starts_at": {"2026-10-10T09:00"}, "ends_at": {"2026-10-10T12:00"}, "preview_key": {"sixteen-character-key"}}
+	if response := post(admin, "wrong-token", form); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token", form); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	if response := post(admin, "valid-token", form); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/maintenance?saved=1" {
+		t.Fatalf("authorized maintenance response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	setting, found, err := store.GetSetting(context.Background(), db, site.MaintenanceSettingKey)
+	if err != nil || !found || setting.Public {
+		t.Fatalf("maintenance setting=%+v found=%t err=%v", setting, found, err)
+	}
+	want := site.MaintenanceSettings{Enabled: true, Allowlist: []string{"127.0.0.1", "10.0.0.0/8"}, StartsAt: "2026-10-10T09:00:00Z", EndsAt: "2026-10-10T12:00:00Z", Headline: "Kısa bakım", Message: "Birazdan döneceğiz.", PreviewKeyHash: site.MaintenancePreviewKeyHash("sixteen-character-key")}
+	if got := site.MaintenanceFromSetting(setting); !reflect.DeepEqual(got, want) || strings.Contains(setting.Value, "sixteen-character-key") {
+		t.Fatalf("private maintenance settings=%+v want=%+v serialized=%s", got, want, setting.Value)
+	}
+	invalid := url.Values{"enabled": {"true"}, "allowlist": {"not-an-ip"}, "headline": {"Invalid"}, "message": {"Invalid"}}
+	if response := post(admin, "valid-token", invalid); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid allowlist status=%d, want 400", response.Code)
+	}
+	unchanged, found, err := store.GetSetting(context.Background(), db, site.MaintenanceSettingKey)
+	if err != nil || !found || unchanged.Value != setting.Value {
+		t.Fatalf("invalid update changed maintenance settings: found=%t err=%v value=%s", found, err, unchanged.Value)
+	}
 }
 
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
