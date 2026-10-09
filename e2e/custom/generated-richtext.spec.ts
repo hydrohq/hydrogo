@@ -351,6 +351,34 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(defaultRecord.json()).resolves.toMatchObject({ title: "Published story", version: 1 });
   });
 
+  test("generated collection and editorial screens stay accessible across Studio themes", async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    const screens = [
+      { path: "/admin/resources/article", heading: "Articles" },
+      { path: "/admin/resources/article/new", heading: "Yeni kayıt · Articles" },
+      { path: "/admin/resources/story", heading: "Stories" },
+      { path: "/admin/resources/story/drafts", heading: "Taslaklar · Stories" },
+      { path: "/admin/resources/story/story-1?locale=tr", heading: "Kaydı düzenle · Stories" },
+    ];
+    await page.goto(`${baseURL}${screens[0].path}`);
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        for (const screen of screens) {
+          await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+          const response = await page.goto(`${baseURL}${screen.path}`);
+          expect(response?.status(), `${screen.path} should render in ${family}-${mode}`).toBe(200);
+          await dismissOnboarding(page);
+          await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+          await expect(page.locator("main")).toContainText(screen.heading);
+          await expectNoA11yViolations(page);
+        }
+      }
+    }
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+  });
+
   test("generated draft review and publish flow keeps working copy separate", async ({ page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources/story/drafts`);
