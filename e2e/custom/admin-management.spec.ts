@@ -1164,6 +1164,40 @@ test.describe("single Edition administrator management", () => {
     await context.close();
   });
 
+  test("failed Admin login gives accessible localized feedback in both color modes", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    for (const mode of ["light", "dark"]) {
+      for (const locale of ["en", "tr"] as const) {
+        await page.goto(`${baseURL}/login`);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-ui-theme-v2", `workbench-${colorMode}`), mode);
+        await page.goto(`${baseURL}/login?lang=${locale}`);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        await page.getByLabel(locale === "en" ? "Email address" : "E-posta Adresi").fill(`unknown-${mode}-${locale}@example.test`);
+        await page.getByLabel(locale === "en" ? "Password" : "Şifre").fill("incorrect-password");
+        const loginResponse = page.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
+        await page.getByRole("button", { name: locale === "en" ? "Sign in" : "Giriş Yap" }).click();
+        expect((await loginResponse).status(), `invalid login must return 401 in ${mode}/${locale}`).toBe(401);
+        const expected = locale === "en"
+          ? "Email or password is incorrect. Check your details and try again."
+          : "E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.";
+        await expect(page.locator("#login-status")).toHaveAttribute("role", "alert");
+        await expect(page.getByRole("alert")).toHaveText(expected);
+        const result = await page.evaluate(async () => (window as any).axe.run(document, {
+          runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+        }));
+        expect(result.violations.map((violation: any) => ({
+          id: violation.id,
+          impact: violation.impact,
+          nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+        })), `failed login WCAG 2.1 A/AA violations in ${mode}/${locale}`).toEqual([]);
+      }
+    }
+    await context.close();
+  });
+
   test("admin routes meet WCAG 2.1 A/AA in every Studio theme and color mode", async ({ browser }) => {
     test.setTimeout(180_000);
     expect(adminStorageState, "the preceding admin login test must create an authenticated state").toBeTruthy();

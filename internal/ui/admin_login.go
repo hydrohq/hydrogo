@@ -80,6 +80,7 @@ html[data-theme="light"] {
 	--btn-primary-hover: #0369a1;
 	--btn-primary-text: #ffffff;
 	--color-success: #047857;
+	--color-error: #b91c1c;
 
 	--btn-secondary-bg: #ffffff;
 	--btn-secondary-hover: #f1f5f9;
