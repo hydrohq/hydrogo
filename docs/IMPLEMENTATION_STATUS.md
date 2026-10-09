@@ -286,8 +286,13 @@ submission and inbox/lead persistence remain open.
 Public form submit → idempotent inbox → Admin triage is now one route/SQLite
 journey: replay creates no duplicate, key reuse with changed input conflicts,
 inbox HTML omits internal hashes, Editor/CSRF/permission denials cannot mutate,
-and authorized status/lead assignments persist. Notes, exports, browser UX and
+and authorized status/lead assignments persist. Exports, browser UX and
 PostgreSQL route-level behavior remain open.
+
+Lead-note create/list is also covered: only permitted Site managers can add a
+note, denied roles and CSRF persist nothing, and returned records retain the
+author identity. Site exports, browser workflows and PostgreSQL route behavior
+remain open.
 
 Windows'ta:
 
