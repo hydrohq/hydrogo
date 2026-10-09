@@ -111,7 +111,17 @@ and the accessible `role="status"` announcement. The existing Chromium CRUD
 journey now expects the no-match message. A registered generated-handler test
 also confirms the Admin language cookie selects English even when a content
 locale is not involved. Generated Admin/i18n Go tests and vet passed;
-Impeccable's detector returned no findings. Browser execution is still open:
-this environment has no local Playwright executable and restricted network
-access prevents fetching it; previous Edition browser attempts also hit the
-loopback listener restriction. No browser pass is claimed.
+Impeccable's detector returned no findings. Playwright is now available for
+test discovery, but browser execution is still open because this environment
+denies loopback listener creation. No browser pass is claimed.
+
+## Native Blueprint required-field browser journey — 2026-10-09
+
+The Project Edition's native generated `milestone` CRUD Playwright journey now
+submits a whitespace-only required title before the successful create. It
+asserts the 422 response, localized accessible summary, field-level feedback,
+preservation of the submitted value, and axe WCAG 2.1 A/AA results before
+continuing to create the valid record. Playwright discovers the scenario, but
+the browser assertions have not run here because server startup is blocked by
+the loopback listener policy. This adds acceptance coverage without claiming a
+runtime result.
