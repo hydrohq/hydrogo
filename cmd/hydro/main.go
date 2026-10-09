@@ -2564,7 +2564,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	routes = append(routes, router.Route{Pattern: "GET /admin/studio/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
-		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		if !activePlatformAdmin(user) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -2573,7 +2573,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	})})
 	routes = append(routes, router.Route{Pattern: "GET /admin/extensions/manifest", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
-		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		if !activePlatformAdmin(user) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -2789,7 +2789,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		auditExplorer := auditstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		routes = append(routes, router.Route{Pattern: "GET /admin/audit", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user := auth.UserFromContext(r.Context())
-			if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			if !activePlatformAdmin(user) {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -2863,7 +2863,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	backupConfirmationLimiter := newRateLimiter(3, time.Minute)
 	adminBackupHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
-		if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+		if !activePlatformAdmin(user) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -2960,7 +2960,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			slog.Error("admin backup archive stream failed", "error", err)
 		}
 	})
-	routes = append(routes, router.Route{Pattern: "GET /admin/backup", Access: router.Protected, Handler: adminBackupHandler}, router.Route{Pattern: "POST /admin/backup", Access: router.Protected, Handler: adminBackupHandler})
+	routes = append(routes, adminBackupRoutes(adminBackupHandler)...)
 	routes = append(routes, router.Route{Pattern: "POST /admin/account/locale", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := auth.UserFromContext(r.Context())
 		if user == nil || !user.Active {
@@ -3207,7 +3207,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	adminBanMutation := func(remove bool) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			user := auth.UserFromContext(r.Context())
-			if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+			if !activePlatformAdmin(user) {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -3258,10 +3258,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			http.Redirect(w, r, "/admin/security", http.StatusSeeOther)
 		}
 	}
-	routes = append(routes,
-		router.Route{Pattern: "POST /admin/security/bans", Access: router.Protected, Handler: adminBanMutation(false)},
-		router.Route{Pattern: "POST /admin/security/bans/remove", Access: router.Protected, Handler: adminBanMutation(true)},
-	)
+	routes = append(routes, adminSecurityBanRoutes(adminBanMutation(false), adminBanMutation(true))...)
 	if modules["media"] {
 		routes = append(routes, mediaRouterRoutes(mediaHTTP.AdminRoutes())...)
 		routes = append(routes, mediaRouterRoutes(mediaHTTP.Routes())...)
@@ -4849,7 +4846,7 @@ func adminControlAllowed(user *auth.User, path string) bool {
 	if path == "/admin/site" {
 		return auth.Can(user, auth.PermissionSiteManage)
 	}
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
+	if !activePlatformAdmin(user) {
 		return false
 	}
 	switch path {
