@@ -778,6 +778,92 @@ func TestGeneratedAdminMutationUsesCSRFAndResourceAPI(t *testing.T) {
 	}
 }
 
+func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title",
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText, Required: true}},
+		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiMutations := 0
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			t.Errorf("unexpected read while testing direct writes: %s %s", r.Method, r.URL.Path)
+		}
+		apiMutations++
+		switch r.Method {
+		case http.MethodPost:
+			w.WriteHeader(http.StatusCreated)
+		case http.MethodPut, http.MethodDelete:
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected generated API method %s", r.Method)
+			http.Error(w, "unexpected", http.StatusInternalServerError)
+		}
+	})
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api,
+		Authorize: func(r *http.Request) bool {
+			role := r.Header.Get("X-Test-Role")
+			return role == "admin" || role == "editor" || role == "viewer"
+		},
+		CanReadResource: func(*http.Request, Collection) bool { return true },
+		ResourceAccess: func(r *http.Request, _ Collection, id string) ResourceAccess {
+			switch r.Header.Get("X-Test-Role") {
+			case "admin":
+				return ResourceAccess{Create: true, Update: id != "", Delete: id != ""}
+			case "editor":
+				return ResourceAccess{Create: true, Update: id != ""}
+			default:
+				return ResourceAccess{}
+			}
+		},
+		CSRFToken:    func(*http.Request) string { return "csrf-value" },
+		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	actions := []struct {
+		name string
+		path string
+		body string
+		want int
+	}{
+		{"create", "/admin/resources/article/new", "id=a1&title=Created&_csrf=csrf-value", 0},
+		{"update", "/admin/resources/article/a1", "title=Updated&_csrf=csrf-value", 1},
+		{"delete", "/admin/resources/article/a1/delete", "_csrf=csrf-value", 2},
+	}
+	for _, role := range []string{"admin", "editor", "viewer"} {
+		for _, action := range actions {
+			t.Run(role+"/"+action.name, func(t *testing.T) {
+				before := apiMutations
+				request := httptest.NewRequest(http.MethodPost, action.path, strings.NewReader(action.body))
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				request.Header.Set("X-Test-Role", role)
+				response := httptest.NewRecorder()
+				mux.ServeHTTP(response, request)
+				allowed := role == "admin" || role == "editor" && action.name != "delete"
+				wantStatus := http.StatusForbidden
+				wantMutations := before
+				if allowed {
+					wantStatus = http.StatusSeeOther
+					wantMutations++
+				}
+				if response.Code != wantStatus || apiMutations != wantMutations {
+					t.Fatalf("%s %s status=%d mutations=%d, want status=%d mutations=%d body=%s", role, action.name, response.Code, apiMutations, wantStatus, wantMutations, response.Body.String())
+				}
+			})
+		}
+	}
+}
+
 func TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{
 		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true, Localization: true, Drafts: true,
