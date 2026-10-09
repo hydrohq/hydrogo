@@ -241,6 +241,22 @@ test.describe("independent Edition generated Admin editor journey", () => {
 
       await page.goto(`${externalOrigin}${recordPath}`);
       page.once("dialog", (dialog) => dialog.accept());
+      await editorContext.setExtraHTTPHeaders({ ...roleHeaders, "X-Test-Generated-API-Status": "503" });
+      const [failedDeleteResponse] = await Promise.all([
+        page.waitForNavigation(),
+        page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click(),
+      ]);
+      expect(failedDeleteResponse?.status()).toBe(502);
+      await expect(page.getByRole("alert")).toContainText("Kayıt silinemedi");
+      await expect(page.getByRole("alert")).toContainText("Yeniden denemeden önce kaydın hâlâ listede olup olmadığını kontrol edin.");
+      await expect(page.locator(`form[action="${recordPath}/delete"]`)).toBeVisible();
+      const unchangedAfterFailedDelete = await request.get(`${externalOrigin}${apiPath}`, { headers });
+      expect(unchangedAfterFailedDelete.status()).toBe(200);
+      expect((await unchangedAfterFailedDelete.json()).title).toBe(retryEditTitle);
+      await expectNoA11yViolations(page, "editor delete service-error feedback");
+
+      await editorContext.setExtraHTTPHeaders(roleHeaders);
+      page.once("dialog", (dialog) => dialog.accept());
       await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
       await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
       expect((await request.get(`${externalOrigin}${apiPath}`, { headers })).status()).toBe(404);
