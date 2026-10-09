@@ -206,3 +206,15 @@ object keys and removes the media and variant rows; repeating cleanup after
 success deletes nothing. The contract test and `go vet ./tests/contract` pass.
 The PostgreSQL case was not run, and provider-specific idempotency remains
 unverified because the contract uses an object-store test double.
+
+## PostgreSQL environment recheck — 2026-10-09
+
+`HYDRO_TEST_POSTGRES_URL` is unset in the current execution environment. A
+temporary PostgreSQL 18.6 cluster initialized successfully under `/tmp`, but
+`pg_ctl` could not create its Unix-domain socket (`Operation not permitted`);
+the server did not start, so no PostgreSQL contract result is claimed from this
+attempt. TCP loopback listeners are also unavailable in this sandbox. Existing
+PostgreSQL results recorded above remain limited to their named runs and do not
+close the pending tests. To run the remaining contracts, configure
+`HYDRO_TEST_POSTGRES_URL` in a PostgreSQL-capable environment and run the
+documented `go test ./tests/contract` and `go test ./...` commands there.
