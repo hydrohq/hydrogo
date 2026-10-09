@@ -25,3 +25,6 @@ labels, including English Published and Draft labels; custom/unknown Edition
 states retain their configured state string. The draft inbox and populated
 collection list assertions cover both screens. The Admin Studio suite and
 Impeccable detector passed after this addition.
+
+After status-pill locale rendering was added, the full root Go suite passed again:
+`GOCACHE=/tmp/hydro-cover-cache go test ./... -p 1 -timeout=8m`.
