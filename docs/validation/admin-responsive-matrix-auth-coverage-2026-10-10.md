@@ -3,15 +3,17 @@
 The shared responsive matrix previously declared protected Admin surfaces but
 never iterated that inventory. Its one `/admin` check also did not assert an
 authenticated response, so a redirect to `/login` could satisfy the width
-assertion. The matrix now iterates Admin login, dashboard, page editor, news
-editor, and media library at 390, 768, and 1280 CSS pixels. Protected cases
+assertion. The keyboard test also treated any ordinary element border as a
+visible focus indicator. The matrix now iterates Admin login, dashboard, page
+editor, news editor, and media library at 390, 768, and 1280 CSS pixels. The
+focus assertion now requires an actual nonzero visible outline. Protected cases
 skip explicitly without `HYDRO_E2E_STORAGE_STATE`; with a configured state they
 require HTTP 200, a non-login URL, and a rendered `data-studio-role` before
 checking horizontal overflow.
 
 Validation:
 
-- `cd e2e && ./node_modules/.bin/playwright test custom/a11y-responsive.spec.ts --list` — 28 cases discovered, including all 15 Admin viewport/surface pairs.
+- `cd e2e && ./node_modules/.bin/playwright test custom/a11y-responsive.spec.ts --list` — 28 cases discovered, including all 15 Admin viewport/surface pairs and the stricter focus assertion.
 - Runtime browser assertions remain unverified in this environment: the
   fixture requires a reachable local server, and prior attempts to bind its
   loopback listener returned `listen EPERM` before the app started.

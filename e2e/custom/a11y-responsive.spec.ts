@@ -72,11 +72,11 @@ test.describe("P2 Accessibility & Semantic Standards", () => {
       const style = window.getComputedStyle(el);
       return {
         tagName: el.tagName,
-        hasOutline: style.outlineStyle !== "none" || style.boxShadow !== "none" || style.borderStyle !== "none",
+        hasFocusIndicator: style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0,
       };
     });
     expect(focused).toBeTruthy();
-    expect(focused?.hasOutline).toBe(true);
+    expect(focused?.hasFocusIndicator).toBe(true);
   });
 
   test("semantic heading hierarchy has no skipped levels (h1 -> h2 -> h3)", async ({ page }) => {
