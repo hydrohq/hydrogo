@@ -1427,7 +1427,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	publishedReads, publishedWrites, saves, transitions, discards := 0, 0, 0, 0, 0
+	publishedReads, publishedWrites, saves, transitions, discards, listCalls := 0, 0, 0, 0, 0, 0
 	allowSave, allowTransition, allowDiscard := true, true, true
 	validCSRF := true
 	draft := DraftDocument{ID: "a1", Version: 2, PublishedVersion: 4, State: StateDraft, Fields: map[string]any{"title": "Working title"}, Exists: true}
@@ -1451,8 +1451,9 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	})
 	mux := http.NewServeMux()
 	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
-		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(*http.Request, Collection) bool { return true },
+		API: api, Authorize: func(*http.Request) bool { return true }, CanReadResource: func(r *http.Request, _ Collection) bool { return r.Header.Get("X-Test-Role") != "viewer" },
 		ListDrafts: func(_ *http.Request, _ Collection, _ string, limit int) ([]DraftDocument, error) {
+			listCalls++
 			if limit != 50 {
 				t.Errorf("draft list limit=%d", limit)
 			}
@@ -1593,6 +1594,14 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	mux.ServeHTTP(collectionList, httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil))
 	if collectionList.Code != http.StatusOK || !strings.Contains(collectionList.Body.String(), `href="/admin/resources/article/drafts"`) {
 		t.Fatalf("collection draft navigation missing: status=%d body=%s", collectionList.Code, collectionList.Body.String())
+	}
+	calledLists := listCalls
+	viewerRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil)
+	viewerRequest.Header.Set("X-Test-Role", "viewer")
+	viewerResponse := httptest.NewRecorder()
+	mux.ServeHTTP(viewerResponse, viewerRequest)
+	if viewerResponse.Code != http.StatusNotFound || listCalls != calledLists {
+		t.Fatalf("Viewer draft-list denial must happen before Edition storage: status=%d list calls=%d/%d", viewerResponse.Code, listCalls, calledLists)
 	}
 }
 
