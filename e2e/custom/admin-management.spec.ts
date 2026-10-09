@@ -156,6 +156,35 @@ test.describe("single Edition administrator management", () => {
       status: "draft",
       version: 2,
     });
+    const scheduledAdminNewsResponse = await adminPage.request.post(`${baseURL}/api/news/${createdAdminNews.id}/schedule`, {
+      headers: adminNewsCSRF,
+      data: { version: updatedAdminNews.version, scheduled_at: "2030-01-01T12:00:00Z" },
+    });
+    expect(scheduledAdminNewsResponse.status(), "Admin with valid CSRF can schedule through the News API").toBe(200);
+    const scheduledAdminNews = await scheduledAdminNewsResponse.json();
+    expect(scheduledAdminNews).toMatchObject({ status: "scheduled", version: 3 });
+    const publishedAdminNewsResponse = await adminPage.request.post(
+      `${baseURL}/api/news/${createdAdminNews.id}/publish?version=${scheduledAdminNews.version}`,
+      { headers: adminNewsCSRF },
+    );
+    expect(publishedAdminNewsResponse.status(), "Admin with valid CSRF can publish through the News API").toBe(200);
+    const publishedAdminNews = await publishedAdminNewsResponse.json();
+    expect(publishedAdminNews).toMatchObject({ status: "published", version: 4 });
+    const retractedAdminNewsResponse = await adminPage.request.post(
+      `${baseURL}/api/news/${createdAdminNews.id}/retract?version=${publishedAdminNews.version}`,
+      { headers: adminNewsCSRF },
+    );
+    expect(retractedAdminNewsResponse.status(), "Admin with valid CSRF can retract through the News API").toBe(200);
+    const retractedAdminNews = await retractedAdminNewsResponse.json();
+    expect(retractedAdminNews).toMatchObject({ status: "retracted", version: 5 });
+    const workflowReadback = await adminPage.request.get(`${baseURL}/api/news/${createdAdminNews.id}`);
+    expect(workflowReadback.status()).toBe(200);
+    expect(await workflowReadback.json()).toMatchObject({
+      id: createdAdminNews.id,
+      title: "Admin API updated news",
+      status: "retracted",
+      version: 5,
+    });
     await adminPage.goto(`${baseURL}/admin/users`);
     const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string; currentRole: string; currentContentWrite: string }> = {};
     for (const email of ["editor@example.test", "viewer@example.test"]) {
