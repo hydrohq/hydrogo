@@ -228,8 +228,9 @@ and detail work while create/update/delete are denied by `ResourceAccess`.
 The journeys now complete Admin and Editor CRUD, Viewer read-only navigation,
 cross-tenant isolation, CSRF denial, media selection, and persisted-state
 checks. The full independent Edition Go suite, vet, and importguard passed on
-the final source tree. This is fixture-level SQLite browser evidence;
-production authentication and PostgreSQL remain open.
+the final source tree. This entry records the SQLite replay; production
+authentication and deployment remain open. The later PostgreSQL browser replay
+is recorded below.
 
 ```sh
 cd e2e
@@ -250,3 +251,24 @@ GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin
 GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
   go run ../../tools/importguard -root .
 ```
+
+## PostgreSQL 18.6 live browser follow-up — 2026-10-09
+
+The PostgreSQL 18.6 loopback test server passed the same browser contracts:
+
+- Authenticated HydroGo Editor/Viewer route and mutation role journey: 1/1.
+- Independent Edition Admin/Viewer role, tenant isolation, CRUD and persisted
+  delete readback journey: 1/1.
+- Independent Edition Editor/Viewer CRUD and tenant media-picker journeys: 2/2.
+
+The browser flows exercised Edition tenant-scoped persistence and readback on
+PostgreSQL, including Viewer list/detail with write denial, direct CSRF denial,
+cross-tenant isolation, media selection, and create/update/delete. This does
+not certify production session middleware, real Core Media services, or a
+deployed PostgreSQL setup. The disposable databases and fixture server were
+removed after the run.
+
+The focused HydroGo role run used `HYDRO_E2E_DATABASE_DIALECT=postgres`, a
+temporary database DSN, and `HYDRO_PG_PRIVILEGED_ROLE=arda`; the separate
+Edition runs used the test server with `--dialect postgres` and the same
+PostgreSQL 18.6 cluster.
