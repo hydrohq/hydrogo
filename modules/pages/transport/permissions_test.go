@@ -50,17 +50,27 @@ func TestContentWritePermissionGuardsPageAdminRoutes(t *testing.T) {
 		path = strings.ReplaceAll(path, "{id}", "page-1")
 		csrfRoute := security.CSRFMiddleware(false, nil)(route)
 		if method != http.MethodGet {
-			t.Run(strings.ReplaceAll(pattern+"/invalid-csrf", "/", "_"), func(t *testing.T) {
-				request := httptest.NewRequest(method, path, strings.NewReader("{}"))
-				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-				request.Header.Set(security.CSRFHeaderName, "wrong-token")
-				request = request.WithContext(auth.WithUser(request.Context(), &auth.User{Role: auth.RoleAdmin, Active: true}))
-				response := httptest.NewRecorder()
-				csrfRoute.ServeHTTP(response, request)
-				if response.Code != http.StatusForbidden {
-					t.Fatalf("%s with invalid CSRF status=%d, want 403", pattern, response.Code)
-				}
-			})
+			for _, csrfCase := range []struct {
+				name  string
+				token string
+			}{
+				{name: "missing-csrf"},
+				{name: "invalid-csrf", token: "wrong-token"},
+			} {
+				t.Run(strings.ReplaceAll(pattern+"/"+csrfCase.name, "/", "_"), func(t *testing.T) {
+					request := httptest.NewRequest(method, path, strings.NewReader("{}"))
+					request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+					if csrfCase.token != "" {
+						request.Header.Set(security.CSRFHeaderName, csrfCase.token)
+					}
+					request = request.WithContext(auth.WithUser(request.Context(), &auth.User{Role: auth.RoleAdmin, Active: true}))
+					response := httptest.NewRecorder()
+					csrfRoute.ServeHTTP(response, request)
+					if response.Code != http.StatusForbidden {
+						t.Fatalf("%s with %s status=%d, want 403", pattern, csrfCase.name, response.Code)
+					}
+				})
+			}
 		}
 		for _, tc := range users {
 			t.Run(strings.ReplaceAll(pattern+"/"+tc.name, "/", "_"), func(t *testing.T) {
