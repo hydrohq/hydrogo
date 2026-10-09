@@ -18,6 +18,12 @@ editable block, and axe WCAG 2.1 A/AA results before the CRUD round trip.
 
 ## Open gate
 
+The repository's `browser-e2e` CI job invokes the complete Playwright suite on
+Windows, where its isolated loopback fixture can start. Once the branch reaches
+CI, inspect the generated-richtext result and attached artifacts before closing
+this gate. The external-fixture path below is available for a local browser
+runner that cannot bind sockets itself.
+
 The spec supports an externally started local fixture so the Playwright runner
 does not need to create a listening socket itself. In one terminal from the
 repository root, start the fixture:
