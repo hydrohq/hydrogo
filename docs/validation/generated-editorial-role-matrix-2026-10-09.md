@@ -78,6 +78,29 @@ GOCACHE=/tmp/hydro-cover-cache go vet ./internal/adminstudio
 
 Both passed.
 
+## Collection denial covers every editorial deep link — 2026-10-10
+
+A generated collection with revisions, localization, drafts, and workflow now
+has a route-level read-denial matrix for 11 direct list/create/detail, draft,
+revision, locale-save/copy, transition, and discard GET/POST paths. With the
+Edition's collection `CanReadResource` callback denying access, every route
+returns a concealed 404 before resource API, revision/draft/locale storage,
+CSRF, or page rendering is reached. The callbacks are instrumented so the test
+fails if any downstream boundary runs.
+
+```sh
+GOCACHE=/tmp/hydro-cover-cache go test ./internal/adminstudio \
+  -run '^TestGeneratedAdminReadPolicyBlocksEveryEditorialDeepLinkBeforeStorage$' \
+  -count=1 -p 1
+GOCACHE=/tmp/hydro-cover-cache go test ./internal/adminstudio ./internal/i18n \
+  -count=1 -p 1
+GOCACHE=/tmp/hydro-cover-cache go vet ./internal/adminstudio ./internal/i18n
+```
+
+All passed. This proves the shared-handler collection deny boundary, not
+production authentication middleware or resource-level policy behavior in a
+deployed Edition.
+
 ## Unknown-role direct mutation denial
 
 The basic CRUD and editorial valid-CSRF direct-handler matrices now include an
