@@ -154,7 +154,7 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 			_, _ = io.WriteString(w, `[]`)
 			return
 		}
-		_, _ = io.WriteString(w, `[{"id":"p1","title":"Example"}]`)
+		_, _ = io.WriteString(w, `[{"id":"p1","title":"Example","status":"published"}]`)
 	})
 	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
 	request, err := http.NewRequest(http.MethodGet, baseURL+"/admin/resources/project?search=missing", nil)
@@ -190,8 +190,10 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if listResponse.StatusCode != http.StatusOK || !strings.Contains(string(listBody), `data-label="Actions"`) {
-		t.Fatalf("English generated list row action label status=%d body=%s", listResponse.StatusCode, listBody)
+	for _, want := range []string{`data-label="Actions"`, `aria-label="Published"`} {
+		if listResponse.StatusCode != http.StatusOK || !strings.Contains(string(listBody), want) {
+			t.Fatalf("English generated list row missing %q: status=%d body=%s", want, listResponse.StatusCode, listBody)
+		}
 	}
 }
 

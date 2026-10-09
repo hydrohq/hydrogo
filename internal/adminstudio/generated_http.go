@@ -582,6 +582,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		}
 	}
 	rows := make([]Row, 0, len(records))
+	uiLocale := generatedAdminLocale(r)
 	for _, record := range records {
 		id, _ := record["id"].(string)
 		if translated, ok := localizedRecords[id]; ok && applyLocalizedValues(collection, record, translated) != nil {
@@ -596,7 +597,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if collection.Localization {
 			editURL = localePath(editURL, localeState(r).Current)
 		}
-		row := Row{ID: id, Values: values}
+		row := Row{ID: id, Values: values, Status: StatusInfo{Value: values["status"], Label: generatedStatusLabel(uiLocale, values["status"])}}
 		row.DetailURL = editURL
 		canUpdate := collection.Drafts || h.resourceAccess(r, collection, id).Update
 		if canUpdate {
@@ -646,7 +647,6 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if err := generatedListControls(out, collection, query, localeState(r).Current); err != nil {
 			return err
 		}
-		uiLocale := generatedAdminLocale(r)
 		if err := RenderList(out, ListData{
 			Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID),
 			Locale: localeState(r).Current, UILocale: uiLocale, Query: query,
@@ -1843,10 +1843,7 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 		if title == "" {
 			title = draft.ID
 		}
-		stateLabel := i18n.T(locale, "admin.generated.drafts.state."+string(draft.State))
-		if stateLabel == "admin.generated.drafts.state."+string(draft.State) {
-			stateLabel = string(draft.State)
-		}
+		stateLabel := generatedStatusLabel(locale, string(draft.State))
 		updated := "—"
 		if !draft.UpdatedAt.IsZero() {
 			if locale == "en" {
@@ -1905,6 +1902,16 @@ func workflowActionLabel(state PublicationState) string {
 	default:
 		return "Durumu değiştir: " + string(state)
 	}
+}
+
+func generatedStatusLabel(locale, status string) string {
+	status = strings.TrimSpace(status)
+	key := "admin.generated.drafts.state." + strings.ToLower(status)
+	label := i18n.T(locale, key)
+	if label == key {
+		return status
+	}
+	return label
 }
 
 func (h GeneratedAdminHandler) transition(w http.ResponseWriter, r *http.Request, collection Collection, id string) {

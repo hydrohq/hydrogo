@@ -19,3 +19,9 @@ The Impeccable detector returned no findings. This is server-rendered and
 cross-package Go evidence, not a browser/axe pass. Localhost listener access
 remains blocked in the current environment, documented in
 `generated-draft-inbox-ux-2026-10-09.md`.
+
+The same active-locale resolver now supplies generated workflow status-pill
+labels, including English Published and Draft labels; custom/unknown Edition
+states retain their configured state string. The draft inbox and populated
+collection list assertions cover both screens. The Admin Studio suite and
+Impeccable detector passed after this addition.
