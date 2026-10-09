@@ -30,10 +30,14 @@ The callback boundary remains Edition-owned as required by ADR-0349/0354/0355.
 ## Editor browser journey added
 
 The external test server now accepts test-only `admin` and `editor` identity
-headers and emits the corresponding Studio role; `viewer` stays denied. A new
+headers and emits the corresponding Studio role; `viewer` stays denied by the
+Admin handler and its tenant-scoped resource policy. The resource policy allows
+read to configured roles but permits writes only for admin/editor. A new
 Playwright scenario exercises editor list/create/edit/delete, tenant-scoped API
-readback, viewer GET/valid-CSRF POST denial with absent persisted record, list
-and create-form axe scans, and 390px overflow. Playwright discovered the test
+readback, viewer GET/valid-CSRF Admin POST and direct API write denial with
+absent persisted record, list and create-form axe scans, and 390px overflow.
+The nested SQLite contract test now also proves direct viewer API writes return
+403 without persistence. Playwright discovered the test
 (`--list`: 1/1). The actual browser scenario has not run here because the
 runner cannot bind the Edition test server; it needs the external fixture below
 in a loopback-capable test environment:
