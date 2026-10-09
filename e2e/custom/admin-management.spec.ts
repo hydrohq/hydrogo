@@ -55,6 +55,7 @@ test.describe("single Edition administrator management", () => {
   });
 
   test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
+    test.setTimeout(120_000);
     let createdPageID = "";
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
@@ -692,6 +693,13 @@ test.describe("single Edition administrator management", () => {
     const persistedPageResponse = await page.goto(editPageURL);
     expect(persistedPageResponse?.status()).toBe(200);
     await expect(page.locator('[name="title"]')).toHaveValue("Editor session page");
+    const deniedPublishMutation = await restrictedEditor.request.post(`${editPageURL}/publish`, {
+      form: { _csrf: restrictedCsrfToken, version: "1" },
+    });
+    expect(deniedPublishMutation.status()).toBe(403);
+    const pageAfterDeniedPublish = await page.request.get(`${baseURL}/api/pages/${createdPageID}`);
+    expect(pageAfterDeniedPublish.status()).toBe(200);
+    expect(await pageAfterDeniedPublish.json()).toMatchObject({ status: "draft", title: "Editor session page" });
     const deniedSearch = await restrictedEditor.request.get(`${baseURL}/admin/api/search?q=Hydro`);
     expect(deniedSearch.status()).toBe(200);
     const deniedSearchBody = await deniedSearch.json();
