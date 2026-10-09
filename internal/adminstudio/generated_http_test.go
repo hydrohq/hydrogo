@@ -1299,6 +1299,106 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	}
 }
 
+func TestGeneratedEditorialMutationsRespectEditorAndViewerCapabilities(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true, Drafts: true,
+		Fields:   []Field{{ID: "title", Label: "Title", Kind: FieldText}, {ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "review", "published"}}},
+		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, "review", StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {"review"}, "review": {StatePublished}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft := DraftDocument{ID: "a1", Version: 2, PublishedVersion: 4, State: StateDraft, Fields: map[string]any{"title": "Working title"}, Exists: true}
+	mutations := 0
+	for _, role := range []string{"admin", "editor", "viewer"} {
+		t.Run(role, func(t *testing.T) {
+			mutations = 0
+			mux := http.NewServeMux()
+			handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+				API: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.Method == http.MethodGet {
+						w.Header().Set("Content-Type", "application/json")
+						_, _ = io.WriteString(w, `{"id":"a1","title":"Published title","status":"published","version":4}`)
+						return
+					}
+					t.Errorf("editorial mutation unexpectedly reached published API: %s %s", r.Method, r.URL.Path)
+					http.Error(w, "unexpected", http.StatusInternalServerError)
+				}),
+				Authorize: func(r *http.Request) bool {
+					got := r.Header.Get("X-Test-Role")
+					return got == "admin" || got == "editor" || got == "viewer"
+				},
+				CanReadResource: func(*http.Request, Collection) bool { return true },
+				ListDrafts: func(*http.Request, Collection, string, int) ([]DraftDocument, error) {
+					return []DraftDocument{draft}, nil
+				},
+				GetDraft:     func(*http.Request, Collection, string, string) (DraftDocument, error) { return draft, nil },
+				CanSaveDraft: func(r *http.Request, _ Collection, _, _ string) bool { return r.Header.Get("X-Test-Role") == "admin" },
+				SaveDraft: func(*http.Request, Collection, string, string, map[string]any, int64, int64) error {
+					mutations++
+					return nil
+				},
+				CanTransitionDraft: func(r *http.Request, _ Collection, _ DraftDocument, _ PublicationState) bool {
+					return r.Header.Get("X-Test-Role") == "admin"
+				},
+				TransitionDraft: func(*http.Request, Collection, string, string, PublicationState, int64, int64) error {
+					mutations++
+					return nil
+				},
+				CanDiscardDraft: func(r *http.Request, _ Collection, _ DraftDocument) bool {
+					return r.Header.Get("X-Test-Role") == "admin"
+				},
+				DiscardDraft:  func(*http.Request, Collection, string, string, int64) error { mutations++; return nil },
+				ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) { return nil, nil },
+				GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
+					return RevisionSnapshot{}, errors.New("missing")
+				},
+				CanRestore: func(*http.Request, Collection, string, int64) bool { return false },
+				RestoreRevision: func(*http.Request, Collection, string, int64, int64) error {
+					return errors.New("restore denied")
+				},
+				CSRFToken:    func(*http.Request) string { return "csrf-value" },
+				ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
+				RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+					return body.Render(r.Context(), w)
+				},
+			}}
+			if err := handler.Register(mux); err != nil {
+				t.Fatal(err)
+			}
+			for _, tc := range []struct {
+				path string
+				body string
+			}{
+				{"/admin/resources/article/a1/draft", "_csrf=csrf-value&draft_version=2&published_version=4&title=Updated&status=draft"},
+				{"/admin/resources/article/a1/workflow", "_csrf=csrf-value&target=review&expected_draft_version=2&expected_published_version=4"},
+				{"/admin/resources/article/a1/draft/discard", "_csrf=csrf-value&expected_version=2"},
+			} {
+				req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				req.Header.Set("X-Test-Role", role)
+				response := httptest.NewRecorder()
+				mux.ServeHTTP(response, req)
+				want := http.StatusForbidden
+				if role == "admin" {
+					want = http.StatusSeeOther
+				}
+				if response.Code != want {
+					t.Errorf("%s %s status=%d, want %d: %s", role, tc.path, response.Code, want, response.Body.String())
+				}
+			}
+			wantMutations := 0
+			if role == "admin" {
+				wantMutations = 3
+			}
+			if mutations != wantMutations {
+				t.Errorf("%s editorial persistence callbacks=%d, want %d", role, mutations, wantMutations)
+			}
+		})
+	}
+}
+
 func TestGeneratedAdminDraftRejectsNonlocalizedFieldWrites(t *testing.T) {
 	collection := Collection{Localization: true, Fields: []Field{{ID: "title", Localized: true}, {ID: "slug"}}}
 	if err := applyDraftFields(collection, map[string]any{}, map[string]any{"slug": "changed"}, "fr", "en"); err == nil {
