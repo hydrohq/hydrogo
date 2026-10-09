@@ -118,6 +118,44 @@ test.describe("single Edition administrator management", () => {
       const mismatchedCSRF = await adminPage.request.post(target, { form: { _csrf: "deliberately-mismatched-csrf-token" } });
       expect(mismatchedCSRF.status(), `Admin mutation ${route} must reject mismatched CSRF`).toBe(403);
     }
+    const adminNewsCSRF = { "X-CSRF-Token": adminCSRFToken };
+    const adminNewsInput = {
+      locale: "tr",
+      slug: "role-admin-news-api",
+      title: "Admin API created news",
+      body: "This content is persisted through the News API.",
+    };
+    const deniedAdminNewsMissingCSRF = await adminPage.request.post(`${baseURL}/api/news`, { data: adminNewsInput });
+    expect(deniedAdminNewsMissingCSRF.status(), "Admin News API create rejects missing CSRF").toBe(403);
+    const deniedAdminNewsMismatchedCSRF = await adminPage.request.post(`${baseURL}/api/news`, {
+      headers: { "X-CSRF-Token": "deliberately-mismatched-csrf-token" },
+      data: adminNewsInput,
+    });
+    expect(deniedAdminNewsMismatchedCSRF.status(), "Admin News API create rejects mismatched CSRF").toBe(403);
+    const createdAdminNewsResponse = await adminPage.request.post(`${baseURL}/api/news`, {
+      headers: adminNewsCSRF,
+      data: adminNewsInput,
+    });
+    expect(createdAdminNewsResponse.status(), "Admin with valid CSRF can create through the News API").toBe(200);
+    const createdAdminNews = await createdAdminNewsResponse.json();
+    expect(createdAdminNews.status).toBe("draft");
+    expect(createdAdminNews.version).toBe(1);
+    const updatedAdminNewsResponse = await adminPage.request.put(`${baseURL}/api/news/${createdAdminNews.id}`, {
+      headers: adminNewsCSRF,
+      data: { ...adminNewsInput, title: "Admin API updated news", version: createdAdminNews.version },
+    });
+    expect(updatedAdminNewsResponse.status(), "Admin with valid CSRF can update through the News API").toBe(200);
+    const updatedAdminNews = await updatedAdminNewsResponse.json();
+    expect(updatedAdminNews.title).toBe("Admin API updated news");
+    expect(updatedAdminNews.version).toBe(2);
+    const adminNewsReadback = await adminPage.request.get(`${baseURL}/api/news/${createdAdminNews.id}`);
+    expect(adminNewsReadback.status()).toBe(200);
+    expect(await adminNewsReadback.json()).toMatchObject({
+      id: createdAdminNews.id,
+      title: "Admin API updated news",
+      status: "draft",
+      version: 2,
+    });
     await adminPage.goto(`${baseURL}/admin/users`);
     const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string; currentRole: string; currentContentWrite: string }> = {};
     for (const email of ["editor@example.test", "viewer@example.test"]) {
