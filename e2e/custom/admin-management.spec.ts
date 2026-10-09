@@ -1012,6 +1012,16 @@ test.describe("single Edition administrator management", () => {
     const viewerCreatedAPI = await page.request.get(`${baseURL}/api/pages/${viewerPageID}`);
     expect(viewerCreatedAPI.status()).toBe(200);
     expect(await viewerCreatedAPI.json()).toMatchObject({ status: "draft", title: "Viewer capability page" });
+    expect((await elevatedViewer.goto(`${baseURL}/admin/news/new`))?.status(), "Viewer content.write override grants the News editor route").toBe(200);
+    await elevatedViewer.locator('#news-form [name="title"]').fill("Viewer capability news");
+    await elevatedViewer.locator('#news-form [name="slug"]').fill("viewer-capability-news");
+    await elevatedViewer.locator('#news-form .richtext-editor [contenteditable="true"]').fill("Created with an explicit content.write override.");
+    await elevatedViewer.getByRole("button", { name: "Taslağı kaydet" }).click();
+    await expect(elevatedViewer).toHaveURL(/\/admin\/news\/[^/?]+$/);
+    const viewerNewsID = new URL(elevatedViewer.url()).pathname.split("/").at(-1)!;
+    const viewerCreatedNewsAPI = await page.request.get(`${baseURL}/api/news/${viewerNewsID}`);
+    expect(viewerCreatedNewsAPI.status()).toBe(200);
+    expect(await viewerCreatedNewsAPI.json()).toMatchObject({ status: "draft", title: "Viewer capability news" });
 
     await page.goto(`${baseURL}/admin/users`);
     const refreshedViewerRow = page.locator(".studio-table tbody tr").filter({ has: page.getByText("viewer@example.test", { exact: true }) });
