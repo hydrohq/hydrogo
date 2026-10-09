@@ -218,22 +218,29 @@ production login/session integration open.
 
 ## Direct browser replay follow-up — 2026-10-09
 
-The standalone Admin role/tenant Chromium journey now passes 1/1 on SQLite.
-Replay exposed three fixture/assertion issues: the `Articles` locator also
-matched `Media articles`; the test server granted `CanReadResource` to every
-role; and the delete click lacked a dialog handler, so Playwright dismissed the
-confirmation by default. The fixture now denies Viewer collection reads and
-the journey expects the established 404 concealment contract, rather than 403,
-for unreadable collections. The delete flow explicitly accepts confirmation.
-The scenario now completes Editor/Admin CRUD, Viewer hidden-list denial,
-cross-tenant isolation, CSRF denial, and persisted delete readback. The full
-independent Edition Go suite, vet, and importguard passed after these changes.
-This is fixture-level SQLite browser evidence; production authentication and
-PostgreSQL remain open.
+The standalone Admin role/tenant Chromium journey passes 1/1 on SQLite; the
+independent Editor/Viewer and media journeys pass 2/2 against the loopback
+fixture. Replay exposed test defects: the `Articles` locator also matched
+`Media articles`, and the Admin journey did not handle the delete dialog, so
+Playwright dismissed the confirmation by default. The fixture keeps Viewer
+collection reads enabled, matching the intended read-only model; Viewer list
+and detail work while create/update/delete are denied by `ResourceAccess`.
+The journeys now complete Admin and Editor CRUD, Viewer read-only navigation,
+cross-tenant isolation, CSRF denial, media selection, and persisted-state
+checks. The full independent Edition Go suite, vet, and importguard passed on
+the final source tree. This is fixture-level SQLite browser evidence;
+production authentication and PostgreSQL remain open.
 
 ```sh
 cd e2e
 npx playwright test --project=chromium --workers=1 custom/external-edition-admin.spec.ts \
+  --reporter=line --trace=off
+# Start the loopback test server on 127.0.0.1:18099 with a fresh SQLite DSN,
+# then run the editor/viewer and media journeys:
+HYDRO_E2E_EXTERNAL_EDITION=1 \
+HYDRO_E2E_BASE_URL=http://127.0.0.1:18099 \
+HYDRO_E2E_DATABASE_DSN='file:/tmp/hydro_external_editor.sqlite?mode=rwc' \
+npx playwright test --project=chromium --workers=1 custom/external-edition-editor.spec.ts \
   --reporter=line --trace=off
 cd ../tests/external-edition
 GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
