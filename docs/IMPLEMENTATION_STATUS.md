@@ -245,6 +245,11 @@ preview key is stored as a hash, and malformed IP ranges cannot overwrite a
 valid setting. Site tests and vet pass; other Site mutations and PostgreSQL
 route coverage remain open.
 
+The custom 404 editor now has a route-to-public-response SQLite journey test:
+authorized content appears on the actual public fallback, denied writes have
+no effect, and an external link is rejected without replacing the saved page.
+The custom 500 page and remaining Site routes are still open.
+
 Windows'ta:
 
 ```powershell

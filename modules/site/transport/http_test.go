@@ -798,6 +798,79 @@ func TestSiteMaintenanceAdminRouteProtectsAndPersistsPrivateSettings(t *testing.
 	}
 }
 
+func TestSiteCustomErrorPageAdminSaveRendersPersistedPublic404(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-error-page-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{DB: db, Store: store, Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/error-pages/{status}" || route.Pattern == "GET /{path...}" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	form := url.Values{"headline": {"Sayfa bulunamadı"}, "message": {"İçerik taşınmış olabilir."}, "action_label": {"Ana sayfaya dön"}, "action_url": {"/"}, "links": {"Belgeler | /docs"}}
+	post := func(user *auth.User, token string, values url.Values) *httptest.ResponseRecorder {
+		t.Helper()
+		body := url.Values{}
+		for key, entries := range values {
+			for _, value := range entries {
+				body.Add(key, value)
+			}
+		}
+		body.Set("_csrf", token)
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/error-pages/404", strings.NewReader(body.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertMissing := func() {
+		t.Helper()
+		if _, found, err := store.GetSetting(context.Background(), db, "site.error_page.404"); err != nil || found {
+			t.Fatalf("unauthorized error page exists: found=%t err=%v", found, err)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := post(admin, "wrong-token", form); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token", form); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	if response := post(admin, "valid-token", form); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/error-pages?saved=1" {
+		t.Fatalf("authorized error page response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	request := httptest.NewRequest(http.MethodGet, "/missing-page", nil)
+	public := httptest.NewRecorder()
+	secured.ServeHTTP(public, request)
+	if public.Code != http.StatusNotFound || !strings.Contains(public.Body.String(), "Sayfa bulunamadı") || !strings.Contains(public.Body.String(), "İçerik taşınmış olabilir.") || !strings.Contains(public.Body.String(), `href="/docs"`) {
+		t.Fatalf("public custom 404 status=%d body=%s", public.Code, public.Body.String())
+	}
+	invalid := url.Values{"headline": {"Invalid"}, "message": {"Invalid"}, "links": {"External | https://attacker.test"}}
+	if response := post(admin, "valid-token", invalid); response.Code != http.StatusBadRequest {
+		t.Fatalf("external custom error link status=%d, want 400", response.Code)
+	}
+	public = httptest.NewRecorder()
+	secured.ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/missing-page", nil))
+	if !strings.Contains(public.Body.String(), "Sayfa bulunamadı") {
+		t.Fatalf("invalid update replaced public error page: %s", public.Body.String())
+	}
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()
