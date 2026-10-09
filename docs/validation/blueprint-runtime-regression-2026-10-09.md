@@ -19,10 +19,38 @@ compiled Edition contract after the recent Admin security changes.
 ## Limits
 
 The independent Edition tests cover its SQLite persistence and route contracts.
-No PostgreSQL test ran in this environment: `HYDRO_TEST_POSTGRES_URL` is
-unset, and the Docker API is inaccessible (`permission denied` on
-`/var/run/docker.sock`). Earlier PostgreSQL evidence remains in the existing
-generated Admin validation reports; this run does not refresh or broaden it.
+No PostgreSQL driver/adapter contract test ran in this environment:
+`HYDRO_TEST_POSTGRES_URL` is unset, and the Docker API is inaccessible
+(`permission denied` on `/var/run/docker.sock`). Earlier PostgreSQL evidence
+remains in the existing generated Admin validation reports; this run does not
+refresh or broaden it.
+
+## PostgreSQL 18.6 standalone DDL syntax check — 2026-10-09
+
+PostgreSQL 18.6 server binaries are installed. A fresh disposable cluster
+initialized successfully, but the server could not bind either a TCP listener
+or a Unix socket (`Operation not permitted`), so no application driver could
+connect. The PostgreSQL standalone backend (which does not open a listener)
+accepted the generated `article`, `milestone`, and `content_block` migration
+SQL, and a catalog query found all three tables in `public`:
+
+```sh
+HYDROGO_PGDATA_TMP=/tmp/hydrogo-admin-pgdata-e231
+initdb -D "$HYDROGO_PGDATA_TMP" -U hydrogo_test --auth=trust --no-locale --encoding=UTF8
+sed '/^--/d' examples/project-edition/generated/article/migration.sql \
+  examples/project-edition/generated/milestone/migration.sql \
+  examples/project-edition/generated/content_block/migration.sql \
+  | tr '\n' ' ' \
+  | postgres --single -D "$HYDROGO_PGDATA_TMP" postgres
+printf "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename IN ('articles','milestones','content_blocks') ORDER BY tablename;\n" \
+  | postgres --single -D "$HYDROGO_PGDATA_TMP" postgres
+```
+
+This verifies PostgreSQL SQL parsing/catalog creation for those additive DDL
+files only. It does not exercise the PostgreSQL wire protocol, Go adapter,
+transaction/concurrency behavior, migration runner, tenant isolation, or
+rollback. The migration metadata remains forward-only/restore-based as
+documented; those runtime gates remain open.
 The authenticated Chromium generated Admin flow remains unverified here
 because the fixture cannot bind loopback; see
 `generated-block-editor-theme-matrix-2026-10-09.md` for the external-fixture
