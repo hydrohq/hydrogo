@@ -79,3 +79,34 @@ func TestRedirectRegistryRejectsCircularExactAndWildcardChains(t *testing.T) {
 		})
 	}
 }
+
+func TestRedirectRegistryPublishesOnlyAfterValidatedPersistence(t *testing.T) {
+	registry := &RedirectRegistry{}
+	if err := registry.Upsert(RedirectRule{ID: "old-to-new", Pattern: "/old", Kind: "exact", TargetPath: "/new", Status: 301}); err != nil {
+		t.Fatal(err)
+	}
+	persistErr := errors.New("database unavailable")
+	if err := registry.UpsertWith(RedirectRule{ID: "other", Pattern: "/other", Kind: "exact", TargetPath: "/target", Status: 301}, func() error {
+		return persistErr
+	}); !errors.Is(err, persistErr) {
+		t.Fatalf("persist error=%v, want %v", err, persistErr)
+	}
+	if _, ok := registry.Match(tenant.Scope{}, "/other"); ok {
+		t.Fatal("failed persistence was published to readers")
+	}
+	if _, ok := registry.Match(tenant.Scope{}, "/old"); !ok {
+		t.Fatal("failed persistence replaced the previous snapshot")
+	}
+
+	persisted := false
+	err := registry.UpsertWith(RedirectRule{ID: "cycle", Pattern: "/new", Kind: "exact", TargetPath: "/old", Status: 301}, func() error {
+		persisted = true
+		return nil
+	})
+	if !errors.Is(err, ErrInvalidRedirect) || persisted {
+		t.Fatalf("cycle error=%v persistence called=%t", err, persisted)
+	}
+	if _, ok := registry.Match(tenant.Scope{}, "/new"); ok {
+		t.Fatal("cyclic rule was published")
+	}
+}

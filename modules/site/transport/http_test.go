@@ -681,7 +681,8 @@ func TestSiteRedirectAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T) 
 		t.Fatal(err)
 	}
 	store := sitesql.Store{Dialect: database.SQLite}
-	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	registry := &site.RedirectRegistry{}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}, Redirects: registry}
 	mux := http.NewServeMux()
 	for _, route := range handler.Routes() {
 		if route.Pattern == "POST /admin/site/redirects" {
@@ -723,6 +724,16 @@ func TestSiteRedirectAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T) 
 	redirect, err := store.GetRedirect(context.Background(), db, "/old")
 	if err != nil || redirect.SourcePath != "/old" || redirect.TargetPath != "/new" || redirect.Status != http.StatusMovedPermanently {
 		t.Fatalf("persisted redirect=%+v err=%v", redirect, err)
+	}
+	const cyclicBody = `{"SourcePath":"/new","TargetPath":"/old","Status":301}`
+	if response := post(admin, "valid-token", cyclicBody); response.Code != http.StatusBadRequest {
+		t.Fatalf("cyclic redirect status=%d body=%s", response.Code, response.Body.String())
+	}
+	if _, err := store.GetRedirect(context.Background(), db, "/new"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("cyclic redirect was persisted: %v", err)
+	}
+	if _, found := registry.Match(tenant.Scope{}, "/new"); found {
+		t.Fatal("cyclic redirect entered the runtime registry")
 	}
 }
 
@@ -1327,7 +1338,8 @@ func TestSiteRedirectRuleAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
 	}
 	store := sitesql.Store{Dialect: database.SQLite}
 	service := &site.Service{Transactions: database.NewTransactor(db), Store: store}
-	handler := Handler{Service: service}
+	registry := &site.RedirectRegistry{}
+	handler := Handler{Service: service, Redirects: registry}
 	mux := http.NewServeMux()
 	for _, route := range handler.Routes() {
 		if route.Pattern == "POST /admin/site/redirect-rules" || route.Pattern == "POST /admin/site/redirect-rules/{id}/delete" {
@@ -1387,6 +1399,15 @@ func TestSiteRedirectRuleAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
 	if len(rules) != 1 || rules[0].ID == "" || rules[0].Pattern != "/legacy/*" || rules[0].TargetPath != "/new/*" || rules[0].Status != http.StatusMovedPermanently {
 		t.Fatalf("persisted redirect rules=%+v", rules)
 	}
+	if got, found := registry.Match(tenant.Scope{}, "/legacy/page"); !found || got.TargetPath != "/new/page" {
+		t.Fatalf("saved redirect did not reach runtime registry: rule=%+v found=%t", got, found)
+	}
+	if response := create(admin, "valid-token", "/new/page", "exact", "/legacy/page", "301"); response.Code != http.StatusBadRequest {
+		t.Fatalf("cyclic redirect status=%d body=%s", response.Code, response.Body.String())
+	}
+	if unchanged := list(); len(unchanged) != 1 || unchanged[0].Pattern != "/legacy/*" {
+		t.Fatalf("cyclic redirect changed persistence: %+v", unchanged)
+	}
 	id := rules[0].ID
 	if response := remove(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "valid-token", id); response.Code != http.StatusForbidden {
 		t.Fatalf("Editor delete status=%d, want 403", response.Code)
@@ -1406,6 +1427,9 @@ func TestSiteRedirectRuleAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
 	if remaining := list(); len(remaining) != 0 {
 		t.Fatalf("deleted redirect rule remains: %+v", remaining)
 	}
+	if _, found := registry.Match(tenant.Scope{}, "/legacy/page"); found {
+		t.Fatal("deleted redirect remains in runtime registry")
+	}
 }
 
 func TestSiteRedirectRuleCSVImportIsAuthorizedAndAllOrNothing(t *testing.T) {
@@ -1419,7 +1443,8 @@ func TestSiteRedirectRuleCSVImportIsAuthorizedAndAllOrNothing(t *testing.T) {
 	}
 	store := sitesql.Store{Dialect: database.SQLite}
 	service := &site.Service{Transactions: database.NewTransactor(db), Store: store}
-	handler := Handler{Service: service}
+	registry := &site.RedirectRegistry{}
+	handler := Handler{Service: service, Redirects: registry}
 	mux := http.NewServeMux()
 	for _, route := range handler.Routes() {
 		if route.Pattern == "POST /admin/site/redirect-rules/import" {
@@ -1484,12 +1509,20 @@ func TestSiteRedirectRuleCSVImportIsAuthorizedAndAllOrNothing(t *testing.T) {
 		t.Fatalf("invalid batch status=%d, want 400", response.Code)
 	}
 	assertEmpty()
+	cyclicCSV := "pattern,kind,target,status\n/cycle-a,exact,/cycle-b,301\n/cycle-b,exact,/cycle-a,301\n"
+	if response := importCSV(admin, "valid-token", cyclicCSV); response.Code != http.StatusBadRequest {
+		t.Fatalf("cyclic CSV status=%d body=%s", response.Code, response.Body.String())
+	}
+	assertEmpty()
 	if response := importCSV(admin, "valid-token", validCSV); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/redirect-rules" {
 		t.Fatalf("authorized import status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
 	}
 	rules := list()
 	if len(rules) != 2 || rules[0].Pattern != "/old-a" || rules[0].TargetPath != "/new-a" || rules[0].Status != http.StatusMovedPermanently || rules[1].Pattern != "/old-b" || rules[1].Status != http.StatusPermanentRedirect {
 		t.Fatalf("imported redirect rules=%+v", rules)
+	}
+	if got, found := registry.Match(tenant.Scope{}, "/old-a"); !found || got.TargetPath != "/new-a" {
+		t.Fatalf("imported redirect did not reach runtime registry: rule=%+v found=%t", got, found)
 	}
 	if response := importCSV(admin, "valid-token", invalidCSV); response.Code != http.StatusBadRequest {
 		t.Fatalf("invalid follow-up batch status=%d, want 400", response.Code)
