@@ -2580,53 +2580,10 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 		extensionRegistry.ServeExtensionSurface(w, r, r.PathValue("extension_id"), r.PathValue("surface_id"), cfg.I18N.DefaultLocale, principal, func(p string) bool { return auth.Can(user, p) })
 	})})
-	routes = append(routes, router.Route{Pattern: "POST /admin/extensions/channels/bind", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, session := auth.UserFromContext(r.Context()), auth.SessionFromContext(r.Context())
-		if user == nil || session == nil || !user.Active || user.Role != auth.RoleAdmin {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
-		var input struct {
-			ChannelID string `json:"channel_id"`
-			Challenge string `json:"challenge"`
-		}
-		r.Body = http.MaxBytesReader(w, r.Body, 1024)
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-		principal := adminstudio.ChannelPrincipal{SessionID: session.ID, UserID: user.ID}
-		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
-			principal.TenantID = scope.TenantID
-		}
-		if err := extensionRegistry.BindChannel(input.ChannelID, input.Challenge, principal); err != nil {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	})})
-	routes = append(routes, router.Route{Pattern: "POST /admin/extensions/channels/revoke", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, session := auth.UserFromContext(r.Context()), auth.SessionFromContext(r.Context())
-		if user == nil || session == nil || !user.Active || user.Role != auth.RoleAdmin {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
-		var input struct {
-			ChannelID string `json:"channel_id"`
-		}
-		r.Body = http.MaxBytesReader(w, r.Body, 512)
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.ChannelID == "" {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-		principal := adminstudio.ChannelPrincipal{SessionID: session.ID, UserID: user.ID}
-		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
-			principal.TenantID = scope.TenantID
-		}
-		// Deliberately idempotent: callers do not learn whether a channel existed.
-		extensionRegistry.RevokeChannel(input.ChannelID, principal)
-		w.WriteHeader(http.StatusNoContent)
-	})})
+	routes = append(routes,
+		router.Route{Pattern: "POST /admin/extensions/channels/bind", Access: router.Protected, Handler: adminExtensionChannelBindHandler(extensionRegistry)},
+		router.Route{Pattern: "POST /admin/extensions/channels/revoke", Access: router.Protected, Handler: adminExtensionChannelRevokeHandler(extensionRegistry)},
+	)
 	routes = append(routes, router.Route{Pattern: "GET /password-reset", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
 		validToken := len(token) == 64

@@ -414,6 +414,12 @@ direct-handler-only CSRF evidence gap for that route; full server/browser
 coverage remains open. See
 `docs/validation/admin-token-lifetime-route-security-2026-10-09.md`.
 
+Extension channel bind/revoke now have route-level tests for valid CSRF, Admin
+role, active session ownership, tenant context, and no-write denial. Client
+JSON cannot set the authority principal, and registry errors are not exposed.
+Full `cmd/hydro` tests and vet passed. Browser/deployed-session coverage remains
+open; see `docs/validation/admin-extension-channel-route-security-2026-10-09.md`.
+
 Generated Editor.js forms now have a planned eight-variant theme-family/light-
 dark axe browser matrix. Playwright discovered the suite, but its fixture
 server failed before tests ran because loopback bind returned `EPERM`; no
