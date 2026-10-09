@@ -78,6 +78,11 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Generated resources" })).toBeVisible();
     await expect(page.locator(".studio-sidebar")).toContainText("CONTENT");
+    await page.goto(`${baseURL}/admin/resources/project/new`);
+    await expect(page.getByRole("heading", { name: "Create record · Projects" })).toBeVisible();
+    const englishCreateForm = page.locator('form[action="/admin/resources/project/new"]');
+    await expect(englishCreateForm.getByRole("button", { name: "Save" })).toBeVisible();
+    await expect(englishCreateForm.getByRole("button", { name: "Kaydet" })).toHaveCount(0);
     await page.context().clearCookies();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Kaynaklar" })).toBeVisible();

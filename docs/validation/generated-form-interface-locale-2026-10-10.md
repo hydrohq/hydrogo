@@ -29,3 +29,25 @@ full locale audit. Edition-provided field/widget labels and every browser
 locale journey still need review. This is a translation/UI change within the
 existing Admin Studio contract; it adds no route, migration, policy, or
 persistence behavior.
+
+## Chromium follow-up
+
+The native generated CRUD Playwright journey now opens the real Project Edition
+create form with the English Admin locale and asserts the translated heading
+and submit action. Playwright discovery lists the scenario (1/1), but execution
+in this managed workspace stops before server startup because binding the
+loopback listener fails with `listen EPERM`. Therefore the browser locale
+assertion is present but not passed here; the earlier Go HTTP-render assertion
+remains the successful runtime-level evidence.
+
+```sh
+cd e2e
+TMPDIR=/tmp GOCACHE=/tmp/hydro-cover-cache npm exec playwright test \
+  custom/generated-admin-crud.spec.ts -- --project=chromium --workers=1 \
+  --reporter=line --trace=off
+npm exec playwright test custom/generated-admin-crud.spec.ts -- \
+  --project=chromium --workers=1 --list
+```
+
+The discovery command passed with one scenario. The browser command did not
+reach its assertions and is not counted as a passing E2E test.
