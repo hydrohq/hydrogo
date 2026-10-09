@@ -28,3 +28,19 @@ func TestRichTextEditorRendersAccessibleQuillField(t *testing.T) {
 		}
 	}
 }
+
+func TestRichTextEditorAcceptsLocalizedToolbarLabels(t *testing.T) {
+	got := render(t, RichTextEditor(RichTextEditorProps{
+		ID: "body", Name: "body", Label: "Body", ToolbarLabel: "Rich text tools", BoldLabel: "Bold",
+		ItalicLabel: "Italic", UnderlineLabel: "Underline", LinkLabel: "Add link", ImageLabel: "Add image",
+		BlockQuoteLabel: "Block quote", OrderedListLabel: "Numbered list", BulletListLabel: "Bulleted list",
+	}))
+	for _, want := range []string{`aria-label="Rich text tools"`, `aria-label="Bold"`, `aria-label="Italic"`, `aria-label="Underline"`, `aria-label="Add link"`, `aria-label="Add image"`, `aria-label="Block quote"`, `aria-label="Numbered list"`, `aria-label="Bulleted list"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("rich text toolbar missing localized label %q: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "Kalın") || strings.Contains(got, "İtalik") {
+		t.Errorf("rich text toolbar retained default Turkish copy: %s", got)
+	}
+}

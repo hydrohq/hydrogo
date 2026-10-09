@@ -55,3 +55,19 @@ npm exec playwright test custom/generated-admin-crud.spec.ts -- \
 
 The discovery command passed with one scenario. The browser command did not
 reach its assertions and is not counted as a passing E2E test.
+
+
+## Generated widget controls follow the interface locale
+
+Generated `Array`, `Media`, `RichText`, and `Block` fields now receive their control labels from the active Admin interface catalog. This covers add-item labels, media selection/clear controls, rich-text toolbar accessible names, and the block preview placeholder. Edition field labels and the selectable content locale remain separate from the interface locale. Shared typed components retain their existing Turkish defaults when called without localized props.
+
+The generated form HTTP test renders all four widgets in English and asserts their control copy and absence of the corresponding Turkish strings. Component tests cover supplied English copy for array, media, rich-text, and block controls. Verification passed:
+
+```sh
+GOCACHE=/tmp/hydro-admin-gocache go test -count=1 -p 1 -timeout 90s ./internal/ui/components ./internal/adminstudio ./internal/i18n
+GOCACHE=/tmp/hydro-admin-gocache go vet ./internal/ui/components ./internal/adminstudio ./internal/i18n
+/home/arda/.agents/skills/impeccable/scripts/impeccable detect --json internal/adminstudio/generated_http.go internal/ui/components
+git diff --check
+```
+
+All three Go packages passed tests and vet; the UI detector returned no findings. This is HTTP/component-level locale evidence, not browser proof. The Playwright listener restriction above still prevents a real browser locale journey in this workspace.

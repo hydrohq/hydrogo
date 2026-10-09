@@ -38,6 +38,36 @@ func TestGeneratedFormUsesEditionBlockEditorAdapter(t *testing.T) {
 	}
 }
 
+func TestGeneratedFormWidgetsUseInterfaceLocale(t *testing.T) {
+	collection := Collection{ID: "article", Label: "Articles", Fields: []Field{
+		{ID: "highlights", Label: "Highlights", Kind: FieldArray},
+		{ID: "cover", Label: "Cover image", Kind: FieldMedia},
+		{ID: "body", Label: "Body", Kind: FieldRichText},
+		{ID: "blocks", Label: "Page blocks", Kind: FieldBlocks},
+	}, Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}}}
+
+	var out bytes.Buffer
+	err := generatedFormFields(collection, map[string]string{}, nil, "a1", false, "en", "en", false, false, true, "en", BlockEditorConfig{EditorScript: "/assets/editor.js"}).Render(context.Background(), &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`aria-label="Highlights: add item">+ Add item`,
+		`alt="Selected image"`, "No image selected", "Choose from library", ">Remove</button>", "Open media library",
+		`aria-label="Rich text tools"`, `aria-label="Bold"`, `aria-label="Add link"`,
+		"Preview will appear here.",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("English generated widget missing %q: %s", want, out.String())
+		}
+	}
+	for _, untranslated := range []string{"Madde ekle", "Görsel seçilmedi", "Kütüphaneden seç", "Bağlantı ekle", "Önizleme bekleniyor."} {
+		if strings.Contains(out.String(), untranslated) {
+			t.Errorf("English generated widget contains Turkish copy %q: %s", untranslated, out.String())
+		}
+	}
+}
+
 func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Request) bool) *http.ServeMux {
 	t.Helper()
 	registry, err := NewRegistry([]Collection{{

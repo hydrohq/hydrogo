@@ -51,6 +51,10 @@ func TestItemListEditorEscapesValuesAndUsesSharedAdminContract(t *testing.T) {
 	if err := ItemListEditor(ItemListEditorProps{Label: "Keywords"}).Render(context.Background(), &outWithoutID); err == nil {
 		t.Fatal("item list editor accepted a missing id")
 	}
+	localized := render(t, ItemListEditor(ItemListEditorProps{ID: "keywords", Label: "Keywords", AddLabel: "Add item", AddAriaLabel: "Keywords: add item"}))
+	if !strings.Contains(localized, `aria-label="Keywords: add item">+ Add item`) || strings.Contains(localized, "Madde ekle") {
+		t.Fatalf("item list editor ignored the interface locale: %s", localized)
+	}
 }
 
 func TestValidationSummaryEscapesAndLinksFieldErrors(t *testing.T) {
@@ -148,6 +152,10 @@ func TestBlockEditorUsesEditionAssetAndAllowlistedLivePreview(t *testing.T) {
 	if strings.Contains(out, "<!--") || strings.Contains(out, "<script") {
 		t.Fatalf("block editor emitted unsafe/comment markup: %s", out)
 	}
+	localized := render(t, BlockEditor(BlockEditorProps{ID: "body", Label: "Body", PreviewPending: "Preview will appear here."}))
+	if !strings.Contains(localized, "Preview will appear here.") || strings.Contains(localized, "Önizleme bekleniyor.") {
+		t.Fatalf("block editor ignored the interface locale: %s", localized)
+	}
 }
 
 func TestBlockEditorDoesNotInventPreviewRoute(t *testing.T) {
@@ -164,5 +172,20 @@ func TestMediaPickerEscapesReferenceAndKeepsChooserNonAuthorizing(t *testing.T) 
 	}
 	if strings.Contains(out, "<Cover>") || strings.Contains(out, "javascript:") {
 		t.Fatalf("media picker output was not safely rendered: %s", out)
+	}
+}
+
+func TestMediaPickerUsesProvidedInterfaceCopy(t *testing.T) {
+	out := render(t, MediaPicker(MediaPickerProps{
+		ID: "cover", Label: "Cover image", SelectedImageAlt: "Selected image", EmptySelection: "No image selected",
+		ChooseFromLibrary: "Choose from library", ClearSelection: "Remove", OpenLibrary: "Open media library",
+	}))
+	for _, want := range []string{`alt="Selected image"`, "No image selected", "Choose from library", ">Remove</button>", "Open media library"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("localized media picker missing %q: %s", want, out)
+		}
+	}
+	if strings.Contains(out, "Kütüphaneden seç") || strings.Contains(out, "Görsel seçilmedi") {
+		t.Fatalf("media picker retained default Turkish copy: %s", out)
 	}
 }
