@@ -22,12 +22,16 @@ dependencies.
 
 
 - [ ] Call generated.RegisterGeneratedAdmin once from the Edition composition
-  root with the composed API handler, authenticated-admin authorization, the
-  Edition CSRF boundary and its typed page renderer. Its generated selection
+  root with the composed API handler, the Edition authorization callback, its
+  CSRF boundary and typed page renderer. Its generated selection
   follows this Edition's Blueprint registry, so newly generated resources join
   the shared list/form surface without hand-editing a resource ID list.
   For a deployment that intentionally enables only some generated resources,
   call adminstudio.RegisterGenerated with that reviewed selection instead.
+- [ ] Derive ResourceAccess from the same user, tenant and record rules as the
+  resource API. It controls generated CRUD affordances and direct Admin routes;
+  leaving it nil preserves legacy all-actions UI, while the API remains the
+  authorization boundary for every caller.
 - [ ] Apply the migration through the module migration registry for every
   declared dialect: postgres, sqlite.
 - [ ] Pass every generated tenant table to tenant.VerifyProvisioningRLSForTables before shared-mode provisioning.

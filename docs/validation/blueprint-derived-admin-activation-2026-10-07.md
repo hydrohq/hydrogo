@@ -103,3 +103,12 @@ both light and dark modes. All eight variants passed as part of the full
 generated CRUD browser journey (create, search/filter, edit, delete): 1/1
 Chromium test. The list and generated create form theme checks remain covered
 by the same journey.
+
+## Runtime wiring authorization guidance — 2026-10-09
+
+Generated `RUNTIME_WIRING.md` now tells Edition authors to derive optional
+`ResourceAccess` from the same user, tenant, and record rules as the API. It
+documents that the callback governs UI affordances and direct Admin routes,
+while API authorization remains the boundary for all callers. A generator test
+asserts this guidance is emitted. This is setup documentation and does not
+replace authorization contract tests.

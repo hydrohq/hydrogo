@@ -4,7 +4,7 @@
   "spec_sha256": "e4cff686e120387f93a8fcf0f4dd7e5b977eedee860e61067810c2503f4504aa",
   "artifacts_sha256": {
     "REVIEW.md": "54c23e5e3523fbee36605b40b6c5cd82bafaa18e6fe333d5775cf2445eaacd9c",
-    "RUNTIME_WIRING.md": "e4c1903d34f5bc8605dfd046a54e03efa6ea317fbfccdd0cf056076b6f2b9aaf",
+    "RUNTIME_WIRING.md": "3ba9b58fba88993a06b1a778ae2ec8025fafcc44afd972e11187fc04ed5f8299",
     "admin/form.templ": "10fa44195608faf43e2bc89213c4d6d7929276e312bf558eaa1339947fcc07a4",
     "admin/list.templ": "01fddb6779f3131d3ab59fe88e1d6e76849a1ba128663dffb0f90248323c99fd",
     "admin/views.json": "086c57a23ffe5bbdac4c6bbe43b43964265e841f3fe4fd671f507ed27b5afdaf",
@@ -51,7 +51,7 @@
       "spec_sha256": "88adaafd517807b45e27672b46a68581d4418dce95765dbc22fa544f21ad238a",
       "artifacts_sha256": {
         "REVIEW.md": "490e59594be7c0a1e3550bb549b59958c4e3e0ffd0eaf78c317732c4856daa4e",
-        "RUNTIME_WIRING.md": "3b005191d8ec5a20d0215f63a6c74a27189b242651be09ea5e801257cb38cd31",
+        "RUNTIME_WIRING.md": "98448186d21d0b7f00d8b33347da23f2e08676c54b8036967ff3fa9c2a77c503",
         "admin/form.templ": "bed0dc4bf3ca9dad29646722cf9931942562824cdde14742481a09189c0fe78f",
         "admin/list.templ": "8e981c0a4a70522558542b5ef60b39b65248748445abc4f82e2bce644f000a35",
         "admin/views.json": "36f92ae9cbf55ee18e2615fc0cbf19fdcb601246e1cd816f9d21d85604ce87a1",
@@ -98,7 +98,7 @@
       "spec_sha256": "960003d2f67abe44f5fd038b895203596ec1d397e786996cbc5e4dc248c9aee4",
       "artifacts_sha256": {
         "REVIEW.md": "7ea5fbcf10d9127aeace5113d5bcc1b4bb734a044f7f6b5e9ba09614c5eec7c2",
-        "RUNTIME_WIRING.md": "09e843982ed058988c2dc47652f064f1fa72fca8d23243efc41377e30399e016",
+        "RUNTIME_WIRING.md": "885a2835c437b3a9354d145529f37304dc57e1c8a4bbfb02691bade48d038d06",
         "admin/form.templ": "f1fe6eab10e9f8e283bfe575ef1ed9026bcefa7081d987dde057fa47e69d531c",
         "admin/list.templ": "79c64c360ab78061012d35ea985953cb1664afa2bb312bc4141f0e48740dd7b4",
         "admin/views.json": "c71e450645310058dde70b44dd313290a7cac5e9cca77c1abf4fe97ad5dfcc97",
@@ -145,7 +145,7 @@
       "spec_sha256": "e4cff686e120387f93a8fcf0f4dd7e5b977eedee860e61067810c2503f4504aa",
       "artifacts_sha256": {
         "REVIEW.md": "54c23e5e3523fbee36605b40b6c5cd82bafaa18e6fe333d5775cf2445eaacd9c",
-        "RUNTIME_WIRING.md": "e4c1903d34f5bc8605dfd046a54e03efa6ea317fbfccdd0cf056076b6f2b9aaf",
+        "RUNTIME_WIRING.md": "3ba9b58fba88993a06b1a778ae2ec8025fafcc44afd972e11187fc04ed5f8299",
         "admin/form.templ": "10fa44195608faf43e2bc89213c4d6d7929276e312bf558eaa1339947fcc07a4",
         "admin/list.templ": "01fddb6779f3131d3ab59fe88e1d6e76849a1ba128663dffb0f90248323c99fd",
         "admin/views.json": "086c57a23ffe5bbdac4c6bbe43b43964265e841f3fe4fd671f507ed27b5afdaf",
