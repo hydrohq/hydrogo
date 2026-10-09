@@ -9,10 +9,12 @@ editable block, and axe WCAG 2.1 A/AA results before the CRUD round trip.
 
 ## Verification status
 
-- The generated rich-text Chromium suite passed **8/8** in 38.8 s using the
+- The latest generated rich-text Chromium suite passed **10/10** in 1.1 min using the
   externally started local fixture. It includes Editor.js light/dark coverage
   for all four theme families, mounted editor assertions, and axe WCAG 2.1
-  A/AA checks before CRUD round-trip assertions.
+  A/AA checks before CRUD round-trip assertions. Its theme accessibility test
+  checks five generated/editorial screens across four theme families and two
+  color modes (40 screen/theme cells).
 - The first in-process startup attempt was blocked by a loopback bind
   restriction. Starting the fixture separately and using its loopback URL let
   Playwright run without owning the listening socket; no product code was
@@ -20,10 +22,14 @@ editable block, and axe WCAG 2.1 A/AA results before the CRUD round trip.
 - Exact successful command:
 
   ```sh
-  cd e2e
+# Terminal 1, from the repository root:
+  HYDRO_E2E_ADDRESS=127.0.0.1:8099 GOCACHE=/tmp/hydrogo-go-cache \
+    go run ./tests/e2e/support/generatedrichtext
+# Terminal 2, from e2e:
+cd e2e
   HYDRO_E2E_EXTERNAL_SERVER=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8099 \
-    TMPDIR=/var/tmp/hydro-go-tests npm exec playwright test \
-    custom/generated-richtext.spec.ts -- --project=chromium --workers=1 \
+    TMPDIR=/var/tmp/hydro-go-tests npx playwright test \
+    custom/generated-richtext.spec.ts --project=chromium --workers=1 \
     --reporter=line --trace=off
   ```
 
