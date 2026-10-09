@@ -86,16 +86,18 @@ behavior keep their dedicated policy rules.
 
 The authenticated Editor Chromium journey uploads a CSV, maps title/slug/body,
 checks the preview, confirms import, then verifies the new draft in the Admin
-list and reads it back through the Edition API. The same scenario confirms
+list and reads it back through the Edition API. A repeated slug and invalid
+row are reported accurately, and reimporting the same file reports zero new
+drafts and leaves exactly one matching record. The same scenario confirms
 Viewer direct GET and valid-CSRF POST are denied. The first run exposed a
 repository bound mismatch: import requests 5,000 existing summaries for
 duplicate detection, but `ListAdmin` rejected any limit above 100 and returned
 503. The summary query now accepts the import's bounded 5,000 maximum; no page
-bodies are selected. Focused repository/transport Go tests passed, and
-Chromium passed 1/1 on SQLite and 1/1 on PostgreSQL 18.6 using a fresh local
-database. The PostgreSQL database was dropped after the run. This verifies the
-successful import flow on both adapters; it does not close the broader Admin
-route/permission matrix.
+bodies are selected. Focused repository/transport Go tests passed. Chromium
+passed 1/1 on SQLite and 1/1 on PostgreSQL 18.6; each PostgreSQL run used a
+fresh local database, dropped after the run. This verifies successful import,
+duplicate/invalid row reporting, and duplicate-safe reimport on both adapters;
+it does not close the broader Admin route/permission matrix.
 
 ```sh
 TMPDIR=/var/tmp/hydro-go-tests go test ./modules/pages/repository/sqlstore ./modules/pages/transport -count=1
