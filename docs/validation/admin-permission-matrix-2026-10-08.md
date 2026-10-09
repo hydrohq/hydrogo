@@ -326,19 +326,24 @@ Fonts compositions; News and Pages are checked with their editor routes; Media
 includes optional unused-asset cleanup and its API upload/folder/metadata
 mutations; Auth includes identity, user, and account administration. It
 verifies the composition maps each route to `router.Protected`, then sends each
-exact method/path through the production CSRF middleware without a token and
-with a mismatched cookie/header pair; both must return `403` before dispatch.
-A matching cookie/header token then reaches the exact handler once. Public
-form submission, reset-token, and public media delivery routes are excluded.
+exact method/path through production CSRF middleware without a token and with
+a mismatched cookie/header pair; both must return `403` before dispatch. With
+a valid token, anonymous and inactive sessions must return `401` before
+dispatch. A valid token plus active Admin session reaches the exact handler
+once. Public form submission, reset-token, and public media delivery routes
+are excluded.
 
 ```sh
 GOCACHE="$PWD/.cache/admin-test" TMPDIR=/tmp/hydrogo-admin-tests GOPROXY=off \
   go test ./cmd/hydro -run '^TestBuiltInMutationRoutesAreProtectedAndCSRFChecked$' -count=1
 ```
 
-All six route compositions passed. Persistence outcomes and role override
-behavior for every Site/News/Pages/Media/Auth action remain covered by
-handler-specific tests or open cells in the full acceptance matrix.
+All six route compositions passed, covering 72 route/composition pairs (18 Core
+Site, 26 Site Forms + Fonts, 9 News, 8 Pages, 10 Media, and 1 Auth). This checks
+authentication and CSRF routing for each discovered mutation; it does not
+prove role/permission-specific handler outcomes or persisted-state invariance
+for every action. Those remain covered by handler-specific tests or open cells
+in the full acceptance matrix.
 
 ### Media Admin missing-CSRF permission matrix — 2026-10-09
 

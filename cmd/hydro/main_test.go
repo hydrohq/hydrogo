@@ -389,7 +389,10 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 					next.ServeHTTP(w, r)
 				})
 			}
-			protectedRoutes, err := router.New(routes, func(*http.Request) bool { return true })
+			protectedRoutes, err := router.New(routes, func(request *http.Request) bool {
+				user := auth.UserFromContext(request.Context())
+				return user != nil && user.Active
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -428,11 +431,37 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 				if dispatches[route.Pattern] != 0 {
 					t.Errorf("admin mutation route %q reached its handler with forged CSRF", route.Pattern)
 				}
+				for _, tc := range []struct {
+					name string
+					user *auth.User
+				}{
+					{name: "anonymous"},
+					{name: "inactive session", user: &auth.User{ID: "inactive-admin", Role: auth.RoleAdmin, Active: false}},
+				} {
+					t.Run(route.Pattern+"/"+tc.name, func(t *testing.T) {
+						request := httptest.NewRequest(method, path, strings.NewReader("_csrf=valid-token"))
+						request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+						request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+						request.Header.Set(security.CSRFHeaderName, "valid-token")
+						if tc.user != nil {
+							request = request.WithContext(auth.WithUser(request.Context(), tc.user))
+						}
+						response := httptest.NewRecorder()
+						csrfProtected.ServeHTTP(response, request)
+						if response.Code != http.StatusUnauthorized {
+							t.Errorf("admin mutation route %q for %s returned %d, want 401", route.Pattern, tc.name, response.Code)
+						}
+						if dispatches[route.Pattern] != 0 {
+							t.Errorf("admin mutation route %q reached handler for %s", route.Pattern, tc.name)
+						}
+					})
+				}
 				dispatched := dispatches[route.Pattern]
 				request = httptest.NewRequest(method, path, strings.NewReader("_csrf=valid-token"))
 				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
 				request.Header.Set(security.CSRFHeaderName, "valid-token")
+				request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
 				response = httptest.NewRecorder()
 				csrfProtected.ServeHTTP(response, request)
 				if dispatches[route.Pattern] != dispatched+1 {
@@ -442,6 +471,7 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 			if count == 0 {
 				t.Fatal("composition registered no Admin mutation routes")
 			}
+			t.Logf("checked %d registered unsafe Admin/media routes", count)
 		})
 	}
 }
