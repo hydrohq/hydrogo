@@ -29,9 +29,30 @@ valid-CSRF requests for both routes return 403, while the stored translation
 and successful Admin copy state remain unchanged. The existing test also
 verifies that only localized fields are sent to the Edition store.
 
+## Basic generated CRUD
+
+The direct Admin route test also checks role-specific capabilities for create,
+update, and delete with valid CSRF:
+
+| Role | Create | Update | Delete |
+| --- | --- | --- | --- |
+| Admin | allowed | allowed | allowed |
+| Editor | allowed | allowed | denied |
+| Viewer | denied | denied | denied |
+
+Allowed requests reach the corresponding fake resource API exactly once and
+redirect after success; denied requests return 403 without reaching it. The
+existing `TestGeneratedAdminMutationUsesCSRFAndResourceAPI` independently
+checks that missing/invalid CSRF is rejected before the API for basic mutation
+routes. These are handler contract checks; the independent Edition SQLite and
+Chromium tests cover persisted editor CRUD, while Viewer persisted-state
+denial remains separately exercised by the external Edition contract.
+
 ```sh
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 GOPROXY=off \
   go test ./internal/adminstudio -run '^TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded$' -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 GOPROXY=off \
+  go test ./internal/adminstudio -run '^TestGeneratedBasicCRUDUsesEditionRoleCapabilities$' -count=1 -p 1
 ```
 
 All commands passed. Existing tests retain the missing-CSRF, stale-version,
