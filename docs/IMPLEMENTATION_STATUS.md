@@ -8,6 +8,15 @@ Blueprint Admin Studio'nun müşteri deneyimi, Super Admin sınırı, otomatik
 aktivasyon ve doğrulama boşlukları için güncel denetim ve aşamalı teslim planı:
 [`docs/planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md`](planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md).
 
+2026-10-09 Admin role-matrix follow-up: denied Editor/Viewer account role,
+permission, and disable mutations are followed by a fresh Admin read that
+checks the target role, permission override, and active state remain unchanged.
+The five-test Chromium Admin-management file passed on SQLite and PostgreSQL
+18 using a `NOSUPERUSER NOBYPASSRLS` application role and separate
+`BYPASSRLS` backup operator. This verifies the three account mutations only;
+the complete Admin route/mutation matrix remains open. Evidence:
+`admin-denied-account-mutations-persistence-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered

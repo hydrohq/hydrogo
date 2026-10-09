@@ -98,19 +98,21 @@ test.describe("single Edition administrator management", () => {
     restrictedMutationTargets = [...new Set(restrictedMutationTargets)];
     expect(restrictedMutationTargets.length, "the privileged Admin pages must expose mutation forms").toBeGreaterThan(0);
     await adminPage.goto(`${baseURL}/admin/users`);
-    const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string }> = {};
+    const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string; currentRole: string; currentContentWrite: string }> = {};
     for (const email of ["editor@example.test", "viewer@example.test"]) {
       const row = adminPage.locator(".studio-table tbody tr").filter({ has: adminPage.getByText(email, { exact: true }) });
       const roleAction = await row.locator('form[action$="/role"]').getAttribute("action");
       const permissionAction = await row.locator('form[action$="/permissions"]').getAttribute("action");
       const disableAction = await row.locator('form[action$="/disable"]').getAttribute("action");
+      const currentRole = await row.locator('select[name="role"]').inputValue();
+      const currentContentWrite = await row.locator('select[name="perm_admin.content.write"]').inputValue();
       expect(roleAction).toBeTruthy();
       expect(permissionAction).toBeTruthy();
       expect(disableAction).toBeTruthy();
       const id = new URL(roleAction!, baseURL).pathname.split("/").at(-2)!;
       expect(new URL(permissionAction!, baseURL).pathname.split("/").at(-2)).toBe(id);
       expect(new URL(disableAction!, baseURL).pathname.split("/").at(-2)).toBe(id);
-      managementTargets[email] = { id, role: roleAction!, permissions: permissionAction!, disable: disableAction! };
+      managementTargets[email] = { id, role: roleAction!, permissions: permissionAction!, disable: disableAction!, currentRole, currentContentWrite };
     }
     adminStorageState = await adminContext.storageState();
     await adminContext.close();
@@ -332,6 +334,18 @@ test.describe("single Edition administrator management", () => {
       expect(deniedPermissionChange.status(), `${account.expectedRole} cannot change another user's permissions`).toBe(403);
       const deniedAccountDisable = await page.request.post(new URL(target.disable, baseURL).href, { form: { _csrf: token } });
       expect(deniedAccountDisable.status(), `${account.expectedRole} cannot disable another user's account`).toBe(403);
+
+      const stateContext = await browser.newContext({ storageState: adminStorageState });
+      try {
+        const statePage = await stateContext.newPage();
+        expect((await statePage.goto(`${baseURL}/admin/users`))?.status()).toBe(200);
+        const stateRow = statePage.locator(".studio-table tbody tr").filter({ has: statePage.getByText(otherAccount, { exact: true }) });
+        await expect(stateRow.locator('select[name="role"]'), `${account.expectedRole} role-change denial must leave the target role unchanged`).toHaveValue(target.currentRole);
+        await expect(stateRow.locator('select[name="perm_admin.content.write"]'), `${account.expectedRole} permission denial must leave the target override unchanged`).toHaveValue(target.currentContentWrite);
+        await expect(stateRow, `${account.expectedRole} account-disable denial must leave the target active`).toContainText("Aktif");
+      } finally {
+        await stateContext.close();
+      }
 
       if (account.expectedRole === "editor") {
         const overrideContext = await browser.newContext({ storageState: adminStorageState });
