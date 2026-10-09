@@ -199,8 +199,19 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.getByRole("link", { name: "Yeni kayıt" }).click();
     const milestoneForm = page.locator('form[action="/admin/resources/milestone/new"]');
     await expectNoA11yViolations(page);
-    await milestoneForm.getByLabel("Title").fill("Blueprint generated milestone");
+    await milestoneForm.getByLabel("Title").fill("   ");
     await milestoneForm.getByLabel("Status").fill("planned");
+    const milestoneValidation = page.waitForResponse((response) =>
+      response.request().method() === "POST" && response.url().endsWith("/admin/resources/milestone/new"),
+    );
+    await milestoneForm.locator('button[type="submit"]').click();
+    expect((await milestoneValidation).status()).toBe(422);
+    await expect(page).toHaveURL(/\/admin\/resources\/milestone\/new$/);
+    await expect(page.getByRole("alert")).toContainText("Review these fields");
+    await expect(page.getByText("This field is required.")).toBeVisible();
+    await expect(milestoneForm.getByLabel("Title")).toHaveValue("   ");
+    await expectNoA11yViolations(page, "generated required-field feedback");
+    await milestoneForm.getByLabel("Title").fill("Blueprint generated milestone");
     await milestoneForm.locator('button[type="submit"]').click();
     await expect(page).toHaveURL(/\/admin\/resources\/milestone(?:\?.*)?$/);
     const milestoneLink = page.getByRole("link", { name: "Blueprint generated milestone" });
