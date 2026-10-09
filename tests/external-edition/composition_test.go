@@ -213,6 +213,15 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if response := readResourceFor("tenant-a", "viewer-override-created"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Explicitly granted record") {
 		t.Fatalf("explicit Viewer create override did not persist through Edition API: status=%d body=%s", response.Code, response.Body.String())
 	}
+	viewerOverrideList := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
+	viewerOverrideList.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerOverrideList.Header.Set("X-Test-Role", "viewer")
+	viewerOverrideList.Header.Set("X-Test-Permission-Override", "allow-create")
+	viewerOverrideListResponse := httptest.NewRecorder()
+	serveWithExternalRole(mux, viewerOverrideListResponse, viewerOverrideList)
+	if viewerOverrideListResponse.Code != http.StatusOK || !strings.Contains(viewerOverrideListResponse.Body.String(), `href="/admin/resources/article/new"`) {
+		t.Fatalf("explicit Viewer create override did not expose the create action: status=%d body=%s", viewerOverrideListResponse.Code, viewerOverrideListResponse.Body.String())
+	}
 
 	for _, deniedOverride := range []struct {
 		role, override, path, body, unchanged string
@@ -229,6 +238,19 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		serveWithExternalRole(mux, response, request)
 		if response.Code != http.StatusForbidden {
 			t.Errorf("%s %s override status=%d body=%s", deniedOverride.role, deniedOverride.override, response.Code, response.Body.String())
+		}
+		detailRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/article-1", nil)
+		detailRequest.Header.Set("X-Test-Tenant", "tenant-a")
+		detailRequest.Header.Set("X-Test-Role", deniedOverride.role)
+		detailRequest.Header.Set("X-Test-Permission-Override", deniedOverride.override)
+		detailResponse := httptest.NewRecorder()
+		serveWithExternalRole(mux, detailResponse, detailRequest)
+		if detailResponse.Code != http.StatusOK {
+			t.Errorf("%s %s override detail status=%d body=%s", deniedOverride.role, deniedOverride.override, detailResponse.Code, detailResponse.Body.String())
+		} else if deniedOverride.override == "deny-update" && strings.Contains(detailResponse.Body.String(), "<form") {
+			t.Errorf("read-only Editor still saw a writable detail form: %s", detailResponse.Body.String())
+		} else if deniedOverride.override == "deny-delete" && strings.Contains(detailResponse.Body.String(), "/delete") {
+			t.Errorf("Admin delete-deny override still exposed the delete action: %s", detailResponse.Body.String())
 		}
 		if persisted := readFor("tenant-a"); persisted.Code != http.StatusOK || !strings.Contains(persisted.Body.String(), deniedOverride.unchanged) {
 			t.Errorf("%s %s override changed persisted record: status=%d body=%s", deniedOverride.role, deniedOverride.override, persisted.Code, persisted.Body.String())
