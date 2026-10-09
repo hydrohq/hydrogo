@@ -475,10 +475,12 @@ test.describe("single Edition administrator management", () => {
     const backupForm = page.locator('form[action="/admin/backup"]');
     await backupForm.getByLabel("Devam etmek için parolanızı doğrulayın").fill(adminPassword);
     const downloadResponse = page.waitForResponse((response) => response.url() === `${baseURL}/admin/backup` && response.request().method() === "POST");
-    const backupDownload = page.waitForEvent("download");
+    const backupDownload = page.waitForEvent("download", { timeout: 10_000 });
+    void backupDownload.catch(() => {});
     await backupForm.getByRole("button", { name: "Yedeği oluştur ve indir" }).click();
-    const [backupResponse, download] = await Promise.all([downloadResponse, backupDownload]);
+    const backupResponse = await downloadResponse;
     expect(backupResponse.status()).toBe(200);
+    const download = await backupDownload;
     expect(backupResponse.headers()["content-type"]).toContain("application/gzip");
     expect(backupResponse.headers()["cache-control"]).toContain("no-store");
     expect(download.suggestedFilename()).toMatch(/^hydrogo-backup-.*\.tar\.gz$/);
