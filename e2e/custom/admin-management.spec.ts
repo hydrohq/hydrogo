@@ -670,6 +670,7 @@ test.describe("single Edition administrator management", () => {
     await expect(restrictedEditor).toHaveURL(/\/admin(?:\?.*)?$/);
     const deniedCreatePage = await restrictedEditor.goto(`${baseURL}/admin/pages/new`);
     expect(deniedCreatePage?.status()).toBe(403);
+    expect((await restrictedEditor.goto(`${baseURL}/admin/pages/import`))?.status()).toBe(403);
     expect((await restrictedEditor.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
     await expect(restrictedEditor.locator('form[action="/admin/pages"]')).toHaveCount(0);
     expect((await restrictedEditor.goto(`${baseURL}/admin/pages`))?.status()).toBe(403);
@@ -697,6 +698,10 @@ test.describe("single Edition administrator management", () => {
       form: { _csrf: restrictedCsrfToken, version: "1" },
     });
     expect(deniedPublishMutation.status()).toBe(403);
+    const deniedImportMutation = await restrictedEditor.request.post(`${baseURL}/admin/pages/import`, {
+      form: { _csrf: restrictedCsrfToken },
+    });
+    expect(deniedImportMutation.status()).toBe(403);
     const pageAfterDeniedPublish = await page.request.get(`${baseURL}/api/pages/${createdPageID}`);
     expect(pageAfterDeniedPublish.status()).toBe(200);
     expect(await pageAfterDeniedPublish.json()).toMatchObject({ status: "draft", title: "Editor session page" });
