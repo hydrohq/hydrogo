@@ -406,11 +406,16 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page.locator(".studio-sidebar")).toBeVisible();
     await expect(page.locator(".studio-sidebar")).toContainText("İÇERİK");
     await expect(page.getByRole("heading", { name: "Taslaklar · Stories" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Review copy" })).toBeVisible();
+    await expect(page.locator(".studio-table")).toBeVisible();
+    await expect(page.locator(".studio-table thead")).toContainText("Başlık");
+    await expect(page.locator(".studio-table thead")).toContainText("Durum");
+    await expect(page.locator(".studio-table thead")).toContainText("Sürüm");
+    await expect(page.getByRole("link", { name: "Review copy" })).toBeVisible();
+    await expect(page.locator(".studio-table .status-pill--draft")).toContainText("Taslak");
     await page.screenshot({ path: test.info().outputPath("generated-draft-inbox.png") });
     await expectNoA11yViolations(page);
 
-    await page.getByRole("button", { name: "Review copy" }).click();
+    await page.getByRole("link", { name: "Review copy" }).click();
     const editor = page.locator('form[action^="/admin/resources/story/story-1/draft"]');
     await expect(editor.locator('input[name="title"]')).toHaveValue("Review copy");
     await page.screenshot({ path: test.info().outputPath("generated-draft-editor.png") });
@@ -433,10 +438,10 @@ test.describe("generated rich-text Edition Admin", () => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources/story/drafts`);
     await dismissOnboarding(page);
-    await expect(page.getByRole("button", { name: "Discard-only draft" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Discard-only draft" })).toBeVisible();
     await expectNoA11yViolations(page);
 
-    await page.getByRole("button", { name: "Discard-only draft" }).click();
+    await page.getByRole("link", { name: "Discard-only draft" }).click();
     let discardConfirmation = "";
     page.once("dialog", async (dialog) => {
       discardConfirmation = dialog.message();
@@ -451,7 +456,7 @@ test.describe("generated rich-text Edition Admin", () => {
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Taslağı sil" }).click();
     await expect(page).toHaveURL(/\/admin\/resources\/story\/drafts(?:\?locale=en)?$/);
-    await expect(page.getByRole("button", { name: "Discard-only draft" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Discard-only draft" })).toHaveCount(0);
     await expectNoA11yViolations(page);
     const unpublished = await request.get(`${baseURL}/api/v1/story/story-discard`);
     expect(unpublished.status()).toBe(404);
