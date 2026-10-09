@@ -20,3 +20,10 @@ open acceptance gates in the product audit plan.
 
 After the focused checks, the full root SQLite Go suite also passed:
 `GOCACHE=/tmp/hydro-cover-cache go test ./... -count=1 -p 1 -timeout=8m`.
+
+The existing Playwright review/publish and discard journeys were updated to
+operate through the inbox's new row links and assert the table headings/status
+pill. Playwright discovered both tests with `--list`; browser execution was
+attempted but both fixtures failed before app startup with `listen EPERM` while
+binding `127.0.0.1`. The host restriction prevents browser assertions and axe
+from running here; no browser pass is claimed.
