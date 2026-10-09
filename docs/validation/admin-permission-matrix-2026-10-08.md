@@ -377,6 +377,26 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go vet ./modules/site/transport
 ```
 
+### Site font localization route — 2026-10-09
+
+The registered `POST /admin/site/fonts` flow now runs against SQLite with a
+test-only HTTP transport that emulates only the allowlisted Google Fonts CSS
+and font hosts. Invalid CSRF, Editor, Viewer and Admin `site.manage=false` do
+not contact the provider or write files/settings. An unsafe family returns
+400 before provider access. Authorized Admin saves the generated WOFF2/CSS
+files and public `design.font_css` setting and receives the expected redirect.
+This verifies route-to-storage composition, not the live Google Fonts service.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -run '^TestFontLocalizationRouteRequiresPermissionAndPersistsDownloadedAssets$' -count=1 -p 1
+```
+
+PostgreSQL gate recheck: PostgreSQL 18.6 `initdb` succeeded under `/tmp`, but
+`pg_ctl` could not bind its Unix socket (`Operation not permitted`). The runner
+also has no accessible Docker socket and `HYDRO_TEST_POSTGRES_URL` is unset, so
+no PostgreSQL contract result is inferred.
+
 ### 404 report conversion route authorization — 2026-10-09
 
 The SQLite tracking/conversion scenario submits through registered

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -36,6 +37,12 @@ import (
 )
 
 type fakeStore struct{}
+
+type siteFontRoundTripper func(*http.Request) (*http.Response, error)
+
+func (roundTrip siteFontRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	return roundTrip(request)
+}
 
 func (fakeStore) UpsertSetting(context.Context, database.Executor, site.Setting) error { return nil }
 func (fakeStore) ListPublicSettings(context.Context, database.Executor) ([]site.Setting, error) {
@@ -207,6 +214,106 @@ func TestFontPickerRoutesStayAbsentWithoutPages(t *testing.T) {
 		if strings.Contains(route.Pattern, "/admin/site/fonts") {
 			t.Fatalf("inactive Pages font picker route registered: %s", route.Pattern)
 		}
+	}
+}
+
+func TestFontLocalizationRouteRequiresPermissionAndPersistsDownloadedAssets(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-font-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store}
+	fontsDir := filepath.Join(t.TempDir(), "fonts")
+	fontCSS := "@font-face{font-family:'Inter';font-style:normal;font-weight:400 700;src:url(https://fonts.gstatic.com/s/inter/v13/test.woff2) format('woff2');}"
+	requests := 0
+	client := &http.Client{Transport: siteFontRoundTripper(func(request *http.Request) (*http.Response, error) {
+		requests++
+		body := "font-bytes"
+		if request.URL.Host == "fonts.googleapis.com" {
+			body = fontCSS
+		} else if request.URL.Host != "fonts.gstatic.com" {
+			return nil, errors.New("unexpected font host: " + request.URL.Host)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header), Request: request}, nil
+	})}
+	handler := Handler{Service: service, FontsDir: fontsDir, FontsEnabled: true, fontHTTPClient: client}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/fonts" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	submit := func(user *auth.User, token, family string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"_csrf": {token}, "family": {family}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/fonts", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertNoPersistence := func() {
+		t.Helper()
+		if _, found, err := store.GetSetting(context.Background(), db, "design.font_css"); err != nil || found {
+			t.Fatalf("unexpected persisted font setting: found=%t err=%v", found, err)
+		}
+		if files, err := filepath.Glob(filepath.Join(fontsDir, "*")); err != nil || len(files) != 0 {
+			t.Fatalf("unexpected downloaded font files: %v err=%v", files, err)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	for _, denied := range []struct {
+		name  string
+		user  *auth.User
+		token string
+	}{
+		{name: "invalid CSRF", user: admin, token: "wrong-token"},
+		{name: "Editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
+		{name: "Viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, token: "valid-token"},
+		{name: "permission denied", user: &auth.User{ID: "denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, token: "valid-token"},
+	} {
+		if response := submit(denied.user, denied.token, "Inter"); response.Code != http.StatusForbidden {
+			t.Fatalf("%s font change status=%d body=%s", denied.name, response.Code, response.Body.String())
+		}
+		assertNoPersistence()
+		if requests != 0 {
+			t.Fatalf("denied request contacted font provider %d times", requests)
+		}
+	}
+	if response := submit(admin, "valid-token", "Inter;url(evil)"); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid family status=%d body=%s", response.Code, response.Body.String())
+	}
+	assertNoPersistence()
+	if requests != 0 {
+		t.Fatalf("invalid family contacted font provider %d times", requests)
+	}
+	if response := submit(admin, "valid-token", "Inter"); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/fonts?saved=1" {
+		t.Fatalf("authorized font change status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	setting, found, err := store.GetSetting(context.Background(), db, "design.font_css")
+	if err != nil || !found || setting.Value != "/fonts/font-inter.css" || !setting.Public {
+		t.Fatalf("persisted font setting=%+v found=%t err=%v", setting, found, err)
+	}
+	css, err := os.ReadFile(filepath.Join(fontsDir, "font-inter.css"))
+	if err != nil || !strings.Contains(string(css), "font-display:swap") || !strings.Contains(string(css), "@font-face") {
+		t.Fatalf("localized CSS=%q err=%v", css, err)
+	}
+	fontFiles, err := filepath.Glob(filepath.Join(fontsDir, "font-*.woff2"))
+	if err != nil || len(fontFiles) != 1 {
+		t.Fatalf("localized assets=%v err=%v", fontFiles, err)
+	}
+	data, err := os.ReadFile(fontFiles[0])
+	if err != nil || string(data) != "font-bytes" {
+		t.Fatalf("localized font=%q err=%v", data, err)
 	}
 }
 
