@@ -1380,6 +1380,18 @@ test.describe("single Edition administrator management", () => {
     expect(uploadResponse.status()).toBe(303);
     await expect(page.locator(`.media-card[data-filename="${mediaName}"]`)).toBeVisible();
 
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileMediaGrid = page.locator(".media-grid");
+    await expect(mobileMediaGrid).toBeVisible();
+    expect(await mobileMediaGrid.evaluate((grid) => getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length), "mobile media cards should use one readable column").toBe(1);
+    for (const selector of [".media-card .media-copy", ".media-card .media-visibility-form select", ".media-card .media-visibility-form button"]) {
+      const control = page.locator(selector).first();
+      await expect(control).toBeVisible();
+      expect((await control.boundingBox())?.height ?? 0, `${selector} should meet the 44px touch target`).toBeGreaterThanOrEqual(44);
+    }
+    await expectAxeClean(page, "mobile media library");
+    await page.setViewportSize({ width: 1280, height: 900 });
+
     await page.goto(`${baseURL}/admin/news/new`);
     const coverField = page.locator('#news-form .media-select-field');
     await coverField.getByRole("button", { name: "Kütüphaneden seç" }).click();
