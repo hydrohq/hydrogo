@@ -55,6 +55,7 @@ func TestEmailBrandingMutationRouteRejectsCSRFAndNonAdminRoles(t *testing.T) {
 		user  *auth.User
 		token string
 	}{
+		{name: "admin without csrf", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}},
 		{name: "admin with invalid csrf", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, token: "wrong-token"},
 		{name: "editor with valid csrf", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
 		{name: "viewer with valid csrf", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, token: "valid-token"},
@@ -87,6 +88,8 @@ func protectedMailerMutation(t *testing.T, pattern string, handler http.Handler)
 
 func withMailerCSRF(request *http.Request, token string) *http.Request {
 	request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-	request.Header.Set(security.CSRFHeaderName, token)
+	if token != "" {
+		request.Header.Set(security.CSRFHeaderName, token)
+	}
 	return request
 }

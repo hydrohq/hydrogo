@@ -239,18 +239,18 @@ certify trash repository persistence or the browser restore journey.
 Tests wrap the app's Admin branding-save and test-email/SMTP-ping URL patterns
 with the active-session router and production double-submit CSRF middleware.
 Valid Admin branding writes persist to the settings fake; valid Admin test
-email and SMTP ping reach their fake sender. Invalid Admin CSRF and valid
-Editor/Viewer requests receive 403 and produce no write/send side effect.
+email and SMTP ping reach their fake sender. Missing or invalid Admin CSRF and
+valid Editor/Viewer requests receive 403 and produce no write/send side effect.
+SMTP ping explicitly verifies that a missing token does not call the sender.
 
 ```sh
-go test ./internal/mailer -run 'TestEmailBrandingHandlerRequiresAdminAndPersistsValidatedFields|TestEmailBrandingMutationRouteRejectsCSRFAndNonAdminRoles|TestTestPreview(SendsTextAndHTMLToAdmin|RejectsEditor|SMTPPingDoesNotRequireVerifiedEmail|RequiresVerifiedAdminAddress)' -count=1
+go test ./internal/mailer -run 'TestEmailBrandingHandlerRequiresAdminAndPersistsValidatedFields|TestEmailBrandingMutationRouteRejectsCSRFAndNonAdminRoles|TestTestPreview(SendsTextAndHTMLToAdmin|RejectsEditor|SMTPPingRejectsMissingCSRF|SMTPPingDoesNotRequireVerifiedEmail|RequiresVerifiedAdminAddress)' -count=1
 go vet ./internal/mailer/...
 ```
 
-The focused tests and vet passed. A full `go test ./internal/mailer/... -count=1`
-attempt was blocked by `TestSMTPPingChecksGreetingWithoutSendingEmail` and
-`TestSMTPSendAppliesTimeoutBeforeGreeting` failing to bind loopback TCP in this
-environment. No real SMTP service or browser result is claimed.
+The focused tests, full `go test ./internal/mailer/... -count=1`, and vet passed.
+SMTP integration tests bind only local loopback listeners; no real SMTP service
+or browser result is claimed.
 
 ## Webhook test delivery route — 2026-10-08
 
