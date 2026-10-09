@@ -1,4 +1,4 @@
-import { test, expect, type ChildProcess } from "@playwright/test";
+import { test, expect, request, type ChildProcess } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -60,7 +60,7 @@ test.describe("Admin Studio MFA self-service", () => {
   });
 
   test("sets up, verifies and disables MFA from account settings", async ({ browser }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(240_000);
     const context = await browser.newContext();
     const page = await context.newPage();
     const browserIssues: string[] = [];
@@ -311,6 +311,63 @@ test.describe("Admin Studio MFA self-service", () => {
     await expect(page.getByRole("button", { name: "Authenticator uygulamasını kur" })).toBeVisible();
     expect(browserIssues).toEqual([]);
     await context.close();
+
+    const rateLimitContext = await browser.newContext();
+    const rateLimitPage = await rateLimitContext.newPage();
+    await rateLimitPage.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await rateLimitPage.goto(`${baseURL}/login`);
+    await rateLimitPage.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "workbench-light"));
+    await rateLimitPage.goto(`${baseURL}/login?lang=en`);
+    await expect(rateLimitPage.locator("html")).toHaveAttribute("data-theme", "light");
+    const exhaustLoginLimit = async () => {
+      const limiterContext = await request.newContext();
+      const csrfResponse = await limiterContext.get(`${baseURL}/csrf-token`);
+      expect(csrfResponse.status()).toBe(200);
+      const { token } = await csrfResponse.json();
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const response = await limiterContext.post(`${baseURL}/auth/login`, {
+          form: { _csrf: token, email: "admin@example.test", password: adminPassword },
+          headers: { Accept: "application/json", "X-CSRF-Token": token },
+        });
+        if (response.status() === 429) {
+          expect(response.headers()["retry-after"]).toBe("60");
+          expect(response.headers()["cache-control"]).toContain("no-store");
+          await limiterContext.dispose();
+          return;
+        }
+        expect(response.status(), "valid credentials should consume the login limiter before it is exhausted").toBe(200);
+      }
+      await limiterContext.dispose();
+      throw new Error("login limiter did not return HTTP 429 within six attempts");
+    };
+    await exhaustLoginLimit();
+    const englishLimitResponse = rateLimitPage.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
+    await rateLimitPage.getByLabel("Email address").fill("admin@example.test");
+    await rateLimitPage.getByLabel("Password").fill(adminPassword);
+    await rateLimitPage.getByRole("button", { name: "Sign in" }).click();
+    expect((await englishLimitResponse).status()).toBe(429);
+    await expect(rateLimitPage.getByRole("alert")).toHaveText("Too many attempts. Please wait and try again.");
+    const englishLimitA11y = await rateLimitPage.evaluate(async () => (window as any).axe.run(document, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+    }));
+    expect(englishLimitA11y.violations.map((violation: any) => violation.id)).toEqual([]);
+
+    await rateLimitPage.waitForTimeout(61_000);
+    await rateLimitPage.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "workbench-dark"));
+    await rateLimitPage.goto(`${baseURL}/login?lang=tr`);
+    await expect(rateLimitPage.locator("html")).toHaveAttribute("data-theme", "dark");
+    await exhaustLoginLimit();
+    const turkishLimitResponse = rateLimitPage.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
+    await rateLimitPage.getByLabel("E-posta Adresi").fill("admin@example.test");
+    await rateLimitPage.getByLabel("Şifre").fill(adminPassword);
+    await rateLimitPage.getByRole("button", { name: "Giriş Yap" }).click();
+    expect((await turkishLimitResponse).status()).toBe(429);
+    await expect(rateLimitPage.getByRole("alert")).toHaveText("Çok fazla başarısız deneme yapıldı. Lütfen biraz bekleyin.");
+    const turkishLimitA11y = await rateLimitPage.evaluate(async () => (window as any).axe.run(document, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+    }));
+    expect(turkishLimitA11y.violations.map((violation: any) => violation.id)).toEqual([]);
+    await rateLimitContext.close();
   });
 });
 
