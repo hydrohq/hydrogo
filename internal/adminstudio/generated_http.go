@@ -2246,7 +2246,10 @@ func (h GeneratedAdminHandler) renderMutationFailure(w http.ResponseWriter, r *h
 	if deleting {
 		record, err := h.currentResource(r, collection, id)
 		if err != nil {
-			h.apiError(w, r)
+			locale := generatedAdminLocale(r)
+			title := i18n.T(locale, "admin.generated.error.delete_title")
+			message := i18n.T(locale, "admin.generated.error.delete_operation")
+			http.Error(w, title+": "+message, http.StatusBadGateway)
 			return
 		}
 		h.renderFormState(w, r, collection, id, record, true, nil, nil, http.StatusBadGateway, "delete")
