@@ -218,3 +218,29 @@ PostgreSQL results recorded above remain limited to their named runs and do not
 close the pending tests. To run the remaining contracts, configure
 `HYDRO_TEST_POSTGRES_URL` in a PostgreSQL-capable environment and run the
 documented `go test ./tests/contract` and `go test ./...` commands there.
+
+## Admin browser replay and backup-role gate — 2026-10-09
+
+The refreshed Chromium Editor/Viewer role journey passed 1/1 on PostgreSQL
+18.6. A two-test SQLite replay (role boundary plus the Admin routes/invitation/
+backup journey) passed 2/2 after the E2E backup assertion was changed to check
+the HTTP status before awaiting a download event; a failed response now surfaces
+promptly instead of waiting for the full 180-second test timeout.
+
+The complete five-test PostgreSQL Admin browser file was also attempted with
+the local `arda` role as `HYDRO_PG_PRIVILEGED_ROLE`. Its Editor/Viewer test
+passed, but the following backup step correctly returned HTTP 500: `arda` does
+not have `BYPASSRLS`, and direct `pg_dump --role=arda` reports that forced RLS
+on `audit_events` blocks the dump. The required separate backup operator role
+is absent from this local cluster, and the current account cannot use sudo to
+provision one. Therefore this run is not a PostgreSQL full-suite pass. The
+earlier 5/5 PostgreSQL run remains valid for its separately provisioned
+`hydro_backup` role; reproducing it requires that operator-role setup.
+
+```sh
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+HYDRO_E2E_DATABASE_DSN='postgres://<app-role>@/<database>?host=/run/postgresql&sslmode=disable' \
+HYDRO_PG_PRIVILEGED_ROLE='<bypassrls-backup-role>' \
+npx playwright test --project=chromium --workers=1 custom/admin-management.spec.ts \
+  --reporter=line --trace=off
+```
