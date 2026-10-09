@@ -58,7 +58,9 @@ npx playwright test custom/external-edition-editor.spec.ts --project=chromium --
 
 The test server uses test identity headers and a fixture policy, not production
 sessions or authorization. SQLite HTTP composition tests passed after the
-change; no live browser or PostgreSQL claim is made.
+change. The loopback restriction described below was later overcome by starting
+the fixture in its own process; see the live browser follow-up at the end of
+this report.
 
 Local server startup was attempted with the documented SQLite DSN. The fixture
 opened/migrated the database and composed the generated routes before
@@ -79,11 +81,9 @@ full `go test ./... -count=1 -p 1 -timeout=5m` and `go vet ./...` passed.
 This composes a synthetic Edition `/api/media` fixture and tenant-reference
 guard; it does not yet compose the production Core Media service, storage, or
 policy callbacks. A Playwright selection-and-save scenario is added and
-discovered, but has not run because this environment cannot bind the test
-server loopback listener.
-PostgreSQL certification for this new resource is also pending a runner with a
-working PostgreSQL listener. Do not treat the synthetic fixture as production
-Media-service integration.
+discovered; the live browser follow-up below records SQLite/PostgreSQL fixture
+results. Do not treat the synthetic fixture as production Media-service
+integration.
 
 An in-place media field addition to the already generated Project Edition
 article was rejected by `hydro generate scaffold` because its existing generated
@@ -103,6 +103,35 @@ vets passed; the browser scenario remains unrun due to the listener restriction
 above.
 
 ## Edition revalidation — 2026-10-09
+
+### Live Chromium follow-up
+
+The separately started Edition fixture allowed Playwright to execute the
+previously skipped browser scenarios. On SQLite, `custom/external-edition-editor.spec.ts`
+passed **3/3**. On PostgreSQL 18.6 (`NOSUPERUSER NOBYPASSRLS` role), the same
+editor suite passed **3/3**, and `custom/external-edition-admin.spec.ts` passed
+**1/1** using a fresh database. These journeys verify generated CRUD, Editor
+and Viewer boundaries, missing/forged CSRF writes and unchanged records,
+tenant isolation across server restart, failed save/read/delete feedback and
+retry, axe checks, 390px overflow, and tenant media selection/reference
+persistence. PostgreSQL fixture runs use local test-only identity headers and
+synthetic media; production auth/session middleware and production Core Media
+composition remain open.
+
+Fixture startup commands (run from `tests/external-edition`):
+
+```sh
+GOCACHE=/tmp/hydrogo-go-cache go run ./cmd/testserver --address 127.0.0.1:8099 --dsn 'file:/tmp/hydrogo-external-editor-20261009.sqlite?mode=rwc' --dialect sqlite
+GOCACHE=/tmp/hydrogo-go-cache go run ./cmd/testserver --address 127.0.0.1:8100 --dialect postgres --dsn 'postgres://arda@/hydro_external_editor_20261009?host=/run/postgresql&sslmode=disable'
+```
+
+Playwright commands used from `e2e`:
+
+```sh
+HYDRO_E2E_EXTERNAL_EDITION=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8099 HYDRO_E2E_DATABASE_DSN='file:/tmp/hydrogo-external-editor-20261009.sqlite?mode=rwc' npx playwright test custom/external-edition-editor.spec.ts --project=chromium --workers=1 --reporter=line --trace=off
+HYDRO_E2E_EXTERNAL_EDITION=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8100 HYDRO_E2E_DATABASE_DSN='postgres://arda@/hydro_external_editor_20261009?host=/run/postgresql&sslmode=disable' npx playwright test custom/external-edition-editor.spec.ts --project=chromium --workers=1 --reporter=line --trace=off
+HYDRO_E2E_DATABASE_DIALECT=postgres HYDRO_E2E_DATABASE_DSN='postgres://arda@/hydro_external_admin_fresh_20261009?host=/run/postgresql&sslmode=disable' npx playwright test custom/external-edition-admin.spec.ts --project=chromium --workers=1 --reporter=line --trace=off
+```
 
 After adding the generated `ResourceAccess` wiring guidance, both the
 independent Edition module and the native Project Edition were rerun with
