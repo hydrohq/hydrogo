@@ -243,32 +243,39 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 
 func TestGeneratedAdminLocalizesAndSanitizesResourceFailure(t *testing.T) {
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/project" {
+		if !((r.Method == http.MethodPost && r.URL.Path == "/api/v1/project") || (r.Method == http.MethodPut && r.URL.Path == "/api/v1/project/project-1")) {
 			t.Errorf("unexpected API request %s %s", r.Method, r.URL.Path)
 		}
 		http.Error(w, "postgres://secret@db.internal hydrogo panic /srv/customer/data", http.StatusInternalServerError)
 	})
 	mux := testGeneratedAdmin(t, api, func(*http.Request) bool { return true })
-	for _, tc := range []struct{ locale, message string }{
-		{"tr", "Bu işlem şu anda tamamlanamadı. Lütfen tekrar deneyin."},
-		{"en", "This action could not be completed right now. Please try again."},
+	for _, tc := range []struct{ locale, title, message string }{
+		{"tr", "Değişiklikleriniz kaydedilemedi", "Girdiğiniz bilgiler burada. Biraz sonra yeniden kaydetmeyi deneyin."},
+		{"en", "Your changes could not be saved", "Your entries are still here. Try saving again in a moment."},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
-			form := url.Values{"id": {"project-1"}, "title": {"Hydro project"}, "status": {"draft"}, "_csrf": {"csrf-value"}}
-			request := httptest.NewRequest(http.MethodPost, "/admin/resources/project/new", strings.NewReader(form.Encode()))
-			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			request.Header.Set("X-CSRF-Test", "valid")
-			request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: tc.locale})
-			response := httptest.NewRecorder()
-			mux.ServeHTTP(response, request)
-			body := response.Body.String()
-			if response.Code != http.StatusBadGateway || !strings.Contains(body, tc.message) || response.Header().Get("Location") != "" {
-				t.Fatalf("failure response status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), body)
-			}
-			for _, internal := range []string{"postgres://secret", "db.internal", "/srv/customer/data", "panic"} {
-				if strings.Contains(body, internal) {
-					t.Fatalf("internal API detail %q leaked: %s", internal, body)
-				}
+			for _, action := range []struct{ name, path string }{
+				{"create", "/admin/resources/project/new"},
+				{"update", "/admin/resources/project/project-1"},
+			} {
+				t.Run(action.name, func(t *testing.T) {
+					form := url.Values{"id": {"project-1"}, "title": {"Typed title"}, "status": {"active"}, "_csrf": {"csrf-value"}}
+					request := httptest.NewRequest(http.MethodPost, action.path, strings.NewReader(form.Encode()))
+					request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+					request.Header.Set("X-CSRF-Test", "valid")
+					request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: tc.locale})
+					response := httptest.NewRecorder()
+					mux.ServeHTTP(response, request)
+					body := response.Body.String()
+					if response.Code != http.StatusBadGateway || !strings.Contains(body, tc.title) || !strings.Contains(body, tc.message) || !strings.Contains(body, `role="alert"`) || !strings.Contains(body, `<form`) || !strings.Contains(body, `name="title"`) || !strings.Contains(body, `value="Typed title"`) || response.Header().Get("Location") != "" {
+						t.Fatalf("failure form status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), body)
+					}
+					for _, internal := range []string{"postgres://secret", "db.internal", "/srv/customer/data", "panic"} {
+						if strings.Contains(body, internal) {
+							t.Fatalf("internal API detail %q leaked: %s", internal, body)
+						}
+					}
+				})
 			}
 		})
 	}

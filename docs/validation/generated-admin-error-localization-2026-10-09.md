@@ -20,8 +20,11 @@ generated API error call sites pass their request to the shared formatter.
   `go test ./internal/adminstudio ./internal/i18n -count=1 -p 1 -timeout=5m`.
 - `go vet ./internal/adminstudio ./internal/i18n` and `git diff --check` passed.
 
-## Limits
+## Follow-up
 
-The handler still returns a plain error response instead of re-rendering the
-form in the shared Admin shell. Browser interaction, PostgreSQL, and deployed
+Create/update failures now re-render the form with a localized accessible
+alert and preserve the submitted values for retry. See
+[`generated-admin-save-recovery-2026-10-09.md`](generated-admin-save-recovery-2026-10-09.md).
+
+Browser interaction, PostgreSQL, delete-failure interaction, and deployed
 Edition error mapping remain open gates.
