@@ -215,3 +215,31 @@ SQLite and PostgreSQL 18.6. The nested Edition `go test ./...`, vet, and
 `importguard` passed. This is a test Edition record-policy fixture, not a
 production policy implementation; its test-only identity headers keep
 production login/session integration open.
+
+## Direct browser replay follow-up — 2026-10-09
+
+The standalone Admin role/tenant Chromium journey now passes 1/1 on SQLite.
+Replay exposed three fixture/assertion issues: the `Articles` locator also
+matched `Media articles`; the test server granted `CanReadResource` to every
+role; and the delete click lacked a dialog handler, so Playwright dismissed the
+confirmation by default. The fixture now denies Viewer collection reads and
+the journey expects the established 404 concealment contract, rather than 403,
+for unreadable collections. The delete flow explicitly accepts confirmation.
+The scenario now completes Editor/Admin CRUD, Viewer hidden-list denial,
+cross-tenant isolation, CSRF denial, and persisted delete readback. The full
+independent Edition Go suite, vet, and importguard passed after these changes.
+This is fixture-level SQLite browser evidence; production authentication and
+PostgreSQL remain open.
+
+```sh
+cd e2e
+npx playwright test --project=chromium --workers=1 custom/external-edition-admin.spec.ts \
+  --reporter=line --trace=off
+cd ../tests/external-edition
+GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
+  go test ./... -count=1 -p 1 -timeout=5m
+GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
+  go vet ./...
+GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
+  go run ../../tools/importguard -root .
+```

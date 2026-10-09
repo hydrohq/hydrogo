@@ -40,7 +40,7 @@ test.describe("independent Edition generated Admin", () => {
     await expect(onboarding).toBeVisible();
     await onboarding.getByRole("button", { name: "Bir daha gösterme" }).click();
     await expect(onboarding).toBeHidden();
-    await page.getByRole("navigation").getByRole("link", { name: "Articles" }).click();
+    await page.getByRole("navigation").getByRole("link", { name: "Articles", exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
     await expect(page.getByRole("heading", { name: "Articles" })).toBeVisible();
 
@@ -69,7 +69,7 @@ test.describe("independent Edition generated Admin", () => {
     const viewer = await browser.newContext({ extraHTTPHeaders: { "X-Test-Role": "viewer", "X-Test-Tenant": "tenant-a" } });
     const viewerPage = await viewer.newPage();
     const viewerDenied = await viewerPage.goto(`${baseURL}/admin/resources/article`);
-    expect(viewerDenied?.status()).toBe(403);
+    expect(viewerDenied?.status(), "a read-denied collection is hidden without revealing its existence").toBe(404);
     const csrfDenied = await admin.request.post(`${baseURL}/admin/resources/article/new`, { form: { id: "csrf-denied", title: "Must not persist" } });
     expect(csrfDenied.status()).toBe(403);
     expect((await admin.request.get(`${baseURL}/api/v1/article/csrf-denied`)).status()).toBe(404);
@@ -80,6 +80,7 @@ test.describe("independent Edition generated Admin", () => {
     await page.locator(`form[action="${recordPath}"] button[type="submit"]`).click();
     await expect(page.getByRole("link", { name: "External Edition tenant A updated" })).toBeVisible();
     await page.getByRole("link", { name: "External Edition tenant A updated" }).click();
+    page.once("dialog", (dialog) => dialog.accept());
     await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
     await expect(page.getByText("External Edition tenant A updated")).toHaveCount(0);
     expect((await admin.request.get(`${baseURL}${recordPath!.replace("/admin/resources", "/api/v1")}`)).status()).toBe(404);
