@@ -16,6 +16,7 @@ let tempDir = "";
 let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
+let tokenLifetimeBaseline: { passwordReset: string; invitation: string } | undefined;
 let restrictedMutationTargets: string[] = [];
 
 test.describe("single Edition administrator management", () => {
@@ -62,6 +63,13 @@ test.describe("single Edition administrator management", () => {
     await adminPage.getByLabel("Password").fill(adminPassword);
     await adminPage.getByRole("button", { name: "Sign in" }).click();
     await expect(adminPage).toHaveURL(/\/admin(?:\?.*)?$/);
+    expect((await adminPage.goto(`${baseURL}/admin/security/token-lifetimes`))?.status()).toBe(200);
+    tokenLifetimeBaseline = {
+      passwordReset: await adminPage.locator('select[name="password_reset_ttl"]').inputValue(),
+      invitation: await adminPage.locator('select[name="invitation_ttl"]').inputValue(),
+    };
+    expect(tokenLifetimeBaseline.passwordReset).not.toBe("");
+    expect(tokenLifetimeBaseline.invitation).not.toBe("");
     const adminNavPaths = await adminPage.locator('.studio-sidebar a[href^="/admin"]').evaluateAll((links) =>
       [...new Set(links.map((link) => new URL((link as HTMLAnchorElement).href).pathname))],
     );
@@ -304,6 +312,17 @@ test.describe("single Edition administrator management", () => {
           form: { _csrf: token, ...restrictedMutation.form },
         });
         expect(denied.status(), `${account.expectedRole} cannot submit ${restrictedMutation.route} even with valid CSRF`).toBe(403);
+      }
+      const securityStateContext = await browser.newContext({ storageState: adminStorageState });
+      try {
+        const securityStatePage = await securityStateContext.newPage();
+        expect((await securityStatePage.goto(`${baseURL}/admin/security`))?.status()).toBe(200);
+        await expect(securityStatePage.locator("body")).not.toContainText("198.51.100.223");
+        expect((await securityStatePage.goto(`${baseURL}/admin/security/token-lifetimes`))?.status()).toBe(200);
+        await expect(securityStatePage.locator('select[name="password_reset_ttl"]')).toHaveValue(tokenLifetimeBaseline!.passwordReset);
+        await expect(securityStatePage.locator('select[name="invitation_ttl"]')).toHaveValue(tokenLifetimeBaseline!.invitation);
+      } finally {
+        await securityStateContext.close();
       }
       if (account.expectedRole === "editor") {
         const createdFolder = await page.request.post(`${baseURL}/admin/media/folders`, {

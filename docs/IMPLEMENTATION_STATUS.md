@@ -40,6 +40,14 @@ flags-based resource command now chooses a usable string/text title field;
 clean scaffold to licensed runtime remains open. Evidence:
 `blueprint-independent-edition-autoactivation-2026-10-09.md`.
 
+2026-10-09 Admin security role follow-up: valid-CSRF Editor/Viewer IP-ban add,
+unban, and token-lifetime updates are denied; an Admin re-read proves the
+address was not added and both lifetimes remain unchanged. The complete
+Admin-management browser file passed on SQLite and PostgreSQL 18 with the
+documented separate backup role boundary. Other system mutation persistence
+cells remain open. Evidence:
+`admin-security-denied-mutation-persistence-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered
