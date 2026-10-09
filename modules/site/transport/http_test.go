@@ -880,6 +880,83 @@ func TestSiteCustomErrorPagesAdminSaveRendersPersistedPublicResponses(t *testing
 	}
 }
 
+func TestSiteStaffNoticeAdminRoutePersistsPrivateValidatedNotice(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-staff-notice-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/broadcast" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token string, form url.Values) *httptest.ResponseRecorder {
+		t.Helper()
+		form.Set("_csrf", token)
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/broadcast", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertMissing := func() {
+		t.Helper()
+		if _, found, err := store.GetSetting(context.Background(), db, site.StaffNoticeSettingKey); err != nil || found {
+			t.Fatalf("denied mutation persisted staff notice: found=%t err=%v", found, err)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	form := url.Values{"active": {"true"}, "severity": {"warning"}, "message": {"Yayın penceresi kısa süreliğine kapalı."}, "expires_at": {"2026-10-10T12:00"}}
+	if response := post(admin, "wrong-token", form); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token", form); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	if response := post(admin, "valid-token", form); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/broadcast?saved=1" {
+		t.Fatalf("authorized staff notice response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	setting, found, err := store.GetSetting(context.Background(), db, site.StaffNoticeSettingKey)
+	if err != nil || !found || setting.Public {
+		t.Fatalf("staff notice setting=%+v found=%t err=%v", setting, found, err)
+	}
+	want := site.StaffBroadcastNotice{Active: true, Severity: "warning", Message: "Yayın penceresi kısa süreliğine kapalı.", ExpiresAt: "2026-10-10T12:00:00Z"}
+	if got := site.StaffBroadcastNoticeFromSetting(setting); got != want {
+		t.Fatalf("persisted staff notice=%+v want=%+v", got, want)
+	}
+	publicSettings, err := store.ListPublicSettings(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, publicSetting := range publicSettings {
+		if publicSetting.Key == site.StaffNoticeSettingKey {
+			t.Fatal("internal staff notice leaked into public settings projection")
+		}
+	}
+	invalid := url.Values{"active": {"true"}, "severity": {"internal"}, "message": {"Invalid"}, "expires_at": {"2026-10-10T12:00"}}
+	if response := post(admin, "valid-token", invalid); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid notice status=%d, want 400", response.Code)
+	}
+	unchanged, found, err := store.GetSetting(context.Background(), db, site.StaffNoticeSettingKey)
+	if err != nil || !found || unchanged.Value != setting.Value {
+		t.Fatalf("invalid update changed staff notice: found=%t err=%v", found, err)
+	}
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()
