@@ -1127,6 +1127,98 @@ func TestSiteTranslationAdminRoutePersistsTenantScopedLocaleOverride(t *testing.
 	}
 }
 
+func TestSiteRedirectRuleAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-redirect-rule-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store}
+	handler := Handler{Service: service}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/redirect-rules" || route.Pattern == "POST /admin/site/redirect-rules/{id}/delete" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	create := func(user *auth.User, token, pattern, kind, target, status string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"_csrf": {token}, "pattern": {pattern}, "kind": {kind}, "target": {target}, "status": {status}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/redirect-rules", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	remove := func(user *auth.User, token, id string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/redirect-rules/"+url.PathEscape(id)+"/delete", strings.NewReader("_csrf="+token))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	list := func() []site.RedirectRule {
+		t.Helper()
+		rules, err := service.ListRedirectRules(context.Background(), 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rules
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := create(admin, "wrong-token", "/legacy/*", "wildcard", "/new/*", "301"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF create status=%d, want 403", response.Code)
+	}
+	if len(list()) != 0 {
+		t.Fatal("invalid CSRF created redirect rule")
+	}
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := create(deniedAdmin, "valid-token", "/legacy/*", "wildcard", "/new/*", "301"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied create status=%d, want 403", response.Code)
+	}
+	if len(list()) != 0 {
+		t.Fatal("denied Admin created redirect rule")
+	}
+	if response := create(admin, "valid-token", "/legacy/*", "wildcard", "/new/*", "301"); response.Code != http.StatusSeeOther {
+		t.Fatalf("authorized create status=%d body=%s", response.Code, response.Body.String())
+	}
+	rules := list()
+	if len(rules) != 1 || rules[0].ID == "" || rules[0].Pattern != "/legacy/*" || rules[0].TargetPath != "/new/*" || rules[0].Status != http.StatusMovedPermanently {
+		t.Fatalf("persisted redirect rules=%+v", rules)
+	}
+	id := rules[0].ID
+	if response := remove(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "valid-token", id); response.Code != http.StatusForbidden {
+		t.Fatalf("Editor delete status=%d, want 403", response.Code)
+	}
+	if len(list()) != 1 {
+		t.Fatal("denied Editor deleted redirect rule")
+	}
+	if response := remove(deniedAdmin, "valid-token", id); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin delete status=%d, want 403", response.Code)
+	}
+	if len(list()) != 1 {
+		t.Fatal("denied Admin deleted redirect rule")
+	}
+	if response := remove(admin, "valid-token", id); response.Code != http.StatusSeeOther {
+		t.Fatalf("authorized delete status=%d body=%s", response.Code, response.Body.String())
+	}
+	if remaining := list(); len(remaining) != 0 {
+		t.Fatalf("deleted redirect rule remains: %+v", remaining)
+	}
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()

@@ -268,6 +268,11 @@ tenant's i18n catalog projection, regional locale tags canonicalize, and
 unknown keys cannot overwrite persisted translations. PostgreSQL and complete
 browser translation journeys remain open.
 
+Redirect rule create/read/delete now has a registered HTTP/CSRF/SQLite
+workflow test. Admin can persist a wildcard rule and remove it; denied CSRF,
+Editor delete, and explicit Admin permission denial leave state unchanged.
+CSV import and PostgreSQL route-level evidence remain open.
+
 Windows'ta:
 
 ```powershell
