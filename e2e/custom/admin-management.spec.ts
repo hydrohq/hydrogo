@@ -126,6 +126,9 @@ test.describe("single Edition administrator management", () => {
           await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: hiddenCommand }), `editor command ${hiddenCommand} must require its capability`).toHaveCount(0);
         }
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(200);
+        const importPage = await page.goto(`${baseURL}/admin/pages/import`);
+        expect(importPage?.status(), "an Editor with content.write can open the import route directly").toBe(200);
+        await expect(page.locator('form[action="/admin/pages/import"]')).toBeVisible();
         const createForm = page.locator('form[action="/admin/pages"]');
         await page.goto(`${baseURL}${account.allowedPath}`);
         await createForm.locator('[name="slug"]').fill("role-editor-page");
@@ -151,6 +154,7 @@ test.describe("single Edition administrator management", () => {
           await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: hiddenCommand }), `viewer command ${hiddenCommand} must require its capability`).toHaveCount(0);
         }
         await expect(page.locator('a[href="/admin/pages/import"]')).toHaveCount(0);
+        expect((await page.request.get(`${baseURL}/admin/pages/import`)).status(), "Viewer must be denied the hidden import deep link").toBe(403);
         await expect(page.locator(`a[href="/admin/pages/${createdPageID}"]`)).toBeVisible();
         expect((await page.goto(`${baseURL}/admin/pages/${createdPageID}`))?.status()).toBe(200);
         await expect(page.locator('form[action^="/admin/pages/"]')).toHaveCount(0);
@@ -184,6 +188,12 @@ test.describe("single Edition administrator management", () => {
       expect(csrfResponse.status()).toBe(200);
       const { token } = await csrfResponse.json();
       expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(token);
+      if (account.expectedRole === "viewer") {
+        const deniedImport = await page.request.post(`${baseURL}/admin/pages/import`, {
+          form: { _csrf: token },
+        });
+        expect(deniedImport.status(), "a valid-CSRF Viewer import POST must be denied before file validation").toBe(403);
+      }
       for (const restrictedMutation of [
         { route: "/admin/security/bans", form: { address: "198.51.100.223", duration: "1h" } },
         { route: "/admin/security/bans/remove", form: { address: "198.51.100.223" } },

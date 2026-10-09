@@ -377,6 +377,23 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go vet ./modules/site/transport
 ```
 
+### Page import direct-route role boundary — 2026-10-09
+
+The authenticated Admin-management browser journey now checks the import route
+directly as well as checking its navigation visibility. An Editor with
+`admin.content.write` opens `GET /admin/pages/import` and sees the import form.
+A Viewer cannot see the navigation link and receives 403 on the direct GET.
+The Viewer also submits a valid-CSRF POST with no file and receives 403 before
+the handler's multipart/file validation. The focused Chromium role-boundary
+journey passed 1/1 with Playwright trace disabled; this verifies SQLite-backed
+route authorization and browser behavior, not successful file import parsing
+or PostgreSQL behavior.
+
+```sh
+npx playwright test --project=chromium --workers=1 custom/admin-management.spec.ts \
+  --grep 'editor and viewer sessions enforce' --reporter=line --trace=off
+```
+
 ### Authenticated media permission override deny/allow — 2026-10-09
 
 The single-Edition Admin browser journey now exercises the actual user
