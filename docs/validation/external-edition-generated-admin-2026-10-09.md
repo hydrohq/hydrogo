@@ -181,3 +181,25 @@ read-only. The Playwright viewer journey makes the same direct request and
 expects `403`. The nested Edition suite and vet passed; the importguard passed
 and Playwright discovered both Edition scenarios. Browser assertions remain
 unrun because the fixture server cannot bind the loopback listener here.
+
+## Live browser revalidation and read-only detail navigation — 2026-10-09
+
+With a loopback-capable runner, the fresh SQLite external Edition server was
+started and both Playwright scenarios passed (2/2): editor create, validation,
+update, delete and forged-CSRF/policy-denial checks; Viewer read-only list,
+detail, hidden mutation affordances, direct denied create, API/Admin mutation
+denials and persistence checks; plus tenant-scoped media selection and
+cross-tenant reference rejection. The independent module suite, vet, and
+importguard passed against the final source tree.
+
+The browser replay exposed that a readable record title had no link when the
+current role lacked `Update`. Generated list rows now link to the read-only
+detail URL whenever the collection is readable; the explicit “Düzenle” action
+remains limited to update-capable users. The HTTP contract and browser journey
+both verify the detail contains no mutation form and Viewer writes remain
+denied. The separate generated rich-text Edition suite passed 8/8 on Chromium,
+including save failure/retry, block round-trip and this read-only navigation.
+
+The browser server uses test-only identity headers and SQLite fixtures. These
+results do not certify production session middleware or PostgreSQL for this
+external Edition fixture.

@@ -597,9 +597,9 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 			editURL = localePath(editURL, localeState(r).Current)
 		}
 		row := Row{ID: id, Values: values}
+		row.DetailURL = editURL
 		canUpdate := collection.Drafts || h.resourceAccess(r, collection, id).Update
 		if canUpdate {
-			row.EditURL = editURL
 			row.Actions = []Action{{Label: "Düzenle", Href: editURL}}
 		}
 		rows = append(rows, row)

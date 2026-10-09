@@ -214,8 +214,11 @@ test.describe("generated rich-text Edition Admin", () => {
     await page.context().setExtraHTTPHeaders({ "X-E2E-Resource-Access": "none" });
     await page.goto(`${baseURL}/admin/resources/article`);
     await expect(page.getByRole("link", { name: "Yeni kayıt" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Generated blocks article" })).toHaveCount(0);
-    await expect(page.getByText("Generated blocks article", { exact: true })).toBeVisible();
+    const readOnlyRecord = page.getByRole("link", { name: "Generated blocks article" });
+    await expect(readOnlyRecord).toHaveAttribute("href", `/admin/resources/article/${record.id}`);
+    await readOnlyRecord.click();
+    await expect(page.getByRole("heading", { name: /Articles · Generated blocks article/ })).toBeVisible();
+    await expect(page.locator("form")).toHaveCount(0);
     expect((await page.goto(`${baseURL}/admin/resources/article/new`))?.status()).toBe(403);
     expect((await page.goto(`${baseURL}/admin/resources/article/${record.id}`))?.status()).toBe(200);
     await expect(page.getByRole("heading", { name: /Articles · Generated blocks article/ })).toBeVisible();

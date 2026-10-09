@@ -1196,8 +1196,8 @@ func TestGeneratedAdminResourceCapabilitiesHideAndDenyBasicCRUD(t *testing.T) {
 	}
 	list := httptest.NewRecorder()
 	mux.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil))
-	if list.Code != http.StatusOK || strings.Contains(list.Body.String(), "Yeni kayıt") || strings.Contains(list.Body.String(), `href="/admin/resources/article/a1"`) || !strings.Contains(list.Body.String(), "Read-only article") {
-		t.Fatalf("read-only list exposed CRUD affordances or hid content: status=%d body=%s", list.Code, list.Body.String())
+	if list.Code != http.StatusOK || strings.Contains(list.Body.String(), "Yeni kayıt") || !strings.Contains(list.Body.String(), `href="/admin/resources/article/a1"`) || strings.Contains(list.Body.String(), "Düzenle") || !strings.Contains(list.Body.String(), "Read-only article") {
+		t.Fatalf("read-only list hid readable detail or exposed mutation affordances: status=%d body=%s", list.Code, list.Body.String())
 	}
 	for _, method := range []string{http.MethodGet, http.MethodPost} {
 		create := httptest.NewRecorder()
