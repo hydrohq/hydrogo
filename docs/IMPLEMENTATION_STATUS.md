@@ -414,6 +414,12 @@ direct-handler-only CSRF evidence gap for that route; full server/browser
 coverage remains open. See
 `docs/validation/admin-token-lifetime-route-security-2026-10-09.md`.
 
+Generated Editor.js forms now have a planned eight-variant theme-family/light-
+dark axe browser matrix. Playwright discovered the suite, but its fixture
+server failed before tests ran because loopback bind returned `EPERM`; no
+accessibility result is claimed. Re-run on a loopback-enabled runner. See
+`docs/validation/generated-block-editor-theme-matrix-2026-10-09.md`.
+
 Generated CRUD API failures now render safe Turkish/English localized copy
 based on the Admin locale. A failure injection with a database URL, host,
 filesystem path, and panic text verifies none reach the response and no
