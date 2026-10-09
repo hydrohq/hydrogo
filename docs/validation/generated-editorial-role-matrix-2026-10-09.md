@@ -23,6 +23,12 @@ invoking the restore callback, and missing CSRF or a stale resource version is
 rejected before restore. Its existing history/diff test still checks escaped
 snapshot content and expected-version handling.
 
+Localized field save and cross-locale copy now use the same role matrix.
+`ResourceAccess.Update` and `CanCopyLocale` grant Admin only; Editor and Viewer
+valid-CSRF requests for both routes return 403, while the stored translation
+and successful Admin copy state remain unchanged. The existing test also
+verifies that only localized fields are sent to the Edition store.
+
 ```sh
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 GOPROXY=off \
   go test ./internal/adminstudio -run '^TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded$' -count=1 -p 1
