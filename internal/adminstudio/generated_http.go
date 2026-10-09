@@ -646,7 +646,13 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if err := generatedListControls(out, collection, query, localeState(r).Current); err != nil {
 			return err
 		}
-		if err := RenderList(out, ListData{Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID), Locale: localeState(r).Current, UILocale: generatedAdminLocale(r), Query: query}); err != nil {
+		uiLocale := generatedAdminLocale(r)
+		if err := RenderList(out, ListData{
+			Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID),
+			Locale: localeState(r).Current, UILocale: uiLocale, Query: query,
+			ListCaption:       fmt.Sprintf(i18n.T(uiLocale, "admin.generated.list.caption"), collection.Label),
+			ActionColumnLabel: i18n.T(uiLocale, "admin.generated.list.actions"),
+		}); err != nil {
 			return err
 		}
 		if page > 1 {
