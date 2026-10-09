@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
 
@@ -43,6 +44,7 @@ func TestContentWritePermissionGuardsNewsRoutes(t *testing.T) {
 		{name: "viewer default", user: &auth.User{Role: auth.RoleViewer, Active: true}},
 		{name: "viewer explicit allow", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: true}}, allowed: true},
 		{name: "editor explicit deny", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}}, allowed: false},
+		{name: "admin default", user: &auth.User{Role: auth.RoleAdmin, Active: true}, allowed: true},
 		{name: "admin explicit deny", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}}, allowed: false},
 		{name: "inactive explicit allow", user: &auth.User{Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: true}}, allowed: false},
 	}
@@ -56,12 +58,28 @@ func TestContentWritePermissionGuardsNewsRoutes(t *testing.T) {
 			t.Fatalf("invalid route pattern %q", pattern)
 		}
 		path = strings.ReplaceAll(path, "{id}", "news-1")
+		csrfRoute := security.CSRFMiddleware(false, nil)(route)
+		if method != http.MethodGet {
+			t.Run(strings.ReplaceAll(pattern+"/invalid-csrf", "/", "_"), func(t *testing.T) {
+				request := httptest.NewRequest(method, path, strings.NewReader("{}"))
+				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				request.Header.Set(security.CSRFHeaderName, "wrong-token")
+				request = request.WithContext(auth.WithUser(request.Context(), &auth.User{Role: auth.RoleAdmin, Active: true}))
+				response := httptest.NewRecorder()
+				csrfRoute.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Fatalf("%s with invalid CSRF status=%d, want 403", pattern, response.Code)
+				}
+			})
+		}
 		for _, tc := range users {
 			t.Run(strings.ReplaceAll(pattern+"/"+tc.name, "/", "_"), func(t *testing.T) {
 				req := httptest.NewRequest(method, path, strings.NewReader("{}"))
+				req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				req.Header.Set(security.CSRFHeaderName, "valid-token")
 				req = req.WithContext(auth.WithUser(req.Context(), tc.user))
 				res := httptest.NewRecorder()
-				route.ServeHTTP(res, req)
+				csrfRoute.ServeHTTP(res, req)
 				if denied := res.Code == http.StatusForbidden; denied == tc.allowed {
 					t.Fatalf("%s with %s status=%d allowed=%t body=%s", pattern, tc.name, res.Code, tc.allowed, res.Body.String())
 				}
