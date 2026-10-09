@@ -57,6 +57,9 @@ func TestLightThemeAlertTextMeetsWCAGAA(t *testing.T) {
 	if !strings.Contains(AdminCSSOverrides, `html[data-theme=light] .studio-alert{color:#991b1b}`) {
 		t.Fatal("light-theme alerts must use the accessible dark-red text token")
 	}
+	if !strings.Contains(AdminCSSOverrides, `.studio-alert a{color:inherit;text-decoration:underline;text-underline-offset:2px}`) {
+		t.Fatal("alert links must inherit the accessible alert color and remain visibly identifiable")
+	}
 	palettes := []struct {
 		name, css, background string
 	}{
