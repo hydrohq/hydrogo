@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import type { ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
@@ -56,6 +56,16 @@ test.describe("single Edition administrator management", () => {
 
   test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
     test.setTimeout(120_000);
+    const expectAxeClean = async (page: Page, label: string) => {
+      const result = await page.evaluate(async () => (window as any).axe.run(document, {
+        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+      }));
+      expect(result.violations.map((violation: any) => ({
+        id: violation.id,
+        impact: violation.impact,
+        nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+      })), `${label} WCAG 2.1 A/AA violations`).toEqual([]);
+    };
     let createdPageID = "";
     let createdNewsID = "";
     const adminContext = await browser.newContext();
@@ -995,12 +1005,14 @@ test.describe("single Edition administrator management", () => {
 
     const elevatedViewerContext = await browser.newContext();
     const elevatedViewer = await elevatedViewerContext.newPage();
+    await elevatedViewer.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await elevatedViewer.goto(`${baseURL}/login`);
     await elevatedViewer.getByLabel("Email address").fill("viewer@example.test");
     await elevatedViewer.getByLabel("Password").fill(adminPassword);
     await elevatedViewer.getByRole("button", { name: "Sign in" }).click();
     await expect(elevatedViewer).toHaveURL(/\/admin(?:\?.*)?$/);
     expect((await elevatedViewer.goto(`${baseURL}/admin/pages/new`))?.status()).toBe(200);
+    await expectAxeClean(elevatedViewer, "Viewer Pages create form");
     await expect(elevatedViewer.locator('body[data-studio-role="viewer"]')).toBeVisible();
     const viewerCreateForm = elevatedViewer.locator('form[action="/admin/pages"]');
     await viewerCreateForm.locator('[name="slug"]').fill("viewer-capability-page");
@@ -1013,12 +1025,14 @@ test.describe("single Edition administrator management", () => {
     expect(viewerCreatedAPI.status()).toBe(200);
     expect(await viewerCreatedAPI.json()).toMatchObject({ status: "draft", title: "Viewer capability page" });
     expect((await elevatedViewer.goto(`${baseURL}/admin/news/new`))?.status(), "Viewer content.write override grants the News editor route").toBe(200);
+    await expectAxeClean(elevatedViewer, "Viewer News create form");
     await elevatedViewer.locator('#news-form [name="title"]').fill("Viewer capability news");
     await elevatedViewer.locator('#news-form [name="slug"]').fill("viewer-capability-news");
     await elevatedViewer.locator('#news-form .richtext-editor [contenteditable="true"]').fill("Created with an explicit content.write override.");
     await elevatedViewer.getByRole("button", { name: "Taslağı kaydet" }).click();
     await expect(elevatedViewer).toHaveURL(/\/admin\/news\/[^/?]+$/);
     const viewerNewsID = new URL(elevatedViewer.url()).pathname.split("/").at(-1)!;
+    await expectAxeClean(elevatedViewer, "Viewer News edit form");
     const viewerCreatedNewsAPI = await page.request.get(`${baseURL}/api/news/${viewerNewsID}`);
     expect(viewerCreatedNewsAPI.status()).toBe(200);
     expect(await viewerCreatedNewsAPI.json()).toMatchObject({ status: "draft", title: "Viewer capability news" });
