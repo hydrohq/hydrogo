@@ -1290,48 +1290,57 @@ func TestGeneratedAdminConcealsRecordReadDenialButKeepsServiceRetry(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct {
-		name       string
-		apiStatus  int
-		wantStatus int
-		wantRetry  bool
+	for _, route := range []struct {
+		name    string
+		admin   string
+		apiPath string
 	}{
-		{name: "forbidden record", apiStatus: http.StatusForbidden, wantStatus: http.StatusNotFound},
-		{name: "missing record", apiStatus: http.StatusNotFound, wantStatus: http.StatusNotFound},
-		{name: "service unavailable", apiStatus: http.StatusServiceUnavailable, wantStatus: http.StatusBadGateway, wantRetry: true},
+		{name: "record", admin: "/admin/resources/article/a1", apiPath: "/api/v1/article/a1"},
+		{name: "collection list", admin: "/admin/resources/article", apiPath: "/api/v1/article"},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			mux := http.NewServeMux()
-			handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
-				API: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.Method != http.MethodGet || r.URL.Path != "/api/v1/article/a1" {
-						t.Errorf("unexpected generated record fetch: %s %s", r.Method, r.URL.Path)
-					}
-					http.Error(w, "private record service detail", tc.apiStatus)
-				}),
-				Authorize:       func(*http.Request) bool { return true },
-				CanReadResource: func(*http.Request, Collection) bool { return true },
-				CSRFToken:       func(*http.Request) string { return "csrf" },
-				ValidateCSRF:    func(*http.Request) bool { return true },
-				RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
-					return body.Render(r.Context(), w)
-				},
-			}}
-			if err := handler.Register(mux); err != nil {
-				t.Fatal(err)
-			}
-			response := httptest.NewRecorder()
-			mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
-			if response.Code != tc.wantStatus {
-				t.Fatalf("record read response status=%d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
-			}
-			if strings.Contains(response.Body.String(), "private record service detail") {
-				t.Fatalf("record read response leaked upstream detail: %s", response.Body.String())
-			}
-			if got := strings.Contains(response.Body.String(), "generated-load-retry"); got != tc.wantRetry {
-				t.Fatalf("retry UI presence=%t, want %t: %s", got, tc.wantRetry, response.Body.String())
-			}
-		})
+		for _, tc := range []struct {
+			name       string
+			apiStatus  int
+			wantStatus int
+			wantRetry  bool
+		}{
+			{name: "forbidden record", apiStatus: http.StatusForbidden, wantStatus: http.StatusNotFound},
+			{name: "missing record", apiStatus: http.StatusNotFound, wantStatus: http.StatusNotFound},
+			{name: "service unavailable", apiStatus: http.StatusServiceUnavailable, wantStatus: http.StatusBadGateway, wantRetry: true},
+		} {
+			t.Run(route.name+"/"+tc.name, func(t *testing.T) {
+				mux := http.NewServeMux()
+				handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+					API: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.Method != http.MethodGet || r.URL.Path != route.apiPath {
+							t.Errorf("unexpected generated record fetch: %s %s", r.Method, r.URL.Path)
+						}
+						http.Error(w, "private record service detail", tc.apiStatus)
+					}),
+					Authorize:       func(*http.Request) bool { return true },
+					CanReadResource: func(*http.Request, Collection) bool { return true },
+					CSRFToken:       func(*http.Request) string { return "csrf" },
+					ValidateCSRF:    func(*http.Request) bool { return true },
+					RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+						return body.Render(r.Context(), w)
+					},
+				}}
+				if err := handler.Register(mux); err != nil {
+					t.Fatal(err)
+				}
+				response := httptest.NewRecorder()
+				mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, route.admin, nil))
+				if response.Code != tc.wantStatus {
+					t.Fatalf("record read response status=%d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
+				}
+				if strings.Contains(response.Body.String(), "private record service detail") {
+					t.Fatalf("record read response leaked upstream detail: %s", response.Body.String())
+				}
+				if got := strings.Contains(response.Body.String(), "generated-load-retry"); got != tc.wantRetry {
+					t.Fatalf("retry UI presence=%t, want %t: %s", got, tc.wantRetry, response.Body.String())
+				}
+			})
+		}
 	}
 }
 
