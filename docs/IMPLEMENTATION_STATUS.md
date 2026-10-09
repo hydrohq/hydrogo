@@ -477,3 +477,10 @@ pointing at a disposable PostgreSQL 18.6 cluster; backup fixtures used the
 temporary test login as their configured privileged role. This is local
 root-module PostgreSQL evidence, not nested Edition or production deployment
 certification. See `docs/validation/admin-studio-full-go-suite-2026-10-09.md`.
+
+2026-10-09: Generated Admin article/story list and forms, plus story draft
+inbox, passed 40/40 four-theme × light/dark axe checks on each adapter. Full generated-richtext
+Chromium suite passed 9/9 on SQLite and PostgreSQL 18.6 fixture storage. This
+adds generated editor visual/accessibility evidence; it does not cover every
+product Admin route or certify deployed Edition migrations. See
+`docs/validation/generated-admin-theme-form-matrix-2026-10-09.md`.
