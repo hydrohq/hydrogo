@@ -1408,6 +1408,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	allowSave, allowTransition, allowDiscard := true, true, true
 	validCSRF := true
 	draft := DraftDocument{ID: "a1", Version: 2, PublishedVersion: 4, State: StateDraft, Fields: map[string]any{"title": "Working title"}, Exists: true}
+	draftRows := []DraftDocument{draft}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/article" {
 			_, _ = io.WriteString(w, `[]`)
@@ -1432,7 +1433,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 			if limit != 50 {
 				t.Errorf("draft list limit=%d", limit)
 			}
-			return []DraftDocument{draft}, nil
+			return draftRows, nil
 		},
 		GetDraft: func(_ *http.Request, _ Collection, id, _ string) (DraftDocument, error) {
 			if id != "a1" {
@@ -1544,9 +1545,27 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 
 	list := httptest.NewRecorder()
 	mux.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil))
-	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "Working title") {
-		t.Fatalf("draft list missing title: status=%d body=%s", list.Code, list.Body.String())
+	for _, want := range []string{"Working title", `class="studio-table"`, "Başlık", "Durum", "Sürüm", "Son düzenleme", "Taslak", `class="status-pill status-pill--draft"`, `href="/admin/resources/article/a1"`, `id="generated-drafts-list"`} {
+		if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), want) {
+			t.Fatalf("draft list missing %q: status=%d body=%s", want, list.Code, list.Body.String())
+		}
 	}
+	enList := httptest.NewRecorder()
+	enRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil)
+	enRequest.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	mux.ServeHTTP(enList, enRequest)
+	for _, want := range []string{"Drafts", "Title", "State", "Version", "Last updated", "Open draft", "Draft"} {
+		if enList.Code != http.StatusOK || !strings.Contains(enList.Body.String(), want) {
+			t.Fatalf("English draft list missing %q: status=%d body=%s", want, enList.Code, enList.Body.String())
+		}
+	}
+	draftRows = nil
+	emptyList := httptest.NewRecorder()
+	mux.ServeHTTP(emptyList, httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil))
+	if emptyList.Code != http.StatusOK || !strings.Contains(emptyList.Body.String(), `role="status">Bu koleksiyonda açık taslak yok.`) || strings.Contains(emptyList.Body.String(), "Working title") {
+		t.Fatalf("draft empty state was not accessible/localized: status=%d body=%s", emptyList.Code, emptyList.Body.String())
+	}
+	draftRows = []DraftDocument{draft}
 	collectionList := httptest.NewRecorder()
 	mux.ServeHTTP(collectionList, httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil))
 	if collectionList.Code != http.StatusOK || !strings.Contains(collectionList.Body.String(), `href="/admin/resources/article/drafts"`) {

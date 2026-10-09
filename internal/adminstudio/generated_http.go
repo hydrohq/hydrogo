@@ -1820,52 +1820,65 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
+	locale := generatedAdminLocale(r)
+	listCollection := Collection{
+		ID: collection.ID, Label: collection.Label,
+		Fields: []Field{
+			{ID: "title", Label: i18n.T(locale, "admin.generated.drafts.title_column"), Kind: FieldText, VisibleInList: true},
+			{ID: "status", Label: i18n.T(locale, "admin.generated.drafts.state_column"), Kind: FieldStatus, VisibleInList: true},
+			{ID: "version", Label: i18n.T(locale, "admin.generated.drafts.version_column"), Kind: FieldNumber, VisibleInList: true},
+			{ID: "updated_at", Label: i18n.T(locale, "admin.generated.drafts.updated_column"), Kind: FieldText, VisibleInList: true},
+		},
+		Actions: []Action{{Label: i18n.T(locale, "admin.generated.drafts.open"), Href: "/admin/resources/" + url.PathEscape(collection.ID)}},
+	}
+	rows := make([]Row, 0, len(drafts))
+	for _, draft := range drafts {
+		title := displayValue(draft.Fields[collection.TitleField])
+		if title == "" {
+			title = draft.ID
+		}
+		stateLabel := i18n.T(locale, "admin.generated.drafts.state."+string(draft.State))
+		if stateLabel == "admin.generated.drafts.state."+string(draft.State) {
+			stateLabel = string(draft.State)
+		}
+		updated := "—"
+		if !draft.UpdatedAt.IsZero() {
+			if locale == "en" {
+				updated = draft.UpdatedAt.Local().Format("Jan 02, 2006 15:04")
+			} else {
+				updated = draft.UpdatedAt.Local().Format("02.01.2006 15:04")
+			}
+		}
+		detailURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(draft.ID)
+		if collection.Localization {
+			detailURL = localePath(detailURL, localeState(r).Current)
+		}
+		rows = append(rows, Row{
+			ID: draft.ID, Values: map[string]string{
+				"title": title, "status": stateLabel, "version": strconv.FormatInt(draft.Version, 10), "updated_at": updated,
+			},
+			Status:  StatusInfo{Value: string(draft.State), Label: stateLabel},
+			Actions: []Action{{Label: i18n.T(locale, "admin.generated.drafts.open"), Href: detailURL}},
+		})
+	}
+	baseURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/drafts"
 	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if err := h.generatedLocaleNav(ctx, out, r, collection, ""); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(out, `<section class="studio-card"><h1>Taslaklar · `+template.HTMLEscapeString(collection.Label)+`</h1>`); err != nil {
+		if _, err := io.WriteString(out, `<section class="studio-card"><h1>`+template.HTMLEscapeString(i18n.T(locale, "admin.generated.drafts.title"))+` · `+template.HTMLEscapeString(collection.Label)+`</h1>`); err != nil {
 			return err
 		}
-		if len(drafts) == 0 {
-			_, err := io.WriteString(out, `<p role="status">Açık taslak yok.</p></section>`)
+		if _, err := io.WriteString(out, `<div class="table-wrap" id="generated-drafts-list" data-view-mode="table">`); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(out, `<ul class="draft-list">`); err != nil {
+		if err := RenderList(out, ListData{Collection: listCollection, Rows: rows, Locale: localeState(r).Current, UILocale: locale, BaseURL: baseURL, EmptyMessage: i18n.T(locale, "admin.generated.drafts.empty")}); err != nil {
 			return err
 		}
-		for _, draft := range drafts {
-			label := displayValue(draft.Fields[collection.TitleField])
-			if label == "" {
-				label = draft.ID
-			}
-			action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(draft.ID)
-			linkBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-				if collection.Localization {
-					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
-						return err
-					}
-				}
-				return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
-			})
-			if _, err := io.WriteString(out, `<li>`); err != nil {
-				return err
-			}
-			if err := ui.Form(ui.FormProps{Action: action, Method: http.MethodGet, Body: linkBody}).Render(ctx, out); err != nil {
-				return err
-			}
-			meta := "Sürüm " + strconv.FormatInt(draft.Version, 10) + " · " + string(draft.State)
-			if !draft.UpdatedAt.IsZero() {
-				meta += " · " + draft.UpdatedAt.Local().Format("02.01.2006 15:04")
-			}
-			if _, err := io.WriteString(out, `<p>`+template.HTMLEscapeString(meta)+`</p></li>`); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(out, `</ul></section>`)
+		_, err := io.WriteString(out, `</div></section>`)
 		return err
 	})
-	h.renderPage(w, r, "Taslaklar · "+collection.Label, body)
+	h.renderPage(w, r, i18n.T(locale, "admin.generated.drafts.title")+" · "+collection.Label, body)
 }
 
 func workflowActionLabel(state PublicationState) string {
