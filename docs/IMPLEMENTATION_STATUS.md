@@ -484,3 +484,10 @@ Chromium suite passed 9/9 on SQLite and PostgreSQL 18.6 fixture storage. This
 adds generated editor visual/accessibility evidence; it does not cover every
 product Admin route or certify deployed Edition migrations. See
 `docs/validation/generated-admin-theme-form-matrix-2026-10-09.md`.
+
+2026-10-09: Admin-management E2E dynamically inventories rendered privileged
+POST actions from ten management pages. Editor and Viewer valid-CSRF requests
+were denied on every collected action. The complete Admin-management browser
+file passed 5/5 on SQLite and PostgreSQL 18.6. This does not cover unrendered
+API-only actions, every module POST, or every Admin permission override.
+Evidence: `docs/validation/admin-permission-matrix-2026-10-08.md`.

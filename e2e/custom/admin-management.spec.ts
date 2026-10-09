@@ -16,6 +16,7 @@ let tempDir = "";
 let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
+let restrictedMutationTargets: string[] = [];
 
 test.describe("single Edition administrator management", () => {
   test.describe.configure({ mode: "serial" });
@@ -69,6 +70,33 @@ test.describe("single Edition administrator management", () => {
       const response = await adminPage.goto(`${baseURL}${path}`);
       expect(response?.status(), `admin navigation link ${path} must open`).toBe(200);
     }
+    restrictedMutationTargets = [];
+    for (const path of [
+      "/admin/users",
+      "/admin/permissions",
+      "/admin/security",
+      "/admin/security/token-lifetimes",
+      "/admin/audit",
+      "/admin/backup",
+      "/admin/control",
+      "/admin/operations",
+      "/admin/developer",
+      "/admin/developer/resources",
+    ]) {
+      const response = await adminPage.goto(`${baseURL}${path}`);
+      expect(response?.status(), `administrator mutation inventory page ${path} must open`).toBe(200);
+      const actions = await adminPage.locator('form[method="post"]').evaluateAll((forms) =>
+        forms.flatMap((form) => {
+          const element = form as HTMLFormElement;
+          const buttons = [...element.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button[formaction],input[formaction]")];
+          return [element.action || location.href, ...buttons.map((button) => button.formAction)]
+            .filter((action) => action && new URL(action, location.href).origin === location.origin);
+        }),
+      );
+      restrictedMutationTargets.push(...actions);
+    }
+    restrictedMutationTargets = [...new Set(restrictedMutationTargets)];
+    expect(restrictedMutationTargets.length, "the privileged Admin pages must expose mutation forms").toBeGreaterThan(0);
     await adminPage.goto(`${baseURL}/admin/users`);
     const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string }> = {};
     for (const email of ["editor@example.test", "viewer@example.test"]) {
@@ -254,6 +282,10 @@ test.describe("single Edition administrator management", () => {
       expect(csrfResponse.status()).toBe(200);
       const { token } = await csrfResponse.json();
       expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(token);
+      for (const target of restrictedMutationTargets) {
+        const denied = await page.request.post(target, { form: { _csrf: token } });
+        expect(denied.status(), `${account.expectedRole} must be denied privileged mutation ${new URL(target).pathname} with valid CSRF`).toBe(403);
+      }
       if (account.expectedRole === "viewer") {
         const deniedImport = await page.request.post(`${baseURL}/admin/pages/import`, {
           form: { _csrf: token },
