@@ -308,3 +308,13 @@ publish route cases then check valid-token Editor, Viewer grant, Admin default/
 deny, and inactive grant behavior. The full Pages transport package and vet
 passed. This verifies authorization routing, not successful DB mutation or
 persisted state. News and Pages follow the same test boundary.
+
+### User-management mutations × CSRF — 2026-10-09
+
+Admin role change, permission change, account disable, invitation issue, and
+admin password-reset-link handlers now run behind the real CSRF middleware in
+their permission-denial tests. Every handler returns 403 for invalid CSRF before
+authorization; with valid CSRF the Admin `users.manage=false` override and
+Editor/Viewer roles still return 403. The full `internal/auth` package and vet
+passed. This proves denied handler access only; successful persistence and the
+complete live-session browser flow remain separate evidence.

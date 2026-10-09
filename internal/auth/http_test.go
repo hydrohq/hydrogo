@@ -429,11 +429,26 @@ func TestAdminUserManagementMutationDeniesExplicitPermissionOverride(t *testing.
 	}
 	for _, endpoint := range endpoints {
 		t.Run(endpoint.name, func(t *testing.T) {
+			secured := security.CSRFMiddleware(false, nil)(endpoint.handler)
+			invalidCSRF := httptest.NewRequest(http.MethodPost, "/auth/users/target", strings.NewReader("role=editor"))
+			invalidCSRF.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			invalidCSRF.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+			invalidCSRF.Header.Set(security.CSRFHeaderName, "wrong-token")
+			invalidCSRF = invalidCSRF.WithContext(WithUser(invalidCSRF.Context(), &User{ID: "actor", Role: RoleAdmin, Active: true}))
+			invalidResponse := httptest.NewRecorder()
+			secured.ServeHTTP(invalidResponse, invalidCSRF)
+			if invalidResponse.Code != http.StatusForbidden {
+				t.Fatalf("%s with invalid CSRF = %d, want 403", endpoint.name, invalidResponse.Code)
+			}
+
 			req := httptest.NewRequest(http.MethodPost, "/auth/users/target", strings.NewReader("role=editor"))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+			req.Header.Set(security.CSRFHeaderName, "valid-token")
 			req.SetPathValue("id", "target")
 			req = req.WithContext(WithUser(req.Context(), admin))
 			res := httptest.NewRecorder()
-			endpoint.handler(res, req)
+			secured.ServeHTTP(res, req)
 			if res.Code != http.StatusForbidden {
 				t.Fatalf("admin mutation with users.manage denied = %d, want %d", res.Code, http.StatusForbidden)
 			}
@@ -489,12 +504,16 @@ func TestAdminUserMutationEndpointsRejectEditorAndViewer(t *testing.T) {
 	for _, endpoint := range endpoints {
 		for _, role := range []Role{RoleEditor, RoleViewer} {
 			t.Run(endpoint.name+"/"+string(role), func(t *testing.T) {
+				secured := security.CSRFMiddleware(false, nil)(endpoint.handler)
 				pathName := strings.ReplaceAll(endpoint.name, " ", "-")
 				req := httptest.NewRequest(http.MethodPost, "/auth/users/target/"+pathName, strings.NewReader("role=admin"))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				req.Header.Set(security.CSRFHeaderName, "valid-token")
 				req.SetPathValue("id", "target")
 				req = req.WithContext(WithUser(req.Context(), &User{ID: "actor", Role: role, Active: true}))
 				res := httptest.NewRecorder()
-				endpoint.handler(res, req)
+				secured.ServeHTTP(res, req)
 				if res.Code != http.StatusForbidden {
 					t.Fatalf("admin user mutation as %s = %d, want %d", role, res.Code, http.StatusForbidden)
 				}
