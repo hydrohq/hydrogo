@@ -1092,7 +1092,7 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 		draftEdit := collection.Drafts
 		saveAllowed := !draftEdit || h.Options.CanSaveDraft(r, collection, id, localeInfo.Current) && record["published_conflict"] != true
 		if draftEdit && record["published_conflict"] == true {
-			if _, err := io.WriteString(out, `<p role="alert">Yayımlanmış kayıt değişmiş. Taslağı kaydetmek için yeniden yükleyin.</p>`); err != nil {
+			if _, err := fmt.Fprintf(out, `<p role="alert">%s</p>`, template.HTMLEscapeString(i18n.T(generatedAdminLocale(r), "admin.generated.error.published_conflict"))); err != nil {
 				return err
 			}
 		}
@@ -1133,7 +1133,8 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 			if collection.Localization {
 				deleteAction = localePath(deleteAction, localeState(r).Current)
 			}
-			if err := ui.Form(ui.FormProps{Action: deleteAction, Method: "post", CSRF: h.Options.CSRFToken(r), ConfirmAction: "Bu kayıt kalıcı olarak silinecek. Devam edilsin mi?", Body: ui.Button(ui.ButtonProps{Type: "submit", Label: "Sil", Variant: ui.Danger})}).Render(ctx, out); err != nil {
+			locale := generatedAdminLocale(r)
+			if err := ui.Form(ui.FormProps{Action: deleteAction, Method: "post", CSRF: h.Options.CSRFToken(r), ConfirmAction: i18n.T(locale, "admin.generated.form.delete_confirm"), Body: ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.form.delete"), Variant: ui.Danger})}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -1291,7 +1292,7 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 					return err
 				}
 			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: workflowActionLabel(target), Variant: ui.Primary}).Render(ctx, form)
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: workflowActionLabel(generatedAdminLocale(r), target), Variant: ui.Primary}).Render(ctx, form)
 		})
 		action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/workflow"
 		if collection.Localization {
@@ -1321,21 +1322,22 @@ func (h GeneratedAdminHandler) generatedDiscardDraft(ctx context.Context, out io
 		if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(draft.Version, 10)}).Render(ctx, form); err != nil {
 			return err
 		}
-		return ui.Button(ui.ButtonProps{Type: "submit", Label: "Taslağı sil", Variant: ui.Danger}).Render(ctx, form)
+		return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(generatedAdminLocale(r), "admin.generated.form.discard_draft"), Variant: ui.Danger}).Render(ctx, form)
 	})
 	action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/draft/discard"
 	if collection.Localization {
 		action = localePath(action, localeState(r).Current)
 	}
-	return ui.Form(ui.FormProps{Action: action, Method: http.MethodPost, CSRF: h.Options.CSRFToken(r), ConfirmAction: "Yalnızca yayımlanmamış taslak silinecek. Devam edilsin mi?", Body: body}).Render(ctx, out)
+	return ui.Form(ui.FormProps{Action: action, Method: http.MethodPost, CSRF: h.Options.CSRFToken(r), ConfirmAction: i18n.T(generatedAdminLocale(r), "admin.generated.form.discard_draft_confirm"), Body: body}).Render(ctx, out)
 }
 
 func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any, revisions []RevisionSummary) error {
-	if _, err := io.WriteString(out, `<section class="studio-card" aria-labelledby="generated-revisions-heading"><h2 id="generated-revisions-heading">Sürüm geçmişi</h2>`); err != nil {
+	locale := generatedAdminLocale(r)
+	if _, err := fmt.Fprintf(out, `<section class="studio-card" aria-labelledby="generated-revisions-heading"><h2 id="generated-revisions-heading">%s</h2>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.revisions.title"))); err != nil {
 		return err
 	}
 	if len(revisions) == 0 {
-		if _, err := io.WriteString(out, `<p role="status">Henüz kayıtlı bir sürüm yok.</p></section>`); err != nil {
+		if _, err := fmt.Fprintf(out, `<p role="status">%s</p></section>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.revisions.empty"))); err != nil {
 			return err
 		}
 		return nil
@@ -1351,7 +1353,7 @@ func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out
 		if _, err := io.WriteString(out, `<li><div class="revision-list-item">`); err != nil {
 			return err
 		}
-		label := "Sürüm " + strconv.FormatInt(revision.Version, 10)
+		label := fmt.Sprintf(i18n.T(locale, "admin.generated.revisions.version"), revision.Version)
 		visit := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
 			if collection.Localization {
 				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
@@ -1363,7 +1365,7 @@ func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out
 		if err := ui.Form(ui.FormProps{Action: href, Method: http.MethodGet, Body: visit}).Render(ctx, out); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(out, `<p>`+template.HTMLEscapeString(revisionSummaryText(revision))+`</p></div>`); err != nil {
+		if _, err := io.WriteString(out, `<p>`+template.HTMLEscapeString(revisionSummaryText(locale, revision))+`</p></div>`); err != nil {
 			return err
 		}
 		if revision.Version != currentVersion && h.Options.CanRestore(r, collection, id, revision.Version) {
@@ -1371,7 +1373,7 @@ func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out
 				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(currentVersion, 10)}).Render(ctx, form); err != nil {
 					return err
 				}
-				return ui.Button(ui.ButtonProps{Type: "submit", Label: "Bu sürüme geri yükle", Variant: ui.Quiet}).Render(ctx, form)
+				return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.revisions.restore"), Variant: ui.Quiet}).Render(ctx, form)
 			})
 			action := href + "/restore"
 			if collection.Localization {
@@ -1389,7 +1391,7 @@ func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out
 	return err
 }
 
-func revisionSummaryText(revision RevisionSummary) string {
+func revisionSummaryText(locale string, revision RevisionSummary) string {
 	parts := make([]string, 0, 3)
 	if !revision.CreatedAt.IsZero() {
 		parts = append(parts, revision.CreatedAt.Local().Format("02.01.2006 15:04"))
@@ -1398,7 +1400,7 @@ func revisionSummaryText(revision RevisionSummary) string {
 		parts = append(parts, strings.TrimSpace(revision.Actor))
 	}
 	if strings.TrimSpace(revision.State) != "" {
-		parts = append(parts, strings.TrimSpace(revision.State))
+		parts = append(parts, generatedStatusLabel(locale, revision.State))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -1447,10 +1449,11 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 		}
 	}
 	diffs := CompareFields(before, after)
+	locale := generatedAdminLocale(r)
 	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		content := templ.ComponentFunc(func(_ context.Context, body io.Writer) error {
 			if len(diffs) == 0 {
-				_, err := io.WriteString(body, `<p role="status">Bu sürümde değişen alan yok.</p>`)
+				_, err := fmt.Fprintf(body, `<p role="status">%s</p>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.revisions.no_changes")))
 				return err
 			}
 			if _, err := io.WriteString(body, `<dl class="revision-diff-list">`); err != nil {
@@ -1468,7 +1471,7 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 			_, err := io.WriteString(body, `</dl>`)
 			return err
 		})
-		if err := ui.Card(ui.CardProps{Title: "Sürüm " + strconv.FormatInt(revision.Version, 10) + " · Geçmiş ve geçerli belge", Class: "studio-card", Body: content}).Render(ctx, out); err != nil {
+		if err := ui.Card(ui.CardProps{Title: fmt.Sprintf(i18n.T(locale, "admin.generated.revisions.detail_title"), revision.Version), Class: "studio-card", Body: content}).Render(ctx, out); err != nil {
 			return err
 		}
 		if h.Options.CanRestore(r, collection, id, version) {
@@ -1478,7 +1481,7 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expectedVersion, 10)}).Render(ctx, form); err != nil {
 						return err
 					}
-					return ui.Button(ui.ButtonProps{Type: "submit", Label: "Bu sürüme geri yükle", Variant: ui.Primary}).Render(ctx, form)
+					return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.revisions.restore"), Variant: ui.Primary}).Render(ctx, form)
 				})
 				action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/revisions/" + strconv.FormatInt(version, 10) + "/restore"
 				if collection.Localization {
@@ -1496,11 +1499,11 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 					return err
 				}
 			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: "Belgeye dön", Variant: ui.Quiet}).Render(ctx, form)
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.form.back_to_record"), Variant: ui.Quiet}).Render(ctx, form)
 		})
 		return ui.Form(ui.FormProps{Action: back, Method: http.MethodGet, Body: backBody}).Render(ctx, out)
 	})
-	h.renderPage(w, r, "Sürüm geçmişi · "+collection.Label, body)
+	h.renderPage(w, r, i18n.T(locale, "admin.generated.revisions.title")+" · "+collection.Label, body)
 }
 
 func (h GeneratedAdminHandler) restoreRevision(w http.ResponseWriter, r *http.Request, collection Collection, id, rawVersion string) {
@@ -1886,19 +1889,23 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 	h.renderPage(w, r, i18n.T(locale, "admin.generated.drafts.title")+" · "+collection.Label, body)
 }
 
-func workflowActionLabel(state PublicationState) string {
+func workflowActionLabel(locale string, state PublicationState) string {
+	key := "admin.generated.workflow.change_state"
 	switch state {
 	case StateDraft:
-		return "Taslağa al"
+		key = "admin.generated.workflow.draft"
 	case StateScheduled:
-		return "Yayını planla"
+		key = "admin.generated.workflow.schedule"
 	case StatePublished:
-		return "Yayımla"
+		key = "admin.generated.workflow.publish"
 	case StateRetracted:
-		return "Yayından kaldır"
-	default:
-		return "Durumu değiştir: " + string(state)
+		key = "admin.generated.workflow.retract"
 	}
+	label := i18n.T(locale, key)
+	if state != StateDraft && state != StateScheduled && state != StatePublished && state != StateRetracted {
+		return fmt.Sprintf(label, state)
+	}
+	return label
 }
 
 func generatedStatusLabel(locale, status string) string {
@@ -2231,7 +2238,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 	}
 	switch status {
 	case http.StatusConflict:
-		http.Error(w, "Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.", http.StatusConflict)
+		http.Error(w, i18n.T(generatedAdminLocale(r), "admin.generated.error.conflict"), http.StatusConflict)
 		return
 	case http.StatusBadRequest, http.StatusUnprocessableEntity:
 		if !deleting && status == http.StatusUnprocessableEntity {
