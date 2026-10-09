@@ -259,6 +259,7 @@ test.describe("single Edition administrator management", () => {
         expect(createdPageID).not.toBe("");
         expect((await page.goto(`${baseURL}/admin/pages`))?.status()).toBe(200);
         await expect(page.locator('.studio-sidebar a[href="/admin/pages"]')).toBeVisible();
+        await expect(page.locator('.studio-sidebar a[href="/admin/news"]')).toBeVisible();
         await expect(page.locator('.studio-sidebar a[href="/admin/users"]')).toHaveCount(0);
         await expect(page.locator('.studio-sidebar a[href="/admin/reports"]')).toHaveCount(0);
         await expect(page.locator('.studio-sidebar a[href="/admin/media"]')).toHaveCount(0);
@@ -276,6 +277,18 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator('form[action^="/admin/pages/"]')).toHaveCount(0);
         await expect(page.locator('iframe.readonly-content-preview')).toBeVisible();
         expect((await page.request.get(`${baseURL}/api/pages/${createdPageID}`)).status()).toBe(200);
+        expect((await page.goto(`${baseURL}/admin/news`))?.status(), "Viewer content.read grants access to the news list").toBe(200);
+        await expect(page.locator('.studio-sidebar a[href="/admin/news"]')).toBeVisible();
+        await expect(page.locator('.studio-heading a[href="/admin/news/new"]')).toHaveCount(0);
+        const newsCSRFResponse = await page.request.get(`${baseURL}/csrf-token`);
+        expect(newsCSRFResponse.status()).toBe(200);
+        const { token: newsCSRFToken } = await newsCSRFResponse.json();
+        const viewerNewsCreate = await page.request.post(`${baseURL}/admin/news`, {
+          form: { _csrf: newsCSRFToken, slug: "role-viewer-news", title: "Viewer cannot create news", body: "Denied by content.write." },
+        });
+        expect(viewerNewsCreate.status(), "Viewer content.read does not grant content.write").toBe(403);
+        await page.goto(`${baseURL}/admin/news`);
+        await expect(page.locator('.studio-table')).not.toContainText("Viewer cannot create news");
       }
 
       if (account.expectedRole === "editor") {
