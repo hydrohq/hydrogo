@@ -493,6 +493,40 @@ func TestAdminShellIncludesSessionExpiryWarning(t *testing.T) {
 	}
 }
 
+func TestAdminSessionWarningUsesAdminLocale(t *testing.T) {
+	for _, tc := range []struct {
+		locale string
+		want   []string
+	}{
+		{locale: "en", want: []string{"Your session will expire soon", "Extend your session to keep working.", "Extend session", "Try again"}},
+		{locale: "tr", want: []string{"Oturumunuz yakında sona erecek", "Çalışmanızı sürdürmek için oturumunuzu uzatabilirsiniz.", "Oturumu uzat", "Tekrar dene"}},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := AdminStartLocale(&out, "Session", "", "", tc.locale); err != nil {
+				t.Fatal(err)
+			}
+			if err := AdminEnd(&out); err != nil {
+				t.Fatal(err)
+			}
+			markup := out.String()
+			bodyAt := strings.Index(markup, "<body")
+			warningAt := strings.Index(markup, "session_expires_at")
+			if bodyAt < 0 || warningAt < 0 || warningAt > bodyAt {
+				t.Fatal("session warning bootstrap is expected in the head before body initialization")
+			}
+			if !strings.Contains(markup, "document.addEventListener('DOMContentLoaded',install,{once:true})") {
+				t.Fatal("session warning does not defer its body-dependent startup until DOMContentLoaded")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(markup, want) {
+					t.Errorf("%s session warning missing %q", tc.locale, want)
+				}
+			}
+		})
+	}
+}
+
 func TestAdminShellIncludesMobileNavigationContract(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Mobil navigasyon", "", ""); err != nil {
