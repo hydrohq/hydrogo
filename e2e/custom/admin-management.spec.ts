@@ -823,6 +823,39 @@ test.describe("single Edition administrator management", () => {
     await context.close();
   });
 
+  test("session expiry warning follows the Admin language and stays accessible", async ({ browser }) => {
+    expect(adminStorageState, "the preceding role test must create an authenticated state").toBeTruthy();
+    for (const locale of ["en", "tr"] as const) {
+      const context = await browser.newContext({ storageState: adminStorageState });
+      await context.addCookies([{ name: "hydro_admin_locale", value: locale, url: baseURL }]);
+      const page = await context.newPage();
+      await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+      await page.clock.install();
+      let resolveAuthRequest = () => {};
+      const authRequest = new Promise<void>((resolve) => { resolveAuthRequest = resolve; });
+      await page.route("**/auth/me", async (route) => {
+        resolveAuthRequest();
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ session_expires_at: new Date(Date.now() + 60_000).toISOString() }),
+        });
+      });
+      await page.goto(`${baseURL}/admin`);
+      await authRequest;
+      await page.clock.runFor(5);
+      const title = locale === "en" ? "Your session will expire soon" : "Oturumunuz yakında sona erecek";
+      const dialog = page.getByRole("alertdialog", { name: title });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("button", { name: locale === "en" ? "Extend session" : "Oturumu uzat" })).toBeVisible();
+      const audit = await page.evaluate(async () => (window as any).axe.run(document, {
+        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+      }));
+      expect(audit.violations.map((violation: any) => violation.id), `${locale} session warning WCAG violations`).toEqual([]);
+      await context.close();
+    }
+  });
+
   test("admin login opens the Edition management areas and rejects anonymous access", async ({ page, browser }) => {
     test.setTimeout(180_000);
     for (const route of [
