@@ -770,6 +770,8 @@ test.describe("single Edition administrator management", () => {
     const page = await context.newPage();
     await page.goto(`${baseURL}/admin/news/new`);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await page.evaluate(() => (window as any).HydroToast("Locale check", "info", "", () => {}, 30_000));
+    await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
     const media = page.locator(".media-select-field").filter({ has: page.locator('[data-media-target="media_cover_media_id"]') });
     await expect(media.locator(".media-select-empty span")).toHaveText("No image selected");
     await expect(media.locator(".media-select-preview img")).toHaveAttribute("alt", "Selected image");
@@ -780,6 +782,8 @@ test.describe("single Edition administrator management", () => {
     await expect(row.getByRole("button")).toHaveAccessibleName("Remove item 1 from Önemli Noktalar (Key Takeaways)");
     await context.addCookies([{ name: "hydro_admin_locale", value: "tr", url: baseURL }]);
     await page.reload();
+    await page.evaluate(() => (window as any).HydroToast("Dil kontrolü", "info", "", () => {}, 30_000));
+    await expect(page.getByRole("button", { name: "Geri Al" })).toBeVisible();
     await expect(page.locator(".media-select-empty span")).toHaveText("Görsel seçilmedi");
     await expect(page.locator(".media-select-preview img")).toHaveAttribute("alt", "Seçilen görsel");
     await page.getByRole("button", { name: /Madde ekle/ }).click();
