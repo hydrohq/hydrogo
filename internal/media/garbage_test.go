@@ -132,6 +132,14 @@ func TestAdminMediaCleanupRequiresAdminAndConfirmation(t *testing.T) {
 		t.Fatalf("GET status=%d body=%s", page.Code, page.Body.String())
 	}
 	form := url.Values{"asset_id": {"orphan"}, "confirm": {"yes"}}
+	deniedAdminCtx := auth.WithUser(context.Background(), &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}})
+	deniedRequest := httptest.NewRequest(http.MethodPost, "/admin/media/cleanup/delete", strings.NewReader(form.Encode())).WithContext(deniedAdminCtx)
+	deniedRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	deniedResponse := httptest.NewRecorder()
+	handler.adminDeleteUnused(deniedResponse, deniedRequest)
+	if deniedResponse.Code != http.StatusForbidden || len(repo.deleted) != 0 {
+		t.Fatalf("media-denied Admin cleanup status=%d deleted=%v", deniedResponse.Code, repo.deleted)
+	}
 	req := httptest.NewRequest(http.MethodPost, "/admin/media/cleanup/delete", strings.NewReader(form.Encode())).WithContext(adminCtx)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()

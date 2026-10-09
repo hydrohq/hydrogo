@@ -389,6 +389,13 @@ Full module tests and transport vet passed. This is in-process evidence, not
 browser or deployed Edition validation; see
 `docs/validation/dynamic-collections-route-role-dispatch-2026-10-09.md`.
 
+Media cleanup now honors an explicit `admin.media.manage=false` override as
+well as its Admin-role requirement. Route authorization tests cover all media
+Admin GET/POST handlers; a SQLite-backed cleanup test proves denied deletion
+does not remove assets, while the authorized Admin flow remains functional.
+Full media tests and vet passed. Browser/PostgreSQL remain open; see
+`docs/validation/media-cleanup-permission-override-2026-10-09.md`.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99

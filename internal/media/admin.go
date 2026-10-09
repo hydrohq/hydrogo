@@ -33,7 +33,7 @@ func (h HTTPHandler) AdminRoutes() []HTTPRoute {
 
 func (h HTTPHandler) adminCleanup(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.Garbage == nil {
+	if user == nil || user.Role != auth.RoleAdmin || !editorAllowed(r) || h.Garbage == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -62,7 +62,7 @@ func (h HTTPHandler) adminCleanup(w http.ResponseWriter, r *http.Request) {
 
 func (h HTTPHandler) adminDeleteUnused(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin || h.Garbage == nil {
+	if user == nil || user.Role != auth.RoleAdmin || !editorAllowed(r) || h.Garbage == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
