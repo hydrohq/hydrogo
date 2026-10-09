@@ -9,20 +9,30 @@ editable block, and axe WCAG 2.1 A/AA results before the CRUD round trip.
 
 ## Verification status
 
-- Playwright discovered all seven tests in
-  `custom/generated-richtext.spec.ts`.
-- The run stopped in suite setup before any test assertion: the generated
-  fixture could not bind its loopback server (`listen EPERM: operation not
-  permitted 127.0.0.1`). The theme matrix result is therefore **unverified**.
-- `git diff --check` passed.
+- The generated rich-text Chromium suite passed **8/8** in 38.8 s using the
+  externally started local fixture. It includes Editor.js light/dark coverage
+  for all four theme families, mounted editor assertions, and axe WCAG 2.1
+  A/AA checks before CRUD round-trip assertions.
+- The first in-process startup attempt was blocked by a loopback bind
+  restriction. Starting the fixture separately and using its loopback URL let
+  Playwright run without owning the listening socket; no product code was
+  changed to work around the runner.
+- Exact successful command:
+
+  ```sh
+  cd e2e
+  HYDRO_E2E_EXTERNAL_SERVER=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8099 \\
+    TMPDIR=/var/tmp/hydro-go-tests npm exec playwright test \\
+    custom/generated-richtext.spec.ts -- --project=chromium --workers=1 \\
+    --reporter=line --trace=off
+  ```
 
 ## Open gate
 
-The repository's `browser-e2e` CI job invokes the complete Playwright suite on
-Windows, where its isolated loopback fixture can start. Once the branch reaches
-CI, inspect the generated-richtext result and attached artifacts before closing
-this gate. The external-fixture path below is available for a local browser
-runner that cannot bind sockets itself.
+The theme matrix is verified against a local synthetic generated-richtext
+fixture. It is not a production Edition deployment or customer identity test;
+those wider gates remain open. The external-fixture path below is available for
+a local browser runner that cannot bind sockets itself.
 
 The spec supports an externally started local fixture so the Playwright runner
 does not need to create a listening socket itself. In one terminal from the
@@ -41,7 +51,5 @@ HYDRO_E2E_EXTERNAL_SERVER=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8099 \
   npx playwright test custom/generated-richtext.spec.ts --project=chromium --workers=1
 ```
 
-Record actual axe findings and screenshots before treating the generated block
-editor's theme/accessibility coverage as complete. The external fixture is a
-local test server with synthetic identity/data, not customer deployment
-evidence.
+The external fixture is a local test server with synthetic identity/data, not
+customer deployment evidence.
