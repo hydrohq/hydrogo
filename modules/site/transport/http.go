@@ -790,22 +790,10 @@ func (h Handler) convertNotFoundPath(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid redirect", http.StatusBadRequest)
 		return
 	}
-	probe := &site.RedirectRegistry{RequireTenantScope: h.Redirects.RequireTenantScope}
-	tenantID := rule.TenantID
-	if err := probe.Replace(tenantID, h.Redirects.List(tenantID)); err != nil {
-		http.Error(w, "redirect unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	if err := probe.Upsert(rule); err != nil {
-		http.Error(w, "redirect would create a loop", http.StatusBadRequest)
-		return
-	}
-	if err := h.Service.SaveRedirectRule(r.Context(), rule); err != nil {
+	if err := h.Redirects.UpsertWith(rule, func() error {
+		return h.Service.SaveRedirectRule(r.Context(), rule)
+	}); err != nil {
 		http.Error(w, "redirect could not be saved", siteStatus(err))
-		return
-	}
-	if err := h.Redirects.Upsert(rule); err != nil {
-		http.Error(w, "redirect unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	if err := h.Service.DeleteNotFound(r.Context(), source); err != nil {
@@ -903,7 +891,7 @@ func (h Handler) saveRedirectRule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "redirects unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	rule := site.RedirectRule{ID: id, Pattern: r.FormValue("pattern"), Kind: r.FormValue("kind"), TargetPath: r.FormValue("target"), CreatedAt: time.Now().UTC()}
+	rule := normalizeRedirectRule(site.RedirectRule{ID: id, Pattern: r.FormValue("pattern"), Kind: r.FormValue("kind"), TargetPath: r.FormValue("target"), CreatedAt: time.Now().UTC()})
 	rule.Status, err = strconv.Atoi(r.FormValue("status"))
 	if err != nil {
 		http.Error(w, "invalid redirect", http.StatusBadRequest)
@@ -912,12 +900,15 @@ func (h Handler) saveRedirectRule(w http.ResponseWriter, r *http.Request) {
 	if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
 		rule.TenantID = scope.TenantID
 	}
-	if err := h.Service.SaveRedirectRule(r.Context(), rule); err != nil {
+	persist := func() error { return h.Service.SaveRedirectRule(r.Context(), rule) }
+	if h.Redirects != nil {
+		err = h.Redirects.UpsertWith(rule, persist)
+	} else {
+		err = persist()
+	}
+	if err != nil {
 		http.Error(w, "redirect could not be saved", siteStatus(err))
 		return
-	}
-	if h.Redirects != nil {
-		_ = h.Redirects.Upsert(rule)
 	}
 	http.Redirect(w, r, "/admin/site/redirect-rules", http.StatusSeeOther)
 }
@@ -963,7 +954,7 @@ func (h Handler) importRedirectRules(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid CSV", http.StatusBadRequest)
 			return
 		}
-		rule := site.RedirectRule{ID: id, Pattern: strings.TrimSpace(row[0]), Kind: strings.TrimSpace(row[1]), TargetPath: strings.TrimSpace(row[2]), Status: status, CreatedAt: time.Now().UTC()}
+		rule := normalizeRedirectRule(site.RedirectRule{ID: id, Pattern: row[0], Kind: row[1], TargetPath: row[2], Status: status, CreatedAt: time.Now().UTC()})
 		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
 			rule.TenantID = scope.TenantID
 		}
@@ -977,14 +968,15 @@ func (h Handler) importRedirectRules(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid CSV", http.StatusBadRequest)
 		return
 	}
-	if err := h.Service.SaveRedirectRules(r.Context(), rules); err != nil {
+	persist := func() error { return h.Service.SaveRedirectRules(r.Context(), rules) }
+	if h.Redirects != nil {
+		err = h.Redirects.UpsertManyWith(rules, persist)
+	} else {
+		err = persist()
+	}
+	if err != nil {
 		http.Error(w, "redirect rules could not be imported", siteStatus(err))
 		return
-	}
-	if h.Redirects != nil {
-		for _, rule := range rules {
-			_ = h.Redirects.Upsert(rule)
-		}
 	}
 	http.Redirect(w, r, "/admin/site/redirect-rules", http.StatusSeeOther)
 }
@@ -995,10 +987,6 @@ func (h Handler) deleteRedirectRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	if err := h.Service.DeleteRedirectRule(r.Context(), id); err != nil {
-		http.Error(w, "redirect could not be removed", siteStatus(err))
-		return
-	}
 	if h.Redirects != nil {
 		tenantID := ""
 		if h.Redirects.RequireTenantScope {
@@ -1006,7 +994,17 @@ func (h Handler) deleteRedirectRule(w http.ResponseWriter, r *http.Request) {
 				tenantID = scope.TenantID
 			}
 		}
-		h.Redirects.Remove(tenantID, id)
+		if err := h.Redirects.RemoveWith(tenantID, id, func() error {
+			return h.Service.DeleteRedirectRule(r.Context(), id)
+		}); err != nil {
+			http.Error(w, "redirect could not be removed", siteStatus(err))
+			return
+		}
+	} else {
+		if err := h.Service.DeleteRedirectRule(r.Context(), id); err != nil {
+			http.Error(w, "redirect could not be removed", siteStatus(err))
+			return
+		}
 	}
 	http.Redirect(w, r, "/admin/site/redirect-rules", http.StatusSeeOther)
 }
@@ -2038,10 +2036,7 @@ func (h Handler) saveRedirect(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &value) {
 		return
 	}
-	if err := h.Service.SaveRedirect(r.Context(), value); err != nil {
-		http.Error(w, "invalid redirect", siteStatus(err))
-		return
-	}
+	persist := func() error { return h.Service.SaveRedirect(r.Context(), value) }
 	if h.Redirects != nil {
 		source, sourceErr := canonical.Path(value.SourcePath)
 		target, targetErr := canonical.Path(value.TargetPath)
@@ -2053,12 +2048,34 @@ func (h Handler) saveRedirect(w http.ResponseWriter, r *http.Request) {
 		if scope, err := tenant.FromContext(r.Context()); err == nil {
 			rule.TenantID = scope.TenantID
 		}
-		if err := h.Redirects.Upsert(rule); err != nil {
+		value.SourcePath = rule.Pattern
+		value.TargetPath = rule.TargetPath
+		persist = func() error { return h.Service.SaveRedirect(r.Context(), value) }
+		if err := h.Redirects.UpsertWith(rule, persist); err != nil {
 			http.Error(w, "invalid redirect", siteStatus(err))
 			return
 		}
+	} else if err := persist(); err != nil {
+		http.Error(w, "invalid redirect", siteStatus(err))
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func normalizeRedirectRule(rule site.RedirectRule) site.RedirectRule {
+	rule.Pattern = strings.TrimSpace(rule.Pattern)
+	rule.TargetPath = strings.TrimSpace(rule.TargetPath)
+	if rule.Kind == "exact" {
+		if path, err := canonical.Path(rule.Pattern); err == nil {
+			rule.Pattern = "/" + path
+		}
+	}
+	if !strings.HasPrefix(rule.TargetPath, "//") && !strings.Contains(rule.TargetPath, "*") && rule.Kind != "regex" {
+		if path, err := canonical.Path(rule.TargetPath); err == nil {
+			rule.TargetPath = "/" + path
+		}
+	}
+	return rule
 }
 
 func (h Handler) saveNavigation(w http.ResponseWriter, r *http.Request) {

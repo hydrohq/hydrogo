@@ -21,12 +21,24 @@ type compiledRedirect struct {
 // counters. Replacing a tenant snapshot makes content and rule edits visible
 // without database access on the public request path.
 type RedirectRegistry struct {
+	updateMu           sync.Mutex
 	mu                 sync.RWMutex
 	byTenant           map[string][]*compiledRedirect
 	RequireTenantScope bool
 }
 
 func (r *RedirectRegistry) Replace(tenantID string, rules []RedirectRule) error {
+	r.updateMu.Lock()
+	defer r.updateMu.Unlock()
+	compiled, err := compileRedirects(tenantID, rules)
+	if err != nil {
+		return err
+	}
+	r.publish(tenantID, compiled)
+	return nil
+}
+
+func compileRedirects(tenantID string, rules []RedirectRule) ([]*compiledRedirect, error) {
 	scopedRules := make([]RedirectRule, 0, len(rules))
 	for _, rule := range rules {
 		if rule.TenantID == "" || rule.TenantID == tenantID {
@@ -34,12 +46,12 @@ func (r *RedirectRegistry) Replace(tenantID string, rules []RedirectRule) error 
 		}
 	}
 	if redirectRulesCycle(scopedRules) {
-		return ErrInvalidRedirect
+		return nil, ErrInvalidRedirect
 	}
 	compiled := make([]*compiledRedirect, 0, len(scopedRules))
 	for _, rule := range scopedRules {
 		if err := ValidateRedirectRule(rule); err != nil {
-			return err
+			return nil, err
 		}
 		entry := &compiledRedirect{rule: rule}
 		switch rule.Kind {
@@ -60,13 +72,16 @@ func (r *RedirectRegistry) Replace(tenantID string, rules []RedirectRule) error 
 		}
 		return len(compiled[i].rule.Pattern) > len(compiled[j].rule.Pattern)
 	})
+	return compiled, nil
+}
+
+func (r *RedirectRegistry) publish(tenantID string, compiled []*compiledRedirect) {
 	r.mu.Lock()
 	if r.byTenant == nil {
 		r.byTenant = make(map[string][]*compiledRedirect)
 	}
 	r.byTenant[tenantID] = compiled
 	r.mu.Unlock()
-	return nil
 }
 
 func redirectRulesCycle(rules []RedirectRule) bool {
@@ -119,34 +134,80 @@ func redirectTarget(rules []RedirectRule, path string) (string, bool) {
 }
 
 func (r *RedirectRegistry) Upsert(rule RedirectRule) error {
-	if err := ValidateRedirectRule(rule); err != nil {
-		return err
+	return r.UpsertWith(rule, nil)
+}
+
+// UpsertWith validates and serializes the next tenant snapshot, applies the
+// durable write, then publishes the already-validated snapshot to readers.
+func (r *RedirectRegistry) UpsertWith(rule RedirectRule, persist func() error) error {
+	return r.UpsertManyWith([]RedirectRule{rule}, persist)
+}
+
+// UpsertManyWith applies a batch as one validated registry snapshot and only
+// publishes it after persist succeeds. Concurrent writers cannot validate
+// against stale registry state and then overwrite each other.
+func (r *RedirectRegistry) UpsertManyWith(upserts []RedirectRule, persist func() error) error {
+	if r == nil || len(upserts) == 0 || len(upserts) > 1000 {
+		return ErrInvalidRedirect
 	}
-	tenantID := rule.TenantID
+	tenantID := upserts[0].TenantID
+	for _, rule := range upserts {
+		if rule.TenantID != tenantID {
+			return ErrInvalidRedirect
+		}
+	}
+	r.updateMu.Lock()
+	defer r.updateMu.Unlock()
 	r.mu.RLock()
 	current := append([]*compiledRedirect(nil), r.byTenant[tenantID]...)
 	r.mu.RUnlock()
-	rules := make([]RedirectRule, 0, len(current)+1)
-	replaced := false
+	rules := make([]RedirectRule, 0, len(current)+len(upserts))
 	for _, existing := range current {
-		if existing.rule.ID == rule.ID || (existing.rule.Pattern == rule.Pattern && existing.rule.Kind == rule.Kind) {
-			if !replaced {
-				rules = append(rules, rule)
-				replaced = true
-			}
-			continue
-		}
 		ruleCopy := existing.rule
 		ruleCopy.Hits = existing.hits.Load()
 		rules = append(rules, ruleCopy)
 	}
-	if !replaced {
-		rules = append(rules, rule)
+	for _, rule := range upserts {
+		next := make([]RedirectRule, 0, len(rules)+1)
+		replaced := false
+		for _, existing := range rules {
+			if existing.ID == rule.ID || (existing.Pattern == rule.Pattern && existing.Kind == rule.Kind) {
+				if !replaced {
+					next = append(next, rule)
+					replaced = true
+				}
+				continue
+			}
+			next = append(next, existing)
+		}
+		if !replaced {
+			next = append(next, rule)
+		}
+		rules = next
 	}
-	return r.Replace(tenantID, rules)
+	compiled, err := compileRedirects(tenantID, rules)
+	if err != nil {
+		return err
+	}
+	if persist != nil {
+		if err := persist(); err != nil {
+			return err
+		}
+	}
+	r.publish(tenantID, compiled)
+	return nil
 }
 
 func (r *RedirectRegistry) Remove(tenantID, id string) {
+	_ = r.RemoveWith(tenantID, id, nil)
+}
+
+func (r *RedirectRegistry) RemoveWith(tenantID, id string, persist func() error) error {
+	if r == nil {
+		return ErrInvalidRedirect
+	}
+	r.updateMu.Lock()
+	defer r.updateMu.Unlock()
 	r.mu.RLock()
 	current := append([]*compiledRedirect(nil), r.byTenant[tenantID]...)
 	r.mu.RUnlock()
@@ -158,7 +219,17 @@ func (r *RedirectRegistry) Remove(tenantID, id string) {
 			rules = append(rules, copy)
 		}
 	}
-	_ = r.Replace(tenantID, rules)
+	compiled, err := compileRedirects(tenantID, rules)
+	if err != nil {
+		return err
+	}
+	if persist != nil {
+		if err := persist(); err != nil {
+			return err
+		}
+	}
+	r.publish(tenantID, compiled)
+	return nil
 }
 
 func (r *RedirectRegistry) Match(scope tenant.Scope, requestPath string) (RedirectRule, bool) {

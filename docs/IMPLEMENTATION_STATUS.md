@@ -358,6 +358,14 @@ was independently rechecked: all its tests, `go vet ./...`, and its Edition
 importguard passed. This is SQLite/in-process composition evidence only; its
 live browser journeys and PostgreSQL adapter remain open.
 
+Site redirect runtime/persistence consistency: redirect cycles are validated
+before saving, then the durable write and in-memory snapshot publication are
+serialized. Legacy saves, redirect-rule CRUD/import and 404 conversion share
+this path; route tests prove rejected cycles and failed writes do not leave a
+persisted/runtime mismatch. Root/Site tests, vet and focused race tests passed.
+Multi-instance invalidation (ADR-0268), PostgreSQL and browser gates remain
+open; see `docs/validation/site-redirect-runtime-consistency-2026-10-09.md`.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
