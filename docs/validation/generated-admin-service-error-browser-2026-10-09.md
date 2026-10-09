@@ -35,8 +35,27 @@ Both browser runs used disposable local databases and a fixture-provided
 identity/policy boundary. They do not certify production sessions, customer
 Edition authorization callbacks, deployment, or Core Media storage.
 
+## Delete failure and retry — 2026-10-09
+
+The browser journey now injects a 503 only for generated API mutations, leaving
+GET available for the Admin to reload the record after a failed delete. Chromium
+verifies the localized delete error is visible and accessible, the delete form
+is restored, and the record remains persisted. After removing the injected
+fault, retry deletes the record and the API returns 404. The updated complete
+file passed 2/2 on SQLite and 2/2 on PostgreSQL 18. The external Edition Go
+module tests and vet passed.
+
+```sh
+# With tests/external-edition/cmd/testserver running on the matching disposable DB:
+HYDRO_E2E_EXTERNAL_EDITION=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:<port> \
+  HYDRO_E2E_DATABASE_DSN='<matching-sqlite-or-postgres-dsn>' \
+  npx playwright test custom/external-edition-editor.spec.ts \
+  --project=chromium --workers=1 --reporter=line --trace=off
+```
+
 ## Limits
 
-The injected outage covers generated create and edit only. It does not simulate
-every API status, database outage/recovery, or failure while deleting, loading
-relation options, or serving editorial workflows.
+The test-server fault injector is test-only and now applies only to writes.
+This is a fixture-provided identity/policy and disposable database journey; it
+does not simulate every API status, database outage/recovery, relation-option
+loading failure, production runtime outage, or production Edition callbacks.
